@@ -7,7 +7,8 @@
 
 import { ask } from "../../dialog";
 import { button, h, ui } from "../../dom";
-import { generateSpark, getSparkWords, resetSparkWords, saveSparkWords, type SparkWordLists } from "../../oracle/engine";
+import { generateSpark, getSparkWords, readSparkWords, resetSparkWords, saveSparkWords, type SparkWordLists } from "../../oracle/engine";
+import { os } from "../../oracle/strings";
 import { LOCALE, t } from "../../strings";
 import { feedbackLine } from "./feedback";
 import { ss } from "./strings";
@@ -18,6 +19,7 @@ export function sparksControl(): HTMLElement {
   const wrap = h("div", "oracle-settings-section");
   let activeLang: "pt" | "en" = LOCALE === "pt-BR" ? "pt" : "en";
   const feedback = feedbackLine();
+  if (readSparkWords(activeLang).invalid) feedback.say(os.brokenSparks, true);
 
   const langBar = h("div", "oracle-lang-bar");
   const ptBtn = button("ghost", ss.langPt);

@@ -9,7 +9,8 @@
 
 import { ask, promptText, tell } from "../../dialog";
 import { button, h, ui } from "../../dom";
-import { BUILTIN_ORACLE_TABLES, deleteCustomOracleTable, getAllOracleTables, type OracleTable, saveCustomOracleTable } from "../../oracle/tables";
+import { os } from "../../oracle/strings";
+import { BUILTIN_ORACLE_TABLES, deleteCustomOracleTable, getAllOracleTables, type OracleTable, readCustomTables, saveCustomOracleTable } from "../../oracle/tables";
 import { t } from "../../strings";
 import { copyWithAnswer, feedbackLine } from "./feedback";
 import { ss } from "./strings";
@@ -31,6 +32,8 @@ export function tablesControl(ctx: ItemCtx): HTMLElement {
   const taken = new Set(all.map((x) => x.id));
   const mine = all.filter((x) => !BUILTIN_ORACLE_TABLES.includes(x));
   const feedback = feedbackLine();
+  const skipped = readCustomTables().skipped;
+  if (skipped > 0) feedback.say(os.brokenTables(skipped), true);
 
   const topBar = h("div", "oracle-actions");
   const newBtn = button("save", ss.newTable);
@@ -53,7 +56,7 @@ export function tablesControl(ctx: ItemCtx): HTMLElement {
       const empty = entriesRaw.trim() === "";
       return feedback.say(empty ? ss.tableNeedsEntry : ss.tableTooLong(TABLE_LIMITS.name, TABLE_LIMITS.entries, TABLE_LIMITS.entry), true);
     }
-    saveCustomOracleTable({ id: existing?.id ?? freshId(taken), name: read.name, desc: read.desc, icon: existing?.icon ?? "dice", entries: read.entries });
+    if (!saveCustomOracleTable({ id: existing?.id ?? freshId(taken), name: read.name, desc: read.desc, icon: existing?.icon ?? "dice", entries: read.entries })) return feedback.say(ss.tableSaveFailed, true);
     ui.status.textContent = ss.tableSaved(read.name);
     ctx.paint();
   };
@@ -80,8 +83,7 @@ export function tablesControl(ctx: ItemCtx): HTMLElement {
         // overwrite one the person already has.
         const id = freshId(taken);
         taken.add(id);
-        saveCustomOracleTable({ id, name: read.name, desc: read.desc, icon: "dice", entries: read.entries });
-        imported++;
+        if (saveCustomOracleTable({ id, name: read.name, desc: read.desc, icon: "dice", entries: read.entries })) imported++;
       }
       if (imported === 0) return void (await tell(ss.importTablesNone, ss.ok));
       ui.status.textContent = ss.importTablesOk(imported, list.length - imported);
