@@ -14,15 +14,15 @@ import { pictureAddress } from "../images";
 import { pictureNode } from "../infobox";
 import { readNotation } from "../dice/notation";
 import { typedText } from "../strings";
-import type { WriteOutcome } from "./edit";
+import type { Value, ValuePath, WriteOutcome } from "./edit";
 import { h } from "./h";
 import { inline, type DieMaker } from "./inline";
-import type { Block, DiceRule, Layout, Predicate, PropertyBlock, TableBlock } from "./model";
+import type { Block, DiceRule, Layout, Predicate, PropertyBlock, TableBlock, TraitsBlock } from "./model";
 import { modifierOf, signed } from "./modifier";
 import { rollNode } from "./rollBlock";
 import { present, numberOf, textOf, valueOf, type Sheet } from "./sheet";
 import { S, word } from "./strings";
-import { trackerNode } from "./tracker";
+import { trackerLabel, trackerNode } from "./tracker";
 
 /** What a card is drawn with, beyond the YAML. */
 export interface CardOptions {
@@ -44,7 +44,7 @@ export interface CardOptions {
   rollWith?: { deterministic?: number[] };
   /** Writes a tracker's value into the note; none, and trackers are
    *  read-only (a board's card, a reader). */
-  write?: (key: string, value: number) => WriteOutcome;
+  write?: (at: ValuePath, value: Value) => WriteOutcome;
   /** Opens the layouts (the layout's badge); none, and the window's event. */
   onLayout?: () => void;
   /** Opens the editor on the card's layout ("Edit this layout"); none, and
@@ -221,13 +221,57 @@ function saves(ctx: Ctx, block: Block): HTMLElement | null {
 /** A trait list: `{name, desc}` items (nested `traits` indented), one-key
  *  maps, strings — a string ending in ":" a line of its own (a spell
  *  list's "At will:"). */
-function traits(ctx: Ctx, block: Block): HTMLElement | null {
-  const items: unknown[] = [];
+/** Whether an item's mark reads as on: true, 1, "true", "yes", "sim". */
+const on = (v: unknown): boolean => v === true || v === 1 || (typeof v === "string" && /^(true|yes|sim|1)$/i.test(v.trim()));
+
+/** An item's mark (the block's `flag`): a toggle that writes the item's
+ *  key back into the YAML, as a tracker does, the item struck through
+ *  when it is on. Read-only cards show the mark, not a button. */
+function flagToggle(ctx: Ctx, block: TraitsBlock, row: HTMLElement, item: Record<string, unknown>, at: [string, number], name: string): void {
+  const flag = block.flag!;
+  const label = word(flag.label, flag.key);
+  let state = on(item[flag.key]);
+  row.classList.toggle("statblock-trait-flagged", state);
+  const write = ctx.opts.write;
+  if (!write) {
+    if (state) row.append(" ", h("span", "statblock-flag-mark", label));
+    return;
+  }
+  const btn = h("button", "statblock-flag", label);
+  btn.type = "button";
+  btn.setAttribute("aria-pressed", String(state));
+  btn.setAttribute("aria-label", S.flagAria(label, name || String(at[1] + 1)));
+  const note = h("span", "statblock-tracker-note");
+  note.setAttribute("role", "status");
+  btn.addEventListener("click", () => {
+    const done = write([at[0], at[1], flag.key], !state);
+    if (done.ok) {
+      state = !state;
+      btn.setAttribute("aria-pressed", String(state));
+      row.classList.toggle("statblock-trait-flagged", state);
+      note.textContent = "";
+      ctx.say(S.saved(S.flagAria(label, name), state ? "✓" : "—"));
+    } else {
+      note.textContent = S.refusal[done.why];
+      ctx.say(S.refusal[done.why]);
+    }
+  });
+  row.prepend(btn, " ");
+  row.append(note);
+}
+
+/** A trait list: `{name, desc}` items (nested `traits` indented), one-key
+ *  maps, strings — a string ending in ":" a line of its own (a spell
+ *  list's "At will:"). */
+function traits(ctx: Ctx, block: TraitsBlock): HTMLElement | null {
+  // Each item with where it is in the YAML, when it is a list's item: what
+  // a mark writes back to.
+  const items: { item: unknown; at?: [string, number] }[] = [];
   for (const k of block.properties) {
     const v = valueOf(ctx.sheet, k);
-    if (Array.isArray(v)) items.push(...v);
-    else if (typeof v === "object" && v !== null) items.push(...Object.entries(v).map(([n, d]) => ({ name: n, desc: d })));
-    else if (present(v)) items.push(v);
+    if (Array.isArray(v)) v.forEach((item, i) => items.push({ item, at: [k, i] }));
+    else if (typeof v === "object" && v !== null) items.push(...Object.entries(v).map(([n, d]) => ({ item: { name: n, desc: d } })));
+    else if (present(v)) items.push({ item: v });
   }
   if (items.length === 0) return empty(block, (t) => {
     const el = holder(block);
@@ -237,9 +281,9 @@ function traits(ctx: Ctx, block: Block): HTMLElement | null {
   const el = holder(block);
   const title = word(block.label);
   if (title) el.append(h("h4", "statblock-section", title));
-  const list = (from: unknown[], depth: number): HTMLElement => {
+  const list = (from: { item: unknown; at?: [string, number] }[], depth: number): HTMLElement => {
     const box = h("div", depth > 0 ? "statblock-traits statblock-traits-nested" : "statblock-traits");
-    for (const item of from.slice(0, MAX_ITEMS)) {
+    for (const { item, at } of from.slice(0, MAX_ITEMS)) {
       const row = h("div", "statblock-trait");
       if (typeof item === "object" && item !== null && !Array.isArray(item)) {
         const o = item as Record<string, unknown>;
@@ -255,9 +299,11 @@ function traits(ctx: Ctx, block: Block): HTMLElement | null {
           name = k;
           desc = o[k];
         }
-        if (name) row.append(h("strong", "statblock-trait-name", `${name}. `));
-        row.append(...rich(ctx, block, textOf(desc)));
-        if (Array.isArray(nested) && depth < 3) row.append(list(nested, depth + 1));
+        const said = textOf(desc);
+        if (name) row.append(h("strong", "statblock-trait-name", said ? `${name}. ` : name));
+        row.append(...rich(ctx, block, said));
+        if (Array.isArray(nested) && depth < 3) row.append(list(nested.map((x) => ({ item: x })), depth + 1));
+        if (block.flag && at && depth === 0) flagToggle(ctx, block, row, o, at, name);
       } else if (Array.isArray(item)) {
         // The plugin's `[name, ...desc]` pair.
         const [name, ...rest] = item;
@@ -398,6 +444,8 @@ export function draw(ctx: Ctx, block: Block, depth = 0): HTMLElement | null {
     }
     case "tracker": {
       if (block.hideWhenEmpty && !anyPresent(ctx, block.properties.length > 0 ? block.properties : [block.current])) return null;
+      // A label made from the sheet (`{reserva_1_nome}`) that comes out empty.
+      if (block.hideWhenEmpty && trackerLabel(block, ctx.sheet) === "") return null;
       const el = holder(block);
       el.append(trackerNode(block, ctx));
       return el;

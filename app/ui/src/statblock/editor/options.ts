@@ -12,7 +12,7 @@
 
 import { listProfiles, profileInputs } from "../../dice/profiles";
 import { h } from "../h";
-import type { Block, Label, Modifier, Predicate, RollInput } from "../model";
+import type { Block, Label, Modifier, ModifierBand, Predicate, RollInput } from "../model";
 import { checkExpression } from "../modifier";
 import { statblockLang } from "../strings";
 import { check, field, keyList, labelPair, numberInput, select, text, verdict } from "./controls";
@@ -48,6 +48,7 @@ export function optionsForm(host: FormHost, rowId: string): HTMLElement {
     form.append(keyList(block.properties, `${block.id}.properties`, host.keysListId, (v) => set({ properties: v }, "properties", true)));
   }
   form.append(labelPair(block.label, `${block.id}.label`, [e.labelPt, e.labelEn], (v) => set({ label: v }, "label")));
+  if (block.type === "tracker") form.append(h("p", "sbe-hint", e.trackerLabelHint));
   form.append(...typeFields(host, block, set));
 
   const common = h("div", "sbe-common");
@@ -89,6 +90,22 @@ function typeFields(host: FormHost, block: Block, set: Set): HTMLElement[] {
       ];
     case "table":
       return [headersField(block.id, block.headers, () => (fresh(host, block) as typeof block).headers, set), modifierField(block.id, block.modifier, set)];
+    case "traits": {
+      // A mark each item may carry, toggled on the card and written back.
+      const flag = block.flag;
+      const out: HTMLElement[] = [check(flag !== undefined, `${block.id}.flag`, e.flag, (v) => set({ flag: v ? { key: "quebrado" } : undefined }, "flag", true))];
+      if (flag) {
+        out.push(field(e.flagKey, text(flag.key, `${block.id}.flag.key`, (v) => {
+          const now = (fresh(host, block) as typeof block).flag;
+          if (v.trim()) set({ flag: { ...now, key: v.trim() } }, "flag.key");
+        }), e.flagHint));
+        out.push(labelPair(flag.label, `${block.id}.flag.label`, [e.labelPt, e.labelEn], (v) => {
+          const now = (fresh(host, block) as typeof block).flag ?? flag;
+          set({ flag: { key: now.key, ...(v ? { label: v } : {}) } }, "flag.label");
+        }));
+      }
+      return out;
+    }
     case "text":
       return [labelPair(block.text, `${block.id}.text`, [e.textPt, e.textEn], (v) => set({ text: v }, "text"), true)];
     case "collapse":
@@ -153,17 +170,62 @@ function headersField(id: string, headers: Label[], now: () => Label[], set: Set
   return box;
 }
 
+/** A printed modifier table's rows: from, to, the modifier; a row whose
+ *  "from" is past its "to" is said, and the validator leaves it out. */
+function bandsField(id: string, bands: ModifierBand[], set: Set): HTMLElement {
+  const e = E();
+  const box = h("fieldset", "sbe-set sbe-bands");
+  box.append(h("legend", "", e.bands), h("p", "sbe-hint", e.bandsHint));
+  // The rows as typed, kept between keystrokes of this form.
+  const rows = bands.map((b) => ({ ...b }));
+  const emit = (key: string, reform = false) => set({ modifier: { kind: "bands", bands: rows.map((r) => ({ ...r })) } }, key, reform);
+  rows.forEach((row, i) => {
+    const line = h("div", "sbe-band");
+    const said = h("div", "sbe-verdict-box");
+    const judge = () => said.replaceChildren(...(row.min > row.max ? [verdict(false, e.bandBad)] : []));
+    const num = (k: "min" | "max" | "value", label: string) =>
+      field(label, numberInput(row[k], `${id}.band${i}.${k}`, -100000, 100000, (v) => {
+        row[k] = Math.round(v ?? 0);
+        judge();
+        emit(`band${i}.${k}`);
+      }));
+    const x = h("button", "sbe-small", e.remove);
+    x.type = "button";
+    x.setAttribute("aria-label", `${e.remove}: ${e.bandRow(i + 1)}`);
+    x.dataset["field"] = `${id}.band${i}.x`;
+    x.addEventListener("click", () => {
+      rows.splice(i, 1);
+      emit("bands", true);
+    });
+    line.append(num("min", e.bandMin), num("max", e.bandMax), num("value", e.bandValue), x, said);
+    judge();
+    box.append(line);
+  });
+  const add = h("button", "sbe-small", e.addBand);
+  add.type = "button";
+  add.dataset["field"] = `${id}.addBand`;
+  add.addEventListener("click", () => {
+    const last = rows[rows.length - 1];
+    const from = last ? last.max + 1 : 1;
+    rows.push({ min: from, max: from, value: last ? last.value + 1 : 0 });
+    emit("bands", true);
+  });
+  box.append(add);
+  return box;
+}
+
 function modifierField(id: string, modifier: Modifier, set: Set): HTMLElement {
   const e = E();
   const box = h("div", "sbe-modifier");
   box.append(
     field(
       e.modifier,
-      select(modifier.kind, `${id}.mod`, [["none", e.modNone], ["d20", e.modD20], ["expression", e.modExpr]], (v) =>
-        set({ modifier: v === "expression" ? { kind: v, expression: "(score - 10) / 2" } : { kind: v } }, "modifier", true),
+      select(modifier.kind, `${id}.mod`, [["none", e.modNone], ["d20", e.modD20], ["expression", e.modExpr], ["bands", e.modBands]], (v) =>
+        set({ modifier: v === "expression" ? { kind: v, expression: "(score - 10) / 2" } : v === "bands" ? { kind: v, bands: [{ min: 1, max: 10, value: 0 }] } : { kind: v } }, "modifier", true),
       ),
     ),
   );
+  if (modifier.kind === "bands") box.append(bandsField(id, modifier.bands, set));
   if (modifier.kind === "expression") {
     const said = h("div", "sbe-verdict-box");
     const show = (expr: string) => {

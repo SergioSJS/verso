@@ -78,7 +78,16 @@ export interface PropertyBlock extends BlockBase {
 
 /** How a table's modifier is worked out from a score — a closed list, or
  *  an expression of Rolai's restricted evaluator (no `eval`), floored. */
-export type Modifier = { kind: "none" } | { kind: "d20" } | { kind: "expression"; expression: string };
+export type Modifier = { kind: "none" } | { kind: "d20" } | { kind: "expression"; expression: string } | { kind: "bands"; bands: ModifierBand[] };
+
+/** A row of a printed modifier table: a score from `min` to `max` (whole
+ *  numbers, both included) gives `value` — Dungeon World's 1–3 → −3,
+ *  4–5 → −2… A score in no row has no modifier. */
+export interface ModifierBand {
+  min: number;
+  max: number;
+  value: number;
+}
 
 export interface TableBlock extends BlockBase {
   type: "table";
@@ -92,6 +101,10 @@ export interface SavesBlock extends BlockBase {
 
 export interface TraitsBlock extends BlockBase {
   type: "traits";
+  /** A mark each item of the list may carry (a Fractal Fato "quebrado"):
+   *  the item's key holding true or false, drawn as a toggle — the item
+   *  struck through when on — that writes back like a tracker. */
+  flag?: { key: string; label?: Label };
 }
 
 export interface TextBlock extends BlockBase {
@@ -128,6 +141,9 @@ export interface ConditionalBlock extends BlockBase {
   branches: { when?: Predicate; not?: boolean; nested: Block[] }[];
 }
 
+/** A tracker's `label` may hold `{key}` placeholders, each the sheet's
+ *  value of that key (`{reserva_1_nome}` reads "Vida"); a label that comes
+ *  out empty hides the tracker when it hides when empty. */
 export interface TrackerBlock extends BlockBase {
   type: "tracker";
   /** The key holding the current value — the one a click writes. */
@@ -232,8 +248,10 @@ export const LIMITS = {
   template: 60,
   /** A modifier expression's length. */
   expression: 200,
-  /** Headers of a table, branches of a conditional, inputs of a roll. */
+  /** Headers of a table, branches of a conditional, inputs of a roll,
+   *  rows of a modifier table. */
   headers: 30,
+  bands: 40,
   branches: 10,
   inputs: 20,
   /** Sources of a layout, and a source's address length. */

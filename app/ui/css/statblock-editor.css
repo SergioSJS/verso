@@ -158,6 +158,8 @@ textarea.sbe-input { resize: vertical; }
 .sbe-verdict.bad { color: var(--seal); }
 .sbe-rule { display: grid; grid-template-columns: 2fr 1fr auto; gap: .4rem; align-items: end; }
 .sbe-rule .sbe-verdict-box { grid-column: 1 / -1; }
+.sbe-band { display: grid; grid-template-columns: repeat(3, minmax(4rem, 1fr)) auto; gap: .4rem; align-items: end; }
+.sbe-band .sbe-verdict-box { grid-column: 1 / -1; }
 .sbe-colors { display: flex; flex-direction: column; gap: .3rem; }
 .sbe-color-row { display: grid; grid-template-columns: 1fr auto auto; gap: .3rem; align-items: end; }
 .sbe-color { width: 2.2rem; height: 2rem; padding: 0; border: 1px solid var(--hair); border-radius: 5px; background: transparent; }
