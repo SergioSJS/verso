@@ -95,6 +95,11 @@ core.invoke = (cmd: string, args: unknown): unknown => {
     core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
     return notifications.handle(cmd, (args ?? {}) as Record<string, unknown>);
   }
+  // The webview's zoom (ADR 0072): the host sets it; here the call is kept.
+  if (cmd === "plugin:webview|set_webview_zoom") {
+    core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
+    return null;
+  }
   if (serverDown === null || !TO_A_SERVER.has(cmd)) return answer(cmd, args);
   core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
   throw { kind: "unreachable", message: serverDown };

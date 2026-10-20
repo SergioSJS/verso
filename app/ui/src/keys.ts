@@ -47,6 +47,7 @@ import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts
 import { previewUnderCursor } from "./preview/install";
 import { pv } from "./preview/strings";
 import { collapseAll } from "./tree/tree";
+import { hasHostZoom, zoomIn, zoomLabels, zoomOut, zoomReset } from "./zoom";
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
 export type Command = {
@@ -74,6 +75,11 @@ export const DEFAULT_KEYS: Record<string, string> = {
   "block-duplicate": "Mod-d",
   "block-turn-into": "Mod-/",
   "reload-window": "Mod-r",
+  // The window's zoom (ADR 0072, revised 2026-10-20); ⌘⇧= and the numpad's
+  // + are the same key as ⌘= (`runHotkey`).
+  "zoom-in": "Mod-=",
+  "zoom-out": "Mod--",
+  "zoom-reset": "Mod-0",
 };
 export function keyOf(id: string): string {
   return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
@@ -116,7 +122,7 @@ export function comboOf(e: KeyboardEvent): string {
 /** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
 export function prettyKeys(combo: string): string {
   if (!combo) return "";
-  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
+  return combo.split(/-(?=.)/).map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
 }
 /** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
 export function withKeys(label: string, combo: string): string {
@@ -192,7 +198,9 @@ export function runHotkey(e: KeyboardEvent): boolean {
     showSpace(sp);
     return true;
   }
-  const cmd = allCommands().find((c) => keyOf(c.id) === combo);
+  const all = allCommands();
+  // ⌘+ is ⌘⇧= on most keyboards: the same key as ⌘=.
+  const cmd = all.find((c) => keyOf(c.id) === combo) ?? (combo === "Mod-Shift-=" ? all.find((c) => keyOf(c.id) === "Mod-=") : undefined);
   if (!cmd) return false;
   if (cmd.editorOnly) {
     const leaf = layout().activeLeaf;
@@ -264,6 +272,9 @@ export function allCommands(all = false): Command[] {
     // The notification centre (ADR 0084 item 5).
     { id: "notifications", label: notifyStrings().command, run: () => openCentre() },
     { id: "reload-window", label: t.reloadWindow, run: () => void reloadWindow().then((ok) => ok || (ui.status.textContent = t.reloadNotDone)) },
+    { id: "zoom-in", label: zoomLabels.in, run: () => zoomIn() },
+    { id: "zoom-out", label: zoomLabels.out, run: () => zoomOut() },
+    { id: "zoom-reset", label: zoomLabels.reset, run: () => zoomReset() },
     { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
     { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
@@ -319,6 +330,7 @@ function possible(id: string): boolean {
   if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
   if (id === "new-window" || id === "new-window-here") return can("windows");
   if (id === "open-console") return can("devtools");
+  if (id === "zoom-in" || id === "zoom-out" || id === "zoom-reset") return hasHostZoom();
   if (id === "check-updates") return can("updates");
   return true;
 }
