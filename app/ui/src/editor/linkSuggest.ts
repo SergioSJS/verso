@@ -23,7 +23,7 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, Facet, Prec, StateEffect, StateField, type Text, type TransactionSpec } from "@codemirror/state";
 import { EditorView, keymap, showTooltip, type Tooltip } from "@codemirror/view";
 import { frontmatterClose } from "../frontmatter";
-import { fold, type Hit, type LinkNames, linkWritten, wordy } from "./linkNames";
+import { fold, type Hit, type LinkNames, linkWritten, type PartialRule, wordy } from "./linkNames";
 import { ls } from "./suggestStrings";
 
 /** What the editor brings: the setting, the folder's names, the note
@@ -36,6 +36,8 @@ export type Deps = {
   path: () => string;
   /** The text a link to the note takes (`linkText`). */
   target: (path: string) => string;
+  /** The person's letters before the list and capital rule; the defaults when absent. */
+  partialRule?: () => PartialRule;
   /** Said politely to a screen reader. */
   say: (message: string) => void;
 };
@@ -236,7 +238,7 @@ function suggest(tr: import("@codemirror/state").Transaction, value: Value, dism
     }
     return build({ hits: [{ ...hit, from }], sel: 0, list: false, key, to, table, touch }, deps);
   }
-  const parts = names.partial(before, next, deps.path());
+  const parts = names.partial(before, next, deps.path(), deps.partialRule?.());
   const first = parts[0];
   if (!first || mentionBefore(before, first.start)) return null;
   // Escape dismissed the list for the word being typed.
