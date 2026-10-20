@@ -87,7 +87,7 @@ Cada caixa do estresse e do relógio é um botão: clicar marca até ela, clicar
 
 - Os layouts **embutidos** vêm com o Verso e não mudam. **Duplicar para a pasta** cria uma cópia em `.verso/layouts/` — um arquivo da pasta, que sincroniza: quem abre a pasta vê a ficha igual.
 - **Copiar JSON** leva o layout para onde você quiser; **Importar JSON** traz um layout do Verso ou do Fantasy Statblocks. Do plugin, o que era código (JavaScript: `callback`, `javascript`, botões de ação, testes de `ifelse`, os `parser` de dados) fica de fora — nada de um layout roda como código — e o Verso lista o que deixou de fora.
-- O editor de layouts está sendo refeito (a árvore de blocos ao lado da ficha). Até lá, exporte o JSON, edite e importe de volta.
+- **Editar** (ou o botão de lápis no canto de uma ficha, *Editar este layout*) abre o editor: a árvore de blocos à esquerda e a ficha à direita, desenhada a cada mudança com uma ficha desta nota ou com uma amostra. Clique num bloco e as opções dele abrem logo abaixo: as chaves que lê, o rótulo em português e em inglês, quando se esconde. **Adicionar bloco** lista cada tipo com uma linha do que ele faz. Mova arrastando pela alça ou com Alt+setas (Alt+→ põe dentro do grupo acima, Alt+← tira); ⌘Z desfaz. Editar um embutido cria antes uma cópia na pasta, e o editor avisa. Se outra pessoa mudou o layout enquanto você editava, nada é gravado por cima: você escolhe carregar a versão dela ou salvar a sua como cópia.
 
 ### Dicas
 

@@ -79,7 +79,7 @@ function sayAloud(text: string): void {
   setTimeout(() => (r.textContent = text), 30);
 }
 
-function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts: CardOptions, stale: boolean): HTMLElement {
+function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts: CardOptions, stale: boolean, sourceText: string): HTMLElement {
   const named = layoutNamed(sheet);
   let layout: Layout;
   let known = true;
@@ -116,6 +116,18 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
     else window.dispatchEvent(new CustomEvent("verso:open-statblock-settings"));
   });
   tools.append(badge);
+  // "Edit this layout": the editor, its card drawn from this block.
+  const edit = h("button", "statblock-edit-layout");
+  edit.type = "button";
+  edit.title = S.page.editLayout;
+  edit.setAttribute("aria-label", `${S.page.editLayout}: ${layoutName}`);
+  edit.append(icon("edit"));
+  edit.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (opts.onEditLayout) opts.onEditLayout(layout.id, sourceText);
+    else window.dispatchEvent(new CustomEvent("verso:edit-statblock-layout", { detail: { id: layout.id, text: sourceText, name: textOf(valueOf(sheet, "name")) } }));
+  });
+  if (!opts.layout) tools.append(edit);
   if (onToggleSource) {
     const toggle = h("button", "statblock-toggle-btn");
     toggle.type = "button";
@@ -160,11 +172,11 @@ export function renderStatblock(text: string, onToggleSource?: () => void, opts:
     if (!read.ok) {
       if (read.why === "tooBig") return errorCard(S.tooBig(STATBLOCK_MAX_CHARS / 1024), text.slice(0, 4000));
       const kept = opts.key !== undefined ? lastGood.get(opts.key) : undefined;
-      if (kept) return buildCard(kept, onToggleSource, opts, true);
+      if (kept) return buildCard(kept, onToggleSource, opts, true, text);
       return errorCard(read.why === "notMap" ? S.notMap : S.invalid, text);
     }
     remember(opts.key, read.sheet);
-    return buildCard(read.sheet, onToggleSource, opts, false);
+    return buildCard(read.sheet, onToggleSource, opts, false, text);
   } catch {
     return errorCard(S.failed, text.slice(0, STATBLOCK_MAX_CHARS));
   }

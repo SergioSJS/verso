@@ -47,6 +47,9 @@ export interface CardOptions {
   write?: (key: string, value: number) => WriteOutcome;
   /** Opens the layouts (the layout's badge); none, and the window's event. */
   onLayout?: () => void;
+  /** Opens the editor on the card's layout ("Edit this layout"); none, and
+   *  the window's event `verso:edit-statblock-layout`. */
+  onEditLayout?: (layoutId: string, text: string) => void;
 }
 
 /** What a block is drawn with. */

@@ -23,6 +23,7 @@ import { searchNotes } from "./search";
 import { page, pushWalkRules } from "./settings";
 import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
+import { attachFolderLayouts } from "./statblock/folderWire";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
@@ -35,6 +36,9 @@ export async function joinAsPopout(): Promise<void> {
   page?.classList.remove("empty");
   ui.search.disabled = false;
   await loadFolderLayer();
+  // A popped-out window shows no folder ("verso:folder-shown"): its cards'
+  // layouts are read here.
+  void attachFolderLayouts();
   loadBookmarks();
   await loadFocuses();
   await listAll();
