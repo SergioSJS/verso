@@ -19,6 +19,7 @@ const SHOTS = process.platform !== "darwin";
 const shot = (info, file) => join(info.project.outputDir, "statblock-shots", info.project.name, file);
 
 const BLOOD_HAWK = `name: Blood Hawk
+image: "[[porto-cinzento.svg]]"
 size: Small
 type: beast
 alignment: unaligned
@@ -317,6 +318,20 @@ for (const id of ["blood-hawk", "audit-3-columns"]) {
       }
     });
   }
+}
+
+// A roll block's result line, and the badges, inside the card.
+for (const size of [WIDTHS[0], WIDTHS[1]]) {
+  test(`a roll block's result at ${size.name} width stays inside its card`, async ({ app, page }) => {
+    await setup(app, page, size, "dark");
+    for (const id of ["dnd5e-monster", "fractal-yara", "blades-scoundrel"]) {
+      const card = await openCase(app, page, CASES.find((x) => x.id === id));
+      const go = card.locator(".statblock-roll-go");
+      await go.click();
+      await expect(card.locator(".statblock-roll-out")).not.toBeEmpty();
+      expect(await card.evaluate(auditCard), id).toEqual([]);
+    }
+  });
 }
 
 /** Each ability cell's box, rounded: a cell that moves after a roll. */
