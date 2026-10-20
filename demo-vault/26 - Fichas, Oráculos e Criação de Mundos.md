@@ -15,382 +15,85 @@ O Verso inclui ferramentas visuais para mestres de RPG, jogadores solo e constru
 
 ---
 
-## 🛡️ Fichas e Statblocks Visuais
+## 🛡️ Fichas (statblocks)
 
-Um bloco de código com a linguagem `statblock` desenha um cartão interativo com atributos, pontos de vida, defesas e ações clicáveis.
+Um bloco de código com a linguagem `statblock` desenha uma ficha a partir do YAML que ele guarda. As chaves são as do plugin **Fantasy Statblocks** do Obsidian (`name`, `size`, `type`, `ac`, `hp`, `hit_dice`, `speed`, `stats`, `saves`, `skillsaves`, `senses`, `languages`, `cr`, `traits`, `actions`, `reactions`, `legendary_actions`, `image`…): um bloco escrito para o plugin aparece igual no Verso, e um escrito no Verso aparece no Obsidian com o plugin. Sem o plugin, o Obsidian mostra o bloco como código — e o arquivo é sempre o mesmo texto.
 
-O Verso é **100% agnóstico de sistema**: você **nunca fica preso** a termos de D&D ou regras de d20. Você pode montar fichas para fantasia tradicional, terror investigativo, sci-fi/cyberpunk, sistemas narrativos ou mundos e regras que você mesmo inventou.
+Quem decide o desenho é o **layout**, escolhido com `layout:` pelo id ou pelo nome (maiúsculas e acentos não importam). Um layout que não existe desenha o padrão e avisa na própria ficha. O Verso traz dois layouts embutidos:
 
----
+- **Criatura d20** (`d20-creature`, o padrão): as chaves do Fantasy Statblocks, na ordem do layout básico do plugin. Também atende por `Basic 5e Layout`, o nome que o plugin usa.
+- **Fatos e contadores** (`facts-trackers`): para qualquer sistema — `name`, `type`, `description`, uma lista de `facts`, `actions`, `notes` e três contadores: vida (`health` de `health_max`), estresse (`stress` de `stress_max`) e um relógio (`clock` de `clock_size`). Rola só dados escritos como dados.
 
-### Como montar sua ficha (Qualquer Sistema):
-
-Uma ficha no Verso é escrita em YAML simples e flexível:
-
-1. **Identificação**:
-   - `nome: Nome do Personagem ou Ameaça`
-   - Subtítulo com `tipo: ...` (ou `ocupacao:`, `classe:`, `conceito:`, `arquetipo:`)
-2. **Defesas e Recursos Vitais**:
-   - *Fantasia d20 / Tormenta*: `pv: 28 (4d8)`, `ca: 15`, `pm: 10`, `deslocamento: 9 m`
-   - *Terror e Investigação (Call of Cthulhu / BRP)*: `pv: 11`, `sanidade: 45`, `sorte: 55`
-   - *Cyberpunk / Sci-Fi*: `pv: 35`, `blindagem: 11`, `humanidade: 40`
-   - Ou declare recursos próprios em `recursos:` (ex.: `Estresse: 2/5`, `Bateria: 80%`).
-3. **Atributos (`atributos:` ou `stats:`)**:
-   - Para sistemas d20 tradicionais: você pode usar os 6 atributos (`forca`, `destreza`, etc., ou `stats: [10, 14, 12, 10, 8, 14]`), onde o modificador (`+2`, `-1`) é calculado automaticamente.
-   - Para **qualquer outro sistema**: liste os atributos do seu jogo (3, 4, 10 ou quantos tiver). Pode ser numérico puro, percentual ou descritivo:
-     ```yaml
-     atributos:
-       - Gosma: 8
-       - Gelo: 14
-       - Fogo: 10
-       - Doce: 10
-     ```
-4. **Qualquer Seção Personalizada**:
-   Basta escrever o nome da seção e seus itens. O Verso formata automaticamente com títulos elegantes e dados clicáveis:
-   - `armas:` (armas com expressões de dano como `1d10+2` ou `3d6`)
-   - `pericias:` (ex.: `Investigação: 75%`, `Furtividade: +6`)
-   - `ciberware:` ou `implantes:`
-   - `magias:` ou `feitiços:`
-   - `inventario:` ou `equipamento:` (listas simples como `- Lanterna`, `- Corda`)
-   - `habilidades:`, `acoes:`, `aspectos:`, etc.
-5. **Dados interativos integrados**:
-   Qualquer expressão de dado no texto (`1d20+4`, `1d100`, `3d6`, `1d10`) vira uma pílula clicável que rola o dado imediatamente no Verso ao ser clicada.
+Os layouts de cada sistema, cada campo com a sua fonte, chegam depois; até lá, um layout de outro sistema é um arquivo que você importa.
 
 ---
 
-### Exemplo 1: Sistema D20 / Fantasia Clássica
+### Exemplo 1: uma criatura d20
 
 ```statblock
-layout: D&D 5e / D20 Clássico
-nome: Goblin Rastreador
-tipo: Humanoide (pequeno), caótico e neutro
-ca: 15 (armadura de couro, escudo)
-pv: 7 (2d6)
-deslocamento: 9 m
-forca: 8
-destreza: 14
-constituicao: 10
-inteligencia: 10
-sabedoria: 8
-carisma: 8
-pericias: Furtividade +6
-sentidos: Visão no escuro 18 m, Percepção passiva 9
-idiomas: Comum, Goblin
-habilidades:
-  - Fuga Ágil: "O goblin pode usar a ação de Desengajar ou Esconder-se como uma ação bônus em cada um dos seus turnos."
-acoes:
-  - Cimitarra: "Ataque com arma corpo a corpo: 1d20+4 para acertar, alcance 1,5 m, um alvo. Dano: 1d6+2 de dano cortante."
-  - Arco Curto: "Ataque com arma à distância: 1d20+4 para acertar, alcance 24/96 m, um alvo. Dano: 1d6+2 de dano perfurante."
+name: Goblin Rastreador
+size: Pequeno
+type: humanoide
+alignment: neutro
+ac: 15
+hp: 7
+hit_dice: 2d6
+hp_current: 7
+speed: 9 m
+stats: [8, 14, 10, 10, 8, 8]
+skillsaves:
+  - furtividade: 6
+senses: visão no escuro 18 m
+languages: Comum, Goblin
+cr: 1/4
+traits:
+  - name: Fuga Ágil
+    desc: Pode se desengajar ou se esconder como ação bônus.
+actions:
+  - name: Cimitarra
+    desc: "Corpo a corpo: +4 para acertar, alcance 1,5 m. Dano: 5 (1d6 + 2) cortante."
 ```
+
+Na ficha, `+4 para acertar` (ou `to hit`), `5 (1d6 + 2)`, os modificadores da tabela de atributos e `Furtividade +6` ganham um dado ao lado: um clique rola, e o resultado aparece sem ser gravado na nota (numa sala, quem rola é o servidor e todos veem). `PV atuais` é um contador: os botões − e + gravam o novo número em `hp_current`, e só ele muda no texto do bloco.
 
 ---
 
-### Exemplo 2: Investigação e Horror (Call of Cthulhu / BRP)
+### Exemplo 2: fatos e contadores, de qualquer sistema
 
 ```statblock
-layout: Call of Cthulhu / Horror
-nome: Detetive Silas Vance
-ocupacao: Investigador de Ocultismo (Arkham, 1920)
-pv: 11
-sanidade: 45
-sorte: 55
-deslocamento: 8
-pericias:
-  - Armas de Fogo: 60%
-  - Investigação: 75%
-  - Ocultismo: 40%
-  - Psicologia: 50%
-armas:
-  - Revólver .38: "Ataque com arma de fogo: 1d100 sob 60%. Dano: 1d10 de perfuração, alcance 15m."
-  - Faca de Trincheira: "Corpo a corpo: 1d100 sob 45%. Dano: 1d4+1 de corte."
-inventario:
-  - Lanterna a querosene e fósforos
-  - Caderno com anotações e símbolos arcanos
-  - Conjunto de gazuas
+layout: Fatos e contadores
+name: Sentinela Alquímica
+type: Autômato elemental
+description: Guarda o cais de [[Porto Cinzento]]; cospe gosma ácida que causa 2d6+2.
+health: 5
+health_max: 8
+stress: 1
+stress_max: 4
+clock: 2
+clock_size: 6
+facts:
+  - Imune a veneno
+  - Enferruja na chuva
+actions:
+  - name: Pulso Congelante
+    desc: Névoa gélida em quem estiver perto, 1d8+3 de frio.
 ```
+
+Cada caixa do estresse e do relógio é um botão: clicar marca até ela, clicar de novo na última desmarca. Com o teclado, Tab chega ao grupo, as setas mudam o valor, Home zera e End enche. O clique é a sua ação: grava só aquele número no YAML do bloco, sem tocar no resto (comentários, aspas e ordem ficam). Se dois cliques numa sala deixarem um valor que não é número ou passa do máximo, a ficha mostra o valor como está e um botão **Corrigir**.
 
 ---
 
-### Exemplo 3: Cyberpunk / Ficção Científica
+### Layouts em Ajustes › Fichas e Templates
 
-```statblock
-layout: Cyberpunk RED / Sci-Fi
-nome: Nyx
-conceito: Solo Mercenário e Infiltrador
-pv: 35
-blindagem: 11
-humanidade: 40
-deslocamento: 14 m
-atributos:
-  - INT: 8
-  - REF: 8
-  - DEX: 7
-  - TECH: 6
-  - COOL: 8
-  - WILL: 5
-  - LUCK: 6
-  - MOVE: 7
-  - BODY: 8
-  - EMP: 4
-ciberware:
-  - Olhos Kiroshi: "Visão noturna, termografia e zoom óptico 4x."
-  - Braço Cibernético Reforçado: "Força aprimorada para escaladas e combate corporal."
-armas:
-  - Fuzil de Assalto Militech: "À distância: 1d20+14 no teste. Dano: 5d6 perfurante."
-  - Lâmina Retrátil Mantis: "Corpo a corpo: 1d20+12 no teste. Dano: 3d6 cortante."
-```
+- Os layouts **embutidos** vêm com o Verso e não mudam. **Duplicar para a pasta** cria uma cópia em `.verso/layouts/` — um arquivo da pasta, que sincroniza: quem abre a pasta vê a ficha igual.
+- **Copiar JSON** leva o layout para onde você quiser; **Importar JSON** traz um layout do Verso ou do Fantasy Statblocks. Do plugin, o que era código (JavaScript: `callback`, `javascript`, botões de ação, testes de `ifelse`, os `parser` de dados) fica de fora — nada de um layout roda como código — e o Verso lista o que deixou de fora.
+- O editor de layouts está sendo refeito (a árvore de blocos ao lado da ficha). Até lá, exporte o JSON, edite e importe de volta.
 
----
+### Dicas
 
-### Exemplo 4: Sistema Próprio ou Regras Narrativas
-
-Se você inventou seu próprio cenário com atributos customizados (como *Gosma*, *Gelo*, *Fogo*, *Doce*):
-
-```statblock
-nome: Sentinela Alquímica
-tipo: Autômato Elemental
-pv: 28 (4d8+4)
-blindagem: 6
-deslocamento: 12 m
-atributos:
-  - Gosma: 8
-  - Gelo: 14
-  - Fogo: 10
-  - Doce: 10
-resistencias: Frio, Veneno
-acoes:
-  - Jato Cáustico: "Ataque elemental à distância: 1d20+5 para acertar. Dano: 2d6+2 de dano de gosma ácida."
-  - Pulso Congelante: "Emite uma névoa gélida: 1d20+4 para acertar. Dano: 1d8+3 de frio."
-```
-
----
-
-### 🎛️ Gerenciador e Editor de Templates (Compatível com Fantasy Statblocks)
-
-Assim como no consagrado plugin **Fantasy Statblocks** do Obsidian, o Verso possui uma central completa de configuração e criação de templates em **Ajustes (`⌘,`) › Fichas e Templates**:
-
-1. **Escolha o Layout Padrão**: Defina qual template é usado quando você cria um bloco ```` ```statblock ```` sem especificar a propriedade `layout:`.
-2. **Editor Visual de Templates (Layout Builder)**:
-   - **Reordenação com 1 Clique**: Mova qualquer bloco para cima ou para baixo com os botões `▲` e `▼`.
-   - **Edição Completa de Blocos**: Clique em `✎` em qualquer bloco para alterar seu Tipo (*Título, Subtítulo, Vitais, Atributos, Seções, Separador ou Imagem*), seu Título de Exibição e as chaves YAML correspondentes.
-   - **Controle de Modificadores D20**: Ative ou desative o cálculo automático de modificadores d20 `((Valor - 10) / 2)` para blocos de atributos, garantindo compatibilidade tanto com D&D quanto com Cairn, Cyberpunk ou Call of Cthulhu.
-   - **Inserção Intuitiva de Novos Blocos**: Escolha o tipo de bloco no seletor visual, digite o título da seção (ex.: *Movimentos de Medo, Armas, Ciberware*) e as chaves YAML desejadas.
-   - **Aba "Código YAML"**: O editor inclui um gerador de código que mostra o YAML exato correspondente ao layout configurado, com botão de copiar para você colar direto na sua nota!
-3. **Importar / Exportar JSON**: Compartilhe templates com facilidade ou importe arquivos `layout.json` do ecossistema do Obsidian Fantasy Statblocks.
-4. **Troca Rápida de Layout**: No cabeçalho de qualquer cartão de ficha, o botão com o nome do template indica o layout em uso e permite abrir a central de templates com um clique.
-
----
-
-### ⚔️ Fichas de Ameaças, Monstros e Inimigos (Mestres & Solo RPG)
-
-Na prática de RPG de mesa e jogo solo, **a imensa maioria das fichas registradas em notas são monstros, oponentes, ameaças e encontros**, e não personagens de jogadores.
-
-Em vários sistemas modernos, **a ficha do desafio é estruturalmente diferente da ficha de jogador**:
-
-#### Exemplo: Daggerheart (Adversário / Ameaça)
-Em *Daggerheart*, um adversário **não possui atributos normais** (como Agilidade ou Força). Ele possui:
-- **Tier e Tipo**: (ex.: `Tier 1 Solo`, `Tier 2 Skirmisher`, `Tier 0 Minion`, `Tier 1 Bruiser`).
-- **Dificuldade (DC)**: O número que os jogadores precisam igualar ou superar no dado de dualidade para acertar.
-- **Limiares de Dano (Damage Thresholds)**: Os valores de corte (*Menor*, *Maior*, *Severo*, ex.: `7 / 14`), indicando quantos PVs a criatura perde em cada impacto.
-- **PV e Estresse**: Recursos para absorver dano e abastecer ações.
-- **Movimentos de Medo (Fear Moves)**: Ações que o mestre ativa gastando fichas de Medo geradas pelos jogadores.
-- **Experiências**: Bônus contextuais (ex.: `Caçador Noturno +2`) que o mestre pode somar a testes gastando Medo.
-
-```statblock
-layout: Daggerheart: Adversários & Ameaças
-nome: Drake das Sombras
-tier: Tier 1 Solo
-dificuldade: 13
-limiares: 7 / 14
-pv: 6
-estresse: 3
-ataques:
-  - Mordida Cáustica: "+3 alcance Curto | 2d8+3 físico e ácido contínuo"
-  - Garras Dilacerantes: "+2 corpo a corpo | 1d10+4 físico"
-experiencias:
-  - Caçador Noturno: "+2"
-  - Emboscada Silenciosa: "+1"
-movimentos_medo:
-  - Baforada Tóxica (Ação): "Gaste 1 Medo para expelir ácido em cone de alcance Curto: teste de Agilidade contra DC 13 ou sofre 2d8 de dano."
-  - Frenesi Sombrio (Reação): "Gaste 1 Medo quando sofrer dano Severo para contra-atacar imediatamente."
-habilidades:
-  - Escamas de Obsidiana: "Resistência natural a dano cortante e perfurante."
-```
-
-#### Exemplo: Alien RPG (Criaturas & Xenomorfos)
-Xenomorfos e horrores espaciais não rolam atributos humanos comuns; possuem **Velocidade**, **Saúde**, **Blindagem**, **Sangue Ácido** e uma temível **Tabela d6 de Ataques de Assinatura**:
-
-```statblock
-layout: Alien RPG: Criaturas & Xenomorfos
-nome: Xenomorfo Drone
-estagio: Drone Adulto
-velocidade: 2
-saude: 7
-blindagem: 6
-ataques_assinatura:
-  - 1. Silvo Aterrorizante: "Todos os personagens no mesmo setor recebem 1d6 de Estresse."
-  - 2. Bote das Sombras: "Arrasta a vítima indefesa para os dutos de ventilação."
-  - 3-4. Chicoteada de Cauda: "Ataque veloz com 8 dados de combate, 2 de dano e derruba o alvo."
-  - 5-6. Mandíbula Retrátil: "Ataque fatal contra a cabeça com 10 dados, provoca ferimento crítico instantâneo."
-habilidades:
-  - Sangue Ácido: "Qualquer ataque perfurante ou cortante provoca respingos de ácido (8 dados, dano 1)."
-```
-
-#### Exemplo: Ironsworn / Starforged (Inimigo / Desafio)
-No RPG solo *Ironsworn*, oponentes possuem um **Grau de Desafio (Rank)**, uma **Trilha de Progresso de 10 caixas** que você marca a cada acerto, **Dano** e **Táticas**:
-
-```statblock
-layout: Ironsworn / Starforged: Inimigos & Desafios
-nome: Lobo do Pântano
-rank: Perigoso (Dangerous)
-trilha: "■■□□□□□□□□ (2/10)"
-dano: 2 de Dano
-impulso: Proteger a alcateia e defender a toca
-taticas:
-  - Cercar a Presa: "Move-se furtivamente pelas sombras procurando o flanco mais vulnerável."
-  - Mordida no Jarrete: "Derruba o alvo se acertar com sucesso decisivo."
-habilidades:
-  - Faro Aguçado: "Impossível de ser surpreendido em alcance Próximo."
-```
-
----
-
-### 📚 Mais de 20 Sistemas Embutidos Prontos para Usar
-
-Basta colocar `layout: <Nome do Sistema>` no início do seu bloco `statblock`. O Verso reconhece automaticamente tanto o nome completo quanto variações e siglas comuns:
-
-| Sistema | O que escrever no `layout:` | Estilo Visual | Destaques |
-|---|---|---|---|
-| **Dungeon World** | `layout: Dungeon World` | Clássico | PV, Armadura, Dano, Modificadores (-1 a +3), Movimentos, Carga e Laços |
-| **Ironsworn / Starforged** | `layout: Ironsworn` | Grim OSR | Ímpeto, Saúde, Espírito, Suprimentos, 5 Atributos, Votos de Ferro e Ativos |
-| **PbtA Genérico** | `layout: PbtA` | Moderno | Cartilha, Dano/Harm, Experiência, Modificadores diretos, Movimentos Básicos e de Cartilha |
-| **Cairn** | `layout: Cairn` | OSR | PV (Proteção), Armadura, Fadiga, STR/DEX/WIL, Armas, Relíquias e 10 Slots de Inventário |
-| **Mausritter** | `layout: Mausritter` | OSR | PV, Armadura, Pips (Moedas), STR/DEX/WIL, Feitiços, Mochila & Patas (Slots) e Condições |
-| **Daggerheart** | `layout: Daggerheart` | Moderno | Evasão, Limiares de Dano (HP), Armadura, Esperança, Estresse, 6 Traços e Cartas de Domínio |
-| **Tales from the Loop** | `layout: Tales from the Loop` | Investigação | Idade, Sorte, Corpo/Coração/Mente/Tecnologia, Condições, Orgulho e Âncora |
-| **Alien RPG** | `layout: Alien` | Cyberpunk | Saúde, Nível de Estresse, Blindagem, Força/Agilidade/Raciocínio/Empatia e Pânico |
-| **The One Ring (O Um Anel)** | `layout: One Ring` ou `O Um Anel` | Clássico | Resistência, Esperança, Fadiga, Sombra, Força/Coração/Sagacidade, Perícias e Virtudes |
-| **Year Zero Genérico (YZE)** | `layout: Year Zero` | Moderno | Força, Agilidade, Raciocínio, Empatia, Saúde, Estresse/Condições, Perícias e Talentos |
-| **Forbidden Lands** | `layout: Forbidden Lands` ou `Terras Proibidas` | OSR | Dano nos 4 Atributos, Armadura, Perícias de Sobrevivência, Orgulho e Segredo Sombrio |
-| **Blades in the Dark** | `layout: Blades in the Dark` ou `FitD` | Investigação | Estresse (0-9), Traumas, Dano (Harm 1-3), Carga, Percepção/Bravura/Determinação e Ações |
-| **Storyteller / Mundo das Trevas** | `layout: Storyteller`, `Vampiro`, `Lobisomem`, `Mago` | Investigação | Vitalidade, Força de Vontade, Sangue/Fome/Gnose, 9 Atributos e Disciplinas/Dons/Esferas |
-| **Fate Acelerado (FAE)** | `layout: Fate Acelerado` ou `FAE` | Moderno | 6 Abordagens (Ágil, Cuidadoso, Esperto, Chamativo, Poderoso, Sorrateiro), Proezas e Estresse |
-| **Fate Condensado / Core** | `layout: Fate Condensado` ou `Fate Core` | Moderno | Aspectos (Principal, Dificuldade), Pirâmide de Perícias (+4 a +1), Proezas e Estresse |
-| **Fractal RPG** | `layout: Fractal` ou `Fractal RPG` | Moderno | Núcleo, Facetas (Aspectos Fractais), Escala, Nível de Fratura, Impulsos e Ações de Fratura |
-| **Pathfinder 2e** | `layout: Pathfinder` ou `PF2e` | Clássico | CA, PV, Salvaguardas (Fortitude, Reflexos, Vontade), 6 Atributos d20, Sistema de 3 Ações |
-| **Savage Worlds (SWADE)** | `layout: Savage Worlds` ou `SWADE` | Clássico | Aparar, Resistência, Benas, 5 Atributos em dados (d4 a d12), Vantagens e Complicações |
-| **Shadowrun** | `layout: Shadowrun` | Cyberpunk | Monitores de Condição Física/Atordoamento, Armadura, Borda, Essência, Ciberware e Magia |
-| **Vaesen** | `layout: Vaesen` | Investigação | Condições Físicas/Mentais, 4 Atributos, Perícias, Talentos da Sociedade e Lembranças |
-| **Delta Green** | `layout: Delta Green` | Investigação | PV, Vontade (WP), Sanidade (SAN), Ponto de Ruptura, Laços Pessoais e Perícias % |
-| **Old-School Essentials (OSE)** | `layout: OSE` | OSR | CA Descendente/Ascendente, DV/PV, TAC0/BBA, Movimento, Moral, 6 Atributos e Salvaguardas |
-| **Call of Cthulhu 7e** | `layout: Call of Cthulhu` | Investigação | Sanidade, Sorte, PV, Perícias percentuais, Armas de época e Inventário de Pistas |
-| **Cyberpunk RED** | `layout: Cyberpunk RED` | Cyberpunk Neon | Blindagem, Humanidade, 10 Atributos, Ciberware, Armas e Programas de Netrunning |
-| **Mörk Borg** | `layout: Mork Borg` | Grim Dark OSR | HP, Moral, Armadura, Armas e Habilidades Especiais em alto contraste |
-| **Tormenta20** | `layout: Tormenta20` | Clássico | Defesa, PV, PM, 6 Atributos com modificadores, Ataques com fórmulas e Habilidades |
-| **D&D 5e / D20** | `layout: D&D 5e` | Clássico | CA, PV, 6 Atributos d20, Ações, Ações Bônus, Reações e Ações Lendárias |
-
----
-
-### Exemplos Rápidos de Outros Sistemas:
-
-#### Exemplo: Ironsworn (Solo / Co-op)
-```statblock
-layout: Ironsworn
-nome: Kaelen o Juramentado
-conceito: Caçador de Monstros do Ermo
-impeto: +2
-saude: 5
-espirito: 4
-suprimentos: 3
-atributos:
-  - Astúcia: 3
-  - Coração: 1
-  - Ferro: 2
-  - Sombra: 1
-  - Razão: 2
-votos:
-  - Voto de Ferro: "Limpar o vale da presença do Wyrm Cinzento (Extremo)"
-ativos:
-  - Matador de Feras: "Ao atacar monstros com Ferro, adicione +1 em acertos fortes."
-  - Falcão Rastreador: "Seu companheiro animal avisa sobre perigos iminentes."
-equipamento:
-  - Lança de ferro estelar
-  - Manto de pele de urso
-  - Kit de escalada e pederneira
-```
-
-#### Exemplo: Vampiro / Storyteller (Mundo das Trevas)
-```statblock
-layout: Vampiro
-nome: Vincent Cross
-cla: Ventrue
-conceito: Magnata da Tecnologia e Manipulador
-vitalidade: 7
-forca_de_vontade: 6
-fome: 2
-humanidade: 6
-atributos:
-  - FOR: 2
-  - DES: 3
-  - VIG: 2
-  - CAR: 4
-  - MAN: 4
-  - COM: 3
-  - PER: 3
-  - INT: 4
-  - RAC: 3
-habilidades:
-  - Finanças: 4
-  - Persuasão: 3
-  - Lábia: 3
-  - Investigação: 3
-  - Armas de Fogo: 2
-poderes:
-  - Presença: "Olhar Atordoante e Encanto irresistível."
-  - Dominação: "Comando verbal que força a obediência imediata."
-  - Fortitude: "Resistência sobrenatural a danos físicos."
-antecedentes:
-  - Recursos 4 (Grande fortuna pessoal)
-  - Rebanho 2 (Fontes de sangue seguras)
-```
-
-#### Exemplo: Blades in the Dark
-```statblock
-layout: Blades in the Dark
-nome: Corvo Sombrio
-cartilha: Espreitador (Lurker)
-bando: Os Corvos Cinzentos
-estresse: 3
-traumas: Assombrado
-harm: Nível 1 (Corte na perna)
-carga: Média (5)
-atributos:
-  - Percepção: 2
-  - Bravura: 3
-  - Determinação: 1
-acoes:
-  - Espreitar: 3
-  - Destreza: 2
-  - Luta: 1
-  - Rastrear: 2
-habilidades:
-  - Passos Fantasmagóricos: "Você pode se mover em silêncio absoluto e passar despercebido por sombras."
-contatos:
-  - Telda (Alquimista, Amiga)
-  - Darmot (Inspetor dos Casacos Azuis, Rival)
-equipamento:
-  - Gazuas e ferramentas de arrombamento
-  - Adaga silenciada
-  - Frasco de óleo de sombra
-```
-
----
-
-### Dicas de Uso:
-
-1. **Alternância Leitura / Edição**: No modo **Leitura**, clique no botão com ícone de código `<>` no canto superior direito do cartão para ver e editar o YAML puro.
-2. **Edição ao Vivo (Live Preview)**: No modo **Editar**, enquanto o cursor estiver fora do bloco `statblock`, o cartão visual interativo é exibido exatamente como os seus leitores verão.
-3. **Rolagens com um clique**: Qualquer jogador ou mestre pode clicar nos dados da ficha durante a sessão para ver o resultado na hora sem precisar de aplicativo externo.
+1. **Leitura**: o botão `</>` no canto da ficha mostra o código; o do código volta para a ficha.
+2. **Editar (Live Preview)**: com o cursor fora do bloco, a ficha; dentro, o YAML. Se o YAML ficar inválido enquanto você digita, a ficha mostra a última versão que leu, com um aviso. Um bloco com mais de 256 KB não é lido e diz isso.
+3. **Recursos desligados**: com *Fichas* desligado em Ajustes › Aplicação › Recursos, o bloco aparece como código; com *Dados* desligado, a ficha não rola nada.
 
 ---
 
