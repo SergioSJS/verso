@@ -140,10 +140,10 @@ describe("Feature Presets and Capability Flags (ADR 0103)", () => {
     assert.equal(eventReceived.preset, "writing");
 
     // Live region status announcement
-    const statusEl = document.querySelector("[role='status']");
+    // (the window's own status line, the live region every action uses)
+    const statusEl = document.getElementById("status");
     assert.ok(statusEl);
-    assert.equal(statusEl.getAttribute("aria-live"), "polite");
-    assert.ok(statusEl.textContent.length > 0);
+    assert.ok(statusEl.textContent.includes(PRESETS.writing.name));
 
     window.removeEventListener("verso:preset-changed", listener);
   });

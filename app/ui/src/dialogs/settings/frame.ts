@@ -6,7 +6,12 @@
 // a drag handle, and the size the person left it at (kept on this machine).
 
 import { h } from "../../dom";
-import { LOCALE } from "../../strings";
+import { ss } from "./strings";
+
+/** A phone, or a finger: the window is full-screen there and not moved. */
+function noDrag(e: PointerEvent): boolean {
+  return window.innerWidth <= 760 || e.pointerType === "touch";
+}
 
 export function wireFrame(box: HTMLElement, el: HTMLElement, side: HTMLElement): { restoreSavedSize: () => void; resetSize: () => void } {
   const dirs: ("r" | "b" | "l" | "t" | "br" | "bl" | "tr" | "tl")[] = ["r", "b", "l", "t", "br", "bl", "tr", "tl"];
@@ -15,10 +20,41 @@ export function wireFrame(box: HTMLElement, el: HTMLElement, side: HTMLElement):
     wireResize(handle, dir);
     box.append(handle);
   }
-  const grip = h("div", "settings-resize-grip");
-  grip.title = LOCALE === "pt-BR" ? "Redimensionar janela (duplo clique para restaurar)" : "Resize window (double-click to reset)";
+  const grip = h("button", "settings-resize-grip");
+  grip.type = "button";
+  grip.title = ss.gripTitle;
+  grip.setAttribute("aria-label", ss.gripLabel);
   grip.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="8" y1="2" x2="2" y2="8"></line><line x1="8" y1="5" x2="5" y2="8"></line><line x1="8" y1="8" x2="8" y2="8"></line></svg>`;
   wireResize(grip, "br");
+  // The keyboard's way: arrows change the size, Enter or Home restore it.
+  grip.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === "Home" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      resetSize();
+      return;
+    }
+    const step = e.shiftKey ? 96 : 24;
+    const dx = e.key === "ArrowRight" ? step : e.key === "ArrowLeft" ? -step : 0;
+    const dy = e.key === "ArrowDown" ? step : e.key === "ArrowUp" ? -step : 0;
+    if (!dx && !dy) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = box.getBoundingClientRect();
+    const w = Math.min(window.innerWidth - 24, Math.max(Math.min(480, window.innerWidth - 24), rect.width + dx));
+    const hh = Math.min(window.innerHeight - 24, Math.max(Math.min(320, window.innerHeight - 24), rect.height + dy));
+    box.style.position = "fixed";
+    box.style.margin = "0";
+    box.style.left = `${Math.round(rect.left)}px`;
+    box.style.top = `${Math.round(rect.top)}px`;
+    box.style.width = `${Math.round(w)}px`;
+    box.style.height = `${Math.round(hh)}px`;
+    try {
+      localStorage.setItem("verso:settings-dialog-size", JSON.stringify({ width: Math.round(w), height: Math.round(hh), left: Math.round(rect.left), top: Math.round(rect.top) }));
+    } catch {
+      // ignore
+    }
+  });
   grip.addEventListener("dblclick", (e) => {
     e.stopPropagation();
     resetSize();
@@ -50,7 +86,7 @@ export function wireFrame(box: HTMLElement, el: HTMLElement, side: HTMLElement):
 
   function wireResize(handle: HTMLElement, dir: "r" | "b" | "l" | "t" | "br" | "bl" | "tr" | "tl"): void {
     handle.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || noDrag(e)) return;
       e.preventDefault();
       e.stopPropagation();
       handle.setPointerCapture(e.pointerId);
@@ -140,7 +176,7 @@ export function wireFrame(box: HTMLElement, el: HTMLElement, side: HTMLElement):
 
   function wireMove(handle: HTMLElement): void {
     handle.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || noDrag(e)) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, button, select, textarea, a, .settings-nav-item, .settings-resize-handle, .settings-search")) {
         return;

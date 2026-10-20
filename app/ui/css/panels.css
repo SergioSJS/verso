@@ -855,3 +855,17 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .btn.is-busy::after, button.is-busy::after { content: ""; display: inline-block; width: .8em; height: .8em; margin-left: .45em; vertical-align: -.1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: reach-turn .8s linear infinite; }
 @keyframes reach-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { button.is-busy::after { animation: none; border-right-color: currentColor; opacity: .5; } }
+
+/* Settings: the resize grip is a button; the RPG pages' small layout */
+.settings-resize-grip { background: none; border: 0; padding: 0; }
+.settings-resize-grip:focus-visible { opacity: 1; outline: 2px solid var(--seal); outline-offset: 1px; }
+.settings-feedback.bad { color: var(--seal); }
+.oracle-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin-top: .5rem; }
+.oracle-lang-bar { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.oracle-lang-label { font-size: .85rem; color: var(--ink-2); }
+.oracle-lang-bar button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.oracle-spark-count { font-size: .75rem; color: var(--ink-3); }
+.oracle-spark-test { font-size: .85rem; font-style: italic; color: var(--brass-ink); margin-left: .5rem; }
+.oracle-odds-name { font-weight: 600; text-align: left; padding-left: .75rem; white-space: nowrap; }
+.oracle-custom-table-title { display: flex; align-items: center; gap: .5rem; }
+.statblock-manage-wrap { display: flex; flex-wrap: wrap; gap: .6rem; }
