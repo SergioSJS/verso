@@ -6,8 +6,9 @@
 // the window, read-only, and the folder's own, `.verso/layouts/<id>.json`,
 // through the folder data commands of the contract — so everyone who opens
 // the folder sees the same card. Nothing of a layout lives in a device's
-// browser storage; what the first build kept there is shown until the first
-// write into the folder, which moves it there once.
+// browser storage; what the first build kept there is shown, and moved into the
+// folder, kept on the device or discarded only by the person's choice, on
+// Settings > Statblocks (saving a layout never touches it).
 //
 // The folder is reached through `FolderDataApi` (the folder data contract,
 // section B): the window's `folderData.ts` gives one, a test an in-memory
@@ -16,9 +17,9 @@
 
 import { ALIASES, DEFAULT_LAYOUT_ID, builtinLayouts } from "./builtin";
 import { importLayout } from "./fsInterop";
-import { clearLegacy, readLegacy } from "./legacy";
+import { legacyKept, readLegacy, removeLegacy, setLegacyKept } from "./legacy";
 import { LAYOUT_ID, type Layout } from "./model";
-import { S } from "./strings";
+import { S, word } from "./strings";
 import { validateLayout, type Problem } from "./validate";
 
 export type FolderDataKind = "layouts" | "bundles";
@@ -184,28 +185,66 @@ export function freeId(base: string): string {
 }
 
 
-/** The device's layouts written into the folder, once: on the first write
- *  (opening never writes, ADR 0012). Each keeps its id, or takes a free
- *  one; the device forgets them only when all are in. */
-async function migrate(to: FolderDataApi): Promise<Result<number>> {
-  const pending = deviceLayouts();
-  if (pending.length === 0) return { ok: true, value: 0 };
+/** What happened to one device layout in a move. */
+export type MoveResult = { id: string; name: string; ok: boolean; newId?: string; why?: string };
+
+/** The earlier build's layouts still on this device (not yet moved). */
+export function pendingDeviceLayouts(): StoredLayout[] {
+  return [...deviceLayouts()];
+}
+
+/** Whether the notice about them is due: some are pending and the person
+ *  has not chosen to keep them on this device only. */
+export function deviceNoticeDue(): boolean {
+  return deviceLayouts().length > 0 && !legacyKept();
+}
+
+/** "Keep on this device only": the notice stops; the layouts stay where
+ *  they are and keep drawing cards. */
+export function keepDeviceLayouts(): void {
+  setLegacyKept(true);
+  changed();
+}
+
+/** "Discard": the chosen device layouts (all by default) gone from the
+ *  device. Nothing is written into the folder. */
+export function discardDeviceLayouts(ids?: readonly string[]): void {
+  const want = new Set(ids ?? deviceLayouts().map((d) => d.layout.id));
+  removeLegacy(want);
+  legacy = null;
+  changed();
+}
+
+/** "Move into this folder": each chosen device layout (all by default)
+ *  created in the folder, one by one, each with its own result. Only those
+ *  that were written leave the device. A failure of one never stops or
+ *  hides the others. */
+export async function moveDeviceLayouts(ids?: readonly string[]): Promise<Result<MoveResult[]>> {
+  const to = api;
+  if (!to) return { ok: false, why: S.noFolder };
+  const want = ids ? new Set(ids) : null;
+  const pending = deviceLayouts().filter((d) => !want || want.has(d.layout.id));
   const taken = new Set([...builtinLayouts().map((l) => l.id), ...folder.map((f) => f.layout.id)]);
-  let moved = 0;
+  const results: MoveResult[] = [];
+  const done = new Set<string>();
   for (const d of pending) {
     let id = d.layout.id;
     for (let n = 2; taken.has(id); n++) id = `${d.layout.id.slice(0, 58)}-${n}`;
+    const name = word(d.layout.name, d.layout.id);
     try {
-      await to.write("layouts", id, { ...d.layout, id }, null);
+      const r = await to.write("layouts", id, { ...d.layout, id }, null);
       taken.add(id);
-      moved++;
+      done.add(d.layout.id);
+      folder = [...folder.filter((f) => f.layout.id !== id), { layout: { ...d.layout, id }, source: "folder", revision: r.revision, problems: [] }];
+      results.push({ id: d.layout.id, name, ok: true, newId: id });
     } catch (e) {
-      return { ok: false, why: why(e) };
+      results.push({ id: d.layout.id, name, ok: false, why: why(e) });
     }
   }
-  clearLegacy();
-  legacy = [];
-  return { ok: true, value: moved };
+  if (done.size > 0) removeLegacy(done);
+  legacy = null;
+  changed();
+  return { ok: true, value: results };
 }
 
 /** Write a layout into the folder: `revision` null for a new file, the
@@ -216,8 +255,6 @@ export async function saveLayout(layout: Layout, revision: string | null): Promi
   if (builtinLayouts().some((b) => b.id === layout.id) || !LAYOUT_ID.test(layout.id)) return { ok: false, why: S.problem.id };
   const v = validateLayout(layout, layout.id);
   if (!v.layout) return { ok: false, why: S.problem.notMap };
-  const m = await migrate(to);
-  if (!m.ok) return { ok: false, why: S.writeFailed(m.why) };
   try {
     const r = await to.write("layouts", v.layout.id, v.layout, revision);
     const stored: StoredLayout = { layout: v.layout, source: "folder", revision: r.revision, problems: v.problems };

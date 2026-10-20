@@ -5,7 +5,8 @@
 // The layouts the first build kept in a device's browser storage (ADR 0099
 // item 2: "what an earlier build kept there moves into the folder once"),
 // read in that build's shape and turned into the model. Reading never
-// writes; the store moves them on its first write into the folder.
+// writes; the person moves them into the folder from Settings, as a step
+// of their own (store.ts `moveDevice`).
 
 import { LAYOUT_ID } from "./model";
 import { slugId, validateLayout } from "./validate";
@@ -54,6 +55,12 @@ function block(b: Rec): Rec[] {
   }
 }
 
+/** The id a legacy record takes in the model. */
+function legacyId(raw: Rec, name: string): string {
+  const old = typeof own(raw, "id") === "string" ? (own(raw, "id") as string).replace(/^custom-/, "") : "";
+  return LAYOUT_ID.test(old) ? old : slugId(old || name);
+}
+
 /** A layout of the first build's in the model, or null. */
 export function fromLegacy(raw: unknown): Layout | null {
   if (!isMap(raw)) return null;
@@ -69,9 +76,7 @@ export function fromLegacy(raw: unknown): Layout | null {
     blocks.push(...block(b));
   }
   const name = typeof own(raw, "name") === "string" ? (own(raw, "name") as string) : "Layout";
-  const old = typeof own(raw, "id") === "string" ? (own(raw, "id") as string).replace(/^custom-/, "") : "";
-  const id = LAYOUT_ID.test(old) ? old : slugId(old || name);
-  return validateLayout({ version: 1, id, name, columns: 1, diceRules: [{ pattern: String.raw`\b(\d{0,3}d\d{1,4}(?: ?[+-] ?\d{1,5})?)\b`, template: "$1" }], blocks }).layout;
+  return validateLayout({ version: 1, id: legacyId(raw, name), name, columns: 1, diceRules: [{ pattern: String.raw`\b(\d{0,3}d\d{1,4}(?: ?[+-] ?\d{1,5})?)\b`, template: "$1" }], blocks }).layout;
 }
 
 /** The first build's layouts on this device, read; nothing written. */
@@ -85,6 +90,44 @@ export function readLegacy(): Layout[] {
     return list.slice(0, 200).map(fromLegacy).filter((l): l is Layout => l !== null);
   } catch {
     return [];
+  }
+}
+
+const KEPT_KEY = "verso:statblock-legacy-kept";
+
+/** Whether the person chose to keep the old layouts on this device only. */
+export function legacyKept(): boolean {
+  try {
+    return localStorage.getItem(KEPT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setLegacyKept(kept: boolean): void {
+  try {
+    if (kept) localStorage.setItem(KEPT_KEY, "1");
+    else localStorage.removeItem(KEPT_KEY);
+  } catch {
+    // Storage closed: the notice comes back next time, harmless.
+  }
+}
+
+/** Only the legacy records whose model id is in `ids` gone from this
+ *  device; the rest stay. All gone clears the key. */
+export function removeLegacy(ids: ReadonlySet<string>): void {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY);
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return clearLegacy();
+    const rest = list.filter((r) => {
+      const l = fromLegacy(r);
+      return l !== null && !ids.has(l.id);
+    });
+    if (rest.length === 0) return clearLegacy();
+    localStorage.setItem(LEGACY_KEY, JSON.stringify(rest));
+  } catch {
+    // Nothing to change, or storage closed: read again next time, harmless.
   }
 }
 

@@ -13,7 +13,7 @@ import { openLayoutBuilder } from "../../statblock/builder";
 import { DEFAULT_LAYOUT_ID } from "../../statblock/builtin";
 import { exportLayout } from "../../statblock/fsInterop";
 import { strayNotice } from "../../folderData";
-import { allLayouts, canWriteLayouts, duplicateLayout, importLayoutText, layoutStrays, removeLayout, type StoredLayout } from "../../statblock/store";
+import { allLayouts, canWriteLayouts, deviceNoticeDue, discardDeviceLayouts, duplicateLayout, importLayoutText, keepDeviceLayouts, layoutStrays, moveDeviceLayouts, pendingDeviceLayouts, removeLayout, type StoredLayout } from "../../statblock/store";
 import { S, word } from "../../statblock/strings";
 import { copyWithAnswer, feedbackLine } from "./feedback";
 import type { ItemCtx, SettingItem } from "./types";
@@ -60,6 +60,43 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
   add(p.layoutsTitle, p.layoutsDesc, () => {
     const gallery = h("div", "statblock-gallery");
     const feedback = feedbackLine();
+    // The earlier build's layouts on this device: a step of the person's own.
+    if (deviceNoticeDue()) {
+      const pending = pendingDeviceLayouts();
+      const note = h("div", "statblock-card-desc statblock-legacy");
+      note.setAttribute("role", "group");
+      const names = pending.map((d) => word(d.layout.name, d.layout.id)).join(", ");
+      note.append(h("strong", "", p.legacyTitle(pending.length)), h("div", "", p.legacyDesc), h("div", "", names));
+      const row = h("div", "statblock-gallery-actions");
+      const move = button("ghost", p.legacyMove);
+      move.disabled = !canWriteLayouts();
+      if (move.disabled) move.title = S.noFolder;
+      move.addEventListener("click", () => {
+        void (async () => {
+          const r = await moveDeviceLayouts();
+          if (!r.ok) return feedback.say(r.why, true);
+          await tell(r.value.map((x) => p.legacyResult(x.name, x.newId, x.ok ? undefined : (x.why ?? ""))).join("\n"), p.ok);
+          ctx.paint();
+        })();
+      });
+      const keep = button("ghost", p.legacyKeep);
+      keep.addEventListener("click", () => {
+        keepDeviceLayouts();
+        ctx.paint();
+      });
+      const discard = button("ghost danger", p.legacyDiscard);
+      discard.addEventListener("click", () => {
+        void (async () => {
+          if (!(await ask(p.legacyDiscardAsk(pending.length), { yes: p.legacyDiscard, no: p.cancel }))) return;
+          discardDeviceLayouts();
+          ui.status.textContent = p.legacyDiscarded(pending.length);
+          ctx.paint();
+        })();
+      });
+      row.append(move, keep, discard);
+      note.append(row);
+      gallery.append(note);
+    }
     for (const stored of allLayouts()) {
       const layout = stored.layout;
       const name = word(layout.name, layout.id);

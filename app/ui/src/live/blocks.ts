@@ -252,7 +252,7 @@ export class BlockWidget extends WidgetType {
       const dice = hasCapability("diceRolling");
       const card = renderStatblock(b.text, edit, {
         ...(notePath === undefined ? {} : { source: notePath }),
-        key: `${notePath ?? ""}#${b.ordinal ?? 0}`,
+        key: notePath ?? "",
         ...(dice && sb?.die ? { dice: sb.die } : {}),
         rolls: dice,
         ...(b.nested ? {} : { write: (key: ValuePath, value: Value) => writeStatblock(view, el, b.text, key, value, sb?.refusal?.() ?? null) }),

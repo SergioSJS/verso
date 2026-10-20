@@ -363,6 +363,35 @@ describe("the editor window", () => {
     assert.equal(api.files.has("mine"), false);
   });
 
+  test("a rename whose old file cannot be removed asks: retry, or keep both", async () => {
+    const { ed, api } = await openOn(mine);
+    const remove = api.remove;
+    let failing = true;
+    api.remove = async (...a) => {
+      if (failing) throw new Error("locked");
+      return remove(...a);
+    };
+    ed.session.apply(m.updateLayout(ed.session.layout, { id: "renamed" }));
+    assert.equal(await ed.save(), true);
+    const box = ed.el.querySelector(".sbe-stale") ?? ed.parts.stale;
+    assert.equal(box.hidden, false);
+    assert.match(box.textContent, /could not be removed \(.*locked/);
+    assert.ok(api.files.has("mine") && api.files.has("renamed"));
+    failing = false;
+    [...box.querySelectorAll("button")].find((b) => /again/.test(b.textContent)).click();
+    await tick();
+    await tick();
+    assert.equal(api.files.has("mine"), false);
+    assert.equal(box.hidden, true);
+    // And "keep both" closes the question, keeping both files.
+    failing = true;
+    ed.session.apply(m.updateLayout(ed.session.layout, { id: "again" }));
+    assert.equal(await ed.save(), true);
+    [...ed.parts.stale.querySelectorAll("button")].find((b) => /Keep both/.test(b.textContent)).click();
+    assert.equal(ed.parts.stale.hidden, true);
+    assert.ok(api.files.has("renamed") && api.files.has("again"));
+  });
+
   test("leaving with changes asks; no keeps it open, and Escape asks too", async () => {
     const d = deps(false);
     const { ed } = await openOn(mine, d);

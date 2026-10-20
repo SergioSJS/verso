@@ -191,7 +191,7 @@ describe("the first build's device layouts move into the folder once", () => {
     { id: "dnd5e", name: "Clash", blocks: [] },
   ];
 
-  test("they show before, nothing written by opening; the first write moves them, then forgets them", async () => {
+  test("they show, saving a layout never touches them, the move is the person's step", async () => {
     localStorage.setItem(m.LEGACY_KEY, JSON.stringify(legacy));
     const api = memoryFolder();
     await m.attachFolder(api);
@@ -199,12 +199,47 @@ describe("the first build's device layouts move into the folder once", () => {
     assert.deepEqual(device.map((s) => s.layout.id), ["goblins", "dnd5e"]);
     assert.equal(m.resolveLayout("Goblins").stored.layout.id, "goblins");
     assert.deepEqual(writes(api), [], "opening never writes");
+    assert.equal(m.deviceNoticeDue(), true);
     await m.duplicateLayout("facts-trackers");
-    assert.deepEqual(writes(api).map((c) => c[2]), ["goblins", "dnd5e", "facts-trackers-copy"]);
+    assert.deepEqual(writes(api).map((c) => c[2]), ["facts-trackers-copy"], "saving writes only the person's own layout");
+    assert.ok(localStorage.getItem(m.LEGACY_KEY), "and leaves the device's alone");
+    const r = await m.moveDeviceLayouts();
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.value.map((x) => [x.id, x.ok]), [["goblins", true], ["dnd5e", true]]);
     assert.equal(localStorage.getItem(m.LEGACY_KEY), null);
     await m.reloadFolder();
     assert.deepEqual(m.allLayouts().filter((s) => s.source === "device"), []);
     assert.ok(m.allLayouts().some((s) => s.layout.id === "goblins" && s.source === "folder"));
+  });
+
+  test("a failing legacy item is reported, the others move, only those leave the device, and a save is never blocked", async () => {
+    localStorage.setItem(m.LEGACY_KEY, JSON.stringify(legacy));
+    const api = memoryFolder();
+    const write = api.write;
+    api.write = async (k, id, v, rev) => {
+      if (id === "goblins") throw new Error("too big");
+      return write(k, id, v, rev);
+    };
+    await m.attachFolder(api);
+    const saved = await m.duplicateLayout("facts-trackers");
+    assert.equal(saved.ok, true, "the person's own save is independent");
+    const r = await m.moveDeviceLayouts();
+    assert.deepEqual(r.value.map((x) => [x.id, x.ok]), [["goblins", false], ["dnd5e", true]]);
+    assert.match(r.value[0].why, /too big/);
+    assert.deepEqual(m.pendingDeviceLayouts().map((s) => s.layout.id), ["goblins"]);
+    assert.equal(JSON.parse(localStorage.getItem(m.LEGACY_KEY)).length, 1);
+  });
+
+  test("keep stops the notice, discard removes only the chosen", async () => {
+    localStorage.setItem(m.LEGACY_KEY, JSON.stringify(legacy));
+    await m.attachFolder(memoryFolder());
+    m.discardDeviceLayouts(["dnd5e"]);
+    assert.deepEqual(m.pendingDeviceLayouts().map((s) => s.layout.id), ["goblins"]);
+    m.keepDeviceLayouts();
+    assert.equal(m.deviceNoticeDue(), false);
+    assert.equal(m.allLayouts().filter((s) => s.source === "device").length, 1, "kept layouts still draw cards");
+    m.discardDeviceLayouts();
+    assert.equal(localStorage.getItem(m.LEGACY_KEY), null);
   });
 
   test("the old shape becomes the model's blocks", () => {
@@ -213,19 +248,6 @@ describe("the first build's device layouts move into the folder once", () => {
     assert.equal(l.blocks[0].rule, true, "a divider is the rule after the block before it");
     assert.deepEqual(l.blocks[1].nested.map((b) => b.properties[0]), ["pv", "ca"]);
     assert.deepEqual(l.blocks[2].label, { pt: "Ataques", en: "Ataques" });
-  });
-
-  test("a failed move keeps them on the device", async () => {
-    localStorage.setItem(m.LEGACY_KEY, JSON.stringify(legacy));
-    const api = memoryFolder();
-    api.write = async () => {
-      throw new Error("forbidden");
-    };
-    await m.attachFolder(api);
-    const r = await m.duplicateLayout("facts-trackers");
-    assert.equal(r.ok, false);
-    assert.match(r.why, /forbidden/);
-    assert.ok(localStorage.getItem(m.LEGACY_KEY));
   });
 
   test("broken device storage is no layout, not a throw", async () => {
