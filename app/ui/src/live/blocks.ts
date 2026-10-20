@@ -15,7 +15,8 @@ import { cells } from "../table";
 import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
 import { renderMermaid } from "../mermaid";
-import { hasCapability, plainDiceBadges } from "../capabilities";
+import { hasCapability } from "../capabilities";
+import { planValueEdit, sameText, type Refusal, type WriteOutcome } from "../statblock/edit";
 import { isStatblockFence, renderStatblock } from "../statblock/render";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
@@ -38,6 +39,7 @@ export function blocksOf(state: EditorState): Block[] {
   // the reading view counts them: a table's widths are kept by its place
   // (tableWidths.ts).
   let tables = 0;
+  let statblocks = 0;
   // The block's whole lines, when only indentation or `>` marks precede it
   // on its first line (after a list marker it stays source).
   const lines = (from: number, to: number) => {
@@ -66,7 +68,11 @@ export function blocksOf(state: EditorState): Block[] {
         } else if (isStatblockFence(infoStr) && hasCapability("statblocks")) {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
-          if (at) out.push({ ...at, kind: "statblock", text });
+          // Counted in order, as the card's place for the last card that read.
+          const ordinal = statblocks++;
+          let nested = false;
+          for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
+          if (at) out.push({ ...at, kind: "statblock", text, ordinal, ...(nested ? { nested: true as const } : {}) });
         }
         return false;
       }
@@ -132,6 +138,25 @@ export function fenceInside(doc: Text, from: number, to: number): { from: number
   if (last.number - first.number < 1) return null;
   const inside = { from: Math.min(first.to + 1, doc.length), to: last.from };
   return inside.from <= inside.to ? inside : null;
+}
+
+/** A tracker's value written into the statblock the widget `el` draws
+ *  (ADR 0099 item 5): that one value's text, through the editor — in a
+ *  room, the room's edit — once the block is found where the widget is and
+ *  still holds the text the card was drawn from. */
+function writeStatblock(view: EditorView, el: HTMLElement, text: string, key: string, value: number, refusal: Refusal | null): WriteOutcome {
+  if (refusal) return { ok: false, why: refusal };
+  if (view.state.readOnly) return { ok: false, why: "readOnly" };
+  const at = startOf(view, el);
+  const found = at === null ? undefined : blocksOf(view.state).find((x) => x.kind === "statblock" && x.from === at);
+  const inside = found ? fenceInside(view.state.doc, found.from, found.to) : null;
+  if (!found || !inside) return { ok: false, why: "moved" };
+  const slice = view.state.doc.sliceString(inside.from, inside.to);
+  if (!sameText(slice, text) || !sameText(found.text, text)) return { ok: false, why: "stale" };
+  const plan = planValueEdit(slice, key, value);
+  if ("why" in plan) return { ok: false, why: plan.why };
+  view.dispatch({ changes: { from: inside.from + plan.from, to: inside.from + plan.to, insert: plan.insert } });
+  return { ok: true };
 }
 
 export class BlockWidget extends WidgetType {
@@ -223,8 +248,15 @@ export class BlockWidget extends WidgetType {
         view.focus();
       };
       const notePath = this.opts.notePath?.();
-      const card = renderStatblock(b.text, edit, notePath === undefined ? {} : { source: notePath });
-      plainDiceBadges(card);
+      const sb = this.opts.statblock;
+      const dice = hasCapability("diceRolling");
+      const card = renderStatblock(b.text, edit, {
+        ...(notePath === undefined ? {} : { source: notePath }),
+        key: `${notePath ?? ""}#${b.ordinal ?? 0}`,
+        ...(dice && sb?.die ? { dice: sb.die } : {}),
+        rolls: dice,
+        ...(b.nested ? {} : { write: (key: string, value: number) => writeStatblock(view, el, b.text, key, value, sb?.refusal?.() ?? null) }),
+      });
       el.append(card);
       return el;
     }

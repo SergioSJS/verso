@@ -66,6 +66,7 @@ import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
 import { fillLinkCard, wireNotePreview } from "../preview/install";
 import { diceWidget } from "../dice/live";
+import { diceBox } from "../dice/card";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -319,6 +320,10 @@ export class NoteLeaf extends Leaf {
       canEditEmbed: () => settings.inlineEmbedEdit,
       notePath: () => this.path,
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
+      statblock: {
+        die: (notation) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }),
+        refusal: () => (this.readOnly ? "readOnly" : this.conflict.up ? "conflict" : null),
+      },
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),

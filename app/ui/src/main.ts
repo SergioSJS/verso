@@ -57,6 +57,7 @@ import { Pane } from "./layout/pane";
 import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, spaces, spaceTabs } from "./layout/spaces";
 import { folderSort, setFolderSort } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
+import { onLayoutsChanged } from "./statblock/store";
 import { TextLeaf } from "./leaves/textfile";
 import { embedViews, syncEmbedViews, syncWebViews, webLeaves } from "./leaves/web";
 import { createMenuItems, menu, MenuItem, menuOpener, showMenu } from "./menu";
@@ -246,7 +247,7 @@ updateLeavesLineNumbers = () => {
     }
   }
 };
-window.addEventListener("verso:features-changed", () => {
+const repaintNotes = (): void => {
   for (const sp of spaces) {
     for (const p of sp.layout.panes()) {
       for (const l of p.leaves) {
@@ -256,7 +257,11 @@ window.addEventListener("verso:features-changed", () => {
       }
     }
   }
-});
+};
+window.addEventListener("verso:features-changed", repaintNotes);
+// The folder's statblock layouts read or written (ADR 0099 item 2): every
+// card drawn again with them.
+onLayoutsChanged(repaintNotes);
 newSpaceButton.addEventListener("click", () => newSpace());
 /** The current workspace's layout. Before a folder is open there is no
  *  workspace, and an empty layout answers (no pane, nothing focused)
