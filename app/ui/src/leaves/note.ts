@@ -317,6 +317,7 @@ export class NoteLeaf extends Leaf {
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      notePath: () => this.path,
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
