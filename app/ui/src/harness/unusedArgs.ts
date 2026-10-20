@@ -20,6 +20,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_present: ["path"],
   collab_canvas: ["path", "at", "json"],
   collab_roll: ["path", "notation", "source"],
+  collab_oracle: ["path", "ask"],
   // What a note was made with is desktop sync's (ADR 0093 item 12): the
   // harness's folder syncs with nothing; the call is recorded as any is.
   note_made_from_template: ["path", "text"],
