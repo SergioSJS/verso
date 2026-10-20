@@ -54,6 +54,7 @@ import type {
   Written,
   Focus,
   FocusesSummary,
+  FolderDataKind,
   FolderLayer,
   FolderSettings,
   SyncStatus,
@@ -62,6 +63,7 @@ import { Bin } from "./trash";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
+import { applyOracle, checkOracle, FolderData, oracleProblems, readOracle } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { projectSecrets } from "./secret";
 import { unlinkedMentions } from "./mentions";
@@ -361,7 +363,7 @@ export class Core {
    *  items 1–2), as the core reads it. */
   private folderLayer(): FolderLayer {
     const stored = this.files.get(SETTINGS_FILE);
-    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null };
     if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
     const revision = String(stored.revision);
     let obj: unknown;
@@ -383,14 +385,16 @@ export class Core {
         ignore_build_dirs: bool(o["ignoreBuildDirs"]),
         respect_gitignore: bool(o["respectGitignore"]),
         periodic: readPeriodic(o),
+        oracle: readOracle(o),
       },
-      warnings: [],
+      warnings: oracleProblems(o),
     };
   }
 
   /** A change of the folder's settings: created when there is no file
    *  (`exists` when there is), else written over the revision read. */
   private setFolderLayer(change: FolderSettings, revision: string | null): FolderLayer {
+    if (change.oracle) checkOracle(change.oracle); // before anything is read, as the core does
     const stored = this.files.get(SETTINGS_FILE);
     let obj: Record<string, unknown> = {};
     if (revision === null) {
@@ -411,6 +415,7 @@ export class Core {
     if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
     if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
     if (change.periodic) applyPeriodic(obj, change.periodic);
+    if (change.oracle) applyOracle(obj, change.oracle);
     this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sortedDeep(obj), null, 2)}\n`));
     return this.folderLayer();
   }
@@ -974,6 +979,8 @@ export class Core {
   /** The answer to every command of the contract, by its name. */
   /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
   agentVisible = false;
+  /** The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2). */
+  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); } });
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),
@@ -1161,6 +1168,7 @@ export class Core {
     get_folder_settings: () => this.folderLayer(),
     get_obsidian_periodic: () => obsidianPeriodic(this.files),
     note_made_from_template: () => null,
+    ...this.data.handlers,
     set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();

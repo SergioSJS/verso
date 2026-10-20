@@ -9,6 +9,7 @@ import { ui } from "./dom";
 import { fail } from "./errors";
 import { followMoved, forgetFiles } from "./files";
 import { currentFolder } from "./folder";
+import { folderDataChangedAt } from "./folderData";
 import { folderValues, reloadFolderLayer } from "./folderLayer";
 import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
@@ -87,6 +88,8 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
     await reloadFolderLayer();
     named = folderValues().folderNoteName !== before;
   }
+  // The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2).
+  folderDataChangedAt(changed);
   if (change.listing || named) refreshLists();
   else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
   if (changed.size > 0) void panel.loadTags();
