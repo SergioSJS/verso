@@ -73,6 +73,12 @@ export function sparksControl(): HTMLElement {
   saveBtn.addEventListener("click", () => {
     const parsed = {} as SparkWordLists;
     for (const col of cols) parsed[col.key] = words(col.textarea.value);
+    // An emptied column would make the whole set unusable on reading: refuse, and say which.
+    const empty = cols.filter((col) => parsed[col.key]!.length === 0).map((col) => col.label);
+    if (empty.length > 0) {
+      feedback.say(ss.wordsEmptyColumn(empty.join(", ")), true);
+      return;
+    }
     saveSparkWords(activeLang, parsed);
     feedback.say(ss.savedOdds);
     saveBtn.textContent = ss.savedOdds;

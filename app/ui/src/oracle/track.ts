@@ -20,7 +20,7 @@ export const oracleTracker = StateField.define<Tracked | null>({
   create: () => null,
   update(value, tr) {
     let v = value;
-    if (v && tr.docChanged) v = { ...v, from: tr.changes.mapPos(v.from, -1), to: tr.changes.mapPos(v.to, -1) };
+    if (v && tr.docChanged) v = { ...v, from: tr.changes.mapPos(v.from, 1), to: tr.changes.mapPos(v.to, -1) };
     for (const e of tr.effects) if (e.is(trackOracle)) v = e.value;
     return v;
   },

@@ -51,7 +51,7 @@ export function tablesControl(ctx: ItemCtx): HTMLElement {
     if (desc === null) return;
     const entriesRaw = await promptText(ss.tableEntries, existing ? existing.entries.join("\n") : "", true, opts);
     if (entriesRaw === null) return;
-    const read = readTable({ name, desc, entries: entriesRaw.split(/[;\n]+/).map((s) => s.trim()).filter(Boolean) });
+    const read = readTable({ name, desc, entries: entriesRaw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) });
     if (!read) {
       const empty = entriesRaw.trim() === "";
       return feedback.say(empty ? ss.tableNeedsEntry : ss.tableTooLong(TABLE_LIMITS.name, TABLE_LIMITS.entries, TABLE_LIMITS.entry), true);

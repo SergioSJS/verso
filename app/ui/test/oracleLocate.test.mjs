@@ -19,6 +19,16 @@ await esbuild.build({
   logLevel: "error",
 });
 const L = await import("./.bundles/oracle-locate.test-bundle.mjs");
+await esbuild.build({
+  stdin: { contents: `export * from "./src/oracle/track";`, resolveDir: ".", loader: "ts" },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  external: ["@codemirror/state"],
+  outfile: "test/.bundles/oracle-track.test-bundle.mjs",
+  logLevel: "error",
+});
+const T = await import("./.bundles/oracle-track.test-bundle.mjs");
 
 const answer = (label = "Sim", roll = 33, odds = "50 / 50") => ({ kind: "answer", question: "", line: `**${label}** _(d100: ${roll}, ${odds})_` });
 const count = (s) => (s.match(/\[!oracle\]/gi) ?? []).length;
@@ -298,4 +308,18 @@ test("frontmatter: an insertion never lands inside the YAML", () => {
   // The fence being the last line of the note.
   const only = "---\na: 1\n---";
   assert.equal(insert(only, 0, callout).out, "---\na: 1\n---\n\n> [!oracle] Q\n\n");
+});
+
+test("M3: text typed exactly at the callout's start does not make it 'moved'", () => {
+  const callout = "> [!oracle] Q?\n> nota";
+  const doc = "a\n" + callout;
+  let state = EditorState.create({ doc, extensions: [T.oracleTracker] });
+  const from = 2;
+  state = state.update({ effects: T.trackOracle.of({ from, to: doc.length, text: callout }) }).state;
+  // A collaborator pastes a line right at the callout's first column.
+  state = state.update({ changes: { from, insert: "novo\n" } }).state;
+  const t = T.trackedTarget(state, { from, text: callout });
+  assert.equal(t.from, from + 5);
+  const text = state.doc.toString();
+  assert.ok(L.locateOracleCallout(text, t));
 });

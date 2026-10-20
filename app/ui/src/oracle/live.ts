@@ -7,7 +7,7 @@
 import { WidgetType, type EditorView } from "@codemirror/view";
 import { ui } from "../dom";
 import { icon } from "../icons";
-import { layout } from "../layout/spaces";
+import { layout, spaces } from "../layout/spaces";
 import { refusalText, showOracleDialog } from "./dialog";
 import { isOracleHost, type OracleHost } from "./host";
 import { isOracleHead, oracleBlockAt, oracleQuestion, quoteInfo } from "./locate";
@@ -22,10 +22,14 @@ export function oracleHeadAt(lineText: string, previousLine: string | null): boo
   return (previousLine === null ? 0 : quoteInfo(previousLine).depth) < quoteInfo(lineText).depth;
 }
 
-/** The note leaf whose editor is this view, if it is the one in focus. */
+/** The note leaf whose editor is this view: the active one, or any other
+ *  pane's (the button's mousedown does not move focus). None for an editor
+ *  that is no note's own, such as a board card's. */
 function hostOf(view: EditorView): OracleHost | null {
   const leaf = layout().activeLeaf;
-  return isOracleHost(leaf) && leaf.editor === view ? leaf : null;
+  if (isOracleHost(leaf) && leaf.editor === view) return leaf;
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (isOracleHost(l) && l.editor === view) return l;
+  return null;
 }
 
 export class OracleCalloutButtonWidget extends WidgetType {
@@ -50,8 +54,12 @@ export class OracleCalloutButtonWidget extends WidgetType {
       const host = hostOf(view);
       const pos = view.posAtDOM(btn);
       const block = oracleBlockAt(view.state.doc.toString(), pos);
-      if (!host || !block) {
+      if (!block) {
         ui.status.textContent = refusalText("moved");
+        return;
+      }
+      if (!host) {
+        ui.status.textContent = os.noNoteHere;
         return;
       }
       // Follow the callout through whatever is typed while the dialog is open.
