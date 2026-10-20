@@ -35,8 +35,8 @@ class DiceWidget extends WidgetType {
  *  when it is no `dice:` code Verso rolls. */
 export function diceWidget(host: DiceHost): (code: string) => WidgetType | null {
   return (code) => {
-    if (!hasCapability("diceRolling")) return null;
     const read = readCode(code);
-    return read ? new DiceWidget(read, code, host) : null;
+    if (!read || !hasCapability(read.kind === "table" ? "randomTables" : "diceRolling")) return null;
+    return new DiceWidget(read, code, host);
   };
 }

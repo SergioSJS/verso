@@ -262,11 +262,11 @@ export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
 /** The `dice:` codes of rendered HTML drawn as dice: inline code only,
  *  never a code block. */
 export function wireDice(root: HTMLElement, host: DiceHost): void {
-  if (!hasCapability("diceRolling")) return;
+  if (!hasCapability("diceRolling") && !hasCapability("randomTables")) return;
   for (const code of root.querySelectorAll<HTMLElement>("code")) {
     if (code.closest("pre, .dice")) continue;
     const read = readCode(code.textContent ?? "");
-    if (read) code.replaceWith(diceBox(read, host));
+    if (read && hasCapability(read.kind === "table" ? "randomTables" : "diceRolling")) code.replaceWith(diceBox(read, host));
   }
 }
 
