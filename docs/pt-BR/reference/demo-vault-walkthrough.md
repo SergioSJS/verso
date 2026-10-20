@@ -1227,15 +1227,29 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    aparece no cursor, nunca dentro de uma citação, tabela ou bloco de código.
    Nível: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
    `test/oracle.test.mjs`.
-3. Os dados do oráculo. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*:
-   a tabela de chances recusa salvar com uma linha que não soma 100, e diz
-   qual; a página diz que os valores ficam na pasta (`.verso/settings.json`);
-   *+ Nova Tabela* escreve uma nota com uma lista com `^id`, e a aba *Tabelas*
-   do oráculo passa a listá-la com a nota de onde vem. Numa sala num servidor
-   o sorteio é do servidor e outra janela vê um aviso com o nome de quem
+3. Os ajustes do oráculo. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*
+   abre com uma frase do que o oráculo faz, *Experimentar o oráculo* (a
+   janela abre sobre a página) e *Compartilhado com quem abre esta pasta* —
+   nenhum caminho de arquivo. As chances são cinco barras divididas nas seis
+   respostas, com uma legenda; escolher o estilo *Ironsworn* o salva na hora
+   nos ajustes da pasta e as barras perdem as partes de "mas…"; *Desfazer*
+   traz o *Equilibrado* de volta. Em *Ajustar à mão…*, pôr 3 no *Não* de
+   *Quase certo* mostra *faltam 3%* e não salva nada; fechar a linha em 100
+   a salva e o estilo passa a *Personalizado*; *Voltar ao padrão* restaura a
+   tabela. *Faíscas de ideias* não tem chave de idioma: desligada, a amostra
+   mostra o idioma da janela (*Descobrir* em português, *Discover* em
+   inglês); *Usar minhas próprias palavras* transforma as quatro listas em
+   etiquetas — Enter adiciona (uma lista com vírgulas adiciona cada uma), ×
+   ou Delete remove, a última palavra de uma lista fica e diz por quê — cada
+   mudança salva sozinha; *Voltar às palavras do Verso* desliga. *Nova
+   tabela* escreve uma nota com uma lista com `^id` (o texto mostrado antes),
+   e a aba *Tabelas* do oráculo passa a listá-la com a nota de onde vem. Onde
+   a pasta é só leitura, a página diz por quê e todo controle fica
+   desativado. Tudo isso cabe em 340 px e no escuro. Numa sala num servidor o
+   sorteio é do servidor e outra janela vê um aviso com o nome de quem
    perguntou. Nível: H (a sala: o harness faz o servidor,
-   `src/harness/room.ts`); U: `test/oracleData.test.mjs`; a sala de verdade,
-   no `manual-checks.md`.
+   `src/harness/room.ts`); E: `oracle-settings.spec.mjs`; U:
+   `test/oracleData.test.mjs`; a sala de verdade, no `manual-checks.md`.
 4. Fichas. A nota 26 tem um cartão para cada layout embutido (34), nenhum com
    selo de erro, e `tutorial-sheets.spec.mjs` os conta. No cartão *Criatura
    d20* os dados (`+4 to hit`, `4 (1d4 + 2)`) rolam com um clique, o cartão diz o

@@ -2,148 +2,142 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The oracle's odds table in the settings (ADR 0102): the thirty numbers
-// of the five likelihoods, with ready-made sets, saved only when every row
-// adds up to 100. It lives in the open folder's settings (item 2), so it
-// is read-only where the person cannot write them, and says why.
+// The oracle's odds on the settings page (ADR 0102 items 1, 2 and 6): the
+// five levels drawn as bars, a style to pick — applied and saved at once,
+// with a way to undo — and the numbers by hand behind a disclosure. They
+// live in the open folder's settings, so where the person cannot write
+// them everything is read-only (the page's opening says why).
 
-import { ask } from "../../dialog";
-import { button, h, ui } from "../../dom";
-import { DEFAULT_ODDS_TABLE, folderHasOdds, getOddsTable, LIKELIHOODS, type Likelihood, type OddsTable, oddsFromRows } from "../../oracle/engine";
-import { legacyOddsKept, oddsIgnored, oracleNotWritable, oracleWarnings, saveOdds } from "../../oracle/folderData";
+import { button, h } from "../../dom";
+import { folderHasOdds, getOddsTable, type Likelihood, type OddsTable, oddsFromRows } from "../../oracle/engine";
+import { legacyOddsKept, oddsIgnored, ORACLE_DATA_CHANGED, oracleNotWritable, saveOdds } from "../../oracle/folderData";
+import { STYLE_IDS, type StyleId, styleOf, styleTable } from "../../oracle/settingsModel";
 import { os } from "../../oracle/strings";
-import { t } from "../../strings";
-import { feedbackLine } from "./feedback";
-import { ODDS_PRESETS, type OddsData } from "./oddsPresets";
-import { ss } from "./strings";
-import type { ItemCtx } from "./types";
+import { undoLine } from "./feedback";
+import { oddsBars } from "./oddsBars";
+import { oddsManual } from "./oddsManual";
+import { ow } from "./oracleStrings";
 
-export function oddsControl(ctx: ItemCtx): HTMLElement {
-  const wrap = h("div", "oracle-settings-section");
-  const why = oracleNotWritable();
-  // An earlier build's odds, while the folder sets none: the page starts
-  // from them, and they move into the folder with the first save.
+/** How long the arrow keys may rest on a style before it is saved: walking
+ *  the radio group draws each style, and saves only the one left on. */
+const PICK_REST_MS = 350;
+
+let groups = 0;
+
+export function oddsControl(): HTMLElement {
+  const readOnly = oracleNotWritable() !== null;
+  const n = ++groups;
+  const section = h("section", "orc-section");
+  const title = h("h3", "orc-heading", ow.oddsTitle);
+  title.id = `orc-odds-${n}`;
+  section.setAttribute("aria-labelledby", title.id);
+  section.append(title, h("p", "orc-lead", ow.oddsLead));
+
+  const bars = oddsBars();
+  const said = undoLine(ow.undo);
+
+  /** Save `table`, say `text`, offer to go back to `undoTo`. */
+  const save = async (table: OddsTable, text: string, undoTo?: OddsTable): Promise<boolean> => {
+    const ok = await saveOdds(table);
+    if (!ok) {
+      said.say(ow.saveFailed, true);
+      refresh(true);
+      return false;
+    }
+    said.say(text, false, undoTo ? () => void apply(undoTo, ow.undone) : undefined);
+    return true;
+  };
+  const apply = async (table: OddsTable, text: string): Promise<boolean> => {
+    const ok = await save(table, text);
+    if (ok) refresh(true);
+    return ok;
+  };
+
+  if (oddsIgnored()) section.append(h("p", "orc-note bad", ow.ignoredOdds));
+  // What an earlier build kept in this window, while the folder sets none:
+  // offered, never applied unasked.
   const legacy = !folderHasOdds() ? oddsFromRows(legacyOddsKept()) : null;
-  const odds: OddsTable = legacy ?? getOddsTable();
-  const data = {} as OddsData;
-  for (const lh of LIKELIHOODS) data[lh] = [...odds[lh]] as OddsData[Likelihood];
-  const inputs = {} as Record<Likelihood, HTMLInputElement[]>;
-  const badges = {} as Record<Likelihood, HTMLElement>;
-  for (const lh of LIKELIHOODS) inputs[lh] = [];
-  const feedback = feedbackLine();
-  const hint = h("p", "settings-hint", why ? ss.notWritable[why] : ss.inFolder);
-  const notes = h("div", "settings-feedback");
-  if (oddsIgnored()) {
-    notes.append(h("p", "settings-hint bad", `${os.brokenOdds} ${ss.ignoredInFile(ss.ignoredOdds)}`));
-    for (const w of oracleWarnings().filter((x) => x.startsWith("oracle odds"))) notes.append(h("p", "settings-hint bad", w));
+  if (legacy && !readOnly) {
+    const note = h("div", "orc-note");
+    const use = button("ghost", ow.legacyOddsUse);
+    use.addEventListener("click", () => void apply(legacy, ow.undone).then((ok) => ok && note.remove()));
+    note.append(h("p", "", ow.legacyOdds), use);
+    section.append(note);
   }
-  if (legacy) notes.append(h("p", "settings-hint", ss.legacyKept));
 
-  const sum = (lh: Likelihood): number => data[lh].reduce((a, b) => a + b, 0);
-  const paintSum = (lh: Likelihood): void => {
-    const total = sum(lh);
-    const badge = badges[lh];
-    badge.textContent = `${total}% ${total === 100 ? "✓" : "⚠️"}`;
-    badge.className = `oracle-odds-sum ${total === 100 ? "valid" : "invalid"}`;
+  // ---- the style
+  const styles = h("fieldset", "orc-styles");
+  styles.append(h("legend", "orc-subheading", ow.styleLegend));
+  const radios = new Map<StyleId | "custom", HTMLInputElement>();
+  let pickTimer = 0;
+  /** Draw a style at once; save it once the keys rest on it. */
+  const pick = (id: StyleId): void => {
+    const before = getOddsTable();
+    const table = styleTable(id);
+    bars.paint(table);
+    window.clearTimeout(pickTimer);
+    pickTimer = window.setTimeout(() => {
+      pickTimer = 0;
+      if (styleOf(getOddsTable()) === id) return;
+      void save(table, ow.styleApplied(ow.styles[id].name), before).then((ok) => ok && manual.refresh(getOddsTable(), true));
+    }, PICK_REST_MS);
   };
-
-  // Ready-made sets.
-  const presetsRow = h("div", "oracle-odds-presets");
-  presetsRow.append(h("span", "oracle-preset-title", ss.presetsLabel));
-  const presetText = {
-    mythic: { name: "🎯 Mythic GME 2e", desc: ss.presetMythic },
-    ironsworn: { name: "⚔️ Ironsworn", desc: ss.presetIronsworn },
-    balanced: { name: ss.balanced, desc: ss.presetBalanced },
-    narrative: { name: ss.narrative, desc: ss.presetNarrative },
+  const option = (id: StyleId | "custom"): HTMLElement => {
+    const words = id === "custom" ? ow.custom : ow.styles[id];
+    const label = h("label", "orc-style");
+    const radio = h("input");
+    radio.type = "radio";
+    radio.name = `orc-style-${n}`;
+    radio.value = id;
+    radio.disabled = readOnly;
+    radios.set(id, radio);
+    const text = h("span", "orc-style-text");
+    const top = h("span", "orc-style-name", words.name);
+    if (id === "balanced") top.append(h("span", "orc-tag", ow.defaultTag));
+    text.append(top, h("span", "orc-style-desc", words.desc));
+    label.append(radio, text);
+    radio.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") e.stopPropagation();
+    });
+    radio.addEventListener("change", () => {
+      if (!radio.checked) return;
+      if (id === "custom") return manual.reveal();
+      pick(id);
+    });
+    return label;
   };
-  for (const preset of ODDS_PRESETS) {
-    const text = presetText[preset.id];
-    const btn = h("button", "oracle-preset-btn", text.name);
-    btn.type = "button";
-    btn.title = text.desc;
-    btn.disabled = why !== null;
-    btn.addEventListener("click", () => {
-      for (const lh of LIKELIHOODS) {
-        data[lh] = [...preset.data[lh]];
-        data[lh].forEach((v, i) => {
-          const inp = inputs[lh][i];
-          if (inp) inp.value = String(v);
-        });
-        paintSum(lh);
-      }
-    });
-    presetsRow.append(btn);
-  }
+  const cards = h("div", "orc-style-grid");
+  for (const id of STYLE_IDS) cards.append(option(id));
+  cards.append(option("custom"));
+  styles.append(cards);
 
-  const table = h("table", "oracle-odds-table");
-  const trH = h("tr");
-  for (const head of ss.oddsHead) trH.append(h("th", "", head));
-  const thead = h("thead");
-  thead.append(trH);
-  table.append(thead);
-  const tbody = h("tbody");
-  for (const lh of LIKELIHOODS) {
-    const tr = h("tr");
-    tr.append(h("td", "oracle-odds-name", ss.likelihood[lh]));
-    for (let col = 0; col < 6; col++) {
-      const td = h("td");
-      const input = h("input", "oracle-odds-input");
-      input.type = "number";
-      input.min = "0";
-      input.max = "100";
-      input.value = String(data[lh][col]);
-      input.disabled = why !== null;
-      input.setAttribute("aria-label", ss.oddsRowLabel(ss.likelihood[lh], ss.oddsHead[col + 1] ?? ""));
-      input.addEventListener("keydown", (e) => e.stopPropagation());
-      input.addEventListener("input", () => {
-        data[lh][col] = Math.max(0, Math.min(100, Number.parseInt(input.value, 10) || 0));
-        paintSum(lh);
-      });
-      inputs[lh].push(input);
-      td.append(input);
-      tr.append(td);
-    }
-    const sumTd = h("td");
-    badges[lh] = h("span", "oracle-odds-sum");
-    sumTd.append(badges[lh]);
-    tr.append(sumTd);
-    paintSum(lh);
-    tbody.append(tr);
-  }
-  table.append(tbody);
-  const tableWrap = h("div", "oracle-odds-table-wrap");
-  tableWrap.append(table);
-
-  const actions = h("div", "oracle-actions");
-  const saveBtn = button("save", ss.saveOdds);
-  saveBtn.disabled = why !== null;
-  saveBtn.addEventListener("click", () => {
-    // A row that does not add up is refused, said with its name; nothing
-    // is saved until all five do.
-    const bad = LIKELIHOODS.filter((lh) => sum(lh) !== 100).map((lh) => ss.likelihood[lh]);
-    if (bad.length > 0) {
-      feedback.say(ss.oddsNot100(bad.join(", ")), true);
-      return;
-    }
-    void saveOdds(data).then((ok) => {
-      if (!ok) return feedback.say(ss.savedFailed, true);
-      feedback.say(ss.savedOdds);
-      saveBtn.textContent = ss.savedOdds;
-      window.setTimeout(() => (saveBtn.textContent = ss.saveOdds), 1800);
-    });
+  const manual = oddsManual({
+    readOnly,
+    stored: getOddsTable,
+    save: async (table: OddsTable, level: Likelihood) => void (await save(table, ow.rowSaved(os.likelihood[level]))),
+    restore: () => {
+      const before = getOddsTable();
+      void save(styleTable("balanced"), ow.restored, before).then((ok) => ok && refresh(true));
+    },
   });
-  const resetBtn = button("ghost", ss.restoreOdds);
-  resetBtn.disabled = why !== null;
-  resetBtn.addEventListener("click", () => {
-    void (async () => {
-      if (!(await ask(ss.restoreOddsAsk, { yes: ss.restoreOdds, no: t.cancel }))) return;
-      if (!(await saveOdds({ ...DEFAULT_ODDS_TABLE }))) return feedback.say(ss.savedFailed, true);
-      ctx.paint();
-      ui.status.textContent = ss.oddsRestored;
-    })();
-  });
-  actions.append(saveBtn, resetBtn);
 
-  wrap.append(hint, notes, presetsRow, tableWrap, actions, feedback.el);
-  return wrap;
+  function refresh(all: boolean): void {
+    const now = getOddsTable();
+    if (!pickTimer) {
+      bars.paint(now);
+      // "Custom" picked by hand stays picked while its numbers are a style's.
+      const custom = radios.get("custom")!;
+      if (all || !custom.checked) radios.get(styleOf(now))!.checked = true;
+    }
+    manual.refresh(now, all);
+  }
+  refresh(true);
+  const heard = (): void => {
+    if (!section.isConnected) return void removeEventListener(ORACLE_DATA_CHANGED, heard);
+    refresh(false);
+  };
+  addEventListener(ORACLE_DATA_CHANGED, heard);
+
+  section.append(bars.el, styles, said.el, manual.el);
+  return section;
 }

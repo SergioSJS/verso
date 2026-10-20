@@ -124,7 +124,22 @@ has not read yet.
 
 6. **Sparks.** Two pairs on request, Action + Theme and Descriptor + Focus,
    from original word lists in Portuguese and English, never copied from a
-   commercial table.
+   commercial table. `[DECIDED 2026-10-20]`, later that day: the built-in
+   words are drawn **in the window's language**, never chosen on the
+   settings page — the maintainer, on a language switch there: *"quando a
+   gente estiver adicionando novos idiomas, aí em vez de puxar o idioma do
+   sistema … a pessoa vai ter que vir aqui e mexer no idioma do
+   vocabulário … meio bosta isso daí"* (when we add new languages, instead
+   of taking the system's language, people will have to come here and
+   change the vocabulary's language). A folder's own words, when it has
+   them, are one set, used whatever the language. `[PROPOSED]`: the
+   settings page reworked for people who never read this ADR — a sentence
+   of what the oracle does and a way to try it; the odds as one bar per
+   level split in the six answers, a style to pick (with a line on each)
+   and editing by hand behind a disclosure with the total always shown;
+   saved as every other setting is, without a save button; the words as
+   chips with "+ word"; no file path on screen, only that it is shared
+   with whoever opens the folder.
 
 7. **Randomness**: the platform's cryptographic source, no modulo bias,
    injectable for tests ([0088](0088-dice-and-random-tables.md) item 7).

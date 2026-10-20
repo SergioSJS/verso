@@ -124,7 +124,21 @@ mantenedor ainda não leu.
 
 6. **Faíscas.** Dois pares a pedido, Ação + Tema e Descritor + Foco, de
    listas de palavras originais em português e inglês, nunca copiadas de uma
-   tabela comercial.
+   tabela comercial. `[DECIDIDO 2026-10-20]`, mais tarde nesse dia: as
+   palavras embutidas são sorteadas **no idioma da janela**, nunca
+   escolhidas na página de ajustes — o mantenedor, sobre um seletor de
+   idioma ali: *"quando a gente estiver adicionando novos idiomas, aí em vez
+   de puxar o idioma do sistema … a pessoa vai ter que vir aqui e mexer no
+   idioma do vocabulário … meio bosta isso daí"*. As palavras próprias de
+   uma pasta, quando ela as tem, são um conjunto só, usado em qualquer
+   idioma. `[PROPOSTO]`: a página de ajustes refeita para quem nunca leu
+   este ADR — uma frase do que o oráculo faz e um jeito de experimentar; as
+   chances como uma barra por nível dividida nas seis respostas, um estilo
+   para escolher (com uma linha sobre cada) e a edição à mão atrás de um
+   "ajustar", com o total sempre à vista; salva como todo outro ajuste, sem
+   botão de salvar; as palavras como etiquetas com "+ palavra"; nenhum
+   caminho de arquivo na tela, só que é compartilhado com quem abre a
+   pasta.
 
 7. **Aleatoriedade**: a fonte criptográfica da plataforma, sem viés de
    módulo, injetável para testes ([0088](0088-dice-and-random-tables.md)

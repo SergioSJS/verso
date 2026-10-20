@@ -193,12 +193,26 @@ export function builtinSparkWords(lang: "pt" | "en" = "pt"): SparkWordLists {
   return defaultWords(lang);
 }
 
+/** Whether a set of words is the built-in set of a language, word for
+ *  word. The folder's file has no way to unset its words (the contract's
+ *  `OracleSparks` is all four lists or nothing), so going back to Verso's
+ *  words writes a built-in set — and a built-in set read back is Verso's
+ *  words again, drawn in the window's language (ADR 0102 item 6). */
+export function isBuiltinSparks(w: SparkWordLists): boolean {
+  const eq = (x: readonly string[], y: readonly string[]) => x.length === y.length && x.every((v, i) => v === y[i]);
+  return (["pt", "en"] as const).some((lang) => {
+    const b = WORDS[lang];
+    return eq(w.action, b.action) && eq(w.theme, b.theme) && eq(w.descriptor, b.descriptor) && eq(w.focus, b.focus);
+  });
+}
+
 /** The folder's spark words where they are usable (four lists of 1 to 200
- *  words of 1 to 60 characters, as the core reads them), else null. */
+ *  words of 1 to 60 characters, as the core reads them) and not a built-in
+ *  set, else null. */
 export function sparksFromFolder(raw: SparkWordLists | null): SparkWordLists | null {
   if (!raw) return null;
   const ok = (l: unknown): l is string[] => Array.isArray(l) && l.length >= 1 && l.length <= 200 && l.every((w) => typeof w === "string" && w.length >= 1 && [...w].length <= 60);
-  return ok(raw.action) && ok(raw.theme) && ok(raw.descriptor) && ok(raw.focus) ? raw : null;
+  return ok(raw.action) && ok(raw.theme) && ok(raw.descriptor) && ok(raw.focus) && !isBuiltinSparks(raw) ? raw : null;
 }
 
 /** The spark words now: the folder's, one set whatever the language (it
