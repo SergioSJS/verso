@@ -417,9 +417,9 @@ Para escrever um destaque desse tipo em qualquer nota, basta usar:
 
 ### A Janela do Oráculo
 
-Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de comandos (`⌘⇧P` › *Consultar Oráculo…*). Ela possui três abas principais:
+Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de comandos (`⌘⇧P` › *Oráculo (sim/não e faíscas)…*). Ela possui três abas principais:
 
-1. **Sim ou Não**: Escolha a probabilidade da pergunta (*Quase impossível*, *Improvável*, *50 / 50*, *Provável*, *Quase certo*). O Verso rola um `d100` calibrado (ADR 0102) e avalia o resultado em seis faixas narrativas:
+1. **Sim ou Não**: Escolha a probabilidade da pergunta (*Quase impossível*, *Improvável*, *50 / 50*, *Provável*, *Quase certo*). O Verso rola um `d100` calibrado e avalia o resultado em seis faixas narrativas:
    - *Sim, e…* (sucesso com benefício extra)
    - *Sim* (sucesso limpo)
    - *Sim, mas…* (sucesso com complicação)
@@ -435,7 +435,7 @@ Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota** para gr
 
 ### 🎲 Como criar e customizar seus próprios Oráculos
 
-No Verso, qualquer tabela Markdown ou lista com um identificador de bloco (`^id`) é tratada como um **oráculo sorteável** (ADR 0088):
+No Verso, qualquer tabela Markdown ou lista com um identificador de bloco (`^id`) é tratada como um **oráculo sorteável**:
 
 | d6 | Reviravolta Inesperada |
 |:--:|---|
@@ -457,7 +457,7 @@ Você pode rolar o seu oráculo customizado de duas maneiras:
 
 Em vez de criar dezenas de pastas e arquivos manualmente para organizar um novo cenário de RPG ou campanha de ficção, o Verso oferece um assistente estruturado:
 
-1. Clique no botão **`+`** na barra lateral de arquivos e escolha **Novo projeto a partir de um modelo…** (ou use a paleta de comandos: `⌘⇧P` › *Criar Novo Mundo ou Campanha…*).
+1. Clique no botão **`+`** na barra lateral de arquivos e escolha **Novo projeto a partir de modelo…** (ou use a paleta de comandos: `⌘⇧P` › *Novo projeto a partir de modelo…*).
 2. **Modelos Prontos**: Escolha entre pacotes embutidos como:
    - *Tormenta20 / Fantasia Medieval*: Pastas organizadas para Sessões, Facções, Personagens, Cidades, Itens e Ameaças, já com modelos pré-configurados.
    - *Ciberpunk / Ficção Científica*: Dossiês de megacorporações, implantes, missões e NPCs.
