@@ -31,7 +31,7 @@ Em ordem: personagem e adversário lado a lado, sistema por sistema. Os avisos d
 
 ### Criatura d20 e D&D 5e (SRD)
 
-O formato do plugin Fantasy Statblocks, e a ficha de personagem e de monstro do SRD 5.1 da Wizards of the Coast (CC-BY 4.0).
+O formato do plugin Fantasy Statblocks, e a ficha de personagem e de monstro do SRD de D&D 5e da Wizards of the Coast (5.1 e 5.2.1, CC-BY 4.0).
 
 **Criatura d20 — o layout padrão, sem sistema** (`layout: d20-creature`)
 
@@ -218,7 +218,7 @@ melee:
 
 ### 13th Age
 
-D20 narrativo, com a Característica da Escalada e os Usos da Ordem.
+D20 narrativo, com o dado de escalada (Escalation Die) e os Ícones; o texto aberto vem sob a OGL 1.0a.
 
 **13th Age — personagem** (`layout: 13th-age-character`)
 
