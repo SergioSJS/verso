@@ -517,9 +517,10 @@ export class LayoutEditor {
       else this.say(r.why);
       return false;
     }
+    let leftover: { id: string; why: string } | null = null;
     if (renaming && this.origId) {
       const gone = await removeLayout(this.origId);
-      if (!gone.ok) this.say(gone.why);
+      if (!gone.ok) leftover = { id: this.origId, why: gone.why };
     }
     this.origId = r.value.layout.id;
     this.revision = r.value.revision ?? null;
@@ -528,7 +529,36 @@ export class LayoutEditor {
     this.parts.stale.hidden = true;
     this.renderAll();
     this.say(e.saved);
+    if (leftover) this.offerRemoval(leftover.id, leftover.why);
     return true;
+  }
+
+  /** A rename made the new file but the old one stays: say so and ask,
+   *  retry the removal or keep both. Nothing is decided silently. */
+  offerRemoval(id: string, why: string): void {
+    const e = E();
+    const box = this.parts.stale;
+    box.replaceChildren(h("p", "", e.oldRemains(id, why)));
+    const retry = h("button", "sbe-small", e.retryRemove);
+    retry.type = "button";
+    retry.addEventListener("click", () => {
+      void (async () => {
+        const r = await removeLayout(id);
+        if (r.ok) {
+          box.hidden = true;
+          this.say(e.removedOld);
+        } else this.offerRemoval(id, r.why);
+      })();
+    });
+    const keep = h("button", "sbe-small", e.keepBoth);
+    keep.type = "button";
+    keep.addEventListener("click", () => {
+      box.hidden = true;
+      this.say(e.keptBoth);
+    });
+    box.append(retry, keep);
+    box.hidden = false;
+    this.say(e.oldRemains(id, why));
   }
 
   /** Another person's version is in the folder: say so, and offer theirs
