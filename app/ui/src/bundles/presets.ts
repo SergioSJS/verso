@@ -11,7 +11,7 @@ export const DADOS_CRITICOS_CAMPAIGN: TemplateBundle = {
   version: 1,
   id: "dados-criticos-campanha",
   name: "Campanha de RPG (Dados Críticos)",
-  description: "Estrutura completa com grupos, sessões, facções, NPCs, locais, itens e hexcrawl.",
+  description: "Estrutura completa com grupos, sessões, facções, NPCs, locais, itens e hexcrawl. Baseada na estrutura de cofre do Dados Críticos, de Igor Téuri.",
   category: "rpg",
   folders: [
     "1. Grupo",
@@ -246,14 +246,13 @@ export const DADOS_CRITICOS_MUNDO: TemplateBundle = {
   description: "Bases sólidas de cenário: lore, mitos de criação, divindades, idiomas e cultura.",
   category: "world",
   folders: [
-    "{{title}}",
-    "{{title}}/Regiões",
-    "{{title}}/Panteão",
-    "{{title}}/Fações",
+    "Regiões",
+    "Panteão",
+    "Facções",
   ],
   files: [
     {
-      path: "{{title}}/Lore.md",
+      path: "Lore.md",
       content: `# Lore e História de {{title}}
 
 ## As Eras do Mundo
@@ -265,7 +264,7 @@ export const DADOS_CRITICOS_MUNDO: TemplateBundle = {
 `,
     },
     {
-      path: "{{title}}/Mito de Criação.md",
+      path: "Mito de Criação.md",
       content: `# Mito de Criação — {{title}}
 
 ## A Origem do Cosmo
@@ -274,7 +273,7 @@ export const DADOS_CRITICOS_MUNDO: TemplateBundle = {
 `,
     },
     {
-      path: "{{title}}/Divindades.md",
+      path: "Divindades.md",
       content: `# Divindades e Crenças — {{title}}
 
 | Divindade | Domínios | Símbolo Sagrado | Relação com os Mortais |
@@ -283,7 +282,7 @@ export const DADOS_CRITICOS_MUNDO: TemplateBundle = {
 `,
     },
     {
-      path: "{{title}}/Cultura.md",
+      path: "Cultura.md",
       content: `# Costumes e Cultura — {{title}}
 
 ## Tradições e Festividades
@@ -292,7 +291,7 @@ export const DADOS_CRITICOS_MUNDO: TemplateBundle = {
 `,
     },
     {
-      path: "{{title}}/Idiomas.md",
+      path: "Idiomas.md",
       content: `# Idiomas e Dialetos — {{title}}
 
 - **Língua Comum:** 
@@ -374,13 +373,13 @@ export const CADERNO_PESSOAL: TemplateBundle = {
       content: `# Meu Painel de Foco
 
 ## Projetos Ativos (Com prazo e resultado definido)
-- [[1. Projetos/]]
+- Veja a pasta 1. Projetos
 
 ## Áreas de Responsabilidade (Padrões a manter)
 - Saúde, Finanças, Carreira, Casa.
 
 ## Recursos Úteis (Temas de interesse para consulta)
-- [[3. Recursos/]]
+- Veja a pasta 3. Recursos
 `,
     },
   ],

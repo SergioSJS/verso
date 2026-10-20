@@ -4,18 +4,24 @@
 
 /** Template Bundle Schema and validation (ADR 0098). */
 
+import type { BundleWords } from "./words";
+
+export type FrontmatterValue = string | number | boolean | null | (string | number)[];
+
 export interface TemplateBundleFile {
   path: string;
-  frontmatter?: Record<string, string | number | boolean | null | string[]>;
+  frontmatter?: Record<string, FrontmatterValue>;
   content?: string;
 }
+
+export const CATEGORIES = ["rpg", "world", "writing", "notes"] as const;
 
 export interface TemplateBundle {
   version: 1;
   id: string;
   name: string;
   description: string;
-  category?: "rpg" | "world" | "writing" | "notes";
+  category?: (typeof CATEGORIES)[number];
   folders: string[];
   files: TemplateBundleFile[];
 }
@@ -28,132 +34,68 @@ export interface ValidationResult {
   errorPrompt?: string;
 }
 
-/** Validate an unknown object or JSON string against the Template Bundle Schema v1.
- *  Returns a detailed error and a pre-formatted fix prompt to copy back
- *  to the user's AI assistant if validation fails. */
-export function validateBundle(data: unknown): ValidationResult {
-  let parsed: unknown = data;
-  if (typeof data === "string") {
-    let clean = data.trim();
-    if (clean.startsWith("```")) {
-      clean = clean.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-    }
-    try {
-      parsed = JSON.parse(clean);
-    } catch (err) {
-      return failWith(
-        `JSON inválido: ${err instanceof Error ? err.message : String(err)}`,
-        "O texto fornecido não é um JSON válido. Verifique se copiou o JSON completo gerado pela IA."
-      );
-    }
-  }
+/** The most text the wizard reads when a bundle is pasted. */
+export const MAX_PASTE_BYTES = 6 * 1024 * 1024;
 
-  if (typeof parsed !== "object" || parsed === null) {
-    return failWith(
-      "O JSON fornecido não é um objeto.",
-      "O JSON fornecido não é um objeto JSON válido (esperava-se um objeto com chaves 'version', 'id', 'name', 'folders', 'files')."
-    );
-  }
-
-  const obj = parsed as Record<string, unknown>;
-
-  if (obj.version !== 1) {
-    return failWith(
-      "Campo 'version' inválido ou ausente: deve ser 1.",
-      "O campo 'version' é obrigatório e deve ser exatamente o número 1."
-    );
-  }
-
-  if (typeof obj.id !== "string" || !obj.id.trim()) {
-    return failWith(
-      "Campo 'id' inválido ou ausente: deve ser uma string identificadora única (ex: 'minha-campanha').",
-      "O campo 'id' deve ser uma string sem espaços ou acentos que identifique o modelo (ex: 'campanha-tormenta20')."
-    );
-  }
-
-  if (typeof obj.name !== "string" || !obj.name.trim()) {
-    return failWith(
-      "Campo 'name' inválido ou ausente: informe o nome do modelo.",
-      "O campo 'name' deve ser o título legível do modelo (ex: 'Campanha de Fantasia')."
-    );
-  }
-
-  if (typeof obj.description !== "string") {
-    return failWith(
-      "Campo 'description' inválido ou ausente: deve ser uma string.",
-      "O campo 'description' deve ser uma string descrevendo brevemente o modelo."
-    );
-  }
-
-  if (!Array.isArray(obj.folders)) {
-    return failWith(
-      "Campo 'folders' inválido ou ausente: deve ser uma lista de caminhos de pastas.",
-      "O campo 'folders' deve ser um array de strings com as pastas a criar (ex: ['1. Grupo', '2. Sessões'])."
-    );
-  }
-
-  for (let i = 0; i < obj.folders.length; i++) {
-    if (typeof obj.folders[i] !== "string" || !obj.folders[i].trim()) {
-      return failWith(
-        `Pasta no índice ${i} é inválida. Todos os itens de 'folders' devem ser strings não vazias.`,
-        `O item no índice ${i} do array 'folders' não é uma string válida. Todos os itens de 'folders' devem ser nomes de pastas.`
-      );
-    }
-  }
-
-  if (!Array.isArray(obj.files)) {
-    return failWith(
-      "Campo 'files' inválido ou ausente: deve ser uma lista de arquivos.",
-      "O campo 'files' deve ser um array de objetos, onde cada objeto representa um arquivo com 'path' e 'content' opcional."
-    );
-  }
-
-  for (let i = 0; i < obj.files.length; i++) {
-    const file = obj.files[i];
-    if (typeof file !== "object" || file === null) {
-      return failWith(
-        `Arquivo no índice ${i} é inválido: deve ser um objeto.`,
-        `O item no índice ${i} de 'files' deve ser um objeto contendo a propriedade 'path'.`
-      );
-    }
-    const fObj = file as Record<string, unknown>;
-    if (typeof fObj.path !== "string" || !fObj.path.trim()) {
-      return failWith(
-        `Arquivo no índice ${i} não possui a propriedade obrigatória 'path'.`,
-        `O arquivo no índice ${i} precisa ter a chave 'path' indicando o caminho relativo do arquivo (ex: '2. Sessões/Sessão 01.md').`
-      );
-    }
-    if (fObj.frontmatter !== undefined && (typeof fObj.frontmatter !== "object" || fObj.frontmatter === null || Array.isArray(fObj.frontmatter))) {
-      return failWith(
-        `Propriedade 'frontmatter' do arquivo '${fObj.path}' deve ser um objeto chave-valor.`,
-        `O campo 'frontmatter' do arquivo '${fObj.path}' deve ser um objeto com pares de propriedades (ex: { "tipo": "npc" }).`
-      );
-    }
-    if (fObj.content !== undefined && typeof fObj.content !== "string") {
-      return failWith(
-        `Propriedade 'content' do arquivo '${fObj.path}' deve ser uma string de texto Markdown.`,
-        `O campo 'content' do arquivo '${fObj.path}' deve ser uma string com o conteúdo Markdown do arquivo.`
-      );
-    }
-  }
-
-  return {
-    valid: true,
-    bundle: obj as unknown as TemplateBundle,
-  };
+/** The fence an AI wraps its answer in, if any, taken off. */
+export function unfence(text: string): string {
+  const clean = text.trim();
+  if (!clean.startsWith("```")) return clean;
+  return clean.replace(/^```[A-Za-z]*[ \t]*\r?\n?/, "").replace(/\r?\n?```\s*$/, "").trim();
 }
 
-function failWith(error: string, fixDetail: string): ValidationResult {
-  const fixPrompt =
-    `O Verso encontrou o seguinte erro ao validar o JSON do Template Bundle:\n` +
-    `"${error}"\n\n` +
-    `Detalhe: ${fixDetail}\n\n` +
-    `Por favor, corrija o JSON mantendo estritamente o Schema v1 do Verso e devolva apenas o bloco de código JSON corrigido.`;
+/** Validate an unknown object or JSON string against the Template Bundle
+ *  Schema v1, in the language of `w`. Returns a detailed error and a
+ *  pre-formatted fix prompt to copy back to the person's AI assistant if
+ *  validation fails. */
+export function validateBundle(data: unknown, w: BundleWords): ValidationResult {
+  let parsed: unknown = data;
+  if (typeof data === "string") {
+    if (data.length > MAX_PASTE_BYTES) return failWith(w, w.tooBig(MAX_PASTE_BYTES / 1024 / 1024));
+    try {
+      parsed = JSON.parse(unfence(data));
+    } catch (err) {
+      return failWith(w, w.invalidJson(err instanceof Error ? err.message : String(err)));
+    }
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return failWith(w, w.notObject);
+  const obj = parsed as Record<string, unknown>;
 
-  return {
-    valid: false,
-    error,
-    fixPrompt,
-    errorPrompt: fixPrompt,
-  };
+  if (obj.version !== 1) return failWith(w, w.version);
+  if (typeof obj.id !== "string" || !obj.id.trim()) return failWith(w, w.id);
+  if (typeof obj.name !== "string" || !obj.name.trim()) return failWith(w, w.name);
+  if (typeof obj.description !== "string") return failWith(w, w.description);
+  if (obj.category !== undefined && !(CATEGORIES as readonly unknown[]).includes(obj.category)) return failWith(w, w.category);
+  if (!Array.isArray(obj.folders)) return failWith(w, w.folders);
+  for (let i = 0; i < obj.folders.length; i++) {
+    const f: unknown = obj.folders[i];
+    if (typeof f !== "string" || !f.trim()) return failWith(w, w.folderItem(i));
+  }
+  if (!Array.isArray(obj.files)) return failWith(w, w.files);
+  for (let i = 0; i < obj.files.length; i++) {
+    const file: unknown = obj.files[i];
+    if (typeof file !== "object" || file === null || Array.isArray(file)) return failWith(w, w.fileItem(i));
+    const f = file as Record<string, unknown>;
+    if (typeof f.path !== "string" || !f.path.trim()) return failWith(w, w.filePath(i));
+    if (f.frontmatter !== undefined) {
+      if (typeof f.frontmatter !== "object" || f.frontmatter === null || Array.isArray(f.frontmatter)) return failWith(w, w.frontmatterObject(f.path));
+      for (const [key, value] of Object.entries(f.frontmatter)) {
+        if (!key.trim() || /[\r\n\x00-\x1f]/.test(key)) return failWith(w, w.frontmatterKey(f.path, key));
+        if (!frontmatterValueOk(value)) return failWith(w, w.frontmatterValue(f.path, key));
+      }
+    }
+    if (f.content !== undefined && typeof f.content !== "string") return failWith(w, w.content(f.path));
+  }
+  return { valid: true, bundle: obj as unknown as TemplateBundle };
+}
+
+function frontmatterValueOk(v: unknown): boolean {
+  if (v === null || typeof v === "string" || typeof v === "boolean") return true;
+  if (typeof v === "number") return Number.isFinite(v);
+  return Array.isArray(v) && v.every((x) => typeof x === "string" || (typeof x === "number" && Number.isFinite(x)));
+}
+
+function failWith(w: BundleWords, why: { error: string; fix: string }): ValidationResult {
+  const fixPrompt = w.fixIntro(why.error, why.fix);
+  return { valid: false, error: why.error, fixPrompt, errorPrompt: fixPrompt };
 }
