@@ -129,6 +129,8 @@ Há layouts de sistemas abertos (D&D 5e SRD, Pathfinder 2e, Blades in the Dark, 
 
 Um layout pode ter **bloco de rolagem** — um botão como *Rolar (Fractal)* que pergunta, por exemplo, quantos fatos se aplicam e mostra o resultado como o sistema lê — e **contadores** como os acima. E um layout de **fatos ou obstáculos** pode ter a marca **Quebrado** por item: um botão que risca o item e grava `quebrado: true` no YAML, com a contagem *N de M quebrados* no título.
 
+Veja tudo junto, com o Fractal, em [[Campanha Fractal/Mundo]].
+
 ### Layouts em Ajustes › RPG & Mesa Solo › Fichas e Templates
 
 - Os layouts **embutidos** não mudam. **Duplicar para a pasta** cria uma cópia em `.verso/layouts/` — um arquivo da pasta, que sincroniza: quem abre a pasta vê a ficha igual.
