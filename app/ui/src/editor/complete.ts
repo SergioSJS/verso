@@ -21,7 +21,6 @@ import { ss as secretStrings } from "../secret/strings";
 import { hasCapability } from "../capabilities";
 import { askOracleInActiveNote } from "../oracle/active";
 import { os as oracleText } from "../oracle/strings";
-import { isPt } from "../oracle/strings";
 import { LOCALE, t } from "../strings";
 import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
@@ -163,8 +162,8 @@ export function slashSections(): SlashSection[] {
       { icon: "calendar", title: t.now, description: time, keywords: "hora time agora", insert: time },
       { icon: "template", title: t.insertTemplate, description: s.template, keywords: "template modelo", insert: "", run: () => insertTemplate() },
       ...(hasCapability("oracles") ? [{ icon: "sparkles", title: oracleText.slashAsk, description: oracleText.slashAskDesc, keywords: "oracle oraculo spark solo rpg dados", insert: "", run: () => askOracleInActiveNote() }] : []),
-      ...(hasCapability("statblocks") ? [{ icon: "note", title: isPt ? "Ficha de Atributos (Statblock)" : "Statblock Card", description: isPt ? "Bloco ```statblock para fichas de monstros, NPCs e personagens" : "```statblock block for monsters, NPCs, and characters", keywords: "statblock ficha monstro npc atributos", insert: STATBLOCK_SNIPPET, cursor: STATBLOCK_SNIPPET.indexOf("name: ") + "name: ".length }] : []),
-      { icon: "tag", title: t.addProperty, description: isPt ? "Adicionar propriedade ao frontmatter YAML" : "Add property to frontmatter YAML", keywords: "propriedade property frontmatter meta tag", insert: "", run: () => {
+      ...(hasCapability("statblocks") ? [{ icon: "note", title: oracleText.slashStatblock, description: oracleText.slashStatblockDesc, keywords: "statblock ficha monstro npc atributos", insert: STATBLOCK_SNIPPET, cursor: STATBLOCK_SNIPPET.indexOf("name: ") + "name: ".length }] : []),
+      { icon: "tag", title: t.addProperty, description: oracleText.slashAddPropertyDesc, keywords: "propriedade property frontmatter meta tag", insert: "", run: () => {
         const leaf = layout().activeLeaf;
         const note = leaf as { addProperty?: () => void; readOnly?: boolean } | null;
         if (note?.addProperty && !note.readOnly) note.addProperty();
