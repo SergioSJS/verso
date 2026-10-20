@@ -11,26 +11,85 @@
 //   - a quantifier other than `?` on a group that holds a quantifier or an
 //     alternation (`(a+)+`, `(a|ab)*`) — the shapes of catastrophic
 //     backtracking;
-//   - more than two unbounded quantifiers (`*`, `+`, `{n,}`), a bounded one
-//     past 20, more than twelve quantifiers in all;
-//   - a pattern that matches the empty text.
+//   - more than ONE unbounded quantifier (`*`, `+`, `{n,}`): two of them
+//     (`\w+\w+b`) backtrack in polynomial time, which a window cannot wait
+//     for; a bounded one past 20, more than twelve quantifiers in all;
+//   - a pattern that matches the empty text;
+//   - a pattern that the empirical gate finds slow: compiled and timed
+//     against adversarial probe strings at the real MAX_SCAN length, once
+//     per pattern, refused past PROBE_MS on any probe ("slow").
 // And the text a pattern runs on is cut to MAX_SCAN characters, its matches
-// to MAX_MATCHES (dice.ts).
+// to MAX_MATCHES, and a card's whole dice matching has a time budget
+// (dice.ts).
 
 import { LIMITS } from "./model";
 
-export type PatternRefusal = "tooLong" | "backref" | "nested" | "tooMany" | "bigCount" | "invalid" | "empty";
+export type PatternRefusal = "tooLong" | "backref" | "nested" | "tooMany" | "bigCount" | "invalid" | "empty" | "slow";
 
 /** The most characters of one value a rule scans, and the most dice one
  *  value becomes. */
-export const MAX_SCAN = 2000;
+export const MAX_SCAN = 400;
 export const MAX_MATCHES = 50;
+/** The most time a pattern may take on one probe before it is refused. */
+export const PROBE_MS = 10;
+
+const verdicts = new Map<string, { ok: true; re: RegExp } | { ok: false; why: PatternRefusal }>();
+
+const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+/** Adversarial strings of exactly `MAX_SCAN` characters for `src`: runs of
+ *  word characters, spaces and digits, the pattern's own literal characters
+ *  repeated, and the same runs with a near-miss tail. */
+export function probesFor(src: string): string[] {
+  const lits = Array.from(new Set(src.replace(/\\./g, "").match(/[A-Za-z0-9+\-]/g) ?? [])).join("");
+  const fill = (unit: string): string => unit.repeat(Math.ceil(MAX_SCAN / unit.length)).slice(0, MAX_SCAN);
+  const units = ["a", "a1", " ", "9", "a ", "_", "1d", "+1", "a-", lits || "a"];
+  const probes: string[] = [];
+  for (const u of units) {
+    const run = fill(u);
+    probes.push(run, run.slice(0, MAX_SCAN - 1) + "!", run.slice(0, MAX_SCAN - 1) + "\n");
+  }
+  return probes;
+}
+
+/** The slowest probe's time over a pattern, in ms, stopping early past
+ *  PROBE_MS (a slow one is measured again to rule out a pause of the host). */
+export function probeTime(re: RegExp): number {
+  let worst = 0;
+  for (const p of probesFor(re.source)) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const t0 = now();
+      re.lastIndex = 0;
+      let n = 0;
+      for (const _m of p.matchAll(re)) if (++n > 1000) break;
+      const dt = now() - t0;
+      if (attempt === 1 || dt <= PROBE_MS) {
+        worst = Math.max(worst, dt);
+        break;
+      }
+    }
+    if (worst > PROBE_MS) return worst;
+  }
+  return worst;
+}
 
 /** Whether `src` is a pattern a rule may use: the compiled pattern, or why
  *  not. Never throws. */
 export function checkPattern(src: unknown): { ok: true; re: RegExp } | { ok: false; why: PatternRefusal } {
   if (typeof src !== "string" || src.length === 0) return { ok: false, why: "invalid" };
   if (src.length > LIMITS.pattern) return { ok: false, why: "tooLong" };
+  const known = verdicts.get(src);
+  if (known) {
+    if (known.ok) known.re.lastIndex = 0;
+    return known;
+  }
+  const v = judge(src);
+  if (verdicts.size > 1000) verdicts.clear();
+  verdicts.set(src, v);
+  return v;
+}
+
+function judge(src: string): { ok: true; re: RegExp } | { ok: false; why: PatternRefusal } {
   const shape = shapeOf(src);
   if (shape) return { ok: false, why: shape };
   let re: RegExp;
@@ -41,6 +100,8 @@ export function checkPattern(src: unknown): { ok: true; re: RegExp } | { ok: fal
   }
   re.lastIndex = 0;
   if (re.test("")) return { ok: false, why: "empty" };
+  re.lastIndex = 0;
+  if (probeTime(re) > PROBE_MS) return { ok: false, why: "slow" };
   re.lastIndex = 0;
   return { ok: true, re };
 }
@@ -132,7 +193,7 @@ function shapeOf(src: string): PatternRefusal | null {
     if (q.big) return "bigCount";
     total++;
     if (q.unbounded) unbounded++;
-    if (unbounded > 2 || total > 12) return "tooMany";
+    if (unbounded > 1 || total > 12) return "tooMany";
     stack[stack.length - 1]!.quantified = true;
     i += q.len;
     // A lazy or possessive mark after it.

@@ -29,6 +29,25 @@ export const D20_RULES: DiceRule[] = [
 /** Dice written as dice and nothing else: for a layout of no system. */
 export const PLAIN_RULES: DiceRule[] = [{ pattern: String.raw`\b(\d{0,3}d(?:\d{1,4}|%|F)(?: ?[+-] ?\d{1,5})?)\b`, template: "$1" }];
 
+/** The time one card may spend matching dice rules. */
+export const CARD_BUDGET_MS = 100;
+const clock = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+let deadline = Infinity;
+let spent = false;
+
+/** Opens a card's budget: from now, rule matching stops once `ms` pass. */
+export function beginDiceBudget(ms: number = CARD_BUDGET_MS): void {
+  deadline = clock() + ms;
+  spent = false;
+}
+/** Closes the budget and says whether it ran out (the card skipped rules). */
+export function endDiceBudget(): boolean {
+  const out = spent;
+  deadline = Infinity;
+  spent = false;
+  return out;
+}
+
 /** A piece of a text: words, or a die found in it. */
 export type Piece = { text: string } | { text: string; notation: string };
 
@@ -57,6 +76,10 @@ export function diceIn(text: string, rules: readonly DiceRule[]): Piece[] {
   type Hit = { from: number; to: number; notation: string; rule: number };
   const hits: Hit[] = [];
   rules.forEach((rule, ri) => {
+    if (spent || clock() > deadline) {
+      spent = true;
+      return;
+    }
     const re = regexOf(rule.pattern);
     if (!re) return;
     re.lastIndex = 0;

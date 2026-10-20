@@ -12,6 +12,7 @@
 
 import { icon } from "../icons";
 import { type CardOptions, type Ctx, drawAll } from "./blocks";
+import { beginDiceBudget, endDiceBudget } from "./dice";
 import { h } from "./h";
 import type { Appearance, Layout } from "./model";
 import { readSheet, layoutNamed, STATBLOCK_MAX_CHARS, type Sheet, numberOf, textOf, valueOf } from "./sheet";
@@ -150,7 +151,13 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
     body.style.setProperty("--sb-columns", String(columns));
     body.style.setProperty("--sb-column-width", `${layout.columnWidth}px`);
   }
-  body.append(...drawAll(ctx, layout.blocks));
+  beginDiceBudget();
+  let slow = false;
+  try {
+    body.append(...drawAll(ctx, layout.blocks));
+  } finally {
+    slow = endDiceBudget();
+  }
   card.append(body);
 
   const note = (text: string, cls = ""): void => {
@@ -161,6 +168,7 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
   if (stale) note(S.invalidKept, "statblock-badge-stale");
   if (!known) note(S.unknownLayout(named ?? ""), "statblock-badge-layout");
   if (problems > 0) note(S.layoutProblems(problems));
+  if (slow) note(S.diceSlow);
   return card;
 }
 
