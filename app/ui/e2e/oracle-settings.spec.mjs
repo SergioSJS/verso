@@ -76,21 +76,65 @@ for (const [width, scheme] of [[600, "light"], [600, "dark"], [340, "light"], [3
   });
 }
 
+/** Every part of every bar that is drawn shows its whole number, inside
+ *  it: not clipped, not hidden, the numbers never moved under the bar. */
+async function everyNumberReadable(page) {
+  const bad = await page.locator(".orc-bars").evaluate((bars) => {
+    const out = [];
+    for (const seg of bars.querySelectorAll(".orc-seg")) {
+      const value = Number(seg.dataset.value);
+      const shown = getComputedStyle(seg).display !== "none";
+      if (value === 0) {
+        if (shown) out.push(`${seg.dataset.answer} 0% drawn`);
+        continue;
+      }
+      const n = seg.querySelector(".orc-seg-n");
+      const s = seg.getBoundingClientRect();
+      const r = n.getBoundingClientRect();
+      const style = getComputedStyle(n);
+      const row = seg.closest(".orc-bar-row");
+      const fits = r.width > 0 && r.left >= s.left - 0.5 && r.right <= s.right + 0.5 && seg.scrollWidth <= seg.clientWidth;
+      if (!shown || !fits || style.visibility !== "visible" || style.opacity !== "1" || n.textContent !== String(value) || row.classList.contains("is-cramped")) {
+        out.push(`${row.dataset.level} ${seg.dataset.answer} ${value}: number ${r.width.toFixed(1)}px in ${s.width.toFixed(1)}px`);
+      }
+    }
+    return out;
+  });
+  expect(bad).toEqual([]);
+}
+
+for (const width of [600, 340]) {
+  test(`every part of the bars shows its number at ${width} px, in each of the four styles`, async ({ app, page }, info) => {
+    await openPage(app, { width });
+    for (const [style, nearlyCertainYes] of [["Equilibrado", "54"], ["Mythic GME", "54"], ["Ironsworn", "80"], ["Narrativo", "40"]]) {
+      const radio = page.getByRole("radio", { name: new RegExp(`^${style}`) });
+      if (!(await radio.isChecked())) await radio.check();
+      await expect(seg(page, "nearlyCertain", "yes")).toHaveAttribute("data-value", nearlyCertainYes);
+      await everyNumberReadable(page);
+      for (const scheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+        await page.locator(".orc-bars").screenshot({ path: `${SHOTS}/${info.project.name}-bars-${width}-${scheme}-${style.split(" ")[0].toLowerCase()}.png`, animations: "disabled" });
+      }
+      await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+    }
+  });
+}
+
 test("a style picked is saved in the folder at once, redraws the bars, and can be undone", async ({ app, page }, info) => {
   await openPage(app);
   expect(await app.file(FILE)).toBeNull();
-  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("style", /width: 18%/);
+  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("data-value", "18");
   await page.getByRole("radio", { name: /Ironsworn/ }).check();
   await expect.poll(async () => (await folderOracle(app))?.odds).toEqual(IRONSWORN);
   // Ironsworn has no "but": those parts of the bars are gone.
-  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("style", /width: 0%/);
-  await expect(seg(page, "nearlyCertain", "yes")).toHaveAttribute("style", /width: 80%/);
+  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("data-value", "0");
+  await expect(seg(page, "nearlyCertain", "yes")).toHaveAttribute("data-value", "80");
   await expect(page.locator(".orc-said:not([hidden])")).toContainText("Estilo Ironsworn aplicado.");
   await shot(page, info, "style-ironsworn");
   await page.locator(".orc-said:not([hidden])").getByRole("button", { name: "Desfazer" }).click();
   await expect.poll(async () => (await folderOracle(app))?.odds).toEqual(DEFAULT);
   await expect(page.getByRole("radio", { name: /Equilibrado/ })).toBeChecked();
-  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("style", /width: 18%/);
+  await expect(seg(page, "nearlyCertain", "yesBut")).toHaveAttribute("data-value", "18");
 });
 
 test("a row typed by hand says what it lacks and is not saved until it adds up to 100", async ({ app, page }, info) => {
@@ -112,7 +156,7 @@ test("a row typed by hand says what it lacks and is not saved until it adds up t
   await expect(row.locator(".orc-row-total")).toHaveText("100% ✓");
   await expect.poll(async () => (await folderOracle(app))?.odds?.[0]).toEqual([18, 54, 18, 2, 3, 5]);
   await expect(page.getByRole("radio", { name: /Personalizado/ })).toBeChecked();
-  await expect(seg(page, "nearlyCertain", "noAnd")).toHaveAttribute("style", /width: 5%/);
+  await expect(seg(page, "nearlyCertain", "noAnd")).toHaveAttribute("data-value", "5");
   // Back to the default, by its button.
   await page.getByRole("button", { name: "Voltar ao padrão" }).click();
   await expect.poll(async () => (await folderOracle(app))?.odds).toEqual(DEFAULT);
