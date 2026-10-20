@@ -54,8 +54,9 @@
 		{"id":"n-servidor","type":"file","file":"23 - Verso num Servidor.md","x":3340,"y":6630,"width":420,"height":560},
 		{"id":"n-instalar","type":"file","file":"24 - Instalar o seu UniVerso, Passo a Passo.md","x":3840,"y":6630,"width":420,"height":560},
 		{"id":"n-dados","type":"file","file":"25 - Dados e Tabelas Sorteadas.md","x":40,"y":7930,"width":640,"height":560},
-		{"id":"n-mundos","type":"file","file":"26 - Fichas, Oráculos e Criação de Mundos.md","x":1690,"y":7930,"width":600,"height":560},
-		{"id":"n-fractal","type":"file","file":"Campanha Fractal/Mundo.md","x":2370,"y":7930,"width":600,"height":560}
+		{"id":"n-mundos","type":"file","file":"26 - Fichas.md","x":1690,"y":7930,"width":600,"height":560},
+		{"id":"n-oraculo","type":"file","file":"27 - Oráculos e Criação de Mundos.md","x":2320,"y":7930,"width":600,"height":560},
+		{"id":"n-fractal","type":"file","file":"Campanha Fractal/Mundo.md","x":2950,"y":7930,"width":600,"height":560}
 	],
 	"edges":[
 		{"id":"e-links-grafo","fromNode":"n-links","fromSide":"right","toNode":"n-grafo","toSide":"left","color":"5","label":"viram o grafo"},
