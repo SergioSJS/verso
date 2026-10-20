@@ -81,6 +81,10 @@ for (const [width, scheme] of [[600, "light"], [600, "dark"], [340, "light"], [3
 async function everyNumberReadable(page) {
   const bad = await page.locator(".orc-bars").evaluate((bars) => {
     const out = [];
+    // The numbers never leave the bar: the fallback that moved them under
+    // it is gone, and a bar never scrolls at these widths.
+    for (const old of document.querySelectorAll(".orc-bar-nums, .orc-bar-num, .is-cramped")) out.push(`fallback element ${old.className}`);
+    for (const bar of bars.querySelectorAll(".orc-bar")) if (bar.scrollWidth > bar.clientWidth + 1) out.push(`${bar.closest(".orc-bar-row").dataset.level} scrolls`);
     for (const seg of bars.querySelectorAll(".orc-seg")) {
       const value = Number(seg.dataset.value);
       const shown = getComputedStyle(seg).display !== "none";
@@ -93,8 +97,8 @@ async function everyNumberReadable(page) {
       const r = n.getBoundingClientRect();
       const style = getComputedStyle(n);
       const row = seg.closest(".orc-bar-row");
-      const fits = r.width > 0 && r.left >= s.left - 0.5 && r.right <= s.right + 0.5 && seg.scrollWidth <= seg.clientWidth;
-      if (!shown || !fits || style.visibility !== "visible" || style.opacity !== "1" || n.textContent !== String(value) || row.classList.contains("is-cramped")) {
+      const fits = r.width > 0 && r.height > 0 && r.left >= s.left - 0.5 && r.right <= s.right + 0.5 && r.top >= s.top - 0.5 && r.bottom <= s.bottom + 0.5;
+      if (!shown || !fits || style.visibility !== "visible" || style.opacity !== "1" || style.display === "none" || n.textContent !== String(value)) {
         out.push(`${row.dataset.level} ${seg.dataset.answer} ${value}: number ${r.width.toFixed(1)}px in ${s.width.toFixed(1)}px`);
       }
     }
@@ -103,9 +107,13 @@ async function everyNumberReadable(page) {
   expect(bad).toEqual([]);
 }
 
-for (const width of [600, 340]) {
+for (const width of [1500, 600, 340]) {
   test(`every part of the bars shows its number at ${width} px, in each of the four styles`, async ({ app, page }, info) => {
     await openPage(app, { width });
+    // At once, before the web fonts may have come, and again once they have.
+    await everyNumberReadable(page);
+    await page.evaluate(() => document.fonts.ready.then(() => true));
+    await everyNumberReadable(page);
     for (const [style, nearlyCertainYes] of [["Equilibrado", "54"], ["Mythic GME", "54"], ["Ironsworn", "80"], ["Narrativo", "40"]]) {
       const radio = page.getByRole("radio", { name: new RegExp(`^${style}`) });
       if (!(await radio.isChecked())) await radio.check();
