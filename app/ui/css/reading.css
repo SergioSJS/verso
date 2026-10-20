@@ -1,4 +1,5 @@
-.sheet > .preview, .preview:not(.tab) { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; max-width: 52rem; margin-left: auto; margin-right: auto; }
+/* Reading */
+.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .preview:empty { display: none; }
 .preview > :first-child { margin-top: 0; }
 .preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
@@ -160,7 +161,7 @@
    in the element's own font, and the editor's was the interface's — its
    lines ran longer than the reading view's in a wide window. Its panels and
    tooltips set their own. Source and code keep theirs. */
-.editor { margin-top: .4rem; max-width: 52rem; margin-left: auto; margin-right: auto; }
+.editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .editor.live { font-family: var(--book); font-size: 1.02rem; }
 .editor .cm-editor {
   height: auto;
@@ -514,7 +515,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 
 /* "Start with" under a new note's title (ADR 0068): Blank and the
  * templates, a row of quiet chips. */
-.template-picker { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .4rem auto 1.2rem; max-width: 52rem; }
+.template-picker { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .4rem 0 1.2rem; }
 .template-picker-title { color: var(--ink-3); font-size: .85rem; margin-right: .2rem; }
 .template-choice { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .65rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink-2); font-size: .88rem; }
 .template-choice:hover, .template-choice:focus-visible { border-color: var(--brass); color: var(--ink); background: var(--brass-wash); }
