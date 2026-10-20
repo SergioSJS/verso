@@ -16,7 +16,7 @@ import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
 import { renderMermaid } from "../mermaid";
 import { hasCapability } from "../capabilities";
-import { planValueEdit, sameText, type Refusal, type WriteOutcome } from "../statblock/edit";
+import { planValueEdit, sameText, type Refusal, type Value, type ValuePath, type WriteOutcome } from "../statblock/edit";
 import { isStatblockFence, renderStatblock } from "../statblock/render";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
@@ -144,7 +144,7 @@ export function fenceInside(doc: Text, from: number, to: number): { from: number
  *  (ADR 0099 item 5): that one value's text, through the editor — in a
  *  room, the room's edit — once the block is found where the widget is and
  *  still holds the text the card was drawn from. */
-function writeStatblock(view: EditorView, el: HTMLElement, text: string, key: string, value: number, refusal: Refusal | null): WriteOutcome {
+function writeStatblock(view: EditorView, el: HTMLElement, text: string, key: ValuePath, value: Value, refusal: Refusal | null): WriteOutcome {
   if (refusal) return { ok: false, why: refusal };
   if (view.state.readOnly) return { ok: false, why: "readOnly" };
   const at = startOf(view, el);
@@ -255,7 +255,7 @@ export class BlockWidget extends WidgetType {
         key: `${notePath ?? ""}#${b.ordinal ?? 0}`,
         ...(dice && sb?.die ? { dice: sb.die } : {}),
         rolls: dice,
-        ...(b.nested ? {} : { write: (key: string, value: number) => writeStatblock(view, el, b.text, key, value, sb?.refusal?.() ?? null) }),
+        ...(b.nested ? {} : { write: (key: ValuePath, value: Value) => writeStatblock(view, el, b.text, key, value, sb?.refusal?.() ?? null) }),
       });
       el.append(card);
       return el;

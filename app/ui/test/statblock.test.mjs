@@ -317,3 +317,34 @@ describe("a sheet is read safely", () => {
     assert.equal(r.ok, false);
   });
 });
+
+describe("a printed modifier table (bands)", () => {
+  const dw = { kind: "bands", bands: [[1, 3, -3], [4, 5, -2], [6, 8, -1], [9, 12, 0], [13, 15, 1], [16, 17, 2], [18, 18, 3]].map(([min, max, value]) => ({ min, max, value })) };
+  test("the row a score falls in; none outside every row", () => {
+    assert.deepEqual([1, 3, 4, 8, 9, 12, 13, 16, 17, 18].map((n) => m.modifierOf(dw, n)), [-3, -3, -2, -1, 0, 0, 1, 2, 2, 3]);
+    assert.equal(m.modifierOf(dw, 19), null);
+    assert.equal(m.modifierOf(dw, 0), null);
+  });
+  test("rows are checked: whole numbers, min not past max, bounded", () => {
+    const v = m.validateLayout({ name: "b", blocks: [{ type: "table", properties: ["s"], modifier: { kind: "bands", bands: [{ min: 1, max: 3, value: -3 }, { min: 5, max: 4, value: 0 }, { min: 1.5, max: 2, value: 0 }, "x", { min: 1, max: 2, value: 5000 }] } }] });
+    assert.deepEqual(v.layout.blocks[0].modifier, { kind: "bands", bands: [{ min: 1, max: 3, value: -3 }] });
+    assert.equal(v.problems.length, 4);
+    const many = m.validateLayout({ name: "b", blocks: [{ type: "table", properties: ["s"], modifier: { kind: "bands", bands: Array.from({ length: 100 }, (_, i) => ({ min: i, max: i, value: 0 })) } }] });
+    assert.equal(many.layout.blocks[0].modifier.bands.length, m.LIMITS.bands);
+  });
+  test("Dungeon World's and Old Dragon's tables are the sources' (statblock-sources.md)", () => {
+    const table = (id) => m.builtinLayouts().find((l) => l.id === id).blocks.find((b) => b.type === "table").modifier;
+    assert.deepEqual(table("dungeon-world-character"), dw);
+    const od = table("old-dragon-character");
+    assert.deepEqual([2, 3, 4, 8, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => m.modifierOf(od, n)), [-3, -3, -2, -1, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+  });
+});
+
+describe("a traits list's mark", () => {
+  test("a flag names a key; a bad one is said and dropped", () => {
+    const v = m.validateLayout({ name: "f", blocks: [{ type: "traits", properties: ["fatos"], flag: { key: "quebrado", label: "Broken" } }, { type: "traits", properties: ["x"], flag: { key: "" } }] });
+    assert.deepEqual(v.layout.blocks[0].flag, { key: "quebrado", label: { pt: "Broken", en: "Broken" } });
+    assert.equal(v.layout.blocks[1].flag, undefined);
+    assert.equal(v.problems.length, 1);
+  });
+});

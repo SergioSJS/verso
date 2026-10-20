@@ -20,7 +20,7 @@ import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
 import { hasCapability } from "../../capabilities";
 import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
-import { sameText, writeInReading } from "../../statblock/edit";
+import { sameText, writeInReading, type Value, type ValuePath } from "../../statblock/edit";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
@@ -126,7 +126,7 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
       key: `${this.path}#r${index}`,
       ...(dice ? { dice: (notation: string) => diceBox({ kind: "roll", notation }, host) } : {}),
       rolls: dice,
-      ...(f.own ? { write: (key: string, value: number) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
+      ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
     });
     f.pre.replaceWith(card);
   });
