@@ -54,6 +54,8 @@ Experimente agora: troque a paleta para **Sépia** e o tema para **Escuro**, com
 
 Em **Atalhos**, cada comando mostra a sua tecla e o botão **Alterar**: clique, e aperte a combinação nova — ela precisa ter `⌘`. Se outro comando já usava aquela combinação, ela sai dele. **Restaurar** volta ao padrão.
 
+**Zoom da janela** (no aplicativo de mesa): `⌘+` aumenta, `⌘-` diminui e `⌘0` volta a 100 % (`Ctrl` no Windows e no Linux), de 50 % a 200 %, de 10 em 10; `Ctrl` com a roda do mouse ou o gesto de pinça no trackpad fazem o mesmo — menos sobre um board, um mapa, um PDF ou o grafo, que dão zoom nele mesmo. Cada computador guarda o seu zoom. É diferente do **Tamanho da fonte**, que só aumenta o texto. No navegador vale o zoom do próprio navegador.
+
 Os atalhos do dia a dia estão na [[00 - Bem-vindo ao Verso|Página Inicial]]; os do board, em [[10 - Desenhando no Board]].
 
 ---

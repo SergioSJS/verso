@@ -14,6 +14,16 @@
   [0069](0069-windows-port.md) (Windows), [0071](0071-linux-port.md)
   (Linux), [0035](0035-cross-cutting-requirements.md) (accessibility).
 - Status in the briefing: not present
+- Revisions: 2026-10-20 — the window's zoom. The maintainer: *"por que
+  ctrl+scroll ou command + e - não arrumam o zoom?"* (why don't
+  ctrl+scroll or command + and - change the zoom?). `[DECIDED 2026-10-20]`:
+  Cmd/Ctrl `+` and `-` and Ctrl with the wheel (a trackpad's pinch) zoom
+  the whole window, as Obsidian and a browser do; Cmd/Ctrl `0` returns to
+  100 %. `[PROPOSED]`: 50 % to 200 % in steps of 10 %; kept per device (it
+  depends on the screen), not with the account; over a board, a map, a PDF
+  or the graph the pinch and Ctrl with the wheel keep zooming that view;
+  in the browser version the browser's own zoom applies and Verso does
+  not take the keys.
 
 ## Context
 
