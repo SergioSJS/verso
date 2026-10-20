@@ -2,137 +2,194 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The oracle's idea-spark word banks in the settings (ADR 0102): four
-// lists, saved in the open folder's settings (item 2) — one set for the
-// folder, whatever the language — or the built-in ones of a language. Read-
-// only where the person cannot write the folder's settings, with the reason.
+// The oracle's idea sparks on the settings page (ADR 0102 items 2 and 6).
+// Off, the sparks draw Verso's own words in the window's language — shown
+// as a preview, never a language to choose here. On, the folder's own four
+// lists, as chips, saved by themselves a moment after each change, one set
+// whatever the language. Back to Verso's words writes the built-in set
+// (the folder's file cannot unset its words), which reads back as Verso's
+// words again (`isBuiltinSparks`), with a way to undo.
 
-import { ask } from "../../dialog";
-import { button, h, ui } from "../../dom";
+import { button, h } from "../../dom";
+import { icon } from "../../icons";
 import { builtinSparkWords, folderHasSparks, generateSpark, getSparkWords, type SparkWordLists } from "../../oracle/engine";
-import { legacySparksKept, oracleNotWritable, oracleWarnings, saveSparks, sparksIgnored } from "../../oracle/folderData";
-import { os } from "../../oracle/strings";
-import { LOCALE, t } from "../../strings";
-import { feedbackLine } from "./feedback";
-import { ss } from "./strings";
-import type { ItemCtx } from "./types";
+import { legacySparksKept, ORACLE_DATA_CHANGED, oracleNotWritable, saveSparks, sparksIgnored } from "../../oracle/folderData";
+import { copyWords, sameWords } from "../../oracle/settingsModel";
+import { isPt } from "../../oracle/strings";
+import { chipList, type ChipList } from "./chipList";
+import { undoLine } from "./feedback";
+import { ow } from "./oracleStrings";
 
-const words = (text: string): string[] => text.split(/[\n,]+/).map((w) => w.trim()).filter(Boolean);
+const KEYS = ["action", "theme", "descriptor", "focus"] as const;
+/** The words a list's preview shows before "and N more". */
+const PREVIEW = 6;
+/** How long changes rest before the words are saved. */
+const REST_MS = 600;
 
-export function sparksControl(ctx: ItemCtx): HTMLElement {
-  const wrap = h("div", "oracle-settings-section");
-  let activeLang: "pt" | "en" = LOCALE === "pt-BR" ? "pt" : "en";
-  const feedback = feedbackLine();
-  const why = oracleNotWritable();
-  const own = folderHasSparks();
-  // An earlier build's words, while the folder sets none: the page starts
-  // from them, and they move into the folder with the first save.
-  const legacy = own ? null : legacySparksKept();
-  const hint = h("p", "settings-hint", why ? ss.notWritable[why] : ss.inFolder);
-  const notes = h("div", "settings-feedback");
-  if (sparksIgnored()) {
-    notes.append(h("p", "settings-hint bad", `${os.brokenSparks} ${ss.ignoredInFile(ss.ignoredSparks)}`));
-    for (const w of oracleWarnings().filter((x) => x.startsWith("oracle sparks"))) notes.append(h("p", "settings-hint bad", w));
-  }
-  if (legacy) notes.append(h("p", "settings-hint", ss.legacyKept));
-  if (own) notes.append(h("p", "settings-hint", ss.wordsOfFolder));
+let groups = 0;
 
-  const langBar = h("div", "oracle-lang-bar");
-  const ptBtn = button("ghost", ss.langPt);
-  const enBtn = button("ghost", ss.langEn);
-  const grid = h("div", "oracle-sparks-grid");
+export function sparksControl(): HTMLElement {
+  const lang = isPt ? "pt" : "en";
+  const readOnly = oracleNotWritable() !== null;
+  const n = ++groups;
+  const section = h("section", "orc-section");
+  const title = h("h3", "orc-heading", ow.sparksTitle);
+  title.id = `orc-sparks-${n}`;
+  section.setAttribute("aria-labelledby", title.id);
+  section.append(title, h("p", "orc-lead", ow.sparksLead));
+  if (sparksIgnored()) section.append(h("p", "orc-note bad", ow.ignoredWords));
+  // What an earlier build kept in this window, while the folder sets none:
+  // the lists start from them, and they move in with the first change.
+  const legacy = folderHasSparks() ? null : legacySparksKept();
+  if (legacy) section.append(h("p", "orc-note", ow.legacyWords));
 
-  const cols = ss.sparkCols.map((col) => ({ ...col, textarea: h("textarea", "oracle-spark-textarea"), count: h("span", "oracle-spark-count") }));
+  // ---- an example, to see what a spark is
+  const tryRow = h("div", "orc-try");
+  const tryBtn = button("ghost", ow.sparkTry);
+  tryBtn.prepend(icon("dice"));
+  const out = h("output", "orc-try-out");
+  out.setAttribute("aria-live", "polite");
+  tryBtn.addEventListener("click", () => (out.textContent = generateSpark(lang).formatted));
+  tryRow.append(tryBtn, out);
 
-  const refresh = (): void => {
-    for (const [btn, lang] of [[ptBtn, "pt"], [enBtn, "en"]] as const) {
-      btn.setAttribute("aria-pressed", String(lang === activeLang));
-      btn.classList.toggle("active", lang === activeLang);
-    }
-    ptBtn.hidden = enBtn.hidden = langLabel.hidden = own;
-    const bank: SparkWordLists = own ? getSparkWords(activeLang) : legacy ?? builtinSparkWords(activeLang);
-    for (const col of cols) {
-      const list = bank[col.key] ?? [];
-      col.textarea.value = list.join("\n");
-      col.count.textContent = `(${list.length})`;
-    }
+  // ---- the switch
+  let own = folderHasSparks() || legacy !== null;
+  let words: SparkWordLists = folderHasSparks() ? copyWords(getSparkWords(lang)) : legacy ? copyWords(legacy) : builtinSparkWords(lang);
+  const switchRow = h("div", "orc-switch-row");
+  const sw = h("label", "switch");
+  const box = h("input");
+  box.type = "checkbox";
+  box.id = `orc-own-${n}`;
+  box.checked = own;
+  box.disabled = readOnly;
+  sw.append(box, h("span", "switch-track"));
+  const swText = h("div", "orc-switch-text");
+  const swLabel = h("label", "orc-switch-label", ow.ownWords);
+  swLabel.htmlFor = box.id;
+  const swDesc = h("p", "orc-hint");
+  swDesc.id = `${box.id}-desc`;
+  box.setAttribute("aria-describedby", swDesc.id);
+  swText.append(swLabel, swDesc);
+  switchRow.append(sw, swText);
+
+  const grid = h("div", "orc-words-grid");
+  const back = button("ghost", ow.backToVerso);
+  back.classList.add("orc-back");
+  const said = undoLine(ow.undo);
+  let lists: Partial<Record<(typeof KEYS)[number], ChipList>> = {};
+  let timer = 0;
+
+  const save = async (next: SparkWordLists, text: string, undo?: () => void): Promise<boolean> => {
+    const ok = await saveSparks(next);
+    if (!ok) said.say(ow.saveFailed, true);
+    else if (text) said.say(text, false, undo);
+    return ok;
   };
-  const langLabel = h("span", "oracle-lang-label", ss.sparksLang);
-  ptBtn.addEventListener("click", () => { activeLang = "pt"; refresh(); });
-  enBtn.addEventListener("click", () => { activeLang = "en"; refresh(); });
-  langBar.append(langLabel, ptBtn, enBtn);
-  langBar.setAttribute("role", "group");
-  langBar.setAttribute("aria-label", ss.sparksLang);
+  const later = (): void => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = 0;
+      void save(copyWords(words), "").then((ok) => ok && describe());
+    }, REST_MS);
+  };
 
-  for (const col of cols) {
-    const colEl = h("div", "oracle-spark-col");
-    const labelWrap = h("div", "oracle-spark-col-label");
-    const label = h("label", "oracle-spark-col-name", `${col.icon} ${col.label}`);
-    labelWrap.append(label, col.count);
-    const hint = h("div", "oracle-spark-col-hint", col.hint);
-    col.textarea.rows = 5;
-    col.textarea.readOnly = why !== null;
-    col.textarea.id = `spark-${col.key}`;
-    col.textarea.setAttribute("aria-label", col.label);
-    label.htmlFor = col.textarea.id;
-    col.textarea.setAttribute("aria-describedby", `${col.textarea.id}-hint`);
-    hint.id = `${col.textarea.id}-hint`;
-    col.textarea.addEventListener("keydown", (e) => e.stopPropagation());
-    col.textarea.addEventListener("input", () => {
-      col.count.textContent = `(${words(col.textarea.value).length})`;
-    });
-    colEl.append(labelWrap, hint, col.textarea);
-    grid.append(colEl);
-  }
-  refresh();
+  const describe = (): void => {
+    swDesc.textContent = !own ? ow.ownWordsOff : folderHasSparks() ? ow.ownWordsOn : ow.ownWordsPending;
+    back.hidden = !own || readOnly;
+  };
 
-  const actions = h("div", "oracle-actions");
-  const saveBtn = button("save", ss.saveWords);
-  saveBtn.disabled = why !== null;
-  saveBtn.addEventListener("click", () => {
-    const parsed = {} as SparkWordLists;
-    for (const col of cols) parsed[col.key] = words(col.textarea.value);
-    // An emptied column would make the whole set unusable on reading: refuse, and say which.
-    const empty = cols.filter((col) => parsed[col.key]!.length === 0).map((col) => col.label);
-    if (empty.length > 0) {
-      feedback.say(ss.wordsEmptyColumn(empty.join(", ")), true);
+  const paint = (): void => {
+    lists = {};
+    describe();
+    if (!own) {
+      // Verso's own words, in the window's language: a few of each list.
+      const builtin = builtinSparkWords(lang);
+      grid.replaceChildren(
+        ...KEYS.map((k) => {
+          const card = h("div", "orc-words orc-words-preview");
+          const head = h("div", "orc-words-head");
+          head.append(h("span", "orc-words-name", ow.lists[k].name), h("span", "orc-words-hint", ow.lists[k].hint), h("span", "orc-words-count", ow.count(builtin[k].length)));
+          const list = builtin[k];
+          const more = list.length - PREVIEW;
+          const text = h("p", "orc-preview-words", list.slice(0, PREVIEW).join(" · "));
+          if (more > 0) text.append(h("span", "orc-preview-more", ` ${ow.andMore(more)}`));
+          card.append(head, text);
+          return card;
+        }),
+      );
       return;
     }
-    // Past the core's bounds it would refuse; say which column, here.
-    const over = cols.filter((col) => parsed[col.key]!.length > 200 || parsed[col.key]!.some((w) => [...w].length > 60)).map((col) => col.label);
-    if (over.length > 0) {
-      feedback.say(ss.wordsTooMany(over.join(", "), 200, 60), true);
-      return;
-    }
-    void saveSparks(parsed).then((ok) => {
-      if (!ok) return feedback.say(ss.savedFailed, true);
-      feedback.say(ss.savedOdds);
-      saveBtn.textContent = ss.savedOdds;
-      window.setTimeout(() => (saveBtn.textContent = ss.saveWords), 1800);
-      // The folder holds the words now: the page shows them as the folder's.
-      if (!own) ctx.paint();
-    });
-  });
-  const resetBtn = button("ghost", ss.restoreWords);
-  resetBtn.disabled = why !== null;
-  resetBtn.addEventListener("click", () => {
-    void (async () => {
-      if (!(await ask(ss.restoreWordsAsk(activeLang), { yes: ss.restoreWords, no: t.cancel }))) return;
-      // The folder's file has no way to unset the lists: the built-in ones are written.
-      if (!(await saveSparks(builtinSparkWords(activeLang)))) return feedback.say(ss.savedFailed, true);
-      ctx.paint();
-      ui.status.textContent = ss.wordsRestored;
-    })();
-  });
-  const testBox = h("span", "oracle-spark-test");
-  testBox.setAttribute("role", "status");
-  testBox.setAttribute("aria-live", "polite");
-  const testBtn = button("ghost", ss.testSpark);
-  testBtn.addEventListener("click", () => {
-    testBox.textContent = generateSpark(activeLang).formatted;
-  });
-  actions.append(saveBtn, resetBtn, testBtn, testBox);
+    grid.replaceChildren(
+      ...KEYS.map((k) => {
+        const list = chipList({
+          name: ow.lists[k].name,
+          hint: ow.lists[k].hint,
+          words: words[k],
+          readOnly,
+          onChange: (next) => {
+            words = { ...words, [k]: next };
+            later();
+          },
+        });
+        lists[k] = list;
+        return list.el;
+      }),
+    );
+  };
 
-  wrap.append(hint, notes, langBar, grid, actions, feedback.el);
-  return wrap;
+  /** Back to Verso's words; `undoTo` brings the folder's words back. */
+  const toVerso = async (): Promise<void> => {
+    window.clearTimeout(timer);
+    timer = 0;
+    const had = folderHasSparks() ? copyWords(getSparkWords(lang)) : null;
+    own = false;
+    box.checked = false;
+    if (had) {
+      const ok = await save(builtinSparkWords(lang), ow.backDone, () => {
+        void save(had, ow.undone).then((done) => {
+          if (!done) return;
+          own = true;
+          box.checked = true;
+          words = copyWords(had);
+          paint();
+        });
+      });
+      if (!ok) {
+        own = true;
+        box.checked = true;
+      }
+    }
+    paint();
+  };
+
+  box.addEventListener("change", () => {
+    if (box.checked) {
+      own = true;
+      words = builtinSparkWords(lang);
+      paint();
+      lists.action?.el.querySelector<HTMLInputElement>(".orc-chip-input")?.focus();
+    } else void toVerso();
+  });
+  back.addEventListener("click", () => void toVerso());
+
+  paint();
+  // Another window (or device) changed the words: shown, unless a change
+  // made here is still waiting to be saved.
+  const heard = (): void => {
+    if (!section.isConnected) return void removeEventListener(ORACLE_DATA_CHANGED, heard);
+    if (timer) return;
+    if (folderHasSparks()) {
+      const theirs = getSparkWords(lang);
+      if (own && sameWords(theirs, words)) return describe();
+      own = true;
+      box.checked = true;
+      words = copyWords(theirs);
+      if (Object.keys(lists).length === KEYS.length) for (const k of KEYS) lists[k]!.set(words[k]);
+      else paint();
+    } else describe();
+  };
+  addEventListener(ORACLE_DATA_CHANGED, heard);
+
+  section.append(tryRow, switchRow, grid, back, said.el);
+  return section;
 }
