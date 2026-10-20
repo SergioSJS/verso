@@ -37,12 +37,12 @@ export { EditorState } from "@codemirror/state";`,
 const m = await import("./.bundles/statblockRender.test-bundle.mjs");
 
 const layoutOf = (blocks, extra = {}) => m.validateLayout({ name: "T", id: "t", diceRules: [{ pattern: String.raw`\b(\d{0,3}d\d{1,4}(?: ?[+-] ?\d{1,5})?)\b`, template: "$1" }], ...extra, blocks }).layout;
-const die = (made) => (notation) => {
+const die = (made) => (notation, look = {}) => {
   made.push(notation);
   const b = document.createElement("button");
   b.className = "dice-button";
-  b.textContent = notation;
-  b.setAttribute("aria-label", `Roll ${notation}`);
+  b.textContent = look.text ?? notation;
+  b.setAttribute("aria-label", look.label ?? `Roll ${notation}`);
   return b;
 };
 const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
@@ -90,10 +90,18 @@ describe("a Fantasy Statblocks block draws with the default layout", () => {
     assert.match(card.textContent, /Gargantuan, dragon, chaotic evil/);
     assert.match(card.textContent, /Armor Class 22/);
     assert.match(card.textContent, /Hit Points 367/);
-    const ths = [...card.querySelectorAll("table th")];
-    assert.deepEqual(ths.map((t) => t.textContent), ["STR", "DEX", "CON", "INT", "WIS", "CHA"]);
-    assert.ok(ths.every((t) => t.getAttribute("scope") === "col"));
-    assert.match(card.querySelector("table td").textContent, /27.*\+8/);
+    const scores = card.querySelector(".statblock-scores");
+    assert.equal(scores.getAttribute("role"), "list");
+    const cells = [...scores.querySelectorAll(".statblock-score")];
+    assert.ok(cells.every((c) => c.getAttribute("role") === "listitem"));
+    assert.deepEqual(cells.map((c) => c.querySelector(".statblock-score-name").textContent), ["STR", "DEX", "CON", "INT", "WIS", "CHA"]);
+    // The modifier is its own die, "(+8)" naming the ability it rolls for;
+    // no text rule reads the cell, so no die sits inside the brackets.
+    assert.match(cells[0].textContent, /^STR27 \(\+8\)$/);
+    const mod = cells[0].querySelector(".statblock-mod");
+    assert.equal(mod.textContent, "(+8)");
+    assert.equal(mod.getAttribute("aria-label"), "Roll 1d20+8 for STR");
+    assert.equal(cells[0].querySelectorAll(".dice-button").length, 1);
     assert.match(card.textContent, /Saving Throws Dexterity \+9/);
     assert.match(card.textContent, /Skills Perception \+16/);
     assert.match(card.textContent, /Amphibious\./);
@@ -115,7 +123,7 @@ describe("a Fantasy Statblocks block draws with the default layout", () => {
     m.setStatblockLang("pt-BR");
     const card = m.renderStatblock(DRAGON);
     assert.match(card.textContent, /Classe de Armadura 22/);
-    assert.deepEqual([...card.querySelectorAll("table th")].map((t) => t.textContent), ["FOR", "DES", "CON", "INT", "SAB", "CAR"]);
+    assert.deepEqual([...card.querySelectorAll(".statblock-score-name")].map((t) => t.textContent), ["FOR", "DES", "CON", "INT", "SAB", "CAR"]);
   });
 });
 
@@ -182,8 +190,8 @@ tier: 3
     assert.equal(block("tpl").textContent, "Arms 14 / 9");
     assert.equal(block("gone"), null);
     assert.equal(block("fb").textContent, "Languages -");
-    const cells = [...block("tb").querySelectorAll("td")].map((t) => t.textContent);
-    assert.deepEqual(cells, ["14 Modifier (+2)", "9 Modifier (-1)"]);
+    const cells = [...block("tb").querySelectorAll(".statblock-score")].map((t) => t.textContent);
+    assert.deepEqual(cells, ["S14 Modifier (+2)", "D9 Modifier (−1)"]);
     assert.equal(block("sv").textContent, "Saves Will +3, Grit -1");
     const facts = [...block("tr").querySelectorAll(":scope > .statblock-traits > .statblock-trait")].map((t) => t.textContent);
     assert.equal(facts.length, 3);

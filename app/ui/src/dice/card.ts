@@ -40,7 +40,7 @@ type Shown = { roll: DiceRoll | null; row: string | null; from: string | null; n
  *  again — the reading view redrawn, a Live Preview line — shows it. */
 const last = new Map<string, Shown>();
 /** The dice drawn now, to show a roll heard from the room. */
-const drawn = new Set<{ el: HTMLElement; host: DiceHost; key: string; show: (s: Shown) => void }>();
+const drawn = new Set<{ el: HTMLElement; host: DiceHost; key: string; show: (s: Shown) => void; pop: boolean }>();
 
 /** What a die is known by: its table, or its notation. */
 const keyOf = (code: DiceCode) => (code.kind === "table" ? code.source : code.notation);
@@ -188,17 +188,42 @@ function fill(card: HTMLElement, s: Shown, host: DiceHost): void {
   if (s.note) card.append(h("span", roll ? "dice-note" : "dice-note dice-failed", s.note));
 }
 
+/** How a die is drawn where it is not a note's text: a statblock card's.
+ *  `text` in place of the icon and notation (an ability's "(+2)"), `label`
+ *  its name, and `popover` for a result shown over the card, anchored to
+ *  the die and kept inside the card, instead of in the line. */
+export type DiceLook = { text?: string; label?: string; popover?: boolean };
+
+/** The result card of a popover die placed under it (over it when there
+ *  is no room below), moved sideways to stay inside the statblock card, or
+ *  the window when it is in none. */
+function place(box: HTMLElement, card: HTMLElement): void {
+  card.style.left = "0px";
+  card.classList.remove("dice-above");
+  const bound = box.closest(".statblock-card")?.getBoundingClientRect() ?? new DOMRect(0, 0, innerWidth, innerHeight);
+  const r = card.getBoundingClientRect();
+  const pad = 6;
+  let dx = 0;
+  if (r.right > bound.right - pad) dx = bound.right - pad - r.right;
+  if (r.left + dx < bound.left + pad) dx = bound.left + pad - r.left;
+  card.style.left = `${Math.round(dx)}px`;
+  const b = box.getBoundingClientRect();
+  if (r.bottom > bound.bottom && b.top - r.height - 4 >= bound.top) card.classList.add("dice-above");
+}
+
 /** The die `code` drawn for a note, its last roll shown when it has one. */
-export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
+export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HTMLElement {
   const key = keyOf(code);
-  const box = h("span", "dice");
+  const box = h("span", look.popover ? "dice dice-pop" : "dice");
   box.dataset["dice"] = key;
-  const label = code.kind === "table" ? ds.rollTable(code.source) : ds.roll(code.notation);
+  const label = look.label ?? (code.kind === "table" ? ds.rollTable(code.source) : ds.roll(code.notation));
   const roll = h("button", "dice-button");
   roll.type = "button";
   roll.setAttribute("aria-label", label);
   roll.title = label;
-  roll.append(icon("dice"), h("span", "dice-notation", code.kind === "table" ? code.source.slice(2, -2) : code.notation));
+  if (look.popover) roll.setAttribute("aria-expanded", "false");
+  if (look.text !== undefined) roll.append(h("span", "dice-notation", look.text));
+  else roll.append(icon("dice"), h("span", "dice-notation", code.kind === "table" ? code.source.slice(2, -2) : code.notation));
   const card = h("span", "dice-card");
   card.hidden = true;
   const body = h("span", "dice-body");
@@ -211,9 +236,39 @@ export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
   close.append(icon("close"));
   card.append(body, again, close);
   box.append(roll, card);
+  // A popover closes on a press anywhere else, as on its ×.
+  const outside = (e: PointerEvent) => {
+    if (!box.isConnected) document.removeEventListener("pointerdown", outside, true);
+    else if (!card.hidden && !box.contains(e.target as Node)) hide(false);
+  };
+  // And on Escape wherever the focus is (a click does not focus a button
+  // in WebKit): the die takes the focus back.
+  const escape = (e: KeyboardEvent) => {
+    if (!box.isConnected) document.removeEventListener("keydown", escape, true);
+    else if (e.key === "Escape" && !card.hidden) {
+      e.stopPropagation();
+      hide(true);
+    }
+  };
+  const hide = (refocus: boolean) => {
+    card.hidden = true;
+    if (look.popover) roll.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", outside, true);
+    document.removeEventListener("keydown", escape, true);
+    last.delete(slot(host.path(), key));
+    if (refocus) roll.focus();
+  };
   const show = (s: Shown) => {
     fill(body, s, host);
     card.hidden = false;
+    if (!look.popover) return;
+    roll.setAttribute("aria-expanded", "true");
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("keydown", escape, true);
+    // Placed now, and again on the next frame: once the card is in the
+    // page, its fonts in, and whatever moved the die settled.
+    if (box.isConnected) place(box, card);
+    requestAnimationFrame(() => box.isConnected && !card.hidden && place(box, card));
   };
   let busy = false;
   const go = async () => {
@@ -232,30 +287,31 @@ export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
     roll.removeAttribute("aria-busy");
     box.classList.remove("rolling");
     last.set(slot(path, key), s);
-    for (const d of drawn) if (d.el !== box && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
+    // The same die drawn elsewhere shows it too — a popover only its own
+    // (a card's two "+2" are two dice).
+    for (const d of drawn) if (d.el !== box && !d.pop && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
     show(s);
     say(said(s, false));
   };
   roll.addEventListener("click", () => void go());
   again.addEventListener("click", () => void go());
-  close.addEventListener("click", () => {
-    card.hidden = true;
-    last.delete(slot(host.path(), key));
-    roll.focus();
-  });
-  card.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    e.stopPropagation();
-    close.click();
-  });
+  close.addEventListener("click", () => hide(true));
+  if (!look.popover)
+    card.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      close.click();
+    });
   // A die is not text to the editor: a press on it moves no caret.
   box.addEventListener("mousedown", (e) => {
     if (!(e.target as HTMLElement).closest("a")) e.preventDefault();
   });
-  const known = last.get(slot(host.path(), key));
+  // A redrawn die shows its last roll in the line; a popover opens only
+  // when asked, or for a roll of the room.
+  const known = look.popover ? undefined : last.get(slot(host.path(), key));
   if (known) show(known);
   for (const d of [...drawn]) if (!d.el.isConnected) drawn.delete(d);
-  drawn.add({ el: box, host, key, show });
+  drawn.add({ el: box, host, key, show, pop: look.popover === true });
   return box;
 }
 
@@ -277,7 +333,9 @@ async function heard(e: CollabRoll): Promise<void> {
   const s = await withRow({ roll: e.roll, row: null, from: null, note: null }, e.path);
   last.set(slot(e.path, key), s);
   const here = [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key);
-  for (const d of here) d.show(s);
+  // Every die in a line shows it; of a card's popovers, the first.
+  const pop = here.find((d) => d.pop);
+  for (const d of here) if (!d.pop || d === pop) d.show(s);
   if (here.length > 0) say(said(s, true));
   // Not a notification of ADR 0084 — no kind, no line in the list — but
   // its toast, titled with the note the die is in.

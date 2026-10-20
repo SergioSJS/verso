@@ -1,6 +1,10 @@
 /* Verso — statblock cards (ADR 0099). A book's statblock: the layout's
    colours as custom properties on the card (render.ts `dress`), the app's
-   own tokens where it names none, in light and in dark. */
+   own tokens where it names none, in light and in dark. The card is a
+   container: what it holds is sized by the card's width, not the window's
+   (a split pane, a phone, a column of three). Nothing of it is placed over
+   anything else but a die's result, which opens over the card, inside it
+   (dice.css, `.dice-pop`). */
 
 .statblock-card {
   --sb-accent: var(--seal);
@@ -10,46 +14,55 @@
   --sb-bar: var(--brass);
   --sb-heading-font: var(--display);
   --sb-body-font: var(--book);
+  --sb-quiet: color-mix(in oklch, var(--sb-text) 68%, transparent);
+  container: statblock / inline-size;
   position: relative;
   box-sizing: border-box;
   width: 100%;
   max-width: 68ch;
   margin: 1.25rem auto;
-  padding: .9rem 1.2rem 1rem;
+  padding: .45rem clamp(.8rem, 4%, 1.25rem) 1rem;
   background: var(--sb-background);
   color: var(--sb-text);
   font-family: var(--sb-body-font);
   font-size: .95rem;
   line-height: 1.45;
+  text-align: left;
   border-top: 5px solid var(--sb-bar);
   border-bottom: 5px solid var(--sb-bar);
   border-radius: 3px;
   box-shadow: 0 6px 20px -12px oklch(0% 0 0 / .35);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 .statblock-card:has(.statblock-columns) { max-width: min(100%, 130ch); }
 
+/* The card's own buttons: a quiet strip of their own above the sheet, so
+   no heading runs under them at any width. */
 .statblock-tools {
-  float: right;
   display: flex;
-  gap: .35rem;
-  margin: 0 0 .3rem .6rem;
+  justify-content: flex-end;
+  gap: .3rem;
+  margin: 0 calc(-1 * clamp(.3rem, 2%, .6rem)) .2rem;
 }
 .statblock-layout-badge,
 .statblock-edit-layout,
 .statblock-toggle-btn {
   font-family: var(--ui);
-  font-size: .72rem;
+  font-size: .7rem;
+  line-height: 1.3;
   color: var(--ink-3);
   background: transparent;
   border: 1px solid var(--hair);
   border-radius: 5px;
-  padding: .15rem .45rem;
+  padding: .12rem .45rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: .3rem;
+  min-width: 0;
 }
+.statblock-layout-badge { max-width: min(16rem, 100% - 4.5rem); }
+.statblock-layout-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .statblock-layout-badge:hover,
 .statblock-edit-layout:hover,
 .statblock-toggle-btn:hover { color: var(--sb-text); border-color: var(--sb-accent); }
@@ -65,7 +78,7 @@
   column-gap: 1.6rem;
   column-rule: 1px solid color-mix(in oklch, var(--sb-rule) 25%, transparent);
 }
-.statblock-block { break-inside: avoid; margin: .12rem 0; }
+.statblock-block { break-inside: avoid; margin: .12rem 0; min-width: 0; }
 .statblock-traits, .statblock-group, .statblock-collapse { break-inside: auto; }
 
 /* A tapered rule after a block (the plugin's `hasRule`). */
@@ -78,75 +91,127 @@
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
-.statblock-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
-.statblock-row > .statblock-block { flex: 1 1 auto; min-width: 0; }
+/* Blocks side by side, each at least 10rem, the next line when there is no room. */
+.statblock-row { display: flex; align-items: flex-start; justify-content: space-between; column-gap: .9rem; flex-wrap: wrap; }
+.statblock-row > .statblock-block { flex: 1 1 10rem; }
 .statblock-row > .statblock-image { flex: none; }
 
-.statblock-heading-text {
+/* The card's headings are its own: the reading view's sizes and margins
+   for a note's headings (reading.css) do not reach them. */
+.statblock-card .statblock-heading-text {
   margin: 0;
   font-family: var(--sb-heading-font);
   font-variant: small-caps;
   font-weight: 700;
+  letter-spacing: .01em;
+  text-transform: none;
   color: var(--sb-accent);
   line-height: 1.15;
 }
-.statblock-size-1 .statblock-heading-text { font-size: 1.55rem; }
-.statblock-size-2 .statblock-heading-text { font-size: 1.3rem; }
+.statblock-size-1 .statblock-heading-text { font-size: clamp(1.3rem, 4.6cqi, 1.6rem); }
+.statblock-size-2 .statblock-heading-text { font-size: clamp(1.15rem, 3.8cqi, 1.3rem); }
 .statblock-size-3 .statblock-heading-text,
 .statblock-size-4 .statblock-heading-text,
 .statblock-size-5 .statblock-heading-text,
 .statblock-size-6 .statblock-heading-text { font-size: 1.1rem; }
-.statblock-subheading { font-style: italic; font-size: .88rem; color: color-mix(in oklch, var(--sb-text) 80%, transparent); }
+.statblock-subheading { font-style: italic; font-size: .88rem; color: var(--sb-quiet); }
 
-.statblock-section {
+.statblock-card .statblock-section {
   margin: .6rem 0 .3rem;
   font-family: var(--sb-heading-font);
   font-variant: small-caps;
   font-size: 1.1rem;
   font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.25;
+  text-transform: none;
   color: var(--sb-accent);
   border-bottom: 1px solid var(--sb-accent);
 }
-summary.statblock-section { cursor: pointer; border-bottom: none; }
+.statblock-card summary.statblock-section { cursor: pointer; border-bottom: none; }
 
 .statblock-prop-name { font-weight: 700; color: var(--sb-accent); }
 .statblock-trait { margin: .3rem 0; }
 .statblock-trait-name { font-style: italic; }
 .statblock-trait-head { font-style: italic; margin-top: .5rem; }
 /* An item's mark (a Fractal Fato "quebrado"): a toggle, the item struck through. */
-.statblock-flag, .statblock-flag-mark {
+.statblock-flag, .statblock-flag-mark, .statblock-flag-count {
   font-family: var(--ui);
   font-size: .72rem;
-  padding: .05rem .4rem;
+  font-variant: normal;
+  line-height: 1.35;
+  padding: 0 .45rem;
   border: 1px solid var(--sb-accent);
   border-radius: 999px;
   background: transparent;
   color: var(--sb-accent);
-  vertical-align: middle;
+  vertical-align: .08em;
 }
+.statblock-flag-count { border-color: transparent; padding: 0; color: var(--sb-quiet); font-weight: 400; letter-spacing: 0; }
 .statblock-flag { cursor: pointer; }
 .statblock-flag[aria-pressed="true"], .statblock-flag-mark { background: var(--sb-accent); color: var(--sb-background); }
 /* The decoration does not reach inline-blocks: the toggle stays unstruck. */
 .statblock-flag, .statblock-flag-mark, .statblock-trait .statblock-tracker-note { display: inline-block; }
-.statblock-trait-flagged { text-decoration: line-through; color: color-mix(in oklch, var(--sb-text) 70%, transparent); }
+.statblock-trait-flagged { text-decoration: line-through; color: var(--sb-quiet); }
 .statblock-traits-nested { margin-left: 1rem; }
 .statblock-paragraph { margin: .3rem 0; }
 .statblock-more { font-size: .82rem; color: var(--ink-3); }
 
-.statblock-table-scroll { overflow-x: auto; }
-.statblock-table { width: 100%; border-collapse: collapse; text-align: center; color: var(--sb-accent); }
-.statblock-table th { font-size: .8rem; font-weight: 700; text-transform: uppercase; padding: .1rem .25rem; }
-.statblock-table td { padding: .1rem .25rem; white-space: nowrap; color: var(--sb-text); }
-.statblock-table-caption { caption-side: top; text-align: left; font-weight: 700; color: var(--sb-accent); }
-.statblock-mod { font-size: .88em; }
+/* A table of scores: name over value and modifier, six to a row, three
+   when the block is narrow. */
+.statblock-table { container: sb-scores / inline-size; }
+.statblock-table-caption { font-weight: 700; color: var(--sb-accent); }
+.statblock-scores {
+  display: grid;
+  grid-template-columns: repeat(var(--sb-cells, 6), minmax(0, 1fr));
+  row-gap: .5rem;
+  padding: .2rem 0;
+  text-align: center;
+}
+@container sb-scores (max-width: 30rem) {
+  .statblock-scores { grid-template-columns: repeat(var(--sb-cells-narrow, 3), minmax(0, 1fr)); }
+}
+.statblock-score { display: flex; flex-direction: column; align-items: center; gap: .1rem; min-width: 0; padding: 0 .2rem; }
+.statblock-score-name {
+  max-width: 100%;
+  font-family: var(--ui);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--sb-accent);
+}
+.statblock-score-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: .3rem;
+  max-width: 100%;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+.statblock-score-value { font-weight: 600; }
+.statblock-mod { color: var(--sb-quiet); }
+/* The modifier is its own die: "(+2)", a quiet chip. */
+.statblock-score .statblock-mod .dice-button {
+  font-family: var(--sb-body-font);
+  font-size: .9em;
+  line-height: 1.3;
+  padding: 0 .3em;
+  color: var(--sb-text);
+}
 
 .statblock-image-box { display: inline-block; }
 .statblock-image { width: 78px; height: 78px; object-fit: cover; border-radius: 50%; border: 2px solid var(--sb-accent); }
 
-/* A die in the text is the note's own (dice.css), a little smaller. */
-.statblock-die .dice-button { font-size: .8em; }
+/* A die in the text is the note's own (dice.css), a little smaller, never
+   taller than its line. */
+.statblock-die .dice-button { font-size: .78em; line-height: 1.35; padding: 0 .35em; }
 
-.statblock-tracker { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.statblock-tracker { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
+.statblock-tracker > .statblock-prop-name { min-width: 0; }
 .statblock-boxes, .statblock-counter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .25rem; }
 .statblock-box {
   width: 1.05rem;
@@ -170,7 +235,7 @@ span.statblock-box { cursor: default; display: inline-block; }
   cursor: pointer;
 }
 .statblock-step:disabled { opacity: .45; cursor: default; }
-.statblock-tracker-count { font-family: var(--mono); font-size: .85rem; }
+.statblock-tracker-count { font-family: var(--mono); font-size: .82rem; white-space: nowrap; }
 .statblock-tracker-note:not(:empty) { font-family: var(--ui); font-size: .78rem; color: var(--seal); }
 .statblock-repair {
   font-family: var(--ui);
@@ -182,14 +247,14 @@ span.statblock-box { cursor: default; display: inline-block; }
   cursor: pointer;
 }
 
-.statblock-roll { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .3rem 0; }
-.statblock-roll-ask { display: inline-flex; flex-wrap: wrap; gap: .5rem; border: 0; margin: 0; padding: 0; }
-.statblock-roll-field { display: inline-flex; align-items: center; gap: .3rem; font-family: var(--ui); font-size: .82rem; }
-.statblock-roll-input { width: 4.5rem; font: inherit; }
-select.statblock-roll-input { width: auto; }
+.statblock-roll { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem; margin: .4rem 0 .2rem; }
+.statblock-roll-ask { display: flex; flex-wrap: wrap; gap: .4rem .6rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+.statblock-roll-field { display: inline-flex; align-items: center; gap: .3rem; font-family: var(--ui); font-size: .78rem; color: var(--sb-quiet); }
+.statblock-roll-input { width: 4.5rem; min-width: 0; font: inherit; color: var(--sb-text); }
+select.statblock-roll-input { width: auto; max-width: 9rem; }
 .statblock-roll-go {
   font-family: var(--ui);
-  font-size: .82rem;
+  font-size: .8rem;
   border: 1px solid var(--sb-accent);
   border-radius: 5px;
   background: transparent;
@@ -197,6 +262,7 @@ select.statblock-roll-input { width: auto; }
   padding: .2rem .6rem;
   cursor: pointer;
 }
+.statblock-roll-go:hover { background: color-mix(in oklch, var(--sb-accent) 10%, transparent); }
 .statblock-roll-out { flex-basis: 100%; }
 .statblock-roll-out:empty { display: none; }
 .statblock-roll-line { display: block; }
@@ -204,7 +270,6 @@ select.statblock-roll-input { width: auto; }
 .statblock-roll-failed { color: var(--seal); }
 
 .statblock-badge {
-  clear: both;
   margin-top: .5rem;
   font-family: var(--ui);
   font-size: .78rem;
@@ -215,9 +280,10 @@ select.statblock-roll-input { width: auto; }
   padding: .3rem .5rem;
 }
 .statblock-tracker .statblock-badge { margin-top: 0; flex-basis: 100%; }
-.statblock-error { border-top-color: var(--seal); border-bottom-color: var(--seal); }
-.statblock-error-source { white-space: pre-wrap; font-family: var(--mono); font-size: .8rem; max-height: 24rem; overflow: auto; }
-.statblock-source { position: relative; }
+.statblock-error { border-top-color: var(--seal); border-bottom-color: var(--seal); padding-top: .8rem; }
+.statblock-error > .statblock-badge:first-child { margin-top: 0; }
+.statblock-error-source { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: .8rem; max-height: 24rem; overflow: auto; }
+.statblock-source { position: relative; padding-right: 2.6rem; }
 .statblock-back-btn { position: absolute; top: .4rem; right: .4rem; }
 
 /* Settings Gallery */

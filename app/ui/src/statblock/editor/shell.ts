@@ -476,9 +476,9 @@ export class LayoutEditor {
     const card = renderStatblock(text, undefined, {
       layout: v.layout,
       rolls: true,
-      dice: (notation) => {
-        const d = h("span", "dice-button sbe-die", notation);
-        d.title = S.roll(notation);
+      dice: (notation, look) => {
+        const d = h("span", "dice-button sbe-die", look?.text ?? notation);
+        d.title = look?.label ?? S.roll(notation);
         return d;
       },
     });

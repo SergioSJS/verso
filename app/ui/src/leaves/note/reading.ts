@@ -20,6 +20,7 @@ import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
 import { hasCapability } from "../../capabilities";
 import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
+import type { DieLook } from "../../statblock/inline";
 import { sameText, writeInReading, type Value, type ValuePath } from "../../statblock/edit";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
@@ -124,7 +125,7 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
     const card = renderStatblockHost(f.text, {
       source: this.path,
       key: this.path,
-      ...(dice ? { dice: (notation: string) => diceBox({ kind: "roll", notation }, host) } : {}),
+      ...(dice ? { dice: (notation: string, look?: DieLook) => diceBox({ kind: "roll", notation }, host, { ...look, popover: true }) } : {}),
       rolls: dice,
       ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
     });
@@ -134,7 +135,8 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
 
 export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
   for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
-    if (pre.querySelector(".copy-code-btn")) continue;
+    // A statblock's source and its error text have the card's own buttons.
+    if (pre.querySelector(".copy-code-btn") || pre.closest(".statblock-host, .statblock-card")) continue;
     pre.style.position = "relative";
     const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     foldBtn.type = "button";
@@ -283,7 +285,8 @@ export function persistImageSize(this: NoteLeaf, img: HTMLImageElement, rawSrc: 
 export function wireHeadingFolds(this: NoteLeaf, root: HTMLElement): void {
   const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
   for (const h of headings) {
-    if (h.querySelector(".heading-fold-btn")) continue;
+    // A statblock's headings are the card's, not the note's sections.
+    if (h.querySelector(".heading-fold-btn") || h.closest(".statblock-card")) continue;
     const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     btn.type = "button";
     h.prepend(btn);

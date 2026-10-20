@@ -18,7 +18,7 @@ import type { Value, ValuePath, WriteOutcome } from "./edit";
 import { h } from "./h";
 import { inline, type DieMaker } from "./inline";
 import type { Block, DiceRule, Layout, Predicate, PropertyBlock, TableBlock, TraitsBlock } from "./model";
-import { modifierOf, signed } from "./modifier";
+import { d20Of, modifierOf, signed } from "./modifier";
 import { rollNode } from "./rollBlock";
 import { present, numberOf, textOf, valueOf, type Sheet } from "./sheet";
 import { S, word } from "./strings";
@@ -133,6 +133,11 @@ function propertyLine(ctx: Ctx, block: PropertyBlock): HTMLElement | null {
   return line(nodes);
 }
 
+/** A table of scores (the plugin's `table`), as a grid of cells, each its
+ *  name over its value and modifier: six to a row in a wide card, three
+ *  (or half) when the block is narrow (statblock.css), never wider than
+ *  its block. A d20 modifier is its own die — "(+2)" is the button, rolling
+ *  `1d20+2` — so no text of the cell is read for dice. */
 function table(ctx: Ctx, block: TableBlock): HTMLElement | null {
   const keys = block.properties;
   let cells: unknown[];
@@ -145,42 +150,41 @@ function table(ctx: Ctx, block: TableBlock): HTMLElement | null {
     return el;
   });
   const el = holder(block);
-  const tableEl = h("table", "statblock-table");
-  const caption = h("caption", "sr-only", word(block.label, S.scores));
-  if (block.label) caption.className = "statblock-table-caption";
-  tableEl.append(caption);
-  const head = h("tr");
-  const body = h("tr");
+  const title = word(block.label, S.scores);
+  if (block.label) el.append(h("div", "statblock-table-caption", title));
+  const grid = h("div", "statblock-scores");
+  grid.setAttribute("role", "list");
+  grid.setAttribute("aria-label", title);
+  const n = cells.length;
+  grid.style.setProperty("--sb-cells", String(Math.min(n, 6)));
+  grid.style.setProperty("--sb-cells-narrow", String(n <= 3 ? n : n <= 6 ? Math.ceil(n / 2) : 3));
   cells.forEach((cell, i) => {
-    const th = h("th", "", word(block.headers[i], keys.length === 1 ? String(i + 1) : keyWord(keys[i] ?? "")));
-    th.scope = "col";
-    head.append(th);
-    const td = h("td");
-    td.append(textOf(cell));
-    const n = numberOf(cell);
-    const mod = n === null ? null : modifierOf(block.modifier, n, ctx.numbers);
+    const name = word(block.headers[i], keys.length === 1 ? String(i + 1) : keyWord(keys[i] ?? ""));
+    const item = h("div", "statblock-score");
+    item.setAttribute("role", "listitem");
+    item.append(h("span", "statblock-score-name", name));
+    const line = h("span", "statblock-score-line");
+    line.append(h("span", "statblock-score-value", textOf(cell)));
+    const num = numberOf(cell);
+    const mod = num === null ? null : modifierOf(block.modifier, num, ctx.numbers);
     if (mod !== null) {
-      const m = h("span", "statblock-mod");
-      m.append(h("span", "sr-only", `${S.modifier} `));
-      const notation = readNotation(`1d20${signed(mod)}`);
+      // A minus sign, as a book prints it; the notation keeps the hyphen.
+      const shown = `(${signed(mod).replace("-", "−")})`;
+      const notation = readNotation(d20Of(mod));
       if (ctx.opts.dice && notation && block.dice !== false && block.modifier.kind === "d20") {
-        m.append("(");
-        const d = ctx.opts.dice(notation);
-        d.classList.add("statblock-die");
-        m.append(signed(mod), " ", d, ")");
-      } else m.append(`(${signed(mod)})`);
-      td.append(" ", m);
+        const d = ctx.opts.dice(notation, { text: shown, label: S.rollFor(notation, name) });
+        d.classList.add("statblock-die", "statblock-mod");
+        line.append(" ", d);
+      } else {
+        const m = h("span", "statblock-mod");
+        m.append(h("span", "sr-only", `${S.modifier} `), shown);
+        line.append(" ", m);
+      }
     }
-    body.append(td);
+    item.append(line);
+    grid.append(item);
   });
-  const thead = h("thead");
-  thead.append(head);
-  const tbody = h("tbody");
-  tbody.append(body);
-  tableEl.append(thead, tbody);
-  const scroll = h("div", "statblock-table-scroll");
-  scroll.append(tableEl);
-  el.append(scroll);
+  el.append(grid);
   return el;
 }
 
