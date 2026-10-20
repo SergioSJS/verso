@@ -26,6 +26,7 @@ import {
   type Layout,
   type LayoutSource,
   type Modifier,
+  type ModifierBand,
   type Predicate,
   type RollInput,
 } from "./model";
@@ -155,8 +156,18 @@ class Reader {
         if (Array.isArray(raw)) for (const h of raw.slice(0, LIMITS.headers)) headers.push(readLabel(h, 40) ?? {});
         return { ...base, type: t, headers, modifier: this.modifier(own(v, "modifier"), `${path}.modifier`) };
       }
+      case "traits": {
+        const raw = own(v, "flag");
+        if (raw === undefined) return { ...base, type: t };
+        const key = isMap(raw) ? readKey(own(raw, "key")) : null;
+        if (!key || !isMap(raw)) {
+          this.note(`${path}.flag`, S.problem.key);
+          return { ...base, type: t };
+        }
+        const label = readLabel(own(raw, "label"));
+        return { ...base, type: t, flag: { key, ...(label ? { label } : {}) } };
+      }
       case "saves":
-      case "traits":
       case "image":
         return { ...base, type: t };
       case "text": {
@@ -219,6 +230,20 @@ class Reader {
     if (isMap(v)) {
       const kind = own(v, "kind");
       if (kind === "d20" || kind === "none") return { kind };
+      if (kind === "bands") {
+        const raw = own(v, "bands");
+        const bands: ModifierBand[] = [];
+        if (Array.isArray(raw)) {
+          raw.slice(0, LIMITS.bands).forEach((b, i) => {
+            const whole = (x: unknown): x is number => typeof x === "number" && Number.isInteger(x) && Math.abs(x) <= 100_000;
+            if (isMap(b) && whole(own(b, "min")) && whole(own(b, "max")) && whole(own(b, "value")) && (own(b, "min") as number) <= (own(b, "max") as number) && Math.abs(own(b, "value") as number) <= 1000) {
+              bands.push({ min: own(b, "min") as number, max: own(b, "max") as number, value: own(b, "value") as number });
+            } else this.note(`${path}.bands[${i}]`, S.problem.band);
+          });
+          if (raw.length > LIMITS.bands) this.note(`${path}.bands`, S.problem.tooMany);
+        } else this.note(`${path}.bands`, S.problem.band);
+        return { kind: "bands", bands };
+      }
       if (kind === "expression") {
         const expression = own(v, "expression");
         const why = checkExpression(expression);

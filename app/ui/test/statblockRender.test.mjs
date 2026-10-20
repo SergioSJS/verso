@@ -466,3 +466,46 @@ test("a card's \"Edit this layout\" names its layout and its block's text", () =
   const preview = m.renderStatblock("name: X", undefined, { layout: layoutOf([]) });
   assert.equal(preview.querySelector(".statblock-edit-layout"), null, "not on the editor's own card");
 });
+
+describe("nested values write as the top-level ones do", () => {
+  const apply = (doc, plan) => m.EditorState.create({ doc }).update({ changes: plan }).state.doc.toString();
+  const yaml = "name: x\nfatos:\n  - name: A\n    quebrado: false # dito\n  - name: B\n  - {name: C, quebrado: \"false\"}\n  - D\n";
+  test("a list item's key: replaced in place, or added under the item at its column", () => {
+    assert.equal(apply(yaml, m.planValueEdit(yaml, ["fatos", 0, "quebrado"], true)), yaml.replace("quebrado: false #", "quebrado: true #"));
+    assert.equal(apply(yaml, m.planValueEdit(yaml, ["fatos", 1, "quebrado"], true)), yaml.replace("  - name: B\n", "  - name: B\n    quebrado: true\n"));
+    assert.equal(apply(yaml, m.planValueEdit(yaml, ["fatos", 2, "quebrado"], true)), yaml.replace('quebrado: "false"', 'quebrado: "true"'));
+  });
+  test("what cannot take a key alone is refused", () => {
+    assert.deepEqual(m.planValueEdit(yaml, ["fatos", 3, "quebrado"], true), { why: "shape" }, "a plain string item");
+    assert.deepEqual(m.planValueEdit("fatos:\n  - {name: C}\n", ["fatos", 0, "quebrado"], true), { why: "shape" }, "a flow map takes no new key");
+    assert.deepEqual(m.planValueEdit(yaml, ["fatos", 9, "quebrado"], true), { why: "shape" });
+    assert.deepEqual(m.planValueEdit(yaml, ["name", 0, "x"], true), { why: "shape" });
+  });
+});
+
+describe("a trait's mark and a tracker's label from the sheet", () => {
+  const facts = layoutOf([{ type: "traits", id: "f", properties: ["fatos"], flag: { key: "quebrado", label: { pt: "Quebrado", en: "Broken" } } }]);
+  test("read-only: the mark shows on the items that carry it, no button", () => {
+    const card = m.renderStatblock("fatos:\n  - name: A\n    quebrado: sim\n  - name: B\n  - Plain", undefined, { layout: facts });
+    const rows = card.querySelectorAll(".statblock-trait");
+    assert.ok(rows[0].classList.contains("statblock-trait-flagged"));
+    assert.equal(rows[0].querySelector(".statblock-flag-mark").textContent, "Broken");
+    assert.equal(card.querySelectorAll("button.statblock-flag").length, 0);
+    assert.equal(rows[1].textContent, "B");
+  });
+  test("a refusal is said under the item, the mark unchanged", () => {
+    const card = m.renderStatblock("fatos:\n  - name: A", undefined, { layout: facts, write: () => ({ ok: false, why: "readOnly" }) });
+    const btn = card.querySelector("button.statblock-flag");
+    assert.equal(btn.getAttribute("aria-label"), "Broken: A");
+    btn.click();
+    assert.equal(btn.getAttribute("aria-pressed"), "false");
+    assert.match(card.querySelector(".statblock-trait .statblock-tracker-note").textContent, /read-only/);
+  });
+  test("a tracker labelled {key} reads the key, and hides when it is empty", () => {
+    const layout = layoutOf([{ type: "tracker", id: "r", properties: ["r_nome"], label: "{r_nome}", hideWhenEmpty: true, current: "r_atual", max: "r_total", style: "boxes" }]);
+    const card = m.renderStatblock("r_nome: Vida\nr_atual: 2\nr_total: 3", undefined, { layout, write: () => ({ ok: true }) });
+    assert.match(card.querySelector(".statblock-tracker").textContent, /^Vida.*2\/3/);
+    assert.equal(card.querySelector(".statblock-box").getAttribute("aria-label"), "Vida: mark 1 of 3");
+    assert.equal(m.renderStatblock("r_atual: 2\nr_total: 3", undefined, { layout }).querySelector(".statblock-tracker"), null);
+  });
+});

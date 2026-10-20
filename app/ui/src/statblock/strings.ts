@@ -37,7 +37,9 @@ const pt = {
   trackerKeys: "Setas mudam o valor; Home zera, End enche.",
   badValue: (label: string, raw: string, max: number) => `${label}: "${raw}" não é um número de 0 a ${max}.`,
   repair: (n: number) => `Corrigir para ${n}`,
-  saved: (label: string, n: number) => `${label}: ${n}. Gravado na nota.`,
+  saved: (label: string, n: number | string) => `${label}: ${n}. Gravado na nota.`,
+  flagOn: (label: string, item: string) => `${item}: ${label}`,
+  flagAria: (label: string, item: string) => `${label}: ${item}`,
   readOnlyCard: "Só leitura: a ficha não grava nesta nota.",
   refusal: {
     readOnly: "Nada gravado: esta nota é só leitura.",
@@ -87,6 +89,7 @@ const pt = {
     predicate: "teste inválido",
     tracker: "contador sem chave",
     key: "chave inválida",
+    band: "linha da tabela de modificador inválida (mín ≤ máx, números inteiros)",
   },
   page: {
     layoutsTitle: "Layouts de ficha",
@@ -144,6 +147,8 @@ const en: StatblockText = {
   badValue: (label, raw, max) => `${label}: "${raw}" is not a number from 0 to ${max}.`,
   repair: (n) => `Repair to ${n}`,
   saved: (label, n) => `${label}: ${n}. Saved in the note.`,
+  flagOn: (label, item) => `${item}: ${label}`,
+  flagAria: (label, item) => `${label}: ${item}`,
   readOnlyCard: "Read-only: the card does not write into this note.",
   refusal: {
     readOnly: "Nothing saved: this note is read-only.",
@@ -191,6 +196,7 @@ const en: StatblockText = {
     predicate: "invalid test",
     tracker: "tracker without a key",
     key: "invalid key",
+    band: "invalid modifier table row (min ≤ max, whole numbers)",
   },
   page: {
     layoutsTitle: "Statblock layouts",

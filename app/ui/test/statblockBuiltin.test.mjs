@@ -135,13 +135,26 @@ describe("Fractal", () => {
     assert.equal(out.querySelector(".statblock-roll-failed"), null);
   });
 
-  test("a fact has a Quebrado tracker, and a Desafio draws its obstacles, one a link", () => {
+  test("facts are a list, each with its Quebrado toggle; a Reserva reads by its name; a Desafio draws its obstacles, one a link", () => {
     const layout = m.builtinLayouts().find((l) => l.id === "fractal-character");
-    const card = m.renderStatblock(m.builtinSample("fractal-character"), undefined, { layout });
-    assert.equal(card.querySelectorAll('[data-block^="fato-"].statblock-row').length, 3);
-    assert.equal(card.querySelectorAll('[data-block="fato-1-quebrado"] .statblock-tracker').length, 1);
+    const writes = [];
+    const card = m.renderStatblock(m.builtinSample("fractal-character"), undefined, { layout, write: (at, v) => (writes.push([at, v]), { ok: true }) });
+    const facts = card.querySelectorAll('[data-block="fatos"] .statblock-trait');
+    assert.equal(facts.length, 3);
+    const toggles = [...card.querySelectorAll('[data-block="fatos"] button.statblock-flag')];
+    assert.deepEqual(toggles.map((b) => b.getAttribute("aria-pressed")), ["false", "true", "false"]);
+    assert.ok(facts[1].classList.contains("statblock-trait-flagged"));
+    toggles[0].click();
+    assert.deepEqual(writes, [[["fatos", 0, "quebrado"], true]]);
+    // Reservas: one tracker per named slot, labelled by the slot's name.
+    const reservas = [...card.querySelectorAll('[data-block^="reserva-"] .statblock-tracker')];
+    assert.equal(reservas.length, 2);
+    assert.match(reservas[0].textContent, /^Coragem/);
+    assert.match(reservas[1].textContent, /Fôlego.*2\/4/);
     const ch = m.builtinLayouts().find((l) => l.id === "fractal-challenge");
     const c = m.renderStatblock(m.builtinSample("fractal-challenge"), undefined, { layout: ch });
+    assert.match(c.querySelector('[data-block="reserva-1-valor"]').textContent, /^Vida.*10\/10/);
+    assert.equal(c.querySelector('[data-block="reserva-3-valor"]'), null, "a slot with no name hides");
     const row = c.querySelector('[data-block="obstaculos"]');
     assert.equal(row.querySelectorAll(".statblock-trait").length, 3);
     assert.match(row.textContent, /Ninho de Krard/);

@@ -28,12 +28,24 @@ export type Plan = { from: number; to: number; insert: string };
 
 const PLAIN_KEY = /^[A-Za-z_][A-Za-z0-9_-]{0,79}$/;
 
-/** The change that makes the top-level `key` of `yaml` read `value`, and
+/** Where a value is in a block's YAML: a top-level key, or a path of keys
+ *  and list indexes (`["fatos", 2, "quebrado"]`). */
+export type ValuePath = string | (string | number)[];
+export type Value = number | boolean;
+
+/** The column a line of `yaml` starts its text at `pos` from. */
+const columnOf = (yaml: string, pos: number): number => pos - (yaml.lastIndexOf("\n", pos - 1) + 1);
+
+/** The change that makes the value at `at` in `yaml` read `value`, and
  *  only that: the scalar's own text replaced (in its quotes, if it had
- *  them), or a line `key: value` added at the end when the key is absent.
- *  Why not, when the YAML does not let one value change alone. */
-export function planValueEdit(yaml: string, key: string, value: number): Plan | { why: Refusal } {
-  if (!Number.isInteger(value)) return { why: "shape" };
+ *  them), or — the key absent from its map — a line `key: value` added
+ *  after the map's last line, at the map's own column. Why not, when the
+ *  YAML does not let one value change alone. */
+export function planValueEdit(yaml: string, at: ValuePath, value: Value): Plan | { why: Refusal } {
+  if (typeof value === "number" && !Number.isInteger(value)) return { why: "shape" };
+  const path = typeof at === "string" ? [at] : at;
+  const key = path[path.length - 1];
+  if (typeof key !== "string" || path.length === 0 || path.length > 8) return { why: "shape" };
   let doc: YAML.Document.Parsed;
   try {
     doc = YAML.parseDocument(yaml, { uniqueKeys: false, logLevel: "silent" });
@@ -43,9 +55,19 @@ export function planValueEdit(yaml: string, key: string, value: number): Plan | 
   if (doc.errors.length > 0) return { why: "shape" };
   const root = doc.contents;
   if (!YAML.isMap(root) || root.flow) return { why: "shape" };
+  // The last pair of a key is the one a reader takes.
+  const pairOf = (map: YAML.YAMLMap, k: string) => [...map.items].reverse().find((p) => YAML.isScalar(p.key) && String(p.key.value) === k);
+  let node: unknown = root;
+  for (const step of path.slice(0, -1)) {
+    if (typeof step === "number" && YAML.isSeq(node)) node = node.items[step];
+    else if (typeof step === "string" && YAML.isMap(node)) node = pairOf(node, step)?.value;
+    else return { why: "shape" };
+    if (node === undefined || node === null) return { why: "shape" };
+  }
+  if (!YAML.isMap(node)) return { why: "shape" };
+  const map = node;
   const text = String(value);
-  // The last pair of that key is the one a reader takes.
-  const pair = [...root.items].reverse().find((p) => YAML.isScalar(p.key) && String(p.key.value) === key);
+  const pair = pairOf(map, key);
   if (pair) {
     const v = pair.value;
     if (!YAML.isScalar(v) || !v.range) return { why: "shape" };
@@ -59,13 +81,27 @@ export function planValueEdit(yaml: string, key: string, value: number): Plan | 
     if (was === insert) return { why: "unchanged" };
     return { from, to, insert };
   }
-  // Absent: a line of its own after the map, at the map's own column.
-  const first = root.items[0];
-  const col = first && YAML.isScalar(first.key) && first.key.range ? first.key.range[0] - (yaml.lastIndexOf("\n", first.key.range[0] - 1) + 1) : 0;
-  if (col !== 0) return { why: "shape" };
   const name = PLAIN_KEY.test(key) ? key : JSON.stringify(key);
-  const end = yaml.length;
-  return yaml === "" || yaml.endsWith("\n") ? { from: end, to: end, insert: `${name}: ${text}\n` } : { from: end, to: end, insert: `\n${name}: ${text}` };
+  if (map === root) {
+    // A line of its own after the block, at the map's column (the first).
+    const first = root.items[0];
+    const col = first && YAML.isScalar(first.key) && first.key.range ? columnOf(yaml, first.key.range[0]) : 0;
+    if (col !== 0) return { why: "shape" };
+    const end = yaml.length;
+    return yaml === "" || yaml.endsWith("\n") ? { from: end, to: end, insert: `${name}: ${text}\n` } : { from: end, to: end, insert: `\n${name}: ${text}` };
+  }
+  // In a nested map (a list's item): after its last pair, when that pair's
+  // value is a one-line scalar; at the column of its first key.
+  if (map.flow) return { why: "shape" };
+  const first = map.items[0];
+  const last = map.items[map.items.length - 1];
+  if (!first || !last || !YAML.isScalar(first.key) || !first.key.range) return { why: "shape" };
+  const lv = last.value;
+  if (!YAML.isScalar(lv) || !lv.range || (lv.type !== "PLAIN" && lv.type !== "QUOTE_DOUBLE" && lv.type !== "QUOTE_SINGLE")) return { why: "shape" };
+  if (yaml.slice(lv.range[0], lv.range[1]).includes("\n")) return { why: "shape" };
+  const nl = yaml.indexOf("\n", lv.range[1]);
+  const end = nl < 0 ? yaml.length : nl;
+  return { from: end, to: end, insert: `\n${" ".repeat(columnOf(yaml, first.key.range[0]))}${name}: ${text}` };
 }
 
 /** A statblock fence of a note's text: where its inside is, and the text
@@ -133,7 +169,7 @@ function refusal(host: NoteHost): Refusal | null {
  *  is `cardText`, the `ordinal`-th of the `shown` cards on screen with that
  *  same text. The editor's text must still be the one drawn, and hold as
  *  many such blocks as the screen shows, or nothing is written. */
-export function writeInReading(host: NoteHost, cardText: string, ordinal: number, shown: number, key: string, value: number): WriteOutcome {
+export function writeInReading(host: NoteHost, cardText: string, ordinal: number, shown: number, key: ValuePath, value: Value): WriteOutcome {
   const why = refusal(host);
   if (why) return { ok: false, why };
   const view = host.editor;
