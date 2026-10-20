@@ -52,6 +52,7 @@ import { agentVisibleControl, cliControl, mcpArgs, mcpControl, snippet } from ".
 import { wireFrame } from "./settings/frame";
 import { oracleItems } from "./settings/oracleItems";
 import { statblockItems } from "./settings/statblockItems";
+import { ss } from "./settings/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
@@ -155,8 +156,8 @@ export class SettingsDialog {
       { id: "board", label: boardText.sBoard, icon: "board", category: "editor" },
 
       // 3. RPG & Mesa Solo / RPG & Solo Play
-      { id: "oracles", label: LOCALE === "pt-BR" ? "Oráculos e Solo RPG" : "Oracles & Solo RPG", icon: "sparkles", category: "rpg" },
-      { id: "statblocks", label: LOCALE === "pt-BR" ? "Fichas e Templates" : "Statblock Templates", icon: "dice", category: "rpg" },
+      { id: "oracles", label: ss.sOracles, icon: "sparkles", category: "rpg" },
+      { id: "statblocks", label: ss.sStatblocks, icon: "dice", category: "rpg" },
 
       // 4. Rede & Conexões / Network & System
       ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh", category: "system" as const }] : []),
@@ -432,8 +433,7 @@ export class SettingsDialog {
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
-    const isPtLocale = LOCALE.toLowerCase().startsWith("pt");
-    add("general", isPtLocale ? "Modo de Uso (Preset)" : "Usage Mode (Preset)", isPtLocale ? "Define quais recursos de domínio (escrita, oráculos, fichas) ficam ativos na interface (ADR 0103)." : "Controls which domain capabilities (writing, oracles, statblocks) are active (ADR 0103).", () => {
+    add("general", ss.presetTitle, ss.presetDesc, () => {
       const choices: [string, string][] = [
         ["writing", PRESETS.writing.name],
         ["worldbuilding", PRESETS.worldbuilding.name],
@@ -833,22 +833,11 @@ export class SettingsDialog {
   paint(): void {
     const q = this.search.value.trim().toLowerCase();
     const navItems: HTMLElement[] = [];
-    const CATEGORY_NAMES: Record<string, { pt: string; en: string }> = {
-      app: { pt: "Aplicação", en: "Application" },
-      editor: { pt: "Notas & Editor", en: "Notes & Editor" },
-      rpg: { pt: "RPG & Mesa Solo", en: "RPG & Solo Play" },
-      system: { pt: "Rede & Conexões", en: "Network & System" },
-    };
-
     let lastCategory = "";
     for (const sec of this.sections()) {
       if (!q && sec.category !== lastCategory) {
         lastCategory = sec.category;
-        const catInfo = CATEGORY_NAMES[sec.category];
-        const catLabel = LOCALE === "pt-BR" ? catInfo?.pt : catInfo?.en;
-        if (catLabel) {
-          navItems.push(h("div", "settings-nav-group-header", catLabel));
-        }
+        navItems.push(h("div", "settings-nav-group-header", ss.groups[sec.category]));
       }
       const b = h("button", "settings-nav-item");
       b.type = "button";
