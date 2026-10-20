@@ -7,11 +7,14 @@ import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorView } from "codemirror";
 import { insertTemplate } from "../daily";
 import { score } from "../dialogs/quick";
-import { allFiles, allNotes } from "../folder";
+import { allEntries, allFiles, allNotes } from "../folder";
 import { allEmojis } from "../labels";
 import { layout } from "../layout/spaces";
 import { frontmatterEnd } from "../live";
-import { WIKILINK_BEFORE } from "./wikilinkBefore";
+import { MENTION_BEFORE, WIKILINK_BEFORE } from "./wikilinkBefore";
+import { mentionWritten } from "../mentionLink";
+import { proseBefore } from "./linkNames";
+import { proseAt } from "./linkSuggest";
 import { opening } from "../opening";
 import { dirOf, Kind, kindOf, name } from "../paths";
 import { linkText, resolveNoteByName } from "../resolve";
@@ -72,6 +75,53 @@ export async function completeWikilinks(ctx: CompletionContext): Promise<Complet
   return { from: before.from + (embed ? 3 : 2), options, filter: false };
 }
 
+/** `@` at the start of a word (ADR 0089 item 5, 2026-10-20): the notes the
+ *  `[[` list offers, with their aliases, ranked as it ranks them; choosing
+ *  one writes `[[Name]]` over the `@` and what was typed (`[[Name|typed]]`
+ *  when the whole name was typed another way, as the unlinked mentions
+ *  write it). Esc leaves the text. */
+export function completeMention(ctx: CompletionContext): CompletionResult | null {
+  if (!settings.mentionAt) return null;
+  const before = ctx.matchBefore(MENTION_BEFORE);
+  if (!before) return null;
+  const at = before.from + before.text.indexOf("@");
+  const typed = ctx.state.sliceDoc(at + 1, ctx.pos);
+  if (typed.startsWith(" ")) return null;
+  const line = ctx.state.doc.lineAt(at);
+  if (!proseBefore(line.text.slice(0, at - line.from), at - line.from) || !proseAt(ctx.state, at, ctx.pos)) return null;
+  const table = /^\s*\|/.test(line.text);
+  const here = layout().activeLeaf?.path ?? "";
+  const q = typed.toLowerCase();
+  type Cand = { path: string; text: string; alias: boolean; s: number };
+  const found: Cand[] = [];
+  for (const path of allNotes) {
+    const nm = name(path);
+    let best: Cand | null = null;
+    for (const [text, alias] of [[nm, false], ...(allEntries.get(path)?.label?.aliases ?? []).map((a): [string, boolean] => [a, true])] as [string, boolean][]) {
+      const s = score(text, path, q);
+      if (s > 0 && (!best || s > best.s)) best = { path, text, alias, s };
+    }
+    if (best) found.push(best);
+  }
+  const options: Completion[] = found
+    .sort((a, b) => b.s - a.s || a.text.localeCompare(b.text, LOCALE))
+    .slice(0, 60)
+    .map((c) => {
+      const target = linkText(here, c.path);
+      return {
+        label: c.alias ? `${c.text} → ${name(c.path)}` : c.text,
+        detail: dirOf(c.path) || "/",
+        type: "note",
+        apply: (view: EditorView, _c: Completion, from: number, to: number) => {
+          const link = mentionWritten(typed, c.text, c.alias, target, table);
+          view.dispatch({ changes: { from, to, insert: link }, selection: { anchor: from + link.length }, userEvent: "input.complete", scrollIntoView: true });
+        },
+      };
+    });
+  if (options.length === 0) return null;
+  return { from: at, options, filter: false };
+}
+
 export function completeEmoji(ctx: CompletionContext): CompletionResult | null {
   if (!settings.emojiTrigger) return null;
   const fm = frontmatterEnd(ctx.state.doc);
@@ -109,7 +159,7 @@ export function completeEmoji(ctx: CompletionContext): CompletionResult | null {
 export async function completeMarkdown(ctx: CompletionContext): Promise<CompletionResult | null> {
   const wiki = await completeWikilinks(ctx);
   if (wiki) return wiki;
-  return completeEmoji(ctx);
+  return completeMention(ctx) ?? completeEmoji(ctx);
 }
 
 /** The table just written above the caret: its first header cell takes

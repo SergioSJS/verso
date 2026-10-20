@@ -20,6 +20,35 @@
   (what a side cannot do is not shown), spec Q7, Q8 and Q12 (names),
   [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-20 — item 5, the suggestion while typing, widened.
+  The maintainer, trying it: *"tem que escrever o exato nome? parcial não
+  lista?"* (does it have to be the exact name? doesn't a partial one
+  list?), then *"nome completo é bem ruim"* (the full name is quite bad),
+  and, between three ways other apps do it, *"eu gosto do 1 e do 2, o 1
+  pq a gente engloba pessoas já acostumadas com notion … converter para
+  [[]] quando usa o @ eu diria que sim. e a opção 2 resolve também, aí se
+  a pessoa apertar esc enquanto digita some a sugestão"* (I like 1 and 2;
+  1 because we take in people used to Notion … converting to [[ ]] when
+  @ is used, I'd say yes; and option 2 also solves it; pressing Esc while
+  typing makes the suggestion go away). `[DECIDED 2026-10-20]`:
+  (a) **`@` opens the note list**, the same list and matching as `[[`'s
+  completion, partial and accent-aware; choosing a note writes
+  `[[Name]]` (or `[[Name|typed]]` as item 2 does) in place of the `@` and
+  what followed it — so the file stays Obsidian's dialect, where `@`
+  means nothing. `[PROPOSED]`: on by default (it opens only when asked);
+  only at the start of a word (`fulano@mail` never opens it); nothing
+  chosen, the `@` and the text stay as typed; never in code, the
+  frontmatter, a link, math, HTML or a tag.
+  (b) **The suggestion while typing lists partial names**: from the
+  first letters of the words just typed, a short list of the notes (and
+  aliases) whose name starts with them, narrowing as typing goes on;
+  arrows choose, Tab or Enter accepts, Escape dismisses for that word.
+  `[PROPOSED]`: three letters at least, and only for a word that begins
+  with a capital letter — names of places, people and factions do, the
+  common words that made the whole-name rule necessary mostly do not; at
+  most five entries; a whole name typed keeps the chip, which now stays
+  after a space or a punctuation mark until the next word starts. Still
+  off by default, the same setting, the same ignored folders and names.
 
 ## Context
 
