@@ -36,6 +36,7 @@
   margin: 0 0 .3rem .6rem;
 }
 .statblock-layout-badge,
+.statblock-edit-layout,
 .statblock-toggle-btn {
   font-family: var(--ui);
   font-size: .72rem;
@@ -50,8 +51,9 @@
   gap: .3rem;
 }
 .statblock-layout-badge:hover,
+.statblock-edit-layout:hover,
 .statblock-toggle-btn:hover { color: var(--sb-text); border-color: var(--sb-accent); }
-.statblock-toggle-btn .icon { width: 1em; height: 1em; }
+.statblock-toggle-btn .icon, .statblock-edit-layout .icon { width: 1em; height: 1em; }
 .statblock-card button:focus-visible,
 .statblock-card a:focus-visible,
 .statblock-card select:focus-visible,
