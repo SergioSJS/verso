@@ -103,8 +103,10 @@ export interface TraitsBlock extends BlockBase {
   type: "traits";
   /** A mark each item of the list may carry (a Fractal Fato "quebrado"):
    *  the item's key holding true or false, drawn as a toggle — the item
-   *  struck through when on — that writes back like a tracker. */
-  flag?: { key: string; label?: Label };
+   *  struck through when on — that writes back like a tracker. `count`,
+   *  with `{n}` and `{m}`, is said beside the list's heading, worked out
+   *  from the items ("{n} de {m} quebrados"), never stored. */
+  flag?: { key: string; label?: Label; count?: Label };
 }
 
 export interface TextBlock extends BlockBase {

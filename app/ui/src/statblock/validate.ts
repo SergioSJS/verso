@@ -165,7 +165,8 @@ class Reader {
           return { ...base, type: t };
         }
         const label = readLabel(own(raw, "label"));
-        return { ...base, type: t, flag: { key, ...(label ? { label } : {}) } };
+        const count = readLabel(own(raw, "count"));
+        return { ...base, type: t, flag: { key, ...(label ? { label } : {}), ...(count ? { count } : {}) } };
       }
       case "saves":
       case "image":

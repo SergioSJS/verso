@@ -227,7 +227,7 @@ const on = (v: unknown): boolean => v === true || v === 1 || (typeof v === "stri
 /** An item's mark (the block's `flag`): a toggle that writes the item's
  *  key back into the YAML, as a tracker does, the item struck through
  *  when it is on. Read-only cards show the mark, not a button. */
-function flagToggle(ctx: Ctx, block: TraitsBlock, row: HTMLElement, item: Record<string, unknown>, at: [string, number], name: string): void {
+function flagToggle(ctx: Ctx, block: TraitsBlock, row: HTMLElement, item: Record<string, unknown>, at: [string, number], name: string, counted: () => void): void {
   const flag = block.flag!;
   const label = word(flag.label, flag.key);
   let state = on(item[flag.key]);
@@ -240,13 +240,18 @@ function flagToggle(ctx: Ctx, block: TraitsBlock, row: HTMLElement, item: Record
   const btn = h("button", "statblock-flag", label);
   btn.type = "button";
   btn.setAttribute("aria-pressed", String(state));
-  btn.setAttribute("aria-label", S.flagAria(label, name || String(at[1] + 1)));
+  // A link's shown text, not its brackets, in the button's name.
+  const plain = name.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target: string, alias?: string) => alias ?? target);
+  btn.setAttribute("aria-label", S.flagAria(label, plain || String(at[1] + 1)));
   const note = h("span", "statblock-tracker-note");
   note.setAttribute("role", "status");
   btn.addEventListener("click", () => {
     const done = write([at[0], at[1], flag.key], !state);
     if (done.ok) {
       state = !state;
+      // The drawn item holds the new mark, so the count says it at once.
+      item[flag.key] = state;
+      counted();
       btn.setAttribute("aria-pressed", String(state));
       row.classList.toggle("statblock-trait-flagged", state);
       note.textContent = "";
@@ -280,7 +285,22 @@ function traits(ctx: Ctx, block: TraitsBlock): HTMLElement | null {
   });
   const el = holder(block);
   const title = word(block.label);
-  if (title) el.append(h("h4", "statblock-section", title));
+  const heading = title ? h("h4", "statblock-section", title) : null;
+  if (heading) el.append(heading);
+  // "N de M quebrados", worked out from the items as they are drawn.
+  const countText = block.flag?.count ? word(block.flag.count) : "";
+  const count = countText ? h("span", "statblock-flag-count") : null;
+  const counted = () => {
+    if (!count || !block.flag) return;
+    const marks = items.filter((x) => x.at && typeof x.item === "object" && x.item !== null && !Array.isArray(x.item));
+    const n = marks.filter((x) => on((x.item as Record<string, unknown>)[block.flag!.key])).length;
+    count.textContent = countText.replace(/\{n\}/g, String(n)).replace(/\{m\}/g, String(marks.length));
+  };
+  if (count) {
+    counted();
+    if (heading) heading.append(" ", count);
+    else el.append(count);
+  }
   const list = (from: { item: unknown; at?: [string, number] }[], depth: number): HTMLElement => {
     const box = h("div", depth > 0 ? "statblock-traits statblock-traits-nested" : "statblock-traits");
     for (const { item, at } of from.slice(0, MAX_ITEMS)) {
@@ -290,20 +310,31 @@ function traits(ctx: Ctx, block: TraitsBlock): HTMLElement | null {
         let name: string;
         let desc: unknown;
         let nested: unknown;
-        if (Object.hasOwn(o, "name") || Object.hasOwn(o, "desc")) {
-          name = textOf(o["name"]);
-          desc = o["desc"];
+        // `name` and `desc` as the plugin writes them, `nome` and
+        // `descricao` as a note in Portuguese does.
+        const nameKey = ["name", "nome"].find((k) => Object.hasOwn(o, k));
+        const descKey = ["desc", "descricao"].find((k) => Object.hasOwn(o, k));
+        if (nameKey || descKey) {
+          name = nameKey ? textOf(o[nameKey]) : "";
+          desc = descKey ? o[descKey] : undefined;
           nested = o["traits"];
         } else {
-          const k = Object.keys(o)[0] ?? "";
+          // A one-key map, `Name: description`: its key, never the mark's.
+          const k = Object.keys(o).find((x) => x !== block.flag?.key) ?? "";
           name = k;
           desc = o[k];
         }
         const said = textOf(desc);
-        if (name) row.append(h("strong", "statblock-trait-name", said ? `${name}. ` : name));
+        if (name) {
+          // A name may be a link (`[[Ninho de Krard]]`, another Desafio):
+          // drawn as one, so its click opens the note.
+          const strong = h("strong", "statblock-trait-name");
+          strong.append(...inline(name, null), said ? ". " : "");
+          row.append(strong);
+        }
         row.append(...rich(ctx, block, said));
         if (Array.isArray(nested) && depth < 3) row.append(list(nested.map((x) => ({ item: x })), depth + 1));
-        if (block.flag && at && depth === 0) flagToggle(ctx, block, row, o, at, name);
+        if (block.flag && at && depth === 0) flagToggle(ctx, block, row, o, at, name, counted);
       } else if (Array.isArray(item)) {
         // The plugin's `[name, ...desc]` pair.
         const [name, ...rest] = item;
