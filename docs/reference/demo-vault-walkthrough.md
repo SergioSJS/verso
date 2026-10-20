@@ -1192,15 +1192,29 @@ the folder `Campanha Fractal/` beside it ([ADR
    callout appears at the caret, never inside a quote, a table or a code
    fence. Level: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
    `test/oracle.test.mjs`.
-3. The oracle's data. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*:
-   the odds table refuses to save with a row that does not add to 100, and
-   says which; the page says the values live in the folder
-   (`.verso/settings.json`); *+ Nova Tabela* writes a note holding a list with
-   a `^id`, and the oracle's *Tabelas* tab then lists it with the note it
-   comes from. In a room on a server the draw is the server's and another
-   window sees a notice with the asker's name. Level: H (the room: the
-   harness plays the server, `src/harness/room.ts`); U: `test/oracleData.test.mjs`;
-   the real room, in `manual-checks.md`.
+3. The oracle's settings. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*
+   opens with one sentence of what the oracle does, *Experimentar o oráculo*
+   (the dialog opens over the page) and *Compartilhado com quem abre esta
+   pasta* — no file path anywhere. The odds are five bars split in the six
+   answers, with a legend; picking the style *Ironsworn* saves it at once in
+   the folder's settings and the bars lose their "mas…" parts; *Desfazer*
+   brings *Equilibrado* back. In *Ajustar à mão…*, setting *Quase certo*'s
+   *Não* to 3 shows *faltam 3%* and saves nothing; making the row 100 saves
+   it and the style reads *Personalizado*; *Voltar ao padrão* restores the
+   table. *Faíscas de ideias* has no language switch: off, its preview shows
+   the window's language (*Descobrir* in Portuguese, *Discover* in English);
+   *Usar minhas próprias palavras* turns the four lists into chips — Enter
+   adds (a comma list adds each), × or Delete removes, the last word of a
+   list stays and says why — each change saved by itself; *Voltar às
+   palavras do Verso* turns it off. *Nova tabela* writes a note holding a
+   list with a `^id` (the text shown first), and the oracle's *Tabelas* tab
+   then lists it with the note it comes from. Where the folder is only read
+   the page says why and every control is disabled. All of it holds at
+   340 px and in dark. In a room on a server the draw is the server's and
+   another window sees a notice with the asker's name. Level: H (the room:
+   the harness plays the server, `src/harness/room.ts`); E:
+   `oracle-settings.spec.mjs`; U: `test/oracleData.test.mjs`; the real room,
+   in `manual-checks.md`.
 4. Statblocks. Note 26 holds one card for each built-in layout (34), none with
    an error badge, and `tutorial-sheets.spec.mjs` counts them. In the *Criatura
    d20* card the dice (`+4 to hit`, `4 (1d4 + 2)`) roll with a click, the card says the
