@@ -5,9 +5,11 @@
 
 import { test, expect } from "./fixtures.mjs";
 
-const NOTE = "Yara.md";
+// A name of its own: the demo vault the harness opens has "Yara do Farol"
+// (the Fractal campaign), and "Yara" in the switcher found that note first.
+const NOTE = "Ficha de ensaio.md";
 const TEXT = [
-  "# Yara",
+  "# Ficha de ensaio",
   "",
   "```statblock",
   "layout: fractal-character",
@@ -38,7 +40,7 @@ const TEXT = [
 async function openSheet(app) {
   await app.writeOutside(NOTE, TEXT);
   await app.folderChanged([NOTE], true);
-  await app.quickOpen("Yara");
+  await app.quickOpen("Ficha de ensaio");
 }
 
 test("a fractal-character block draws, a reserve's box writes only its number, and Quebrado strikes a fact", async ({ app, page }) => {
