@@ -2,11 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/** Statblock Layouts and Templates Registry (ADR 0099).
- * Compatible with Obsidian Fantasy Statblocks layout concepts.
- */
+/** Statblock layouts and templates registry (ADR 0099): Verso's own format
+ *  for how a ```statblock card is laid out. It borrows the idea of layouts
+ *  from Obsidian's Fantasy Statblocks plugin but is not that plugin's
+ *  format, and does not read its files. */
 
 import YAML from "yaml";
+import { EN_LAYOUTS, EN_TITLES } from "./builtinText";
+import { S, onStatblockLang, statblockLang } from "./strings";
 
 export type LayoutBlockType =
   | "heading"
@@ -21,6 +24,11 @@ export type LayoutBlockType =
   | "table"
   | "divider"
   | "text";
+
+export const BLOCK_TYPES: readonly LayoutBlockType[] = ["heading", "subheading", "property", "image", "vitals", "abilities", "saves", "traits", "section", "table", "divider", "text"];
+
+export type LayoutTheme = "classic" | "modern" | "cyberpunk" | "osr" | "investigation" | "custom";
+export const THEMES: readonly LayoutTheme[] = ["classic", "modern", "cyberpunk", "osr", "investigation", "custom"];
 
 export interface LayoutAbilityDef {
   name: string;
@@ -49,17 +57,20 @@ export interface StatblockLayout {
   name: string;
   system: string;
   description: string;
-  theme?: "classic" | "modern" | "cyberpunk" | "osr" | "investigation" | "custom";
+  theme?: LayoutTheme;
   tags?: string[];
   blocks: LayoutBlock[];
   builtIn?: boolean;
-  css?: string;
 }
+
+/** The most blocks a layout holds, and the longest text a field of one holds. */
+const MAX_BLOCKS = 100;
+const MAX_TEXT = 4000;
 
 const STORAGE_KEY_LAYOUTS = "verso:statblock-layouts";
 const STORAGE_KEY_DEFAULT = "verso:statblock-default-layout";
 
-export const BUILTIN_LAYOUTS: StatblockLayout[] = [
+const BUILTIN_SOURCE: StatblockLayout[] = [
   {
     id: "dnd5e",
     name: "D&D 5e / D20 Clássico",
@@ -712,23 +723,165 @@ export const BUILTIN_LAYOUTS: StatblockLayout[] = [
   },
 ];
 
+/** The blocks of a layout that names none (a new template, a layout with
+ *  an empty list): the one list every part of the feature starts from. */
+export function defaultBlocks(): LayoutBlock[] {
+  return [
+    { id: "h1", type: "heading", properties: ["nome", "name"] },
+    { id: "sub", type: "subheading", properties: ["tipo", "type", "conceito", "subtitle"] },
+    { id: "div-1", type: "divider", properties: [] },
+    { id: "vitals", type: "vitals", properties: ["pv", "hp", "ca", "defesa", "deslocamento"] },
+    { id: "div-2", type: "divider", properties: [] },
+    { id: "abilities", type: "abilities", properties: ["atributos", "stats"] },
+    { id: "div-3", type: "divider", properties: [] },
+    { id: "armas", type: "section", title: S.defaultBlocks.weapons, properties: ["armas", "acoes", "actions"] },
+    { id: "habilidades", type: "section", title: S.defaultBlocks.abilities, properties: ["habilidades", "traits"] },
+  ];
+}
+
+/** The built-in layouts, worded in the interface's language. */
+export const BUILTIN_LAYOUTS: StatblockLayout[] = JSON.parse(JSON.stringify(BUILTIN_SOURCE));
+
+/** Word the built-ins in `lang` (pt-BR as written, English from the table
+ *  of `builtinText.ts`); a title the table lacks stays as written. */
+function localizeBuiltins(lang: "pt" | "en"): void {
+  BUILTIN_LAYOUTS.forEach((dst, i) => {
+    const src = BUILTIN_SOURCE[i]!;
+    const en = lang === "en" ? EN_LAYOUTS[src.id] : undefined;
+    dst.name = en?.name ?? src.name;
+    dst.description = en?.description ?? src.description;
+    dst.blocks.forEach((b, j) => {
+      const title = src.blocks[j]?.title;
+      b.title = title === undefined ? undefined : (lang === "en" ? EN_TITLES[title] : undefined) ?? title;
+    });
+  });
+}
+localizeBuiltins(statblockLang());
+onStatblockLang(localizeBuiltins);
+
+/** Words a note may use for a built-in layout: its id, its name in either
+ *  language. */
+function builtinNames(i: number): string[] {
+  const src = BUILTIN_SOURCE[i]!;
+  return [src.id, src.name, EN_LAYOUTS[src.id]?.name ?? src.name];
+}
+
 function cleanStr(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[-_]+/g, " ")
     .trim();
 }
 
-/** Read custom layouts from localStorage. */
+const text = (v: unknown, max = MAX_TEXT): string => (typeof v === "string" ? v : v === undefined || v === null ? "" : String(v)).slice(0, max);
+
+export function safeTheme(v: unknown): LayoutTheme {
+  return typeof v === "string" && (THEMES as readonly string[]).includes(v) ? (v as LayoutTheme) : "classic";
+}
+
+function cleanBlock(b: unknown, idx: number, strict: boolean): LayoutBlock | null {
+  if (typeof b !== "object" || b === null || Array.isArray(b)) {
+    if (strict) throw new Error(S.layoutErr.block(idx + 1));
+    return null;
+  }
+  const o = b as Record<string, unknown>;
+  const rawType = o["type"] ?? "section";
+  if (typeof rawType !== "string" || !(BLOCK_TYPES as readonly string[]).includes(rawType)) {
+    if (strict) throw new Error(S.layoutErr.blockType(idx + 1, text(rawType, 40)));
+    return null;
+  }
+  const propList = Array.isArray(o["properties"]) ? (o["properties"] as unknown[]) : o["property"] ? [o["property"]] : [];
+  const rawOpts = o["options"];
+  const opts: NonNullable<LayoutBlock["options"]> = {};
+  if (typeof rawOpts === "object" && rawOpts !== null && !Array.isArray(rawOpts)) {
+    const ro = rawOpts as Record<string, unknown>;
+    if (typeof ro["d20Modifiers"] === "boolean") opts.d20Modifiers = ro["d20Modifiers"];
+    if (typeof ro["text"] === "string") opts.text = text(ro["text"]);
+    if (Array.isArray(ro["attributes"])) {
+      opts.attributes = (ro["attributes"] as unknown[])
+        .slice(0, 30)
+        .filter((a): a is Record<string, unknown> => typeof a === "object" && a !== null)
+        .map((a) => ({ name: text(a["name"], 80), short: text(a["short"], 12), defaultValue: typeof a["defaultValue"] === "number" ? a["defaultValue"] : a["defaultValue"] === undefined ? undefined : text(a["defaultValue"], 20) }));
+    }
+  }
+  const title = o["title"] ?? o["heading"];
+  return {
+    id: text(o["id"], 80) || `block-${idx}`,
+    type: rawType as LayoutBlockType,
+    title: title === undefined || title === null || title === "" ? undefined : text(title, 200),
+    properties: propList.slice(0, 50).map((p) => text(p, 100).trim().toLowerCase()).filter(Boolean),
+    conditioned: Boolean(o["conditioned"]),
+    fallback: o["fallback"] ? text(o["fallback"]) : undefined,
+    text: o["text"] ? text(o["text"]) : typeof opts.text === "string" && opts.text ? opts.text : undefined,
+    options: Object.keys(opts).length > 0 ? opts : undefined,
+  };
+}
+
+/** A layout read from stored or imported data: every field of a known
+ *  kind and size, the theme one of the themes, the blocks of known types.
+ *  `strict` throws on what it cannot take; stored data is cleaned instead. */
+function cleanLayout(raw: unknown, strict: boolean): StatblockLayout | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    if (strict) throw new Error(S.layoutErr.notMap);
+    return null;
+  }
+  const o = raw as Record<string, unknown>;
+  const name = text(o["name"], 200) || S.layoutErr.newName;
+  const slug = cleanStr(name).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "template";
+  const rawId = text(o["id"], 100).trim() || slug;
+  const list = Array.isArray(o["blocks"]) ? (o["blocks"] as unknown[]) : null;
+  if (list && list.length > MAX_BLOCKS) {
+    if (strict) throw new Error(S.layoutErr.tooMany(MAX_BLOCKS));
+  }
+  const blocks: LayoutBlock[] = list
+    ? list.slice(0, MAX_BLOCKS).map((b, i) => cleanBlock(b, i, strict)).filter((b): b is LayoutBlock => b !== null)
+    : defaultBlocks();
+  return {
+    id: `custom-${rawId.replace(/^custom-/, "")}`.slice(0, 120),
+    name,
+    system: text(o["system"], 200) || "RPG",
+    description: text(o["description"], 1000),
+    theme: safeTheme(o["theme"]),
+    tags: Array.isArray(o["tags"]) ? (o["tags"] as unknown[]).slice(0, 30).map((t) => text(t, 60)) : [],
+    blocks,
+    builtIn: false,
+  };
+}
+
+/** An id no layout of the registry has: `id`, or `id-2`, `id-3`… */
+export function uniqueLayoutId(id: string, taken: Iterable<string> = getAllLayouts().map((l) => l.id)): string {
+  const used = new Set(taken);
+  if (!used.has(id)) return id;
+  let n = 2;
+  while (used.has(`${id}-${n}`)) n++;
+  return `${id}-${n}`;
+}
+
+/** Read custom layouts from localStorage. Stored data is untrusted (an
+ *  older build, another origin's import): every layout is cleaned, and one
+ *  that took a built-in's id (the old "Visualizar, then save") gets an id of
+ *  its own, so it is no longer hidden behind the built-in. */
 export function getCustomLayouts(): StatblockLayout[] {
   try {
     if (typeof localStorage === "undefined") return [];
     const raw = localStorage.getItem(STORAGE_KEY_LAYOUTS);
     if (!raw) return [];
     const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    const taken = new Set(BUILTIN_SOURCE.map((l) => l.id));
+    const out: StatblockLayout[] = [];
+    for (const item of list.slice(0, 500)) {
+      const clean = cleanLayout(item, false);
+      if (!clean) continue;
+      // The stored id as it was written, `custom-` prefix or not.
+      const stored = typeof item?.id === "string" && item.id ? item.id.slice(0, 120) : clean.id;
+      const id = uniqueLayoutId(taken.has(stored) ? `custom-${stored}` : stored, taken);
+      taken.add(id);
+      out.push({ ...clean, id });
+    }
+    return out;
   } catch {
     return [];
   }
@@ -750,47 +903,33 @@ export function setCustomLayouts(layouts: StatblockLayout[]): void {
 
 /** Get all layouts (built-in + user custom). */
 export function getAllLayouts(): StatblockLayout[] {
-  const custom = getCustomLayouts();
-  return [...BUILTIN_LAYOUTS, ...custom];
+  return [...BUILTIN_LAYOUTS, ...getCustomLayouts()];
+}
+
+/** The layout a note names, and whether the name was found. Exact only
+ *  (case and accents ignored): an id, a name in either language, or a tag
+ *  that belongs to a single layout. Anything else is "not found", answered
+ *  with the default layout: guessing by a part of a name picked whichever
+ *  template came first. */
+export function resolveLayout(nameOrId?: string): { layout: StatblockLayout; known: boolean } {
+  const all = getAllLayouts();
+  const fallback = () => all.find((l) => l.id === getDefaultLayoutId()) ?? BUILTIN_LAYOUTS[0]!;
+  if (!nameOrId || !nameOrId.trim()) return { layout: fallback(), known: true };
+  const needle = cleanStr(nameOrId);
+  const names = (l: StatblockLayout, i: number): string[] => (i < BUILTIN_LAYOUTS.length ? builtinNames(i) : [l.id, l.name]);
+
+  const byId = all.find((l, i) => cleanStr(l.id) === needle || (i < BUILTIN_LAYOUTS.length && cleanStr(builtinNames(i)[0]!) === needle));
+  if (byId) return { layout: byId, known: true };
+  const byName = all.find((l, i) => names(l, i).some((n) => cleanStr(n) === needle));
+  if (byName) return { layout: byName, known: true };
+  const byTag = all.filter((l) => l.tags?.some((t) => cleanStr(t) === needle));
+  if (byTag.length === 1) return { layout: byTag[0]!, known: true };
+  return { layout: fallback(), known: false };
 }
 
 /** Resolve a layout by its name, id, or tag (case-insensitive & accent-insensitive). */
 export function getLayout(nameOrId?: string): StatblockLayout {
-  const all = getAllLayouts();
-  if (!nameOrId) {
-    const defaultId = getDefaultLayoutId();
-    return all.find((l) => l.id === defaultId) ?? BUILTIN_LAYOUTS[0]!;
-  }
-  const needle = cleanStr(nameOrId);
-
-  // 1. Exact or normalized ID match
-  const byId = all.find((l) => cleanStr(l.id) === needle);
-  if (byId) return byId;
-
-  // 2. Exact or normalized Name match
-  const byName = all.find((l) => cleanStr(l.name) === needle);
-  if (byName) return byName;
-
-  // 3. Exact tag match
-  const byTag = all.find((l) => l.tags && l.tags.some((t) => cleanStr(t) === needle));
-  if (byTag) return byTag;
-
-  // 4. ID contains needle (e.g. "cyberpunk" matches "cyberpunk-red" before other systems)
-  const byIdSubstring = all.find((l) => cleanStr(l.id).includes(needle));
-  if (byIdSubstring) return byIdSubstring;
-
-  // 5. Name or System or Tags contains needle
-  const bySubstring = all.find(
-    (l) =>
-      cleanStr(l.name).includes(needle) ||
-      cleanStr(l.system).includes(needle) ||
-      (l.tags && l.tags.some((t) => cleanStr(t).includes(needle)))
-  );
-  if (bySubstring) return bySubstring;
-
-  // 6. Fallback to default
-  const defaultId = getDefaultLayoutId();
-  return all.find((l) => l.id === defaultId) ?? BUILTIN_LAYOUTS[0]!;
+  return resolveLayout(nameOrId).layout;
 }
 
 /** Get current default layout ID. */
@@ -817,17 +956,30 @@ export function setDefaultLayoutId(id: string): void {
   }
 }
 
-/** Save or update a custom layout. */
-export function saveCustomLayout(layout: StatblockLayout): void {
+/** Save or update a custom layout, and return it as saved. A layout whose
+ *  id is a built-in's gets an id of its own: a built-in is never shadowed
+ *  or replaced. */
+export function saveCustomLayout(layout: StatblockLayout): StatblockLayout {
   const custom = getCustomLayouts();
-  const existingIdx = custom.findIndex((l) => l.id === layout.id);
-  const toSave = { ...layout, builtIn: false };
-  if (existingIdx >= 0) {
-    custom[existingIdx] = toSave;
-  } else {
-    custom.push(toSave);
-  }
+  const clash = BUILTIN_SOURCE.some((l) => l.id === layout.id);
+  const id = clash ? uniqueLayoutId(`custom-${layout.id}`) : layout.id;
+  const toSave: StatblockLayout = { ...layout, id, builtIn: false, theme: safeTheme(layout.theme) };
+  const existingIdx = custom.findIndex((l) => l.id === id);
+  if (existingIdx >= 0) custom[existingIdx] = toSave;
+  else custom.push(toSave);
   setCustomLayouts(custom);
+  return toSave;
+}
+
+/** A copy of `layout` as a new custom layout of its own. */
+export function duplicateLayout(layout: StatblockLayout): StatblockLayout {
+  const copy: StatblockLayout = {
+    ...JSON.parse(JSON.stringify(layout)),
+    id: uniqueLayoutId(`custom-${Date.now().toString(36)}`),
+    name: `${layout.name} ${S.layoutErr.copySuffix}`,
+    builtIn: false,
+  };
+  return saveCustomLayout(copy);
 }
 
 /** Delete a custom layout. */
@@ -851,68 +1003,34 @@ export function exportLayoutToYaml(layout: StatblockLayout): string {
       const out: Record<string, unknown> = {
         type: b.type,
       };
-      if (b.title) out.title = b.title;
-      if (b.properties && b.properties.length > 0) out.properties = b.properties;
-      if (b.conditioned) out.conditioned = true;
-      if (b.fallback) out.fallback = b.fallback;
-      if (b.text) out.text = b.text;
-      if (b.options && Object.keys(b.options).length > 0) out.options = b.options;
+      if (b.title) out["title"] = b.title;
+      if (b.properties && b.properties.length > 0) out["properties"] = b.properties;
+      if (b.conditioned) out["conditioned"] = true;
+      if (b.fallback) out["fallback"] = b.fallback;
+      if (b.text) out["text"] = b.text;
+      if (b.options && Object.keys(b.options).length > 0) out["options"] = b.options;
       return out;
     }),
   };
   return YAML.stringify(cleanObj, { indent: 2 });
 }
 
-/** Import a layout from YAML text. */
+/** Import a layout from YAML (or JSON) text, without saving it. Throws, in
+ *  the interface's language, on text that is not a layout. */
 export function importLayoutFromYaml(yamlStr: string): StatblockLayout {
-  const parsed = YAML.parse(yamlStr);
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("YAML inválido para template de ficha");
+  if (yamlStr.length > 256 * 1024) throw new Error(S.layoutErr.tooLarge);
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(yamlStr);
+  } catch (err) {
+    throw new Error(`${S.layoutErr.yaml}: ${(err as Error).message}`.slice(0, 300));
   }
-  const name = String(parsed.name ?? "Novo Template Customizado");
-  const rawId = String(parsed.id ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
-  const id = `custom-${rawId.replace(/^custom-/, "")}`;
-  const system = String(parsed.system ?? "RPG");
-  const description = String(parsed.description ?? "");
-  const theme = parsed.theme ?? "classic";
-  const tags = Array.isArray(parsed.tags) ? parsed.tags.map(String) : [];
-  const blocks: LayoutBlock[] = Array.isArray(parsed.blocks)
-    ? parsed.blocks.map((b: any, idx: number) => ({
-        id: b.id ?? `block-${idx}`,
-        type: (b.type ?? "section") as LayoutBlockType,
-        title: b.title ?? b.heading,
-        properties: Array.isArray(b.properties)
-          ? b.properties.map((p: any) => String(p).trim().toLowerCase())
-          : b.property
-          ? [String(b.property).trim().toLowerCase()]
-          : [],
-        conditioned: Boolean(b.conditioned),
-        fallback: b.fallback ? String(b.fallback) : undefined,
-        text: b.text ? String(b.text) : b.options?.text ? String(b.options.text) : undefined,
-        options: b.options,
-      }))
-    : [
-        { id: "h1", type: "heading", properties: ["name", "nome"] },
-        { id: "sub", type: "subheading", properties: ["type", "tipo"] },
-        { id: "vitals", type: "vitals", properties: ["hp", "pv", "ac", "ca"] },
-        { id: "abilities", type: "abilities", properties: ["atributos", "stats"] },
-      ];
-
-  const layout: StatblockLayout = {
-    id,
-    name,
-    system,
-    description,
-    theme,
-    tags,
-    blocks,
-    builtIn: false,
-    css: parsed.css,
-  };
+  const layout = cleanLayout(parsed, true);
+  if (!layout) throw new Error(S.layoutErr.notMap);
   return layout;
 }
 
-/** Export layout as standard JSON (compatible with Obsidian Fantasy Statblocks). */
+/** Export layout as standard JSON. */
 export function exportLayoutToJson(layout: StatblockLayout): string {
   return JSON.stringify(
     {
@@ -924,22 +1042,16 @@ export function exportLayoutToJson(layout: StatblockLayout): string {
       theme: layout.theme ?? "classic",
       tags: layout.tags ?? [],
       blocks: layout.blocks,
-      css: layout.css,
     },
     null,
     2
   );
 }
 
-/** Import a layout from JSON or YAML text and save to custom storage. */
+/** Import a layout from JSON or YAML text and save it to custom storage
+ *  under an id no layout has: an import never replaces a layout that is
+ *  already there. */
 export function importLayoutFromJson(jsonOrYamlStr: string): StatblockLayout {
-  let layout: StatblockLayout;
-  try {
-    layout = importLayoutFromYaml(jsonOrYamlStr);
-  } catch {
-    const parsed = JSON.parse(jsonOrYamlStr);
-    layout = importLayoutFromYaml(YAML.stringify(parsed));
-  }
-  saveCustomLayout(layout);
-  return layout;
+  const layout = importLayoutFromYaml(jsonOrYamlStr);
+  return saveCustomLayout({ ...layout, id: uniqueLayoutId(layout.id) });
 }

@@ -6,7 +6,8 @@ import * as esbuild from "esbuild";
 await esbuild.build({
   stdin: {
     contents: `export { d20Modifier, formatModifier, parseStatblock } from "./src/statblock/parser";
-export { BUILTIN_LAYOUTS, getAllLayouts, getLayout, exportLayoutToJson, exportLayoutToYaml, importLayoutFromJson, importLayoutFromYaml, getDefaultLayoutId, setDefaultLayoutId } from "./src/statblock/layouts";`,
+export { setStatblockLang } from "./src/statblock/strings";
+export { BUILTIN_LAYOUTS, getAllLayouts, getLayout, resolveLayout, exportLayoutToJson, exportLayoutToYaml, importLayoutFromJson, importLayoutFromYaml, getDefaultLayoutId, setDefaultLayoutId } from "./src/statblock/layouts";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -18,12 +19,14 @@ export { BUILTIN_LAYOUTS, getAllLayouts, getLayout, exportLayoutToJson, exportLa
   external: ["yaml", "@tauri-apps/*"],
 });
 const {
+  setStatblockLang,
   d20Modifier,
   formatModifier,
   parseStatblock,
   BUILTIN_LAYOUTS,
   getAllLayouts,
   getLayout,
+  resolveLayout,
   exportLayoutToJson,
   exportLayoutToYaml,
   importLayoutFromJson,
@@ -31,6 +34,9 @@ const {
   getDefaultLayoutId,
   setDefaultLayoutId,
 } = await import("./.bundles/statblock.test-bundle.mjs");
+
+// The cards speak the interface's language; these tests read them in pt-BR.
+setStatblockLang("pt-BR");
 
 test("d20Modifier calculates standard d20 ability modifiers correctly", () => {
   assert.equal(d20Modifier(10), 0);
@@ -363,7 +369,7 @@ test("statblock layouts registry provides built-in system templates", () => {
   assert.ok(ids.includes("fate-core"));
 });
 
-test("getLayout resolves layouts by exact ID, exact name, or substring", () => {
+test("getLayout resolves layouts by exact ID, exact name or exact tag, never by a part of a name", () => {
   const l1 = getLayout("call-of-cthulhu");
   assert.equal(l1.id, "call-of-cthulhu");
 
@@ -373,15 +379,26 @@ test("getLayout resolves layouts by exact ID, exact name, or substring", () => {
   const l3 = getLayout("cyberpunk");
   assert.equal(l3.id, "cyberpunk-red");
 
-  const l4 = getLayout("mork");
+  const l4 = getLayout("mork-borg");
   assert.equal(l4.id, "mork-borg");
+
+  // A part of a name is not a name: it used to pick whichever template came first.
+  for (const guess of ["mork", "a", "x", "Alien", "dragon"]) {
+    assert.equal(resolveLayout(guess).known, false, guess);
+    assert.equal(resolveLayout(guess).layout.id, "dnd5e", guess);
+  }
+  // A tag two layouts share names neither.
+  assert.equal(resolveLayout("osr").known, false);
+  // Case and accents do not matter.
+  assert.equal(resolveLayout("CALL OF CTHULHU / HORROR").layout.id, "call-of-cthulhu");
+  assert.equal(resolveLayout("Mörk Borg / OSR").layout.id, "mork-borg");
 
   // Fallback to default when unknown
   const lDefault = getLayout("NonExistentSystem");
   assert.equal(lDefault.id, "dnd5e");
 });
 
-test("exportLayoutToJson and importLayoutFromJson round-trip Fantasy Statblocks schemas", () => {
+test("exportLayoutToJson and importLayoutFromJson round-trip Verso's own layout format", () => {
   const coc = getLayout("call-of-cthulhu");
   const exported = exportLayoutToJson(coc);
   assert.ok(exported.includes("Call of Cthulhu / Horror"));
@@ -417,7 +434,6 @@ test("all requested system templates are built-in and resolvable", () => {
     { query: "Mausritter", expectedId: "mausritter" },
     { query: "Daggerheart", expectedId: "daggerheart" },
     { query: "Tales from the Loop", expectedId: "tales-from-the-loop" },
-    { query: "Alien", expectedId: "alien-rpg" },
     { query: "Alien RPG", expectedId: "alien-rpg" },
     { query: "One Ring", expectedId: "one-ring" },
     { query: "O Um Anel", expectedId: "one-ring" },
@@ -622,7 +638,7 @@ taticas:
   assert.ok(parsed.customSections?.some((s) => s.title === "Táticas e Comportamento"));
 });
 
-test("Fantasy Statblocks layouts support full block customization and all 11 block types", () => {
+test("Verso layouts support full block customization and all 11 block types", () => {
   const customLayout = {
     id: "custom-fantasy",
     name: "Custom Fantasy Layout",
