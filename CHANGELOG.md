@@ -19,6 +19,7 @@ test release.
 - **New project from a template**: *New project from a template…* asks for a name and a folder, shows the whole tree of folders and files before anything is written (uncheck what you do not want, rename what you like), then creates it and tells you what was made, what already existed and what was refused. It brings campaign, world, fiction-writing and P.A.R.A. templates, and can read a template an AI assistant wrote for you (copy the prompt, paste the answer back).
 - **Oracle and idea sparks**: yes/no questions with adjustable odds, idea sparks from editable word banks, your own random tables (made, imported or exported as JSON) and an `[!oracle]` callout in notes.
 - **Statblock cards**: statblocks drawn by a layout from a ```` ```statblock ```` block in a note; manage, duplicate, import and export layouts in *Settings › Statblock Templates*.
+- **Credits and acknowledgements**: *Settings › App › Credits and acknowledgements* names the people and works Verso draws from, shows the notices each shipped game-system layout requires (quoted as their sources give them) and lists the main open-source libraries with their licences.
 
 ## 0.8.3-beta.2 — 2026-10-17
 
