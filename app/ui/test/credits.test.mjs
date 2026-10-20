@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
+import { spawnSync } from "node:child_process";
 import { Window } from "happy-dom";
 
 const win = new Window({ url: "https://verso.test/" });
@@ -37,6 +38,11 @@ await esbuild.build({
   }],
 });
 const C = await import("./.bundles/credits.test-bundle.mjs");
+
+test("the checked-in library versions and licences are the installed ones", () => {
+  const r = spawnSync(process.execPath, ["scripts/credits-deps.mjs", "--check"], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+});
 
 const url = /^https:\/\/[^\s]+$/;
 
@@ -90,4 +96,28 @@ test("the page draws one item per entry, with a named link in each", () => {
   }
   const fractal = items.find((i) => i.title === "Fractal RPG").node();
   assert.match(fractal.querySelector("blockquote").textContent, /compatível com Fractal/);
+});
+
+test("the notices say what the publishers' pages require, with no placeholder left", () => {
+  const all = C.SYSTEMS.flatMap((x) => x.lines).join("\n");
+  assert.doesNotMatch(all, /to be filled|\[Product name\]|<game titles>|registration to be/i);
+  const by = (id) => C.SYSTEMS.find((x) => x.id === id);
+  assert.match(by("starfinder2e").lines[0], /Library of Congress at TX 9-307-067 and available online at various locations including paizo\.com\/orclicense\. All warranties are disclaimed as set forth therein\./);
+  assert.ok(by("mausritter").lines.includes("Mausritter is copyright Losing Games."));
+  assert.match(by("mausritter").lines[0], /is an independent production by .* and is not affiliated with Losing Games\. It is published under the Mausritter Third Party Licence\.$/);
+  assert.match(by("ironsworn").lines[0], /created by Shawn Tomkin, and licensed for our use under the Creative Commons Attribution 4\.0 International License \(https:\/\/creativecommons\.org\/licenses\/by\/4\.0\/\)\.$/);
+  assert.match(by("old-dragon-2e").lines[0], /Antonio Sá Neto, Dan Ramos e Fabiano Neme/);
+});
+
+test("13th Age carries the whole Section 15 and the Open Game License text", () => {
+  const a = C.SYSTEMS.find((x) => x.id === "13th-age");
+  assert.ok(a.lines.some((l) => l.startsWith("Castles & Crusades, Copyright 2004, Troll Lord Games")));
+  assert.ok(a.lines.some((l) => l.startsWith("13th Age Bestiary. Copyright 2014")));
+  assert.ok(a.lines.some((l) => l.startsWith("Except for material designated as Product Identity")));
+  const text = a.licenceText.paragraphs.join("\n");
+  for (let n = 1; n <= 14; n++) assert.ok(text.includes(`\n${n}. `) || text.startsWith(`${n}. `), `clause ${n}`);
+  assert.match(text, /10\. Copy of this License: You MUST include a copy of this License/);
+  const ctx = { item: (t, d, control) => { const r = document.createElement("div"); if (control) r.append(control); return r; } };
+  const node = C.creditsItems(ctx).find((i) => i.title === "13th Age").node();
+  assert.match(node.querySelector("details").textContent, /Open Game License v1\.0a/);
 });

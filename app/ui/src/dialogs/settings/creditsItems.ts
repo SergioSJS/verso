@@ -45,6 +45,13 @@ export function creditsItems(ctx: ItemCtx): SettingItem[] {
     add(cs.systemsGroup, s.name, cs.licence(s.licence), () => {
       const box = h("div", "credit-box");
       for (const l of s.lines) box.append(h("blockquote", "credit-quote", l));
+      // A licence that must accompany the content (the OGL, section 10).
+      if (s.licenceText) {
+        const d = h("details", "credit-licence");
+        d.append(h("summary", "", s.licenceText.title));
+        for (const para of s.licenceText.paragraphs) d.append(h("p", "credit-licence-text", para));
+        box.append(d);
+      }
       box.append(link(s.link, s.name));
       return box;
     });

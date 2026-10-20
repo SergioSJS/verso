@@ -7,10 +7,10 @@
 // the oracle's keys in the folder's settings (ADR 0102 item 2), as the core
 // gives them (`crates/verso-core/src/folder_data.rs`, `oracle.rs`): an id out
 // of the rule refused before anything is read, a text that is one JSON object
-// of at most 256 KiB, a create that never replaces, a write over the version
+// of at most 256 KiB (a layout) or 4 MiB (a bundle), a create that never replaces, a write over the version
 // read only, a removal through the bin.
 
-import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings, OracleSparks } from "../bindings";
+import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten, OracleSettings, OracleSparks, Trashed } from "../bindings";
 
 type Stored = { bytes: Uint8Array; revision: number; modified: number };
 
@@ -19,11 +19,11 @@ export type DataHost = {
   files: Map<string, Stored>;
   put(path: string, bytes: Uint8Array): Stored;
   accepts(path: string, was: Stored, given: string): boolean;
-  /** Move a file into `.trash/`, recorded in the bin. */
-  trash(path: string): void;
+  /** Move a file into `.trash/`, recorded in the bin; answers where it went. */
+  trash(path: string): string;
 };
 
-export const FOLDER_DATA_MOST = 256 * 1024;
+export const FOLDER_DATA_MOST: Record<FolderDataKind, number> = { layouts: 256 * 1024, bundles: 4 * 1024 * 1024 };
 const KINDS: readonly FolderDataKind[] = ["layouts", "bundles"];
 const encoder = new TextEncoder();
 const strict = new TextDecoder("utf-8", { fatal: true });
@@ -38,15 +38,23 @@ export function validId(id: unknown): id is string {
   return typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id) && !/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/.test(id);
 }
 
+/** A confined path to write, create or move at: the core refuses the folder's
+ *  data directories there, which only the four folder data commands write. */
+export function writeGuard(key: string): string {
+  if (/^\.verso\/(layouts|bundles)(\/|$)/.test(key)) refuse("refused", `${key} is written through the folder data commands only`);
+  return key;
+}
+
 function pathOf(kind: unknown, id: unknown): string {
   if (!KINDS.includes(kind as FolderDataKind)) refuse("refused", `folder data: not a kind: ${String(kind)}`);
   if (!validId(id)) refuse("refused", `folder data: not a valid id: ${JSON.stringify(id)}`);
   return `.verso/${String(kind)}/${id}.json`;
 }
 
-function checkText(text: string): void {
+function checkText(kind: FolderDataKind, text: string): void {
   const size = encoder.encode(text).length;
-  if (size > FOLDER_DATA_MOST) refuse("refused", `folder data: too large: ${size} bytes, the most is ${FOLDER_DATA_MOST}`);
+  const most = FOLDER_DATA_MOST[kind];
+  if (size > most) refuse("refused", `folder data: too large: ${size} bytes, the most is ${most}`);
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -59,24 +67,30 @@ function checkText(text: string): void {
 export class FolderData {
   constructor(private readonly host: DataHost) {}
 
-  list(kind: FolderDataKind): FolderDataEntry[] {
+  list(kind: FolderDataKind): FolderDataList {
     pathOf(kind, "a");
     const prefix = `.verso/${kind}/`;
-    const out: FolderDataEntry[] = [];
+    const entries: FolderDataEntry[] = [];
+    const strays: string[] = [];
     for (const [path, f] of this.host.files) {
-      if (!path.startsWith(prefix) || !path.endsWith(".json")) continue;
-      const id = path.slice(prefix.length, -".json".length);
-      if (!validId(id)) continue;
-      out.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST ? "" : String(f.revision) });
+      if (!path.startsWith(prefix) || path.slice(prefix.length).includes("/")) continue;
+      const name = path.slice(prefix.length);
+      const id = name.endsWith(".json") ? name.slice(0, -".json".length) : null;
+      if (id === null || !validId(id)) {
+        if (!name.startsWith(".")) strays.push(name);
+        continue;
+      }
+      entries.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST[kind] ? "" : String(f.revision) });
     }
-    return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    entries.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return { entries, strays: strays.sort().slice(0, 50) };
   }
 
   read(kind: FolderDataKind, id: string): FolderDataFile {
     const path = pathOf(kind, id);
     const f = this.host.files.get(path);
     if (!f) return refuse("not_found", `no such file: ${path}`);
-    if (f.bytes.length > FOLDER_DATA_MOST) refuse("refused", `folder data: too large: ${f.bytes.length} bytes`);
+    if (f.bytes.length > FOLDER_DATA_MOST[kind]) refuse("refused", `folder data: too large: ${f.bytes.length} bytes`);
     try {
       return { text: strict.decode(f.bytes), revision: String(f.revision) };
     } catch {
@@ -86,7 +100,7 @@ export class FolderData {
 
   write(kind: FolderDataKind, id: string, text: string, revision: string | null): FolderDataWritten {
     const path = pathOf(kind, id);
-    checkText(text);
+    checkText(kind, text);
     const was = this.host.files.get(path);
     if (revision === null) {
       if (was) refuse("exists", `already there: ${path}`);
@@ -105,13 +119,15 @@ export class FolderData {
     remove_folder_data: (a) => this.remove(a["kind"] as FolderDataKind, a["id"] as string, a["revision"] as string),
   };
 
-  remove(kind: FolderDataKind, id: string, revision: string): null {
+  remove(kind: FolderDataKind, id: string, revision: string): Trashed {
     const path = pathOf(kind, id);
     const was = this.host.files.get(path);
     if (!was) return refuse("not_found", `no such file: ${path}`);
-    if (!this.host.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
-    this.host.trash(path);
-    return null;
+    // Past the bound the list gave no revision: removed on the empty one, unread.
+    if (was.bytes.length > FOLDER_DATA_MOST[kind]) {
+      if (revision !== "") refuse("refused", "folder data: the file grew past the bound since it was listed: list again");
+    } else if (!this.host.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
+    return { path: this.host.trash(path), warnings: [] };
   }
 }
 
@@ -127,7 +143,7 @@ function oddsProblem(odds: readonly (readonly number[])[]): string | null {
   if (odds.length !== 5) return `the odds are 5 rows, not ${odds.length}`;
   for (const [i, row] of odds.entries()) {
     if (row.length !== 6) return `odds row ${i + 1} has ${row.length} numbers, not 6`;
-    if (row.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return `odds row ${i + 1} holds a number that is not a whole 0 to 255`;
+    if (row.some((n) => !Number.isInteger(n) || n < 0)) return `odds row ${i + 1} holds a number that is not a whole, non-negative one`;
     const sum = row.reduce((a, b) => a + b, 0);
     if (sum !== 100) return `odds row ${i + 1} adds to ${sum}, not 100`;
   }

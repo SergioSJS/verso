@@ -22,6 +22,7 @@ await esbuild.build({
 export { SAMPLE_YAML } from "./src/statblock/builtin/samplesData";
 export { renderStatblock } from "./src/statblock/render";
 export { validateLayout } from "./src/statblock/validate";
+export { diceIn } from "./src/statblock/dice";
 export { resetStoreForTests } from "./src/statblock/store";
 export { setStatblockLang } from "./src/statblock/strings";
 export { listProfiles } from "./src/dice/profiles";
@@ -186,6 +187,22 @@ describe("sources of a layout", () => {
     assert.equal(v.problems.length, 4);
     assert.equal(v.layout.sources, undefined);
     assert.equal(m.validateLayout({ ...base, sources: "https://a.org" }).layout.sources, undefined);
+  });
+  test("the Pathfinder 2e creature rolls a strike as the book prints it: +17 [+13/+9]", () => {
+    const rules = m.builtinLayouts().find((l) => l.id === "pf2e-creature").diceRules;
+    const hits = (text) => m.diceIn(text, rules).filter((p) => p.notation).map((p) => [p.text, p.notation]);
+    // The bonus alone is the button; the multiple-attack penalties follow it.
+    assert.deepEqual(hits("hatchet +17 [+13/+9] (agile, sweep) Damage 1d6+10 slashing")[0], ["+17", "1d20+17"]);
+    assert.deepEqual(hits("hatchet +17 [+13/+9] (agile) Damage 1d6+10").slice(1), [["1d6+10", "1d6+10"]]);
+    // A bare modifier that is not a strike (Perception, a save) is not one.
+    assert.deepEqual(hits("Perception +17; Fort +12"), []);
+  });
+  test("an address past 300 characters is refused with a problem, not cut short", () => {
+    const long = `https://a.org/${"x".repeat(300)}`;
+    const v = m.validateLayout({ ...base, sources: [{ label: "SRD", url: long }, { label: "ok", url: `https://a.org/${"y".repeat(286)}` }] });
+    assert.equal(v.problems.length, 1);
+    assert.deepEqual(v.layout.sources.map((s) => s.label), ["ok"]);
+    assert.equal(v.layout.sources[0].url.length, 300);
   });
   test("past the limit it is cut, and says so", () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ label: `s${i}`, url: `https://a.org/${i}` }));

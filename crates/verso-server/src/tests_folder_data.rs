@@ -71,7 +71,7 @@ fn a_reader_lists_and_reads_and_writes_nothing() {
         let listed = call(&mut ws, 2, "list_folder_data", json!({ "kind": "layouts" })).await;
         assert_eq!(
             listed["ok"],
-            json!([{ "id": "mesa", "revision": rev }]),
+            json!({ "entries": [{ "id": "mesa", "revision": rev }], "strays": [] }),
             "{listed}"
         );
         let read = call(
@@ -134,7 +134,7 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
         let head = state["ok"]["head"].as_i64().unwrap();
         // Nothing yet.
         let none = call(&mut ws, 3, "list_folder_data", json!({ "kind": "bundles" })).await;
-        assert_eq!(none["ok"], json!([]), "{none}");
+        assert_eq!(none["ok"], json!({ "entries": [], "strays": [] }), "{none}");
         // Created, and in the log for the devices.
         let made = call(
             &mut ws,
@@ -208,6 +208,23 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
             .await;
             assert_eq!(bad["err"]["kind"], "refused", "{id}: {bad}");
         }
+        // The generic commands do not reach the data directories.
+        for (n, cmd, a) in [
+            (
+                40,
+                "create_file",
+                json!({ "path": ".verso/layouts/solto.json", "base64": "e30=" }),
+            ),
+            (
+                41,
+                "write_text",
+                json!({ "path": ".verso/bundles/mundo.json", "text": "{}", "revision": rev }),
+            ),
+            (42, "create_folder", json!({ "path": ".verso/layouts/sub" })),
+        ] {
+            let bad = call(&mut ws, n, cmd, a).await;
+            assert_eq!(bad["err"]["kind"], "refused", "{cmd}: {bad}");
+        }
         // Removed over the revision read: through the bin, and in the log.
         let head = call(&mut ws, 16, "sync_changes", json!({ "since": head })).await["ok"]["head"]
             .as_i64()
@@ -220,6 +237,24 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
         )
         .await;
         assert!(removed.get("err").is_none(), "{removed}");
+        assert!(
+            removed["ok"]["path"]
+                .as_str()
+                .unwrap()
+                .starts_with(".trash/"),
+            "{removed}"
+        );
+        // The bin knows who removed it, like any other deletion (ADR 0080
+        // item 2).
+        let bin = call(&mut ws, 30, "trash_list", json!({})).await;
+        let entry = bin["ok"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["original"] == ".verso/bundles/mundo.json")
+            .unwrap_or_else(|| panic!("not in the bin: {bin}"));
+        assert_eq!(entry["by"], "Membro", "{bin}");
+        assert_eq!(entry["known"], true, "{bin}");
         let after = call(&mut ws, 18, "sync_changes", json!({ "since": head })).await;
         assert!(
             after["ok"]["changes"]
@@ -236,6 +271,10 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
             json!({ "kind": "bundles" }),
         )
         .await;
-        assert_eq!(empty["ok"], json!([]), "{empty}");
+        assert_eq!(
+            empty["ok"],
+            json!({ "entries": [], "strays": [] }),
+            "{empty}"
+        );
     });
 }

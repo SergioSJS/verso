@@ -12,7 +12,8 @@ import { button, h, ui } from "../../dom";
 import { openLayoutBuilder } from "../../statblock/builder";
 import { DEFAULT_LAYOUT_ID } from "../../statblock/builtin";
 import { exportLayout } from "../../statblock/fsInterop";
-import { allLayouts, canWriteLayouts, duplicateLayout, importLayoutText, removeLayout, type StoredLayout } from "../../statblock/store";
+import { strayNotice } from "../../folderData";
+import { allLayouts, canWriteLayouts, duplicateLayout, importLayoutText, layoutStrays, removeLayout, type StoredLayout } from "../../statblock/store";
 import { S, word } from "../../statblock/strings";
 import { copyWithAnswer, feedbackLine } from "./feedback";
 import type { ItemCtx, SettingItem } from "./types";
@@ -107,6 +108,10 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
       card.append(actions);
       gallery.append(card);
     }
+    // Files in `.verso/layouts/` that are no layout's id (a sync conflict
+    // copy): named, with how to resolve them.
+    const stray = strayNotice("layouts", layoutStrays());
+    if (stray) gallery.append(h("div", "statblock-card-desc statblock-card-problems", stray));
     gallery.append(feedback.el);
     return gallery;
   });

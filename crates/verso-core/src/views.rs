@@ -211,7 +211,7 @@ impl Workspace {
         text: &str,
         revision: &str,
     ) -> Result<TextFile, CoreError> {
-        let key = self.entry_key(relative)?;
+        let key = self.write_key(relative)?;
         if is_note(&key) {
             let w = self.write_note(&key, text, revision)?;
             return Ok(TextFile {

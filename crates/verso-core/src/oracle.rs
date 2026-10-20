@@ -58,11 +58,11 @@ pub struct Oracle {
     /// Five rows (nearly certain, likely, even, unlikely, nearly
     /// impossible) of six numbers adding to 100: yes-and, yes, yes-but,
     /// no-but, no, no-and.
-    pub odds: Option<Vec<Vec<u8>>>,
+    pub odds: Option<Vec<Vec<u32>>>,
     pub sparks: Option<OracleSparks>,
 }
 
-fn odds_problem(odds: &[Vec<u8>]) -> Option<String> {
+fn odds_problem(odds: &[Vec<u32>]) -> Option<String> {
     if odds.len() != ROWS {
         return Some(format!("the odds are {ROWS} rows, not {}", odds.len()));
     }
@@ -74,7 +74,8 @@ fn odds_problem(odds: &[Vec<u8>]) -> Option<String> {
                 row.len()
             ));
         }
-        let sum: u32 = row.iter().map(|&n| u32::from(n)).sum();
+        // A number past `u8` still reaches here and is refused by its sum.
+        let sum: u64 = row.iter().map(|&n| u64::from(n)).sum();
         if sum != 100 {
             return Some(format!("odds row {} adds to {sum}, not 100", i + 1));
         }
@@ -118,14 +119,14 @@ pub(crate) fn check(change: &Oracle) -> Result<(), CoreError> {
     Ok(())
 }
 
-fn odds_of(value: &Value) -> Option<Vec<Vec<u8>>> {
-    let rows: Option<Vec<Vec<u8>>> = value
+fn odds_of(value: &Value) -> Option<Vec<Vec<u32>>> {
+    let rows: Option<Vec<Vec<u32>>> = value
         .as_array()?
         .iter()
         .map(|row| {
             row.as_array()?
                 .iter()
-                .map(|n| n.as_u64().and_then(|n| u8::try_from(n).ok()))
+                .map(|n| n.as_u64().and_then(|n| u32::try_from(n).ok()))
                 .collect()
         })
         .collect();
@@ -233,7 +234,7 @@ mod tests {
         }
     }
 
-    fn odds() -> Vec<Vec<u8>> {
+    fn odds() -> Vec<Vec<u32>> {
         vec![vec![10, 30, 20, 20, 15, 5]; 5]
     }
 
@@ -266,6 +267,10 @@ mod tests {
             vec![vec![10, 30, 20, 20, 15, 6]; 5],
             vec![vec![10, 30, 20, 20, 15, 4]; 5],
             vec![vec![255, 255, 0, 0, 0, 0]; 5],
+            // Past `u8`: refused by the core with its message, whatever the
+            // host decoded.
+            vec![vec![300, 0, 0, 0, 0, 0]; 5],
+            vec![vec![u32::MAX, u32::MAX, 0, 0, 0, 0]; 5],
         ] {
             let change = Oracle {
                 odds: Some(bad),
@@ -273,6 +278,14 @@ mod tests {
             };
             assert!(check(&change).is_err());
         }
+        let wide = Oracle {
+            odds: Some(vec![vec![300, 0, 0, 0, 0, 0]; 5]),
+            sparks: None,
+        };
+        let Err(CoreError::FolderSettings(why)) = check(&wide) else {
+            panic!("refused")
+        };
+        assert!(why.contains("adds to 300"), "{why}");
     }
 
     #[test]

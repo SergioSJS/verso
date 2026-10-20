@@ -72,20 +72,20 @@ async function failure(run) {
 
 describe("The folder's data files", () => {
   test("a file is created, listed, read back parsed and replaced over the version read", async () => {
-    assert.deepEqual(await F.listData("layouts"), []);
+    assert.deepEqual(await F.listData("layouts"), { entries: [], strays: [] });
     const r1 = await F.writeData("layouts", "mesa", { cards: [1, 2] }, null);
-    assert.deepEqual((await F.listData("layouts")).map((e) => e.id), ["mesa"]);
+    assert.deepEqual((await F.listData("layouts")).entries.map((e) => e.id), ["mesa"]);
     const read = await F.readData("layouts", "mesa");
     assert.deepEqual(read.value, { cards: [1, 2] });
     assert.equal(read.revision, r1);
-    assert.equal((await F.listData("layouts"))[0].revision, r1);
+    assert.equal((await F.listData("layouts")).entries[0].revision, r1);
     const r2 = await F.writeData("layouts", "mesa", { cards: [] }, r1);
     assert.notEqual(r2, r1);
     assert.deepEqual((await F.readData("layouts", "mesa")).value, { cards: [] });
     // The file is where the core keeps it, in the folder's own directory.
     assert.equal(F.core.read(".verso/layouts/mesa.json"), JSON.stringify({ cards: [] }, null, 2));
     // The two kinds are apart.
-    assert.deepEqual(await F.listData("bundles"), []);
+    assert.deepEqual(await F.listData("bundles"), { entries: [], strays: [] });
     assert.equal((await failure(() => F.readData("bundles", "mesa"))).kind, "not_found");
   });
 
@@ -145,7 +145,7 @@ describe("The folder's data files", () => {
     for (const bad of [[1, 2], null, "x", 3]) {
       assert.equal((await failure(() => F.writeData("layouts", "mal", bad, null)))?.kind, "refused");
     }
-    const big = { a: "x".repeat(F.FOLDER_DATA_MOST) };
+    const big = { a: "x".repeat(F.FOLDER_DATA_MOST.layouts) };
     const e = await failure(() => F.writeData("layouts", "grande", big, null));
     assert.equal(e.kind, "refused");
     assert.match(e.message, /too large/);
@@ -163,6 +163,35 @@ describe("The folder's data files", () => {
     assert.match(ask("[]").message, /not a JSON object/);
   });
 
+  test("a bundle may be larger than a layout, to 4 MiB", async () => {
+    const mib = { a: "x".repeat(1024 * 1024) };
+    assert.equal((await failure(() => F.writeData("layouts", "grande", mib, null))).kind, "refused");
+    const r = await F.writeData("bundles", "grandao", mib, null);
+    assert.equal((await F.readData("bundles", "grandao")).revision, r);
+    const huge = { a: "x".repeat(F.FOLDER_DATA_MOST.bundles) };
+    assert.equal((await failure(() => F.writeData("bundles", "imenso", huge, null))).kind, "refused");
+    assert.equal(F.core.read(".verso/bundles/imenso.json"), null);
+  });
+
+  test("a name that is not an id is listed among the strays, with a notice that says how to resolve it", async () => {
+    const copy = "mesa (conflict, Mac, 2026-10-20).json";
+    await F.writeData("layouts", "unica", { a: 1 }, null);
+    F.core.writeOutside(`.verso/layouts/${copy}`, "{}");
+    F.core.writeOutside(".verso/layouts/Mesa.json", "{}");
+    const listed = await F.listData("layouts");
+    assert.ok(listed.entries.some((e) => e.id === "unica"));
+    assert.ok(listed.entries.every((e) => e.id !== "Mesa"));
+    assert.deepEqual(listed.strays, ["Mesa.json", copy]);
+    assert.deepEqual((await F.listData("bundles")).strays, []);
+    for (const lang of ["en", "pt-BR"]) {
+      const note = F.strayNotice("layouts", listed.strays, lang);
+      assert.match(note, /mesa \(conflict, Mac, 2026-10-20\)\.json/);
+      assert.match(note, /\.verso\/layouts\//);
+      assert.match(note, lang === "en" ? /rename .* delete/ : /renomeie .* exclua/);
+    }
+    assert.equal(F.strayNotice("layouts", []), "");
+  });
+
   test("a file edited by hand that is not an object is refused on reading and left as it is", async () => {
     F.core.writeOutside(".verso/bundles/torto.json", "[1, 2]");
     const e = await failure(() => F.readData("bundles", "torto"));
@@ -177,7 +206,7 @@ describe("The folder's data files", () => {
     await F.removeData("layouts", "sai", r);
     assert.equal(F.core.read(".verso/layouts/sai.json"), null);
     assert.equal(F.core.read(".trash/.verso/layouts/sai.json"), JSON.stringify({ x: 1 }, null, 2));
-    assert.ok((await F.listData("layouts")).every((e) => e.id !== "sai"));
+    assert.ok((await F.listData("layouts")).entries.every((e) => e.id !== "sai"));
     assert.equal((await failure(() => F.removeData("layouts", "sai", r))).kind, "not_found");
   });
 

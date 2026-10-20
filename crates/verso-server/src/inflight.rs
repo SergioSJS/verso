@@ -48,7 +48,7 @@ pub const BUDGET: usize = 128 * 1024 * 1024;
 const UPLOADS: [&str; 2] = ["create_file", "sync_put"];
 
 /// The commands that carry a text, a board or a room's edit.
-const TEXTS: [&str; 10] = [
+const TEXTS: [&str; 11] = [
     "write_note",
     "write_text",
     "write_board",
@@ -59,6 +59,8 @@ const TEXTS: [&str; 10] = [
     "collab_update",
     "collab_canvas",
     "query_base",
+    // A bundle of up to 4 MB (ADR 0098 item 5), escaped into JSON.
+    "write_folder_data",
 ];
 
 /// The most a message of `cmd` may be.
@@ -205,6 +207,7 @@ mod tests {
         assert_eq!(most_for("create_file"), crate::rpc::MAX_MESSAGE);
         assert_eq!(most_for("sync_put"), crate::rpc::MAX_MESSAGE);
         assert_eq!(most_for("write_note"), TEXT);
+        assert_eq!(most_for("write_folder_data"), TEXT);
         assert_eq!(most_for("list_notes"), SMALL);
         assert_eq!(most_for("nonsense"), SMALL);
     }

@@ -15,10 +15,11 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
     BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
-    Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten,
-    FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState, Mention, Mentions,
-    MovedEntries, NoteText, ObsidianPeriodic, OracleSettings, OracleSparks, PeriodSettings,
-    PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
+    Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList,
+    FolderDataWritten, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
+    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleSettings, OracleSparks,
+    PeriodSettings, PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote,
+    Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -412,12 +413,16 @@ ops! {
 
     /// The folder's data files of a kind (`.verso/layouts/`,
     /// `.verso/bundles/`; ADR 0099 item 2, ADR 0098 item 2), by id.
-    Read fn list_folder_data(ws, kind: FolderDataKind) -> Vec<FolderDataEntry> {
-        Ok(ws
-            .list_folder_data(data_kind(kind))?
-            .into_iter()
-            .map(|e| FolderDataEntry { id: e.id, revision: e.revision })
-            .collect())
+    Read fn list_folder_data(ws, kind: FolderDataKind) -> FolderDataList {
+        let listed = ws.list_folder_data(data_kind(kind))?;
+        Ok(FolderDataList {
+            entries: listed
+                .entries
+                .into_iter()
+                .map(|e| FolderDataEntry { id: e.id, revision: e.revision })
+                .collect(),
+            strays: listed.strays,
+        })
     }
 
     /// One data file's text as it is on disk, with its revision.
@@ -426,7 +431,7 @@ ops! {
         Ok(FolderDataFile { text: file.text, revision: file.revision })
     }
 
-    /// Write a data file (one JSON object, at most 256 KiB): with no
+    /// Write a data file (one JSON object: a layout of at most 256 KiB, a bundle of at most 4 MiB): with no
     /// `revision` a new file (`exists` when one stands there), else over
     /// the version that revision describes (`changed` otherwise).
     Write fn write_folder_data(
@@ -441,10 +446,9 @@ ops! {
     }
 
     /// Remove a data file through the bin, when it is still the version
-    /// `revision` describes.
-    Write fn remove_folder_data(ws, kind: FolderDataKind, id: String, revision: String) -> () {
-        ws.remove_folder_data(data_kind(kind), &id, &revision)?;
-        Ok(())
+    /// `revision` describes; answers where it went, like every removal.
+    Write fn remove_folder_data(ws, kind: FolderDataKind, id: String, revision: String) -> Trashed {
+        Ok(trashed_out(ws.remove_folder_data(data_kind(kind), &id, &revision)?))
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
@@ -736,7 +740,8 @@ fn oracle_out(o: verso_core::Oracle) -> OracleSettings {
     }
 }
 
-fn data_kind(k: FolderDataKind) -> verso_core::FolderDataKind {
+/// The core's kind for the contract's.
+pub fn data_kind(k: FolderDataKind) -> verso_core::FolderDataKind {
     match k {
         FolderDataKind::Layouts => verso_core::FolderDataKind::Layouts,
         FolderDataKind::Bundles => verso_core::FolderDataKind::Bundles,
