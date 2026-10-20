@@ -48,6 +48,12 @@
   que agora fica depois de um espaço ou pontuação até a próxima palavra
   começar. Continua desligada por padrão, o mesmo ajuste, as mesmas pastas
   e nomes ignorados.
+  2026-10-20, mais tarde — as três letras e a inicial maiúscula viram
+  ajustes da pessoa. O mantenedor, ao experimentar: *"você não adicionou
+  número de caracteres pra acionar a busca por notas nesse parâmetro"*.
+  `[DECIDIDO 2026-10-20]`: o número de letras antes de a lista aparecer é
+  um ajuste ao lado da sugestão, padrão 3. `[PROPOSTO]`: de 1 a 10; e a
+  regra da inicial maiúscula um interruptor ao lado, ligado por padrão.
 
 ## Contexto
 

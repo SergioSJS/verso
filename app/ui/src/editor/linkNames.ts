@@ -50,6 +50,9 @@ const LETTERS = /[\p{L}\p{N}]/gu;
 
 /** A name shorter than this is never suggested. */
 export const MIN_LENGTH = 3;
+/** What the partial list asks of the typed words: the person's two settings
+ *  (the whole-name chip keeps `MIN_LENGTH`). */
+export type PartialRule = { minLetters: number; capitalOnly: boolean };
 
 /** Two spellings of a name are one when they fold alike: composed (NFC),
  *  lower case. */
@@ -209,7 +212,7 @@ export class LinkNames {
    *  strict prefix of a name or alias. The longest span first, then the
    *  notes nearest `self`'s folder, then the shortest name; at most five
    *  notes, `self` never among them. */
-  partial(before: string, next: string, self: string): Hit[] {
+  partial(before: string, next: string, self: string, rule: PartialRule = { minLetters: MIN_LENGTH, capitalOnly: true }): Hit[] {
     if (this.size === 0 || before === "" || wordy(next[0]) || !wordy(before[before.length - 1])) return [];
     if (!this.sorted) this.sorted = Array.from(this.byKey.keys()).sort(byBytes);
     const keys = this.sorted;
@@ -224,8 +227,8 @@ export class LinkNames {
     for (let k = starts.length - 1; k >= 0; k--) {
       const start = starts[k] ?? 0;
       const text = before.slice(start);
-      if (!CAPITAL.test(text)) continue;
-      if ((text.match(LETTERS)?.length ?? 0) < MIN_LENGTH) continue;
+      if (rule.capitalOnly && !CAPITAL.test(text)) continue;
+      if ((text.match(LETTERS)?.length ?? 0) < rule.minLetters) continue;
       const head = text.slice(0, 2).normalize("NFD").toLowerCase()[0];
       if (head === undefined || !this.first.has(head)) continue;
       const prefix = fold(text);

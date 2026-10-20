@@ -347,3 +347,17 @@ test("the @ setting is in Settings › Editor, on by default", async ({ app, pag
   const row = page.locator(".settings-body .setting", { hasText: "Citar uma nota com @" });
   await expect(row.locator("input[type=checkbox]")).toBeChecked();
 });
+
+test("the letters before the list are a setting: 2 lists 'Po', and the field is in Settings › Editor", async ({ app, page }) => {
+  await seeded(app, { suggestMinLetters: 2 });
+  await page.keyboard.type("Fomos a Po");
+  await expect(list(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Editor" }).click();
+  const row = page.locator(".settings-body .setting", { hasText: "Letras para sugerir" });
+  await expect(row.locator("input[type=number]")).toHaveValue("2");
+  await row.getByRole("button", { name: "Mais uma letra" }).click();
+  await expect(row.locator("input[type=number]")).toHaveValue("3");
+  await expect(page.locator(".settings-body .setting", { hasText: "Só em palavras com maiúscula" }).locator("input[type=checkbox]")).toBeChecked();
+});

@@ -96,6 +96,11 @@ export type Settings = {
    *  off unless the person turns it on, with the folders and the names
    *  never suggested. The person's layer, never written into a folder. */
   suggestLinks: boolean;
+  /** Letters of the word being typed before the list of partial names
+   *  appears (ADR 0089 item 5, 2026-10-20): 1 to 10, 3 by default. */
+  suggestMinLetters: number;
+  /** The list only for a word that begins with a capital letter; on by default. */
+  suggestCapitalOnly: boolean;
   /** `@` opens the note list and writes `[[Name]]` (ADR 0089 item 5, 2026-10-20); on by default. */
   mentionAt: boolean;
   suggestIgnoreFolders: string[];
@@ -170,6 +175,8 @@ export const DEFAULTS: Settings = {
   inlineEmbedEdit: true,
   emojiTrigger: true,
   suggestLinks: false,
+  suggestMinLetters: 3,
+  suggestCapitalOnly: true,
   mentionAt: true,
   suggestIgnoreFolders: [],
   suggestIgnoreNames: [],
@@ -180,6 +187,11 @@ export const DEFAULTS: Settings = {
   liveTogether: {},
   notify: {},
 };
+/** The letters before the partial list: a whole number from 1 to 10, else 3. */
+export function clampMinLetters(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : 3;
+  return Math.min(10, Math.max(1, n));
+}
 export let settings: Settings = { ...DEFAULTS };
 export function loadSettings(): void {
   try {
@@ -198,6 +210,8 @@ export function loadSettings(): void {
       }
       settings.suggestLinks = settings.suggestLinks === true;
       settings.mentionAt = settings.mentionAt !== false;
+      settings.suggestCapitalOnly = settings.suggestCapitalOnly !== false;
+      settings.suggestMinLetters = clampMinLetters(settings.suggestMinLetters);
       settings.mapTileOrigins = settings.mapTileOrigins.filter((o) => typeof o === "string");
       if (typeof settings.mapTiles !== "string") settings.mapTiles = "";
       if (typeof settings.mapTilesDark !== "string") settings.mapTilesDark = "";

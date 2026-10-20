@@ -62,6 +62,25 @@ describe("The partial names the typed words begin", () => {
     assert.deepEqual(part("ver o por"), [], "no capital");
     assert.deepEqual(part("ver o PORT").length > 0, true);
   });
+  test("the letters before the list are the person's: 1, 2 and 5", () => {
+    const at = (before, minLetters) => names().partial(before, "", "Rascunho.md", { minLetters, capitalOnly: true }).map((h) => h.name);
+    assert.ok(at("ver o P", 1).includes("Porto"), "one letter");
+    assert.deepEqual(at("ver o P", 2), []);
+    assert.ok(at("ver o Po", 2).includes("Porto"), "two letters");
+    assert.deepEqual(at("ver o Port", 5), [], "four letters under five");
+    assert.ok(at("ver o Porto C", 5).includes("Porto Cinzento"), "six letters");
+    assert.deepEqual(at("ver o Por", 5), []);
+  });
+  test("the capital switch off lists a lowercase word", () => {
+    const rule = { minLetters: 3, capitalOnly: false };
+    assert.deepEqual(names().partial("ir ao porto ci", "", "Rascunho.md", rule).map((h) => h.name), ["Porto Cinzento"]);
+    assert.deepEqual(names().partial("ir ao porto ci", "", "Rascunho.md").map((h) => h.name), [], "on by default");
+  });
+  test("the editor reads the rule from its dependencies", () => {
+    const deps = DEPS({ partialRule: () => ({ minLetters: 2, capitalOnly: true }) });
+    assert.ok(listed(type(stateOf("ver o ", deps), "Po"))?.includes("Porto"));
+    assert.equal(listed(type(stateOf("ver o "), "Po")), null);
+  });
   test("a name of several words: 'Porto C' lists Porto Cinzento", () => {
     assert.deepEqual(part("ir a Porto C"), ["Porto Cinzento"]);
     assert.deepEqual(part("ir a Porto Ci"), ["Porto Cinzento"]);
