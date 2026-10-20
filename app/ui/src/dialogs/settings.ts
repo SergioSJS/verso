@@ -703,6 +703,7 @@ export class SettingsDialog {
     // The suggestion while typing (ADR 0089 item 5): off until the person
     // turns it on; the folders and names it never offers.
     add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); }));
+    add("editor", ls.mentionAt, ls.mentionAtDesc, () => this.toggle(settings.mentionAt, (v) => { settings.mentionAt = v; saveSettings(); }));
     add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
     add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));

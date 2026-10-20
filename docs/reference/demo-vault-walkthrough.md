@@ -257,8 +257,19 @@ point 13).
     Tab or Enter writes the link, Esc or typing on dismisses it and the name
     is not offered again in that paragraph; nothing shows inside code, a
     link or the properties header, nor for the note itself; on a phone the
-    chip is tapped. Level: S, U (`test/linkSuggest.test.mjs`, with the
-    10,000-note benchmark), H; E: `typing-links.spec.mjs`.
+    chip is tapped. Revised 2026-10-20: typing the start of a name (three
+    letters, a capital first word: "Por", "Porto C") lists up to five notes
+    and aliases that begin with it, arrows choose, Tab or Enter writes the
+    link over the typed words, Esc dismisses the list for that word; the
+    whole-name chip stays after a space or a comma until the next word
+    starts, and Tab then links the name without the space. And, on by
+    default (Settings › Editor › "Citar uma nota com @"), `@` at the start
+    of a word opens the `[[` note list: choosing writes `[[Name]]` over the
+    `@` and what was typed, Esc leaves the text, `fulano@mail` and code,
+    links, math and tags never open it; the `[[` list wins over the `@`
+    list, which wins over the partial list. Level: S, U
+    (`test/linkSuggest.test.mjs`, `test/linkSuggestPartial.test.mjs`, with
+    the 10,000-note benchmark), H; E: `typing-links.spec.mjs`.
 15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
     "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
     total, each die and what was added in a card beside it, with "Rolar de
