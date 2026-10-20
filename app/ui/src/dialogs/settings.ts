@@ -361,7 +361,7 @@ export class SettingsDialog {
           const txt = h("div", "update-progress-text");
           const mbDownloaded = (((prog.downloaded_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1);
           const mbTotal = prog.total_bytes ? (((prog.total_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1) : "?";
-          const statusMsg = prog.status === "extracting" ? "Descompactando…" : prog.status === "installing" ? "Instalando…" : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
+          const statusMsg = prog.status === "extracting" ? t.extractingUpdate : prog.status === "installing" ? t.installingUpdate : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
           txt.append(h("span", "", statusMsg), h("span", "", `${pct.toFixed(0)}%`));
 
           progWrap.append(track, txt);
