@@ -23,8 +23,11 @@ export type { CardOptions };
 export { isStatblockCode, isStatblockFence } from "./fence";
 export { STATBLOCK_MAX_CHARS };
 
-/** The last sheet each card read, by its place: what it shows while its
- *  YAML does not read (ADR 0099 item 7). */
+/** The last sheet each card read, by its place and its own identity: what it
+ *  shows while its YAML does not read (ADR 0099 item 7). The identity is the
+ *  block's `layout:` and `name:` lines, read loosely from the text (so it
+ *  works while the YAML around them is broken); an ordinal would shift when
+ *  a statblock is inserted above. */
 const lastGood = new Map<string, Sheet>();
 const LAST_GOOD_MOST = 200;
 
@@ -33,6 +36,13 @@ function remember(key: string | undefined, sheet: Sheet): void {
   lastGood.delete(key);
   lastGood.set(key, sheet);
   if (lastGood.size > LAST_GOOD_MOST) lastGood.delete(lastGood.keys().next().value!);
+}
+
+/** `key` (the note) with the block's top-level `layout:` and `name:` lines. */
+function identityOf(key: string | undefined, text: string): string | undefined {
+  if (key === undefined) return undefined;
+  const line = (k: string) => new RegExp(`^${k}:[ \\t]*(.*)$`, "im").exec(text)?.[1]?.trim().slice(0, 200) ?? "";
+  return `${key}\0${line("layout")}\0${line("name")}`;
 }
 
 function errorCard(message: string, source: string): HTMLElement {
@@ -177,13 +187,14 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
 export function renderStatblock(text: string, onToggleSource?: () => void, opts: CardOptions = {}): HTMLElement {
   try {
     const read = readSheet(text);
+    const id = identityOf(opts.key, text);
     if (!read.ok) {
       if (read.why === "tooBig") return errorCard(S.tooBig(STATBLOCK_MAX_CHARS / 1024), text.slice(0, 4000));
-      const kept = opts.key !== undefined ? lastGood.get(opts.key) : undefined;
+      const kept = id !== undefined ? lastGood.get(id) : undefined;
       if (kept) return buildCard(kept, onToggleSource, opts, true, text);
       return errorCard(read.why === "notMap" ? S.notMap : S.invalid, text);
     }
-    remember(opts.key, read.sheet);
+    remember(id, read.sheet);
     return buildCard(read.sheet, onToggleSource, opts, false, text);
   } catch {
     return errorCard(S.failed, text.slice(0, STATBLOCK_MAX_CHARS));

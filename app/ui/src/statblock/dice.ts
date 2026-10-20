@@ -30,7 +30,7 @@ export const D20_RULES: DiceRule[] = [
 export const PLAIN_RULES: DiceRule[] = [{ pattern: String.raw`\b(\d{0,3}d(?:\d{1,4}|%|F)(?: ?[+-] ?\d{1,5})?)\b`, template: "$1" }];
 
 /** The time one card may spend matching dice rules. */
-export const CARD_BUDGET_MS = 100;
+export const CARD_BUDGET_MS = 250;
 const clock = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 let deadline = Infinity;
 let spent = false;

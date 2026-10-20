@@ -240,6 +240,17 @@ describe("a block that does not read never breaks the note", () => {
     assert.ok(other.classList.contains("statblock-error"));
   });
 
+  test("a block inserted above does not hand its last card to another block", () => {
+    m.renderStatblock("name: Alpha\nhp: 3", undefined, { key: "note" });
+    m.renderStatblock("name: Beta\nhp: 4", undefined, { key: "note" });
+    // A third statblock now sits above them; each broken block keeps its own.
+    const beta = m.renderStatblock("name: Beta\nhp: [4", undefined, { key: "note" });
+    assert.match(beta.textContent, /Beta/);
+    assert.doesNotMatch(beta.textContent, /Alpha/);
+    const gamma = m.renderStatblock("name: Gamma\nhp: [4", undefined, { key: "note" });
+    assert.ok(gamma.classList.contains("statblock-error"));
+  });
+
   test("prototype keys in the sheet are drawn as values", () => {
     const layout = layoutOf([{ type: "property", properties: ["__proto__"], label: "P" }, { type: "traits", properties: ["constructor"] }]);
     const card = m.renderStatblock('"__proto__": text\nconstructor:\n  - boom', undefined, { layout });

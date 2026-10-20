@@ -123,7 +123,7 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
     const ordinal = same.indexOf(f);
     const card = renderStatblockHost(f.text, {
       source: this.path,
-      key: `${this.path}#r${index}`,
+      key: this.path,
       ...(dice ? { dice: (notation: string) => diceBox({ kind: "roll", notation }, host) } : {}),
       rolls: dice,
       ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
