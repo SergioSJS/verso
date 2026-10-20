@@ -166,6 +166,8 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
 
 export function wirePreviewImages(this: NoteLeaf, root: HTMLElement): void {
   for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+    // A statblock's portrait is the card's: no grip, no size from its alt.
+    if (img.closest(".statblock-card")) continue;
     const alt = img.getAttribute("alt") ?? "";
     const size = sizeOf(alt);
     if (size?.w) img.style.width = `${size.w}px`;
