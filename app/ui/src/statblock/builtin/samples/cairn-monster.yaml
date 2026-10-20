@@ -1,0 +1,10 @@
+name: Cave Stalker
+hp: 6
+hp_current: 6
+armor: 1
+str: 12
+dex: 10
+wil: 8
+attack: claws (d6)
+descriptor: Thin and pale
+quirk_or_tactic: Strikes from above

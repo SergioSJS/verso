@@ -1,0 +1,23 @@
+name: Pippin Thistledown
+birthsign: The Reaper
+coat: Brown, spotted
+physical_detail: Torn ear
+background: Hedge-witch
+level: 1
+xp: 0
+str: 9
+dex: 12
+wil: 7
+hp: 3
+hp_current: 3
+pips: 15
+hit_dice: 1d6
+grit: 0
+paws:
+  - Sword
+  - Torch
+body:
+  - Light armor
+pack:
+  - Rations
+  - Rope

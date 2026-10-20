@@ -270,7 +270,9 @@ describe("a Fantasy Statblocks layout imports, its code dropped and named", () =
 describe("the built-in layouts", () => {
   test("each validates with no problem", () => {
     for (const b of m.builtinProblems()) assert.deepEqual(b.problems, [], b.id);
-    assert.deepEqual(m.builtinLayouts().map((l) => l.id), ["d20-creature", "facts-trackers"]);
+    // The two generic ones come first, in this order; the systems follow
+    // (statblockBuiltin.test.mjs).
+    assert.deepEqual(m.builtinLayouts().slice(0, 2).map((l) => l.id), ["d20-creature", "facts-trackers"]);
   });
 
   test("each has both languages on every label", () => {

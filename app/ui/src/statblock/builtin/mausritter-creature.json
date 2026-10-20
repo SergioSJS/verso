@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "mausritter-creature",
+  "name": {
+    "pt": "Mausritter — Criatura",
+    "en": "Mausritter — Creature"
+  },
+  "description": {
+    "pt": "Ficha de criatura (CC BY 4.0): nomes e ordem dos campos.",
+    "en": "A creature sheet (CC BY 4.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Mausritter SRD 2.3.1 (CC BY 4.0)",
+      "url": "https://mausritter.com/srd/mausritter-srd-2.3.1.md"
+    },
+    {
+      "label": "Mausritter Third Party Licence",
+      "url": "https://mausritter.com/third-party-licence"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"stats","properties":["hp","hp_current","hp","str","dex","wil","armour"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"str","properties":["str"],"label":{"pt":"STR","en":"STR"},"hideWhenEmpty":true},{"type":"property","id":"dex","properties":["dex"],"label":{"pt":"DEX","en":"DEX"},"hideWhenEmpty":true},{"type":"property","id":"wil","properties":["wil"],"label":{"pt":"WIL","en":"WIL"},"hideWhenEmpty":true},{"type":"property","id":"armour","properties":["armour"],"label":{"pt":"Armour","en":"Armour"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"attacks","properties":["attacks","special","wants"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"attacks","properties":["attacks"],"label":{"pt":"Attacks","en":"Attacks"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"special","properties":["special"],"label":{"pt":"Special","en":"Special"},"hideWhenEmpty":true},{"type":"property","id":"wants","properties":["wants"],"label":{"pt":"Wants","en":"Wants"},"hideWhenEmpty":true}]},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a save (d20 under)"},"inputs":{}}
+  ]
+}

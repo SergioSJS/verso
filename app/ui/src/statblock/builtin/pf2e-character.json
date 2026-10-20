@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "pf2e-character",
+  "name": {
+    "pt": "Pathfinder 2e — Personagem",
+    "en": "Pathfinder 2e — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem do Remaster (ORC): nomes e ordem dos campos, sem texto de livro.",
+    "en": "A Remaster character sheet (ORC): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "Archives of Nethys (Paizo partnership)",
+      "url": "https://2e.aonprd.com/"
+    },
+    {
+      "label": "ORC License",
+      "url": "https://paizo.com/orclicense"
+    }
+  ],
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","ancestry","heritage","background","class"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["ancestry","heritage","background","class"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["level","xp","size","traits","deity"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"level","properties":["level"],"label":{"pt":"Level","en":"Level"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true},{"type":"property","id":"size","properties":["size"],"label":{"pt":"Size","en":"Size"},"hideWhenEmpty":true},{"type":"property","id":"traits","properties":["traits"],"label":{"pt":"Traits","en":"Traits"},"hideWhenEmpty":true},{"type":"property","id":"deity","properties":["deity"],"label":{"pt":"Deity","en":"Deity"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"attributes","properties":["attributes"],"label":{"pt":"Attribute modifiers","en":"Attribute modifiers"},"hideWhenEmpty":true,"headers":[{"pt":"Str","en":"Str"},{"pt":"Dex","en":"Dex"},{"pt":"Con","en":"Con"},{"pt":"Int","en":"Int"},{"pt":"Wis","en":"Wis"},{"pt":"Cha","en":"Cha"}],"modifier":"none","rule":true},
+    {"type":"group","id":"defences","properties":["ac","fortitude","reflex","will","perception","class_dc","spell_dc","hp","hp_current","hp","speed","resistances","weaknesses","hero_points","focus_points","dying","wounded","doomed","conditions"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"fortitude","properties":["fortitude"],"label":{"pt":"Fortitude","en":"Fortitude"},"hideWhenEmpty":true},{"type":"property","id":"reflex","properties":["reflex"],"label":{"pt":"Reflex","en":"Reflex"},"hideWhenEmpty":true},{"type":"property","id":"will","properties":["will"],"label":{"pt":"Will","en":"Will"},"hideWhenEmpty":true},{"type":"property","id":"perception","properties":["perception"],"label":{"pt":"Perception","en":"Perception"},"hideWhenEmpty":true},{"type":"property","id":"class-dc","properties":["class_dc"],"label":{"pt":"Class DC","en":"Class DC"},"hideWhenEmpty":true},{"type":"property","id":"spell-dc","properties":["spell_dc"],"label":{"pt":"Spell DC","en":"Spell DC"},"hideWhenEmpty":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"Hit Points","en":"Hit Points"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"speed","properties":["speed"],"label":{"pt":"Speed","en":"Speed"},"hideWhenEmpty":true},{"type":"property","id":"resistances","properties":["resistances"],"label":{"pt":"Resistances","en":"Resistances"},"hideWhenEmpty":true},{"type":"property","id":"weaknesses","properties":["weaknesses"],"label":{"pt":"Weaknesses","en":"Weaknesses"},"hideWhenEmpty":true},{"type":"property","id":"hero-points","properties":["hero_points"],"label":{"pt":"Hero Points","en":"Hero Points"},"hideWhenEmpty":true},{"type":"property","id":"focus-points","properties":["focus_points"],"label":{"pt":"Focus Points","en":"Focus Points"},"hideWhenEmpty":true},{"type":"property","id":"dying","properties":["dying"],"label":{"pt":"Dying","en":"Dying"},"hideWhenEmpty":true},{"type":"property","id":"wounded","properties":["wounded"],"label":{"pt":"Wounded","en":"Wounded"},"hideWhenEmpty":true},{"type":"property","id":"doomed","properties":["doomed"],"label":{"pt":"Doomed","en":"Doomed"},"hideWhenEmpty":true},{"type":"property","id":"conditions","properties":["conditions"],"label":{"pt":"Conditions","en":"Conditions"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true,"rule":true},
+    {"type":"traits","id":"strikes","properties":["strikes"],"label":{"pt":"Strikes","en":"Strikes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"spellcasting","properties":["spellcasting"],"label":{"pt":"Spellcasting","en":"Spellcasting"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"feats","properties":["feats"],"label":{"pt":"Feats","en":"Feats"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"inventory","properties":["inventory"],"label":{"pt":"Inventory","en":"Inventory"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"carry","properties":["bulk","coins"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"bulk","properties":["bulk"],"label":{"pt":"Bulk","en":"Bulk"},"hideWhenEmpty":true},{"type":"property","id":"coins","properties":["coins"],"label":{"pt":"Coins","en":"Coins"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}
