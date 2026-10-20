@@ -156,7 +156,7 @@ pub fn convert(e: CoreError) -> ContractError {
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
-        CoreError::FolderSettings(_) => ErrorKind::Refused,
+        CoreError::FolderSettings(_) | CoreError::FolderData(_) => ErrorKind::Refused,
         _ => ErrorKind::Failed,
     };
     ContractError {

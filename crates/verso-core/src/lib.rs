@@ -54,15 +54,19 @@ pub mod sync;
 pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
+pub use folder_data::{DataEntry, DataFile, FOLDER_DATA_MOST, FolderDataKind};
 pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
+pub use oracle::{Oracle, OracleSparks};
 pub use periodic::{ObsidianPeriodic, Period, Periodic};
 mod entries;
+mod folder_data;
 mod folder_settings;
 mod indexing;
 pub mod maptiles;
 mod mentions;
 mod narrow;
 mod notes;
+mod oracle;
 mod periodic;
 mod reader;
 mod rename;
@@ -176,6 +180,9 @@ pub enum CoreError {
     /// The folder's settings file (ADR 0070) cannot be changed as it is:
     /// what, in the message.
     FolderSettings(String),
+    /// A folder data file (`.verso/layouts/`, `.verso/bundles/`) cannot be
+    /// read or written as asked: a bad id, too large, not a JSON object.
+    FolderData(String),
 }
 
 impl std::fmt::Display for CoreError {
@@ -198,6 +205,7 @@ impl std::fmt::Display for CoreError {
             Self::Watch(e) => write!(f, "the folder cannot be watched for changes: {e}"),
             Self::Client(m) => write!(f, "MCP client: {m}"),
             Self::FolderSettings(m) => write!(f, "folder settings: {m}"),
+            Self::FolderData(m) => write!(f, "folder data: {m}"),
         }
     }
 }
