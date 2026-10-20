@@ -18,8 +18,9 @@ import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
-import { hasCapability, plainDiceBadges } from "../../capabilities";
+import { hasCapability } from "../../capabilities";
 import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
+import { sameText, writeInReading } from "../../statblock/edit";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
@@ -36,7 +37,7 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
-import { wireDice } from "../../dice/card";
+import { diceBox, wireDice } from "../../dice/card";
 import { fitWhenSizeless } from "../../imageFit";
 
 /** The note's links and backlinks from the index, fresh after every
@@ -99,17 +100,36 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
   }
 }
 
+/** The statblocks of the reading view drawn as cards (ADR 0099): their
+ *  dice the note's own (in a room, the server rolls), their trackers
+ *  written through the oracle's safe path — found again by their text
+ *  among the note's (statblock/edit.ts). A card of an embedded note is
+ *  drawn, never written to. */
 export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
   if (!hasCapability("statblocks")) return;
+  const dice = hasCapability("diceRolling");
+  const host = { path: () => this.path, follow: (target: string) => this.follow(target) };
+  const found: { code: HTMLElement; pre: HTMLElement; text: string; own: boolean }[] = [];
   for (const code of root.querySelectorAll<HTMLElement>("pre > code")) {
     if (!isStatblockCode(code)) continue;
     const pre = code.parentElement;
     if (!pre || pre.dataset["statblockRendered"]) continue;
-    pre.dataset["statblockRendered"] = "true";
-    const card = renderStatblockHost(code.textContent ?? "", { source: this.path });
-    plainDiceBadges(card);
-    pre.replaceWith(card);
+    found.push({ code, pre, text: code.textContent ?? "", own: !pre.closest(".embed-note, .embed, .embed-base, .embed-pdf") });
   }
+  const mine = found.filter((f) => f.own);
+  found.forEach((f, index) => {
+    f.pre.dataset["statblockRendered"] = "true";
+    const same = mine.filter((m) => sameText(m.text, f.text));
+    const ordinal = same.indexOf(f);
+    const card = renderStatblockHost(f.text, {
+      source: this.path,
+      key: `${this.path}#r${index}`,
+      ...(dice ? { dice: (notation: string) => diceBox({ kind: "roll", notation }, host) } : {}),
+      rolls: dice,
+      ...(f.own ? { write: (key: string, value: number) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
+    });
+    f.pre.replaceWith(card);
+  });
 }
 
 export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {

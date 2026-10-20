@@ -71,6 +71,10 @@ export type LiveOptions = {
   notePath?: () => string;
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string) => WidgetType | null;
+  /** A statblock card's dice — the note's own dice, which roll in a room
+   *  through the server — and why its trackers cannot write now (ADR 0099
+   *  items 4 and 5). */
+  statblock?: { die?: (notation: string) => HTMLElement; refusal?: () => "readOnly" | "conflict" | null };
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
