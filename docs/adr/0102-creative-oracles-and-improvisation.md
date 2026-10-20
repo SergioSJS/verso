@@ -74,8 +74,9 @@ has not read yet.
    A table that does not sum to 100, or an empty word list, is refused when
    saved and ignored when read, with a note saying so.
 
-3. **Custom tables are notes.** `[DECIDED 2026-10-20]`, by the same answer
-   and [0088](0088-dice-and-random-tables.md) item 3, already decided: a
+3. **Custom tables are notes.** `[PROPOSED]` — the answer of item 2 decides
+   that they are shared, not how; this follows [0088](0088-dice-and-random-tables.md)
+   item 3, already decided: a
    table to draw from is a Markdown table or list with an `^id` in a note.
    The oracle lists the built-in tables and every `^id` table of the folder
    `[PROPOSED]`: through the index, by name, with the note it comes from.

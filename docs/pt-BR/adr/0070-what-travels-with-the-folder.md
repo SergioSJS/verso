@@ -86,6 +86,15 @@
   o início da semana —, pelo item 4 do [0093](0093-periodic-notes.md),
   aceito pelo mantenedor naquela noite (*"Sim, todas"*); a pasta das notas
   diárias se muda para lá uma vez.
+  2026-10-20 — o item 2 ganha as chances e as palavras de faíscas do
+  oráculo, uma chave `oracle` do `.verso/settings.json` ([0102](0102-creative-oracles-and-improvisation.md)
+  item 2), e a pasta ganha dois diretórios de dados próprios,
+  `.verso/layouts/` e `.verso/bundles/`, um arquivo JSON por layout ou
+  modelo, escritos só pelos seus próprios comandos do contrato
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 2,
+  [0098](0098-world-and-campaign-wizard-template-bundles.md) item 2); o
+  mantenedor: *"se eu compartilhar com alguém, é pra essa pessoa ver como
+  eu"*.
 
 ## Contexto
 

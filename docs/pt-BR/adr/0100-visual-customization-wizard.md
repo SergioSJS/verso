@@ -107,4 +107,3 @@ uma proposta (a revisão de 2026-10-20, docs/review/).
 ## Estado
 
 **Proposto (2026-10-17)**; de volta a Proposto em 2026-10-20, nada construído.
-Reescrito com o mantenedor antes de qualquer código.

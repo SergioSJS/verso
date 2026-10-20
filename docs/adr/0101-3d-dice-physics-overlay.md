@@ -111,5 +111,4 @@ marked `[DECIDED 2026-10-17]`; no acceptance by the maintainer is recorded, and 
 
 ## Status
 
-**Proposed (2026-10-17)**; back to Proposed on 2026-10-20, nothing built. Rewritten
-with the maintainer before any code.
+**Proposed (2026-10-17)**; back to Proposed on 2026-10-20, nothing built.

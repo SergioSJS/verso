@@ -74,9 +74,9 @@ mantenedor ainda não leu.
    de palavras vazia, é recusada ao salvar e ignorada ao ler, com um aviso
    dizendo isso.
 
-3. **Tabelas próprias são notas.** `[DECIDIDO 2026-10-20]`, pela mesma
-   resposta e pelo item 3 da [0088](0088-dice-and-random-tables.md), já
-   decidido: uma tabela para sortear é uma tabela ou lista Markdown com um
+3. **Tabelas próprias são notas.** `[PROPOSTO]` — a resposta do item 2
+   decide que são compartilhadas, não como; isto segue o item 3 da
+   [0088](0088-dice-and-random-tables.md), já decidido: uma tabela para sortear é uma tabela ou lista Markdown com um
    `^id` numa nota. O oráculo lista as tabelas embutidas e toda tabela com
    `^id` da pasta `[PROPOSTO]`: pelo índice, por nome, com a nota de onde
    vem. Uma "importação" de uma lista JSON escreve uma nota nova que a guarda
