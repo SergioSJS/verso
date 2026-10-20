@@ -1,16 +1,20 @@
-// Feature presets and capability flags (ADR 0103)
+// The features switches (ADR 0103, revised 2026-10-20)
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 import { Window } from "happy-dom";
 
 const win = new Window({ url: "https://verso.test/" });
-for (const name of ["window", "document", "location", "localStorage", "addEventListener", "dispatchEvent", "CustomEvent", "Event"]) {
+for (const name of ["window", "document", "location", "localStorage", "addEventListener", "dispatchEvent", "CustomEvent", "Event", "HTMLElement", "KeyboardEvent"]) {
   globalThis[name] = name === "window" ? win : win[name];
 }
 
+const invoked = [];
 win.__TAURI_INTERNALS__ = {
-  invoke: async () => null,
+  invoke: async (cmd) => {
+    invoked.push(cmd);
+    return null;
+  },
   transformCallback: () => 0,
   metadata: {
     currentWindow: { label: "main" },
@@ -41,8 +45,10 @@ const stub = {
 
 await esbuild.build({
   stdin: {
-    contents: `export { PRESETS, currentPreset, hasCapability, setPreset } from "./src/capabilities";
-export { settings, loadSettings, saveSettings } from "./src/settings";`,
+    contents: `export * from "./src/capabilities";
+export * from "./src/featureList";
+export { settings, loadSettings, saveSettings } from "./src/settings";
+export { featureItems, offNotice } from "./src/dialogs/settings/featureItems";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -55,96 +61,190 @@ export { settings, loadSettings, saveSettings } from "./src/settings";`,
   external: ["@tauri-apps/*", "yaml"],
 });
 
-const { PRESETS, currentPreset, hasCapability, setPreset, settings } = await import("./.bundles/capabilities.test-bundle.mjs");
+const m = await import("./.bundles/capabilities.test-bundle.mjs");
+const { hasCapability, setFeature, applyShortcut, currentShortcut, shortcutChanges, migratePreset, shortcutOf, allOn, allOff, readFeatures, loadSettings, featureItems, offNotice, FEATURE_IDS } = m;
 
-describe("Feature Presets and Capability Flags (ADR 0103)", () => {
+/** The settings page's own item, as the dialog draws it. */
+const ctx = {
+  item(title, desc, control) {
+    const row = document.createElement("div");
+    row.className = "setting";
+    const t = document.createElement("div");
+    t.id = `t-${title}`;
+    t.textContent = title;
+    const d = document.createElement("div");
+    d.id = `d-${title}`;
+    d.textContent = desc;
+    row.append(t, d);
+    const field = control.matches("input") ? control : control.querySelector("input");
+    if (field) {
+      field.setAttribute("aria-labelledby", t.id);
+      field.setAttribute("aria-describedby", d.id);
+    }
+    row.append(control);
+    return row;
+  },
+  select: () => document.createElement("select"),
+  toggle(value, onChange) {
+    const l = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = value;
+    box.addEventListener("change", () => onChange(box.checked));
+    l.append(box);
+    return l;
+  },
+  paint() {},
+};
+
+describe("Features switches (ADR 0103)", () => {
   beforeEach(() => {
-    settings.preset = "rpg";
+    m.settings.features = allOn();
+    invoked.length = 0;
   });
 
-  test("defines all three standard presets with accurate capabilities", () => {
-    assert.ok(PRESETS.writing);
-    assert.ok(PRESETS.worldbuilding);
-    assert.ok(PRESETS.rpg);
-
-    // Pure Writing: all gaming flags off
-    assert.equal(PRESETS.writing.capabilities.diceRolling, false);
-    assert.equal(PRESETS.writing.capabilities.randomTables, false);
-    assert.equal(PRESETS.writing.capabilities.oracles, false);
-    assert.equal(PRESETS.writing.capabilities.statblocks, false);
-    assert.equal(PRESETS.writing.capabilities.campaignBundles, false);
-    assert.equal(PRESETS.writing.capabilities.threeDice, false);
-
-    // Worldbuilding: dice, random tables, oracles, bundles on; statblocks and 3d dice off
-    assert.equal(PRESETS.worldbuilding.capabilities.diceRolling, true);
-    assert.equal(PRESETS.worldbuilding.capabilities.randomTables, true);
-    assert.equal(PRESETS.worldbuilding.capabilities.oracles, true);
-    assert.equal(PRESETS.worldbuilding.capabilities.statblocks, false);
-    assert.equal(PRESETS.worldbuilding.capabilities.campaignBundles, true);
-    assert.equal(PRESETS.worldbuilding.capabilities.threeDice, false);
-
-    // Tabletop RPG: all features enabled
-    assert.equal(PRESETS.rpg.capabilities.diceRolling, true);
-    assert.equal(PRESETS.rpg.capabilities.randomTables, true);
-    assert.equal(PRESETS.rpg.capabilities.oracles, true);
-    assert.equal(PRESETS.rpg.capabilities.statblocks, true);
-    assert.equal(PRESETS.rpg.capabilities.campaignBundles, true);
-    assert.equal(PRESETS.rpg.capabilities.threeDice, true);
+  test("by default every feature is on", () => {
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), true, id);
+    m.settings.features = undefined;
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), true, `${id} with nothing stored`);
+    assert.equal(hasCapability("not-a-feature"), true);
   });
 
-  test("currentPreset returns active preset with safe fallback", () => {
-    settings.preset = "writing";
-    assert.equal(currentPreset(), "writing");
-
-    settings.preset = "worldbuilding";
-    assert.equal(currentPreset(), "worldbuilding");
-
-    settings.preset = "rpg";
-    assert.equal(currentPreset(), "rpg");
-
-    // Invalid / unrecognized values fall back to rpg
-    settings.preset = "invalid-preset";
-    assert.equal(currentPreset(), "rpg");
-  });
-
-  test("hasCapability evaluates flags according to active preset", () => {
-    settings.preset = "writing";
-    assert.equal(hasCapability("diceRolling"), false);
+  test("hasCapability follows each switch alone", () => {
+    m.settings.features = { ...allOn(), oracles: false };
     assert.equal(hasCapability("oracles"), false);
-    assert.equal(hasCapability("statblocks"), false);
-    assert.equal(hasCapability("campaignBundles"), false);
-
-    settings.preset = "worldbuilding";
     assert.equal(hasCapability("diceRolling"), true);
-    assert.equal(hasCapability("oracles"), true);
-    assert.equal(hasCapability("statblocks"), false);
-    assert.equal(hasCapability("campaignBundles"), true);
-
-    settings.preset = "rpg";
-    assert.equal(hasCapability("diceRolling"), true);
-    assert.equal(hasCapability("oracles"), true);
     assert.equal(hasCapability("statblocks"), true);
-    assert.equal(hasCapability("threeDice"), true);
   });
 
-  test("setPreset updates settings, dispatches event, and announces to aria-live", () => {
-    let eventReceived = null;
-    const listener = (e) => {
-      eventReceived = e.detail;
-    };
-    window.addEventListener("verso:preset-changed", listener);
+  test("the old preset migrates to switches", () => {
+    assert.deepEqual(migratePreset("writing"), allOff());
+    assert.deepEqual(migratePreset("worldbuilding"), { ...allOn(), statblocks: false });
+    assert.deepEqual(migratePreset("rpg"), allOn());
+    assert.deepEqual(migratePreset(undefined), allOn());
+    assert.deepEqual(migratePreset("whatever"), allOn());
+  });
 
-    setPreset("writing");
-    assert.equal(settings.preset, "writing");
-    assert.ok(eventReceived);
-    assert.equal(eventReceived.preset, "writing");
+  test("loading settings migrates the preset and deletes the old key", () => {
+    localStorage.setItem("verso.settings", JSON.stringify({ theme: "dark", preset: "worldbuilding" }));
+    loadSettings();
+    assert.deepEqual(m.settings.features, { ...allOn(), statblocks: false });
+    assert.equal("preset" in m.settings, false);
+    localStorage.setItem("verso.settings", JSON.stringify({ preset: "writing" }));
+    loadSettings();
+    assert.deepEqual(m.settings.features, allOff());
+    // Switches already stored win over a stale preset.
+    localStorage.setItem("verso.settings", JSON.stringify({ preset: "writing", features: { ...allOn(), dice: 1, oracles: false } }));
+    loadSettings();
+    assert.equal(m.settings.features.oracles, false);
+    assert.equal(m.settings.features.diceRolling, true);
+    localStorage.setItem("verso.settings", JSON.stringify({ theme: "dark" }));
+    loadSettings();
+    assert.deepEqual(m.settings.features, allOn());
+    localStorage.clear();
+  });
 
-    // Live region status announcement
-    // (the window's own status line, the live region every action uses)
-    const statusEl = document.getElementById("status");
-    assert.ok(statusEl);
-    assert.ok(statusEl.textContent.includes(PRESETS.writing.name));
+  test("the switches match a shortcut, or are Custom", () => {
+    assert.equal(shortcutOf(allOn()), "everything");
+    assert.equal(shortcutOf(allOff()), "writing");
+    assert.equal(shortcutOf({ ...allOn(), dice: false, oracles: false }), "custom");
+    assert.equal(shortcutOf({ ...allOff(), statblocks: true }), "custom");
+    m.settings.features = { ...allOn(), oracles: false };
+    assert.equal(currentShortcut(), "custom");
+    assert.deepEqual(readFeatures({ oracles: false }), { ...allOn(), oracles: false });
+  });
 
-    window.removeEventListener("verso:preset-changed", listener);
+  test("a shortcut says what it changes before it does", () => {
+    m.settings.features = { ...allOn(), oracles: false };
+    const toWriting = shortcutChanges("writing");
+    assert.equal(toWriting.on.length, 0);
+    assert.equal(toWriting.off.length, 4);
+    const toAll = shortcutChanges("everything");
+    assert.equal(toAll.on.length, 1);
+    assert.equal(toAll.off.length, 0);
+    // Asking changed nothing.
+    assert.equal(hasCapability("oracles"), false);
+    assert.equal(hasCapability("diceRolling"), true);
+    applyShortcut("writing");
+    assert.deepEqual(m.settings.features, allOff());
+  });
+
+  test("a switch applies at once, announces, and writes no file", () => {
+    let got = null;
+    const listener = (e) => (got = e.detail);
+    window.addEventListener("verso:features-changed", listener);
+    setFeature("statblocks", false);
+    window.removeEventListener("verso:features-changed", listener);
+    assert.equal(hasCapability("statblocks"), false);
+    assert.equal(got.features.statblocks, false);
+    assert.ok(document.getElementById("status").textContent.length > 0);
+    // Only the person's settings were stored; the core was never called.
+    assert.deepEqual(invoked, []);
+    assert.equal(JSON.parse(localStorage.getItem("verso.settings")).features.statblocks, false);
+    assert.equal("preset" in JSON.parse(localStorage.getItem("verso.settings")), false);
+  });
+});
+
+describe("The Features settings page", () => {
+  beforeEach(() => {
+    m.settings.features = allOn();
+  });
+
+  test("shows every switch with its description, in a labelled group", () => {
+    const [item] = featureItems(ctx);
+    const node = item.node();
+    document.body.append(node);
+    assert.equal(node.tagName, "FIELDSET");
+    assert.ok(node.querySelector("legend")?.textContent);
+    const boxes = [...node.querySelectorAll("input[type=checkbox]")];
+    assert.equal(boxes.length, FEATURE_IDS.length);
+    for (const box of boxes) {
+      assert.equal(box.checked, true);
+      const label = document.getElementById(box.getAttribute("aria-labelledby"));
+      const desc = document.getElementById(box.getAttribute("aria-describedby"));
+      assert.ok(label.textContent.length > 0);
+      assert.ok(desc.textContent.length > 10, "each switch says what it adds");
+    }
+    const shortcuts = [...node.querySelectorAll("button")];
+    assert.equal(shortcuts.length, 2);
+    assert.equal(shortcuts[0].getAttribute("aria-pressed"), "true");
+    assert.equal(shortcuts[1].getAttribute("aria-pressed"), "false");
+  });
+
+  test("a switch changes the feature and the shortcut shows Custom", () => {
+    const node = featureItems(ctx)[0].node();
+    const box = node.querySelectorAll("input[type=checkbox]")[2];
+    box.checked = false;
+    box.dispatchEvent(new Event("change"));
+    assert.equal(m.settings.features.oracles, false);
+    for (const b of node.querySelectorAll("button")) assert.equal(b.getAttribute("aria-pressed"), "false");
+  });
+
+  test("a shortcut asks first: cancel changes nothing, yes applies it", async () => {
+    const node = featureItems(ctx)[0].node();
+    const writing = node.querySelectorAll("button")[1];
+    writing.click();
+    await new Promise((r) => setTimeout(r, 5));
+    const box = document.querySelector(".confirm-box");
+    assert.ok(box, "the in-page dialog is shown");
+    assert.ok(box.querySelector("p").textContent.includes("Dados") || box.querySelector("p").textContent.includes("Dice"));
+    box.querySelector("button.ghost").click();
+    await new Promise((r) => setTimeout(r, 5));
+    assert.deepEqual(m.settings.features, allOn());
+    writing.click();
+    await new Promise((r) => setTimeout(r, 5));
+    document.querySelector(".confirm-box button.save").click();
+    await new Promise((r) => setTimeout(r, 5));
+    assert.deepEqual(m.settings.features, allOff());
+    assert.equal([...node.querySelectorAll("input")].some((b) => b.checked), false);
+  });
+
+  test("a feature's own page says it is off, with a way back", () => {
+    assert.deepEqual(offNotice(ctx, "oracles", "oracles"), []);
+    m.settings.features = { ...allOn(), oracles: false };
+    const [n] = offNotice(ctx, "oracles", "oracles");
+    const row = n.node();
+    row.querySelector("button").click();
+    assert.equal(hasCapability("oracles"), true);
   });
 });
