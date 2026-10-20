@@ -1082,6 +1082,16 @@ async fn folder_command(
         "get_obsidian_periodic" => {
             return to_value(verso_contract::ObsidianPeriodic::default());
         }
+        // The folder's layouts and bundles are the whole folder's too
+        // (ADR 0099 item 2, ADR 0098 item 2), as its settings are: a share
+        // lists none and finds none; a write is refused by `args_in`.
+        "list_folder_data" => return Ok(Value::Array(Vec::new())),
+        "read_folder_data" => {
+            return Err(ContractError {
+                kind: verso_contract::ErrorKind::NotFound,
+                message: "not in what was shared with you".to_owned(),
+            });
+        }
         "folder_space" => {
             let k = key.clone();
             let sc = scope.clone();
@@ -1298,6 +1308,16 @@ async fn folder_run(
         // The folder's settings name no path in their arguments (ADR 0070).
         if name == "set_folder_settings" {
             paths.push(verso_fs::SETTINGS_FILE.to_owned());
+        }
+        // A data file names its kind and its id, not a path (ADR 0099
+        // item 2, ADR 0098 item 2): sync follows it like the settings.
+        if matches!(name, "write_folder_data" | "remove_folder_data")
+            && let (Some(kind), Some(id)) = (
+                args_for_log.get("kind").and_then(Value::as_str),
+                args_for_log.get("id").and_then(Value::as_str),
+            )
+        {
+            paths.push(format!("{}/{kind}/{id}.json", verso_fs::SETTINGS_DIR));
         }
         let _ = blocking(move || {
             crate::sync::reconcile_key(&s, &key_for_log, Some(&actor), &paths);
