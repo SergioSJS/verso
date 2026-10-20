@@ -485,6 +485,12 @@ export const commands = {
 	 */
 	collabRoll: (path: string, notation: string, source: string | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source })),
 	/**
+	 *  An oracle question, spark or table drawn in the note's room by the
+	 *  server, heard by the others in it (ADR 0102 item 5): on a server, or a
+	 *  synced folder's link, only; here the window draws itself.
+	 */
+	collabOracle: (path: string, ask: OracleAsk) => typedError<OracleDraw, ContractError>(__TAURI_INVOKE("collab_oracle", { path, ask })),
+	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
 	 *  opens the server's page (`server_sign_in_page`), where the person
@@ -1075,6 +1081,15 @@ export type CollabJoin = {
  *  `board` as its elements, one entry per element and version.
  */
 export type CollabKind = "text" | "board";
+
+/**
+ *  An oracle draw in a room, heard by the others in it (event
+ *  `collab-oracle`).
+ */
+export type CollabOracle = {
+	path: string,
+	draw: OracleDraw,
+};
 
 /**
  *  A roll in a room, heard by the others in it (event `collab-roll`).
@@ -2144,6 +2159,46 @@ export type ObsidianPeriodic = {
 	daily_notes: string | null,
 	periodic_notes: string | null,
 	unavailable: string[],
+};
+
+/**
+ *  What a window asks the server of a room to draw for the oracle (ADR
+ *  0102 item 5): the window sends what it draws from, the server draws —
+ *  its generator, never the window's — and the room hears the result.
+ */
+export type OracleAsk = 
+/**
+ *  A yes/no question: the odds row it is asked at, six whole numbers
+ *  adding to 100 (yes-and, yes, yes-but, no-but, no, no-and); a d100
+ *  is read against it.
+ */
+{ kind: "question"; odds: number[] } | 
+/**  Two pairs of words from the lists in use, one word of each list. */
+{ kind: "spark"; lists: OracleSparks } | 
+/**  One entry of a table, as many sides as it has entries. */
+{ kind: "table"; entries: string[] };
+
+/**
+ *  What the server drew for an [`OracleAsk`], stamped with the account's
+ *  name; nothing is written, to the file or the database. The question's
+ *  own text never reaches the server.
+ */
+export type OracleDraw = {
+	/**  `question`, `spark` or `table`. */
+	kind: string,
+	/**
+	 *  A question: the d100 face, 1 to 100. A table: the entry's place,
+	 *  counted from 1. A spark: 0.
+	 */
+	roll: number,
+	/**  A question: the answer's column, 0 (yes-and) to 5 (no-and). */
+	answer: number | null,
+	/**  A spark: action, theme, descriptor, focus. A table: the entry. */
+	words: string[],
+	/**  The name of the account that asked. */
+	by: string,
+	/**  When, RFC 3339 in UTC. */
+	at: string,
 };
 
 /**

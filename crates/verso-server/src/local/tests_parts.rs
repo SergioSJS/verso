@@ -642,6 +642,11 @@ const VERDICTS: &[(&str, &str, bool)] = &[
         r#"{"path":"a.md","notation":"1d6","source":null}"#,
         false,
     ),
+    (
+        "collab_oracle",
+        r#"{"path":"a.md","ask":{"kind":"table","entries":["a","b"]}}"#,
+        false,
+    ),
     ("trash_list", "{}", true),
     (
         "trash_restore",
@@ -1062,6 +1067,7 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "collab_resolve",
         "collab_canvas",
         "collab_roll",
+        "collab_oracle",
         "trash_list",
         "trash_restore",
         "trash_delete",

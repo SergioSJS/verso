@@ -23,7 +23,7 @@
 use std::collections::HashSet;
 
 use serde_json::json;
-use verso_contract::{CollabJoin, CollabKind, CollabRoll, ContractError};
+use verso_contract::{CollabJoin, CollabKind, CollabOracle, CollabRoll, ContractError};
 use verso_service::lock;
 use yrs::Doc;
 
@@ -236,6 +236,21 @@ pub fn roll(server: &Server, r: &Room, sender: &str, heard: &CollabRoll) {
     };
     if visible(&text_of(shadow), &heard.roll) {
         server.push(&to, &json!({ "event": "collab-roll", "payload": heard }));
+    }
+}
+
+/// A question drawn in the room, told also to the readers in the shadow:
+/// it carries no text of the note (a spark's or a table's words may come
+/// from a secret block, and are not told to them).
+pub fn oracle(server: &Server, r: &Room, sender: &str, heard: &CollabOracle) {
+    let to: Vec<String> = r
+        .readers
+        .shown()
+        .into_iter()
+        .filter(|c| c != sender)
+        .collect();
+    if !to.is_empty() {
+        server.push(&to, &json!({ "event": "collab-oracle", "payload": heard }));
     }
 }
 

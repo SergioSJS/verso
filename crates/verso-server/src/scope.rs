@@ -802,7 +802,7 @@ impl Scope {
                 }
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
-            | "collab-closed" | "collab-roll" => {
+            | "collab-closed" | "collab-roll" | "collab-oracle" => {
                 if !self.field(&mut m["payload"], "path") {
                     return None;
                 }

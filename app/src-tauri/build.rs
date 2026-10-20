@@ -104,6 +104,7 @@ fn main() {
         "collab_present",
         "collab_canvas",
         "collab_roll",
+        "collab_oracle",
         "server_sign_in",
         "server_sign_in_page",
         "server_accounts",
