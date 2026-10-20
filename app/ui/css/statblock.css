@@ -203,8 +203,9 @@
   color: var(--sb-text);
 }
 
-.statblock-image-box { display: inline-block; }
-.statblock-image { width: 78px; height: 78px; object-fit: cover; border-radius: 50%; border: 2px solid var(--sb-accent); }
+/* The portrait (the holder div is `.statblock-image` too, as every block is named by its type). */
+.statblock-image-box { display: inline-block; line-height: 0; }
+.statblock-card img.statblock-image { box-sizing: border-box; display: block; width: 78px; height: 78px; max-width: none; margin: 0; object-fit: cover; border-radius: 50%; border: 2px solid var(--sb-accent); }
 
 /* A die in the text is the note's own (dice.css), a little smaller, never
    taller than its line. */

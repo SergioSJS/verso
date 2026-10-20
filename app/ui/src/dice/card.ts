@@ -198,17 +198,22 @@ export type DiceLook = { text?: string; label?: string; popover?: boolean };
  *  is no room below), moved sideways to stay inside the statblock card, or
  *  the window when it is in none. */
 function place(box: HTMLElement, card: HTMLElement): void {
-  card.style.left = "0px";
-  card.classList.remove("dice-above");
   const bound = box.closest(".statblock-card")?.getBoundingClientRect() ?? new DOMRect(0, 0, innerWidth, innerHeight);
+  // Where it would be with no shift, from where it is and the shift it
+  // has: no reset and read again (WebKit, in a resize callback, gave the
+  // box from before the reset).
+  const shifted = parseFloat(card.style.left) || 0;
   const r = card.getBoundingClientRect();
+  const left = r.left - shifted;
+  const right = r.right - shifted;
   const pad = 6;
   let dx = 0;
-  if (r.right > bound.right - pad) dx = bound.right - pad - r.right;
-  if (r.left + dx < bound.left + pad) dx = bound.left + pad - r.left;
+  if (right > bound.right - pad) dx = bound.right - pad - right;
+  if (left + dx < bound.left + pad) dx = bound.left + pad - left;
   card.style.left = `${Math.round(dx)}px`;
   const b = box.getBoundingClientRect();
-  if (r.bottom > bound.bottom && b.top - r.height - 4 >= bound.top) card.classList.add("dice-above");
+  const below = b.bottom + 4 + r.height;
+  card.classList.toggle("dice-above", below > bound.bottom && b.top - r.height - 4 >= bound.top);
 }
 
 /** The die `code` drawn for a note, its last roll shown when it has one. */
@@ -250,7 +255,10 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
       hide(true);
     }
   };
+  let resized: ResizeObserver | null = null;
   const hide = (refocus: boolean) => {
+    resized?.disconnect();
+    resized = null;
     card.hidden = true;
     if (look.popover) roll.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", outside, true);
@@ -265,10 +273,14 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     roll.setAttribute("aria-expanded", "true");
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("keydown", escape, true);
-    // Placed now, and again on the next frame: once the card is in the
-    // page, its fonts in, and whatever moved the die settled.
+    // Placed now, and again whenever its size changes while it is open: a
+    // font it is the first to use arrives late and widens it.
     if (box.isConnected) place(box, card);
-    requestAnimationFrame(() => box.isConnected && !card.hidden && place(box, card));
+    else requestAnimationFrame(() => box.isConnected && !card.hidden && place(box, card));
+    if (!resized && typeof ResizeObserver !== "undefined") {
+      resized = new ResizeObserver(() => box.isConnected && !card.hidden && place(box, card));
+      resized.observe(card);
+    }
   };
   let busy = false;
   const go = async () => {
