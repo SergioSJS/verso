@@ -15,10 +15,11 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
     BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
-    Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten,
-    FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState, Mention, Mentions,
-    MovedEntries, NoteText, ObsidianPeriodic, OracleSettings, OracleSparks, PeriodSettings,
-    PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
+    Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList,
+    FolderDataWritten, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
+    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleSettings, OracleSparks,
+    PeriodSettings, PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote,
+    Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -412,12 +413,16 @@ ops! {
 
     /// The folder's data files of a kind (`.verso/layouts/`,
     /// `.verso/bundles/`; ADR 0099 item 2, ADR 0098 item 2), by id.
-    Read fn list_folder_data(ws, kind: FolderDataKind) -> Vec<FolderDataEntry> {
-        Ok(ws
-            .list_folder_data(data_kind(kind))?
-            .into_iter()
-            .map(|e| FolderDataEntry { id: e.id, revision: e.revision })
-            .collect())
+    Read fn list_folder_data(ws, kind: FolderDataKind) -> FolderDataList {
+        let listed = ws.list_folder_data(data_kind(kind))?;
+        Ok(FolderDataList {
+            entries: listed
+                .entries
+                .into_iter()
+                .map(|e| FolderDataEntry { id: e.id, revision: e.revision })
+                .collect(),
+            strays: listed.strays,
+        })
     }
 
     /// One data file's text as it is on disk, with its revision.

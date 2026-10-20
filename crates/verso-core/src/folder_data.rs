@@ -67,6 +67,19 @@ pub struct DataEntry {
     pub revision: String,
 }
 
+/// The data files of a kind: the entries a person can use, and the names in
+/// the directory that are not an id (a sync conflict copy such as
+/// `mesa (conflict, Mac, …).json`, a hand-made `Mesa.json`), which no
+/// command can reach and so are named for the person to rename or remove.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DataList {
+    pub entries: Vec<DataEntry>,
+    pub strays: Vec<String>,
+}
+
+/// The most strays one listing names.
+const STRAYS_MOST: usize = 50;
+
 /// A data file read: its text as it is on disk and its revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFile {
@@ -136,23 +149,24 @@ fn check_text(kind: FolderDataKind, text: &str) -> Result<(), CoreError> {
 }
 
 impl Workspace {
-    /// The data files of `kind` the folder holds, by id, in id order.
-    /// Nothing is created; a folder without the directory lists none.
-    pub fn list_folder_data(&mut self, kind: FolderDataKind) -> Result<Vec<DataEntry>, CoreError> {
+    /// The data files of `kind` the folder holds, by id, in id order, and
+    /// the names beside them that are not an id. Nothing is created; a
+    /// folder without the directory lists none.
+    pub fn list_folder_data(&mut self, kind: FolderDataKind) -> Result<DataList, CoreError> {
         let prefix = format!("{}/{}/", verso_fs::SETTINGS_DIR, kind.dir());
         let listed = self.root.settings_walk().map_err(CoreError::Folder)?;
         let mut out = Vec::new();
+        let mut strays = Vec::new();
         for entry in listed {
             let relative = entry.relative.to_string_lossy().into_owned();
-            let Some(id) = relative
-                .strip_prefix(&prefix)
-                .and_then(|name| name.strip_suffix(".json"))
-            else {
+            let Some(name) = relative.strip_prefix(&prefix) else {
                 continue;
             };
-            if check_id(id).is_err() {
+            let Some(id) = name.strip_suffix(".json").filter(|id| check_id(id).is_ok()) else {
+                // Not reachable by any command: named, never dropped.
+                strays.push(name.to_owned());
                 continue;
-            }
+            };
             let revision = match entry.kind {
                 EntryKind::Placeholder { .. } => String::new(),
                 _ if entry.len > kind.most() as u64 => String::new(),
@@ -169,7 +183,12 @@ impl Workspace {
             });
         }
         out.sort_by(|a, b| a.id.cmp(&b.id));
-        Ok(out)
+        strays.sort();
+        strays.truncate(STRAYS_MOST);
+        Ok(DataList {
+            entries: out,
+            strays,
+        })
     }
 
     /// A data file's text, as it is on disk, with its revision. A

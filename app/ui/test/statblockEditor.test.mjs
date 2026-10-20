@@ -190,7 +190,7 @@ function memoryFolder(initial = {}) {
   return {
     files,
     async list() {
-      return [...files].map(([id, f]) => ({ id, revision: f.revision }));
+      return { entries: [...files].map(([id, f]) => ({ id, revision: f.revision })), strays: [] };
     },
     async read(_k, id) {
       const f = files.get(id);

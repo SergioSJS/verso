@@ -32,8 +32,8 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin,
     CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
-    FileEntry, Focus, FocusesSummary, FolderChanged, FolderDataEntry, FolderDataFile,
-    FolderDataKind, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
+    FileEntry, Focus, FocusesSummary, FolderChanged, FolderDataFile, FolderDataKind,
+    FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
     Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
     Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw, Renamed,
     ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,

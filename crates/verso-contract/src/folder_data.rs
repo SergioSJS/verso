@@ -33,6 +33,18 @@ pub struct FolderDataEntry {
     pub revision: String,
 }
 
+/// The data files of a kind, and the names beside them that are not a valid
+/// id. A sync conflict copy (`mesa (conflict, Mac, 2026-10-20).json`) or a
+/// hand-made `Mesa.json` is one: no command reaches it, so it is named for
+/// the person to rename (to a valid id) or remove in a file manager.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderDataList {
+    pub entries: Vec<FolderDataEntry>,
+    /// File names (not paths) in the directory that are not `<id>.json`,
+    /// sorted, at most 50.
+    pub strays: Vec<String>,
+}
+
 /// A data file read: its text as it is on disk.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderDataFile {

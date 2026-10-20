@@ -408,7 +408,7 @@ export const commands = {
 	 *  `.verso/bundles/` (ADR 0099 item 2, ADR 0098 item 2), by id. Nothing is
 	 *  created.
 	 */
-	listFolderData: (kind: FolderDataKind) => typedError<FolderDataEntry[], ContractError>(__TAURI_INVOKE("list_folder_data", { kind })),
+	listFolderData: (kind: FolderDataKind) => typedError<FolderDataList, ContractError>(__TAURI_INVOKE("list_folder_data", { kind })),
 	/**  One data file's text as it is on disk, with its revision. */
 	readFolderData: (kind: FolderDataKind, id: string) => typedError<FolderDataFile, ContractError>(__TAURI_INVOKE("read_folder_data", { kind, id })),
 	/**
@@ -1473,6 +1473,21 @@ export type FolderDataKind =
 "layouts" | 
 /**  `.verso/bundles/<id>.json`: a world's or campaign's template bundle. */
 "bundles";
+
+/**
+ *  The data files of a kind, and the names beside them that are not a valid
+ *  id. A sync conflict copy (`mesa (conflict, Mac, 2026-10-20).json`) or a
+ *  hand-made `Mesa.json` is one: no command reaches it, so it is named for
+ *  the person to rename (to a valid id) or remove in a file manager.
+ */
+export type FolderDataList = {
+	entries: FolderDataEntry[],
+	/**
+	 *  File names (not paths) in the directory that are not `<id>.json`,
+	 *  sorted, at most 50.
+	 */
+	strays: string[],
+};
 
 /**  The revision of the bytes a write left. */
 export type FolderDataWritten = {

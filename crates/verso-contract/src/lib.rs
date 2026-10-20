@@ -26,8 +26,8 @@ pub use local::{
 };
 mod folder_data;
 pub use folder_data::{
-    FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings,
-    OracleSparks,
+    FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten,
+    OracleSettings, OracleSparks,
 };
 mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};

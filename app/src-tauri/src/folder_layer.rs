@@ -53,7 +53,7 @@ pub(crate) fn list_folder_data<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     kind: FolderDataKind,
-) -> Result<Vec<FolderDataEntry>, ContractError> {
+) -> Result<FolderDataList, ContractError> {
     with(&state, &window, |ws| ops::list_folder_data(ws, kind))
 }
 
