@@ -15,6 +15,15 @@
   [0071](0071-linux-port.md) (Linux),
   [0035](0035-cross-cutting-requirements.md) (acessibilidade).
 - Status no briefing: não presente
+- Revisões: 2026-10-20 — o zoom da janela. O mantenedor: *"por que
+  ctrl+scroll ou command + e - não arrumam o zoom?"*. `[DECIDIDO
+  2026-10-20]`: Cmd/Ctrl `+` e `-` e Ctrl com a roda (a pinça de um
+  trackpad) dão zoom na janela inteira, como o Obsidian e um navegador
+  fazem; Cmd/Ctrl `0` volta a 100 %. `[PROPOSTO]`: de 50 % a 200 % em
+  passos de 10 %; guardado por aparelho (depende da tela), não com a
+  conta; sobre um board, um mapa, um PDF ou o grafo, a pinça e Ctrl com a
+  roda continuam dando zoom naquela vista; na versão do navegador vale o
+  zoom do próprio navegador, e o Verso não toma as teclas.
 
 ## Contexto
 
