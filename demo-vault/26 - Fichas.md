@@ -121,7 +121,7 @@ traits:
     desc: A trait of our own making.
 actions:
   - name: Spear
-    desc: Melee Attack Roll +4, reach 5 ft. Hit 5 (1d6 + 2) piercing damage.
+    desc: Melee Attack Roll +4, reach 5 ft. Hit 4 (1d4 + 2) piercing damage.
 ```
 
 ### Pathfinder 2e e Starfinder 2e
@@ -823,7 +823,7 @@ notes: Roll 1d6 when the toll goes unpaid.
 
 ## 🎲 Usando as fichas
 
-- **Dados.** Um valor como `+4 para acertar` ou `5 (1d6 + 2)` tem um **dado** ao lado. O modificador de cada atributo — o `(+2)` — é ele mesmo o botão: um clique rola, e o resultado abre por cima da ficha, sem empurrar nada e **sem ser gravado na nota** (Esc, o × ou um clique fora fecha). Num servidor, quem rola é o servidor e todos da sala veem.
+- **Dados.** Um valor como `+4 to hit` ou `4 (1d4 + 2)` tem um **dado** ao lado. O modificador de cada atributo — o `(+2)` — é ele mesmo o botão: um clique rola, e o resultado abre por cima da ficha, sem empurrar nada e **sem ser gravado na nota** (Esc, o × ou um clique fora fecha). Num servidor, quem rola é o servidor e todos da sala veem.
 - **Bloco de rolagem.** Um layout de sistema tem um botão como *Rolar (Fractal)*: ele pergunta, por exemplo, quantos fatos se aplicam e mostra o resultado como o sistema lê. Experimente na ficha do Fractal acima.
 - **Contadores.** Os botões − e + de *PV atuais*, as caixas de estresse e as do relógio gravam **só aquele número** no YAML (`hp_current`, `stress`…); comentários, aspas e ordem ficam. Abra o modo **Fonte** e confira. Com o teclado, `Tab` chega ao grupo, as setas mudam o valor, `Home` zera e `End` enche. Se um valor deixar de ser número ou passar do máximo, a ficha mostra como está e o botão **Corrigir**.
 - **Quebrado.** Nos Obstáculos do Fractal cada item tem a marca **Quebrado**: um botão que risca o item e grava `quebrado: true` no YAML, com a contagem *N de M quebrados* no título.
