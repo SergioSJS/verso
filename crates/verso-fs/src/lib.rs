@@ -80,7 +80,7 @@ pub use jail::resolves_within;
 pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
-pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
+pub use settings::{DATA_DIRS, SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
 pub use staged::Staged;
 pub use subfolders::{is_folder, subfolders};

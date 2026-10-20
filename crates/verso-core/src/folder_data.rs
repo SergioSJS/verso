@@ -1,0 +1,318 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The folder's data files: one JSON object each, named by an id, in
+//! `.verso/layouts/` (ADR 0099 item 2: a card's or statblock's layout) and
+//! `.verso/bundles/` (ADR 0098 item 2: a world's or campaign's template
+//! bundle). They travel with the folder as `.verso/settings.json` does
+//! (ADR 0070, ADR 0079): the same sync path, the same folder.
+//!
+//! The door is narrow on purpose. The path is built here from a kind and an
+//! id — `.verso/<kind>/<id>.json`, nothing else under `.verso/` is
+//! reachable through these four calls — and an id that is not
+//! `^[a-z0-9][a-z0-9-]{0,63}$`, or is a name Windows keeps for a device,
+//! is refused before any IO. The directory is made by the first write, and
+//! only then (ADR 0070 item 1). Reading never rewrites (invariant 7); a
+//! write is atomic and checks the revision that was read (invariants 9 and
+//! 11); a removal goes through the bin (ADR 0080); a placeholder of
+//! on-demand storage is reported, never taken for absent (ADR 0043).
+
+use std::path::Path;
+
+use super::*;
+
+/// The most a data file's text may be.
+pub const FOLDER_DATA_MOST: usize = 256 * 1024;
+
+/// The longest an id may be.
+const ID_MOST: usize = 64;
+
+/// Which data directory of `.verso/` a file is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FolderDataKind {
+    Layouts,
+    Bundles,
+}
+
+impl FolderDataKind {
+    /// The directory's name under `.verso/`.
+    #[must_use]
+    pub fn dir(self) -> &'static str {
+        match self {
+            Self::Layouts => "layouts",
+            Self::Bundles => "bundles",
+        }
+    }
+}
+
+/// One data file listed: its id and the revision to hand back to change or
+/// remove it; empty when the file cannot be read now (a placeholder, or
+/// past [`FOLDER_DATA_MOST`]) — a read says why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataEntry {
+    pub id: String,
+    pub revision: String,
+}
+
+/// A data file read: its text as it is on disk and its revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataFile {
+    pub text: String,
+    pub revision: String,
+}
+
+fn refuse(what: impl Into<String>) -> CoreError {
+    CoreError::FolderData(what.into())
+}
+
+/// Whether `id` is a name Windows keeps for a device (`con`, `nul`,
+/// `com1`…): the ids are lower case, so the comparison is too.
+fn device_name(id: &str) -> bool {
+    let numbered = |prefix: &str| {
+        id.strip_prefix(prefix)
+            .is_some_and(|n| matches!(n.as_bytes(), [b'0'..=b'9']))
+    };
+    matches!(id, "con" | "prn" | "aux" | "nul") || numbered("com") || numbered("lpt")
+}
+
+/// An id as the folder may keep it: `^[a-z0-9][a-z0-9-]{0,63}$`, and not a
+/// device name. Checked as text, before any IO.
+pub(crate) fn check_id(id: &str) -> Result<(), CoreError> {
+    let bytes = id.as_bytes();
+    let plain = |b: u8| b.is_ascii_lowercase() || b.is_ascii_digit();
+    let ok = !bytes.is_empty()
+        && bytes.len() <= ID_MOST
+        && plain(bytes[0])
+        && bytes.iter().all(|&b| plain(b) || b == b'-');
+    if !ok {
+        return Err(refuse(format!(
+            "not a valid id (1 to {ID_MOST} of a-z, 0-9 and -, starting with a letter or digit): {id:?}"
+        )));
+    }
+    if device_name(id) {
+        return Err(refuse(format!("a name Windows keeps for a device: {id}")));
+    }
+    Ok(())
+}
+
+/// The path of a data file, `/`-joined, relative to the folder.
+fn path_of(kind: FolderDataKind, id: &str) -> Result<String, CoreError> {
+    check_id(id)?;
+    Ok(format!(
+        "{}/{}/{id}.json",
+        verso_fs::SETTINGS_DIR,
+        kind.dir()
+    ))
+}
+
+/// A text a data file may hold: at most [`FOLDER_DATA_MOST`] bytes and one
+/// JSON object.
+fn check_text(text: &str) -> Result<(), CoreError> {
+    if text.len() > FOLDER_DATA_MOST {
+        return Err(refuse(format!(
+            "too large: {} bytes, the most is {FOLDER_DATA_MOST}",
+            text.len()
+        )));
+    }
+    match serde_json::from_str::<serde_json::Value>(text) {
+        Ok(serde_json::Value::Object(_)) => Ok(()),
+        Ok(_) => Err(refuse("not a JSON object")),
+        Err(e) => Err(refuse(format!("not JSON: {e}"))),
+    }
+}
+
+impl Workspace {
+    /// The data files of `kind` the folder holds, by id, in id order.
+    /// Nothing is created; a folder without the directory lists none.
+    pub fn list_folder_data(&mut self, kind: FolderDataKind) -> Result<Vec<DataEntry>, CoreError> {
+        let prefix = format!("{}/{}/", verso_fs::SETTINGS_DIR, kind.dir());
+        let listed = self.root.settings_walk().map_err(CoreError::Folder)?;
+        let mut out = Vec::new();
+        for entry in listed {
+            let relative = entry.relative.to_string_lossy().into_owned();
+            let Some(id) = relative
+                .strip_prefix(&prefix)
+                .and_then(|name| name.strip_suffix(".json"))
+            else {
+                continue;
+            };
+            if check_id(id).is_err() {
+                continue;
+            }
+            let revision = match entry.kind {
+                EntryKind::Placeholder { .. } => String::new(),
+                _ if entry.len > FOLDER_DATA_MOST as u64 => String::new(),
+                _ => match self.root.read(entry.handle) {
+                    Ok((_, stamp)) => revision::encode(&stamp),
+                    Err(ReadError::Unavailable) => String::new(),
+                    // Not readable now: not listed, never a deletion.
+                    Err(_) => continue,
+                },
+            };
+            out.push(DataEntry {
+                id: id.to_owned(),
+                revision,
+            });
+        }
+        out.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(out)
+    }
+
+    /// A data file's text, as it is on disk, with its revision. A
+    /// placeholder is [`ReadError::Unavailable`]; a file past
+    /// [`FOLDER_DATA_MOST`] is refused unread; bytes that are not UTF-8 are
+    /// [`CoreError::NotText`].
+    pub fn read_folder_data(
+        &mut self,
+        kind: FolderDataKind,
+        id: &str,
+    ) -> Result<DataFile, CoreError> {
+        let path = path_of(kind, id)?;
+        let handle = self
+            .root
+            .handle(Path::new(&path))
+            .map_err(CoreError::Confined)?;
+        // A placeholder is reported before anything asks its length.
+        if self
+            .root
+            .placeholder(handle)
+            .map_err(CoreError::Read)?
+            .is_some()
+        {
+            return Err(CoreError::Read(ReadError::Unavailable));
+        }
+        // A length that cannot be had (the file is absent, or only its
+        // `.icloud` stand-in is there) is left to the read to say why.
+        if let Ok((len, _)) = self.root.length_and_time(handle)
+            && len > FOLDER_DATA_MOST as u64
+        {
+            return Err(refuse(format!(
+                "too large: {len} bytes, the most is {FOLDER_DATA_MOST}"
+            )));
+        }
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
+        Ok(DataFile {
+            text,
+            revision: revision::encode(&stamp),
+        })
+    }
+
+    /// Write a data file: with no `revision` a new file — `Exists` when
+    /// something stands there —, else over the version that revision
+    /// describes (`Changed` otherwise, nothing written). The text is one
+    /// JSON object of at most [`FOLDER_DATA_MOST`] bytes, kept as given.
+    /// Returns the revision of the bytes written.
+    pub fn write_folder_data(
+        &mut self,
+        kind: FolderDataKind,
+        id: &str,
+        text: &str,
+        revision: Option<&str>,
+    ) -> Result<String, CoreError> {
+        let path = path_of(kind, id)?;
+        check_text(text)?;
+        let stamp = match revision {
+            None => {
+                let (handle, report) = self
+                    .root
+                    .create(Path::new(&path), text.as_bytes())
+                    .map_err(CoreError::Write)?;
+                self.stamp_of_written(handle, report.stamp, text.as_bytes())
+            }
+            Some(revision) => {
+                let expected = Self::decode_revision(revision)?;
+                let handle = self
+                    .root
+                    .handle(Path::new(&path))
+                    .map_err(CoreError::Confined)?;
+                let report = self
+                    .root
+                    .write(handle, text.as_bytes(), &expected)
+                    .map_err(CoreError::Write)?;
+                self.stamp_of_written(handle, report.stamp, text.as_bytes())
+            }
+        };
+        self.layer_written();
+        Ok(revision::encode(&stamp))
+    }
+
+    /// Remove a data file through the bin, when it is still the version
+    /// `revision` describes (`Changed` otherwise, nothing moved).
+    pub fn remove_folder_data(
+        &mut self,
+        kind: FolderDataKind,
+        id: &str,
+        revision: &str,
+    ) -> Result<Trashed, CoreError> {
+        let path = path_of(kind, id)?;
+        let expected = Self::decode_revision(revision)?;
+        let handle = self
+            .root
+            .handle(Path::new(&path))
+            .map_err(CoreError::Confined)?;
+        let (_, current) = self.root.read(handle).map_err(CoreError::Read)?;
+        if current != expected {
+            return Err(CoreError::Write(WriteError::Changed { current }));
+        }
+        let (gone, report) = self
+            .root
+            .trash(Path::new(&path))
+            .map_err(CoreError::Write)?;
+        self.layer_written();
+        Ok(Trashed {
+            path: gone.to_string_lossy().into_owned(),
+            original: path,
+            warnings: report.warnings(),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_id_is_lower_case_short_and_not_a_device() {
+        for ok in ["a", "mesa-1", "0", "a-", &"a".repeat(64)] {
+            assert!(check_id(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            "",
+            "-a",
+            "A",
+            "aB",
+            "a..b",
+            "a/b",
+            "a\\b",
+            "..",
+            "a.json",
+            "a b",
+            "é",
+            "a\0",
+            &"a".repeat(65),
+            "con",
+            "nul",
+            "prn",
+            "aux",
+            "com1",
+            "lpt9",
+            "com0",
+        ] {
+            assert!(check_id(bad).is_err(), "{bad:?}");
+        }
+        assert!(check_id("com10").is_ok());
+        assert!(check_id("console").is_ok());
+    }
+
+    #[test]
+    fn a_text_is_one_json_object_within_the_bound() {
+        assert!(check_text("{}").is_ok());
+        assert!(check_text("[1]").is_err());
+        assert!(check_text("\"x\"").is_err());
+        assert!(check_text("not json").is_err());
+        let big = format!("{{\"a\":\"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
+        assert!(check_text(&big).is_err());
+    }
+}

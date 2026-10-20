@@ -24,6 +24,11 @@ pub use local::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
     LocalPhone, LocalServerStatus,
 };
+mod folder_data;
+pub use folder_data::{
+    FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings,
+    OracleSparks,
+};
 mod maps;
 pub use maps::{MapInfo, MapState};
 mod periodic;
@@ -170,6 +175,8 @@ pub struct FolderSettings {
     pub respect_gitignore: Option<bool>,
     /// The periodic notes' settings (ADR 0093 item 4).
     pub periodic: Option<PeriodicSettings>,
+    /// The oracle's odds and spark words (ADR 0102 item 2).
+    pub oracle: Option<OracleSettings>,
 }
 
 /// The folder's layer of settings as read now (ADR 0070 items 1–2).

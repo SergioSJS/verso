@@ -63,6 +63,10 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     // Obsidian's daily and periodic notes settings (ADR 0093 item 6): the
     // text of two configuration files, no byte of a note.
     ("get_obsidian_periodic", ForReader::Same),
+    // The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2):
+    // JSON files of its own, no byte of a note.
+    ("list_folder_data", ForReader::Same),
+    ("read_folder_data", ForReader::Same),
 ];
 
 /// How command `name` answers a reader; `None` for one a reader may not

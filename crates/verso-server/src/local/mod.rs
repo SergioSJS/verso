@@ -34,6 +34,8 @@ mod tests;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
+mod tests_parts_bin;
+#[cfg(test)]
 mod tests_serving;
 
 use std::collections::HashMap;
