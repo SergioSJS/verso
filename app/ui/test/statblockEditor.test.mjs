@@ -426,6 +426,10 @@ describe("the editor's controls for bands, marks and label templates", () => {
     key.value = "broken";
     key.dispatchEvent(new win.Event("input"));
     assert.deepEqual(m.findBlock(ed.session.layout, "f").flag, { key: "broken", label: { en: "Broken" } });
+    const count = ed.el.querySelector('[data-field="f.flag.count.en"]');
+    count.value = "{n} of {m} broken";
+    count.dispatchEvent(new win.Event("input"));
+    assert.deepEqual(m.findBlock(ed.session.layout, "f").flag, { key: "broken", label: { en: "Broken" }, count: { en: "{n} of {m} broken" } });
     ed.el.querySelector(".sbe-source").value = "-1";
     ed.el.querySelector(".sbe-source").dispatchEvent(new win.Event("change"));
     assert.ok(ed.el.querySelector(".sbe-card .statblock-trait-flagged"), "the sample marks an item");

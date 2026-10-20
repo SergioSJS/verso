@@ -101,8 +101,13 @@ function typeFields(host: FormHost, block: Block, set: Set): HTMLElement[] {
         }), e.flagHint));
         out.push(labelPair(flag.label, `${block.id}.flag.label`, [e.labelPt, e.labelEn], (v) => {
           const now = (fresh(host, block) as typeof block).flag ?? flag;
-          set({ flag: { key: now.key, ...(v ? { label: v } : {}) } }, "flag.label");
+          set({ flag: { key: now.key, ...(v ? { label: v } : {}), ...(now.count ? { count: now.count } : {}) } }, "flag.label");
         }));
+        out.push(labelPair(flag.count, `${block.id}.flag.count`, [e.flagCountPt, e.flagCountEn], (v) => {
+          const now = (fresh(host, block) as typeof block).flag ?? flag;
+          set({ flag: { key: now.key, ...(now.label ? { label: now.label } : {}), ...(v ? { count: v } : {}) } }, "flag.count");
+        }));
+        out.push(h("p", "sbe-hint", e.flagCountHint));
       }
       return out;
     }

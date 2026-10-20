@@ -154,6 +154,18 @@ describe("Fractal", () => {
     const ch = m.builtinLayouts().find((l) => l.id === "fractal-challenge");
     const c = m.renderStatblock(m.builtinSample("fractal-challenge"), undefined, { layout: ch });
     assert.match(c.querySelector('[data-block="reserva-1-valor"]').textContent, /^Vida.*10\/10/);
+    // Obstacles carry the Quebrado mark; the count is worked out, not stored.
+    const obs = [];
+    const c2 = m.renderStatblock(m.builtinSample("fractal-challenge"), undefined, { layout: ch, write: (at, v) => (obs.push([at, v]), { ok: true }) });
+    const count = c2.querySelector('[data-block="obstaculos"] .statblock-flag-count');
+    assert.equal(count.textContent, "1 de 3 quebrados");
+    const marks = [...c2.querySelectorAll('[data-block="obstaculos"] button.statblock-flag')];
+    assert.equal(marks[1].getAttribute("aria-label"), "Quebrado: Ninho de Krard");
+    assert.equal(c2.querySelector('[data-block="obstaculos"] .statblock-trait:nth-child(2) a.wikilink').dataset.target, "Ninho de Krard", "the link still opens the note");
+    marks[1].click();
+    assert.deepEqual(obs, [[["obstaculos", 1, "quebrado"], true]]);
+    assert.equal(count.textContent, "2 de 3 quebrados");
+    assert.equal(c2.querySelector('[data-block="obstaculos-quebrados"]'), null, "no stored counter");
     assert.equal(c.querySelector('[data-block="reserva-3-valor"]'), null, "a slot with no name hides");
     const row = c.querySelector('[data-block="obstaculos"]');
     assert.equal(row.querySelectorAll(".statblock-trait").length, 3);
