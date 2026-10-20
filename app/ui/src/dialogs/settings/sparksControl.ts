@@ -6,14 +6,13 @@
 // Off, the sparks draw Verso's own words in the window's language — shown
 // as a preview, never a language to choose here. On, the folder's own four
 // lists, as chips, saved by themselves a moment after each change, one set
-// whatever the language. Back to Verso's words writes the built-in set
-// (the folder's file cannot unset its words), which reads back as Verso's
-// words again (`isBuiltinSparks`), with a way to undo.
+// whatever the language. Back to Verso's words takes the lists out of the
+// folder's file (the contract's `clear_sparks`), with a way to undo.
 
 import { button, h } from "../../dom";
 import { icon } from "../../icons";
 import { builtinSparkWords, folderHasSparks, generateSpark, getSparkWords, type SparkWordLists } from "../../oracle/engine";
-import { legacySparksKept, ORACLE_DATA_CHANGED, oracleNotWritable, saveSparks, sparksIgnored } from "../../oracle/folderData";
+import { legacySparksKept, ORACLE_DATA_CHANGED, oracleNotWritable, saveSparks, clearSparks, sparksIgnored } from "../../oracle/folderData";
 import { copyWords, sameWords } from "../../oracle/settingsModel";
 import { isPt } from "../../oracle/strings";
 import { chipList, type ChipList } from "./chipList";
@@ -79,8 +78,9 @@ export function sparksControl(): HTMLElement {
   let lists: Partial<Record<(typeof KEYS)[number], ChipList>> = {};
   let timer = 0;
 
-  const save = async (next: SparkWordLists, text: string, undo?: () => void): Promise<boolean> => {
-    const ok = await saveSparks(next);
+  /** Save `next`, or take the lists out of the file when it is null. */
+  const save = async (next: SparkWordLists | null, text: string, undo?: () => void): Promise<boolean> => {
+    const ok = next ? await saveSparks(next) : await clearSparks();
     if (!ok) said.say(ow.saveFailed, true);
     else if (text) said.say(text, false, undo);
     return ok;
@@ -145,7 +145,7 @@ export function sparksControl(): HTMLElement {
     own = false;
     box.checked = false;
     if (had) {
-      const ok = await save(builtinSparkWords(lang), ow.backDone, () => {
+      const ok = await save(null, ow.backDone, () => {
         void save(had, ow.undone).then((done) => {
           if (!done) return;
           own = true;

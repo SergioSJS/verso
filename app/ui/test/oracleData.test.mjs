@@ -99,18 +99,16 @@ test("the folder's spark words serve both languages; unusable ones are the built
   assert.doesNotThrow(() => O.generateSpark("pt"));
 });
 
-test("a built-in set of words written back to the folder is Verso's words again, in the window's language", () => {
-  // "Back to Verso's words" writes the built-in set (the file cannot unset
-  // the key): read back, it is no folder set, and each window draws its own.
-  O.useFolderOracle(() => ({ odds: null, sparks: O.builtinSparkWords("pt") }));
+test("a folder that stored the built-in set has it as its own words now", () => {
+  // "Back to Verso's words" clears the key; a set an older build wrote back
+  // is just the folder's words, drawn whatever the language.
+  const pt = O.builtinSparkWords("pt");
+  O.useFolderOracle(() => ({ odds: null, sparks: pt }));
+  assert.equal(O.folderHasSparks(), true);
+  assert.deepEqual(O.getSparkWords("en"), pt);
+  O.useFolderOracle(() => ({ odds: null, sparks: null }));
   assert.equal(O.folderHasSparks(), false);
   assert.deepEqual(O.getSparkWords("en"), O.builtinSparkWords("en"));
-  const edited = O.builtinSparkWords("pt");
-  edited.focus = edited.focus.slice(1);
-  O.useFolderOracle(() => ({ odds: null, sparks: edited }));
-  assert.equal(O.folderHasSparks(), true);
-  assert.deepEqual(O.getSparkWords("en"), edited);
-  O.useFolderOracle(() => ({ odds: null, sparks: null }));
 });
 
 test("the settings page's styles: Equilibrado is the default table, each row adds to 100, and a table is named by its style", () => {

@@ -10,7 +10,7 @@
 
 import { button, h } from "../../dom";
 import { folderHasOdds, getOddsTable, type Likelihood, type OddsTable, oddsFromRows } from "../../oracle/engine";
-import { legacyOddsKept, oddsIgnored, ORACLE_DATA_CHANGED, oracleNotWritable, saveOdds } from "../../oracle/folderData";
+import { legacyOddsKept, oddsIgnored, ORACLE_DATA_CHANGED, oracleNotWritable, saveOdds, clearOdds } from "../../oracle/folderData";
 import { STYLE_IDS, type StyleId, styleOf, styleTable } from "../../oracle/settingsModel";
 import { os } from "../../oracle/strings";
 import { undoLine } from "./feedback";
@@ -117,7 +117,11 @@ export function oddsControl(): HTMLElement {
     save: async (table: OddsTable, level: Likelihood) => void (await save(table, ow.rowSaved(os.likelihood[level]))),
     restore: () => {
       const before = getOddsTable();
-      void save(styleTable("balanced"), ow.restored, before).then((ok) => ok && refresh(true));
+      void clearOdds().then((ok) => {
+        if (ok) said.say(ow.restored, false, () => void apply(before, ow.undone));
+        else said.say(ow.saveFailed, true);
+        refresh(true);
+      });
     },
   });
 
