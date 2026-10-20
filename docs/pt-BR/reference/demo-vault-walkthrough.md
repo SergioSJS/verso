@@ -263,8 +263,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     escreve o link, Esc ou seguir digitando dispensa e o nome não é
     oferecido de novo naquele parágrafo; nada aparece dentro de código, de
     um link ou do cabeçalho de propriedades, nem para a própria nota; no
-    celular o aviso é tocado. Nível: S, U (`test/linkSuggest.test.mjs`, com
-    o benchmark de 10.000 notas), H; E: `typing-links.spec.mjs`.
+    celular o aviso é tocado. Revisado em 2026-10-20: digitar o começo de
+    um nome (três letras, primeira palavra com maiúscula: "Por", "Porto C")
+    lista até cinco notas e apelidos que começam assim, as setas escolhem,
+    Tab ou Enter escreve o link sobre o que foi digitado, Esc dispensa a
+    lista para aquela palavra; o aviso do nome inteiro fica depois de um
+    espaço ou de uma vírgula até a próxima palavra começar, e Tab então liga
+    o nome sem o espaço. E, ligado por padrão (Ajustes › Editor › "Citar
+    uma nota com @"), `@` no começo de uma palavra abre a lista de notas do
+    `[[`: escolher escreve `[[Nome]]` sobre o `@` e o que foi digitado, Esc
+    deixa o texto, e `fulano@mail`, código, links, fórmulas e tags nunca o
+    abrem; a lista do `[[` vence a do `@`, que vence a lista parcial.
+    Nível: S, U (`test/linkSuggest.test.mjs`,
+    `test/linkSuggestPartial.test.mjs`, com o benchmark de 10.000 notas),
+    H; E: `typing-links.spec.mjs`.
 15. Nota 24 (ADR 0088): na Leitura cada código `dice:` é um botão de dado
     chamado "Rolar 1d20+5" e assim por diante; um clique, ou Tab até ele e
     Enter, mostra o total, cada dado e o que foi somado num cartão ao lado,
