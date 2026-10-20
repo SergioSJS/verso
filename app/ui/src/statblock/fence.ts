@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/** Whether a fence's info string names a statblock: `statblock`, or
- *  `statblock-` and a suffix (one rule for both views, ADR 0099 item 1). */
+/** Whether a fence's info string names a statblock: `statblock` only, in
+ *  any case (one rule for both views, ADR 0099 item 1, spec section 6). */
 export function isStatblockFence(info: string): boolean {
   const word = info.trim().split(/\s/, 1)[0]?.toLowerCase() ?? "";
-  return word === "statblock" || word.startsWith("statblock-");
+  return word === "statblock";
 }
 
 /** Whether a rendered fence's `<code>` is a statblock: its `language-…`

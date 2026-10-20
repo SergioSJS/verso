@@ -10,9 +10,9 @@ import * as esbuild from "esbuild";
 await esbuild.build({
   stdin: {
     contents: `export { validateLayout, readLabel, slugId } from "./src/statblock/validate";
-export { checkPattern, MAX_SCAN } from "./src/statblock/regexGuard";
+export { checkPattern, MAX_SCAN, PROBE_MS, probeTime, probesFor } from "./src/statblock/regexGuard";
 export { modifierOf, checkExpression, signed } from "./src/statblock/modifier";
-export { diceIn, D20_RULES, PLAIN_RULES } from "./src/statblock/dice";
+export { diceIn, D20_RULES, PLAIN_RULES, beginDiceBudget, endDiceBudget } from "./src/statblock/dice";
 export { importLayout, exportLayout } from "./src/statblock/fsInterop";
 export { builtinLayouts, builtinProblems } from "./src/statblock/builtin";
 export { readSheet, textOf, numberOf } from "./src/statblock/sheet";
@@ -139,21 +139,59 @@ describe("dice patterns that could hang the window are refused", () => {
     }
   });
 
+  test("polynomial blow-ups are refused (review B1)", () => {
+    for (const p of ["\\w+\\w+b", "a?a?a?a?a?a?a?a?a?a?\\w+\\w+b", "(?=\\w+\\w+c)\\d", "[\\s\\S]+[\\s\\S]+x"]) {
+      const r = m.checkPattern(p);
+      assert.equal(r.ok, false, p);
+      assert.equal(r.why, "tooMany", p);
+    }
+  });
+
+  test("the timed probe refuses a slow pattern with one unbounded quantifier", () => {
+    // One `+`, twelve optional atoms: the shape passes, the clock does not.
+    const p = "a?a?a?a?a?a?a?a?a?a?a?\\w+b";
+    assert.equal(m.checkPattern(p).ok, false);
+    assert.equal(m.checkPattern(p).why, "slow");
+    assert.ok(m.probesFor(p).every((x) => x.length === m.MAX_SCAN));
+  });
+
+  test("every probe of every built-in rule runs well under the bound", () => {
+    for (const l of m.builtinLayouts()) for (const r of l.diceRules) {
+      const c = m.checkPattern(r.pattern);
+      assert.equal(c.ok, true, r.pattern);
+      assert.ok(m.probeTime(c.re) < m.PROBE_MS, r.pattern);
+    }
+  });
+
+  test("the verdict is cached by pattern", () => {
+    assert.equal(m.checkPattern("\\d+x"), m.checkPattern("\\d+x"));
+  });
+
+  test("a card's time budget stops further matching", () => {
+    m.beginDiceBudget(-1);
+    const out = m.diceIn("2d6", m.PLAIN_RULES);
+    assert.equal(m.endDiceBudget(), true);
+    assert.deepEqual(out, [{ text: "2d6" }]);
+    m.beginDiceBudget();
+    assert.equal(m.diceIn("2d6", m.PLAIN_RULES).length, 1);
+    assert.equal(m.endDiceBudget(), false);
+  });
+
   test("the default rules pass", () => {
     for (const r of [...m.D20_RULES, ...m.PLAIN_RULES]) assert.equal(m.checkPattern(r.pattern).ok, true, r.pattern);
   });
 
   test("a hostile text against the defaults finishes fast", () => {
-    const text = "1".repeat(1999) + "d";
+    const text = "1".repeat(m.MAX_SCAN - 1) + "d";
     const t0 = Date.now();
     m.diceIn(text, m.D20_RULES);
-    m.diceIn("+".repeat(1999), m.D20_RULES);
-    m.diceIn(" (".repeat(999), m.D20_RULES);
+    m.diceIn("+".repeat(m.MAX_SCAN - 1), m.D20_RULES);
+    m.diceIn(" (".repeat(m.MAX_SCAN / 2 - 1), m.D20_RULES);
     assert.ok(Date.now() - t0 < 500);
   });
 
   test("past the scan bound a text is words", () => {
-    const long = "2d6 ".repeat(1000);
+    const long = "2d6 ".repeat(m.MAX_SCAN);
     assert.equal(m.diceIn(long, m.D20_RULES).length, 1);
   });
 });
