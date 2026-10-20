@@ -11,22 +11,66 @@ status: ativo
 
 # Fichas, Oráculos e Criação de Mundos
 
-O Verso inclui ferramentas visuais para mestres de RPG, jogadores solo e construtores de mundos fictícios. Todas funcionam sob o mesmo princípio dos arquivos locais: **nada além do Markdown puro é gravado em disco**, garantindo que seus personagens, cenários e anotações permaneçam legíveis em qualquer outro editor de texto.
+Ferramentas para mestres, jogadores solo e quem constrói mundos — ou só escreve ficção. Tudo segue o princípio dos arquivos: o que as ferramentas criam é **Markdown puro** na sua nota, legível em qualquer editor. Aqui você aprende fazendo.
+
+---
+
+## 🎚️ Ligar e desligar: Ajustes › Aplicação › Recursos
+
+Cada ferramenta é um recurso com a sua chave: **Dados**, **Tabelas sorteadas**, **Oráculos**, **Fichas** e **Assistente de mundo e campanha**. Todas vêm **ligadas**. Os atalhos **Tudo** e **Só escrita** ligam ou desligam todas de uma vez — antes, o Verso mostra o que vai mudar, e você pode cancelar.
+
+Desligar não muda arquivo nenhum: uma ficha vira um bloco de código, um `[!oracle]` vira um destaque comum, como o Obsidian os mostra sem o plugin. Ligar de novo traz tudo de volta. A escolha é **sua**: uma pasta nunca liga nem desliga um recurso para quem a abre.
+
+---
+
+## 🔮 Oráculo
+
+Para jogo solo, improviso ou uma cena travada. Um destaque `[!oracle]` é a pergunta; a resposta vai **escrita na nota**:
+
+> [!oracle] A patrulha da guarda ouviu o barulho da invasão?
+> **Sim, mas…** _(d100: 33, 50 / 50)_
+> Um oficial novato acha que foi só um gato derrubando caixotes.
+
+**Experimente.** Clique em **Consultar Oráculo**, no cabeçalho do destaque acima. A janela abre com a pergunta já preenchida:
+
+1. Em **Sim ou Não**, escolha a **Chance** — *Quase impossível*, *Improvável*, *50 / 50*, *Provável* ou *Quase certo* — e clique em **Consultar**. O Verso rola um d100 contra a linha daquela chance e lê uma de seis respostas: *Sim, e…*, *Sim*, *Sim, mas…*, *Não, mas…*, *Não* ou *Não, e…*.
+2. Clique em **Gravar no callout**: uma linha de resposta entra no destaque.
+3. Consulte **a mesma pergunta** de novo: a nova resposta entra **abaixo** da anterior. As respostas se **acumulam**.
+4. Reescreva a pergunta no destaque e consulte: só as linhas que o **oráculo** escreveu são trocadas. **O que você escreveu à mão nunca é apagado** — a linha do oficial novato, acima, fica.
+
+Se o cursor não está num destaque, o botão se chama **Inserir na nota** e cria um destaque novo no cursor — nunca dentro de uma citação, tabela ou bloco de código. A janela também abre pelo `/` do editor (**Consultar Oráculo…**; **Oráculo** insere um destaque vazio) ou pela paleta (`⌘⇧P` › *Oráculo (sim/não e faíscas)…*).
+
+As outras abas: **Faíscas** sorteia dois pares de palavras, *Ação + Tema* e *Descritor + Foco*, para destravar uma ideia; **Tabelas** sorteia numa tabela embutida ou numa tabela das suas notas.
+
+### Tabelas são notas
+
+Uma tabela Markdown ou uma lista com um identificador `^id` é sorteável, em qualquer pasta:
+
+| d6 | Reviravolta inesperada |
+|:--:|---|
+| 1 | Um aliado de confiança revela uma dívida secreta |
+| 2 | O clima vira tempestade violenta ou névoa espessa |
+| 3 | Um recurso vital (chave, mapa, suprimento) foi roubado |
+| 4 | Uma pista antiga aponta para uma ameaça mais urgente |
+| 5 | Uma patrulha rival chega no pior momento |
+| 6 | Algo sobrenatural muda as regras do lugar |
+^reviravolta
+
+No texto, `dice: [[#^reviravolta]]` vira um botão que sorteia uma linha. Todas as tabelas da pasta aparecem também na aba **Tabelas** do oráculo — com o nome da nota de onde vêm.
+
+### As chances e as palavras ficam na pasta
+
+Em **Ajustes › RPG & Mesa Solo › Oráculos e Solo RPG** você muda a tabela de chances (cada linha soma 100%), as palavras das faíscas e cria tabelas (**+ Nova Tabela**, que escreve uma nota). Esses valores ficam **na pasta** — em `.verso/settings.json` — e valem para todos que a abrem: se você compartilha a pasta, a pessoa vê o oráculo como você vê.
+
+Numa sala de um servidor, quem **sorteia** é o servidor, e todos da sala veem quem consultou.
 
 ---
 
 ## 🛡️ Fichas (statblocks)
 
-Um bloco de código com a linguagem `statblock` desenha uma ficha a partir do YAML que ele guarda. As chaves são as do plugin **Fantasy Statblocks** do Obsidian (`name`, `size`, `type`, `ac`, `hp`, `hit_dice`, `speed`, `stats`, `saves`, `skillsaves`, `senses`, `languages`, `cr`, `traits`, `actions`, `reactions`, `legendary_actions`, `image`…): um bloco escrito para o plugin aparece igual no Verso, e um escrito no Verso aparece no Obsidian com o plugin. Sem o plugin, o Obsidian mostra o bloco como código — e o arquivo é sempre o mesmo texto.
+Um bloco de código com a linguagem `statblock` desenha uma ficha a partir do YAML que ele guarda. As chaves são as do plugin **Fantasy Statblocks** do Obsidian (`name`, `ac`, `hp`, `stats`, `traits`, `actions`…): um bloco escrito para o plugin aparece igual aqui, e um escrito aqui aparece lá. Sem o plugin, o Obsidian mostra o código — o arquivo é sempre o mesmo texto.
 
-Quem decide o desenho é o **layout**, escolhido com `layout:` pelo id ou pelo nome (maiúsculas e acentos não importam). Um layout que não existe desenha o padrão e avisa na própria ficha. O Verso traz dois layouts embutidos:
-
-- **Criatura d20** (`d20-creature`, o padrão): as chaves do Fantasy Statblocks, na ordem do layout básico do plugin. Também atende por `Basic 5e Layout`, o nome que o plugin usa.
-- **Fatos e contadores** (`facts-trackers`): para qualquer sistema — `name`, `type`, `description`, uma lista de `facts`, `actions`, `notes` e três contadores: vida (`health` de `health_max`), estresse (`stress` de `stress_max`) e um relógio (`clock` de `clock_size`). Rola só dados escritos como dados.
-
-Os layouts de cada sistema, cada campo com a sua fonte, chegam depois; até lá, um layout de outro sistema é um arquivo que você importa.
-
----
+O desenho vem do **layout**, escolhido com `layout:` pelo id ou pelo nome (maiúsculas e acentos não importam). Um layout que não existe desenha o padrão e avisa na própria ficha.
 
 ### Exemplo 1: uma criatura d20
 
@@ -54,11 +98,9 @@ actions:
     desc: "Corpo a corpo: +4 para acertar, alcance 1,5 m. Dano: 5 (1d6 + 2) cortante."
 ```
 
-Na ficha, `+4 para acertar` (ou `to hit`), `5 (1d6 + 2)`, os modificadores da tabela de atributos e `Furtividade +6` ganham um dado ao lado: um clique rola, e o resultado aparece sem ser gravado na nota (numa sala, quem rola é o servidor e todos veem). `PV atuais` é um contador: os botões − e + gravam o novo número em `hp_current`, e só ele muda no texto do bloco.
+**Experimente.** Na ficha, `+4 para acertar`, `5 (1d6 + 2)`, os modificadores e `Furtividade +6` têm um **dado** ao lado: um clique rola, e o resultado aparece sem ser gravado na nota. `PV atuais` é um **contador**: os botões − e + gravam o novo número em `hp_current`, e só ele muda no texto do bloco — abra o modo **Fonte** e confira. Num servidor, quem rola é o servidor e todos veem.
 
----
-
-### Exemplo 2: fatos e contadores, de qualquer sistema
+### Exemplo 2: fatos e contadores, para qualquer sistema
 
 ```statblock
 layout: Fatos e contadores
@@ -79,110 +121,41 @@ actions:
     desc: Névoa gélida em quem estiver perto, 1d8+3 de frio.
 ```
 
-Cada caixa do estresse e do relógio é um botão: clicar marca até ela, clicar de novo na última desmarca. Com o teclado, Tab chega ao grupo, as setas mudam o valor, Home zera e End enche. O clique é a sua ação: grava só aquele número no YAML do bloco, sem tocar no resto (comentários, aspas e ordem ficam). Se dois cliques numa sala deixarem um valor que não é número ou passa do máximo, a ficha mostra o valor como está e um botão **Corrigir**.
+Cada caixa de estresse e do relógio é um botão: clicar marca até ela, clicar de novo na última desmarca. Com o teclado, `Tab` chega ao grupo, as setas mudam o valor, `Home` zera e `End` enche. O clique grava **só aquele número** no YAML — comentários, aspas e ordem ficam. Se dois cliques numa sala deixarem um valor que não é número ou passa do máximo, a ficha mostra o valor como está e o botão **Corrigir**.
+
+### Os layouts que vêm com o Verso
+
+Há layouts de sistemas abertos (D&D 5e SRD, Pathfinder 2e, Blades in the Dark, Fate, Ironsworn, Cairn, Mausritter e outros — cada um com o aviso da sua licença em **Créditos**), o **Fractal** (personagem e desafio) e layouts genéricos, nomeados pela mecânica: *Criatura d20*, *Percentil*, *Movimentos 2d6*, *Pool de d6*, *Pool por dificuldade*, *Escada e aspectos* e *Fatos e contadores*.
+
+Um layout pode ter **bloco de rolagem** — um botão como *Rolar (Fractal)* que pergunta, por exemplo, quantos fatos se aplicam e mostra o resultado como o sistema lê — e **contadores** como os acima. E um layout de **fatos ou obstáculos** pode ter a marca **Quebrado** por item: um botão que risca o item e grava `quebrado: true` no YAML, com a contagem *N de M quebrados* no título.
+
+### Layouts em Ajustes › RPG & Mesa Solo › Fichas e Templates
+
+- Os layouts **embutidos** não mudam. **Duplicar para a pasta** cria uma cópia em `.verso/layouts/` — um arquivo da pasta, que sincroniza: quem abre a pasta vê a ficha igual.
+- **Copiar JSON** leva um layout para onde você quiser; **Importar JSON** traz um do Verso ou do Fantasy Statblocks. Do plugin, o que era código (JavaScript) fica de fora — nada de um layout roda como código — e o Verso lista o que deixou de fora.
+- **Editar** (ou o lápis, *Editar este layout*, no canto de uma ficha) abre o **editor de layout**: a árvore de blocos à esquerda e a ficha à direita, redesenhada a cada mudança com uma ficha desta nota ou com uma amostra. Clique num bloco para abrir as opções dele logo abaixo — as chaves que lê, o rótulo em português e em inglês, quando se esconde. **Adicionar bloco** lista cada tipo com uma linha do que faz. Mova arrastando pela alça ou com `Alt`+setas (`Alt`+→ põe dentro do grupo acima, `Alt`+← tira); `⌘Z` desfaz. Editar um embutido cria antes uma cópia na pasta, e o editor avisa. **Salvar** grava em `.verso/layouts/`; se outra pessoa mudou o layout enquanto você editava, nada é gravado por cima — você escolhe carregar a versão dela ou salvar a sua como cópia.
+
+Um bloco `statblock` com o YAML inválido mostra o código como está; enquanto você digita, a ficha mantém a última versão lida. O botão **Ver código** / **Ver ficha** alterna entre os dois.
 
 ---
 
-### Layouts em Ajustes › Fichas e Templates
+## 🏰 Novo projeto a partir de modelo
 
-- Os layouts **embutidos** vêm com o Verso e não mudam. **Duplicar para a pasta** cria uma cópia em `.verso/layouts/` — um arquivo da pasta, que sincroniza: quem abre a pasta vê a ficha igual.
-- **Copiar JSON** leva o layout para onde você quiser; **Importar JSON** traz um layout do Verso ou do Fantasy Statblocks. Do plugin, o que era código (JavaScript: `callback`, `javascript`, botões de ação, testes de `ifelse`, os `parser` de dados) fica de fora — nada de um layout roda como código — e o Verso lista o que deixou de fora.
-- **Editar** (ou o botão de lápis no canto de uma ficha, *Editar este layout*) abre o editor: a árvore de blocos à esquerda e a ficha à direita, desenhada a cada mudança com uma ficha desta nota ou com uma amostra. Clique num bloco e as opções dele abrem logo abaixo: as chaves que lê, o rótulo em português e em inglês, quando se esconde. **Adicionar bloco** lista cada tipo com uma linha do que ele faz. Mova arrastando pela alça ou com Alt+setas (Alt+→ põe dentro do grupo acima, Alt+← tira); ⌘Z desfaz. Editar um embutido cria antes uma cópia na pasta, e o editor avisa. Se outra pessoa mudou o layout enquanto você editava, nada é gravado por cima: você escolhe carregar a versão dela ou salvar a sua como cópia.
+Em vez de criar pastas e arquivos um a um para um mundo, uma campanha ou um livro, use o assistente:
 
-### Dicas
+1. No menu de criar da barra lateral, escolha **Novo projeto a partir de modelo…** (ou `⌘⇧P` › *Novo projeto a partir de modelo…*).
+2. Dê um **nome**, escolha a **pasta de destino** e um **modelo**: *Campanha de RPG (Dados Críticos)*, *Construção de Mundo (Worldbuilding)*, *Escrita de Romance e Ficção* ou *Organização Pessoal (P.A.R.A.)*. Abaixo, a prévia lista as pastas e os arquivos.
+3. **Criar estrutura** mostra a árvore completa — *Confira o que será criado* — **antes de escrever qualquer coisa**. Desmarque o que não quer (uma pasta desmarcada leva o que há dentro) ou mude um nome, e confirme com **Criar agora**.
+4. Nada que já existe é sobrescrito: o relatório diz o que foi criado, o que já estava lá e o que foi recusado.
 
-1. **Leitura**: o botão `</>` no canto da ficha mostra o código; o do código volta para a ficha.
-2. **Editar (Live Preview)**: com o cursor fora do bloco, a ficha; dentro, o YAML. Se o YAML ficar inválido enquanto você digita, a ficha mostra a última versão que leu, com um aviso. Um bloco com mais de 256 KB não é lido e diz isso.
-3. **Recursos desligados**: com *Fichas* desligado em Ajustes › Aplicação › Recursos, o bloco aparece como código; com *Dados* desligado, a ficha não rola nada.
-
----
-
-## 🔮 Oráculos e Solo RPG
-
-Para jogadores solo, improvisação de mestres ou escritores em busca de reviravoltas na trama, o Verso possui uma central de oráculos graduados e geradores de improviso.
-
-### Destaque de Oráculo na Nota
-
-O destaque de oráculo é um callout nativo interativo. Veja um exemplo real em funcionamento:
-
-> [!oracle] A patrulha da guarda ouviu o barulho da invasão?
-> **Sim, mas…** _(d100: 33, 50 / 50)_ um oficial novato acha que foi apenas um gato derrubando caixotes no beco.
-
-No cabeçalho do destaque acima, o Verso exibe um botão **Consultar Oráculo**. Ao clicar nele, a janela do Oráculo se abre com a pergunta da nota já preenchida.
-
-Para escrever um destaque desse tipo em qualquer nota, basta usar:
-```text
-> [!oracle] Sua pergunta aqui?
-> Sua resposta ou anotação do oráculo.
-```
+Na aba **Gerador com IA**, **Copiar System Prompt para IA** copia as instruções para colar no Claude, no ChatGPT ou no Gemini (o Verso não envia nada a lugar nenhum). Cole de volta o JSON que a IA devolver e clique em **Validar e Importar**: o modelo entra na lista. Se o JSON não passa, **Copiar pedido de correção para a IA** diz o que está errado.
 
 ---
 
-### A Janela do Oráculo
+## 🙏 Créditos
 
-Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de comandos (`⌘⇧P` › *Oráculo (sim/não e faíscas)…*). Ela possui três abas principais:
-
-1. **Sim ou Não**: Escolha a probabilidade da pergunta (*Quase impossível*, *Improvável*, *50 / 50*, *Provável*, *Quase certo*). O Verso rola um `d100` calibrado e avalia o resultado em seis faixas narrativas:
-   - *Sim, e…* (sucesso com benefício extra)
-   - *Sim* (sucesso limpo)
-   - *Sim, mas…* (sucesso com complicação)
-   - *Não, mas…* (falha com alívio ou pista)
-   - *Não* (falha simples)
-   - *Não, e…* (falha crítica com perigo iminente)
-2. **Faíscas de Ideias**: Sorteie pares de conceitos para destravar a imaginação (*Ação + Tema* ou *Descritor + Foco*, ex.: *Investigar Segredo*, *Sombrio Portal*).
-3. **Tabelas do Cofre**: Sorteie diretamente em tabelas temáticas prontas (*Reviravoltas na Trama*, *Complicações & Perigos*, *Clima & Atmosfera*, *NPC: Disposição & Motivo*).
-
-Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota**. Se o cursor está num destaque `[!oracle]` que já existe, a resposta é gravada dentro dele e as respostas se acumulam: rolar de novo a mesma pergunta acrescenta uma linha nova e mantém as anteriores (se você reescreveu a pergunta, as linhas que o oráculo gerou são trocadas; o que você escreveu à mão nunca é apagado). Sem um destaque, o Verso insere um novo no ponto do cursor.
+**Ajustes › Aplicação › Créditos e agradecimentos** lista as pessoas e obras de que o Verso parte (como o Fractal, de Igor Téuri e Walter Licínio), os avisos de licença dos layouts de ficha e o software livre. **Abrir** leva ao site de cada um no navegador.
 
 ---
 
-### 🎲 Como criar e customizar seus próprios Oráculos
-
-No Verso, qualquer tabela Markdown ou lista com um identificador de bloco (`^id`) é tratada como um **oráculo sorteável**:
-
-| d6 | Reviravolta Inesperada |
-|:--:|---|
-| 1 | Um aliado de confiança revela uma dívida ou lealdade secreta |
-| 2 | O clima vira tempestade violenta ou névoa espessa |
-| 3 | Um recurso vital (chave, mapa, suprimento) foi roubado ou danificado |
-| 4 | Uma pista antiga aponta para uma ameaça muito mais urgente |
-| 5 | Uma patrulha rival chega no momento mais inoportuno |
-| 6 | Uma manifestação sobrenatural altera as regras do local |
-^reviravolta
-
-Você pode rolar o seu oráculo customizado de duas maneiras:
-- **No texto**: escreva `dice: [[#^reviravolta]]` para criar um botão de sorteio que escolhe uma linha aleatória sempre que for clicado.
-- **Pela janela do Oráculo**: acesse a aba *Tabelas do Cofre* para sortear ou consultar qualquer tabela que você criar nas suas notas.
-
----
-
-## 🏰 Criar Novo Mundo ou Campanha
-
-Em vez de criar dezenas de pastas e arquivos manualmente para organizar um novo cenário de RPG ou campanha de ficção, o Verso oferece um assistente estruturado:
-
-1. Clique no botão **`+`** na barra lateral de arquivos e escolha **Novo projeto a partir de modelo…** (ou use a paleta de comandos: `⌘⇧P` › *Novo projeto a partir de modelo…*).
-2. **Modelos Prontos**: Escolha entre pacotes embutidos como:
-   - *Tormenta20 / Fantasia Medieval*: Pastas organizadas para Sessões, Facções, Personagens, Cidades, Itens e Ameaças, já com modelos pré-configurados.
-   - *Ciberpunk / Ficção Científica*: Dossiês de megacorporações, implantes, missões e NPCs.
-   - *Campanha Hexcrawl*: Controle de rumores, encontros aleatórios e hexágonos explorados.
-3. **Gerador com IA**:
-   - Clique na aba **Gerador com IA** e use o botão **Copiar System Prompt**.
-   - Cole a instrução no Claude, ChatGPT ou Gemini dizendo qual o seu tema (ex.: *"Mundo de piratas fantasmagóricos"*).
-   - A IA devolverá um JSON estruturado. Cole de volta no assistente e clique em **Validar e Importar**. Seu novo pacote aparecerá na lista para ser criado em qualquer pasta.
-
----
-
-## 🎛️ Modos de Uso (Presets)
-
-Se você utiliza o Verso apenas para escrever notas diárias e não quer botões de dados ou oráculos aparecendo nos menus, você pode ajustar o ambiente em **Ajustes (`⌘,`) › Geral › Modo de Uso (Preset)**:
-
-- **Escrita Pura**: Interface limpa e minimalista. Esconde rolagens de dados, oráculos e botões de ficha, focando 100% na tipografia e no texto.
-- **Construção de Mundos**: Ativa oráculos, tabelas sorteadas, infoboxes e modelos de criação de mundos, sem fichas de combate.
-- **RPG Completo**: Todas as capacidades ativas — fichas visuais, dados, oráculos graduados e assistente de campanha.
-
-> [!NOTE] Degradação Graciosa
-> Trocar de modo nunca modifica ou apaga arquivos do seu computador. Se você abrir uma nota com `statblock` no modo Escrita Pura, o bloco continua lá, exibido de forma limpa como código formatado. Ao voltar para RPG Completo, os cartões visuais reaparecem instantaneamente.
-
----
-
-Volte para as regras de rolagens em [[25 - Dados e Tabelas Sorteadas]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Volte às regras de rolagens em [[25 - Dados e Tabelas Sorteadas]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
