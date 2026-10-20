@@ -249,6 +249,12 @@ banco em `VERSO_DATA_DIR`, uma exceção como a do `verso-index`. O
   ([ADR 0051](adr/0051-development-flow-and-releases.md)).
 - Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
   `CHANGELOG.md` e no `docs/pt-BR/CHANGELOG.md`.
+- Uma mudança que o usuário vê termina com o beta instalado no Mac pelo
+  `scripts/install-beta.sh`, nunca copiando um binário à mão: ele compila
+  a janela primeiro e falha se o log do app não disser que subiu este
+  commit ([ADR 0051](adr/0051-development-flow-and-releases.md), revisado
+  em 2026-10-20). O harness do navegador ou uma cópia de desenvolvimento
+  não é o app.
 - Uma mudança que o usuário vê também atualiza o tutorial, o cofre de
   exemplo ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)): uma nota que a
   ensina, um cartão ou uma linha no "Tour do Verso" e, para o board, uma

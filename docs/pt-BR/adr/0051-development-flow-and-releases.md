@@ -62,6 +62,17 @@
   mantenedor não vai se inscrever no Apple Developer Program nem pagar à
   Apple (0095, Revisões). O app do Mac continua assinado ad hoc, como diz a
   Consequência deste ADR; o build de Mac x64 vale.
+  2026-10-20 — o beta a partir de um checkout. Outro agente instalou um
+  beta copiando um binário compilado antes da janela, e as correções que
+  ele relatou nunca chegaram ao app; o mantenedor: *"Deveria ser óbvio
+  para qualquer agente de IA que estiver operando o repositório qual o
+  fluxo correto de deploy"*. Uma mudança que o usuário vê termina com o
+  beta instalado no Mac pelo `scripts/install-beta.sh`, que compila a
+  janela primeiro, compila os binários nativamente, põe o `ui-web` e as
+  chaves do Info.plist no bundle, assina ad hoc, fecha o beta aberto sem
+  perder trabalho e falha se o log não disser `started <versão>
+  (<commit>)` sem ERROR. O README o lista; o `AGENTS.md` aponta todo
+  agente para o `CLAUDE.md`.
 
 ## Contexto
 

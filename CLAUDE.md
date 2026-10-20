@@ -252,6 +252,11 @@ its own database in `VERSO_DATA_DIR`, an exception like `verso-index`'s.
   to it ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
 - A change a user can see adds its line under "Unreleased" in `CHANGELOG.md`
   and in `docs/pt-BR/CHANGELOG.md`.
+- A change a user can see ends with the beta installed on the Mac by
+  `scripts/install-beta.sh`, never by copying a binary by hand: it builds
+  the window first and fails unless the app's log says it started this
+  commit ([ADR 0051](docs/adr/0051-development-flow-and-releases.md),
+  revised 2026-10-20). The browser harness or a dev copy is not the app.
 - A change a user can see also updates the tutorial, the demo vault
   ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)): a note that teaches
   it, a card or a line on "Tour do Verso", and, for the board, a lesson or a
