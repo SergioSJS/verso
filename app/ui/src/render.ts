@@ -10,6 +10,7 @@ import { h } from "./dom";
 import { icon } from "./icons";
 import { markSecrets } from "./secret/blocks";
 import { markOracles } from "./oracle/blocks";
+import type { OracleHost } from "./oracle/host";
 import { t } from "./strings";
 
 /** Code blocks colored by their language and math typeset, in rendered
@@ -53,12 +54,12 @@ export function typeset(root: HTMLElement): void {
  *  `[!kind]+` or `[!kind]-` callout opens and closes it, by the pointer or
  *  the keyboard, and `-` starts it closed (spec Q5). A link in the title
  *  stays a link. */
-export function wireCallouts(root: ParentNode, open: readonly boolean[] = []): void {
+export function wireCallouts(root: ParentNode, open: readonly boolean[] = [], oracleHost?: OracleHost | null): void {
   let at = 0;
   // A secret block says what it does (ADR 0087 item 5).
   markSecrets(root);
   // An oracle callout allows rolling answers directly (ADR 0102).
-  markOracles(root);
+  markOracles(root, oracleHost);
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
     const was = open[at++];
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");

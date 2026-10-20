@@ -19,7 +19,7 @@ import { insertTemplate, saveAsTemplate } from "./daily";
 import { importDemoVault } from "./demo";
 import { openRoller } from "./dice/roller";
 import { ds } from "./dice/strings";
-import { showOracleDialog } from "./oracle/dialog";
+import { askOracleInActiveNote } from "./oracle/active";
 import { hotkeyRecorder } from "./dialogs/settings";
 import { ui } from "./dom";
 import { fail } from "./errors";
@@ -302,7 +302,7 @@ export function allCommands(all = false): Command[] {
     // A roller without a note (ADR 0088 item 6): nothing written.
     { id: "roll-dice", label: ds.command, need: hasCapability("diceRolling"), run: () => openRoller() },
     // Creative Oracles & Solo Improvisation (ADR 0102).
-    { id: "ask-oracle", label: t.oracle, need: hasCapability("oracles"), run: () => showOracleDialog() },
+    { id: "ask-oracle", label: t.oracle, need: hasCapability("oracles"), run: () => askOracleInActiveNote() },
   ];
   return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }

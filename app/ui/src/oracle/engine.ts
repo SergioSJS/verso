@@ -31,22 +31,43 @@ export const ODDS_TABLE = DEFAULT_ODDS_TABLE;
 const STORAGE_KEY_ODDS = "verso:oracle-odds";
 const STORAGE_KEY_SPARKS_PREFIX = "verso:oracle-sparks-";
 
-/** Retrieve current odds table (customized from localStorage or built-in default). */
-export function getOddsTable(): Record<Likelihood, readonly [number, number, number, number, number, number]> {
+export type OddsRow = readonly [number, number, number, number, number, number];
+
+/** A row of the odds table is six whole numbers, none negative, adding to 100. */
+export function validOddsRow(row: unknown): row is OddsRow {
+  return Array.isArray(row) && row.length === 6 && row.every((n) => Number.isInteger(n) && n >= 0) && row.reduce((a: number, n: number) => a + n, 0) === 100;
+}
+
+/** The odds table now: the stored one where a row is valid, the default
+ *  for any row that is not (`invalid` names those, so the dialog can say
+ *  so). */
+export function readOddsTable(): { table: Record<Likelihood, OddsRow>; invalid: Likelihood[] } {
+  const table: Record<Likelihood, OddsRow> = { ...DEFAULT_ODDS_TABLE };
+  const invalid: Likelihood[] = [];
   try {
     if (typeof localStorage !== "undefined") {
       const raw = localStorage.getItem(STORAGE_KEY_ODDS);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") {
-          return { ...DEFAULT_ODDS_TABLE, ...parsed };
-        }
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const id of LIKELIHOODS) {
+            const row = (parsed as Record<string, unknown>)[id];
+            if (row === undefined) continue;
+            if (validOddsRow(row)) table[id] = row;
+            else invalid.push(id);
+          }
+        } else invalid.push(...LIKELIHOODS);
       }
     }
   } catch {
-    // fallback
+    invalid.push(...LIKELIHOODS);
   }
-  return DEFAULT_ODDS_TABLE;
+  return { table, invalid };
+}
+
+/** Retrieve current odds table (customized from localStorage or built-in default). */
+export function getOddsTable(): Record<Likelihood, OddsRow> {
+  return readOddsTable().table;
 }
 
 /** Save custom odds table to local settings. */
@@ -86,8 +107,7 @@ export interface OracleResult {
 }
 
 /** The answer a d100 face gives at the given odds (inspects custom odds if configured). */
-export function answerFor(likelihood: Likelihood, roll: number): Answer {
-  const table = getOddsTable();
+export function answerFor(likelihood: Likelihood, roll: number, table: Record<Likelihood, OddsRow> = getOddsTable()): Answer {
   const row = table[likelihood] ?? DEFAULT_ODDS_TABLE[likelihood];
   let upTo = 0;
   for (let i = 0; i < row.length; i++) {
@@ -168,27 +188,40 @@ export interface SparkWordLists {
   focus: string[];
 }
 
-/** Retrieve current spark words lists (from localStorage or built-in defaults). */
-export function getSparkWords(lang: "pt" | "en" = "pt"): SparkWordLists {
+const SPARK_KEYS = ["action", "theme", "descriptor", "focus"] as const;
+
+function validWords(list: unknown): list is string[] {
+  return Array.isArray(list) && list.length > 0 && list.every((w) => typeof w === "string" && w.trim() !== "");
+}
+
+function defaultWords(lang: "pt" | "en"): SparkWordLists {
+  return { action: [...WORDS[lang].action], theme: [...WORDS[lang].theme], descriptor: [...WORDS[lang].descriptor], focus: [...WORDS[lang].focus] };
+}
+
+/** The stored spark words for a language, and whether they were unusable
+ *  (the defaults come back then). */
+export function readSparkWords(lang: "pt" | "en" = "pt"): { words: SparkWordLists; invalid: boolean } {
   try {
     if (typeof localStorage !== "undefined") {
       const raw = localStorage.getItem(STORAGE_KEY_SPARKS_PREFIX + lang);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.action) && Array.isArray(parsed.theme)) {
-          return parsed;
+        const parsed: unknown = JSON.parse(raw);
+        const o = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+        if (o && SPARK_KEYS.every((k) => validWords(o[k]))) {
+          return { words: { action: o["action"] as string[], theme: o["theme"] as string[], descriptor: o["descriptor"] as string[], focus: o["focus"] as string[] }, invalid: false };
         }
+        return { words: defaultWords(lang), invalid: true };
       }
     }
   } catch {
-    // fallback
+    return { words: defaultWords(lang), invalid: true };
   }
-  return {
-    action: [...WORDS[lang].action],
-    theme: [...WORDS[lang].theme],
-    descriptor: [...WORDS[lang].descriptor],
-    focus: [...WORDS[lang].focus],
-  };
+  return { words: defaultWords(lang), invalid: false };
+}
+
+/** Retrieve current spark words lists (from localStorage or built-in defaults). */
+export function getSparkWords(lang: "pt" | "en" = "pt"): SparkWordLists {
+  return readSparkWords(lang).words;
 }
 
 /** Save custom spark word lists for a language. */

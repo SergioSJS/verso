@@ -6,6 +6,7 @@
 // palette's "Roll dice…" opens a small roller — a notation typed and
 // rolled in this window, nothing written. Rolai's drawer is for later.
 
+import { hasCapability } from "../capabilities";
 import { asDialog, closed, opened } from "../dialogs/a11y";
 import { h } from "../dom";
 import { icon } from "../icons";
@@ -98,7 +99,7 @@ export function openRollerWith(notation: string): void {
 if (typeof window !== "undefined") {
   window.addEventListener("verso:roll-dice", (e: Event) => {
     const detail = (e as CustomEvent<{ notation?: string }>).detail;
-    if (detail?.notation) {
+    if (detail?.notation && hasCapability("diceRolling")) {
       openRollerWith(detail.notation);
     }
   });
