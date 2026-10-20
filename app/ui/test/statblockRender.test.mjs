@@ -455,3 +455,14 @@ test("the fence names: statblock and statblock-*", () => {
   assert.ok(m.isStatblockFence("statblock-pf2e foo"));
   assert.ok(!m.isStatblockFence("stat"));
 });
+
+test("a card's \"Edit this layout\" names its layout and its block's text", () => {
+  const seen = [];
+  const card = m.renderStatblock("layout: facts-trackers\nname: X", undefined, { onEditLayout: (id, text) => seen.push([id, text]) });
+  const btn = card.querySelector("button.statblock-edit-layout");
+  assert.match(btn.getAttribute("aria-label"), /Edit this layout: Facts and trackers/);
+  btn.click();
+  assert.deepEqual(seen, [["facts-trackers", "layout: facts-trackers\nname: X"]]);
+  const preview = m.renderStatblock("name: X", undefined, { layout: layoutOf([]) });
+  assert.equal(preview.querySelector(".statblock-edit-layout"), null, "not on the editor's own card");
+});

@@ -58,6 +58,12 @@ import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, sp
 import { folderSort, setFolderSort } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { onLayoutsChanged } from "./statblock/store";
+import { wireFolderLayouts } from "./statblock/folderWire";
+import { openLayoutBuilder, setLayoutEditorSources } from "./statblock/builder";
+import { statblockFences } from "./statblock/edit";
+import { readSheet } from "./statblock/sheet";
+import { S } from "./statblock/strings";
+import { allLayouts } from "./statblock/store";
 import { TextLeaf } from "./leaves/textfile";
 import { embedViews, syncEmbedViews, syncWebViews, webLeaves } from "./leaves/web";
 import { createMenuItems, menu, MenuItem, menuOpener, showMenu } from "./menu";
@@ -262,6 +268,26 @@ window.addEventListener("verso:features-changed", repaintNotes);
 // The folder's statblock layouts read or written (ADR 0099 item 2): every
 // card drawn again with them.
 onLayoutsChanged(repaintNotes);
+// Read from the folder each time one is shown (folderData.ts).
+wireFolderLayouts();
+// The layout editor draws its card from the open note's statblocks; a
+// card's "Edit this layout" opens it on that card's layout (ADR 0099 item 8).
+const statblockName = (text: string, n: number): string => {
+  const r = readSheet(text);
+  const name = r.ok ? r.sheet["name"] : undefined;
+  return typeof name === "string" && name.trim() ? name.trim().slice(0, 80) : `${S.card} ${n}`;
+};
+setLayoutEditorSources(() => {
+  const leaf = layout().activeLeaf;
+  if (!(leaf instanceof NoteLeaf)) return [];
+  return statblockFences(leaf.editor.state.doc.toString()).slice(0, 30).map((f, i) => ({ label: statblockName(f.text, i + 1), text: f.text }));
+});
+window.addEventListener("verso:edit-statblock-layout", (e) => {
+  const d = (e as CustomEvent<{ id?: string; text?: string; name?: string }>).detail;
+  const stored = allLayouts().find((s) => s.layout.id === d?.id);
+  if (!stored) return;
+  void openLayoutBuilder(stored, undefined, d.text ? { label: d.name || statblockName(d.text, 1), text: d.text } : undefined);
+});
 newSpaceButton.addEventListener("click", () => newSpace());
 /** The current workspace's layout. Before a folder is open there is no
  *  workspace, and an empty layout answers (no pane, nothing focused)
