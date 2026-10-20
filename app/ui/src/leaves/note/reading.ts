@@ -19,6 +19,7 @@ import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
 import { hasCapability } from "../../capabilities";
+import { statblockCode } from "../../live/statblockFence";
 import { parseStatblock } from "../../statblock/parser";
 import { renderStatblockCard } from "../../statblock/render";
 import { opening } from "../../opening";
@@ -103,6 +104,7 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
 export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
   if (!hasCapability("statblocks")) return;
   for (const code of root.querySelectorAll<HTMLElement>("pre > code[class*='language-statblock']")) {
+    if (!statblockCode(code)) continue;
     const pre = code.parentElement;
     if (!pre || pre.dataset["statblockRendered"]) continue;
     pre.dataset["statblockRendered"] = "true";
@@ -486,7 +488,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.readerView.offer(note.path, note.text);
   const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
   setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
-  wireCallouts(this.preview, open);
+  wireCallouts(this.preview, open, this);
   keyLinks(this.preview);
   this.shownText = note.text;
   this.gatherFootnotes();

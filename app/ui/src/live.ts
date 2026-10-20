@@ -23,7 +23,8 @@ import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./liv
 import { blocksOf, foldBlocks, type Block } from "./live/blocks";
 import { frontmatterEnd, outOfFrontmatter, keepFrontmatter } from "./live/frontmatter";
 import { liveListNavKeymap, snapOutOfListPrefix } from "./live/lists";
-import { OracleCalloutButtonWidget } from "./oracle/live";
+import { OracleCalloutButtonWidget, oracleHeadAt } from "./oracle/live";
+import { oracleTracker } from "./oracle/track";
 
 // Names other modules took from here before the split (ADR 0067).
 export { mathSpans, type MathSpan } from "./live/math";
@@ -102,6 +103,7 @@ function linesOfSelection(view: EditorView): Set<number> {
 
 function build(view: EditorView, opts: LiveOptions): DecorationSet {
   const out: Range[] = [];
+  const oracleButtons = new Set<number>();
   const doc = view.state.doc;
   const active = linesOfSelection(view);
   const touched = (from: number, to: number): boolean => {
@@ -278,19 +280,13 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               out.push({ from: kStart, to: kEnd, deco: Decoration.mark({ class: "cm-lp-callout-tag" }) });
               hide(kEnd, bEnd);
             }
-            if (calloutKind === "oracle" && hasCapability("oracles")) {
-              let q = cleanLead.replace(/^\[!oracle\][+-]?\s*/i, "").trim();
-              if (!q && a < b) {
-                const nextLine = doc.line(a + 1);
-                q = nextLine.text.replace(/^[ \t]*(?:>[ \t]?)+[ \t]*/, "").trim();
-              }
+            if (calloutKind === "oracle" && hasCapability("oracles") && !oracleButtons.has(firstLine.from) && oracleHeadAt(firstLine.text, a > 1 ? doc.line(a - 1).text : null)) {
+              // One button per callout: a nested one is seen by both quotes.
+              oracleButtons.add(firstLine.from);
               out.push({
                 from: firstLine.to,
                 to: firstLine.to,
-                deco: Decoration.widget({
-                  widget: new OracleCalloutButtonWidget(q, firstLine.from),
-                  side: 1,
-                }),
+                deco: Decoration.widget({ widget: new OracleCalloutButtonWidget(), side: 1 }),
               });
             }
           }
@@ -587,5 +583,6 @@ export function livePreview(opts: LiveOptions) {
     headingGutter,
     liveListNavKeymap,
     snapOutOfListPrefix,
+    oracleTracker,
   ];
 }
