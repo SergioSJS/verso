@@ -421,7 +421,7 @@ export const commands = {
 	 *  Remove a data file through the bin, when it is still the version
 	 *  `revision` describes.
 	 */
-	removeFolderData: (kind: FolderDataKind, id: string, revision: string) => typedError<null, ContractError>(__TAURI_INVOKE("remove_folder_data", { kind, id, revision })),
+	removeFolderData: (kind: FolderDataKind, id: string, revision: string) => typedError<Trashed, ContractError>(__TAURI_INVOKE("remove_folder_data", { kind, id, revision })),
 	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a

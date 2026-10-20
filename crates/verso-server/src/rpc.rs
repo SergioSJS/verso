@@ -1237,11 +1237,30 @@ async fn folder_run(
             crate::collab::write_all(&s, &key)?;
         }
         // A deletion is recorded with who made it (ADR 0080 item 2).
-        let answer = if matches!(n.as_str(), "delete_note" | "delete_entry") {
-            let path: String = arg(&args, "path")?;
+        let answer = if matches!(
+            n.as_str(),
+            "delete_note" | "delete_entry" | "remove_folder_data"
+        ) {
+            // A data file of `.verso/` goes to the bin the same way, named
+            // by its kind and id (ADR 0099 item 2, ADR 0098 item 2).
+            let data = if n == "remove_folder_data" {
+                let kind: verso_contract::FolderDataKind = arg(&args, "kind")?;
+                let id: String = arg(&args, "id")?;
+                let revision: String = arg(&args, "revision")?;
+                Some((ops::data_kind(kind), id, revision))
+            } else {
+                None
+            };
+            let path: String = if data.is_some() {
+                String::new()
+            } else {
+                arg(&args, "path")?
+            };
             service
                 .with(&c, |ws| {
-                    Ok(if n == "delete_note" {
+                    Ok(if let Some((kind, id, revision)) = &data {
+                        ws.remove_folder_data(*kind, id, revision)?
+                    } else if n == "delete_note" {
                         ws.delete_note(&path)?
                     } else {
                         ws.delete_entry(&path)?

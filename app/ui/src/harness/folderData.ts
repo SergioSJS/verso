@@ -10,7 +10,7 @@
 // of at most 256 KiB, a create that never replaces, a write over the version
 // read only, a removal through the bin.
 
-import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings, OracleSparks } from "../bindings";
+import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings, OracleSparks, Trashed } from "../bindings";
 
 type Stored = { bytes: Uint8Array; revision: number; modified: number };
 
@@ -19,8 +19,8 @@ export type DataHost = {
   files: Map<string, Stored>;
   put(path: string, bytes: Uint8Array): Stored;
   accepts(path: string, was: Stored, given: string): boolean;
-  /** Move a file into `.trash/`, recorded in the bin. */
-  trash(path: string): void;
+  /** Move a file into `.trash/`, recorded in the bin; answers where it went. */
+  trash(path: string): string;
 };
 
 export const FOLDER_DATA_MOST = 256 * 1024;
@@ -105,13 +105,12 @@ export class FolderData {
     remove_folder_data: (a) => this.remove(a["kind"] as FolderDataKind, a["id"] as string, a["revision"] as string),
   };
 
-  remove(kind: FolderDataKind, id: string, revision: string): null {
+  remove(kind: FolderDataKind, id: string, revision: string): Trashed {
     const path = pathOf(kind, id);
     const was = this.host.files.get(path);
     if (!was) return refuse("not_found", `no such file: ${path}`);
     if (!this.host.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
-    this.host.trash(path);
-    return null;
+    return { path: this.host.trash(path), warnings: [] };
   }
 }
 
