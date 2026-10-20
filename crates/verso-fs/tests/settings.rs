@@ -195,3 +195,46 @@ fn a_data_file_is_created_with_its_directory_and_confined_like_the_settings() {
         Err(ConfinementError::Hidden)
     ));
 }
+
+/// A link in place of `.verso/`, or of one of its data directories, is
+/// followed by nothing: the walk lists none of what is behind it (the
+/// symlink decision, ADR 0044: a link never takes the walk out of the
+/// folder).
+#[cfg(unix)]
+#[test]
+fn a_symlinked_settings_directory_or_data_directory_lists_nothing_behind_it() {
+    use std::os::unix::fs::symlink;
+    let outside = tempfile::tempdir().unwrap();
+    touch(&outside.path().join("layouts/fora.json"), "{}");
+    touch(&outside.path().join("settings.json"), "{}");
+
+    // `.verso` itself is a link to a directory outside the folder.
+    let dir = tempfile::tempdir().unwrap();
+    symlink(outside.path(), dir.path().join(".verso")).unwrap();
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    assert!(root.settings_walk().unwrap().is_empty());
+    // On a server, where links stay inside the folder, a handle to a file
+    // behind it is refused as well, so what the walk skips is not read.
+    root.set_links_inside(true);
+    assert_eq!(
+        root.handle(Path::new(".verso/layouts/fora.json")),
+        Err(ConfinementError::LeavesFolder)
+    );
+
+    // `.verso` is real, `.verso/layouts` is a link out.
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".verso/settings.json"), "{}");
+    symlink(
+        outside.path().join("layouts"),
+        dir.path().join(".verso/layouts"),
+    )
+    .unwrap();
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    let listed: Vec<String> = root
+        .settings_walk()
+        .unwrap()
+        .iter()
+        .map(|e| e.relative.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(listed, [".verso/settings.json"]);
+}
