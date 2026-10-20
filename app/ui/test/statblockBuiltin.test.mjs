@@ -187,6 +187,13 @@ describe("sources of a layout", () => {
     assert.equal(v.layout.sources, undefined);
     assert.equal(m.validateLayout({ ...base, sources: "https://a.org" }).layout.sources, undefined);
   });
+  test("an address past 300 characters is refused with a problem, not cut short", () => {
+    const long = `https://a.org/${"x".repeat(300)}`;
+    const v = m.validateLayout({ ...base, sources: [{ label: "SRD", url: long }, { label: "ok", url: `https://a.org/${"y".repeat(286)}` }] });
+    assert.equal(v.problems.length, 1);
+    assert.deepEqual(v.layout.sources.map((s) => s.label), ["ok"]);
+    assert.equal(v.layout.sources[0].url.length, 300);
+  });
   test("past the limit it is cut, and says so", () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ label: `s${i}`, url: `https://a.org/${i}` }));
     const v = m.validateLayout({ ...base, sources: many });
