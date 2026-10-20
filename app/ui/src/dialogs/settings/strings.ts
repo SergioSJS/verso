@@ -17,9 +17,6 @@ const pt = {
   groups: { app: "Aplicação", editor: "Notas & Editor", rpg: "RPG & Mesa Solo", system: "Rede & Conexões" },
   sOracles: "Oráculos e Solo RPG",
   sStatblocks: "Fichas e Templates",
-  // --- the usage mode
-  presetTitle: "Modo de Uso (Preset)",
-  presetDesc: "Define quais recursos de domínio (escrita, oráculos, fichas) ficam ativos na interface.",
   // --- shared
   ok: "Entendi",
   save: "Salvar",
@@ -118,8 +115,6 @@ const en: Words = {
   groups: { app: "Application", editor: "Notes & Editor", rpg: "RPG & Solo Play", system: "Network & System" },
   sOracles: "Oracles & Solo RPG",
   sStatblocks: "Statblock Templates",
-  presetTitle: "Usage Mode (Preset)",
-  presetDesc: "Controls which domain capabilities (writing, oracles, statblocks) are active.",
   ok: "Got it",
   save: "Save",
   copied: "Copied!",

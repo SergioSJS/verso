@@ -246,7 +246,7 @@ updateLeavesLineNumbers = () => {
     }
   }
 };
-window.addEventListener("verso:preset-changed", () => {
+window.addEventListener("verso:features-changed", () => {
   for (const sp of spaces) {
     for (const p of sp.layout.panes()) {
       for (const l of p.leaves) {

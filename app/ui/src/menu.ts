@@ -32,6 +32,7 @@ import { boardText, LOCALE, t } from "./strings";
 import { historyFor, openHistory } from "./dialogs/history";
 import { historyStrings } from "./dialogs/historyStrings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
+import { hasCapability } from "./capabilities";
 import { showWorldWizard } from "./dialogs/worldWizard";
 import { listAll } from "./tree/tree";
 import { clearSelection, enterSelectMode } from "./tree/selection";
@@ -166,7 +167,7 @@ export function createMenuItems(folder = ""): MenuItem[] {
   const items: MenuItem[] = [
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
-    [t.newWorld, () => void showWorldWizard(folder), "world"],
+    ...(hasCapability("campaignBundles") ? [[t.newWorld, () => void showWorldWizard(folder), "world"] as MenuItem] : []),
     [t.newBase, () => void newBase(folder), "calendar"],
     [boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],

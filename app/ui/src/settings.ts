@@ -5,6 +5,7 @@
 import { commands, type Focus } from "./bindings";
 import { fail } from "./errors";
 import { currentFolder } from "./folder";
+import { allOn, type Features, migratePreset, readFeatures } from "./featureList";
 import { updateLeavesLineNumbers } from "./main";
 import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
 import { t } from "./strings";
@@ -109,11 +110,13 @@ export type Settings = {
    *  "toast" ("Aviso e lista"), "list" ("Só na lista") or "off"; a kind
    *  not named here is "Aviso e lista". */
   notify: Partial<Record<string, "toast" | "list" | "off">>;
-  /** Capability preset (ADR 0103): "writing" (Escrita Pura), "worldbuilding" (Construção de Mundos), or "rpg" (RPG Completo). */
-  preset: "writing" | "worldbuilding" | "rpg";
+  /** The optional features' switches (ADR 0103, revised 2026-10-20): all
+   *  on unless the person turned one off; the person's layer, never a
+   *  folder's. */
+  features: Features;
 };
 export const DEFAULTS: Settings = {
-  preset: "rpg",
+  features: allOn(),
   lang: "auto",
   theme: "auto",
   palette: "paper",
@@ -201,9 +204,10 @@ export function loadSettings(): void {
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
       if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
       if (!settings.notify || typeof settings.notify !== "object" || Array.isArray(settings.notify)) settings.notify = {};
-      if (settings.preset !== "writing" && settings.preset !== "worldbuilding" && settings.preset !== "rpg") {
-        settings.preset = "rpg";
-      }
+      // The old usage mode, as the switches it stood for (2026-10-20).
+      const oldPreset = (parsed as { preset?: unknown }).preset;
+      settings.features = parsed.features === undefined && oldPreset !== undefined ? migratePreset(oldPreset) : readFeatures(parsed.features);
+      delete (settings as { preset?: unknown }).preset;
     }
   } catch {
     settings = { ...DEFAULTS };

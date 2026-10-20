@@ -5,7 +5,6 @@
 import { asDialog, closed, opened } from "./a11y";
 import { afterFileChange } from "../changes";
 import { commands } from "../bindings";
-import { currentPreset } from "../capabilities";
 import { checkEdited, type Plan, planBundle } from "../bundles/plan";
 import { BUILTIN_PRESETS } from "../bundles/presets";
 import { applyPlan, needsReading, type Report } from "../bundles/run";
@@ -34,17 +33,10 @@ function textOf(bundle: TemplateBundle): { name: string; description: string } {
   return en ?? { name: bundle.name, description: bundle.description };
 }
 
-/** Whether the active usage mode shows this bundle (ADR 0098 / ADR 0103). */
-function shownNow(bundle: TemplateBundle): boolean {
-  const preset = currentPreset();
-  if (preset === "writing") return bundle.category === "writing" || bundle.category === "notes";
-  if (preset === "worldbuilding") return bundle.category !== "rpg";
-  return true;
-}
-
-/** Filter available bundles according to the active preset. */
+/** Every bundle, whatever the features' switches say: the wizard is itself
+ *  a feature (ADR 0103, revised 2026-10-20), and its categories are not. */
 function getAvailableBundles(): TemplateBundle[] {
-  return [...customBundles, ...BUILTIN_PRESETS].filter(shownNow);
+  return [...customBundles, ...BUILTIN_PRESETS];
 }
 
 /** An id no bundle has yet: the one asked for, or that with a number. */
@@ -176,7 +168,6 @@ function populate(dialog: HTMLElement, defaultFolder: string): void {
     show("presets");
     const notes: string[] = [t.worldWizard.importSuccess(fresh.name)];
     if (fresh.id !== original) notes.push(bw.importedRenamed(fresh.name));
-    if (!shownNow(fresh)) notes.push(bw.importedHidden(fresh.name));
     ui.status.textContent = notes.join(" ");
     presets.say(notes.slice(1).join(" "));
   });
