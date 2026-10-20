@@ -18,7 +18,7 @@ versão de teste.
 - **Modo de uso**: *Ajustes › Geral › Modo de Uso* escolhe se a janela mostra só escrita, ferramentas de construção de mundos ou o conjunto completo de RPG de mesa.
 - **Novo projeto a partir de modelo**: *Novo projeto a partir de modelo…* pede um nome e uma pasta, mostra a árvore inteira de pastas e arquivos antes de escrever qualquer coisa (desmarque o que não quer, renomeie o que quiser), cria e diz o que foi feito, o que já existia e o que foi recusado. Traz modelos de campanha, mundo, escrita de ficção e P.A.R.A., e lê um modelo que um assistente de IA escreveu para você (copie o prompt, cole a resposta de volta).
 - **Oráculo e faíscas de ideias**: perguntas de sim ou não com probabilidades ajustáveis, faíscas de ideias com listas de palavras editáveis, suas próprias tabelas de sorteio (criadas, importadas ou exportadas em JSON) e o destaque `[!oracle]` nas notas.
-- **Fichas (statblocks)**: fichas desenhadas a partir das propriedades de uma nota por um layout; gerencie, duplique, importe e exporte layouts em *Ajustes › Fichas e Templates*.
+- **Fichas (statblocks)**: fichas desenhadas por um layout a partir de um bloco ```` ```statblock ```` numa nota; gerencie, duplique, importe e exporte layouts em *Ajustes › Fichas e Templates*.
 
 ## 0.8.3-beta.2 — 2026-10-17
 
