@@ -130,22 +130,25 @@ detalhe que ele não leu.
    recomendação depois da pesquisa de licenças. Embutidos, cada campo com a
    sua fonte em `docs/reference/statblock-sources.md`, a linha de cada
    licença na página de Créditos:
-   - sistemas cujas regras são abertas: D&D 5e SRD 5.2 (CC BY 4.0),
-     Pathfinder 2e e Starfinder 2e (ORC), 13th Age (OGL 1.0a), Dungeon World
+   - sistemas cujas regras são abertas: o SRD de D&D 5e (5.1 e 5.2.1, CC BY
+     4.0), Pathfinder 2e (ORC), Starfinder 2e (ORC; só a criatura, até a
+     sua ficha de personagem ser lida de uma fonte), 13th Age (OGL 1.0a), Dungeon World
      e Blades in the Dark (CC BY 3.0), Fate Condensado e Acelerado (CC BY
      3.0), Mausritter e as partes abertas de Ironsworn/Starforged (CC BY
      4.0), Cairn e Old Dragon 2e (CC BY-SA 4.0: só nomes de campos, nenhum
      texto);
    - **Fractal** (Igor Téuri e Walter Licínio, CC BY 4.0 pelo texto do seu
-     SRD): um personagem (reservas, até doze fatos que quebram e se
+     SRD, cujo selo mostra BY-SA — a confirmar com os autores; só nomes de
+     campos, em qualquer caso): um personagem (reservas, até doze fatos que quebram e se
      consertam, XP) e um **desafio** cujos obstáculos podem ser, cada um, um
      `[[link]]` para a nota de outro desafio — uma campanha, os seus arcos e
      os seus episódios como uma árvore que o grafo já desenha;
    - layouts genéricos nomeados pelas suas mecânicas, sem o nome de nenhum
      sistema: criatura d20, percentil, jogadas 2d6, pool de d6, pool de
-     dados por dificuldade, escada e aspectos.
+     dados por dificuldade, escada e aspectos; as jogadas 2d6 servem à
+     família Powered by the Apocalypse e o pool de d6 à família Year Zero.
    Para o resto — Daggerheart, Tormenta20, Call of Cthulhu, Savage Worlds,
-   os jogos da Free League, Vampire e outros — um layout é um arquivo que a
+   os jogos da Free League, Mothership e outros — um layout é um arquivo que a
    pessoa importa, ou que vem embutido quando a editora permitir por
    escrito. `[PROPOSTO]`: os jogos da 5ª edição de World of Darkness sob o
    Dark Pack da Paradox, e um layout em branco de Cyberpunk RED sob a

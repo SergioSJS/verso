@@ -128,21 +128,24 @@ he has not read.
    after the licence research. Built in, each field with its source in
    `docs/reference/statblock-sources.md`, each licence's line on the
    Credits page:
-   - systems whose rules are open: D&D 5e SRD 5.2 (CC BY 4.0), Pathfinder
-     2e and Starfinder 2e (ORC), 13th Age (OGL 1.0a), Dungeon World and
+   - systems whose rules are open: the D&D 5e SRD (5.1 and 5.2.1, CC BY
+     4.0), Pathfinder 2e (ORC), Starfinder 2e (ORC; its creature only, until
+     its character sheet is read from a source), 13th Age (OGL 1.0a), Dungeon World and
      Blades in the Dark (CC BY 3.0), Fate Condensed and Accelerated (CC BY
      3.0), Mausritter and Ironsworn/Starforged's open parts (CC BY 4.0),
      Cairn and Old Dragon 2e (CC BY-SA 4.0: field names only, no text);
    - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0 by its SRD's
-     text): a character (reserves, up to twelve facts that break and mend,
+     text, whose badge shows BY-SA — to be confirmed with the authors; field
+     names only either way): a character (reserves, up to twelve facts that break and mend,
      XP) and a **challenge** whose obstacles may each be a `[[link]]` to
      another challenge's note — a campaign, its arcs and its episodes as one
      tree the graph already draws;
    - generic layouts named by their mechanics, with no system's name: d20
-     creature, percentile, 2d6 moves, d6 pool, dice pool by difficulty,
-     ladder and aspects.
+     creature, percentile, 2d6 moves (the Powered by the Apocalypse family),
+     d6 pool (the Year Zero family), dice pool by difficulty, ladder and
+     aspects.
    For the rest — Daggerheart, Tormenta20, Call of Cthulhu, Savage Worlds,
-   the Free League games, Vampire and others — a layout is a file a person
+   the Free League games, Mothership and others — a layout is a file a person
    imports, or ships once the publisher allows it in writing. `[PROPOSED]`:
    the World of Darkness 5th-edition games under Paradox's Dark Pack, and a
    blank Cyberpunk RED layout under R. Talsorian's homebrew policy, each
