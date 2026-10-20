@@ -26,6 +26,9 @@ import { LOCALE, t } from "../strings";
 import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
 
+/** The slash item's block: `dnd5e` is a built-in layout's id, so the card finds its template. */
+const STATBLOCK_SNIPPET = "```statblock\nname: \nlayout: dnd5e\nhp: 10\nac: 10\n```\n";
+
 export const headingsCache = new Map<string, { level: number; text: string }[]>();
 export async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResult | null> {
   const before = ctx.matchBefore(WIKILINK_BEFORE);
@@ -160,7 +163,7 @@ export function slashSections(): SlashSection[] {
       { icon: "calendar", title: t.now, description: time, keywords: "hora time agora", insert: time },
       { icon: "template", title: t.insertTemplate, description: s.template, keywords: "template modelo", insert: "", run: () => insertTemplate() },
       ...(hasCapability("oracles") ? [{ icon: "sparkles", title: oracleText.slashAsk, description: oracleText.slashAskDesc, keywords: "oracle oraculo spark solo rpg dados", insert: "", run: () => askOracleInActiveNote() }] : []),
-      ...(hasCapability("statblocks") ? [{ icon: "note", title: isPt ? "Ficha de Atributos (Statblock)" : "Statblock Card", description: isPt ? "Bloco ```statblock para fichas de monstros, NPCs e personagens" : "```statblock block for monsters, NPCs, and characters", keywords: "statblock ficha monstro npc atributos", insert: "```statblock\nname: \nlayout: Basic\nhp: 10\nac: 10\n```\n", cursor: 19 }] : []),
+      ...(hasCapability("statblocks") ? [{ icon: "note", title: isPt ? "Ficha de Atributos (Statblock)" : "Statblock Card", description: isPt ? "Bloco ```statblock para fichas de monstros, NPCs e personagens" : "```statblock block for monsters, NPCs, and characters", keywords: "statblock ficha monstro npc atributos", insert: STATBLOCK_SNIPPET, cursor: STATBLOCK_SNIPPET.indexOf("name: ") + "name: ".length }] : []),
       { icon: "tag", title: t.addProperty, description: isPt ? "Adicionar propriedade ao frontmatter YAML" : "Add property to frontmatter YAML", keywords: "propriedade property frontmatter meta tag", insert: "", run: () => {
         const leaf = layout().activeLeaf;
         const note = leaf as { addProperty?: () => void; readOnly?: boolean } | null;
