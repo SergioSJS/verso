@@ -102,6 +102,7 @@ export function Card({
   // wrong in the app's web view under the cards' zoom until a redraw.
   const cropBox = useRef<HTMLDivElement>(null);
   const [cropView, setCropView] = useState<{ w: number; h: number } | null>(null);
+  const cropSharp = crop && cropView && ext(file) === "svg" ? sharpFactor(zoom, cropView.w / crop.w, window.devicePixelRatio || 1) : 1;
   useLayoutEffect(() => {
     const el = cropBox.current;
     if (!crop || !natural || !el) {
@@ -274,7 +275,10 @@ export function Card({
         <div className="board-card-image cropped" ref={cropBox} data-path={file}>
           <div className="board-crop-view" style={cropView ? { width: `${cropView.w}px`, height: `${cropView.h}px` } : { visibility: "hidden" }}>
             <div className="board-crop-inner" style={{ left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }}>
-              <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
+              {/* The whole picture is what is laid out larger (and rasterised): the factor is bounded by its full width. */}
+              <Sharp factor={cropSharp} w={cropView ? cropView.w / crop.w : 0} h={cropView ? cropView.h / crop.h : 0}>
+                <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
+              </Sharp>
               {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
             </div>
           </div>
