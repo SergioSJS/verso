@@ -379,9 +379,9 @@ const STOPS = [
     canvasColor: "6",
     cards: [["n-mundos", "26 - Fichas, Oráculos e Criação de Mundos.md", 640]],
     tip:
-      "Fichas em blocos ```statblock desenham cartões interativos com botões de rolagem automática para cada ataque ou teste. " +
-      "Callouts > [!oracle] e a janela do Oráculo respondem perguntas de 'sim/não' com probabilidades e faíscas de improviso. " +
-      "O assistente de mundos cria estruturas inteiras de campanha a partir de modelos prontos ou de prompts de IA, e Ajustes › Modo de Uso permite focar em escrita pura, cenários ou RPG completo.",
+      "Um bloco ```statblock desenha uma ficha com o layout que você escolhe com `layout:`; os dados rolam num clique, e os contadores gravam o número na nota. O editor de layout fica em Ajustes › RPG & Mesa Solo › Fichas e Templates. " +
+      "Um callout > [!oracle] responde perguntas de sim/não com chances e faíscas, e a resposta é escrita no destaque; repetir a pergunta acumula respostas. " +
+      "O assistente de novo projeto mostra a árvore antes de escrever e deixa desmarcar o que você não quer. Em Ajustes › Aplicação › Recursos, cada ferramenta tem a sua chave.",
   },
 ];
 

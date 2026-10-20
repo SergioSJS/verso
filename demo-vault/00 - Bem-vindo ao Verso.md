@@ -74,7 +74,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
 24. [[24 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
 25. [[25 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
-26. [[26 - Fichas, Oráculos e Criação de Mundos]] — Blocos de statblock interativos com dados clicáveis, oráculos graduados com faíscas de ideias, criação de campanhas com pacotes de modelos e os modos de uso (presets).
+26. [[26 - Fichas, Oráculos e Criação de Mundos]] — Fichas `statblock` com layouts, dados e contadores que gravam na nota; o oráculo que escreve a resposta no destaque; o assistente de novo projeto com a árvore à vista; e a chave de cada recurso em Ajustes.
 
 ---
 
