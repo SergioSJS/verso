@@ -20,6 +20,20 @@ in the real app.
 
 ## Not yet checked
 
+### The RPG round: oracle, statblocks, layout editor, wizard, Credits (ADRs 0098, 0099, 0102, 0103, feat/rpg-tutorial, 2026-10-20)
+
+Needs the installed desktop app on a Mac (and, for the last items, a UniVerso with two windows); the end-to-end tests of this round were written without being run (`oracle`, `statblock`, `layout-editor` and `world-wizard` specs in `app/ui/e2e/`) and the harness is not the real web view.
+
+- [ ] **The layout editor's drag in WKWebView** (A): in *Settings › RPG & Mesa Solo › Fichas e Templates › Edit* on a layout, drag a block by its handle in the tree: a line shows where it lands, the card on the right does not jitter, the drop moves it; ⌘Z undoes it. Alt+arrows do the same from the keyboard (HTML5 drag is dead in this web view, so this one is a pointer drag: say if it fails).
+- [ ] **The colour pickers and the datalist** (A): in the editor's *Layout* section the colour fields of the appearance open the system's picker and the chosen colour draws the card; the key fields of a block suggest the keys of the layout and of the drawn sheet as you type (the datalist of the web view).
+- [ ] **A tracker's click in Live Preview and in reading** (A): in *Yara do Farol* (`Campanha Fractal/`), a box of *Fôlego* clicked in Editar and in Leitura changes `reserva_2_atual` in Fonte and keeps the keyboard where it was (Tab, the arrows, Home, End); *Quebrado* on a fact strikes it and writes `quebrado: true`; ⌘Z in Editar undoes the write.
+- [ ] **The oracle in a real room, two windows** (A): in a note shared through a UniVerso, opened in two windows (two accounts), *Consultar Oráculo* in one: the other shows a notice with the asker's name and the answer, and the answer line lands once in the note; an oracle question with the server stopped says it was drawn only in this window. Turn *Oráculos* off in one window only: its button goes, the other's stays.
+- [ ] **The server-drawn toast** (A): the notice of a question, a spark and a table draw reads *<name> consultou o oráculo: …* / *sorteou uma faísca* / *sorteou numa tabela*. Say whether it also shows as the system's notification when the window is in the background (ADR 0084).
+- [ ] **Credits' links** (A): *Settings › Application › Credits*: *Abrir* on a work and on the software opens the page in the system's browser, not in a window of the app; no link opens inside the app.
+- [ ] **The tabs' right edge back to normal** (A): with both side bars open and many tabs, the strip's right end shows the last tab whole and the new-tab button, as before the round's CSS changes (`panes.css`, `chrome.css`); a narrow window too.
+- [ ] **"Adicionar propriedade" on a note without frontmatter** (A): open a note that has no frontmatter in Leitura and Editar: the properties header shows *Adicionar propriedade*; click it: a `---` block with the property is written at the top, the rest of the note untouched; ⌘Z takes it back.
+- [ ] **The wizard on a real folder** (A): *Novo projeto a partir de modelo…* with the *Campanha de RPG (Dados Críticos)* bundle on a folder in iCloud/OneDrive: the tree is shown before anything is written; a folder unticked is not on disk afterwards; an existing name is kept, not overwritten, and the report says so.
+
 ### UniVerso found on the network, and a bad DNS survived (ADR 0097, feat/universo-discovery, 2026-10-16)
 
 Needs the installed desktop app and a UniVerso on the home network (the maintainer's ZimaOS); nothing here was run on a real network when it was built.
