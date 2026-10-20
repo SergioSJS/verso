@@ -53,6 +53,8 @@ import { fs } from "../featureStrings";
 import { featureItems, offNotice } from "./settings/featureItems";
 import { oracleItems } from "./settings/oracleItems";
 import { statblockItems } from "./settings/statblockItems";
+import { creditsItems } from "./settings/creditsItems";
+import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
 
@@ -148,6 +150,7 @@ export class SettingsDialog {
       { id: "features", label: fs.section, icon: "gear", category: "app" },
       { id: "notify", label: notifyStrings().section, icon: "bell", category: "app" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard", category: "app" },
+      { id: "credits", label: cs.section, icon: "heart", category: "app" },
 
       // 2. Notas & Editor / Notes & Editing
       { id: "editor", label: t.sEditor, icon: "edit", category: "editor" },
@@ -687,7 +690,7 @@ export class SettingsDialog {
     add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
     add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
     add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
-    out.push(...offNotice(this.ctx(), "statblocks", "statblocks"), ...statblockItems(this.ctx()), ...offNotice(this.ctx(), "oracles", "oracles"), ...oracleItems(this.ctx()));
+    out.push(...offNotice(this.ctx(), "statblocks", "statblocks"), ...statblockItems(this.ctx()), ...creditsItems(this.ctx()), ...offNotice(this.ctx(), "oracles", "oracles"), ...oracleItems(this.ctx()));
     add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
       settings.previewTabs = v;
       saveSettings();
@@ -860,7 +863,7 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "notify" ? notifyStrings().sectionLead : "";
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "notify" ? notifyStrings().sectionLead : this.section === "credits" ? cs.lead : "";
       this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }

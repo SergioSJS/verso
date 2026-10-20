@@ -19,6 +19,7 @@ versão de teste.
 - **Novo projeto a partir de modelo**: *Novo projeto a partir de modelo…* pede um nome e uma pasta, mostra a árvore inteira de pastas e arquivos antes de escrever qualquer coisa (desmarque o que não quer, renomeie o que quiser), cria e diz o que foi feito, o que já existia e o que foi recusado. Traz modelos de campanha, mundo, escrita de ficção e P.A.R.A., e lê um modelo que um assistente de IA escreveu para você (copie o prompt, cole a resposta de volta).
 - **Oráculo e faíscas de ideias**: perguntas de sim ou não com probabilidades ajustáveis, faíscas de ideias com listas de palavras editáveis, suas próprias tabelas de sorteio (criadas, importadas ou exportadas em JSON) e o destaque `[!oracle]` nas notas.
 - **Fichas (statblocks)**: fichas desenhadas por um layout a partir de um bloco ```` ```statblock ```` numa nota; gerencie, duplique, importe e exporte layouts em *Ajustes › Fichas e Templates*.
+- **Créditos e agradecimentos**: *Ajustes › Aplicação › Créditos e agradecimentos* nomeia as pessoas e obras de que o Verso parte, mostra os avisos que cada layout de sistema de jogo incluído exige (citados como as fontes os dão) e lista as principais bibliotecas livres com suas licenças.
 
 ## 0.8.3-beta.2 — 2026-10-17
 
