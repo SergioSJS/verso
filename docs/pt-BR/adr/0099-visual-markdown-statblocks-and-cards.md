@@ -138,7 +138,8 @@ detalhe que ele não leu.
      sua ficha de personagem ser lida de uma fonte), 13th Age (OGL 1.0a), Dungeon World
      e Blades in the Dark (CC BY 3.0), Fate Condensado e Acelerado (CC BY
      3.0), Mausritter (a sua Third Party Licence; a linha que ela pede nomeia
-     o mantenedor, à espera da palavra dele), as partes abertas de
+     quem faz o Verso — o mantenedor, 2026-10-20: *"coloque Sérgio Sousa
+     (Meio-Orc)"*), as partes abertas de
      Ironsworn/Starforged (CC BY
      4.0), Cairn e Old Dragon 2e (CC BY-SA 4.0: só nomes de campos, nenhum
      texto);
