@@ -1,7 +1,11 @@
 // Writes src/creditsDeps.json: the version and licence of the main npm
 // libraries the window ships, read from their own package.json in
-// node_modules (never typed by hand). Run by `npm run build`; the result is
-// checked in so tests and type checks see it. Usage: node scripts/credits-deps.mjs
+// node_modules (never typed by hand). The result is checked in so tests and
+// type checks see it, and `npm test` fails when it is stale (credits.test.mjs
+// runs the check), so a dependency bump cannot leave the Credits page behind.
+// Usage:
+//   node scripts/credits-deps.mjs          write the file
+//   node scripts/credits-deps.mjs --check  fail if it is stale
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -22,4 +26,19 @@ const out = Object.entries(MAIN).map(([pkg, [name, link]]) => {
   if (typeof j.license !== "string" || !j.license) throw new Error(`${pkg}: no licence in package.json`);
   return { name, pkg, version: j.version, license: j.license, link };
 });
-writeFileSync(`${root}src/creditsDeps.json`, `${JSON.stringify(out, null, 2)}\n`);
+const file = `${root}src/creditsDeps.json`;
+const text = `${JSON.stringify(out, null, 2)}\n`;
+if (process.argv.includes("--check")) {
+  let now = "";
+  try {
+    now = readFileSync(file, "utf8");
+  } catch {
+    // Missing: stale.
+  }
+  if (now !== text) {
+    console.error("src/creditsDeps.json is stale: run `node scripts/credits-deps.mjs` in app/ui");
+    process.exit(1);
+  }
+} else {
+  writeFileSync(file, text);
+}

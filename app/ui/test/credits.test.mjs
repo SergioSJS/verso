@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
+import { spawnSync } from "node:child_process";
 import { Window } from "happy-dom";
 
 const win = new Window({ url: "https://verso.test/" });
@@ -37,6 +38,11 @@ await esbuild.build({
   }],
 });
 const C = await import("./.bundles/credits.test-bundle.mjs");
+
+test("the checked-in library versions and licences are the installed ones", () => {
+  const r = spawnSync(process.execPath, ["scripts/credits-deps.mjs", "--check"], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+});
 
 const url = /^https:\/\/[^\s]+$/;
 
