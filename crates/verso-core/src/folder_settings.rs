@@ -34,7 +34,8 @@
 //! ```
 //!
 //! The periodic notes' settings live there too, under `periodic` (ADR
-//! 0093 item 4; `periodic.rs`).
+//! 0093 item 4; `periodic.rs`), and the oracle's odds and spark words
+//! under `oracle` (ADR 0102 item 2; `oracle.rs`).
 //!
 //! Which value applies: when the folder has a usable settings file, the
 //! file's — a key it does not set takes the default (no bookmarks, the
@@ -68,6 +69,8 @@ pub struct FolderSettings {
     pub respect_gitignore: Option<bool>,
     /// The periodic notes' settings (ADR 0093 item 4).
     pub periodic: Option<super::periodic::Periodic>,
+    /// The oracle's odds and spark words (ADR 0102 item 2).
+    pub oracle: Option<super::oracle::Oracle>,
 }
 
 /// Why a settings file that stands in the folder is not used now.
@@ -198,6 +201,7 @@ fn settings_of(map: &serde_json::Map<String, Value>) -> FolderSettings {
         ignore_build_dirs: map.get(IGNORE_BUILD_DIRS).and_then(Value::as_bool),
         respect_gitignore: map.get(RESPECT_GITIGNORE).and_then(Value::as_bool),
         periodic: super::periodic::read(map),
+        oracle: super::oracle::read(map),
     }
 }
 
@@ -237,6 +241,9 @@ fn apply(map: &mut serde_json::Map<String, Value>, change: &FolderSettings) {
     if let Some(periodic) = &change.periodic {
         super::periodic::apply(map, periodic);
     }
+    if let Some(oracle) = &change.oracle {
+        super::oracle::apply(map, oracle);
+    }
 }
 
 impl Workspace {
@@ -266,6 +273,9 @@ impl Workspace {
         }
         if let Some(periodic) = &change.periodic {
             super::periodic::check(periodic)?;
+        }
+        if let Some(oracle) = &change.oracle {
+            super::oracle::check(oracle)?;
         }
         let file = Path::new(SETTINGS_FILE);
         let warnings = match revision {
@@ -297,6 +307,8 @@ impl Workspace {
             }
         };
         self.layer_written();
+        let mut warnings = warnings;
+        warnings.extend(self.layer.read.warnings.iter().cloned());
         Ok(FolderLayer {
             warnings,
             ..self.layer.read.clone()
@@ -403,7 +415,8 @@ impl Workspace {
                                 problem: None,
                                 revision,
                                 settings: settings_of(&map),
-                                warnings: Vec::new(),
+                                // What the file holds that is not applied.
+                                warnings: super::oracle::problems(&map),
                             },
                             Some(stamp.hash),
                         ),
