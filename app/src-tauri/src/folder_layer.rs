@@ -69,7 +69,7 @@ pub(crate) fn read_folder_data<R: tauri::Runtime>(
     with(&state, &window, |ws| ops::read_folder_data(ws, kind, id))
 }
 
-/// Write a data file: one JSON object of at most 256 KiB. With no
+/// Write a data file: one JSON object, a layout of at most 256 KiB or a bundle of at most 4 MiB. With no
 /// `revision` a new file (`exists` when one stands there), else over the
 /// version that revision describes (`changed` otherwise).
 #[tauri::command]

@@ -145,7 +145,7 @@ describe("The folder's data files", () => {
     for (const bad of [[1, 2], null, "x", 3]) {
       assert.equal((await failure(() => F.writeData("layouts", "mal", bad, null)))?.kind, "refused");
     }
-    const big = { a: "x".repeat(F.FOLDER_DATA_MOST) };
+    const big = { a: "x".repeat(F.FOLDER_DATA_MOST.layouts) };
     const e = await failure(() => F.writeData("layouts", "grande", big, null));
     assert.equal(e.kind, "refused");
     assert.match(e.message, /too large/);
@@ -161,6 +161,16 @@ describe("The folder's data files", () => {
     };
     assert.equal(ask(JSON.stringify(big)).kind, "refused");
     assert.match(ask("[]").message, /not a JSON object/);
+  });
+
+  test("a bundle may be larger than a layout, to 4 MiB", async () => {
+    const mib = { a: "x".repeat(1024 * 1024) };
+    assert.equal((await failure(() => F.writeData("layouts", "grande", mib, null))).kind, "refused");
+    const r = await F.writeData("bundles", "grandao", mib, null);
+    assert.equal((await F.readData("bundles", "grandao")).revision, r);
+    const huge = { a: "x".repeat(F.FOLDER_DATA_MOST.bundles) };
+    assert.equal((await failure(() => F.writeData("bundles", "imenso", huge, null))).kind, "refused");
+    assert.equal(F.core.read(".verso/bundles/imenso.json"), null);
   });
 
   test("a file edited by hand that is not an object is refused on reading and left as it is", async () => {

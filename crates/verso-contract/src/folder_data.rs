@@ -28,7 +28,8 @@ pub struct FolderDataEntry {
     pub id: String,
     /// What to hand back to change or remove the file; empty when the file
     /// cannot be read now (a placeholder of on-demand storage, or past
-    /// 256 KiB): reading it says why.
+    /// its kind's bound, 256 KiB for a layout and 4 MiB for a bundle):
+    /// reading it says why.
     pub revision: String,
 }
 
