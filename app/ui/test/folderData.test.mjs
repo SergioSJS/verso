@@ -245,7 +245,7 @@ describe("The oracle's keys in the folder's settings", () => {
 
   test("a change in the bounds is kept and read back; the file keeps every other key", () => {
     const layer = set({ odds, sparks });
-    assert.deepEqual(layer.settings.oracle, { odds, sparks });
+    assert.deepEqual(layer.settings.oracle, { odds, sparks, clear_odds: null, clear_sparks: null });
     const next = set({ odds: null, sparks: { ...sparks, focus: ["rival", "aliado"] } }, layer.revision);
     assert.deepEqual(next.settings.oracle.odds, odds);
     assert.deepEqual(next.settings.oracle.sparks.focus, ["rival", "aliado"]);
@@ -270,10 +270,24 @@ describe("The oracle's keys in the folder's settings", () => {
     assert.equal(edge.settings.oracle.sparks.theme.length, 200);
   });
 
+  test("a clear takes one key out; the last one takes `oracle` itself; set and clear together are refused; a stale revision writes nothing", () => {
+    const first = set({ odds, sparks }, F.core.invoke("get_folder_settings", {}).revision);
+    const stale = first.revision;
+    const afterOne = set({ odds: null, sparks: null, clear_odds: true }, first.revision);
+    assert.equal(afterOne.settings.oracle.odds, null);
+    assert.deepEqual(afterOne.settings.oracle.sparks, sparks);
+    assert.equal(set({ odds: null, sparks: null, clear_sparks: true }, stale).kind, "changed");
+    assert.equal(set({ odds, sparks: null, clear_odds: true }, afterOne.revision).kind, "refused");
+    assert.equal(F.core.read(".verso/settings.json")?.includes('"sparks"'), true);
+    const none = set({ odds: null, sparks: null, clear_sparks: true }, afterOne.revision);
+    assert.equal(none.settings.oracle, null);
+    assert.equal(F.core.read(".verso/settings.json")?.includes("oracle"), false);
+  });
+
   test("a value written by hand that does not pass is not applied, and the read says so", () => {
     F.core.writeOutside(".verso/settings.json", JSON.stringify({ oracle: { odds: [[1, 2]], sparks: { action: ["a"] } }, bookmarks: ["Nota.md"] }));
     const layer = F.core.invoke("get_folder_settings", {});
-    assert.deepEqual(layer.settings.oracle, { odds: null, sparks: null });
+    assert.deepEqual(layer.settings.oracle, { odds: null, sparks: null, clear_odds: null, clear_sparks: null });
     assert.equal(layer.warnings.length, 2);
     assert.deepEqual(layer.settings.bookmarks, ["Nota.md"]);
   });
