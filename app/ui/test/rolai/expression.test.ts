@@ -1,3 +1,9 @@
+// Copied from Rolai, the maintainer's dice roller
+// (https://github.com/SergioSJS/rolai), a test of its rules engine, at commit
+// 368d677c8347609c243473046d4f06a1126ddb74, for ADR 0088 item 5.
+// Verso's changes: the import line only.
+// MIT License, Copyright (c) 2026 Sérgio J. Sousa; the full text is in
+// src/dice/rolai/LICENSE.
 import { describe, expect, it } from "vitest";
 import {
   ExpressionError,
