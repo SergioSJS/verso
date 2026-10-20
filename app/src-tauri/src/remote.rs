@@ -69,6 +69,7 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "collab_present"
                 | "collab_canvas"
                 | "collab_roll"
+                | "collab_oracle"
         )
 }
 

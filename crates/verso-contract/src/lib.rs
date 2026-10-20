@@ -29,6 +29,8 @@ pub use folder_data::{
     FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings,
     OracleSparks,
 };
+mod oracle_draw;
+pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
 mod periodic;
