@@ -1,0 +1,5 @@
+name: The Bluecoats close in
+type: Danger
+clock: 2
+clock_size: 6
+description: Ticks when the crew leaves a witness.

@@ -86,7 +86,9 @@ beforeEach(() => {
 
 describe("the built-ins and the folder's own", () => {
   test("without a folder: the built-ins, and nothing can be written", async () => {
-    assert.deepEqual(m.allLayouts().map((s) => [s.layout.id, s.source]), [["d20-creature", "builtin"], ["facts-trackers", "builtin"]]);
+    const all = m.allLayouts();
+    assert.deepEqual(all.slice(0, 2).map((s) => [s.layout.id, s.source]), [["d20-creature", "builtin"], ["facts-trackers", "builtin"]]);
+    assert.ok(all.every((s) => s.source === "builtin"));
     assert.equal(m.canWriteLayouts(), false);
     const r = await m.duplicateLayout("d20-creature");
     assert.equal(r.ok, false);

@@ -186,11 +186,21 @@ export interface Appearance {
   bodyFont?: FontToken;
 }
 
+/** Where a layout's fields were read: a page or file of the system's
+ *  publisher, shown on the layout's credits (ADR 0099 item 6). */
+export interface LayoutSource {
+  label: string;
+  /** An `https://` address. */
+  url: string;
+}
+
 export interface Layout {
   version: number;
   id: string;
   name: Label;
   description?: Label;
+  /** The sources the layout's fields come from (`docs/reference/statblock-sources.md`). */
+  sources?: LayoutSource[];
   /** The Rolai profile the layout's roll blocks use by default. */
   profile?: string;
   diceRules: DiceRule[];
@@ -226,6 +236,9 @@ export const LIMITS = {
   headers: 30,
   branches: 10,
   inputs: 20,
+  /** Sources of a layout, and a source's address length. */
+  sources: 12,
+  url: 300,
   /** A layout file, as text. */
   bytes: 256 * 1024,
 } as const;

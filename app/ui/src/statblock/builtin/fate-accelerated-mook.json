@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "fate-accelerated-mook",
+  "name": {
+    "pt": "Fate Accelerated — Capanga",
+    "en": "Fate Accelerated — Mook"
+  },
+  "description": {
+    "pt": "Capanga (CC BY 3.0): bom em, ruim em, aspectos simples e caixas de estresse.",
+    "en": "A mook (CC BY 3.0): skilled at, bad at, simple aspects and stress boxes."
+  },
+  "sources": [
+    {
+      "label": "Fate Accelerated, being the GM",
+      "url": "https://fate-srd.com/fate-accelerated/being-gamemaster"
+    },
+    {
+      "label": "Fate SRD licensing (CC BY 3.0)",
+      "url": "https://fate-srd.com/official-licensing-fate"
+    }
+  ],
+  "profile": "fate",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"traits","id":"aspects","properties":["aspects"],"label":{"pt":"Aspects","en":"Aspects"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"skills","properties":["skilled_at","bad_at"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"skilled","properties":["skilled_at"],"label":{"pt":"Skilled at (+2)","en":"Skilled at (+2)"},"hideWhenEmpty":true},{"type":"property","id":"bad","properties":["bad_at"],"label":{"pt":"Bad at (-2)","en":"Bad at (-2)"},"hideWhenEmpty":true}]},
+    {"type":"tracker","id":"stress","properties":["stress","stress_max"],"label":{"pt":"Stress","en":"Stress"},"hideWhenEmpty":true,"current":"stress","max":"stress_max","style":"boxes"},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 4dF","en":"Roll 4dF"},"inputs":{}}
+  ]
+}

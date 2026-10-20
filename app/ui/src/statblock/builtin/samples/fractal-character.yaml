@@ -1,0 +1,16 @@
+name: Yara do Farol
+jogador: Letícia
+xp: 4
+reserva_1_nome: Coragem
+reserva_1_atual: 3
+reserva_1_total: 3
+reserva_2_nome: Fôlego
+reserva_2_atual: 2
+reserva_2_total: 4
+fato_1: Guardiã do farol velho
+fato_1_quebrado: 0
+fato_2: Conhece todos os barcos do porto
+fato_2_quebrado: 1
+fato_3: Dívida com a capitã Duarte
+anotacoes: Procurar a luz que não é do farol.
+fatos_aplicaveis: 2

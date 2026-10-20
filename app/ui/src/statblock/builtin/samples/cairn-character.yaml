@@ -1,0 +1,15 @@
+name: Edda Roan
+background: Fisher
+age: 31
+str: 11
+dex: 9
+wil: 13
+hp: 4
+hp_current: 4
+armor: 0
+gold: 12
+inventory:
+  - Net
+  - Knife
+virtue: Patient
+vice: Stubborn

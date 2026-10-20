@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "difficulty-pool-character",
+  "name": {
+    "pt": "Pool por dificuldade — Personagem",
+    "en": "Dice pool by difficulty — Character"
+  },
+  "description": {
+    "pt": "Para jogos em que se rola um pool de d6 e se contam acertos contra uma dificuldade: reservas de dados nomeadas, vida e anotações. Um desenho do Verso.",
+    "en": "For games that roll a pool of d6 and count hits against a difficulty: named dice pools, health and notes. Verso's own design."
+  },
+  "profile": "pool_d6",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"pools","properties":["pools"],"label":{"pt":"Dice pools","en":"Dice pools"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"tracker","id":"health","properties":["health","health_max"],"label":{"pt":"Health","en":"Health"},"hideWhenEmpty":true,"current":"health","max":"health_max","style":"boxes"},
+    {"type":"traits","id":"gear","properties":["gear"],"label":{"pt":"Gear","en":"Gear"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool","en":"Roll the pool"},"inputs":{}}
+  ]
+}
