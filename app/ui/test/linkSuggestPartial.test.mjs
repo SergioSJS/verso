@@ -71,6 +71,18 @@ describe("The partial names the typed words begin", () => {
     assert.ok(at("ver o Porto C", 5).includes("Porto Cinzento"), "six letters");
     assert.deepEqual(at("ver o Por", 5), []);
   });
+  test("a word that begins with a number counts as a capital: notes named by a date or a number", () => {
+    const dated = [
+      { path: "Diário/2026-10-20.md", name: "2026-10-20", aliases: [] },
+      { path: "Diário/2026-10-21.md", name: "2026-10-21", aliases: [] },
+      { path: "00 - Bem-vindo.md", name: "00 - Bem-vindo", aliases: [] },
+    ];
+    const at = (before) => names({}, dated).partial(before, "", "Rascunho.md").map((h) => h.name);
+    assert.deepEqual(at("na sessão de 2026"), ["2026-10-20", "2026-10-21"]);
+    assert.deepEqual(at("na sessão de 2026-10-2"), ["2026-10-20", "2026-10-21"]);
+    assert.deepEqual(at("veja 00 - Bem"), ["00 - Bem-vindo"]);
+    assert.deepEqual(at("na sessão de 20"), [], "two characters, under three");
+  });
   test("the capital switch off lists a lowercase word", () => {
     const rule = { minLetters: 3, capitalOnly: false };
     assert.deepEqual(names().partial("ir ao porto ci", "", "Rascunho.md", rule).map((h) => h.name), ["Porto Cinzento"]);

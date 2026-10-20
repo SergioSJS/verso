@@ -53,7 +53,10 @@
   número de caracteres pra acionar a busca por notas nesse parâmetro"*.
   `[DECIDIDO 2026-10-20]`: o número de letras antes de a lista aparecer é
   um ajuste ao lado da sugestão, padrão 3. `[PROPOSTO]`: de 1 a 10; e a
-  regra da inicial maiúscula um interruptor ao lado, ligado por padrão.
+  regra da inicial maiúscula um interruptor ao lado, ligado por padrão. Uma
+  palavra que começa com um algarismo conta como maiúscula — o mantenedor:
+  *"você não considerou notas que começam com número, tipo 2026"*,
+  `[DECIDIDO 2026-10-20]`.
 
 ## Contexto
 

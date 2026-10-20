@@ -56,7 +56,10 @@
   this setting). `[DECIDED 2026-10-20]`: the number of letters before the
   list appears is a setting beside the suggestion, default 3.
   `[PROPOSED]`: from 1 to 10; and the capital-letter rule a switch beside
-  it, on by default.
+  it, on by default. A word that begins with a digit counts as a capital
+  one — the maintainer: *"você não considerou notas que começam com número,
+  tipo 2026"* (you didn't consider notes that start with a number, like
+  2026), `[DECIDED 2026-10-20]`.
 
 ## Context
 
