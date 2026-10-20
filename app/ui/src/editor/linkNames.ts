@@ -45,7 +45,9 @@ type Entry = { path: string; name: string; alias: boolean; segments: number; tex
 export const MAX_PARTIAL = 5;
 /** How many keys of one prefix are looked at before ranking. */
 const SCAN = 2000;
-const CAPITAL = /^\p{Lu}/u;
+/** A capital letter or a digit: names, and notes named by a date or a
+ *  number ("2026-10-20", "00 - Welcome"). */
+const CAPITAL = /^[\p{Lu}\p{N}]/u;
 const LETTERS = /[\p{L}\p{N}]/gu;
 
 /** A name shorter than this is never suggested. */
@@ -208,7 +210,7 @@ export class LinkNames {
 
   /** The names the words just typed begin (ADR 0089 item 5, 2026-10-20):
    *  the cursor at the end of a word of three letters or more in all, the
-   *  first word of the span beginning with a capital letter, the span a
+   *  first word of the span beginning with a capital letter or a digit, the span a
    *  strict prefix of a name or alias. The longest span first, then the
    *  notes nearest `self`'s folder, then the shortest name; at most five
    *  notes, `self` never among them. */
