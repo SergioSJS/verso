@@ -180,6 +180,9 @@
   letter-spacing: .06em;
   line-height: 1.2;
   text-transform: uppercase;
+  /* A layout's long name ("Constituição") breaks with a hyphen where the
+     engine knows the language, anywhere as a last resort: never past the cell. */
+  hyphens: auto;
   color: var(--sb-accent);
 }
 .statblock-score-line {
