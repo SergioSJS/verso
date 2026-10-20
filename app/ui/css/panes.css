@@ -285,8 +285,8 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .prop-remove .icon { width: 12px; height: 12px; }
 /* No properties: the hairline under the title stays, with the add button
    clearly discoverable, aligned on the left with the note measure. */
-.props.empty { display: flex !important; align-items: center; justify-content: flex-start; height: auto; min-height: 1.8rem; margin: .4rem auto .3rem; padding: 0; border-bottom: 0; max-width: 52rem; }
-.props.empty .prop-new { display: inline-flex !important; margin: 0; padding: .2rem .55rem; opacity: .8; color: var(--ink-3); border-radius: 5px; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.props.empty { display: flex; align-items: center; justify-content: flex-start; height: auto; min-height: 1.8rem; margin: .4rem auto .3rem; padding: 0; border-bottom: 0; max-width: 52rem; }
+.props.empty .prop-new { display: inline-flex; margin: 0; padding: .2rem .55rem; opacity: .8; color: var(--ink-3); border-radius: 5px; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
 .props.empty .prop-new:hover, .props.empty .prop-new:focus-visible, .sheet:hover .props.empty .prop-new { opacity: 1; }
 .props.empty .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .props.adding { position: relative; height: auto; margin: .5rem auto .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); max-width: 52rem; }

@@ -19,6 +19,8 @@ export interface StatblockSectionItem {
 
 export interface StatblockSection {
   title: string;
+  /** The note's key, lower case: what a layout block names to place it. */
+  key?: string;
   items: StatblockSectionItem[];
 }
 
@@ -113,6 +115,9 @@ export interface StatblockData {
 
   /** Custom or rules-lite arbitrary key-value fields */
   customFields?: Record<string, unknown>;
+
+  /** The note held more fields or sections than a card draws. */
+  truncated?: boolean;
 
   /** Raw unparsed source for toggling back to source code */
   rawSource: string;
