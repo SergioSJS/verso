@@ -284,7 +284,9 @@ impl Workspace {
     }
 
     /// Remove a data file through the bin, when it is still the version
-    /// `revision` describes (`Changed` otherwise, nothing moved).
+    /// `revision` describes (`Changed` otherwise, nothing moved). A file
+    /// past its kind's bound has no revision to describe (the list gave an
+    /// empty one) and is removed on an empty `revision`, unread.
     pub fn remove_folder_data(
         &mut self,
         kind: FolderDataKind,
@@ -292,15 +294,32 @@ impl Workspace {
         revision: &str,
     ) -> Result<Trashed, CoreError> {
         let path = path_of(kind, id)?;
-        let expected = Self::decode_revision(revision)?;
         let handle = self
             .root
             .handle(Path::new(&path))
             .map_err(CoreError::Confined)?;
-        let (_, current) = self.root.read(handle).map_err(CoreError::Read)?;
-        if current != expected {
-            return Err(CoreError::Write(WriteError::Changed { current }));
+        // A file past its kind's bound is listed with no revision and never
+        // read: it goes to the bin on that empty revision, so the window can
+        // clear it away and a forged revision cannot make the host read it.
+        let too_big = self
+            .root
+            .length_and_time(handle)
+            .is_ok_and(|(len, _)| len > kind.most() as u64);
+        if too_big {
+            if !revision.is_empty() {
+                return Err(refuse(
+                    "the file grew past the bound since it was listed: list again",
+                ));
+            }
+        } else {
+            let expected = Self::decode_revision(revision)?;
+            let (_, current) = self.root.read(handle).map_err(CoreError::Read)?;
+            if current != expected {
+                return Err(CoreError::Write(WriteError::Changed { current }));
+            }
         }
+        // A write that lands between the check and the move goes to the bin
+        // with the file, so nothing is lost; the bin keeps both.
         let (gone, report) = self
             .root
             .trash(Path::new(&path))

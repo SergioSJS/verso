@@ -116,7 +116,10 @@ export class FolderData {
     const path = pathOf(kind, id);
     const was = this.host.files.get(path);
     if (!was) return refuse("not_found", `no such file: ${path}`);
-    if (!this.host.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
+    // Past the bound the list gave no revision: removed on the empty one, unread.
+    if (was.bytes.length > FOLDER_DATA_MOST[kind]) {
+      if (revision !== "") refuse("refused", "folder data: the file grew past the bound since it was listed: list again");
+    } else if (!this.host.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
     return { path: this.host.trash(path), warnings: [] };
   }
 }
@@ -133,7 +136,7 @@ function oddsProblem(odds: readonly (readonly number[])[]): string | null {
   if (odds.length !== 5) return `the odds are 5 rows, not ${odds.length}`;
   for (const [i, row] of odds.entries()) {
     if (row.length !== 6) return `odds row ${i + 1} has ${row.length} numbers, not 6`;
-    if (row.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return `odds row ${i + 1} holds a number that is not a whole 0 to 255`;
+    if (row.some((n) => !Number.isInteger(n) || n < 0)) return `odds row ${i + 1} holds a number that is not a whole, non-negative one`;
     const sum = row.reduce((a, b) => a + b, 0);
     if (sum !== 100) return `odds row ${i + 1} adds to ${sum}, not 100`;
   }

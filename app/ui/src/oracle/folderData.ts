@@ -13,7 +13,7 @@
 import { canWrite } from "../can";
 import { changeFolder, folderLayerNow, folderSettingsWritable, onFolderLayer } from "../folderLayer";
 import { LOCALE } from "../strings";
-import { type FolderOracle, type OddsTable, oddsToRows, type SparkWordLists, useFolderOracle } from "./engine";
+import { type FolderOracle, type OddsTable, oddsToRows, type SparkWordLists, useFolderOracle, validOddsRow } from "./engine";
 import { clearLegacyOracle, legacyOdds, legacyOracleKept, legacySparks } from "./legacy";
 
 /** The folder's layer is used: its file stands and can be read. */
@@ -89,6 +89,9 @@ export function anyLegacyKept(): boolean {
  *  change does not set — and is removed once the folder holds it. */
 async function write(part: { odds: number[][] | null; sparks: SparkWordLists | null }): Promise<boolean> {
   if (oracleNotWritable()) return false;
+  // A number the contract cannot carry (negative, not whole) is refused here,
+  // before the host's argument decoding fails with no message of ours.
+  if (part.odds !== null && !part.odds.every(validOddsRow)) return false;
   const here = folderOracleNow();
   const moveOdds = part.odds === null && here.odds === null ? legacyOddsKept() : null;
   const moveSparks = part.sparks === null && here.sparks === null ? legacySparksKept() : null;
