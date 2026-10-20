@@ -66,6 +66,10 @@ pub const SERVER_READS: &[(&str, &str)] = &[
         "collab_roll",
         "a roll whose dice and table the projection shows",
     ),
+    (
+        "collab_oracle",
+        "a draw whose words the asker sent; a reader hears a question only, never a word",
+    ),
     ("sync_state", "the projections' hashes and sizes"),
     (
         "sync_changes",

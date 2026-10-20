@@ -25,7 +25,7 @@ import { keymap } from "@codemirror/view";
 import { yCollab, ySyncAnnotation, yUndoManagerKeymap } from "y-codemirror.next";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { commands, type Capabilities, type CollabJoin, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
+import { commands, type Capabilities, type CollabJoin, type CollabOracle, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 import { UpdateQueue } from "./updateQueue";
 
@@ -422,6 +422,8 @@ function hear(): void {
   void listen<CollabState>("collab-conflict", (e) => sessions.get(e.payload.path)?.handlers.conflict(), opts);
   // Dice rolled in a room by another (ADR 0088 item 4; dice/card.ts).
   void listen<CollabRoll>("collab-roll", (e) => dispatchEvent(new CustomEvent<CollabRoll>("verso:collab-roll", { detail: e.payload })), opts);
+  // The oracle drawn in a room by another (ADR 0102 item 5; oracle/room.ts).
+  void listen<CollabOracle>("collab-oracle", (e) => dispatchEvent(new CustomEvent<CollabOracle>("verso:collab-oracle", { detail: e.payload })), opts);
   void listen<CollabState>("collab-closed", (e) => {
     const s = sessions.get(e.payload.path);
     if (!s) return;

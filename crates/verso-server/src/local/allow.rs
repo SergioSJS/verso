@@ -112,6 +112,7 @@ pub const EDIT: &[&str] = &[
     "collab_resolve",
     "collab_canvas",
     "collab_roll",
+    "collab_oracle",
     "trash_list",
     "trash_restore",
     "trash_delete",

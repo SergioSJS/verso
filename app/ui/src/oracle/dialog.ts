@@ -6,12 +6,18 @@ import { asDialog, closed, opened } from "../dialogs/a11y";
 import { h, ui } from "../dom";
 import { icon } from "../icons";
 import { composeOracle } from "./compose";
-import { askOracle, generateSpark, LIKELIHOODS, readOddsTable, readSparkWords, type Likelihood, type OracleResult, type SparkResult } from "./engine";
+import { LIKELIHOODS, type Likelihood, type OracleResult, type SparkResult } from "./engine";
+import { oddsIgnored, sparksIgnored } from "./folderData";
 import type { OracleHost, OracleTarget } from "./host";
+import { drawQuestion, drawSpark, drawTable } from "./room";
+import { scanNoteTables, SCAN_MOST } from "./scan";
 import { isPt, os } from "./strings";
-import { BUILTIN_ORACLE_TABLES, getAllOracleTables, readCustomTables, rollOracleTable, type OracleTable, type TableRollResult } from "./tables";
+import { BUILTIN_ORACLE_TABLES, getAllOracleTables, type OracleTable, type TableRollResult } from "./tables";
 import { trackOracle } from "./track";
 import { writeOracle, type Refusal } from "./write";
+
+/** The folder's tables were found (or found again). */
+export const TABLES_FOUND = "verso:oracle-tables-changed";
 
 type OracleTab = "probabilities" | "sparks" | "tables";
 
@@ -226,7 +232,7 @@ function build(): Dialog {
     chooseTable(tableSelect.value);
   };
   populateTableSelect();
-  window.addEventListener("verso:oracle-tables-changed", populateTableSelect);
+  window.addEventListener(TABLES_FOUND, populateTableSelect);
   tableSelect.addEventListener("change", () => chooseTable(tableSelect.value));
 
   const manageTablesBtn = h("button", "ghost oracle-customize-link", os.manageTables);
@@ -376,31 +382,62 @@ function build(): Dialog {
     if (e.target === el) hide();
   });
 
-  /** Roll what the open tab rolls. False when there is nothing to roll. */
-  const roll = (): boolean => {
-    if (currentTab === "probabilities") {
-      lastResult = askOracle(currentLikelihood, qInput.value);
-      renderProb();
-    } else if (currentTab === "sparks") {
-      lastSpark = generateSpark(isPt ? "pt" : "en");
-      renderSpark();
-    } else {
-      lastTableResult = rollOracleTable(selectedTable);
-      if (!lastTableResult) {
-        say(os.emptyTable);
+  /** Roll what the open tab rolls: in a room the server draws and the room
+   *  hears it (ADR 0102 item 5), else this window does. False when there is
+   *  nothing to roll, or the server refused. */
+  let drawing = false;
+  const roll = async (): Promise<boolean> => {
+    if (drawing) return false;
+    drawing = true;
+    primaryBtn.disabled = true;
+    try {
+      const path = options.host?.path;
+      let note: string | null = null;
+      if (currentTab === "probabilities") {
+        const d = await drawQuestion(path, currentLikelihood, qInput.value);
+        if (!d.ok) {
+          say(d.why);
+          return false;
+        }
+        lastResult = d.value;
+        note = d.note;
+        renderProb();
+      } else if (currentTab === "sparks") {
+        const d = await drawSpark(path, isPt ? "pt" : "en");
+        if (!d.ok) {
+          say(d.why);
+          return false;
+        }
+        lastSpark = d.value;
+        note = d.note;
+        renderSpark();
+      } else {
+        const d = await drawTable(path, selectedTable);
+        if (!d.ok) {
+          say(d.why);
+          return false;
+        }
+        lastTableResult = d.value;
+        note = d.note;
+        if (!lastTableResult) {
+          say(os.emptyTable);
+          renderTable();
+          renderButtons();
+          return false;
+        }
         renderTable();
-        renderButtons();
-        return false;
       }
-      renderTable();
+      say(note ?? "");
+      renderButtons();
+      return true;
+    } finally {
+      drawing = false;
+      primaryBtn.disabled = false;
     }
-    say("");
-    renderButtons();
-    return true;
   };
 
   primaryBtn.addEventListener("click", () => {
-    roll();
+    void roll();
   });
   qInput.addEventListener("input", discardResult);
 
@@ -426,7 +463,8 @@ function build(): Dialog {
     clipboard.writeText(toCopy).then(done, () => say(os.copyFailed));
   });
 
-  insertBtn.addEventListener("click", () => {
+  insertBtn.addEventListener("click", () => void insert());
+  const insert = async (): Promise<void> => {
     const host = options.host ?? null;
     if (!host) {
       ui.status.textContent = os.noNote;
@@ -434,7 +472,7 @@ function build(): Dialog {
       return;
     }
     // Clicked before a roll: roll now, and write what came up.
-    if (!hasResult() && !roll()) return;
+    if (!hasResult() && !(await roll())) return;
     const composed = composeOracle(
       os,
       qInput.value,
@@ -459,7 +497,7 @@ function build(): Dialog {
         p.focus({ preventScroll: true });
       }
     } else host.editor.focus();
-  });
+  };
 
   qInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -477,13 +515,16 @@ function build(): Dialog {
       qInput.value = question;
       populateTableSelect();
       pickLikelihood(LIKELIHOODS.indexOf(currentLikelihood), false);
-      // What stored settings could not be used, said once, plainly.
+      // What the folder's settings held that could not be used, said once, plainly.
       const notes: string[] = [];
-      if (readOddsTable().invalid.length > 0) notes.push(os.brokenOdds);
-      if (readSparkWords(isPt ? "pt" : "en").invalid) notes.push(os.brokenSparks);
-      const skipped = readCustomTables().skipped;
-      if (skipped > 0) notes.push(os.brokenTables(skipped));
+      if (oddsIgnored()) notes.push(os.brokenOdds);
+      if (sparksIgnored()) notes.push(os.brokenSparks);
       say(notes.join(" "));
+      // The folder's tables are found in its notes; the list fills when they are.
+      void scanNoteTables().then((found) => {
+        window.dispatchEvent(new CustomEvent(TABLES_FOUND));
+        if (found.capped) say([...notes, os.scanCapped(SCAN_MOST)].join(" "));
+      });
       renderAll();
       setTab(currentTab);
       el.hidden = false;

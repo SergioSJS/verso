@@ -47,7 +47,7 @@ const GRACE: Duration = Duration::from_secs(120);
 pub const ROLLS_KEPT: usize = 20;
 #[path = "collab_dice.rs"]
 mod rolls;
-pub use rolls::roll;
+pub use rolls::{oracle, roll};
 #[path = "collab_readers.rs"]
 pub(crate) mod readers;
 #[path = "collab_restore.rs"]
