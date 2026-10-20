@@ -81,8 +81,8 @@
 .statblock-card hr.statblock-divider::after,
 .statblock-divider::before,
 .statblock-divider::after {
-  content: none !important;
-  display: none !important;
+  content: none;
+  display: none;
 }
 
 .statblock-vitals {
@@ -98,24 +98,26 @@
   font-weight: 600;
 }
 
-.statblock-abilities {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: center;
-  padding: 0.4rem 0.2rem;
+.statblock-abilities-scroll {
+  overflow-x: auto;
 }
 
-.statblock-ability-col {
-  flex: 1 1 50px;
-  max-width: 90px;
-  min-width: 48px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
+.statblock-abilities {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  table-layout: fixed;
+  min-width: min-content;
+}
+
+.statblock-abilities th,
+.statblock-abilities td {
+  padding: 0.15rem 0.2rem;
+  min-width: 3rem;
+}
+
+.statblock-abilities abbr {
+  text-decoration: none;
 }
 
 .statblock-ability-name {
@@ -134,10 +136,7 @@
 .statblock-ability-mod {
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.05rem 0.35rem;
-  background: var(--brass-wash);
   color: var(--brass-ink);
-  border-radius: 4px;
 }
 
 .statblock-secondary {
@@ -185,6 +184,8 @@
 }
 
 .statblock-dice-badge {
+  font: inherit;
+  line-height: inherit;
   display: inline-flex;
   align-items: center;
   padding: 0.05rem 0.35rem;
@@ -203,6 +204,12 @@
 .statblock-dice-badge:hover {
   background: color-mix(in oklch, var(--seal) 22%, var(--paper));
   transform: translateY(-1px);
+}
+.statblock-dice-badge:focus-visible,
+.statblock-toggle-btn:focus-visible,
+.statblock-layout-badge:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
 }
 .statblock-dice-badge:active {
   transform: translateY(0);
@@ -250,89 +257,89 @@
   --brass-ink: #ff007f;
   --seal: #00f0ff;
   --hair: rgba(0, 240, 255, 0.35);
-  background: #06090f !important;
-  color: #f0f6fc !important;
-  border: 2px solid #00f0ff !important;
+  background: #06090f;
+  color: #f0f6fc;
+  border: 2px solid #00f0ff;
   border-radius: 6px;
-  box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.45), inset 0 0 12px -2px rgba(0, 240, 255, 0.12) !important;
+  box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.45), inset 0 0 12px -2px rgba(0, 240, 255, 0.12);
   font-family: var(--mono);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-name {
-  color: #00f0ff !important;
+  color: #00f0ff;
   font-family: var(--mono);
   text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-subtitle {
-  color: #38bdf8 !important;
+  color: #38bdf8;
   font-family: var(--mono);
   font-size: 0.85rem;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-divider {
-  background: rgba(0, 240, 255, 0.35) !important;
+  background: rgba(0, 240, 255, 0.35);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-vitals,
 .statblock-card.statblock-theme-cyberpunk .statblock-vital-item {
-  color: #f0f6fc !important;
+  color: #f0f6fc;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-vital-item strong {
-  color: #ff007f !important;
+  color: #ff007f;
   text-shadow: 0 0 6px rgba(255, 0, 127, 0.4);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-ability-name {
-  color: #00f0ff !important;
+  color: #00f0ff;
   font-weight: 700;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-ability-score {
-  color: #f0f6fc !important;
+  color: #f0f6fc;
   font-weight: 700;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-ability-mod {
-  background: rgba(255, 230, 0, 0.15) !important;
-  color: #ffe600 !important;
-  border: 1px solid #ffe600 !important;
+  background: rgba(255, 230, 0, 0.15);
+  color: #ffe600;
+  border: 1px solid #ffe600;
   font-weight: 700;
   text-shadow: 0 0 4px rgba(255, 230, 0, 0.5);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-attr-row {
-  color: #f0f6fc !important;
+  color: #f0f6fc;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-attr-row strong {
-  color: #ff007f !important;
+  color: #ff007f;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-xp {
-  color: #38bdf8 !important;
+  color: #38bdf8;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-section-heading {
-  color: #00f0ff !important;
-  border-bottom: 1px solid #00f0ff !important;
+  color: #00f0ff;
+  border-bottom: 1px solid #00f0ff;
   text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
   font-family: var(--mono);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-item-row {
-  color: #f0f6fc !important;
+  color: #f0f6fc;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-item-name {
-  color: #ff007f !important;
+  color: #ff007f;
   font-weight: 700;
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-dice-badge {
-  background: rgba(0, 240, 255, 0.2) !important;
-  color: #00f0ff !important;
-  border: 1px solid #00f0ff !important;
+  background: rgba(0, 240, 255, 0.2);
+  color: #00f0ff;
+  border: 1px solid #00f0ff;
   text-shadow: 0 0 6px rgba(0, 240, 255, 0.6);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-layout-badge {
-  background: #0e1626 !important;
-  color: #00f0ff !important;
-  border: 1px solid rgba(0, 240, 255, 0.5) !important;
+  background: #0e1626;
+  color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.5);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-toggle-btn {
-  color: #00f0ff !important;
-  border-color: rgba(0, 240, 255, 0.4) !important;
+  color: #00f0ff;
+  border-color: rgba(0, 240, 255, 0.4);
 }
 .statblock-card.statblock-theme-cyberpunk .statblock-toggle-btn:hover {
-  background: rgba(0, 240, 255, 0.15) !important;
-  color: #ffffff !important;
+  background: rgba(0, 240, 255, 0.15);
+  color: #ffffff;
 }
 
 /* Grim Dark / OSR — High Contrast Pure Monochrome */
@@ -343,99 +350,105 @@
   --brass-ink: #f8fafc;
   --seal: #ffffff;
   --hair: #475569;
-  background: #0d0f12 !important;
-  color: #f8fafc !important;
-  border: 2px solid #ffffff !important;
+  background: #0d0f12;
+  color: #f8fafc;
+  border: 2px solid #ffffff;
   border-radius: 4px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.75), 4px 4px 0 #000000 !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.75), 4px 4px 0 #000000;
 }
 .statblock-card.statblock-theme-osr .statblock-name {
-  color: #ffffff !important;
+  color: #ffffff;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .statblock-card.statblock-theme-osr .statblock-subtitle {
-  color: #cbd5e1 !important;
+  color: #cbd5e1;
   font-style: italic;
   font-size: 0.88rem;
 }
 .statblock-card.statblock-theme-osr .statblock-divider {
-  background: #475569 !important;
+  background: #475569;
   height: 2px;
 }
 .statblock-card.statblock-theme-osr .statblock-vitals,
 .statblock-card.statblock-theme-osr .statblock-vital-item {
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 .statblock-card.statblock-theme-osr .statblock-vital-item strong {
-  color: #ffffff !important;
+  color: #ffffff;
   font-weight: 700;
 }
 .statblock-card.statblock-theme-osr .statblock-ability-name {
-  color: #cbd5e1 !important;
+  color: #cbd5e1;
   font-weight: 800;
   text-transform: uppercase;
 }
 .statblock-card.statblock-theme-osr .statblock-ability-score {
-  color: #ffffff !important;
+  color: #ffffff;
   font-weight: 800;
   font-size: 1.1rem;
 }
 .statblock-card.statblock-theme-osr .statblock-ability-mod {
-  background: #1e293b !important;
-  color: #ffffff !important;
-  border: 1px solid #64748b !important;
+  background: #1e293b;
+  color: #ffffff;
+  border: 1px solid #64748b;
   font-weight: 800;
 }
 .statblock-card.statblock-theme-osr .statblock-attr-row {
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 .statblock-card.statblock-theme-osr .statblock-attr-row strong {
-  color: #ffffff !important;
+  color: #ffffff;
   font-weight: 700;
 }
 .statblock-card.statblock-theme-osr .statblock-xp {
-  color: #94a3b8 !important;
+  color: #94a3b8;
 }
 .statblock-card.statblock-theme-osr .statblock-section-heading {
-  color: #ffffff !important;
-  border-bottom: 2px solid #ffffff !important;
+  color: #ffffff;
+  border-bottom: 2px solid #ffffff;
   text-transform: uppercase;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 .statblock-card.statblock-theme-osr .statblock-item-row {
-  color: #f1f5f9 !important;
+  color: #f1f5f9;
   line-height: 1.55;
 }
 .statblock-card.statblock-theme-osr .statblock-item-name {
-  color: #ffffff !important;
+  color: #ffffff;
   font-weight: 800;
 }
 .statblock-card.statblock-theme-osr .statblock-dice-badge {
-  background: #ffffff !important;
-  color: #000000 !important;
-  border: 1px solid #000000 !important;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
   font-weight: 900;
   padding: 0.1rem 0.45rem;
 }
 .statblock-card.statblock-theme-osr .statblock-layout-badge {
-  background: #1e293b !important;
-  color: #ffffff !important;
-  border: 1px solid #64748b !important;
+  background: #1e293b;
+  color: #ffffff;
+  border: 1px solid #64748b;
 }
 .statblock-card.statblock-theme-osr .statblock-toggle-btn {
-  color: #cbd5e1 !important;
-  border-color: #64748b !important;
+  color: #cbd5e1;
+  border-color: #64748b;
 }
 .statblock-card.statblock-theme-osr .statblock-toggle-btn:hover {
-  background: #1e293b !important;
-  color: #ffffff !important;
+  background: #1e293b;
+  color: #ffffff;
 }
 
 /* Investigation / 1920s Dossier */
 .statblock-card.statblock-theme-investigation {
+  --ink: #2b2014;
+  --ink-2: #5a4a38;
+  --ink-3: #6e5d48;
+  --brass-ink: #6b4423;
+  --seal: #8a2f1d;
+  --hair: #c9b79c;
   background: #f4ece1;
   border: 1px solid #8c7355;
   border-left: 6px solid #6b4423;
@@ -461,6 +474,27 @@
   background: var(--paper-2);
 }
 
+
+/* Badges: a card that says why it is not the card the note asked for. */
+.statblock-badge {
+  margin: 0.5rem 0 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--hair);
+  border-left: 3px solid var(--seal);
+  border-radius: 4px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+.statblock-error-source {
+  margin: 0.5rem 0 0;
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.statblock-source { position: relative; }
+.statblock-back-btn { position: absolute; top: 0.4rem; right: 0.4rem; }
 /* Layout Builder Modal */
 .statblock-builder-modal {
   position: fixed;
