@@ -136,7 +136,8 @@ he has not read.
      its character sheet is read from a source), 13th Age (OGL 1.0a), Dungeon World and
      Blades in the Dark (CC BY 3.0), Fate Condensed and Accelerated (CC BY
      3.0), Mausritter (its Third Party Licence; the line it asks for names
-     the maintainer, waiting for his word), Ironsworn/Starforged's open
+     who makes Verso — the maintainer, 2026-10-20: *"coloque Sérgio Sousa
+     (Meio-Orc)"*), Ironsworn/Starforged's open
      parts (CC BY 4.0),
      Cairn and Old Dragon 2e (CC BY-SA 4.0: field names only, no text);
    - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0 by its SRD's
