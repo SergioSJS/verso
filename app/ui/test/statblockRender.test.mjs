@@ -509,3 +509,26 @@ describe("a trait's mark and a tracker's label from the sheet", () => {
     assert.equal(m.renderStatblock("r_atual: 2\nr_total: 3", undefined, { layout }).querySelector(".statblock-tracker"), null);
   });
 });
+
+describe("a marked list of links (Fractal obstacles)", () => {
+  const layout = layoutOf([{ type: "traits", id: "o", properties: ["obstaculos"], label: "Obstáculos", flag: { key: "quebrado", label: "Quebrado", count: "{n} de {m} quebrados" } }]);
+  const yaml = 'obstaculos:\n  - nome: "[[Horda de Orcs]]"\n    quebrado: true\n  - "[[Torre]]"\n  - nome: Ponte\n';
+  test("a mapping with nome carries the mark and its link; a plain string keeps its link, no mark", () => {
+    const card = m.renderStatblock(yaml, undefined, { layout, write: () => ({ ok: true }) });
+    const rows = card.querySelectorAll(".statblock-trait");
+    assert.equal(rows[0].querySelector("a.wikilink").dataset.target, "Horda de Orcs");
+    assert.equal(rows[0].querySelector("button.statblock-flag").getAttribute("aria-pressed"), "true");
+    assert.ok(rows[0].classList.contains("statblock-trait-flagged"));
+    assert.equal(rows[0].textContent.includes("nome"), false, "the key is not shown as a name");
+    assert.equal(rows[1].querySelector("a.wikilink").dataset.target, "Torre");
+    assert.equal(rows[1].querySelector("button.statblock-flag"), null);
+    assert.equal(rows[2].querySelector("button.statblock-flag").getAttribute("aria-pressed"), "false");
+    assert.equal(card.querySelector(".statblock-flag-count").textContent, "1 de 2 quebrados", "only items that can carry it are counted");
+  });
+  test("the mark of a link item writes back in place, or under it", () => {
+    const apply = (doc, plan) => m.EditorState.create({ doc }).update({ changes: plan }).state.doc.toString();
+    assert.equal(apply(yaml, m.planValueEdit(yaml, ["obstaculos", 0, "quebrado"], false)), yaml.replace("quebrado: true", "quebrado: false"));
+    assert.equal(apply(yaml, m.planValueEdit(yaml, ["obstaculos", 2, "quebrado"], true)), yaml.replace("  - nome: Ponte\n", "  - nome: Ponte\n    quebrado: true\n"));
+    assert.deepEqual(m.planValueEdit(yaml, ["obstaculos", 1, "quebrado"], true), { why: "shape" });
+  });
+});
