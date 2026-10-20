@@ -9,13 +9,12 @@ import { button, h, ui } from "../../dom";
 import { t } from "../../strings";
 import {
   deleteCustomLayout,
+  duplicateLayout,
   exportLayoutToJson,
   getAllLayouts,
   getDefaultLayoutId,
   importLayoutFromJson,
-  saveCustomLayout,
   setDefaultLayoutId,
-  type StatblockLayout,
 } from "../../statblock/layouts";
 import { openLayoutBuilder } from "../../statblock/builder";
 import { copyWithAnswer, feedbackLine } from "./feedback";
@@ -24,8 +23,6 @@ import type { ItemCtx, SettingItem } from "./types";
 
 /** The most layout text the page reads when one is pasted. */
 const IMPORT_KB = 512;
-
-let copies = 0;
 
 export function statblockItems(ctx: ItemCtx): SettingItem[] {
   const out: SettingItem[] = [];
@@ -84,8 +81,7 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
       editBtn.addEventListener("click", () => openLayoutBuilder(layout, () => ctx.paint()));
       const dupBtn = button("ghost", ss.duplicate);
       dupBtn.addEventListener("click", () => {
-        const clone: StatblockLayout = { ...JSON.parse(JSON.stringify(layout)), id: `custom-${Date.now().toString(36)}-${++copies}`, name: `${layout.name} ${ss.copySuffix}`, builtIn: false };
-        saveCustomLayout(clone);
+        const clone = duplicateLayout(layout);
         ui.status.textContent = clone.name;
         ctx.paint();
       });
