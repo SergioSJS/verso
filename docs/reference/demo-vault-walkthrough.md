@@ -1148,7 +1148,97 @@ rest below and in `manual-checks.md`.
     real network, the checks in `manual-checks.md`. Level: H for the list,
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
-## 14. The end
+## 14. Features, oracle, sheets and worlds (note 26, the Fractal campaign)
+
+Open note 26 (*Fichas, Oráculos e Criação de Mundos*) in Leitura, in a folder
+that has the demo content. The steps below follow it; the Fractal campaign is
+the folder `Campanha Fractal/` beside it ([ADR
+0098](../adr/0098-world-and-campaign-wizard-template-bundles.md), [ADR
+0099](../adr/0099-visual-markdown-statblocks-and-cards.md), [ADR
+0102](../adr/0102-creative-oracles-and-improvisation.md), [ADR
+0103](../adr/0103-feature-presets-and-capability-flags.md)).
+
+1. *Ajustes* › *Aplicação* › *Recursos* lists five switches, *Dados*, *Tabelas
+   sorteadas*, *Oráculos*, *Fichas* and *Assistente de mundo e campanha*, all
+   on, and the shortcuts *Tudo* and *Só escrita*; the old "Modo de Uso" is
+   nowhere. *Só escrita* first says what it will turn off and does nothing on
+   *Cancelar*. Turn *Oráculos* off, close Settings: the `[!oracle]` callout of
+   the note is drawn with no *Consultar Oráculo* button, and ⌘⇧P offers no
+   *Oráculo (sim/não e faíscas)…*. Turn it on: the button is back. No file
+   changed (note 26 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
+   (the switch), `statblock.spec.mjs` and `world-wizard.spec.mjs` (the
+   others); U: `test/capabilities.test.mjs`.
+2. The oracle in the note. In the callout *A patrulha da guarda ouviu o
+   barulho da invasão?* click *Consultar Oráculo*: the dialog opens with the
+   question filled in, three tabs (*Sim ou Não*, *Faíscas*, *Tabelas*) and the
+   five odds as a radio group. *Consultar* shows one of the six answers with
+   the d100; *Gravar no callout* writes one line into the callout and closes.
+   Again, same question: a second line below the first. Edit the question's
+   words in the dialog and consult: the lines the oracle wrote are replaced,
+   the line about the *oficial novato*, which was typed by hand, stays. With
+   the caret outside a callout, the button reads *Inserir na nota* and a new
+   callout appears at the caret, never inside a quote, a table or a code
+   fence. Level: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
+   `test/oracle.test.mjs`.
+3. The oracle's data. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*:
+   the odds table refuses to save with a row that does not add to 100, and
+   says which; the page says the values live in the folder
+   (`.verso/settings.json`); *+ Nova Tabela* writes a note holding a list with
+   a `^id`, and the oracle's *Tabelas* tab then lists it with the note it
+   comes from. In a room on a server the draw is the server's and another
+   window sees a notice with the asker's name. Level: H (the room: the
+   harness plays the server, `src/harness/room.ts`); U: `test/oracleData.test.mjs`;
+   the real room, in `manual-checks.md`.
+4. Statblocks. Example 1 of note 26 is a card; its dice (`+4 para acertar`,
+   `5 (1d6 + 2)`, *Furtividade +6*) roll with a click, the card says the
+   result and the note in Fonte is unchanged; the *PV atuais* buttons − and +
+   change `hp_current` and nothing else of the block. Example 2 (*Fatos e
+   contadores*): a box of *estresse* or *relógio* marks up to it, clicking the
+   last one clears it; Tab, the arrows, Home and End work the group. *Ver
+   código* / *Ver ficha* switches in both views. Turn *Fichas* off: both
+   blocks are code. Level: H; E: `statblock.spec.mjs`; U:
+   `test/statblock.test.mjs`, `test/statblockRender.test.mjs`.
+5. Layouts. *Ajustes* › *RPG & Mesa Solo* › *Fichas e Templates* lists the
+   built-in layouts (the open systems, *Fractal — Personagem*, *Fractal —
+   Desafio*, and the generic ones) as *Embutido*. *Editar* on one copies it
+   into the folder, says so at the top of the editor, and shows the tree of
+   blocks beside the card drawn from a sample. *Adicionar bloco* lists the
+   types with a line each; a *Texto* block with a fixed text shows in the
+   card at once; *Salvar* writes `.verso/layouts/<id>.json` and the list now
+   shows the copy as *Da pasta*. Closing with unsaved changes asks first.
+   Moving a block by drag or Alt+arrows and ⌘Z: by hand (`manual-checks.md`).
+   Level: H; E: `layout-editor.spec.mjs`; U: `test/statblockEditor.test.mjs`,
+   `test/statblockFolder.test.mjs`.
+6. The Fractal campaign (`Campanha Fractal/Mundo`, opened from the card on the
+   tour or from note 26). The first line is Fractal's credit, word for word as
+   *Créditos e agradecimentos* has it. *Yara do Farol*: a click on a box of
+   *Fôlego* changes `reserva_2_atual` in Fonte and nothing else; *Quebrado* on
+   a fact strikes it, writes `quebrado: true` and moves the count (*N de 3
+   quebrados*); *Rolar (Fractal)* asks for the facts that apply and shows the
+   result as the system reads it. *Desafio - A Maré Sem Fim*: its first
+   obstacle is a link to *Arco - O Farol Apagado*, whose second is a link to
+   *Episódio - A Luz Estranha*; each link opens its note, and the graph shows
+   the three as a chain. *Sessão 01*: two oracle callouts with answers that
+   piled up; *Consultar Oráculo* on one adds a line and keeps the hand-written
+   ones. Level: H; E: `statblock.spec.mjs` (the card and its two writes);
+   S: `scripts/demo-vault.mjs check` (the links).
+7. The project wizard. ⌘⇧P › *Novo projeto a partir de modelo…* (or the create
+   menu): a name, a folder, four bundles, a preview that lists folders and
+   files. *Criar estrutura* writes nothing and shows *Confira o que será
+   criado*: every folder and file with a box and a name. Untick a folder and
+   the files inside it go with it; untick a note; *Criar agora* creates only
+   what is ticked and reports it; the first note opens. With *Assistente de
+   mundo e campanha* off, the command is gone. *Gerador com IA*: *Copiar
+   System Prompt para IA* copies and sends nothing; a bad pasted JSON answers
+   with the fault and *Copiar pedido de correção para a IA*. Level: H; E:
+   `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`.
+8. *Ajustes* › *Aplicação* › *Créditos e agradecimentos*: the people and
+   works the app starts from, the notices of the shipped layouts and the open
+   software, each with *Abrir* that opens its site in the browser. Level: H
+   (the page); A (the link opening in the system's browser); U:
+   `test/credits.test.mjs`.
+
+## 15. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.
