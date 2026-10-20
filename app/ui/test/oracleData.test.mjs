@@ -274,7 +274,15 @@ test("the tables a folder's notes hold: lists, tables with one die; the rest are
   assert.deepEqual(tables.map((t) => t.block), ["lista", "dado"]);
   assert.deepEqual(tables[0].entries, ["a", "b", "c"]);
   assert.deepEqual(tables[1].entries, ["um", "dois", "dois", "quatro"]);
-  assert.equal(tables[0].name, "Mundo");
+  // No heading above: named by the id; the die kept for the one that has it.
+  assert.deepEqual(tables.map((t) => [t.name, t.die]), [["Lista", undefined], ["Dado", "d4"]]);
+  // Under one heading, two tables take their ids after it; a heading of
+  // their own names each.
+  const one = O.tablesOfNote(path, note, blocks, [{ text: "Tabelas sorteadas", line: 1 }]);
+  assert.deepEqual(one.map((t) => t.name), ["Tabelas sorteadas (^lista)", "Tabelas sorteadas (^dado)"]);
+  const own = O.tablesOfNote(path, note, blocks, [{ text: "Lista", line: 1 }, { text: "Encontros", line: 8 }]);
+  assert.deepEqual(own.map((t) => t.name), ["Lista", "Encontros"]);
+  assert.equal(O.idAsName("npc_intent-2"), "Npc intent 2");
   O.setNoteTables(tables);
   assert.equal(O.getAllOracleTables().length, O.BUILTIN_ORACLE_TABLES.length + 2);
   assert.equal(O.noteTables().length, 2);
