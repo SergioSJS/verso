@@ -366,3 +366,9 @@
 .world-report p { margin: 0 0 0.25rem; }
 .world-report-head { font-weight: 600; }
 .world-wizard-content[hidden] { display: none; }
+.world-confirm { display: flex; flex-direction: column; gap: .6rem; }
+.world-confirm-title { margin: 0; font-size: 1rem; }
+.world-confirm-list { list-style: none; margin: 0; padding: 0; max-height: 18rem; overflow-y: auto; display: flex; flex-direction: column; gap: .25rem; }
+.world-confirm-row { display: flex; align-items: center; gap: .5rem; }
+.world-confirm-name { flex: 1; padding: .25rem .5rem; font-size: .85rem; }
+.world-confirm[hidden], .world-form[hidden] { display: none; }

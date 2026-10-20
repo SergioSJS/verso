@@ -6,7 +6,7 @@ import { asDialog, closed, opened } from "./a11y";
 import { afterFileChange } from "../changes";
 import { commands } from "../bindings";
 import { currentPreset } from "../capabilities";
-import { type Plan, planBundle } from "../bundles/plan";
+import { checkEdited, type Plan, planBundle } from "../bundles/plan";
 import { BUILTIN_PRESETS } from "../bundles/presets";
 import { applyPlan, needsReading, type Report } from "../bundles/run";
 import { systemPromptFor } from "../bundles/systemPrompt";
@@ -328,22 +328,13 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
     reportBox.hidden = false;
   };
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const titleVal = nameInput.value.trim();
-    if (!titleVal) {
-      statusLine.textContent = bw.nameRequired;
-      nameInput.focus();
-      return;
-    }
-    reportBox.hidden = true;
-    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
-    if (plan.problems.length > 0) {
-      statusLine.textContent = bw.planRefused(plan.problems.length);
-      showReport(plan, null);
-      return;
-    }
+  const confirmBox = h("div", "world-confirm");
+  confirmBox.hidden = true;
 
+  /** Write the plan and say what each command answered. */
+  const execute = async (plan: Plan): Promise<void> => {
+    confirmBox.hidden = true;
+    form.hidden = false;
     submitBtn.disabled = true;
     submitBtn.textContent = t.worldWizard.creating;
     statusLine.textContent = bw.dryRun(plan.folders.length, plan.files.length);
@@ -373,9 +364,112 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
     submitBtn.disabled = false;
     submitBtn.textContent = t.worldWizard.create;
     submitBtn.prepend(icon("plus"));
+  };
+
+  /** The tree, before anything is written (ADR 0098 item 15): every folder
+   *  and file with a box to leave it out and a name to change. */
+  const confirm = (plan: Plan): void => {
+    type Row = { kind: "folder" | "note" | "file"; path: string; on: boolean; input: HTMLInputElement; box: HTMLInputElement; old: string };
+    const rows: Row[] = [];
+    const list = h("ul", "world-confirm-list");
+    const add = (kind: Row["kind"], path: string): void => {
+      const li = h("li", "world-confirm-row");
+      const box = h("input");
+      box.type = "checkbox";
+      box.checked = true;
+      box.setAttribute("aria-label", bw.include(path));
+      const input = h("input", "world-input world-confirm-name");
+      input.type = "text";
+      input.value = path;
+      input.setAttribute("aria-label", bw.rename(path));
+      input.spellcheck = false;
+      input.addEventListener("keydown", (e) => e.stopPropagation());
+      li.append(box, h("span", "", kind === "folder" ? "📂" : "📄"), input);
+      list.append(li);
+      const row: Row = { kind, path, on: true, input, box, old: path };
+      rows.push(row);
+      box.addEventListener("change", () => {
+        row.on = box.checked;
+        // A folder takes what is inside it along.
+        if (kind === "folder") for (const r of rows) if (r !== row && r.old.startsWith(`${row.old}/`)) { r.on = box.checked; r.box.checked = box.checked; }
+      });
+      input.addEventListener("change", () => {
+        const next = input.value.trim().replace(/^\/+|\/+$/g, "");
+        const was = row.old;
+        row.old = next;
+        input.value = next;
+        // Renaming a folder renames the paths under it.
+        if (kind === "folder") for (const r of rows) if (r !== row && r.old.startsWith(`${was}/`)) { r.old = `${next}${r.old.slice(was.length)}`; r.input.value = r.old; }
+      });
+    };
+    for (const f of plan.folders) add("folder", f);
+    for (const f of plan.files) add(f.note ? "note" : "file", f.path);
+
+    const problems = h("ul", "world-preview-problems");
+    problems.hidden = true;
+    const back = h("button", "ghost", bw.confirmBack);
+    back.type = "button";
+    const go = h("button", "save world-submit-btn", bw.confirmCreate);
+    go.type = "button";
+    const actions = h("div", "world-actions");
+    actions.append(back, go);
+    const heading = h("h3", "world-confirm-title", bw.confirmTitle);
+    heading.tabIndex = -1;
+    confirmBox.replaceChildren(heading, h("p", "world-field-hint", bw.confirmHint), list, problems, actions);
+    form.hidden = true;
+    confirmBox.hidden = false;
+    heading.focus();
+
+    back.addEventListener("click", () => {
+      confirmBox.hidden = true;
+      form.hidden = false;
+      nameInput.focus();
+    });
+    go.addEventListener("click", () => {
+      const chosen = rows.filter((r) => r.on);
+      const edited: Plan = {
+        folders: chosen.filter((r) => r.kind === "folder").map((r) => r.old),
+        files: chosen
+          .filter((r) => r.kind !== "folder")
+          .map((r) => {
+            const original = plan.files.find((f) => f.path === r.path)!;
+            const note = original.note;
+            return { path: note && !/\.md$/i.test(r.old) ? `${r.old}.md` : r.old, text: original.text, note };
+          }),
+        problems: [],
+      };
+      if (edited.folders.length + edited.files.length === 0) {
+        problems.replaceChildren(h("li", "", bw.nothingChosen));
+        problems.hidden = false;
+        return;
+      }
+      const bad = checkEdited(edited, bw);
+      problems.replaceChildren(...bad.map((p) => h("li", "", bw.problemAt(p.at, p.message))));
+      problems.hidden = bad.length === 0;
+      if (bad.length > 0) return;
+      void execute(edited);
+    });
+  };
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const titleVal = nameInput.value.trim();
+    if (!titleVal) {
+      statusLine.textContent = bw.nameRequired;
+      nameInput.focus();
+      return;
+    }
+    reportBox.hidden = true;
+    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
+    if (plan.problems.length > 0) {
+      statusLine.textContent = bw.planRefused(plan.problems.length);
+      showReport(plan, null);
+      return;
+    }
+    confirm(plan);
   });
 
-  host.append(form);
+  host.append(form, confirmBox);
   return {
     add: (bundle) => {
       selected = bundle;

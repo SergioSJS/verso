@@ -129,6 +129,13 @@ const pt = {
   dryRun: (folders: number, files: number) => `${folders} pastas e ${files} arquivos serão criados.`,
   done: "Fechar",
   reportLabel: "Resultado",
+  confirmTitle: "Confira o que será criado",
+  confirmHint: "Nada foi escrito ainda. Desmarque o que não quer ou mude um nome; mudar o nome de uma pasta muda o das que estão dentro dela.",
+  confirmBack: "Voltar",
+  confirmCreate: "Criar agora",
+  include: (path: string) => `Incluir ${path}`,
+  rename: (path: string) => `Nome de ${path}`,
+  nothingChosen: "Marque pelo menos um item para criar.",
 };
 
 type Words = typeof pt;
@@ -251,6 +258,13 @@ const en: Words = {
   dryRun: (folders, files) => `${folders} folders and ${files} files will be created.`,
   done: "Close",
   reportLabel: "Result",
+  confirmTitle: "Check what will be created",
+  confirmHint: "Nothing has been written yet. Uncheck what you do not want or change a name; renaming a folder renames what is inside it.",
+  confirmBack: "Back",
+  confirmCreate: "Create now",
+  include: (path) => `Include ${path}`,
+  rename: (path) => `Name of ${path}`,
+  nothingChosen: "Check at least one item to create.",
 };
 
 export type BundleWords = Words;
