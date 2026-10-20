@@ -75,3 +75,45 @@ test("an SVG picture card with a filtered group is as sharp as its plain text at
   console.log(`${info.project.name}: plain ${plain.toFixed(1)} filtered ${filtered.toFixed(1)} ratio ${(filtered / plain).toFixed(2)}`);
   expect(filtered / plain).toBeGreaterThan(0.85);
 });
+
+test("a cropped SVG picture card keeps its region and is as sharp as its plain text at 300 %", async ({ app, page }, info) => {
+  await app.open();
+  await app.writeOutside("assets/sombra.svg", SVG);
+  // The crop keeps the lower half of the picture: the filtered text, and the plain one gone.
+  await app.writeOutside("Mesa.canvas", '{\n\t"nodes":[\n\t\t{"id":"p","type":"file","file":"assets/sombra.svg","x":0,"y":0,"width":400,"height":200,"verso":{"crop":{"x":0,"y":0.4,"w":1,"h":0.6}}}\n\t],\n\t"edges":[]\n}');
+  await app.folderChanged(["Mesa.canvas", "assets/sombra.svg"], true);
+  await app.quickOpen("Mesa");
+  await app.boardReady();
+  await page.evaluate(() => document.querySelector(".board-canvas").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+  const geometry = async () =>
+    page.evaluate(() => {
+      const v = document.querySelector(".board-crop-view").getBoundingClientRect();
+      const i = document.querySelector(".board-crop-inner").getBoundingClientRect();
+      return { view: [v.width, v.height], dx: (i.left - v.left) / v.width, dy: (i.top - v.top) / v.height, iw: i.width / v.width, ih: i.height / v.height };
+    });
+  const look = async (z) => {
+    await page.evaluate((z) => {
+      const a = window.__VERSO_TEST__.board;
+      const s = a.getAppState();
+      a.updateScene({ appState: { zoom: { value: z }, scrollX: s.width / (2 * z) - 200, scrollY: s.height / (2 * z) - 100 } });
+    }, z);
+    await app.settledView();
+    await page.waitForTimeout(800);
+  };
+  await look(1);
+  const at1 = await geometry();
+  await look(3);
+  const at3 = await geometry();
+  // The same region of the picture in the same crop view: its offset and size are the same fractions of the view.
+  for (const k of ["dx", "dy", "iw", "ih"]) expect(at3[k], k).toBeCloseTo(at1[k], 2);
+  expect(at3.view[0] / at1.view[0]).toBeCloseTo(3, 1);
+  const box = await page.locator(".board-crop-view").boundingBox();
+  const png = await page.screenshot({ clip: { x: Math.max(0, box.x), y: Math.max(0, box.y), width: Math.min(box.width, 1400), height: Math.min(box.height, 900) } });
+  mkdirSync(SHOTS, { recursive: true });
+  writeFileSync(`${SHOTS}/${process.env.SHOT_TAG ?? "run"}-crop-${info.project.name}.png`, png);
+  // The crop's text sits at the middle of its view: compare with the same text drawn plain by Chromium/WebKit at the same size,
+  // by measuring the step against a reference image: the sharp rendering has strong steps (about 134 here, in both engines), a stretched raster does not.
+  const steps = await sharpness(page, png, 0.3, 0.7);
+  console.log(`${info.project.name}: crop text sharpness ${steps.toFixed(1)}`);
+  expect(steps).toBeGreaterThan(0.85 * 133);
+});
