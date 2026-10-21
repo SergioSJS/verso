@@ -41,6 +41,8 @@ import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
 import { diceBox, wireDice } from "../../dice/card";
 import { fitWhenSizeless } from "../../imageFit";
+import { diagramLang, openBlockDiagram } from "../../datagraph/block";
+import { dgw } from "../../datagraph/words";
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -162,6 +164,19 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
       });
     });
     pre.append(foldBtn, btn);
+    // JSON, YAML, TOML, XML and CSV: the block as a diagram, beside the note (ADR 0106).
+    const code = pre.querySelector("code");
+    const lang = Array.from(code?.classList ?? []).find((c) => c.startsWith("language-"))?.slice(9) ?? "";
+    if (lang !== "" && diagramLang(lang) !== null) {
+      const view = h("button", "copy-code-btn dg-view-btn");
+      view.type = "button";
+      view.title = dgw.viewAsDiagram;
+      view.setAttribute("aria-label", dgw.viewAsDiagram);
+      view.dataset["action"] = "view-diagram";
+      view.append(icon("diagram"));
+      view.addEventListener("click", () => openBlockDiagram(this, lang, code?.textContent ?? pre.textContent ?? ""));
+      pre.append(view);
+    }
   }
 }
 

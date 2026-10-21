@@ -17,6 +17,9 @@ import { BaseLeaf } from "../leaves/base";
 import { BoardLeaf } from "../leaves/board";
 import { FolderLeaf } from "../leaves/folderView";
 import { FrameLeaf } from "../leaves/frame";
+import { type BlockSource, DataLeaf, diagramFormat } from "../leaves/data";
+import { typeKey } from "../datagraph/model";
+import { lastView } from "../datagraph/store";
 import { GraphLeaf } from "../leaves/graph";
 import { ImageLeaf } from "../leaves/image";
 import { askDiscard, Leaf } from "../leaves/leaf";
@@ -182,7 +185,10 @@ export class Pane {
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
+      // A data file opens as the diagram when that was the view last used for its type (ADR 0106 item 9).
+      const type = kind === "text" && diagramFormat(path) !== null ? typeKey(path) : null;
+      if (type && lastView(type) === "diagram") leaf = new DataLeaf(this);
+      else leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
       this.place(leaf, preview);
       void leaf.load(path);
@@ -191,6 +197,25 @@ export class Pane {
     // A new tab names its file only once it is read: the trail takes the
     // place asked for.
     this.mark(path, leaf.kind);
+    return leaf;
+  }
+  /** A file as its diagram, in a tab of its own (a tab that was a diagram, brought back). */
+  openDiagram(path: string): Leaf {
+    let leaf = this.leaves.find((l) => l.path === path);
+    if (!leaf) {
+      leaf = new DataLeaf(this);
+      remember(path);
+      this.place(leaf, false);
+      void leaf.load(path);
+    }
+    this.activate(leaf, false);
+    return leaf;
+  }
+  /** A block of code of a note as a diagram, read-only, in a tab of this pane. */
+  openBlockDiagram(block: BlockSource): Leaf {
+    const leaf = new DataLeaf(this, block);
+    this.insert(leaf);
+    this.activate(leaf, true);
     return leaf;
   }
   openGraph(path: string): Leaf {

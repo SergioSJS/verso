@@ -14,6 +14,7 @@ import { folderValues, reloadFolderLayer } from "./folderLayer";
 import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
 import { onFileMade } from "./leaves/conflict";
+import { DataLeaf } from "./leaves/data";
 import { FolderLeaf } from "./leaves/folderView";
 import { Leaf } from "./leaves/leaf";
 import { NoteLeaf } from "./leaves/note";
@@ -95,7 +96,7 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
-  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof BoardLeaf && changed.has(l.path)) void l.recheck();
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if ((l instanceof BoardLeaf || l instanceof DataLeaf) && changed.has(l.path)) void l.recheck();
   tellOutcomes(outcomes);
   showProblems(change.index);
   // A note this app wrote (another window's view, a card moved) is current

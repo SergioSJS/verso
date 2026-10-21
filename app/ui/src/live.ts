@@ -18,7 +18,7 @@ import type { SyntaxNode } from "@lezer/common";
 import { tableArrows, type TableEditorOptions } from "./tableEditor";
 import { heldImage } from "./sanitize";
 import { hasCapability } from "./capabilities";
-import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, IframeWidget } from "./live/widgets";
+import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
 import { blocksOf, foldBlocks, type Block } from "./live/blocks";
 import { frontmatterEnd, outOfFrontmatter, keepFrontmatter } from "./live/frontmatter";
@@ -59,6 +59,11 @@ export type LiveOptions = {
   /** A code block's copy button and what it says once copied, in the
    *  interface's language (ADR 0035). */
   copyLabels?: { copy: string; copied: string };
+  /** A code block of JSON, YAML, TOML, XML or CSV gets "View as diagram"
+   *  (ADR 0106): `label` is the button's name, `wants` says whether the
+   *  language word is one the diagram reads (and the feature is on),
+   *  `open` shows the block's text as a diagram beside the note. */
+  diagram?: { label: string; wants: (lang: string) => boolean; open: (lang: string, text: string) => void };
   /** Whether an embed may be edited in place now (the setting). */
   canEditEmbed?: () => boolean;
   /** True when an embedded note is actively being edited, dirty, or conflicted. */
@@ -250,6 +255,14 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               to: node.from,
               deco: Decoration.widget({ widget: new CodeCopyWidget(codeText, opts.copyLabels ?? { copy: "Copy code", copied: "Copied." }), side: 1 }),
             });
+            const lang = info ? doc.sliceString(info.from, info.to).trim().split(/\s+/)[0] ?? "" : "";
+            if (opts.diagram && lang !== "" && opts.diagram.wants(lang)) {
+              out.push({
+                from: node.from,
+                to: node.from,
+                deco: Decoration.widget({ widget: new DiagramButtonWidget(codeText, lang, opts.diagram.label, opts.diagram.open), side: 2 }),
+              });
+            }
           }
         } else if (name === "Blockquote") {
           const a = doc.lineAt(node.from).number;

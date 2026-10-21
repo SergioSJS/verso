@@ -91,4 +91,4 @@ Na aba **Gerador com IA**, **Copiar System Prompt para IA** copia as instruçõe
 
 ---
 
-Volte às regras de rolagens em [[25 - Dados e Tabelas Sorteadas]], veja as fichas em [[26 - Fichas]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Volte às regras de rolagens em [[25 - Dados e Tabelas Sorteadas]], veja as fichas em [[26 - Fichas]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] veja os dados de qualquer arquivo como caixas em [[28 - Dados Estruturados como Diagrama]], ou explore o [[Tour do Verso.canvas|Tour do Verso]].

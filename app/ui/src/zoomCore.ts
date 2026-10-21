@@ -40,7 +40,7 @@ export function zoomPercent(z: number): number {
  *  board (Excalidraw), the maps (maplibre), the PDF viewer and the graph.
  *  Over one of them the event is the view's, as it was before the window
  *  zoomed. */
-export const SELF_ZOOMING = ".board-host, .board-mount, .maplibregl-map, .base-map, .pdf, .graph-stage, svg.graph";
+export const SELF_ZOOMING = ".board-host, .board-mount, .maplibregl-map, .base-map, .pdf, .graph-stage, svg.graph, .dg-stage";
 
 export function selfZooming(target: EventTarget | null): boolean {
   const el = target as { closest?: (s: string) => unknown } | null;
