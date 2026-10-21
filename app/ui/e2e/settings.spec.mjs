@@ -17,7 +17,7 @@ test("the settings have the sections the tutorial names", async ({ app }) => {
   const shown = await app.page.locator(".settings-nav-item").allTextContents();
   expect(shown.map((s) => s.trim())).toEqual(expect.arrayContaining(names));
   await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
-  for (const label of ["Tema", "Paleta de cores", "Tamanho da fonte", "Fonte dos títulos", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
+  for (const label of ["Tema", "Temas", "Tamanho da fonte", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await app.page.locator(".settings-nav-item", { hasText: "Organização" }).click();

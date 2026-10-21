@@ -35,18 +35,13 @@ function viaCanvas(css: string): RGB {
   return { r: (d[0] ?? 0) / 255, g: (d[1] ?? 0) / 255, b: (d[2] ?? 0) / 255 };
 }
 
-/** The stylesheet's own colours for each side, as it is now: the palette
- *  and the dark tone in force, the wizard's own variables lifted while
- *  they are read and put back. */
-export function shippedColors(root: HTMLElement = document.documentElement): Record<Side, Full> {
-  const key = `${root.dataset["palette"] ?? ""}|${root.dataset["dark"] ?? ""}`;
-  if (cache?.key === key) return cache.shipped;
-  const held = KEEP.map((p) => [p, root.style.getPropertyValue(p)] as const);
-  for (const [p] of held) root.style.removeProperty(p);
+/** The colours each side gives the variables at `host`, read through a
+ *  probe inside it (the element's palette and dark tone included). */
+export function measure(host: HTMLElement): Record<Side, Full> {
   const probe = document.createElement("span");
   probe.setAttribute("aria-hidden", "true");
   probe.style.cssText = "position:absolute;visibility:hidden;pointer-events:none;width:0;height:0";
-  document.body.append(probe);
+  host.append(probe);
   const shipped = {} as Record<Side, Full>;
   for (const side of SIDES) {
     probe.style.colorScheme = side;
@@ -59,6 +54,18 @@ export function shippedColors(root: HTMLElement = document.documentElement): Rec
     shipped[side] = full;
   }
   probe.remove();
+  return shipped;
+}
+
+/** The stylesheet's own colours for each side, as it is now: the palette
+ *  and the dark tone in force, the wizard's own variables lifted while
+ *  they are read and put back. */
+export function shippedColors(root: HTMLElement = document.documentElement): Record<Side, Full> {
+  const key = `${root.dataset["palette"] ?? ""}|${root.dataset["dark"] ?? ""}`;
+  if (cache?.key === key) return cache.shipped;
+  const held = KEEP.map((p) => [p, root.style.getPropertyValue(p)] as const);
+  for (const [p] of held) root.style.removeProperty(p);
+  const shipped = measure(document.body);
   for (const [p, v] of held) if (v) root.style.setProperty(p, v);
   cache = { key, shipped };
   return shipped;
@@ -66,20 +73,21 @@ export function shippedColors(root: HTMLElement = document.documentElement): Rec
 
 /** Every colour of a side with the look laid over the stylesheet's: the
  *  edited ones, and the derived ones those change. */
-export function effective(side: Side, look: Look, root: HTMLElement = document.documentElement): Full {
-  return resolve(side, shippedColors(root)[side], customRgb(look[side]));
+export function effective(side: Side, look: Look, root: HTMLElement = document.documentElement, from: HTMLElement = root): Full {
+  return resolve(side, shippedColors(from)[side], customRgb(look[side]));
 }
 
 export const hasColors = (look: Look): boolean => Object.keys(look.light).length + Object.keys(look.dark).length > 0;
 
-/** The look written on `root`; an empty look clears what it wrote. */
-export function applyLook(look: Look | undefined, root: HTMLElement = document.documentElement): void {
+/** The look written on `root`; an empty look clears what it wrote. A card
+ *  that shows a look is written with the window's own colours as `from`. */
+export function applyLook(look: Look | undefined, root: HTMLElement = document.documentElement, from: HTMLElement = root): void {
   for (const p of KEEP) root.style.removeProperty(p);
   if (!look) return;
   if (look.book) root.style.setProperty("--book", FONT_STACKS[look.book]);
   if (look.mono) root.style.setProperty("--mono", FONT_STACKS[look.mono]);
   if (!hasColors(look)) return;
-  const sides = { light: effective("light", look, root), dark: effective("dark", look, root) };
+  const sides = { light: effective("light", look, root, from), dark: effective("dark", look, root, from) };
   const custom = { light: customRgb(look.light), dark: customRgb(look.dark) };
   const touched = (token: ColorToken | (typeof DERIVED_TOKENS)[number], side: Side): boolean =>
     (COLOR_TOKENS as readonly string[]).includes(token) ? custom[side][token as ColorToken] !== undefined : DEPENDS[token as (typeof DERIVED_TOKENS)[number]].some((d) => custom[side][d] !== undefined);
