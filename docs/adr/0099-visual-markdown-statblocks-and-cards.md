@@ -24,7 +24,12 @@
   questionnaire of 2026-10-20 (answered 2026-10-21): the `[PROPOSED]` details
   of items 1, 5 and 6 are decided as proposed (0099.1, 0099.5, 0099.6a to c),
   and the English result words of the dice profiles (item 4) are approved.
-  Status Accepted.
+  Status Accepted. 2026-10-21, review of the batch — two entries of
+  "Discarded alternatives" ("Layout fields run as JavaScript" and "A card
+  triggered by ordinary properties") are removed: no document or answer
+  records that anyone considered them as alternatives to the design (CLAUDE.md
+  rule zero, item 4). The decision itself, that no field of a layout is run
+  as code and that a card comes only from a `statblock` block, is unchanged.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -224,12 +229,9 @@ written in the item, with no words of his own); nothing is left
 
 - **Layouts in a device's browser storage** (the first build): a note drew
   differently on each device and for each person.
-- **Layout fields run as JavaScript** (the plugin's): code from a shared
-  file, run on everyone's machine.
 - **A layout per system with fields from memory** (the first build): it
   shipped attributes no edition of the game has.
-- **A card triggered by ordinary properties**: turns a note about a
-  computer with `hp:` into a monster.
+- None other recorded.
 
 ## Status
 
