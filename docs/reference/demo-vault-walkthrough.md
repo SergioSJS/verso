@@ -672,6 +672,26 @@ point 13).
     and WebKitGTK; the real headers of a real site); E:
     `board-web-card.spec.mjs`, `web-embed.spec.mjs`.
 
+14. Lesson 15, a data file on a card (ADR 0057 point 10, ADR 0106, ADR
+    0103): the card of `npcs-da-campanha.json` shows the file's text, in the
+    source editor's colours, scrollable once the card is entered; nothing
+    is an empty box (a sound, an `.html`, a board or a base on a card says
+    what it is). "Texto | Diagrama" in the head switches to the boxes and
+    lines; the choice is `verso.view` on the node and survives closing the
+    board, the data file is never written. The diagram takes the pointer
+    only when entered ("Interagir com o diagrama"): a drag on its
+    background pans it and the card stays; Esc, "Sair do diagrama" or a
+    click outside returns to the board. "Abrir" opens the file's tab in the
+    view the card shows. The card follows the file when it changes on disk.
+    A file over 64 KB shows its first 64 KB and an ellipsis; over 20 MB or
+    200,000 boxes the diagram says why and the text shows. With "Diagrama
+    de dados" off the card is text only and has no toggle (the node keeps
+    its view). The image export draws the card as its box with the name and
+    the first lines of text. A `.yaml` has both views too. Level: H, A (the
+    real drag in the board's zoom, WKWebView, WebView2 and WebKitGTK); E:
+    `board-data-card.spec.mjs`; U: `board.test.mjs` (the mode, the 64 KB
+    cut).
+
 ## 10. Settings, help, the command line
 
 1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e
