@@ -13,7 +13,7 @@ use verso_contract::CloudSettings;
 use verso_core::sync as engine;
 
 use super::cloud::{self, account};
-use super::secrets::Memory;
+use super::secrets::{Memory, Secrets};
 use super::sync::{Ctx, Passed, Syncer, pass};
 use super::tests_sync::{Device, changed, files, text, write};
 use super::*;
@@ -97,16 +97,16 @@ fn device_on(fake: &Fake, files: &[(&str, &str)]) -> Device {
         .unwrap();
     let (info, _) = service.attach("w", opened);
     let secrets = Arc::new(Memory::default());
-    let (answer, cloud) = cloud::check(&*secrets, &info.key, &fake.settings(), fake.secret());
+    let (answer, cloud) = cloud::check(&*secrets, &fake.settings(), fake.secret());
     assert!(answer.accepted, "{answer:?}");
-    let cloud = cloud.unwrap();
-    let state = engine::State {
-        server: cloud::label(&cloud),
-        folder: cloud::label(&cloud),
-        cloud: Some(cloud),
-        ..engine::State::default()
-    };
-    engine::save(Some(config.path()), &info.key, &state).unwrap();
+    let state = cloud::begin(
+        &*secrets,
+        Some(config.path()),
+        &info.key,
+        cloud.unwrap(),
+        fake.secret(),
+    )
+    .unwrap();
     let shown = Arc::new(Mutex::new(Vec::new()));
     let heard = Arc::clone(&shown);
     let told = Arc::new(Mutex::new(Vec::new()));
@@ -118,7 +118,22 @@ fn device_on(fake: &Fake, files: &[(&str, &str)]) -> Device {
             service,
             secrets,
             config: Some(config.path().to_path_buf()),
-            device: Box::new(|| "Mac".into()),
+            device: Box::new({
+                let config = config.path().to_path_buf();
+                // The person's name for this computer when they set one
+                // (Settings, no server needed), else a fixed one.
+                move || {
+                    if verso_core::servers::device_name(Some(&config))
+                        .ok()
+                        .flatten()
+                        .is_some()
+                    {
+                        crate::device::name(Some(&config))
+                    } else {
+                        "Mac".into()
+                    }
+                }
+            }),
             pt: Box::new(|| true),
             shown: Box::new(move |_, s| crate::lock(&heard).push(s.clone())),
             told: Arc::new(move |to, event, payload| {
@@ -326,7 +341,7 @@ fn the_form_is_checked_before_anything_is_asked_or_kept() {
     let ask = |f: &dyn Fn(&mut CloudSettings), secret: &str, secrets: &Memory| {
         let mut s = fake.settings();
         f(&mut s);
-        cloud::check(secrets, "k", &s, secret)
+        cloud::check(secrets, &s, secret)
     };
     // Missing pieces.
     for (change, why) in [
@@ -378,8 +393,9 @@ fn the_form_is_checked_before_anything_is_asked_or_kept() {
     // A secret over the keychain's limit.
     let (answer, _) = ask(&|_| {}, &"x".repeat(3000), &secrets);
     assert_eq!(answer.problem.as_deref(), Some("invalid"));
-    // Accepted: the secret is kept under the folder's account, and the
-    // answer says what is there and what a deletion means.
+    // Accepted: the answer says what is there and what a deletion means.
+    // The secret is not in the keychain yet: it goes there when the person
+    // starts (and a closed dialog leaves nothing behind).
     if let Fake::Dav(d) = &fake {
         d.put("ja.md", b"1234");
     }
@@ -387,7 +403,7 @@ fn the_form_is_checked_before_anything_is_asked_or_kept() {
     assert!(answer.accepted, "{answer:?}");
     assert_eq!((answer.remote_files, answer.remote_bytes), (1.0, 4.0));
     assert_eq!(answer.deletions, "final");
-    assert_eq!(secrets.accounts(), vec![account("k")]);
+    assert!(secrets.accounts().is_empty(), "{:?}", secrets.accounts());
     assert_eq!(cloud.unwrap().deletions, "final");
 }
 
@@ -400,7 +416,7 @@ fn a_service_that_would_lose_an_edit_is_refused_with_the_reason() {
         ..DavMode::default()
     }));
     let secrets = Memory::default();
-    let (answer, cloud) = cloud::check(&secrets, "k", &fake.settings(), "segredo");
+    let (answer, cloud) = cloud::check(&secrets, &fake.settings(), "segredo");
     assert!(!answer.accepted);
     assert_eq!(answer.problem.as_deref(), Some("service_refused"));
     assert!(answer.message.unwrap().contains("If-Match"));
@@ -409,19 +425,144 @@ fn a_service_that_would_lose_an_edit_is_refused_with_the_reason() {
 }
 
 #[test]
-fn turning_a_cloud_folder_off_forgets_the_secret_and_the_cloud() {
-    let fake = s3();
+fn the_secret_reaches_the_keychain_only_when_the_person_starts() {
+    let fake = dav();
+    let secrets = Memory::default();
+    let config = tempfile::tempdir().unwrap();
+    let (answer, cloud) = cloud::check(&secrets, &fake.settings(), "segredo");
+    assert!(answer.accepted, "{answer:?}");
+    // Checked, and the dialog closed here: nothing was kept.
+    assert!(secrets.accounts().is_empty());
+    assert!(engine::load(Some(config.path()), "k").unwrap().is_none());
+    // Started.
+    let state = cloud::begin(
+        &secrets,
+        Some(config.path()),
+        "k",
+        cloud.unwrap(),
+        "segredo",
+    )
+    .unwrap();
+    assert_eq!(
+        secrets.get(&account("k")).unwrap().as_deref(),
+        Some("segredo")
+    );
+    assert!(!state.off && state.base.is_empty());
+    assert!(!serde_json::to_string(&state).unwrap().contains("segredo"));
+    assert_eq!(
+        engine::load(Some(config.path()), "k").unwrap().unwrap(),
+        state
+    );
+}
+
+/// A pass over the cloud with the syncer given (the one a start makes).
+fn csync_with(d: &Device, s: &Arc<Syncer>) -> Passed {
+    tauri::async_runtime::block_on(async {
+        let mut l = cloud::link(&d.ctx, s).await.unwrap();
+        pass(&d.ctx, s, &mut l).await.unwrap()
+    })
+}
+
+#[test]
+fn turning_a_cloud_folder_off_deletes_the_secret_and_keeps_the_base() {
+    for fake in [dav(), s3()] {
+        let a = device_on(&fake, &[("a.md", "um"), ("b.md", "outro")]);
+        csync(&a);
+        assert_eq!(
+            a.ctx.secrets.get(&account(&a.key)).unwrap().as_deref(),
+            Some(fake.secret())
+        );
+        assert!(super::sync::cloud_of(a.ctx.config.as_deref(), &a.key));
+        // What turning it off does: marked off, then the secret goes.
+        super::sync::off(a.ctx.config.as_deref(), &a.key).unwrap();
+        cloud::forget(&*a.ctx.secrets, &a.key);
+        assert_eq!(a.ctx.secrets.get(&account(&a.key)).unwrap(), None);
+        let kept = engine::load(a.ctx.config.as_deref(), &a.key)
+            .unwrap()
+            .unwrap();
+        assert!(kept.off);
+        assert!(kept.cloud.is_some(), "the place stays, to connect it again");
+        assert!(kept.base.contains_key("a.md"), "{:?}", kept.base);
+        assert!(kept.tokens.contains_key("a.md"));
+
+        // An edit while it is off, then the same cloud again: it goes on
+        // from the base, so the edit is an edit and not a conflict.
+        write(&a, "a.md", b"dois");
+        let (answer, cloud) = cloud::check(&*a.ctx.secrets, &fake.settings(), fake.secret());
+        assert!(answer.accepted, "{answer:?}");
+        let state = cloud::begin(
+            &*a.ctx.secrets,
+            a.ctx.config.as_deref(),
+            &a.key,
+            cloud.unwrap(),
+            fake.secret(),
+        )
+        .unwrap();
+        assert!(!state.off);
+        assert_eq!(state.base, kept.base);
+        assert_eq!(state.tokens, kept.tokens);
+        let again = Syncer::new(&a.key, &state);
+        changed(&a, &["a.md"]);
+        csync_with(&a, &again);
+        assert_eq!(fake.get("a.md").unwrap(), b"dois");
+        let mut paths = fake.paths();
+        paths.sort();
+        assert_eq!(paths, vec!["a.md".to_owned(), "b.md".to_owned()]);
+        assert!(
+            files(&a).iter().all(|p| !p.contains("conflito")),
+            "{:?}",
+            files(&a)
+        );
+    }
+}
+
+#[test]
+fn another_cloud_or_another_folder_is_a_first_sync() {
+    let fake = dav();
     let a = device_on(&fake, &[("a.md", "um")]);
     csync(&a);
-    assert_eq!(
-        a.ctx.secrets.get(&account(&a.key)).unwrap().as_deref(),
-        Some("secret-test-key")
+    super::sync::off(a.ctx.config.as_deref(), &a.key).unwrap();
+    cloud::forget(&*a.ctx.secrets, &a.key);
+    let other = dav();
+    let (_, cloud) = cloud::check(&*a.ctx.secrets, &other.settings(), other.secret());
+    let state = cloud::begin(
+        &*a.ctx.secrets,
+        a.ctx.config.as_deref(),
+        &a.key,
+        cloud.unwrap(),
+        other.secret(),
+    )
+    .unwrap();
+    assert!(state.base.is_empty() && state.tokens.is_empty());
+}
+
+#[test]
+fn the_conflict_copy_carries_the_name_set_without_a_server() {
+    let fake = dav();
+    let a = device_on(&fake, &[("Quatro.md", "# Quatro\n")]);
+    csync(&a);
+    let b = device_on(&fake, &[]);
+    csync(&b);
+    // No server is signed in to on this computer: the name is set where
+    // the cloud's form sets it, the same setting a server's session uses.
+    assert!(
+        verso_core::servers::list(b.ctx.config.as_deref())
+            .unwrap()
+            .is_empty()
     );
-    assert!(super::sync::cloud_of(a.ctx.config.as_deref(), &a.key));
-    cloud::forget(&*a.ctx.secrets, a.ctx.config.as_deref(), &a.key);
-    assert_eq!(a.ctx.secrets.get(&account(&a.key)).unwrap(), None);
-    assert!(super::sync::synced(a.ctx.config.as_deref(), &a.key).is_none());
-    assert!(!super::sync::cloud_of(a.ctx.config.as_deref(), &a.key));
+    verso_core::servers::set_device_name(b.ctx.config.as_deref(), Some("Estudio da Ana")).unwrap();
+    write(&a, "Quatro.md", b"# de A\n");
+    write(&b, "Quatro.md", b"# de B\n");
+    csync(&a);
+    csync(&b);
+    let copy = files(&b)
+        .into_iter()
+        .find(|p| p.contains("conflito"))
+        .unwrap();
+    assert!(
+        copy.starts_with("Quatro (conflito, Estudio da Ana, "),
+        "{copy}"
+    );
 }
 
 #[test]
