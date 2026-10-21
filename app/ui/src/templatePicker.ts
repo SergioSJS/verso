@@ -7,7 +7,6 @@
  *  template's text in the note as one step of the undo; Blank, Esc, or
  *  typing in the note put the list away for good. */
 
-import { today } from "./daily";
 import { h } from "./dom";
 import { icon } from "./icons";
 import { fail } from "./errors";
@@ -16,7 +15,8 @@ import type { NoteLeaf } from "./leaves/note";
 import { opening } from "./opening";
 import { name } from "./paths";
 import { settings } from "./settings";
-import { t } from "./strings";
+import { fillTemplate } from "./templateFill";
+import { LOCALE, t } from "./strings";
 
 /** The notes of the templates folder, prioritizing project-local templates when inside a project/campaign. */
 export function templates(currentPath?: string): string[] {
@@ -126,7 +126,7 @@ export function offerTemplates(leaf: NoteLeaf): void {
     away();
     // Typed into meanwhile: the template does not take the typing's place.
     if (leaf.editor.state.doc.toString() !== typed) return;
-    const text = r.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
+    const text = fillTemplate(r.data.text, name(leaf.path), new Date(), LOCALE);
     leaf.setMode("live");
     leaf.editor.dispatch({ changes: { from: 0, to: leaf.editor.state.doc.length, insert: text }, selection: { anchor: text.length }, scrollIntoView: true });
     leaf.editor.focus();
