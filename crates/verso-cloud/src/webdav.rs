@@ -533,6 +533,13 @@ impl Remote for WebDav {
         })
     }
 
+    /// A `PROPFIND` at depth zero, never the file: a deletion here that a
+    /// lagging listing asks for must not download a recording to learn it
+    /// is still there. A folder is not a file.
+    fn exists(&self, path: &str) -> Result<bool> {
+        Ok(self.stat(path)?.is_some_and(|f| !f.folder))
+    }
+
     fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read> {
         let mut response = self
             .http

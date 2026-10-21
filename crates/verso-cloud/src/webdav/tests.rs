@@ -365,3 +365,35 @@ fn with_no_etag_on_the_put_a_stat_never_gives_our_bytes_another_devices_version(
     let written = put(&w, "b.md", &Condition::Absent, b"um").unwrap();
     assert_eq!(written.version, version_of(&w, "b.md"));
 }
+
+#[test]
+fn asking_whether_a_file_exists_does_not_download_it() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "pasta/a.md", &Condition::Absent, &[7_u8; 4096]).unwrap();
+    let before = dav.requests().len();
+    assert!(w.exists("pasta/a.md").unwrap());
+    assert!(!w.exists("pasta/b.md").unwrap());
+    // A folder is not a file.
+    assert!(!w.exists("pasta").unwrap());
+    let asked = dav.requests()[before..].to_vec();
+    assert!(
+        asked.iter().all(|r| r.starts_with("PROPFIND ")),
+        "only metadata is asked for: {asked:?}"
+    );
+}
+
+#[test]
+fn a_fingerprint_reads_the_file_once() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "a.md", &Condition::Absent, b"conteudo").unwrap();
+    let before = dav.requests().len();
+    let (version, hash) = w.fingerprint("a.md").unwrap();
+    assert_eq!((version, hash), (version_of(&w, "a.md"), sha(b"conteudo")));
+    let gets = dav.requests()[before..]
+        .iter()
+        .filter(|r| r.starts_with("GET "))
+        .count();
+    assert_eq!(gets, 1);
+}
