@@ -181,6 +181,11 @@ pub const REFUSED: &[&str] = &[
     "share_grant",
     "share_list",
     "share_revoke",
+    // Read links are a server's (ADR 0105): the phone's server has none.
+    "read_link_create",
+    "read_link_list",
+    "read_link_revoke",
+    "read_link_secrets",
     "log_read",
     "set_folder_settings",
     "set_sync_focuses",

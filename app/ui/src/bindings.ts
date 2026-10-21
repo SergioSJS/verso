@@ -578,6 +578,23 @@ export const commands = {
 	 */
 	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
 	/**
+	 *  The read links of the window's folder, and whether the server has them
+	 *  on (ADR 0105 item 5); only the folder's owner is answered.
+	 */
+	readLinkList: () => typedError<ReadLinks, ContractError>(__TAURI_INVOKE("read_link_list")),
+	/**
+	 *  How many notes under `path` (or the one note) hold secret blocks:
+	 *  readers of a link will not see them (item 7).
+	 */
+	readLinkSecrets: (kind: string, path: string) => typedError<number, ContractError>(__TAURI_INVOKE("read_link_secrets", { kind, path })),
+	/**
+	 *  Make a read link to a folder or a note, with an optional expiry (1, 7
+	 *  or 30 days, or a date) and an optional passphrase (item 5).
+	 */
+	readLinkCreate: (kind: string, path: string, expiresDays: number | null, expiresAt: number | null, password: string | null) => typedError<ReadLinkMade, ContractError>(__TAURI_INVOKE("read_link_create", { kind, path, expiresDays, expiresAt, password })),
+	/**  Revoke a read link: it ends at once, open pages included. */
+	readLinkRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("read_link_revoke", { id })),
+	/**
 	 *  Prove to the server behind this window that it is the person (ADR 0083
 	 *  item 6): the device's session sends the account's password to
 	 *  `/api/me/prove`, which stamps that session's own mark — a browser's
@@ -2376,6 +2393,45 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 { kind: "nested"; value: string } | 
 /**  `key:` with nothing after it (YAML null). */
 { kind: "empty" };
+
+/**
+ *  A live read link, as the owner's panel lists it (ADR 0105 item 5).
+ *  Times are seconds since the Unix epoch.
+ */
+export type ReadLinkInfo = {
+	id: string,
+	/**  `folder` or `note`. */
+	kind: string,
+	/**
+	 *  The folder's or the note's path in the open folder; `""` is the
+	 *  whole folder.
+	 */
+	path: string,
+	/**  Who made it (item 3). */
+	made_by: string,
+	made_at: number | null,
+	expires: number | null,
+	has_password: boolean,
+	last_opened: number | null,
+	/**  How many pages hold it open now. */
+	open: number,
+};
+
+/**  A link just made: its address is in `url`, once and nowhere else. */
+export type ReadLinkMade = {
+	/**  The whole address, `<server>/r/<token>`, to give to whoever reads. */
+	url: string,
+	link: ReadLinkInfo,
+};
+
+/**
+ *  The read links of the open folder, and whether the server has them on
+ *  (the administrator's switch, item 3).
+ */
+export type ReadLinks = {
+	enabled: boolean,
+	links: ReadLinkInfo[],
+};
 
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
