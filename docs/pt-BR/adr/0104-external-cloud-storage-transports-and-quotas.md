@@ -21,7 +21,7 @@
   achados BLOQUEANTES, 14 IMPORTANTES, 13 MENORES, com as páginas dos
   provedores citadas); revisada pelo Opus 5.5 depois disso. As perguntas
   estão em `verso-decisoes-0104-nuvens-2026-10-21.md`, fora do repositório
-  (perguntas C.1 a C.16).
+  (perguntas C.1 a C.17).
 - Relacionados: [0079](0079-sync-a-local-folder-with-a-server.md) (a
   sincronização que esta reaproveita),
   [0050](0050-outbound-network-access.md) (revisada aqui),
@@ -136,7 +136,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
    sem um clique, um alcance novo, como foram a checagem de atualização
    (0055), o servidor (0073) e o servidor local (0096/0097).
 
-3. **Onde o código mora.** `[PROPOSTO]` (C.1) O núcleo continua sem rede
+3. **Onde o código mora.** `[PROPOSTO]` (C.17) O núcleo continua sem rede
    ([0050](0050-outbound-network-access.md), Consequências da 0079): o
    `verso-core` guarda só um **trait de remoto sem rede** — listar as
    mudanças depois de um cursor, ler, gravar condicionalmente, apagar,
@@ -385,4 +385,4 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
 
 Proposta (2026-10-21). Item 1 decidido pelo mantenedor; reescrita pelo Opus
 5.5 a pedido dele, revisada pelo Fable 5.1 no mesmo dia (0104.2) e revisada
-depois da revisão; é aceita quando o mantenedor responder de C.1 a C.16.
+depois da revisão; é aceita quando o mantenedor responder de C.1 a C.17.
