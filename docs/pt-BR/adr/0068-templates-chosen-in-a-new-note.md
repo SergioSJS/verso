@@ -42,6 +42,15 @@ ele (Status).
    são botões, alcançados com Tab depois do título, ↑ e ↓ entre elas, Enter
    para escolher e Esc para guardar; depois de uma escolha o cursor fica no
    texto da nota. As palavras são as do idioma da interface.
+6. **Onde a lista procura modelos** (R.1, opção A, `[DECIDIDO 2026-10-21]`).
+   O item 1 acima fala só da "pasta de modelos" dos Ajustes. Como construído
+   (`app/ui/src/templatePicker.ts`), a lista também procura em pastas
+   chamadas `Modelos` ou `Templates` **acima da nota nova** (subindo o caminho
+   da pasta dela) e numa pasta `Modelos` na raiz. O mantenedor manteve e pediu
+   que ficasse registrado aqui: os modelos de um projeto criado pelo
+   assistente valem dentro dele. A opção B, só a pasta dos Ajustes, como o
+   item dizia no início, não foi escolhida: mais previsível, mas os modelos de
+   cada projeto deixariam de aparecer sozinhos.
 
 O arquivo continua Markdown: uma nota feita de um template é uma nota
 comum para o Obsidian.
@@ -65,3 +74,5 @@ comum para o Obsidian.
 ## Status
 
 Aceito (2026-10-07): o mantenedor, em sessão, escolhendo a opção acima.
+Item 6 acrescentado em 2026-10-21 pela resposta R.1 (opção A) do mantenedor,
+registrando o que foi construído.

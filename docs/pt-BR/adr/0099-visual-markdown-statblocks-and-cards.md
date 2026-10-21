@@ -29,7 +29,10 @@
   alguém as considerou como alternativas ao desenho (regra zero do
   CLAUDE.md, item 4). A decisão em si, que nenhum campo de um layout é
   executado como código e que um cartão vem só de um bloco `statblock`, não
-  muda.
+  muda. 2026-10-21, mais tarde — o mantenedor respondeu S.3a a S.3d e A.1 da
+  lista de decisões de 2026-10-21 (itens 1 e 6 abaixo) e, na A.1, as duas
+  entradas marcadas "(a primeira construção)" também saem de "Alternativas
+  descartadas" (ninguém as considerou; regra zero, item 4).
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -84,7 +87,10 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
    `[DECIDIDO 2026-10-21]` (0099.1, opção A): `monster: Goblin` e
    `extends: [[Goblin]]` pegam o statblock da nota assim
    nomeada e sobrepõem as chaves dele — o bestiário do plugin, feito de
-   notas.
+   notas. `[DECIDIDO 2026-10-21]` (S.3d, opção A): quando um `extends:` lista
+   várias bases e duas discordam, **ganha a primeira listada**, como no plugin
+   Fantasy Statblocks, de modo que um bloco copiado do Obsidian dá o mesmo
+   resultado.
 
 2. **Layouts são arquivos da pasta.** `[DECIDIDO 2026-10-20]`: *"deveria
    ser tudo igual, não? se eu compartilhar com alguém, é pra essa pessoa
@@ -188,6 +194,29 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
    layout embutido tem uma ficha de personagem e, onde o sistema tem, uma
    ficha de adversário separada.
 
+   `[DECIDIDO 2026-10-21]` — os seis layouts como construídos (Vampiro,
+   personagem e antagonista; Lobisomem e Caçador, personagem; Cyberpunk RED em
+   branco, personagem e NPC; só nomes de campos) e quatro detalhes,
+   respondendo S.3a a S.3c:
+   - **O logo do Dark Pack** (S.3a, "Outra"): *"Como no A mas vc faz tudo"*
+     — a opção A era o mantenedor baixar o logo oficial do kit Dark Pack da
+     Paradox; ele pede que **o agente faça tudo: baixe o logo oficial do Dark
+     Pack e o ponha na página de Créditos.** O logo é da Paradox, tirado do
+     kit da própria editora, nem desenhado nem alterado.
+   - **Onde fica o aviso de licença** (S.3b, opção B): **só na página de
+     Créditos**, não no rodapé de cada ficha (a ficha fica mais limpa). O
+     aviso da política do Cyberpunk RED pede para ser mostrado "em um local
+     facilmente visível, como o fim do documento"
+     (`docs/reference/statblock-sources.md`, 3.28), e o acordo da Paradox pede
+     o logo "em algum lugar do seu material"; o mantenedor escolheu a página
+     de Créditos para os dois.
+   - **Nomes dos campos** (S.3c, "Outra"): *"Como em B, depois a gente
+     corrige"* — os nomes dos campos dos layouts de World of Darkness e de
+     Cyberpunk RED são **traduzidos para pt-BR agora**, e corrigidos depois
+     contra os livros brasileiros (foram construídos em inglês, porque os
+     nomes oficiais das edições brasileiras não foram verificados). O risco de
+     não bater com os livros é aceito.
+
 7. **Edição no lugar.** No Live Preview o YAML aparece enquanto o cursor
    está no bloco; o cartão tem um botão para a sua fonte e a fonte um de
    volta, nas duas visões. Um YAML que não lê enquanto se digita mantém o
@@ -232,11 +261,6 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
 
 ## Alternativas descartadas
 
-- **Layouts no armazenamento do navegador de um dispositivo** (a primeira
-  construção): uma nota era desenhada de um jeito em cada dispositivo e para
-  cada pessoa.
-- **Um layout por sistema com campos de memória** (a primeira construção):
-  entregou atributos que nenhuma edição do jogo tem.
 - Nenhuma outra registrada.
 
 ## Status

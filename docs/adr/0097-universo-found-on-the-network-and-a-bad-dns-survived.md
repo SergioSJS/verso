@@ -28,7 +28,8 @@
   items 2, 3, 5, 7a, 9 and 10 and the limits of the discovery (item 4) are
   decided as built (0097.2, 0097.3, 0097.4, 0097.5, 0097.7a-i, 0097.7a-ii,
   0097.9, 0097.10). Item 8 (the text of the "unreachable" error) was not
-  answered and stays `[PROPOSED]`.
+  answered then and stayed `[PROPOSED]`; the maintainer answered it later the
+  same day (0097.8, option A), and it is `[DECIDED 2026-10-21]`.
 
 ## Context
 
@@ -235,7 +236,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
       checked, every loop bounded, a random query id), not `hickory`; see
       the Discarded alternatives.
 
-8. **`[PROPOSED]` The error names what was tried.** An unreachable error's
+8. **`[DECIDED 2026-10-21]` The error names what was tried** (0097.8, option
+   A, as built). An unreachable error's
    message is the server's address and, when the name was resolved, each
    IP tried on a line after it. The log says it once a minute:
    `unreachable: the server at https://universo.casa.meioorc.com: … [universo.casa.meioorc.com → 10.0.0.1 (system), 192.168.0.5 (dns 192.168.0.2): no answer]`.
@@ -333,8 +335,10 @@ maintainer's sentences. The author's details of those decisions (what is
 announced, the `url` key, the switch, the limits, the list, the DNS rule's
 timings and policy, the hand-written client, the platforms, the
 dev-dependencies) were decided by the maintainer on 2026-10-21, as built.
-**Item 8** (the text of the "unreachable" error) is still `[PROPOSED]`: the
-maintainer did not answer it, and it is not promoted. The `std::fs` exception of `src/resolv_conf.rs` (item 9) was **ratified** on
+**Item 8** (the text of the "unreachable" error) was `[PROPOSED]` and was decided
+on 2026-10-21 (0097.8, option A: list each IP tried and give the DNS hint when
+more than one was tried; option B, a short message without IPs, was not
+chosen: cleaner, but hard to diagnose). The `std::fs` exception of `src/resolv_conf.rs` (item 9) was **ratified** on
 2026-10-16 (*"Pode seguir a sua sugestão"*). Decided on 2026-10-16: **the compose
 file keeps bridge networking as the default**, and
 `packaging/server/docker-compose.host-network.yml` is provided as the

@@ -8,7 +8,15 @@
 - Status: a reference. It decides nothing. Which layouts ship is decided by
   ADR 0099 item 6 (`[DECIDED 2026-10-20]` for the open licences,
   `[PROPOSED]` for the two Paradox and R. Talsorian cases); this file records
-  the evidence that item was decided on.
+  the evidence that item was decided on. Added 2026-10-21, from the
+  maintainer's answers S.3a to S.3d: the Dark Pack logo is fetched from
+  Paradox's kit by the agent and put on the Credits page; the licence notices
+  (Dark Pack, R. Talsorian) sit only on the Credits page, not on the cards;
+  the field names of the World of Darkness and Cyberpunk RED layouts are in
+  pt-BR now, to be corrected later against the Brazilian books; and when
+  `extends:` lists several bases the first listed wins, as in the plugin
+  (ADR 0099 items 1 and 6). Where a line below says "on the card", that part
+  is superseded by this paragraph.
 - Rule of this file: a field is written only if a primary source shows it.
   Anything else is marked **UNVERIFIED** and is not resolved from memory. A
   layout is built from the fields listed here and no others. The licence

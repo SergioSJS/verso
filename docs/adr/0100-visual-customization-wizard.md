@@ -36,7 +36,10 @@
   `--card-bg`, `--border`, `--accent`, `--font-body`…), its floating window,
   its 15-second "Keep changes?" dialog and its drag-and-drop-only import are
   gone; its "recommended theme in the folder" stays, now by the maintainer's
-  explicit choice (item 3).
+  explicit choice (item 3). 2026-10-21, later — **item 2 revised by the
+  maintainer** after looking at the installed beta: the panel inside Settings
+  is replaced by a gallery of theme cards and a dedicated theme-builder
+  window (item 2, Revision); item 4 confirmed (T.1, option A).
 
 ## Context
 
@@ -77,6 +80,28 @@ where an option differs from the one first recommended, the item says so.
    ([0076](0076-the-window-on-every-screen.md)); the live preview is a change
    of variables on `:root`, with no reload and no flash.
 
+   **Revision, 2026-10-21 (the maintainer, after looking at the beta
+   installed that day): this item is revised.** He looked at the beta and
+   wrote: *"Quase tudo ok, exceto a parte do wizard de tema, achei a tela
+   mega poluída, bora fazer uma nova janela só para construção do tema.
+   pensei de em settings aparência ele ter várias caixas com amostra mínima
+   de cada tema para simplificar a escolha, e botões para copiar e alterar o
+   tema aí sim abrindo a janela com as opções que foram feitas"* (almost
+   everything is fine, except the theme wizard; the screen is very cluttered;
+   let us make a new window just for building the theme; in Settings ›
+   Appearance, several boxes with a minimal sample of each theme to simplify
+   the choice, and buttons to copy and to edit the theme, which then opens the
+   window with the options that were made). So: **Settings › Appearance shows
+   a gallery of theme cards, each with a minimal sample, with Copy and Edit
+   buttons; Edit (and Copy, which opens the copy) opens a dedicated
+   theme-builder window with the options built.** The controls and the
+   sample document of this item move out of Settings into that window. What
+   the item says about the sample document updating at once, the keyboard and
+   screen-reader accessibility, and the live preview as a change of variables
+   on `:root` stays and applies to the new window. The detail of the window
+   (its size, whether it is a Verso window or a dialog, how a card is drawn)
+   is not decided by this revision. Roadmap: a new row in V1, V.28's slice.
+
 3. **The token contract, `tokensVersion: 1`** (0100.2, option A): a short,
    fixed list over the real names — `--paper`, `--paper-2`, `--hair`,
    `--ink`, `--ink-2`, `--seal`, `--brass-ink`, `--heading-font`, `--book`,
@@ -102,6 +127,9 @@ where an option differs from the one first recommended, the item says so.
    [0103](0103-feature-presets-and-capability-flags.md) item 4 says "the
    person's choice, never the folder's" for feature switches: for themes he
    decided otherwise, and 0103 carries a dated note saying so.
+   **Confirmed 2026-10-21 (T.1, option A):** the suggestion is only the whole
+   theme, written inside `.verso/settings.json`; one place, nothing to follow.
+   A path to a `.verso-theme` file inside `.verso/` is not accepted.
 
 5. **Contrast is checked live, and an unreadable screen is undone**
    (0100.4, option A). For the real pairs — ink on paper, ink 2 and ink 3 on
@@ -161,6 +189,10 @@ not recorded):
 - **A timed "Keep changes?" dialog on every drastic change** (0100.4, B), and
   **a warning only, with no automatic revert** (0100.4, C).
 - **Local profiles only, with no export or import in V1** (0100.5, B).
+- **Also accepting the path of a `.verso-theme` inside `.verso/` as the
+  folder's suggestion** (T.1, B): one more path to validate.
+- **The customization panel kept inside Settings** (the maintainer, 2026-10-21):
+  too cluttered; replaced by the gallery and the builder window (item 2).
 
 ## Status
 
@@ -172,3 +204,6 @@ As built 2026-10-21, on `feat/rpg-tools` (not pushed, not released):
 `6b3ec1fa` (the Customize appearance panel in Settings), with `9e97507d`
 (a folder suggests a theme in its settings file) and `55cf1ecf` (the
 tutorial and the changelog); merged by `203b8989`.
+
+Revised 2026-10-21 (item 2): the Settings panel gives way to a gallery of
+theme cards and a dedicated theme-builder window; to be built.

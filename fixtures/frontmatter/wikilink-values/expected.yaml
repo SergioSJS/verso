@@ -1,4 +1,3 @@
-# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
 # Construct: wikilinks inside frontmatter values. Spec: Q24 c (decided
 # 2026-10-21: they count as a link and a backlink, in the index and the
 # graph), Q10 and §4.7. They are `property_links`, not `links`: the index

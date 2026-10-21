@@ -25,7 +25,9 @@
   todas como recomendadas exceto a 0106.5, em que escolheu "todos agora":
   todo `[PROPOSTO]` vira `[DECIDIDO 2026-10-21]`, o item 12 é fechado, os
   formatos do item 3 passam a sete, e a ADR é Aceita. Entra na V1 como a
-  linha V.30 do roadmap, depois da onda D.
+  linha V.30 do roadmap, depois da onda D. 2026-10-21, mais tarde — o
+  mantenedor respondeu D.1 a D.4 da lista de decisões de 2026-10-21, todas
+  opção A (itens 8, 9 e 12, Status).
 
 ## Contexto
 
@@ -151,6 +153,9 @@ outra coisa. Nada resta `[PROPOSTO]` nem `[ABERTO]`.
    cartões de texto e ligações, que o Obsidian também abre), mostrado antes
    de ser gravado, nunca substituindo um arquivo
    ([0057](0057-board-json-canvas.md)); daí em diante é um board comum.
+   `[DECIDIDO 2026-10-21]` (D.3, opção A): "Salvar como board" **recusa um
+   diagrama de mais de 2000 cartões** e pede para recolher ramos antes (um
+   número escolhido pela revisão, mantido pelo mantenedor).
 
 9. **Limites e arquivos hostis.** `[DECIDIDO 2026-10-21]` (0106.10, opção
    A). Percorrer os dados nunca
@@ -160,7 +165,11 @@ outra coisa. Nada resta `[PROPOSTO]` nem `[ABERTO]`.
    tamanho dos dados, não o número de caixas (o diagrama é oferecido até 20 MB de
    texto; acima disso, só a visão de texto). Toda
    chave e todo valor entram como texto, nunca como HTML; uma string longa
-   é cortada, com o valor inteiro a pedido.
+   é cortada, com o valor inteiro a pedido. `[DECIDIDO 2026-10-21]` (D.1,
+   opção A): **acima de 200 mil caixas o arquivo abre como texto**, com um
+   aviso dizendo por quê. A revisão classificou a falta de teto como
+   IMPORTANTE (um arquivo hostil derrubava a janela); o mantenedor manteve o
+   teto. A opção C, sem teto de caixas e só os 20 MB, não foi escolhida.
 
 10. **Ao vivo.** `[DECIDIDO 2026-10-21]` (0106.10, opção A). Quando o texto muda — digitado, vindo de
     uma sala ([0082](0082-live-co-editing-of-a-synced-folder.md)) ou do
@@ -192,7 +201,10 @@ outra coisa. Nada resta `[PROPOSTO]` nem `[ABERTO]`.
     - **Um interruptor**, "Diagrama de dados", em Ajustes › App ›
       Funcionalidades, ligado por padrão como os outros da
       [0103](0103-feature-presets-and-capability-flags.md) (0106.6);
-      desligado, nenhum botão do diagrama aparece.
+      desligado, nenhum botão do diagrama aparece. `[DECIDIDO 2026-10-21]`
+      (D.2, opção A): desligá-lo também **fecha as abas de diagrama já
+      abertas**, inclusive uma aberta a partir de um bloco ```` ```json ```` de
+      uma nota; "desligado é desligado".
     - **Qual visão abre primeiro** (0106.9): o texto na primeira vez; depois,
       a última usada para aquele tipo de arquivo.
 
@@ -252,4 +264,6 @@ Nota de como construído, **não uma decisão do mantenedor**: o código também
 lê **TSV** (um CSV com tabulações) como CSV com tabulações, um oitavo
 formato ao lado dos sete do item 3 (`app/ui/src/datagraph/parse.ts`; o
 commit `2db25eb7` diz "eight formats"). Ninguém decidiu isso; fica
-registrado aqui para ser confirmado ou retirado.
+registrado aqui para ser confirmado ou retirado. **Confirmado em
+2026-10-21** pelo mantenedor (D.4, opção A): o diagrama continua lendo
+`.tsv`, o mesmo leitor do CSV.

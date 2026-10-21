@@ -16,7 +16,8 @@
   `[PROPOSTO]` dos itens 2, 3, 5 e 6 ficam decididos como propostos
   (0102.2, 0102.3, 0102.5, 0102.6), e os outros três estilos de chances são
   aprovados com a mudança do próprio mantenedor no nome e na dica de um
-  deles (S.1, no item 1). Status Aceita.
+  deles (S.1, no item 1). Status Aceita. 2026-10-21, mais tarde — R.2 (opção
+  B): o comando do índice que lista todo `^id` é construído já (item 3).
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
@@ -112,6 +113,15 @@ decisões de 2026-10-20; nada resta `[PROPOSTO]`.
    `^id` da pasta: pelo índice, por nome, com a nota de onde
    vem. Uma "importação" de uma lista JSON escreve uma nota nova que a guarda
    como uma lista com `^id`, mostrada antes de ser escrita.
+
+   `[DECIDIDO 2026-10-21]` (R.2, opção **B**): a construção lista as tabelas
+   lendo as notas da pasta (até 3000, no máximo a cada 20 s), porque o índice
+   não tem um comando que liste todos os `^id`. O mantenedor escolheu
+   **construir esse comando no índice já** (Rust, no núcleo, no host Tauri e
+   no servidor), e então o oráculo lista as tabelas "pelo índice", como este
+   item diz; a leitura das notas sai. A opção A, aceitar a construção como
+   estava e construir o comando só se uma pasta grande ficasse lenta, não foi
+   escolhida. Roadmap: um item de trabalho na V1.
 
 4. **A resposta é escrita na nota, e as respostas se acumulam.**
    `[DECIDIDO 2026-10-20]`: *"qual o motivo de não poder gravar na nota? na

@@ -30,6 +30,10 @@
   records that anyone considered them as alternatives to the design (CLAUDE.md
   rule zero, item 4). The decision itself, that no field of a layout is run
   as code and that a card comes only from a `statblock` block, is unchanged.
+  2026-10-21, later — the maintainer answered S.3a to S.3d and A.1 of the
+  decisions list of 2026-10-21 (items 1 and 6 below) and, in A.1, the two
+  entries marked "(the first build)" are also removed from "Discarded
+  alternatives" (nobody considered them either; rule zero, item 4).
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -82,7 +86,10 @@ written in the item, with no words of his own); nothing is left
    `[DECIDED 2026-10-21]` (0099.1, option A): `monster: Goblin` and
    `extends: [[Goblin]]` take the
    statblock of the note so named and override its keys — the plugin's
-   bestiary, made of notes.
+   bestiary, made of notes. `[DECIDED 2026-10-21]` (S.3d, option A): when an
+   `extends:` lists several bases and two disagree, **the first listed
+   wins**, as in the Fantasy Statblocks plugin, so a block copied from
+   Obsidian gives the same result.
 
 2. **Layouts are files of the folder.** `[DECIDED 2026-10-20]`: *"deveria
    ser tudo igual, não? se eu compartilhar com alguém, é pra essa pessoa
@@ -183,6 +190,29 @@ written in the item, with no words of his own); nothing is left
    Credits page. Every built-in layout has a character sheet and, where
    the system has one, a separate adversary sheet.
 
+   `[DECIDED 2026-10-21]` — the six layouts as built (Vampire, character and
+   antagonist; Werewolf and Hunter, character; Cyberpunk RED blank, character
+   and NPC; field names only) and four details, answering S.3a to S.3c:
+   - **The Dark Pack logo** (S.3a, "Outra"): *"Como no A mas vc faz tudo"*
+     — option A was that the maintainer downloads the official logo from
+     Paradox's Dark Pack kit; he asks instead that **the agent does all of
+     it: fetches the official Dark Pack logo and puts it on the Credits
+     page.** The logo is Paradox's, taken from the publisher's own kit, not
+     drawn or altered.
+   - **Where the licence notice sits** (S.3b, option B): **only on the
+     Credits page**, not at the foot of each card (the card is cleaner).
+     The notice of the Cyberpunk RED policy asks to be shown "in an easily
+     noticeable location such as the end of the document"
+     (`docs/reference/statblock-sources.md`, 3.28), and Paradox's agreement
+     asks for the logo "somewhere in your material"; the maintainer chose the
+     Credits page for both.
+   - **Field names** (S.3c, "Outra"): *"Como em B, depois a gente corrige"*
+     — the names of the fields of the World of Darkness and Cyberpunk RED
+     layouts are **translated to pt-BR now**, and corrected later against the
+     Brazilian books (they were built in English, since the official names of
+     the Brazilian editions were not verified). The risk of not matching the
+     books is accepted.
+
 7. **Editing in place.** In Live Preview the YAML shows while the caret is
    in the block; the card has a button to its source and the source one
    back, in both views. YAML that does not parse while typing keeps the last
@@ -227,10 +257,6 @@ written in the item, with no words of his own); nothing is left
 
 ## Discarded alternatives
 
-- **Layouts in a device's browser storage** (the first build): a note drew
-  differently on each device and for each person.
-- **A layout per system with fields from memory** (the first build): it
-  shipped attributes no edition of the game has.
 - None other recorded.
 
 ## Status

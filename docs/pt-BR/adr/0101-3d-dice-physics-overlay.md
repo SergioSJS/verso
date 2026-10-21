@@ -28,7 +28,8 @@
   contradições do primeiro texto foram corrigidas (ele falava de uma
   predefinição `rpg`, que a [0103](0103-feature-presets-and-capability-flags.md)
   removeu, e dava um caminho absoluto no computador do mantenedor). Continua
-  Proposta até o item 3 ser fechado.
+  Proposta até o item 3 ser fechado. 2026-10-21, depois — item 3 decidido
+  pelo mantenedor (0101.1c, opção A); **Aceita**, em construção.
 
 ## Contexto
 
@@ -50,7 +51,7 @@ mantenedor a quer na V1 mesmo assim.
 
 `[DECIDIDO 2026-10-21]` marca o que o mantenedor decidiu em 2026-10-21
 marcando a opção escrita no item no questionário de 2026-10-20 (com as
-palavras dele onde as deu). Um item está `[ABERTO]`.
+palavras dele onde as deu). O item 3 esteve `[ABERTO]` até a resposta posterior do mesmo dia, registrada nele.
 
 1. **Os dados 3D entram na V1, reescritos** (0101.0, opção B; roadmap
    V.29). `[DECIDIDO 2026-10-21]`. Este texto é essa reescrita; ela é
@@ -67,8 +68,9 @@ palavras dele onde as deu). Um item está `[ABERTO]`.
    Excalidraw e o MapLibre (`--splitting`, `chunks/`). A 0088 registra a
    revisão na sua linha de Revisões.
 
-3. **A biblioteca: `[ABERTO]` até uma avaliação** (0101.1b, "Outra"). O
-   mantenedor: *"Avalie entre A e B qual a melhor abordagem, seria bom
+3. **A biblioteca: `three` + `cannon-es`, código nosso** (0101.1b, "Outra",
+   depois 0101.1c, opção A). `[DECIDIDO 2026-10-21]` — veja o fim deste item.
+   A primeira resposta (0101.1b, "Outra"). O mantenedor: *"Avalie entre A e B qual a melhor abordagem, seria bom
    aproveitar algo pronto do rolai msm, mas vale avaliar o A um pouco mais,
    assim como B"*. Os dois candidatos:
    - **A — `three` (MIT) + `cannon-es` (MIT), código nosso**: controle
@@ -86,6 +88,22 @@ palavras dele onde as deu). Um item está `[ABERTO]`.
    outras duas opções do questionário — `@3d-dice/dice-box` e um dado em CSS
    3D feito à mão, sem física — não foram escolhidas para a avaliação; o
    mantenedor nomeou A e B.
+
+   **Decidido em 2026-10-21 pelo mantenedor (0101.1c, opção A), depois da
+   avaliação que ele pediu** (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`,
+   medido com o `esbuild` do Verso: opção A 621 KB minificado / 158 KB gzip,
+   opção B 550 KB / 143 KB, os dois só carregados quando o 3D está ligado; a
+   opção B está parada desde 2022, o Rolai precisou de cerca de 400 linhas de
+   remendos para ela, ela tem bugs abertos de número mostrado diferente do
+   devolvido e de promessa que nunca termina, e suas texturas e sons não têm
+   licença declarada): a biblioteca é **`three` + `cannon-es` (MIT), código
+   nosso**, com o **Rolai como referência de desenho** (o d100 em dois dados,
+   o d66, as lições do som). O pouso na face sorteada é código que testamos
+   para cada dado (d4 a d100); a animação é uma repetição gravada, o que dá
+   movimento reduzido, pular, pausa e laço parado quando ocioso; custa cerca
+   de 600 a 700 linhas mais testes. A regra "o resultado é decidido antes da
+   animação" não tolera o bug de número errado da outra opção. O Babylon
+   (cerca de 1,7 MB) fica fora.
 
 4. **O pouso é determinístico: a física nunca sorteia** (0101.2, opção A).
    `[DECIDIDO 2026-10-21]`: o número vem da fonte criptográfica
@@ -129,7 +147,8 @@ palavras dele onde as deu). Um item está `[ABERTO]`.
 
 9. **Status** (0101.7, opção B). `[DECIDIDO 2026-10-21]`: reescrever (feito
    aqui), aceitar quando a biblioteca tiver sido avaliada e o seu pedaço
-   medido (item 3), e construir.
+   medido (item 3), e construir. A avaliação foi feita e a biblioteca decidida
+   em 2026-10-21 (item 3), então esta ADR está **Aceita** e em construção.
 
 ## Consequências
 
@@ -138,8 +157,10 @@ palavras dele onde as deu). Um item está `[ABERTO]`.
 - `app/ui/src/dice/` ganha o módulo 3D preguiçoso, atrás da chave; o
   service worker lista o pedaço; as strings em pt-BR e EN; a chave e a sua
   descrição em Ajustes › App › Funcionalidades.
-- A avaliação do item 3 é um relatório curto em `docs/reference/`, com as
-  medições, antes de qualquer dependência ser acrescentada.
+- A avaliação do item 3 foi um relatório fora do repositório
+  (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`); as
+  dependências que ele nomeia (`three`, `cannon-es`, ambas MIT) entram com o
+  código, justificadas no PR e checadas pela lista de licenças do npm.
 - Uma mudança que o usuário vê: o changelog e o cofre de demonstração
   ([0058](0058-demo-vault-as-tutorial.md)).
 
@@ -159,9 +180,13 @@ Só o que o mantenedor recusou ao marcar estas respostas:
 - **Uma chave ligada por padrão, exceto no celular** (0101.5, B), e **sem
   chave, só detectando o aparelho** (0101.5, C).
 - **Anunciar só quando os dados param** (0101.6, B).
+- **`@3d-dice/dice-box-threejs` com os remendos do Rolai e sem sons**
+  (0101.1c, B): parada desde 2022, bug de número mostrado errado, licença
+  não declarada de suas texturas e sons.
+- **Babylon** (cerca de 1,7 MB): fora da avaliação pelo tamanho.
 
 ## Status
 
-Proposta. Reescrita em 2026-10-21 com as respostas do mantenedor; continua
-Proposta até o item 3 (a biblioteca) ser avaliado e fechado, quando é aceita
-e construída (0101.7, opção B). Nada está construído.
+Aceita em 2026-10-21. Reescrita nesse dia com as respostas do mantenedor, e
+aceita quando o item 3 (a biblioteca) foi avaliado e decidido (0101.1c,
+opção A; 0101.7, opção B). Em construção; roadmap V.29.
