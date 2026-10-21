@@ -869,6 +869,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .statblock-manage-wrap { display: flex; flex-wrap: wrap; gap: .6rem; }
 /* Settings > Credits: the quoted notices and the links beside them. */
 .credit-box { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; max-width: 38rem; }
+.credit-logo { width: 6rem; height: 6rem; object-fit: contain; border-radius: 50%; }
 .credit-quote { margin: 0; padding-left: .7rem; border-left: 2px solid var(--hair); color: var(--ink-2); font-size: .82rem; line-height: 1.45; overflow-wrap: anywhere; }
 .credit-licence { margin-top: .4rem; font-size: .82rem; color: var(--ink-2); }
 .credit-licence summary { cursor: pointer; }
