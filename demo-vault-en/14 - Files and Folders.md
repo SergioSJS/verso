@@ -42,6 +42,7 @@ Right-click a note in the tree (on a phone or tablet, hold your finger on it and
 - **Several at once:** `⌘`-click adds or removes a note or folder from the selection, `⇧`-click selects everything since the last one clicked, and `Esc` clears. Drag the selection onto a folder, or right-click it — **Move to…**, **Copy relative paths**, **Move to Trash** —, and everything goes together; the links that need to change appear in a single plan.
 - Drag a file from the tree into the **text of a note**: a link to it goes in (or an embed, if it is an image, PDF or other file).
 - Drag files from the Finder onto the tree: they are copied into the folder where you drop them.
+- Without dragging: **Import files…** (the command palette, or **New ▸ Import files…** in the right-click menu of a folder or of the tree's empty space) opens the system's file picker; the chosen files are copied into that folder, a name already taken gets `(2)`, and the first one is selected in the tree.
 - Paste or drag an **image** into a note: it is saved in the `assets` folder beside the note (**Settings › Files and links › Attachments folder (beside the note)**).
 
 ---
