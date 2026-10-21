@@ -700,7 +700,7 @@ fatos_aplicaveis: 2
 
 ### World of Darkness 5ª edição (Dark Pack) e Cyberpunk RED (em branco)
 
-Layouts só com **nomes de campos**, sem nenhum texto de regras. Os de World of Darkness saem sob o *Dark Pack* da Paradox: material **não oficial, feito por fãs**, gratuito e sem fins comerciais — por isso cada ficha traz, no rodapé, os avisos que o acordo exige. Os de Cyberpunk RED são fichas **em branco** sob a Homebrew Content Policy da R. Talsorian Games, com o aviso dela no rodapé. Os pools de dados (regulares e de Fome, Fúria ou Desesperança) rolam pelo botão *Rolar o pool*. Mage: The Ascension não vem embutido — importe um layout seu.
+Layouts só com **nomes de campos**, sem nenhum texto de regras. Os de World of Darkness saem sob o *Dark Pack* da Paradox: material **não oficial, feito por fãs**, gratuito e sem fins comerciais — por isso cada ficha traz, no rodapé, um aviso curto, e os avisos completos que o acordo exige, com o logotipo do Dark Pack, estão em Créditos e agradecimentos. Os de Cyberpunk RED são fichas **em branco** sob a Homebrew Content Policy da R. Talsorian Games, com um aviso curto no rodapé e o aviso completo dela em Créditos. Os nomes dos campos estão em português de forma provisória, ainda não conferidos com os livros brasileiros. Os pools de dados (regulares e de Fome, Fúria ou Desesperança) rolam pelo botão *Rolar o pool*. Mage: The Ascension não vem embutido — importe um layout seu.
 
 **Vampire: The Masquerade 5e — personagem** (`layout: vtm5-character`)
 
