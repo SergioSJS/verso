@@ -309,9 +309,9 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
   await menu.getByRole("menuitem", { name: "Selecionar" }).click();
   await expect(page.locator("#notes.select-mode")).toHaveCount(1);
-  await expect(row("01 - Guia de Markdown e Sintaxe.md")).toHaveAttribute("aria-pressed", "true");
+  await expect(row("01 - Guia de Markdown e Sintaxe.md")).toHaveAttribute("aria-selected", "true");
   await row("03 - Propriedades e Metadados.md").click();
-  await expect(row("03 - Propriedades e Metadados.md")).toHaveAttribute("aria-pressed", "true");
+  await expect(row("03 - Propriedades e Metadados.md")).toHaveAttribute("aria-selected", "true");
   const bar = page.locator(".select-bar");
   await expect(bar).toBeVisible();
   await expect(bar).toContainText("2");
