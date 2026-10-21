@@ -12,6 +12,7 @@ import { ask } from "../../dialog";
 import { button, h } from "../../dom";
 import { FEATURE_GROUPS, FEATURE_IDS, type FeatureGroupId, type FeatureId, type ShortcutId } from "../../featureList";
 import { fs } from "../../featureStrings";
+import { diceLookItems } from "./diceLookItems";
 import type { ItemCtx, SettingItem } from "./types";
 
 const SHORTCUTS: ShortcutId[] = ["everything", "writing"];
@@ -23,7 +24,7 @@ const OWN_PAGE: Partial<Record<FeatureId, string>> = { oracles: "oracles", statb
  *  for the search, whose words are every feature's. */
 export function featureItems(ctx: ItemCtx): SettingItem[] {
   const words = FEATURE_IDS.map((id) => `${fs.names[id]} ${fs.descs[id]}`).join(" ");
-  return [{ section: "features", title: fs.section, desc: words, node: () => featuresNode(ctx) }];
+  return [{ section: "features", title: fs.section, desc: words, node: () => featuresNode(ctx) }, ...diceLookItems(ctx)];
 }
 
 function featuresNode(ctx: ItemCtx): HTMLElement {

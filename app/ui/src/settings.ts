@@ -5,6 +5,7 @@
 import { commands, type Focus } from "./bindings";
 import { fail } from "./errors";
 import { currentFolder } from "./folder";
+import { type DiceLook, readDiceLook } from "./dice3d/look";
 import { allOn, type Features, migratePreset, readFeatures } from "./featureList";
 import { updateLeavesLineNumbers } from "./main";
 import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
@@ -134,6 +135,9 @@ export type Settings = {
    *  on unless the person turned one off; the person's layer, never a
    *  folder's. */
   features: Features;
+  /** How the 3D dice look and how big they are (ADR 0101, appearance):
+   *  this device only. */
+  dice3dLook?: DiceLook;
 };
 export const DEFAULTS: Settings = {
   features: allOn(),
@@ -243,6 +247,7 @@ export function loadSettings(): void {
       const oldPreset = (parsed as { preset?: unknown }).preset;
       settings.features = parsed.features === undefined && oldPreset !== undefined ? migratePreset(oldPreset) : readFeatures(parsed.features);
       delete (settings as { preset?: unknown }).preset;
+      settings.dice3dLook = readDiceLook(parsed.dice3dLook);
     }
   } catch {
     settings = { ...DEFAULTS };
