@@ -247,7 +247,7 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   let selected: TemplateBundle = getAvailableBundles()[0] ?? BUILTIN_PRESETS[0]!;
   const cards = new Map<string, HTMLButtonElement>();
 
-  const planNow = (): Plan => planBundle(selected, { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
+  const planNow = (): Plan => planBundle(selected, { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
 
   const paintPreview = (): void => {
     const typed = nameInput.value.trim();
@@ -452,7 +452,7 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
       return;
     }
     reportBox.hidden = true;
-    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
+    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
     if (plan.problems.length > 0) {
       statusLine.textContent = bw.planRefused(plan.problems.length);
       showReport(plan, null);
