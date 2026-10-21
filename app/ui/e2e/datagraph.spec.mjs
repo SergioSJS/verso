@@ -248,7 +248,7 @@ test("the diagram and the text side by side: a box selects its range, the caret 
     const v = el.__cmView;
     v.dispatch({ changes: { from: v.state.doc.length, insert: "}}" } });
   });
-  await expect(panes.nth(1).locator(".dg-error")).toContainText("O texto não é válido");
+  await expect(panes.nth(1).locator(".dg-error")).toContainText("O texto não é válido: Há mais texto depois do valor");
   await expect(panes.nth(1).locator(".dg-box", { hasText: "Zed" })).toBeVisible();
   await panes.nth(1).getByRole("button", { name: "Ir ao erro" }).click();
   const where = await text().evaluate((el) => {
@@ -348,7 +348,7 @@ test("YAML: every document a root, an alias a dashed line to its anchor's box; J
   await expect(page.locator(".dg-box .dg-badge", { hasText: "&p" })).toBeVisible();
   await expect(page.locator(".dg-alias-edge")).toHaveAttribute("d", /^M.+C/);
   for (const [file, text, expected] of [
-    ["dg-log.jsonl", '{"a":1}\nnot json\n{"b":2}\n', "Unexpected"],
+    ["dg-log.jsonl", '{"a":1}\nnot json\n{"b":2}\n', "Inesperado"],
     ["dg-conf.toml", 'title = "T"\n[server]\nport = 8080\n', "8080"],
     ["dg-data.xml", '<r a="1"><n>Rowan</n></r>', "Rowan"],
     ["dg-people.csv", "name,hp\nRowan,12\n", "Rowan"],

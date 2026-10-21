@@ -194,17 +194,24 @@ export class DiagramModel {
   }
 
   restore(saved: Saved): void {
+    // What was kept is read back from storage: nothing in it is trusted.
     this.dir = saved.dir === "tb" ? "tb" : "lr";
     this.base = saved.base?.kind === "depth" && Number.isFinite(saved.base.depth) ? saved.base : { kind: "auto" };
     this.folded = foldedBy(this.tree, this.base);
-    for (const f of saved.folds ?? []) {
-      const id = idOf(this.tree, f.p);
-      if (id >= 0) this.folded[id] = f.f;
+    if (Array.isArray(saved.folds)) {
+      for (const f of saved.folds) {
+        if (typeof f?.p !== "string") continue;
+        const id = idOf(this.tree, f.p);
+        if (id >= 0) this.folded[id] = f.f === 1 ? 1 : 0;
+      }
     }
     this.own.clear();
-    for (const m of saved.moves ?? []) {
-      const id = idOf(this.tree, m.p);
-      if (id >= 0 && Array.isArray(m.d) && Number.isFinite(m.d[0]) && Number.isFinite(m.d[1])) this.own.set(id, [m.d[0], m.d[1]]);
+    if (Array.isArray(saved.moves)) {
+      for (const m of saved.moves) {
+        if (typeof m?.p !== "string" || !Array.isArray(m.d) || !Number.isFinite(m.d[0]) || !Number.isFinite(m.d[1])) continue;
+        const id = idOf(this.tree, m.p);
+        if (id >= 0) this.own.set(id, [m.d[0], m.d[1]]);
+      }
     }
   }
 

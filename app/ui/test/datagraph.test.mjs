@@ -339,6 +339,13 @@ describe("what a diagram remembers", () => {
     assert.equal(m2.folded[2], 1);
     assert.deepEqual(m2.own.get(3), [5, 6]);
   });
+  test("a kept state that is not the shape we wrote is ignored, never thrown on", () => {
+    const m = new D.DiagramModel(D.parse('{"a":{"x":1}}', "json"));
+    for (const bad of [{ folds: 7, moves: "x" }, { folds: [null, { p: 5, f: 1 }, { p: "0", f: 9 }], moves: [{ p: 1, d: [1, 2] }, { p: "0", d: [Infinity, 1] }, { p: "0" }] }, { base: { kind: "depth", depth: "deep" } }]) {
+      assert.doesNotThrow(() => m.restore(bad));
+    }
+    assert.equal(m.own.size, 0);
+  });
   test("arranging again drops moves and folds", () => {
     const m = new D.DiagramModel(D.parse('{"a":{"x":1}}', "json"));
     m.move(1, 5, 5);
@@ -497,5 +504,25 @@ describe("hostile inputs", () => {
     const t = D.parse('{"<img src=x onerror=alert(1)>":"<script>alert(1)</script>"}', "json");
     assert.equal(t.nodes[0].rows[0].key, "<img src=x onerror=alert(1)>");
     assert.equal(t.nodes[0].rows[0].text, "<script>alert(1)</script>");
+  });
+});
+
+describe("the parsers' messages in pt-BR", () => {
+  const bad = { json: '{"a": ', jsonc: '{"a" 1}', toml: "a = ", xml: "<a><b></a>", csv: '"x', yaml: "a: [1" };
+  for (const [format, text] of Object.entries(bad)) {
+    test(`${format}: the message of a text that does not parse is told in pt-BR`, () => {
+      const e = D.parse(text, format).error;
+      assert.ok(e, "it should not parse");
+      if (format !== "yaml") assert.notEqual(D.parseErrorPt(e.message), e.message, e.message);
+    });
+  }
+  test("a YAML nested past the library's stack says so in our words", () => {
+    const e = D.parse("[".repeat(200000) + "]".repeat(200000), "yaml").error;
+    assert.equal(e?.message, "The YAML nests too deeply to draw");
+  });
+  test("a message with a name or a snippet keeps it", () => {
+    assert.equal(D.parseErrorPt('Unexpected "foo"'), 'Inesperado "foo"');
+    assert.equal(D.parseErrorPt("</b> closes <a>"), "</b> fecha <a>");
+    assert.equal(D.parseErrorPt("something else"), "something else");
   });
 });
