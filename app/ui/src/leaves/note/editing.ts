@@ -4,7 +4,8 @@
 
 import { indentWithTab } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
-import { syntaxHighlighting } from "@codemirror/language";
+import { foldEffect, syntaxHighlighting, unfoldEffect } from "@codemirror/language";
+import { foldedCount } from "./folds";
 import { languages } from "@codemirror/language-data";
 import { EditorState, type Extension, Prec, Transaction } from "@codemirror/state";
 import { type KeyBinding, keymap, lineNumbers } from "@codemirror/view";
@@ -107,6 +108,11 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       }),
       EditorView.updateListener.of((u) => {
         this.slash.onUpdate(u);
+        // Folded or opened, by the gutter, a key or the caret moving in.
+        if (!this.restoringFolds) {
+          if (u.transactions.some((tr) => tr.effects.some((e) => e.is(foldEffect) || e.is(unfoldEffect))) || (u.selectionSet && foldedCount(u.state) !== foldedCount(u.startState))) this.editorFoldsChanged();
+          else if (u.docChanged && foldedCount(u.state) > 0) this.syncFoldsLater();
+        }
         // Undone or redone: the panel's rows go back to what the file
         // says; an edit of a key that differs from it is refused.
         if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly, this.note.note_type);
