@@ -25,7 +25,12 @@
   questionnaire of 2026-10-20 (answered 2026-10-21): item 15's mailbox
   (0083.15, option B: it does not exist yet, he will create it; the point
   stays open until then) and the `yrs` fuzzing findings (0083.14, option C:
-  not reported upstream; our guards stay).
+  not reported upstream; our guards stay). 2026-10-21, later — the first
+  surface open to a visitor with no account, the read links of
+  [0105](0105-read-links-without-an-account.md), is built; the threat model
+  (`docs/reference/threat-model.md`) has its rows, and `tests_threats.rs`
+  asserts item 9's headers on `/r/<token>`, `/r/<token>/state` and
+  `/r/<token>/f/` too. No item of this ADR changes.
 
 ## Context
 

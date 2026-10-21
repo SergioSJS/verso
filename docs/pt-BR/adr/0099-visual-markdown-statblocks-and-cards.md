@@ -22,7 +22,14 @@
   decisões de 2026-10-20 (respondido em 2026-10-21): os detalhes
   `[PROPOSTO]` dos itens 1, 5 e 6 ficam decididos como propostos (0099.1,
   0099.5, 0099.6a a c), e as palavras de resultado em inglês dos perfis de
-  dados (item 4) estão aprovadas. Status Aceita.
+  dados (item 4) estão aprovadas. Status Aceita. 2026-10-21, revisão do lote
+  — duas entradas de "Alternativas descartadas" ("Campos de layout
+  executados como JavaScript" e "Um cartão disparado por propriedades
+  comuns") foram retiradas: nenhum documento ou resposta registra que
+  alguém as considerou como alternativas ao desenho (regra zero do
+  CLAUDE.md, item 4). A decisão em si, que nenhum campo de um layout é
+  executado como código e que um cartão vem só de um bloco `statblock`, não
+  muda.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -228,12 +235,9 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
 - **Layouts no armazenamento do navegador de um dispositivo** (a primeira
   construção): uma nota era desenhada de um jeito em cada dispositivo e para
   cada pessoa.
-- **Campos de layout executados como JavaScript** (os do plugin): código de
-  um arquivo compartilhado, executado na máquina de todos.
 - **Um layout por sistema com campos de memória** (a primeira construção):
   entregou atributos que nenhuma edição do jogo tem.
-- **Um cartão disparado por propriedades comuns**: transforma uma nota sobre
-  um computador com `hp:` num monstro.
+- Nenhuma outra registrada.
 
 ## Status
 

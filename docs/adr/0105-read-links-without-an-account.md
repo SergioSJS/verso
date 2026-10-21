@@ -24,7 +24,10 @@
 - Revisions: 2026-10-21 — the maintainer marked the options of the decisions
   questionnaire of 2026-10-20 (answered 2026-10-21), 0105.2 to 0105.8, all
   as recommended: every `[PROPOSED]` becomes `[DECIDED 2026-10-21]`, and
-  the ADR is Accepted. Nothing is built.
+  the ADR is Accepted. Nothing is built. 2026-10-21, later the same day —
+  built on `feat/rpg-tools` (Status, As built); the review of the batch
+  found item 5 contradicting itself and recorded it as `[OPEN]` under that
+  item.
 
 ## Context
 
@@ -97,6 +100,21 @@ in the questionnaire of 2026-10-20.
    what it points at, when it was made, its expiry, and when it was last
    opened; **revoke** ends it at once, open pages included.
 
+   `[OPEN]` (recorded 2026-10-21 by the review of the batch; rule zero item
+   3, no side picked): this item contradicts itself. It says the token is
+   "stored only as a hash" and also that the address is "copyable again
+   from the panel while it lives"; a store that keeps only a hash cannot
+   give the panel the address of a link made in another window or before a
+   restart. What was built: the hash only, and the address copyable again
+   only in the window that made it, kept in memory
+   (`app/ui/src/readLinks.ts`); the threat model documents that reading
+   ("The address is shown once, so it cannot be recovered by the owner,
+   only made again", `docs/reference/threat-model.md`). The maintainer
+   answers it (question RL.1a of the decisions list of 2026-10-21): either
+   "copyable again" means "in the window that made it", and this item is
+   amended, or the server keeps the token encrypted at rest, a different
+   decision that needs its own threat-model row.
+
 6. **Bounds and abuse.** `[DECIDED 2026-10-21]` (0105.6, option A): an anonymous request is paced per
    token and per address like the server's other routes ([0083](0083-security-hardening-of-universo.md)
    item 7); a wrong passphrase counts as a refused sign-in — the log line
@@ -141,4 +159,13 @@ in the questionnaire of 2026-10-20.
 ## Status
 
 Accepted (2026-10-21). Item 1 decided by the maintainer on 2026-10-20,
-items 2–8 on 2026-10-21. Nothing is built.
+items 2–8 on 2026-10-21.
+
+As built 2026-10-21, on `feat/rpg-tools` (not pushed, not released):
+`ddfcdd73` (the link, the visitor's path and the owner's commands in the
+server), `95827830` (fuzzing what anyone with no account may send),
+`26c44c68` (the contract's `list`, `secrets`, `create` and `revoke`
+commands), `c4534607` (making and reading links in the window), `8ec0dc3f`
+(end-to-end tests), `4dbe4bbb` (threat model, manual checks, changelog,
+tutorial); merged by `5690057e`. Item 5's contradiction stays `[OPEN]`
+above.
