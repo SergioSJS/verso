@@ -71,13 +71,17 @@ impl Index {
             "SELECT n.id, n.path, b.id, b.line, b.first_line FROM blocks b
              JOIN notes n ON n.id = b.note
              WHERE n.kind = 'note' AND (?1 = 0 OR b.secret = 0)
-             ORDER BY n.path, b.start",
+             ORDER BY n.path, b.start LIMIT ?2",
         )?;
+        // One row more than the bound: a folder with a million ids does
+        // not load them all, and the extra row says there were more.
         let rows: Vec<(i64, String, String, u32, Option<u32>)> = st
-            .query_map(params![reader], |r| {
+            .query_map(params![reader, BLOCKS_MOST as i64 + 1], |r| {
                 Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
             })?
             .collect::<Result<_, _>>()?;
+        // Rows left unread may hold blocks of the kinds asked for.
+        let unread = rows.len() > BLOCKS_MOST;
         let mut text = self
             .conn
             .prepare("SELECT content FROM notes WHERE id = ?1")?;
@@ -145,7 +149,7 @@ impl Index {
         }
         Ok(BlockList {
             blocks: out,
-            truncated,
+            truncated: truncated || unread,
         })
     }
 }

@@ -704,8 +704,8 @@ export const commands = {
 	 */
 	folderSyncCloudStart: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_cloud_start")),
 	/**
-	 *  The window's folder will not sync with the cloud it just checked: its
-	 *  secret leaves the keychain.
+	 *  The window's folder will not sync with the cloud it just checked: what
+	 *  waited in memory is dropped. (Nothing was put in the keychain.)
 	 */
 	folderSyncCloudCancel: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_cloud_cancel")),
 	/**

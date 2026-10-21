@@ -336,3 +336,115 @@ fn a_file_is_asked_for_by_itself_and_a_folder_that_is_gone_is_an_error() {
     dav.remove_folder();
     assert_eq!(w.list(None).unwrap_err().kind, RemoteErrorKind::NotFound);
 }
+
+#[test]
+fn a_write_answers_with_the_version_it_made_not_the_one_that_landed_after_it() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    // Another device's write, made against our version, lands before our
+    // next request, with as many bytes as ours.
+    dav.after("PUT", "a.md", b"ou");
+    let written = put(&w, "a.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(dav.get("a.md").unwrap(), b"ou");
+    let ours = dav.writes().into_iter().rev().nth(1).unwrap().etag;
+    assert_eq!(written.version, ours);
+    assert_ne!(written.version, version_of(&w, "a.md"));
+}
+
+#[test]
+fn with_no_etag_on_the_put_a_stat_never_gives_our_bytes_another_devices_version() {
+    let dav = Dav::start(DavMode {
+        no_put_etag: true,
+        ..mode()
+    });
+    let w = connect(&dav);
+    dav.after("PUT", "a.md", b"ou");
+    let e = put(&w, "a.md", &Condition::Absent, b"um").unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Changed, "{e}");
+    // Nothing landed: the version is the one the read-back saw.
+    let written = put(&w, "b.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(written.version, version_of(&w, "b.md"));
+}
+
+#[test]
+fn asking_whether_a_file_exists_does_not_download_it() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "pasta/a.md", &Condition::Absent, &[7_u8; 4096]).unwrap();
+    let before = dav.requests().len();
+    assert!(w.exists("pasta/a.md").unwrap());
+    assert!(!w.exists("pasta/b.md").unwrap());
+    // A folder is not a file.
+    assert!(!w.exists("pasta").unwrap());
+    let asked = dav.requests()[before..].to_vec();
+    assert!(
+        asked.iter().all(|r| r.starts_with("PROPFIND ")),
+        "only metadata is asked for: {asked:?}"
+    );
+}
+
+#[test]
+fn a_fingerprint_reads_the_file_once() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "a.md", &Condition::Absent, b"conteudo").unwrap();
+    let before = dav.requests().len();
+    let (version, hash) = w.fingerprint("a.md").unwrap();
+    assert_eq!((version, hash), (version_of(&w, "a.md"), sha(b"conteudo")));
+    let gets = dav.requests()[before..]
+        .iter()
+        .filter(|r| r.starts_with("GET "))
+        .count();
+    assert_eq!(gets, 1);
+}
+
+#[test]
+fn the_probe_deletes_only_its_own_object_never_the_shared_folder() {
+    let dav = Dav::start(mode());
+    // Another device is probing the same folder at the same moment: its
+    // object is in `.verso-probe`.
+    dav.put(".verso-probe/probe-outro", b"verso");
+    connect(&dav).probe().unwrap();
+    assert_eq!(dav.get(".verso-probe/probe-outro").unwrap(), b"verso");
+    assert!(dav.has_dir(".verso-probe"));
+    let deleted_folder: Vec<_> = dav
+        .requests()
+        .into_iter()
+        .filter(|r| r.starts_with("DELETE ") && r.trim_end_matches('/').ends_with("/.verso-probe"))
+        .collect();
+    assert!(deleted_folder.is_empty(), "{deleted_folder:?}");
+}
+
+#[test]
+fn collections_are_asked_for_with_a_trailing_slash() {
+    // Apache's mod_dav answers a collection asked for without one with a
+    // redirect, which is refused (credentials follow no redirect).
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "pasta/fundo/a.md", &Condition::Absent, b"um").unwrap();
+    w.list(None).unwrap();
+    w.probe().unwrap();
+    let collections: Vec<String> = dav
+        .requests()
+        .into_iter()
+        .filter(|r| r.starts_with("MKCOL ") || r.starts_with("PROPFIND "))
+        .collect();
+    assert!(collections.len() > 4, "{collections:?}");
+    // A PROPFIND of a file (the stat after a write) is the only one
+    // without.
+    for r in &collections {
+        let path = r.split_once(' ').map_or("", |(_, p)| p);
+        assert!(
+            path.ends_with('/') || path.ends_with(".md") || path.contains("/probe-"),
+            "{r}"
+        );
+    }
+    assert!(collections.iter().any(|r| r == "PROPFIND /dav/"));
+    assert!(
+        collections
+            .iter()
+            .any(|r| r == "PROPFIND /dav/pasta/fundo/")
+    );
+    assert!(collections.iter().any(|r| r == "MKCOL /dav/pasta/"));
+    assert!(collections.iter().any(|r| r == "MKCOL /dav/.verso-probe/"));
+}

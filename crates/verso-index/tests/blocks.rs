@@ -131,3 +131,18 @@ fn the_list_is_bounded() {
     assert_eq!(all.blocks.len(), BLOCKS_MOST);
     assert!(all.truncated);
 }
+
+#[test]
+fn only_a_bounded_number_of_rows_is_read_and_a_bound_reached_says_so() {
+    let mut index = Index::in_memory().unwrap();
+    for n in 0..60 {
+        let body: String = (0..100).map(|i| format!("- x ^b{n}-{i}\n\n")).collect();
+        put(&mut index, &format!("n{n:02}.md"), &body);
+    }
+    // None of the 6000 is a table. Reading every row would answer "none,
+    // nothing left out"; reading a bounded number says that more were not
+    // looked at.
+    let tables = index.folder_blocks(&[BlockKind::Table]).unwrap();
+    assert!(tables.blocks.is_empty());
+    assert!(tables.truncated);
+}

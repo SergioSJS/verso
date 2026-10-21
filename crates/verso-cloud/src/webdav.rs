@@ -17,8 +17,8 @@ use std::sync::Mutex;
 use reqwest::Url;
 use reqwest::blocking::Response;
 use verso_core::sync::remote::{
-    Change, Condition, Entry, Listing, Meta, Read, Remote, RemoteError, RemoteErrorKind, Result,
-    Sink, Source, Written,
+    Change, Condition, Entry, HashingSink, Listing, Meta, Read, Remote, RemoteError,
+    RemoteErrorKind, Result, Sink, Source, Written,
 };
 
 use crate::http::{Http, check_transport};
@@ -105,6 +105,26 @@ impl WebDav {
         url.to_string()
     }
 
+    /// The address of a collection: with the trailing slash RFC 4918 §8.3
+    /// allows to be left out but some servers (Apache's `mod_dav`) answer
+    /// with a redirect, which is refused.
+    fn dir_url(&self, path: &str) -> String {
+        let url = self.url(path);
+        if url.ends_with('/') {
+            url
+        } else {
+            format!("{url}/")
+        }
+    }
+
+    /// A request on a collection (a folder).
+    fn req_dir(&self, method: &str, path: &str) -> reqwest::blocking::RequestBuilder {
+        self.http
+            .request(method, &self.dir_url(path))
+            .basic_auth(&self.user, Some(&self.password))
+            .header("Accept-Encoding", "identity")
+    }
+
     fn req(&self, method: &str, path: &str) -> reqwest::blocking::RequestBuilder {
         self.http
             .request(method, &self.url(path))
@@ -112,12 +132,22 @@ impl WebDav {
             .header("Accept-Encoding", "identity")
     }
 
-    /// `PROPFIND` the resource at `path`, `depth` 0 or 1.
-    fn propfind(&self, path: &str, depth: u8, body: &'static str) -> Result<Response> {
+    /// `PROPFIND` the resource at `path`, `depth` 0 or 1; `collection`
+    /// when it is a folder.
+    fn propfind(
+        &self,
+        path: &str,
+        depth: u8,
+        body: &'static str,
+        collection: bool,
+    ) -> Result<Response> {
         self.http.send(&mut || {
-            Ok(self
-                .req("PROPFIND", path)
-                .header("Depth", depth.to_string())
+            let r = if collection {
+                self.req_dir("PROPFIND", path)
+            } else {
+                self.req("PROPFIND", path)
+            };
+            Ok(r.header("Depth", depth.to_string())
                 .header("Content-Type", "application/xml")
                 .body(body))
         })
@@ -180,7 +210,7 @@ impl WebDav {
 
     /// What is at `path`: its ETag and size, or `None` when nothing.
     fn stat(&self, path: &str) -> Result<Option<Found>> {
-        let response = self.propfind(path, 0, PROPFIND_BODY)?;
+        let response = self.propfind(path, 0, PROPFIND_BODY, path.is_empty())?;
         match response.status().as_u16() {
             404 => Ok(None),
             207 | 200 => Ok(self.found(response)?.into_iter().next()),
@@ -207,7 +237,7 @@ impl WebDav {
         if self.made.lock().is_ok_and(|m| m.contains(dir)) {
             return Ok(());
         }
-        let response = self.http.send(&mut || Ok(self.req("MKCOL", dir)))?;
+        let response = self.http.send(&mut || Ok(self.req_dir("MKCOL", dir)))?;
         match response.status().as_u16() {
             // 405: it exists already.
             200 | 201 | 204 | 405 => {
@@ -229,33 +259,67 @@ impl WebDav {
         !etag.trim().is_empty() && !etag.trim_start().starts_with("W/")
     }
 
-    /// The version a file left on the server by a write has: the answer's
-    /// ETag, or, when it gave none, what `PROPFIND` says; the size checked
-    /// against the bytes sent (ADR 0104 item 11).
-    fn landed(&self, response: &Response, path: &str, size: u64) -> Result<String> {
+    /// The version a file left on the server by a write has (ADR 0104 item
+    /// 11, and never another device's).
+    ///
+    /// The answer's ETag is the version our write made. When a `PROPFIND`
+    /// afterwards shows another, a later write of another device (made
+    /// against ours) landed in between: ours is answered still, so the
+    /// next listing shows a version the host has not seen and the file is
+    /// fingerprinted. When the answer gave none, a stat could only guess,
+    /// and might attribute a later version to our bytes: the file is read
+    /// back instead, and its hash must be the hash sent; the ETag of that
+    /// very read is the version. A different hash is a change.
+    fn landed(&self, response: &Response, path: &str, meta: &Meta) -> Result<String> {
         let sent = response
             .headers()
             .get("etag")
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
-        let there = self.stat(path)?.ok_or_else(|| {
-            RemoteError::new(
-                RemoteErrorKind::Failed,
-                "the file is not on the server after it was sent",
-            )
-        })?;
-        if there.size.is_some_and(|s| s != size) {
-            return Err(RemoteError::new(
-                RemoteErrorKind::Failed,
-                "the server kept a different number of bytes than were sent",
-            ));
-        }
-        let version = sent.or(there.etag).ok_or_else(|| {
-            RemoteError::new(
-                RemoteErrorKind::Refused,
-                "the server gives no ETag for the file it just kept",
-            )
-        })?;
+        let version = match sent {
+            Some(sent) => {
+                let there = self.stat(path)?.ok_or_else(|| {
+                    RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the file is not on the server after it was sent",
+                    )
+                })?;
+                let ours = there.etag.as_deref().is_none_or(|e| same_etag(e, &sent));
+                if ours && there.size.is_some_and(|s| s != meta.size) {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the server kept a different number of bytes than were sent",
+                    ));
+                }
+                sent
+            }
+            None => {
+                let mut sink = HashingSink::default();
+                let read = self.read(path, &mut sink).map_err(|e| {
+                    if e.kind == RemoteErrorKind::NotFound {
+                        RemoteError::new(
+                            RemoteErrorKind::Failed,
+                            "the file is not on the server after it was sent",
+                        )
+                    } else {
+                        e
+                    }
+                })?;
+                if read.size != meta.size {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the server kept a different number of bytes than were sent",
+                    ));
+                }
+                if sink.finish() != meta.hash {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Changed,
+                        "the file on the server changed while it was being sent",
+                    ));
+                }
+                read.version
+            }
+        };
         if !Self::strong(&version) {
             return Err(RemoteError::new(
                 RemoteErrorKind::Refused,
@@ -286,15 +350,17 @@ impl WebDav {
         let mut notes = Vec::new();
         let result = self.probe_object(&key, &mut notes);
         // Cleaned up whatever happened.
+        // Its own object only: the folder is shared with any other device
+        // connecting at the same moment, and deleting it would take that
+        // device's check file from under it. It stays, empty.
         let _ = self.http.send(&mut || Ok(self.req("DELETE", &key)));
-        let _ = self.http.send(&mut || Ok(self.req("DELETE", dir)));
         result?;
         let (files, bytes) = self.count()?;
         let free = self
             .http
             .send(&mut || {
                 Ok(self
-                    .req("PROPFIND", "")
+                    .req_dir("PROPFIND", "")
                     .header("Depth", "0")
                     .header("Content-Type", "application/xml")
                     .body(QUOTA_BODY))
@@ -410,20 +476,26 @@ impl WebDav {
     }
 }
 
+/// Whether two ETags name the same version, whatever quotes the answers
+/// put on them.
+fn same_etag(a: &str, b: &str) -> bool {
+    let bare = |e: &str| {
+        e.trim()
+            .trim_start_matches("W/")
+            .trim_matches('"')
+            .to_owned()
+    };
+    bare(a) == bare(b)
+}
+
 /// The body of an answer as text, no more than the listing's cap.
 fn capped_text(response: Response) -> Result<String> {
-    let mut text = Vec::new();
-    response
-        .take(LISTING_MAX as u64 + 1)
-        .read_to_end(&mut text)
-        .map_err(|e| RemoteError::new(RemoteErrorKind::Unreachable, e.to_string()))?;
-    if text.len() > LISTING_MAX {
-        return Err(RemoteError::new(
-            RemoteErrorKind::Failed,
-            "the server's listing is too large to read",
-        ));
-    }
-    Ok(String::from_utf8_lossy(&text).into_owned())
+    crate::capped_text(response, LISTING_MAX).map_err(|mut e| {
+        if e.kind == RemoteErrorKind::Failed {
+            e.message = "the server's listing is too large to read".to_owned();
+        }
+        e
+    })
 }
 
 impl Remote for WebDav {
@@ -432,7 +504,7 @@ impl Remote for WebDav {
         let mut queue = VecDeque::from([(String::new(), 0_usize)]);
         let mut seen = BTreeSet::new();
         while let Some((dir, depth)) = queue.pop_front() {
-            let response = self.propfind(&dir, 1, PROPFIND_BODY)?;
+            let response = self.propfind(&dir, 1, PROPFIND_BODY, true)?;
             match response.status().as_u16() {
                 // The folder is not there: not an empty folder (every file
                 // would look deleted there) but a folder to find again. It
@@ -485,6 +557,13 @@ impl Remote for WebDav {
             changes,
             cursor: None,
         })
+    }
+
+    /// A `PROPFIND` at depth zero, never the file: a deletion here that a
+    /// lagging listing asks for must not download a recording to learn it
+    /// is still there. A folder is not a file.
+    fn exists(&self, path: &str) -> Result<bool> {
+        Ok(self.stat(path)?.is_some_and(|f| !f.folder))
     }
 
     fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read> {
@@ -561,7 +640,7 @@ impl Remote for WebDav {
             })?;
             match response.status().as_u16() {
                 200 | 201 | 204 => {
-                    let version = self.landed(&response, &path, meta.size)?;
+                    let version = self.landed(&response, &path, meta)?;
                     return Ok(Written { path, version });
                 }
                 412 => {

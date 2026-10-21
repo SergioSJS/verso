@@ -119,12 +119,13 @@ fn refusal(e: &RemoteError) -> CloudCheck {
 /// The check of ADR 0104 items 7 and 16, run where blocking is allowed:
 /// the form valid, the keychain there, the service asked (a write against
 /// a version that is not there must be refused, and the ETags strong). On
-/// acceptance the secret is kept in the keychain under the folder's
-/// account — it is not asked for again — and the cloud with what the check
-/// found is returned for the start to use.
+/// acceptance the cloud with what the check found is returned for the
+/// start to use. The secret is not kept anywhere yet: it waits in memory
+/// with the cloud and goes to the keychain, under the folder's account,
+/// only when the person starts ([`begin`]) — a dialog closed before that
+/// leaves nothing in the keychain.
 pub(crate) fn check(
     secrets: &dyn Secrets,
-    key: &str,
     settings: &CloudSettings,
     secret: &str,
 ) -> (CloudCheck, Option<engine::Cloud>) {
@@ -142,14 +143,6 @@ pub(crate) fn check(
         Ok(report) => report,
         Err(e) => return (refusal(&e), None),
     };
-    if let Err(e) = secrets.set(&account(key), secret) {
-        let problem = if matches!(e, SecretError::NoKeyring(_)) {
-            "no_keyring"
-        } else {
-            "failed"
-        };
-        return (refuse(problem, e.message()), None);
-    }
     let (deletions, mut notes) = match &report.deletions {
         Deletions::Final => ("final", Vec::new()),
         Deletions::Kept(note) => ("kept", vec![note.clone()]),
@@ -210,8 +203,72 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     })
 }
 
-/// The cloud a folder's window syncs with, once checked and not started.
-pub(crate) type Pending = Mutex<std::collections::HashMap<String, engine::Cloud>>;
+/// The cloud a folder's window syncs with, once checked and not started,
+/// and the secret the person typed: in memory only, until the start.
+pub(crate) struct PendingCloud {
+    cloud: engine::Cloud,
+    secret: String,
+}
+
+/// The clouds checked and not started, by the folder's key.
+pub(crate) type Pending = Mutex<std::collections::HashMap<String, PendingCloud>>;
+
+/// Whether two clouds are the same place, whoever signs in to it.
+fn same_place(a: &engine::Cloud, b: &engine::Cloud) -> bool {
+    let bare = |c: &engine::Cloud| {
+        (
+            c.provider.clone(),
+            c.endpoint.trim_end_matches('/').to_owned(),
+            c.bucket.clone(),
+            c.prefix.trim_matches('/').to_owned(),
+        )
+    };
+    bare(a) == bare(b)
+}
+
+/// Start syncing the folder `key` with `cloud` (ADR 0104 item 16): the
+/// secret goes to the keychain under the folder's account, and the state is
+/// saved. A folder that was synced with this very cloud and turned off goes
+/// on from its base and the versions it learned, as a UniVerso's does;
+/// anything else is a first sync, which deletes nothing (ADR 0079 item 11).
+///
+/// # Errors
+/// The keychain refusing the secret, or the state not being saved.
+pub(crate) fn begin(
+    secrets: &dyn Secrets,
+    config: Option<&Path>,
+    key: &str,
+    cloud: engine::Cloud,
+    secret: &str,
+) -> Result<engine::State, ContractError> {
+    secrets
+        .set(&account(key), secret)
+        .map_err(|e| refused(e.message()))?;
+    let kept = engine::load(config, key)
+        .ok()
+        .flatten()
+        .filter(|k| k.cloud.as_ref().is_some_and(|c| same_place(c, &cloud)));
+    let name = label(&cloud);
+    let state = match kept {
+        Some(kept) => engine::State {
+            server: name.clone(),
+            folder: name,
+            cloud: Some(cloud),
+            off: false,
+            paused: false,
+            revoked: None,
+            ..kept
+        },
+        None => engine::State {
+            server: name.clone(),
+            folder: name,
+            cloud: Some(cloud),
+            ..engine::State::default()
+        },
+    };
+    engine::save(config, key, &state).map_err(verso_service::convert)?;
+    Ok(state)
+}
 
 /// Check a cloud for the window's folder. Nothing is saved unless it is
 /// accepted; then the secret is kept in the system's keychain and the
@@ -229,15 +286,21 @@ pub(crate) async fn folder_sync_cloud_check<R: tauri::Runtime>(
         return Err(refused("this folder syncs already: turn it off first"));
     }
     let secrets = Arc::clone(&app.state::<App>().secrets);
-    let kept = key.clone();
+    let typed = secret.clone();
     let (answer, cloud) =
-        tauri::async_runtime::spawn_blocking(move || check(&*secrets, &kept, &settings, &secret))
+        tauri::async_runtime::spawn_blocking(move || check(&*secrets, &settings, &secret))
             .await
             .map_err(|e| failed(e.to_string()))?;
     let pending = &app.state::<App>().pending_clouds;
     match cloud {
         Some(cloud) => {
-            lock(pending).insert(key, cloud);
+            lock(pending).insert(
+                key,
+                PendingCloud {
+                    cloud,
+                    secret: typed,
+                },
+            );
         }
         None => {
             lock(pending).remove(&key);
@@ -258,17 +321,12 @@ pub(crate) fn folder_sync_cloud_start<R: tauri::Runtime>(
     if sync_commands::running(&app, &key).is_some() {
         return Err(refused("this folder syncs already: turn it off first"));
     }
-    let cloud = lock(&app.state::<App>().pending_clouds)
+    let PendingCloud { cloud, secret } = lock(&app.state::<App>().pending_clouds)
         .remove(&key)
         .ok_or_else(|| refused("check the cloud first"))?;
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
-    let state = engine::State {
-        server: label(&cloud),
-        folder: label(&cloud),
-        cloud: Some(cloud),
-        ..engine::State::default()
-    };
-    engine::save(config.as_deref(), &key, &state).map_err(verso_service::convert)?;
+    let secrets = Arc::clone(&app.state::<App>().secrets);
+    let state = begin(&*secrets, config.as_deref(), &key, cloud, &secret)?;
     log::write(
         "INFO",
         "sync",
@@ -277,8 +335,8 @@ pub(crate) fn folder_sync_cloud_start<R: tauri::Runtime>(
     Ok(sync_commands::start(&app, &key, &state).status())
 }
 
-/// The window's folder will not sync with the cloud it just checked: its
-/// secret leaves the keychain.
+/// The window's folder will not sync with the cloud it just checked: what
+/// waited in memory is dropped. (Nothing was put in the keychain.)
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn folder_sync_cloud_cancel<R: tauri::Runtime>(
@@ -286,18 +344,17 @@ pub(crate) fn folder_sync_cloud_cancel<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
     let key = sync_commands::key_of(&app, &window)?;
-    let was = lock(&app.state::<App>().pending_clouds).remove(&key);
-    if was.is_some() {
-        let _ = app.state::<App>().secrets.delete(&account(&key));
-    }
+    lock(&app.state::<App>().pending_clouds).remove(&key);
     Ok(())
 }
 
 /// What turning a cloud folder's sync off forgets: the secret in the
-/// keychain, and the cloud in the state (ADR 0104 item 14: disconnecting
-/// deletes the secrets). A later connection is a first sync again, which
-/// deletes nothing.
-pub(crate) fn forget(secrets: &dyn Secrets, config: Option<&Path>, key: &str) {
+/// keychain (ADR 0104 item 14: disconnecting deletes the secrets), and
+/// nothing else. The state stays as turning it off left it (`off`, with its
+/// base, the versions it learned and the cloud's place), as a UniVerso's
+/// does: connecting the same cloud again goes on from there ([`begin`])
+/// instead of treating every note edited on both sides as a conflict.
+pub(crate) fn forget(secrets: &dyn Secrets, key: &str) {
     if let Err(e) = secrets.delete(&account(key)) {
         log::write(
             "WARN",
@@ -307,12 +364,5 @@ pub(crate) fn forget(secrets: &dyn Secrets, config: Option<&Path>, key: &str) {
                 e.message()
             ),
         );
-    }
-    let off = engine::State {
-        off: true,
-        ..engine::State::default()
-    };
-    if let Err(e) = engine::save(config, key, &off) {
-        log::write("ERROR", "sync", &format!("forgetting the cloud: {e}"));
     }
 }

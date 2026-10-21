@@ -152,14 +152,16 @@ impl Device {
     }
 }
 
-/// Both devices take step `k` together, until the steps are done.
-fn race(pair: Pair, steps: &[(Op, Op)]) {
+/// Both devices take step `k` together, until the steps are done. What each
+/// device believes of the remote at the end is returned.
+fn race(pair: Pair, steps: &[(Op, Op)]) -> Vec<Known> {
     let barrier = Barrier::new(2);
     let (a, b) = pair;
     std::thread::scope(|scope| {
+        let mut handles = Vec::new();
         for (name, remote, mine) in [("A", a, 0), ("B", b, 1)] {
             let barrier = &barrier;
-            scope.spawn(move || {
+            handles.push(scope.spawn(move || {
                 let mut device = Device {
                     name,
                     remote,
@@ -171,9 +173,35 @@ fn race(pair: Pair, steps: &[(Op, Op)]) {
                     barrier.wait();
                     device.step(if mine == 0 { &step.0 } else { &step.1 });
                 }
-            });
+                device.known.unwrap_or_default()
+            }));
         }
-    });
+        handles
+            .into_iter()
+            .map(|h| h.join().unwrap_or_default())
+            .collect()
+    })
+}
+
+/// What a device believes must not contradict the service: a file it holds
+/// as (hash, version) is never a different hash at that same version. A
+/// version recorded for bytes it did not write (another device's ETag kept
+/// for ours) shows up here once nothing has written after.
+fn mistaken(
+    known: &Known,
+    state: &BTreeMap<String, (String, String)>,
+    prefix: &str,
+) -> Vec<String> {
+    known
+        .files
+        .iter()
+        .filter_map(|(path, file)| {
+            let version = known.versions.get(path)?;
+            let (etag, hash) = state.get(&format!("{prefix}{path}"))?;
+            (etag == version && *hash != file.hash)
+                .then(|| format!("{path}: believed {} at {version}, holds {hash}", file.hash))
+        })
+        .collect()
 }
 
 /// What the property says of a service's log: nothing was written over a
@@ -334,19 +362,28 @@ proptest! {
     })]
 
     /// Any interleaving of writes, deletes and renames by two devices on a
-    /// WebDAV folder: no version lost.
+    /// WebDAV folder: no version lost, and no device believing a version
+    /// of bytes it did not write. A third writer lands right after every
+    /// `intrude`-th `PUT` (0: never), between a `PUT` and the next
+    /// request: the interleaving of review I-1.
     #[test]
-    fn webdav_loses_no_version(steps in steps()) {
-        let dav = Dav::start(DavMode::default());
-        race(dav_pair(&dav), &steps);
+    fn webdav_loses_no_version(steps in steps(), intrude in 0_u32..4) {
+        let dav = Dav::start(DavMode { intrude, ..DavMode::default() });
+        let knowns = race(dav_pair(&dav), &steps);
         prop_assert_eq!(lost(&dav.writes(), &dav.removed()), Vec::<String>::new());
+        for k in &knowns {
+            prop_assert_eq!(mistaken(k, &dav.state(), ""), Vec::<String>::new());
+        }
     }
 
     /// The same on an S3 prefix.
     #[test]
-    fn s3_loses_no_version(steps in steps()) {
-        let fake = FakeS3::start(S3Mode::default());
-        race(s3_pair(&fake, true), &steps);
+    fn s3_loses_no_version(steps in steps(), intrude in 0_u32..4) {
+        let fake = FakeS3::start(S3Mode { intrude, ..S3Mode::default() });
+        let knowns = race(s3_pair(&fake, true), &steps);
         prop_assert_eq!(lost(&fake.writes(), &fake.removed()), Vec::<String>::new());
+        for k in &knowns {
+            prop_assert_eq!(mistaken(k, &fake.state(), "Cofre/"), Vec::<String>::new());
+        }
     }
 }

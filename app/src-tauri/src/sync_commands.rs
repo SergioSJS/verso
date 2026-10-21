@@ -232,10 +232,10 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
         None => sync::off(config.as_deref(), &key)?,
     }
     // Turning a cloud folder's sync off disconnects it: the secret leaves
-    // the keychain, and a later connection is a first sync (ADR 0104 item
-    // 14).
+    // the keychain (ADR 0104 item 14); the base stays, for connecting the
+    // same cloud again.
     if cloud {
-        crate::cloud::forget(&*app.state::<App>().secrets, config.as_deref(), &key);
+        crate::cloud::forget(&*app.state::<App>().secrets, &key);
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
     // Every window of the folder hears it: a live note goes local (ADR

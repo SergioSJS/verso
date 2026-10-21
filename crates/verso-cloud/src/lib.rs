@@ -30,6 +30,29 @@ use verso_core::sync::remote::{Remote, RemoteError, RemoteErrorKind, Result};
 
 pub use verso_core::sync::remote::hex;
 
+/// The body of an answer as text, no more than `max` bytes of it: a
+/// misconfigured or hostile endpoint answering a body that never ends must
+/// not take the app's memory.
+///
+/// # Errors
+/// [`RemoteErrorKind::Unreachable`] when the body cannot be read,
+/// [`RemoteErrorKind::Failed`] when it is past `max`.
+pub fn capped_text(response: Response, max: usize) -> Result<String> {
+    use std::io::Read as _;
+    let mut text = Vec::new();
+    response
+        .take(max as u64 + 1)
+        .read_to_end(&mut text)
+        .map_err(|e| RemoteError::new(RemoteErrorKind::Unreachable, e.to_string()))?;
+    if text.len() > max {
+        return Err(RemoteError::new(
+            RemoteErrorKind::Failed,
+            "the service's answer is too large to read",
+        ));
+    }
+    Ok(String::from_utf8_lossy(&text).into_owned())
+}
+
 /// What happens to a file deleted from the cloud (ADR 0104 item 9),
 /// said when the person connects.
 #[derive(Debug, Clone, PartialEq, Eq)]
