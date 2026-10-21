@@ -20,6 +20,11 @@
   (MIT, Jeremy Valentine; studied at f248f4af, v4.10.3), and the published
   rules, SRDs and licences of about 35 systems, each field with its source,
   in `docs/reference/statblock-sources.md`.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): the `[PROPOSED]` details
+  of items 1, 5 and 6 are decided as proposed (0099.1, 0099.5, 0099.6a to c),
+  and the English result words of the dice profiles (item 4) are approved.
+  Status Accepted.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -55,8 +60,10 @@ fan works but not apps, some allow nothing.
 ## Decision
 
 Accepted on 2026-10-20 for the design proposed to the maintainer that day;
-`[DECIDED 2026-10-20]` quotes his own answers, `[PROPOSED]` marks a detail
-he has not read.
+`[DECIDED 2026-10-20]` quotes his own answers; `[DECIDED 2026-10-21]` is the
+option he marked in the decisions questionnaire of 2026-10-20 (the option
+written in the item, with no words of his own); nothing is left
+`[PROPOSED]`.
 
 1. **A card comes from a ```` ```statblock ```` block, and only from it.**
    The block holds YAML. Its keys are Fantasy Statblocks' key names (`name`,
@@ -67,7 +74,8 @@ he has not read.
    layout by id or by name, exactly, ignoring case and accents; an unknown
    one draws the default layout with a visible "layout not found". No card
    is guessed from ordinary properties (`hp:` in a note about a computer).
-   `[PROPOSED]`: `monster: Goblin` and `extends: [[Goblin]]` take the
+   `[DECIDED 2026-10-21]` (0099.1, option A): `monster: Goblin` and
+   `extends: [[Goblin]]` take the
    statblock of the note so named and override its keys — the plugin's
    bestiary, made of notes.
 
@@ -113,22 +121,31 @@ he has not read.
    the system reads it — the highest die, successes counted, a band of
    2d6 — and is shown, not written ([0088](0088-dice-and-random-tables.md)
    item 2); in a room the server draws and the room sees it (item 4 there).
+   `[DECIDED 2026-10-21]` (S.1, option A): the English result words of the
+   profiles Fractal, Trophy and Infaernum in `app/ui/src/dice/profileWords.ts`
+   are approved as built (Success / Failure, Success with Momentum ×2 to ×4,
+   Rupture ×1 to ×4, Miracle, Misfortune, Feat and Glimpse ×1 to ×3, Yes /
+   No, "Ruin rises", Number of Facts / Dark dice / Your Ruin, and
+   Infaernum's "ideas" lists); literal translations, replaced when the
+   authors publish their English terms.
 
 5. **Trackers write into the note.** `[DECIDED 2026-10-20]`: *"13. deveria
    gravar"* (it should be saved). A **tracker** block shows a current value
    against a maximum — hit points, Fractal's reserves, stress, a clock,
    Hope — as boxes or a number. A click is the person's action (invariant
    8): it replaces that one value in the block's YAML, through the editor or
-   the room, never the whole block, never straight to disk. `[PROPOSED]`: in
-   a room, after two clicks merge, a value that no longer reads as a number
-   within its bounds shows a badge and a one-click repair, never a silent
-   guess.
+   the room, never the whole block, never straight to disk.
+   `[DECIDED 2026-10-21]` (0099.5, option A): in a room, after two clicks
+   merge, a value that no longer reads as a number within its bounds shows a
+   badge and a one-click repair, never a silent guess (and never a silent
+   clamp).
 
 6. **Which layouts ship.** `[DECIDED 2026-10-20]`, on the recommendation
    after the licence research: built in only where the rules are open, plus
    generic layouts named by their mechanics; the rest imported, or shipped
-   once the publisher allows it. `[PROPOSED]`: the list below, worked out
-   after that answer. Built in, each field with its source in
+   once the publisher allows it. `[DECIDED 2026-10-21]` (0099.6a, option A: the list approved as it is,
+   thirteen families of `credits.ts`): the list below, worked out after
+   that answer. Built in, each field with its source in
    `docs/reference/statblock-sources.md`, each licence's line on the
    Credits page:
    - systems whose rules are open: the D&D 5e SRD (5.1 and 5.2.1, CC BY
@@ -142,7 +159,9 @@ he has not read.
      Cairn and Old Dragon 2e (CC BY-SA 4.0: field names only, no text);
    - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0 by its SRD's
      text, whose badge shows BY-SA — to be confirmed with the authors; field
-     names only either way): a character (reserves, up to twelve facts that break and mend,
+     names only either way; `[DECIDED 2026-10-21]` (0099.6b, option A) it
+     stays built in, field names only, credited "CC BY 4.0 as the SRD's
+     text says", and is changed if the authors' answer changes it): a character (reserves, up to twelve facts that break and mend,
      XP) and a **challenge** whose obstacles may each be a `[[link]]` to
      another challenge's note — a campaign, its arcs and its episodes as one
      tree the graph already draws;
@@ -152,10 +171,11 @@ he has not read.
      aspects.
    For the rest — Daggerheart, Tormenta20, Call of Cthulhu, Savage Worlds,
    the Free League games, Mothership and others — a layout is a file a person
-   imports, or ships once the publisher allows it in writing. `[PROPOSED]`:
-   the World of Darkness 5th-edition games under Paradox's Dark Pack, and a
-   blank Cyberpunk RED layout under R. Talsorian's homebrew policy, each
-   with its notice. Every built-in layout has a character sheet and, where
+   imports, or ships once the publisher allows it in writing. `[DECIDED 2026-10-21]`
+   (0099.6c, option A): the World of Darkness 5th-edition games under
+   Paradox's Dark Pack, and a blank Cyberpunk RED layout under
+   R. Talsorian's homebrew policy, each built in with its notice on the
+   Credits page. Every built-in layout has a character sheet and, where
    the system has one, a separate adversary sheet.
 
 7. **Editing in place.** In Live Preview the YAML shows while the caret is
@@ -213,5 +233,6 @@ he has not read.
 
 ## Status
 
-Accepted (2026-10-20), the design proposed to the maintainer that day; the
-`[PROPOSED]` details wait for his reading.
+Accepted (2026-10-20), the design proposed to the maintainer that day, with
+every detail decided on 2026-10-21. Still outside this ADR: the Fractal
+licence, which the maintainer is asking the authors (item 6).
