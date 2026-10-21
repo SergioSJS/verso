@@ -458,18 +458,12 @@ fn same_etag(a: &str, b: &str) -> bool {
 
 /// The body of an answer as text, no more than the listing's cap.
 fn capped_text(response: Response) -> Result<String> {
-    let mut text = Vec::new();
-    response
-        .take(LISTING_MAX as u64 + 1)
-        .read_to_end(&mut text)
-        .map_err(|e| RemoteError::new(RemoteErrorKind::Unreachable, e.to_string()))?;
-    if text.len() > LISTING_MAX {
-        return Err(RemoteError::new(
-            RemoteErrorKind::Failed,
-            "the server's listing is too large to read",
-        ));
-    }
-    Ok(String::from_utf8_lossy(&text).into_owned())
+    crate::capped_text(response, LISTING_MAX).map_err(|mut e| {
+        if e.kind == RemoteErrorKind::Failed {
+            e.message = "the server's listing is too large to read".to_owned();
+        }
+        e
+    })
 }
 
 impl Remote for WebDav {

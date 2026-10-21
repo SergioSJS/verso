@@ -27,7 +27,7 @@ use crate::http::{Http, check_transport};
 use crate::names;
 use crate::sigv4::{Signer, stamp_now};
 use crate::xml::{self, Ev};
-use crate::{Deletions, Report, fail_body, nonce, pct_component, pct_path};
+use crate::{Deletions, Report, capped_text, fail_body, nonce, pct_component, pct_path};
 
 /// Names of what the probe found the service honours, as the state keeps
 /// them.
@@ -39,6 +39,12 @@ pub const CAP_MULTIPART_CONDITIONAL: &str = "multipart_conditional";
 /// The metadata that carries a file's SHA-256, so that another device need
 /// not read the file to know it.
 const META_HASH: &str = "x-amz-meta-verso-sha256";
+/// The most an answer may be, in bytes: every one but a listing page is a
+/// few lines of XML.
+const ANSWER_MAX: usize = 1 << 20;
+/// The most a page of a listing may be: a thousand keys of 1024 bytes
+/// with their metadata fit many times over.
+const LISTING_PAGE_MAX: usize = 16 << 20;
 /// A file past this many bytes crosses in parts.
 const SINGLE_MAX: u64 = 100 << 20;
 /// A part: well past S3's 5 MiB minimum, and ten thousand of them reach
@@ -293,7 +299,7 @@ impl S3 {
     /// failures in a 200 (a copy, the end of a multipart upload).
     fn answer_error(&self, what: &str, response: Response) -> RemoteError {
         let status = response.status().as_u16();
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX).unwrap_or_default();
         let code = Self::error_code(&body).unwrap_or_default();
         match (status, code.as_str()) {
             (412, _) | (_, "PreconditionFailed" | "ConditionalRequestConflict") => {
@@ -454,10 +460,10 @@ impl S3 {
                 EMPTY,
             ))
         })?;
-        let body = self
-            .checked("starting a large upload", response)?
-            .text()
-            .unwrap_or_default();
+        let body = capped_text(
+            self.checked("starting a large upload", response)?,
+            ANSWER_MAX,
+        )?;
         xml::first_text(&xml::events(&body), "UploadId").ok_or_else(|| {
             RemoteError::new(RemoteErrorKind::Failed, "the service gave no upload id")
         })
@@ -543,7 +549,7 @@ impl S3 {
         if !response.status().is_success() {
             return Err(self.answer_error("finishing a large upload", response));
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         // A failure can come in a 200.
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
@@ -595,7 +601,7 @@ impl S3 {
         if !response.status().is_success() {
             return Err(self.answer_error("copying a file", response));
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
                 "PreconditionFailed" | "ConditionalRequestConflict" => RemoteError::new(
@@ -667,7 +673,7 @@ impl S3 {
         if !response.status().is_success() {
             return Deletions::Unknown;
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX).unwrap_or_default();
         match xml::first_text(&xml::events(&body), "Status").as_deref() {
             Some("Enabled") => Deletions::Kept(
                 "the bucket keeps earlier versions: a deleted file can be restored from the bucket"
@@ -810,12 +816,12 @@ impl S3 {
                 .send(&mut || Ok(self.signed("PUT", dest, &[], &headers, EMPTY)))
         };
         let a = copy(&copy_key)?;
-        let a_ok =
-            a.status().is_success() && Self::error_code(&a.text().unwrap_or_default()).is_none();
+        let a_ok = a.status().is_success()
+            && Self::error_code(&capped_text(a, ANSWER_MAX).unwrap_or_default()).is_none();
         if a_ok {
             let b = copy(&copy_key)?;
             let twice = b.status().as_u16();
-            let b_text = b.text().unwrap_or_default();
+            let b_text = capped_text(b, ANSWER_MAX).unwrap_or_default();
             if twice == 412 || Self::error_code(&b_text).as_deref() == Some("PreconditionFailed") {
                 report.caps.push(CAP_COPY_IF_NONE_MATCH.to_owned());
             }
@@ -881,7 +887,7 @@ impl S3 {
                     .body(doc.clone()))
             })?;
             let status = done.status().as_u16();
-            let text = done.text().unwrap_or_default();
+            let text = capped_text(done, ANSWER_MAX).unwrap_or_default();
             let code = Self::error_code(&text);
             let refused = status == 412 || code.as_deref() == Some("PreconditionFailed");
             if expect_taken {
@@ -907,7 +913,7 @@ impl S3 {
         }
         let response = self.send("GET", "", &query, &[])?;
         let response = self.checked("listing the bucket", response)?;
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, LISTING_PAGE_MAX)?;
         let events = xml::events(&body);
         let mut out = Vec::new();
         let mut at = 0;
@@ -1218,7 +1224,7 @@ impl Remote for S3 {
                 },
             );
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
                 "PreconditionFailed" => RemoteError::new(

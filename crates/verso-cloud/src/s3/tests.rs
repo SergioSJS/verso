@@ -701,3 +701,22 @@ fn a_delete_without_a_conditional_delete_has_a_window_and_the_probe_says_so() {
     );
     assert!(!fake.removed().iter().all(removal_agrees));
 }
+
+#[test]
+fn an_answer_that_never_ends_is_cut_off_not_read_into_memory() {
+    let fake = Fake::start(S3Mode {
+        endless_listing: true,
+        ..S3Mode::default()
+    });
+    let s = S3::new(settings(&fake)).unwrap().quick();
+    let e = s.list(None).unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(e.message.contains("too large"), "{e}");
+    let fake = Fake::start(S3Mode {
+        endless_error: true,
+        ..S3Mode::default()
+    });
+    let s = S3::new(settings(&fake)).unwrap().quick();
+    let e = put(&s, "a.md", &Condition::Absent, b"um").unwrap_err();
+    assert!(e.message.contains("500"), "{e}");
+}
