@@ -111,7 +111,7 @@ Q19, no fixture uses it.
 |---|---|
 | `headings` | `level` (1–6), `text` (raw text, without `#` and without spaces at the ends), `pos` |
 | `blocks` | `id` (without `^`), `pos` (position of the `^`), `lines` (`[first, last]`, the lines of the block the id names; asserted when given — Q3, Q21) |
-| `callouts` | `kind` (text between `[!` and `]`, as written), `title` (rest of the first line, without spaces at the ends; absent if empty), `fold` (`-`, `+`, or absent), `pos` |
+| `callouts` | `kind` (text between `[!` and `]`, as written), `title` (rest of the first line, without spaces at the ends; absent if empty), `fold` (`-`, `+`, or absent), `depth` (optional, asserted when given: how many callouts enclose it, itself included, 1 to 32 — Q5), `pos` |
 
 ### 4.4 Position
 
@@ -1010,7 +1010,11 @@ Raised while writing this spec. All of them need an answer before
   maintainer in the separate code PR that builds this; no `fixtures/**` file
   changed with this answer. Per invariant 17, a question that needs a fixture
   or an observation of Obsidian closes in full only in the PR that adds it,
-  with this section updated in the same PR; none is drafted yet.
+  with this section updated in the same PR.
+
+  *(2026-10-21: the parser part is built on branch `feat/nested-callouts-index`
+  — `Callout.depth`, the limit of 32, `fixtures/callout/nested` drafted for
+  approval, `depth` added to §4.3.)*
 
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
