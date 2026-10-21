@@ -145,6 +145,17 @@ pub(crate) fn graph<R: tauri::Runtime>(
     with(&state, &window, ops::graph)
 }
 
+/// Every link no note answers to, for the graph's option of showing the
+/// notes that do not exist yet (spec Q14).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn graph_unresolved<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<MissingLink>, ContractError> {
+    with(&state, &window, ops::graph_unresolved)
+}
+
 /// Every folder of the open folder, empty ones included, for the tree.
 #[tauri::command]
 #[specta::specta]

@@ -542,6 +542,10 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ("list_tags", "{}", true),
     ("list_web_notes", "{}", true),
     ("graph", "{}", true),
+    // A share refuses it: told apart from a link that resolves outside the
+    // share, a missing name would say whether a note of that name exists
+    // outside (ADR 0081 item 11).
+    ("graph_unresolved", "{}", false),
     ("list_folders", "{}", true),
     ("read_file_text", r#"{"path":"a.md"}"#, true),
     (
@@ -1107,7 +1111,12 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
     }
     assert_eq!(
         refused_by_scope,
-        ["write_folder_data", "remove_folder_data", "set_focuses"],
+        [
+            "graph_unresolved",
+            "write_folder_data",
+            "remove_folder_data",
+            "set_focuses"
+        ],
         "the commands a share refuses"
     );
 }
