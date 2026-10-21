@@ -61,6 +61,7 @@ import {
   relationEnds,
   toElements,
   withCrop,
+  type CardView,
   isPage,
   type CanvasDoc,
   type CanvasNode,
@@ -754,6 +755,7 @@ function Board({
   const pageRef = useRef(pageAct);
   pageRef.current = pageAct;
   const interact = useCallback((id: string, on: boolean): void => pageRef.current.interact(id, on), []);
+  const setView = useCallback((id: string, view: CardView): void => pageRef.current.setView(id, view), []);
   const swapCard = useCallback((id: string): void => {
     const e = (api.current?.getSceneElements() as unknown as El[] | undefined)?.find((x) => x.id === id);
     const n = e ? nodeData(e) : null;
@@ -1356,6 +1358,7 @@ function Board({
                 setEditing={setEditing}
                 swap={swapCard}
                 interact={interact}
+                setView={setView}
                 draw={draw}
                 cards={cards}
                 overlays={overlays}

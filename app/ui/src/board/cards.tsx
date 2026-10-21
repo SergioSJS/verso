@@ -6,12 +6,13 @@ import { type CSSProperties, type JSX, memo, type ReactNode, type RefObject, use
 import { CARD_COMMAND } from "./command";
 import { mapStrings } from "./mapStrings";
 import { MapTiles, SecretBadge, useMapInfo } from "./mapsView";
-import { type CanvasNode, CARD_PAPER, cardCrop, type El, isMap, isPage, nodeData, nodeName, type Outline } from "./model";
+import { DataBody, DataControls, useDiagramAvailable, useFileText } from "./dataCard";
+import { type CanvasNode, CARD_PAPER, cardCrop, cardView, type CardView, type El, isMap, isPage, nodeData, nodeName, type Outline } from "./model";
 import { PageCard } from "./page";
 import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
-import { ext, IMAGE } from "../paths";
+import { ext, IMAGE, kindOf } from "../paths";
 import { sharpFactor } from "./sharp";
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
@@ -49,7 +50,10 @@ export function Card({
   rect,
   interacting,
   interact,
+  setView,
 }: {
+  /** A data file's card shows its text or its diagram (`verso.view`). */
+  setView: (id: string, view: CardView) => void;
   /** The card is entered (the pointer is the page's, not the board's), and
    *  the way in and out of that for a page card (ADR 0057 point 10). */
   interacting: boolean;
@@ -129,7 +133,17 @@ export function Card({
     ro.observe(el);
     return () => ro.disconnect();
   }, [crop?.x, crop?.y, crop?.w, crop?.h, natural?.w, natural?.h]);
+  // A file of text — JSON, YAML, CSV… — shows its text, or its diagram when
+  // the feature is on; any other file that has no body of its own says what
+  // it is (never an empty box).
+  const textFile = node.type === "file" && !missing && !note && kindOf(file) === "text";
+  const diagramOk = useDiagramAvailable(host, file, textFile);
+  const fileText = useFileText(host, file, tick, textFile);
+  const [localView, setLocalView] = useState<CardView>("text");
+  const readOnly = host.readOnly?.() ?? false;
+  const view: CardView = !diagramOk ? "text" : readOnly ? localView : cardView(node);
   const pdf = node.type === "file" && !missing && ext(file) === "pdf";
+  const bodyless = node.type === "file" && !missing && !note && !pdf && !picture && !textFile;
   const pdfEl = useRef<HTMLDivElement>(null);
   // A PDF card shows the PDF, in its turn, as a note shows an embedded one.
   useEffect(() => {
@@ -240,13 +254,16 @@ export function Card({
       tabIndex={-1}
     >
       {node.type === "file" && !picture && (
-        <div className="board-card-head">
+        <div className="board-card-head" onKeyDown={(e) => { if (e.key === "Escape" && interacting && textFile && view === "diagram") { e.stopPropagation(); e.preventDefault(); interact(id, false); } }}>
           <span className="board-card-title" data-preview-path={note ? file : undefined}>{nodeName(node, s)}</span>
+          {textFile && diagramOk && (
+            <DataControls id={id} file={file} view={view} setView={(v) => (readOnly ? setLocalView(v) : setView(id, v))} interacting={interacting} interact={interact} host={host} />
+          )}
           <button type="button" className="board-card-open board-card-swap" title={s.swapTitle} aria-label={`${s.swap}: ${nodeName(node, s)}`} onClick={() => swap(id)}>
             <SwapIcon />
           </button>
           {!missing && (
-            <button type="button" className="board-card-open" title={s.openTitle} aria-label={`${s.open}: ${nodeName(node, s)}`} onClick={(e) => host.openFile(file, e.metaKey || e.ctrlKey)}>
+            <button type="button" className="board-card-open" title={s.openTitle} aria-label={`${s.open}: ${nodeName(node, s)}`} onClick={(e) => host.openFile(file, e.metaKey || e.ctrlKey, textFile && diagramOk ? view : undefined)}>
               <OpenIcon />
             </button>
           )}
@@ -257,6 +274,13 @@ export function Card({
           <p>{s.missing}</p>
           <p className="board-card-path">{file}</p>
           <p>{s.relinkHint}</p>
+        </div>
+      )}
+      {textFile && <DataBody id={id} file={file} host={host} view={view} text={fileText} draw={draw} zoom={zoom} interacting={interacting} interact={interact} />}
+      {bodyless && (
+        <div className="board-card-note board-card-generic">
+          <span className="board-card-ext" aria-hidden="true">{ext(file) ? `.${ext(file)}` : "?"}</span>
+          <p>{s.dataBinary(ext(file))}</p>
         </div>
       )}
       {pdf && (
@@ -449,7 +473,9 @@ export function CardLayer({
   swap,
   draw,
   interact,
+  setView,
 }: {
+  setView: (id: string, view: CardView) => void;
   swap: (id: string) => void;
   /** Enter a page card, or leave it. */
   interact: (id: string, on: boolean) => void;
@@ -484,8 +510,12 @@ export function CardLayer({
     const el = layer.current;
     if (!el) return;
     const wheel = (e: WheelEvent): void => {
-      if (e.metaKey || e.ctrlKey) return;
-      if ((e.target as Element | null)?.closest?.(".board-card-slot.is-active")) e.stopPropagation();
+      const target = e.target as Element | null;
+      if (!target?.closest?.(".board-card-slot.is-active")) return;
+      // With ⌘ or ⌃ it is a zoom, and the board still takes it — except
+      // over an entered diagram, which zoomed itself (its listener ran first).
+      if ((e.metaKey || e.ctrlKey) && !target.closest(".board-card-dg")) return;
+      e.stopPropagation();
     };
     el.addEventListener("wheel", wheel, { passive: true });
     // An entered card takes the pointer (its links, its text), so a right
@@ -596,6 +626,7 @@ export function CardLayer({
                   draw={draw}
                   interacting={active === e.id}
                   interact={interact}
+                  setView={setView}
                 />
                 {over && (
                   <div

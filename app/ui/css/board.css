@@ -74,6 +74,30 @@
 .board-card-pdf-view { position: absolute; inset: 0; display: flex; }
 .board-card-pdf-view .pdf { flex: 1; }
 .board-card-slot:not(.is-active) .board-card-pdf .pdf-bar { display: none; }
+/* A data file's card (ADR 0057 point 10, ADR 0106): its text in the source
+   editor's colours, or its diagram, which takes the pointer only while the
+   card is entered, like a web page. */
+.board-card-modes { flex: none; display: inline-flex; gap: 1px; padding: 1px; border-radius: 6px; background: var(--paper-2); }
+.board-card-mode { width: auto; padding: 0 .4rem; gap: .25rem; font-size: .75rem; }
+.board-card-mode > svg { width: 14px; height: 14px; }
+.board-card-mode[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.board-card-code-box { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.board-card-code { flex: 1; min-height: 0; margin: 0; padding: .4rem .6rem; overflow: hidden; font-family: var(--mono); font-size: .76rem; line-height: 1.45; white-space: pre; tab-size: 2; color: var(--ink); }
+.board-card-slot.is-active .board-card-code { overflow: auto; }
+.board-card-cut { flex: none; margin: 0; padding: .2rem .6rem .4rem; color: var(--ink-3); font-size: .76rem; }
+.board-card-dg { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+.board-card-dg[hidden] { display: none; }
+.board-card-dg-mount { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.board-card-dg .dg { flex: 1; }
+.board-card-dg .dg-stage { min-height: 0; }
+/* The diagram's own bar and hint are tighter on a card, where the diagram is
+   the point; both stay reachable once the card is entered. */
+.board-card-dg .dg-bar { padding: .25rem .5rem; gap: .2rem .5rem; font-size: .76rem; }
+.board-card-dg .dg-search { min-width: 7rem; padding: .2rem .5rem; }
+.board-card-dg .dg-hint { display: none; }
+.board-card-slot.is-active .board-card-dg { pointer-events: auto; }
+.board-card-generic { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; }
+.board-card-ext { font-family: var(--mono); font-size: 1.1rem; color: var(--ink-2); }
 .board-card-missing .board-card-title { text-decoration: line-through; }
 .board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
 

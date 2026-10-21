@@ -6,9 +6,9 @@ import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import { type ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { isBarePicture } from "./cards";
 import { plainOf, wrapLines } from "./export";
-import { cardCrop, type Crop, type El, isNode, isPage, nodeData, nodeName, pageOrigin } from "./model";
+import { cardCrop, cardText, type Crop, type El, isNode, isPage, nodeData, nodeName, pageOrigin } from "./model";
 import { BoardHost } from "./types";
-import { ext, IMAGE } from "../paths";
+import { ext, IMAGE, kindOf } from "../paths";
 import { Api } from "./view";
 
 /** The colours a card is drawn in on a picture: the app's light paper, as
@@ -161,6 +161,9 @@ export async function pictureScene(api: Api, host: BoardHost, only: readonly str
       if ((lines[0] ?? "").trim().toLowerCase() === title.trim().toLowerCase()) lines.shift();
       body = lines.join("\n").trim();
     }
+    // A file of text or data is drawn as its box with the file's first lines:
+    // the diagram is never captured, whichever the card shows.
+    else if (node.type === "file" && kindOf(file) === "text") body = cardText((await host.fileText(file)) ?? "").shown.slice(0, 2000);
     else if (node.type === "text" && typeof node.text === "string") body = plainOf(node.text);
     // A page card is drawn as its box with the origin: the frame is never captured.
     else if (node.type === "link" && typeof node.url === "string") body = page ? (pageOrigin(node.url) ?? node.url) : node.url;
