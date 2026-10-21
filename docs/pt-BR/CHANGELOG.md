@@ -48,6 +48,7 @@ versão de teste.
 
 ### Corrigido
 
+- **O seletor rápido (⌘P) põe primeiro o nome digitado inteiro**: digitar `N` abria um nome mais longo que começa com N e vinha antes pela pasta; a nota com exatamente o nome digitado agora encabeça a lista.
 - **Português na janela em inglês, e inglês na janela em português**: os layouts de ficha do Fractal agora dizem Reserves, Facts, Broken, Obstacles, Trigger, Consequence e Risk roll numa janela em inglês (os termos em português do jogo ficam nas chaves do YAML); o painel de busca na nota (o botão de substituir e o aviso de regex inválido), o exemplo de endereço do servidor, os exemplos de pastas ignoradas, o erro e as dicas de edição do Mermaid e a linha de PDF ausente seguem o idioma da janela; o menu do *+* tem o nome *Novo* para leitores de tela. Uma varredura de ponta a ponta (`e2e/language-sweep.spec.mjs`) abre as telas principais nos dois idiomas e falha diante de uma palavra do outro.
 - **No Windows, salvar não troca mais a caixa do nome de um arquivo**: uma gravação por outra grafia do nome (um dispositivo que ainda conhecia `Receita.md` para o arquivo que o disco guarda como `receita.md`) substituía o arquivo e, no NTFS, o renomeava para a caixa escrita. Agora a gravação vai sobre o nome como o disco o guarda.
 - **A porta do servir para celulares sobrevive a desligar e ligar**: a porta escolhida na primeira vez é aguardada (até cinco segundos) enquanto o ouvinte antigo se fecha, em vez de trocada por outra na hora, então o endereço que os celulares guardaram continua valendo.
