@@ -172,3 +172,20 @@ callouts:
     title: Nível 32
     depth: 32
     pos: { line: 55, col: 63 }
+source: >-
+  spec Q5, decided 2026-10-21: the limit of 32 levels and `depth` are Verso's
+  own, shared with the reading view (they are not observed in Obsidian). The
+  nesting itself is Obsidian-compatible and is recorded in `observed`.
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). Two notes: the first two cases of this input
+    (two levels; three levels of tip/warning/danger with `+` and `-`).
+    `obsidian eval` on `app.metadataCache.getCache(...)` lists ONE section of
+    type "callout" per note, spanning the whole nested block (two levels:
+    line 0 col 0 to line 4 col 11; three levels: line 0 col 0 to line 3
+    col 20); Obsidian's cache lists neither the inner callouts nor a depth,
+    so the per-callout entries and `depth` are Verso's (source above). The
+    public Callouts help page states that callouts can be nested.
