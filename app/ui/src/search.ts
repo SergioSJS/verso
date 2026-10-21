@@ -8,6 +8,7 @@ import { fail } from "./errors";
 import { allNotes } from "./folder";
 import { dirOf, name } from "./paths";
 import { t } from "./strings";
+import { syncRoving } from "./tree/aria";
 import { fileRow, listAll, restoreTreeFocus, treeFocus } from "./tree/tree";
 
 export function snippetNode(snippet: string): HTMLSpanElement {
@@ -66,13 +67,16 @@ export async function searchNotes(words: string): Promise<void> {
   const was = treeFocus();
   ui.notes.className = "list";
   ui.notes.replaceChildren(
-    ...hits.map((hit) =>
+    ...hits.map((hit, at) =>
       fileRow(hit.path, (b) => {
+        b.setAttribute("aria-setsize", String(hits.length));
+        b.setAttribute("aria-posinset", String(at + 1));
         if (dirOf(hit.path)) b.append(h("span", "path", dirOf(hit.path)));
         if (hit.snippet) b.append(snippetNode(hit.snippet));
       }),
     ),
   );
+  syncRoving();
   restoreTreeFocus(was);
   ui.status.textContent = t.hits(hits.length);
 }

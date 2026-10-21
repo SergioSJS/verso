@@ -31,6 +31,7 @@ test release.
 
 ### Changed
 
+- **The file tree is an accessible tree**: a screen reader now hears the file list as a tree: each item's level and place ("3 of 5, level 2"), whether a folder is open, and which items are selected. The whole tree is one Tab stop that remembers the item you were on; inside it, the arrows walk the items (→ opens a folder or steps into it, ← closes it or steps out), Home and End jump to the ends, Enter opens a note or opens and closes a folder, Space selects, `*` opens the folders beside the item, typing the first letters of a name jumps to it, and the menu key or Shift+F10 opens the item's menu. The look and the mouse are unchanged.
 - **The right-click menu of a file or folder is short, with groups**: it had about thirty loose rows. Now the first list keeps *Open*, *Open in new tab*, *Open to the side*, *Relations*, *Version history*, *Rename*, *Move to…*, *Duplicate* and *Move to the bin*, and the rest sits in submenus: *Customize* (sticker, colour), *Organize* (select, pin, move up and down, hide from tree, turn into folder, create or add to a focus), *Window and location* (open in a new window, show in the file manager, copy the path) and *New*. A submenu opens by hover (moving diagonally towards it does not close it), by a click or tap, or by `→` or `Enter`; `←` or `Esc` goes back to its row. *Import the sample vault* left the file menu: it is in the empty space of the tree and in the command palette.
 
 ### Fixed
