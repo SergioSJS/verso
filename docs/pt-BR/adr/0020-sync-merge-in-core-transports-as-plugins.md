@@ -18,7 +18,7 @@
   "fora de escopo até o fim da Fase 2" para a Fase 3, depois da primeira
   versão do servidor ([0034](0034-roadmap-in-phases.md), revisto no mesmo
   dia). O item 2 fica; merge por bloco vem depois de conflitos terem sido
-  vistos em uso (0073 item 10).
+  vistos em uso (0073 item 10). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md): os primeiros transportes de nuvem são embutidos no app desktop, não plugins.
 
 ## Contexto
 
