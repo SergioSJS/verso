@@ -28,6 +28,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Campos e chaves com borda visível (acessibilidade)**: a borda dos campos de texto, dos seletores e do trilho da chave desligada agora é uma linha mais escura, com contraste de 3:1 ou mais contra todo papel, paleta e tom escuro; as linhas finas da própria página continuam como eram.
 - **As abas na vertical ficam uma embaixo da outra e dá para desligar**: a coluna de abas agora empilha as abas, uma por linha (ícone, nome, fechar), os botões do painel ficam no alto da coluna, então "Abas na horizontal" está sempre ao alcance com uma aba aberta, e a nota ocupa a largura que sobra. O nome do botão agora diz para que lado ele vai trocar.
 - **Esc na lista do `@` a mantém fechada**: depois que Esc dispensa a lista de notas aberta pelo `@`, digitar mais letras da mesma palavra não a traz de volta; um novo `@` a abre de novo.
 - **O estilo “Mythic GME” do oráculo agora é “Viradas prováveis”**: as chances são as mesmas, mas o estilo tem um nome do próprio Verso e diz, ao passar o mouse e na descrição, que é inspirado no Mythic GME e não tem o fator caos dele. “Ironsworn” mantém o nome.

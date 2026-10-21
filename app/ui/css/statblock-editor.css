@@ -135,7 +135,7 @@
 .sbe-type { margin: 0; font-size: .8rem; color: var(--ink-3); }
 .sbe-field { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
 .sbe-label { font-size: .78rem; color: var(--ink-2); }
-.sbe-input { font: inherit; font-size: .86rem; padding: .3rem .45rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); min-width: 0; }
+.sbe-input { font: inherit; font-size: .86rem; padding: .3rem .45rem; border: 1px solid var(--control-line); border-radius: 5px; background: var(--paper); color: var(--ink); min-width: 0; }
 .sbe-input[aria-invalid="true"] { border-color: var(--seal); }
 textarea.sbe-input { resize: vertical; }
 .sbe-number { max-width: 8rem; }
