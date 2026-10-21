@@ -37,6 +37,7 @@ import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { initZoom } from "./zoom";
+import { installStatusLive } from "./statusLive";
 import { installLongPress } from "./touch";
 import { installPreview } from "./preview/install";
 import { installScreen } from "./screen/frame";
@@ -424,6 +425,7 @@ paintToggles();
 // regions (ADR 0072).
 installFrame();
 initZoom();
+installStatusLive(ui.status);
 rightDivider.addEventListener("pointerdown", (e) => {
   rightDivider.setPointerCapture(e.pointerId);
   const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);

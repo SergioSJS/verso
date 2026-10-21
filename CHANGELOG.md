@@ -28,6 +28,7 @@ test release.
 
 ### Fixed
 
+- **Routine saves are no longer read aloud (accessibility)**: "Saved." stays on the status line, but a screen reader announces only what goes wrong or needs attention (a refused write, an error, a conflict, a search or graph count), not every autosave.
 - **Fields and switches have a visible edge (accessibility)**: the border of text fields, selects and the off switch's track is now a darker line that reaches 3:1 against every paper, palette and dark tone; the page's own hairlines stay as they were.
 - **Vertical tabs list the tabs one under another and can be turned off**: the tab column now stacks the tabs one per row (icon, name, close), the pane's buttons sit at the top of the column so "Horizontal tabs" is always reachable with a tab open, and the note takes the width that is left. The toggle's name now says which way it will switch.
 - **Esc on the `@` list keeps it closed**: after Esc dismisses the note list opened by `@`, typing more letters of the same word no longer brings it back; a new `@` opens it again.
