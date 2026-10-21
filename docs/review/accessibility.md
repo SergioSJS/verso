@@ -326,6 +326,18 @@ is a row of the roadmap (V.13).
     folder with `create_file`, as a drop does; a name taken becomes
     `name (2).ext`. Not run on the real app: the native dialog on each
     system.
+    **Details decided 2026-10-21** (I.1 of the decisions list). (a) A name
+    already taken, option A: importing renames, and **dragging into the tree
+    renames too** (today it refuses the file that exists), one behaviour,
+    nothing overwritten or lost. (b) Size limits, option B: today 32 MB a file
+    and 256 MB at a time, the same as image attachments, above which a file
+    shows as not imported; the maintainer: *"deveria ser configurável, eu mesmo
+    devo colocar uns pdfs grandes de 200 MB"* (it should be configurable; I
+    will put big 200 MB PDFs myself) — so **the import size limit becomes a
+    setting**; its default and bounds are not decided here. (c) Names, option
+    A: `.env` becomes `env` (no hidden file is created in the folder); `[ ] |
+    # ^` are replaced because they break links; Windows reserved names
+    (`con.txt`) get a `_`. To be built: (a) and (b).
 
 11. **Following a link from the editor** (section 1, finding 14): a
     command that opens the link under the caret, with or without a
