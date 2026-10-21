@@ -5,7 +5,7 @@
 import { test, expect } from "./fixtures.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const SHOTS = process.env.SHOT_DIR ?? "/w/app/ui/e2e/results/shots";
+const SHOTS = process.env.SHOT_DIR ?? new URL("./results/shots", import.meta.url).pathname;
 const TEXT = "Arquivos Locais MMMM";
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
   <defs><filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#3d2a1d" flood-opacity="0.08"/></filter></defs>
