@@ -67,6 +67,13 @@ sharing a folder; twelve IMPORTANT; ten MINOR). All 25 were closed in the
 same round (ADR 0083, As built, "The second review"). **Refreshed against
 c2454064**: the rows below that a fix changed say so, with its commit.
 
+**Read links added on 2026-10-21** ([ADR 0105](../adr/0105-read-links-without-an-account.md)): the
+first public surface of a server of private notes — `/r/<token>/…` and
+the owner's and the administrator's routes that make it. New rows below:
+"Whoever holds a read link", boundary 8, four rows of the surface and the
+section "Read links". Read for it: `readlinks.rs`, `visit.rs`, `scope.rs`,
+`files.rs`, `http.rs`, `db/readlinks.rs` and their tests.
+
 ## What is protected
 
 | Asset | Where | Why it matters |
@@ -76,6 +83,7 @@ c2454064**: the rows below that a fix changed say so, with its commit.
 | Accounts and password hashes | `server.sqlite` in `VERSO_DATA_DIR` | Argon2id hashes; a stolen one is attacked offline |
 | Sessions, device sessions, personal access tokens, single-use links | the same database, as SHA-256 only; sign-in links by e-mail and pending device codes in memory | each opens an account until it ends |
 | Passkey credentials | the same database | public keys and counters; no secret |
+| A read link's address, and its passphrase | the database keeps the address as SHA-256 and the passphrase as an Argon2id hash; the address itself only with whoever the owner gave it to (ADR 0105) | opens a folder or a note to anyone who has it, with no account |
 | The audit log and each folder's change log | the same database; the audit log's rows kept `VERSO_AUDIT_DAYS` days, 365 by default (ADR 0083 item 10) | who did what, from which device; a member's evidence |
 | A device's token on a desktop | `servers.json` in the app's configuration directory, `0600` on macOS and Linux; on Windows, the profile's own permissions | opens the account from that computer |
 | The server's memory and threads | the process | one member's connections can starve every other member's |
@@ -96,6 +104,9 @@ c2454064**: the rows below that a fix changed say so, with its commit.
   (ADR 0073 item 6, no end-to-end encryption). Another local user of the
   same machine is not the host.
 - **A page of another site** open in a member's browser.
+- **Whoever holds a read link** ([ADR 0105](../adr/0105-read-links-without-an-account.md)):
+  no account, only an address of 256 bits that whoever it was passed to
+  has; reads what the link points at, in a browser, and nothing else.
 
 ## Boundaries
 
@@ -113,6 +124,9 @@ c2454064**: the rows below that a fix changed say so, with its commit.
    One who may only read a note is served its projection — the lines of
    its `> [!secret]` callouts taken out, `verso_dialect::project` — at
    every exit it has.
+8. A read link's holder → the folder it points at (ADR 0105): the link's
+   scope, joined and confined before `verso-fs` acts, the same projection
+   at every exit, and a list of commands of its own that holds no write.
 
 ## The attack surface at HEAD
 
@@ -170,6 +184,10 @@ token.
 | — `collab_*` (shared notes, text files and boards, ADR 0082 item 12) | members of the folder | a room's path is the confined one, one room per file (d12036a4); `collab_update`, `_save`, `_resolve` and `_canvas` need a writer; a malformed Yjs update refused, and before yrs reads one, an update that declares more than its bytes, nests past 64 levels, holds a run or a deletion of length 0 or a clock past `u32::MAX`, or makes or deletes the room's own Yjs items ahead of the room; a connection's updates taken in the order sent, one that leaves anything pending refused; a panic of yrs caught, the update refused and the room made again from its file; what `join` sends and a board's write tells applied in a scratch document first (ADR 0083 item 14); a board's file (`collab_canvas`) is written only when it is of exactly the state the room holds, through the core's board writer, over the revision read | presence (`collab_awareness`) 16 KB at most, from a window in the room, stamped with the sender's account name and only its own Yjs clients (gap 11); a roll of dice (`collab_roll`, ADR 0088 item 4), from a window in the room, a reader's too: the server reads the notation itself — 200 characters, 20 terms, 100 dice, 1000 sides at most — and rolls with the system's generator, the table it names a link of 512 bytes on one line, the roll stamped with the sender's account name; the room keeps its last 20 in memory, nothing written; a note room: an update 4 MB at most (ADR 0083 item 8), the room 64 MB (5274f9d4); a window in 64 rooms at most (5274f9d4); one update of a window in flight per room, what is typed meanwhile merged into the next (item 14); a board room: an update 4 MB and 10 000 entries at most, the room 100 000 entries and 64 MB, a file handed to it 16 MB (`collab_board.rs`), past which refused; an oracle draw (`collab_oracle`, ADR 0102 item 5), from a window in the room, a reader's too: the server draws with the system's generator, from the odds row or the word lists the window sends (six numbers adding to 100; four lists of 1 to 200 words of 60 characters at most; a table of 500 entries of 300 characters at most), so the window cannot send what fell; the question's text never reaches the server; the draw is stamped with the sender's account name and told to the room, nothing kept or written; the readers served a projection hear a question draw only, never the words of a spark or of a table, which may come from a secret block; what is relayed counts in each receiver's 64 MiB of pushes | the server's log: an update the room could not integrate, with the account's id (ADR 0083 item 14) |
 | — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 1 MiB, read from the disk and written to a temporary file as they go, one in memory per transfer (2b1f2c4); 2 transfers each way per connection, dropped after 120 s idle and when the connection ends, a send's temporary file with it; 1 GiB per file; a send's declared size held in the quota from its first piece until it lands or is dropped (eff8dd87), and judged again at its last; a walk at most once a minute | the server's log for a refusal other than "changed" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | signed in | — | the parser is fuzzed and checked for linear time; log lines one line each, 2000 characters | the server's log (`log_write`) |
+| `GET /r/{token}` (a read link's page, ADR 0105) | anyone | `Host`; one static page, the same for every address, so it says nothing of a token | the connection limits, as the window's files; `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` | nothing |
+| `GET /r/{token}/state`, `POST /r/{token}/unlock`, `GET /r/{token}/ws`, `GET /r/{token}/f/{*path}` | whoever holds the link's address (256 bits, kept as its SHA-256) | `Host`; the feature on, the link not revoked and not expired, every refusal the same 404 (item 6) and judged again by every request and command; a passphrase proved first when the link has one (a cookie for that path alone, `HttpOnly`, `SameSite=Strict`, 12 hours, in memory); the WebSocket and the passphrase's `POST` want this server's `Origin`; a command is on the list of a visitor (`visit::allowed`: the folder's read commands a reader may call, and a few of the window's own that say nothing of a note) or refused before the core acts; every path joined to the link's scope and confined (`scope.rs`), a reader's projection at every exit (ADR 0087); a file under `/r/<token>/f/` sent as `/f/` is, a note never sent | 20 a second and 100 at once per address and per link, 429 past them (ADR 0083 item 7); a place among the connections of the link (32) and of the address (64); the commands of a link at its pace (100 a second, 400 at once), messages judged by name and size as the WebSocket's (`inflight`); a wrong passphrase delayed by address and by link as a sign-in is, one attempt in flight per key, its Argon2id in one of the server's places | audit `read_link_passphrase` (a wrong one); a wrong passphrase is a `WARN sign-in failed` line of the server's log under the owner's masked e-mail, which the shipped fail2ban filter reads, and the 20th in an hour tells the owner (ADR 0083 items 1 and 2) |
+| `GET`, `POST /api/folders/{id}/readlinks`, `GET …/readlinks/secrets`, `DELETE …/readlinks/{link}` | the folder's owner, the person (never a token) | Origin; the owner's role, 404 when none; a fresh proof within ten minutes to make a link (ADR 0083 item 6); the feature on; the target a folder or a served note inside the folder, no hidden part; a passphrase of 6 to 200 characters; an expiry of 1, 7 or 30 days or a date within ten years | the token is in the answer that makes the link and nowhere else | audit `read_link_made` and `read_link_revoked`, with the path |
+| `GET`, `PUT /api/admin/read-links` | admin | Origin; a fresh proof to change it | off on a new server | audit `read_links_on`, `read_links_off` |
 | The release feed | the server, outbound | — | once a day; no redirect followed (ADR 0083 item 8); the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
 | The host's mail server | the server, outbound, when `VERSO_SMTP_URL` is set | — | what the mail routes above allow | a line when sending fails |
 
@@ -334,6 +352,23 @@ being built): these rows say what they decide, not what runs.
 | A page on the network reaching the laptop (rebinding, cross-site) | The `Host` must be one of the addresses served; `Origin` is checked on every change and on the WebSocket; the session cookie is `__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`; no token or device credential opens anything in this mode. |
 | Secrets and records | The log and the audit record events — serving on or off, a window opened, closed, expired or failed, a token redeemed, allowed or refused, a phone revoked, a first connection — never a token, the QR's contents or a note; the audit is kept 365 days and shown in Settings. The database and the key are in the configuration directory, `0600`, never in a served folder. |
 | What is not covered | A network with client isolation (a café, a hotel) will not route a phone to the laptop at all, which is the safer failure and is said. The first visit's trust is the person's. Windows does not serve yet. The firewall prompt, once explained, is the system's; the app never adds a rule. |
+
+### Read links (ADR 0105)
+
+A read link lets whoever holds an address read a folder, or one note, with no account: the first route a server of private notes opens to a stranger on purpose. The feature starts off and is turned on by the administrator (item 3). What answers each threat, as built; the tests are `crates/verso-server/src/tests_readlinks.rs`, `tests_threats.rs` and `scope.rs`, and each guard was seen failing with the guard taken away:
+
+| Threat | Answer as built |
+|---|---|
+| The address guessed | 256 bits from the system's generator, base64url; the database keeps its SHA-256 and the passphrase's Argon2id hash, never the address; a token that is not shaped like one is refused before the database is asked, and a link that does not open — revoked, expired, never made, the feature off — answers one and the same 404, which says nothing of why; every route under `/r/<token>/` is paced per address and per link. |
+| A secret block reaching a visitor | A visitor is a reader without an account: the notes' projection, without any `[!secret]` block or board pin, at every exit — the page, search, backlinks, the graph, counts, the files — by the code ADR 0087 built. A test calls every command of the contract as a visitor and fails on any answer or event holding a word only a secret block holds. |
+| A visitor reaching beyond what was shared | The link's scope is a share's (`scope.rs`): a folder link joins every path to the folder and confines it (`..`, an absolute path, a hidden part and a sibling are refused before `verso-fs` acts); a note link reaches the note and what it embeds as a reader sees it — never an embed inside a secret block — followed four deep and 300 paths at most, and the set follows the note as it changes. A link out of what was shared shows as plain text "not shared", the same for a note that exists and one that does not. |
+| A visitor writing, or reaching sync, a room, the history, the bin or MCP | A visitor's credential reads only; the list of commands (`visit::allowed`) holds no write, no `sync_*`, no `collab_*`, no history, no bin, no folder settings, nothing that makes the server fetch an address; the rest is refused with the same words before the core acts. A dice roll is made in the visitor's browser and written nowhere. The fuzz target `link` feeds arbitrary text as a token, a command and an address. |
+| The passphrase guessed | A wrong one is a refused sign-in: the delays by address and by link, the Argon2id in the server's places, the log line the fail2ban filter reads — under the owner's masked e-mail, so that a ban follows the address —, and the owner told by mail on the 20th in an hour. A right one gives a secret for that link and path, `HttpOnly`, `SameSite=Strict`, 12 hours, held in memory: a restart asks again. |
+| The address leaking to a search engine or another site | `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex, nofollow` on every answer under `/r/`, the page never cached; the WebSocket and the passphrase's `POST` refuse an `Origin` that is not this server's. |
+| A link that outlives its welcome | The owner revokes it from the panel and every page that holds it is told and closed at once; the expiry closes an open page when it comes; the administrator turning the feature off closes every one; each command is judged against the link again, so a page the server could not reach still refuses. A rename of what a link points at carries the link; a deletion ends it. |
+| A link made and forgotten | The tree marks every folder and note with a live link; making one for a place with secret blocks says, before it is made, how many notes have them; the panel lists the live links with who made each, its expiry and when it was last opened; making and revoking are in the audit log. |
+| A flood of strangers | The paces above; 32 connections per link and 64 per address; a visitor's messages share the server's budget of large messages; the folder is opened once, whoever and however many hold the link; a passphrase's Argon2id is the only hash a visitor makes. |
+| What is not covered | Whoever has the address has it: it is in the browser's history and in the chat it was sent through, and a link without a passphrase is the address alone. The address is shown once, so it cannot be recovered by the owner, only made again. The host sees the notes, as for every account. A table of players behind one address shares that address's pace; a link read by more than 32 pages at once refuses the rest. "This app is a server" (ADR 0096) has no read links. |
 
 ### Agents
 

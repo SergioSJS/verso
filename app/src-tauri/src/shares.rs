@@ -9,7 +9,9 @@
 //! that the account owns the folder; this side only says where.
 
 use serde_json::{Value, json};
-use verso_contract::{FolderShare, RecentFolder, SharePerson};
+use verso_contract::{
+    FolderShare, ReadLinkInfo, ReadLinkMade, ReadLinks, RecentFolder, SharePerson,
+};
 use verso_core::servers::ServerLogin;
 
 use super::*;
@@ -51,6 +53,7 @@ async fn ask(
         let request = match method {
             "PUT" => client.put(url),
             "POST" => client.post(url),
+            "DELETE" => client.delete(url),
             _ => client.get(url),
         }
         .bearer_auth(login.token);
@@ -200,4 +203,126 @@ pub(crate) fn recent_folders(state: State<'_, App>) -> Vec<RecentFolder> {
                 .unwrap_or_default(),
         })
         .collect()
+}
+
+/// A read link as the server says it (ADR 0105).
+fn read_link_of(v: &Value) -> ReadLinkInfo {
+    ReadLinkInfo {
+        id: v["id"].as_str().unwrap_or_default().to_owned(),
+        kind: v["kind"].as_str().unwrap_or_default().to_owned(),
+        path: v["path"].as_str().unwrap_or_default().to_owned(),
+        made_by: v["madeBy"].as_str().unwrap_or_default().to_owned(),
+        made_at: v["madeAt"].as_f64().unwrap_or_default(),
+        expires: v["expires"].as_f64(),
+        has_password: v["hasPassword"] == true,
+        last_opened: v["lastOpened"].as_f64(),
+        open: u32::try_from(v["open"].as_u64().unwrap_or_default()).unwrap_or(u32::MAX),
+    }
+}
+
+fn read_links_path(id: &str) -> String {
+    path_of(id).replace("/shares", "/readlinks")
+}
+
+/// The read links of the window's folder, and whether the server has them
+/// on (ADR 0105 item 5); only the folder's owner is answered.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn read_link_list<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<ReadLinks, ContractError> {
+    let (login, folder) = server_folder(&app, &window)?;
+    let v = ask(login, "GET", read_links_path(&folder), None).await?;
+    Ok(ReadLinks {
+        enabled: v["enabled"] == true,
+        links: v["links"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(read_link_of)
+            .collect(),
+    })
+}
+
+/// How many notes under `path` (or the one note) hold secret blocks:
+/// readers of a link will not see them (item 7).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn read_link_secrets<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    kind: String,
+    path: String,
+) -> Result<u32, ContractError> {
+    let (login, folder) = server_folder(&app, &window)?;
+    let encode = |s: &str| {
+        s.bytes()
+            .map(|b| {
+                if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+                    char::from(b).to_string()
+                } else {
+                    format!("%{b:02X}")
+                }
+            })
+            .collect::<String>()
+    };
+    let at = format!(
+        "{}/secrets?kind={}&path={}",
+        read_links_path(&folder),
+        encode(&kind),
+        encode(&path)
+    );
+    let v = ask(login, "GET", at, None).await?;
+    Ok(u32::try_from(v["notes"].as_u64().unwrap_or_default()).unwrap_or(u32::MAX))
+}
+
+/// Make a read link to a folder or a note, with an optional expiry (1, 7
+/// or 30 days, or a date) and an optional passphrase (item 5).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn read_link_create<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    kind: String,
+    path: String,
+    expires_days: Option<u32>,
+    expires_at: Option<f64>,
+    password: Option<String>,
+) -> Result<ReadLinkMade, ContractError> {
+    let (login, folder) = server_folder(&app, &window)?;
+    let base = login.url.trim_end_matches('/').to_owned();
+    let body = json!({
+        "kind": kind, "path": path, "expiresDays": expires_days,
+        // Whole seconds: a date has no fraction.
+        "expiresAt": expires_at.map(|x| x.round() as i64), "password": password,
+    });
+    let v = ask(login, "POST", read_links_path(&folder), Some(body)).await?;
+    Ok(ReadLinkMade {
+        url: format!("{base}{}", v["path"].as_str().unwrap_or_default()),
+        link: read_link_of(&v["link"]),
+    })
+}
+
+/// Revoke a read link: it ends at once, open pages included.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn read_link_revoke<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    let (login, folder) = server_folder(&app, &window)?;
+    let id: String = id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+        .collect();
+    ask(
+        login,
+        "DELETE",
+        format!("{}/{id}", read_links_path(&folder)),
+        None,
+    )
+    .await?;
+    Ok(())
 }

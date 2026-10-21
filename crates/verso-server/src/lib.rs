@@ -49,6 +49,7 @@ pub mod proof;
 pub mod proxy;
 pub mod quota;
 pub mod readers;
+pub mod readlinks;
 pub mod rpc;
 pub mod scope;
 pub mod security_txt;
@@ -65,6 +66,7 @@ pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
+pub mod visit;
 pub mod writers;
 mod yjs_bounds;
 
@@ -416,6 +418,8 @@ mod tests_offline;
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
+#[cfg(test)]
+mod tests_readlinks;
 #[cfg(test)]
 mod tests_resources;
 #[cfg(test)]

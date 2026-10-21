@@ -21,6 +21,7 @@ import { noNetwork, offline } from "./offline/manager";
 import { o } from "./offline/strings";
 import { notice } from "./notice";
 import { pickFiles } from "./pickFiles";
+import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
 
@@ -56,6 +57,15 @@ let reconnect = 0;
 
 let connecting = false;
 
+/** The token of the read link this tab shows (ADR 0105): the window of
+ *  someone with no account, which speaks to `/r/<token>/ws` and asks
+ *  nothing else of the server. */
+let visitor: string | null = null;
+/** Said when the link ends under the open window; the connection is then
+ *  left closed, not tried again. */
+let onLinkEnded: (() => void) | null = null;
+let linkEnded = false;
+
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
   return folderId;
@@ -76,6 +86,7 @@ function encodePath(path: string): string {
 /** The tab's address says which folder (and note) it shows, so that a
  *  reload or a shared address comes back to it. */
 function remember(id: string | null): void {
+  if (visitor) return;
   const url = new URL(location.href);
   if (id) url.searchParams.set("folder", id);
   else url.searchParams.delete("folder");
@@ -159,7 +170,7 @@ function verdict(): Promise<"up" | "down"> {
 
 function setRole(next: string | null): void {
   role = next;
-  if (folderId && next) offline.roleIs(folderId, next);
+  if (folderId && next && !visitor) offline.roleIs(folderId, next);
   dispatchEvent(new CustomEvent("verso:role", { detail: next }));
 }
 
@@ -220,6 +231,13 @@ function onMessage(data: string): void {
     });
     return;
   }
+  // The link ended: revoked, expired or turned off (ADR 0105 item 5). The
+  // window is replaced by a page that says so, and nothing is tried again.
+  if (m.gone === "link") {
+    linkEnded = true;
+    onLinkEnded?.();
+    return;
+  }
   if (m.gone === "folder") {
     notice(w().folderGone, "error");
     folderId = null;
@@ -233,7 +251,8 @@ function onMessage(data: string): void {
 
 function connect(): void {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${scheme}://${location.host}/api/ws`);
+  const at = visitor ? `/r/${encodeURIComponent(visitor)}/ws` : "/api/ws";
+  const ws = new WebSocket(`${scheme}://${location.host}${at}`);
   socket = ws;
   connecting = true;
   ws.addEventListener("open", () => {
@@ -294,6 +313,10 @@ function connect(): void {
   ws.addEventListener("message", (e) => onMessage(String(e.data)));
   ws.addEventListener("close", (ev) => {
     connecting = false;
+    if (linkEnded) {
+      open = false;
+      return;
+    }
     // The computer serving this phone has its connected devices at the most
     // (ADR 0096 item 13): it accepted the socket and closed it with this
     // code and `phones_connected:<most>` (crates/verso-server/src/rpc.rs).
@@ -333,6 +356,16 @@ addEventListener("online", () => {
 /** Commands only the browser answers; the rest go to the server. */
 async function local(cmd: string, a: Record<string, unknown>): Promise<{ answered: true; value: unknown } | { answered: false }> {
   const done = (value: unknown) => ({ answered: true as const, value });
+  // A read link's window: no folders to choose, no account, no shares, no
+  // sync of its own — the server answers the read commands, and these.
+  if (visitor) {
+    if (cmd.startsWith("share_") || cmd.startsWith("read_link_") || cmd.startsWith("folder_sync") || cmd === "server_prove") {
+      throw refused("not through a read link");
+    }
+    if (cmd === "server_accounts" || cmd === "recent_folders") return done([]);
+    if (cmd === "server_folders") return done({ folders: [], may_create: false });
+    if (cmd === "pick_folder") return done(null);
+  }
   // The sync of a folder kept in this browser (ADR 0092): its status and
   // its buttons are the browser's own.
   if (cmd.startsWith("folder_sync") || cmd === "note_made_from_template") {
@@ -407,6 +440,12 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     case "share_revoke":
     case "share_attachments":
       return done(await shareCall(cmd, a));
+    // The owner's read links (ADR 0105), over HTTP with the session.
+    case "read_link_list":
+    case "read_link_secrets":
+    case "read_link_create":
+    case "read_link_revoke":
+      return done(await readLinkCall(folderId, cmd, a));
     // The folder switcher (ADR 0081 item 5): in a browser the account is
     // this server's, its folders and shares are its own, and nothing is on
     // this computer.
@@ -475,6 +514,11 @@ async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unkno
 }
 
 async function openFolder(id: string): Promise<unknown> {
+  if (visitor) {
+    const info = await request("open_server_folder", { id });
+    openedOnce = true;
+    return info;
+  }
   // A folder kept on this device opens at once when the connection is down,
   // and is not waited for when it is not up yet (ADR 0092 item 2).
   if (offline.keeps(id) && (await verdict()) === "down") {
@@ -546,8 +590,18 @@ export function startBridge(choose: () => Promise<string | null>): void {
     { shouldMockEvents: true },
   );
   const internals = (window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (path: string, protocol?: string) => string } }).__TAURI_INTERNALS__;
-  internals.convertFileSrc = (path: string) => `/f/${encodeURIComponent(folderId ?? "-")}/${encodePath(path)}`;
+  internals.convertFileSrc = (path: string) =>
+    visitor ? `/r/${encodeURIComponent(visitor)}/f/${encodePath(path)}` : `/f/${encodeURIComponent(folderId ?? "-")}/${encodePath(path)}`;
   connect();
+}
+
+/** Start the window of a read link (ADR 0105): the same bridge, to the
+ *  link's own socket. `ended` is called once if the link ends. */
+export function startVisitorBridge(token: string, ended: () => void): void {
+  visitor = token;
+  onLinkEnded = ended;
+  folderId = "link";
+  startBridge(async () => null);
 }
 
 /** A command of the contract, for the pages around the window. */

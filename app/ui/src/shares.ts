@@ -22,6 +22,8 @@ import { dirOf, name } from "./paths";
 import { withServerProof } from "./serverProof";
 import { askServerProof } from "./serverProver";
 import { roleWord, sh } from "./shareStrings";
+import { loadReadLinks, openReadLinkDialog } from "./readLinks";
+import { rl } from "./readLinkStrings";
 
 /** The folders of the open folder shared with someone, by path. */
 const shared = new Map<string, FolderShare>();
@@ -39,6 +41,8 @@ export async function loadShares(): Promise<void> {
   shared.clear();
   if (r.status === "ok") for (const s of r.data.slice(1)) if (s.path && s.people.length > 0) shared.set(s.path, s);
   markShared();
+  // The read links are the owner's too (ADR 0105), and mark the tree beside.
+  if (owner) await loadReadLinks();
 }
 
 /** Whether the folder at `path`, or one inside it, is shared. */
@@ -238,6 +242,10 @@ export function openShareDialog(path: string): void {
       );
       footer.append(stop);
     }
+    const link = h("button", "btn quiet", rl.buttonFolder);
+    link.type = "button";
+    link.addEventListener("click", () => openReadLinkDialog("folder", path));
+    footer.append(link);
     const done = h("button", "btn", sh.close);
     done.type = "button";
     done.addEventListener("click", close);

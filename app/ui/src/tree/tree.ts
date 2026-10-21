@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { shareMark } from "../shares";
+import { readLinkMark } from "../readLinks";
 import { commands } from "../bindings";
 import { narrow, paintToggles } from "../chrome";
 import { h, ui } from "../dom";
@@ -102,6 +103,8 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     }
   }
   b.append(leadIcon, nameSpan);
+  const readMark = readLinkMark(path, "note");
+  if (readMark) b.append(readMark);
   // Drawn after the open note was marked (a folder opened later): marked here.
   if (current?.layout.activeLeaf?.path === path) b.setAttribute("aria-current", "true");
   if (isSelected(path)) b.classList.add("selected");
@@ -320,6 +323,8 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       if (folderNoteOf(full)) s.classList.add("has-note");
       const shareMarkNode = shareMark(full);
       if (shareMarkNode) s.append(shareMarkNode);
+      const readMark = readLinkMark(full, "folder");
+      if (readMark) s.append(readMark);
       if (isItemPinned(full, prefix, pinnedList)) {
         s.append(pinBadge());
       }

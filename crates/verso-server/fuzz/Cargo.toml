@@ -91,6 +91,15 @@ test = false
 doc = false
 bench = false
 
+# What an address under /r/ and a visitor's command may be (readlinks.rs,
+# visit.rs, http.rs; ADR 0105).
+[[bin]]
+name = "link"
+path = "fuzz_targets/link.rs"
+test = false
+doc = false
+bench = false
+
 # The seeds' writer (examples/seeds.rs), never a target.
 [[example]]
 name = "seeds"

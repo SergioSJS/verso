@@ -391,7 +391,30 @@ pub fn router(server: Arc<Server>) -> Router {
         // someone else would carry it (decided 2026-10-14, ADR 0083 As
         // built). An address under /api/ no route names is answered 404,
         // never the page.
-        .route("/api/{*rest}", axum::routing::any(no_route));
+        .route("/api/{*rest}", axum::routing::any(no_route))
+        // Read links (ADR 0105): the routes of the owner and of the
+        // administrator are under /api/; what a visitor with no account
+        // may reach is /r/<token>/ alone (`crate::visit`).
+        .route(
+            "/api/folders/{id}/readlinks",
+            get(crate::readlinks::list).post(crate::readlinks::make),
+        )
+        .route(
+            "/api/folders/{id}/readlinks/secrets",
+            get(crate::readlinks::secrets),
+        )
+        .route(
+            "/api/folders/{id}/readlinks/{link}",
+            delete(crate::readlinks::revoke),
+        )
+        .route(
+            "/api/admin/read-links",
+            get(crate::readlinks::switch).put(crate::readlinks::set_switch),
+        )
+        .route("/r/{token}/state", get(crate::visit::state))
+        .route("/r/{token}/unlock", post(crate::visit::unlock))
+        .route("/r/{token}/ws", get(crate::visit::ws))
+        .route("/r/{token}/f/{*path}", get(crate::visit::file));
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
@@ -407,6 +430,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
+        .route("/r/{token}", page())
         // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
         .route("/.well-known/security.txt", get(crate::security_txt::serve))
         .fallback_service(static_files);
@@ -489,7 +513,11 @@ async fn deadline(request: Request, next: Next) -> Response {
 /// around the pace.
 async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
     let path = request.uri().path();
-    if !path.starts_with("/api/") {
+    // A read link's routes are paced like the API's, per address (ADR 0105
+    // item 6; the link's own pace is `crate::visit`'s); its page, a
+    // static file like the window's, is not.
+    let link = is_link_route(path);
+    if !path.starts_with("/api/") && !link {
         return next.run(request).await;
     }
     let Some(key) = client_key(&server, &request) else {
@@ -506,7 +534,7 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
         }
         .into_response()
     };
-    let upgrade = path == "/api/ws"
+    let upgrade = (path == "/api/ws" || (link && path.ends_with("/ws")))
         && request
             .headers()
             .get(header::UPGRADE)
@@ -526,6 +554,20 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
         return too_many(wait);
     }
     next.run(request).await
+}
+
+/// Whether `path` is under a read link — `/r/<token>/…`, not the page at
+/// `/r/<token>` itself.
+pub(crate) fn is_link_route(path: &str) -> bool {
+    path.strip_prefix("/r/")
+        .is_some_and(|rest| rest.split_once('/').is_some())
+}
+
+/// Whether `path` is a folder's file served to a read link.
+pub(crate) fn is_link_file(path: &str) -> bool {
+    path.strip_prefix("/r/")
+        .and_then(|rest| rest.split_once('/'))
+        .is_some_and(|(_, after)| after.starts_with("f/"))
 }
 
 /// The window's own policy, sent as a header and narrower than the
@@ -731,7 +773,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     let ws_origin = auth::expected_origin(&server, request.headers(), &peer)
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
-    let is_file = request.uri().path().starts_with("/f/");
+    let is_file = request.uri().path().starts_with("/f/") || is_link_file(request.uri().path());
+    let is_link = request.uri().path().starts_with("/r/");
     let is_worker = request.uri().path() == MAP_WORKER;
     let is_service_worker = request.uri().path() == SERVICE_WORKER;
     let asked_by = request.headers().clone();
@@ -752,6 +795,11 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), \
          interest-cohort=()",
     );
+    if is_link {
+        // A read link's page and answers are for no search engine and no
+        // archive (ADR 0105 item 5); the referrer is already none.
+        set(h, "x-robots-tag", "noindex, nofollow");
+    }
     if is_file {
         // A folder's file is for this server's pages alone: another
         // site's page may not embed or fetch it with the reader's cookie

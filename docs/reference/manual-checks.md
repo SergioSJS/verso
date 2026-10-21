@@ -1185,6 +1185,51 @@ in a folder; a board with it, and two notes.
   under each node's `verso` (the re-observation of O4 on the version of the
   day, ADR 0090 Consequences).
 
+### Read links (ADR 0105, feat/read-links, 2026-10-21)
+
+Needs a real UniVerso on a public address behind a proxy (or Tailscale), a
+phone, a second browser that has never signed in to it, and the host's
+shell for the fail2ban and mail lines. The paces, the paths and the
+secrets are in the Rust tests and the server's end-to-end tests; what a
+proxy, a mail server, fail2ban and a thumb do with a link is not.
+
+- [ ] **A link through the proxy**: turn the links on in the console
+  (Server). Make a link to a note that has a secret block, open it on the
+  phone and in the second browser. The page is the reader's view: no
+  secret block, a link to a note outside it as plain text "não
+  compartilhado", the dice roll, nothing can be edited. The address bar
+  shows only `/r/<43 characters>`; the proxy's log shows no query and no
+  note name in the address of the page.
+- [ ] **The address kept private**: follow a web link out of the shared
+  note (a note with `https://` in it); the other site's log, or the
+  browser's developer tools, show no `Referer`. Search the address in a
+  search engine you can query (`site:` of the public host): nothing.
+- [ ] **The passphrase and the host's tools**: make a link with a
+  passphrase; try wrong ones from the phone off the Wi-Fi. `journalctl -u
+  universo` (or `docker logs`) shows one `WARN sign-in failed from
+  <address> for <the owner's masked e-mail>` line each; with fail2ban
+  installed from the package, `fail2ban-client status universo` counts
+  that address and bans it at the jail's limit. The 20th wrong one in an
+  hour mails the owner (needs `VERSO_SMTP_URL`); the 21st does not.
+- [ ] **Revoking, with a real page open**: read a link on the phone, and
+  revoke it from the panel on the computer. The phone's page changes to
+  "O acesso a esta página acabou" within a second, without a reload.
+  Expire one (a date for tomorrow, then move the server's clock, or wait)
+  and see an open page end when it comes.
+- [ ] **Turning the feature off**: with two links open in two browsers,
+  turn the links off in the console; both pages end at once, every
+  address answers "Este link não abre", and turning them on again opens
+  the same addresses.
+- [ ] **A reader's screen reader and keyboard**: on a link's page, move
+  with Tab and the arrows through the tree, open a note, follow a link
+  inside the shared part, reach the plain "(não compartilhado)" text, and
+  hear the page's language (pt-BR and English browsers); the passphrase
+  page announces its error.
+- [ ] **A table of players**: six phones open one link together, each
+  with a dozen pictures. If the pictures fail with 429, the per-link pace
+  (20 a second, 100 at once, ADR 0083 item 7) is too tight for a table:
+  say so, the number is the maintainer's to change.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers
