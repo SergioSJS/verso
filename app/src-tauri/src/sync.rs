@@ -26,7 +26,9 @@ use crate::dns::SendRetrying;
 
 pub(crate) mod live;
 mod transfer;
+pub(crate) mod universo;
 use transfer::{Refusal, Side};
+use verso_core::sync::remote as rem;
 
 /// A piece of a file on the wire, read from the disk as it is sent (ADR
 /// 0079 item 12, revised 2026-10-12): the server's.
@@ -289,13 +291,6 @@ fn from_there(what: &str) -> bool {
         what,
         "received" | "deleted_here" | "renamed_here" | "conflict" | "merged"
     )
-}
-
-/// Who the server's log says made change `c` (sync 2): its `by` and its
-/// `device`, each absent when unknown.
-fn author_of(c: &Value) -> Author {
-    let said = |f: &str| c[f].as_str().map(str::to_owned);
-    (said("by"), said("device"))
 }
 
 /// The state, as last saved, of a folder that syncs.
@@ -640,82 +635,21 @@ fn sha256(bytes: &[u8]) -> String {
         .collect()
 }
 
-/// The server's files: all of them on the connection's first pass, then
-/// the changes after the last head. The log answers a page at a time: with
-/// more to come, the next question asks from the last change received, and
-/// only the last page's answer moves the cursor to the server's head — a
-/// head taken from an earlier page would skip the pages between.
-async fn there(
-    remote: &remote::Remote,
-    known: &mut Option<(Files, i64)>,
-    authors: &Mutex<HashMap<String, Author>>,
-) -> Result<(), Value> {
-    let Some((files, head)) = known else {
-        let answer = remote.call("sync_state", json!({})).await?;
-        let mut files = Files::new();
-        for f in answer["files"].as_array().into_iter().flatten() {
-            if let (Some(path), Some(hash)) = (f["path"].as_str(), f["hash"].as_str()) {
-                files.insert(
-                    path.to_owned(),
-                    FileState {
-                        hash: hash.to_owned(),
-                        size: f["size"].as_u64().unwrap_or(0),
-                    },
-                );
-            }
-        }
-        *known = Some((files, answer["head"].as_i64().unwrap_or(0)));
-        return Ok(());
-    };
-    loop {
-        let asked = *head;
-        let answer = remote
-            .call("sync_changes", json!({ "since": asked }))
-            .await?;
-        for c in answer["changes"].as_array().into_iter().flatten() {
-            let Some(path) = c["path"].as_str() else {
-                continue;
-            };
-            if let Some(from) = c["renamedFrom"].as_str() {
-                files.remove(from);
-            }
-            lock(authors).insert(path.to_owned(), author_of(c));
-            match c["hash"].as_str() {
-                Some(hash) if c["deleted"] != true => {
-                    files.insert(
-                        path.to_owned(),
-                        FileState {
-                            hash: hash.to_owned(),
-                            size: c["size"].as_u64().unwrap_or(0),
-                        },
-                    );
-                }
-                _ => {
-                    files.remove(path);
-                }
-            }
-            *head = (*head).max(c["seq"].as_i64().unwrap_or(0));
-        }
-        if answer["more"] != true {
-            *head = (*head).max(answer["head"].as_i64().unwrap_or(0));
-            return Ok(());
-        }
-        // A page that says there is more but moved nothing on would ask
-        // the same question for ever: the rest waits for the next pass.
-        if *head == asked {
-            return Ok(());
-        }
-    }
-}
-
 /// A connection to the server on the folder, and the role in it.
 pub(crate) struct Link {
-    pub(crate) remote: Arc<remote::Remote>,
+    /// The other side of the sync, whatever it is (ADR 0104 item 3).
+    pub(crate) remote: Arc<dyn rem::Remote>,
+    /// A UniVerso's connection, which the tests close and read; a cloud
+    /// has none.
+    #[cfg(test)]
+    pub(crate) socket: Option<Arc<remote::Remote>>,
     pub(crate) heard: tokio::sync::mpsc::UnboundedReceiver<remote::Heard>,
+    /// What a cloud's link holds so that its `heard` stays open and quiet.
+    pub(crate) _quiet: Option<tokio::sync::mpsc::UnboundedSender<remote::Heard>>,
     pub(crate) role: String,
     pub(crate) name: String,
-    /// The server's files and the head they are at.
-    known: Option<(Files, i64)>,
+    /// The remote's files, each with its version, and the feed's cursor.
+    known: Option<rem::Known>,
     /// The next pass walks the folder first: the connection's first (a
     /// reconnection), and the scan's. The listing a pass compares is as of
     /// the watcher's last batch, and a file whose size and time are as the
@@ -733,7 +667,10 @@ impl Link {
     /// The head of the server's log the device's files are known at.
     #[cfg(test)]
     pub(crate) fn cursor(&self) -> Option<i64> {
-        self.known.as_ref().map(|(_, head)| *head)
+        self.known
+            .as_ref()
+            .and_then(|k| k.cursor.as_ref())
+            .and_then(|c| c.parse().ok())
     }
 }
 
@@ -793,8 +730,11 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     // item 2).
     s.live.connected(Arc::clone(&remote));
     Ok(Link {
-        remote,
+        remote: Arc::new(universo::Universo::new(Arc::clone(&remote))),
+        #[cfg(test)]
+        socket: Some(remote),
         heard,
+        _quiet: None,
         role,
         name,
         known: None,
@@ -833,19 +773,24 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // item 9).
     live::rejoined(s).await;
     let remote = Arc::clone(&l.remote);
-    there(&remote, &mut l.known, &s.authors)
-        .await
-        .map_err(|e| said(&e))?;
-    let Some((remote_files, head)) = l.known.as_mut() else {
+    let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
+    state.server.clone_from(&s.url);
+    state.folder.clone_from(&s.folder);
+    // The remote's files: all of them on the connection's first pass, then
+    // the changes after the last cursor; a cloud's versions already seen
+    // are not read again.
+    let named = tokio::task::block_in_place(|| rem::refresh(&*remote, &mut l.known, &state.tokens))
+        .map_err(transfer::contract_of)?;
+    for who in named {
+        lock(&s.authors).insert(who.path, (who.by, who.device));
+    }
+    let Some(known) = l.known.as_mut() else {
         return Ok(Passed::default());
     };
     if l.walk {
         tokio::task::block_in_place(|| ctx.service.walk_quietly(&s.key));
         l.walk = false;
     }
-    let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
-    state.server.clone_from(&s.url);
-    state.folder.clone_from(&s.folder);
     // The notes made from a template since: the base of a join should the
     // server hold one of the same name (ADR 0093 item 12).
     for (path, hash) in lock(&s.made).iter() {
@@ -859,7 +804,8 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // A share carries no settings of the folder's: none of the server's
     // is fetched over this computer's own (ADR 0070).
     if l.share {
-        remote_files.retain(|p, _| !engine::settings_path(p));
+        known.files.retain(|p, _| !engine::settings_path(p));
+        known.versions.retain(|p, _| !engine::settings_path(p));
     }
     let share = l.share;
     let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state, share))?;
@@ -870,11 +816,11 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &device, &when, pt, taken);
     // A live note's own text, already in its room, is not a change to
     // send nor a conflict (ADR 0082 items 6 and 9).
-    let planned_on = live::masked(s, &local, remote_files, &state.base);
+    let planned_on = live::masked(s, &local, &known.files, &state.base);
     // A yes counts for the deletions the person saw, no more, and once.
     let mut plan = engine::plan(
         planned_on.as_ref().unwrap_or(&local),
-        remote_files,
+        &known.files,
         &state,
         false,
         engine::FOLDS_NAMES,
@@ -916,7 +862,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let on = Side {
         ctx,
         s,
-        remote: &remote,
+        remote: &*remote,
         reader,
     };
     let (mut sending, mut receiving) = (0_u32, 0_u32);
@@ -967,9 +913,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         {
             continue;
         }
-        let result = on
-            .carry_out(remote_files, &mut local, &mut state, &action)
-            .await;
+        let result = on.carry_out(known, &mut local, &mut state, &action);
         if result.is_err() {
             stuck.extend(touches.iter().map(|p| (*p).to_owned()));
         }
@@ -982,7 +926,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 }
             }
             Err(Refusal::Connection(e)) => {
-                save(ctx, s, &mut state, *head);
+                save(ctx, s, &mut state, known);
                 return Err(e);
             }
             Err(Refusal::File(path, reason, message)) => {
@@ -1045,7 +989,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             st.receiving = receiving;
         });
     }
-    save(ctx, s, &mut state, *head);
+    save(ctx, s, &mut state, known);
     let conflicts: Vec<String> = ctx
         .service
         .with_key(&s.key, |ws| {
@@ -1112,12 +1056,23 @@ pub(crate) fn is_conflict_copy(path: &str) -> bool {
 }
 
 /// The state written, unless the sync was turned off meanwhile.
-fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, head: i64) {
+fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, known: &rem::Known) {
     let _one = lock(&s.disk);
     if s.stopped() && synced(ctx.config.as_deref(), &s.key).is_none() {
         return;
     }
-    state.cursor = head;
+    // A UniVerso's cursor is its log's head; a cloud has no feed, and keeps
+    // the versions it learned instead (ADR 0104 item 8).
+    state.cursor = known
+        .cursor
+        .as_deref()
+        .and_then(|c| c.parse().ok())
+        .unwrap_or(0);
+    state.tokens = if state.cloud.is_some() {
+        known.tokens()
+    } else {
+        std::collections::BTreeMap::new()
+    };
     state.paused = s.paused.load(Ordering::Relaxed);
     // A note made from a template that both sides agree on, or that the
     // server holds since, needs no template base any more.
