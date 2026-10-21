@@ -215,6 +215,16 @@ export class DataDiagram {
   }
 
   setTree(tree: Tree): void {
+    if (tree.tooMany) {
+      // Too many boxes to draw: no diagram, whatever was there before; the text stays one key away.
+      this.error.hidden = true;
+      this.model = null;
+      this.lay = null;
+      this.hasGood = false;
+      this.clearBoxes();
+      this.showNote(dgw.tooMany);
+      return;
+    }
     if (tree.error && this.hasGood && this.model) {
       // The last good diagram stays; the error is told, with a way to its place.
       this.showError(tree.error.message, tree.error.from, tree.error.to, true);

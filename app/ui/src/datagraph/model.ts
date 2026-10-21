@@ -63,6 +63,8 @@ export type Tree = {
   roots: number[];
   /** The first error, if the text did not parse; the tree holds what was read before it. */
   error: ParseError | null;
+  /** The file holds more than MAX_BOXES boxes: no box was kept and none is drawn. */
+  tooMany?: true;
 };
 
 /** The deepest a document may nest before it is refused: far past any real file. */
@@ -70,6 +72,20 @@ export const MAX_DEPTH = 1_000_000;
 
 /** A text this long or longer is not offered as a diagram (ADR 0106 item 9). */
 export const MAX_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Past this many boxes the diagram is not built (review I6, a safety guard: the maintainer's open question D.1
+ * recommends it). The drawing would take the window down long before the 20 MiB byte limit is met by a file of
+ * millions of tiny boxes.
+ */
+export const MAX_BOXES = 200_000;
+
+/** Thrown by the builder at the box limit; `parse` turns it into a tree that says so. Not a ParseFailure: no parser reports it as a text error. */
+export class BoxLimit extends Error {
+  constructor() {
+    super("too many boxes");
+  }
+}
 
 export class ParseFailure extends Error {
   constructor(
@@ -89,6 +105,7 @@ export class Builder {
 
   /** A box under `parent` (-1 for a root), led to by the row `containerRow` just added to `parent`. */
   node(parent: number, label: string, shape: Shape, from: number): DNode {
+    if (this.nodes.length >= MAX_BOXES) throw new BoxLimit();
     const p = parent < 0 ? null : this.nodes[parent]!;
     const n: DNode = {
       id: this.nodes.length,

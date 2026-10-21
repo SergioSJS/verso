@@ -402,3 +402,17 @@ describe("The tutorial's example theme", () => {
     assert.deepEqual(T.parseThemeText(T.themeText(r.theme)).theme, r.theme);
   });
 });
+
+describe("review M13: an imported theme says what became of it", () => {
+  test("kept: it is in the list; not kept (list full): it is applied only, and the words say so", () => {
+    const kept = T.saveAs([], "Noite", { name: "x", light: {}, dark: {} });
+    assert.match(T.importSaid(kept, "Noite"), /lista de perfis|profile list/);
+    let list = [];
+    for (let i = 0; i < T.PROFILES_MOST; i++) list = T.saveAs(list, `p${i}`, { name: "x", light: {}, dark: {} }).list;
+    const full = T.saveAs(list, "one more", { name: "x", light: {}, dark: {} });
+    assert.equal(full.ok, false);
+    const said = T.importSaid(full, "one more");
+    assert.ok(said.includes(full.why), said);
+    assert.doesNotMatch(said, /também ficou|also in the profile list/);
+  });
+});

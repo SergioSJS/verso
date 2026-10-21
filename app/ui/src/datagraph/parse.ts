@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { parseCsv } from "./csv";
-import { type Format, type Tree } from "./model";
+import { BoxLimit, type Format, type Tree } from "./model";
 import { parseJson, parseJsonLines } from "./json";
 import { parseToml } from "./toml";
 import { parseXml } from "./xml";
@@ -11,6 +11,15 @@ import { parseYaml } from "./yamlParse";
 
 /** The text of a file of `format` as a tree of boxes. Never throws on bad text: the error is in the tree. */
 export function parse(text: string, format: Format): Tree {
+  try {
+    return parseText(text, format);
+  } catch (e) {
+    if (e instanceof BoxLimit) return { format, nodes: [], roots: [], error: null, tooMany: true };
+    throw e;
+  }
+}
+
+function parseText(text: string, format: Format): Tree {
   switch (format) {
     case "json":
     case "jsonc": return parseJson(text, format);

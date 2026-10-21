@@ -5,5 +5,5 @@ export * from "./layout";
 export * from "./search";
 export * from "./state";
 export * from "./store";
-export { boardOf } from "./saveBoardDoc";
+export { boardFits, boardOf, MAX_BOARD_CARDS } from "./saveBoardDoc";
 export { parseErrorPt } from "./words";

@@ -129,6 +129,19 @@ describe("composing a block with its bases", () => {
     assert.equal(c.sheet.b, 1);
   });
 
+  test("review M13: the block itself is on the stack: meeting it again is a cycle at once", () => {
+    let calls = 0;
+    const by = { B: { id: "n#9", path: "n.md", sheet: { extends: "Me", b: 1 } }, Me: { id: "n#0", path: "n.md", sheet: { extends: "B", me: 1 } } };
+    const look = (r) => (calls++, lookupIn(by)(r));
+    const own = sheet({ name: "Me", extends: "B" });
+    m.compose(own, look, traitsOnly);
+    assert.equal(calls, 3, "without knowing itself the walk goes one base further");
+    calls = 0;
+    const c = m.compose(own, look, traitsOnly, { path: "n.md", name: "Me" });
+    assert.equal(calls, 2);
+    assert.deepEqual(c.problems, [{ kind: "cycle", ref: "Me" }]);
+  });
+
   test("a chain deeper than 8 stops with a message", () => {
     const by = {};
     for (let i = 0; i < 14; i++) by[`N${i}`] = { sheet: { [`k${i}`]: i, extends: `N${i + 1}` } };

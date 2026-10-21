@@ -18,13 +18,17 @@ import { dirOf } from "../paths";
 import { textBase64 } from "../files";
 import { openNote } from "../layout/spaces";
 import { allFolders } from "../tree/tree";
-import { type BoardDoc } from "./saveBoardDoc";
+import { type BoardDoc, boardFits, MAX_BOARD_CARDS } from "./saveBoardDoc";
 import { dgw } from "./words";
 
 /** The dialog: name, folder, what the board will hold; resolves when it is closed. */
 export function saveAsBoard(doc: BoardDoc, from: string): void {
   if (doc.nodes.length === 0) {
     ui.status.textContent = dgw.boardNothing;
+    return;
+  }
+  if (!boardFits(doc)) {
+    ui.status.textContent = dgw.boardTooMany(doc.nodes.length, MAX_BOARD_CARDS);
     return;
   }
   const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;

@@ -15,7 +15,7 @@ import { shippedColors } from "./apply";
 import { unreadableIn } from "./edit";
 import { parseThemeText, type Theme, themeFileName, themeText } from "./file";
 import { themeOf, withTheme } from "./look";
-import { readProfiles, saveAs, uniqueName, type Profile } from "./profiles";
+import { importSaid, readProfiles, saveAs, uniqueName, type Profile } from "./profiles";
 import { W } from "./strings";
 import { emptyLook, FILE_MOST, type Look } from "./tokens";
 
@@ -97,7 +97,7 @@ export async function importText(text: string): Promise<boolean> {
   const kept = saveAs(list, name, r.theme);
   if (kept.ok) settings.looks = kept.list;
   applyTheme({ ...r.theme, name: kept.ok ? kept.name : r.theme.name });
-  say(W.share.imported(name));
+  say(importSaid(kept, r.theme.name));
   return true;
 }
 
