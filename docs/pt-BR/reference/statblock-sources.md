@@ -9,6 +9,14 @@
   decidido pelo item 6 da ADR 0099 (`[DECIDIDO 2026-10-20]` para as licenças
   abertas, `[PROPOSTO]` para os dois casos da Paradox e da R. Talsorian); este
   arquivo registra a evidência sobre a qual aquele item foi decidido.
+  Acrescentado em 2026-10-21, das respostas S.3a a S.3d do mantenedor: o logo
+  do Dark Pack é buscado no kit da Paradox pelo agente e posto na página de
+  Créditos; os avisos de licença (Dark Pack, R. Talsorian) ficam só na página
+  de Créditos, não nas fichas; os nomes dos campos dos layouts de World of
+  Darkness e de Cyberpunk RED estão em pt-BR agora, a corrigir depois contra
+  os livros brasileiros; e quando `extends:` lista várias bases ganha a
+  primeira listada, como no plugin (ADR 0099 itens 1 e 6). Onde uma linha
+  abaixo diz "na ficha", essa parte é substituída por este parágrafo.
 - Regra deste arquivo: um campo só é escrito se uma fonte primária o mostra.
   O resto é marcado **UNVERIFIED** e não é resolvido de memória. Um layout é
   construído com os campos listados aqui e nenhum outro. As leituras de
