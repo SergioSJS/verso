@@ -30,6 +30,7 @@
     "allow-write-note",
     "allow-create-note",
     "allow-create-file",
+    "allow-pick-files",
     "allow-create-folder",
     "allow-delete-note",
     "allow-rename-note",
