@@ -1254,6 +1254,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   observação do Obsidian só fecha por inteiro no PR que a acrescenta, com esta
   seção atualizada no mesmo PR; nenhuma está rascunhada ainda.
 
+  *2026-10-21: a (B) está construída no branch `feat/graph-unresolved` — o
+  filtro do grafo "Só arquivos existentes", ligado por padrão; desligado,
+  desenha cada alvo não resolvido como um nó vazio e tracejado, ligado às notas
+  que o citam (a ajuda pública "Graph view" do Obsidian documenta o mesmo
+  filtro).*
+
 - **Q15. Extensões de Markdown fora da base.** `DECIDIDA` para a visualização
   de leitura em 2026-09-23; `DECIDIDA` para o parser que alimenta o índice em 2026-10-21.
   Tabelas, footnotes, task list, matemática, destaque `==texto==`, strikethrough.

@@ -27,6 +27,7 @@ O **Grafo de Conhecimento** do Verso mapeia as conexões entre todas as suas not
 - **Filtrar**: escreva parte de um nome, ou `tag:` e uma tag, para ver só essas notas; **Tags** escolhe uma tag da lista.
 - **Profundidade** (em **Relações**): 1, 2 ou 3 passos a partir da nota.
 - **Mostrar notas sem links**, **Nomes** e **Cor por pasta** ligam e desligam o que se vê.
+- **Só arquivos existentes** vem ligado. Desligue para ver também as notas que você já citou com `[[ ]]` mas ainda não criou: cada uma é um círculo vazio, de contorno tracejado e nome em itálico, ligado às notas que a citam. Clique, ou chegue nela pelas setas e aperte Enter, para criar a nota e abri-la.
 - **Repulsão**, **Distância** e **Tamanho** ajustam o desenho.
 - **Afastar**, **Aproximar** e **Ver tudo**; em **Relações**, o botão **Grafo do cofre** volta para o grafo inteiro.
 

@@ -27,6 +27,13 @@ export type ScreenStrings = {
   /** The graph's controls as a panel (item 3). */
   graphControls: string;
   graphHintTouch: string;
+  /** The graph's filter "existing files only" (spec Q14, decision B). */
+  graphExisting: string;
+  /** A node for a note that does not exist yet: its accessible name. */
+  graphMissingNode: (name: string) => string;
+  graphMissingLegend: string;
+  /** The graph's count when notes that do not exist yet are drawn. */
+  graphNodesMissing: (notes: number, links: number, missing: number) => string;
   /** The card beside a link in Edit mode (item 4). */
   linkCard: (target: string) => string;
   linkOpen: string;
@@ -75,6 +82,10 @@ const pt: ScreenStrings = {
   paneTools: "Ações do painel",
   tabActions: "Ações da aba…",
   graphControls: "Ajustes do grafo",
+  graphExisting: "Só arquivos existentes",
+  graphMissingNode: (name) => `${name} — nota que ainda não existe`,
+  graphMissingLegend: "Nota que ainda não existe",
+  graphNodesMissing: (n, m, k) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} ainda não existe${k === 1 ? "" : "m"}`,
   graphHintTouch: "Toque abre · arraste move uma nota ou o grafo · pinça amplia · dois dedos deslocam",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Abrir",
@@ -117,6 +128,10 @@ const en: ScreenStrings = {
   paneTools: "Pane actions",
   tabActions: "Tab actions…",
   graphControls: "Graph settings",
+  graphExisting: "Existing files only",
+  graphMissingNode: (name) => `${name} — note that does not exist yet`,
+  graphMissingLegend: "Note that does not exist yet",
+  graphNodesMissing: (n, m, k) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} not created yet`,
   graphHintTouch: "Tap opens · drag moves a note or the graph · pinch zooms · two fingers pan",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Open",

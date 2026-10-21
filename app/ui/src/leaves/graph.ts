@@ -9,7 +9,9 @@ import { icon } from "../icons";
 import { calm } from "../format";
 import { Pane } from "../layout/pane";
 import { openNote, persistSoon } from "../layout/spaces";
-import { Kind, name } from "../paths";
+import { createNote } from "../files";
+import { Kind, dirOf, name } from "../paths";
+import { type MissingLink, type MissingNode, isMissingId, missingNodes } from "./graphMissing";
 import { st } from "../screen/strings";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
@@ -21,9 +23,9 @@ const COUNT_PAUSE_MS = 1000;
 /* The graph: every note of the vault and every resolved link, or the
  * neighbourhood of one note to a chosen depth. Force-laid in SVG,
  * zoomed and panned, filtered by name or tag, colored by folder. */
-export type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean };
-export const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true };
-export type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string };
+export type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean; existingOnly: boolean };
+export const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true, existingOnly: true };
+export type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string; missing?: MissingNode };
 export class GraphLeaf extends Leaf {
   readonly kind: Kind = "graph";
   readonly svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -39,6 +41,9 @@ export class GraphLeaf extends Leaf {
   private opts: GraphOpts = { ...GRAPH_DEFAULTS };
   private edges: [string, string][] = [];
   private tags: { name: string; notes: string[] }[] = [];
+  /** Links no note answers to, asked of the core once the filter that hides
+   *  them is turned off (spec Q14, decision B). */
+  private missingLinks: MissingLink[] | null = null;
   private nodes: GNode[] = [];
   private stop: (() => void) | null = null;
   private zoom = 1;
@@ -126,15 +131,21 @@ export class GraphLeaf extends Leaf {
     }
     depth.addEventListener("change", () => { this.opts.depth = Number(depth.value); this.save(); void this.load(this.path); });
     field(t.graphDepth, depth).dataset["role"] = "depth";
-    const check = (label: string, key: "orphans" | "colors" | "labels") => {
+    const check = (label: string, key: "orphans" | "colors" | "labels" | "existingOnly") => {
       const box = h("input");
       box.type = "checkbox";
       box.checked = this.opts[key];
-      box.addEventListener("change", () => { this.opts[key] = box.checked; this.save(); this.rebuild(); });
+      box.addEventListener("change", () => {
+        this.opts[key] = box.checked;
+        this.save();
+        if (key === "existingOnly" && !box.checked) void this.askMissing().then(() => this.rebuild());
+        else this.rebuild();
+      });
       const l = h("label", "graph-check");
       l.append(box, h("span", "", label));
       c.append(l);
     };
+    check(st.graphExisting, "existingOnly");
     check(t.graphOrphans, "orphans");
     check(t.graphLabels, "labels");
     check(t.graphColors, "colors");
@@ -323,11 +334,21 @@ export class GraphLeaf extends Leaf {
     if (depthField) depthField.hidden = !local;
     const whole = this.controls.querySelector<HTMLElement>('[data-role="whole"]');
     if (whole) whole.hidden = !local;
+    this.missingLinks = null;
+    if (!this.opts.existingOnly) await this.askMissing();
+    if (this.path !== path) return;
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
     this.rebuild();
     markCurrent();
     persistSoon();
+  }
+  /** The links no note answers to, once per load; none when the core will not
+   *  say (a shared folder), so the graph is then the existing files. */
+  private async askMissing(): Promise<void> {
+    if (this.missingLinks) return;
+    const r = await commands.graphUnresolved();
+    this.missingLinks = r.status === "ok" ? r.data : [];
   }
   /** Nodes and edges after the filters, laid out from scratch. */
   private rebuild(): void {
@@ -366,16 +387,27 @@ export class GraphLeaf extends Leaf {
       const inTag = new Set(this.tags.filter((tg) => tg.name === this.opts.tag).flatMap((tg) => tg.notes));
       keep = new Set(Array.from(keep).filter((p) => inTag.has(p) || p === this.path));
     }
-    const edges = this.edges.filter(([a, b]) => keep.has(a) && keep.has(b) && a !== b);
+    const edges: [string, string][] = this.edges.filter(([a, b]) => keep.has(a) && keep.has(b) && a !== b);
     const degree = new Map<string, number>();
     for (const [a, b] of edges) {
       degree.set(a, (degree.get(a) ?? 0) + 1);
       degree.set(b, (degree.get(b) ?? 0) + 1);
     }
+    // Notes that do not exist yet, from the notes the filters kept.
+    let missing: MissingNode[] = [];
+    if (!this.opts.existingOnly && this.missingLinks) {
+      const shaped = missingNodes(this.missingLinks, keep, local ? { depthOf, maxDepth: this.opts.depth } : undefined);
+      missing = shaped.nodes;
+      for (const [a, b] of shaped.edges) {
+        edges.push([a, b]);
+        degree.set(a, (degree.get(a) ?? 0) + 1);
+        degree.set(b, (degree.get(b) ?? 0) + 1);
+      }
+    }
     if (!this.opts.orphans) keep = new Set(Array.from(keep).filter((p) => (degree.get(p) ?? 0) > 0 || p === this.path));
-    const spread = Math.sqrt(keep.size) * 40;
+    const spread = Math.sqrt(keep.size + missing.length) * 40;
     const old = new Map(this.nodes.map((n) => [n.id, n]));
-    this.nodes = Array.from(keep).map((id) => {
+    const real: GNode[] = Array.from(keep).map((id) => {
       const prev = old.get(id);
       return {
         id,
@@ -388,12 +420,18 @@ export class GraphLeaf extends Leaf {
         folder: id.includes("/") ? id.split("/")[0] ?? "" : "",
       };
     });
-    const counted = t.graphNodes(this.nodes.length, edges.filter(([a, b]) => keep.has(a) && keep.has(b)).length);
+    const hollow: GNode[] = missing.map((m) => {
+      const prev = old.get(m.id);
+      return { id: m.id, x: prev?.x ?? (Math.random() - 0.5) * spread, y: prev?.y ?? (Math.random() - 0.5) * spread, vx: 0, vy: 0, degree: degree.get(m.id) ?? 0, depth: m.depth, folder: "", missing: m };
+    });
+    this.nodes = [...real, ...hollow];
+    const shown = edges.filter(([a, b]) => (keep.has(a) || isMissingId(a)) && (keep.has(b) || isMissingId(b)));
+    const counted = missing.length > 0 ? st.graphNodesMissing(real.length, shown.length, missing.length) : t.graphNodes(real.length, shown.length);
     this.count.textContent = counted;
     window.clearTimeout(this.countTimer);
     if (this.countLive.textContent === "") this.countLive.textContent = counted;
     else this.countTimer = window.setTimeout(() => void (this.countLive.textContent = counted), COUNT_PAUSE_MS);
-    this.draw(edges.filter(([a, b]) => keep.has(a) && keep.has(b)));
+    this.draw(shown);
   }
   private hue(folder: string): number {
     let x = 0;
@@ -441,17 +479,21 @@ export class GraphLeaf extends Leaf {
     }
     this.dots = this.nodes.map((n) => {
       const g = document.createElementNS(NS, "g");
-      g.setAttribute("class", `node${n.id === this.path ? " center" : ""}`);
+      g.setAttribute("class", `node${n.id === this.path ? " center" : ""}${n.missing ? " missing" : ""}`);
       g.setAttribute("data-id", n.id);
       // Its note where the pointer rests, and under a finger held still
-      // (ADR 0085 items 2 and 5).
-      g.setAttribute("data-preview-path", n.id);
-      g.setAttribute("data-preview-press", "");
+      // (ADR 0085 items 2 and 5). A note that does not exist has none.
+      if (!n.missing) {
+        g.setAttribute("data-preview-path", n.id);
+        g.setAttribute("data-preview-press", "");
+      }
       const c = document.createElementNS(NS, "circle");
       c.setAttribute("r", String(this.radius(n)));
-      c.style.fill = this.color(n);
+      // A note that does not exist yet is hollow and dashed (css), not only
+      // another colour (A11Y.12).
+      if (!n.missing) c.style.fill = this.color(n);
       const label = document.createElementNS(NS, "text");
-      label.textContent = name(n.id);
+      label.textContent = n.missing ? n.missing.target : name(n.id);
       label.setAttribute("dy", String(-this.radius(n) - 4));
       if (!this.opts.labels && n.id !== this.path) label.classList.add("quiet");
       g.append(c, label);
@@ -481,8 +523,14 @@ export class GraphLeaf extends Leaf {
         g.addEventListener("pointermove", move);
         g.addEventListener("pointerup", up);
       });
-      g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
-      g.addEventListener("dblclick", () => void this.load(n.id));
+      // Open the note, or for one that does not exist yet make it, as a
+      // click on its link in a note does.
+      const open = (): void => {
+        if (n.missing) void this.make(n.missing);
+        else openNote(n.id, false);
+      };
+      g.addEventListener("click", () => { if (!moved) open(); });
+      g.addEventListener("dblclick", () => void (n.missing ? this.make(n.missing) : this.load(n.id)));
       // From the keyboard: the graph is one Tab stop (the note in its
       // middle, else the first); the arrows walk the notes, Home and End
       // reach the ends, Enter opens one and Shift-Enter centers the graph
@@ -490,7 +538,7 @@ export class GraphLeaf extends Leaf {
       // them between the note and the graph's controls.
       g.setAttribute("tabindex", "-1");
       g.setAttribute("role", "button");
-      g.setAttribute("aria-label", name(n.id));
+      g.setAttribute("aria-label", n.missing ? st.graphMissingNode(n.missing.target) : name(n.id));
       g.addEventListener("keydown", (e) => {
         const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
         if (step !== 0 || e.key === "Home" || e.key === "End") {
@@ -503,8 +551,8 @@ export class GraphLeaf extends Leaf {
         }
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
-        if (e.shiftKey) void this.load(n.id);
-        else openNote(n.id, false);
+        if (e.shiftKey && !n.missing) void this.load(n.id);
+        else open();
       });
       // Its neighbours lit, by the pointer or the keyboard alike.
       const light = () => {
@@ -543,9 +591,21 @@ export class GraphLeaf extends Leaf {
         this.legend.append(row);
       }
     }
+    if (this.nodes.some((n) => n.missing)) {
+      const row = h("span", "graph-legend-item");
+      const mark = h("span", "graph-legend-dot missing");
+      row.append(mark, h("span", "", st.graphMissingLegend));
+      this.legend.append(row);
+    }
     this.applyView();
     this.frames = 0;
     this.resume();
+  }
+  /** A note that does not exist yet, made in the folder of the first note
+   *  that links to it and opened (the way a click on its link does). */
+  private async make(m: MissingNode): Promise<void> {
+    const made = await createNote(dirOf(m.from[0] ?? ""), m.target, this.pane);
+    if (made !== "exists" && this.el.isConnected) void this.load(this.path);
   }
   /** The simulation runs until it settles; any change wakes it. With
    *  reduced motion it settles out of sight and is painted once; only a

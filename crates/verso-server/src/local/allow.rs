@@ -58,6 +58,7 @@ pub const READ: &[&str] = &[
     "list_tags",
     "list_web_notes",
     "graph",
+    "graph_unresolved",
     "list_folders",
     "read_file_text",
     "resolve_attachment",
