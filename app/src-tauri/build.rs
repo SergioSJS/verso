@@ -24,6 +24,7 @@ fn main() {
         "create_note",
         "create_file",
         "pick_files",
+        "create_picked",
         "create_folder",
         "delete_note",
         "rename_note",

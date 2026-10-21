@@ -47,11 +47,12 @@ export function dataModes(leaf: Leaf, on: "text" | "diagram"): HTMLElement {
   return modes;
 }
 
-/** The feature's switch changed: a text tab shows or hides its "Text | Diagram"; a file's diagram tab, switched off, is the text again (what was moved and folded is kept for the file already). A block's diagram has no text to go back to and stays until closed. */
+/** The feature's switch changed: a text tab shows or hides its "Text | Diagram"; a file's diagram tab, switched off, is the text again (what was moved and folded is kept for the file already). A block's diagram has no text to go back to: it closes (D.2, 2026-10-21). */
 export function syncDataView(leaf: Leaf): void {
   if (leaf instanceof TextLeaf) leaf.dataModes.hidden = diagramFormat(leaf.path) === null;
-  else if (leaf instanceof DataLeaf && !leaf.block && !hasCapability("dataDiagram")) {
-    void leaf.pane.swap(leaf, new TextLeaf(leaf.pane));
+  else if (leaf instanceof DataLeaf && !hasCapability("dataDiagram")) {
+    if (leaf.block) void leaf.close(true);
+    else void leaf.pane.swap(leaf, new TextLeaf(leaf.pane));
   }
 }
 

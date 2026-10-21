@@ -677,6 +677,7 @@ macro_rules! commands_for {
                 create_note::<$runtime>,
                 create_file::<$runtime>,
                 pick_files::<$runtime>,
+                create_picked::<$runtime>,
                 create_folder::<$runtime>,
                 delete_note::<$runtime>,
                 rename_note::<$runtime>,

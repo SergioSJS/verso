@@ -26,6 +26,9 @@ export type Settings = {
   fontSize: number;
   attachments: string;
   autosave: number;
+  /** The most megabytes of one file "Import files…" takes (1 to 1024;
+   *  Settings › Files and links, I.1b decided 2026-10-21). */
+  importMaxMb: number;
   daily: string;
   templates: string;
   spellcheck: boolean;
@@ -141,6 +144,7 @@ export const DEFAULTS: Settings = {
   fontSize: 15,
   attachments: "assets",
   autosave: 1.5,
+  importMaxMb: 32,
   daily: t.dailyName,
   templates: t.templatesName,
   spellcheck: true,

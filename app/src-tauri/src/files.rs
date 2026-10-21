@@ -31,63 +31,148 @@ pub(crate) fn create_file<R: tauri::Runtime>(
     with(&state, &window, |ws| ops::create_file(ws, path, base64))
 }
 
-/// The most bytes of one chosen file (a server's message is 48 MiB and
-/// bytes cross as base64: the window's `MAX_IMAGE_BYTES`), and of the
-/// whole choice.
+/// The most bytes of one chosen file the window of a server's folder
+/// receives (a server's message is 48 MiB and bytes cross as base64: the
+/// window's `MAX_IMAGE_BYTES`), and of the whole choice.
 pub(crate) const PICK_FILE_MAX: u64 = 32 * 1024 * 1024;
 const PICK_TOTAL_MAX: u64 = 256 * 1024 * 1024;
+/// The most the person may set for one file of this computer's own folder:
+/// 1 GiB (Settings › Files and links). The whole choice may be 8 times it.
+const PICK_CEILING_MB: u32 = 1024;
+const PICK_TOTAL_TIMES: u64 = 8;
 
-/// Read what the person chose: a file by its name and bytes, a path never
-/// handed on. A directory, a cloud placeholder, a file too large (alone or
-/// with the rest) or one the system will not read is named in `skipped`,
-/// not failed on: the others are still imported. Split out of the command
-/// so a test can give it paths without a dialog.
+/// The files a window chose and has not had copied yet: token → what it
+/// stands for. The path stays here (rule 4); a token serves once, only the
+/// window it was given to, and a new choice by that window drops its old
+/// ones.
+pub(crate) struct Held {
+    window: String,
+    path: PathBuf,
+    max: u64,
+}
+pub(crate) static HELD: std::sync::LazyLock<Mutex<std::collections::HashMap<String, Held>>> =
+    std::sync::LazyLock::new(Mutex::default);
+static NEXT_TOKEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn skip_reason(e: verso_core::PickedError) -> PickSkip {
+    use verso_core::PickedError;
+    match e {
+        PickedError::NotAFile => PickSkip::NotAFile,
+        PickedError::Placeholder => PickSkip::Placeholder,
+        PickedError::TooLarge => PickSkip::TooLarge,
+        PickedError::Io(_) => PickSkip::Unreadable,
+    }
+}
+
+fn name_of(path: &Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+/// Read what the person chose for a window on a server's folder: a file by
+/// its name and bytes, a path never handed on. A directory, a cloud
+/// placeholder, a file too large (alone or with the rest) or one the system
+/// will not read is named in `skipped`, not failed on: the others are still
+/// imported. Split out of the command so a test can give it paths without a
+/// dialog.
 pub(crate) fn read_picks(paths: &[PathBuf]) -> PickedFiles {
     use base64::Engine;
-    use verso_core::PickedError;
     let mut out = PickedFiles {
         files: Vec::new(),
         skipped: Vec::new(),
     };
     let mut total = 0u64;
     for path in paths {
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
+        let name = name_of(path);
         let room = PICK_FILE_MAX.min(PICK_TOTAL_MAX - total);
         let reason = match verso_core::read_picked(path, room) {
             Ok(bytes) if !name.is_empty() => {
                 total += bytes.len() as u64;
                 out.files.push(PickedFile {
                     name,
-                    base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+                    base64: Some(base64::engine::general_purpose::STANDARD.encode(bytes)),
+                    token: None,
                 });
                 continue;
             }
             Ok(_) => PickSkip::NotAFile,
-            Err(PickedError::NotAFile) => PickSkip::NotAFile,
-            Err(PickedError::Placeholder) => PickSkip::Placeholder,
-            Err(PickedError::TooLarge) => PickSkip::TooLarge,
-            Err(PickedError::Io(_)) => PickSkip::Unreadable,
+            Err(e) => skip_reason(e),
         };
         out.skipped.push(SkippedPick { name, reason });
     }
     out
 }
 
-/// Open the system's file picker, several files at once, and give back
-/// what was chosen as names and bytes ("Import files…", A11Y.10): the
-/// paths stay on this side (rule 4), and the window creates the files in
-/// the folder with `create_file`, so that confinement, the atomic write
-/// and a name taken are the drop's own. Empty when cancelled. The picker
-/// and the reads run off the event loop.
+/// What the person chose for a window on this computer's own folder: each
+/// file measured (no byte read) and held under a token, for `create_picked`
+/// to copy. One past `max_mb` — or the rest past 8 times it — is named in
+/// `skipped`.
+pub(crate) fn hold_picks(window: &str, paths: &[PathBuf], max_mb: u32) -> PickedFiles {
+    let max = u64::from(max_mb.clamp(1, PICK_CEILING_MB)) * 1024 * 1024;
+    let mut out = PickedFiles {
+        files: Vec::new(),
+        skipped: Vec::new(),
+    };
+    let Ok(mut held) = HELD.lock() else {
+        return out;
+    };
+    held.retain(|_, h| h.window != window);
+    let mut total = 0u64;
+    for path in paths {
+        let name = name_of(path);
+        let room = max.min((max * PICK_TOTAL_TIMES).saturating_sub(total));
+        let reason = match verso_core::check_picked(path, room) {
+            Ok(len) if !name.is_empty() => {
+                total += len;
+                let token = format!(
+                    "pick-{}",
+                    NEXT_TOKEN.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                );
+                held.insert(
+                    token.clone(),
+                    Held {
+                        window: window.to_owned(),
+                        path: path.clone(),
+                        max,
+                    },
+                );
+                out.files.push(PickedFile {
+                    name,
+                    base64: None,
+                    token: Some(token),
+                });
+                continue;
+            }
+            Ok(_) => PickSkip::NotAFile,
+            Err(e) => skip_reason(e),
+        };
+        out.skipped.push(SkippedPick { name, reason });
+    }
+    out
+}
+
+/// Open the system's file picker, several files at once ("Import files…",
+/// A11Y.10). The paths stay on this side (rule 4). For a window on this
+/// computer's own folder, what comes back is each file's name and a token
+/// (`max_mb`: the most the person allows one file, 1 to 1024): no byte
+/// crosses, `create_picked` copies it. For a window on a server's folder it
+/// is the name and the bytes (at most 32 MiB each), and the window creates
+/// them with `create_file`. Empty when cancelled. The picker and the reads
+/// run off the event loop.
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn pick_files<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
+    state: State<'_, App>,
+    max_mb: u32,
 ) -> Result<PickedFiles, ContractError> {
+    let on_server = state
+        .remotes
+        .lock()
+        .map(|r| r.contains_key(window.label()))
+        .unwrap_or(false);
     let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
     app.dialog()
@@ -101,9 +186,59 @@ pub(crate) async fn pick_files<R: tauri::Runtime>(
         .into_iter()
         .filter_map(|p| p.into_path().ok())
         .collect();
-    tauri::async_runtime::spawn_blocking(move || read_picks(&paths))
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        if on_server {
+            read_picks(&paths)
+        } else {
+            hold_picks(&label, &paths, max_mb)
+        }
+    })
+    .await
+    .map_err(|e| failed(format!("reading the chosen files: {e}")))
+}
+
+/// Copy a file `pick_files` named by token into the open folder at `path`
+/// (relative, confined, written atomically, `exists` when something stands
+/// there), and answer the confined path. The bytes are read here and handed
+/// to the core: they never cross to the window. A token serves once (a
+/// name taken is not a use).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn create_picked<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    token: String,
+    path: String,
+) -> Result<String, ContractError> {
+    let (file, max) = {
+        let held = HELD
+            .lock()
+            .map_err(|_| failed("the chosen files are not readable".to_owned()))?;
+        let h = held
+            .get(&token)
+            .filter(|h| h.window == window.label())
+            .ok_or_else(|| {
+                refused("that file was not chosen by this window, or was already copied")
+            })?;
+        (h.path.clone(), h.max)
+    };
+    let bytes = tauri::async_runtime::spawn_blocking(move || verso_core::read_picked(&file, max))
         .await
-        .map_err(|e| failed(format!("reading the chosen files: {e}")))
+        .map_err(|e| failed(format!("reading the chosen file: {e}")))?
+        .map_err(|e| match e {
+            verso_core::PickedError::TooLarge => refused("the file is larger than the limit"),
+            e => failed(e.to_string()),
+        })?;
+    let made = with(&state, &window, |ws| Ok(ws.create_file(&path, &bytes)?));
+    // A name taken leaves the token, so that the window may try the next
+    // free name; anything else ends it.
+    if !matches!(&made, Err(e) if e.kind == ErrorKind::Exists)
+        && let Ok(mut held) = HELD.lock()
+    {
+        held.remove(&token);
+    }
+    made
 }
 
 /// Create a folder inside the open folder; returns its confined path.
