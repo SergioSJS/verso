@@ -9,7 +9,9 @@
   decididos pelo mantenedor com a aceitação do
   [0073](0073-self-hosted-server-first.md), que tinha deixado `[ABERTO]`
   aqui onde moram a tabela de sessões e o despacho do serviço; os cinco
-  crates e as regras deles não mudam.
+  crates e as regras deles não mudam. 2026-10-21 — `crates/verso-cloud`
+  registrado, os remotos de nuvem da [0104](0104-external-cloud-storage-transports-and-quotas.md);
+  os cinco crates e as regras deles não mudam.
 
 ## Contexto
 
@@ -95,6 +97,13 @@ O `verso serve` é um subcomando do binário `verso` que o `verso-cli` já
 constrói, não um binário próprio
 ([0075](0075-server-packaging-and-storage.md) item 1). Nenhum dos dois
 crates muda o que os cinco crates podem fazer.
+
+**Um crate para os remotos de nuvem, 2026-10-21** ([0104](0104-external-cloud-storage-transports-and-quotas.md),
+construído naquele dia):
+
+- `crates/verso-cloud` — os remotos de nuvem da ADR 0104 (WebDAV, S3), do
+  lado do host. O `verso-core` e o `verso-fs` nunca dependem dele; ele não
+  toca disco. Não muda o que os cinco crates podem fazer.
 
 ## Alternativas descartadas
 
