@@ -16,7 +16,7 @@ Tools for game masters, solo players and people who build worlds — or just wri
 
 ## 🎚️ Turning on and off: Settings › Application › Features
 
-Each tool is a feature with its own switch: **Dice**, **Random tables**, **Oracles**, **Statblocks** (the ones in [[26 - Statblocks]]) and **World and campaign wizard**. All of them come **on**. The shortcuts **Everything** and **Writing only** turn them all on or off at once — first, Verso shows what will change, and you can cancel.
+The page has two groups: **Application** (for now, the **Data diagram**) and **RPG and tabletop**. Each tool is a feature with its own switch: **Dice**, **Random tables**, **Oracles**, **Statblocks** (the ones in [[26 - Statblocks]]) **World and campaign wizard** and **3D dice**. All of them come **on**, except 3D dice. The RPG group has **Turn all on** and **Turn all off** links, and **Oracles** and **Statblocks** have a **Settings…** link to their own page. The shortcuts **Everything** and **Writing only** turn them all on or off at once — first, Verso shows what will change, and you can cancel.
 
 Turning one off changes no file: a statblock becomes a code block, an `[!oracle]` becomes an ordinary callout, as Obsidian shows them without the plugin. Turning it on again brings everything back. The choice is **yours**: a folder never turns a feature on or off for whoever opens it.
 

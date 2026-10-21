@@ -247,24 +247,62 @@ describe("The Features settings page", () => {
       assert.ok(label.textContent.length > 0);
       assert.ok(desc.textContent.length > 10, "each switch says what it adds");
     }
-    const shortcuts = [...node.querySelectorAll("button")];
+    const shortcuts = [...node.querySelectorAll("button[aria-pressed]")];
     assert.equal(shortcuts.length, 2);
     assert.equal(shortcuts[0].getAttribute("aria-pressed"), "true");
     assert.equal(shortcuts[1].getAttribute("aria-pressed"), "false");
   });
 
+  test("the switches sit in two titled groups: the application's, then RPG and tabletop", () => {
+    const node = featureItems(ctx)[0].node();
+    const groups = [...node.querySelectorAll("fieldset")];
+    assert.deepEqual(groups.map((g) => g.dataset.group), ["app", "rpg"]);
+    for (const g of groups) assert.ok(g.querySelector(":scope > legend")?.textContent);
+    const ids = (g) => [...g.querySelectorAll("input[type=checkbox]")].map((b) => document.getElementById(b.getAttribute("aria-labelledby")).textContent);
+    assert.ok(ids(groups[0]).some((n) => /Diagrama de dados|Data diagram/.test(n)));
+    assert.equal(ids(groups[0]).some((n) => /Dados 3D|3D dice|Oráculos|Oracles/.test(n)), false);
+    for (const re of [/Oráculos|Oracles/, /Fichas|Statblocks/, /Dados 3D|3D dice/, /Assistente|wizard/]) assert.ok(ids(groups[1]).some((n) => re.test(n)), String(re));
+    assert.equal(ids(groups[0]).length + ids(groups[1]).length, FEATURE_IDS.length);
+  });
+
+  test("a group's 'all' links change only that group; 3D dice is not turned on", () => {
+    const node = featureItems(ctx)[0].node();
+    const rpg = node.querySelector('fieldset[data-group="rpg"]');
+    assert.equal(node.querySelector('fieldset[data-group="app"] .features-bulk'), null, "a group of one has no all-links");
+    const [on, off] = rpg.querySelectorAll(".features-bulk button");
+    off.click();
+    assert.equal(m.settings.features.oracles, false);
+    assert.equal(m.settings.features.diceRolling, false);
+    assert.equal(m.settings.features.dataDiagram, true);
+    on.click();
+    assert.equal(m.settings.features.oracles, true);
+    assert.equal(m.settings.features.dice3d, false);
+    assert.equal(m.settings.features.dataDiagram, true);
+  });
+
+  test("a switch of a feature with its own page carries a link to it", () => {
+    let went = "";
+    const node = featureItems({ ...ctx, open: (s) => { went = s; } })[0].node();
+    const links = [...node.querySelectorAll(".features-own-link")];
+    assert.equal(links.length, 2);
+    links[0].click();
+    assert.equal(went, "oracles");
+    links[1].click();
+    assert.equal(went, "statblocks");
+  });
+
   test("a switch changes the feature and the shortcut shows Custom", () => {
     const node = featureItems(ctx)[0].node();
-    const box = node.querySelectorAll("input[type=checkbox]")[2];
+    const box = [...node.querySelectorAll("input[type=checkbox]")].find((b) => /Oráculos|Oracles/.test(document.getElementById(b.getAttribute("aria-labelledby")).textContent));
     box.checked = false;
     box.dispatchEvent(new Event("change"));
     assert.equal(m.settings.features.oracles, false);
-    for (const b of node.querySelectorAll("button")) assert.equal(b.getAttribute("aria-pressed"), "false");
+    for (const b of node.querySelectorAll("button[aria-pressed]")) assert.equal(b.getAttribute("aria-pressed"), "false");
   });
 
   test("a shortcut asks first: cancel changes nothing, yes applies it", async () => {
     const node = featureItems(ctx)[0].node();
-    const writing = node.querySelectorAll("button")[1];
+    const writing = node.querySelectorAll("button[aria-pressed]")[1];
     writing.click();
     await new Promise((r) => setTimeout(r, 5));
     const box = document.querySelector(".confirm-box");
