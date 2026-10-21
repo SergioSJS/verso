@@ -693,6 +693,22 @@ export const commands = {
 	/**  Compare now, without waiting for a change or the scan. */
 	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
 	/**
+	 *  Check a cloud for the window's folder. Nothing is saved unless it is
+	 *  accepted; then the secret is kept in the system's keychain and the
+	 *  check's findings wait for [`folder_sync_cloud_start`].
+	 */
+	folderSyncCloudCheck: (settings: CloudSettings, secret: string) => typedError<CloudCheck, ContractError>(__TAURI_INVOKE("folder_sync_cloud_check", { settings, secret })),
+	/**
+	 *  Sync the window's folder with the cloud just checked (ADR 0104 item
+	 *  16): the first sync deletes nothing (ADR 0079 item 11).
+	 */
+	folderSyncCloudStart: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_cloud_start")),
+	/**
+	 *  The window's folder will not sync with the cloud it just checked: its
+	 *  secret leaves the keychain.
+	 */
+	folderSyncCloudCancel: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_cloud_cancel")),
+	/**
 	 *  A note the window just made from its template, and the text it was
 	 *  made with (ADR 0093 item 12): when the folder syncs and the server
 	 *  holds a note of the same name another device made apart from the same
@@ -1090,6 +1106,89 @@ export type CliState =
  *  it, and nothing is linked onto a PATH (ADR 0069, item 9).
  */
 "bundled";
+
+/**
+ *  The answer to checking a cloud before the folder syncs with it (ADR
+ *  0104 items 7 and 16): whether the service can keep the folder's edits
+ *  safe, and what is there already. Nothing is saved when it is not
+ *  `accepted`.
+ */
+export type CloudCheck = {
+	accepted: boolean,
+	/**
+	 *  When not accepted, why, for the window to say in its language:
+	 *  `plain_http_unconfirmed`, `plain_http_refused`, `invalid`,
+	 *  `auth`, `unreachable`, `service_refused`, `no_keyring`, `failed`.
+	 */
+	problem: string | null,
+	/**  The reason in English, for the log and as the window's fallback. */
+	message: string | null,
+	/**  Where, in a few words. */
+	label: string,
+	/**  What a deletion there means: `final`, `kept` or `unknown`. */
+	deletions: string,
+	/**  Things found that are not a refusal. */
+	notes: string[],
+	/**  The space left on the service, when it says (bytes). */
+	free: number | null,
+	/**  What is in the cloud's folder already. */
+	remote_files: number | null,
+	remote_bytes: number | null,
+};
+
+/**
+ *  What the person typed into the form to sync a folder with a cloud
+ *  (ADR 0104 item 6), except the secret — a password, an S3 secret key —
+ *  which crosses once in the check ([`CloudCheck`]) and is kept by the
+ *  host in the system's keychain.
+ */
+export type CloudSettings = {
+	/**  `webdav` or `s3`. */
+	provider: string,
+	/**
+	 *  WebDAV: the folder's address. S3: the endpoint's address, empty
+	 *  for AWS.
+	 */
+	endpoint: string,
+	/**  S3: the bucket, and a prefix inside it. */
+	bucket: string,
+	prefix: string,
+	/**  S3: the region requests are signed for. */
+	region: string,
+	/**  WebDAV: the user. S3: the access key's id. */
+	user: string,
+	/**  S3: the bucket in the path (MinIO and most self-hosted services). */
+	path_style: boolean,
+	/**
+	 *  The person confirmed that a plain-HTTP address on the local
+	 *  network is theirs.
+	 */
+	plain_http: boolean,
+};
+
+/**
+ *  A cloud a folder syncs with, as its window shows it (ADR 0104 item
+ *  16). The secret is not here and never will be: it is in the system's
+ *  keychain, and the window sends it once and never reads it back (ADR
+ *  0026).
+ */
+export type CloudStatus = {
+	/**  `webdav` or `s3`. */
+	provider: string,
+	/**
+	 *  Where, in a few words: the server and folder, or the bucket and
+	 *  prefix.
+	 */
+	label: string,
+	/**
+	 *  What deleting a file there means (item 9, said when the person
+	 *  connected): `final`, `kept` (the bucket keeps earlier versions) or
+	 *  `unknown`.
+	 */
+	deletions: string,
+	/**  What the checks at connecting found that the person should know. */
+	notes: string[],
+};
 
 /**
  *  A file joined for editing by several people at once (ADR 0073 item 7,
@@ -2797,6 +2896,11 @@ export type SyncStatus = {
 	 *  kept (ADR 0081 item 8). Said until sync is turned on again.
 	 */
 	revoked: string | null,
+	/**
+	 *  With a cloud (ADR 0104) instead of a UniVerso: which one and where,
+	 *  and what a deletion there means. `None` for a UniVerso.
+	 */
+	cloud: CloudStatus | null,
 };
 
 /**

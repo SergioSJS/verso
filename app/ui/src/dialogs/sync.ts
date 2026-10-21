@@ -19,11 +19,12 @@ import { addressOf, attempt, reachStrings } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { liveTogether } from "../settings";
 import { drawSyncOn } from "./syncView";
+import { type Cloud, chooser, cloudProblem, deviceNameRow, drawCloudForm } from "./syncCloud";
 
 const pt = {
   section: "Sincronizar",
-  title: "Sincronizar com um servidor",
-  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um UniVerso guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.",
+  title: "Sincronizar com um servidor ou uma nuvem",
+  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um UniVerso guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você — ou uma nuvem que você já tem (WebDAV, S3) para os seus outros computadores.",
   noServer: "Conecte a um servidor em Servidores primeiro.",
   toServers: "Ir para Servidores",
   server: "Servidor",
@@ -120,8 +121,8 @@ const pt = {
 };
 const en: typeof pt = {
   section: "Sync",
-  title: "Sync with a server",
-  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a UniVerso keeps the same files for your other devices, the browser and whoever shares the folder with you.",
+  title: "Sync with a server or a cloud",
+  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a UniVerso keeps the same files for your other devices, the browser and whoever shares the folder with you — or a cloud you already have (WebDAV, S3) for your other computers.",
   noServer: "Connect to a server in Servers first.",
   toServers: "Go to Servers",
   server: "Server",
@@ -244,7 +245,7 @@ export function preselectSync(url: string, folder: string): void {
   preselected = { url, folder };
 }
 
-function size(bytes: number | null): string {
+export function size(bytes: number | null): string {
   let n = bytes ?? 0;
   const units = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
@@ -271,6 +272,8 @@ function when(stamp: string): string {
 function problemText(st: SyncStatus): string | null {
   const s = syncStrings();
   if (st.problem === "version" && st.versions) return s.versions(st.versions);
+  const cloud = cloudProblem(st.problem);
+  if (cloud) return cloud;
   return (st.problem && s.problems[st.problem]) || st.message;
 }
 
@@ -372,6 +375,11 @@ type Item = (title: string, desc: string, control: HTMLElement | null) => HTMLEl
  *  the sync's view follows every status. */
 export function syncBody(item: Item): HTMLElement {
   const box = h("div", "sync");
+  // What the status repaints, and the computer's name beside it, which it
+  // does not (a name being typed keeps its focus). The name needs no
+  // server (ADR 0104 item 4, C.13).
+  const body = h("div", "sync-body");
+  box.append(body, deviceNameRow(item));
   let wasOn: boolean | null = null;
   let wasRevoked: string | null = null;
   const draw = () => {
@@ -381,8 +389,8 @@ export function syncBody(item: Item): HTMLElement {
     }
     const on = status?.on ?? false;
     const revoked = on ? null : (status?.revoked ?? null);
-    if (on) drawOn(box, status as SyncStatus);
-    else if (wasOn !== false || revoked !== wasRevoked) void drawOff(box, item);
+    if (on) drawOn(body, status as SyncStatus);
+    else if (wasOn !== false || revoked !== wasRevoked) void drawOff(body, item);
     wasOn = on;
     wasRevoked = revoked;
   };
@@ -391,6 +399,10 @@ export function syncBody(item: Item): HTMLElement {
   void refresh();
   return box;
 }
+
+/** Where the folder syncs, as the form last chose it: a UniVerso, or a
+ *  cloud (ADR 0104 item 16). Kept so a redraw does not forget it. */
+let choice = "universo";
 
 async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   const s = syncStrings();
@@ -411,6 +423,23 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
       h("p", "sync-item-why", s.revokedWhy(st.folder_name || st.folder, hostOf(st.server), when(st.revoked))),
     );
     box.prepend(notice);
+  }
+  // A UniVerso or a cloud the person already has: one place per folder.
+  const deps = {
+    item,
+    size,
+    started: (st: SyncStatus) => {
+      status = st;
+      paint();
+    },
+  };
+  box.append(chooser(choice, (value) => {
+    choice = value;
+    void drawOff(box, item);
+  }, deps));
+  if (choice === "webdav" || choice === "s3") {
+    drawCloudForm(box, choice as Cloud, deps);
+    return;
   }
   const accounts = await commands.serverAccounts();
   if (accounts.status !== "ok") return fail(accounts.error);

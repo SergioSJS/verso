@@ -22,6 +22,7 @@ import { liveLine, liveWords } from "../coeditWords";
 import { liveTogether, setLiveTogether } from "../settings";
 import { madeBy } from "../syncWho";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
+import { aboutCloud, cloudStrings, cloudWords, providerName } from "./syncCloud";
 
 const pt = {
   allGood: "Tudo em dia.",
@@ -209,8 +210,15 @@ const en: typeof pt = {
   },
 };
 
-function words(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+export type Words = typeof pt;
+
+/** The folder drawn now syncs with a cloud, not a UniVerso (ADR 0104):
+ *  the words that name the server say the cloud instead. */
+let cloudMode = false;
+
+function words(): Words {
+  const base = document.documentElement.lang.startsWith("pt") ? pt : en;
+  return cloudMode ? cloudWords(base) : base;
 }
 
 function locale(): string {
@@ -248,6 +256,7 @@ function headline(st: SyncStatus, waiting: number): { text: string; tone: "ok" |
   if (st.state === "paused" && st.deletions) return { text: s.stoppedBefore(st.deletions), tone: "attention" };
   if (st.state === "paused") return { text: s.paused, tone: "quiet" };
   // The server, not the network, did not answer: named, and why it may be.
+  if (st.state === "offline" && st.problem === "unreachable" && st.cloud) return { text: `${cloudStrings().unreachable(st.cloud.label)} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline" && st.problem === "unreachable") return { text: `${reachStrings().unreachable(addressOf(st.server))} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline") return { text: s.offline, tone: "quiet" };
   if (st.state === "starting") return { text: s.connecting, tone: "busy" };
@@ -271,6 +280,7 @@ function capitalized(text: string): string {
 /** Draw the section for a folder that syncs. `openServers` opens the
  *  Servers section, where a computer signs in again. */
 export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void, own?: { turnOff: boolean }): void {
+  cloudMode = Boolean(st.cloud);
   const s = words();
   // Conflicts by the note they are of; files left out by why.
   const byNote = new Map<string, string[]>();
@@ -288,7 +298,11 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   const sentence = h("p", "sync-sentence", said.text);
   sentence.dataset["tone"] = said.tone;
   sentence.setAttribute("role", "status");
-  const meta = [s.where(st.folder_name || st.folder, st.server.replace(/^https?:\/\//, "")), st.role ? s.role(st.role) : "", st.last ? s.last(ago(st.last)) : ""]
+  const meta = (
+    st.cloud
+      ? [`${providerName(st.cloud.provider)} · ${st.cloud.label}`, st.last ? s.last(ago(st.last)) : ""]
+      : [s.where(st.folder_name || st.folder, st.server.replace(/^https?:\/\//, "")), st.role ? s.role(st.role) : "", st.last ? s.last(ago(st.last)) : ""]
+  )
     .filter(Boolean)
     .join(" · ");
   const metaLine = h("p", "sync-meta", meta);
@@ -323,7 +337,9 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   }
   top.append(sentence, metaLine);
   if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
-  top.append(actions, togetherRow(refresh));
+  // A cloud has no rooms: the notes never join simultaneous editing.
+  top.append(actions);
+  if (!st.cloud) top.append(togetherRow(refresh));
 
   // 2. What needs the person, or the calm that nothing does.
   const needs = h("section", "sync-needs");
@@ -395,7 +411,8 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
     history.append(ol);
   }
 
-  box.replaceChildren(top, needs, history);
+  const about = aboutCloud(st);
+  box.replaceChildren(...[top, needs, about, history].filter((n): n is HTMLElement => n !== null));
 }
 
 /** The person's setting for this folder (ADR 0082 item 15): its notes
