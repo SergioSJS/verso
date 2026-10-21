@@ -47,6 +47,7 @@ test release.
 
 ### Fixed
 
+- **On Windows, a save no longer changes the case of a file's name**: a write through another spelling of the name (a device that still knew `Receita.md` for the file the disk holds as `receita.md`) replaced the file and, on NTFS, renamed it to the case written. The write now goes over the name as the disk keeps it.
 - **The phone-serving port survives turning serving off and on**: the port chosen the first time is waited for (up to five seconds) while the old listener closes, instead of being swapped for another at once, so the address phones saved keeps working.
 - **Pressing a note in the graph no longer moves the view (accessibility)**: a click or drag on a note near the graph's edge used to re-centre the view before the drag began; only moving to a note with the keyboard brings it into view now.
 - **The graph's count is announced once typing pauses (accessibility)**: filtering the graph updates the count on screen at every key, but a screen reader hears it only about a second after you stop typing.

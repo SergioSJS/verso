@@ -47,6 +47,7 @@ versão de teste.
 
 ### Corrigido
 
+- **No Windows, salvar não troca mais a caixa do nome de um arquivo**: uma gravação por outra grafia do nome (um dispositivo que ainda conhecia `Receita.md` para o arquivo que o disco guarda como `receita.md`) substituía o arquivo e, no NTFS, o renomeava para a caixa escrita. Agora a gravação vai sobre o nome como o disco o guarda.
 - **A porta do servir para celulares sobrevive a desligar e ligar**: a porta escolhida na primeira vez é aguardada (até cinco segundos) enquanto o ouvinte antigo se fecha, em vez de trocada por outra na hora, então o endereço que os celulares guardaram continua valendo.
 - **Apertar uma nota no grafo não move mais a vista (acessibilidade)**: um clique ou arrasto numa nota perto da borda do grafo recentrava a vista antes do arrasto começar; agora só ir até uma nota pelo teclado a traz para a vista.
 - **A contagem do grafo é anunciada quando a digitação pausa (acessibilidade)**: filtrar o grafo atualiza a contagem na tela a cada tecla, mas o leitor de tela só a lê cerca de um segundo depois que você para de digitar.
