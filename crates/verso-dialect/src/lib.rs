@@ -192,4 +192,13 @@ pub struct Callout {
     pub span: Span,
     /// Position of the `>` of the first line.
     pub pos: Pos,
+    /// How many callouts enclose it, itself included: 1 for a callout that
+    /// is in no other, 2 for one inside that, up to [`MAX_CALLOUT_DEPTH`]
+    /// (spec Q5; the reading view's limit).
+    pub depth: u32,
 }
+
+/// How many callouts deep a callout is recognized, inside other callouts.
+/// A blockquote past it stays a blockquote, as the reading view draws it
+/// (spec Q5, decided 2026-10-21).
+pub const MAX_CALLOUT_DEPTH: u32 = 32;

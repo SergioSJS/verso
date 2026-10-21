@@ -46,7 +46,7 @@ allowed_under() {
     property_links) echo 'property|item|target|heading|block|alias|pos' ;;
     headings)  echo 'level|text|pos' ;;
     blocks)    echo 'id|pos|lines' ;;
-    callouts)  echo 'kind|title|fold|pos' ;;
+    callouts)  echo 'kind|title|fold|depth|pos' ;;
     prose)     echo 'text|table|pos' ;;
     observed)  echo 'app|version|how' ;;
     pos)       echo 'line|col' ;;
@@ -68,7 +68,7 @@ check_keys() {
       else if (parent == "links" || parent == "embeds") list = "target|heading|block|alias|syntax|pos"
       else if (parent == "headings") list = "level|text|pos"
       else if (parent == "blocks") list = "id|pos|lines"
-      else if (parent == "callouts") list = "kind|title|fold|pos"
+      else if (parent == "callouts") list = "kind|title|fold|depth|pos"
       else if (parent == "prose") list = "text|table|pos"
       else if (parent == "property_links") list = "property|item|target|heading|block|alias|pos"
       else if (parent == "observed") list = "app|version|how"
