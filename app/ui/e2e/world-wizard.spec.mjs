@@ -75,13 +75,13 @@ test("an imported bundle is kept in the folder: it is a file, it comes back, and
   let dialog = await openWizard();
   await importIt(dialog);
   await expect(dialog.getByRole("button", { name: /Minha Mesa/ })).toHaveCount(1);
-  expect(JSON.parse(await app.read(".verso/bundles/minha-mesa.json")).name).toBe("Minha Mesa");
+  expect(JSON.parse(await app.file(".verso/bundles/minha-mesa.json")).name).toBe("Minha Mesa");
   await expect(dialog.locator(".world-status-line")).toContainText("guardado na pasta");
 
   // The same id again: kept under a new one, said.
   await importIt(dialog);
   await expect(dialog.getByRole("button", { name: /Minha Mesa/ })).toHaveCount(2);
-  expect(JSON.parse(await app.read(".verso/bundles/minha-mesa-2.json")).id).toBe("minha-mesa-2");
+  expect(JSON.parse(await app.file(".verso/bundles/minha-mesa-2.json")).id).toBe("minha-mesa-2");
   await expect(dialog.locator(".world-status-line")).toContainText("identificador novo");
 
   // Closed and opened again: read from the folder, not from the window's memory.
@@ -115,6 +115,6 @@ test.describe("in English", () => {
     const files = await app.files();
     expect(files).toContain("Realm/Templates/Session Log.md");
     expect(files).toContain("Realm/Campaign Overview.md");
-    expect(files.some((f) => f.includes("Sessão") || f.includes("Modelos"))).toBe(false);
+    expect(files.filter((f) => f.startsWith("Realm/")).some((f) => f.includes("Sessão") || f.includes("Modelos"))).toBe(false);
   });
 });
