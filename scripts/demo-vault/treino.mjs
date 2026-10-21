@@ -312,8 +312,7 @@ const LESSONS = [
 ];
 
 /** The board. */
-export function treino() {
-  const b = new Board();
+export function treino(b = new Board()) {
   const at = (i) => [(i % COLUMNS) * (W + GAP_X), Math.floor(i / COLUMNS) * (H + GAP_Y)];
   LESSONS.forEach((l, i) => {
     const [x, y] = at(i);
