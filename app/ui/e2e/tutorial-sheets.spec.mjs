@@ -128,7 +128,7 @@ for (const [width, scheme] of [[600, "light"], [600, "dark"], [1400, "light"]]) 
     await setup(app, page, width, scheme);
     const text = await noteText(app, SHEETS);
     const want = fences(text);
-    expect(want, "one example for each of the 34 built-in layouts").toBe(34);
+    expect(want, "one example for each of the 40 built-in layouts, and two of inheritance (Goblin and Goblin Rei)").toBe(42);
     await open(app, page, SHEETS, "Leitura");
     const root = page.locator("div.preview:visible");
     const cards = root.locator(".statblock-card");

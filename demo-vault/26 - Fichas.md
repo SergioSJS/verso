@@ -9,7 +9,7 @@ status: ativo
 
 # Fichas
 
-Uma ficha de monstro, de personagem ou de facção sem sair da nota. Aqui você vê **um exemplo de cada layout que vem com o Verso** — 34 no total — e aprende a usá-los. O que a ficha guarda é **Markdown puro**: um bloco de código que qualquer editor lê.
+Uma ficha de monstro, de personagem ou de facção sem sair da nota. Aqui você vê **um exemplo de cada layout que vem com o Verso** — 40 no total — e aprende a usá-los. O que a ficha guarda é **Markdown puro**: um bloco de código que qualquer editor lê.
 
 Ela é um recurso com chave própria: **Ajustes › Aplicação › Recursos › Fichas** (veja [[27 - Oráculos e Criação de Mundos]]). Desligada, cada ficha vira um bloco de código.
 
@@ -698,6 +698,188 @@ antecipacao: 3
 fatos_aplicaveis: 2
 ```
 
+### World of Darkness 5ª edição (Dark Pack) e Cyberpunk RED (em branco)
+
+Layouts só com **nomes de campos**, sem nenhum texto de regras. Os de World of Darkness saem sob o *Dark Pack* da Paradox: material **não oficial, feito por fãs**, gratuito e sem fins comerciais — por isso cada ficha traz, no rodapé, os avisos que o acordo exige. Os de Cyberpunk RED são fichas **em branco** sob a Homebrew Content Policy da R. Talsorian Games, com o aviso dela no rodapé. Os pools de dados (regulares e de Fome, Fúria ou Desesperança) rolam pelo botão *Rolar o pool*. Mage: The Ascension não vem embutido — importe um layout seu.
+
+**Vampire: The Masquerade 5e — personagem** (`layout: vtm5-character`)
+
+```statblock
+layout: vtm5-character
+name: Ilse Varga
+concept: A sample of our own
+clan: Sample clan
+generation: 12
+attributes_physical:
+  strength: 2
+  dexterity: 3
+  stamina: 2
+attributes_social:
+  charisma: 3
+  manipulation: 2
+  composure: 3
+attributes_mental:
+  intelligence: 2
+  wits: 3
+  resolve: 2
+skills_physical:
+  stealth: 2
+  brawl: 1
+skills_social:
+  persuasion: 2
+skills_mental:
+  investigation: 3
+hunger: 2
+hunger_max: 5
+health: 5
+health_superficial: 1
+health_aggravated: 0
+willpower: 5
+willpower_superficial: 2
+humanity: 7
+stains: 0
+blood_potency: 1
+touchstones_convictions:
+  - A sample touchstone
+```
+
+**Vampire: The Masquerade 5e — antagonista** (`layout: vtm5-antagonist`)
+
+```statblock
+layout: vtm5-antagonist
+name: A sample antagonist
+difficulty: 3
+pools:
+  physical: 5
+  social: 3
+  mental: 4
+notes: A note of our own, not a book's.
+```
+
+**Werewolf: The Apocalypse 5e — personagem** (`layout: wta5-character`)
+
+```statblock
+layout: wta5-character
+name: Rook Hale
+concept: A sample of our own
+tribe: Sample tribe
+auspice: Sample auspice
+form: Homid
+attributes_physical:
+  strength: 3
+  dexterity: 2
+  stamina: 3
+attributes_social:
+  charisma: 2
+  manipulation: 1
+  composure: 2
+attributes_mental:
+  intelligence: 2
+  wits: 3
+  resolve: 3
+skills_physical:
+  athletics: 2
+  survival: 3
+renown:
+  first: 1
+  second: 0
+rage: 1
+rage_max: 5
+health: 6
+health_superficial: 0
+health_aggravated: 0
+willpower: 6
+willpower_superficial: 1
+willpower_aggravated: 0
+touchstones:
+  - A sample touchstone
+```
+
+**Hunter: The Reckoning 5e — personagem** (`layout: htr5-character`)
+
+```statblock
+layout: htr5-character
+name: Maren Oyelaran
+concept: A sample of our own
+creed: Sample creed
+cell: The sample cell
+drive: Sample drive
+attributes_physical:
+  strength: 2
+  dexterity: 2
+  stamina: 3
+attributes_social:
+  charisma: 2
+  manipulation: 2
+  composure: 3
+attributes_mental:
+  intelligence: 3
+  wits: 2
+  resolve: 3
+skills_mental:
+  investigation: 3
+edges:
+  - A sample edge
+desperation: 2
+desperation_max: 5
+danger: 1
+health: 6
+health_superficial: 1
+health_aggravated: 0
+willpower: 6
+willpower_superficial: 0
+willpower_aggravated: 0
+```
+
+**Cyberpunk RED — ficha de personagem em branco** (`layout: cpr-blank-character`)
+
+```statblock
+layout: cpr-blank-character
+name: A sample runner
+role: Sample role
+role_rank: 4
+stats:
+  INT: 6
+  REF: 7
+  DEX: 6
+  TECH: 5
+  COOL: 7
+  WILL: 6
+  MOVE: 5
+  BODY: 6
+  EMP: 5
+  LUCK: 6
+skills_awareness:
+  Perception: 4
+skills_social:
+  Conversation: 3
+hit_points: 30
+hit_points_max: 35
+armor_body: 7
+weapons:
+  - name: A sample weapon
+    desc: 3d6
+notes: A note of our own.
+```
+
+**Cyberpunk RED — ficha de PNJ em branco** (`layout: cpr-blank-npc`)
+
+```statblock
+layout: cpr-blank-npc
+name: A sample NPC
+stats:
+  REF: 6
+  DEX: 6
+  BODY: 6
+hit_points: 25
+hit_points_max: 25
+armor_body: 4
+weapons:
+  - name: A sample weapon
+    desc: 2d6
+notes: A note of our own.
+```
+
 ### Layouts genéricos, nomeados pela mecânica
 
 Sem sistema nem licença: servem de ponto de partida para o seu próprio.
@@ -817,6 +999,55 @@ facts:
   - Toll collected at dusk
   - Nobody remembers who built it
 notes: Roll 1d6 when the toll goes unpaid.
+```
+
+---
+
+## 🧬 Herança: `monster:` e `extends:`
+
+Como no Fantasy Statblocks, uma ficha pode **partir de outra** e mudar só o que for diferente. No Verso o "bestiário" são as suas **notas comuns**: uma criatura é qualquer bloco `statblock` com aquele `name:` (ou o primeiro bloco da nota com aquele título, ou o frontmatter de uma nota com `statblock: true`). Se houver duas, vale o `name:` escrito exatamente igual, depois o título da nota, depois a ordem do caminho.
+
+- `monster: Goblin` pega a criatura chamada Goblin; as chaves do bloco **vencem** as dela.
+- `extends: [[Goblin]]` faz o mesmo a partir de **outra nota**; `extends:` aceita uma lista (a primeira da lista vence a segunda, e cada base pode ter a sua própria base).
+- Nas listas que o layout desenha como traços (`traits`, `actions`…) valem os nomes: um traço com o mesmo nome **troca** o da base; `traits+:` **soma**, `traits-:` **tira** e `traits~:` **muda** um que já existe.
+- É só leitura: nada é gravado na nota-base. Edite a base e a ficha que parte dela se redesenha. Uma base que não existe, um círculo (A parte de B, B parte de A) ou mais de 8 níveis aparecem como aviso na própria ficha.
+
+**Goblin — a base**
+
+```statblock
+layout: d20-creature
+name: Goblin
+size: Small
+type: humanoid
+alignment: neutral evil
+ac: 15
+hp: 7
+hit_dice: 2d6
+hp_current: 7
+speed: 30 ft.
+stats: [8, 14, 10, 10, 8, 8]
+senses: darkvision 60 ft.
+languages: Common, Goblin
+cr: 1/4
+traits:
+  - name: Nimble Escape
+    desc: A trait of our own making.
+actions:
+  - name: Scimitar
+    desc: +4 to hit, reach 5 ft. Hit 5 (1d6 + 2) slashing damage.
+```
+
+**Goblin Rei — parte do Goblin** (note o link *baseado em Goblin*)
+
+```statblock
+monster: Goblin
+name: Goblin Rei
+hp: 21
+hp_current: 21
+cr: 1
+traits+:
+  - name: Coroa de ferro
+    desc: A trait of our own, added to the Goblin's.
 ```
 
 ---

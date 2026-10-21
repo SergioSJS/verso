@@ -81,6 +81,9 @@ export type SystemNotice = {
   licenceText?: { title: string; paragraphs: readonly string[] };
 };
 
+const DARK_PACK_RIGHTS = "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission.";
+const DARK_PACK_MORE = "All rights reserved. For more information please visit worldofdarkness.com.";
+
 /** One entry per built-in layout family of ADR 0099 item 6. */
 export const SYSTEMS: SystemNotice[] = [
   {
@@ -221,6 +224,77 @@ export const SYSTEMS: SystemNotice[] = [
     link: "https://olddragon.com.br/licenciamento",
   },
   {
+    id: "vtm5",
+    name: "Vampire: The Masquerade",
+    licence: "Paradox Dark Pack",
+    // The Dark Pack's two required lines, word for word, then the statement
+    // that the content is not official World of Darkness material (the
+    // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
+    // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
+    // material: that file comes from Paradox's Dark Pack kit and is not in
+    // this build yet.
+    lines: [
+      "Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
+      DARK_PACK_RIGHTS,
+      DARK_PACK_MORE,
+      "This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack.",
+    ],
+    link: "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement",
+  },
+  {
+    id: "wta5",
+    name: "Werewolf: The Apocalypse",
+    licence: "Paradox Dark Pack",
+    // The Dark Pack's two required lines, word for word, then the statement
+    // that the content is not official World of Darkness material (the
+    // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
+    // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
+    // material: that file comes from Paradox's Dark Pack kit and is not in
+    // this build yet.
+    lines: [
+      "Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
+      DARK_PACK_RIGHTS,
+      DARK_PACK_MORE,
+      "This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack.",
+    ],
+    link: "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement",
+  },
+  {
+    id: "htr5",
+    name: "Hunter: The Reckoning",
+    licence: "Paradox Dark Pack",
+    // The Dark Pack's two required lines, word for word, then the statement
+    // that the content is not official World of Darkness material (the
+    // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
+    // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
+    // material: that file comes from Paradox's Dark Pack kit and is not in
+    // this build yet.
+    lines: [
+      "Hunter: The Reckoning, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
+      DARK_PACK_RIGHTS,
+      DARK_PACK_MORE,
+      "This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack.",
+    ],
+    link: "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement",
+  },
+  {
+    id: "cyberpunk-red",
+    name: "Cyberpunk RED",
+    licence: "R. Talsorian Games Homebrew Content Policy",
+    // The policy's required disclaimer, word for word, read at
+    // https://rtalsoriangames.com/homebrew-content-policy/ on 2026-10-21;
+    // "[Title of your Content]" is each blank layout's name. Blank sheets of
+    // field names only: no text, no stat block, no art of R. Talsorian's.
+    lines: [
+      "Blank sheet — for Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.",
+      "NPC sheet — for Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.",
+    ],
+    link: "https://rtalsoriangames.com/homebrew-content-policy/",
+  },
+  {
     id: "fractal",
     name: "Fractal",
     licence: "CC BY 4.0",
@@ -245,4 +319,4 @@ const RUST_LIBS: Dependency[] = [
 export const DEPENDENCIES: Dependency[] = [...RUST_LIBS, ...JS_LIBS];
 
 /** The built-in families ADR 0099 item 6 lists; the test holds SYSTEMS to it. */
-export const BUILT_IN_IDS = ["dnd5e-5.2.1", "dnd5e-5.1", "pathfinder2e", "starfinder2e", "13th-age", "dungeon-world", "blades", "fate", "mausritter", "ironsworn", "cairn", "old-dragon-2e", "fractal"];
+export const BUILT_IN_IDS = ["dnd5e-5.2.1", "dnd5e-5.1", "pathfinder2e", "starfinder2e", "13th-age", "dungeon-world", "blades", "fate", "mausritter", "ironsworn", "cairn", "old-dragon-2e", "vtm5", "wta5", "htr5", "cyberpunk-red", "fractal"];

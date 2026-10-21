@@ -47,7 +47,7 @@ beforeEach(() => {
   m.setStatblockLang("en");
 });
 
-const NOT_OPEN = /daggerheart|tormenta|cthulhu|savage|vampire|werewolf|hunter|mage|alien|one ring|mothership|forbidden lands|vaesen|dragonbane|tales from the loop|twilight|cyberpunk|shadowrun|warhammer|kids on bikes|brindlewood|ordem paranormal|world of darkness|year zero|apocalypse/i;
+const NOT_OPEN = /daggerheart|tormenta|cthulhu|savage|mage|alien|one ring|mothership|forbidden lands|vaesen|dragonbane|tales from the loop|twilight|shadowrun|warhammer|kids on bikes|brindlewood|ordem paranormal|year zero/i;
 
 describe("the built-in layouts", () => {
   test("every file reads with zero problems; ids are unique and well formed", () => {
@@ -116,6 +116,79 @@ describe("the built-in layouts", () => {
   test("a layout name resolves to its built-in with no unknown-layout badge", () => {
     const card = m.renderStatblock("layout: Fractal — Personagem\nname: x", undefined, {});
     assert.equal(card.dataset.layout, "fractal-character");
+  });
+});
+
+describe("World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)", () => {
+  const ids = ["vtm5-character", "vtm5-antagonist", "wta5-character", "htr5-character", "cpr-blank-character", "cpr-blank-npc"];
+  const by = (id) => m.builtinLayouts().find((l) => l.id === id);
+  const DARK = [
+    "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission.",
+    "All rights reserved. For more information please visit worldofdarkness.com.",
+    "not official World of Darkness material",
+  ];
+
+  test("the six layouts are built in, in both languages, with sources", () => {
+    for (const id of ids) {
+      const l = by(id);
+      assert.ok(l, id);
+      assert.ok(l.name.pt && l.name.en && l.description.pt && l.description.en, id);
+      assert.ok(l.sources.length >= 2, id);
+    }
+    assert.ok(!by("mage-character") && !m.builtinLayouts().some((l) => /mage/i.test(l.id)), "Mage stays importable only");
+    assert.ok(!by("wta5-antagonist") && !by("htr5-antagonist"), "their adversary sheets are not read from a source yet");
+  });
+
+  test("the World of Darkness sheets roll a d10 pool of the wod5 profile and carry the Dark Pack notice on the card", () => {
+    for (const id of ["vtm5-character", "wta5-character", "htr5-character"]) {
+      const l = by(id);
+      assert.equal(l.profile, "wod5", id);
+      assert.ok(l.blocks.some((b) => b.type === "roll"), id);
+    }
+    for (const id of ["vtm5-character", "vtm5-antagonist", "wta5-character", "htr5-character"]) {
+      const card = m.renderStatblock(m.builtinSample(id), undefined, { layout: by(id) });
+      const text = card.querySelector('[data-block="notice"]').textContent;
+      for (const line of DARK) assert.ok(text.includes(line), `${id}: ${line}`);
+      assert.match(text, /fan-made/);
+    }
+  });
+
+  test("a card rolls the pool with Hunger dice as the profile counts them", async () => {
+    const card = m.renderStatblock(m.builtinSample("vtm5-character"), undefined, { layout: by("vtm5-character"), rolls: true, rollWith: { deterministic: [10, 10, 7, 2] } });
+    const go = card.querySelector("button.statblock-roll-go");
+    assert.ok(go);
+    const fields = card.querySelectorAll(".statblock-roll-field input");
+    assert.equal(fields.length, 3, "regular dice, Hunger dice, difficulty");
+    fields[0].value = "3";
+    fields[1].value = "1";
+    go.click();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(card.querySelector(".statblock-roll-failed"), null);
+    assert.ok(card.querySelector(".statblock-roll-out").textContent.length > 0);
+  });
+
+  test("a Cyberpunk RED sheet is blank: field names, no stat block, the policy's disclaimer word for word", () => {
+    for (const id of ["cpr-blank-character", "cpr-blank-npc"]) {
+      const l = by(id);
+      assert.ok(!l.profile && !l.blocks.some((b) => b.type === "roll"), `${id}: no rules mechanics invented`);
+      const card = m.renderStatblock(m.builtinSample(id), undefined, { layout: l });
+      const text = card.querySelector('[data-block="notice"]').textContent;
+      assert.equal(text, `${l.name.en} is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.`);
+      // The layout's title is a descriptive subtitle, not the game's title.
+      assert.doesNotMatch(l.name.en, /^Cyberpunk/);
+    }
+  });
+
+  test("the layouts hold field names only: no sentence of rules in any block label", () => {
+    for (const id of ids) {
+      const walk = (blocks) => {
+        for (const b of blocks) {
+          for (const lab of [b.label?.en, b.label?.pt]) if (lab) assert.ok(lab.length <= 60 && !/[.;]/.test(lab), `${id}: ${lab}`);
+          if (b.nested) walk(b.nested);
+        }
+      };
+      walk(by(id).blocks);
+    }
   });
 });
 

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "cpr-blank-npc",
+  "name": {
+    "pt": "Ficha de PNJ — Cyberpunk RED",
+    "en": "NPC sheet — for Cyberpunk RED"
+  },
+  "description": {
+    "pt": "Uma ficha em branco de campos para um personagem não jogador, gratuita, sem texto de regras e sem ficha pronta. Conteúdo não oficial sob a Homebrew Content Policy da R. Talsorian Games.",
+    "en": "A blank sheet of field names for a non-player character, free to use, with no rules text and no stat block. Unofficial content under R. Talsorian Games' Homebrew Content Policy."
+  },
+  "sources": [
+    {
+      "label": "R. Talsorian Games, Homebrew Content Policy",
+      "url": "https://rtalsoriangames.com/homebrew-content-policy/"
+    },
+    {
+      "label": "R. Talsorian Games, mooks sheet (field names)",
+      "url": "https://rtalsoriangames.com/wp-content/uploads/2021/10/RTG-CPR-MooksSheetFormFillable.pdf"
+    }
+  ],
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"saves","id":"stats","properties":["stats"],"label":{"pt":"Stats","en":"Stats"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"group","id":"tracks","properties":["hit_points","hit_points_max","seriously_wounded","death_save"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"hit-points","properties":["hit_points","hit_points_max"],"label":{"pt":"Hit Points","en":"Hit Points"},"hideWhenEmpty":true,"current":"hit_points","max":"hit_points_max","style":"boxes"},{"type":"property","id":"seriously-wounded","properties":["seriously_wounded"],"label":{"pt":"Seriously Wounded","en":"Seriously Wounded"},"hideWhenEmpty":true},{"type":"property","id":"death-save","properties":["death_save"],"label":{"pt":"Death Save","en":"Death Save"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"armor","properties":["armor_head","armor_body"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"armor-head","properties":["armor_head"],"label":{"pt":"Armor: Head (SP)","en":"Armor: Head (SP)"},"hideWhenEmpty":true},{"type":"property","id":"armor-body","properties":["armor_body"],"label":{"pt":"Armor: Body (SP)","en":"Armor: Body (SP)"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"weapons","properties":["weapons"],"label":{"pt":"Weapons","en":"Weapons"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"skill-bases","properties":["skill_bases"],"label":{"pt":"Skill Bases","en":"Skill Bases"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"cyberware","properties":["cyberware"],"label":{"pt":"Cyberware and Special Equipment","en":"Cyberware and Special Equipment"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"NPC sheet — for Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.","en":"NPC sheet — for Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees."},"dice":false,"rule":false}
+  ]
+}
