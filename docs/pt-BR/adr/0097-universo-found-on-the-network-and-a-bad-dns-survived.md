@@ -29,7 +29,9 @@
   recomendadas: os itens 2, 3, 5, 7a, 9 e 10 e os limites da descoberta
   (item 4) ficam decididos como construídos (0097.2, 0097.3, 0097.4,
   0097.5, 0097.7a-i, 0097.7a-ii, 0097.9, 0097.10). O item 8 (o texto do erro
-  "inacessível") não foi respondido e continua `[PROPOSTO]`.
+  "inacessível") não foi respondido então e continuou `[PROPOSTO]`; o
+  mantenedor o respondeu mais tarde no mesmo dia (0097.8, opção A), e ele é
+  `[DECIDIDO 2026-10-21]`.
 
 ## Contexto
 
@@ -237,7 +239,8 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
       todo tamanho conferido, todo laço limitado, um id de consulta
       aleatório), não o `hickory`; veja as Alternativas descartadas.
 
-8. **`[PROPOSTO]` O erro nomeia o que foi tentado.** A mensagem de um erro
+8. **`[DECIDIDO 2026-10-21]` O erro nomeia o que foi tentado** (0097.8,
+   opção A, como construído). A mensagem de um erro
    de inalcançável é o endereço do servidor e, quando o nome foi resolvido,
    cada IP tentado numa linha depois dele. O log diz uma vez por minuto:
    `unreachable: the server at https://universo.casa.meioorc.com: … [universo.casa.meioorc.com → 10.0.0.1 (system), 192.168.0.5 (dns 192.168.0.2): no answer]`.
@@ -336,8 +339,10 @@ do mantenedor. Os detalhes do autor dessas decisões (o que é anunciado, a
 chave `url`, o interruptor, os limites, a lista, os tempos e a política da
 regra de DNS, o cliente escrito à mão, as plataformas, as dev-dependencies)
 foram decididos pelo mantenedor em 2026-10-21, como construídos. O **item 8**
-(o texto do erro "inacessível") continua `[PROPOSTO]`: o mantenedor não o
-respondeu, e ele não é promovido. A exceção de `std::fs` do `src/resolv_conf.rs` (item 9) foi **ratificada** em
+(o texto do erro "inacessível") era `[PROPOSTO]` e foi decidido em 2026-10-21
+(0097.8, opção A: listar cada IP tentado e dar a dica de DNS quando houve mais
+de um; a opção B, mensagem curta sem IPs, não foi escolhida: mais limpa, mas
+difícil de diagnosticar). A exceção de `std::fs` do `src/resolv_conf.rs` (item 9) foi **ratificada** em
 2026-10-16 (*"Pode seguir a sua sugestão"*). Decidido em 2026-10-16: **o arquivo
 compose mantém a rede bridge como padrão**, e
 `packaging/server/docker-compose.host-network.yml` é oferecido como a variante
