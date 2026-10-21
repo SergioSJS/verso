@@ -10,7 +10,8 @@ import { hasCapability } from "../capabilities";
 import { asDialog, closed, opened } from "../dialogs/a11y";
 import { h } from "../dom";
 import { icon } from "../icons";
-import { howSaid } from "./card";
+import { play3d, will3d } from "../dice3d";
+import { howSaid, say } from "./card";
 import { readNotation, rollHere } from "./notation";
 import { ds } from "./strings";
 
@@ -55,6 +56,9 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
   });
   box.addEventListener("submit", (e) => {
     e.preventDefault();
+    void submit();
+  });
+  const submit = async () => {
     const typed = input.value.trim();
     const notation = readNotation(typed);
     out.replaceChildren();
@@ -69,8 +73,19 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
     input.removeAttribute("aria-invalid");
     const roll = rollHere(notation);
     const how = howSaid(roll);
-    out.append(h("strong", "dice-total", String(roll.total)), h("span", "dice-roller-said", ds.said(null, notation, String(roll.total), how)));
-  });
+    const words = ds.said(null, notation, String(roll.total), how);
+    // With the 3D switch on (ADR 0101) the result is said at once and shown
+    // when the dice have rested; the live region below is silenced for that
+    // one fill, so it is not said twice.
+    const fall = will3d("", roll);
+    if (fall) {
+      say(words);
+      out.setAttribute("aria-live", "off");
+      await play3d("", roll);
+    }
+    out.append(h("strong", "dice-total", String(roll.total)), h("span", "dice-roller-said", words));
+    if (fall) requestAnimationFrame(() => out.setAttribute("aria-live", "polite"));
+  };
   return { shade: el, input };
 }
 

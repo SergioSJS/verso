@@ -103,11 +103,38 @@ describe("Features switches (ADR 0103)", () => {
     invoked.length = 0;
   });
 
-  test("by default every feature is on", () => {
-    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), true, id);
+  test("by default every feature is on, but the 3D dice (ADR 0101 item 7)", () => {
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), id !== "dice3d", id);
     m.settings.features = undefined;
-    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), true, `${id} with nothing stored`);
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), id !== "dice3d", `${id} with nothing stored`);
     assert.equal(hasCapability("not-a-feature"), true);
+  });
+
+  test("the 3D dice: only an explicit true turns them on; 'Everything' leaves them as they are", () => {
+    // Stored odd values never turn it on.
+    for (const odd of [undefined, null, 1, "true", {}]) assert.equal(readFeatures({ dice3d: odd }).dice3d, false, String(odd));
+    assert.equal(readFeatures({ dice3d: true }).dice3d, true);
+    // "Everything" is every other switch on, with 3D either way.
+    assert.equal(shortcutOf({ ...allOn(), dice3d: true }), "everything");
+    assert.equal(shortcutOf(allOn()), "everything");
+    assert.equal(m.shortcutFeatures("everything").dice3d, false);
+    assert.equal(m.shortcutFeatures("everything", { ...allOn(), dice3d: true }).dice3d, true);
+    // From "Writing only", "Everything" says it does not turn 3D on, and does not.
+    m.settings.features = allOff();
+    assert.equal(m.shortcutKeepsOff("everything").length, 1);
+    assert.match(m.shortcutKeepsOff("everything")[0], /3D/);
+    assert.deepEqual(m.shortcutKeepsOff("writing"), []);
+    assert.equal(shortcutChanges("everything").on.some((n) => /3D/.test(n)), false);
+    applyShortcut("everything");
+    assert.equal(hasCapability("dice3d"), false);
+    assert.equal(hasCapability("diceRolling"), true);
+    // Turned on by hand, it stays through "Everything", and "Writing only" turns it off.
+    setFeature("dice3d", true);
+    assert.equal(currentShortcut(), "everything");
+    assert.deepEqual(m.shortcutKeepsOff("everything"), []);
+    applyShortcut("writing");
+    assert.equal(hasCapability("dice3d"), false);
+    assert.deepEqual(m.settings.features, allOff());
   });
 
   test("hasCapability follows each switch alone", () => {
@@ -212,7 +239,9 @@ describe("The Features settings page", () => {
     const boxes = [...node.querySelectorAll("input[type=checkbox]")];
     assert.equal(boxes.length, FEATURE_IDS.length);
     for (const box of boxes) {
-      assert.equal(box.checked, true);
+      // Every switch is on but the 3D dice, off by default.
+      const name = document.getElementById(box.getAttribute("aria-labelledby")).textContent;
+      assert.equal(box.checked, !/Dados 3D|3D dice/.test(name), name);
       const label = document.getElementById(box.getAttribute("aria-labelledby"));
       const desc = document.getElementById(box.getAttribute("aria-describedby"));
       assert.ok(label.textContent.length > 0);
