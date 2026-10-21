@@ -22,6 +22,20 @@
   provedores citadas); revisada pelo Opus 5.5 depois disso. As perguntas
   estão em `verso-decisoes-0104-nuvens-2026-10-21.md`, fora do repositório
   (perguntas C.1 a C.17).
+- Desvio (declarado em 2026-10-21, revisão do lote da tarde): a 0104.2 pediu
+  a revisão independente "antes de commitar"; o texto foi commitado como
+  Proposta antes da revisão, para o revisor lê-lo no repositório. A resposta
+  do mantenedor está na linha de Origem; o desvio da letra dela é declarado
+  aqui, não deixado dentro dela.
+- Revisões: 2026-10-21, revisão do lote da tarde — (a) o carimbo
+  `[DECIDIDO 2026-10-21]` por item sai dos itens e subregras que nenhuma
+  pergunta fez (itens 4, 15, 16 e 18; as subregras dos itens 6, 10 e 14): a
+  aceitação da ADR inteira é do mantenedor, mas o carimbo significa "ele
+  respondeu este", e ele não foi perguntado; passam a dizer "aceito com a ADR
+  (2026-10-21), não perguntado um a um". (b) Os itens 6 e 13 dizem o que
+  C.1 = A, C.6 = A e C.7 = A decidiram em vez de "recomendado". (c) "Como
+  construída" ganha as escolhas de construção que a revisão achou faltando
+  (I-3, I-4, I-6, I-10 de `verso-revisao-fable-tarde-2026-10-21.md`).
 - Relacionados: [0079](0079-sync-a-local-folder-with-a-server.md) (a
   sincronização que esta reaproveita),
   [0050](0050-outbound-network-access.md) (revisada aqui),
@@ -114,7 +128,10 @@ Aceita (2026-10-21). O item 1 é a resposta do mantenedor da manhã; todo
 outro item era uma recomendação ou uma pergunta (C.1 a C.17 de
 `verso-decisoes-0104-nuvens-2026-10-21.md`) que o mantenedor respondeu na
 mesma tarde, todas como recomendado, `[DECIDIDO 2026-10-21]`; onde um item
-dizia "recomendado", essa recomendação é a decisão. A nota dele sobre as
+dizia "recomendado", essa recomendação é a decisão. As exceções são os itens
+e subregras que nenhuma pergunta fez (4, 15, 16, 18 e as subregras de 6, 10
+e 14, cada uma marcada abaixo): são *aceitos com a ADR (2026-10-21), não
+perguntados um a um*. A nota dele sobre as
 tarefas de C.1: *"Farei tudo depois e te aviso quando concluído"* — ele cria
 as contas de desenvolvedor depois.
 
@@ -153,7 +170,7 @@ as contas de desenvolvedor depois.
    (invariante 5).
 
 4. **Uma sincronização, vários remotos — o que da 0079 vale.**
-   `[DECIDIDO 2026-10-21]` Uma pasta local sincroniza com **um** remoto — um UniVerso
+   *Aceito com a ADR (2026-10-21), não perguntado um a um.* Uma pasta local sincroniza com **um** remoto — um UniVerso
    ou uma pasta de nuvem, nunca os dois ao mesmo tempo. Item a item:
    - **Valem como escritos**: itens 2 da 0079 (o arquivo como unidade;
      nomes em NFC — enviados em NFC), 3 (o estado fora da pasta), a pausa
@@ -186,14 +203,16 @@ as contas de desenvolvedor depois.
    - **WebDAV**: um endereço e uma pasta que a pessoa informa, com usuário
      e senha (ou uma senha de app); só HTTPS, exceto um endereço da rede
      local que a pessoa confirma (como a
-     [0096](0096-this-app-is-a-server.md) faz para HTTP simples).
+     [0096](0096-this-app-is-a-server.md) faz para HTTP simples) *(esta
+     subregra: aceita com a ADR, não perguntada)*.
    - **S3**: endpoint, bucket, prefixo, chave de acesso e segredo; o passo
      a passo no cofre de exemplo diz à pessoa para restringir a chave àquele
      bucket e prefixo (C.15).
    - **Dropbox**: o tipo de acesso App folder (`Apps/Verso/<pasta>`).
    - **OneDrive**: `Files.ReadWrite.AppFolder` (`Apps/Verso/<pasta>`), para
-     contas pessoais e, se o mantenedor quiser (C.6), corporativas ou de
-     escola — cujos administradores podem bloquear o consentimento.
+     contas pessoais e, decidido na C.6 = A, corporativas ou de escola —
+     cujos administradores podem bloquear o consentimento (a janela diz por
+     quê).
    - **Google Drive**: só `drive.file`; o escopo `drive` inteiro nunca é
      pedido. O limite dele é dito com clareza na janela: arquivos postos na
      pasta pela página web do Drive ou por outro app não são vistos;
@@ -261,7 +280,8 @@ as contas de desenvolvedor depois.
     viram um só aqui (um provedor que guarda maiúsculas onde este disco não
     guarda; o Drive permitindo dois arquivos de mesmo nome numa pasta): um
     é sincronizado, o outro fica retido e listado, nunca fundidos em
-    silêncio (spec Q8).
+    silêncio (spec Q8). *(Listar um nome local proibido com o motivo: aceito
+    com a ADR, não perguntado.)*
 
 11. **Exclusões no remoto.** `[DECIDIDO 2026-10-21]` (C.9) Para a lixeira do provedor
     onde ela existe (Dropbox e OneDrive apagam para a deles; o Google Drive
@@ -283,12 +303,15 @@ as contas de desenvolvedor depois.
 
 13. **Identidades de cliente.** `[DECIDIDO 2026-10-21]` C.1 — a 0104.4 disse "decidir
     quando o primeiro provedor OAuth for escolhido", e os três estão
-    escolhidos. Recomendado: **o projeto registra seus próprios apps** (um
-    app no Dropbox, status de produção passadas 50 contas; um projeto no
+    escolhidos. Decidido (C.1 = A): **o projeto registra seus próprios apps**
+    (um app no Dropbox, status de produção passadas 50 contas; um projeto no
     Google Cloud — escopo não sensível, então nenhuma verificação é exigida
-    para publicar; a verificação de marca é opcional, para o nome e o logo
-    na tela de consentimento, C.7; um app no Microsoft Entra, com a
-    verificação de editor pedindo uma conta no Partner Center, C.6),
+    para publicar; a verificação de marca, para o nome e o logo na tela de
+    consentimento, **não é pedida na V1** — C.7 = A: o projeto publica sem
+    ela e a tela mostra o domínio, `versomd.com`, em vez do nome e do logo, e
+    pede a verificação de marca depois; um app no Microsoft Entra, com a
+    verificação de editor pedindo uma conta no Partner Center, e contas
+    corporativas ou de escola aceitas, C.6 = A),
     distribuídos como clientes públicos; **BYOK** como campo avançado, com a
     regra de que uma pasta usa uma identidade de cliente em todo aparelho (a
     permissão do Drive é por cliente). Durante o status "Testing" do Google:
@@ -302,7 +325,10 @@ as contas de desenvolvedor depois.
     enviados à janela (a janela manda um segredo uma vez, quando a pessoa o
     digita, e nunca o lê de volta — uma regra do contrato, 0026). No
     Windows, um segredo acima do limite de 2560 bytes do Gerenciador de
-    Credenciais é dividido ou recusado com uma mensagem. Num Linux sem
+    Credenciais é dividido ou recusado com uma mensagem *(esta subregra:
+    aceita com a ADR, não perguntada; como construída, os 2560 bytes são o
+    limite da Microsoft e os 2000 em que a construção recusa são uma margem
+    própria abaixo dele — ver "Como construída")*. Num Linux sem
     Secret Service: `[DECIDIDO 2026-10-21]` C.4 — recomendado, recusar a sincronização
     com nuvem dizendo o motivo e como instalar um chaveiro. Uma regra para
     todo segredo: `[DECIDIDO 2026-10-21]` C.5 — recomendado, o token de aparelho do
@@ -311,7 +337,7 @@ as contas de desenvolvedor depois.
     "Desconectar" apaga os segredos e revoga o token onde o provedor
     permite.
 
-15. **A rede.** `[DECIDIDO 2026-10-21]` Sincronizar com uma nuvem é escolha explícita
+15. **A rede.** *Aceito com a ADR (2026-10-21), não perguntado um a um.* Sincronizar com uma nuvem é escolha explícita
     da pessoa, por pasta; o app então fala com os hosts de API e de entrada
     daquele provedor **e com os endereços que o provedor devolve para uma
     transferência** (as URLs pré-autenticadas de download e de sessão de
@@ -325,7 +351,7 @@ as contas de desenvolvedor depois.
     Uma cota de armazenamento cheia é um erro de sincronização dito na
     janela.
 
-16. **O que a pessoa vê.** `[DECIDIDO 2026-10-21]` Os ajustes da pasta oferecem
+16. **O que a pessoa vê.** *Aceito com a ADR (2026-10-21), não perguntado um a um.* Os ajustes da pasta oferecem
     "Sincronizar com…": um UniVerso (0079) ou uma nuvem; escolher uma nuvem
     nomeia o provedor, faz a entrada, mostra o espaço, o que a primeira
     sincronização fará (0079 item 11), o que não se aplica a uma pasta de
@@ -341,7 +367,7 @@ as contas de desenvolvedor depois.
     a guarda das corridas), depois Dropbox, OneDrive, Google Drive.
 
 18. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)).
-    `[DECIDIDO 2026-10-21]` Cada passo do "Sincronizar com…" pelo teclado e pelo leitor
+    *Aceito com a ADR (2026-10-21), não perguntado um a um.* Cada passo do "Sincronizar com…" pelo teclado e pelo leitor
     de tela; o passo no navegador anunciado; pt-BR e EN.
 
 ## Consequências
@@ -409,3 +435,33 @@ decisões do mantenedor: a guarda `exists`; uma raiz WebDAV que responde 404 é
 um erro; um segredo com mais de 2000 bytes é recusado; os hashes de conteúdo
 do S3 ficam nos metadados do objeto enviado; a primeira conexão a uma pasta
 WebDAV existente baixa cada arquivo uma vez para saber o hash.
+
+Também registrado em 2026-10-21 (revisão do lote da tarde,
+`verso-revisao-fable-tarde-2026-10-21.md`), as escolhas que o parágrafo acima
+deixou de fora, como construídas e não como decisões do mantenedor:
+
+- **Desligar a sincronização de uma pasta de nuvem** jogava a base fora
+  (I-6): agora a base é **mantida ao desconectar, só o segredo é apagado**
+  (corrigido depois da revisão, ramo `fix/review-cloud`, merge pendente). O
+  item 14 diz "Desconectar apaga os segredos"; nunca disse que a base vai
+  junto.
+- **Uma exclusão num serviço sem `DELETE` condicional** (sem
+  `CAP_DELETE_IF_MATCH`): a construção faz um `HEAD` e depois um `DELETE`
+  sem condição, então uma gravação de outro aparelho entre os dois se
+  perde, e no S3 e no WebDAV a exclusão é definitiva (item 11). A sonda
+  avisa a pessoa ("com uma janela curta"). A C.3 decidiu *recusar* um
+  serviço que não cumpre a promessa; se esta janela é aceitável ou a conexão
+  deve ser recusada é **decisão do mantenedor (I-3, pergunta para ele)**; até
+  ele responder é escolha da construção, sem teste de guarda neste caminho.
+- **O `exists` do WebDAV** era uma leitura completa do arquivo (o padrão do
+  trait); agora é um `PROPFIND` de profundidade zero (corrigido depois da
+  revisão, `fix/review-cloud`). O texto acima e o commit `84e1e124` diziam
+  isso antes de ser verdade.
+- **A C.13 (o nome do aparelho definido nos ajustes de sincronização da
+  pasta, não em Ajustes › Servidores)** não está construída como pedido: o
+  nome da cópia ainda vem dos ajustes dos servidores; sendo corrigida em
+  `fix/review-cloud`, merge pendente.
+- **O limite de segredo no Windows**: 2560 bytes é o limite do Gerenciador de
+  Credenciais (da Microsoft); 2000 bytes é a margem da construção abaixo
+  dele, onde ela recusa. As linhas V.38 e V.40 do roadmap e o modelo de
+  ameaças dizem o mesmo.
