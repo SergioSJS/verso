@@ -629,6 +629,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--control-line); border-radius: 7px; }
 .srv-field input:focus { outline: none; border-color: var(--brass-ink); }
 .srv-help { margin: .55rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--ink-3); max-width: 60ch; }
+/* The search's sentence changes from one line ("Looking…") to four ("No UniVerso has answered…") 300 ms after the section opens;
+   room for the four is kept so the controls below do not move under a pointer that is already on its way down. */
+.srv-found-state { min-height: 4.92rem; }
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
 .srv-said:empty { display: none; }
 .srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
