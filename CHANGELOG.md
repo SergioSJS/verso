@@ -48,6 +48,7 @@ test release.
 
 ### Fixed
 
+- **The app's own address is never shown in an embedded frame**: a note, a board card or a web tab pointing at the app's own origin (or the desktop host's) gets no frame and no question to the network, so a reverse proxy that strips the framing headers can no longer put the app, with its session, inside a page. A site check that failed (offline, timeout) is no longer remembered as "forbids framing" for the whole session, and when the app cannot save the approval of a site the gate now says so instead of leaving a dead button.
 - **A data file with too many boxes is no longer drawn**: past 200 thousand boxes the diagram is not built and the tab says why and stays on the text (it could take the window down); "Save as board" refuses a diagram of more than 2000 visible boxes and says to fold some. YAML files with very many aliases also open at once.
 - **Frontmatter and tags as Obsidian reads them (spec Q22, Q24)**: a note that starts with a byte order mark still has its frontmatter (the file is never rewritten); a number in `tags` (`tags: 2024`, `[2025]`) is no tag, as in Obsidian, and a `#` in a frontmatter tag is not part of its name; the tag list counts a nested tag (`a/b`) under each tag above it (`a`), as Obsidian's tag pane does.
 - **The quick switcher (⌘P) puts the name typed whole first**: typing `N` opened a longer name that starts with N and sorts earlier by its folder; the note named exactly as typed now leads the list.

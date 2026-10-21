@@ -290,6 +290,8 @@ export type EmbedStrings = {
   unframedBoard?: string;
   /** The button that approves after the warning. */
   approveAnyway?: string;
+  /** The host did not take the approval: nothing was allowed. */
+  approveFailed?: string;
 };
 type EmbedHooks = {
   strings: EmbedStrings;
@@ -462,7 +464,7 @@ function onGate(e: MouseEvent): void {
       if (!origin) break;
       const finish = (): void => {
         void hooks?.approve(origin).then((ok) => {
-          if (!ok) return;
+          if (!ok) return refused(box);
           approved.add(origin);
           load();
         });
@@ -492,6 +494,23 @@ function onGate(e: MouseEvent): void {
       break;
     }
   }
+}
+
+/** The host did not take the approval: say so where the reader is looking, and give the buttons back. */
+function refused(box: HTMLElement): void {
+  const doc = box.ownerDocument;
+  box.removeAttribute("aria-busy");
+  for (const b of box.querySelectorAll<HTMLButtonElement>("button")) b.disabled = false;
+  const text = hooks?.strings.approveFailed ?? "";
+  if (text === "") return;
+  let p = box.querySelector(".embed-gate-warn");
+  if (!p) {
+    p = doc.createElement("p");
+    p.className = "embed-gate-warn";
+    p.setAttribute("role", "alert");
+    box.insertBefore(p, box.querySelector(".embed-gate-actions"));
+  }
+  p.textContent = text;
 }
 
 /** The gate with its warning: the words, an alert, and a second step. */
