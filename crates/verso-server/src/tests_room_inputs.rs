@@ -101,6 +101,21 @@ fn a_client_of_no_runs_does_not_break_a_note_room() {
     assert_eq!(broken, 1);
 }
 
+/// `fuzz/seeds-note/client-past-53-bits.bin`: an update naming a Yjs client
+/// past 53 bits, which a window's JavaScript cannot have made. `yrs`
+/// asserts it as it decodes the update (`block.rs:92`, a debug build:
+/// the tests, the fuzz targets); the assertion is caught as the decoding
+/// is, and the update refused.
+#[test]
+fn a_client_past_53_bits_is_refused_not_a_panic() {
+    assert!(decode(&no_runs_of(1 << 60)).is_err());
+    let input = include_bytes!("../fuzz/seeds-note/client-past-53-bits.bin");
+    let records = records(input);
+    let text = String::from_utf8_lossy(records.first().copied().unwrap_or_default()).into_owned();
+    let doc = holding(new_doc(), &text);
+    served(Kind::Note, &text, doc, &records[3.min(records.len())..]);
+}
+
 /// A board room of a fuzz input of the target `board` (records: 0 is the
 /// file, 3 on are the windows' updates), its Yjs client 1 as the
 /// target's.

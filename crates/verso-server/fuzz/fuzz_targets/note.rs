@@ -49,6 +49,10 @@
 //! that would leave something aside is refused and the room made again,
 //! and a state that would read otherwise in a window is never sent
 //! (`collab::integrate`, `collab::state`).
+//! And `client-past-53-bits.bin`, an update naming a Yjs client past 53
+//! bits, on which `yrs` asserts as it decodes (`block.rs:92`, debug
+//! assertions on, as the fuzz builds have them): `collab::decode` catches
+//! it and refuses the update.
 //! Run: `cargo +nightly fuzz run note fuzz/corpus/note fuzz/seeds-note`.
 
 #![no_main]

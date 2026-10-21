@@ -29,6 +29,7 @@
 | Hábito | O que aconteceu | No lugar |
 |---|---|---|
 | `File::open(dir)?.sync_all()` | o Windows se recusa a abrir um diretório assim | `os::sync_dir` (acesso de escrita + `FILE_FLAG_BACKUP_SEMANTICS`) |
+| uma gravação que nomeia um arquivo em outra caixa do que o disco o guarda (`Receita.md` para `receita.md`), o arquivo temporário renomeado sobre esse nome | no NTFS o arquivo assume a caixa do novo nome; o registro, a listagem e o dispositivo passam a discordar da grafia (o teste de sync do servidor, intermitente numa máquina Windows carregada, 21/10/2026) | `os::kept_spelling`: o temporário vai sobre o nome como o disco o guarda; `tests/write.rs` |
 | `std::fs::rename` uma vez | um antivírus ou o indexador segurando o arquivo faz falhar | `os::rename` (tenta de novo por ~2,5 s; um destino somente leitura falha na hora) |
 | tentar de novo o rename de uma escrita sem olhar de novo | o programa que segurava a nota podia salvá-la nesse meio tempo: o salvamento dele substituído, sem diff | `os::rename_unless_changed`, conferindo o carimbo antes de cada tentativa (invariante 11) |
 | um commit do SQLite por item (`synchronous = FULL`) | cada commit um `FlushFileBuffers` de verdade: o primeiro índice de 5.000 notas levou 228 s no Windows, 3 s no macOS | transações de algumas centenas de mudanças por rodada (`BEGIN IMMEDIATE`, savepoints dentro, commit até num pânico), um `busy_timeout` para os outros processos; WAL com `synchronous = NORMAL` para um cache — 9 s |
