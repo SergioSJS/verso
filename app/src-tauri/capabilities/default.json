@@ -31,6 +31,7 @@
     "allow-create-note",
     "allow-create-file",
     "allow-pick-files",
+    "allow-create-picked",
     "allow-create-folder",
     "allow-delete-note",
     "allow-rename-note",

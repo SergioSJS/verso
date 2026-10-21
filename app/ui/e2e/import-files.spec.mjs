@@ -120,3 +120,88 @@ test("a reader on a server imports nothing and is told why", async ({ app, page 
   await expect(status(page)).toContainText("só lê");
   expect(await app.files()).not.toContain("X.txt");
 });
+
+// I.1b (decided 2026-10-21): the size limit is a setting, and on this
+// computer's own folder a file is copied by the host under a token — no
+// byte crosses to the window.
+test("the largest imported file is a setting, asked of the host in megabytes", async ({ app, page }) => {
+  await tree(app);
+  await app.command("Importar arquivos");
+  await expect.poll(async () => (await app.calls("pick_files")).length).toBe(1);
+  expect((await app.calls("pick_files"))[0]).toMatchObject({ maxMb: 32 });
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Arquivos e links" }).click();
+  const input = page.getByLabel("Tamanho máximo de um arquivo importado (MB)");
+  await expect(input).toHaveValue("32");
+  await input.fill("200");
+  await input.dispatchEvent("change");
+  await page.keyboard.press("Escape");
+  await app.command("Importar arquivos");
+  await expect.poll(async () => (await app.calls("pick_files")).length).toBe(2);
+  expect((await app.calls("pick_files"))[1]).toMatchObject({ maxMb: 200 });
+  // Past the ceiling or below one, the setting is kept between 1 and 1024.
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Arquivos e links" }).click();
+  await input.fill("5000");
+  await input.dispatchEvent("change");
+  await expect(input).toHaveValue("1024");
+});
+
+test("a file past the limit is named with the limit, the rest still comes", async ({ app, page }) => {
+  await tree(app);
+  const big = "x".repeat(1024 * 1024 + 10);
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Arquivos e links" }).click();
+  const input = page.getByLabel("Tamanho máximo de um arquivo importado (MB)");
+  await input.fill("1");
+  await input.dispatchEvent("change");
+  await page.keyboard.press("Escape");
+  await choose(page, [{ name: "Grande.pdf", text: big }, { name: "Pequeno.txt", text: "p" }]);
+  await app.command("Importar arquivos");
+  await expect(row(page, "Pequeno.txt")).toBeVisible();
+  await expect(status(page)).toContainText("Grande.pdf (grande demais, o limite é 1 MB)");
+  expect(await app.file("Grande.pdf")).toBeNull();
+});
+
+test("on this computer's folder the file is copied by the host's token, not sent as bytes", async ({ app, page }) => {
+  await tree(app);
+  await page.evaluate(() => window.__harness.pickNext([{ name: "Mapa.png", text: "pelo token" }, { name: "Livro.pdf", text: "livro" }], [], true));
+  await app.command("Importar arquivos");
+  await expect(row(page, "Livro.pdf")).toBeVisible();
+  // A name taken moves on, as a drop does.
+  expect(await app.file("Mapa.png")).toBe("png original");
+  expect(await app.file("Mapa (2).png")).toBe("pelo token");
+  expect((await app.calls("create_picked")).length).toBe(2);
+  expect((await app.calls("create_file")).length).toBe(0);
+  await expect(status(page)).toContainText("Mapa.png → Mapa (2).png");
+});
+
+// I.1a: a drop on the tree is import's own way — never overwrite, never refuse.
+test("a drop on the tree renames on a name clash and says so", async ({ app, page }) => {
+  await tree(app);
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(["outro beta"], "Beta.md"));
+    dt.items.add(new File(["novo"], "Novo.txt"));
+    document.querySelector("#notes").dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+  });
+  await expect(row(page, "Beta (2).md")).toBeVisible();
+  expect(await app.file("Beta.md")).toBe("beta original\n");
+  expect(await app.file("Beta (2).md")).toBe("outro beta");
+  expect(await app.file("Novo.txt")).toBe("novo");
+  await expect(status(page)).toContainText("2 arquivos importados");
+  await expect(status(page)).toContainText("Beta.md → Beta (2).md");
+});
+
+test("a drop larger than a message carries is named with the limit", async ({ app, page }) => {
+  await tree(app);
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array(33 * 1024 * 1024)], "Enorme.bin"));
+    dt.items.add(new File(["ok"], "Ok.txt"));
+    document.querySelector("#notes").dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+  });
+  await expect(row(page, "Ok.txt")).toBeVisible();
+  await expect(status(page)).toContainText("Enorme.bin (grande demais, o limite é 32 MB)");
+  expect(await app.file("Enorme.bin")).toBeNull();
+});

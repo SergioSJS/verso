@@ -144,18 +144,44 @@ internals.convertFileSrc = (path: string) => `/__vault/${path.split("/").map(enc
 // "Import files…" (A11Y.10): the system's file picker is the host's; a test
 // says what the person chose with `pickNext` and the next `pick_files`
 // answers it (then the picker is "cancelled" again).
+const toBase64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
 let nextPick: PickedFiles = { files: [], skipped: [] };
-core.handlers["pick_files"] = () => {
+core.handlers["pick_files"] = (a) => {
   const now = nextPick;
   nextPick = { files: [], skipped: [] };
-  return now;
+  // As the host does: a file past the limit asked is named, not given.
+  const max = Number(a["maxMb"]) * 1024 * 1024;
+  const sizeOf = (f: PickedFiles["files"][number]) => (f.token ? (held.get(f.token) ?? "").length : atob(f.base64 ?? "").length);
+  const files = now.files.filter((f) => sizeOf(f) <= max);
+  const skipped = [...now.skipped, ...now.files.filter((f) => sizeOf(f) > max).map((f) => ({ name: f.name, reason: "too_large" as const }))];
+  return { files, skipped };
+};
+
+// A file chosen "on this computer's own folder" is held by the host under a
+// token and copied by `create_picked`: the text of each, by token.
+const held = new Map<string, string>();
+core.handlers["create_picked"] = (a) => {
+  const token = String(a["token"]);
+  const text = held.get(token);
+  if (text === undefined) throw { kind: "refused", message: "that file was not chosen by this window, or was already copied" };
+  const path = core.handlers["create_file"]?.({ path: a["path"], base64: toBase64(text ?? "") });
+  held.delete(token);
+  return path;
 };
 
 const harness = {
   ready: false,
   /** What the next `pick_files` gives: files by name and text. */
-  pickNext: (files: { name: string; text: string }[], skipped: PickedFiles["skipped"] = []) => {
-    nextPick = { files: files.map((f) => ({ name: f.name, base64: btoa(String.fromCharCode(...new TextEncoder().encode(f.text))) })), skipped };
+  pickNext: (files: { name: string; text: string }[], skipped: PickedFiles["skipped"] = [], byToken = false) => {
+    nextPick = {
+      files: files.map((f, i) => {
+        if (!byToken) return { name: f.name, base64: toBase64(f.text), token: null };
+        const token = `pick-${i}-${f.name}`;
+        held.set(token, f.text);
+        return { name: f.name, base64: null, token };
+      }),
+      skipped,
+    };
   },
   core,
   read: (path: string) => core.read(path),

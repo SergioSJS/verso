@@ -7,7 +7,7 @@ import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { changeBookmarks } from "./bookmarks";
-import { canWrite } from "./can";
+import { canWrite, host } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText } from "./daily";
 import { ask } from "./dialog";
@@ -18,6 +18,10 @@ import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
 import { images } from "./images";
 import { Pane } from "./layout/pane";
+import { dropLimitMb } from "./attachName";
+import { settings } from "./settings";
+import { imp } from "./importStrings";
+import { placeFile } from "./placeFile";
 import { layout, leavesUnder, openNote, paneToOpenIn, spaces } from "./layout/spaces";
 import { propVal } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
@@ -56,21 +60,47 @@ export function fileBase64(f: File): Promise<string> {
     r.readAsDataURL(f);
   });
 }
-/** Files dropped on the tree: copied into the folder under the pointer. */
+/** Files dropped on the tree: copied into the folder under the pointer. A
+ *  name taken moves on to `name (2).ext`, as "Import files…" does, and the
+ *  status line says so (I.1a, decided 2026-10-21); a file past the limit is
+ *  named, the rest still come. */
 export async function copyFilesInto(folder: string, files: FileList): Promise<void> {
   if (!readable()) return;
-  let copied = 0;
+  const limitMb = dropLimitMb(settings.importMaxMb, host() === "server");
+  const taken = new Set([...allNotes, ...allFiles, ...allFolders].map((p) => p.toLowerCase()));
+  let first = "";
+  let made = 0;
+  const renamed: string[] = [];
+  const skipped: { name: string; reason: "too_large" | "unreadable" }[] = [];
+  const failed: string[] = [];
   for (const f of Array.from(files)) {
-    const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
-    if (r.status === "ok") copied++;
-    else if (r.error.kind === "exists") nameTaken(`${f.name}: ${t.exists}`);
-    else fail(r.error);
+    if (f.size > limitMb * 1024 * 1024) {
+      skipped.push({ name: f.name, reason: "too_large" });
+      continue;
+    }
+    let data: string;
+    try {
+      data = await fileBase64(f);
+    } catch {
+      skipped.push({ name: f.name, reason: "unreadable" });
+      continue;
+    }
+    const placed = await placeFile(folder, f.name, taken, (path) => commands.createFile(path, data));
+    if ("failed" in placed) {
+      fail(placed.failed);
+      failed.push(f.name);
+      continue;
+    }
+    made++;
+    first ||= placed.made;
+    if (placed.renamed) renamed.push(`${f.name} → ${placed.given}`);
   }
-  if (copied > 0) {
+  if (made > 0) {
     openFolders.add(folder);
     await afterFileChange();
-    ui.status.textContent = t.copiedFiles;
   }
+  const said = imp.summary({ made, renamed, skipped, failed, limitMb });
+  if (said) ui.status.textContent = said;
 }
 
 /** A rename or a move: what remembers paths — bookmarks, closed tabs,

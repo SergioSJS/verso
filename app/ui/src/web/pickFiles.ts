@@ -9,7 +9,7 @@
 // server's bounds and the folder's quota (ADR 0083).
 
 import type { PickedFiles, PickSkip } from "../bindings";
-import { MAX_IMAGE_BYTES } from "../attachName";
+import { MAX_IMAGE_BYTES, SERVER_FILE_MB } from "../attachName";
 
 /** The most bytes of the whole choice, as the host's. */
 const TOTAL_MAX = 256 * 1024 * 1024;
@@ -23,15 +23,17 @@ function base64Of(buffer: ArrayBuffer): string {
 
 /** Read the chosen files; one too large, or the rest past the total, is
  *  named in `skipped`. Pure of the page, so a test can give it files. */
-export async function readChosen(chosen: File[]): Promise<PickedFiles> {
+export async function readChosen(chosen: File[], limitMb = SERVER_FILE_MB): Promise<PickedFiles> {
+  // Whatever limit is asked, a message to the server carries no more.
+  const limit = Math.min(limitMb * 1024 * 1024, MAX_IMAGE_BYTES);
   const out: PickedFiles = { files: [], skipped: [] };
   let total = 0;
   for (const f of chosen) {
     let reason: PickSkip | null = null;
-    if (f.size > MAX_IMAGE_BYTES || total + f.size > TOTAL_MAX) reason = "too_large";
+    if (f.size > limit || total + f.size > TOTAL_MAX) reason = "too_large";
     else {
       try {
-        out.files.push({ name: f.name, base64: base64Of(await f.arrayBuffer()) });
+        out.files.push({ name: f.name, base64: base64Of(await f.arrayBuffer()), token: null });
         total += f.size;
       } catch {
         reason = "unreadable";
@@ -44,7 +46,7 @@ export async function readChosen(chosen: File[]): Promise<PickedFiles> {
 
 /** Open the browser's file picker; empty when cancelled. Called from the
  *  gesture that asked (a menu row, a palette command), as browsers require. */
-export function pickFiles(): Promise<PickedFiles> {
+export function pickFiles(limitMb = SERVER_FILE_MB): Promise<PickedFiles> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -55,7 +57,7 @@ export function pickFiles(): Promise<PickedFiles> {
       if (settled) return;
       settled = true;
       input.remove();
-      void readChosen(chosen).then(resolve);
+      void readChosen(chosen, limitMb).then(resolve);
     };
     input.addEventListener("change", () => finish([...(input.files ?? [])]));
     input.addEventListener("cancel", () => finish([]));
