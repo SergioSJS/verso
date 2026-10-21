@@ -92,7 +92,9 @@ impl Frame {
         Self {
             text: message.to_string().into(),
             // A session ended: the connection is told, then closed.
-            close: message.get("gone").is_some_and(|g| g == "session"),
+            close: message
+                .get("gone")
+                .is_some_and(|g| g == "session" || g == "link"),
         }
     }
 }
@@ -321,6 +323,11 @@ pub struct Server {
     pub untrusted_forward: crate::log::OnceAMinute,
     /// The REST routes' pace per address (ADR 0083 item 7).
     pub pace: crate::pace::Pace,
+    /// The pace of each read link's requests (ADR 0105 item 6), per link,
+    /// beside the address's.
+    pub link_pace: crate::pace::Pace,
+    /// The read links open now, and the browsers that proved a passphrase.
+    pub links: crate::readlinks::Open,
     /// The requests in flight per client address (`crate::http`).
     pub requests: crate::listen::Requests,
     /// The bytes of the WebSocket's large messages and answers under way
@@ -435,6 +442,8 @@ impl Server {
             unforwarded: crate::log::OnceAMinute::default(),
             untrusted_forward: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
+            link_pace: crate::pace::Pace::default(),
+            links: crate::readlinks::Open::default(),
             requests: crate::listen::Requests::default(),
             inflight: crate::inflight::Inflight::default(),
             contract,

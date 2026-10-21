@@ -636,7 +636,7 @@ async fn handle(
 }
 
 /// A command that carries no piece of a file.
-async fn command(
+pub(crate) async fn command(
     server: &Arc<Server>,
     who: &Arc<Who>,
     client: &str,
@@ -1332,7 +1332,7 @@ async fn folder_run(
 }
 
 /// Open the folder for this window, or join its session.
-async fn open(
+pub(crate) async fn open(
     server: &Arc<Server>,
     client: &str,
     folder: Folder,

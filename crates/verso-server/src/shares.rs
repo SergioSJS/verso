@@ -77,7 +77,7 @@ pub fn scope_for(
     let guard = match (&server.local, server.folder_path(&folder.dir)) {
         (Some(p), Some(vault)) if p.part_name(&share.id).is_some() => {
             let _ = p;
-            Some(Arc::new(crate::scope::Guard { vault }))
+            Some(Arc::new(crate::scope::Guard::phone(vault)))
         }
         _ => None,
     };
@@ -648,6 +648,8 @@ pub async fn attachments(
 /// step; a deletion removes the shares of what it deleted. `args` and
 /// `answer` are in the owner's paths.
 pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
+    // The read links of what moved or was deleted follow it (ADR 0105).
+    crate::readlinks::after_write(server, folder, cmd, args, answer);
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {

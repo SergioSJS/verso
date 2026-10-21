@@ -316,7 +316,7 @@ pub fn clear_cookie(peer: &Peer) -> String {
     )
 }
 
-fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+pub(crate) fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get_all(COOKIE)
         .iter()
