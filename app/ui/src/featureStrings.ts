@@ -26,7 +26,10 @@ type Words = {
   statusShortcut: (name: string) => string;
   offHere: (feature: string) => string;
   turnOn: string;
-  groups: { app: string; rpg: string };
+  groups: { rpg: string };
+  rpgSection: string;
+  rpgLead: string;
+  rpgLink: string;
   allOn: string;
   allOff: string;
   groupBulk: (group: string) => string;
@@ -72,7 +75,10 @@ const pt: Words = {
   statusShortcut: (name) => `Recursos: ${name}`,
   offHere: (feature) => `O recurso "${feature}" está desligado. Os arquivos não mudam; as notas mostram texto simples.`,
   turnOn: "Ligar",
-  groups: { app: "Aplicação", rpg: "RPG e mesa" },
+  groups: { rpg: "RPG e mesa" },
+  rpgSection: "Dados e RPG",
+  rpgLead: "Os recursos de RPG e mesa, um por chave. Desligar um não muda nenhum arquivo: o que ele criou continua na nota, só aparece como texto simples. Os atalhos \"Tudo\" e \"Só escrita\" ficam em Aplicação › Recursos e valem para estes também.",
+  rpgLink: "Os recursos de RPG ficam em RPG & Mesa Solo › Dados e RPG",
   allOn: "Ligar todos",
   allOff: "Desligar todos",
   groupBulk: (group) => `Todos os recursos de ${group}`,
@@ -116,7 +122,10 @@ const en: Words = {
   statusShortcut: (name) => `Features: ${name}`,
   offHere: (feature) => `The "${feature}" feature is off. Files do not change; notes show plain text.`,
   turnOn: "Turn on",
-  groups: { app: "Application", rpg: "RPG and tabletop" },
+  groups: { rpg: "RPG and tabletop" },
+  rpgSection: "Dice and RPG",
+  rpgLead: "The RPG and tabletop features, one switch each. Turning one off changes no file: what it made stays in the note and shows as plain text. The \"Everything\" and \"Writing only\" shortcuts are in Application › Features and cover these too.",
+  rpgLink: "The RPG features are in RPG & Solo Play › Dice and RPG",
   allOn: "Turn all on",
   allOff: "Turn all off",
   groupBulk: (group) => `Every feature of ${group}`,

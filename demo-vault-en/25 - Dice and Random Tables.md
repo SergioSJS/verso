@@ -94,7 +94,7 @@ In the command palette (`⌘⇧P`), **Roll dice…** opens a roller: type the no
 
 ## 3D dice
 
-Want to watch the dice fall? In **Settings › Features**, turn on **3D dice**. It starts **off**, even with the *Everything* shortcut: it is the heaviest feature, on the battery too. On, when you roll — from a `dice:` button or from the roller — real dice (d4, d6, d8, d10, d12, d20, and the percentile as two d10) fall onto the screen and settle; only then does the card with the result appear.
+Want to watch the dice fall? In **Settings › RPG & Solo Play › Dice and RPG**, turn on **3D dice**. It starts **off**, even with the *Everything* shortcut: it is the heaviest feature, on the battery too. On, when you roll — from a `dice:` button or from the roller — real dice (d4, d6, d8, d10, d12, d20, and the percentile as two d10) fall onto the screen and settle; only then does the card with the result appear.
 
 The number is **already drawn** before the dice fall, by the window's cryptographic generator or, in a room, by the server; the fall only stages it, and the die lands showing exactly that number. That is why a screen reader says the result at once, without waiting, and the card with the text always exists.
 

@@ -11,7 +11,7 @@ status: ativo
 
 Uma ficha de monstro, de personagem ou de facção sem sair da nota. Aqui você vê **um exemplo de cada layout que vem com o Verso** — 40 no total — e aprende a usá-los. O que a ficha guarda é **Markdown puro**: um bloco de código que qualquer editor lê.
 
-Ela é um recurso com chave própria: **Ajustes › Aplicação › Recursos › Fichas** (veja [[27 - Oráculos e Criação de Mundos]]). Desligada, cada ficha vira um bloco de código.
+Ela é um recurso com chave própria: **Ajustes › RPG & Mesa Solo › Dados e RPG › Fichas** (veja [[27 - Oráculos e Criação de Mundos]]). Desligada, cada ficha vira um bloco de código.
 
 ---
 

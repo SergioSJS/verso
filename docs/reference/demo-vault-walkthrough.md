@@ -1235,9 +1235,9 @@ the folder `Campanha Fractal/` beside it ([ADR
 0102](../adr/0102-creative-oracles-and-improvisation.md), [ADR
 0103](../adr/0103-feature-presets-and-capability-flags.md)).
 
-1. *Ajustes* › *Aplicação* › *Recursos* lists five switches, *Dados*, *Tabelas
+1. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* lists five switches, *Dados*, *Tabelas
    sorteadas*, *Oráculos*, *Fichas* and *Assistente de mundo e campanha*, all
-   on, and the shortcuts *Tudo* and *Só escrita*; the old "Modo de Uso" is
+   on; the shortcuts *Tudo* and *Só escrita* are in *Aplicação* › *Recursos*; the old "Modo de Uso" is
    nowhere. *Só escrita* first says what it will turn off and does nothing on
    *Cancelar*. Turn *Oráculos* off, close Settings: the `[!oracle]` callout of
    the note is drawn with no *Consultar Oráculo* button, and ⌘⇧P offers no

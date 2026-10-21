@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The 3D dice's appearance on the Features page (ADR 0101, appearance),
+// The 3D dice's appearance on the Dice and RPG page (ADR 0101, appearance),
 // with Rolai's model: a size in percent; three colour sets (tabs and a
 // preview of each); and for the chosen set a style (the presets), the
 // colours of the body, the number and its outline, a texture and a
@@ -80,7 +80,7 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
   say.setAttribute("role", "status");
   say.setAttribute("aria-live", "polite");
 
-  const item = (name: string, desc: string, make: () => HTMLElement): SettingItem => ({ section: "features", title: name, desc, node: () => {
+  const item = (name: string, desc: string, make: () => HTMLElement): SettingItem => ({ section: "rpgfeatures", title: name, desc, node: () => {
       const control = make();
       sync();
       return ctx.item(name, desc, control);
