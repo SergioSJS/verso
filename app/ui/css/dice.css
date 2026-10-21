@@ -34,6 +34,10 @@
   top: calc(100% + 4px);
   left: 0;
   z-index: 30;
+  /* card.ts moves it by `left` and reads it back at once: the reduced-motion
+     rule gives every element a .01ms transition of `all`, and a `left` that
+     transitions is read a frame late, the shift counted twice. */
+  transition-property: none;
   width: max-content;
   max-width: min(19rem, 100cqi - 12px);
   font-size: .8rem;

@@ -446,6 +446,9 @@ function build(): Dialog {
     } finally {
       drawing = false;
       primaryBtn.disabled = false;
+      // A disabled button drops the focus (and WebKit on macOS never gave it
+      // on the click): Escape would then go to the page, not to the dialog.
+      if (!el.hidden && !el.contains(document.activeElement)) primaryBtn.focus({ preventScroll: true });
     }
   };
 
