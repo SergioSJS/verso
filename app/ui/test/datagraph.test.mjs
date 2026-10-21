@@ -585,3 +585,24 @@ describe("review M7: an inherited name is no entity", () => {
     assert.ok(text.includes("&constructor; &toString; &__proto__; <&>\\\"'"), text);
   });
 });
+
+describe("review M8: Save as board writes data as literal text", () => {
+  const board = (text, format) => {
+    const t = D.parse(text, format);
+    const m = new D.DiagramModel(t);
+    return D.boardOf(t, m.layout(), "lr", (id) => (id === 0 ? "$" : t.nodes[id].label));
+  };
+  test("a cell with an image or a wikilink is a code span, not an embed or a link", () => {
+    const doc = board("name,pic\nRowan,![](https://t.example/x.png)\nMira,[[Secret]] and ![[Img.png]]\n", "csv");
+    const text = doc.nodes.map((n) => n.text).join("\n");
+    assert.ok(text.includes("`![](https://t.example/x.png)`"), text);
+    assert.ok(text.includes("`[[Secret]] and ![[Img.png]]`"), text);
+    assert.ok(!/(^|[^`])!\[\]\(/.test(text.replace(/`[^`]*`/g, "")), "nothing active outside a code span");
+  });
+  test("a key or value with backticks gets a longer fence; the title is escaped", () => {
+    const doc = board(JSON.stringify({ "a`b": "x``y", "[[k]]": { z: 1 } }), "json");
+    assert.ok(doc.nodes[0].text.includes("``a`b`` ```x``y```"), doc.nodes[0].text);
+    assert.ok(doc.nodes[0].text.startsWith("**$**"), "the root's $ stays");
+    assert.ok(doc.nodes[1].text.startsWith("**\\[\\[k\\]\\]**"), doc.nodes[1].text);
+  });
+});
