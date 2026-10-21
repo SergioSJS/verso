@@ -39,14 +39,14 @@ test("an English window imports the English tutorial, the images shared, and ope
 test("the English tour opens with its stops in order, and a translated note opens from it", async ({ app }) => {
   await importIn(app, "Import the demo content");
   await expect.poll(() => app.files()).toEqual(EN_FILES);
-  await app.quickOpen("Verso Tour");
+  await app.quickOpen("Verso Tour", "Open…");
   await app.boardReady();
   await app.page.getByRole("button", { name: "Outline", exact: true }).click();
   await expect(app.page.locator(".board-outline-group")).toHaveText(STOPS);
   expect(STOPS[0]).toContain("Write");
   // Opening wrote nothing.
   expect(await app.calls("write_board")).toEqual([]);
-  await app.quickOpen("Markdown Guide");
+  await app.quickOpen("Markdown Guide", "Open…");
   await expect(app.page.locator(".tab", { hasText: "01 - Markdown Guide and Syntax" }).first()).toBeVisible();
 });
 
