@@ -25,7 +25,7 @@ export const CREDITS: Credit[] = [
       pt: "Autor do cofre de campanha “Dados Críticos”, cuja estrutura o pacote de campanha do Verso segue, com a permissão dele.",
       en: "Author of the campaign vault “Dados Críticos”, whose structure Verso's campaign bundle follows, by his permission.",
     },
-    link: "https://fractal-system.itch.io/pt-br",
+    link: "https://linktr.ee/dadoscriticos",
   },
   {
     id: "fractal",
