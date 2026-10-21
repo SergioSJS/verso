@@ -63,6 +63,8 @@ export class DataDiagram {
   private readonly dirButton = h("button", "ghost dg-dir");
 
   model: DiagramModel | null = null;
+  /** Why nothing is drawn: the text past the size limit, or more boxes than are drawn. */
+  limit: "tooBig" | "tooMany" | null = null;
   text = "";
   format: Format = "json";
   private lay: Layout | null = null;
@@ -207,7 +209,9 @@ export class DataDiagram {
   setText(text: string, format: Format): void {
     this.text = text;
     this.format = format;
+    this.limit = null;
     if (text.length >= MAX_BYTES) {
+      this.limit = "tooBig";
       this.showNote(dgw.tooBig(Math.round(text.length / 1048576)));
       return;
     }
@@ -215,8 +219,10 @@ export class DataDiagram {
   }
 
   setTree(tree: Tree): void {
+    this.limit = null;
     if (tree.tooMany) {
       // Too many boxes to draw: no diagram, whatever was there before; the text stays one key away.
+      this.limit = "tooMany";
       this.error.hidden = true;
       this.model = null;
       this.lay = null;
