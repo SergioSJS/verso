@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { newBase } from "./bases";
+import { importFiles } from "./importFiles";
+import { imp } from "./importStrings";
 import { commands } from "./bindings";
 import { can, canWrite, host, noteAddress } from "./can";
 import { narrow } from "./chrome";
@@ -189,6 +191,8 @@ export function createMenuItems(folder = ""): MenuItem[] {
     [t.newBase, () => void newBase(folder), "calendar"],
     [boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
+    // Files from the system through its picker, for whoever cannot drag (A11Y.10).
+    [imp.command, () => void importFiles(folder), "copy"],
   ];
   return items;
 }

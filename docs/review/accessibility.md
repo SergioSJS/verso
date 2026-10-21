@@ -103,7 +103,7 @@ answered the keyboard.
 | 14 | MINOR | In Live Preview and Source, a wikilink opens with ⌘-click only; nothing follows the link under the caret | **Recorded.** The reading view (finding 3) and the right panel's "Outgoing links" reach the same notes. A command to follow the link under the caret is section 8, item 11 |
 | 15 | MINOR | In a folder's own note, shown at the top of the folder view, wikilinks do nothing, by the pointer or the keyboard: no handler reaches them | **Recorded, not fixed:** a gap of the folder view, not of accessibility alone; this pass left the folder note's links as they were rather than make inert links focusable |
 | 16 | MINOR | The dividers move by the arrow keys but have no single-pointer way (2.5.7), and say their value only after a key press — the panes' in percent, the sidebars' in pixels against the default range of 0 to 100 | **Recorded**; section 8, item 9 |
-| 17 | MINOR | Files dropped from the system onto the tree have no keyboard or single-click way in: the window has no "copy files into the folder" command | **Recorded**; the system's own copy, then "Reindex", reaches the same place. Section 8, item 10 |
+| 17 | MINOR | Files dropped from the system onto the tree have no keyboard or single-click way in: the window has no "copy files into the folder" command | **Fixed** (section 8, item 10): the command "Import files…" opens the system's file picker and copies the chosen files into a folder, from the palette or the "New" submenu of a menu |
 | 18 | MINOR | An image's width in Live Preview is set by dragging its corner; the other way is typing the width (`![[map.png\|300]]`) | **Recorded**: typing covers the keyboard; a single-pointer way (2.5.7) would be new controls |
 | 19 | MINOR | The graph's notes are placed, and the view panned, only by dragging | **Recorded**: the layout is automatic and "See everything" frames it; nothing a user needs to do requires the drag |
 
@@ -318,8 +318,14 @@ is a row of the roadmap (V.13).
     a host change.
     **Resolved 2026-10-21** (A11Y.10, option B, not the recommended A):
     build an "Import files…" command with the system's file picker; it
-    changes the host (`app/src-tauri`) on the three platforms. New work, to
-    build.
+    changes the host (`app/src-tauri`) on the three platforms.
+    **Built** on `feat/import-files`: the command "Import files…" (palette,
+    the "New" submenu of a file's or folder's menu, the tree's empty-space
+    menu) opens the system's picker (the host's `pick_files`; in a browser,
+    `<input type=file multiple>`), and the files are created in the target
+    folder with `create_file`, as a drop does; a name taken becomes
+    `name (2).ext`. Not run on the real app: the native dialog on each
+    system.
 
 11. **Following a link from the editor** (section 1, finding 14): a
     command that opens the link under the caret, with or without a
