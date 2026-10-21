@@ -22,6 +22,12 @@
   [0009](0009-external-constraints.md) (fontes admissíveis),
   [0058](0058-demo-vault-as-tutorial.md), [0035](0035-cross-cutting-requirements.md).
 - Status no briefing: §5.3, a linha do tempo, `PROPOSED`.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21): o item 11 cita uma
+  terceira leitura só de leitura, o nome da pasta de anexos que a
+  [0096](0096-this-app-is-a-server.md) lê (0096.2, opção A); e a contradição
+  registrada no fim do Status é resolvida como o mantenedor escolheu (0093,
+  opção A): a spec §7 agora aponta para cá, não para a §9.
 
 ## Contexto
 
@@ -177,7 +183,12 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
     exceção no `verso-fs` ao lado da de `.verso/`
     (`crates/verso-fs/src/settings.rs`): dois arquivos nomeados, nada mais
     de um diretório oculto que a varredura não percorre
-    ([0044](0044-verso-fs-semantics.md)); uma pasta de configuração
+    ([0044](0044-verso-fs-semantics.md)) — e, `[DECIDIDO 2026-10-21]`
+    (0096.2, opção A), **mais uma leitura do mesmo tipo, pelo nome**: o
+    ajuste da pasta de anexos, `attachmentFolderPath` em
+    `.obsidian/app.json`, que um servidor lê a cada início para servir uma
+    subpasta com os seus anexos, nunca escrita
+    ([0096](0096-this-app-is-a-server.md) item 2); uma pasta de configuração
     renomeada não é procurada. Os nomes e as chaves vêm de código da
     comunidade, não da documentação do Obsidian (Contexto), e são
     observados no cofre Sandbox antes do PR ([0009](0009-external-constraints.md)).
@@ -235,9 +246,11 @@ por inteiro), no item 2 do [0070](0070-what-travels-with-the-folder.md)
 (item 4) e no item 8 do [0079](0079-sync-a-local-folder-with-a-server.md)
 (item 12).
 
-Registrado, não resolvido: a spec §7 diz que o que o Verso ainda não
-define e o Obsidian define — notas periódicas entre isso — "está na
-seção 9", e a §9 não tem pergunta sobre notas periódicas.
+Resolvido em 2026-10-21 (0093, opção A): a spec §7 dizia que o que o Verso
+ainda não define e o Obsidian define — notas periódicas entre isso — "está
+na seção 9", e a §9 não tem pergunta sobre notas periódicas. A §7 é
+corrigida para apontar para esta ADR, que aceitou o comportamento; a §9 só
+lista perguntas abertas, então nenhuma pergunta é aberta lá.
 
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1
 pela resposta do mantenedor de 2026-10-14 (`docs/roadmap.md`, Fase 4 —

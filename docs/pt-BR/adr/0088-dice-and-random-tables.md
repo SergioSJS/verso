@@ -32,6 +32,14 @@
   ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, o
   mantenedor: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
   app meu aberto"*).
+  2026-10-21 — item 5 revisado de novo: "nenhuma dependência nova de
+  runtime" já não proíbe a rolagem 3D. O mantenedor pôs os dados 3D na V1
+  ([0101](0101-3d-dice-physics-overlay.md), 0101.0 e 0101.1, marcando
+  opções do questionário de 2026-10-20): um pedaço preguiçoso, carregado por
+  `import()` só quando a chave "Dados 3D" está ligada e guardado em cache
+  pelo service worker, o pacote inicial continuando livre de qualquer
+  biblioteca 3D. A biblioteca ainda não está escolhida (item 3 da 0101).
+  "A rolagem 3D … fica do Rolai" no item 5 já não vale.
 
 ## Contexto
 
@@ -102,7 +110,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
    (`app/ui/src/dice/`), o aviso da MIT mantido nos arquivos, no lugar de
    uma dependência de um pacote não publicado no npm; nenhuma dependência
    de runtime nova. A rolagem 3D, as salas por link e o modo OBS ficam
-   com o Rolai.
+   com o Rolai (revisado em 2026-10-21: a rolagem 3D não, ver Revisões e a
+   [0101](0101-3d-dice-physics-overlay.md)).
 6. **Um rolador sem nota.** `[DECIDIDO 2026-10-14]`: um comando "Rolar dados…" que abre
    um rolador pequeno, uma notação digitada e rolada, nada escrito.
    Decidido: **sim**, na paleta de comandos; uma gaveta como a do Rolai

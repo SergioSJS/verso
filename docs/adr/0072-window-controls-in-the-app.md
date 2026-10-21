@@ -19,7 +19,8 @@
   ctrl+scroll or command + and - change the zoom?). `[DECIDED 2026-10-20]`:
   Cmd/Ctrl `+` and `-` and Ctrl with the wheel (a trackpad's pinch) zoom
   the whole window, as Obsidian and a browser do; Cmd/Ctrl `0` returns to
-  100 %. `[PROPOSED]`: 50 % to 200 % in steps of 10 %; kept per device (it
+  100 %. `[DECIDED 2026-10-21]` (0072.z, option A: approved as built, in
+  `zoomCore.ts` and `zoom.ts`): 50 % to 200 % in steps of 10 %; kept per device (it
   depends on the screen), not with the account; over a board, a map, a PDF
   or the graph the pinch and Ctrl with the wheel keep zooming that view;
   in the browser version the browser's own zoom applies and Verso does

@@ -15,6 +15,11 @@
   review of 2026-10-20 found the wizard reporting success when the core had
   refused every file. The maintainer's answers of 2026-10-20 are quoted in
   the items; this text replaces the first one.
+- Revisions: 2026-10-21 — the four `[PROPOSED]` details decided and the
+  question of [0015](0015-schema-packs.md) answered, by the maintainer
+  marking the options of the decisions questionnaire of 2026-10-20 (answered
+  2026-10-21): items 2, 5, 7 and 10 as proposed, and a new item 11. Status
+  Accepted.
 - Related: [0012](0012-files-are-source-of-truth.md),
   [0015](0015-schema-packs.md),
   [0019](0019-generative-opt-in-and-keychain.md),
@@ -38,8 +43,10 @@ untrusted input.
 ## Decision
 
 Accepted on 2026-10-20 for the items marked `[DECIDED 2026-10-20]`, in the
-maintainer's words; the rest restates the first text as built and
-reviewed; `[PROPOSED]` marks a detail he has not read.
+maintainer's words, and on 2026-10-21 for the items marked
+`[DECIDED 2026-10-21]`, where the maintainer chose the option written in
+the item in the decisions questionnaire of 2026-10-20 (he marked it, with
+no words of his own); nothing is left `[PROPOSED]`.
 
 1. **The wizard.** "New project from a bundle…", from the palette and the
    file tree: a name, a target folder, a bundle. Every bundle is listed;
@@ -49,7 +56,8 @@ reviewed; `[PROPOSED]` marks a detail he has not read.
 2. **A bundle declares, and does nothing else.** JSON: `folders` (relative
    paths) and `files` (a path, an optional frontmatter object, Markdown
    content; a `.canvas` or `.base` file kept as such). No script, no code.
-   `[PROPOSED]`: bundles a person imports are kept in the folder,
+   `[DECIDED 2026-10-21]` (0098.2, option A): bundles a person imports are
+   kept in the folder,
    `.verso/bundles/<id>.json`, through the same contract commands as
    layouts ([0099](0099-visual-markdown-statblocks-and-cards.md) item 2),
    so a shared folder shares them; an import with the id of another bundle
@@ -73,14 +81,17 @@ reviewed; `[PROPOSED]` marks a detail he has not read.
    absolute path, a name another OS cannot keep ([0070](0070-what-travels-with-the-folder.md)
    item 3) or a write into `.verso`, `.obsidian` or `.git` is refused
    before the dry run ends. Bounds: 200 folders, 500 files, 256 KB a file,
-   4 MB in all, 8 levels; `[PROPOSED]` the 200 folders count the ancestors
-   the plan creates. A pasted bundle is bounded before it is parsed.
+   4 MB in all, 8 levels; `[DECIDED 2026-10-21]` (0098.5, option A) the 200
+   folders count the ancestors the plan creates, so a deep bundle spends
+   more of the limit. A pasted bundle is bounded before it is parsed.
 
 6. **Frontmatter is written by a YAML library**, so `Taverna #3`, `05`,
    `2026-10-17`, `yes` and `[[link]]` stay what they were.
 
 7. **Placeholders.** Obsidian's core Templates: `{{title}}`, `{{date}}`,
-   `{{time}}`, `{{date:FORMAT}}` `[PROPOSED]`; Verso's own: `{{uuid}}`. Any
+   `{{time}}`, `{{date:FORMAT}}` `[DECIDED 2026-10-21]` (0098.7, option A: to
+   be built, so that a bundle copied from Obsidian works the same); Verso's
+   own: `{{uuid}}`. Any
    other tag, `<% … %>` included, is kept as written.
 
 8. **Copying a prompt for an AI.** `[DECIDED 2026-10-20]`: the button
@@ -95,13 +106,24 @@ reviewed; `[PROPOSED]` marks a detail he has not read.
    meu amigo, ele autorizou a gente a copiar a estrutura"* (Igor Téuri is my
    friend; he authorised us to copy the structure). The campaign bundle
    follows his vault's structure, says so in its description, and is on the
-   Credits page.
+   Credits page. `[DECIDED 2026-10-21]` (S.2, option A): the credit's link
+   goes to the vault's own page, `https://linktr.ee/dadoscriticos` (until
+   then it pointed provisionally to the Fractal page on itch.io).
 
 10. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
     every word of the wizard in pt-BR and EN, the bundles' names and
-    descriptions too; `[PROPOSED]` the bundles' folder and note names and
-    contents in the person's language as well. Labels tied to their
+    descriptions too; `[DECIDED 2026-10-21]` (0098.10, option A) the bundles'
+    folder and note names and contents in the person's language as well
+    ("Sessões" becomes "Sessions"). Labels tied to their
     fields, tabs with roles and arrow keys, the result in a live region.
+
+11. **Bundles are the format of the packs.** `[DECIDED 2026-10-21]`
+    (0098.R, option A): the bundle is the format [0015](0015-schema-packs.md)
+    foresaw for packs of structure distributed as content, not code; 0015
+    now points here, one concept and one screen. What 0015 imagines beyond
+    what a bundle does (note types and schemas, a pack per game system)
+    stays after V1, as the maintainer decided for 0015 in the same
+    questionnaire.
 
 ## Consequences
 
@@ -120,5 +142,4 @@ reviewed; `[PROPOSED]` marks a detail he has not read.
 
 ## Status
 
-Accepted (2026-10-20) for the items marked `[DECIDED 2026-10-20]`; the
-`[PROPOSED]` details wait for the maintainer's reading.
+Accepted (2026-10-20, with every detail decided on 2026-10-21).

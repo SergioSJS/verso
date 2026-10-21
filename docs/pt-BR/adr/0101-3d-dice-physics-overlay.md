@@ -1,114 +1,167 @@
-# ADR 0101 — Camada de rolagem de dados em 3D com física: módulo WebGL sob demanda, pouso determinístico e revisão do ADR 0088
+# ADR 0101 — Dados 3D: um módulo preguiçoso que só encena a queda, sobre um resultado já sorteado
 
-- Data: 2026-10-17
-- Fonte: o mantenedor, em sessão em 2026-10-17, fazendo referência ao aplicativo
-  Rolai do próprio mantenedor (`/Users/sergio.sousa/Projects/person/tabletop-rpg/rolai`):
-  *"inclusive adicionando por exemplo rolagem de dados em 3D quando usar o
-  padrão de rolar dado ele puxar uns dados 3D e rolar na tela eu inclusive
-  posso deixar aqui o link do código do rola aí que talvez ajude a inspirar
-  essa parte de rolagem 3D, também vai ser bem importante."* Revisado por
-  Claude Opus 5.5 em 2026-10-17 (`review_adrs_0098_0102.md`) para registrar
-  formalmente a revisão do item 5 do ADR 0088, isolar a renderização 3D em um
-  chunk carregado sob demanda com cache offline, aplicar travas de bateria/mobile
-  e desacoplar anúncios de leitor de tela das animações visuais.
+- Data: 2026-10-17; reescrita em 2026-10-21
+- Fonte: o mantenedor, em sessão em 2026-10-17, referindo-se ao seu próprio
+  aplicativo Rolai (`github.com/SergioSJS/rolai`): *"inclusive adicionando
+  por exemplo rolagem de dados em 3D quando usar o padrão de rolar dado ele
+  puxar uns dados 3D e rolar na tela eu inclusive posso deixar aqui o link do
+  código do rola aí que talvez ajude a inspirar essa parte de rolagem 3D,
+  também vai ser bem importante."* Em 2026-10-21 o mantenedor respondeu à
+  revisão da rodada de RPG (citado nos itens). Este texto substitui o
+  primeiro, escrito em 2026-10-17 por outra IA e marcado como Aceito sem
+  aceitação.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0026](0026-core-ui-contract-inviolable-rules.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
   [0082](0082-live-co-editing-of-a-synced-folder.md),
-  [0088](0088-dice-and-random-tables.md),
+  [0088](0088-dice-and-random-tables.md) (item 5 revisado pelo item 2),
   [0092](0092-the-phone-offline.md),
   [0103](0103-feature-presets-and-capability-flags.md).
-- Estado no briefing: não presente; aprimoramento visual opcional em 3D.
+- Estado no briefing: não presente; melhoria visual 3D opcional.
+- Revisões: 2026-10-20 — o primeiro texto voltou a Proposta (dizia-se
+  Aceito em 2026-10-17 sem aceitação registrada). 2026-10-21 — reescrita
+  com as respostas 0101.0 a 0101.7 do mantenedor (marcando as opções do
+  questionário de decisões de 2026-10-20): os dados 3D entram na V1; a
+  biblioteca **não** está escolhida e espera uma avaliação (item 3); as
+  contradições do primeiro texto foram corrigidas (ele falava de uma
+  predefinição `rpg`, que a [0103](0103-feature-presets-and-capability-flags.md)
+  removeu, e dava um caminho absoluto no computador do mantenedor). Continua
+  Proposta até o item 3 ser fechado.
 
 ## Contexto
 
-O [ADR 0088](0088-dice-and-random-tables.md) introduziu fórmulas de dados inline
-(`dice: 1d20+3`) e tabelas aleatórias copiando o analisador sintático e o motor
-estatístico do Rolai (`SergioSJS/rolai`). O item 5 do ADR 0088 decidiu: *"seu
-analisador e rolador copiados para a janela; nenhuma nova dependência em tempo
-de execução; a rolagem 3D… fica no Rolai"*.
+Dados e tabelas sorteadas já rolam em 2D ([0088](0088-dice-and-random-tables.md),
+`app/ui/src/dice/`): o resultado e o seu cartão existem e funcionam. O
+`package.json` da janela não tem three.js, nem física, nem biblioteca de
+dados 3D (conferido em 2026-10-20). O item 5 da
+[0088](0088-dice-and-random-tables.md) diz "nenhuma dependência nova de
+runtime; a rolagem 3D fica do Rolai". O cliente web do Rolai (`apps/web`)
+usa `@3d-dice/dice-box-threejs` `^0.0.12` e `three` `^0.143.0`; a licença
+desse pacote não foi conferida, e o primeiro texto desta ADR citava "cerca
+de 200–250 KB comprimidos" sem fonte.
 
-No entanto, em partidas de RPG de mesa, a sensação tátil de rolar dados físicos
-gera forte engajamento emocional e imersão. O cliente web do Rolai implementa
-uma caixa de dados 3D usando Three.js com física autêntica e pouso determinístico.
-
-Adicionar renderização WebGL introduz peso significativo ao pacote (~200–250 KB
-compactado) e consumo de GPU. Se carregado indiscriminadamente, comprometeria a
-bateria em dispositivos móveis ([0092](0092-the-phone-offline.md)) e o tempo de
-abertura do aplicativo ([0035](0035-cross-cutting-requirements.md)). Este ADR
-revisa o item 5 do ADR 0088 definindo os dados 3D como um **subpacote opcional
-carregado sob demanda** governado pelos presets de capacidade
-([0103](0103-feature-presets-and-capability-flags.md)).
+Uma rolagem 3D é enfeite: nada no produto precisa dela. Custa uma
+biblioteca, GPU e bateria, e testes em WebKit, WebView2 e no navegador. O
+mantenedor a quer na V1 mesmo assim.
 
 ## Decisão
 
-Proposto (2026-10-17). O primeiro texto dizia que fora aceito naquele dia, com
-cada item marcado `[DECIDED 2026-10-17]`; nenhuma aceitação do mantenedor está
-registrada, e em 2026-10-20 ele voltou a Proposto: cada item assim marcado é
-uma proposta (a revisão de 2026-10-20, docs/review/).
+`[DECIDIDO 2026-10-21]` marca o que o mantenedor decidiu em 2026-10-21
+marcando a opção escrita no item no questionário de 2026-10-20 (com as
+palavras dele onde as deu). Um item está `[ABERTO]`.
 
-1. **Revisão do item 5 do ADR 0088: dados 3D admitidos como módulo opcional sob demanda.**
-   `[DECIDED 2026-10-17]`: O item 5 do ADR 0088 é revisado para permitir a camada de
-   física 3D como uma extensão opcional. O pacote principal da janela continua 100%
-   livre de Three.js. O motor 3D é empacotado em um chunk assíncrono carregado via
-   `import()` dinâmico apenas quando a capacidade está ligada e uma rolagem ocorre.
-   O service worker armazena o chunk em cache para uso offline
-   ([0092](0092-the-phone-offline.md)).
+1. **Os dados 3D entram na V1, reescritos** (0101.0, opção B; roadmap
+   V.29). `[DECIDIDO 2026-10-21]`. Este texto é essa reescrita; ela é
+   aceita, e a funcionalidade construída, depois que o item 3 for fechado
+   (0101.7, opção B).
 
-2. **Pouso com física determinística alinhado à rolagem matemática.**
-   `[DECIDED 2026-10-17]`: O motor de física nunca sorteia números aleatórios. O
-   desfecho numérico é determinado previamente pelo gerador criptográfico
-   ([0088](0088-dice-and-random-tables.md) item 7) ou pelo servidor UniVerso em uma
-   sala compartilhada ([0088](0088-dice-and-random-tables.md) item 4). As faces
-   calculadas são entregues ao renderizador 3D com notação de pouso forçado (ex.:
-   `2d20@18,4`), garantindo que o giro e as colisões sempre pousem no resultado exato.
+2. **O item 5 da [0088](0088-dice-and-random-tables.md) é revisado, e o
+   motor 3D é um pedaço preguiçoso** (0101.1, opção A). `[DECIDIDO
+   2026-10-21]`: o pacote inicial da janela continua livre de qualquer
+   biblioteca 3D; o motor é um pedaço separado carregado por um `import()`
+   dinâmico só quando a chave 3D está ligada e uma rolagem é feita, e o
+   service worker o guarda em cache para uso offline
+   ([0092](0092-the-phone-offline.md)), como o build já faz com o
+   Excalidraw e o MapLibre (`--splitting`, `chunks/`). A 0088 registra a
+   revisão na sua linha de Revisões.
 
-3. **Limites de renderização, desempenho e gestão de contexto.**
-   `[DECIDED 2026-10-17]`:
-   - **Teto de dados**: O overlay 3D renderiza até 20 dados simultâneos. Rolagens
-     que excedam 20 dados ou cadeias de explosão (`1d6!`) ignoram o canvas 3D e
-     exibem diretamente o cartão 2D.
-   - **Zero GPU em repouso**: Quando os dados param, o canvas esmaece e interrompe
-     seu loop de quadros (`requestAnimationFrame`), consumindo 0% de GPU em repouso.
-     A perda de contexto WebGL (`webglcontextlost`) é tratada graciosamente.
-   - **Pular animação**: Um clique em qualquer lugar da tela encerra a animação de
-     física instantaneamente e exibe o cartão final.
+3. **A biblioteca: `[ABERTO]` até uma avaliação** (0101.1b, "Outra"). O
+   mantenedor: *"Avalie entre A e B qual a melhor abordagem, seria bom
+   aproveitar algo pronto do rolai msm, mas vale avaliar o A um pouco mais,
+   assim como B"*. Os dois candidatos:
+   - **A — `three` (MIT) + `cannon-es` (MIT), código nosso**: controle
+     total; os modelos dos dados d4 a d100, as texturas dos números e o
+     pouso forçado são nossos a construir.
+   - **B — `@3d-dice/dice-box-threejs`**, o pacote que o Rolai usa: já
+     conhecido, com pouso forçado em uso no Rolai; versão 0.0.x, pouco
+     mantida.
+   A avaliação vem primeiro e decide, e mede: a licença do pacote **e de
+   toda a sua árvore de dependências** contra a lista de licenças permitidas
+   do npm ([0005](0005-license.md)); o tamanho real do pedaço, medido com
+   `esbuild`; que o **pouso forçado funciona** nas faces que o resultado
+   pede (testado, não presumido); e o comportamento em WebKit, WebView2 e
+   num navegador. Nada é instalado na janela antes de ela reportar. As
+   outras duas opções do questionário — `@3d-dice/dice-box` e um dado em CSS
+   3D feito à mão, sem física — não foram escolhidas para a avaliação; o
+   mantenedor nomeou A e B.
 
-4. **Transmissão de eventos em salas com múltiplos jogadores ([0082](0082-live-co-editing-of-a-synced-folder.md)).**
-   `[DECIDED 2026-10-17]`: Em uma sala, o servidor avalia a rolagem e transmite
-   o resultado como mensagem efêmera com ID único. Participantes recebem o evento e
-   animam os dados simultaneamente. Membros que entram depois não reexecutam animações
-   antigas, preservando a agilidade da interface.
+4. **O pouso é determinístico: a física nunca sorteia** (0101.2, opção A).
+   `[DECIDIDO 2026-10-21]`: o número vem da fonte criptográfica
+   ([0088](0088-dice-and-random-tables.md) item 7) ou, numa sala, do
+   servidor (0088 item 4); o 3D só encena a queda até aquela face (notação
+   como `2d20@18,4`). O cartão 2D é a verdade. A biblioteca escolhida tem
+   de mostrar que força faces (item 3).
 
-5. **Presets de capacidade, proteção móvel e acessibilidade ([0035](0035-cross-cutting-requirements.md), [0103](0103-feature-presets-and-capability-flags.md)).**
-   `[DECIDED 2026-10-17]`:
-   - Dados 3D estão ativos exclusivamente no preset `rpg`. Nos modos `writing` e
-     `worldbuilding`, os dados 3D permanecem desativados.
-   - Em dispositivos móveis, modo de economia de bateria ou quando
-     `prefers-reduced-motion` estiver ativo, os dados 3D vêm desativados por padrão.
-   - Efeitos sonoros vêm desativados por padrão.
-   - Anúncios para leitores de tela ([0088](0088-dice-and-random-tables.md) item 8)
-     ocorrem **imediatamente** após o disparo em uma região ativa polida, sem nunca
-     aguardar a parada física visual dos dados.
+5. **Limites, GPU parada e uma saída da animação** (0101.3, opção A).
+   `[DECIDIDO 2026-10-21]`: no máximo 20 dados na tela; acima disso, ou com
+   explosões (`1d6!`), só o cartão 2D. Quando os dados param, o canvas some
+   e o laço de animação é cancelado; uma perda de contexto WebGL é tratada.
+   Um clique em qualquer lugar pula a animação, **e o Esc também**, e há
+   **um tempo máximo de animação**, de modo que uma queda presa na tela
+   sempre termina. (O máximo é um valor a fixar na construção; nenhum
+   número foi decidido.)
+
+6. **Numa sala** (0101.4, opção A). `[DECIDIDO 2026-10-21]`: o servidor
+   sorteia e manda um evento efêmero com id único; cada pessoa o anima só
+   se a sua chave 3D estiver ligada, senão vê o cartão 2D; quem entra
+   depois não vê o passado; nada é gravado em nota. O id evita animar o
+   mesmo evento duas vezes depois de uma reconexão. A sala guarda as
+   últimas rolagens só na memória, como diz o item 4 da 0088.
+
+7. **Uma chave própria, desligada por padrão** (0101.5, opção A).
+   `[DECIDIDO 2026-10-21]`: "Dados 3D" em Ajustes › App › Funcionalidades,
+   **desligada por padrão mesmo com "Tudo" ligado** (a única exceção ao
+   item 2 da [0103](0103-feature-presets-and-capability-flags.md), que a
+   0103 registra), e **desligada à força com movimento reduzido**, nunca
+   animando seja o que a chave disser. O som é outra chave, desligada. Não
+   há predefinição `rpg` (a [0103](0103-feature-presets-and-capability-flags.md)
+   não nomeia nenhuma).
+
+8. **O leitor de tela ouve o resultado na hora** (0101.6, opção A).
+   `[DECIDIDO 2026-10-21]`: o resultado é anunciado uma vez, quando a
+   rolagem é feita, numa região viva educada
+   ([0088](0088-dice-and-random-tables.md) item 8), sem esperar os dados
+   pararem; o canvas 3D é `aria-hidden`; o cartão 2D com o resultado em
+   texto é **sempre** criado, mesmo com o 3D ligado. Nenhum anúncio de
+   "rolando…".
+
+9. **Status** (0101.7, opção B). `[DECIDIDO 2026-10-21]`: reescrever (feito
+   aqui), aceitar quando a biblioteca tiver sido avaliada e o seu pedaço
+   medido (item 3), e construir.
 
 ## Consequências
 
-- O ADR 0088 recebe uma anotação expressa de Revisão documentando o módulo 3D opcional.
-- `app/ui/src/dice/` fornece carregamento assíncrono para o overlay 3D sem inflar o
-  pacote principal.
-- Jogadores desfrutam de rolagens 3D imersivas, enquanto escritores e usuários em
-  celulares mantêm zero consumo desnecessário de bateria ou desempenho.
+- A [0088](0088-dice-and-random-tables.md) ganha uma linha de Revisões para
+  o item 5 (a rolagem 3D pode ser um módulo preguiçoso da janela).
+- `app/ui/src/dice/` ganha o módulo 3D preguiçoso, atrás da chave; o
+  service worker lista o pedaço; as strings em pt-BR e EN; a chave e a sua
+  descrição em Ajustes › App › Funcionalidades.
+- A avaliação do item 3 é um relatório curto em `docs/reference/`, com as
+  medições, antes de qualquer dependência ser acrescentada.
+- Uma mudança que o usuário vê: o changelog e o cofre de demonstração
+  ([0058](0058-demo-vault-as-tutorial.md)).
 
 ## Alternativas descartadas
 
-- **Embutir Three.js diretamente no pacote principal do app**: Rejeitado porque
-  250 KB gz extras violam o orçamento de desempenho para anotações puras.
-- **Deixar colisões físicas definirem os resultados**: Rejeitado porque a física
-  diverge entre diferentes navegadores e dispositivos, além de ser vulnerável à
-  dessincronização em salas multiplayer.
+Só o que o mantenedor recusou ao marcar estas respostas:
 
-## Estado
+- **Depois da V1, como extra opcional** (0101.0, A), e **não fazer, deixando
+  o 3D para o Rolai** (0101.0, C).
+- **Um pacote baixado da rede sob demanda** (0101.1, B): quebra o uso
+  offline e a regra de rede ([0050](0050-outbound-network-access.md)).
+- **Deixar a física decidir o número** (0101.2, B): cada aparelho daria um
+  resultado diferente e a sala perderia a sincronia.
+- **Aceitar os limites como o primeiro texto os tinha, com só um clique para
+  pular** (0101.3, B).
+- **Exigir o 3D de todos numa sala** (0101.4, B).
+- **Uma chave ligada por padrão, exceto no celular** (0101.5, B), e **sem
+  chave, só detectando o aparelho** (0101.5, C).
+- **Anunciar só quando os dados param** (0101.6, B).
 
-**Proposto (2026-10-17)**; de volta a Proposto em 2026-10-20, nada construído.
+## Status
+
+Proposta. Reescrita em 2026-10-21 com as respostas do mantenedor; continua
+Proposta até o item 3 (a biblioteca) ser avaliado e fechado, quando é aceita
+e construída (0101.7, opção B). Nada está construído.

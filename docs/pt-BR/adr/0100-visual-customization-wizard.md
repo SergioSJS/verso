@@ -1,6 +1,6 @@
-# ADR 0100 — Assistente de customização visual: editor CSS ao vivo, contrato de tokens versionado e perfis de tema pessoais
+# ADR 0100 — Assistente de aparência: uma prévia ao vivo em Ajustes sobre os tokens reais, perfis salvos e arquivos `.verso-theme`
 
-- Data: 2026-10-17
+- Data: 2026-10-17; reescrita em 2026-10-21
 - Fonte: o mantenedor, em sessão em 2026-10-17: *"Tem uma outra feature
   também que seria importante Da gente ter, é uma Espécie de wizard de
   customização visual aí é customizar o CSS padrão da aplicação a gente tem
@@ -9,10 +9,11 @@
   que a pessoa conseguisse customizar e salvar esses perfis e exportar e
   importar não seria legal se tivesse isso também já adiciono essa
   funcionalidade na lista aí de coisas pra se fazer antes mesmo de battle
-  mapping de zone token etc."* Revisado por Claude Opus 5.5 em 2026-10-17
-  (`review_adrs_0098_0102.md`) para estabelecer um contrato versionado de
-  tokens, alinhar com a camada de configurações pessoais ([0070](0070-what-travels-with-the-folder.md)),
-  garantir contraste WCAG AA ao vivo e impedir injeções remotas de CSS.
+  mapping de zone token etc."* Em 2026-10-21, respondendo à revisão da
+  rodada de RPG, que achou que só uma das onze propriedades da ADR existe
+  no CSS da janela com aquele nome: *"Atualize a ADR pra refletir a
+  realidade então"*. Este texto substitui o primeiro, escrito em 2026-10-17
+  por outra IA e marcado como Aceito sem aceitação.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0026](0026-core-ui-contract-inviolable-rules.md),
@@ -21,89 +22,145 @@
   [0070](0070-what-travels-with-the-folder.md),
   [0076](0076-the-window-on-every-screen.md),
   [0103](0103-feature-presets-and-capability-flags.md).
-- Estado no briefing: não presente; primitiva de customização visual.
+- Estado no briefing: não presente.
+- Revisões: 2026-10-20 — o primeiro texto voltou a Proposta (dizia-se
+  Aceito em 2026-10-17 sem aceitação registrada). 2026-10-21 — reescrita
+  sobre os tokens reais da janela com as respostas 0100.0 a 0100.6 do
+  mantenedor (marcando as opções do questionário de decisões de
+  2026-10-20); Aceita. Os tokens do primeiro texto (`--bg`, `--card-bg`,
+  `--border`, `--accent`, `--font-body`…), a sua janela flutuante, o seu
+  diálogo de 15 segundos "Manter alterações?" e a sua importação só por
+  arrastar saíram; a sua "tema recomendado na pasta" fica, agora por escolha
+  explícita do mantenedor (item 3).
 
 ## Contexto
 
-O Verso oferece uma estética bem cuidada ("Manuscrito") com modos claro/escuro
-e cor de destaque do cofre ([0070](0070-what-travels-with-the-folder.md)). No entanto,
-escritores e mestres de RPG desejam atmosferas visuais sob medida (como pergaminho
-sépia para fantasia, modo escuro de alto contraste para escrita noturna ou fontes
-serifadas editoriais para textos longos).
+Ajustes › Aparência já oferece um tema (automático, claro, escuro), quatro
+paletas (`paper`, `sepia`, `slate`, `moss`), três tons de escuro (`soft`,
+`deep`, `dusk`), o tamanho da fonte, uma fonte de título, uma fonte de
+corpo, uma cor de título e uma largura de leitura
+(`app/ui/src/settings.ts`, `app/ui/css/base.css`), tudo guardado como
+configuração da pessoa, nunca numa nota. O que falta é o de que o
+mantenedor reclamou em 2026-10-17: a pessoa não vê o resultado antes de
+mudar, não consegue fazer um visual próprio e guardá-lo, e não consegue
+entregá-lo a alguém.
 
-Atualmente, testar ajustes visuais exige navegar cegamente por diálogos modais.
-Além disso, regras CSS ad-hoc colocam em risco o contraste da interface, e a
-importação de arquivos CSS arbitrários gera riscos de segurança (como
-`url(https://rastreador/...)` disparando requisições de rede remotas em violação
-do ADR 0050 ([0050](0050-outbound-network-access.md))).
-
-Um assistente visual nativo é necessário, operando por meio de um **contrato
-versionado de tokens de design**, com pré-visualização ao vivo, validação de
-contraste WCAG AA e armazenamento de temas na camada pessoal ([0070](0070-what-travels-with-the-folder.md)).
+O primeiro texto desta ADR pedia onze propriedades. Conferidas contra o CSS
+em 2026-10-20 (revisão D-I15): só `--ink` existe com aquele nome. Os tokens
+da janela são `--paper`, `--paper-2`, `--paper-3`, `--hair`, `--ink`,
+`--ink-2`, `--ink-3`, `--seal` (o acento), `--seal-wash`, `--brass`,
+`--brass-ink`, `--brass-wash`, `--heading-font`, `--book` (a fonte do
+corpo), `--mono` e o `font-size` do elemento `<html>`; não há token de raio
+nem cor de "hover". A ideia se mantém; o contrato tem de ser escrito sobre
+os nomes reais.
 
 ## Decisão
 
-Proposto (2026-10-17). O primeiro texto dizia que fora aceito naquele dia, com
-cada item marcado `[DECIDED 2026-10-17]`; nenhuma aceitação do mantenedor está
-registrada, e em 2026-10-20 ele voltou a Proposto: cada item assim marcado é
-uma proposta (a revisão de 2026-10-20, docs/review/).
+Aceita em 2026-10-21. Cada item é `[DECIDIDO 2026-10-21]`: o mantenedor
+marcou a opção escrita nele no questionário de decisões de 2026-10-20;
+onde uma opção difere da recomendada primeiro, o item diz.
 
-1. **O Assistente de Customização Visual ("Personalizar aparência…")**.
-   `[DECIDED 2026-10-17]`: Abre um painel flutuante ou acoplado ao lado de um
-   documento de exemplo ao vivo (contendo títulos, parágrafos, citações, blocos
-   de código, tabelas e botões de interface). As alterações se aplicam à prévia
-   em tempo real, sem recarregar nem piscar a janela.
+1. **Entra na V1, como uma fatia pequena** (0100.0, opção A; roadmap V.28).
+   Uma prévia ao vivo em Ajustes, sobre os tokens reais, com perfis salvos e
+   exportar/importar; nenhum campo de CSS livre. Nenhuma dependência, só
+   variáveis CSS e JSON, de modo que funciona offline e não pesa nada.
 
-2. **Contrato Versionado de Tokens de Design (`tokensVersion: 1`)**.
-   `[DECIDED 2026-10-17]`: A customização é estritamente mapeada para propriedades
-   CSS personalizadas pré-definidas:
-   - **Superfícies**: `--bg` (fundo da tela), `--card-bg` (cartões/painéis), `--border` (divisores).
-   - **Tipografia**: `--font-body`, `--font-heading`, `--font-mono`, `--font-size-base`.
-   - **Destaques e Estados**: `--accent`, `--accent-hover`, `--ink` (texto principal), `--ink-muted`.
-   - **Geometria**: `--radius` (arredondamento: 0px, 6px, 12px), densidade da interface.
-   Tokens são tipados e sanitizados: regras brutas de CSS e referências a `url()`
-   externas são proibidas, garantindo privacidade local-first ([0050](0050-outbound-network-access.md)).
+2. **O painel fica dentro de Ajustes › Aparência** (0100.1, opção A), não
+   numa janela flutuante: um documento de exemplo ao lado dos controles
+   (títulos, texto de corpo, uma citação, código, uma tabela, botões) que
+   muda na hora quando um valor muda. A tela de Ajustes já é acessível por
+   teclado e leitor de tela e funciona igual no celular e no navegador
+   ([0076](0076-the-window-on-every-screen.md)); a prévia ao vivo é uma
+   troca de variáveis em `:root`, sem recarregar e sem piscar.
 
-3. **Camadas seguem o ADR 0070: temas pessoais com sugestão opcional do cofre**.
-   `[DECIDED 2026-10-17]`: Perfis de tema residem na **camada da pessoa**
-   (`localStorage` / config local, não sincronizadas). Um cofre compartilhado
-   nunca impõe um tema ilegível a outro leitor. O cofre pode declarar um tema
-   recomendado opcional (`"recommendedTheme": "pergaminho"`) em `.verso/settings.json`,
-   que o usuário pode aceitar ou ignorar.
+3. **O contrato de tokens, `tokensVersion: 1`** (0100.2, opção A): uma lista
+   curta e fixa sobre os nomes reais — `--paper`, `--paper-2`, `--hair`,
+   `--ink`, `--ink-2`, `--seal`, `--brass-ink`, `--heading-font`, `--book`,
+   `--mono` e o tamanho da fonte. Um tema é apenas uma lista de valores para
+   esses tokens: **nunca CSS livre, nunca `url()`**, nunca uma regra
+   ([0050](0050-outbound-network-access.md)); cada valor é conferido contra o
+   seu tipo (uma cor, uma fonte do conjunto permitido, um tamanho numa
+   faixa). Os valores que a pessoa não edita um a um (`--paper-3`, `--ink-3`,
+   os tons claros, os tons de escuro) são derivados pelo assistente a partir
+   desses, de modo que as paletas já validadas em contraste não são tocadas.
+   Não há token de raio: nenhum existe hoje e o mantenedor não pediu um.
+   `tokensVersion` deixa a lista crescer sem quebrar um tema salvo. Um tema
+   nunca toca numa nota: são valores de variável, guardados fora da pasta.
 
-4. **Verificação de contraste WCAG AA ao vivo e reversão de segurança**.
-   `[DECIDED 2026-10-17]`: O assistente calcula a razão de contraste de luminância
-   em tempo real entre o texto (`--ink`) e o fundo (`--bg`). Se uma cor resultar
-   em taxa inferior a WCAG AA (4.5:1 para texto normal), um aviso acessível é
-   exibido. Ao aplicar mudanças drásticas, uma confirmação de 15 segundos "Manter alterações?"
-   oferece reversão automática de segurança contra bloqueios visuais.
+4. **Onde um tema mora: a camada da pessoa, mais uma sugestão opcional da
+   pasta** (0100.3, **opção B — escolha explícita do mantenedor**). Os
+   perfis salvos são configurações da pessoa
+   ([0070](0070-what-travels-with-the-folder.md) item 1; num servidor, as
+   da conta), sem sincronizar entre pessoas, de modo que numa sala cada um
+   vê o seu tema. Uma pasta pode levar um `recommendedTheme` opcional em
+   `.verso/settings.json`, que a pessoa aceita ou dispensa; a pasta nunca o
+   aplica sozinha. O mantenedor escolheu isto sabendo que o item 4 da
+   [0103](0103-feature-presets-and-capability-flags.md) diz "a escolha da
+   pessoa, nunca a da pasta" para as chaves de funcionalidades: para temas
+   ele decidiu diferente, e a 0103 traz uma nota datada dizendo isso.
 
-5. **Exportação e Importação de Temas (`.verso-theme`)**.
-   `[DECIDED 2026-10-17]`: Usuários podem exportar seus temas como arquivos JSON
-   limpos com extensão `.verso-theme`, contendo metadados (nome, autor, modo claro/escuro,
-   `tokensVersion: 1`) e valores dos tokens. Arrastar um `.verso-theme` para a janela
-   valida o esquema e grava o perfil na biblioteca local.
+5. **O contraste é conferido ao vivo, e uma tela ilegível é desfeita**
+   (0100.4, opção A). Para os pares reais — tinta sobre papel, tinta 2 e
+   tinta 3 sobre papel, o acento sobre papel — o painel mostra a razão ao
+   vivo e avisa abaixo de 4,5:1 (WCAG AA para texto). Só se uma escolha
+   derrubar um par **abaixo de 3:1** ela é revertida automaticamente, uma
+   vez, com uma mensagem dizendo o que foi desfeito; não há diálogo
+   temporizado "Manter alterações?" a cada mudança. "Restaurar padrão" está
+   sempre no painel e alcançável por teclado, com um rótulo visível, seja
+   qual for o estado.
 
-6. **Acessibilidade e internacionalização ([0035](0035-cross-cutting-requirements.md))**.
-   `[DECIDED 2026-10-17]`: Todos os controles deslizantes, paletas de cores,
-   seletores de fontes e indicadores de contraste fornecem rótulos ARIA descritivos
-   em português (`pt-BR`) e inglês (`en`).
+6. **Exportar e importar `.verso-theme`** (0100.5, opção A). Um tema é um
+   JSON pequeno (nome, claro ou escuro, `tokensVersion`, os valores) que se
+   exporta e se importa com **validação estrita**: só os tokens da lista,
+   só cores e fontes que ela conhece, um tamanho máximo, nenhum `url()`,
+   nada mais. Um arquivo arrastado para a janela é aceito, e há também um
+   botão **"Importar…"**, para que quem usa só o teclado ou um leitor de tela
+   o faça sem arrastar. As fontes são só as que o aplicativo traz e as do
+   sistema; uma fonte baixada de fora quebraria a regra de rede
+   ([0050](0050-outbound-network-access.md)).
+
+7. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
+   cada controle rotulado em pt-BR e EN; cores e tamanhos operáveis por
+   teclado; as razões de contraste e uma reversão anunciadas numa região
+   viva educada; a prévia não move o foco.
 
 ## Consequências
 
-- Folhas de estilo fundamentais da aplicação permanecem limpas e intactas; temas
-  apenas sobrescrevem variáveis CSS no nível `:root`.
-- A validação de contraste protege a acessibilidade e impede combinações ilegíveis.
-- Usuários podem compartilhar atmosferas visuais com a comunidade com segurança em JSON.
+- As folhas de estilo do núcleo não mudam: um tema sobrepõe variáveis em
+  `:root` (e os mecanismos `data-palette` e de tons de escuro existentes
+  continuam funcionando).
+- Os perfis vivem nas configurações da pessoa (`app/ui/src/settings.ts`
+  ganha uma lista de temas); `recommendedTheme` é mais uma chave de
+  `.verso/settings.json` (o `FolderSettings` do contrato, com os bindings
+  regenerados).
+- Um validador de arquivos `.verso-theme` com teste de entradas hostis (um
+  `url()`, um token desconhecido, um valor enorme, um tipo errado); o
+  contraste dos pares calculado dos tokens reais; um teste de que a
+  reversão só acontece abaixo de 3:1.
+- O cofre de demonstração ensina ([0058](0058-demo-vault-as-tutorial.md)); o
+  changelog ganha a sua linha; linha V.28 do roadmap.
 
 ## Alternativas descartadas
 
-- **Salvar temas ativos em pastas sincronizadas do cofre (`.verso/themes/`)**:
-  Rejeitado porque impõe o esquema de cores de um membro a todos os colaboradores da sala
-  ([0070](0070-what-travels-with-the-folder.md)).
-- **Permitir importação de folhas de estilo CSS arbitrárias**: Rejeitado porque CSS
-  livre permite rastreamento remoto via rede (`url()`) e injeções de seletores.
+Só o que o mantenedor recusou ao marcar estas respostas (as "alternativas"
+do primeiro texto nunca foram consideradas por ninguém além do autor e não
+são registradas):
 
-## Estado
+- **Esperar até depois da V1, ou não fazer** (0100.0, B e C): o mantenedor
+  quer na V1.
+- **Uma janela flutuante ou ancorada** (0100.1, B), e **nenhum documento de
+  exemplo** (0100.1, C): a primeira é um componente novo de foco e teclas,
+  difícil no celular; a segunda mantém o "mude para ver".
+- **Criar os tokens do primeiro texto (`--bg`, `--accent`…) e fazer o CSS
+  usá-los** (0100.2, B), e **só acrescentar duas ou três paletas, sem
+  editor** (0100.2, C).
+- **Só a camada da pessoa, com a pasta nunca sugerindo** (0100.3, A): o
+  mantenedor escolheu a sugestão opcional.
+- **Um diálogo temporizado "Manter alterações?" a cada mudança drástica**
+  (0100.4, B), e **só um aviso, sem reversão automática** (0100.4, C).
+- **Só perfis locais, sem exportar nem importar na V1** (0100.5, B).
 
-**Proposto (2026-10-17)**; de volta a Proposto em 2026-10-20, nada construído.
+## Status
+
+Aceita (2026-10-21), a reescrita sobre os tokens reais com as respostas do
+mantenedor a 0100.0–0100.6. Nada está construído.

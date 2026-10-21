@@ -13,6 +13,14 @@
   um modo completo com todas as features. E eu não sei se ele deveria chamar
   modo RPG"*. Este texto substitui o primeiro; as respostas de 2026-10-20
   estão citadas nos itens.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21): a migração do item 4
+  decidida como proposta (0103.4); uma nota datada no item 4 e um item 7
+  novo, porque o item 3 da [0100](0100-visual-customization-wizard.md) (a
+  pasta pode sugerir um tema), o item 5 da
+  [0101](0101-3d-dice-physics-overlay.md) (uma chave desligada por padrão)
+  e a [0106](0106-structured-data-as-a-diagram.md) (uma chave nova) tocam
+  esta ADR. Status Aceita.
 - Relacionados: [0012](0012-files-are-source-of-truth.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
@@ -37,7 +45,8 @@ sinalizações nunca eram lidas.
 
 Aceita em 2026-10-20 (o mantenedor: *"adorei as sugestões e melhorias e
 correções. pode definir uma sequencia e atuar em tudo"*), para o desenho
-proposto a ele naquele dia; `[PROPOSTO]` marca um detalhe que ele não leu.
+proposto a ele naquele dia; `[DECIDIDO 2026-10-21]` marca um detalhe que ele
+decidiu depois, marcando uma opção do questionário de 2026-10-20.
 
 1. **Uma chave por funcionalidade opcional, em Configurações › App ›
    Funcionalidades.** Cada uma diz em uma linha o que acrescenta e onde
@@ -67,10 +76,18 @@ proposto a ele naquele dia; `[PROPOSTO]` marca um detalhe que ele não leu.
 4. **A escolha da pessoa, não a da pasta.** As chaves são configurações da
    pessoa ([0070](0070-what-travels-with-the-folder.md) item 1; num
    servidor, as da conta, [0073](0073-self-hosted-server-first.md) item 5).
-   Uma pasta nunca liga nem desliga uma funcionalidade. `[PROPOSTO]`: uma
+   Uma pasta nunca liga nem desliga uma funcionalidade. `[DECIDIDO
+   2026-10-21]` (0103.4, opção A): uma
    construção que guardava uma predefinição a lê uma vez — escrita → tudo
    desligado, construção de mundos → tudo ligado menos statblocks, qualquer
    outra → tudo ligado — e a descarta.
+   *Nota, 2026-10-21 — os temas são diferentes.* "Nunca a pasta" é a regra
+   para as chaves de funcionalidades. Para os temas o mantenedor decidiu
+   diferente, sabendo disso (0100.3, opção B, no item 3 da
+   [0100](0100-visual-customization-wizard.md)): um tema é escolha da
+   pessoa, e uma pasta pode acrescentar uma sugestão opcional
+   `recommendedTheme` em `.verso/settings.json`, que a pessoa aceita ou
+   ignora. É decisão do mantenedor só para temas; nada muda para as chaves.
 
 5. **Desligado não muda arquivo e não esconde nada para sempre.** Desligada,
    a construção é desenhada como o Obsidian a desenha sem um plugin — código
@@ -82,6 +99,21 @@ proposto a ele naquele dia; `[PROPOSTO]` marca um detalhe que ele não leu.
 6. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
    um fieldset com legenda; cada chave rotulada, a sua linha como descrição;
    funciona só com o teclado; cada palavra em pt-BR e EN.
+
+7. **Duas chaves cuja regra não é "ligada por padrão".** `[DECIDIDO
+   2026-10-21]`:
+   - **Diagrama de dados** (0106.6, opção A) — uma chave em Ajustes › App ›
+     Funcionalidades, ligada por padrão como as outras; desligada, nenhum
+     botão do diagrama aparece ([0106](0106-structured-data-as-a-diagram.md)).
+     Passa a existir quando a funcionalidade for construída.
+   - **Dados 3D** (0101.5, opção A) — chave própria, "Dados 3D",
+     **desligada por padrão mesmo com "Tudo" ligado**: a única
+     funcionalidade cara em peso e bateria, de modo que o item 2 tem esta
+     exceção, aprovada pelo mantenedor. O atalho "Tudo" diz, antes de
+     aplicar, que não liga os dados 3D. Com movimento reduzido nunca anima,
+     com a chave ligada ou não. O som é outra chave, desligada. Passa a
+     existir quando a funcionalidade for construída
+     ([0101](0101-3d-dice-physics-overlay.md)).
 
 ## Consequências
 
@@ -99,4 +131,4 @@ proposto a ele naquele dia; `[PROPOSTO]` marca um detalhe que ele não leu.
 ## Status
 
 Aceita (2026-10-20), o desenho proposto ao mantenedor naquele dia; a
-migração do item 4 é `[PROPOSTO]`.
+migração do item 4 decidida em 2026-10-21.

@@ -35,7 +35,13 @@
   completion, partial and accent-aware; choosing a note writes
   `[[Name]]` (or `[[Name|typed]]` as item 2 does) in place of the `@` and
   what followed it — so the file stays Obsidian's dialect, where `@`
-  means nothing. `[PROPOSED]`: on by default (it opens only when asked);
+  means nothing. `[DECIDED 2026-10-21]` (0089.a, "Outra": *"A, mas caso o
+  usuário aperte Esc pra dispensar a janela, ela não deve voltar ao
+  usuário digitar mais caracteres"* — A, but if the user presses Esc to
+  dismiss the window, it must not come back as the user types more
+  characters): on by default (it opens only when asked), **and after Esc
+  has dismissed the `@` list, typing more characters of the same word does
+  not reopen it** (a new `@` does);
   only at the start of a word (`fulano@mail` never opens it); nothing
   chosen, the `@` and the text stay as typed; never in code, the
   frontmatter, a link, math, HTML or a tag.
@@ -43,7 +49,8 @@
   first letters of the words just typed, a short list of the notes (and
   aliases) whose name starts with them, narrowing as typing goes on;
   arrows choose, Tab or Enter accepts, Escape dismisses for that word.
-  `[PROPOSED]`: three letters at least, and only for a word that begins
+  `[DECIDED 2026-10-21]` (0089.b, option A: as built, off by default):
+  three letters at least, and only for a word that begins
   with a capital letter — names of places, people and factions do, the
   common words that made the whole-name rule necessary mostly do not; at
   most five entries; a whole name typed keeps the chip, which now stays
@@ -55,11 +62,18 @@
   (you didn't add a number of characters to trigger the note search in
   this setting). `[DECIDED 2026-10-20]`: the number of letters before the
   list appears is a setting beside the suggestion, default 3.
-  `[PROPOSED]`: from 1 to 10; and the capital-letter rule a switch beside
-  it, on by default. A word that begins with a digit counts as a capital
+  `[DECIDED 2026-10-21]` (0089.c, option A): from 1 to 10, default 3; and
+  the capital-letter rule a switch beside it, on by default. A word that begins with a digit counts as a capital
   one — the maintainer: *"você não considerou notas que começam com número,
   tipo 2026"* (you didn't consider notes that start with a number, like
   2026), `[DECIDED 2026-10-20]`.
+  2026-10-21 — the `[PROPOSED]` details above decided by the maintainer's
+  marks in the questionnaire of 2026-10-20 (0089.a to 0089.c), and one
+  more question answered: **0089.a2** `[DECIDED 2026-10-21]`, option A —
+  `@Goblin` typed in full still lists "Goblin Rei" below "Goblin": the
+  exact name first (score 100), names starting with the text next (80),
+  names merely containing it last (40), the same behaviour as the `[[`
+  list, so a longer name can be chosen without deleting anything.
 
 ## Context
 

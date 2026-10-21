@@ -31,8 +31,10 @@ respondendo à dor registrada de sync de config que falha entre dispositivos.
 ## Decisão (proposta, não confirmada)
 
 1. Candidato ao motor de merge: Automerge.
-2. Config em camadas: compartilhada (lista de plugins, schemas) e por dispositivo
-   (hotkeys, layout).
+2. Config em camadas: compartilhada (lista de plugins) e por dispositivo
+   (hotkeys, layout). Os schemas ficam na pasta, não na camada compartilhada
+   fora dela (corrigido em 2026-10-21 para concordar com a [0052](0052-typed-note.md);
+   0021.2, opção A).
 
 ## Consequências
 
@@ -55,6 +57,8 @@ Nenhuma registrada: o briefing cita Automerge como candidato, sem comparação c
 outras bibliotecas de CRDT.
 
 ## Status
+
+*2026-10-21* — 0021.2 `[DECIDIDO 2026-10-21]` (opção A, a marca do mantenedor no questionário de decisões de 2026-10-20): as camadas valem, com os schemas na pasta; a 0052 é mais nova e a pasta é a fonte da verdade ([0012](0012-files-are-source-of-truth.md)). O item 2 acima é corrigido para dizer isso.
 
 Proposto. Item 1 revisto em 2026-10-09 pelo item 7 do
 [0073](0073-self-hosted-server-first.md), Aceito: Yjs, como mecanismo de

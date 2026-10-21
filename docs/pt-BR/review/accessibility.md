@@ -224,9 +224,13 @@ Conferido depois de cada commit: `npm run check` e `npm run build` em
 acrescentado) e `scripts/check-docs-mirror.sh`. Não rodados aqui:
 `scripts/check.sh` e o build do Rust, deixados para a integração.
 
-## 8. Pendente do mantenedor
+## 8. Pendente do mantenedor — resolvido em 2026-10-21
 
-Nada disto é decidido por esta revisão.
+Nada disto foi decidido por esta revisão. O mantenedor resolveu cada
+um em 2026-10-21, marcando as opções do questionário de decisões de
+2026-10-20; cada item abaixo termina com a sua resolução (A11Y.n é o
+número do item naquele questionário). Onde a resolução é trabalho novo,
+ela é uma linha do roadmap (V.13).
 
 1. **A leitura destas correções.** Foram escritas pela Opus 5.5, que também
    as auditou; o [ADR 0032](../adr/0032-author-and-reviewer-roles.md) pede
@@ -234,14 +238,27 @@ Nada disto é decidido por esta revisão.
    2026-09-23 o mantenedor deixou uma sessão nova da Opus 5.5 fazer as
    vezes do Fable 5.1 (`phase-2.md` §6, item 17); se essa resposta cobre
    esta passada é do mantenedor.
+   **Resolvido em 2026-10-21** (A11Y.1, opção B): uma sessão nova da Opus
+   5.5 vale como o outro leitor, pela regra de 2026-09-23; o desvio do ADR
+   0032 fica registrado aqui e no PR que leva as correções.
+
 2. **O próprio autor da auditoria.** Parte da janela que ela audita — as
    correções de 2026-09-23, entre elas correções anteriores de
    acessibilidade (`73e215e`, `83d4a0a`) — foi escrita pela Opus 5.5.
    Registrado; se outro modelo lê a janela de novo é do mantenedor.
+   **Resolvido em 2026-10-21** (A11Y.2, opção A): só registrado, e junto com
+   a leitura do item 1; uma leitura resolve as duas. A janela não é relida
+   por outro modelo.
+
 3. **A meta.** O ADR 0035 diz "acessibilidade desde o início" e não nomeia
    nível. Esta auditoria mediu contra a WCAG 2.2 nível AA, o nível pedido
    quando a passada começou. Se isso vira a meta — uma revisão do ADR
    0035 — é do mantenedor.
+   **Resolvido em 2026-10-21** (A11Y.3, opção B): nenhum nível é nomeado; o
+   ADR 0035 mantém "acessibilidade desde o início" e não é revisto. Os
+   números de WCAG 2.2 AA desta auditoria continuam o que são, medidas e uma
+   régua para os achados, não uma meta que o mantenedor tenha fixado.
+
 4. **Bordas dos controles** (seção 5, achado 2). Os campos são desenhados
    com um fio de 1,36:1 a 1,43:1 contra a página, e um interruptor
    desligado com um trilho de 1,20:1; o 1.4.11 pede 3:1 para o que
@@ -250,46 +267,113 @@ Nada disto é decidido por esta revisão.
    ficam; uma linha de luminosidade perto de 55% no modo claro e de 58% no
    escuro chega a 3,4:1 ou mais em todo papel e paleta (calculado). O fio
    é a linguagem do desenho, então a escolha é do mantenedor.
+   **Resolvido em 2026-10-21** (A11Y.4, opção A): uma cor de linha própria
+   para controles (campos, selects, o interruptor desligado), luminosidade
+   perto de 55% no modo claro e 58% no escuro, 3,4:1 ou mais em todo papel e
+   paleta; os fios da página ficam. Trabalho novo, a construir.
+
 5. **Zoom de página.** O host deixa as teclas de zoom do Tauri desligadas
    (`zoomHotkeysEnabled` não está definido), então ⌘+ e ⌘− não fazem nada
    e o ajuste de tamanho da fonte é o único jeito de aumentar o texto.
    Ligá-las é uma mudança no host (`app/src-tauri`), fora desta passada.
+   **Resolvido em 2026-10-21** (A11Y.5, opção A): resolvido pelo que foi
+   construído depois desta revisão. A janela dá zoom (ADR 0072, revisão de
+   2026-10-20: Cmd/Ctrl mais, menos e 0, e Ctrl com a roda, de 50% a 200%,
+   guardado por aparelho; na versão do navegador vale o zoom do navegador),
+   e o tamanho da fonte vai a 30 px; o 1.4.4 (200%) é cumprido. A frase
+   acima sobre as teclas do host desligadas descreve o estado quando esta
+   revisão foi escrita.
+
 6. **"Salvo." anunciado a cada autosave** (seção 3, achado 3). Manter, ou
    anunciar só o que dá errado (uma escrita recusada, um erro) e deixar os
    salvamentos de rotina calados para o leitor de tela.
+   **Resolvido em 2026-10-21** (A11Y.6, opção A): anunciar só o que dá
+   errado (uma escrita recusada, um erro); um salvamento de rotina fica
+   calado para o leitor de tela, e a palavra "Salvo." continua visível na
+   tela. Trabalho novo, a construir.
+
 7. **Teclas padrão para os comandos novos.** "Mover aba para trás", "Mover
    aba para a frente", "Mover aba para a área seguinte", "… para a área
    anterior" e "Mover para…" não têm nenhuma; qualquer uma pode ser
    atribuída nos ajustes. Se algum ganha uma padrão é do mantenedor.
+   **Resolvido em 2026-10-21** (A11Y.7, opção A): nenhuma tecla padrão. Elas
+   não colidem com as teclas do sistema nem do Obsidian, e quem precisar de
+   uma a atribui nos ajustes.
+
 8. **"Área" em pt-BR** (seção 2, achado 18). Uma palavra para uma área da
    divisão e uma área de trabalho; "Fechar área" nomeia dois controles.
    Uma escolha de redação.
+   **Resolvido em 2026-10-21** (A11Y.8, opção A): "Painel" para o painel e
+   "Espaço de trabalho" para o espaço de trabalho em pt-BR, de modo que cada
+   controle tenha o seu nome; "Painel lateral" já existe no aplicativo. Só
+   texto, em pares com o inglês (ADR 0035). Trabalho novo, a construir.
+
 9. **Divisores sem jeito de ponteiro único** (seção 1, achado 16): o 2.5.7
    pede um para o que o arrasto faz. Botões para alargar e estreitar uma
    área, ou aceitar as setas e "Maximizar área" como suficientes.
+   **Resolvido em 2026-10-21** (A11Y.9, opção A): as setas e "Maximizar
+   painel" são aceitas como suficientes; nenhum botão de alargar ou
+   estreitar em cada divisor.
+
 10. **Arquivos do sistema sem arrastar** (seção 1, achado 17): um comando
     "copiar arquivos para a pasta…" precisa do seletor de arquivos do
     host — uma mudança no host.
+    **Resolvido em 2026-10-21** (A11Y.10, opção B, não a A recomendada):
+    construir um comando "Importar arquivos…" com o seletor de arquivos do
+    sistema; muda o host (`app/src-tauri`) nas três plataformas. Trabalho
+    novo, a construir.
+
 11. **Seguir um link a partir do editor** (seção 1, achado 14): um comando
     que abre o link sob o cursor, com ou sem tecla padrão.
+    **Resolvido em 2026-10-21** (A11Y.11, opção B, não a A recomendada): o
+    comando "Abrir link sob o cursor", com uma tecla padrão. O Obsidian usa
+    Alt+Enter; isso é para confirmar na documentação pública do Obsidian
+    (ADR 0009) antes de a tecla ser atribuída. Trabalho novo, a construir.
+
 12. **As cores do grafo e um equivalente em texto** (seção 5, achado 3). A
     vista equivalente acessível do board no ADR 0035 ainda é `PROPOSTO`;
     se o grafo precisa de uma — ou se os links do painel direito bastam —
     é do mantenedor.
+    **Resolvido em 2026-10-21** (A11Y.12, opção A): os links do painel
+    direito (de entrada e de saída) valem como o equivalente do grafo;
+    nenhuma vista nova.
+
 13. **Tamanhos de alvo** (seção 6, achado 3): marcas de fechar e de remover
     maiores mudam o tamanho da barra de abas e das pílulas.
+    **Resolvido em 2026-10-21** (A11Y.13, opção A): a área de clique cresce
+    até 24 px (uma área maior invisível) sem aumentar o desenho, de modo que
+    a barra de abas mantém a altura; o 2.5.8 é cumprido. Trabalho novo, a
+    construir.
+
 14. **Um percurso com leitor de tela.** Ninguém percorreu a janela com o
     VoiceOver; a seção 9 lista o que só isso pode confirmar.
+    **Resolvido em 2026-10-21** (A11Y.14, opção A): o mantenedor, ou alguém
+    que ele peça, faz o percurso com o VoiceOver no macOS antes da V1,
+    seguindo o roteiro da seção 10. Bloqueia a V1 (roadmap V.13).
+
 15. **O padrão da árvore** (seção 1, achado 6): a árvore mantém os papéis
     nativos, e a mudança para uma árvore ARIA fica adiada até um leitor de
     tela poder conferi-la — o adiamento de um achado IMPORTANTE, que cabe ao
     mantenedor aceitar.
+    **Resolvido em 2026-10-21** (A11Y.15, opção B, não a A recomendada): a
+    árvore de arquivos passa agora ao padrão ARIA `tree`, uma parada só para
+    o Tab. O risco, uma regressão que não dá para ouvir, é aceito; o
+    percurso com o VoiceOver do item 14 a confere. Trabalho novo, a
+    construir.
+
 16. **A contagem do grafo, dita a cada tecla**: agora é um status, e digitar
     no filtro do grafo a reescreve a cada tecla — a mesma questão de
     "Salvo." a cada autosave (item 5).
+    **Resolvido em 2026-10-21** (A11Y.16, opção A): a contagem do grafo é
+    anunciada só quando a digitação para, depois de um atraso de cerca de um
+    segundo. Trabalho novo, a construir.
+
 17. **Apertar um nó perto da borda do grafo** pode mover a vista para
     mostrá-lo antes de um arrasto começar (não verificado: depende de o
     WebKit focar um grupo SVG num aperto).
+    **Resolvido em 2026-10-21** (A11Y.17, opção A): verificar no aplicativo,
+    junto com o percurso do item 14; se acontecer, mover a vista só quando o
+    foco vem do teclado. Trabalho novo se acontecer.
 
 ## 9. O que esta revisão não verificou
 

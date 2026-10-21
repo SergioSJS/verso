@@ -59,3 +59,5 @@ None recorded.
 ## Status
 
 Accepted for the intent. Scope: Proposed.
+
+*2026-10-21* — the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all option A: **0036.a** `[DECIDED 2026-10-21]` the Foundry VTT integration comes after V1, as a plugin; **0036.b** `[DECIDED 2026-10-21]` named framing shortcuts (viewports) on the board come after V1 ([0090](0090-maps-on-the-board.md) did not decide them); **0036.c** `[DECIDED 2026-10-21]` the pack of schemas per game system follows [0015](0015-schema-packs.md), after V1.

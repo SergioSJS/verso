@@ -11,6 +11,12 @@
   2026-10-20 achou isso, e achou o código sobrescrevendo o callout errado e
   apagando as linhas da pessoa. As respostas do mantenedor de 2026-10-20
   estão citadas nos itens; este texto substitui o primeiro.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21): os detalhes
+  `[PROPOSTO]` dos itens 2, 3, 5 e 6 ficam decididos como propostos
+  (0102.2, 0102.3, 0102.5, 0102.6), e os outros três estilos de chances são
+  aprovados com a mudança do próprio mantenedor no nome e na dica de um
+  deles (S.1, no item 1). Status Aceita.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
@@ -42,8 +48,9 @@ sorteada por quem clicou.
 ## Decisão
 
 Aceita em 2026-10-20 para os itens marcados `[DECIDIDO 2026-10-20]`, nas
-palavras do mantenedor; `[PROPOSTO]` marca um detalhe deste texto que o
-mantenedor ainda não leu.
+palavras do mantenedor, e em 2026-10-21 para os marcados
+`[DECIDIDO 2026-10-21]`, em que ele marcou uma opção do questionário de
+decisões de 2026-10-20; nada resta `[PROPOSTO]`.
 
 1. **Respostas graduadas.** `[DECIDIDO 2026-10-20]` (a tabela como
    construída; o mantenedor sobre a revisão, *"adorei as sugestões e
@@ -58,6 +65,28 @@ mantenedor ainda não leu.
    | Improvável | 5 | 15 | 5 | 15 | 45 | 15 |
    | Quase impossível | 2 | 6 | 2 | 18 | 54 | 18 |
 
+   **Estilos de chances.** `[DECIDIDO 2026-10-21]` (S.1, "Outra"): *"Vamos
+   seguir com A mas colocar no hover que é inspirado no mythic, até pq
+   mythic tem fator caos e tal"*. A tabela acima é o estilo "Equilibrado",
+   o padrão. Mais três estilos vêm embutidos, com os números aprovados como
+   construídos (as seis colunas, na ordem acima, somam 100 em cada linha):
+
+   | Estilo | Quase certo | Provável | Equilibrado | Improvável | Quase impossível |
+   |---|---|---|---|---|---|
+   | Viradas prováveis | 18-54-18-5-4-1 | 15-45-15-10-12-3 | 10-30-10-10-30-10 | 3-12-10-15-45-15 | 1-4-5-18-54-18 |
+   | Ironsworn | 10-80-0-0-8-2 | 8-67-0-0-20-5 | 5-45-0-0-45-5 | 2-23-0-0-67-8 | 1-9-0-0-80-10 |
+   | Narrativo | 10-40-35-8-5-2 | 8-32-30-15-12-3 | 5-25-25-20-20-5 | 3-12-15-30-32-8 | 2-5-8-35-40-10 |
+
+   "Viradas prováveis" é o estilo que a primeira construção rotulava
+   "Mythic GME": os números ficam, o rótulo passa a ser um nome nosso (o
+   Mythic GME é um produto comercial sem licença aberta, e o nome dele
+   sugeriria um vínculo que não existe), e a dica dele diz que é inspirado
+   no Mythic GME, que também tem um fator de caos que o Verso não modela.
+   "Ironsworn" mantém o nome (CC BY 4.0, já na página de Créditos; os
+   números batem com a chance de sim de 90/75/50/25/10 do "Ask the Oracle"
+   dele). Os números são pontos de partida editáveis. O nome "Viradas
+   prováveis" é o exemplo que o questionário deu; o mantenedor não deu
+   outro.
    As faces de 1 a 100 contra esta tabela são um teste.
 
 2. **As chances e as palavras de faísca viajam com a pasta.**
@@ -70,15 +99,17 @@ mantenedor ainda não leu.
    desatualizado; ausentes, valem as embutidas. Nada do oráculo vive no
    armazenamento do navegador de um dispositivo; o que uma construção
    anterior guardava lá passa para a pasta uma vez, na primeira alteração, e
-   depois é removido `[PROPOSTO]`. Uma tabela que não soma 100, ou uma lista
+   depois é removido `[DECIDIDO 2026-10-21]` (0102.2, opção A: nenhuma cópia
+   fica no navegador, de modo que não há uma segunda fonte da verdade).
+   Uma tabela que não soma 100, ou uma lista
    de palavras vazia, é recusada ao salvar e ignorada ao ler, com um aviso
    dizendo isso.
 
-3. **Tabelas próprias são notas.** `[PROPOSTO]` — a resposta do item 2
-   decide que são compartilhadas, não como; isto segue o item 3 da
+3. **Tabelas próprias são notas.** `[DECIDIDO 2026-10-21]` (0102.3, opção
+   A) — a resposta do item 2 decide que são compartilhadas, não como; isto segue o item 3 da
    [0088](0088-dice-and-random-tables.md), já decidido: uma tabela para sortear é uma tabela ou lista Markdown com um
    `^id` numa nota. O oráculo lista as tabelas embutidas e toda tabela com
-   `^id` da pasta `[PROPOSTO]`: pelo índice, por nome, com a nota de onde
+   `^id` da pasta: pelo índice, por nome, com a nota de onde
    vem. Uma "importação" de uma lista JSON escreve uma nota nova que a guarda
    como uma lista com `^id`, mostrada antes de ser escrita.
 
@@ -119,8 +150,10 @@ mantenedor ainda não leu.
    sim"*): como nos dados ([0088](0088-dice-and-random-tables.md) item 4),
    uma rolagem pedida numa nota compartilhada num servidor é sorteada pelo
    servidor e vista pela sala; sozinho, ou offline, a janela sorteia.
-   `[PROPOSTO]`: o mesmo comando leva perguntas ao oráculo, sorteios de
-   faísca e sorteios de tabela.
+   `[DECIDIDO 2026-10-21]` (0102.5, opção A): o mesmo comando leva perguntas
+   ao oráculo, sorteios de faísca e sorteios de tabela, um comando e assim
+   uma superfície a menos para proteger e testar
+   ([0083](0083-security-hardening-of-universo.md)).
 
 6. **Faíscas.** Dois pares a pedido, Ação + Tema e Descritor + Foco, de
    listas de palavras originais em português e inglês, nunca copiadas de uma
@@ -131,7 +164,9 @@ mantenedor ainda não leu.
    de puxar o idioma do sistema … a pessoa vai ter que vir aqui e mexer no
    idioma do vocabulário … meio bosta isso daí"*. As palavras próprias de
    uma pasta, quando ela as tem, são um conjunto só, usado em qualquer
-   idioma. `[PROPOSTO]`: a página de ajustes refeita para quem nunca leu
+   idioma. `[DECIDIDO 2026-10-21]` (0102.6, opção A: aprovada como
+   construída, com a captura que o mantenedor viu): a página de ajustes
+   refeita para quem nunca leu
    este ADR — uma frase do que o oráculo faz e um jeito de experimentar; as
    chances como uma barra por nível dividida nas seis respostas, um estilo
    para escolher (com uma linha sobre cada) e a edição à mão atrás de um
@@ -184,5 +219,5 @@ mantenedor ainda não leu.
 ## Status
 
 Aceita (2026-10-20) para os itens marcados `[DECIDIDO 2026-10-20]`, as
-respostas do mantenedor à revisão do primeiro texto; os detalhes
-`[PROPOSTO]` esperam a leitura do mantenedor.
+respostas do mantenedor à revisão do primeiro texto, e (2026-10-21) para os
+detalhes que ele decidiu no questionário.

@@ -20,6 +20,10 @@
   [0076](0076-the-window-on-every-screen.md),
   [0035](0035-cross-cutting-requirements.md).
 - Status no briefing: ausente.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21), 0105.2 a 0105.8, todas
+  como recomendadas: todo `[PROPOSTO]` vira `[DECIDIDO 2026-10-21]`, e a ADR
+  é Aceita. Nada está construído.
 
 ## Contexto
 
@@ -41,8 +45,9 @@ mudança. O mantenedor escolheu o link.
 
 ## Decisão
 
-Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
-2026-10-20]`; o resto é `[PROPOSTO]`, cada um com a recomendação.
+Aceita (2026-10-21). O item 1 é a escolha do mantenedor, `[DECIDIDO
+2026-10-20]`; o resto é `[DECIDIDO 2026-10-21]`, cada um a opção que ele
+marcou no questionário de 2026-10-20.
 
 1. **Um link de leitura, no UniVerso, sem precisar de conta.** `[DECIDIDO
    2026-10-20]`. Quem tem o link lê, num navegador, o que ele aponta, pela
@@ -50,8 +55,10 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
    escrever. Isto revisa o "agora não" do item 4 da
    [0081](0081-sharing-between-people-on-one-universo.md).
 
-2. **Para o que um link aponta: uma pasta, ou uma nota.** `[PROPOSTO]`:
-   uma pasta (com o que está sob ela) ou **uma única nota**. Uma nota
+2. **Para o que um link aponta: uma pasta, ou uma nota.** `[DECIDIDO
+   2026-10-21]` (0105.2, opção A; responde também a metade de leitura da
+   permissão por nota deixada em aberto na
+   [0073](0073-self-hosted-server-first.md)): uma pasta (com o que está sob ela) ou **uma única nota**. Uma nota
    sozinha é o compartilhamento só de leitura de um documento que o item
    17 da [0081](0081-sharing-between-people-on-one-universo.md)
    recomendou "se pedido": sendo só de leitura, não precisa de lugar para
@@ -60,16 +67,18 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
    como texto simples, "não compartilhado". Compartilhar uma nota **para
    escrever** fica onde o item 17 o deixou.
 
-3. **Quem faz um link.** `[PROPOSTO]`: o **dono** da pasta, como em todo
+3. **Quem faz um link.** `[DECIDIDO 2026-10-21]` (0105.3a, opção A): o
+   **dono** da pasta, como em todo
    compartilhamento ([0081](0081-sharing-between-people-on-one-universo.md)
    item 4: um autor por compartilhamento no registro de auditoria); pelo
    painel de compartilhamento da pasta e pelo menu de uma nota ("Copiar
    link de leitura…"). O **administrador** pode desligar o recurso inteiro
    no servidor; ele começa **desligado** num servidor novo e é ligado no
-   console `[PROPOSTO]`, de modo que um servidor de notas privadas segue
+   console `[DECIDIDO 2026-10-21]` (0105.3b, opção A), de modo que um servidor de notas privadas segue
    como estava até alguém escolher.
 
-4. **O que o leitor recebe.** `[PROPOSTO]`: a projeção de leitor da
+4. **O que o leitor recebe.** `[DECIDIDO 2026-10-21]` (0105.4, opção A,
+   sem também baixar a pasta como zip): a projeção de leitor da
    [0087](0087-secret-blocks-hidden-from-readers.md) — nenhum bloco
    `[!secret]` em lugar algum: a página, a busca, os backlinks, o grafo,
    as contagens; só o que o link aponta; notas, quadros, mapas e
@@ -79,7 +88,8 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
    histórico, sem MCP, sem baixar a pasta inteira. A busca e os backlinks
    cobrem só o que foi compartilhado.
 
-5. **O link em si.** `[PROPOSTO]`: um token imprevisível de 256 bits no
+5. **O link em si.** `[DECIDIDO 2026-10-21]` (0105.5, opção A, com senha e
+   validade): um token imprevisível de 256 bits no
    caminho (`/r/<token>`), guardado só como hash; mostrado inteiro uma
    vez quando feito (e copiável de novo pelo painel enquanto vive); a
    página envia `Referrer-Policy: no-referrer` e `X-Robots-Tag: noindex`,
@@ -90,7 +100,8 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
    foi aberto pela última vez; **revogar** o encerra na hora, páginas
    abertas incluídas.
 
-6. **Limites e abuso.** `[PROPOSTO]`: um pedido anônimo tem ritmo por
+6. **Limites e abuso.** `[DECIDIDO 2026-10-21]` (0105.6, opção A): um
+   pedido anônimo tem ritmo por
    token e por endereço como as outras rotas do servidor
    ([0083](0083-security-hardening-of-universo.md) item 7); uma senha
    errada conta como entrada recusada — a linha de log que o fail2ban lê
@@ -99,14 +110,15 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
    de o núcleo agir; os cabeçalhos do item 9 valem; um link nunca revela o
    caminho da pasta, o e-mail do dono nem outros membros.
 
-7. **O que a janela mostra ao dono.** `[PROPOSTO]`: uma nota ou pasta com
+7. **O que a janela mostra ao dono.** `[DECIDIDO 2026-10-21]` (0105.7,
+   opção A, a marca e o aviso de segredos): uma nota ou pasta com
    um link de leitura vivo leva uma pequena marca na árvore, para que
    ninguém esqueça que uma página está aberta ao mundo; fazer um link para
    uma pasta que tem blocos secretos diz, antes de ele ser feito, quantas
    notas os têm e que os leitores não os verão.
 
-8. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
-   a página de leitura no idioma do navegador do leitor, pt-BR ou EN; as
+8. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md))
+   `[DECIDIDO 2026-10-21]` (0105.8, opção A): a página de leitura no idioma do navegador do leitor, pt-BR ou EN; as
    palavras do painel nos dois; a página usável por teclado e leitor de
    tela, como a janela web é ([0076](0076-the-window-on-every-screen.md)).
 
@@ -134,5 +146,5 @@ Proposta (2026-10-20). O item 1 é a escolha do mantenedor, `[DECIDIDO
 
 ## Status
 
-Proposta (2026-10-20). Item 1 decidido pelo mantenedor; os itens 2–8 são
-recomendações para ele responder.
+Aceita (2026-10-21). Item 1 decidido pelo mantenedor em 2026-10-20, os
+itens 2–8 em 2026-10-21. Nada está construído.

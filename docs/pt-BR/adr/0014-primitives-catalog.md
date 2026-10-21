@@ -107,3 +107,5 @@ decisão.
 Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Decisão). A
 nota tipada: aceita em 2026-09-24, no [0052](0052-typed-note.md). A relação
 tipada: decidida em 2026-09-30, no [0057](0057-board-json-canvas.md).
+
+*2026-10-21* — o mantenedor marcou opções em o questionário de decisões de 2026-10-20 (respondido em 2026-10-21): **0014.a** `[DECIDIDO 2026-10-21]` (opção A) a proveniência (autor, modelo, quando) no frontmatter espera a depois da V1 e precisa de uma ADR própria (opt-in, dado pessoal); **0014.b** `[DECIDIDO 2026-10-21]` (opção A) a linha "ID de bloco estável" do catálogo é aceita (o `^id` funciona e está decidido na spec Q3, Q4, Q21); **0014.c** `[DECIDIDO 2026-10-21]` (opção A) a nota diária e os modelos não precisam de ADR própria aqui: as notas periódicas são cobertas pela [0093](0093-periodic-notes.md) e os modelos já feitos.

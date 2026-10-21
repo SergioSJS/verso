@@ -115,3 +115,5 @@ Settings › Servers keeps its name, with UniVerso in its description. To be
 read by Fable 5.1 with the round's code *(history: read by Fable 5.1 on
 2026-10-10/11, in the sync campaign's session; its final report,
 `verso-sync-campaign/relatorio-final.md`, is outside the repository)*.
+
+*2026-10-21* — the decisions questionnaire of 2026-10-20 (answered 2026-10-21): `[DECIDED 2026-10-21]` (option A) no domain or logo of its own for UniVerso for now; it uses versomd.com. It is a product name inside Verso, not a separate brand.

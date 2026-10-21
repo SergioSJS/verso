@@ -35,4 +35,4 @@ Nenhuma registrada no briefing.
 
 ## Status
 
-Proposto.
+Aceito (2026-10-21). O mantenedor marcou a opção A no questionário de decisões de 2026-10-20 (respondido em 2026-10-21): IA generativa sempre opt-in, chaves no chaveiro do sistema, fora da pasta. O item 8 da [0098](0098-world-and-campaign-wizard-template-bundles.md) se apoia nela.

@@ -223,9 +223,13 @@ Checked after every commit: `npm run check` and `npm run build` in
 added) and `scripts/check-docs-mirror.sh`. Not run here: `scripts/check.sh`
 and the Rust build, left to the integration.
 
-## 8. Pending the maintainer
+## 8. Pending the maintainer — resolved 2026-10-21
 
-None of these is decided by this review.
+None of these was decided by this review. The maintainer resolved each
+one on 2026-10-21, by marking the options of the decisions questionnaire
+of 2026-10-20; each item below ends with its resolution (A11Y.n is the
+item's number in that questionnaire). Where the resolution is new work, it
+is a row of the roadmap (V.13).
 
 1. **The reading of these fixes.** They were written by Opus 5.5, which
    also audited them; [ADR 0032](../adr/0032-author-and-reviewer-roles.md)
@@ -233,14 +237,27 @@ None of these is decided by this review.
    the merge. On 2026-09-23 the maintainer let a fresh Opus 5.5 session
    stand in for Fable 5.1 (`phase-2.md` §6, item 17); whether that answer
    covers this pass is the maintainer's.
+   **Resolved 2026-10-21** (A11Y.1, option B): a fresh Opus 5.5 session
+   counts as the other reader, by the rule of 2026-09-23; the deviation from
+   ADR 0032 is recorded here and in the PR that carries the fixes.
+
 2. **The audit's own author.** Part of the window it audits — the fixes of
    2026-09-23, earlier accessibility fixes among them (`73e215e`,
    `83d4a0a`) — was written by Opus 5.5. Recorded; whether another model
    reads the window again is the maintainer's.
+   **Resolved 2026-10-21** (A11Y.2, option A): only recorded, and joined
+   with the reading of item 1; one reading settles both. The window is not
+   read again by another model.
+
 3. **The target.** ADR 0035 says "accessibility from the start" and names
    no level. This audit measured against WCAG 2.2 level AA, the level
    asked for when the pass was started. Whether that becomes the target —
    a revision of ADR 0035 — is the maintainer's.
+   **Resolved 2026-10-21** (A11Y.3, option B): no level is named; ADR 0035
+   keeps "accessibility from the start" and is not revised. This audit's
+   WCAG 2.2 AA figures stay what they are, measurements and a yardstick for
+   findings, not a target the maintainer has set.
+
 4. **Controls' boundaries** (section 5, finding 2). Fields are drawn with a
    hairline at 1.36:1 to 1.43:1 against the page, and a switch that is off
    with a track at 1.20:1; 1.4.11 asks 3:1 for what identifies a control.
@@ -249,46 +266,110 @@ None of these is decided by this review.
    55% in light mode and 58% in dark mode reaches 3.4:1 or more on every
    paper and palette (computed). The hairline is the design's language, so
    the choice is the maintainer's.
+   **Resolved 2026-10-21** (A11Y.4, option A): a line colour of its own for
+   controls (fields, selects, the off switch), lightness about 55% in light
+   mode and 58% in dark mode, 3.4:1 or more on every paper and palette; the
+   page's hairlines stay. New work, to build.
+
 5. **Page zoom.** The host leaves Tauri's zoom keys off (`zoomHotkeysEnabled`
    is not set), so ⌘+ and ⌘− do nothing and the font size setting is the
    only way to enlarge the text. Turning them on is a host change
    (`app/src-tauri`), outside this pass.
+   **Resolved 2026-10-21** (A11Y.5, option A): resolved by what was built
+   since this review. The window zooms (ADR 0072, revision of 2026-10-20:
+   Cmd/Ctrl plus, minus and 0, and Ctrl with the wheel, 50% to 200%, kept
+   per device; in the browser version the browser's zoom applies), and the
+   font size goes to 30 px; 1.4.4 (200%) is met. The sentence above about
+   the host's keys being off describes the state when this review was
+   written.
+
 6. **"Saved." announced after every autosave** (section 3, finding 3).
    Keep it, or announce only what goes wrong (a refused write, an error)
    and leave routine saves silent for a screen reader.
+   **Resolved 2026-10-21** (A11Y.6, option A): announce only what goes wrong
+   (a refused write, an error); a routine save is silent for a screen
+   reader, and the word "Saved." stays visible on screen. New work, to
+   build.
+
 7. **Default keys for the new commands.** "Move tab back", "Move tab
    forward", "Move tab to the next pane", "… to the previous pane" and
    "Move to…" have none; any can be bound in the settings. Whether some
    get a default is the maintainer's.
+   **Resolved 2026-10-21** (A11Y.7, option A): no default key. They do not
+   collide with the system's or Obsidian's keys, and anyone who needs one
+   binds it in the settings.
+
 8. **"Área" in pt-BR** (section 2, finding 18). One word for a pane and a
    workspace; "Fechar área" names two controls. A wording choice.
+   **Resolved 2026-10-21** (A11Y.8, option A): "Painel" for the pane and
+   "Espaço de trabalho" for the workspace in pt-BR, so each control has its
+   own name; "Painel lateral" already exists in the app. Text only, in pairs
+   with English (ADR 0035). New work, to build.
+
 9. **Dividers without a single-pointer way** (section 1, finding 16):
    2.5.7 asks one for what dragging does. Buttons to widen and narrow a
    pane, or accepting the arrow keys and "Maximize pane" as enough.
+   **Resolved 2026-10-21** (A11Y.9, option A): the arrow keys and "Maximize
+   pane" are accepted as enough; no buttons to widen or narrow on each
+   divider.
+
 10. **Files from the system without dragging** (section 1, finding 17): a
     "copy files into the folder…" command needs the host's file picker —
     a host change.
+    **Resolved 2026-10-21** (A11Y.10, option B, not the recommended A):
+    build an "Import files…" command with the system's file picker; it
+    changes the host (`app/src-tauri`) on the three platforms. New work, to
+    build.
+
 11. **Following a link from the editor** (section 1, finding 14): a
     command that opens the link under the caret, with or without a
     default key.
+    **Resolved 2026-10-21** (A11Y.11, option B, not the recommended A): the
+    command "Open link under cursor", with a default key. Obsidian uses
+    Alt+Enter; that is to be confirmed from Obsidian's public documentation
+    (ADR 0009) before the key is bound. New work, to build.
+
 12. **The graph's colours and a text equivalent** (section 5, finding 3).
     ADR 0035's equivalent view for the board is still `PROPOSED`; whether
     the graph needs one — or the right panel's links are enough — is the
     maintainer's.
+    **Resolved 2026-10-21** (A11Y.12, option A): the right panel's links
+    (incoming and outgoing) stand as the graph's equivalent; no new view.
+
 13. **Target sizes** (section 6, finding 3): bigger close and remove marks
     change the tab bar's and the pills' size.
+    **Resolved 2026-10-21** (A11Y.13, option A): the click area grows to 24
+    px (an invisible larger area) without enlarging the drawing, so the tab
+    bar keeps its height; 2.5.8 is met. New work, to build.
+
 14. **A screen-reader walk-through.** Nobody has gone through the window
     with VoiceOver; section 9 lists what only that can confirm.
+    **Resolved 2026-10-21** (A11Y.14, option A): the maintainer, or someone
+    he asks, does the VoiceOver walk-through on macOS before V1, following
+    the route of section 10. It blocks V1 (roadmap V.13).
+
 15. **The tree's pattern** (section 1, finding 6): the tree keeps its
     native roles, and the change to an ARIA tree is deferred until a screen
     reader can check it — a deferral of an IMPORTANT finding, which is the
     maintainer's to accept.
+    **Resolved 2026-10-21** (A11Y.15, option B, not the recommended A): the
+    file tree switches to the ARIA `tree` pattern now, one stop for Tab. The
+    risk, a regression that cannot be heard, is accepted; the VoiceOver
+    walk-through of item 14 checks it. New work, to build.
+
 16. **The graph's count, said on every keystroke**: it is a status now, and
     typing in the graph's filter rewrites it at each key — the same
     question as "Saved." on every autosave (item 5).
+    **Resolved 2026-10-21** (A11Y.16, option A): the graph's count is
+    announced only when the typing stops, after a delay of about one second.
+    New work, to build.
+
 17. **Pressing a node near the graph's edge** may move the view to show
     it before a drag starts (unverified: it depends on WebKit focusing an
     SVG group on a press).
+    **Resolved 2026-10-21** (A11Y.17, option A): verify it in the app,
+    together with the walk-through of item 14; if it happens, move the view
+    only when the focus comes from the keyboard. New work if it happens.
 
 ## 9. What this review did not verify
 
