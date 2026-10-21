@@ -143,12 +143,30 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
       ligada.
     - **C — Uma gaveta flutuante** sobre a nota.
 
-11. **Rolagens dos outros em 3D.** `[OPEN]` Com os dados 3D
-    ([0101](0101-3d-dice-physics-overlay.md)) ligados:
-    - **A — Só as suas rolagens caem em 3D;** as dos outros aparecem no
-      registro. _(recomendado)_
-    - **B — Um interruptor "Mostrar em 3D as rolagens da mesa"** /
-      "Show the table's rolls in 3D", desligado.
+11. **Os dados de cada um.** `[DECIDED 2026-10-21]` Cada pessoa tem a
+    sua aparência de dados ([0101](0101-3d-dice-physics-overlay.md):
+    cores, textura, material, as três cores), e uma rolagem aparece para
+    os outros na aparência de **quem rolou**, não na de quem vê. O
+    mantenedor: *"cada usuário vai ter sua própria configuração de dado,
+    e deveria refletir para os outros quando ele fizer rolagens"*. O Rolai
+    faz o mesmo: uma rolagem e um membro da lista levam o `DiceStyle` de
+    quem rolou. Então:
+    - A janela manda a sua aparência com a rolagem; o servidor a confere
+      contra uma forma fechada — cores como `#rrggbb`, textura e material
+      das listas fixas, nada mais, nunca uma URL ou um arquivo — recusa o
+      resto, e a repassa com a rolagem e na lista de presentes. O tamanho
+      dos dados continua de cada um que vê.
+    - Vale para uma rolagem na sala de uma nota ([0088](0088-dice-and-random-tables.md)
+      item 4) tanto quanto na mesa.
+    - O registro desenha os dados de cada rolagem nas cores de quem rolou.
+
+    `[OPEN]` Se as rolagens dos outros também **caem em 3D** na sua tela
+    quando os seus dados 3D estão ligados:
+    - **A — Sim, na aparência de quem rolou,** com um interruptor "Mostrar
+      em 3D as rolagens dos outros" / "Show others' rolls in 3D", ligado.
+      _(recomendado, pelas palavras do mantenedor acima)_
+    - **B — Só as suas caem em 3D;** as dos outros aparecem nas cores de
+      quem rolou só no registro.
 
 12. **Limites e entrada hostil** ([0083](0083-security-hardening-of-universo.md)).
     `[PROPOSED]` Uma mensagem tem no máximo 500 caracteres e é texto

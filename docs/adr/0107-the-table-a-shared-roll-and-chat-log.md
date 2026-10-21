@@ -142,12 +142,31 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
       on.
     - **C — A floating drawer** over the note.
 
-11. **Others' rolls in 3D.** `[OPEN]` When 3D dice
-    ([0101](0101-3d-dice-physics-overlay.md)) are on:
-    - **A — Only your own rolls fall in 3D;** others' appear in the log.
-      _(recommended)_
-    - **B — A switch "Mostrar em 3D as rolagens da mesa"** / "Show the
-      table's rolls in 3D", off.
+11. **Each roller's own dice.** `[DECIDED 2026-10-21]` Everyone has
+    their own dice appearance ([0101](0101-3d-dice-physics-overlay.md):
+    colours, texture, material, the three colour slots), and a roll is
+    shown to the others in the **roller's** appearance, not the viewer's.
+    The maintainer: *"cada usuário vai ter sua própria configuração de
+    dado, e deveria refletir para os outros quando ele fizer rolagens"*
+    (each user will have their own dice settings, and it should show to
+    the others when they roll). Rolai does the same: a roll and a member
+    of the roster carry the roller's `DiceStyle`. So:
+    - The window sends its appearance with the roll; the server checks
+      it against a closed form — colours as `#rrggbb`, texture and
+      material from the fixed lists, nothing else, never a URL or a
+      file — refuses anything else, and relays it with the roll and in
+      the roster. The size of the dice stays each viewer's own.
+    - It holds for a roll in a note's room ([0088](0088-dice-and-random-tables.md)
+      item 4) as well as at the table.
+    - The log draws each roll's dice in the roller's colours.
+
+    `[OPEN]` Whether others' rolls also **fall in 3D** on your screen
+    when your 3D dice are on:
+    - **A — Yes, in the roller's appearance,** with a switch "Mostrar em
+      3D as rolagens dos outros" / "Show others' rolls in 3D", on.
+      _(recommended, after the maintainer's words above)_
+    - **B — Only your own rolls fall in 3D;** others' are drawn in the
+      roller's colours in the log only.
 
 12. **Bounds and hostile input** ([0083](0083-security-hardening-of-universo.md)).
     `[PROPOSED]` A message is at most 500 characters and plain text; the
