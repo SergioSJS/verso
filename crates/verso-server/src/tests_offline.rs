@@ -22,11 +22,8 @@ fn the_service_worker_is_the_servers_own_file_never_kept_by_the_browsers_cache()
             &r.server.config.ui_dir.join("sw.js"),
             "self.addEventListener('fetch', () => {});",
         );
-        let res = reqwest::Client::new()
-            .get(r.url("/sw.js"))
-            .send()
-            .await
-            .unwrap();
+        let client = reqwest::Client::new();
+        let res = client.get(r.url("/sw.js")).send().await.unwrap();
         assert_eq!(res.status().as_u16(), 200);
         let header = |name: &str| {
             res.headers()
@@ -47,7 +44,17 @@ fn the_service_worker_is_the_servers_own_file_never_kept_by_the_browsers_cache()
         assert!(csp.contains("default-src 'self';"), "{csp}");
         // The page that registers it has the same policy, so that the
         // registration is allowed and nothing wider.
-        let page = reqwest::Client::new().get(r.url("/")).send().await.unwrap();
+        // The same connection's client, and a bound on the wait: a request
+        // that stalled to the server's own deadline (a 408, which carries no
+        // policy) failed once on a loaded Windows runner with nothing but a
+        // missing header to show for it (CI of 2026-10-17); now it says so.
+        let page = client
+            .get(r.url("/"))
+            .timeout(std::time::Duration::from_secs(90))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(page.status().as_u16(), 200, "{page:?}");
         let page_csp = page.headers()["content-security-policy"].to_str().unwrap();
         assert!(page_csp.contains("worker-src 'self' blob:;"), "{page_csp}");
         assert!(!page_csp.contains("worker-src *"), "{page_csp}");
