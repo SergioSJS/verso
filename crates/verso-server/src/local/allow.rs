@@ -126,6 +126,7 @@ pub const EDIT: &[&str] = &[
 /// Commands no phone runs, however it was paired. Each acts on the laptop
 /// outside the folders served, or is the owner's: the system's (open,
 /// reveal, copy a path, windows), the updater and the command-line tool,
+/// the system's file picker ("Import files…" reads the laptop's disk),
 /// the app's settings and the agent's, the log and the bug report, the
 /// pairing's own commands, accounts, shares, servers and sync, the MCP,
 /// the web-embed proxy and its frameability probe (ADR 0056: a note must
@@ -143,6 +144,7 @@ pub const REFUSED: &[&str] = &[
     "mcp_status",
     "open_claude_download",
     "copy_full_path",
+    "pick_files",
     "reveal",
     "open_url",
     "open_window",
