@@ -1117,6 +1117,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             log::write("INFO", "host", &format!("window closed: {label}"));
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            files::drop_picks(label);
             remote::release(app, label);
             settle(app);
             lock(&app.state::<App>().opening).remove(label);

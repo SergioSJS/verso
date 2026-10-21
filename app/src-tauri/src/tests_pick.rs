@@ -136,3 +136,22 @@ fn a_limit_of_zero_is_one_megabyte() {
         PickSkip::TooLarge
     );
 }
+
+#[test]
+fn a_closed_windows_tokens_go_with_it_and_another_windows_stay() {
+    let outside = tempfile::tempdir().unwrap();
+    let a = picked(&outside, "a.bin", &[1u8; 1024]);
+    let b = picked(&outside, "b.bin", &[2u8; 1024]);
+    let closed = hold_picks("w-closed", &[a], 1).files[0]
+        .token
+        .clone()
+        .unwrap();
+    let open = hold_picks("w-open", &[b], 1).files[0]
+        .token
+        .clone()
+        .unwrap();
+    crate::files::drop_picks("w-closed");
+    let held = HELD.lock().unwrap();
+    assert!(!held.contains_key(&closed));
+    assert!(held.contains_key(&open));
+}
