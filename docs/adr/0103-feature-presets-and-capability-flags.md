@@ -17,6 +17,13 @@
   feature on, by default; and I don't know that it should be called RPG
   mode). This text replaces the first one; the answers of 2026-10-20 are
   quoted in the items.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): the migration of item 4
+  decided as proposed (0103.4); a dated note added to item 4 and a new
+  item 7, because [0100](0100-visual-customization-wizard.md) item 3 (the
+  folder may suggest a theme), [0101](0101-3d-dice-physics-overlay.md) item
+  5 (a switch off by default) and [0106](0106-structured-data-as-a-diagram.md)
+  (a new switch) touch this ADR. Status Accepted.
 - Related: [0012](0012-files-are-source-of-truth.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
@@ -42,8 +49,9 @@ never read.
 Accepted on 2026-10-20 (the maintainer: *"adorei as sugestões e melhorias
 e correções. pode definir uma sequencia e atuar em tudo"* — I loved the
 suggestions, improvements and fixes; set an order and act on all of it),
-for the design proposed to him that day; `[PROPOSED]` marks a detail he has
-not read.
+for the design proposed to him that day; `[DECIDED 2026-10-21]` marks a
+detail he decided later, by marking an option of the questionnaire of
+2026-10-20.
 
 1. **One switch per optional feature, in Settings › App › Features.** Each
    says in one line what it adds and where it shows:
@@ -70,9 +78,17 @@ not read.
 4. **The person's choice, not the folder's.** The switches are the
    person's settings ([0070](0070-what-travels-with-the-folder.md) item 1;
    on a server, the account's, [0073](0073-self-hosted-server-first.md)
-   item 5). A folder never turns a feature on or off. `[PROPOSED]`: a build
+   item 5). A folder never turns a feature on or off. `[DECIDED 2026-10-21]` (0103.4,
+   option A): a build
    that stored a preset reads it once — writing → all off, worldbuilding →
    all on but statblocks, anything else → all on — and drops it.
+   *Note, 2026-10-21 — themes differ.* "Never the folder" is the rule for
+   feature switches. For themes the maintainer decided otherwise, knowingly
+   (0100.3, option B, in [0100](0100-visual-customization-wizard.md)
+   item 3): a theme is the person's choice, and a folder may add an
+   optional `recommendedTheme` suggestion in `.verso/settings.json` that the
+   person accepts or ignores. This is a decision of the maintainer for
+   themes only; it changes nothing for the switches.
 
 5. **Off changes no file and hides nothing for good.** Off, the construct
    is drawn as what Obsidian draws without a plugin — inline code, a code
@@ -83,6 +99,20 @@ not read.
 6. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
    a fieldset with a legend; each switch labelled, its line its
    description; keyboard only works; every word in pt-BR and EN.
+
+7. **Two switches whose rule is not "on by default".** `[DECIDED
+   2026-10-21]`:
+   - **Data diagram** (0106.6, option A) — a switch in Settings › App ›
+     Features, on by default like the others; off, no button of the
+     diagram appears ([0106](0106-structured-data-as-a-diagram.md)). It
+     exists when the feature is built.
+   - **3D dice** (0101.5, option A) — its own switch, "3D dice", **off by
+     default even with "Everything" on**: the one expensive feature in
+     weight and battery, so item 2 has this one exception, approved by the
+     maintainer. The "Everything" shortcut says before applying that it does
+     not turn 3D dice on. With reduced motion on it never animates, switch on
+     or not. Sound is another switch, off. It exists when the feature is
+     built ([0101](0101-3d-dice-physics-overlay.md)).
 
 ## Consequences
 
@@ -100,4 +130,4 @@ not read.
 ## Status
 
 Accepted (2026-10-20), the design proposed to the maintainer that day; item
-4's migration is `[PROPOSED]`.
+4's migration decided on 2026-10-21.

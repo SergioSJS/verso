@@ -13,6 +13,12 @@
   the code overwriting the wrong callout and deleting the person's lines.
   The maintainer's answers of 2026-10-20 are quoted in the items; this text
   replaces the first one.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): the `[PROPOSED]` details
+  of items 2, 3, 5 and 6 are decided as proposed (0102.2, 0102.3, 0102.5,
+  0102.6), and the three other styles of odds are approved with the
+  maintainer's own change to the name and tooltip of one (S.1, in item 1).
+  Status Accepted.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
@@ -43,8 +49,9 @@ another), and that a roll in a room was drawn by whoever clicked.
 ## Decision
 
 Accepted on 2026-10-20 for the items marked `[DECIDED 2026-10-20]`, in the
-maintainer's words; `[PROPOSED]` marks a detail of this text the maintainer
-has not read yet.
+maintainer's words, and on 2026-10-21 for those marked
+`[DECIDED 2026-10-21]`, where he marked an option of the decisions
+questionnaire of 2026-10-20; nothing is left `[PROPOSED]`.
 
 1. **Graduated answers.** `[DECIDED 2026-10-20]` (the table as built; the
    maintainer on the review, *"adorei as sugestões e melhorias e
@@ -61,6 +68,29 @@ has not read yet.
 
    Faces 1–100 against this table are a test.
 
+   **Styles of odds.** `[DECIDED 2026-10-21]` (S.1, "Outra"): *"Vamos seguir
+   com A mas colocar no hover que é inspirado no mythic, até pq mythic tem
+   fator caos e tal"* (let's go with A but put in the hover that it is
+   inspired by Mythic, since Mythic has a chaos factor and so on). The
+   table above is the "Balanced" style, the default. Three more styles ship,
+   their numbers approved as built (the six columns, in the order above,
+   sum to 100 on every row):
+
+   | Style | Nearly certain | Likely | Even | Unlikely | Nearly impossible |
+   |---|---|---|---|---|---|
+   | Likely twists | 18-54-18-5-4-1 | 15-45-15-10-12-3 | 10-30-10-10-30-10 | 3-12-10-15-45-15 | 1-4-5-18-54-18 |
+   | Ironsworn | 10-80-0-0-8-2 | 8-67-0-0-20-5 | 5-45-0-0-45-5 | 2-23-0-0-67-8 | 1-9-0-0-80-10 |
+   | Narrative | 10-40-35-8-5-2 | 8-32-30-15-12-3 | 5-25-25-20-20-5 | 3-12-15-30-32-8 | 2-5-8-35-40-10 |
+
+   "Likely twists" is the style the first build labelled "Mythic GME": the
+   numbers stay, the label becomes a name of ours (Mythic GME is a
+   commercial product with no open licence, and its name would suggest a
+   tie that does not exist), and its tooltip says it is inspired by Mythic
+   GME, which also has a chaos factor that Verso does not model. "Ironsworn"
+   keeps its name (CC BY 4.0, already on the Credits page; its numbers match
+   the 90/75/50/25/10 chance of yes of its "Ask the Oracle"). The numbers
+   are editable starting points. The name "Likely twists" is the example the
+   decisions questionnaire gave; the maintainer did not name another.
 2. **The odds and the spark words travel with the folder.** `[DECIDED
    2026-10-20]`: *"deveria ser tudo igual, não? se eu compartilhar com
    alguém, é pra essa pessoa ver como eu"* (it should all be the same,
@@ -70,16 +100,18 @@ has not read yet.
    item 2, which this item extends), written by `verso-fs` with the stale
    check; absent, the built-in ones apply. Nothing of the oracle lives in a
    device's browser storage; what an earlier build stored there moves into
-   the folder once, on the first change, and is then removed `[PROPOSED]`.
+   the folder once, on the first change, and is then removed
+   `[DECIDED 2026-10-21]` (0102.2, option A: no copy stays in the browser,
+   so there is no second source of truth).
    A table that does not sum to 100, or an empty word list, is refused when
    saved and ignored when read, with a note saying so.
 
-3. **Custom tables are notes.** `[PROPOSED]` — the answer of item 2 decides
-   that they are shared, not how; this follows [0088](0088-dice-and-random-tables.md)
-   item 3, already decided: a
+3. **Custom tables are notes.** `[DECIDED 2026-10-21]` (0102.3, option A) —
+   the answer of item 2 decides that they are shared, not how; this follows
+   [0088](0088-dice-and-random-tables.md) item 3, already decided: a
    table to draw from is a Markdown table or list with an `^id` in a note.
-   The oracle lists the built-in tables and every `^id` table of the folder
-   `[PROPOSED]`: through the index, by name, with the note it comes from.
+   The oracle lists the built-in tables and every `^id` table of the folder:
+   through the index, by name, with the note it comes from.
    An "import" of a JSON list writes a new note holding it as a list with
    an `^id`, shown before it is written.
 
@@ -119,8 +151,10 @@ has not read yet.
 5. **In a room, the server draws.** `[DECIDED 2026-10-20]` (*"9. sim"*):
    as for dice ([0088](0088-dice-and-random-tables.md) item 4), a roll asked
    in a shared note on a server is drawn by the server and seen by the room;
-   alone, or offline, the window draws. `[PROPOSED]`: the same command
-   carries oracle questions, spark draws and table draws.
+   alone, or offline, the window draws. `[DECIDED 2026-10-21]` (0102.5,
+   option A): the same command carries oracle questions, spark draws and
+   table draws, one command and so one less surface to protect and test
+   ([0083](0083-security-hardening-of-universo.md)).
 
 6. **Sparks.** Two pairs on request, Action + Theme and Descriptor + Focus,
    from original word lists in Portuguese and English, never copied from a
@@ -132,8 +166,9 @@ has not read yet.
    vocabulário … meio bosta isso daí"* (when we add new languages, instead
    of taking the system's language, people will have to come here and
    change the vocabulary's language). A folder's own words, when it has
-   them, are one set, used whatever the language. `[PROPOSED]`: the
-   settings page reworked for people who never read this ADR — a sentence
+   them, are one set, used whatever the language. `[DECIDED 2026-10-21]`
+   (0102.6, option A: approved as built, with the screenshot the maintainer
+   saw): the settings page reworked for people who never read this ADR — a sentence
    of what the oracle does and a way to try it; the odds as one bar per
    level split in the six answers, a style to pick (with a line on each)
    and editing by hand behind a disclosure with the total always shown;
@@ -181,5 +216,5 @@ has not read yet.
 ## Status
 
 Accepted (2026-10-20) for the items marked `[DECIDED 2026-10-20]`, the
-maintainer's answers to the review of the first text; the `[PROPOSED]`
-details wait for the maintainer's reading.
+maintainer's answers to the review of the first text, and (2026-10-21) for
+the details he decided in the questionnaire.
