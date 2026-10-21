@@ -28,6 +28,7 @@ test release.
 
 ### Fixed
 
+- **Bigger click areas (accessibility)**: a tab's close mark, the remove mark of a list pill in the properties and the status bar's buttons answer a click within 24 × 24 px around them, though they are drawn as small as before and the tab bar keeps its height.
 - **"Área" no longer names two things in Portuguese (accessibility)**: a pane is now a *painel* and a workspace an *espaço de trabalho* everywhere in the Portuguese interface, so "Fechar painel" and "Fechar espaço de trabalho" are two controls with two names; the tutorial note on tabs, panes and workspaces follows (it is now *Abas, Painéis, Espaços de Trabalho e Janelas*).
 - **Routine saves are no longer read aloud (accessibility)**: "Saved." stays on the status line, but a screen reader announces only what goes wrong or needs attention (a refused write, an error, a conflict, a search or graph count), not every autosave.
 - **Fields and switches have a visible edge (accessibility)**: the border of text fields, selects and the off switch's track is now a darker line that reaches 3:1 against every paper, palette and dark tone; the page's own hairlines stay as they were.
