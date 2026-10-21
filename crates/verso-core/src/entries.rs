@@ -302,6 +302,15 @@ impl Workspace {
         self.index.web_notes().map_err(CoreError::Index)
     }
 
+    /// Every `^id` block of the folder's notes of the given kinds (all
+    /// when none is given), bounded: what the oracle looks for tables in.
+    pub fn block_ids(
+        &self,
+        kinds: &[crate::IndexBlockKind],
+    ) -> Result<crate::IndexBlockList, CoreError> {
+        self.index.folder_blocks(kinds).map_err(CoreError::Index)
+    }
+
     /// Every resolved link of the vault, source then target: the graph.
     pub fn graph(&self) -> Result<Vec<(String, String)>, CoreError> {
         self.index.graph().map_err(CoreError::Index)

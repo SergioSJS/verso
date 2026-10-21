@@ -56,6 +56,7 @@ pub const READ: &[&str] = &[
     "unlinked_mentions",
     "list_files",
     "list_tags",
+    "list_block_ids",
     "list_web_notes",
     "graph",
     "graph_unresolved",

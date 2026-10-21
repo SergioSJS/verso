@@ -19,7 +19,7 @@ import { currentFolder } from "../../folder";
 import { openNote } from "../../layout/spaces";
 import { legacyTables, clearLegacyTables, type LegacyTable } from "../../oracle/legacy";
 import { oracleNotWritable } from "../../oracle/folderData";
-import { forgetScan, scanNoteTables, SCAN_MOST } from "../../oracle/scan";
+import { forgetScan, loadAllRows, scanNoteTables, SCAN_MOST } from "../../oracle/scan";
 import { BUILTIN_ORACLE_TABLES, getAllOracleTables, type OracleTable } from "../../oracle/tables";
 import { folderOf, freeNotePath, noteNameOf, tablesNoteText, type TableToWrite } from "../../oracle/tableNote";
 import { t } from "../../strings";
@@ -209,9 +209,13 @@ export function tablesControl(repaint: () => void): HTMLElement {
   };
   listWrap.replaceChildren(...BUILTIN_ORACLE_TABLES.map(row));
   if (currentFolder) {
-    void scanNoteTables(true).then((s) => {
-      if (wrap.isConnected) paint(s.tables, s.capped);
-    });
+    // The index lists the tables; the notes that hold one are read here,
+    // since this page shows every table's rows.
+    void scanNoteTables(true)
+      .then(async (s) => ({ tables: await loadAllRows(s.tables), capped: s.capped }))
+      .then((s) => {
+        if (wrap.isConnected) paint(s.tables, s.capped);
+      });
   }
 
   wrap.append(heading, h("p", "orc-lead", ow.tablesLead), topBar, feedback.el, banner, listWrap, scanLine);

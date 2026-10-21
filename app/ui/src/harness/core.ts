@@ -57,7 +57,7 @@ import type {
   FocusesSummary,
   FolderDataKind,
   FolderLayer,
-  FolderSettings,
+  FolderSettings, FolderBlocks, BlockKind,
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
@@ -66,6 +66,7 @@ import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { applyOracle, applyTheme, checkOracle, FolderData, oracleProblems, readOracle, readTheme, writeGuard } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
+import { folderBlocks } from "./blockList";
 import { projectSecrets } from "./secret";
 import { graphEdges, missingLinks } from "./graph";
 import { unlinkedMentions } from "./mentions";
@@ -609,7 +610,7 @@ export class Core {
     const text = this.text(path);
     const props = propertiesOf(text);
     const fm = props["tags"];
-    const tags = new Set<string>(Array.isArray(fm) ? fm.map(String) : typeof fm === "string" ? fm.split(/[\s,]+/).filter(Boolean) : []);
+    const tags = new Set<string>(Array.isArray(fm) ? fm.filter((x) => typeof x === "string" || (Number.isInteger(x) && x >= 0)).map(String) : typeof fm === "string" ? fm.split(/[\s,]+/).filter(Boolean) : []);
     for (const line of readableLines(text)) {
       if (/^#{1,6}\s/.test(line)) continue;
       for (const m of line.matchAll(/(?:^|\s)#([\p{L}\p{N}_/-]+)/gu)) if (m[1] && !/^\d+$/.test(m[1])) tags.add(m[1]);
@@ -1048,6 +1049,7 @@ export class Core {
     },
     list_files: () => this.others(),
     list_folders: () => [...this.folders].filter((d) => !hidden(d)).sort(),
+    list_block_ids: (a): FolderBlocks => folderBlocks(this.notes(), (p) => this.text(p), (a["kinds"] ?? []) as BlockKind[]),
     list_tags: (): Tag[] => {
       const by = new Map<string, string[]>();
       for (const p of this.notes()) for (const t of this.tagsOf(p)) by.set(t, [...(by.get(t) ?? []), p]);

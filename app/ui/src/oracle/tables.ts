@@ -9,6 +9,7 @@
  * storage. Rolling an entry is pure.
  */
 
+import type { FolderBlock } from "../bindings";
 import { cryptoRandomSource, rollDie } from "../dice/rolai/rng";
 import type { RandomSource } from "../dice/rolai/types";
 import { type RandomTable, readTable, rowOf } from "../dice/table";
@@ -25,6 +26,9 @@ export interface OracleTable {
   block?: string;
   /** The die in a table's header (`d6`), when it has one. */
   die?: string;
+  /** Listed from the index, its rows not read yet (`entries` is empty): the
+   *  note is read when the table is chosen. */
+  unread?: boolean;
 }
 
 /** A block id as a name: hyphens and underscores as spaces, the first
@@ -74,6 +78,27 @@ export function entriesOf(table: RandomTable): string[] | null {
   return out;
 }
 
+/** The rows a block with an `^id` draws from, when it reads as a random
+ *  table: its entries and the die of its header. `lines` are the note's. */
+export function rowsOfBlock(
+  lines: readonly string[],
+  block: { first_line: number; last_line: number },
+): { entries: string[]; die?: string } | null {
+  const t = readTable(lines.slice(block.first_line - 1, block.last_line));
+  if (typeof t === "string") return null;
+  const entries = entriesOf(t);
+  if (!entries) return null;
+  return { entries, ...(t.ranged ? { die: t.notation.replace(/^1d/, "d") } : {}) };
+}
+
+/** Two tables of one note never share a name: where names collide, each
+ *  takes its `^id` after the name. */
+function nameApart(tables: OracleTable[]): void {
+  const names = new Map<string, number>();
+  for (const t of tables) names.set(`${t.note}\n${t.name}`, (names.get(`${t.note}\n${t.name}`) ?? 0) + 1);
+  for (const t of tables) if ((names.get(`${t.note}\n${t.name}`) ?? 0) > 1) t.name = `${t.name} (^${t.block})`;
+}
+
 /** The tables written in one note: each block with an `^id` that reads as a
  *  random table. `lines` are the note's, `blocks` its ids, `headings` its
  *  headings. A table is named by the nearest heading above it, else by its
@@ -91,26 +116,40 @@ export function tablesOfNote(
   for (const b of [...blocks].reverse()) {
     if (seen.has(b.id)) continue;
     seen.add(b.id);
-    const t = readTable(lines.slice(b.first_line - 1, b.last_line));
-    if (typeof t === "string") continue;
-    const entries = entriesOf(t);
-    if (!entries) continue;
+    const rows = rowsOfBlock(lines, b);
+    if (!rows) continue;
     const above = [...headings].filter((h) => h.line < b.first_line).sort((a, c) => c.line - a.line)[0];
     out.push({
       id: `${path}#^${b.id}`,
       name: above && above.text.trim() ? above.text.trim() : idAsName(b.id),
       desc: `${path} ^${b.id}`,
       icon: "note",
-      entries,
+      entries: rows.entries,
       note: path,
       block: b.id,
-      ...(t.ranged ? { die: t.notation.replace(/^1d/, "d") } : {}),
+      ...(rows.die ? { die: rows.die } : {}),
     });
   }
   out.reverse();
-  const names = new Map<string, number>();
-  for (const t of out) names.set(t.name, (names.get(t.name) ?? 0) + 1);
-  for (const t of out) if ((names.get(t.name) ?? 0) > 1) t.name = `${t.name} (^${t.block})`;
+  nameApart(out);
+  return out;
+}
+
+/** The tables the index lists (`list_block_ids`: lists and tables with an
+ *  `^id`), named as [`tablesOfNote`] names them — by the heading above, else
+ *  by the id — with their rows not read yet. */
+export function tablesOfIndex(blocks: readonly FolderBlock[]): OracleTable[] {
+  const out: OracleTable[] = blocks.map((b) => ({
+    id: `${b.path}#^${b.id}`,
+    name: b.under_heading && b.label.trim() ? b.label.trim() : idAsName(b.id),
+    desc: `${b.path} ^${b.id}`,
+    icon: "note",
+    entries: [],
+    note: b.path,
+    block: b.id,
+    unread: true,
+  }));
+  nameApart(out);
   return out;
 }
 

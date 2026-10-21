@@ -117,6 +117,19 @@ fn every_answer_derived_from_the_notes_leaves_the_secret_out() {
     let tags = ws.reader_tags().unwrap();
     clean("tags", &format!("{tags:?}"));
     assert!(tags.iter().any(|(t, _)| t == "publico"));
+    // The folder's `^id` blocks (the oracle's tables): the secret one is a
+    // writer's alone, and no secret heading names a reader's block.
+    let blocks = ws.reader_block_ids(&[]).unwrap();
+    clean("block_ids", &format!("{blocks:?}"));
+    assert!(blocks.blocks.iter().any(|b| b.id == "fim"));
+    assert!(!blocks.blocks.iter().any(|b| b.id == "cripta-id"));
+    assert!(
+        ws.block_ids(&[])
+            .unwrap()
+            .blocks
+            .iter()
+            .any(|b| b.id == "cripta-id")
+    );
     let mentions = ws.reader_unlinked_mentions("Barão").unwrap();
     clean("unlinked_mentions", &format!("{mentions:?}"));
     // Two in the secret blocks for a writer, marked; none for a reader.
