@@ -39,6 +39,7 @@
 
 mod confine;
 mod escaping;
+mod external;
 mod jail;
 mod journal;
 mod obsidian;
@@ -76,6 +77,7 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
     })
 }
 pub use escaping::escaping_links;
+pub use external::{PickedError, read_picked};
 pub use jail::resolves_within;
 pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;

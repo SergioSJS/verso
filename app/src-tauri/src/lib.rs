@@ -676,6 +676,7 @@ macro_rules! commands_for {
                 write_note::<$runtime>,
                 create_note::<$runtime>,
                 create_file::<$runtime>,
+                pick_files::<$runtime>,
                 create_folder::<$runtime>,
                 delete_note::<$runtime>,
                 rename_note::<$runtime>,
@@ -1237,6 +1238,8 @@ mod tests_local;
 mod tests_notify;
 #[cfg(test)]
 mod tests_periodic;
+#[cfg(test)]
+mod tests_pick;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]

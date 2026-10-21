@@ -33,6 +33,8 @@ mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod picked;
+pub use picked::{PickSkip, PickedFile, PickedFiles, SkippedPick};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod history;
