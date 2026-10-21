@@ -76,4 +76,4 @@ The **Save as board…** command (in the diagram's bar and in the palette) write
 
 ---
 
-Go back to the tabletop tools in [[27 - Oracles and World Building]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go back to the tabletop tools in [[27 - Oracles and World Building]], see how to tie a folder to a cloud of yours in [[29 - Syncing with a Cloud]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
