@@ -54,6 +54,12 @@ A code block of JSON, YAML, TOML, XML or CSV in a note has the **View as diagram
 
 ---
 
+## On a board card
+
+A data file put on a board (drag it from the tree) shows its text on the card, coloured as in the editor. In the header, **Text | Diagram** switches the view; the choice is kept on the card itself, in the canvas, and the file is never written. The diagram only receives the mouse once you enter it (the **Interact with the diagram** button); **Esc** gives the board back. With **Data diagram** off, the card shows the text only. Lesson 15 of the [[Board Training.canvas|Board Training]] teaches it.
+
+---
+
 ## Save as board
 
 The **Save as board…** command (in the diagram's bar and in the palette) writes a new **board** with a text card for each visible box and a line for each connection, just as they are laid out now. Before creating it, Verso shows the name, the folder and how many cards and lines the board will have. See [[09 - Board and Relations]].

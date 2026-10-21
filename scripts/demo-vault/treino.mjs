@@ -309,6 +309,25 @@ const LESSONS = [
       b.write("d-pag-nota", x + 20, y + 570, "troque o endereço pelo de um site seu", { size: 28, color: INK, frame: f });
     },
   },
+  {
+    id: "dados",
+    label: "15 · Arquivos de dados",
+    title: "🧮 Arquivos de dados",
+    color: TEAL,
+    text:
+      "Um arquivo JSON, YAML, TOML, XML ou CSV da pasta mostra o conteúdo no cartão, nunca uma caixa vazia.\n" +
+      "• Arraste o arquivo da árvore para o board, ou use Nota ou arquivo da pasta…: o cartão nasce mostrando o texto, colorido como no editor.\n" +
+      "• No cabeçalho, Texto | Diagrama troca a vista: o Diagrama desenha as caixas e linhas do arquivo (precisa do recurso Diagrama de dados ligado em Ajustes › Recursos; desligado, só o texto).\n" +
+      "• O diagrama só recebe o mouse depois que você o entra: clique no botão Interagir com o diagrama. Aí mova, dobre e dê zoom nele; Esc, ou o botão Sair, devolvem o board.\n" +
+      "• Abrir leva o arquivo para a aba, na vista que o cartão mostra. O cartão segue o arquivo quando ele muda, e só lê: nunca o grava.\n" +
+      "• Um arquivo grande mostra só os primeiros 64 KB, com reticências. O cartão guarda a vista na chave verso do canvas: o Obsidian a ignora.",
+    challenge: "Desafio: troque o cartão para Diagrama, entre nele, arraste o fundo para mover o diagrama e saia com Esc. Depois volte para Texto.",
+    practice(b, x, y, f) {
+      b.write("d-dad-w", x + 20, y + 20, "um arquivo de dados num cartão", { size: 32, color: GREY, frame: f });
+      b.file("n-dados", "Dados de Exemplo/npcs-da-campanha.json", x + 20, y + 100, 540, 460);
+      b.write("d-dad-nota", x + 20, y + 610, "troque o arquivo por outro: Trocar arquivo…", { size: 28, color: INK, frame: f });
+    },
+  },
 ];
 
 /** The board. */
