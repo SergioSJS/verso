@@ -437,6 +437,23 @@ not the bytes the change was hashed from, so a write that won the race
 against the log's first look lost the found version and took its name.
 A version is now recorded only when the bytes match the change.
 
+### Sync with a cloud provider (ADR 0104)
+
+Accepted 2026-10-21, **not built**: this section is the threat model the feature has to meet, written before the code so each row becomes a test (or a manual check) in the PR that builds it. A folder syncs with a cloud the person chose (WebDAV, S3, Dropbox, OneDrive, Google Drive) through the sync of ADR 0079; the adapters live on the desktop host's side and the core still reaches no network (0104 item 3).
+
+| Threat | Answer decided (to be built) |
+|---|---|
+| The app reaching hosts nobody listed | Nothing is asked of a provider before the person connects it. Once connected, the app talks to that provider's API and sign-in hosts and to the addresses the provider hands back for one transfer (OneDrive's pre-authenticated download and upload-session URLs, S3 pre-signed URLs): the list is per provider, with those patterns, not one fixed list (0104 item 15). |
+| A handed-back transfer URL leaking | Those URLs are bearer secrets: anyone holding one can read or write that transfer. Never logged, never shown in the sync log or an error, never sent to the window. |
+| The loopback listener of the OAuth sign-in | Binds the loopback only (`127.0.0.1`), checks `state`, answers one request, closes after it or after five minutes; PKCE, so a code caught on the way is useless without the verifier; the system's browser, never an embedded web view (0104 item 12). |
+| A secret on disk | Refresh tokens, WebDAV passwords and S3 secrets live only in the system's keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service), never in the folder, the configuration file or a log, and never read back by the window. On a Linux without Secret Service the cloud sync is refused with the reason (0104 item 14). Disconnect deletes the secrets and revokes the token where the provider allows. |
+| Too much reach granted | One scope per provider, the narrowest: Dropbox App folder, OneDrive `Files.ReadWrite.AppFolder`, Google Drive `drive.file` (never the full `drive`), S3 and WebDAV as the person scopes the key (the how-to says to scope it to the bucket and prefix) (0104 item 6). |
+| A silent overwrite | Every write is conditional on the base (`update` with the `rev`, `If-Match` on the ETag); Google Drive, with no precondition, reads the head revision and checks the revisions after the upload, keeping both versions. A service with neither a precondition nor revisions is refused at connect. The guardrail is a property test that races two devices on every adapter (0104 item 7). |
+| A stolen refresh token | It reaches only the app folder (or, on Google, only the files this OAuth client created or the person opened with it) of that one provider; it does not reach the person's other files, and Disconnect revokes it. A stolen WebDAV password or S3 key reaches what the person scoped it to. |
+| Provider data corrupting the folder | Names are NFC and made safe for every provider; a name a provider forbids is not synced and is listed; a file is written here only when every piece arrived and its hash or size matched (0104 items 9 and 10). A lost cursor is a full comparison from the bases, never a first sync that treats everything as new (item 8). |
+| A deletion spreading | Remote deletions go into the provider's trash where it has one (Drive with `trashed: true`, never `files.delete`); 0079's mass-deletion pause and the placeholder guard (0043) hold for a cloud folder (0104 items 4 and 11). |
+| A flood against a provider | HTTP 429 and 503, and Drive's 403 with a rate-limit reason, are honoured with `Retry-After` or exponential backoff with jitter; small concurrency per provider; polls never in a fast loop (0104 items 8 and 15). |
+
 ## Gaps found on 2026-10-11
 
 Found by reading the code at HEAD 7729940; findings, not fixes. Classified
