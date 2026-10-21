@@ -4,7 +4,7 @@
 
 import type { TemplateBundle } from "./types";
 
-/** Built-in presets inspired by Dados Críticos (Igor Téuri), worldbuilding,
+/** Built-in presets inspired by Dados Críticos (Igor Téuri, https://linktr.ee/dadoscriticos), worldbuilding,
  *  and creative writing (ADR 0098). */
 
 export const DADOS_CRITICOS_CAMPAIGN: TemplateBundle = {

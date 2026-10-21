@@ -62,7 +62,7 @@ No texto, `dice: [[#^reviravolta]]` vira um botão que sorteia uma linha. Todas 
 Em **Ajustes › RPG & Mesa Solo › Oráculos e Solo RPG**, tudo se salva sozinho, sem botão de salvar:
 
 - **Experimentar o oráculo** abre a janela para testar sem gravar nada.
-- **Chances de sim ou não**: cada barra mostra como o d100 se divide entre as seis respostas, de *Sim, e…* a *Não, e…*. Escolha um **estilo** — *Equilibrado* (o padrão), *Mythic GME*, *Ironsworn* ou *Narrativo*, cada um com uma frase do que muda na mesa — e ele vale na hora; **Desfazer** volta ao anterior. Em **Ajustar à mão…** você muda os números de cada chance: a linha diz quanto falta ou sobra (*faltam 3%*) e só é salva quando soma 100.
+- **Chances de sim ou não**: cada barra mostra como o d100 se divide entre as seis respostas, de *Sim, e…* a *Não, e…*. Escolha um **estilo** — *Equilibrado* (o padrão), *Viradas prováveis* (inspirado no Mythic GME, sem o fator caos dele), *Ironsworn* ou *Narrativo*, cada um com uma frase do que muda na mesa — e ele vale na hora; **Desfazer** volta ao anterior. Em **Ajustar à mão…** você muda os números de cada chance: a linha diz quanto falta ou sobra (*faltam 3%*) e só é salva quando soma 100.
 - **Faíscas de ideias**: desligado, o oráculo usa as palavras do Verso, **no idioma da janela**. Ligue **Usar minhas próprias palavras** para editar as quatro listas: digite uma palavra e Enter, ou cole várias separadas por vírgula; o **×** tira uma (as setas andam entre elas, Delete apaga). **Voltar às palavras do Verso** desfaz.
 - **Tabelas para sortear**: as do Verso e as das suas notas, com três opções de amostra. **Nova tabela** escreve uma nota com a lista e o `^id` — você vê o texto antes.
 

@@ -11,6 +11,7 @@ import { allEntries, allFiles, allNotes } from "../folder";
 import { allEmojis } from "../labels";
 import { layout } from "../layout/spaces";
 import { frontmatterEnd } from "../live";
+import { mentionDismissed } from "./mentionDismiss";
 import { MENTION_BEFORE, WIKILINK_BEFORE } from "./wikilinkBefore";
 import { mentionWritten } from "../mentionLink";
 import { proseBefore } from "./linkNames";
@@ -85,6 +86,7 @@ export function completeMention(ctx: CompletionContext): CompletionResult | null
   const before = ctx.matchBefore(MENTION_BEFORE);
   if (!before) return null;
   const at = before.from + before.text.indexOf("@");
+  if (mentionDismissed(ctx.state, at)) return null;
   const typed = ctx.state.sliceDoc(at + 1, ctx.pos);
   if (typed.startsWith(" ")) return null;
   const line = ctx.state.doc.lineAt(at);

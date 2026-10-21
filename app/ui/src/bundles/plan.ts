@@ -10,6 +10,7 @@
  *  earlier, in words the person and the AI can act on. */
 
 import { stringify } from "yaml";
+import { formatDate, type Lang, type When } from "../periodic/format";
 import type { TemplateBundle } from "./types";
 import type { BundleWords } from "./words";
 
@@ -42,6 +43,8 @@ export interface PlanInput {
   /** A fresh id per `{{uuid}}`; `crypto.randomUUID` in the window. */
   uuid: () => string;
   words: BundleWords;
+  /** The language of `{{date:MMMM}}` and the like; English when absent. */
+  lang?: Lang;
 }
 
 const DEVICE = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/i;
@@ -70,12 +73,18 @@ function pad(n: number): string {
 }
 
 /** `{{title}}`, `{{date}}` (YYYY-MM-DD, as the core Templates plugin),
- *  `{{time}}` (HH:mm) and `{{uuid}}` filled in one pass, so a title that
- *  holds a tag is not filled again; any other tag stays as written. */
-export function fill(text: string, title: string, now: Date, uuid: () => string): string {
+ *  `{{time}}` (HH:mm), `{{uuid}}`, and `{{date:FORMAT}}` / `{{time:FORMAT}}`
+ *  (Moment tokens, month and day names in `lang`) filled in one pass, so a
+ *  title that holds a tag is not filled again; any other tag, or a format
+ *  with a token Verso does not read, stays as written (ADR 0098 item 7). */
+export function fill(text: string, title: string, now: Date, uuid: () => string, lang: Lang = "en"): string {
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  return text.replace(/\{\{(title|date|time|uuid)\}\}/g, (_all, tag: string) => (tag === "title" ? title : tag === "date" ? date : tag === "time" ? time : uuid()));
+  const when: When = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate(), h: now.getHours(), mi: now.getMinutes(), s: now.getSeconds() };
+  return text.replace(/\{\{(?:(title|date|time|uuid)|(?:date|time):([^{}]+))\}\}/g, (all, tag: string | undefined, format: string | undefined) => {
+    if (format !== undefined) return formatDate(when, format, { weekStart: 0, lang }, true) ?? all;
+    return tag === "title" ? title : tag === "date" ? date : tag === "time" ? time : uuid();
+  });
 }
 
 /** Frontmatter as Obsidian's properties read it: a YAML library writes it,
@@ -112,7 +121,7 @@ function join(base: string, sub: string): string {
 }
 
 function fillValue(v: unknown, title: string, input: PlanInput): unknown {
-  if (typeof v === "string") return fill(v, title, input.now, input.uuid);
+  if (typeof v === "string") return fill(v, title, input.now, input.uuid, input.lang);
   if (Array.isArray(v)) return v.map((x) => fillValue(x, title, input));
   if (v !== null && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fillValue(x, title, input)]));
   return v;
@@ -145,7 +154,7 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
   // The target is the person's own, and stands; the project's folder is new.
   if (pathTitle) folders.add(base);
   bundle.folders.forEach((raw, i) => {
-    const rel = relPath(fill(raw, pathTitle, input.now, input.uuid), `/folders/${i}`, problems, w);
+    const rel = relPath(fill(raw, pathTitle, input.now, input.uuid, input.lang), `/folders/${i}`, problems, w);
     if (!rel) return;
     const segs = rel.split("/");
     for (let n = 1; n <= segs.length; n++) folders.add(join(base, segs.slice(0, n).join("/")));
@@ -155,7 +164,7 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
   const seen = new Set<string>();
   let total = 0;
   bundle.files.forEach((def, i) => {
-    let rel = relPath(fill(def.path, pathTitle, input.now, input.uuid), `/files/${i}/path`, problems, w);
+    let rel = relPath(fill(def.path, pathTitle, input.now, input.uuid, input.lang), `/files/${i}/path`, problems, w);
     if (!rel) return;
     const note = !OTHER_FILES.test(rel);
     if (note && !/\.md$/i.test(rel)) rel = `${rel}.md`;
@@ -177,7 +186,7 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
         problems.push({ at: `/files/${i}/frontmatter`, message: w.plan.badFrontmatter });
       }
     }
-    const text = head + fill(def.content ?? "", title, input.now, input.uuid);
+    const text = head + fill(def.content ?? "", title, input.now, input.uuid, input.lang);
     const bytes = new TextEncoder().encode(text).length;
     if (bytes > LIMITS.fileBytes) problems.push({ at: `/files/${i}/content`, message: w.plan.bigFile(LIMITS.fileBytes / 1024) });
     total += bytes;

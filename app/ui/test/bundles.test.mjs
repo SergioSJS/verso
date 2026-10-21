@@ -137,6 +137,20 @@ test("fill replaces the four tags in one pass and leaves other tags alone", () =
   assert.equal(fill("{{title}}", "{{date}}", NOW, () => "u"), "{{date}}");
 });
 
+test("fill reads {{date:FORMAT}} and {{time:FORMAT}} with Moment tokens, in the asked language", () => {
+  const f = (t, lang) => fill(t, "T", NOW, () => "u", lang);
+  assert.equal(f("{{date:YYYY}}|{{date:YY}}|{{date:MM}}|{{date:M}}|{{date:DD}}|{{date:D}}"), "2026|26|10|10|17|17");
+  assert.equal(f("{{time:HH}}|{{time:H}}|{{time:mm}}|{{time:ss}}|{{time:HH:mm}}"), "14|14|05|00|14:05");
+  assert.equal(f("{{date:ddd}}|{{date:dddd}}|{{date:MMM}}|{{date:MMMM}}|{{date:Do}}", "en"), "Sat|Saturday|Oct|October|17th");
+  assert.equal(f("{{date:ddd}}|{{date:dddd}}|{{date:MMM}}|{{date:MMMM}}|{{date:Do}}", "pt-BR"), "sáb|sábado|out|outubro|17º");
+  assert.equal(f("{{date:[Dia] D [de] MMMM}}", "pt-BR"), "Dia 17 de outubro");
+  assert.equal(f("{{date:YYYY-MM-DD HH:mm}}"), "2026-10-17 14:05");
+  // plain tags unchanged; an unknown letter leaves the tag as written
+  assert.equal(f("{{date}} {{time}}"), "2026-10-17 14:05");
+  assert.equal(f("{{date:YYYY Z}}"), "{{date:YYYY Z}}");
+  assert.equal(f("{{title}}", "en"), "T");
+});
+
 test("segmentProblem refuses what the core and Windows refuse, in the asked language", () => {
   assert.equal(segmentProblem("Sessão 01.md", pt), null);
   for (const bad of ["", ".", "..", ".verso", ".trash", "a:b", "a*b", "a?b", 'a"b', "a|b", "a\\b", "Fim.", "Fim ", "CON", "con.txt", "LPT1", "COM²"]) {
@@ -220,6 +234,17 @@ test("frontmatter is written by a YAML library: values round-trip as the strings
   assert.deepEqual(back, props);
   assert.equal(frontmatter({}), "");
   assert.equal(frontmatter(undefined), "");
+});
+
+test("planBundle counts the parent folders a path implies against the folder limit", () => {
+  // 26 chains of 8 segments list 26 folders but make 26 * 8 + 1 > 200
+  const deep = Array.from({ length: 26 }, (_, i) => `c${i}/b/c/d/e/f/g/h`);
+  const plan = planBundle(bundle({ folders: deep }), input());
+  assert.ok(plan.folders.length > LIMITS.folders);
+  assert.ok(plan.problems.some((p) => p.at === "/folders"));
+  // the same through the folders of the files
+  const viaFiles = planBundle(bundle({ files: Array.from({ length: 30 }, (_, i) => ({ path: `x${i}/b/c/d/e/f/g/n` })) }), input());
+  assert.ok(viaFiles.problems.some((p) => p.at === "/folders"));
 });
 
 test("planBundle fills tags in frontmatter strings and in lists", () => {

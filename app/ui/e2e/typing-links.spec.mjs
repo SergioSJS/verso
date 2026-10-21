@@ -328,6 +328,31 @@ test("@ then Esc leaves the text as typed; an e-mail never opens it; the setting
   await expect(page.locator(".pane.focused .cm-content").first()).not.toContainText("[[");
 });
 
+test("after Esc the @ list stays closed for the rest of that word; a new @ opens it again (0089.a)", async ({ app, page }) => {
+  await seeded(app, { suggestLinks: false });
+  await page.keyboard.type("Ir a @Por");
+  await expect(mentions(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(mentions(page)).toHaveCount(0);
+  // more characters of the same word do not bring it back
+  await page.keyboard.type("to C");
+  await page.waitForTimeout(400);
+  await expect(mentions(page)).toHaveCount(0);
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(300);
+  await expect(mentions(page)).toHaveCount(0);
+  // moving the caret away and back does not either
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("i");
+  await page.waitForTimeout(300);
+  await expect(mentions(page)).toHaveCount(0);
+  // a new @ is a new word
+  await page.keyboard.type(" e @Mes");
+  await expect(mentions(page).first()).toBeVisible();
+  await expect(mentions(page).first()).toContainText("Mesa");
+});
+
 test("@ is never beside the partial list; the [[ list comes first", async ({ app, page }) => {
   await seeded(app);
   await page.keyboard.type("Ir a @Porto C");
