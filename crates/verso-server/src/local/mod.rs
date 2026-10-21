@@ -1473,6 +1473,30 @@ fn random_port() -> Result<u16, String> {
     Ok(49_152 + u16::from_le_bytes(b) % (65_536 - 49_152) as u16)
 }
 
+/// One listener. The port kept from the first time is tried for a while:
+/// turning serving off does not wait for the listeners to close (see
+/// [`Running`]'s drop), and a socket that is still closing refuses a bind
+/// on Windows, and on a slow machine elsewhere — a person who turns serving
+/// off and on again would be handed another port, and every phone's saved
+/// address would be wrong (item 4). Another program holding it still ends
+/// in a new port, after the wait.
+fn bind_one(addr: SocketAddr, kept: bool) -> Option<std::net::TcpListener> {
+    let tries = if kept { KEPT_PORT_TRIES } else { 1 };
+    for i in 0..tries {
+        if let Ok(l) = std::net::TcpListener::bind(addr) {
+            return Some(l);
+        }
+        if i + 1 < tries {
+            std::thread::sleep(KEPT_PORT_WAIT);
+        }
+    }
+    None
+}
+
+/// How long the kept port is waited for: 100 times 50 ms.
+const KEPT_PORT_TRIES: u32 = 100;
+const KEPT_PORT_WAIT: Duration = Duration::from_millis(50);
+
 /// A listener on every address at one port: the port kept from the first
 /// time, a new one chosen when it is taken (item 4).
 fn bind_all(db: &Db, nets: &[IfNet]) -> Result<(Vec<std::net::TcpListener>, u16), String> {
@@ -1484,7 +1508,7 @@ fn bind_all(db: &Db, nets: &[IfNet]) -> Result<(Vec<std::net::TcpListener>, u16)
     'ports: for port in candidates {
         let mut listeners = Vec::new();
         for n in nets {
-            let Ok(l) = std::net::TcpListener::bind(SocketAddr::new(n.ip, port)) else {
+            let Some(l) = bind_one(SocketAddr::new(n.ip, port), kept == Some(port)) else {
                 continue 'ports;
             };
             l.set_nonblocking(true).map_err(|e| e.to_string())?;
