@@ -27,7 +27,10 @@
   the ADR is Accepted. Nothing is built. 2026-10-21, later the same day —
   built on `feat/rpg-tools` (Status, As built); the review of the batch
   found item 5 contradicting itself and recorded it as `[OPEN]` under that
-  item.
+  item. 2026-10-21, later — the maintainer answered RL.1a to RL.1d of the
+  decisions list of 2026-10-21, all option A: item 5's `[OPEN]` is closed
+  (hash only; the address shown once), and items 4 and 6 gain the notes
+  below.
 
 ## Context
 
@@ -100,7 +103,8 @@ in the questionnaire of 2026-10-20.
    what it points at, when it was made, its expiry, and when it was last
    opened; **revoke** ends it at once, open pages included.
 
-   `[OPEN]` (recorded 2026-10-21 by the review of the batch; rule zero item
+   ~~`[OPEN]`~~ **Closed 2026-10-21** — see the decision at the end of this
+   item. (Recorded 2026-10-21 by the review of the batch; rule zero item
    3, no side picked): this item contradicts itself. It says the token is
    "stored only as a hash" and also that the address is "copyable again
    from the panel while it lives"; a store that keeps only a hash cannot
@@ -113,7 +117,18 @@ in the questionnaire of 2026-10-20.
    answers it (question RL.1a of the decisions list of 2026-10-21): either
    "copyable again" means "in the window that made it", and this item is
    amended, or the server keeps the token encrypted at rest, a different
-   decision that needs its own threat-model row.
+   decision that needs its own threat-model row.)
+
+   **`[DECIDED 2026-10-21]` (RL.1a, option A): the hash only, as built.** The
+   token is stored only as a hash; the address is shown **once**, when the
+   link is made, and can be copied again only in the same window that made
+   it, while that window is open. Whoever loses the address makes another
+   link. The phrase "copyable again from the panel while it lives" in the
+   first paragraph is to be read this way. Reason (the list's): whoever
+   steals the server's database cannot open any link. The alternative, the
+   address encrypted on the server so it can be copied again from anywhere
+   (B), is not chosen: the database would then hold something that opens the
+   folder.
 
 6. **Bounds and abuse.** `[DECIDED 2026-10-21]` (0105.6, option A): an anonymous request is paced per
    token and per address like the server's other routes ([0083](0083-security-hardening-of-universo.md)
@@ -123,6 +138,17 @@ in the questionnaire of 2026-10-20.
    read-only and refuses anything else before the core acts; the headers
    of item 9 apply; a link never reveals the folder's path, the owner's
    e-mail or other members.
+
+   **`[DECIDED 2026-10-21]` (RL.1b and RL.1c, both option A).** The pace as
+   built stays: per address and per link, 20 requests a second (a burst of
+   100) and 32 connections per link; a table of six players behind the same
+   router shares one address. It is measured in a real session (it is in the
+   manual checks, `docs/reference/manual-checks.md`) before the numbers are
+   changed. And a folder link does not show attachments (images) stored
+   outside the shared folder, for example in an attachments folder at the
+   root: only what is inside the shared folder appears, so the link never
+   reveals anything from outside it. Serving the attachments that the
+   folder's notes cite from outside it (B) is not chosen.
 
 7. **What the window shows to the owner.** `[DECIDED 2026-10-21]`
    (0105.7, option A, the mark and the warning of secrets): a note or folder
@@ -155,6 +181,11 @@ in the questionnaire of 2026-10-20.
 - **A static site exported from the app** (Obsidian Publish's and
   Quartz's way): considered with the maintainer on 2026-10-20; he chose
   the link for now. It needs no server, but every change is a new export.
+- **Keeping the address encrypted on the server, to copy it again from
+  anywhere** (RL.1a, B): the database would hold something that opens the
+  folder.
+- **Serving, through a folder link, the attachments the notes cite from
+  outside the folder** (RL.1c, B): the link would reveal what is outside it.
 
 ## Status
 
@@ -167,5 +198,7 @@ server), `95827830` (fuzzing what anyone with no account may send),
 `26c44c68` (the contract's `list`, `secrets`, `create` and `revoke`
 commands), `c4534607` (making and reading links in the window), `8ec0dc3f`
 (end-to-end tests), `4dbe4bbb` (threat model, manual checks, changelog,
-tutorial); merged by `5690057e`. Item 5's contradiction stays `[OPEN]`
-above.
+tutorial); merged by `5690057e`. Item 5's contradiction was `[OPEN]` and
+was closed on 2026-10-21 (RL.1a, option A). Roadmap row V.33 stays in V1
+(RL.1d, option A): it was built now and enters with V1; it is not moved to
+Phase 3.
