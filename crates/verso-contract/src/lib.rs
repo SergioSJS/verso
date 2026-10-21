@@ -19,6 +19,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod read_links;
+pub use read_links::{ReadLinkInfo, ReadLinkMade, ReadLinks};
 mod local;
 pub use local::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
