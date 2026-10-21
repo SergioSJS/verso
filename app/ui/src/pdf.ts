@@ -101,6 +101,8 @@ export class PdfView {
   private task: PDFDocumentLoadingTask | null = null;
   private doc: PDFDocumentProxy | null = null;
   private token = 0;
+  /** Says the current document is being torn down (see `quietOnTeardown`). */
+  private markGone: (() => void) | null = null;
   private passages: Passage[] = [];
   private pendingPage = 1;
   private fitMode: "page-width" | "page-fit" | null = "page-width";
@@ -248,6 +250,7 @@ export class PdfView {
       const doc = await task.promise;
       if (token !== this.token) return void task.destroy();
       this.doc = doc;
+      this.markGone = quietOnTeardown(doc);
       this.total.textContent = `${this.opts.strings.of} ${doc.numPages}`;
       this.pageInput.max = String(doc.numPages);
       this.viewer.setDocument(doc);
@@ -417,6 +420,9 @@ export class PdfView {
   }
 
   private destroyDoc(): void {
+    // Before the destroy: the page requests it fails are then not told.
+    this.markGone?.();
+    this.markGone = null;
     void this.task?.destroy();
     this.task = null;
     this.doc = null;
@@ -429,6 +435,27 @@ export class PdfView {
     this.destroyDoc();
     this.viewer.cleanup();
   }
+}
+
+/** pdf.js's viewer asks for every page of the document after the first
+ *  paints and, when one request fails, writes `console.error` ("Unable to
+ *  get page N to initialize viewer: Transport destroyed"). Closing the PDF
+ *  or leaving its note meanwhile destroys the document and fails them, so
+ *  a page request that fails after the returned function is called stays
+ *  pending instead: nothing is logged and no page of the old document is
+ *  ever handed to a view that now shows another. Pending, never settled,
+ *  it holds nothing once the viewer lets go of it. */
+function quietOnTeardown(doc: PDFDocumentProxy): () => void {
+  let gone = false;
+  const getPage = doc.getPage.bind(doc);
+  doc.getPage = (n: number) =>
+    getPage(n).then(
+      (page) => (gone ? new Promise<never>(() => {}) : page),
+      (e: unknown) => (gone ? new Promise<never>(() => {}) : Promise.reject(e)),
+    );
+  return () => {
+    gone = true;
+  };
 }
 
 /** A PDF's first page as a picture `width` CSS pixels wide — the cover a
