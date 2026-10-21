@@ -34,6 +34,8 @@ export type ScreenStrings = {
   graphMissingLegend: string;
   /** The graph's count when notes that do not exist yet are drawn. */
   graphNodesMissing: (notes: number, links: number, missing: number) => string;
+  /** Said beside the count when a shared folder will not name missing notes. */
+  graphMissingShared: string;
   /** The card beside a link in Edit mode (item 4). */
   linkCard: (target: string) => string;
   linkOpen: string;
@@ -86,6 +88,7 @@ const pt: ScreenStrings = {
   graphMissingNode: (name) => `${name} — nota que ainda não existe`,
   graphMissingLegend: "Nota que ainda não existe",
   graphNodesMissing: (n, m, k) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} ainda não existe${k === 1 ? "" : "m"}`,
+  graphMissingShared: "numa pasta compartilhada, notas que não existem não aparecem",
   graphHintTouch: "Toque abre · arraste move uma nota ou o grafo · pinça amplia · dois dedos deslocam",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Abrir",
@@ -132,6 +135,7 @@ const en: ScreenStrings = {
   graphMissingNode: (name) => `${name} — note that does not exist yet`,
   graphMissingLegend: "Note that does not exist yet",
   graphNodesMissing: (n, m, k) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} not created yet`,
+  graphMissingShared: "in a shared folder, notes that do not exist are not shown",
   graphHintTouch: "Tap opens · drag moves a note or the graph · pinch zooms · two fingers pan",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Open",

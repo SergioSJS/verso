@@ -44,6 +44,8 @@ export class GraphLeaf extends Leaf {
   /** Links no note answers to, asked of the core once the filter that hides
    *  them is turned off (spec Q14, decision B). */
   private missingLinks: MissingLink[] | null = null;
+  /** The core would not name missing notes here (a shared folder). */
+  private missingRefused = false;
   private nodes: GNode[] = [];
   private stop: (() => void) | null = null;
   private zoom = 1;
@@ -335,6 +337,7 @@ export class GraphLeaf extends Leaf {
     const whole = this.controls.querySelector<HTMLElement>('[data-role="whole"]');
     if (whole) whole.hidden = !local;
     this.missingLinks = null;
+    this.missingRefused = false;
     if (!this.opts.existingOnly) await this.askMissing();
     if (this.path !== path) return;
     this.zoom = 1;
@@ -349,6 +352,7 @@ export class GraphLeaf extends Leaf {
     if (this.missingLinks) return;
     const r = await commands.graphUnresolved();
     this.missingLinks = r.status === "ok" ? r.data : [];
+    this.missingRefused = r.status !== "ok";
   }
   /** Nodes and edges after the filters, laid out from scratch. */
   private rebuild(): void {
@@ -426,7 +430,9 @@ export class GraphLeaf extends Leaf {
     });
     this.nodes = [...real, ...hollow];
     const shown = edges.filter(([a, b]) => (keep.has(a) || isMissingId(a)) && (keep.has(b) || isMissingId(b)));
-    const counted = missing.length > 0 ? st.graphNodesMissing(real.length, shown.length, missing.length) : t.graphNodes(real.length, shown.length);
+    let counted = missing.length > 0 ? st.graphNodesMissing(real.length, shown.length, missing.length) : t.graphNodes(real.length, shown.length);
+    // Every action shows something: the filter turned off in a shared folder says why nothing appeared.
+    if (!this.opts.existingOnly && this.missingRefused) counted += ` · ${st.graphMissingShared}`;
     this.count.textContent = counted;
     window.clearTimeout(this.countTimer);
     if (this.countLive.textContent === "") this.countLive.textContent = counted;
