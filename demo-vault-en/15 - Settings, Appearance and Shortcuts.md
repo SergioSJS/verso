@@ -37,11 +37,9 @@ Try it: in **Files and links**, turn off **Ignore build folders** and watch the 
 
 ## Appearance
 
-- **Theme**: **System**, **Light** or **Dark**.
-- **Dark tone**, in the dark theme: **Soft (default)** (for reading and writing for hours), **Deep** (nearly black, for a dark room or an OLED screen) and **Dusk** (lighter).
-- **Font size**: from 12 to 30 pixels.
-- **Text width**: comfortable (100 characters) or the whole area.
-- **Themes**: right below, the gallery (see next).
+- **Themes**, at the top, together: the **Theme** (**System**, **Light** or **Dark**), the **Dark tone** and, right below, the gallery (see next); changing the mode redraws the cards at once.
+  - **Dark tone**, in the dark theme: **Soft (default)** (for reading and writing for hours), **Deep** (nearly black, for a dark room or an OLED screen) and **Dusk** (lighter).
+- **Text**: the **Font size**, from 12 to 30 pixels, and the **Text width**, comfortable (100 characters) or the whole area.
 - **More text options**: the interface's text font and the heading accent color, from amber to amethyst.
 - **Side ribbon buttons**: each with its own switch; the Settings gear is always there, so there is a way back.
 

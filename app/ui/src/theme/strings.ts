@@ -176,6 +176,7 @@ const pt = {
     import: "Importar…",
     exportFail: "Nada para exportar neste tema.",
     moreText: "Mais opções de texto",
+    textGroup: "Texto",
   },
   builder: {
     title: "Construtor de tema",
@@ -362,6 +363,7 @@ const en: typeof pt = {
     import: "Import…",
     exportFail: "Nothing to export in this theme.",
     moreText: "More text options",
+    textGroup: "Text",
   },
   builder: {
     title: "Theme builder",
