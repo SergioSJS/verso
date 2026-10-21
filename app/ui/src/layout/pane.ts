@@ -59,6 +59,7 @@ export class Pane {
   private trailAt = -1;
   /** The trail itself is moving the pane: what follows is not recorded. */
   private navigating = false;
+  private readonly orient = button("ghost iconic", t.verticalTabs, "vtabs");
   private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
   private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
   /** On a phone a split layout shows one pane at a time: this names which,
@@ -112,7 +113,7 @@ export class Pane {
     this.body.addEventListener("dblclick", (e) => {
       if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
     });
-    const orient = button("ghost iconic", t.verticalTabs, "vtabs");
+    const orient = this.orient;
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
     const plus = button("ghost iconic pane-new", t.newNote, "plus");
     keyHint(plus, t.newNote, "new-note");
@@ -217,6 +218,12 @@ export class Pane {
     this.vertical = v;
     this.el.classList.toggle("vertical", v);
     this.tabList.setAttribute("aria-orientation", v ? "vertical" : "horizontal");
+    const word = v ? t.horizontalTabs : t.verticalTabs;
+    this.orient.title = word;
+    this.orient.replaceChildren(icon("vtabs", word));
+    // The tools come first in the column, on screen and in the focus order.
+    if (v) this.tabs.insertBefore(this.tools, this.tabList);
+    else this.tabs.append(this.tools);
     persistSoon();
   }
   /** The tab bar from the keyboard, as a tablist answers (WAI-ARIA
