@@ -31,6 +31,8 @@ export type ScreenStrings = {
   graphExisting: string;
   /** A node for a note that does not exist yet: its accessible name. */
   graphMissingNode: (name: string) => string;
+  graphMakeAsk: (name: string) => string;
+  graphMakeYes: string;
   graphMissingLegend: string;
   /** The graph's count when notes that do not exist yet are drawn. */
   graphNodesMissing: (notes: number, links: number, missing: number) => string;
@@ -86,6 +88,8 @@ const pt: ScreenStrings = {
   graphControls: "Ajustes do grafo",
   graphExisting: "Só arquivos existentes",
   graphMissingNode: (name) => `${name} — nota que ainda não existe`,
+  graphMakeAsk: (name) => `Criar a nota "${name}"?`,
+  graphMakeYes: "Criar",
   graphMissingLegend: "Nota que ainda não existe",
   graphNodesMissing: (n, m, k) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} ainda não existe${k === 1 ? "" : "m"}`,
   graphMissingShared: "numa pasta compartilhada, notas que não existem não aparecem",
@@ -133,6 +137,8 @@ const en: ScreenStrings = {
   graphControls: "Graph settings",
   graphExisting: "Existing files only",
   graphMissingNode: (name) => `${name} — note that does not exist yet`,
+  graphMakeAsk: (name) => `Create the note "${name}"?`,
+  graphMakeYes: "Create",
   graphMissingLegend: "Note that does not exist yet",
   graphNodesMissing: (n, m, k) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} not created yet`,
   graphMissingShared: "in a shared folder, notes that do not exist are not shown",
