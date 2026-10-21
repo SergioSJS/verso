@@ -700,7 +700,7 @@ fatos_aplicaveis: 2
 
 ### World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)
 
-Layouts with **field names** only, and no rules text at all. The World of Darkness ones come under Paradox's *Dark Pack*: **unofficial, fan-made** material, free and non-commercial — so each statblock carries, in its footer, the notices the agreement requires. The Cyberpunk RED ones are **blank** sheets under R. Talsorian Games' Homebrew Content Policy, with its notice in the footer. The dice pools (regular, and Hunger, Rage or Desperation) roll with the *Roll the pool* button. Mage: The Ascension does not ship built in — import a layout of your own.
+Layouts with **field names** only, and no rules text at all. The World of Darkness ones come under Paradox's *Dark Pack*: **unofficial, fan-made** material, free and non-commercial — so each statblock carries a short notice in its footer, and the full notices the agreement requires, with the Dark Pack logo, are in Credits and acknowledgements. The Cyberpunk RED ones are **blank** sheets under R. Talsorian Games' Homebrew Content Policy, with a short notice in the footer and its full notice in Credits. The dice pools (regular, and Hunger, Rage or Desperation) roll with the *Roll the pool* button. Mage: The Ascension does not ship built in — import a layout of your own.
 
 **Vampire: The Masquerade 5e — character** (`layout: vtm5-character`)
 

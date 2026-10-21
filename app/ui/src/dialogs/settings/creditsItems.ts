@@ -44,6 +44,17 @@ export function creditsItems(ctx: ItemCtx): SettingItem[] {
   for (const s of SYSTEMS) {
     add(cs.systemsGroup, s.name, cs.licence(s.licence), () => {
       const box = h("div", "credit-box");
+      // The Dark Pack asks for its logo with the notice: Paradox's own file,
+      // unaltered (docs/reference/statblock-sources.md, "The Dark Pack logo").
+      if (s.licence === "Paradox Dark Pack") {
+        const img = h("img", "credit-logo");
+        img.src = "darkpack-logo.png";
+        img.alt = cs.darkPackLogo;
+        img.width = 96;
+        img.height = 96;
+        img.loading = "lazy";
+        box.append(img);
+      }
       for (const l of s.lines) box.append(h("blockquote", "credit-quote", l));
       // A licence that must accompany the content (the OGL, section 10).
       if (s.licenceText) {

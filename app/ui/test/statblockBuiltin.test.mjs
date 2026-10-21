@@ -122,11 +122,9 @@ describe("the built-in layouts", () => {
 describe("World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)", () => {
   const ids = ["vtm5-character", "vtm5-antagonist", "wta5-character", "htr5-character", "cpr-blank-character", "cpr-blank-npc"];
   const by = (id) => m.builtinLayouts().find((l) => l.id === id);
-  const DARK = [
-    "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission.",
-    "All rights reserved. For more information please visit worldofdarkness.com.",
-    "not official World of Darkness material",
-  ];
+  // The full notices live on the credits page (src/credits.ts); the card
+  // carries one short line that points there.
+  const DARK = ["not official World of Darkness material", "Paradox Interactive AB", "Credits"];
 
   test("the six layouts are built in, in both languages, with sources", () => {
     for (const id of ids) {
@@ -139,7 +137,7 @@ describe("World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)", 
     assert.ok(!by("wta5-antagonist") && !by("htr5-antagonist"), "their adversary sheets are not read from a source yet");
   });
 
-  test("the World of Darkness sheets roll a d10 pool of the wod5 profile and carry the Dark Pack notice on the card", () => {
+  test("the World of Darkness sheets roll a d10 pool of the wod5 profile and carry a short Dark Pack notice on the card", () => {
     for (const id of ["vtm5-character", "wta5-character", "htr5-character"]) {
       const l = by(id);
       assert.equal(l.profile, "wod5", id);
@@ -150,6 +148,8 @@ describe("World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)", 
       const text = card.querySelector('[data-block="notice"]').textContent;
       for (const line of DARK) assert.ok(text.includes(line), `${id}: ${line}`);
       assert.match(text, /fan-made/);
+      assert.ok(text.length < 200, `${id}: one short line, the full notice is on the credits page`);
+      assert.doesNotMatch(text, /Portions of the materials|All rights reserved/);
     }
   });
 
@@ -167,15 +167,31 @@ describe("World of Darkness 5th edition (Dark Pack) and Cyberpunk RED (blank)", 
     assert.ok(card.querySelector(".statblock-roll-out").textContent.length > 0);
   });
 
-  test("a Cyberpunk RED sheet is blank: field names, no stat block, the policy's disclaimer word for word", () => {
+  test("a Cyberpunk RED sheet is blank: field names, no stat block, a short notice that points to the credits page", () => {
     for (const id of ["cpr-blank-character", "cpr-blank-npc"]) {
       const l = by(id);
       assert.ok(!l.profile && !l.blocks.some((b) => b.type === "roll"), `${id}: no rules mechanics invented`);
       const card = m.renderStatblock(m.builtinSample(id), undefined, { layout: l });
       const text = card.querySelector('[data-block="notice"]').textContent;
-      assert.equal(text, `${l.name.en} is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.`);
+      assert.match(text, /R\. Talsorian Games Homebrew Content Policy; not approved or endorsed by RTG\. See Credits/);
+      assert.ok(text.length < 200, `${id}: one short line`);
       // The layout's title is a descriptive subtitle, not the game's title.
       assert.doesNotMatch(l.name.en, /^Cyberpunk/);
+    }
+  });
+
+  test("the window's language picks the labels: Portuguese names in pt, English in en", () => {
+    const labels = (l) => { const o = []; const w = (bs) => { for (const b of bs) { if (b.label) o.push(b.label); w(b.nested ?? []); } }; w(l.blocks); return o; };
+    const pt = (id) => labels(by(id)).map((x) => x.pt);
+    assert.ok(pt("vtm5-character").includes("Fome") && pt("vtm5-character").includes("Humanidade"));
+    assert.ok(pt("wta5-character").includes("Fúria") && pt("htr5-character").includes("Credo"));
+    assert.ok(pt("cpr-blank-character").includes("Pontos de Vida"));
+    assert.ok(labels(by("vtm5-character")).some((x) => x.en === "Hunger"));
+    for (const id of ids) assert.ok(labels(by(id)).filter((x) => x.pt !== x.en).length >= 3, id);
+    for (const id of ["old-dragon-character", "old-dragon-monster"]) {
+      const en = labels(by(id)).map((x) => x.en);
+      assert.ok(!en.some((x) => /^(Atributos|Idiomas|Descrição|Utilidades|Tamanho|Alinhamento|PV atuais)$/.test(x)), id);
+      assert.ok(en.includes("CA") || en.includes("QT"), `${id}: the game's abbreviations stay`);
     }
   });
 
