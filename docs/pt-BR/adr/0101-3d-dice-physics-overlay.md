@@ -30,6 +30,25 @@
   removeu, e dava um caminho absoluto no computador do mantenedor). Continua
   Proposta até o item 3 ser fechado. 2026-10-21, depois — item 3 decidido
   pelo mantenedor (0101.1c, opção A); **Aceita**, em construção.
+  2026-10-21, noite — o mantenedor achou os dados grandes demais e pediu
+  os ajustes de aparência do Rolai (*"o dado 3d está gigantesco, onde
+  estão as configurações do dado? tema, textura, tamanho, cor da
+  fonte"*; *"achei que teríamos as mesmas opções de customizações dos
+  dados que o Rolai tem"*). Construído: um dado de cerca de 72 px em 100%
+  (um controle de 70–160%, que acompanha a janela), lançado na parte de
+  baixo do painel em foco; o modelo do Rolai — três conjuntos de cor, os
+  8 estilos dele mais "Do Verso" (a paleta do app), cores de corpo,
+  número e contorno, 20 texturas, 6 materiais — com aviso abaixo de
+  contraste 3:1 e uma rolagem de teste. As texturas são as imagens
+  originais do 3DDiceRoller do MajorVictory (The Unlicense), aprovadas
+  pelo mantenedor no mesmo dia (X.1, opção A), com crédito, origem e
+  hashes em `docs/reference/dice-textures.md`; as texturas desenhadas
+  ficam como reserva. O estilo é JSON fechado passado por rolagem, para
+  que os dados de quem rola viajem com as rolagens
+  ([0107](0107-the-table-a-shared-roll-and-chat-log.md) item 11). Como
+  construído, não decidido: a aparência fica com os outros ajustes de
+  exibição, então num servidor acompanha a conta; o conjunto de cor 2 ou
+  3 de uma rolagem de perfil (Fome, Sombrio) ainda não é desenhado em 3D.
 
 ## Contexto
 
