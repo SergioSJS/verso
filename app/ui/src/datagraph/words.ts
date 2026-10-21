@@ -57,6 +57,8 @@ type Words = {
   staleNote: string;
   tooBig: (mb: number) => string;
   tooBigBlock: string;
+  tooMany: string;
+  boardTooMany: (n: number, max: number) => string;
   hint: string;
   hintTouch: string;
   boxLabel: (label: string, level: number) => string;
@@ -185,6 +187,8 @@ const pt: Words = {
   staleNote: "Mostrando o último diagrama válido.",
   tooBig: (mb) => `Este arquivo tem ${mb} MB, mais que os 20 MB que o diagrama aceita. Só o texto está disponível.`,
   tooBigBlock: "Este bloco é grande demais para o diagrama.",
+  tooMany: "Este arquivo tem caixas demais para desenhar (mais de 200 mil); veja como texto.",
+  boardTooMany: (n, max) => `O diagrama tem ${n} caixas; um board aceita até ${max}. Dobre ramos do diagrama para ter menos caixas visíveis e tente de novo.`,
   hint: "Arraste uma caixa pelo título para movê-la com o que está abaixo; Alt arrasta só a caixa. Setas percorrem a árvore, Enter dobra, Alt com setas move (com Shift, só a caixa), T vai ao texto.",
   hintTouch: "Arraste uma caixa pelo título para movê-la. Dois dedos aproximam e movem o diagrama. Toque na seta da caixa para dobrar.",
   boxLabel: (label, level) => `${label === "" ? "raiz" : label}, nível ${level}`,
@@ -258,6 +262,8 @@ const en: Words = {
   staleNote: "Showing the last valid diagram.",
   tooBig: (mb) => `This file is ${mb} MB, past the 20 MB the diagram takes. Only the text is available.`,
   tooBigBlock: "This block is too big for the diagram.",
+  tooMany: "This file has too many boxes to draw (over 200 thousand); see it as text.",
+  boardTooMany: (n, max) => `The diagram has ${n} boxes; a board takes up to ${max}. Fold branches of the diagram to show fewer boxes and try again.`,
   hint: "Drag a box by its title to move it with what hangs under it; Alt drags the box alone. Arrows walk the tree, Enter folds, Alt with arrows moves (with Shift, the box alone), T goes to the text.",
   hintTouch: "Drag a box by its title to move it. Two fingers zoom and move the diagram. Tap a box's arrow to fold it.",
   boxLabel: (label, level) => `${label === "" ? "root" : label}, level ${level}`,
