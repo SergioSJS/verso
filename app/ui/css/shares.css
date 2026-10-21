@@ -54,3 +54,15 @@
 .read-link-dialog .share-form input[type="date"] { min-width: 0; }
 .preview .link-outside { color: var(--ink-3); }
 .preview .link-outside-note { font-size: .8em; color: var(--ink-3); font-style: italic; }
+/* The folder switcher's rows: a folder icon, the name with where it sits
+   under it in muted type, a note at the right; the actions set apart. */
+.folder-switcher button { align-items: center; }
+.folder-switcher button .icon { flex: none; color: var(--ink-3); }
+.folder-switcher .sw-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.folder-switcher .sw-name { overflow-wrap: anywhere; }
+.folder-switcher .sw-place { font-size: .74rem; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-switcher .switcher-actions { padding-bottom: .25rem; margin-bottom: .25rem; border-bottom: 1px solid var(--hair); }
+.folder-switcher .switcher-foot { border-bottom: 0; border-top: 1px solid var(--hair); padding: .25rem 0 0; margin: .25rem 0 0; }
+.folder-switcher button.sw-action { color: var(--seal); font-weight: 600; }
+.folder-switcher button.sw-action .icon { color: currentColor; }
+.folder-switcher button.sw-more { color: var(--ink-3); font-size: .82rem; padding-left: 2rem; }

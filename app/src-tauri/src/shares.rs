@@ -186,17 +186,50 @@ pub(crate) async fn server_prove<R: tauri::Runtime>(
     Ok(())
 }
 
+/// Where a folder sits, as a label that tells two folders of one name apart
+/// (the folder switcher): its parent, `~/` for the home, at most the last
+/// two folders of it (`~/…/Documents/obsidian`), and for a parent outside
+/// the home only those two behind an ellipsis (`…/Volumes/Disco`). Never an
+/// absolute path and never with `..`: a label to read, not a path to use
+/// (ADR 0026 rule 4).
+pub(crate) fn place_of(folder: &Path, home: Option<&Path>) -> String {
+    use std::path::Component;
+    let Some(parent) = folder.parent() else {
+        return String::new();
+    };
+    let inside = home.and_then(|h| parent.strip_prefix(h).ok());
+    let parts: Vec<String> = inside
+        .unwrap_or(parent)
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(n) => Some(n.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect();
+    let tail = parts[parts.len().saturating_sub(2)..].join("/");
+    match (inside.is_some(), parts.len()) {
+        (true, 0) => "~".to_owned(),
+        (true, 1 | 2) => format!("~/{tail}"),
+        (true, _) => format!("~/…/{tail}"),
+        (false, 0) => String::new(),
+        (false, _) => format!("…/{tail}"),
+    }
+}
+
 /// The folders of this computer opened before, freshest first, for the
-/// folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
-/// no path.
+/// folder switcher's "On this computer" (ADR 0081 item 5): names, keys and
+/// a short label of where each sits, no path.
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn recent_folders(state: State<'_, App>) -> Vec<RecentFolder> {
+    let home =
+        std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     verso_core::recent_folders(state.service.config())
         .into_iter()
-        .take(12)
+        .take(40)
         .map(|path| RecentFolder {
             key: verso_core::folder_key(&path),
+            place: place_of(&path, home.as_deref()),
             name: path
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())

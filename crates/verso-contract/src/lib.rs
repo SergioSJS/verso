@@ -36,7 +36,7 @@ pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
 mod picked;
-pub use picked::{PickSkip, PickedFile, PickedFiles, SkippedPick};
+pub use picked::{PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod history;
@@ -879,15 +879,6 @@ pub struct ServerFolders {
     pub folders: Vec<ServerFolder>,
     #[serde(default)]
     pub may_create: bool,
-}
-
-/// A folder of this computer opened before, for the folder switcher's
-/// "On this computer" (ADR 0081 item 5): its name and the key
-/// `reopen_folder` takes — never its path (ADR 0026 rule 4).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct RecentFolder {
-    pub key: String,
-    pub name: String,
 }
 
 /// A person who has access to a shared folder, and in which role (ADR
