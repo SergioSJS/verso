@@ -144,7 +144,12 @@ internals.convertFileSrc = (path: string) => `/__vault/${path.split("/").map(enc
 // "Import files…" (A11Y.10): the system's file picker is the host's; a test
 // says what the person chose with `pickNext` and the next `pick_files`
 // answers it (then the picker is "cancelled" again).
-const toBase64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
+const toBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+};
 let nextPick: PickedFiles = { files: [], skipped: [] };
 core.handlers["pick_files"] = (a) => {
   const now = nextPick;
