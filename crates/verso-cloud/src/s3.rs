@@ -27,7 +27,7 @@ use crate::http::{Http, check_transport};
 use crate::names;
 use crate::sigv4::{Signer, stamp_now};
 use crate::xml::{self, Ev};
-use crate::{Deletions, Report, fail_body, nonce, pct_component, pct_path};
+use crate::{Deletions, Report, capped_text, fail_body, nonce, pct_component, pct_path};
 
 /// Names of what the probe found the service honours, as the state keeps
 /// them.
@@ -39,6 +39,12 @@ pub const CAP_MULTIPART_CONDITIONAL: &str = "multipart_conditional";
 /// The metadata that carries a file's SHA-256, so that another device need
 /// not read the file to know it.
 const META_HASH: &str = "x-amz-meta-verso-sha256";
+/// The most an answer may be, in bytes: every one but a listing page is a
+/// few lines of XML.
+const ANSWER_MAX: usize = 1 << 20;
+/// The most a page of a listing may be: a thousand keys of 1024 bytes
+/// with their metadata fit many times over.
+const LISTING_PAGE_MAX: usize = 16 << 20;
 /// A file past this many bytes crosses in parts.
 const SINGLE_MAX: u64 = 100 << 20;
 /// A part: well past S3's 5 MiB minimum, and ten thousand of them reach
@@ -293,7 +299,7 @@ impl S3 {
     /// failures in a 200 (a copy, the end of a multipart upload).
     fn answer_error(&self, what: &str, response: Response) -> RemoteError {
         let status = response.status().as_u16();
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX).unwrap_or_default();
         let code = Self::error_code(&body).unwrap_or_default();
         match (status, code.as_str()) {
             (412, _) | (_, "PreconditionFailed" | "ConditionalRequestConflict") => {
@@ -454,10 +460,10 @@ impl S3 {
                 EMPTY,
             ))
         })?;
-        let body = self
-            .checked("starting a large upload", response)?
-            .text()
-            .unwrap_or_default();
+        let body = capped_text(
+            self.checked("starting a large upload", response)?,
+            ANSWER_MAX,
+        )?;
         xml::first_text(&xml::events(&body), "UploadId").ok_or_else(|| {
             RemoteError::new(RemoteErrorKind::Failed, "the service gave no upload id")
         })
@@ -543,7 +549,7 @@ impl S3 {
         if !response.status().is_success() {
             return Err(self.answer_error("finishing a large upload", response));
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         // A failure can come in a 200.
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
@@ -595,7 +601,7 @@ impl S3 {
         if !response.status().is_success() {
             return Err(self.answer_error("copying a file", response));
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
                 "PreconditionFailed" | "ConditionalRequestConflict" => RemoteError::new(
@@ -642,6 +648,7 @@ impl S3 {
         for k in [key.clone(), format!("{key}-copy"), format!("{key}-multi")] {
             let _ = self.send("DELETE", &k, &[], &[]);
         }
+        self.abort_uploads_under(&key);
         result?;
         report.deletions = self.versioning();
         let listing = self.list(None)?;
@@ -667,7 +674,7 @@ impl S3 {
         if !response.status().is_success() {
             return Deletions::Unknown;
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX).unwrap_or_default();
         match xml::first_text(&xml::events(&body), "Status").as_deref() {
             Some("Enabled") => Deletions::Kept(
                 "the bucket keeps earlier versions: a deleted file can be restored from the bucket"
@@ -793,7 +800,7 @@ impl S3 {
         } else {
             // The service ignored it (and deleted) or does not know it.
             report.notes.push(
-                "the service does not honour If-Match on a delete: a delete is checked against the file just before, with a short window".to_owned(),
+                "the service does not honour If-Match on a delete: a delete is checked against the file just before, and an edit another device makes in the short window between the two is deleted with it".to_owned(),
             );
             let _ = write(Condition::Absent, "verso 7", false);
         }
@@ -810,12 +817,12 @@ impl S3 {
                 .send(&mut || Ok(self.signed("PUT", dest, &[], &headers, EMPTY)))
         };
         let a = copy(&copy_key)?;
-        let a_ok =
-            a.status().is_success() && Self::error_code(&a.text().unwrap_or_default()).is_none();
+        let a_ok = a.status().is_success()
+            && Self::error_code(&capped_text(a, ANSWER_MAX).unwrap_or_default()).is_none();
         if a_ok {
             let b = copy(&copy_key)?;
             let twice = b.status().as_u16();
-            let b_text = b.text().unwrap_or_default();
+            let b_text = capped_text(b, ANSWER_MAX).unwrap_or_default();
             if twice == 412 || Self::error_code(&b_text).as_deref() == Some("PreconditionFailed") {
                 report.caps.push(CAP_COPY_IF_NONE_MATCH.to_owned());
             }
@@ -843,56 +850,105 @@ impl S3 {
             let Ok(upload) = self.create_upload(key, &meta) else {
                 return Ok(false);
             };
-            let digest = hex(&Sha256::digest(b"verso"));
-            let response = self.http.send(&mut || {
-                Ok(self
-                    .signed(
-                        "PUT",
-                        key,
-                        &[("partNumber", "1"), ("uploadId", upload.as_str())],
-                        &[],
-                        &digest,
-                    )
-                    .body(b"verso".to_vec()))
-            })?;
-            let Some(etag) = response
-                .headers()
-                .get("etag")
-                .and_then(|v| v.to_str().ok())
-                .map(str::to_owned)
-            else {
-                return Ok(false);
-            };
-            let doc = format!(
-                "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{}</ETag></Part></CompleteMultipartUpload>",
-                etag.replace('"', "&quot;")
-            );
-            let digest = hex(&Sha256::digest(doc.as_bytes()));
-            let headers = vec![("if-none-match", "*".to_owned())];
-            let done = self.http.send(&mut || {
-                Ok(self
-                    .signed(
-                        "POST",
-                        key,
-                        &[("uploadId", upload.as_str())],
-                        &headers,
-                        &digest,
-                    )
-                    .body(doc.clone()))
-            })?;
-            let status = done.status().as_u16();
-            let text = done.text().unwrap_or_default();
-            let code = Self::error_code(&text);
-            let refused = status == 412 || code.as_deref() == Some("PreconditionFailed");
-            if expect_taken {
-                Ok(refused)
-            } else {
-                Ok(status == 200 && code.is_none())
-            }
+            let outcome = self.probe_upload(key, &upload, expect_taken);
+            // Open on every exit: a refused completion leaves the upload
+            // open, and an open upload is billed until it is aborted. (After
+            // a completion the abort is a 404, which is nothing.)
+            self.abort_upload(key, &upload);
+            outcome
         };
         // First: nothing there, so it must succeed. Second: taken, so it
         // must be refused.
         Ok(one(false)? && one(true)?)
+    }
+
+    /// Send one part and try to complete `upload` of `key` against
+    /// `If-None-Match: *`: whether it ended as `expect_taken` says.
+    fn probe_upload(&self, key: &str, upload: &str, expect_taken: bool) -> Result<bool> {
+        let digest = hex(&Sha256::digest(b"verso"));
+        let response = self.http.send(&mut || {
+            Ok(self
+                .signed(
+                    "PUT",
+                    key,
+                    &[("partNumber", "1"), ("uploadId", upload)],
+                    &[],
+                    &digest,
+                )
+                .body(b"verso".to_vec()))
+        })?;
+        let Some(etag) = response
+            .headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned)
+        else {
+            return Ok(false);
+        };
+        let doc = format!(
+            "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{}</ETag></Part></CompleteMultipartUpload>",
+            etag.replace('"', "&quot;")
+        );
+        let digest = hex(&Sha256::digest(doc.as_bytes()));
+        let headers = vec![("if-none-match", "*".to_owned())];
+        let done = self.http.send(&mut || {
+            Ok(self
+                .signed("POST", key, &[("uploadId", upload)], &headers, &digest)
+                .body(doc.clone()))
+        })?;
+        let status = done.status().as_u16();
+        let text = capped_text(done, ANSWER_MAX).unwrap_or_default();
+        let code = Self::error_code(&text);
+        let refused = status == 412 || code.as_deref() == Some("PreconditionFailed");
+        if expect_taken {
+            Ok(refused)
+        } else {
+            Ok(status == 200 && code.is_none())
+        }
+    }
+
+    /// Abort an open multipart upload; what the service answers does not
+    /// matter.
+    fn abort_upload(&self, key: &str, upload: &str) {
+        let _ = self.send("DELETE", key, &[("uploadId", upload)], &[]);
+    }
+
+    /// Abort every open upload whose key starts with `key`: what the probe
+    /// may have left, whatever way it ended.
+    fn abort_uploads_under(&self, key: &str) {
+        let Ok(response) = self.send("GET", "", &[("uploads", ""), ("prefix", key)], &[]) else {
+            return;
+        };
+        if !response.status().is_success() {
+            return;
+        }
+        let Ok(body) = capped_text(response, LISTING_PAGE_MAX) else {
+            return;
+        };
+        let events = xml::events(&body);
+        let mut at = 0;
+        while at < events.len() {
+            if !matches!(&events[at], Ev::Open(n) if n == "Upload") {
+                at += 1;
+                continue;
+            }
+            let end = events[at..]
+                .iter()
+                .position(|e| matches!(e, Ev::Close(n) if n == "Upload"))
+                .map_or(events.len(), |p| at + p);
+            let one = &events[at..end];
+            at = end;
+            if let (Some(k), Some(id)) = (
+                xml::first_text(one, "Key"),
+                xml::first_text(one, "UploadId"),
+            ) {
+                // The service's key is the whole key: the bucket's prefix
+                // included, as the probe's was.
+                if k.starts_with(key) {
+                    self.abort_upload(&k, &id);
+                }
+            }
+        }
     }
 
     fn list_page(&self, token: &str, _limit: Option<u32>) -> Result<(Vec<Entry>, Option<String>)> {
@@ -907,7 +963,7 @@ impl S3 {
         }
         let response = self.send("GET", "", &query, &[])?;
         let response = self.checked("listing the bucket", response)?;
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, LISTING_PAGE_MAX)?;
         let events = xml::events(&body);
         let mut out = Vec::new();
         let mut at = 0;
@@ -949,6 +1005,18 @@ impl S3 {
             .flatten();
         Ok((out, next))
     }
+}
+
+/// Whether two ETags name the same version, whatever quotes the answers
+/// put on them.
+fn same_etag(a: &str, b: &str) -> bool {
+    let bare = |e: &str| {
+        e.trim()
+            .trim_start_matches("W/")
+            .trim_matches('"')
+            .to_owned()
+    };
+    bare(a) == bare(b)
 }
 
 /// What a `HEAD` found.
@@ -1097,7 +1165,14 @@ impl Remote for S3 {
                 "the file is not in the bucket after it was sent",
             )
         })?;
-        if there.size != meta.size {
+        // The version answered is always the one our own write made, never
+        // the `HEAD`'s: when they differ, another device's write (made
+        // against the version ours created) landed in between, and
+        // recording its ETag for our bytes would hide it for ever. With
+        // ours, the next listing shows a different version, so the file is
+        // fingerprinted and compared, and nothing is overwritten unseen.
+        // The size says nothing then: the file is not ours any more.
+        if same_etag(&there.etag, &etag) && there.size != meta.size {
             return Err(RemoteError::new(
                 RemoteErrorKind::Failed,
                 "the service kept a different number of bytes than were sent",
@@ -1105,7 +1180,7 @@ impl Remote for S3 {
         }
         Ok(Written {
             path,
-            version: if there.etag == etag { etag } else { there.etag },
+            version: etag,
         })
     }
 
@@ -1199,7 +1274,7 @@ impl Remote for S3 {
                 },
             );
         }
-        let body = response.text().unwrap_or_default();
+        let body = capped_text(response, ANSWER_MAX)?;
         if let Some(code) = Self::error_code(&body) {
             return Err(match code.as_str() {
                 "PreconditionFailed" => RemoteError::new(
@@ -1212,12 +1287,34 @@ impl Remote for S3 {
                 ),
             });
         }
+        // The copy's own ETag, as the service answered it: what is at the
+        // new name after, if it is not that, is another device's.
+        let copy_etag = xml::first_text(&xml::events(&body), "ETag").ok_or_else(|| {
+            RemoteError::new(
+                RemoteErrorKind::Failed,
+                "the service gave no ETag for the copy",
+            )
+        })?;
         // The copy's size and hash, before the original goes.
         let copied = self.head(&to_key)?.ok_or_else(|| {
             RemoteError::new(RemoteErrorKind::Failed, "the copy is not in the bucket")
         })?;
+        if !same_etag(&copied.etag, &copy_etag) {
+            // Another device wrote the new name right after our copy (it
+            // saw the copy in a listing). That file is theirs: it stays,
+            // and so does the original; the next pass lists both.
+            return Err(RemoteError::new(
+                RemoteErrorKind::Changed,
+                "the new name was written by another device while the file was moved",
+            ));
+        }
         if copied.size != source.size || copied.hash != source.hash {
-            let _ = self.send("DELETE", &to_key, &[], &[]);
+            // A bad copy goes only against its own ETag. Without a
+            // conditional delete it stays: a duplicate is recoverable, a
+            // deleted file is not.
+            if self.can(CAP_DELETE_IF_MATCH) {
+                let _ = self.send("DELETE", &to_key, &[], &[("if-match", copy_etag)]);
+            }
             return Err(RemoteError::new(
                 RemoteErrorKind::Failed,
                 "the copy is not the file that was copied",
@@ -1226,7 +1323,7 @@ impl Remote for S3 {
         self.delete(from, &Condition::Version(version.clone()))?;
         Ok(Written {
             path: to,
-            version: copied.etag,
+            version: copy_etag,
         })
     }
 }

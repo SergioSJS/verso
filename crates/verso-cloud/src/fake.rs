@@ -52,6 +52,9 @@ pub struct Resp {
     pub status: u16,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+    /// After `body`, go on writing filler (64 MiB, or until the client
+    /// hangs up): a misconfigured or hostile endpoint; no `Content-Length`.
+    pub endless: bool,
 }
 
 impl Resp {
@@ -138,7 +141,9 @@ fn serve(mut stream: TcpStream, handler: &Handler) {
             has_length |= k.eq_ignore_ascii_case("content-length");
             out.push_str(&format!("{k}: {v}\r\n"));
         }
-        if !has_length {
+        if resp.endless {
+            out.push_str("Connection: close\r\n");
+        } else if !has_length {
             out.push_str(&format!("Content-Length: {}\r\n", resp.body.len()));
         }
         out.push_str("\r\n");
@@ -146,6 +151,17 @@ fn serve(mut stream: TcpStream, handler: &Handler) {
             return;
         }
         if !head && stream.write_all(&resp.body).is_err() {
+            return;
+        }
+        if resp.endless && !head {
+            // Far past any cap, and not truly endless: a client with no
+            // cap fails the test, it does not eat the machine.
+            let filler = vec![b' '; 1 << 16];
+            for _ in 0..(64 << 20) / filler.len() {
+                if stream.write_all(&filler).is_err() {
+                    break;
+                }
+            }
             return;
         }
         let _ = stream.flush();
@@ -253,6 +269,23 @@ fn asserted(r: &Req) -> Asserted {
     }
 }
 
+/// Someone else's write landing right after a request of ours is answered:
+/// the interleaving a client cannot see (a `PUT` answered, and before its
+/// next request another device's conditional write — made against the
+/// version our `PUT` just created — lands). One-shot.
+#[derive(Debug, Clone)]
+struct Intrusion {
+    method: String,
+    path: String,
+    bytes: Vec<u8>,
+}
+
+/// The bytes the periodic intruder writes: unlike a device's own, of a
+/// length of their own.
+fn intruder_bytes(n: u32) -> Vec<u8> {
+    format!("X#{n}{}", "x".repeat((n % 3) as usize)).into_bytes()
+}
+
 // ---------------------------------------------------------------- WebDAV
 
 /// What the fake WebDAV server does wrong, on purpose.
@@ -273,6 +306,9 @@ pub struct DavMode {
     /// A wrong user or password is 401 (when a user is set).
     pub user: String,
     pub password: String,
+    /// Every this-many-th `PUT` of a file is followed at once by another
+    /// device's conditional write on the same file; 0 is never.
+    pub intrude: u32,
 }
 
 #[derive(Default)]
@@ -285,6 +321,8 @@ struct DavStore {
     /// Files a listing leaves out though they are there (a service that
     /// lags behind its writes).
     hidden: BTreeSet<String>,
+    after: Vec<Intrusion>,
+    puts: u32,
 }
 
 /// A fake WebDAV server rooted at `/dav`.
@@ -323,7 +361,12 @@ impl Dav {
                     return Resp::new(429).header("Retry-After", "0");
                 }
                 let mode = lock(&mode).clone();
-                dav(&mut lock(&store), &mode, r)
+                let mut store = lock(&store);
+                let resp = dav(&mut store, &mode, r);
+                if resp.status < 300 {
+                    dav_intrusion(&mut store, &mode, r);
+                }
+                resp
             })
         };
         let server = Server::start(handler);
@@ -367,6 +410,32 @@ impl Dav {
     /// A listing leaves `path` out from now on, though it is there.
     pub fn hide(&self, path: &str) {
         lock(&self.store).hidden.insert(path.to_owned());
+    }
+
+    /// Right after the next successful `method` request on `path`,
+    /// another device's conditional write puts `bytes` there.
+    pub fn after(&self, method: &str, path: &str, bytes: &[u8]) {
+        lock(&self.store).after.push(Intrusion {
+            method: method.to_owned(),
+            path: path.to_owned(),
+            bytes: bytes.to_vec(),
+        });
+    }
+
+    /// Every file with its ETag and the SHA-256 of what it holds.
+    #[must_use]
+    pub fn state(&self) -> BTreeMap<String, (String, String)> {
+        lock(&self.store)
+            .files
+            .iter()
+            .map(|(p, (b, e))| (p.clone(), (e.clone(), hex(&Sha256::digest(b)))))
+            .collect()
+    }
+
+    /// Whether a folder is there.
+    #[must_use]
+    pub fn has_dir(&self, path: &str) -> bool {
+        lock(&self.store).dirs.contains(path)
     }
 
     /// Someone deleted `path` there.
@@ -423,6 +492,42 @@ fn dav_etag(mode: &DavMode, n: u64) -> String {
 fn parent(path: &str) -> String {
     path.rsplit_once('/')
         .map_or(String::new(), |(p, _)| p.to_owned())
+}
+
+/// The write of another device, made against the version that is there.
+fn dav_land(s: &mut DavStore, mode: &DavMode, path: &str, bytes: Vec<u8>) {
+    let Some((_, there)) = s.files.get(path).cloned() else {
+        return;
+    };
+    s.counter += 1;
+    let etag = dav_etag(mode, s.counter);
+    s.writes.push(Write {
+        path: path.to_owned(),
+        asserted: Asserted::Etag(there.clone()),
+        replaced: Some(there),
+        etag: etag.clone(),
+        hash: hex(&Sha256::digest(&bytes)),
+    });
+    s.files.insert(path.to_owned(), (bytes, etag));
+}
+
+fn dav_intrusion(s: &mut DavStore, mode: &DavMode, r: &Req) {
+    let Some(rel) = dav_rel(&r.path) else { return };
+    if let Some(at) = s
+        .after
+        .iter()
+        .position(|i| i.method == r.method && i.path == rel)
+    {
+        let i = s.after.remove(at);
+        dav_land(s, mode, &rel, i.bytes);
+        return;
+    }
+    if mode.intrude > 0 && r.method == "PUT" && !rel.contains(".verso-") {
+        s.puts += 1;
+        if s.puts.is_multiple_of(mode.intrude) {
+            dav_land(s, mode, &rel, intruder_bytes(s.puts));
+        }
+    }
 }
 
 fn dav(s: &mut DavStore, mode: &DavMode, r: &Req) -> Resp {
@@ -646,6 +751,17 @@ pub struct S3Mode {
     pub access: String,
     pub secret: String,
     pub region: String,
+    /// Every this-many-th single `PUT` or finished multipart upload of a
+    /// file is followed at once by another device's conditional write on
+    /// the same key; 0 is never.
+    pub intrude: u32,
+    /// A copy keeps one byte fewer than its source (a service that
+    /// corrupts a copy).
+    pub corrupt_copy: bool,
+    /// A listing page is answered with a body that never ends.
+    pub endless_listing: bool,
+    /// An object's `PUT` is answered 500 with a body that never ends.
+    pub endless_error: bool,
 }
 
 impl Default for S3Mode {
@@ -663,6 +779,10 @@ impl Default for S3Mode {
             access: "AKIATEST".to_owned(),
             secret: "secret-test-key".to_owned(),
             region: "test-1".to_owned(),
+            intrude: 0,
+            corrupt_copy: false,
+            endless_listing: false,
+            endless_error: false,
         }
     }
 }
@@ -684,6 +804,8 @@ struct S3Store {
     writes: Vec<Write>,
     removed: Vec<Removed>,
     hidden: BTreeSet<String>,
+    after: Vec<Intrusion>,
+    puts: u32,
 }
 
 /// A fake S3 service with one bucket, `bucket`, in path style.
@@ -739,7 +861,12 @@ impl S3 {
                 if let Some(denied) = s3_auth(&mode, r) {
                     return denied;
                 }
-                s3(&mut lock(&store), &mode, r)
+                let mut store = lock(&store);
+                let resp = s3(&mut store, &mode, r);
+                if resp.status < 300 {
+                    s3_intrusion(&mut store, &mode, r);
+                }
+                resp
             })
         };
         let server = Server::start(handler);
@@ -766,6 +893,44 @@ impl S3 {
     /// Someone deleted `key` there.
     pub fn remove(&self, key: &str) {
         lock(&self.store).objects.remove(key);
+    }
+
+    /// Right after the next successful `method` request on `key`, another
+    /// device's conditional write puts `bytes` there.
+    pub fn after(&self, method: &str, key: &str, bytes: &[u8]) {
+        lock(&self.store).after.push(Intrusion {
+            method: method.to_owned(),
+            path: key.to_owned(),
+            bytes: bytes.to_vec(),
+        });
+    }
+
+    /// Every object with its ETag and the SHA-256 of what it holds.
+    #[must_use]
+    pub fn state(&self) -> BTreeMap<String, (String, String)> {
+        lock(&self.store)
+            .objects
+            .iter()
+            .map(|(k, o)| (k.clone(), (o.etag.clone(), hex(&Sha256::digest(&o.bytes)))))
+            .collect()
+    }
+
+    /// How many multipart uploads are open.
+    #[must_use]
+    pub fn open_uploads(&self) -> usize {
+        lock(&self.store).uploads.len()
+    }
+
+    /// An upload someone started and never finished.
+    pub fn start_upload(&self, key: &str) -> String {
+        let mut s = lock(&self.store);
+        s.counter += 1;
+        let id = format!("upload{}", s.counter);
+        s.uploads.insert(
+            id.clone(),
+            (key.to_owned(), BTreeMap::new(), BTreeMap::new()),
+        );
+        id
     }
 
     pub fn mode(&self, f: impl FnOnce(&mut S3Mode)) {
@@ -810,6 +975,50 @@ impl S3 {
     #[must_use]
     pub fn requests(&self) -> Vec<String> {
         lock(&self.requests).clone()
+    }
+}
+
+/// The write of another device, made against the version that is there.
+fn s3_land(s: &mut S3Store, key: &str, bytes: Vec<u8>) {
+    let Some(there) = s.objects.get(key).map(|o| o.etag.clone()) else {
+        return;
+    };
+    s.counter += 1;
+    let etag = format!("\"c{}\"", s.counter);
+    let hash = hex(&Sha256::digest(&bytes));
+    s.writes.push(Write {
+        path: key.to_owned(),
+        asserted: Asserted::Etag(there.clone()),
+        replaced: Some(there),
+        etag: etag.clone(),
+        hash: hash.clone(),
+    });
+    let meta = BTreeMap::from([("x-amz-meta-verso-sha256".to_owned(), hash)]);
+    s.objects
+        .insert(key.to_owned(), Object { bytes, etag, meta });
+}
+
+fn s3_intrusion(s: &mut S3Store, mode: &S3Mode, r: &Req) {
+    let Some(key) = key_of(r) else { return };
+    if let Some(at) = s
+        .after
+        .iter()
+        .position(|i| i.method == r.method && i.path == key)
+        .filter(|_| r.q("uploads").is_none() && r.q("partNumber").is_none())
+    {
+        let i = s.after.remove(at);
+        s3_land(s, &key, i.bytes);
+        return;
+    }
+    let finishes = (r.method == "PUT"
+        && r.q("partNumber").is_none()
+        && r.header("x-amz-copy-source").is_none())
+        || (r.method == "POST" && r.q("uploadId").is_some());
+    if mode.intrude > 0 && finishes && !key.contains(".verso-") {
+        s.puts += 1;
+        if s.puts.is_multiple_of(mode.intrude) {
+            s3_land(s, &key, intruder_bytes(s.puts));
+        }
     }
 }
 
@@ -963,10 +1172,14 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
                 etag: etag.clone(),
                 hash: hex(&Sha256::digest(&from.bytes)),
             });
+            let mut bytes = from.bytes;
+            if mode.corrupt_copy {
+                bytes.pop();
+            }
             s.objects.insert(
                 key,
                 Object {
-                    bytes: from.bytes,
+                    bytes,
                     etag: etag.clone(),
                     meta: from.meta,
                 },
@@ -977,6 +1190,11 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
             ))
         }
         "PUT" => {
+            if mode.endless_error {
+                let mut resp = s3_error(500, "InternalError");
+                resp.endless = true;
+                return resp;
+            }
             if mode.not_implemented && conditions {
                 return s3_error(501, "NotImplemented");
             }
@@ -1034,7 +1252,9 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
                 return s3_error(501, "NotImplemented");
             }
             let id = r.q("uploadId").unwrap_or_default().to_owned();
-            let Some((target, meta, parts)) = s.uploads.remove(&id) else {
+            // A completion that is refused leaves the upload open, as S3
+            // does; one that succeeds closes it.
+            let Some((target, meta, parts)) = s.uploads.get(&id).cloned() else {
                 return s3_error(404, "NoSuchUpload");
             };
             let there = s.objects.get(&target).map(|o| o.etag.clone());
@@ -1049,6 +1269,7 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
                     return s3_error(412, "PreconditionFailed");
                 }
             }
+            s.uploads.remove(&id);
             let bytes: Vec<u8> = parts.values().flatten().copied().collect();
             s.counter += 1;
             let etag = format!("\"mp-{}-{}\"", s.counter, parts.len());
@@ -1106,8 +1327,27 @@ fn s3_bucket(s: &S3Store, mode: &S3Mode, r: &Req) -> Resp {
             if mode.versioning { "Enabled" } else { "" }
         ));
     }
+    if r.q("uploads").is_some() {
+        let prefix = r.q("prefix").unwrap_or_default();
+        let mut out = String::from("<?xml version=\"1.0\"?><ListMultipartUploadsResult>");
+        for (id, (key, _, _)) in &s.uploads {
+            if key.starts_with(prefix) {
+                out.push_str(&format!(
+                    "<Upload><Key>{}</Key><UploadId>{id}</UploadId></Upload>",
+                    key.replace('&', "&amp;")
+                ));
+            }
+        }
+        out.push_str("<IsTruncated>false</IsTruncated></ListMultipartUploadsResult>");
+        return Resp::new(200).xml(out);
+    }
     if r.q("list-type") != Some("2") {
         return s3_error(400, "InvalidRequest");
+    }
+    if mode.endless_listing {
+        let mut resp = Resp::new(200).xml("<?xml version=\"1.0\"?><ListBucketResult>");
+        resp.endless = true;
+        return resp;
     }
     let prefix = r.q("prefix").unwrap_or_default();
     let after = r.q("continuation-token").unwrap_or_default();

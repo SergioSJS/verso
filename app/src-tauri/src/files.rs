@@ -104,6 +104,14 @@ pub(crate) fn read_picks(paths: &[PathBuf]) -> PickedFiles {
     out
 }
 
+/// A closed window's choices go with it: a token holds a path for the life
+/// of the process otherwise.
+pub(crate) fn drop_picks(window: &str) {
+    if let Ok(mut held) = HELD.lock() {
+        held.retain(|_, h| h.window != window);
+    }
+}
+
 /// What the person chose for a window on this computer's own folder: each
 /// file measured (no byte read) and held under a token, for `create_picked`
 /// to copy. One past `max_mb` — or the rest past 8 times it — is named in

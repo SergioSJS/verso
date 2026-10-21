@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use super::*;
-use crate::fake::{BUCKET, S3 as Fake, S3Mode, agrees};
+use crate::fake::{BUCKET, S3 as Fake, S3Mode, agrees, removal_agrees};
 use crate::testkit::{Bytes, Collect, meta, sha};
 
 fn settings(fake: &Fake) -> Settings {
@@ -549,4 +549,205 @@ fn an_object_is_asked_for_by_itself() {
     fake.hide("Cofre/a.md");
     assert!(s.list(None).unwrap().changes.is_empty());
     assert!(s.exists("a.md").unwrap());
+}
+
+/// A client that sends a file of more than ten bytes in parts of eight.
+fn connect_parts(fake: &Fake) -> S3 {
+    let small = |caps: Vec<String>| Settings {
+        single_max: 10,
+        part_size: 8,
+        caps,
+        ..settings(fake)
+    };
+    let caps = S3::new(small(Vec::new()))
+        .unwrap()
+        .quick()
+        .probe()
+        .unwrap()
+        .caps;
+    S3::new(small(caps)).unwrap().quick()
+}
+
+/// The ETag the service gave the last write of `key` that was ours.
+fn etag_of_last_write(fake: &Fake, key: &str) -> String {
+    fake.writes()
+        .into_iter()
+        .filter(|w| w.path == key)
+        .rev()
+        .nth(1)
+        .unwrap()
+        .etag
+}
+
+#[test]
+fn a_write_answers_with_the_version_it_made_not_the_one_that_landed_after_it() {
+    // Another device's write, made against our version, lands between our
+    // PUT and our HEAD, with as many bytes as ours: the size cannot tell.
+    let fake = Fake::start(S3Mode::default());
+    let s = connect(&fake);
+    fake.after("PUT", "Cofre/a.md", b"ou");
+    let written = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"ou");
+    let ours = etag_of_last_write(&fake, "Cofre/a.md");
+    assert_eq!(written.version, ours, "the version of our bytes");
+    assert_ne!(written.version, version_of(&s, "a.md"));
+    // The same through a multipart upload.
+    let fake = Fake::start(S3Mode::default());
+    let s = connect_parts(&fake);
+    let bytes = vec![1_u8; 30];
+    fake.after("POST", "Cofre/g.bin", &[2_u8; 30]);
+    let written = put(&s, "g.bin", &Condition::Absent, &bytes).unwrap();
+    assert_eq!(fake.get("Cofre/g.bin").unwrap(), vec![2_u8; 30]);
+    assert_eq!(written.version, etag_of_last_write(&fake, "Cofre/g.bin"));
+    assert_ne!(written.version, version_of(&s, "g.bin"));
+}
+
+#[test]
+fn a_rename_never_deletes_a_name_that_another_device_wrote_after_the_copy() {
+    let fake = Fake::start(S3Mode::default());
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    // Another device sees the copy in a listing and writes against it.
+    fake.after("PUT", "Cofre/c.md", b"theirs, longer");
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Changed, "{e}");
+    assert_eq!(fake.get("Cofre/c.md").unwrap(), b"theirs, longer");
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"um");
+    assert!(
+        fake.removed().iter().all(|r| !r.path.ends_with("c.md")),
+        "{:?}",
+        fake.removed()
+    );
+}
+
+#[test]
+fn a_bad_copy_is_deleted_only_against_its_own_version_or_left_alone() {
+    // With a conditional delete: gone, and only if it is still the copy.
+    let fake = Fake::start(S3Mode {
+        corrupt_copy: true,
+        ..S3Mode::default()
+    });
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version.clone()))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(fake.get("Cofre/c.md").is_none());
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"um");
+    let removed: Vec<_> = fake
+        .removed()
+        .into_iter()
+        .filter(|r| !r.path.contains(".verso-"))
+        .collect();
+    assert_eq!(removed.len(), 1, "{removed:?}");
+    assert!(removal_agrees(&removed[0]));
+    // Without one: nothing is deleted, the duplicate stays for the next
+    // pass to sort out.
+    let fake = Fake::start(S3Mode {
+        corrupt_copy: true,
+        ignore_delete_if_match: true,
+        ..S3Mode::default()
+    });
+    let s = connect(&fake);
+    assert!(!s.can(CAP_DELETE_IF_MATCH));
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(fake.get("Cofre/c.md").is_some());
+    assert!(
+        fake.requests()
+            .iter()
+            .all(|r| r != "DELETE /bucket/Cofre/c.md"),
+        "{:?}",
+        fake.requests()
+    );
+}
+
+#[test]
+fn a_delete_without_a_conditional_delete_has_a_window_and_the_probe_says_so() {
+    // I-3: on a service that ignores If-Match on DELETE, the adapter looks
+    // at the file just before and deletes unconditionally. Another
+    // device's write between the two is lost. Not changed here (the
+    // maintainer decides); documented so the window is seen.
+    let fake = Fake::start(S3Mode {
+        ignore_delete_if_match: true,
+        ..S3Mode::default()
+    });
+    let report = S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    assert!(!report.caps.iter().any(|c| c == CAP_DELETE_IF_MATCH));
+    let note = report
+        .notes
+        .iter()
+        .find(|n| n.contains("If-Match on a delete"))
+        .expect("the person is told");
+    assert!(
+        note.contains("short window") && note.contains("deleted with it"),
+        "{note}"
+    );
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    // The window: the file changes after the adapter's look and before
+    // its DELETE. The fake lands a write right after the HEAD.
+    fake.after("HEAD", "Cofre/a.md", b"ou");
+    s.delete("a.md", &Condition::Version(a.version)).unwrap();
+    assert!(
+        fake.get("Cofre/a.md").is_none(),
+        "the other device's write was deleted: the window this test documents"
+    );
+    assert!(!fake.removed().iter().all(removal_agrees));
+}
+
+#[test]
+fn an_answer_that_never_ends_is_cut_off_not_read_into_memory() {
+    let fake = Fake::start(S3Mode {
+        endless_listing: true,
+        ..S3Mode::default()
+    });
+    let s = S3::new(settings(&fake)).unwrap().quick();
+    let e = s.list(None).unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(e.message.contains("too large"), "{e}");
+    let fake = Fake::start(S3Mode {
+        endless_error: true,
+        ..S3Mode::default()
+    });
+    let s = S3::new(settings(&fake)).unwrap().quick();
+    let e = put(&s, "a.md", &Condition::Absent, b"um").unwrap_err();
+    assert!(e.message.contains("500"), "{e}");
+}
+
+#[test]
+fn the_probe_leaves_no_multipart_upload_open() {
+    let fake = Fake::start(S3Mode::default());
+    let other = fake.start_upload("Cofre/pessoa.md");
+    S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    // The probe's own uploads are all aborted, the refused one too; the
+    // person's own is not ours to abort.
+    assert_eq!(fake.open_uploads(), 1);
+    let _ = other;
+    // A service that honours no condition completes both: none open.
+    let fake = Fake::start(S3Mode {
+        ignore_multipart_conditions: true,
+        ..S3Mode::default()
+    });
+    S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    assert_eq!(fake.open_uploads(), 0);
+}
+
+#[test]
+fn the_probes_cleanup_aborts_open_uploads_under_its_key_and_only_there() {
+    let fake = Fake::start(S3Mode::default());
+    fake.start_upload("Cofre/.verso-probe/x-multi");
+    fake.start_upload("Cofre/.verso-probe/outro-multi");
+    fake.start_upload("Cofre/pessoa.md");
+    S3::new(settings(&fake))
+        .unwrap()
+        .quick()
+        .abort_uploads_under("Cofre/.verso-probe/x");
+    assert_eq!(fake.open_uploads(), 2);
 }
