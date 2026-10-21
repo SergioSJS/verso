@@ -106,3 +106,38 @@ the server image, unit and backup script; Windows (`scripts/check-windows.sh`)
 Chromium with the phone and tablet projects — 1269 passed, 0 failed. Not
 pushed, not released; the beta at `4bea839` installed on the maintainer's
 Mac. The real app was not exercised by hand.
+
+## 7. The maintainer's answers of 2026-10-21
+
+The maintainer answered the decisions list of 2026-10-21 (`[DECIDED
+2026-10-21]`), and looked at the beta installed at `4bea839`. The items that
+have no ADR of their own are recorded here; the others are in the document
+each one names.
+
+- **I3 resolved** (RL.1a, option A): hash only; the address shown once.
+  [ADR 0105](../adr/0105-read-links-without-an-account.md) item 5.
+- **M1 resolved** (DL.1, option A; DL.2, option **B**): `...` does not close
+  the frontmatter; `tags: 2024` **is** the tag "2024", the maintainer's
+  explicit choice, which differs from Obsidian (spec Q24, v0.48). **M3
+  resolved** (D.4, option A): TSV stays ([ADR 0106](../adr/0106-structured-data-as-a-diagram.md)).
+- **F.1, option A: where remembered folds live.** On this device, outside the
+  note and the folder; the last 200 notes are remembered. The note is never
+  rewritten; another device opens everything expanded. (Not in the user's
+  account, not in `.verso/`.)
+- **M.1, option A: the grouped right-click menu** as built (`menu.ts`).
+  "Select" and "Open in new window" do not return to the top.
+- **R.3, option A:** "Add property" stays always visible on every note, also
+  on the phone, where there is no hover.
+- **R.4, option A:** no recharge badge on the cards (`recharge 5-6`) for now;
+  no ADR asks for one.
+- **L.1, option A:** the generic labels of the Old Dragon cards (Description,
+  Size, Alignment, Habitat, Attributes, Languages, Utilities) get English
+  labels in the English window, keeping the game's abbreviations (CA, BA, JP),
+  as the Fractal ones already have.
+- **X.1, option A:** the exception of three "unmaintained" notices in
+  `deny.toml` is ratified until 2026-12-31 (review when the Tauri plugins change
+  library).
+- **The beta, seen by the maintainer:** *"Quase tudo ok, exceto a parte do
+  wizard de tema, achei a tela mega poluída…"*: the theme wizard is revised
+  ([ADR 0100](../adr/0100-visual-customization-wizard.md) item 2). He read the
+  English demo vault's translations; nothing else was reported against them.
