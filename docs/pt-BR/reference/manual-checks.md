@@ -20,9 +20,9 @@ app real.
 
 ## Ainda não conferido
 
-### Sync com um provedor de nuvem (ADR 0104, aceito em 2026-10-21, não construído)
+### Sync com um provedor de nuvem (ADR 0104, aceito em 2026-10-21; WebDAV e S3 construídos)
 
-Escrita antes do código para que as checagens existam quando a funcionalidade existir; nenhuma pode ser feita hoje. Cada uma precisa do app desktop instalado e de uma conta real no provedor; nada aqui trava um commit, um merge ou uma beta. Os provedores OAuth também esperam as contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm primeiro (C.16). Repita a lista por provedor.
+Escrita antes do código. Desde 2026-10-21 as checagens de WebDAV (Nextcloud) e S3 (AWS, R2, MinIO) podem ser feitas; as de OAuth (Dropbox, OneDrive, Google Drive) ainda não. Cada uma precisa do app desktop instalado e de uma conta real no provedor; nada aqui trava um commit, um merge ou uma beta. Os provedores OAuth também esperam as contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm primeiro (C.16). Repita a lista por provedor.
 
 - [ ] **Login pelo navegador** (A): "Sincronizar com…" um Dropbox, OneDrive ou Google Drive; o navegador do sistema abre (sem view embutida), a tela de consentimento nomeia só o escopo estreito (pasta do app, `drive.file`), o app volta logado e o ouvinte fecha (uma segunda visita ao endereço de loopback não recebe nada). Fechar a aba sem consentir deixa a pasta desconectada, com uma mensagem.
 - [ ] **Primeiro sync** (A): com notas dos dois lados, mostra o que vai fazer (0079 item 11) e o que não se aplica a uma pasta de nuvem; nada é apagado em nenhum dos lados; a pasta aparece em `Apps/Verso/<pasta>` (ou na pasta do WebDAV, ou no prefixo do bucket).
@@ -31,6 +31,10 @@ Escrita antes do código para que as checagens existam quando a funcionalidade e
 - [ ] **Desconectar revoga** (A): Desconectar remove os segredos do chaveiro do sistema e o app some da lista de apps conectados do provedor (ou o token deixa de funcionar); a pasta local fica intacta.
 - [ ] **Um Linux sem Secret Service** (A): o sync com a nuvem é recusado, com o motivo e como instalar um chaveiro.
 - [ ] **WebDAV e S3** (A): um servidor sem ETags fortes ou um serviço compatível com S3 sem escrita condicional é recusado ao conectar, com o motivo; WebDAV em HTTP puro exige a confirmação de rede local.
+- [ ] **WebDAV no Nextcloud** (A): conectar, primeiro sync, uma edição de cada lado, uma exclusão; a pasta aparece onde foi escolhida e a exclusão é definitiva (dito antes de conectar).
+- [ ] **S3 na AWS, no R2 e no MinIO** (A): repita a mesma lista em cada um; o prefixo do bucket guarda a pasta, a sonda não deixa nenhum objeto `.verso-probe` ou `.verso-tmp`, e o aviso de HEAD e depois DELETE aparece num serviço que ignora o DELETE condicional.
+- [ ] **Um serviço recusado** (A): um servidor WebDAV sem ETags fortes e o Backblaze B2 (sem escrita condicional) são recusados ao conectar, com o motivo, e nada é gravado no armazenamento da pessoa.
+- [ ] **O chaveiro, por sistema** (A): no macOS o segredo está no Acesso às Chaves; no Windows, no Credential Manager; no Linux, no Secret Service (um chaveiro como o GNOME Keyring). Desconectar o remove; um segredo com mais de 2000 bytes é recusado com uma mensagem; um Linux sem Secret Service é recusado com como instalar um.
 
 ### O diagrama de dados (ADR 0106, feat/datagraph, 2026-10-21)
 
