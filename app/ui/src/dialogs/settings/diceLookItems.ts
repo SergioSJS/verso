@@ -26,7 +26,8 @@ const title = (name: string): string => `${ls.prefix}: ${name.toLowerCase()}`;
 async function drawSwatch(canvas: HTMLCanvasElement, style: DiceStyle, number: string): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const { paintTexture } = await import("../../dice3d/textures");
+  const { paintTexture, loadTextureImages } = await import("../../dice3d/textures");
+  const image = (await loadTextureImages([style.texture])).get(style.texture);
   const size = canvas.width;
   let body = style.body;
   let ink = style.number;
@@ -47,7 +48,7 @@ async function drawSwatch(canvas: HTMLCanvasElement, style: DiceStyle, number: s
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = body;
   ctx.fillRect(0, 0, size, size);
-  paintTexture(ctx, size, size, style.texture);
+  paintTexture(ctx, size, size, style.texture, 7, image);
   ctx.font = `700 ${Math.round(size * 0.46)}px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

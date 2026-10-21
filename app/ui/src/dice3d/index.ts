@@ -61,7 +61,13 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
   // A new roll ends the one on screen.
   running?.skip();
   try {
-    const stage = (await import("./stage")).throwDice(dice, styles, diceLook().size, area());
+    const look = diceLook();
+    // The textures' pictures, shipped with the app, are in before the throw;
+    // one that does not load is drawn by our painter instead.
+    // (The engine's chunk is asked for at once, with the pictures.)
+    const [engine, textures] = await Promise.all([import("./stage"), import("./textures")]);
+    const images = await textures.loadTextureImages(Object.values(styles).map((s) => s.texture));
+    const stage = engine.throwDice(dice, styles, look.size, images, area());
     if (!stage) return;
     running = stage;
     await stage.done;

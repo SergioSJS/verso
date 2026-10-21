@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The twenty textures of the 3D dice, drawn by our own code on a canvas
-// (ADR 0101, appearance): no image file, so nothing to license. Each takes
+// (ADR 0101, appearance) as a fallback for the original pictures, which
+// are what the dice use (loadTextureImages). Each takes
 // the canvas already filled with the body colour and paints over it, mostly
 // with `multiply` so the body colour tints the pattern (as Rolai's textures
 // do) and with `source-over` for what shines (glitter, stars, ice). Sizes
@@ -11,7 +12,7 @@
 // atlas size. Needs the 2D canvas only: the settings draw their swatches
 // with it too, without loading three.js.
 
-import type { TextureId } from "./look";
+import { TEXTURE_FILES, type TextureId } from "./look";
 
 export type Rng = () => number;
 
@@ -410,12 +411,52 @@ const PAINTERS: Record<Exclude<TextureId, "none">, (c: Ctx, w: number, h: number
   },
 };
 
-/** Paint texture `kind` over the body colour already on `c` (`w` x `h`).
- *  A seeded run: the same texture twice gives the same picture. */
-export function paintTexture(c: CanvasRenderingContext2D, w: number, h: number, kind: TextureId, seed = 7): void {
+/** The original picture of each texture (MajorVictory's 3DDiceRoller, The
+ *  Unlicense): loaded from the app's own `dice-textures/` folder, nothing
+ *  from the network, once each. A picture that does not load is left out and
+ *  its texture is drawn by the painters above, so a die never lacks one. */
+export async function loadTextureImages(kinds: readonly TextureId[]): Promise<Map<TextureId, HTMLImageElement>> {
+  const out = new Map<TextureId, HTMLImageElement>();
+  await Promise.all(
+    [...new Set(kinds)].map(
+      (kind) =>
+        new Promise<void>((done) => {
+          const file = TEXTURE_FILES[kind];
+          if (!file) return done();
+          const img = new Image();
+          img.onload = () => {
+            out.set(kind, img);
+            done();
+          };
+          img.onerror = () => done();
+          img.src = new URL(`dice-textures/${file}`, document.baseURI).href;
+        }),
+    ),
+  );
+  return out;
+}
+
+/** Textures whose picture lets the body show through: laid over it, not
+ *  multiplied. */
+const OVERLAY: ReadonlySet<TextureId> = new Set(["cloudy", "water", "ice"]);
+
+/** Paint texture `kind` over the body colour already on `c` (`w` x `h`):
+ *  with the original `image` when one is given, else with our painter. A
+ *  seeded run: the same texture twice gives the same picture. */
+export function paintTexture(c: CanvasRenderingContext2D, w: number, h: number, kind: TextureId, seed = 7, image?: HTMLImageElement): void {
   if (kind === "none") return;
   c.save();
-  PAINTERS[kind](c, w, h, seeded(seed + kind.length * 131 + w));
+  if (image) {
+    const pattern = c.createPattern(image, "repeat");
+    if (pattern) {
+      // One picture covers one atlas cell, whatever its own size.
+      pattern.setTransform(new DOMMatrix().scale(U / image.width, U / image.height));
+      c.globalCompositeOperation = OVERLAY.has(kind) ? "source-over" : "multiply";
+      c.globalAlpha = OVERLAY.has(kind) ? 0.6 : 1;
+      c.fillStyle = pattern;
+      c.fillRect(0, 0, w, h);
+    }
+  } else PAINTERS[kind](c, w, h, seeded(seed + kind.length * 131 + w));
   c.restore();
 }
 
