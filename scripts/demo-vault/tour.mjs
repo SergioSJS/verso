@@ -232,7 +232,7 @@ const STOPS = [
     color: GREEN,
     canvasColor: "4",
     cards: [["n-ajustes", "15 - Ajustes, Aparência e Atalhos.md", 640]],
-    tip: "⌘, abre os Ajustes: tema, paleta, fontes, idioma, as pastas do cofre e, em Atalhos, a tecla de cada comando — troque a que quiser. Em Aparência, Personalizar aparência muda as cores ao vivo, guarda perfis e troca temas .verso-theme.",
+    tip: "⌘, abre os Ajustes: tema, paleta, fontes, idioma, as pastas do cofre e, em Atalhos, a tecla de cada comando — troque a que quiser. Em Aparência, a galeria de temas troca o visual com um clique; Copiar e Editar abrem o Construtor de tema, que muda as cores ao vivo, e dá para importar e exportar temas .verso-theme.",
     extra(b, x, y, f) {
       b.write("d-paletas", x + 740, y + 150, "as quatro paletas", { size: 32, color: GREY, frame: f });
       const palettes = [

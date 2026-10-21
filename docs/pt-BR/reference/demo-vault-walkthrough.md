@@ -701,16 +701,23 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    nenhum.
    Nível: H; E: `settings.spec.mjs`, as seções e a Aparência;
    `dark-tone.spec.mjs`, toda paleta e tom em 4,5:1 ou mais;
-   `ribbon.spec.mjs`, um botão oculto trazido de volta. A *Personalizar
-   aparência* da Aparência (ADR 0100): uma cor digitada muda o exemplo e a
-   janela na hora, uma de pouco contraste avisa, uma abaixo de 3:1 é
-   desfeita com uma mensagem, *Restaurar padrão* devolve tudo pelo
-   teclado; um visual salvo como perfil, exportado e importado de volta
-   (o botão, ou o arquivo solto na janela) como era;
-   `assets/temas/Pergaminho.verso-theme` se aplica; um arquivo hostil é
-   recusado com o motivo; o tema que a pasta sugere é oferecido e nunca
-   aplicado sozinho. Nível: H, A (o salvamento real do arquivo: o
-   download do host); E: `appearance-wizard.spec.mjs`.
+   `ribbon.spec.mjs`, um botão oculto trazido de volta. A galeria
+   *Temas* da Aparência (ADR 0100): quatro cartões do Verso (Papel, Sépia,
+   Ardósia, Musgo), cada um uma páginazinha nas cores do próprio tema, com o
+   que está em uso marcado; um clique (ou Tab e Espaço) usa o tema na hora;
+   *Copiar* faz "Cópia de …"; os do Verso não têm *Editar*; *Editar* num
+   tema seu abre o *Construtor de tema* numa aba, e a página de Ajustes sai
+   do caminho: uma cor digitada muda o exemplo e a janela na hora, uma de
+   pouco contraste avisa, uma abaixo de 3:1 é desfeita com uma mensagem,
+   *Restaurar padrão* devolve o rascunho pelo teclado; *Cancelar* (ou
+   fechar a aba e *Descartar*) devolve o visual, *Salvar tema* o guarda, e a
+   página de Ajustes volta sobre o cartão do tema, com o foco nele; um tema
+   exportado do cartão e importado de volta (o botão, ou o arquivo solto na
+   janela) como era; `assets/temas/Pergaminho.verso-theme` se aplica; um
+   arquivo hostil é recusado com o motivo; o tema que a pasta sugere é
+   oferecido, aparece como um cartão e nunca é aplicado sozinho. Nível: H,
+   A (o salvamento real do arquivo: o download do host; a aba do construtor
+   no layout do celular); E: `appearance-themes.spec.mjs`.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
 3. A linha de comando na pasta: `verso search <pasta> reunião`;
