@@ -25,6 +25,10 @@ export type Die3 = {
   value: number;
   /** How it is drawn: counting, subtracted or dropped. */
   role: "kept" | "negative" | "dropped";
+  /** The colour slot (1 to 3) it is drawn in; 1 when not given. A roll's
+   *  dice are in slot 1 unless a dice profile gives a group another (as
+   *  Rolai does); the engine honours it. */
+  slot?: 1 | 2 | 3;
 };
 
 /** The value pairs that sit on opposite faces, in order. */
