@@ -1252,7 +1252,9 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
                 return s3_error(501, "NotImplemented");
             }
             let id = r.q("uploadId").unwrap_or_default().to_owned();
-            let Some((target, meta, parts)) = s.uploads.remove(&id) else {
+            // A completion that is refused leaves the upload open, as S3
+            // does; one that succeeds closes it.
+            let Some((target, meta, parts)) = s.uploads.get(&id).cloned() else {
                 return s3_error(404, "NoSuchUpload");
             };
             let there = s.objects.get(&target).map(|o| o.etag.clone());
@@ -1267,6 +1269,7 @@ fn s3(s: &mut S3Store, mode: &S3Mode, r: &Req) -> Resp {
                     return s3_error(412, "PreconditionFailed");
                 }
             }
+            s.uploads.remove(&id);
             let bytes: Vec<u8> = parts.values().flatten().copied().collect();
             s.counter += 1;
             let etag = format!("\"mp-{}-{}\"", s.counter, parts.len());

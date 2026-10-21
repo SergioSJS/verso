@@ -648,6 +648,7 @@ impl S3 {
         for k in [key.clone(), format!("{key}-copy"), format!("{key}-multi")] {
             let _ = self.send("DELETE", &k, &[], &[]);
         }
+        self.abort_uploads_under(&key);
         result?;
         report.deletions = self.versioning();
         let listing = self.list(None)?;
@@ -849,56 +850,105 @@ impl S3 {
             let Ok(upload) = self.create_upload(key, &meta) else {
                 return Ok(false);
             };
-            let digest = hex(&Sha256::digest(b"verso"));
-            let response = self.http.send(&mut || {
-                Ok(self
-                    .signed(
-                        "PUT",
-                        key,
-                        &[("partNumber", "1"), ("uploadId", upload.as_str())],
-                        &[],
-                        &digest,
-                    )
-                    .body(b"verso".to_vec()))
-            })?;
-            let Some(etag) = response
-                .headers()
-                .get("etag")
-                .and_then(|v| v.to_str().ok())
-                .map(str::to_owned)
-            else {
-                return Ok(false);
-            };
-            let doc = format!(
-                "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{}</ETag></Part></CompleteMultipartUpload>",
-                etag.replace('"', "&quot;")
-            );
-            let digest = hex(&Sha256::digest(doc.as_bytes()));
-            let headers = vec![("if-none-match", "*".to_owned())];
-            let done = self.http.send(&mut || {
-                Ok(self
-                    .signed(
-                        "POST",
-                        key,
-                        &[("uploadId", upload.as_str())],
-                        &headers,
-                        &digest,
-                    )
-                    .body(doc.clone()))
-            })?;
-            let status = done.status().as_u16();
-            let text = capped_text(done, ANSWER_MAX).unwrap_or_default();
-            let code = Self::error_code(&text);
-            let refused = status == 412 || code.as_deref() == Some("PreconditionFailed");
-            if expect_taken {
-                Ok(refused)
-            } else {
-                Ok(status == 200 && code.is_none())
-            }
+            let outcome = self.probe_upload(key, &upload, expect_taken);
+            // Open on every exit: a refused completion leaves the upload
+            // open, and an open upload is billed until it is aborted. (After
+            // a completion the abort is a 404, which is nothing.)
+            self.abort_upload(key, &upload);
+            outcome
         };
         // First: nothing there, so it must succeed. Second: taken, so it
         // must be refused.
         Ok(one(false)? && one(true)?)
+    }
+
+    /// Send one part and try to complete `upload` of `key` against
+    /// `If-None-Match: *`: whether it ended as `expect_taken` says.
+    fn probe_upload(&self, key: &str, upload: &str, expect_taken: bool) -> Result<bool> {
+        let digest = hex(&Sha256::digest(b"verso"));
+        let response = self.http.send(&mut || {
+            Ok(self
+                .signed(
+                    "PUT",
+                    key,
+                    &[("partNumber", "1"), ("uploadId", upload)],
+                    &[],
+                    &digest,
+                )
+                .body(b"verso".to_vec()))
+        })?;
+        let Some(etag) = response
+            .headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned)
+        else {
+            return Ok(false);
+        };
+        let doc = format!(
+            "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{}</ETag></Part></CompleteMultipartUpload>",
+            etag.replace('"', "&quot;")
+        );
+        let digest = hex(&Sha256::digest(doc.as_bytes()));
+        let headers = vec![("if-none-match", "*".to_owned())];
+        let done = self.http.send(&mut || {
+            Ok(self
+                .signed("POST", key, &[("uploadId", upload)], &headers, &digest)
+                .body(doc.clone()))
+        })?;
+        let status = done.status().as_u16();
+        let text = capped_text(done, ANSWER_MAX).unwrap_or_default();
+        let code = Self::error_code(&text);
+        let refused = status == 412 || code.as_deref() == Some("PreconditionFailed");
+        if expect_taken {
+            Ok(refused)
+        } else {
+            Ok(status == 200 && code.is_none())
+        }
+    }
+
+    /// Abort an open multipart upload; what the service answers does not
+    /// matter.
+    fn abort_upload(&self, key: &str, upload: &str) {
+        let _ = self.send("DELETE", key, &[("uploadId", upload)], &[]);
+    }
+
+    /// Abort every open upload whose key starts with `key`: what the probe
+    /// may have left, whatever way it ended.
+    fn abort_uploads_under(&self, key: &str) {
+        let Ok(response) = self.send("GET", "", &[("uploads", ""), ("prefix", key)], &[]) else {
+            return;
+        };
+        if !response.status().is_success() {
+            return;
+        }
+        let Ok(body) = capped_text(response, LISTING_PAGE_MAX) else {
+            return;
+        };
+        let events = xml::events(&body);
+        let mut at = 0;
+        while at < events.len() {
+            if !matches!(&events[at], Ev::Open(n) if n == "Upload") {
+                at += 1;
+                continue;
+            }
+            let end = events[at..]
+                .iter()
+                .position(|e| matches!(e, Ev::Close(n) if n == "Upload"))
+                .map_or(events.len(), |p| at + p);
+            let one = &events[at..end];
+            at = end;
+            if let (Some(k), Some(id)) = (
+                xml::first_text(one, "Key"),
+                xml::first_text(one, "UploadId"),
+            ) {
+                // The service's key is the whole key: the bucket's prefix
+                // included, as the probe's was.
+                if k.starts_with(key) {
+                    self.abort_upload(&k, &id);
+                }
+            }
+        }
     }
 
     fn list_page(&self, token: &str, _limit: Option<u32>) -> Result<(Vec<Entry>, Option<String>)> {
