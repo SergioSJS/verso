@@ -80,6 +80,7 @@ import { handleIndexProgress } from "./progress";
 import { watchWindow } from "./report";
 import { Ribbon } from "./ribbon";
 import { configureEmbeds } from "./sanitize";
+import { frameable } from "./screen/framed";
 import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
 import { importDemoVault } from "./demo";
@@ -99,12 +100,15 @@ pushHistoryDays();
 const folderNoteNamePushed = pushFolderNoteName();
 pushMenuLanguage();
 configureEmbeds({
-  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel },
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel, approveAnyway: t.embedApproveAnyway,
+    // A getter: which platform this is is known only after loadCan().
+    get unframed() { return can("web_views") ? t.embedUnframed : t.embedUnframedBrowser; }, unframedBoard: t.embedUnframedBoard },
   approve: async (origin) => {
     if (!settings.embedOrigins.includes(origin)) settings.embedOrigins = [...settings.embedOrigins, origin];
     saveSettings();
     return pushEmbedOrigins();
   },
+  frameable,
 });
 if (popout) document.body.classList.add("popout");
 try {

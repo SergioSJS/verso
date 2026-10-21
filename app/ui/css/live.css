@@ -323,3 +323,4 @@
 .outline li > button.level-3 { padding-left: 1.2rem; }
 .outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 
+.embed-gate-warn { margin: 0; line-height: 1.5; color: var(--ink); }
