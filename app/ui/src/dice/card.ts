@@ -202,8 +202,12 @@ function place(box: HTMLElement, card: HTMLElement): void {
   const bound = box.closest(".statblock-card")?.getBoundingClientRect() ?? new DOMRect(0, 0, innerWidth, innerHeight);
   // Where it would be with no shift, from where it is and the shift it
   // has: no reset and read again (WebKit, in a resize callback, gave the
-  // box from before the reset).
-  const shifted = parseFloat(card.style.left) || 0;
+  // box from before the reset). The shift is the one *in force*, the
+  // computed `left`, not the one last written: with a transition on the
+  // card (a reduced-motion override, the test harness's) the box is still
+  // on its way, and the written value taken for the one drawn counted the
+  // shift twice, the result past the card's edge.
+  const shifted = parseFloat(getComputedStyle(card).left) || 0;
   const r = card.getBoundingClientRect();
   const left = r.left - shifted;
   const right = r.right - shifted;
