@@ -1265,8 +1265,13 @@ the folder `Campanha Fractal/` beside it ([ADR
    what is ticked and reports it; the first note opens. With *Assistente de
    mundo e campanha* off, the command is gone. *Gerador com IA*: *Copiar
    System Prompt para IA* copies and sends nothing; a bad pasted JSON answers
-   with the fault and *Copiar pedido de correção para a IA*. Level: H; E:
-   `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`.
+   with the fault and *Copiar pedido de correção para a IA*. A valid pasted JSON,
+   *Validar e Importar*, becomes a card and the file `.verso/bundles/<id>.json`;
+   pasting it again keeps it under a new id and says so; with the window in
+   English the four built-in bundles list and create English folder and note
+   names (*Sessions*, *Templates/Session Log*); close the wizard and
+   open it again: the cards are still there (read from the folder). Level: H; E:
+   `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`, `test/bundleStore.test.mjs`.
 8. *Ajustes* › *Aplicação* › *Créditos e agradecimentos*: the people and
    works the app starts from, the notices of the shipped layouts and the open
    software, each with *Abrir* that opens its site in the browser. Level: H

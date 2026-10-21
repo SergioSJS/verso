@@ -11,6 +11,7 @@ export { BUILTIN_PRESETS, DADOS_CRITICOS_CAMPAIGN, DADOS_CRITICOS_MUNDO } from "
 export { planBundle, checkEdited, segmentProblem, titleForPath, fill, frontmatter, LIMITS } from "./src/bundles/plan";
 export { applyPlan, toBase64, needsReading } from "./src/bundles/run";
 export { bundleWords, PRESET_TEXT_EN } from "./src/bundles/words";
+export { bundleInLanguage } from "./src/bundles/presetsEn";
 export { parse } from "yaml";`,
     resolveDir: ".",
     loader: "ts",
@@ -24,7 +25,7 @@ export { parse } from "yaml";`,
 });
 const {
   validateBundle, unfence, MAX_PASTE_BYTES, systemPromptFor, BUILTIN_PRESETS, DADOS_CRITICOS_CAMPAIGN, DADOS_CRITICOS_MUNDO,
-  planBundle, checkEdited, segmentProblem, titleForPath, fill, frontmatter, LIMITS, applyPlan, toBase64, needsReading, bundleWords, PRESET_TEXT_EN, parse,
+  planBundle, checkEdited, segmentProblem, titleForPath, fill, frontmatter, LIMITS, applyPlan, toBase64, needsReading, bundleWords, PRESET_TEXT_EN, parse, bundleInLanguage,
 } = await import("./.bundles/bundles.test-bundle.mjs");
 
 const pt = bundleWords("pt-BR");
@@ -310,4 +311,35 @@ test("checkEdited checks a plan the person renamed or thinned out, path by path"
   assert.deepEqual(checkEdited(plan, pt), []);
   const edited = { ...plan, folders: ["Tormenta", "Tormenta/CON", "Tormenta/ok"], files: [{ path: "../x.md", text: "", note: true }, { path: "Tormenta/ok/a.md", text: "", note: true }, { path: "tormenta/OK/A.md", text: "", note: true }] };
   assert.deepEqual(checkEdited(edited, en).map((p) => p.at), ["/folders/1", "/files/0/path", "/files/2/path"]);
+});
+
+test("the built-in bundles come in English for an English window: same shape, nothing left in Portuguese (ADR 0098 item 10)", () => {
+  const PORTUGUESE = /[ãõáéíóúâêôçà]|\b(Sessão|Sessões|Facções|Modelos|Ficha|Capítulo|Projetos|Recursos)\b/;
+  for (const preset of BUILTIN_PRESETS) {
+    const english = bundleInLanguage(preset, false);
+    assert.notEqual(english, preset, `${preset.id} has an English twin`);
+    assert.equal(english.id, preset.id);
+    assert.equal(english.folders.length, preset.folders.length, `${preset.id} folders`);
+    assert.equal(english.files.length, preset.files.length, `${preset.id} files`);
+    assert.equal(validateBundle(english, en).valid, true, `${preset.id} validates`);
+    const plan = planBundle(english, input({ title: "New World", words: en, lang: "en" }));
+    assert.deepEqual(plan.problems, [], `${preset.id}: ${JSON.stringify(plan.problems)}`);
+    const everything = JSON.stringify([english.folders, english.files]);
+    assert.doesNotMatch(everything, PORTUGUESE, `${preset.id} has Portuguese left`);
+    // The same tags in the same notes: a tag lost in the translation is caught.
+    english.files.forEach((f, i) => {
+      const tags = (t) => (JSON.stringify(t).match(/\{\{[a-z]+(?::[^}]*)?\}\}/g) ?? []).sort().join();
+      assert.equal(tags(f), tags(preset.files[i]), `${preset.id} file ${i} tags`);
+    });
+  }
+  // Links in a note point at notes the bundle makes.
+  for (const preset of BUILTIN_PRESETS) {
+    const english = bundleInLanguage(preset, false);
+    const made = new Set(english.files.map((f) => f.path.replace(/\.md$/, "")));
+    for (const f of english.files) for (const link of (f.content ?? "").matchAll(/\[\[([^\]|]+)/g)) assert.ok(made.has(link[1]), `${preset.id}: [[${link[1]}]] is a note of the bundle`);
+  }
+  // Portuguese keeps the Portuguese; an imported bundle is never changed.
+  assert.equal(bundleInLanguage(DADOS_CRITICOS_CAMPAIGN, true), DADOS_CRITICOS_CAMPAIGN);
+  const mine = { version: 1, id: "dados-criticos-campanha", name: "X", description: "", folders: [], files: [] };
+  assert.equal(bundleInLanguage(mine, false), mine);
 });

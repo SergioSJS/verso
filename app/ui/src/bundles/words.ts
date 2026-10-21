@@ -114,6 +114,10 @@ const pt = {
   jsonSyntaxFix: (why: string) => `O Verso não conseguiu ler o JSON:\n"${why}"\n\nPor favor, corrija o formato e devolva estritamente o JSON válido, sem comentários.`,
   pasteTooBig: (mb: number) => `O texto colado passa de ${mb} MB e não foi lido.`,
   importedRenamed: (name: string) => `Já existe um modelo com esse identificador: "${name}" entrou com um identificador novo.`,
+  savedInFolder: (name: string) => `"${name}" foi guardado na pasta, em .verso/bundles: quem abrir esta pasta também o terá.`,
+  keptHere: (name: string, why: string) => `"${name}" não pôde ser guardado na pasta (${why}); ele vale só até fechar esta janela.`,
+  folderBundleUnreadable: (id: string) => `O modelo "${id}" da pasta não pôde ser lido agora e ficou de fora da lista.`,
+  folderBundleInvalid: (id: string, why: string) => `O modelo "${id}" da pasta não é válido e ficou de fora da lista: ${why}`,
   tabsLabel: "Como criar",
   bundlesLabel: "Modelos disponíveis",
   selected: "selecionado",
@@ -243,6 +247,10 @@ const en: Words = {
   jsonSyntaxFix: (why) => `Verso could not read the JSON:\n"${why}"\n\nPlease fix the format and return strictly valid JSON, without comments.`,
   pasteTooBig: (mb) => `The pasted text is over ${mb} MB and was not read.`,
   importedRenamed: (name) => `A bundle with that identifier already exists: "${name}" came in with a new identifier.`,
+  savedInFolder: (name) => `"${name}" was kept in the folder, in .verso/bundles: whoever opens this folder has it too.`,
+  keptHere: (name, why) => `"${name}" could not be kept in the folder (${why}); it lasts only until this window is closed.`,
+  folderBundleUnreadable: (id) => `The folder's template "${id}" could not be read now and is left out of the list.`,
+  folderBundleInvalid: (id, why) => `The folder's template "${id}" is not valid and is left out of the list: ${why}`,
   tabsLabel: "How to create",
   bundlesLabel: "Available templates",
   selected: "selected",
@@ -273,8 +281,8 @@ export function bundleWords(lang: string): BundleWords {
 }
 
 /** The built-in bundles' names and descriptions in English; the Portuguese
- *  ones live with the bundles (`presets.ts`). The files they create are
- *  written in Portuguese. */
+ *  ones live with the bundles (`presets.ts`), and their folders and notes in
+ *  English in `presetsEn.ts`. */
 export const PRESET_TEXT_EN: Record<string, { name: string; description: string }> = {
   "dados-criticos-campanha": {
     name: "RPG Campaign (Dados Críticos)",
