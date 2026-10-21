@@ -400,8 +400,7 @@ function at(i) {
 }
 
 /** The board. */
-export function tour() {
-  const b = new Board();
+export function tour(b = new Board()) {
   const numbers = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
   STOPS.forEach((s, i) => {
     const [x, y] = at(i);
