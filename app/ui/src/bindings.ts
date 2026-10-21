@@ -160,6 +160,11 @@ export const commands = {
 	 *  and date: what a folder view lists and sorts.
 	 */
 	listEntries: () => typedError<FileEntry_Serialize[], ContractError>(__TAURI_INVOKE("list_entries")),
+	/**
+	 *  Every block with an `^id` in the folder's notes, of the kinds asked (all
+	 *  when none): where the oracle finds its tables (ADR 0102 item 3).
+	 */
+	listBlockIds: (kinds: BlockKind[]) => typedError<FolderBlocks, ContractError>(__TAURI_INVOKE("list_block_ids", { kinds })),
 	/**  The notes that are web pages, with their addresses (an icon, a tab). */
 	listWebNotes: () => typedError<WebNote[], ContractError>(__TAURI_INVOKE("list_web_notes")),
 	/**  Every resolved link of the vault: the graph of the whole folder. */
@@ -1010,6 +1015,9 @@ export type Block = {
 	last_line: number,
 };
 
+/**  What a block with an `^id` is, read from its first line. */
+export type BlockKind = "paragraph" | "list" | "table" | "heading" | "quote" | "code";
+
 /**
  *  What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
  *  the window hides what is absent instead of showing it and failing.
@@ -1442,6 +1450,27 @@ export type FocusesSummary_Serialize = {
 	read_only_code?: ReadOnlyReasonCode | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
+};
+
+/**  A block with an `^id` in a note of the folder (`list_block_ids`). */
+export type FolderBlock = {
+	/**  The note's path, relative to the open folder. */
+	path: string,
+	id: string,
+	kind: BlockKind,
+	/**  The heading above the block, else its first line, short. */
+	label: string,
+	/**  `label` is the heading above the block (else its first line). */
+	under_heading: boolean,
+};
+
+/**
+ *  The `^id` blocks of the folder, and whether more were left out of a
+ *  list that is bounded.
+ */
+export type FolderBlocks = {
+	blocks: FolderBlock[],
+	truncated: boolean,
 };
 
 /**

@@ -386,6 +386,17 @@ impl Workspace {
             .map_err(CoreError::Index)
     }
 
+    /// [`Self::block_ids`] as a reader asks it: no block inside a secret
+    /// block (ADR 0087).
+    pub fn reader_block_ids(
+        &self,
+        kinds: &[crate::IndexBlockKind],
+    ) -> Result<crate::IndexBlockList, CoreError> {
+        self.index
+            .reader_folder_blocks(kinds)
+            .map_err(CoreError::Index)
+    }
+
     /// [`Self::graph`] as a reader asks it.
     pub fn reader_graph(&self) -> Result<Vec<(String, String)>, CoreError> {
         self.index.reader_graph().map_err(CoreError::Index)

@@ -14,12 +14,12 @@
 
 use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
-    BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
-    Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList,
-    FolderDataWritten, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
-    Mention, Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, OracleSettings,
-    OracleSparks, PeriodSettings, PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed,
-    WebNote, Written,
+    BaseResult, BaseRow, BaseView, BlockKind, ContractError, Edge, EntryLabel, ErrorKind,
+    FileEntry, FileKind, Focus, FocusesSummary, FolderBlock, FolderBlocks, FolderDataEntry,
+    FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten, FolderLayer, FolderSettings,
+    FolderSpace, Hit, Link, MapInfo, MapState, Mention, Mentions, MissingLink, MovedEntries,
+    NoteText, ObsidianPeriodic, OracleSettings, OracleSparks, PeriodSettings, PeriodicSettings,
+    RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -190,6 +190,12 @@ ops! {
     /// Every tag of the folder, by count, with the notes that carry it.
     Read fn list_tags(ws) -> Vec<Tag> {
         Ok(tags_out(ws.tags()?))
+    }
+
+    /// Every block with an `^id` in the folder's notes, of the kinds asked
+    /// (all when none): the oracle finds its tables here (ADR 0102 item 3).
+    Read fn list_block_ids(ws, kinds: Vec<BlockKind>) -> FolderBlocks {
+        Ok(block_ids_out(ws.block_ids(&kinds_in(&kinds))?))
     }
 
     /// The notes that are web pages, with their addresses.
@@ -541,6 +547,46 @@ pub(crate) fn mentions_out(found: verso_core::Mentions) -> Mentions {
             })
             .collect(),
         more: found.more,
+    }
+}
+
+pub(crate) fn kinds_in(kinds: &[BlockKind]) -> Vec<verso_core::IndexBlockKind> {
+    use verso_core::IndexBlockKind as K;
+    kinds
+        .iter()
+        .map(|k| match k {
+            BlockKind::Paragraph => K::Paragraph,
+            BlockKind::List => K::List,
+            BlockKind::Table => K::Table,
+            BlockKind::Heading => K::Heading,
+            BlockKind::Quote => K::Quote,
+            BlockKind::Code => K::Code,
+        })
+        .collect()
+}
+
+pub(crate) fn block_ids_out(list: verso_core::IndexBlockList) -> FolderBlocks {
+    use verso_core::IndexBlockKind as K;
+    FolderBlocks {
+        truncated: list.truncated,
+        blocks: list
+            .blocks
+            .into_iter()
+            .map(|b| FolderBlock {
+                path: b.path,
+                id: b.id,
+                kind: match b.kind {
+                    K::Paragraph => BlockKind::Paragraph,
+                    K::List => BlockKind::List,
+                    K::Table => BlockKind::Table,
+                    K::Heading => BlockKind::Heading,
+                    K::Quote => BlockKind::Quote,
+                    K::Code => BlockKind::Code,
+                },
+                label: b.label,
+                under_heading: b.under_heading,
+            })
+            .collect(),
     }
 }
 

@@ -43,6 +43,7 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     ("unlinked_mentions", ForReader::Projected),
     ("list_files", ForReader::Same),
     ("list_tags", ForReader::Projected),
+    ("list_block_ids", ForReader::Projected),
     ("list_web_notes", ForReader::Same),
     ("graph", ForReader::Projected),
     ("graph_unresolved", ForReader::Projected),
@@ -143,6 +144,12 @@ fn projected(
             ws.reader_unlinked_mentions(&path("path")?)?,
         )),
         "list_tags" => json(ops::tags_out(ws.reader_tags()?)),
+        "list_block_ids" => {
+            let kinds: Vec<verso_contract::BlockKind> = arg(args, name, "kinds")?;
+            json(ops::block_ids_out(
+                ws.reader_block_ids(&ops::kinds_in(&kinds))?,
+            ))
+        }
         "graph" => json(ops::edges_out(ws.reader_graph()?)),
         "graph_unresolved" => json(ops::missing_out(ws.reader_graph_unresolved()?)),
         "list_entries" => {

@@ -35,6 +35,8 @@ mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod lists;
+pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};
 mod picked;
 pub use picked::{PickSkip, PickedFile, PickedFiles, SkippedPick};
 mod periodic;
@@ -1064,13 +1066,6 @@ pub struct InstallResult {
     pub requires_restart: bool,
 }
 
-/// A note that is a web page: its path and the address in its `url`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct WebNote {
-    pub path: String,
-    pub url: String,
-}
-
 /// One resolved link of the vault, for the graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Edge {
@@ -1086,13 +1081,6 @@ pub struct Edge {
 pub struct MissingLink {
     pub from: String,
     pub target: String,
-}
-
-/// A tag and the notes that carry it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct Tag {
-    pub name: String,
-    pub notes: Vec<String>,
 }
 
 /// A frontmatter value, typed as the YAML gave it, for a properties

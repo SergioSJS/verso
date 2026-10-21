@@ -30,9 +30,9 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin,
+    AppInfo, Backlink, BaseQuery, BaseResult, BlockKind, Can, Capabilities, CliState, CollabJoin,
     CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
-    FileEntry, Focus, FocusesSummary, FolderChanged, FolderDataFile, FolderDataKind,
+    FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
     FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
     Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
     Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw,
@@ -687,6 +687,7 @@ macro_rules! commands_for {
                 list_tags::<$runtime>,
                 read_file_text::<$runtime>,
                 list_entries::<$runtime>,
+                list_block_ids::<$runtime>,
                 list_web_notes::<$runtime>,
                 graph::<$runtime>,
                 graph_unresolved::<$runtime>,

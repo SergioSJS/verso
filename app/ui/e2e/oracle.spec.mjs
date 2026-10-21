@@ -111,3 +111,29 @@ test("a rewritten question replaces the lines the oracle wrote and keeps the per
   expect(answers(ls)).toHaveLength(1);
   expect(ls).toContain("Depois, a cena segue.");
 });
+
+test("the oracle lists a folder's tables from the index, and reads a table's note only when it is chosen", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Tabelas.md", "# Tempo\n\n- sol\n- chuva\n- neve\n\n^tempo\n\n# Texto\n\nUm paragrafo. ^par\n");
+  await app.writeOutside(NOTE, TEXT);
+  await app.folderChanged([NOTE, "Tabelas.md"], true);
+  await app.quickOpen("Cena");
+  await askButton(page).click();
+  const dialog = page.getByRole("dialog", { name: "Oráculo & Improvisação" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("tab", { name: "Tabelas" }).click();
+  const select = dialog.getByLabel("Selecione o Oráculo");
+  // Listed by the index: the table of the note is offered, the paragraph's
+  // id is not, and no note was read to find it.
+  await expect(select.locator("option", { hasText: /^Tempo$/ })).toHaveCount(1);
+  await expect(select.locator("option", { hasText: "Texto" })).toHaveCount(0);
+  expect((await app.calls("list_block_ids")).length).toBeGreaterThan(0);
+  expect((await app.calls("read_note")).map((a) => a.path)).not.toContain("Tabelas.md");
+  // Chosen: the note is read now and the option counts its rows.
+  await select.selectOption({ label: "Tempo" });
+  await expect(select.locator("option:checked")).toHaveText("Tempo (3 opções)");
+  expect((await app.calls("read_note")).map((a) => a.path)).toContain("Tabelas.md");
+  await dialog.getByRole("button", { name: "Sortear da Tabela", exact: true }).click();
+  await expect(dialog.locator(".oracle-table-result-card")).toBeVisible();
+  await expect(dialog.locator(".oracle-table-roll-text")).toHaveText(/^(sol|chuva|neve)$/);
+});
