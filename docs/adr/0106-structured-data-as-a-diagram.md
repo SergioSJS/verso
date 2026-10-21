@@ -30,8 +30,9 @@
   as recommended except 0106.5, where he chose "all now": every
   `[PROPOSED]` becomes `[DECIDED 2026-10-21]`, item 12 is closed, the
   formats of item 3 widen to seven, and the ADR is Accepted. It enters V1
-  as roadmap row V.30, after wave D.
-
+  as roadmap row V.30, after wave D. 2026-10-21, later — the maintainer
+  answered D.1 to D.4 of the decisions list of 2026-10-21, all option A
+  (items 8, 9 and 12, Status).
 ## Context
 
 A `.json` or `.yaml` file opens in Verso today as text, in the source
@@ -149,7 +150,9 @@ Nothing is left `[PROPOSED]` or `[OPEN]`.
    diagram as arranged into a board (`.canvas`, JSON Canvas: text cards and
    links, which Obsidian opens too), shown before it is written, never
    replacing a file ([0057](0057-board-json-canvas.md)); from then on it is
-   an ordinary board.
+   an ordinary board. `[DECIDED 2026-10-21]` (D.3, option A): "Save as board"
+   **refuses a diagram of more than 2000 cards** and asks to fold branches
+   first (a number chosen by the review, kept by the maintainer).
 
 9. **Limits and hostile files.** `[DECIDED 2026-10-21]` (0106.10, option
    A). Walking the data never
@@ -159,7 +162,11 @@ Nothing is left `[PROPOSED]` or `[OPEN]`.
    size, not the box count (a diagram is offered up to 20 MB of text,
    past that the text view only). Every key and value is set as
    text, never as HTML; a long string is cut with its full value on
-   request.
+   request. `[DECIDED 2026-10-21]` (D.1, option A): **above 200,000 boxes the
+   file opens as text**, with a notice saying why. The review classified the
+   lack of a cap as IMPORTANT (a hostile file brought the window down); the
+   maintainer kept the cap. Option C, no box cap and only the 20 MB, was not
+   chosen.
 
 10. **Live.** `[DECIDED 2026-10-21]` (0106.10, option A). When the text changes — typed, from a room
     ([0082](0082-live-co-editing-of-a-synced-folder.md)) or on disk — the
@@ -189,7 +196,9 @@ Nothing is left `[PROPOSED]` or `[OPEN]`.
     - **A switch**, "Data diagram", in Settings › App › Features, on by
       default like the other switches of
       [0103](0103-feature-presets-and-capability-flags.md) (0106.6); off, no
-      button of the diagram appears.
+      button of the diagram appears. `[DECIDED 2026-10-21]` (D.2, option A):
+      switching it off also **closes the diagram tabs already open**, including
+      one opened from a ```` ```json ```` block of a note; "off is off".
     - **Which view opens first** (0106.9): the text the first time; after
       that, the last one used for that kind of file.
 
@@ -245,4 +254,5 @@ As-built note, **not a decision of the maintainer's**: the code also parses
 **TSV** (a CSV with tabs) as CSV with tabs, an eighth format beside the
 seven of item 3 (`app/ui/src/datagraph/parse.ts`; commit `2db25eb7` says
 "eight formats"). No one decided it; it is recorded here so that it is
-either confirmed or dropped.
+either confirmed or dropped. **Confirmed on 2026-10-21** by the maintainer
+(D.4, option A): the diagram keeps reading `.tsv`, the same reader as CSV.
