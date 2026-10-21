@@ -288,6 +288,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph .node text.quiet { opacity: 0; }
 .graph .node:hover text.quiet { opacity: 1; }
 .graph .node.center text { fill: var(--ink); font-weight: 600; }
+.graph .node.missing circle { fill: transparent; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.graph .node.missing text { font-style: italic; fill: var(--ink-2); }
 .graph .node:hover circle, .graph .node:focus-visible circle { stroke: var(--seal); }
 .graph .node:focus-visible { outline: none; }
 .graph .node:focus-visible circle { stroke-width: 3; }
@@ -304,6 +306,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph-legend { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; font-size: .76rem; }
 .graph-legend-item { display: inline-flex; align-items: center; gap: .4rem; }
 .graph-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.graph-legend-dot.missing { background: transparent; border: 1.5px dashed var(--ink-2); box-sizing: border-box; }
 .favicon { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; flex: none; }
 .favicon img { width: 14px; height: 14px; border-radius: 3px; }
 
