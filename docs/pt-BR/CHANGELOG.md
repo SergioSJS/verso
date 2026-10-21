@@ -48,6 +48,7 @@ versão de teste.
 
 ### Corrigido
 
+- Um link para uma nota não mostra mais o nome da pasta do dono: a janela do link leva o nome da nota, e a árvore continua listando essa nota. Só o link para a pasta inteira leva o nome da pasta.
 - O visitante de um link de leitura não faz mais a pasta do dono ser percorrida: `reindex` por um link responde com o resumo que a pasta já tem e não percorre nada.
 - **Frontmatter e tags como o Obsidian lê (spec Q22, Q24)**: uma nota que começa com um BOM continua tendo seu frontmatter (o arquivo nunca é reescrito); um número em `tags` (`tags: 2024`, `[2025]`) não é tag, como no Obsidian, e um `#` numa tag do frontmatter não faz parte do nome; a lista de tags conta uma tag aninhada (`a/b`) sob cada tag acima dela (`a`), como o painel de tags do Obsidian.
 - **O seletor rápido (⌘P) põe primeiro o nome digitado inteiro**: digitar `N` abria um nome mais longo que começa com N e vinha antes pela pasta; a nota com exatamente o nome digitado agora encabeça a lista.

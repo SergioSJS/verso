@@ -163,15 +163,21 @@ pub fn live(server: &Server, token: &str) -> Result<Option<Live>, String> {
         .map(|folder| Live { link, folder }))
 }
 
-/// The name a link's window shows: the folder's own for a link to one note
-/// — never the note's, which the tree would take for the folder's own note
-/// and hide (ADR 0058's folder notes) — and for a folder link the folder's
-/// last part, never a path above it.
+/// The name a link's window shows: the note's own, without `.md`, for a
+/// link to one note — never the folder's, which was not shared (ADR 0105
+/// item 6); the window does not take a note named as the link's window for
+/// a folder note — and for a folder link the folder's last part, never a
+/// path above it. A link to the whole folder is named by the folder, which
+/// was shared on purpose.
 fn name_of(live: &Live) -> String {
-    if live.link.kind == "note" || live.link.path.is_empty() {
+    if live.link.path.is_empty() {
         return live.folder.dir.clone();
     }
-    live.link.path.rsplit('/').next().unwrap_or("").to_owned()
+    let last = live.link.path.rsplit('/').next().unwrap_or("");
+    if live.link.kind == "note" {
+        return last.strip_suffix(".md").unwrap_or(last).to_owned();
+    }
+    last.to_owned()
 }
 
 /// What the link reaches, as the scope every command and every file goes
