@@ -139,7 +139,9 @@ export function parseYaml(text: string): Tree {
     let n = 0;
     for (const doc of list) {
       const e = doc.errors[0];
-      if (e && !error) error = { message: e.message.split("\n")[0] ?? e.message, from: e.pos[0], to: Math.max(e.pos[1], e.pos[0] + 1) };
+      // The library recurses on nesting and reports the engine's own words when its stack runs out: ours say it plainly.
+      const message = /call stack/i.test(e?.message ?? "") ? "The YAML nests too deeply to draw" : (e?.message.split("\n")[0] ?? "");
+      if (e && !error) error = { message, from: e.pos[0], to: Math.max(e.pos[1], e.pos[0] + 1) };
       n++;
       walkDocument(text, doc, String(n), b, anchors);
     }
