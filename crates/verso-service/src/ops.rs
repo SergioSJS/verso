@@ -394,6 +394,7 @@ ops! {
             respect_gitignore: change.respect_gitignore,
             periodic: change.periodic.map(periodic_in),
             oracle: change.oracle.map(oracle_in),
+            recommended_theme: change.recommended_theme,
         };
         Ok(layer_out(ws.set_folder_settings(&change, revision.as_deref())?))
     }
@@ -669,6 +670,7 @@ fn layer_out(l: verso_core::FolderLayer) -> FolderLayer {
             respect_gitignore: l.settings.respect_gitignore,
             periodic: l.settings.periodic.map(periodic_out),
             oracle: l.settings.oracle.map(oracle_out),
+            recommended_theme: l.settings.recommended_theme,
         },
         warnings: l.warnings,
     }

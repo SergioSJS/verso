@@ -159,7 +159,7 @@ export async function loadFolderLayer(): Promise<void> {
   const m = machine();
   if (layer && shouldMove(layer, m, movedBefore(), accountWrites()) && !(await readerNow())) {
     const w = await commands.setFolderSettings(firstWrite(layer, m, {
-      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null,
+      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null, recommended_theme: null,
     }), null);
     if (w.status === "ok") {
       layer = w.data;
@@ -207,6 +207,7 @@ async function write(make: (now: Effective) => Partial<FolderSettings>, again: b
     respect_gitignore: part.respect_gitignore ?? null,
     periodic: part.periodic ?? null,
     oracle: part.oracle ?? null,
+    recommended_theme: part.recommended_theme ?? null,
   };
   const r = await commands.setFolderSettings(firstWrite(layer, machine(), change), layer.exists ? layer.revision : null);
   if (r.status === "ok") {

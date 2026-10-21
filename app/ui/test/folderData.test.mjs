@@ -232,7 +232,7 @@ describe("The folder's data files", () => {
 });
 
 describe("The oracle's keys in the folder's settings", () => {
-  const settings = (oracle) => ({ bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle });
+  const settings = (oracle) => ({ bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle, recommended_theme: null });
   const odds = Array.from({ length: 5 }, () => [10, 30, 20, 20, 15, 5]);
   const sparks = { action: ["abandonar"], theme: ["honra"], descriptor: ["ardente"], focus: ["aliado"] };
   const set = (oracle, revision = null) => {

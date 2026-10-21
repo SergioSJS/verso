@@ -74,6 +74,8 @@ export function seed(machine: Machine): FolderSettings {
     periodic: null,
     // Nor the oracle's tables (ADR 0102 item 2): the folder's own change.
     oracle: null,
+    // Nor the theme the folder suggests (ADR 0100 item 4).
+    recommended_theme: null,
   };
 }
 
@@ -90,6 +92,7 @@ export function firstWrite(layer: FolderLayer, machine: Machine, change: FolderS
     respect_gitignore: change.respect_gitignore ?? base.respect_gitignore,
     periodic: change.periodic ?? null,
     oracle: change.oracle ?? null,
+    recommended_theme: change.recommended_theme ?? null,
   };
 }
 
