@@ -78,13 +78,14 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    images** — the maintainer: *"A mas cara, seria top poder compartilhar
    imagem também"*. Option B, rolls only, was not taken.
 
-   `[OPEN]` Where a shared image goes:
+   `[DECIDED 2026-10-21]` Where a shared image goes — option A, as
+   recommended (the maintainer: *"aceito suas recomendações"*):
    - **A — Into the folder, as a file:** sent to the table, it is written
      to the folder's attachments folder by the sender's action, as an
      imported file is, counts toward the folder's quota
      ([0077](0077-the-server-administration-console-and-folder-quotas.md)),
      is seen in the file list and may be embedded in a note. A reader,
-     who writes no file, sends no image. _(recommended)_
+     who writes no file, sends no image. _(taken)_
    - **B — Into the server's storage,** beside the table's log, outside
      the folder; a reader may send one.
 
@@ -117,10 +118,11 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
      edit, with its stale check (invariant 11). An image is added as an
      embed of its file.
 
-   `[OPEN]` Where the log is saved:
+   `[DECIDED 2026-10-21]` Where the log is saved — option A, as
+   recommended:
    - **A — The server's database,** per folder, in `VERSO_DATA_DIR`,
      backed up with the server; it does not travel with a synced copy of
-     the folder. _(recommended)_ — no file of the folder is written on
+     the folder. _(taken)_ — no file of the folder is written on
      behalf of everyone present, every few seconds
      ([0012](0012-files-are-source-of-truth.md)); what should live with
      the notes goes there by "Add to note".
@@ -135,10 +137,10 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    everyone, asks first, and is the folder owner's only; pinned entries
    are kept unless the owner says otherwise in the same question.
 
-   `[OPEN]` Deleting one entry:
+   `[DECIDED 2026-10-21]` Deleting one entry — option A, as recommended:
    - **A — Its author deletes their own message or image; an owner
      deletes any.** A roll is not deleted one by one (so nobody re-rolls
-     and hides the first). _(recommended)_
+     and hides the first). _(taken)_
    - **B — Only the owner,** by clearing the table.
 
 7. **Secret rolls.** `[DECIDED 2026-10-21]` **Now, to the folder's
@@ -235,12 +237,10 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
   "Tour do Verso" a card ([0058](0058-demo-vault-as-tutorial.md)).
 - 0088 item 4 is revised for the table (item 5), recorded in 0088's
   revisions in the same change as this ADR's decisions.
-- The server's database gains the table's log, its pins and its images
-  if item 5's and item 3's open questions go to the server (option A
-  of item 5; option B of item 3).
+- The server's database gains the table's log and its pins (item 5);
+  an image is a file of the folder (item 3).
 - Nothing is written to a file of the folder on behalf of the table,
-  except by "Add to note" and, if item 3's open question is A, an image
-  its sender sends.
+  except by "Add to note" and an image its sender sends.
 
 ## Discarded alternatives
 
@@ -249,13 +249,17 @@ or a named table by link as the table (item 2); rolls only, with no
 messages (item 3); memory only, a retention in the server's database, or
 a session note appended on every entry (item 5); secret rolls later in
 their own ADR (item 7); a bar along the bottom or a floating drawer
-(item 10); only your own rolls in 3D (item 11).
+(item 10); only your own rolls in 3D (item 11); an image in the
+server's storage (item 3); the log in a file inside the folder (item 5);
+only the owner deletes, by clearing (item 6).
 
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
 maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
-outside the repository). Open: where an image goes (item 3), where the
-log is saved (item 5), deleting one entry (item 6). Not built; the
-maintainer asked for it "em algum momento" (at some point). Waits for
-those answers and a reading by the other model.
+outside the repository); the three questions those answers opened —
+where an image goes (item 3), where the log is saved (item 5), deleting
+one entry (item 6) — decided the same day as recommended. Items marked
+`[PROPOSED]` stay the author's until accepted. Not built; the
+maintainer asked for it "em algum momento" (at some point). Waits for a
+reading by the other model.
