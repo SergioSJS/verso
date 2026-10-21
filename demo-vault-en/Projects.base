@@ -2,10 +2,10 @@ filters:
   and:
     - file.inFolder("projects")
 formulas:
-  orcamento_mil: "(orcamento / 1000).toFixed(1)"
+  budget_k: "(budget / 1000).toFixed(1)"
   mes: 'date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")'
 properties:
-  formula.orcamento_mil:
+  formula.budget_k:
     displayName: Budget (thousands)
   formula.mes:
     displayName: Month
@@ -15,16 +15,16 @@ views:
     order:
       - file.name
       - status
-      - prioridade
-      - responsavel
-      - orcamento
-      - formula.orcamento_mil
+      - priority
+      - owner
+      - budget
+      - formula.budget_k
       - formula.mes
     sort:
       - property: date
         direction: DESC
     summaries:
-      orcamento: Sum
+      budget: Sum
   - type: kanban
     name: By Status
     groupBy: status
@@ -40,4 +40,4 @@ views:
     order:
       - file.name
       - status
-    coordinates: note.local
+    coordinates: note.location

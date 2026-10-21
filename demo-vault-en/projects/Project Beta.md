@@ -2,14 +2,14 @@
 title: Project Beta
 date: 2026-09-22
 status: planned
-prioridade: medium
-responsavel: "UX Team"
+priority: medium
+owner: "UX Team"
 tags:
   - project
   - interface
   - beta
-orcamento: 8500
-local:
+budget: 8500
+location:
   - 38.7223
   - -9.1393
 ---

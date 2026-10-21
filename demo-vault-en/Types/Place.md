@@ -12,19 +12,19 @@ type: place
 label: { pt-BR: Lugar, en: Place }
 layout: infobox
 properties:
-  - key: mapa
+  - key: map
     kind: image
     label: { pt-BR: Mapa, en: Map }
-  - key: região
+  - key: region
     kind: text
     label: { pt-BR: Região, en: Region }
-  - key: perigo
+  - key: danger
     kind: number
     label: { pt-BR: Perigo, en: Danger }
-  - key: habitantes
+  - key: inhabitants
     kind: link
     label: { pt-BR: Habitantes, en: Inhabitants }
-  - key: governante
+  - key: ruler
     kind: link
     label: { pt-BR: Governante, en: Ruler }
 ```

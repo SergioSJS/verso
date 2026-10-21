@@ -1,34 +1,34 @@
 {
-  "campanha": "The Dark Lighthouse",
-  "sessao": 3,
+  "campaign": "The Dark Lighthouse",
+  "session": 3,
   "npcs": [
     {
-      "nome": "Yara of the Lighthouse",
-      "papel": "keeper",
-      "atitude": "wary",
-      "vida": 18,
-      "itens": ["lantern", "bronze key", "tide journal"],
-      "segredo": { "pista": "the strange light comes from the cellar", "revelada": false }
+      "name": "Yara of the Lighthouse",
+      "role": "keeper",
+      "attitude": "wary",
+      "hp": 18,
+      "items": ["lantern", "bronze key", "tide journal"],
+      "secret": { "clue": "the strange light comes from the cellar", "revealed": false }
     },
     {
-      "nome": "Captain Ruy",
-      "papel": "sailor",
-      "atitude": "ally",
-      "vida": 31,
-      "itens": ["short sword", "torn map"],
-      "segredo": { "pista": "knows the route of the endless tide", "revelada": true }
+      "name": "Captain Ruy",
+      "role": "sailor",
+      "attitude": "ally",
+      "hp": 31,
+      "items": ["short sword", "torn map"],
+      "secret": { "clue": "knows the route of the endless tide", "revealed": true }
     },
     {
-      "nome": "Lia Torres",
-      "papel": "scholar",
-      "atitude": "curious",
-      "vida": 12,
-      "itens": ["magnifying glass", "notebooks"],
-      "segredo": null
+      "name": "Lia Torres",
+      "role": "scholar",
+      "attitude": "curious",
+      "hp": 12,
+      "items": ["magnifying glass", "notebooks"],
+      "secret": null
     }
   ],
-  "locais": {
-    "farol": { "andares": 4, "acesso": "spiral staircase" },
-    "porto": { "barcos": 7, "taverna": "The Crooked Hook" }
+  "places": {
+    "lighthouse": { "floors": 4, "access": "spiral staircase" },
+    "harbor": { "boats": 7, "tavern": "The Crooked Hook" }
   }
 }
