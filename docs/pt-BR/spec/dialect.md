@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.47
+# Spec do dialeto do Verso — v0.48
 
-- Versão: v0.47 · 2026-10-21
+- Versão: v0.48 · 2026-10-21
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -985,7 +985,7 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   lê ali.
 - **Q5. Cobertura de callout.** `DECIDIDA` para os tipos, a dobra e o título na
   visualização de leitura em 2026-09-23; `DECIDIDA` para o aninhamento em
-  2026-10-21.
+  2026-10-21; **fechada por inteiro em 2026-10-21** (fixture aprovada, abaixo).
   Tipos reconhecidos, `-`/`+`, aninhamento (seção 5.8).
 
   **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura**
@@ -1030,6 +1030,18 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   *(2026-10-21: a parte do parser está construída no branch
   `feat/nested-callouts-index` — `Callout.depth`, o limite de 32, a fixture
   `callout/nested` rascunhada para aprovação, `depth` acrescentado à §4.3.)*
+
+  **Fechada por inteiro em 2026-10-21 pelo mantenedor** (pergunta Q5.fx da
+  lista de decisões de 2026-10-21, opção A, "Aprovar como está"): a fixture
+  `fixtures/callout/nested` está **aprovada como rascunhada**, e a marca de
+  rascunho foi removida. Ela afirma, caso a caso, o aninhamento até 32 níveis
+  no índice, o campo `depth` (§4.3), as dobras `+`/`-` guardadas, um
+  `[!secret]` dentro de outro callout listado como callout de nível 2 (o que o
+  leitor vê continua regido por `callout/secret`) e o 33º nível como citação
+  comum. Uma citação comum dentro de um callout não conta como nível, e um
+  callout dentro dessa citação conta como aninhado: é o que a visualização de
+  leitura faz, e fica registrado aqui como regra (nenhuma frase anterior da
+  spec dizia isso).
 
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `DECIDIDA` em 2026-10-21 para o índice e para HTML embutido; os comentários
@@ -1259,6 +1271,16 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   desenha cada alvo não resolvido como um nó vazio e tracejado, ligado às notas
   que o citam (a ajuda pública "Graph view" do Obsidian documenta o mesmo
   filtro).*
+
+  **Decidida em 2026-10-21 pelo mantenedor** (pergunta G.1 da lista de
+  decisões de 2026-10-21). (a) Opção A: numa pasta compartilhada de um
+  UniVerso o filtro "Só arquivos existentes" desligado não mostra nada e diz
+  por quê, pois o nome de uma nota inexistente revelaria, a quem vê só parte da
+  pasta, se aquela nota existe fora do compartilhamento
+  ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md) item 11).
+  (b) Opção **B**: clicar num nó não resolvido **pergunta antes de criar** a
+  nota (a construção a criava na hora, como o clique num link para nota
+  inexistente; o mantenedor escolheu perguntar). A construir.
 
 - **Q15. Extensões de Markdown fora da base.** `DECIDIDA` para a visualização
   de leitura em 2026-09-23; `DECIDIDA` para o parser que alimenta o índice em 2026-10-21.
@@ -1495,6 +1517,13 @@ ser escolhido.
   uma nota (§4.6), então as regras de tag são testes em
   `crates/verso-dialect/tests/tags.rs` e `crates/verso-index/tests/search.rs`.
 
+  **Fechada por inteiro em 2026-10-21 pelo mantenedor** (pergunta DL.3 da lista
+  de decisões de 2026-10-21, opção A, "Aprovar todas"): as fixtures
+  `block/id-chars` e `frontmatter/tags-hash` estão **aprovadas como
+  rascunhadas** e suas marcas de rascunho foram removidas. A Q22 está fechada:
+  (a) charset do `^id`, (b) tags aninhadas contadas sob a tag acima, (c)
+  `#ideia` e `ideia` uma só tag.
+
 - **Q23. Formas combinadas e escapes de wikilink.** `DECIDIDA` em 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` e `[[#^bloco]]`
   (mesmo arquivo — conta como backlink de si mesmo?), `[[pasta/nota]]`,
@@ -1593,6 +1622,29 @@ ser escolhido.
   `backlinks` e `links` do Obsidian concordam; fixture
   `frontmatter/wikilink-values`.
 
+  **Fechada por inteiro em 2026-10-21 pelo mantenedor** (perguntas DL.1, DL.2 e
+  DL.3 da lista de decisões de 2026-10-21).
+  (a) **`...` (DL.1, opção A):** **não** fecha o frontmatter; só `---` fecha,
+  como no Obsidian. A decisão de 2026-10-21 que aceitava `...` é substituída
+  por esta. (b) **`tags: 2024` (DL.2, opção B, escolha explícita do
+  mantenedor):** o mantenedor escolheu *"Voltar ao que eu decidi: `2024` vira a
+  tag '2024'"* — um valor numérico em `tags` **é** uma tag no Verso. **Isso
+  difere do Obsidian, e os dois fatos ficam registrados**: o Obsidian foi
+  observado (1.13.7, repetido no 1.14.4) e não lista um número em `tags` como
+  tag (`tags: [2025, yes]` lista só `#yes`; `true`, `1.5` e `"7"` não listam
+  nenhuma). A invariante 12 pede que o Verso nunca contradiga o Obsidian; o
+  mantenedor decidiu sabendo, então isto é uma extensão decidida por ele, não
+  uma escolha da construção, e uma nota com `tags: 2024` mostra uma tag no
+  Verso e nenhuma no Obsidian. O código é mudado para seguir isto e a fixture
+  `frontmatter/tags-number`, que hoje afirma a leitura do Obsidian, é
+  atualizada pelo código que a constrói; essa fixture mantém a marca de
+  rascunho até lá, e as outras cinco fixtures da Q22 e da Q24
+  (`block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`,
+  `frontmatter/tags-hash`, `frontmatter/wikilink-values`) estão **aprovadas
+  como rascunhadas** (DL.3, opção A), com as marcas de rascunho removidas. (c)
+  O BOM, o YAML 1.2, os wikilinks em valores e as quebras de linha mistas
+  valem como decididos em 2026-10-21 e construídos.
+
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
@@ -1677,3 +1729,4 @@ ser escolhido.
 | v0.45 | 2026-10-15 | A fixture `fixtures/callout/secret` **aprovada pelo mantenedor** em 2026-10-15 em sessão (*"aceito todas recomendações"*); a marca de rascunho dela removida. Ela afirma o `reader` (§4.1, §4.6) da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): um bloco no nível de cima, um dentro de outro callout com o tipo em maiúsculas, um num item de lista, um `[!secrets]` mantido. Nada mais muda |
 | v0.46 | 2026-10-20 | §6: duas linhas, o bloco cercado ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) e o callout `> [!oracle]` ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), construções que o Verso desenha e o Obsidian lê como um bloco de código e um callout; o parser não muda. Nenhuma fixture (nada aqui responde a uma pergunta da §9 nem muda o que o parser devolve). Nenhuma pergunta fechada |
 | v0.47 | 2026-10-21 | As respostas do mantenedor ao questionário de decisões de 2026-10-20 (respondido em 2026-10-21): **Q2, Q5 (aninhamento), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 e Q24 `DECIDIDAS`**, cada uma como a opção marcada — a Q14 com as duas opções, A (ratificar) e B (links não resolvidos como nós do grafo). Cada decisão está registrada; nenhuma fecha por inteiro, pois as que precisam de fixture ou de observação do Obsidian esperam o PR que as acrescenta (invariante 17); a `callout/nested` da Q5 é um PR de código separado. §5 e §7 atualizadas: a §7 agora aponta para o [ADR 0093](../adr/0093-periodic-notes.md) para as notas periódicas, não para a §9. Nenhuma fixture mudou |
+| v0.48 | 2026-10-21 | As respostas do mantenedor à lista de decisões de 2026-10-21: **Q5, Q22 e Q24 fechadas por inteiro**, seis das sete fixtures rascunhadas em 2026-10-21 **aprovadas** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; marcas de rascunho removidas). Q24: `...` não fecha o frontmatter (como o Obsidian); `tags: 2024` **é** a tag "2024", escolha explícita do mantenedor, sabidamente diferente do Obsidian, o que fica registrado; `frontmatter/tags-number` mantém a marca de rascunho até o código mudar a expectativa. Q14: clicar num nó não resolvido do grafo pergunta antes de criar a nota. |
