@@ -92,4 +92,17 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ---
 
+## Dados 3D
+
+Quer ver os dados caírem? Em **Ajustes › Recursos**, ligue **Dados 3D**. Ele vem **desligado**, mesmo no atalho *Tudo*: é o recurso mais pesado, para a bateria também. Ligado, ao rolar um dado — num botão `dice:` ou no rolador — dados de verdade (d4, d6, d8, d10, d12, d20 e o percentil como dois d10) caem sobre a tela e param; só então o cartão com o resultado aparece.
+
+O número **já foi sorteado** antes de os dados caírem, pelo gerador criptográfico da janela ou, numa sala, pelo servidor; a queda só o encena, e o dado pousa mostrando exatamente esse número. Por isso o leitor de tela diz o resultado na hora, sem esperar, e o cartão com o texto existe sempre.
+
+- **Pular:** um clique em qualquer lugar, ou `Esc`. Também termina sozinho em poucos segundos.
+- **Sem animação:** se o sistema pede menos movimento, ou se a rolagem tem mais de 20 dados ou um dado que explode (`!`), só o cartão aparece.
+- **Numa sala**, cada pessoa vê os dados cair só se o *seu* recurso Dados 3D estiver ligado; as outras veem o cartão.
+- O motor 3D é baixado só na primeira rolagem em 3D e guardado para uso sem conexão. Sem som.
+
+---
+
 Veja a seguir as fichas visuais em [[26 - Fichas]], e o oráculo para jogo solo e a criação de campanhas em [[27 - Oráculos e Criação de Mundos]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
