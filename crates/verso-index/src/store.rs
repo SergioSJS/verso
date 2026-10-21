@@ -1240,7 +1240,8 @@ fn strings_of(map: &[(String, Value)], key: &str) -> Vec<String> {
 }
 
 /// The frontmatter's `tags` as tag names (spec Q22 c, Q24 b): a list of
-/// strings or one string; a number, a boolean or a string of digits only is
+/// strings and integers, or one of them (DL.2 = B, 2026-10-21: an integer
+/// or a string of digits is the tag of its text); a boolean or a float is
 /// no tag, and a leading `#` is not part of the name.
 fn frontmatter_tags(map: &[(String, Value)]) -> Vec<String> {
     match map.iter().find(|(k, _)| k == "tags").map(|(_, v)| v) {

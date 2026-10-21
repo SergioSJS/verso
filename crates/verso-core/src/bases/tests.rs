@@ -476,3 +476,12 @@ fn a_query_within_folders_sees_only_what_is_under_them() {
     assert!(!share.sees("Mesa.md"));
     assert!(!share.sees("Diario/Mesa/x.md"));
 }
+
+/// DL.2 = B (maintainer, 2026-10-21): a number in the frontmatter's `tags`
+/// is the tag of its text, as in the index; a boolean or a float is none.
+#[test]
+fn a_number_in_tags_is_a_tag_in_a_base_as_in_the_index() {
+    let facts = NoteFacts::of("---\ntags: [2025, yes, true, 1.5, \"7\"]\n---\nCorpo #2024 #x\n");
+    assert_eq!(facts.tags, ["2025", "yes", "7", "x"]);
+    assert_eq!(NoteFacts::of("---\ntags: 2024\n---\n").tags, ["2024"]);
+}
