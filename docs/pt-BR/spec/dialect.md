@@ -1582,6 +1582,17 @@ ser escolhido.
   que a acrescenta, com esta seção atualizada no mesmo PR; nenhuma está
   rascunhada ainda.
 
+  **Ajustado pela construção, 2026-10-21, à espera do mantenedor** (pela
+  própria cláusula da decisão, "a resposta se ajusta se diferir"; o
+  mantenedor confirma ou reverte pelas fixtures e pelas perguntas DL.1 e
+  DL.2 da lista de decisões de 2026-10-21): (a) o fechamento com `...`
+  **não** foi construído, porque o Obsidian não o aceita (observado) —
+  pergunta DL.1. (b) `tags: 2024` **não** é a tag "2024": o Obsidian lê um
+  número em `tags` como nenhuma tag (observado), e a construção segue o
+  Obsidian — fixture `frontmatter/tags-number`, um rascunho, e pergunta DL.2.
+  O texto acima é a decisão como registrada; esta linha registra que a
+  construção não a cumpre como escrita.
+
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
