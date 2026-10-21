@@ -12,7 +12,8 @@ await esbuild.build({
 export * from "./src/dice3d/force";
 export * from "./src/dice3d/plan";
 export * from "./src/dice3d/timeline";
-export * from "./src/dice3d/sim";`,
+export * from "./src/dice3d/sim";
+export * from "./src/dice3d/labels";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -148,7 +149,7 @@ test("the plan of a roll: which dice fall, showing what", () => {
   assert.deepEqual(m.planRoll(roll("2dF", [term(3, [-1, 1], [], 1, true)])).map((x) => [x.set, x.value]), [["fudge", -1], ["fudge", 1]]);
 });
 
-test("beyond twenty dice, exploding dice and odd sizes get no 3D fall", () => {
+test("beyond twenty dice and odd sizes get no 3D fall", () => {
   const n = (c) => Array.from({ length: c }, () => 3);
   assert.equal(m.planRoll(roll("20d6", [term(6, n(20))])).length, 20);
   assert.equal(m.planRoll(roll("21d6", [term(6, n(21))])), null);
@@ -157,10 +158,47 @@ test("beyond twenty dice, exploding dice and odd sizes get no 3D fall", () => {
   // A d100 counts as two dice.
   assert.equal(m.planRoll(roll("10d%", [term(100, Array.from({ length: 10 }, () => 50))])).length, 20);
   assert.equal(m.planRoll(roll("11d%", [term(100, Array.from({ length: 11 }, () => 50))])), null);
-  assert.equal(m.planRoll(roll("1d6!", [term(6, [6, 2])])), null);
   assert.equal(m.planRoll(roll("1d7", [term(7, [4])])), null);
   assert.equal(m.planRoll(roll("1d1000", [term(1000, [400])])), null);
   assert.equal(m.planRoll(roll("0", [])), null);
+});
+
+test("an exploding die falls in waves, each after the die that added it", () => {
+  const waves = (notation, kept, count = 3, sides = 6) => m.planRoll(roll(notation, [term(sides, kept)])).map((d) => d.wave ?? 0);
+  // No explosion: all at once.
+  assert.deepEqual(waves("3d6!", [3, 1, 5]), [0, 0, 0]);
+  // One explosion: the second die hit its highest face, the extra is wave 1.
+  assert.deepEqual(waves("3d6!", [3, 6, 5, 4]), [0, 0, 0, 1]);
+  // A chain, 6 then 6 then 2: the first 6 adds the 6 (wave 1), which adds the 2 (wave 2).
+  assert.deepEqual(waves("3d6!", [6, 4, 1, 6, 2]), [0, 0, 0, 1, 2]);
+  // Two sixes at once: two extras in wave 1, and the first extra's own explosion in wave 2.
+  assert.deepEqual(waves("3d6!", [6, 6, 1, 6, 3, 2]), [0, 0, 0, 1, 1, 2]);
+  assert.deepEqual(m.explosionWaves([6, 6, 1, 6, 3, 2], 3, 6), [0, 0, 0, 1, 1, 2]);
+  // A die of another size reads its own highest face.
+  assert.deepEqual(waves("1d20!", [20, 3], 1, 20), [0, 1]);
+  // The dice the explosions add count against the twenty.
+  assert.equal(m.planRoll(roll("20d6!", [term(6, [...Array.from({ length: 20 }, () => 3), 4])])), null);
+  // A plain term beside an exploding one stays in wave 0.
+  const mixed = m.planRoll(roll("1d20+1d6!", [term(20, [6]), term(6, [6, 2])]));
+  assert.deepEqual(mixed.map((d) => [d.shape, d.wave ?? 0]), [["d20", 0], ["d6", 0], ["d6", 1]]);
+  // With keep or drop the order they fell in is lost: all in one wave.
+  assert.deepEqual(m.planRoll(roll("2d6!kh2", [term(6, [6, 5], [2])])).map((d) => d.wave ?? 0), [0, 0, 0]);
+  // An exploding d100 stays a card.
+  assert.equal(m.planRoll(roll("1d%!", [term(100, [100, 3])])), null);
+});
+
+test("the waves are thrown one after the other: the extra dice enter the table later", () => {
+  const arena = { halfX: 7, halfZ: 4 };
+  const shapes = ["d6", "d6", "d6", "d6", "d6"];
+  const fall = m.simulate(shapes, arena, seeded(11), [0, 0, 0, 1, 2]);
+  assert.deepEqual(fall.born.slice(0, 3), [0, 0, 0]);
+  assert.ok(fall.born[3] > 0 && fall.born[4] >= fall.born[3], `born ${fall.born}`);
+  assert.ok(fall.frames <= m.STEPS_MOST);
+  assert.ok(fall.born[4] <= m.WAVE_LATEST_STEP);
+  // The ones thrown first have settled (or the latest step came) before the next.
+  assert.ok(fall.born[3] >= m.WAVE_GAP_STEPS);
+  const none = m.simulate(shapes, arena, seeded(11));
+  assert.deepEqual(none.born, [0, 0, 0, 0, 0]);
 });
 
 test("the switch's rules: off by default, 'Everything' leaves it alone, reduced motion forces it off", async () => {
@@ -189,14 +227,15 @@ test("the room's id: the same event heard again is not animated twice", () => {
 
 test("the replay's clock: real time, skip, and a maximum", () => {
   const tl = m.timeline(121);
-  assert.equal(Math.round(tl.settleMs), 2000);
-  assert.equal(Math.round(tl.endMs), 2000 + m.HOLD_MS);
+  const settle = Math.round(2000 / m.PLAYBACK_SPEED);
+  assert.equal(Math.round(tl.settleMs), settle);
+  assert.equal(Math.round(tl.endMs), settle + m.HOLD_MS);
   assert.deepEqual(m.playhead(tl, 0, false), { at: 0, done: false });
   const mid = m.playhead(tl, 500, false);
-  assert.equal(Math.round(mid.at), 30);
+  assert.equal(Math.round(mid.at), Math.round(30 * m.PLAYBACK_SPEED));
   assert.equal(mid.done, false);
   // After the last frame the dice rest, shown for the hold.
-  assert.deepEqual(m.playhead(tl, 2500, false), { at: 120, done: false });
+  assert.deepEqual(m.playhead(tl, settle + 10, false), { at: 120, done: false });
   assert.deepEqual(m.playhead(tl, tl.endMs, false), { at: 120, done: true });
   // Skipped: over at once, on the last frame.
   assert.deepEqual(m.playhead(tl, 10, true), { at: 120, done: true });
@@ -262,4 +301,129 @@ test("twenty dice fall and rest in a bounded time", () => {
     const up = shapes[i] === "d4" ? m.rotate(s.verts[item], q)[1] / Math.hypot(...s.verts[item]) : m.rotate(s.normals[item], q)[1];
     assert.ok(up > 0.8 || !fall.rested, `die ${i} (${shapes[i]}) flat ${up}`);
   });
+});
+
+// ---- Where the numbers go: centred on the face, upright, inside it ----
+
+/** The 3D point of a cell's middle: the point the UVs put at (0.5, 0.5)
+ *  of the face's cell, found through the fan the geometry is built from. */
+function middleOf(shape, f, cell) {
+  const sol = m.solid(shape);
+  const face = sol.faces[f];
+  const inTri = (a, b, c, p) => {
+    const d = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+    const l1 = ((b[0] - p[0]) * (c[1] - p[1]) - (c[0] - p[0]) * (b[1] - p[1])) / d;
+    const l2 = ((c[0] - p[0]) * (a[1] - p[1]) - (a[0] - p[0]) * (c[1] - p[1])) / d;
+    return [l1, l2, 1 - l1 - l2];
+  };
+  for (let k = 1; k < face.length - 1; k++) {
+    const idx = [0, k, k + 1];
+    const w = inTri(cell.points[0], cell.points[k], cell.points[k + 1], [0.5, 0.5]);
+    if (w.every((x) => x >= -1e-9)) {
+      return [0, 1, 2].map((a) => idx.reduce((sum, j, i) => sum + w[i] * sol.verts[face[j]][a], 0));
+    }
+  }
+  throw new Error("the middle of the cell is not on the face");
+}
+
+/** How far a 3D point on a face is from its nearest edge. */
+function edgeDepth(shape, f, p) {
+  const sol = m.solid(shape);
+  const face = sol.faces[f];
+  const n = sol.normals[f];
+  let least = Infinity;
+  face.forEach((a, i) => {
+    const A = sol.verts[a];
+    const B = sol.verts[face[(i + 1) % face.length]];
+    const e = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+    const len = Math.hypot(...e);
+    const inward = [n[1] * e[2] - n[2] * e[1], n[2] * e[0] - n[0] * e[2], n[0] * e[1] - n[1] * e[0]];
+    const d = ((p[0] - A[0]) * inward[0] + (p[1] - A[1]) * inward[1] + (p[2] - A[2]) * inward[2]) / len;
+    least = Math.min(least, d);
+  });
+  return least;
+}
+
+test("every face's label middle is the middle of its largest inscribed circle", () => {
+  for (const shape of m.SHAPES) {
+    const sol = m.solid(shape);
+    const cols = Math.ceil(Math.sqrt(sol.faces.length));
+    const rows = Math.ceil(sol.faces.length / cols);
+    const cells = m.cellsOf(shape, cols, rows);
+    sol.faces.forEach((face, f) => {
+      const mid = middleOf(shape, f, cells[f]);
+      const pts = face.map((i) => sol.verts[i]);
+      const centroid = [0, 1, 2].map((k) => pts.reduce((a, p) => a + p[k], 0) / pts.length);
+      const regular = shape !== "d10";
+      if (regular) {
+        for (let k = 0; k < 3; k++) assert.ok(Math.abs(mid[k] - centroid[k]) < 1e-6, `${shape} face ${f}: the middle is the centroid`);
+      } else {
+        // The kite's: at least as far from every edge as the centroid, and
+        // as any point of a grid over the face.
+        const best = edgeDepth(shape, f, mid);
+        assert.ok(best >= edgeDepth(shape, f, centroid) - 1e-9, `${shape} face ${f}`);
+        for (let i = 0; i <= 20; i++)
+          for (let j = 0; j <= 20; j++) {
+            const q = [0, 1, 2].map((k) => pts[0][k] + ((pts[1][k] - pts[0][k]) * i) / 20 + ((pts[3][k] - pts[0][k]) * j) / 20);
+            assert.ok(best >= edgeDepth(shape, f, q) - 2e-3, `${shape} face ${f}: no point is deeper`);
+          }
+      }
+    });
+  }
+});
+
+test("a face's number stands upright by the real dice's convention", () => {
+  const top = (pts) => Math.max(...pts.map((p) => p[1]));
+  for (const shape of m.SHAPES) {
+    const sol = m.solid(shape);
+    const cols = Math.ceil(Math.sqrt(sol.faces.length));
+    const cells = m.cellsOf(shape, cols, Math.ceil(sol.faces.length / cols));
+    cells.forEach((cell, f) => {
+      const high = cell.points.filter((p) => Math.abs(p[1] - top(cell.points)) < 1e-6);
+      if (shape === "d6") {
+        // An edge on top, level: the number reads along the edges, never on the diagonal.
+        assert.equal(high.length, 2, `d6 face ${f}`);
+      } else {
+        // A corner straight above the middle (triangles, pentagons, the kite's tip).
+        assert.equal(high.length, 1, `${shape} face ${f}`);
+        assert.ok(Math.abs(high[0][0] - 0.5) < 1e-6, `${shape} face ${f}: the corner is above the middle`);
+      }
+    });
+  }
+});
+
+test("a number is centred by its ink and fits inside every face with a margin", () => {
+  // A fake canvas measure: ink offset on purpose from the em box.
+  const measure = (t) => ({ actualBoundingBoxLeft: 30 * t.length - 4, actualBoundingBoxRight: 30 * t.length + 10, actualBoundingBoxAscent: 76, actualBoundingBoxDescent: 3 });
+  const ink = m.inkOf(measure, "12");
+  const at = m.centred(ink, 50, 64, 64);
+  // Drawn at (x, y) with centre alignment and an alphabetic baseline, the
+  // ink spans [x - l, x + r] and [y - a, y + d]: its middle is (64, 64).
+  assert.ok(Math.abs(at.x + ((ink.r - ink.l) / 2) * 50 - 64) < 1e-9);
+  assert.ok(Math.abs(at.y - ((ink.a - ink.d) / 2) * 50 - 64) < 1e-9);
+  for (const shape of m.SHAPES) {
+    if (shape === "d4") continue;
+    const sol = m.solid(shape);
+    const cols = Math.ceil(Math.sqrt(sol.faces.length));
+    const cells = m.cellsOf(shape, cols, Math.ceil(sol.faces.length / cols));
+    for (const [w, h] of [[0.6, 0.72], [1.2, 0.72], [1.35, 0.9]]) {
+      cells.forEach((cell, f) => {
+        const r = m.inradius(cell.points) * m.CELL;
+        const size = m.fitSize(cell.points, w, h, m.CELL, r * 0.22, r * 1.3);
+        // The four corners of the ink box are inside the face.
+        for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+          const q = [0.5 + (sx * w * size) / 2 / m.CELL, 0.5 + (sy * h * size) / 2 / m.CELL];
+          assert.ok(m.inradius(cell.points) > 0);
+          let inside = Infinity;
+          cell.points.forEach((a, i) => {
+            const b = cell.points[(i + 1) % cell.points.length];
+            const dx = b[0] - a[0];
+            const dy = b[1] - a[1];
+            inside = Math.min(inside, ((dx * (q[1] - a[1]) - dy * (q[0] - a[0])) / Math.hypot(dx, dy)) * m.CELL);
+          });
+          assert.ok(inside >= r * 0.22 - 1e-6, `${shape} face ${f} ${w}x${h}: ${inside}`);
+        }
+      });
+    }
+  }
 });
