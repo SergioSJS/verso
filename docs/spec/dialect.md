@@ -1534,6 +1534,17 @@ the parser was chosen.
   Obsidian closes in full only in the PR that adds it, with this section
   updated in the same PR; none is drafted yet.
 
+  **Adjusted by the build, 2026-10-21, awaiting the maintainer** (under the
+  decision's own clause "the answer adjusts if it differs"; the maintainer
+  confirms or reverses it through the fixtures and the questions DL.1 and
+  DL.2 of the decisions list of 2026-10-21): (a) the closing `...` was **not**
+  built, because Obsidian does not accept it (observed, below) — question
+  DL.1. (b) `tags: 2024` is **not** the tag "2024": Obsidian reads a number
+  in `tags` as no tag (observed, below), and the build follows Obsidian —
+  fixture `frontmatter/tags-number`, a draft, and question DL.2. The text
+  above is the decision as recorded; this line records that the build does
+  not do it as written.
+
   **Built on branch `feat/dialect-q22-q24`, 2026-10-21 (fixtures awaiting the
   maintainer's approval).** Observed on Obsidian 1.13.7 through its CLI. (a)
   A BOM before the `---` is accepted (Obsidian's cache has the frontmatter,
