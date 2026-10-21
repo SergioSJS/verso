@@ -1028,6 +1028,15 @@ Raised while writing this spec. All of them need an answer before
   blockquote counts as nested: this is what the reading view does, and it is
   recorded here as the rule (no earlier sentence of the spec said it).
 
+  *Correction, 2026-10-21 (review of the afternoon batch):* the sentence above
+  (a plain blockquote inside a callout is not a level; a callout inside it
+  counts as nested) is **the build's behaviour, awaiting the maintainer, not a
+  decision**: his answer approved the fixture, and the fixture's own note left
+  the case out on purpose because no sentence of the spec said it. Question
+  Q5-bis of the decisions list of the afternoon asks him to confirm it or
+  decide otherwise; until then it is a provisional fact like the one at the
+  top of this entry.
+
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
   view's comments `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
@@ -1499,6 +1508,10 @@ the parser was chosen.
   `block/id-chars` and `frontmatter/tags-hash` are **approved as drafted** and
   their draft marks removed. Q22 is closed: (a) `^id` charset, (b) nested tags
   counted under the tag above, (c) `#ideia` and `ideia` one tag.
+  *Recorded 2026-10-21 (review of the afternoon batch):* (b) **is** decided: it
+  is the maintainer's answer Q22b = A of the decisions list of 2026-10-20
+  ("Sim, `#a` acha `#a/b`", as Obsidian's tag pane does, per the public
+  documentation of nested tags); no fixture covers it.
 
 - **Q23. Combined forms and wikilink escapes.** `DECIDED` on 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
@@ -1610,12 +1623,26 @@ the parser was chosen.
   choice, and a note with `tags: 2024` shows a tag in Verso and none in
   Obsidian. The code is changed to follow this and the fixture
   `frontmatter/tags-number`, which today asserts the Obsidian reading, is
-  updated by the code that builds it; that fixture keeps its draft mark until
-  then, and the other five fixtures of Q22 and Q24 (`block/id-chars`,
+  updated by the code that builds it; that fixture's draft mark was removed
+  once it was approved with DL.2 B (v0.48, `0d576e17`; see the dated lines
+  below), and the other five fixtures of Q22 and Q24 (`block/id-chars`,
   `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`,
   `frontmatter/wikilink-values`) are **approved as drafted** (DL.3, option A),
   their draft marks removed. (c) The BOM, YAML 1.2, wikilinks in values and
   mixed line endings stand as decided on 2026-10-21 and built.
+
+  *Dated lines, 2026-10-21 (review of the afternoon batch).* (1) The file
+  `fixtures/frontmatter/tags-number/expected.yaml` has no draft mark and was
+  approved with DL.2 B (v0.48). Its comment and its `observed:` text **changed
+  after the approval** (they now say that Verso diverges from Obsidian by the
+  maintainer's decision); the asserted value (`frontmatter: tags: 2024`, an
+  integer) did not. Invariant 14 reads "never change `expected.yaml` without
+  explicit approval", so a one-line re-confirmation of the file as it now
+  stands is asked (question I-8 of the decisions list of the afternoon).
+  (2) That "a negative integer is no tag" and "a float is no tag" (`tags:
+  1.5`, `tags: -3`) are **the build's choice**: the answer named only `2024`;
+  it sits in the code comment and its test
+  (`crates/verso-dialect/src/tags.rs`) and is asked as T.3 of the same list.
 
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a

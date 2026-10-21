@@ -138,6 +138,62 @@ each one names.
   `deny.toml` is ratified until 2026-12-31 (review when the Tauri plugins change
   library).
 - **The beta, seen by the maintainer:** *"Quase tudo ok, exceto a parte do
-  wizard de tema, achei a tela mega poluída…"*: the theme wizard is revised
-  ([ADR 0100](../adr/0100-visual-customization-wizard.md) item 2). He read the
-  English demo vault's translations; nothing else was reported against them.
+  wizard de tema, achei a tela mega puida…"* [poluída]: the theme wizard is
+  revised ([ADR 0100](../adr/0100-visual-customization-wizard.md) item 2).
+  Beside it he ticked "Read the English demo vault's translations" (notes 00,
+  15 and 26 first), with no comment: what he found there, if anything, is not
+  recorded. (Corrected 2026-10-21, see section 8: this line used to say that
+  he read them and nothing was reported, which is more than a ticked box
+  says.) He also ticked "Fractal licence — the authors' answer" without
+  writing the outcome (the credit still says CC BY 4.0, 0099.6b; asked again
+  as T.1 of the decisions list of the afternoon) and "Review of the Opus/Sonnet
+  relationship", with no comment either.
+
+
+## 8. The afternoon review
+
+A second review, by Fable 5.1, of the afternoon batch of 2026-10-21
+(`89a10272..013ba5ed`, `feat/rpg-tools`), recorded in
+`verso-revisao-fable-tarde-2026-10-21.md` (outside the repository): one
+BLOCKING (in the documents), ten IMPORTANT (six in the cloud sync code, four
+in the documents) and twenty-one MINOR. "Fixed in `fix/review-cloud` (pending
+merge)" is the code branch of another agent, not verified from this branch;
+"Fixed here" is this documentation branch, `docs/review-afternoon`, not yet
+merged and not yet read by the other model. "Question for the maintainer"
+means nothing was decided: the questions are in the decisions list of the
+afternoon.
+
+| Id | Level | Finding | Resolution |
+|---|---|---|---|
+| B-1 | BLOCKING | The cards carry a one-line licence pointer while S.3b = B said "only on the Credits page"; two documents attributed the line to the maintainer. | Question for the maintainer (S.3b-bis). Recorded here as the build's choice in ADR 0099 item 6, `statblock-sources.md` and the CHANGELOGs, no longer attributed to him; no side picked. |
+| I-1 | IMPORTANT | S3 `write` can return another device's ETag as the version of our bytes. | Fixed in `fix/review-cloud` (pending merge). |
+| I-2 | IMPORTANT | S3 rename deletes the destination unconditionally when the copy disagrees. | Fixed in `fix/review-cloud` (pending merge). |
+| I-3 | IMPORTANT | Delete on a service without a conditional `DELETE` has an unguarded HEAD-then-DELETE window, not recorded in the ADR. | Question for the maintainer: accept the window or refuse the connection (C.3 said refuse). Recorded in ADR 0104 "As built". |
+| I-4 | IMPORTANT | WebDAV `exists` downloads the file. | Fixed in `fix/review-cloud` (pending merge): a `PROPFIND` at depth zero. Recorded in ADR 0104 "As built". |
+| I-5 | IMPORTANT | S3 answer bodies are read without a cap. | Fixed in `fix/review-cloud` (pending merge). |
+| I-6 | IMPORTANT | Turning a cloud folder's sync off throws away its base. | Fixed in `fix/review-cloud` (pending merge): the base is kept, only the secret deleted. Recorded in ADR 0104 "As built". |
+| I-7 | IMPORTANT | `[DECIDED]` stamps on ADR 0104 items no question asked; "Recommended" left after C.1/C.6 answered; C.7 not stated. | Fixed here: ADR 0104 (+ pt-BR) — "accepted with the ADR, not asked one by one", C.1 = A, C.6 = A and C.7 = A stated. |
+| I-8 | IMPORTANT | Spec Q24 and the v0.48 row disagree on `tags-number`'s draft mark; the approved file's text changed after approval. | Fixed here: Q24 agrees with the file (no draft mark). Question for the maintainer: re-confirm the file as it now stands (I-8). |
+| I-9 | IMPORTANT | Spec Q5 and Q22(b) record rules beyond the answers. | Fixed here: Q5's plain-blockquote rule marked as the build's behaviour awaiting him (question Q5-bis, a question for the maintainer); Q22(b) cites his answer Q22b = A of the list of 2026-10-20 (it was decided; the review missed it). |
+| I-10 | IMPORTANT | ADR 0104 "As built" misses building choices; the Windows limit is presented as 2000. | Fixed here: ADR 0104 "As built" (+ pt-BR), roadmap V.40 and the threat model say 2560 is Microsoft's and 2000 the build's margin; C.13 recorded (being fixed in `fix/review-cloud`). (The roadmap's V.38 is the dialect row and carries no such figure.) |
+| M-1 | MINOR | A secret is kept in the keychain before the person starts. | Fixed in `fix/review-cloud` (pending merge). |
+| M-2 | MINOR | The probe leaves multipart uploads open. | Fixed in `fix/review-cloud` (pending merge). |
+| M-3 | MINOR | The WebDAV probe deletes the shared `.verso-probe` folder. | Fixed in `fix/review-cloud` (pending merge). |
+| M-4 | MINOR | WebDAV collection URIs asked without a trailing slash (PLAUSIBLE). | Fixed in `fix/review-cloud` (pending merge); to be checked against a non-Nextcloud server in the manual checks. |
+| M-5 | MINOR | A changed-while-listing file costs a read on the next pass (safe). | No change needed; the cost goes with I-4. |
+| M-6 | MINOR | `list_block_ids` loads every row before truncating. | Fixed in `fix/review-cloud` (pending merge). |
+| M-7 | MINOR | `truncated` is computed before the scope filters. | Fixed in `fix/review-cloud` (pending merge). |
+| M-8 | MINOR | Negative integers and floats not being tags are the build's choice, not in the spec. | Recorded in spec Q24 as the build's choice; question for the maintainer (T.3). |
+| M-9 | MINOR | `create_picked` reads the whole file into memory. | Fixed in `fix/review-cloud` (pending merge). |
+| M-10 | MINOR | Tokens of a closed window are never dropped. | Fixed in `fix/review-cloud` (pending merge). |
+| M-11 | MINOR | The folder switcher's `place` label has no revision line on ADR 0026/0081. | Dated line added to ADR 0026 and 0081; question for the maintainer (T.9). Nothing decided. |
+| M-12 | MINOR | The theme builder edits `settings.look` in place. | Fixed in `fix/review-cloud` (pending merge). |
+| M-13 | MINOR | `throwDice` can leak a WebGL context on failure. | Fixed in `fix/review-cloud` (pending merge). |
+| M-14 | MINOR | An empty data file renders an empty `<pre>`; the diagram box shows while loading. | Fixed in `fix/review-cloud` (pending merge). |
+| M-15 | MINOR | `statblock-sources.md` still says the RTG disclaimer sits at the foot of each blank card. | Fixed here: reworded to the current state, dated, in both languages. |
+| M-16 | MINOR | The theme gallery's focus key splits on `|`. | Fixed in `fix/review-cloud` (pending merge). |
+| M-17 | MINOR | ADR index rows: 0105 item 5, 0104 "not built", 0100 item 2's revision. | Fixed here, both languages. |
+| M-18 | MINOR | "mega puida" quoted as "mega poluída". | Fixed here: quoted verbatim, "[poluída]" after it (ADR 0100, this review's section 7, roadmap V.28, the pt-BR twins). |
+| M-19 | MINOR | Section 7 inferred "he read the translations; nothing reported" from a ticked box. | Fixed here: section 7 says he ticked it, with no comment; the Fractal and Opus/Sonnet items recorded as ticked without outcome. |
+| M-20 | MINOR | "None other recorded" in ADR 0099; ADR 0101 item 3's dangling sentence; ADR 0106's missing blank line; ADR 0104's 0104.2 deviation inside the source line. | Fixed here: "None recorded."; the sentence completed; the blank line restored (EN; the pt-BR twin already had it); the deviation stated on its own line. |
+| M-21 | MINOR | The pt-BR field names of the World of Darkness and Cyberpunk RED layouts are the build's, not stated in ADR 0099. | Fixed here: ADR 0099 item 6 says they were chosen by the build from community terms, provisional (S.3c). |

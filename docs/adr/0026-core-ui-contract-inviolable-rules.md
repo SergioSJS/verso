@@ -32,6 +32,15 @@
   maintainer as built and tested, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved); a dated note beside each.
+  2026-10-21 (review of the afternoon batch, **awaiting the maintainer**,
+  question T.9 of the decisions list of the afternoon; nothing decided here)
+  — the folder switcher shows each recent folder with a `place` label, the
+  last two components of its parent folder (`~/…/Documents/obsidian`,
+  `…/Volumes/Disco`; `RecentFolder::place` in `crates/verso-contract`). Rule
+  4's letter holds (never absolute, never `..`) and it is a label, not a
+  capability; but [0081](0081-sharing-between-people-on-one-universo.md)
+  item 5 says "names and keys, no path" and carries no revision line for it.
+  Whether the label is accepted as a reading of rule 4 is his to say.
 
 ## Context
 

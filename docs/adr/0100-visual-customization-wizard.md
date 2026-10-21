@@ -83,7 +83,7 @@ where an option differs from the one first recommended, the item says so.
    **Revision, 2026-10-21 (the maintainer, after looking at the beta
    installed that day): this item is revised.** He looked at the beta and
    wrote: *"Quase tudo ok, exceto a parte do wizard de tema, achei a tela
-   mega poluída, bora fazer uma nova janela só para construção do tema.
+   mega puida [poluída], bora fazer uma nova janela só para construção do tema.
    pensei de em settings aparência ele ter várias caixas com amostra mínima
    de cada tema para simplificar a escolha, e botões para copiar e alterar o
    tema aí sim abrindo a janela com as opções que foram feitas"* (almost
