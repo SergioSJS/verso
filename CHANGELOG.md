@@ -28,6 +28,7 @@ test release.
 
 ### Fixed
 
+- **The graph's count is announced once typing pauses (accessibility)**: filtering the graph updates the count on screen at every key, but a screen reader hears it only about a second after you stop typing.
 - **Bigger click areas (accessibility)**: a tab's close mark, the remove mark of a list pill in the properties and the status bar's buttons answer a click within 24 × 24 px around them, though they are drawn as small as before and the tab bar keeps its height.
 - **"Área" no longer names two things in Portuguese (accessibility)**: a pane is now a *painel* and a workspace an *espaço de trabalho* everywhere in the Portuguese interface, so "Fechar painel" and "Fechar espaço de trabalho" are two controls with two names; the tutorial note on tabs, panes and workspaces follows (it is now *Abas, Painéis, Espaços de Trabalho e Janelas*).
 - **Routine saves are no longer read aloud (accessibility)**: "Saved." stays on the status line, but a screen reader announces only what goes wrong or needs attention (a refused write, an error, a conflict, a search or graph count), not every autosave.

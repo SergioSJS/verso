@@ -76,3 +76,53 @@ test.describe("targets of 24 px", () => {
     expect(before.height).toBeLessThan(24);
   });
 });
+
+test.describe("the graph", () => {
+  test("the count is announced after typing pauses, drawn at once", async ({ app, page }) => {
+    await app.open();
+    await app.command("Grafo do cofre");
+    const live = page.locator(".graph-head .sr-only[role='status']");
+    await expect(live).toContainText(/\d/);
+    const first = await live.textContent();
+    await page.locator(".graph-filter").pressSequentially("guia", { delay: 40 });
+    // The drawn count changes at once; the announced one waits.
+    await expect(page.locator(".graph-count")).not.toHaveText(first);
+    expect(await live.textContent()).toBe(first);
+    await expect(live).not.toHaveText(first, { timeout: 4000 });
+    expect(await live.textContent()).toBe(await page.locator(".graph-count").textContent());
+  });
+
+  test("a press on a node at the view's edge does not move the view", async ({ app, page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await app.open();
+    await app.command("Grafo do cofre");
+    const svg = page.locator("svg.graph");
+    await expect(page.locator("svg.graph .node circle").first()).toBeVisible();
+    const view = () => page.locator("svg.graph > g").first().getAttribute("transform");
+    // Pan the graph until its leftmost node is 10 px from the view's edge.
+    const box = await svg.boundingBox();
+    const xs = await page.locator("svg.graph .node circle").evaluateAll((cs) => cs.map((c) => c.getBoundingClientRect().left + c.getBoundingClientRect().width / 2));
+    const dx = box.x + 10 - Math.min(...xs);
+    await page.mouse.move(box.x + box.width - 6, box.y + box.height - 6);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 6 + dx, box.y + box.height - 6, { steps: 4 });
+    await page.mouse.up();
+    const target = page.locator("svg.graph .node circle").filter({}).evaluateAll((cs, edge) => {
+      let best = null;
+      for (const c of cs) {
+        const r = c.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        if (!best || x < best.x) best = { x, y: r.top + r.height / 2 };
+      }
+      return best;
+    });
+    const at = await target;
+    expect(at.x - box.x).toBeLessThan(24);
+    const before = await view();
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down();
+    const during = await view();
+    await page.mouse.up();
+    expect(during).toBe(before);
+  });
+});
