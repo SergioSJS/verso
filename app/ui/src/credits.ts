@@ -241,9 +241,9 @@ export const SYSTEMS: SystemNotice[] = [
     // that the content is not official World of Darkness material (the
     // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
     // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
-    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
-    // material: that file comes from Paradox's Dark Pack kit and is not in
-    // this build yet.
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo: Paradox's
+    // own file, unaltered, is shown beside this notice (creditsItems.ts,
+    // web-assets/darkpack-logo.png).
     lines: [
       "Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
       DARK_PACK_RIGHTS,
@@ -260,9 +260,9 @@ export const SYSTEMS: SystemNotice[] = [
     // that the content is not official World of Darkness material (the
     // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
     // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
-    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
-    // material: that file comes from Paradox's Dark Pack kit and is not in
-    // this build yet.
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo: Paradox's
+    // own file, unaltered, is shown beside this notice (creditsItems.ts,
+    // web-assets/darkpack-logo.png).
     lines: [
       "Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
       DARK_PACK_RIGHTS,
@@ -279,9 +279,9 @@ export const SYSTEMS: SystemNotice[] = [
     // that the content is not official World of Darkness material (the
     // agreement gives no wording for it; this is docs/reference/statblock-sources.md's
     // suggestion), read at https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement
-    // on 2026-10-21. The agreement also asks for the Dark Pack logo on the
-    // material: that file comes from Paradox's Dark Pack kit and is not in
-    // this build yet.
+    // on 2026-10-21. The agreement also asks for the Dark Pack logo: Paradox's
+    // own file, unaltered, is shown beside this notice (creditsItems.ts,
+    // web-assets/darkpack-logo.png).
     lines: [
       "Hunter: The Reckoning, World of Darkness and related terms are trademarks of Paradox Interactive AB.",
       DARK_PACK_RIGHTS,

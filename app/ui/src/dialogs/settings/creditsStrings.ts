@@ -16,6 +16,7 @@ const pt = {
   openLink: (name: string) => `Abrir ${name} no navegador`,
   visit: "Abrir",
   licence: (l: string) => `Licença: ${l}`,
+  darkPackLogo: "Logotipo do Dark Pack, da Paradox Interactive",
 };
 const en: typeof pt = {
   section: "Credits and acknowledgements",
@@ -26,6 +27,7 @@ const en: typeof pt = {
   openLink: (name: string) => `Open ${name} in the browser`,
   visit: "Open",
   licence: (l: string) => `Licence: ${l}`,
+  darkPackLogo: "Dark Pack logo, by Paradox Interactive",
 };
 export const cs = LANG.toLowerCase().startsWith("pt") ? pt : en;
 export const isPt = LANG.toLowerCase().startsWith("pt");
