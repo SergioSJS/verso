@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.46
+# Verso dialect spec — v0.47
 
-- Version: v0.46 · 2026-10-20
+- Version: v0.47 · 2026-10-21
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -340,7 +340,7 @@ alias, per Obsidian's public documentation. How the `expected.yaml` records
 that: Q23.
 
 Embed and link are distinct constructs in the `expected.yaml`. Whether an embed
-also counts as a link in the graph and in backlinks: `[OPEN]` (section 9, Q2).
+also counts as a link in the graph and in backlinks: `DECIDED` on 2026-10-21, yes, marked as an embed (section 9, Q2).
 
 ### 5.7 Block definition
 
@@ -420,7 +420,7 @@ callouts:
 ```
 
 Which callout kinds are recognized, the behavior of `-`/`+` (collapsed or
-expanded) and nesting: `[OPEN]` (section 9, Q5).
+expanded) and nesting: `DECIDED` (section 9, Q5; nesting on 2026-10-21).
 
 A callout of kind `secret` is the game master's secret (section 9, Q9,
 `DECIDED` on 2026-10-14, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
@@ -447,8 +447,8 @@ links: []
 This holds for inline code (backtick) and code block (fenced). The briefing
 requires both categories in the minimal fixtures.
 
-Code block indented by 4 spaces, embedded HTML and `%%comentário%%`: `[OPEN]`
-(section 9, Q6).
+Code block indented by 4 spaces, embedded HTML and `%%comentário%%`: `DECIDED`
+on 2026-10-21 (section 9, Q6).
 
 ### 5.10 Note name with accent and space
 
@@ -467,7 +467,7 @@ Unicode normalization in name comparison (NFC × NFD: files coming from HFS+,
 from other platforms and from sync mix the two forms; APFS preserves the form it
 receives and does a normalization-insensitive lookup): `DECIDED` on 2026-10-10 —
 one name is one file everywhere, the server comparing names in NFC (section 9,
-Q7). Case sensitivity: `[OPEN]` (section 9, Q8).
+Q7). Case sensitivity: `DECIDED` on 2026-10-21 (section 9, Q8).
 
 ### 5.11 `.canvas` (JSON Canvas)
 
@@ -569,7 +569,7 @@ headings:
 
 How the text of `[[nota#seção]]` matches a heading (case, punctuation, inline
 formatting, emoji, duplicate headings, nested path `[[nota#Cap 1#Seção]]`):
-`[OPEN]` (section 9, Q19).
+`DECIDED` on 2026-10-21 (section 9, Q19).
 
 A setext-style heading — a line of text underlined with `===` or `---` — is a
 heading, as Obsidian reports it. `DECIDED` on 2026-09-29 by the maintainer,
@@ -586,7 +586,7 @@ setext part of Q19, answered by observation; the maintainer approved that
 fixture on 2026-09-29, in session ("ratifique o que precisar", answering the
 list of what was pending, which named it), and its first line now records
 the approval (section 1; [ADR 0031](../adr/0031-fixtures-as-contract.md)).
-The matching part of Q19 stays `[OPEN]`.
+The matching part of Q19 was `[OPEN]`; decided on 2026-10-21 (section 9, Q19).
 
 ### 5.13 Markdown links to a local file `PROPOSED`
 
@@ -612,8 +612,8 @@ links:
 Proposal: they count as a link, with `syntax: markdown` and `target` already
 decoded from URL-encoding. Details — `<...>` with spaces, relative path `../`,
 what separates a local link from an external URL, image `![](img.png)` as an
-embed — `[OPEN]` (section 9, Q20). A proposal, not a decision: the briefing does
-not list that form.
+embed — `DECIDED` on 2026-10-21 (section 9, Q20). The briefing does not list
+that form; the decision is the maintainer's.
 
 ---
 
@@ -729,7 +729,8 @@ About D2, D3 and D4: conversion **only by user action, with a visible diff**.
 Opening a file never rewrites it ([ADR 0012](../adr/0012-files-are-source-of-truth.md)).
 
 What Verso does **not** define yet and Obsidian does — ambiguous link
-resolution, inline tags, periodic notes, search — is in section 9, not here.
+resolution, inline tags, search — is in section 9, not here. Periodic notes are
+[ADR 0093](../adr/0093-periodic-notes.md)'s, which accepted the behaviour.
 
 ---
 
@@ -892,8 +893,8 @@ Raised while writing this spec. All of them need an answer before
   field for `#^bloco` (section 5.5). Answer: `block` (section 4.2). Closed
   on 2026-09-21 by the maintainer's approval of the fixture
   `fixtures/wikilink/block-reference` (ADR 0031).
-- **Q2. Does an embed count as a link in the graph and in backlinks?** `[OPEN]`
-  (section 5.6)
+- **Q2. Does an embed count as a link in the graph and in backlinks?** `DECIDED`
+  on 2026-10-21 (section 5.6)
 
   **Provisional fact from `verso-index`, recorded on 2026-09-22, not an answer
   to this question.** An embed counts as a link **and** as a backlink: it is
@@ -904,6 +905,12 @@ Raised while writing this spec. All of them need an answer before
   links `resolvedLinks` counts from the sandbox note to `Alvo.md` include the
   embed `![[Alvo]]`. The maintainer decides; this line only records what the
   code does in the meantime.
+
+  **Decided on 2026-10-21 by the maintainer** (decisions questionnaire of
+  2026-10-20, option A): the provisional fact above is ratified — an embed is
+  a link and a backlink, marked as an embed. Already observed in Obsidian
+  1.13.7; nothing to build.
+
 - **Q3. Admissible position of the `^id`.** `DECIDED`: for the end of a
   paragraph and of a list item on 2026-09-21; for a `^id` alone after a
   top-level block and at the end of a heading on 2026-10-07; for a `^id`
@@ -965,7 +972,7 @@ Raised while writing this spec. All of them need an answer before
   window applies it — an embed, a link to the block — and a client of the
   MCP reads it there.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
-  title on 2026-09-23; `[OPEN]` for nesting.
+  title on 2026-09-23; `DECIDED` for nesting on 2026-10-21.
   Recognized kinds, `-`/`+`, nesting (section 5.8).
 
   **Decided on 2026-09-23 by the maintainer, for the reading view**
@@ -993,9 +1000,21 @@ Raised while writing this spec. All of them need an answer before
   follows Obsidian's public documentation, which shows nested callouts. The
   parser that feeds the index is not touched. The maintainer decides; this
   line only records what the code does in the meantime.
+
+  **Nesting decided on 2026-10-21 by the maintainer** (option A): the
+  provisional fact above is ratified — the reading view draws a callout inside
+  a callout, up to 32 deep — **and the parser that feeds the index learns the
+  nesting**, with the same limit of 32, so index and reading view agree, and a
+  `[!secret]` inside another callout is recognized there too (section 5.8,
+  Q9). The fixture `callout/nested` is drafted by the AI and approved by the
+  maintainer in the separate code PR that builds this; no `fixtures/**` file
+  changed with this answer. Per invariant 17, a question that needs a fixture
+  or an observation of Obsidian closes in full only in the PR that adds it,
+  with this section updated in the same PR; none is drafted yet.
+
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
-  `[OPEN]` for the index and for embedded HTML; the reading view's comments
-  `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
+  `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
+  view's comments `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
   inside a URL (section 5.9).
 
   **Decided on 2026-09-23 by the maintainer, for the reading view and the
@@ -1019,6 +1038,21 @@ Raised while writing this spec. All of them need an answer before
   help shows `<iframe>` in a note; no public page shows `<video>` or `<audio>`
   in a note's raw HTML — audio and video are documented as `![[…]]` embeds.
   The question stays `[OPEN]`, and that memo lays out the options.)*
+
+  **Decided on 2026-10-21 by the maintainer** (option A): the provisional
+  state is ratified — the index counts a `[[x]]` inside a `%%comment%%`,
+  embedded HTML or a block indented by 4 spaces as a link (the parser does not
+  tell them apart), and the reading view's allowlist stays as it is,
+  `<iframe>`, `<video>` and `<audio>` still dropped: a note of a shared folder
+  is untrusted input ([ADR 0045](../adr/0045-server-and-mcp-security.md)), so
+  there is no new risk. Making the index ignore `[[ ]]` in comments and HTML
+  (option B), or allowing `<iframe>` with restrictions (option C), are
+  improvements for later, with an observation of Obsidian and a security
+  review (`docs/reference/embedded-media-decision.md`). Per invariant 17, a
+  question that needs a fixture or an observation of Obsidian closes in full
+  only in the PR that adds it, with this section updated in the same PR; none
+  is drafted yet.
+
 - **Q7. Unicode normalization in name comparison.** `DECIDED` on 2026-10-10.
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
@@ -1043,7 +1077,7 @@ Raised while writing this spec. All of them need an answer before
   name; a file changed on both sides under the two forms is a conflict copy
   ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md) item 8). No
   fixture: the maintainer did not ask for one.
-- **Q8. Case sensitivity in name resolution.** `[OPEN]`
+- **Q8. Case sensitivity in name resolution.** `DECIDED` on 2026-10-21.
   It interacts with case-insensitive file systems (macOS by default — APFS can
   be case-sensitive per volume —, Windows) and case-sensitive ones (Linux) — the
   same vault may resolve differently per platform (section 5.10).
@@ -1063,6 +1097,17 @@ Raised while writing this spec. All of them need an answer before
   when Verso makes or renames it, on every OS and on the server; an entry
   that exists is never refused ([ADR 0070](../adr/0070-what-travels-with-the-folder.md)
   item 3, revised 2026-10-12).
+
+  **Decided on 2026-10-21 by the maintainer** (option A): the provisional fact
+  above is ratified — resolution does not distinguish case, on every platform,
+  as Obsidian 1.13.7; on a tie the exact name wins, then the first by the
+  order of Q12. Two entries that differ only in case in a folder on a case-
+  sensitive disk are ambiguous and resolved by that tie-break. The tie-break
+  is the one Q12 already uses; it is to be confirmed in the PR that builds
+  this. Per invariant 17, a question that needs a fixture or an observation of
+  Obsidian closes in full only in the PR that adds it, with this section
+  updated in the same PR; none is drafted yet.
+
 - **Q12. Rule for resolving a link to a file.** **CLOSED on 2026-09-22 by the
   maintainer**, following Obsidian 1.13.7 as observed
   (`docs/reference/index-decision.md` §4.1 and §4.6,
@@ -1149,7 +1194,7 @@ Raised while writing this spec. All of them need an answer before
   indented), raw HTML, link destinations and labels, image alt text, math and
   `%%` comments; before it, the index scanned raw lines and listed false tags. The
   reading view shows such a tag as a link that searches it.
-- **Q14. Link to a file that does not exist.** `[OPEN]`
+- **Q14. Link to a file that does not exist.** `DECIDED` on 2026-10-21.
   Whether it enters the index as a pending target, whether it appears in the
   graph, whether it counts as a backlink.
 
@@ -1176,8 +1221,20 @@ Raised while writing this spec. All of them need an answer before
   heading link as a missing file and puts an empty target at the head of the
   unresolved list of any folder that uses them. The maintainer decides; this
   line only records what the code does in the meantime.
+
+  **Decided on 2026-10-21 by the maintainer** (options A and B both marked):
+  (A) the provisional facts above are ratified — a target no note answers to
+  enters the index as pending, with its text as written and a count, and is
+  never a backlink of anything; `[[#Heading]]` resolves to the note itself;
+  and (B) **unresolved links are also shown as nodes in the graph**, as an
+  option, as Obsidian's graph has one (to be confirmed in Obsidian's public
+  documentation before it is built). The graph option changes nothing in the
+  index. Per invariant 17, a question that needs a fixture or an observation
+  of Obsidian closes in full only in the PR that adds it, with this section
+  updated in the same PR; none is drafted yet.
+
 - **Q15. Markdown extensions outside the base.** `DECIDED` for the reading view
-  on 2026-09-23; `[OPEN]` for the parser that feeds the index.
+  on 2026-09-23; `DECIDED` for the parser that feeds the index on 2026-10-21.
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
   The briefing lists none; the choice of base parser
   ([ADR 0037](../adr/0037-base-parser.md)) changes what comes for free.
@@ -1201,7 +1258,18 @@ Raised while writing this spec. All of them need an answer before
   does not, `$[[x]]$` is a link to the index and math to the reader — a
   disagreement recorded, not resolved. Whether the parser that feeds the index
   enables these extensions, which would settle it, stays `[OPEN]`.
-- **Q16. Non-Markdown files in the folder.** `[OPEN]`
+
+  **Decided on 2026-10-21 by the maintainer** (option A): **the parser that
+  feeds the index enables the six** — tables, footnotes, task lists, math,
+  highlight and strikethrough — so index and reading view read the same
+  document, which closes the `$[[x]]$` divergence recorded above. It needs the
+  round-trip property test and fixtures, and an observation of what Obsidian
+  does with `$[[x]]$`. Per invariant 17, a question that needs a fixture or an
+  observation of Obsidian closes in full only in the PR that adds it, with
+  this section updated in the same PR; none is drafted yet.
+
+- **Q16. Non-Markdown files in the folder.** `DECIDED` on 2026-10-21 for the rest;
+  `.canvas` below.
   Which ones enter the index as a link target (images, PDF, `.canvas`) and which
   ones are ignored.
 
@@ -1230,8 +1298,19 @@ Raised while writing this spec. All of them need an answer before
   whose frontmatter has an `http(s)` `url` property is shown as that web page;
   the index keeps the address for it. The maintainer decides; this line only
   records what the code does in the meantime.
-- **Q17. Size limit and behavior with a malformed file.** `[OPEN]` — the
-  frontmatter part is `DECIDED` below; the rest of the question stays open.
+
+  **Decided on 2026-10-21 by the maintainer** (option A): **images, PDFs and
+  other files become link targets in the index**, by their full name with the
+  extension, as `.canvas` already is; this closes the difference with point 5
+  of Q12 (an embed resolves by the same rule), and "unused files" and the
+  backlinks of an image start to work. Obsidian's behaviour for the backlinks
+  of attachments is to be confirmed by observation (ADR 0009) before it is
+  built. Per invariant 17, a question that needs a fixture or an observation
+  of Obsidian closes in full only in the PR that adds it, with this section
+  updated in the same PR; none is drafted yet.
+
+- **Q17. Size limit and behavior with a malformed file.** `DECIDED` on 2026-10-21 for the rest (limits in the core); the
+  frontmatter part is `DECIDED` below.
   Fuzzing guarantees that it does not hang
   ([ADR 0029](../adr/0029-guardrails-in-ci.md)), but the expected result —
   error, partial parse or the file treated as text — is not defined. It includes
@@ -1265,6 +1344,16 @@ Raised while writing this spec. All of them need an answer before
   [ADR 0037](../adr/0037-base-parser.md), and what to do about it belongs to
   that ADR, not to this question.
 
+  **The rest decided on 2026-10-21 by the maintainer** (option A): the limits
+  live **in the core**, not in the parser — above a ceiling of size a note
+  opens as plain text and is not indexed, and the index has a timeout per file
+  — and the user sees a notice. The exact values are left to a short ADR, with
+  a fixture of the behaviour; the proposal there is 10 MB and 5 s, to be
+  confirmed with the baseline of [ADR 0039](../adr/0039-performance-targets.md). The exponential input recorded above stays [ADR
+  0037](../adr/0037-base-parser.md)'s. Per invariant 17, a question that needs
+  a fixture or an observation of Obsidian closes in full only in the PR that
+  adds it, with this section updated in the same PR; none is drafted yet.
+
 ### Gaps raised in the Phase 0 review
 
 Source: `docs/review/phase-0.md`, section 4. Same rule as the previous ones: an
@@ -1295,8 +1384,8 @@ the parser was chosen.
   ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) works
   over byte ranges delimited by parser positions. The base parser chosen under
   this reading is in [ADR 0037](../adr/0037-base-parser.md).
-- **Q19. Heading matching.** `[OPEN]`, the setext part `DECIDED` on
-  2026-09-29 (section 5.12)
+- **Q19. Heading matching.** `DECIDED` on 2026-10-21 for the matching, the setext
+  part `DECIDED` on 2026-09-29 (section 5.12)
   How `[[nota#seção]]` matches a heading: case, punctuation and spaces, emoji,
   inline formatting (`## *Porão*`), duplicate headings, nested path
   `[[nota#Cap 1#Seção]]`, setext heading, and what the `expected.yaml` records
@@ -1309,10 +1398,29 @@ the parser was chosen.
   session; that approval closes the setext sub-question, and only it. The
   matching part — case, punctuation, emoji, formatting, duplicates, the
   nested path and its `heading` value — stays `[OPEN]`.
-- **Q20. Markdown links to a local file.** `[OPEN]` (section 5.13)
+
+  **The matching decided on 2026-10-21 by the maintainer** (option A): observe
+  Obsidian (the CLI, `metadataCache`) in 8 to 10 cases — case, punctuation,
+  emoji, inline formatting such as `## *Porão*`, duplicate headings, the
+  nested path `[[nota#Cap 1#Seção]]` — and **adopt what is observed**, one
+  fixture per case. Per invariant 17, a question that needs a fixture or an
+  observation of Obsidian closes in full only in the PR that adds it, with
+  this section updated in the same PR; none is drafted yet.
+
+- **Q20. Markdown links to a local file.** `DECIDED` on 2026-10-21 (section 5.13)
   Whether they count as a link (proposal: yes); `<...>` with spaces; relative
   path `../`; what separates a local link from an external URL; `![](img.png)`
   as an embed; URL-encoding.
+
+  **Decided on 2026-10-21 by the maintainer** (option A): **yes** — a Markdown
+  link to a local file is a link and a backlink, with `%20` decoded and
+  relative paths resolved. One observation of Obsidian per form (`<...>` with
+  spaces, `../`, `![](img.png)` as an embed) before the details are fixed; the
+  proposal of section 5.13 stands until then. Per invariant 17, a question
+  that needs a fixture or an observation of Obsidian closes in full only in
+  the PR that adds it, with this section updated in the same PR; none is
+  drafted yet.
+
 - **Q21. What a "block" is.** `DECIDED` on 2026-10-07 by the maintainer.
   The editor's unit ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): a
   node of the syntax tree, never a line — a paragraph, a heading, a list item
@@ -1320,7 +1428,7 @@ the parser was chosen.
   whole table, a divider. A table cell is no block. What a `^id` names (Q3)
   and what an embed `![[nota#^id]]` shows are blocks in this sense.
 - **Q22. Charset of the `^id` and form of the tags.** `DECIDED` for the tags'
-  charset and case on 2026-09-23; `[OPEN]` for the rest.
+  charset and case on 2026-09-23; `DECIDED` for the rest on 2026-10-21.
   Obsidian's public documentation restricts `^id` to letters, numbers and
   hyphen; what happens with an invalid `^id`. For tags (Q13): charset, nesting
   `#a/b`, case sensitivity, `#` prefix in frontmatter `tags`.
@@ -1329,14 +1437,34 @@ the parser was chosen.
   charset and case folding are the ones recorded under Q13. The `^id` part,
   what `#a/b` means as a hierarchy, and a `#` prefix in the frontmatter's
   `tags` stay `[OPEN]`.
-- **Q23. Combined forms and wikilink escapes.** `[OPEN]`
+
+  **The rest decided on 2026-10-21 by the maintainer** (all three option A).
+  (a) **The `^id`**: only letters, digits and hyphen, as Obsidian's public
+  documentation says; anything else stays plain text; whether accented letters
+  count is to be observed. (b) **Tags**: `#a` finds `#a/b`, as Obsidian's tag
+  pane does with nested tags. (c) **`tags` in the frontmatter**: `[#ideia]`
+  and `[ideia]` are the same tag, to be confirmed by observation. Per
+  invariant 17, a question that needs a fixture or an observation of Obsidian
+  closes in full only in the PR that adds it, with this section updated in the
+  same PR; none is drafted yet.
+
+- **Q23. Combined forms and wikilink escapes.** `DECIDED` on 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
   (same file — does it count as a backlink to itself?), `[[pasta/nota]]`,
   `[[nota.md]]`, `[[nota\|alias]]` in a table, `\[[não é link]]`, `[[ nota ]]`
   with spaces, `![[img.png|300]]` (size, not alias), `[[nota|alias|extra]]`,
   wikilink inside a Markdown link or an image.
-- **Q24. Frontmatter boundary and dialect.** `[OPEN]` (section 5.1); the
-  window's part `DECIDED` on 2026-09-23.
+
+  **Decided on 2026-10-21 by the maintainer** (option A): observe each
+  combined form in Obsidian — `[[nota\|alias]]` in a table, `\[[not a link]]`,
+  `[[ nota ]]` with spaces, `![[img.png|300]]`, `[[nota|a|b]]`, a wikilink
+  inside a Markdown link or an image — one fixture per case, and **adopt what
+  is observed**. Per invariant 17, a question that needs a fixture or an
+  observation of Obsidian closes in full only in the PR that adds it, with
+  this section updated in the same PR; none is drafted yet.
+
+- **Q24. Frontmatter boundary and dialect.** `DECIDED` on 2026-10-21 (section 5.1);
+  the window's part `DECIDED` on 2026-09-23.
   BOM before the `---`; CRLF (invariant 7 requires preserving the line break
   "of the file" — which one, when there is a mix?); `---` closed by `...`; empty
   frontmatter; invalid YAML (part of Q17); YAML version — in 1.1 `yes`, `no`,
@@ -1367,6 +1495,21 @@ the parser was chosen.
   ([ADR 0057](../adr/0057-board-json-canvas.md), point 4): a quoted wikilink that is a property's
   value, or an item of a list that is a property's value, is a link, and the
   property is a typed relation named by its key; an unquoted `[[x]]` is YAML.
+
+  **The rest decided on 2026-10-21 by the maintainer** (all four option A).
+  (a) **BOM and `...`**: a BOM before the `---` is accepted, and the
+  frontmatter closes with `---` or `...`; the file is never rewritten
+  (invariant 7). (b) **YAML**: version 1.2 (`yes` is text) and `tags: 2024` is
+  the tag "2024"; what Obsidian does with `tags: 2024` is to be observed, and
+  the answer adjusts if it differs. (c) **Wikilinks inside values** count as a
+  link and a backlink, in the index and the graph — consistent with the link
+  part decided on 2026-09-30. (d) **Mixed line endings**: the file keeps
+  opening read-only, and a "Convert line endings…" command offers the
+  conversion with a visible diff, by the user's action (invariants 7 and 8).
+  Per invariant 17, a question that needs a fixture or an observation of
+  Obsidian closes in full only in the PR that adds it, with this section
+  updated in the same PR; none is drafted yet.
+
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
@@ -1449,3 +1592,4 @@ the parser was chosen.
 | v0.44 | 2026-10-15 | §5.11 item 7: a `> [!secret]` callout inside a board's text node is hidden from readers as in a note, and a `.txt` (any non-Markdown file) is not projected ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), the maintainer's decision of finding I3). No fixture (a canvas is not parsed by the dialect); the guardrail is the core's property test and the server's reader probe. No question closed |
 | v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |
 | v0.46 | 2026-10-20 | §6: two rows, the fenced block ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) and the `> [!oracle]` callout ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), constructs Verso draws and Obsidian reads as a code block and a callout; the parser does not change. No fixture (nothing here answers a §9 question or changes what the parser returns). No question closed |
+| v0.47 | 2026-10-21 | The maintainer's answers of the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **Q2, Q5 (nesting), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 and Q24 `DECIDED`**, each as the option marked — Q14 with both options, A (ratify) and B (unresolved links as graph nodes). Every decision is recorded; none closes in full, since each that needs a fixture or an observation of Obsidian waits for the PR that adds it (invariant 17); Q5's `callout/nested` is a separate code PR. §5 and §7 brought up to date: §7 now points to [ADR 0093](../adr/0093-periodic-notes.md) for periodic notes, not to §9. No fixture changed |
