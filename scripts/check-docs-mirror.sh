@@ -35,8 +35,11 @@ git() { command git -c core.quotepath=false "$@"; }
 
 # Tracked Markdown that deliberately has no twin. Keep this list short and
 # justified. Fixture inputs are contract data, not documentation (ADR 0031).
+# The demo vaults are the product's tutorial, one per language: their pairs
+# are kept by the manifest in scripts/demo-vault/names.mjs and checked by
+# `node scripts/demo-vault.mjs check` (ADR 0058), not by this mirror.
 EXCLUDED=()
-EXCLUDED_PREFIXES=(fixtures/ demo-vault/)
+EXCLUDED_PREFIXES=(fixtures/ demo-vault/ demo-vault-en/)
 
 fail=0
 say() { printf '%s\n' "$*" >&2; }
