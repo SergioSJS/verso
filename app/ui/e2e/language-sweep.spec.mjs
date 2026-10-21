@@ -39,7 +39,7 @@ const PT_CHARS = /[ãõçáéíóúâêôà]/i;
 
 /** Names the product keeps as they are, whatever the language. */
 const ALLOWED = [
-  /(?:Vampire|Hunter|Werewolf): The \w+, World of Darkness and related terms[^]*/g, // Paradox's trademark notice, required in English
+  /(?:Vampire|Hunter|Werewolf): The \w+, World of Darkness and related terms[^]*/g, // Paradox's trademark notice, required in English (credits page)
   /Delete exclui/g, // a key name in the editor's keyboard help
   /Português \(Brasil\)/g, // the language's own name, in its own language
   /English/g,
@@ -292,7 +292,7 @@ async function sweepLanguage(app, page, lang, project) {
     await visit(`statblock ${id}`, async () => {
       await app.quickOpen(`${lang === "en" ? "Sheet" : "Ficha"} ${id}`, L.quick);
       await expect(page.locator(".preview:visible .statblock-card").first()).toBeVisible();
-    }, { own: readFileSync(new URL(`${id}.yaml`, SAMPLES), "utf8") + (lang === "pt" || /^old-dragon/.test(id) ? readFileSync(new URL(`../${id}.json`, SAMPLES), "utf8") : "") });
+    }, { own: readFileSync(new URL(`${id}.yaml`, SAMPLES), "utf8") + (lang === "pt" ? readFileSync(new URL(`../${id}.json`, SAMPLES), "utf8") : "") });
   }
 
   // The layout editor, from Settings › Statblock templates.
