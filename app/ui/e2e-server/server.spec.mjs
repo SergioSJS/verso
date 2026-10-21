@@ -226,7 +226,7 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   await other.goto(`/?folder=${folder}`);
   await expect(other.locator("#notes")).toContainText(`${name}.md`);
   await showTree(other);
-  await other.locator("#notes").getByRole("button", { name: `${name}.md` }).click();
+  await other.locator("#notes").getByRole("treeitem", { name: `${name}.md` }).click();
   const theirs = other.locator(".cm-content:visible").first();
   // Edit mode in the second window, if it opened in reading.
   if (!(await theirs.isVisible())) await other.getByRole("button", { name: "Editar" }).first().click();
@@ -774,7 +774,7 @@ async function windowOn(page, folder, path) {
   await expect(page.locator("#folder")).toHaveText("Demo");
   await showTree(page);
   await expect(page.locator("#notes")).toContainText(path);
-  await page.locator("#notes").getByRole("button", { name: path }).click();
+  await page.locator("#notes").getByRole("treeitem", { name: path }).click();
 }
 
 /** The board's scene in a window, as a test reads it. */
