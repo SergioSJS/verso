@@ -24,6 +24,16 @@
   folder may suggest a theme), [0101](0101-3d-dice-physics-overlay.md) item
   5 (a switch off by default) and [0106](0106-structured-data-as-a-diagram.md)
   (a new switch) touch this ADR. Status Accepted.
+  2026-10-21, evening — where the switches live: the maintainer, *"os
+  recursos de rpg deveriam estar separados dos recursos da aplicação"*,
+  then, on seeing them as two groups inside one page, *"colocar esses
+  recursos de rpg dentro do grupo RPG & Mesa Solo"*. Settings ›
+  Features keeps the shortcuts "Everything" / "Writing only" (which
+  still cover every switch) and the general switches; the RPG switches
+  (dice, random tables, oracles, statblocks, the world wizard, 3D dice),
+  their "turn all on / off" (never turning 3D on) and the 3D dice
+  appearance move to a page "Dados e RPG" / "Dice and RPG", first in the
+  RPG & Solo Play group of Settings. The page name is the author's.
 - Related: [0012](0012-files-are-source-of-truth.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
