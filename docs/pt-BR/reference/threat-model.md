@@ -451,6 +451,23 @@ corrida contra a primeira olhada do registro perdia a versão encontrada e
 levava o nome dela. Agora uma versão só é registrada quando os bytes
 batem com a mudança.
 
+### Sync com um provedor de nuvem (ADR 0104)
+
+Aceito em 2026-10-21, **não construído**: esta seção é o modelo de ameaças que a funcionalidade precisa atender, escrito antes do código para que cada linha vire um teste (ou uma checagem manual) no PR que a construir. Uma pasta sincroniza com uma nuvem que a pessoa escolheu (WebDAV, S3, Dropbox, OneDrive, Google Drive) pelo sync do ADR 0079; os adaptadores ficam do lado do host do desktop e o núcleo continua sem alcançar a rede (0104 item 3).
+
+| Ameaça | Resposta decidida (a construir) |
+|---|---|
+| O app alcançando hosts que ninguém listou | Nada é pedido a um provedor antes de a pessoa conectá-lo. Conectado, o app fala com a API e os hosts de login desse provedor e com os endereços que o provedor devolve para uma transferência (as URLs pré-autenticadas de download e de sessão de upload do OneDrive, as URLs pré-assinadas do S3): a lista é por provedor, com esses padrões, não uma lista fixa (0104 item 15). |
+| Uma URL de transferência devolvida vazando | Essas URLs são segredos ao portador: quem a tiver lê ou escreve aquela transferência. Nunca vão ao log, ao registro do sync ou a um erro, nunca à janela. |
+| O ouvinte de loopback do login OAuth | Escuta só no loopback (`127.0.0.1`), confere o `state`, responde uma requisição, fecha depois dela ou após cinco minutos; PKCE, então um código interceptado não serve sem o verificador; o navegador do sistema, nunca uma web view embutida (0104 item 12). |
+| Um segredo em disco | Tokens de renovação, senhas de WebDAV e segredos de S3 vivem só no chaveiro do sistema (Keychain do macOS, Credential Manager do Windows, Secret Service do Linux), nunca na pasta, no arquivo de configuração ou em um log, e nunca são relidos pela janela. Em um Linux sem Secret Service o sync com a nuvem é recusado, com o motivo (0104 item 14). Desconectar apaga os segredos e revoga o token onde o provedor permite. |
+| Alcance demais concedido | Um escopo por provedor, o mais estreito: pasta do app no Dropbox, `Files.ReadWrite.AppFolder` no OneDrive, `drive.file` no Google Drive (nunca o `drive` completo), S3 e WebDAV como a pessoa restringe a chave (o passo a passo manda restringi-la ao bucket e ao prefixo) (0104 item 6). |
+| Uma sobrescrita silenciosa | Toda escrita é condicional à base (`update` com a `rev`, `If-Match` no ETag); o Google Drive, sem pré-condição, lê a revisão atual e confere as revisões depois do envio, guardando as duas versões. Um serviço sem pré-condição nem revisões é recusado ao conectar. A proteção é um teste de propriedade que corre dois dispositivos em cada adaptador (0104 item 7). |
+| Um token de renovação roubado | Alcança só a pasta do app (ou, no Google, só os arquivos que este cliente OAuth criou ou que a pessoa abriu com ele) daquele provedor; não alcança os outros arquivos da pessoa, e Desconectar o revoga. Uma senha de WebDAV ou uma chave de S3 roubada alcança o que a pessoa restringiu para ela. |
+| Dados do provedor corrompendo a pasta | Nomes em NFC e tornados seguros para todo provedor; um nome que um provedor proíbe não é sincronizado e é listado; um arquivo só é escrito aqui quando todas as partes chegaram e o hash ou o tamanho conferiu (0104 itens 9 e 10). Um cursor perdido é uma comparação completa a partir das bases, nunca um primeiro sync que trata tudo como novo (item 8). |
+| Uma exclusão se espalhando | Exclusões remotas vão para a lixeira do provedor onde ela existe (Drive com `trashed: true`, nunca `files.delete`); a pausa de exclusão em massa do 0079 e a guarda de placeholder (0043) valem para uma pasta de nuvem (0104 itens 4 e 11). |
+| Uma enxurrada contra um provedor | HTTP 429 e 503, e o 403 do Drive com motivo de limite de taxa, são respeitados com `Retry-After` ou recuo exponencial com jitter; pouca concorrência por provedor; consultas nunca em laço rápido (0104 itens 8 e 15). |
+
 ## Lacunas encontradas em 2026-10-11
 
 Encontradas lendo o código no HEAD 7729940; achados, não correções.
