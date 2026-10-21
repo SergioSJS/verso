@@ -364,3 +364,5 @@ na 0.6.0-beta.1):
 - **Ainda não observado:** web views filhas sob Wayland, NVIDIA, nomes que
   diferem só em maiúsculas, os atributos estendidos do SELinux, sistemas de
   arquivos de rede, instância única e "Adicionar ao Claude".
+
+*2026-10-21* — o mantenedor marcou, no questionário de decisões de 2026-10-20 (respondido em 2026-10-21), todas opção A: **0071.snap** `[DECIDIDO 2026-10-21]` sem Snap por ora (o `.deb`, o `.rpm` e o AppImage bastam; o confinamento do Snap complica pastas e web views filhas); **0071.wayland** `[DECIDIDO 2026-10-21]` observar, e mostrar "não funciona" onde não funcionar, como esta ADR manda; **0071.case** `[DECIDIDO 2026-10-21]` nomes que diferem só em maiúsculas: depois da V1, observando antes o Obsidian no Linux ([0009](0009-external-constraints.md)); **0071.all** `[DECIDIDO 2026-10-21]` a ADR é **Aceita** por inteiro, já entregue na 0.6.0-beta.1. Nada resta `[ABERTO]` neste Status.

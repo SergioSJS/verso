@@ -38,3 +38,5 @@ and not as plugin code.
 ## Status
 
 Proposed.
+
+*2026-10-21* — the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **0015** `[DECIDED 2026-10-21]` (option A) stays for after V1, linked to [0047](0047-plugin-api-open-questions.md) and [0098](0098-world-and-campaign-wizard-template-bundles.md). Reconciled with 0098 item 11, decided the same day (0098.R, option A): the **bundle of 0098 is the format of packs of structure distributed as content**, one concept and one screen, and this ADR now points there; everything this ADR imagines beyond what a bundle does (note types and schemas, a pack per game system, the integrity of a downloaded pack) stays after V1. The Status stays Proposed.

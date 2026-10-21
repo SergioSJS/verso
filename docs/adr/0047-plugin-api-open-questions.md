@@ -69,3 +69,5 @@ None recorded.
 ## Status
 
 `[OPEN]`. Answer before designing the plugin API (after Phase 2).
+
+*2026-10-21* — the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all option A: the questions **0047.1** (UI model), **0047.2** (background and mobile), **0047.3** (consent and permissions) and **0047.4** (the content/code boundary in packs, together with [0015](0015-schema-packs.md)) `[DECIDED 2026-10-21]` wait for after V1, as plugins do. The questions themselves stay unanswered; only their moment is decided.

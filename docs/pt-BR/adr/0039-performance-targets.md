@@ -40,4 +40,4 @@ Nenhuma. O briefing não propõe números.
 
 ## Status
 
-`[ABERTO]`. Decidir após a primeira linha de base.
+`[ABERTO]`. Decidir após a primeira linha de base. `[DECIDIDO 2026-10-21]` (a marca do mantenedor, opção A, no questionário de decisões de 2026-10-20): a primeira meta absoluta é fixada só para o congelamento num cofre grande no iPhone, quando houver medida; não há outras metas até lá.

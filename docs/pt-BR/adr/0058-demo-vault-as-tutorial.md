@@ -184,4 +184,4 @@ mantenedor em 2026-10-01 (ponto 14):
 
 Aceito (2026-10-01): os pontos 1 a 3 e 8 decididos pelo mantenedor; os pontos
 4 a 7 e 9 a 13 aceitos pelo mantenedor no mesmo dia, com os pontos 14 e 15.
-`[ABERTO]`: o cofre de exemplo em inglês.
+`[ABERTO]`: o cofre de demonstração em inglês — `[DECIDIDO 2026-10-21]` (0058, **opção B**, não a A recomendada, no questionário de decisões de 2026-10-20): o cofre de demonstração em inglês é feito **antes da V1**, aceitando mais um espelho a manter a cada lição do tutorial (roadmap, linha nova).

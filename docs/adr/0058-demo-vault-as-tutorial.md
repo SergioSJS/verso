@@ -187,4 +187,4 @@ and 13: "Aceito todas (Recomendado)".
 
 Accepted (2026-10-01): points 1 to 3 and 8 decided by the maintainer; points 4
 to 7 and 9 to 13 accepted by the maintainer the same day, with points 14 and
-15. `[OPEN]`: the demo vault in English.
+15. `[OPEN]`: the demo vault in English — `[DECIDED 2026-10-21]` (0058, **option B**, not the recommended A, in the decisions questionnaire of 2026-10-20): the English demo vault is made **before V1**, accepting one more mirror to keep with every lesson of the tutorial (roadmap, new row).
