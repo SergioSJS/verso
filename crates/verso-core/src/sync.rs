@@ -136,6 +136,14 @@ pub struct Cloud {
     /// runs when the person connects, not at every start.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub caps: Vec<String>,
+    /// What deleting a file there means, found when the person connected
+    /// (item 9): `final`, `kept` or `unknown`.
+    #[serde(default)]
+    pub deletions: String,
+    /// What the checks found that the person should know, said again in
+    /// the folder's settings.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
 }
 
 /// A share revoked by its owner, as the device heard it.

@@ -24,10 +24,12 @@ fn off(key: &str) -> SyncStatus {
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
     let (language, shown, told, all) = (app.clone(), app.clone(), app.clone(), app.clone());
+    let secrets = Arc::clone(&state.secrets);
     let config = state.service.config().map(Path::to_path_buf);
     let named = config.clone();
     Arc::new(Ctx {
         service: Arc::clone(&state.service),
+        secrets,
         config,
         device: Box::new(move || device::name(named.as_deref())),
         pt: Box::new(move || lock(&language.state::<App>().menu_language).as_str() != "en"),
@@ -48,11 +50,14 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     })
 }
 
-fn running<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Option<Arc<Syncer>> {
+pub(crate) fn running<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    key: &str,
+) -> Option<Arc<Syncer>> {
     lock(&app.state::<App>().syncs).get(key).map(Arc::clone)
 }
 
-fn start<R: tauri::Runtime>(
+pub(crate) fn start<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     key: &str,
     state: &engine::State,
@@ -108,7 +113,7 @@ pub(crate) fn touched<R: tauri::Runtime>(
 }
 
 /// The folder of this window, which syncs only if it is this computer's.
-fn key_of<R: tauri::Runtime>(
+pub(crate) fn key_of<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
 ) -> Result<String, ContractError> {
@@ -220,9 +225,17 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
     let key = key_of(&app, &window)?;
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     let removed = lock(&app.state::<App>().syncs).remove(&key);
+    let cloud = removed.as_ref().is_some_and(|s| s.cloud.is_some())
+        || sync::cloud_of(config.as_deref(), &key);
     match removed {
         Some(s) => s.turn_off(config.as_deref())?,
         None => sync::off(config.as_deref(), &key)?,
+    }
+    // Turning a cloud folder's sync off disconnects it: the secret leaves
+    // the keychain, and a later connection is a first sync (ADR 0104 item
+    // 14).
+    if cloud {
+        crate::cloud::forget(&*app.state::<App>().secrets, config.as_deref(), &key);
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
     // Every window of the folder hears it: a live note goes local (ADR

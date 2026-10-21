@@ -61,8 +61,19 @@ fn clock_nanos() -> u32 {
 
 /// One client and its manners.
 pub struct Http {
-    client: Client,
+    client: Option<Client>,
     pub backoff: Backoff,
+}
+
+impl Drop for Http {
+    /// A blocking client panics when it is dropped inside a runtime's
+    /// task; the host drops a link there. It is dropped on a thread of its
+    /// own instead.
+    fn drop(&mut self) {
+        if let Some(client) = self.client.take() {
+            std::thread::spawn(move || drop(client));
+        }
+    }
 }
 
 impl Http {
@@ -83,16 +94,21 @@ impl Http {
             .build()
             .map_err(|e| RemoteError::new(RemoteErrorKind::Failed, e.without_url().to_string()))?;
         Ok(Self {
-            client,
+            client: Some(client),
             backoff: Backoff::default(),
         })
+    }
+
+    fn client(&self) -> Client {
+        // Taken only by `drop`, after which nothing is asked of it.
+        self.client.clone().unwrap_or_default()
     }
 
     /// A request that answers in a minute or fails: a listing, a check, a
     /// delete.
     pub fn request(&self, method: &str, url: &str) -> RequestBuilder {
         let method = reqwest::Method::from_bytes(method.as_bytes()).unwrap_or(reqwest::Method::GET);
-        self.client.request(method, url).timeout(QUICK)
+        self.client().request(method, url).timeout(QUICK)
     }
 
     /// A request that carries a file, either way.

@@ -43,6 +43,7 @@ use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
 mod cli;
+mod cloud;
 mod device;
 mod discover;
 mod dns;
@@ -61,6 +62,7 @@ mod release_sums;
 mod remote;
 #[cfg(target_os = "linux")]
 mod resolv_conf;
+mod secrets;
 mod shares;
 mod sync;
 mod sync_commands;
@@ -74,6 +76,7 @@ mod web_clip;
 mod windows;
 use boards::*;
 use cli::*;
+use cloud::*;
 use device::*;
 use discover::*;
 use files::*;
@@ -115,6 +118,11 @@ pub struct App {
     pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
     /// The folders that sync with a server, by key: their tasks (ADR 0079).
     pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
+    /// The system's keychain, where the secrets of a cloud are kept (ADR
+    /// 0104 item 14).
+    pub(crate) secrets: Arc<dyn secrets::Secrets>,
+    /// A cloud just checked and not yet started, by folder key.
+    pub(crate) pending_clouds: cloud::Pending,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. The gate in
     /// the window is what asks, and this list is its record on this side.
@@ -158,6 +166,8 @@ impl App {
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
             syncs: Mutex::new(std::collections::HashMap::new()),
+            secrets: Arc::new(secrets::Keychain),
+            pending_clouds: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             frame_verdicts: Mutex::new(std::collections::HashMap::new()),
             framed_origins: Mutex::new(std::collections::HashSet::new()),
@@ -797,6 +807,9 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                folder_sync_cloud_check::<$runtime>,
+                folder_sync_cloud_start::<$runtime>,
+                folder_sync_cloud_cancel::<$runtime>,
                 note_made_from_template::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
@@ -1233,6 +1246,8 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_cloud;
 #[cfg(test)]
 mod tests_dns_tls;
 #[cfg(test)]

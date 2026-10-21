@@ -27,6 +27,8 @@ use crate::dns::SendRetrying;
 pub(crate) mod live;
 mod transfer;
 pub(crate) mod universo;
+use crate::cloud;
+pub(crate) use transfer::contract_of;
 use transfer::{Refusal, Side};
 use verso_core::sync::remote as rem;
 
@@ -46,6 +48,8 @@ const LOG_LINES: usize = 200;
 /// against a real server with no window.
 pub(crate) struct Ctx {
     pub(crate) service: Arc<Service>,
+    /// Where the secrets of a cloud are kept (ADR 0104 item 14).
+    pub(crate) secrets: Arc<dyn crate::secrets::Secrets>,
     pub(crate) config: Option<PathBuf>,
     /// This computer's name, for a conflict's copy: asked at each pass,
     /// so that a name the person sets meanwhile is the next copy's.
@@ -74,6 +78,9 @@ pub(crate) struct Syncer {
     pub(crate) key: String,
     url: String,
     folder: String,
+    /// The cloud this folder syncs with, when it is not a UniVerso (ADR
+    /// 0104).
+    pub(crate) cloud: Option<engine::Cloud>,
     wake: tokio::sync::Notify,
     /// The person asked for a pass (Sync now): a server out of reach is
     /// tried at once, and its wait starts over.
@@ -119,6 +126,7 @@ impl Syncer {
             key: key.to_owned(),
             url: state.server.clone(),
             folder: state.folder.clone(),
+            cloud: state.cloud.clone(),
             wake: tokio::sync::Notify::new(),
             asked: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
@@ -130,6 +138,7 @@ impl Syncer {
                 on: true,
                 server: state.server.clone(),
                 folder: state.folder.clone(),
+                cloud: state.cloud.as_ref().map(crate::cloud::status_of),
                 state: "starting".to_owned(),
                 ..SyncStatus::default()
             }),
@@ -301,6 +310,14 @@ pub(crate) fn synced(config: Option<&Path>, key: &str) -> Option<engine::State> 
         .filter(|s| !s.server.is_empty() && !s.off)
 }
 
+/// Whether the folder's saved sync is with a cloud (on or off).
+pub(crate) fn cloud_of(config: Option<&Path>, key: &str) -> bool {
+    engine::load(config, key)
+        .ok()
+        .flatten()
+        .is_some_and(|s| s.cloud.is_some())
+}
+
 /// The folder's sync marked off, its base kept for turning it on again.
 pub(crate) fn off(config: Option<&Path>, key: &str) -> Result<(), ContractError> {
     marked_off(config, key, None)
@@ -346,12 +363,17 @@ pub(crate) fn off_status(config: Option<&Path>, key: &str) -> SyncStatus {
 
 /// What a sync error is, for the window to say in its language
 /// (`SyncStatus::problem`); the message stays for the log.
-fn problem_of(e: &ContractError) -> &'static str {
+pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
     match e.kind {
         ErrorKind::NotFound => "folder_gone",
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
+        // A cloud (ADR 0104): the sign-in, the keyring, the service that
+        // cannot keep a write safe.
+        ErrorKind::Refused if e.message.starts_with("cloud sign-in refused") => "cloud_auth",
+        ErrorKind::Refused if e.message.starts_with("no keyring") => "no_keyring",
+        ErrorKind::Refused if cloud => "cloud_refused",
         ErrorKind::Refused if e.message.contains("update the one that is behind") => "version",
         ErrorKind::Refused => "signed_out",
         _ => "failed",
@@ -649,7 +671,7 @@ pub(crate) struct Link {
     pub(crate) role: String,
     pub(crate) name: String,
     /// The remote's files, each with its version, and the feed's cursor.
-    known: Option<rem::Known>,
+    pub(crate) known: Option<rem::Known>,
     /// The next pass walks the folder first: the connection's first (a
     /// reconnection), and the scan's. The listing a pass compares is as of
     /// the watcher's last batch, and a file whose size and time are as the
@@ -1134,7 +1156,12 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
         if s.asked.swap(false, Ordering::Relaxed) {
             wait.reset();
         }
-        let mut l = match link(&ctx, &s).await {
+        let linked = if s.cloud.is_some() {
+            cloud::link(&ctx, &s).await
+        } else {
+            link(&ctx, &s).await
+        };
+        let mut l = match linked {
             Ok(l) => {
                 wait.reset();
                 l
@@ -1155,7 +1182,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                 s.set(&ctx, |st| {
                     st.state = if offline { "offline" } else { "error" }.to_owned();
                     st.message = Some(e.message.clone());
-                    let problem = problem_of(&e);
+                    let problem = problem_of(&e, s.cloud.is_some());
                     st.versions = if problem == "version" {
                         lock(&s.versions).clone()
                     } else {
@@ -1197,7 +1224,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     s.set(&ctx, |st| {
                         st.state = "error".to_owned();
                         st.message = Some(e.message.clone());
-                        st.problem = Some(problem_of(&e).to_owned());
+                        st.problem = Some(problem_of(&e, s.cloud.is_some()).to_owned());
                     });
                 }
             }
@@ -1248,8 +1275,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             if lost {
                 break;
             }
-            // A burst of changes settles before the next pass.
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            // A burst of changes settles before the next pass; a cloud's
+            // calls are dearer than a server's, so it settles longer (ADR
+            // 0104 item 8: each local change, debounced).
+            tokio::time::sleep(Duration::from_millis(if s.cloud.is_some() {
+                2000
+            } else {
+                500
+            }))
+            .await;
         }
         // The live notes go local (ADR 0082 item 8).
         s.live.lost();
