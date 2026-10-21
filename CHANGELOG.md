@@ -47,6 +47,7 @@ test release.
 
 ### Fixed
 
+- **Portuguese in the English window, and English in the Portuguese one**: the Fractal statblock layouts now say Reserves, Facts, Broken, Obstacles, Trigger, Consequence and Risk roll in an English window (the game's Portuguese terms stay in the YAML keys); the in-note find panel (its replace toggle and the invalid-regex badge), the server address example, the ignored-folder examples, the Mermaid error and edit tooltips and the missing-PDF line follow the window's language; the *+* menu is named *New* for a screen reader. An end-to-end sweep (`e2e/language-sweep.spec.mjs`) opens the main screens in both languages and fails on a word of the other one.
 - **Pressing a note in the graph no longer moves the view (accessibility)**: a click or drag on a note near the graph's edge used to re-centre the view before the drag began; only moving to a note with the keyboard brings it into view now.
 - **The graph's count is announced once typing pauses (accessibility)**: filtering the graph updates the count on screen at every key, but a screen reader hears it only about a second after you stop typing.
 - **Bigger click areas (accessibility)**: a tab's close mark, the remove mark of a list pill in the properties and the status bar's buttons answer a click within 24 × 24 px around them, though they are drawn as small as before and the tab bar keeps its height.

@@ -747,8 +747,8 @@ export class SettingsDialog {
       add("editor", ls.capitalOnly, ls.capitalOnlyDesc, () => this.toggle(settings.suggestCapitalOnly, (v) => { settings.suggestCapitalOnly = v; saveSettings(); }));
     }
     add("editor", ls.mentionAt, ls.mentionAtDesc, () => this.toggle(settings.mentionAt, (v) => { settings.mentionAt = v; saveSettings(); }));
-    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
-    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));
+    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, LOCALE.startsWith("pt") ? "Arquivo" : "Archive"));
+    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, LOCALE.startsWith("pt") ? "Mesa" : "Table"));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)

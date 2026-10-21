@@ -8,7 +8,7 @@ tags:
 
 # The Dark Lighthouse
 
-An **arc** is a Challenge inside the campaign's Challenge ([[Challenge - The Endless Tide]]). Here the first Obstacle is already **Quebrado** (broken): the group solved it last session.
+An **arc** is a Challenge inside the campaign's Challenge ([[Challenge - The Endless Tide]]). Here the first Obstacle is already **Broken** (*quebrado* in the game's words): the group solved it last session.
 
 ```statblock
 layout: fractal-challenge

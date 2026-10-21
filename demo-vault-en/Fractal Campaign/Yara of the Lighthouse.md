@@ -8,7 +8,7 @@ tags:
 
 # Yara of the Lighthouse
 
-A Fractal character sheet, chosen with `layout: fractal-character`. The **Reservas** (pools) are counters: click a box and the number changes **in the block's text** (open **Source** to see). Each **Fato** (fact) can be marked **Quebrado** (broken) — the button strikes the item out and writes `quebrado: true`. The **Roll (Fractal)** button asks how many facts apply.
+A Fractal character sheet, chosen with `layout: fractal-character`. The **Reserves** (*Reservas* in the game's words) are counters: click a box and the number changes **in the block's text** (open **Source** to see). Each **Fact** (*Fato*) can be marked **Broken** (*Quebrado*) — the button strikes the item out and writes `quebrado: true`. The **Roll (Fractal)** button asks how many facts apply.
 
 ```statblock
 layout: fractal-character
