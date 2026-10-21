@@ -70,4 +70,23 @@
 /* The 3D dice (ADR 0101): a transparent canvas over the window while the
  * dice fall; a click anywhere skips it, as does Esc. It is aria-hidden, and
  * it is removed when the dice have rested. */
-.dice3d-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 5000; cursor: pointer; touch-action: manipulation; }
+/* The stage sets left, top, width and height: the lower part of the active pane. */
+.dice3d-canvas { position: fixed; z-index: 5000; cursor: pointer; touch-action: manipulation; }
+
+/* The 3D dice's appearance settings (Settings › Features). */
+.dice3d-colour { display: flex; align-items: center; gap: .5rem; }
+.dice3d-ink { display: flex; flex-direction: column; gap: .4rem; align-items: flex-end; }
+.dice3d-contrast { margin: 0; max-width: 24rem; font-size: .8rem; color: var(--ink-3); text-align: right; }
+.dice3d-contrast[data-low="true"] { color: var(--seal); font-weight: 600; }
+.dice3d-preview { display: flex; flex-direction: column; gap: .4rem; align-items: flex-end; }
+.dice3d-say { margin: 0; min-height: 1.1em; max-width: 24rem; font-size: .8rem; color: var(--ink-3); text-align: right; }
+.dice3d-size { display: flex; align-items: center; gap: .6rem; }
+.dice3d-size-out { min-width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
+.dice3d-slots { display: flex; flex-direction: column; gap: .6rem; align-items: flex-end; }
+.dice3d-tabs { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+.dice3d-tab { padding: .3rem .7rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink-2); cursor: pointer; }
+.dice3d-tab[aria-selected="true"] { background: var(--brass-wash); border-color: var(--brass); color: var(--ink); }
+.dice3d-tiles { display: flex; gap: .6rem; }
+.dice3d-tile { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; color: var(--ink-3); font-size: .75rem; }
+.dice3d-tile.selected { border-color: var(--brass); }
+.dice3d-tile canvas { width: 56px; height: 56px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }

@@ -37,6 +37,16 @@ export const CREDITS: Credit[] = [
     gloss: "This work is compatible with Fractal, by Igor Téuri and Walter Licínio, developed under the Creative Commons Attribution 4.0 License.",
   },
   {
+    id: "dice-textures",
+    name: "3D Dice Roller (MajorVictory)",
+    line: {
+      pt: "As imagens das texturas dos dados 3D (Ajustes › Recursos › Dados 3D: textura) vêm do repositório MajorVictory/3DDiceRoller, dedicado ao domínio público.",
+      en: "The 3D dice texture images (Settings › Features › 3D dice: texture) come from the MajorVictory/3DDiceRoller repository, dedicated to the public domain.",
+    },
+    link: "https://github.com/MajorVictory/3DDiceRoller",
+    licence: "The Unlicense",
+  },
+  {
     id: "rolai",
     name: "Rolai",
     line: {
