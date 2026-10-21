@@ -76,4 +76,4 @@ O comando **Salvar como board…** (na barra do diagrama e na paleta) escreve um
 
 ---
 
-Volte às ferramentas de mesa em [[27 - Oráculos e Criação de Mundos]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Volte às ferramentas de mesa em [[27 - Oráculos e Criação de Mundos]], veja como ligar uma pasta a uma nuvem sua em [[29 - Sincronizar com uma Nuvem]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
