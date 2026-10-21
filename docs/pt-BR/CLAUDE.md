@@ -208,6 +208,10 @@ servidor). O `verso-server` não toca arquivo de pasta diretamente, só pelo
 banco em `VERSO_DATA_DIR`, uma exceção como a do `verso-index`. O
 `verso serve` é um subcomando do `verso` (`verso-cli`).
 
+O `crates/verso-cloud` guarda os remotos de nuvem (WebDAV, S3) da ADR 0104, do
+lado do host: o `verso-core` e o `verso-fs` nunca dependem dele e ele não toca
+disco (ADR 0028, revisto em 2026-10-21).
+
 ---
 
 ## 4. Fluxo de PR — [ADR 0033](adr/0033-pr-workflow.md)
