@@ -197,7 +197,7 @@ describe("Fractal", () => {
     const layout = m.builtinLayouts().find((l) => l.id === "fractal-character");
     const card = m.renderStatblock(m.builtinSample("fractal-character"), undefined, { layout, rolls: true, rollWith: { deterministic: [6, 1] } });
     const go = card.querySelector("button.statblock-roll-go");
-    assert.equal(go.textContent, "Rolagem de Risco");
+    assert.equal(go.textContent, "Risk roll");
     // fatos_aplicaveis comes from the sheet, vantagem is asked.
     assert.equal(card.querySelectorAll(".statblock-roll-field").length, 1);
     go.click();
@@ -232,13 +232,13 @@ describe("Fractal", () => {
     const obs = [];
     const c2 = m.renderStatblock(m.builtinSample("fractal-challenge"), undefined, { layout: ch, write: (at, v) => (obs.push([at, v]), { ok: true }) });
     const count = c2.querySelector('[data-block="obstaculos"] .statblock-flag-count');
-    assert.equal(count.textContent, "1 de 3 quebrados");
+    assert.equal(count.textContent, "1 of 3 broken");
     const marks = [...c2.querySelectorAll('[data-block="obstaculos"] button.statblock-flag')];
-    assert.equal(marks[1].getAttribute("aria-label"), "Quebrado: Ninho de Krard");
+    assert.equal(marks[1].getAttribute("aria-label"), "Broken: Ninho de Krard");
     assert.equal(c2.querySelector('[data-block="obstaculos"] .statblock-trait:nth-child(2) a.wikilink').dataset.target, "Ninho de Krard", "the link still opens the note");
     marks[1].click();
     assert.deepEqual(obs, [[["obstaculos", 1, "quebrado"], true]]);
-    assert.equal(count.textContent, "2 de 3 quebrados");
+    assert.equal(count.textContent, "2 of 3 broken");
     assert.equal(c2.querySelector('[data-block="obstaculos-quebrados"]'), null, "no stored counter");
     assert.equal(c.querySelector('[data-block="reserva-3-valor"]'), null, "a slot with no name hides");
     const row = c.querySelector('[data-block="obstaculos"]');

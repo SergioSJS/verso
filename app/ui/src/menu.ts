@@ -396,8 +396,13 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
   );
 }
 
-export function showMenu(x: number, y: number, items: MenuItem[]): void {
+/** `title` names the menu for a screen reader and a tooltip-less eye: the
+ *  "+" button's menu is "New", not an unnamed list. */
+export function showMenu(x: number, y: number, items: MenuItem[], title = ""): void {
   menuOpener = document.activeElement;
+  menu.setAttribute("role", "menu");
+  if (title) menu.setAttribute("aria-label", title);
+  else menu.removeAttribute("aria-label");
   window.clearTimeout(hoverTimer);
   buildList(menu, tidyMenu(items));
   menu.hidden = false;

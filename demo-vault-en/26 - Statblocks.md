@@ -648,7 +648,7 @@ descricao: A note of our own, not a book's.
 
 ### Fractal
 
-The Brazilian system by Igor Téuri and Walter Licínio. The Challenge holds Reservas, Obstáculos and the Quebrado mark.
+The Brazilian system by Igor Téuri and Walter Licínio. The Challenge holds Reserves (*Reservas*), Obstacles (*Obstáculos*) and the Broken (*Quebrado*) mark.
 
 **Fractal — character** (`layout: fractal-character`)
 
@@ -1057,7 +1057,7 @@ traits+:
 - **Dice.** A value like `+4 to hit` or `4 (1d4 + 2)` has a **die** beside it. Each ability's modifier — the `(+2)` — is itself the button: one click rolls, and the result opens on top of the statblock, pushing nothing aside and **not written to the note** (Esc, the × or a click outside closes it). On a server, the server does the rolling and everyone in the room sees it.
 - **Roll block.** A system layout has a button like *Roll (Fractal — Risk roll)*: it asks, for example, how many facts apply and shows the result the way the system reads it. Try it on the Fractal statblock above.
 - **Trackers.** The − and + buttons of *PV atuais*, the stress boxes and the clock's boxes write **only that number** into the YAML (`hp_current`, `stress`…); comments, quotes and order stay. Open **Source** mode and check. With the keyboard, `Tab` reaches the group, the arrows change the value, `Home` empties and `End` fills. If a value stops being a number or goes past the maximum, the statblock shows it as it is and the **Repair** button.
-- **Quebrado.** In Fractal's Obstáculos each item has the **Quebrado** mark: a button that strikes the item through and writes `quebrado: true` into the YAML, with the count *N of M broken* in the title.
+- **Broken.** In Fractal's Obstacles each item has the **Broken** mark (*Quebrado* in the game's own words): a button that strikes the item through and writes `quebrado: true` into the YAML, with the count *N of M broken* in the title.
 - **Links.** A `[[link]]` inside an Obstáculo opens the note. The complete example, with the world, the character, three nested Challenges and a session log, is in the **Fractal Campaign** folder: start with [[Fractal Campaign/World]].
 
 ---

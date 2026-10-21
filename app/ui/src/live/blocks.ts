@@ -14,6 +14,7 @@ import katex from "katex";
 import { cells } from "../table";
 import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
+import { t } from "../strings";
 import { renderMermaid } from "../mermaid";
 import { hasCapability } from "../capabilities";
 import { planValueEdit, sameText, type Refusal, type Value, type ValuePath, type WriteOutcome } from "../statblock/edit";
@@ -205,13 +206,13 @@ export class BlockWidget extends WidgetType {
     if (b.kind === "mermaid") {
       el.className = "cm-lp-block cm-lp-mermaid";
       el.style.position = "relative";
-      el.title = "Clique para editar o código Mermaid";
+      el.title = t.mermaidEditTip;
 
       const editBtn = document.createElement("button");
       editBtn.type = "button";
       editBtn.className = "cm-lp-base-source";
       editBtn.textContent = "</>";
-      editBtn.title = "Editar código Mermaid";
+      editBtn.title = t.mermaidEditCode;
       editBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -268,7 +269,7 @@ export class BlockWidget extends WidgetType {
       editBtn.type = "button";
       editBtn.className = "cm-lp-base-source";
       editBtn.textContent = "</>";
-      editBtn.title = "Editar link do PDF";
+      editBtn.title = t.pdfEditLink;
       editBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();

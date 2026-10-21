@@ -779,7 +779,7 @@ export function livePdf(this: NoteLeaf, target: string, mount: HTMLElement): () 
   void commands.resolveAttachment(this.path, spec.file).then((r) => {
     if (destroyed) return;
     if (r.status !== "ok" || !r.data) {
-      mount.textContent = `PDF não encontrado: ${spec.file}`;
+      mount.textContent = t.pdfNotFound(spec.file);
       mount.style.display = "flex";
       mount.style.alignItems = "center";
       mount.style.justifyContent = "center";
