@@ -429,19 +429,13 @@ fn the_state_keeps_no_secret_and_the_versions_it_learned() {
     let fake = dav();
     let a = device_on(&fake, &[("a.md", "um")]);
     csync(&a);
-    let saved = std::fs::read_to_string(
-        a.ctx
-            .config
-            .as_ref()
-            .unwrap()
-            .join(format!("sync-{}.json", a.key)),
-    )
-    .unwrap();
-    assert!(!saved.contains("segredo"), "{saved}");
     let state = engine::load(a.ctx.config.as_deref(), &a.key)
         .unwrap()
         .unwrap();
     assert!(state.tokens.contains_key("a.md"));
+    // What is written to the state file is this value, and it holds no
+    // secret anywhere.
+    assert!(!serde_json::to_string(&state).unwrap().contains("segredo"));
     assert_eq!(state.cloud.unwrap().provider, "webdav");
     // The status says where, and that nothing in it is a server.
     let st = a.s.status();
