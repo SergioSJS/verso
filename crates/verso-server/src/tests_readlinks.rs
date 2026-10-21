@@ -409,6 +409,34 @@ fn no_command_hands_a_visitor_a_secret_block_or_a_write() {
     });
 }
 
+/// A visitor's `reindex` walks nothing: it answers with the summary the
+/// folder has, and no window of the owner is told of a run (review I1).
+#[test]
+fn a_visitors_reindex_walks_nothing() {
+    block_on(async {
+        let r = start().await;
+        let admin = admin(&r).await;
+        let (id, mut owner) = furnish(&r, &admin).await;
+        on(&r, &admin).await;
+        let whole = made(&r, &admin, &id, json!({ "kind": "folder", "path": "" })).await;
+        let (mut ws, _) = reader(&r, &token_of(&whole)).await;
+        // What the owner's window heard until now is not the question.
+        while !listen(&mut owner, 800).await.is_empty() {}
+        let before = ask(&mut ws, 2, "current_folder", json!({})).await;
+        let answer = ask(&mut ws, 3, "reindex", json!({})).await;
+        assert!(answer.get("ok").is_some(), "{answer}");
+        assert_eq!(
+            answer["ok"]["indexed"], before["ok"]["index"]["indexed"],
+            "{answer}"
+        );
+        let heard = listen(&mut owner, 500).await;
+        assert!(
+            !heard.iter().any(|e| e["event"] == "index-progress"),
+            "a visitor made the owner's folder walk: {heard:?}"
+        );
+    });
+}
+
 /// A link to a folder reaches that folder and nothing above, beside or
 /// outside it; search and backlinks cover only what was shared (item 4).
 #[test]

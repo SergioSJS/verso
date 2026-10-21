@@ -48,6 +48,7 @@ versão de teste.
 
 ### Corrigido
 
+- O visitante de um link de leitura não faz mais a pasta do dono ser percorrida: `reindex` por um link responde com o resumo que a pasta já tem e não percorre nada.
 - **Frontmatter e tags como o Obsidian lê (spec Q22, Q24)**: uma nota que começa com um BOM continua tendo seu frontmatter (o arquivo nunca é reescrito); um número em `tags` (`tags: 2024`, `[2025]`) não é tag, como no Obsidian, e um `#` numa tag do frontmatter não faz parte do nome; a lista de tags conta uma tag aninhada (`a/b`) sob cada tag acima dela (`a`), como o painel de tags do Obsidian.
 - **O seletor rápido (⌘P) põe primeiro o nome digitado inteiro**: digitar `N` abria um nome mais longo que começa com N e vinha antes pela pasta; a nota com exatamente o nome digitado agora encabeça a lista.
 - **Português na janela em inglês, e inglês na janela em português**: os layouts de ficha do Fractal agora dizem Reserves, Facts, Broken, Obstacles, Trigger, Consequence e Risk roll numa janela em inglês (os termos em português do jogo ficam nas chaves do YAML); o painel de busca na nota (o botão de substituir e o aviso de regex inválido), o exemplo de endereço do servidor, os exemplos de pastas ignoradas, o erro e as dicas de edição do Mermaid e a linha de PDF ausente seguem o idioma da janela; o menu do *+* tem o nome *Novo* para leitores de tela. Uma varredura de ponta a ponta (`e2e/language-sweep.spec.mjs`) abre as telas principais nos dois idiomas e falha diante de uma palavra do outro.
