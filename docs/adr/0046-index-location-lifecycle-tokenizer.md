@@ -78,7 +78,10 @@ language.** `castelo` does not find `castelos`, and `walk` does not find
 (`castelo*`), which today is impossible because the feature 3 guardrail quotes
 every user word to neutralise the FTS5 grammar ([0029](0029-guardrails-in-ci.md));
 adding an explicit "prefix" option would put the `*` outside the quotes. Not
-decided here.
+decided here. **Decided on 2026-10-21 by the maintainer** (the decisions list's
+item 0046, option A): prefix search is built only if it becomes a problem in
+real use, as this ADR already says ("if it turns out to matter"); an explicit
+prefix option now (B) was not chosen.
 
 ## Consequences
 
