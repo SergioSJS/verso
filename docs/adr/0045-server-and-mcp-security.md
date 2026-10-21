@@ -21,7 +21,10 @@
   The MCP over the network stays `[OPEN]` (0073 item 11) —
   `[DECIDED 2026-10-21]`: after V1, with the local MCP over stdio unchanged
   (0073.mcp). 2026-10-21 — the language of what a model reads is decided:
-  English only (0045.lang).
+  English only (0045.lang). 2026-10-21 — the first surface open to a visitor
+  with no account, the read links of [0105](0105-read-links-without-an-account.md),
+  is built; the threat model (`docs/reference/threat-model.md`) has its rows,
+  and this ADR's decisions are unchanged.
 
 ## Context
 
