@@ -12,7 +12,7 @@ import { h } from "../dom";
 import { st } from "./strings";
 
 /** What the host said of each origin (true, false), or the question still on its way. */
-const frameVerdicts = new Map<string, boolean | Promise<boolean>>();
+export const frameVerdicts = new Map<string, boolean | Promise<boolean>>();
 
 export function frameable(url: string): Promise<boolean> {
   let origin: string;

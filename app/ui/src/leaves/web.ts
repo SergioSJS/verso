@@ -5,7 +5,7 @@
 import { commands } from "../bindings";
 import { can } from "../can";
 import { h } from "../dom";
-import { framedPage } from "../screen/framed";
+import { frameable, framedPage, frameVerdicts } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
 import { embedPlace, webPlace, type Rect } from "./embedClip";
 import type { NoteLeaf } from "./note";
@@ -34,13 +34,15 @@ export type EmbedView = { label: string | null; opening: boolean; last: string; 
 export const embedViews = new Map<HTMLElement, EmbedView>();
 export let embedRaf = 0;
 
-/** What the host said of each origin (true, false), or the question still
- *  on its way. A question that fails answers no: the child view takes it. */
-const frameVerdicts = new Map<string, boolean | Promise<boolean>>();
+/** Origins whose answer the embeds are waiting for. The answers
+ *  themselves are the window's one cache (screen/framed.ts), shared with
+ *  the approval's check and the board's page cards: the host is asked once
+ *  per origin. */
+const waiting = new Set<string>();
 
 /** Whether `url`'s site may be framed: undefined while the host is asked
  *  (the embeds are looked at again when it answers). */
-function frameable(url: string): boolean | undefined {
+function frameableNow(url: string): boolean | undefined {
   let origin: string;
   try {
     origin = new URL(url).origin;
@@ -49,14 +51,10 @@ function frameable(url: string): boolean | undefined {
   }
   const known = frameVerdicts.get(origin);
   if (typeof known === "boolean") return known;
-  if (!known) {
-    const ask = commands.embedFrameable(url).then(
-      (r) => r.status === "ok" && r.data,
-      () => false,
-    );
-    frameVerdicts.set(origin, ask);
-    void ask.then((v) => {
-      frameVerdicts.set(origin, v);
+  if (!waiting.has(origin)) {
+    waiting.add(origin);
+    void frameable(url).then(() => {
+      waiting.delete(origin);
       syncEmbedViews();
     });
   }
@@ -119,7 +117,7 @@ export function tickEmbedViews(): void {
     if (!embedViews.has(el)) {
       // Not asked yet, or asked: a site that allows it gets a frame in the
       // box; one that refuses (or the answer not in yet) gets no frame.
-      const framed = frameable(url);
+      const framed = frameableNow(url);
       if (framed === undefined) continue;
       if (framed) {
         el.removeAttribute("data-embed-web");
