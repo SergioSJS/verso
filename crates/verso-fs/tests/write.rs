@@ -404,3 +404,28 @@ fn a_relative_root_survives_a_change_of_working_directory() {
     std::env::set_current_dir(previous).unwrap();
     assert_eq!(bytes, b"A");
 }
+
+/// A device's edit names the file in its own case (`Receita.md`) while the
+/// disk holds `receita.md`. Where the file system folds case the two are
+/// one file, and the write replaces it: the name the disk holds stays. On
+/// NTFS a rename over a file gives it the case of the new name, so the
+/// write puts the temporary file over the name as the disk spells it
+/// (`os::kept_spelling`; found by the server's sync test on a loaded
+/// Windows machine, 2026-10-21). Nothing to check on a file system that
+/// tells the two apart: they are two files there.
+#[test]
+fn a_write_through_another_case_keeps_the_name_the_disk_holds() {
+    let (dir, mut root) = root_with("receita.md", "antes");
+    if fs::metadata(dir.path().join("RECEITA.MD")).is_err() {
+        return;
+    }
+    let h = root.handle(Path::new("Receita.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    root.write(h, b"depois", &stamp).unwrap();
+    let names: Vec<String> = fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, vec!["receita.md".to_owned()]);
+    assert_eq!(fs::read(dir.path().join("receita.md")).unwrap(), b"depois");
+}
