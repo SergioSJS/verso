@@ -1457,6 +1457,21 @@ the parser was chosen.
   closes in full only in the PR that adds it, with this section updated in the
   same PR; none is drafted yet.
 
+  **Built on branch `feat/dialect-q22-q24`, 2026-10-21 (fixtures awaiting the
+  maintainer's approval).** Observed on Obsidian 1.13.7 through its CLI. (a)
+  Only `abc-1` of `^abc-1`, `^ação`, `^a_b`, `^é1`, `^ab.c` is a block in the
+  metadata cache: accented letters, `_` and `.` do not count, which is what
+  the parser already did; fixture `block/id-chars`. (b) The tag pane counts
+  `#a` 2 for a note with `#a` and another with `#a/b`; the index's tag list now
+  counts a nested tag under each tag above it (the window's `tag:` search and
+  `notes_where` already matched nested tags); test in `verso-index`. (c) A
+  quoted `"#ideia"` and `ideia` list one tag `#ideia`; an unquoted
+  `tags: [#ideia]` is invalid YAML to Obsidian, which then reads no
+  frontmatter for that note (Verso reports the invalid block; not changed).
+  Fixture `frontmatter/tags-hash`. The fixture schema has no key for a note's
+  tags (§4.6), so the tag rules are tests in `crates/verso-dialect/tests/tags.rs`
+  and `crates/verso-index/tests/search.rs`.
+
 - **Q23. Combined forms and wikilink escapes.** `DECIDED` on 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
   (same file — does it count as a backlink to itself?), `[[pasta/nota]]`,
@@ -1518,6 +1533,28 @@ the parser was chosen.
   Per invariant 17, a question that needs a fixture or an observation of
   Obsidian closes in full only in the PR that adds it, with this section
   updated in the same PR; none is drafted yet.
+
+  **Built on branch `feat/dialect-q22-q24`, 2026-10-21 (fixtures awaiting the
+  maintainer's approval).** Observed on Obsidian 1.13.7 through its CLI. (a)
+  A BOM before the `---` is accepted (Obsidian's cache has the frontmatter,
+  its offsets not counting the mark): built for the parser, the reader and the
+  window's boundary; the file is never rewritten; fixture `frontmatter/bom`.
+  **`...` as a closing line is NOT built: Obsidian was observed and does not
+  accept it** (`---`, `tags: [x]`, `...` reads as a divider and text, no
+  frontmatter), so accepting it would contradict the Obsidian dialect
+  (invariant 12). It waits for the maintainer: keep the `---`-only close as
+  Obsidian does, or accept `...` as a Verso extension (and then say that a
+  note with `...` shows differently in the two apps). No fixture for it yet.
+  (b) YAML 1.2 was already the parser's: `yes` and `2024-01-02` are text
+  (fixture `frontmatter/yaml-12`). **`tags: 2024` differs from the decision's
+  premise**: Obsidian reads `tags: 2024` as a number and lists no tag
+  (`tags: [2025, yes]` lists only `#yes`; `true`, `1.5` and `"7"` list none), so
+  the index now takes only a string that is not digits only as a tag
+  (fixture `frontmatter/tags-number`, the decision's own clause "adjust if it
+  differs"). (c) Already built (typed relations, ADR 0057 point 4; backlinks
+  and graph in `crates/verso-index/tests/board.rs`); Obsidian's
+  `frontmatterLinks`, `backlinks` and `links` agree; fixture
+  `frontmatter/wikilink-values`.
 
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a

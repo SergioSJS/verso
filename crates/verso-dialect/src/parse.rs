@@ -8,9 +8,7 @@
 
 use std::ops::Range;
 
-use pulldown_cmark::{
-    CodeBlockKind, Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd,
-};
+use pulldown_cmark::{CodeBlockKind, Event, LinkType, MetadataBlockKind, Options, Tag, TagEnd};
 
 use crate::frontmatter::{Frontmatter, parse_yaml};
 use crate::position::{LineIndex, Span};
@@ -29,8 +27,9 @@ use crate::{
 /// and every span it reports slices back to the construct's own text
 /// (property 3). It reads `source` and nothing else (property 4).
 ///
-/// `source` is text, already decoded: bytes, BOM and encoding are the
-/// caller's concern (spec Q25). Code spans and code blocks are never scanned,
+/// `source` is text, already decoded: bytes and encoding are the caller's
+/// concern (spec Q25); a byte order mark at the start is skipped over, and
+/// every span still slices `source` (spec Q24). Code spans and code blocks are never scanned,
 /// so a `[[link]]` inside them is not a link (spec §5.9): that comes from the
 /// base parser, which reports them as code, not as text.
 #[must_use]
@@ -67,7 +66,8 @@ pub fn parse(source: &str) -> Document {
     let mut quotes: Vec<bool> = Vec::new();
     let mut open_callouts: u32 = 0;
 
-    for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
+    let bom = crate::events::bom_len(source);
+    for (event, range) in crate::events::offsets(source, options) {
         // The own text of a list item closes when its first block child
         // starts, or when the item ends; either way before anything inside
         // that child is reported, so blocks stay in document order.
@@ -226,7 +226,7 @@ pub fn parse(source: &str) -> Document {
             // block on the first line (spec §5.1), so the range must start
             // the file.
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle))
-                if range.start == 0 && document.frontmatter.is_none() =>
+                if range.start == bom && document.frontmatter.is_none() =>
             {
                 document.frontmatter = frontmatter(source, range);
             }

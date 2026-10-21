@@ -1075,6 +1075,21 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   inteiro no PR que a acrescenta, com esta seção atualizada no mesmo PR;
   nenhuma está rascunhada ainda.
 
+  **Construído no branch `feat/dialect-q22-q24`, 2026-10-21 (fixtures
+  aguardando aprovação do mantenedor).** Observado no Obsidian 1.13.7 pela
+  CLI. (a) De `^abc-1`, `^ação`, `^a_b`, `^é1`, `^ab.c` só `abc-1` é bloco no
+  cache de metadados: letras acentuadas, `_` e `.` não contam, que é o que o
+  parser já fazia; fixture `block/id-chars`. (b) O painel de tags conta `#a`
+  2 para uma nota com `#a` e outra com `#a/b`; a lista de tags do índice agora
+  conta uma tag aninhada sob cada tag acima dela (a busca `tag:` da janela e
+  `notes_where` já casavam tags aninhadas); teste no `verso-index`. (c)
+  `"#ideia"` entre aspas e `ideia` listam uma só tag `#ideia`; `tags: [#ideia]`
+  sem aspas é YAML inválido para o Obsidian, que então não lê frontmatter
+  nessa nota (o Verso aponta o bloco inválido; não mudou). Fixture
+  `frontmatter/tags-hash`. O esquema de fixtures não tem chave para as tags de
+  uma nota (§4.6), então as regras de tag são testes em
+  `crates/verso-dialect/tests/tags.rs` e `crates/verso-index/tests/search.rs`.
+
 - **Q7. Normalização Unicode na comparação de nomes.** `DECIDIDO` em 2026-10-10.
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -1451,6 +1466,28 @@ ser escolhido.
   precisa de fixture ou de observação do Obsidian só fecha por inteiro no PR
   que a acrescenta, com esta seção atualizada no mesmo PR; nenhuma está
   rascunhada ainda.
+
+  **Construído no branch `feat/dialect-q22-q24`, 2026-10-21 (fixtures
+  aguardando aprovação do mantenedor).** Observado no Obsidian 1.13.7 pela
+  CLI. (a) Um BOM antes do `---` é aceito (o cache do Obsidian tem o
+  frontmatter, com os deslocamentos sem contar a marca): construído no parser,
+  no leitor e na fronteira da janela; o arquivo nunca é reescrito; fixture
+  `frontmatter/bom`. **`...` como linha de fechamento NÃO foi construído: o
+  Obsidian foi observado e não o aceita** (`---`, `tags: [x]`, `...` vira
+  divisória e texto, sem frontmatter), então aceitá-lo contradiria o dialeto do
+  Obsidian (invariante 12). Espera o mantenedor: manter o fechamento só com
+  `---` como o Obsidian, ou aceitar `...` como extensão do Verso (e então uma
+  nota com `...` aparece diferente nos dois apps). Sem fixture ainda. (b) O
+  YAML 1.2 já era o do parser: `yes` e `2024-01-02` são texto (fixture
+  `frontmatter/yaml-12`). **`tags: 2024` difere da premissa da decisão**: o
+  Obsidian lê `tags: 2024` como número e não lista tag (`tags: [2025, yes]`
+  lista só `#yes`; `true`, `1.5` e `"7"` não listam nenhuma), então o índice
+  agora só toma como tag uma string que não seja só dígitos (fixture
+  `frontmatter/tags-number`, a própria cláusula da decisão "ajusta se
+  diferir"). (c) Já construído (relações tipadas, ADR 0057 ponto 4; backlinks
+  e grafo em `crates/verso-index/tests/board.rs`); `frontmatterLinks`,
+  `backlinks` e `links` do Obsidian concordam; fixture
+  `frontmatter/wikilink-values`.
 
 - **Q21. O que é um "bloco".** `DECIDIDO` em 2026-10-07 pelo mantenedor.
   A unidade do editor ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): um

@@ -31,9 +31,29 @@ fn options() -> Options {
 
 /// The events of `source`, each with its byte range.
 pub(crate) fn events(source: &str) -> Vec<Offset<'_>> {
-    Parser::new_ext(source, options())
+    offsets(source, options()).collect()
+}
+
+/// The base parser's events over `source` with `options`, each with the
+/// range of `source` it came from. A byte order mark at the start is not
+/// content (spec Q24, decided 2026-10-21; Obsidian 1.13.7 reads the
+/// frontmatter behind one): the parser is fed the text after it, as if the
+/// file began there, and the ranges are moved back onto `source`, so that
+/// they still slice it. Nothing is written: this only reads.
+pub(crate) fn offsets(source: &str, options: Options) -> impl Iterator<Item = Offset<'_>> {
+    let bom = bom_len(source);
+    Parser::new_ext(source.get(bom..).unwrap_or(source), options)
         .into_offset_iter()
-        .collect()
+        .map(move |(event, range)| (event, range.start + bom..range.end + bom))
+}
+
+/// The length in bytes of a byte order mark at the start of `source`: 3, or 0.
+pub(crate) fn bom_len(source: &str) -> usize {
+    if source.starts_with('\u{feff}') {
+        '\u{feff}'.len_utf8()
+    } else {
+        0
+    }
 }
 
 /// Where a text event sits. The passes act on prose and leave the rest as

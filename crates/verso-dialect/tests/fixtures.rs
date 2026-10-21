@@ -78,6 +78,14 @@ fixture_tests! {
     // AI draft of ADR 0089's prose (M6, the maintainer's answer of
     // 2026-10-14), awaiting approval (first line of its expected.yaml).
     prose_what_is_prose => "prose/what-is-prose",
+    // AI drafts of the dialect questions Q22 and Q24 (decided 2026-10-21),
+    // awaiting approval (first line of each expected.yaml).
+    block_id_chars => "block/id-chars",
+    frontmatter_bom => "frontmatter/bom",
+    frontmatter_yaml_12 => "frontmatter/yaml-12",
+    frontmatter_tags_number => "frontmatter/tags-number",
+    frontmatter_tags_hash => "frontmatter/tags-hash",
+    frontmatter_wikilink_values => "frontmatter/wikilink-values",
 }
 
 fn check(name: &str, input: &str, expected: &str) {
