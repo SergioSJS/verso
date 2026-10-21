@@ -50,16 +50,28 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
     // One who may only read is sent no note, under any name: a link to
     // one is refused as the note is (ADR 0087 item 4).
     let reads_only = !(role.writes() && who.reaches(&folder).1);
-    let key = crate::access::key(&ctx.server, &found)?;
-    let server = Arc::clone(&ctx.server);
+    send(&ctx.server, &ctx.headers, found, path, reads_only).await
+}
+
+/// `path` of `found`, sent a piece at a time: to a member by `file`, and
+/// to a read link (`crate::visit`), always as a reader.
+pub(crate) async fn send(
+    server: &Arc<Server>,
+    headers: &HeaderMap,
+    found: crate::db::Folder,
+    path: String,
+    reads_only: bool,
+) -> ApiResult<Response> {
+    let key = crate::access::key(server, &found)?;
+    let server = Arc::clone(server);
     let (k, p) = (key.clone(), path.clone());
+    let s = Arc::clone(&server);
     let opened = tokio::task::spawn_blocking(move || {
         let policy = Policy {
             csp: FILE_CSP,
             cors_origin: None,
         };
-        server
-            .service
+        s.service
             .with_key(&k, |ws| {
                 if reads_only && ws.reader_may_not_stream(&p) {
                     return Ok(Err(refuse_note(&policy)));
@@ -75,7 +87,7 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
         Err(refused) => return Ok(whole(refused)),
     };
     let len = opened.mark.len;
-    let range = match ranged(&ctx.headers, len) {
+    let range = match ranged(headers, len) {
         Ok(range) => range,
         Err(()) => {
             let mut response = respond(
@@ -95,12 +107,7 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
         Some((start, end)) => (start, end, StatusCode::PARTIAL_CONTENT),
         None => (0, len, StatusCode::OK),
     };
-    let body = Body::new(Pieces::sent(
-        Arc::clone(&ctx.server),
-        (key, path),
-        &opened,
-        (start, end),
-    ));
+    let body = Body::new(Pieces::sent(server, (key, path), &opened, (start, end)));
     let mut response = respond(status, opened.headers, body);
     put(&mut response, header::ACCEPT_RANGES, "bytes");
     put(

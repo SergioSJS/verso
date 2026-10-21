@@ -224,8 +224,10 @@ fn every_answer_carries_the_whole_set_of_headers() {
             );
             let hsts = public.map(|_| "max-age=31536000; includeSubDomains");
             let page = page_csp(&ws);
+            let robots = Some("noindex, nofollow");
             let common = |csp: &str, corp: Option<&'static str>, cache: Option<&'static str>| {
                 vec![
+                    ("x-robots-tag", None),
                     ("x-content-type-options", Some("nosniff".to_owned())),
                     ("referrer-policy", Some("no-referrer".to_owned())),
                     ("x-frame-options", Some("SAMEORIGIN".to_owned())),
@@ -237,12 +239,43 @@ fn every_answer_carries_the_whole_set_of_headers() {
                     ("strict-transport-security", hsts.map(str::to_owned)),
                 ]
             };
+            // A read link's routes (ADR 0105 item 5): the same set, and
+            // no search engine.
+            r.server.db.set_read_links_on(true).unwrap();
+            let (link_token, _) = r
+                .server
+                .db
+                .make_read_link(&crate::db::NewReadLink {
+                    folder: &id,
+                    kind: "folder",
+                    path: "",
+                    made_by: &admin.id,
+                    expires: None,
+                    password: None,
+                })
+                .unwrap();
+            let marked = |mut set: Vec<(&'static str, Option<String>)>| {
+                set[0] = ("x-robots-tag", robots.map(str::to_owned));
+                set
+            };
             let routes = [
                 ("/", common(&page, None, Some("no-store"))),
                 ("/api/state", common(&page, None, None)),
                 (
                     &*format!("/f/{id}/mapa.svg"),
                     common(FILE_CSP, Some("same-origin"), Some("no-store")),
+                ),
+                (
+                    &*format!("/r/{link_token}"),
+                    marked(common(&page, None, Some("no-store"))),
+                ),
+                (
+                    &*format!("/r/{link_token}/state"),
+                    marked(common(&page, None, None)),
+                ),
+                (
+                    &*format!("/r/{link_token}/f/mapa.svg"),
+                    marked(common(FILE_CSP, Some("same-origin"), Some("no-store"))),
                 ),
             ];
             for (path, expected) in routes {

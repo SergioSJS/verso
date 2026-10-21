@@ -1088,9 +1088,9 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         name: "P".into(),
         root: "Projetos".into(),
         mount: Some(("Anexos".into(), "Anexos".into())),
-        guard: Some(std::sync::Arc::new(crate::scope::Guard {
-            vault: vault_dir.path().to_path_buf(),
-        })),
+        guard: Some(std::sync::Arc::new(crate::scope::Guard::phone(
+            vault_dir.path().to_path_buf(),
+        ))),
     };
     let mut refused_by_scope = Vec::new();
     for cmd in allow::READ.iter().chain(allow::EDIT.iter()) {
