@@ -9,7 +9,7 @@
 
 import { ApiError, api, type Account } from "./api";
 import { cw } from "./consoleStrings";
-import { brand, button, controls, el, input, snippet } from "./form";
+import { brand, button, controls, el, input, snippet, toggle } from "./form";
 import { bytes, setLang, when } from "./strings";
 import { table, type Page } from "./table";
 import { icon } from "../icons";
@@ -611,11 +611,41 @@ async function audit(c: Ctx, body: HTMLElement): Promise<void> {
 
 /* ---------- Server ---------- */
 
+/** The switch of read links (ADR 0105 item 3): off on a new server; off
+ *  again ends every link at once, open pages included. */
+async function readLinksSwitch(): Promise<HTMLElement> {
+  const s = cw();
+  const now = await api<{ enabled: boolean }>("GET", "/api/admin/read-links");
+  const sw = toggle(now.enabled, s.readLinks);
+  const line = el("p", { class: "settings-hint web-said", role: "status" });
+  line.textContent = now.enabled ? s.readLinksOn : s.readLinksOff;
+  sw.input.addEventListener("change", () => {
+    const want = sw.input.checked;
+    sw.input.disabled = true;
+    api<{ enabled: boolean }>("PUT", "/api/admin/read-links", { enabled: want })
+      .then((r) => {
+        sw.input.checked = r.enabled;
+        line.classList.remove("web-error");
+        line.textContent = r.enabled ? s.readLinksOn : s.readLinksOff;
+      })
+      .catch((e: unknown) => {
+        sw.input.checked = !want;
+        line.classList.add("web-error");
+        line.textContent = explain(e);
+      })
+      .finally(() => {
+        sw.input.disabled = false;
+      });
+  });
+  return el("section", { class: "console-panel", "aria-labelledby": "read-links-title" }, el("h2", { id: "read-links-title", class: "console-sub" }, s.readLinks), el("p", { class: "settings-hint" }, s.readLinksLead), sw.el, line);
+}
+
 async function server(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.server);
   const rows = await api<{ name: string; set: boolean; secret: boolean; value: string | null }[]>("GET", "/api/admin/config");
   body.replaceChildren(
+    await readLinksSwitch(),
     el("p", { class: "settings-hint" }, s.serverLead),
     el(
       "div",

@@ -556,6 +556,15 @@ export function dressLinks(this: NoteLeaf, path: string): void {
     // A note outside what was shared: like an unresolved link, and it says
     // so (ADR 0081 item 11); it never makes a note.
     const out = to === null && this.isOutside(target);
+    // A read link's window (ADR 0105 item 2): a link to what was not
+    // shared is plain text that says so, not a link to nothing.
+    if (out && document.documentElement.dataset["visitor"]) {
+      const plain = h("span", "link-outside", a.textContent ?? target);
+      plain.append(h("small", "link-outside-note", ` (${sh.notSharedShort})`));
+      plain.title = sh.notShared;
+      a.replaceWith(plain);
+      continue;
+    }
     a.classList.toggle("outside", out);
     if (out) {
       a.title = sh.notShared;

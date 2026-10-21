@@ -40,3 +40,17 @@
    inside when the window is short. */
 .quick.share-overlay { padding-top: 8vh; }
 .quick.share-overlay .share-dialog { max-height: calc(100dvh - 8vh - 16px); overflow: auto; }
+/* Read links (ADR 0105): the tree's mark on what a live link keeps open, the
+   dialog's warning and the address made once, and a read link's window,
+   where a link to what was not shared is plain text that says so. */
+.read-link-mark { display: inline-flex; align-items: center; margin-left: .3rem; color: var(--seal); flex: none; }
+.read-link-mark .icon { width: 12px; height: 12px; }
+.read-link-warn { margin: .5rem 0; font-size: .88rem; color: var(--ink-2); }
+.read-link-warn:empty { display: none; }
+.read-link-off { color: var(--seal); }
+.read-link-sub { font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); margin: .8rem 0 .2rem; font-weight: 600; }
+.read-link-made { display: flex; flex-direction: column; gap: .3rem; margin: .6rem 0; }
+.read-link-made input { width: 100%; min-height: 30px; font-family: var(--mono); font-size: .85rem; }
+.read-link-dialog .share-form input[type="date"] { min-width: 0; }
+.preview .link-outside { color: var(--ink-3); }
+.preview .link-outside-note { font-size: .8em; color: var(--ink-3); font-style: italic; }
