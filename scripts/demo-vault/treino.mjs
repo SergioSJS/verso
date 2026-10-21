@@ -290,6 +290,25 @@ const LESSONS = [
       b.write("d-map-nota", x + 20, y + 560, "e fixe nele a nota Porto Cinzento", { size: 28, color: INK, frame: f });
     },
   },
+  {
+    id: "paginas",
+    label: "14 · Páginas da web",
+    title: "🌐 Páginas da web",
+    color: BLUE,
+    text:
+      "Um cartão pode mostrar uma página da web viva, de um site que você permitiu.\n" +
+      "• Inserir › Página web…: cole o endereço (https://…). Na primeira vez o Verso pergunta se pode mostrar aquele site, e avisa antes se ele proíbe ser incorporado.\n" +
+      "• Um link comum vira página com Mostrar página, nas ferramentas do canto; Mostrar como link desfaz.\n" +
+      "• A página só recebe o mouse depois que você a entra: clique no meio do cartão, ou no botão Interagir com a página. Para sair, clique fora, ou use o botão Sair, ou Esc com o foco no cabeçalho do cartão.\n" +
+      "• Se o site proíbe ser incorporado, o cartão mostra isso e um link para abrir numa aba.\n" +
+      "• O arquivo guarda um cartão de link comum do JSON Canvas: o Obsidian mostra o endereço.",
+    challenge: "Desafio: permita o site do cartão, entre na página, role nela e saia com o botão Sair. Depois troque para Mostrar como link e volte.",
+    practice(b, x, y, f) {
+      b.write("d-pag-w", x + 20, y + 20, "uma página dentro do board", { size: 32, color: GREY, frame: f });
+      b.page("n-pagina", "https://example.com/", x + 20, y + 100, 540, 420);
+      b.write("d-pag-nota", x + 20, y + 570, "troque o endereço pelo de um site seu", { size: 28, color: INK, frame: f });
+    },
+  },
 ];
 
 /** The board. */

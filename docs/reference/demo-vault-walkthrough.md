@@ -642,6 +642,25 @@ point 13).
     H (the pins, the tools, the tiles on the harness's tile answers, the
     reader's board on its projection), A (the real tiles, the real server,
     a phone); E: `maps.spec.mjs`.
+13. Lesson 14, a web page on a card (ADR 0057 point 10, ADR 0056): the
+    card of `example.com` asks first ("Permitir sempre"); the click checks
+    the site, and a site that forbids framing says so in the card before it
+    is approved ("Permitir mesmo assim" goes on). Approved, the page shows
+    in a frame below a head with the origin; the board's drag and zoom keep
+    the pointer until the card is entered (a click in its middle, or the
+    "Interagir com a página" button), then the page scrolls and takes the
+    clicks; "Sair da página", a click outside, or Esc with the focus on the
+    head returns to the board. "Inserir › Página web…" asks for an address
+    and adds a `link` node with `verso.page`; a plain link card is switched
+    with "Mostrar página" / "Mostrar como link". A site that refuses shows
+    "Este site não permite ser incorporado" and a link to a tab; the native
+    clipped web view is never used in a board. The image export draws the
+    card as its box with the origin. In a note: approving a site that
+    forbids framing shows the warning first, worded for what this system
+    does with it. Level: H (the card, the warning, the file), A (the frame
+    inside the board's zoom and the card's clipping in WKWebView, WebView2
+    and WebKitGTK; the real headers of a real site); E:
+    `board-web-card.spec.mjs`, `web-embed.spec.mjs`.
 
 ## 10. Settings, help, the command line
 

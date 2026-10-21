@@ -10,7 +10,7 @@ status: ativo
 
 # Desenhando no Board
 
-Os boards do Verso são desenhados com o **Excalidraw**. Para aprender fazendo, abra o [[Treino do Board.canvas|Treino do Board]]: treze lições, cada uma com um espaço para praticar. Esta nota é a cola, para consultar depois.
+Os boards do Verso são desenhados com o **Excalidraw**. Para aprender fazendo, abra o [[Treino do Board.canvas|Treino do Board]]: catorze lições, cada uma com um espaço para praticar. Esta nota é a cola, para consultar depois.
 
 ![[Treino do Board.canvas]]
 

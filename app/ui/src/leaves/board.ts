@@ -43,7 +43,9 @@ import { dirOf, Kind, kindOf, name } from "../paths";
 import { parsePdfSpec, PdfView } from "../pdf";
 import { keyLinks, typeset, wireCallouts } from "../render";
 import { resolveNoteByName, withNoteLinks } from "../resolve";
-import { setHtml } from "../sanitize";
+import { approveOrigin, frameWarning, localHost, pictureGate, setHtml } from "../sanitize";
+import { frameable } from "../screen/framed";
+import { embedFrame } from "./web";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
@@ -290,6 +292,19 @@ export class BoardLeaf extends TextLeaf {
         },
       },
       secret: { served, project: (json) => commands.projectBoard(json) },
+      web: {
+        gate: (url) => pictureGate(url),
+        approve: (origin) => approveOrigin(origin),
+        warn: (url) => frameWarning(url, true),
+        frameable: (url) => frameable(url),
+        frame: (url, title) => {
+          const f = embedFrame(url);
+          f.title = title;
+          return f;
+        },
+        words: { local: t.embedLocal, approve: t.embedApprove, approveAnyway: t.embedApproveAnyway },
+        isLocal: (hostname) => localHost(hostname),
+      },
       sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
       prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },

@@ -96,6 +96,11 @@ export class Board {
     this.nodes.push({ id, type: "link", url, x, y, width, height, ...(color ? { color } : {}) });
   }
 
+  /** A link node that shows its page (ADR 0057 point 10): the flag Verso keeps under `verso`. */
+  page(id, url, x, y, width, height) {
+    this.nodes.push({ id, type: "link", url, x, y, width, height, verso: { page: true } });
+  }
+
   edge(id, fromNode, fromSide, toNode, toSide, label, color, extra) {
     this.edges.push({ id, fromNode, fromSide, toNode, toSide, ...(color ? { color } : {}), ...(label ? { label } : {}), ...(extra ?? {}) });
   }
