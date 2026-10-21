@@ -7,7 +7,7 @@
 // it shows, and two shortcuts named by what they do. A shortcut says what
 // it will turn on and off before it does anything.
 
-import { applyShortcut, currentFeatures, currentShortcut, setFeature, shortcutChanges } from "../../capabilities";
+import { applyShortcut, currentFeatures, currentShortcut, setFeature, shortcutChanges, shortcutKeepsOff } from "../../capabilities";
 import { ask } from "../../dialog";
 import { button, h } from "../../dom";
 import { FEATURE_IDS, type FeatureId, type ShortcutId } from "../../featureList";
@@ -47,7 +47,7 @@ function featuresNode(ctx: ItemCtx): HTMLElement {
         const { on, off } = shortcutChanges(id);
         // Nothing to change: nothing to ask.
         if (on.length + off.length === 0) return;
-        if (!(await ask(fs.askShortcut(fs.shortcutNames[id], on, off), { yes: fs.apply, no: fs.cancel }))) return;
+        if (!(await ask(fs.askShortcut(fs.shortcutNames[id], on, off, shortcutKeepsOff(id)), { yes: fs.apply, no: fs.cancel }))) return;
         applyShortcut(id);
         sync();
       })();

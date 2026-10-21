@@ -19,7 +19,7 @@ type Words = {
   descs: Record<FeatureId, string>;
   on: string;
   off: string;
-  askShortcut: (name: string, turnOn: string[], turnOff: string[]) => string;
+  askShortcut: (name: string, turnOn: string[], turnOff: string[], notOn: string[]) => string;
   apply: string;
   cancel: string;
   statusChanged: (name: string, on: boolean) => string;
@@ -44,6 +44,7 @@ const pt: Words = {
     statblocks: "Fichas",
     campaignBundles: "Assistente de mundo e campanha",
     dataDiagram: "Diagrama de dados",
+    dice3d: "Dados 3D",
   },
   descs: {
     diceRolling: "Um `dice:` numa nota vira um botão que rola; também liga o comando \"Rolar dados…\" e os botões de dados dentro das fichas.",
@@ -52,11 +53,12 @@ const pt: Words = {
     statblocks: "Blocos ```statblock aparecem como fichas visuais, e entra o item da barra / que cria uma ficha.",
     campaignBundles: "O assistente \"Novo projeto a partir de modelo\", no menu de criar e na paleta de comandos.",
     dataDiagram: "Arquivos JSON, YAML, TOML, XML e CSV ganham a vista \"Diagrama\" (caixas e linhas, só leitura), e um bloco de código desses formatos numa nota ganha o botão \"Ver como diagrama\".",
+    dice3d: "Ao rolar um dado, dados 3D caem na tela antes de o resultado aparecer; o resultado já foi sorteado, a animação só o mostra. Fica desligado mesmo no atalho \"Tudo\" (pesa na bateria) e nunca anima se o sistema pede menos movimento. Clique ou Esc pula a animação.",
   },
   on: "ligado",
   off: "desligado",
-  askShortcut: (name, turnOn, turnOff) =>
-    `Atalho "${name}". ${turnOn.length ? `Vai ligar: ${list(turnOn)}. ` : ""}${turnOff.length ? `Vai desligar: ${list(turnOff)}. ` : ""}Nenhum arquivo muda.`,
+  askShortcut: (name, turnOn, turnOff, notOn) =>
+    `Atalho "${name}". ${turnOn.length ? `Vai ligar: ${list(turnOn)}. ` : ""}${turnOff.length ? `Vai desligar: ${list(turnOff)}. ` : ""}${notOn.length ? `Não liga: ${list(notOn)}. ` : ""}Nenhum arquivo muda.`,
   apply: "Aplicar",
   cancel: "Cancelar",
   statusChanged: (name, on) => `${name}: ${on ? "ligado" : "desligado"}`,
@@ -79,6 +81,7 @@ const en: Words = {
     statblocks: "Statblocks",
     campaignBundles: "World and campaign wizard",
     dataDiagram: "Data diagram",
+    dice3d: "3D dice",
   },
   descs: {
     diceRolling: "A `dice:` in a note becomes a button that rolls; also turns on the \"Roll dice…\" command and the dice buttons inside statblocks.",
@@ -87,11 +90,12 @@ const en: Words = {
     statblocks: "```statblock blocks show as visual cards, and the / menu item that makes a statblock comes in.",
     campaignBundles: "The \"New project from a template\" wizard, in the create menu and the command palette.",
     dataDiagram: "JSON, YAML, TOML, XML and CSV files get a \"Diagram\" view (boxes and lines, read-only), and a code block of those formats in a note gets a \"View as diagram\" button.",
+    dice3d: "Rolling a die drops 3D dice on the screen before the result shows; the result is already drawn, the animation only stages it. It stays off even with the \"Everything\" shortcut (it is heavy on the battery) and never animates when the system asks for less motion. A click or Esc skips the animation.",
   },
   on: "on",
   off: "off",
-  askShortcut: (name, turnOn, turnOff) =>
-    `Shortcut "${name}". ${turnOn.length ? `It will turn on: ${list(turnOn)}. ` : ""}${turnOff.length ? `It will turn off: ${list(turnOff)}. ` : ""}No file changes.`,
+  askShortcut: (name, turnOn, turnOff, notOn) =>
+    `Shortcut "${name}". ${turnOn.length ? `It will turn on: ${list(turnOn)}. ` : ""}${turnOff.length ? `It will turn off: ${list(turnOff)}. ` : ""}${notOn.length ? `It does not turn on: ${list(notOn)}. ` : ""}No file changes.`,
   apply: "Apply",
   cancel: "Cancel",
   statusChanged: (name, on) => `${name}: ${on ? "on" : "off"}`,
