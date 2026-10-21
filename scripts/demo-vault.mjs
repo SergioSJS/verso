@@ -69,7 +69,7 @@ const LANGS = {
 const DIRS = Object.fromEntries(Object.entries(LANGS).map(([k, v]) => [k, join(root, v.dir)]));
 /** Links the tutorial leaves missing on purpose: note 02 shows a link that
  *  creates its note when it is followed. */
-const MEANT_MISSING = new Set(["nova ideia de projeto"]);
+const MEANT_MISSING = new Set(["nova ideia de projeto", "new project idea"]);
 
 /** The folder's files git tracks, relative to it: what the app embeds. A
  *  file left in the folder by a test (a daily note made in the app) is not

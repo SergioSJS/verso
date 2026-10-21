@@ -5,7 +5,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type ContractError } from "./bindings";
 import { afterFileChange, refreshLists } from "./changes";
-import { DEMO_RETIRED, DEMO_VAULT_FILES } from "./demoVault";
+import { DEMO_RETIRED, DEMO_VAULT_FILES, type DemoVaultFile } from "./demoVault";
 import { ask, tell } from "./dialog";
 import { ui } from "./dom";
 import { flash } from "./notify";
@@ -16,7 +16,7 @@ import { currentFolder } from "./folder";
 import { openNote } from "./layout/spaces";
 import { openFolderBy } from "./open";
 import { opening } from "./opening";
-import { t } from "./strings";
+import { LOCALE, t } from "./strings";
 import { openFolders } from "./tree/tree";
 
 const encoder = new TextEncoder();
@@ -51,8 +51,24 @@ async function replaceFile(path: string, b64: string): Promise<boolean> {
   return written.status === "ok";
 }
 
-/** Populate the current vault with sample notes, bases, and templates. */
-export async function importDemoVault(): Promise<void> {
+/** The tutorial's language that matches the window's (ADR 0058 point 15). */
+export type DemoLang = "pt" | "en";
+export const DEMO_LANG: DemoLang = LOCALE === "pt-BR" ? "pt" : "en";
+/** The first note of each, the one the import opens. */
+const WELCOME: Record<DemoLang, string> = { pt: "00 - Bem-vindo ao Verso.md", en: "00 - Welcome to Verso.md" };
+
+/** The files of a language's tutorial. The English one is a chunk of its
+ *  own, loaded only when it is imported; the images, the PDF and the theme
+ *  are kept once, in the Portuguese embed, and joined here. */
+async function demoFiles(lang: DemoLang): Promise<DemoVaultFile[]> {
+  if (lang === "pt") return DEMO_VAULT_FILES;
+  const { DEMO_VAULT_EN_FILES } = await import("./demoVaultEn");
+  return [...DEMO_VAULT_EN_FILES, ...DEMO_VAULT_FILES.filter((f) => f.path.startsWith("assets/"))];
+}
+
+/** Populate the current vault with sample notes, bases, and templates, in
+ *  the window's language unless another is asked for. */
+export async function importDemoVault(lang: DemoLang = DEMO_LANG): Promise<void> {
   void commands.logWrite("INFO", "import demo: asked").catch(() => undefined);
   try {
     if (!currentFolder) {
@@ -63,11 +79,12 @@ export async function importDemoVault(): Promise<void> {
     if (!confirmed) return void commands.logWrite("INFO", "import demo: declined").catch(() => undefined);
 
     ui.status.textContent = "…";
+    const DEMO = await demoFiles(lang);
 
     // The demo's own folders, from its files' paths (a parent before its
     // children): a name written here once did not follow a rename of the
     // demo's folder, and a case-insensitive disk then put the files in it.
-    const folders = [...new Set(DEMO_VAULT_FILES.flatMap((f) => f.path.split("/").slice(0, -1).map((_, i, parts) => parts.slice(0, i + 1).join("/"))))];
+    const folders = [...new Set(DEMO.flatMap((f) => f.path.split("/").slice(0, -1).map((_, i, parts) => parts.slice(0, i + 1).join("/"))))];
     for (const f of folders) {
       openFolders.add(f);
       try {
@@ -83,7 +100,7 @@ export async function importDemoVault(): Promise<void> {
     // other — the person's edit — is kept, and named. One that could not
     // be written is named too, and its reason goes to the log: an import
     // that wrote nothing said "imported" and left no trace (2026-10-01).
-    void commands.logWrite("INFO", `import demo: ${DEMO_VAULT_FILES.length} files`).catch(() => undefined);
+    void commands.logWrite("INFO", `import demo: ${DEMO.length} files`).catch(() => undefined);
     let createdCount = 0;
     const updated: string[] = [];
     // The files of the demo now in the folder, current: what an old name's
@@ -91,8 +108,8 @@ export async function importDemoVault(): Promise<void> {
     const settled = new Set<string>();
     const kept: string[] = [];
     const failed: string[] = [];
-    for (const [i, item] of DEMO_VAULT_FILES.entries()) {
-      ui.status.textContent = `… ${i + 1}/${DEMO_VAULT_FILES.length}`;
+    for (const [i, item] of DEMO.entries()) {
+      ui.status.textContent = `… ${i + 1}/${DEMO.length}`;
       try {
         const res = await commands.createFile(item.path, item.b64);
         if (res.status === "ok") {
@@ -120,7 +137,7 @@ export async function importDemoVault(): Promise<void> {
     // old name goes to the trash (restorable, ADR 0080) once the current
     // note is there; an edited one stays and is named.
     let trashed = 0;
-    for (const old of DEMO_RETIRED) {
+    for (const old of lang === "pt" ? DEMO_RETIRED : []) {
       const verdict = decideRetired(await hashOfFile(old.path), old.past, settled.has(old.to), old.path, old.to);
       if (verdict === "keep") kept.push(old.path);
       else if (verdict === "trash") {
@@ -141,7 +158,7 @@ export async function importDemoVault(): Promise<void> {
 
     await afterFileChange();
     refreshLists();
-    openNote("00 - Bem-vindo ao Verso.md", false, true);
+    openNote(WELCOME[lang], false, true);
     const summary = t.demoVaultSummary(createdCount, updated.length, kept.length);
     const msg = `${t.demoVaultImported} (${trashed > 0 ? `${summary}; ${t.demoVaultTrashed(trashed)}` : summary})`;
     ui.status.textContent = msg;
