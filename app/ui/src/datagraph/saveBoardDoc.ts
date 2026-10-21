@@ -24,6 +24,21 @@ function cell(text: string): string {
   return one.length > CELL ? `${one.slice(0, CELL - 1)}…` : one;
 }
 
+/** Data as a literal code span: a fence one backtick longer than the longest run inside, so nothing in it is Markdown. */
+function code(text: string): string {
+  if (text === "") return "";
+  const longest = (text.match(/`+/g) ?? []).reduce((m, r) => Math.max(m, r.length), 0);
+  const fence = "`".repeat(longest + 1);
+  const pad = text.startsWith("`") || text.endsWith("`") ? " " : "";
+  return `${fence}${pad}${text}${pad}${fence}`;
+}
+
+/** A box's title, shown in bold: Markdown's own characters are escaped so a key can not become a link or an image. A lone `$` (the root's path) is no math and stays. */
+function title(text: string): string {
+  const keep = (text.match(/\$/g) ?? []).length <= 1;
+  return text.replace(/[\\`*_[\]()<>!#|~^&{}]/g, "\\$&").replace(/\$/g, (d) => (keep ? d : "\\$"));
+}
+
 /** The canvas of the boxes as they are laid out: pure, so a test can hold it. */
 export function boardOf(tree: Tree, lay: Layout, dir: Dir, titleOf: (id: number) => string): BoardDoc {
   const nodes: Card[] = [];
@@ -31,11 +46,11 @@ export function boardOf(tree: Tree, lay: Layout, dir: Dir, titleOf: (id: number)
   for (const id of lay.order) {
     const n = tree.nodes[id]!;
     const rows = lay.rowsShown[id]!;
-    const lines = [`**${cell(titleOf(id))}**`];
+    const lines = [`**${title(cell(titleOf(id)))}**`];
     for (let i = 0; i < rows; i++) {
       const r = n.rows[i]!;
       const key = n.shape === "array" ? `[${r.key}]` : r.key;
-      lines.push(`${key === "" ? "" : `\`${key}\` `}${r.child >= 0 ? r.text : cell(r.text)}`.trim());
+      lines.push(`${key === "" ? "" : `${code(key)} `}${r.child >= 0 ? r.text : code(cell(r.text))}`.trim());
     }
     if (rows < n.rows.length && lay.rowsShown[id]! > 0) lines.push(`… ${n.rows.length - rows}`);
     nodes.push({ id: `n${id}`, type: "text", x: Math.round(lay.x[id]!), y: Math.round(lay.y[id]!), width: Math.round(lay.w[id]!), height: Math.max(Math.round(lay.h[id]!), HEAD_H + ROW_H), text: lines.join("\n\n") });
