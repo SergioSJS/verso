@@ -65,3 +65,16 @@ test.describe("the graph with notes that do not exist yet", () => {
     await expect.poll(async () => (await app.calls("graph_unresolved")).length).toBe(1);
   });
 });
+
+test("in a shared folder, which will not name missing notes, turning the filter off says why nothing appears", async ({ app, page }) => {
+  await vault(app, page);
+  // A share refuses graph_unresolved (ADR 0081 item 11).
+  await page.evaluate(() => {
+    window.__harness.core.handlers["graph_unresolved"] = () => {
+      throw { kind: "not_found", message: "not allowed in a share" };
+    };
+  });
+  await page.getByLabel(EXISTING).uncheck();
+  await expect(page.locator("svg.graph .node.missing")).toHaveCount(0);
+  await expect(page.locator(".graph-count")).toContainText("numa pasta compartilhada, notas que não existem não aparecem");
+});
