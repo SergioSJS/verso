@@ -8,7 +8,7 @@
 // fold of Live Preview and the properties panel never hide or edit a
 // block the core does not read as properties.
 
-const OPENING = /^---[ \t\f\r]*$/;
+const OPENING = /^\uFEFF?---[ \t\f\r]*$/;
 const BLANK = /^[ \t\v\f]*$/;
 const CLOSING = /^(---|\.\.\.) *$/;
 

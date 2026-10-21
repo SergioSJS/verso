@@ -246,7 +246,10 @@ impl NoteFacts {
         let mut tags: Vec<String> = Vec::new();
         let mut push = |t: &str| {
             let t = t.trim().trim_start_matches('#');
-            if !t.is_empty() && !tags.iter().any(|x| x.to_lowercase() == t.to_lowercase()) {
+            if !t.is_empty()
+                && !t.chars().all(|c| c.is_ascii_digit())
+                && !tags.iter().any(|x| x.to_lowercase() == t.to_lowercase())
+            {
                 tags.push(t.to_owned());
             }
         };
