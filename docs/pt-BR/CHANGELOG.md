@@ -47,6 +47,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Português na janela em inglês, e inglês na janela em português**: os layouts de ficha do Fractal agora dizem Reserves, Facts, Broken, Obstacles, Trigger, Consequence e Risk roll numa janela em inglês (os termos em português do jogo ficam nas chaves do YAML); o painel de busca na nota (o botão de substituir e o aviso de regex inválido), o exemplo de endereço do servidor, os exemplos de pastas ignoradas, o erro e as dicas de edição do Mermaid e a linha de PDF ausente seguem o idioma da janela; o menu do *+* tem o nome *Novo* para leitores de tela. Uma varredura de ponta a ponta (`e2e/language-sweep.spec.mjs`) abre as telas principais nos dois idiomas e falha diante de uma palavra do outro.
 - **Apertar uma nota no grafo não move mais a vista (acessibilidade)**: um clique ou arrasto numa nota perto da borda do grafo recentrava a vista antes do arrasto começar; agora só ir até uma nota pelo teclado a traz para a vista.
 - **A contagem do grafo é anunciada quando a digitação pausa (acessibilidade)**: filtrar o grafo atualiza a contagem na tela a cada tecla, mas o leitor de tela só a lê cerca de um segundo depois que você para de digitar.
 - **Áreas de clique maiores (acessibilidade)**: a marca de fechar da aba, a de remover de uma pílula de lista nas propriedades e os botões da barra de status respondem a um clique dentro de 24 × 24 px ao redor deles, embora continuem desenhados do mesmo tamanho e a barra de abas mantenha a altura.

@@ -31,6 +31,7 @@ const pt = {
   connect: "Conectar a um servidor",
   connectDesc: "Um UniVerso — um servidor Verso — onde você tem conta. O navegador abre a página dele para você entrar, colar o código que este app copia e permitir este computador; ninguém cola senha aqui.",
   addressLabel: "Endereço do servidor",
+  addressPlaceholder: "https://notas.exemplo",
   connectButton: "Conectar",
   // The code is copied before the page opens (decided 2026-10-14, ADR
   // 0083 As built); shown as well, to type when the copy was refused.
@@ -87,6 +88,7 @@ const en: typeof pt = {
   connect: "Connect to a server",
   connectDesc: "A UniVerso — a Verso server — where you have an account. The browser opens its page for you to sign in, paste the code this app copies and allow this computer; no password is pasted here.",
   addressLabel: "Server address",
+  addressPlaceholder: "https://notes.example",
   connectButton: "Connect",
   copied: "Code copied — paste it on the page that opened: ",
   notCopied: "Type this code on the page that opened: ",
@@ -277,7 +279,7 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
   url.type = "url";
   url.id = "srv-address";
   url.required = true;
-  url.placeholder = "https://notas.exemplo";
+  url.placeholder = s.addressPlaceholder;
   url.setAttribute("autocomplete", "url");
   url.addEventListener("keydown", (e) => e.stopPropagation());
   label.htmlFor = url.id;
