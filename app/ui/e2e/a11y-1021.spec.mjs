@@ -37,7 +37,7 @@ async function hitBox(page, control, mark = control, { size = 24, vertical = fal
       const pts = vertical ? [[0, -d], [0, d]] : [[-d, -d], [d, -d], [-d, d], [d, d], [0, -d], [0, d], [-d, 0], [d, 0]];
       return pts.map(([dx, dy]) => {
         const hit = document.elementFromPoint(cx + dx, cy + dy);
-        return hit === c || c.contains(hit);
+        return hit === c || c.contains(hit) ? true : `${dx},${dy}: ${hit?.tagName}.${hit?.className?.baseVal ?? hit?.className}`;
       });
     },
     [control, mark, size, vertical],
@@ -107,7 +107,7 @@ test.describe("the graph", () => {
     await page.mouse.down();
     await page.mouse.move(box.x + box.width - 6 + dx, box.y + box.height - 6, { steps: 4 });
     await page.mouse.up();
-    const target = page.locator("svg.graph .node circle").filter({}).evaluateAll((cs, edge) => {
+    const target = page.locator("svg.graph .node circle").filter({}).evaluateAll((cs) => {
       let best = null;
       for (const c of cs) {
         const r = c.getBoundingClientRect();

@@ -520,9 +520,11 @@ export class GraphLeaf extends Leaf {
       g.addEventListener("mouseenter", light);
       g.addEventListener("mouseleave", unlight);
       g.addEventListener("focus", () => {
-        // The Tab stop follows the keyboard, and the note is brought into view.
+        // The Tab stop follows the focus; the keyboard brings the note into view.
         for (const d of this.dots) d.g.setAttribute("tabindex", d.g === g ? "0" : "-1");
-        this.reveal(n);
+        // Only for the keyboard: a press with a pointer focuses the note too,
+        // and must not slide the view under the finger before a drag (A11Y.17).
+        if (g.matches(":focus-visible")) this.reveal(n);
         light();
       });
       g.addEventListener("blur", unlight);
