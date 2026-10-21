@@ -20,6 +20,17 @@ app real.
 
 ## Ainda não conferido
 
+### O diagrama de dados (ADR 0106, feat/datagraph, 2026-10-21)
+
+Precisa do app desktop instalado num Mac (e de uma tela com dedos para o primeiro item); os testes de ponta a ponta estão em `app/ui/e2e/datagraph.spec.mjs`, e o harness não é a web view de verdade.
+
+- [ ] **Pinça e roda na web view de verdade** (A): sobre um diagrama (o `Dados de Exemplo/npcs-da-campanha.json` da demonstração), a pinça do trackpad e Ctrl/Cmd com a roda aproximam o diagrama e não a janela; dois dedos no trackpad o movem; numa tela de toque dois dedos fazem a pinça e movem, e um dedo no título de uma caixa a arrasta.
+- [ ] **Arrastar no WKWebView** (A): uma caixa arrastada pelo título leva o que está pendurado nela e cai onde o ponteiro está; com Alt apertado ao arrastar só a caixa se move; o ponteiro saindo da janela no meio do arrasto termina o arrasto sem estragar nada.
+- [ ] **VoiceOver na árvore** (A): Tab entra no diagrama: ele lê uma árvore, cada caixa com o seu nível e *expandido*/*recolhido*; as setas andam por mãe, filha e irmãs, Enter recolhe; Alt+Shift+setas e Alt+setas movem uma caixa e o movimento é dito na linha de estado.
+- [ ] **Um arquivo grande** (A): um JSON de 5 a 20 MB abre como diagrama sem travar a janela; recolher tudo, expandir tudo, buscar e arrastar continuam fluidos o bastante para usar.
+- [ ] **Salvar como board no app** (A): *Salvar como board…* cria o `.canvas` na pasta escolhida, o abre, e os cartões e as linhas estão onde o diagrama os tinha.
+- [ ] **Windows e Linux** (A): o mesmo nas versões de Windows e Linux (WebView2, WebKitGTK).
+
 ### A rodada de RPG: oráculo, fichas, editor de layout, assistente, Créditos (ADRs 0098, 0099, 0102, 0103, feat/rpg-tutorial, 2026-10-20)
 
 Precisa do app desktop instalado num Mac (e, para os últimos itens, de um UniVerso com duas janelas); os testes de ponta a ponta desta rodada foram escritos sem serem rodados (os specs `oracle`, `statblock`, `layout-editor` e `world-wizard` em `app/ui/e2e/`) e o harness não é a web view de verdade.

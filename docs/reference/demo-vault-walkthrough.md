@@ -1265,7 +1265,57 @@ the folder `Campanha Fractal/` beside it ([ADR
    (the page); A (the link opening in the system's browser); U:
    `test/credits.test.mjs`.
 
-## 15. The end
+## 15. Structured data as a diagram (note 28, the sample files)
+
+Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
+`Dados de Exemplo/` in a folder that has the demo content ([ADR
+0106](../adr/0106-structured-data-as-a-diagram.md)).
+
+1. `npcs-da-campanha.json` opens as text, with *Texto | Diagrama* at the top of
+   the tab. *Diagrama* draws boxes and lines: the root, *npcs* with its three
+   people, each with *itens* and *segredo*, and *locais*. A cut value has a
+   *…* that shows all of it; Esc closes. *Texto* brings the editor back, and
+   the file on disk is as it was (nothing is ever written by the diagram).
+   Level: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs`.
+2. Drag a box by its title: what hangs under it goes along; with Alt held,
+   only the box. Close the tab, open the file again as a diagram: the boxes
+   stand where they were put. *Arrumar de novo* puts them back. Level: H; E:
+   `datagraph.spec.mjs`.
+3. Fold a branch with its arrow or Enter: the box says *3 itens* or *6
+   chaves* and what hung under it is gone; *Recolher tudo*, *Expandir tudo*
+   and *Expandir até o nível…* do the same for all. Search *revelada*: the
+   match inside a folded branch opens the way to it; Enter and Shift+Enter
+   go on and back, Esc clears. Level: H; E: `datagraph.spec.mjs`.
+4. Open the same file in a second pane (⌘\) as text and click a box: its range
+   is selected in the text; put the caret in the text and the box holding it
+   is marked; type a letter and the diagram follows after a pause; break the
+   JSON and the last diagram stays under a line with the error and *Ir ao
+   erro*, which goes to the place. Level: H; E: `datagraph.spec.mjs`.
+5. By keyboard only: Tab into the diagram, ↓ ↑ between siblings, ← to the
+   parent, → to the first child, Enter or Space folds, Alt+arrows moves the
+   box, T goes to the text, / to the search. A screen reader reads a tree,
+   with levels and *expandido*/*recolhido* (VoiceOver: by hand,
+   `manual-checks.md`). Level: H; E: `datagraph.spec.mjs`.
+6. Right-click a row: *Copiar caminho* gives `$.npcs[0].itens`, *Copiar valor*
+   the value. Level: H; E: `datagraph.spec.mjs`.
+7. `npcs-da-campanha.yaml`: two roots (*#1*, *#2*, a second document), a
+   dashed line from `conhece: *aliados` to the box marked `&aliados`.
+   Level: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs` (a file built
+   to expand into millions of values draws a few boxes).
+8. Note 28's own ```json block: *Ver como diagrama* on the block opens its
+   diagram in a tab beside, read-only, without the text switch. Level: H; E:
+   `datagraph.spec.mjs`.
+9. *Salvar como board…* (the bar, or ⌘⇧P): a dialog with the name, the folder
+   and *O board terá N cartões de texto e M linhas*; *Criar board* writes the
+   `.canvas` and opens it. Level: H; E: `datagraph.spec.mjs`.
+10. *Ajustes* › *Aplicação* › *Recursos* › *Diagrama de dados* off: no
+    *Texto | Diagrama* on a new tab and no button on the blocks; no file
+    changed. On: back. Level: H; E: `datagraph.spec.mjs`.
+11. A trackpad's pinch or Ctrl with the wheel zooms the diagram (not the
+    window); two fingers on a screen pinch and move it. Level: H (the wheel);
+    the fingers by hand.
+
+## 16. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

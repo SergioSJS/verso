@@ -364,8 +364,12 @@ const STOPS = [
     heading: "🎲 Dados e tabelas sorteadas",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-dados", "25 - Dados e Tabelas Sorteadas.md", 640]],
+    cards: [
+      ["n-dados", "25 - Dados e Tabelas Sorteadas.md", 600],
+      ["n-diagrama", "28 - Dados Estruturados como Diagrama.md", 600],
+    ],
     tip:
+      "Um arquivo JSON, YAML, TOML, XML ou CSV tem o seletor Texto | Diagrama: caixas para mover, recolher e buscar, sem tocar no arquivo. " +
       "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
       "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
