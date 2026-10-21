@@ -94,10 +94,9 @@ export type GalleryDeps = {
 
 export function themeGallery(deps: GalleryDeps): HTMLElement {
   const root = h("section", "themes");
-  const titleId = "themes-title";
-  const title = h("h3", "themes-title", W.gallery.title);
-  title.id = titleId;
-  root.setAttribute("aria-labelledby", titleId);
+  // The heading is the settings page's own group heading ("Temas"), which
+  // also holds the mode and tone selects just above the cards.
+  root.setAttribute("aria-label", W.gallery.title);
   const status = h("p", "look-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
@@ -269,7 +268,7 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
   });
   foot.append(create, importBtn, file);
 
-  root.append(title, h("p", "look-lead", W.gallery.lead), groups, foot, status);
+  root.append(h("p", "look-lead", W.gallery.lead), groups, foot, status);
 
   const follow = (): void => {
     if (!root.isConnected) {

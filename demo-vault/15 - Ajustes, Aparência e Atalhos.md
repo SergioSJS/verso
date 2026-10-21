@@ -37,11 +37,9 @@ Experimente: em **Arquivos e links**, desligue **Ignorar pastas de build** e vej
 
 ## Aparência
 
-- **Tema**: **Sistema**, **Claro** ou **Escuro**.
-- **Tom do escuro**, no tema escuro: **Suave** (o padrão, para ler e escrever por horas), **Profundo** (quase preto, para um quarto escuro ou uma tela OLED) e **Penumbra** (mais claro).
-- **Tamanho da fonte**: de 12 a 30 pixels.
-- **Largura do texto**: confortável (100 caracteres) ou toda a área.
-- **Temas**: logo abaixo, a galeria (veja adiante).
+- **Temas**, no alto, juntos: o **Tema** (**Sistema**, **Claro** ou **Escuro**), o **Tom do escuro** e, logo abaixo, a galeria (veja adiante); ao trocar o modo, os cartões mudam na hora.
+  - **Tom do escuro**, no tema escuro: **Suave** (o padrão, para ler e escrever por horas), **Profundo** (quase preto, para um quarto escuro ou uma tela OLED) e **Penumbra** (mais claro).
+- **Texto**: o **Tamanho da fonte**, de 12 a 30 pixels, e a **Largura do texto**, confortável (100 caracteres) ou toda a área.
 - **Mais opções de texto**: a fonte do texto da interface e a cor de destaque dos títulos, de âmbar a ametista.
 - **Botões da faixa lateral**: cada um com o seu interruptor; a engrenagem de Ajustes fica sempre, para que haja volta.
 

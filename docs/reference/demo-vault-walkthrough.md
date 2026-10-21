@@ -699,7 +699,7 @@ point 13).
    button — verso.exe comes with the app) and the MCP snippets, which show
    the command the host would write; without Claude Desktop, "Baixar o
    Claude Desktop" opens its download page in the browser; Aparência's
-   *Tom do escuro* changes the dark theme's paper (Suave, Profundo,
+   *Tom do escuro* (under *Temas*, beside the theme mode and above the cards) changes the dark theme's paper (Suave, Profundo,
    Penumbra), and the ribbon's buttons each have a switch, the gear none.
    Level: H; E: `settings.spec.mjs`, the sections and Aparência;
    `dark-tone.spec.mjs`, every palette and tone at 4.5:1 or more;
