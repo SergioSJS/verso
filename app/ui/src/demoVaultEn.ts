@@ -11,6 +11,7 @@ export const DEMO_VAULT_EN_FILES: DemoVaultFile[] = [
   {
     "path": "00 - Welcome to Verso.md",
     "past": [
+      "2b05db6b22a9ced9c5a547a158e869a80dd7590f9199629ec9f7d40d03b145d6",
       "62caf3001df57563281eaecccc63e90c5d57dea77ff83244e6d98382350075ca",
       "8e350a877f30f0a7417fdbe6acabe685fda3abb1fa8c3196e120dc5e17eeb74e"
     ],
@@ -393,6 +394,7 @@ export const DEMO_VAULT_EN_FILES: DemoVaultFile[] = [
       "475fe9b84831dc8571df9b4e23349c979f6a71664d6ac2896f792d4e07502c88",
       "4993b0157c5d2f85c8723c4695244a69b80254d5c14df4aa28b6d8b6e61f5dff",
       "5220d9e0498b803de27bbf63a926ce7fbbd136985b3dbca41f595f4c6b2c943a",
+      "53bac7b22a27ab2de846ad9d3629c80a9cbbf2385b8be33a21ed5923988ccf44",
       "5b8205582e96d7116cf35de5129dd2d761f381b36823fea8cb434bd52d36b2b9",
       "5c068b96446b48e6cf0ec2b59ebb4fd5a43197a9c55344c3b0366957f44c7421",
       "5de023c77e5b40c91f52b19a5db17ee4757edd342cf997d561afb6e55b4783dc",
