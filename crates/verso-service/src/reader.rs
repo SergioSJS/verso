@@ -45,6 +45,7 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     ("list_tags", ForReader::Projected),
     ("list_web_notes", ForReader::Same),
     ("graph", ForReader::Projected),
+    ("graph_unresolved", ForReader::Projected),
     ("list_folders", ForReader::Same),
     ("read_file_text", ForReader::Projected),
     ("resolve_attachment", ForReader::Same),
@@ -143,6 +144,7 @@ fn projected(
         )),
         "list_tags" => json(ops::tags_out(ws.reader_tags()?)),
         "graph" => json(ops::edges_out(ws.reader_graph()?)),
+        "graph_unresolved" => json(ops::missing_out(ws.reader_graph_unresolved()?)),
         "list_entries" => {
             let entries = ws.reader_entries()?;
             json(ops::entries_out(ws, &entries)?)

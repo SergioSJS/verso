@@ -17,9 +17,9 @@ use verso_contract::{
     BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
     Focus, FocusesSummary, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList,
     FolderDataWritten, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
-    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleSettings, OracleSparks,
-    PeriodSettings, PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote,
-    Written,
+    Mention, Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, OracleSettings,
+    OracleSparks, PeriodSettings, PeriodicSettings, RefusedEntry, Renamed, Tag, TextFile, Trashed,
+    WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -204,6 +204,12 @@ ops! {
     /// Every resolved link of the folder: its graph.
     Read fn graph(ws) -> Vec<Edge> {
         Ok(edges_out(ws.graph()?))
+    }
+
+    /// Every link no note answers to, once per note and name: the graph's
+    /// optional nodes for notes that do not exist yet (spec Q14).
+    Read fn graph_unresolved(ws) -> Vec<MissingLink> {
+        Ok(missing_out(ws.graph_unresolved()?))
     }
 
     /// Every folder of the open folder, empty ones included.
@@ -548,6 +554,13 @@ pub(crate) fn edges_out(edges: Vec<(String, String)>) -> Vec<Edge> {
     edges
         .into_iter()
         .map(|(from, to)| Edge { from, to })
+        .collect()
+}
+
+pub(crate) fn missing_out(links: Vec<(String, String)>) -> Vec<MissingLink> {
+    links
+        .into_iter()
+        .map(|(from, target)| MissingLink { from, target })
         .collect()
 }
 

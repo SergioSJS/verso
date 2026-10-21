@@ -50,6 +50,7 @@ import type {
   TextFile,
   Trashed,
   UpdateInfo,
+  MissingLink,
   WebNote,
   Written,
   Focus,
@@ -66,6 +67,7 @@ import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./per
 import { applyOracle, applyTheme, checkOracle, FolderData, oracleProblems, readOracle, readTheme, writeGuard } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { projectSecrets } from "./secret";
+import { graphEdges, missingLinks } from "./graph";
 import { unlinkedMentions } from "./mentions";
 
 export type Seed = { path: string; b64: string };
@@ -1093,19 +1095,9 @@ export class Core {
         const url = propertiesOf(this.text(p))["url"];
         return typeof url === "string" && /^https?:\/\//.test(url) ? [{ path: p, url }] : [];
       }),
-    graph: (): Edge[] => {
-      const seen = new Set<string>();
-      const out: Edge[] = [];
-      for (const from of this.linkSources()) {
-        for (const l of this.linksOf(from)) {
-          const to = this.resolve(l.target, from);
-          if (!to || to === from || seen.has(`${from}\n${to}`)) continue;
-          seen.add(`${from}\n${to}`);
-          out.push({ from, to });
-        }
-      }
-      return out;
-    },
+    graph: (): Edge[] => graphEdges(this.linkSources(), (p) => this.linksOf(p), (t, from) => this.resolve(t, from)),
+    // Links no note and no file answers to (spec Q14).
+    graph_unresolved: (): MissingLink[] => missingLinks(this.linkSources(), (p) => this.linksOf(p), (t, from) => this.resolve(t, from)),
     app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: this.deviceName ?? "Mac de Teste" }),
     // This computer's name (ADR 0079 item 8): no server to tell here.
     device_name: (): DeviceName => ({ name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }),

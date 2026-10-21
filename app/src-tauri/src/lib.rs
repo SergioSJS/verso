@@ -35,8 +35,8 @@ use verso_contract::{
     FileEntry, Focus, FocusesSummary, FolderChanged, FolderDataFile, FolderDataKind,
     FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
     Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
-    Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw, Renamed,
-    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw,
+    Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -688,6 +688,7 @@ macro_rules! commands_for {
                 list_entries::<$runtime>,
                 list_web_notes::<$runtime>,
                 graph::<$runtime>,
+                graph_unresolved::<$runtime>,
                 current_folder::<$runtime>,
                 app_info,
                 device_name,

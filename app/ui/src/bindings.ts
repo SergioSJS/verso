@@ -156,6 +156,11 @@ export const commands = {
 	/**  Every resolved link of the vault: the graph of the whole folder. */
 	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
 	/**
+	 *  Every link no note answers to, for the graph's option of showing the
+	 *  notes that do not exist yet (spec Q14).
+	 */
+	graphUnresolved: () => typedError<MissingLink[], ContractError>(__TAURI_INVOKE("graph_unresolved")),
+	/**
 	 *  The folder this window shows, for a window that joins a session (a
 	 *  note in a window of its own, a window opened on the same folder) and
 	 *  for a reload: `None` when it shows none (ADR 0065).
@@ -2085,6 +2090,17 @@ export type Mention = {
 export type Mentions = {
 	mentions: Mention[],
 	more: boolean,
+};
+
+/**
+ *  A link of a note that no note answers to, for the graph's option of
+ *  showing them (spec Q14, decision B): the note it is written in and the
+ *  name it points at, as written (the smallest spelling in byte order when
+ *  several notes spell it differently, so every source shows one node).
+ */
+export type MissingLink = {
+	from: string,
+	target: string,
 };
 
 /**  A file that moved, from one relative path to another. */
