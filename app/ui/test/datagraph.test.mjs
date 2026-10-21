@@ -528,12 +528,17 @@ describe("the parsers' messages in pt-BR", () => {
 });
 
 describe("review I5: YAML aliases resolve in linear time", () => {
-  test("one anchor and 100 000 aliases parse in well under a second", () => {
-    const text = "base: &a x\nlist:\n" + "  - *a\n".repeat(100_000);
-    const [t, took] = ms(() => D.parse(text, "yaml"));
+  test("aliases grow linearly: ten times the aliases cost about ten times, not a hundred", () => {
+    // A ratio, not a wall-clock bound: the machine's load moves both runs
+    // alike (the rule for timing tests decided on 2026-10-10). Quadratic
+    // resolution made 10x the aliases cost ~100x.
+    const doc = (n) => "base: &a x\nlist:\n" + "  - *a\n".repeat(n);
+    D.parse(doc(2_000), "yaml"); // warm the parser up
+    const [, small] = ms(() => D.parse(doc(10_000), "yaml"));
+    const [t, large] = ms(() => D.parse(doc(100_000), "yaml"));
     assert.equal(t.error, null);
-    assert.ok(took < 3000, `${took} ms`);
     assert.equal(t.nodes[1].rows[0].text, "*a = x");
+    assert.ok(large < Math.max(small, 1) * 35, `10k: ${small} ms, 100k: ${large} ms`);
   });
   test("an anchor on a box still gets a line, and a redefined anchor resolves to the nearest before", () => {
     const t = D.parse("a: &x [1]\nb: *x\nc: &x [2]\nd: *x\n", "yaml");
