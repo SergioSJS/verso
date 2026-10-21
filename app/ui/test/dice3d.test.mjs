@@ -190,14 +190,15 @@ test("the room's id: the same event heard again is not animated twice", () => {
 
 test("the replay's clock: real time, skip, and a maximum", () => {
   const tl = m.timeline(121);
-  assert.equal(Math.round(tl.settleMs), 2000);
-  assert.equal(Math.round(tl.endMs), 2000 + m.HOLD_MS);
+  const settle = Math.round(2000 / m.PLAYBACK_SPEED);
+  assert.equal(Math.round(tl.settleMs), settle);
+  assert.equal(Math.round(tl.endMs), settle + m.HOLD_MS);
   assert.deepEqual(m.playhead(tl, 0, false), { at: 0, done: false });
   const mid = m.playhead(tl, 500, false);
-  assert.equal(Math.round(mid.at), 30);
+  assert.equal(Math.round(mid.at), Math.round(30 * m.PLAYBACK_SPEED));
   assert.equal(mid.done, false);
   // After the last frame the dice rest, shown for the hold.
-  assert.deepEqual(m.playhead(tl, 2500, false), { at: 120, done: false });
+  assert.deepEqual(m.playhead(tl, settle + 10, false), { at: 120, done: false });
   assert.deepEqual(m.playhead(tl, tl.endMs, false), { at: 120, done: true });
   // Skipped: over at once, on the last frame.
   assert.deepEqual(m.playhead(tl, 10, true), { at: 120, done: true });

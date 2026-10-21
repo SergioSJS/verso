@@ -64,6 +64,7 @@ test release.
 
 ### Fixed
 
+- **The 3D dice show the result sooner**: the fall is replayed 1.6 times faster, the dice stay 0.3 seconds once they rest (it was 1.1) before the card shows, and a roll that has not come to rest by 2.5 seconds (it was 6.5) snaps to its result; a typical roll shows its card in under two seconds.
 - **Numbers on the 3D dice are centred on their faces**: each number sits in the middle of its face, drawn by its own ink instead of its text box, upright the way real dice print it (a corner up on triangles and pentagons, an edge on the d6, the sharp tip on the d10), sized to fit inside the face with a margin, and the dot of a 6 or a 9 goes below the digit without pushing it off centre; the d4 numbers stand toward their corners.
 - **Settings › Servers no longer moves under your pointer**: the network search's sentence grew from one line to four 0.3 s after the page opened, pushing the computer-name form (and its Save button) down as it was clicked, so the click could miss. The sentence now has its room from the start.
 - **A data file on a board no longer draws an empty box**: a `.json` file card (and `.yaml`, `.csv`…) was an empty box. It shows its text now (see Added). Any other file with no body of its own on a card — a sound, an `.html`, another board, a base — shows its extension and says to open it, instead of nothing.
