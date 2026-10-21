@@ -55,7 +55,7 @@
 .dice-roller-title { margin: 0; font-family: var(--display); font-size: 1.1rem; font-weight: 500; color: var(--heading-color); }
 .dice-roller-close { position: absolute; top: .6rem; right: .6rem; }
 .dice-roller-row { display: flex; gap: .5rem; }
-.dice-roller-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: .45rem .6rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; }
+.dice-roller-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: .45rem .6rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--control-line); border-radius: 6px; }
 .dice-roller-go { display: inline-flex; align-items: center; gap: .4rem; }
 .dice-roller-go .icon { width: 13px; height: 13px; }
 .dice-roller-out { display: flex; align-items: baseline; gap: .6rem; min-height: 1.6rem; }

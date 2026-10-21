@@ -199,9 +199,9 @@ body.popout .ribbon, body.popout .side, body.popout #side-divider, body.popout .
 .pdf-scroll .pdfViewer { padding: .6rem 0 3rem; }
 .pdf-scroll .pdfViewer .page { margin: 10px auto; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
 ::highlight(verso-quote-1), ::highlight(verso-quote-2), ::highlight(verso-quote-3), ::highlight(verso-quote-4), ::highlight(verso-quote-5), ::highlight(verso-quote-6), ::highlight(verso-quote-7), ::highlight(verso-quote-8), ::highlight(verso-quote-9), ::highlight(verso-quote-10) { background-color: oklch(85% 0.17 90 / .5); }
-input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
+input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--control-line); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
 input.pdf-page::-webkit-inner-spin-button { display: none; }
-input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
+input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--control-line); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
 input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .pdf-find .icon { color: var(--ink-3); margin-right: .2rem; }
 .pdf-search-info { color: var(--ink-3); margin-left: .4rem; white-space: nowrap; }
@@ -297,7 +297,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph-controls .graph-filter:focus { outline: none; border-color: var(--brass-ink); }
 .graph-field { display: grid; grid-template-columns: 1fr; gap: .2rem; }
 .graph-field select, .graph-field input[type="range"] { font: inherit; width: 100%; accent-color: var(--seal); }
-.graph-field select { padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.graph-field select { padding: .25rem .4rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper); color: var(--ink); }
 .graph-check { display: flex; align-items: center; gap: .45rem; }
 .graph-check input { accent-color: var(--seal); }
 .graph-zoom { display: flex; gap: .2rem; }
@@ -516,7 +516,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-top { flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .8rem; }
 .settings-top .settings-search { flex: 1; min-width: 0; }
 .settings-close { flex: none; }
-.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--control-line); border-radius: 999px; background: var(--paper); color: var(--ink); }
 .settings-search:focus { outline: none; border-color: var(--brass-ink); }
 .settings-nav { display: flex; flex-direction: column; gap: .1rem; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem 0 .8rem; scrollbar-width: thin; }
 .settings-nav-group-header {
@@ -570,14 +570,14 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .setting-note { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 /* A value to read, not to change: the version and its commit. */
 .setting-value { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); user-select: text; white-space: nowrap; }
-.setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }
+.setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--control-line); border-radius: 6px; width: 14rem; max-width: 40vw; }
 .setting input[type="range"] { width: 11rem; accent-color: var(--seal); }
 .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
 /* The checkbox covers the switch (clickable, focusable, at its size); its
    focus shows on the track, as the global ring would on a control. */
 .switch input { position: absolute; inset: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .switch input:focus-visible + .switch-track { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
-.switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); transition: background .15s; }
+.switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--control-line); transition: background .15s; }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px oklch(0% 0 0 / .3); transition: transform .15s var(--ease-out); }
 .switch input:checked + .switch-track { background: var(--seal); border-color: var(--seal); }
 .switch input:checked + .switch-track::after { transform: translateX(16px); }
@@ -623,7 +623,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-actions .srv-help { margin: 0; max-width: 34rem; }
 .srv-empty-form { width: 100%; }
 .srv-field { display: flex; gap: .5rem; max-width: 34rem; }
-.srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--control-line); border-radius: 7px; }
 .srv-field input:focus { outline: none; border-color: var(--brass-ink); }
 .srv-help { margin: .55rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--ink-3); max-width: 60ch; }
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
