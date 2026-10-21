@@ -808,3 +808,12 @@ a feature continua na V1, onda C, para o próprio pull request. A linha V.20 do 
 construído" e continua na V1, onda C (`[DECIDIDO 2026-10-14]`). A ser lido
 por outro modelo antes de ser aceito. Nada foi construído nem executado
 para escrevê-lo.
+
+**Correção, 2026-10-21** (a revisão do lote, M11): o parágrafo acima foi
+escrito em 2026-10-15, antes da construção. A feature está construída: veja
+*Como foi construído* acima, `feat/local-server-build` integrada por
+`404ba0d4` (2026-10-15), o servidor no Windows por `273fc25c`, as pastas
+servidas como árvore por `7550a68a`; a linha V.20 do roadmap diz construída
+em 2026-10-15 (macOS e Linux, Windows depois, item 17 (a)). O "Não
+construído" do parágrafo e da linha do índice era verdade ao ser escrito e
+não é mais.

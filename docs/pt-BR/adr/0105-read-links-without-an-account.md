@@ -23,7 +23,10 @@
 - Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
   decisões de 2026-10-20 (respondido em 2026-10-21), 0105.2 a 0105.8, todas
   como recomendadas: todo `[PROPOSTO]` vira `[DECIDIDO 2026-10-21]`, e a ADR
-  é Aceita. Nada está construído.
+  é Aceita. Nada está construído. 2026-10-21, mais tarde no mesmo dia —
+  construída em `feat/rpg-tools` (Status, Como construído); a revisão do
+  lote achou o item 5 se contradizendo e o registrou como `[ABERTO]` sob
+  esse item.
 
 ## Contexto
 
@@ -100,6 +103,21 @@ marcou no questionário de 2026-10-20.
    foi aberto pela última vez; **revogar** o encerra na hora, páginas
    abertas incluídas.
 
+   `[ABERTO]` (registrado em 2026-10-21 pela revisão do lote; regra zero
+   item 3, nenhum lado escolhido): este item se contradiz. Diz que o token
+   é "guardado só como hash" e também que o endereço é "copiável de novo
+   pelo painel enquanto vive"; um armazenamento que guarda só o hash não
+   pode dar ao painel o endereço de um link feito em outra janela ou antes
+   de uma reinicialização. O que foi construído: só o hash, e o endereço
+   copiável de novo apenas na janela que o fez, guardado na memória
+   (`app/ui/src/readLinks.ts`); o modelo de ameaças documenta essa leitura
+   ("The address is shown once, so it cannot be recovered by the owner,
+   only made again", `docs/reference/threat-model.md`). O mantenedor
+   responde (pergunta RL.1a da lista de decisões de 2026-10-21): ou
+   "copiável de novo" significa "na janela que o fez", e este item é
+   emendado, ou o servidor guarda o token cifrado em repouso, uma decisão
+   diferente que pede a sua própria linha no modelo de ameaças.
+
 6. **Limites e abuso.** `[DECIDIDO 2026-10-21]` (0105.6, opção A): um
    pedido anônimo tem ritmo por
    token e por endereço como as outras rotas do servidor
@@ -147,4 +165,13 @@ marcou no questionário de 2026-10-20.
 ## Status
 
 Aceita (2026-10-21). Item 1 decidido pelo mantenedor em 2026-10-20, os
-itens 2–8 em 2026-10-21. Nada está construído.
+itens 2–8 em 2026-10-21.
+
+Como construído em 2026-10-21, em `feat/rpg-tools` (não enviada, não
+lançada): `ddfcdd73` (o link, o caminho do visitante e os comandos do dono
+no servidor), `95827830` (fuzzing do que qualquer um sem conta pode enviar),
+`26c44c68` (os comandos `list`, `secrets`, `create` e `revoke` do
+contrato), `c4534607` (fazer e ler links na janela), `8ec0dc3f` (testes de
+ponta a ponta), `4dbe4bbb` (modelo de ameaças, verificações manuais,
+changelog, tutorial); integrada por `5690057e`. A contradição do item 5
+segue `[ABERTO]` acima.
