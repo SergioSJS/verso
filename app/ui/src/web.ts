@@ -12,7 +12,7 @@
 import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
-import { currentFolderId, startBridge } from "./web/bridge";
+import { currentFolderId, startBridge, startVisitorBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { ensureClipboard } from "./web/clipboard";
@@ -29,7 +29,40 @@ import { holdClicks } from "./earlyClicks";
 // it is busy until then).
 const openHeld = holdClicks(document.getElementById("open"));
 
+/** The window of a read link (ADR 0105): no account, no offline copy, no
+ *  sync — the page the address names, asked of the server and shown only
+ *  when the link opens (and its passphrase, if any, was proved). */
+async function visitor(token: string): Promise<void> {
+  const { readLinkGate, endedPage, rw } = await import("./web/readLink");
+  const gate = await readLinkGate(token);
+  if (!gate) return;
+  document.documentElement.dataset.host = "server";
+  document.documentElement.dataset.visitor = "link";
+  startVisitorBridge(token, endedPage);
+  addEventListener("verso:role", (e) => (document.documentElement.dataset.role = (e as CustomEvent<string | null>).detail ?? ""));
+  // A link to one note opens that note: there is nothing else to choose.
+  // Heard before the window starts, which shows the folder as it does.
+  const { note } = gate;
+  const loaded = import("./main");
+  addEventListener(
+    "verso:folder-shown",
+    () => {
+      notice(rw().banner);
+      if (note) void loaded.then((m) => m.openNote(note, false));
+    },
+    { once: true },
+  );
+  await loaded;
+  openHeld();
+}
+
 async function start(): Promise<void> {
+  // A read link's address opens the window for whoever holds it, with no
+  // account to ask for (ADR 0105); nothing of the signed-in flow runs.
+  if (location.pathname.startsWith("/r/")) {
+    const token = decodeURIComponent(location.pathname.slice("/r/".length)).split("/")[0] ?? "";
+    return visitor(token);
+  }
   // Copying works over plain HTTP too, where the browser gives no
   // clipboard of its own (ADR 0073 item 6, amended 2026-10-16).
   ensureClipboard();

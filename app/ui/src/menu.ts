@@ -28,6 +28,8 @@ import { st } from "./screen/strings";
 import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
+import { openReadLinkDialog } from "./readLinks";
+import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
 import { historyFor, openHistory } from "./dialogs/history";
@@ -143,6 +145,10 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     sep,
     ...(write ? ([
       ...(folder && mayShare() ? [[sh.share, () => openShareDialog(path), "user"] as MenuItem] : []),
+      // Read links (ADR 0105 item 3): the folder's owner makes them, for a
+      // folder or for one note.
+      ...(folder && mayShare() ? [[rl.menuFolder, () => openReadLinkDialog("folder", path), "link"] as MenuItem] : []),
+      ...(!folder && (kind === "note" || kind === "board") && mayShare() ? [[rl.menuNote, () => openReadLinkDialog("note", path), "link"] as MenuItem] : []),
       [t.rename, rename, "edit"],
       [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
       ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
