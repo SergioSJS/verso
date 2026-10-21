@@ -28,6 +28,7 @@ test release.
 
 ### Fixed
 
+- **Esc on the `@` list keeps it closed**: after Esc dismisses the note list opened by `@`, typing more letters of the same word no longer brings it back; a new `@` opens it again.
 - **The oracle's "Mythic GME" style is now "Likely twists"**: the odds are the same, but the style carries a name of Verso's own and says, on hover and in its description, that it is inspired by Mythic GME and does not model its chaos factor. "Ironsworn" keeps its name.
 - **A task's checkbox sits in the middle of its line again in the Mac and Linux windows**: on a bold or long line it sat low, while a browser showed it centred. The box is now drawn by Verso the same way everywhere, in reading and in Edit mode.
 - **SVG pictures on a board stay sharp when zoomed in**: a picture, cropped or not, whose drawing has a drop shadow (a filter) showed those parts blurred in the app when the board was zoomed in, while the rest stayed sharp. The picture is now laid out at the zoom, within a size cap; the file is never touched.
