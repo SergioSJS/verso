@@ -49,15 +49,21 @@ fn the_syntax_is_the_one_the_index_accepted() {
 }
 
 #[test]
-fn a_frontmatter_tag_is_a_string_without_its_hash_and_not_digits_only() {
+fn a_frontmatter_tag_is_a_string_or_an_integer_without_its_hash() {
     use verso_dialect::{Value, frontmatter_tag};
     let s = |t: &str| Value::String(t.to_owned());
     assert_eq!(frontmatter_tag(&s("#ideia")), Some("ideia".to_owned()));
     assert_eq!(frontmatter_tag(&s("ideia")), Some("ideia".to_owned()));
     assert_eq!(frontmatter_tag(&s("Rpg/Solo")), Some("Rpg/Solo".to_owned()));
-    assert_eq!(frontmatter_tag(&s("2024")), None);
+    // DL.2 = B (maintainer, 2026-10-21): a number is the tag of its text,
+    // knowingly unlike Obsidian.
+    assert_eq!(frontmatter_tag(&s("2024")), Some("2024".to_owned()));
     assert_eq!(frontmatter_tag(&s("#")), None);
-    assert_eq!(frontmatter_tag(&Value::Integer(2024)), None);
+    assert_eq!(
+        frontmatter_tag(&Value::Integer(2024)),
+        Some("2024".to_owned())
+    );
+    assert_eq!(frontmatter_tag(&Value::Integer(-3)), None);
     assert_eq!(frontmatter_tag(&Value::Float(1.5)), None);
     assert_eq!(frontmatter_tag(&Value::Bool(true)), None);
     assert_eq!(frontmatter_tag(&Value::Null), None);

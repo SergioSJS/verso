@@ -334,9 +334,11 @@ fn a_nested_tag_counts_for_the_tags_above_it() {
 
 /// Spec Q22 c and Q24 b, decided 2026-10-21 and observed on Obsidian
 /// 1.13.7: a `#` in a frontmatter tag is no part of its name, and only a
-/// string that is not digits only is a tag (`tags: 2024`, `[2025, yes]`).
+/// string is a tag. DL.2 = B (maintainer, 2026-10-21), knowingly unlike
+/// Obsidian: an integer or a string of digits is the tag of its text
+/// (`tags: 2024`, `[2025, yes]`); a boolean or a float is none.
 #[test]
-fn frontmatter_tags_drop_the_hash_and_skip_numbers() {
+fn frontmatter_tags_drop_the_hash_and_a_number_is_its_text() {
     let mut index = Index::in_memory().unwrap();
     put(&mut index, "h.md", "---\ntags: [\"#ideia\"]\n---\n");
     put(&mut index, "p.md", "---\ntags: [ideia]\n---\n");
@@ -349,7 +351,11 @@ fn frontmatter_tags_drop_the_hash_and_skip_numbers() {
     let tags = index.tags().unwrap();
     let mut names: Vec<&str> = tags.iter().map(|(n, _)| n.as_str()).collect();
     names.sort_unstable();
-    assert_eq!(names, ["ideia", "x", "x/y", "yes"], "{tags:?}");
+    assert_eq!(
+        names,
+        ["2024", "2025", "7", "ideia", "x", "x/y", "yes"],
+        "{tags:?}"
+    );
     let ideia = tags.iter().find(|(n, _)| n == "ideia").unwrap();
     assert_eq!(ideia.1, ["h.md", "p.md"]);
 }

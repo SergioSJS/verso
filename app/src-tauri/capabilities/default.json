@@ -40,6 +40,7 @@
     "allow-list-tags",
     "allow-read-file-text",
     "allow-list-entries",
+    "allow-list-block-ids",
     "allow-list-web-notes",
     "allow-graph",
     "allow-graph-unresolved",

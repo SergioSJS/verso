@@ -33,6 +33,7 @@ fn main() {
         "list_tags",
         "read_file_text",
         "list_entries",
+        "list_block_ids",
         "list_web_notes",
         "graph",
         "graph_unresolved",

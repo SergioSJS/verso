@@ -453,8 +453,8 @@ impl Scope {
             Ok(())
         };
         match cmd {
-            "list_notes" | "list_files" | "list_tags" | "list_web_notes" | "graph"
-            | "list_folders" | "list_entries" | "notes_of_type" => {}
+            "list_notes" | "list_files" | "list_tags" | "list_block_ids" | "list_web_notes"
+            | "graph" | "list_folders" | "list_entries" | "notes_of_type" => {}
             "search" => args["limit"] = json!(200),
             "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
             | "board_preview" | "unlinked_mentions" | "map_open" | "map_tile" => {
@@ -531,6 +531,8 @@ impl Scope {
                 }
             }
             "list_web_notes" => self.keep(&mut v, "path"),
+            // A block of a note outside the share is not said.
+            "list_block_ids" => self.keep(&mut v["blocks"], "path"),
             "backlinks" => self.keep(&mut v, "from"),
             // A mention in a note outside the share is not said (ADR 0089).
             "unlinked_mentions" => self.keep(&mut v["mentions"], "path"),

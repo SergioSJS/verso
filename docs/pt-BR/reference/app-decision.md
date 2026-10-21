@@ -84,7 +84,7 @@ onde ela guarda o próprio estado e o que ela devolve para reabrir a pasta.
 | Grupo | Comando | Para quê |
 |---|---|---|
 | Pasta | `pick_folder`, `reopen_folder`, `open_initial`, `current_folder`, `reindex` | o seletor nativo, rodado pelo host, e depois a pasta indexada; uma pasta aberta antes, pela chave; a pasta nomeada na linha de comando, uma vez; a pasta que uma janela de nota acompanha; indexar de novo. Só a janela principal troca de pasta, e nunca com uma janela de nota aberta |
-| Listas | `list_notes`, `list_files`, `list_folders`, `list_entries`, `list_tags`, `list_web_notes`, `graph` | o que a árvore, a visão de pasta, o painel de tags e o grafo mostram |
+| Listas | `list_notes`, `list_files`, `list_folders`, `list_entries`, `list_tags`, `list_block_ids`, `list_web_notes`, `graph` | o que a árvore, a visão de pasta, o painel de tags e o grafo mostram |
 | Leitura | `read_note`, `read_text`, `read_file_text`, `resolve_attachment`, `search`, `links`, `backlinks` | uma nota com o HTML, as propriedades, os títulos e a revisão; qualquer arquivo de texto com a revisão (`not_text` quando não é UTF-8); o arquivo que um embed nomeia, a partir da nota que o tem (Q12 da spec); busca e links do índice |
 | Escrita | `write_note`, `write_text` | o texto de uma nota ou arquivo de texto, sobre a revisão que foi lida |
 | Criar | `create_note`, `create_file`, `create_folder` | recusado com `exists` quando algo ocupa o lugar |

@@ -125,6 +125,18 @@ pub(crate) fn list_tags<R: tauri::Runtime>(
     with(&state, &window, ops::list_tags)
 }
 
+/// Every block with an `^id` in the folder's notes, of the kinds asked (all
+/// when none): where the oracle finds its tables (ADR 0102 item 3).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn list_block_ids<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    kinds: Vec<BlockKind>,
+) -> Result<FolderBlocks, ContractError> {
+    with(&state, &window, |ws| ops::list_block_ids(ws, kinds))
+}
+
 /// The notes that are web pages, with their addresses (an icon, a tab).
 #[tauri::command]
 #[specta::specta]
