@@ -7,6 +7,12 @@
   caminhos da janela até a rede);
   [0026](0026-core-ui-contract-inviolable-rules.md), regra 5
 - Status no briefing: não consta
+- Revisões: 2026-10-21 — dois itens `[ABERTO]` respondidos pelas marcas do
+  mantenedor no questionário de decisões de 2026-10-20 (respondido em
+  2026-10-21): o aviso na hora de aprovar (0056.aviso, opção B, não a A
+  recomendada) e os links e quadros da própria página (0056.links, opção A).
+  Uma página web embutida como cartão num board é permitida, reaproveitando
+  esta ADR ([0057](0057-board-json-canvas.md), decidido no mesmo dia).
 - Revisões: 2026-09-29 — confirmado pelo mantenedor na sessão ("Ratifique o
   que precisar", respondendo à lista do que estava pendente): o ADR fica
   Aceito como está escrito. 2026-09-29 — **revisto pelo mantenedor** no
@@ -229,10 +235,12 @@ Como o autor construiu isso sob essa decisão (commit `3629f0c`;
   que não nomeia o app, é decisão do site, e o Obsidian mostra o mesmo.
   Observado em 2026-09-29: `rolai.app` manda `X-Frame-Options: DENY`;
   `olddragon.com.br` manda `frame-ancestors 'self' *.owlbear.rodeo`.
-- **`[ABERTO]` — um aviso na hora de aprovar.** Quando o usuário aprova uma
-  origem, o host poderia mandar um `HEAD` ao endereço e avisar quando o site
-  proíbe ser embutido, para ninguém aprovar um frame vazio. Uma gentileza
-  possível, não decidida; traria de volta um pedido do lado do host.
+- **Um aviso na hora de aprovar.** Quando o usuário aprova uma origem, o
+  host manda um `HEAD` ao endereço e avisa quando o site proíbe ser embutido,
+  para ninguém aprovar um frame vazio. Traz de volta um pedido do lado do
+  host (a verificação de embutibilidade abaixo já o faz, uma vez por
+  origem). `[DECIDIDO 2026-10-21]` (0056.aviso, **opção B**, não a A
+  recomendada): **avisar na hora da aprovação.** A construir.
 - **O primeiro embed de todo site custa um clique**, sites públicos
   inclusive, e uma aprovação fica até ser removida nos ajustes.
 - **O host não julga mais endereços.** A checagem de rede local na janela
@@ -368,10 +376,13 @@ Como o autor construiu A (`app/src-tauri/src/framing.rs`, `web.rs`,
   está registrado no modelo de ameaças
   (`docs/reference/threat-model.md`, "A web page embedded in a note"), com o
   raciocínio de que uma página embutida não alcança os comandos do app.
-- **`[ABERTO]`, não decidido aqui.** Os links da própria página para outra
-  origem, e os frames dentro dela (um vídeo, um anúncio), são recusados pelo
-  guard e ficam em branco até o mantenedor escolher como alargá-lo (o custo
-  é o mesmo: o guard não distingue um frame da janela).
+- **Os links da própria página para outra origem, e os frames dentro dela**
+  (um vídeo, um anúncio), são recusados pelo guard e ficam em branco (o
+  custo é o mesmo: o guard não distingue um frame da janela).
+  `[DECIDIDO 2026-10-21]` (0056.links, opção A): **continuam bloqueados, e
+  se mostra que algo foi bloqueado**, sem abrir brecha de segurança. Permitir
+  um frame depois de aprovar a origem dele pediria um guard novo, e não há
+  pedido concreto.
 
 Descartadas nesta revisão: nenhuma registrada.
 
@@ -445,8 +456,9 @@ Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.
 O mecanismo sob eles é do autor, construído sob essa decisão e identificado
 como tal acima. Confirmado em 2026-09-29 pelo mantenedor: o ADR fica
 Aceito. Revisto em 2026-09-29 pelo mantenedor, na sessão: o ponto 3, opção
-A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. Um item
-fica `[ABERTO]`: um aviso na hora de aprovar; o cache da web view
+A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. O item que
+ficou `[ABERTO]` então, um aviso na hora de aprovar, foi decidido em
+2026-10-21 (acima); o cache da web view
 depois de uma atualização foi decidido em 2026-10-07 (acima).
 Revisto em 2026-10-14 pelo mantenedor, na sessão ("A agora, B depois"): os
 embeds são `<iframe>`s quando o site permite ser embutido, child web views

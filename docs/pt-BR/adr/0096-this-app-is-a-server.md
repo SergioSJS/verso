@@ -26,6 +26,13 @@
   [0011](0011-config-outside-tree-index-as-cache.md),
   [0027](0027-runtime-capabilities.md), `docs/reference/threat-model.md`.
 - Status no briefing: ausente; na aceitação.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21), todas como
+  recomendadas: 0096.2 (o alargamento do item 11 da
+  [0093](0093-periodic-notes.md) pela pasta de anexos é aprovado, e a 0093
+  agora cita o caso), 0096.5c (o certificado sob o domínio do projeto fica
+  para depois da V1, sem compromisso) e 0096.as-built (os detalhes do "Como
+  foi construído" aceitos como construídos).
 
 ## Contexto
 
@@ -193,7 +200,7 @@ precisa de uma linha, o item diz.
        nunca uma achada pelo que as notas dizem: a pasta que as configurações
        do Obsidian nomeiam (`attachmentFolderPath` em `.obsidian/app.json`),
        lida a cada início pelo `verso-fs` — o que alarga em um caminho a
-       exceção estreita da [0093](0093-periodic-notes.md) item 11 (**esse alargamento espera o aval do mantenedor; o texto da 0093, "dois arquivos nomeados", fica como está e a contradição fica registrada aqui até ele decidir**), lido pelo
+       exceção estreita da [0093](0093-periodic-notes.md) item 11 (**esse alargamento está aprovado, `[DECIDIDO 2026-10-21]`, 0096.2, opção A: uma leitura pelo nome, nunca escrita, pelo `verso-fs`; o item 11 da 0093 agora cita o caso, de modo que os dois textos concordam**), lido pelo
        nome e nunca escrito — e guardada como a pasta de anexos do
        compartilhamento, substituída a cada início e limpa quando a
        configuração some. Nenhuma quando a configuração não existe, é a raiz
@@ -319,9 +326,10 @@ precisa de uma linha, o item diz.
      diálogo de pareamento como para uma rede em que a pessoa confia**, com
      o limite do primeiro uso escrito nas palavras que a pessoa lê. O
      celular offline (V.8) num notebook servido com (a) é declarado
-     indisponível até (c) existir. Se (c) será construído depois da V1 é
-     uma pergunta à parte para o mantenedor; o roadmap não precisa dele
-     para a V.20.
+     indisponível até (c) existir. Se (c) será construído depois da V1:
+     `[DECIDIDO 2026-10-21]` (0096.5c, opção A) **fica para depois da V1,
+     sem compromisso**; decide-se quando alguém pedir, e o roadmap não
+     precisa dele para a V.20.
    - O endereço é uma segunda pergunta dentro desta. A origem do celular é
      o endereço privado atual do notebook, que muda com o DHCP, e o cookie
      de sessão e a checagem de `Host` estão presos a essa origem
@@ -634,7 +642,10 @@ Construído em 2026-10-15 em `feat/local-server-build`, para **macOS e
 Linux**; o Windows foi acrescentado no mesmo dia (item 17, revisado,
 abaixo). O que o código resolveu onde os itens deixavam espaço (nada disso
 muda uma decisão; cada ponto é uma pergunta ao mantenedor se for para ser
-de outro jeito):
+de outro jeito). `[DECIDIDO 2026-10-21]` (0096.as-built, opção A): aceitos
+como construídos — a ordem dos endereços, o interruptor "Can edit", o link
+de pareamento copiável, o conteúdo do log e os nomes das pastas; cada um só
+vira pergunta se o mantenedor quiser mudá-lo:
 
 - **Windows** (item 17, revisado em 2026-10-15): a primeira construção
   tomou a opção (a) — o `verso-server` não era construído para Windows, e

@@ -24,6 +24,12 @@
   [0029](0029-guardrails-in-ci.md) (o confinamento de `std::fs`, uma exceção
   declarada aqui), [0069](0069-windows-port.md), `docs/reference/threat-model.md`.
 - Status no briefing: não consta.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21), todas como
+  recomendadas: os itens 2, 3, 5, 7a, 9 e 10 e os limites da descoberta
+  (item 4) ficam decididos como construídos (0097.2, 0097.3, 0097.4,
+  0097.5, 0097.7a-i, 0097.7a-ii, 0097.9, 0097.10). O item 8 (o texto do erro
+  "inacessível") não foi respondido e continua `[PROPOSTO]`.
 
 ## Contexto
 
@@ -60,7 +66,9 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    segue para o login como se o endereço fosse digitado. Digitar um endereço
    continua possível.
 
-2. **`[PROPOSTO]` O que é anunciado.** Tipo de serviço `_verso._tcp` (o nome
+2. **`[DECIDIDO 2026-10-21]` O que é anunciado** (0097.2, opção A: manter
+   como construído, TXT só `v`/`https`/`id`, `url` só com
+   `VERSO_PUBLIC_URL`). Tipo de serviço `_verso._tcp` (o nome
    é deste projeto; nada é registrado). O nome da instância é `UniVerso-` e
    seis dígitos hexadecimais aleatórios, novos a cada início — **nunca o
    nome do computador, de uma pasta ou de uma conta**. O registro SRV leva a
@@ -80,7 +88,8 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    `VERSO_PUBLIC_URL`. Atrás de um proxy sem endereço público o anúncio é o
    IP com `https=0`, que o servidor aceita.
 
-3. **`[PROPOSTO]` Quando é anunciado, e o interruptor.** Ligado por padrão
+3. **`[DECIDIDO 2026-10-21]` Quando é anunciado, e o interruptor** (0097.3,
+   opção A). Ligado por padrão
    quando o servidor escuta além do loopback (`0.0.0.0`, um endereço de
    LAN); nunca quando escuta só no loopback. `VERSO_ANNOUNCE=off` (também
    `0`, `false`, `no`) desliga. Ele é anunciado **só nas interfaces privadas (RFC 1918) e
@@ -90,7 +99,9 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    nunca derruba o servidor: ele funciona sem ser achado. Um registro de
    despedida é enviado quando o servidor para.
 
-4. **Análise de ameaça do anúncio.**
+4. **Análise de ameaça do anúncio.** `[DECIDIDO 2026-10-21]` (0097.4, opção
+   A: manter os limites — 40 caracteres, 50 anúncios, uma busca só com
+   Ajustes › Servidores aberto, nada conectando sem um clique).
    - *Falsificação.* Qualquer um na rede pode anunciar um serviço
      `_verso._tcp` com qualquer endereço. O pior que isso faz é **oferecer
      um endereço errado** na lista. Por isso: o app nunca conecta, entra ou
@@ -116,7 +127,8 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
      app não pergunta nada à rede no resto do tempo. Só o host desktop
      busca: uma janela num navegador não pode, e a seção não aparece lá.
 
-5. **`[PROPOSTO]` A lista.** *Encontrados nesta rede / Found on this
+5. **`[DECIDIDO 2026-10-21]` A lista** (0097.5, opção A: manter como
+   descrito, com os três comandos do contrato). *Encontrados nesta rede / Found on this
    network*: cada linha tem o nome da instância, o endereço
    (o endereço público que o servidor anunciou, ou `http://ip[:porta]`, um endereço IPv4 privado primeiro), *HTTPS* ou
    *sem HTTPS* / *no HTTPS*, e um botão *Conectar / Connect*. Uma linha sob a
@@ -143,7 +155,12 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    nunca muda o nome para que o certificado é conferido e nunca recua de
    `https` para `http`; e o erro nomeia os endereços tentados.
 
-7a. **`[PROPOSTO]` Como, em detalhe** (do autor; o mantenedor não os leu):
+7a. **`[DECIDIDO 2026-10-21]` Como, em detalhe** (0097.7a-i, opção A: os
+    tempos e a regra de http/https como construídos — um nome suspeito por
+    10 minutos, uma resposta guardada por 5 minutos, 15 segundos quando nada
+    veio, 1,2 s por servidor, até 6; para `http` só um endereço on-link,
+    para `https` qualquer um; e 0097.7a-ii, opção A: o cliente de DNS escrito
+    à mão, sem `hickory-resolver`):
     - o nome é resolvido pelo sistema, como sempre, e **nada mais é
       perguntado enquanto as conexões funcionam**;
     - quando uma conexão **falha**, o nome fica suspeito por dez minutos e
@@ -233,7 +250,8 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    para todo endereço, tenha dado tempo esgotado ou recusa: o log tem a causa
    real.
 
-9. **`[PROPOSTO]` As plataformas.** *macOS:* o `Info.plist` do app lista
+9. **`[DECIDIDO 2026-10-21]` As plataformas** (0097.9, opção A: manter como
+   descrito). *macOS:* o `Info.plist` do app lista
    `_verso._tcp` em `NSBonjourServices`, ao lado de `_verso-local._tcp`, e a
    descrição de uso da Rede Local diz que o app também procura servidores; o
    macOS 15 em diante pede a permissão na primeira vez, e uma busca sem a
@@ -258,7 +276,8 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
     na árvore pelo `verso-server` e pelo `reqwest`, licenças inalteradas):
     `rcgen` (MIT OR Apache-2.0), para fazer um certificado de um nome nos testes
     de TLS, e o `rustls` sobre ring, para servi-lo. Uma biblioteca de DNS não
-    foi adicionada (veja as Alternativas descartadas).
+    foi adicionada (veja as Alternativas descartadas). `[DECIDIDO
+    2026-10-21]` (0097.10, opção A): as duas dev-dependencies são aceitas.
 
 ## Consequências
 
@@ -313,11 +332,12 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
 ## Status
 
 Aceito nos itens 1 e 7 (2026-10-16, *"Gosto de todos"*), que são as frases
-do mantenedor. Os itens 2 a 6, 7a e 8 a 10, marcados `[PROPOSTO]`, são os
-detalhes do autor dessas decisões (o que é anunciado, a chave `url`, o
-interruptor, a lista, os tempos e a política da regra de DNS, o cliente
-escrito à mão, os leitores da lista de DNS do sistema), construídos e à
-espera do mantenedor; nenhum é promovido. A exceção de `std::fs` do `src/resolv_conf.rs` (item 9) foi **ratificada** em
+do mantenedor. Os detalhes do autor dessas decisões (o que é anunciado, a
+chave `url`, o interruptor, os limites, a lista, os tempos e a política da
+regra de DNS, o cliente escrito à mão, as plataformas, as dev-dependencies)
+foram decididos pelo mantenedor em 2026-10-21, como construídos. O **item 8**
+(o texto do erro "inacessível") continua `[PROPOSTO]`: o mantenedor não o
+respondeu, e ele não é promovido. A exceção de `std::fs` do `src/resolv_conf.rs` (item 9) foi **ratificada** em
 2026-10-16 (*"Pode seguir a sua sugestão"*). Decidido em 2026-10-16: **o arquivo
 compose mantém a rede bridge como padrão**, e
 `packaging/server/docker-compose.host-network.yml` é oferecido como a variante

@@ -94,6 +94,8 @@ Decidido em 2026-09-23 pelo mantenedor, sobre a recomendação do autor
   comportava antes de o ajuste existir e como o Obsidian carrega imagens
   remotas. O mantenedor pediu o ajuste sem dizer o padrão; o padrão é do
   autor, e o mantenedor pode escolher desligado.
+  `[DECIDIDO 2026-10-21]` (a marca do mantenedor, opção A): **ligado**, como
+  está; igual ao Obsidian, e desligar é um clique em Ajustes.
 
 ## Alternativas descartadas
 
