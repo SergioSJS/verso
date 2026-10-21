@@ -1,0 +1,53 @@
+---
+title: Graph View and Connections
+date: 2026-09-25
+tags:
+  - graph
+  - connections
+  - zettelkasten
+  - views
+status: active
+---
+
+# Graph View and Connections
+
+Verso's **Knowledge Graph** maps the connections between all your notes, revealing clusters of ideas, central topics and conceptual bridges in your vault.
+
+---
+
+## 🕸️ How to Open the Graph
+
+- **Vault graph**: all the notes. The **Vault graph** button in the left ribbon, or the command palette (`⌘⇧P`).
+- **Relations** (`⌘⇧G`): the graph around the open note — the note, the ones it cites and the ones that cite it. Also in a tab's menu and in a note's menu in the file tree.
+
+---
+
+## 🎛️ The Controls
+
+- **Filter: name or tag:x**: type part of a name, or `tag:` and a tag, to see only those notes; **All tags** picks a tag from the list.
+- **Depth** (in **Relations**): 1, 2 or 3 steps from the note.
+- **Show notes without links**, **Names** and **Color by folder** turn what you see on and off.
+- **Repulsion**, **Distance** and **Size** adjust the drawing.
+- **Zoom out**, **Zoom in** and **See everything**; in **Relations**, the **Vault graph** button goes back to the whole graph.
+
+---
+
+## 🧭 Smooth Navigation Gestures
+
+Navigation in the graph was designed to behave with the fluidity expected of modern apps:
+
+- **Mouse Wheel Zoom**: Turn the scroll to zoom the view in or out smoothly.
+- **Trackpad Pinch (Pinch-to-zoom)**: Move two fingers together or apart on the trackpad for continuous, precise zoom.
+- **Two-Finger Navigation / Pan**: Swipe with two fingers on the trackpad to move the view area in any direction.
+- **Dragging Nodes**: Click and hold any node to reposition it in space.
+
+---
+
+## Connection Structure of This Vault
+
+In this sample vault, the notes form nodes connected by relations:
+- [[00 - Welcome to Verso]] works as the central entry node.
+- The technical guides connect to one another and point to the [[04 - Bases and Data Views|Bases examples]].
+- The project notes ([[projects/Project Alpha]], [[projects/Project Beta]]) form a cluster tied together by shared tags and cross references.
+
+Go back to [[00 - Welcome to Verso|Start]] or go on to [[06 - Documents and Media]].

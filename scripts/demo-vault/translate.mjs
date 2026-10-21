@@ -49,12 +49,12 @@ export function translator(lang) {
     if (!hasWord(s)) return s;
     const whole = lookup(s);
     if (whole !== undefined) return whole;
-    const [, mark, rest] = /^([^\p{L}]*)([\s\S]*)$/u.exec(s);
-    if (mark !== "" && rest !== "") {
+    const [, mark, rest] = /^([^\p{L}]*\s)?([\s\S]*)$/u.exec(s);
+    if (mark && rest !== "") {
       const part = lookup(rest);
       if (part !== undefined) return mark + part;
     }
-    missing.add(mark !== "" && rest !== "" ? rest : s);
+    missing.add(mark && rest !== "" ? rest : s);
     return s;
   };
   const name = (p) => {
