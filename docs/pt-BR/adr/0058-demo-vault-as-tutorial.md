@@ -21,6 +21,9 @@
   medida que a aplicação cresce. quero algo que automatize de fato esses
   testes para não precisar gastar token de llm pra isso". O percurso roda no
   harness do navegador (pontos 8 a 13); o `[ABERTO]` está fechado.
+  2026-10-21, mais tarde — o cofre de demonstração em inglês está construído
+  (`demo-vault-en/`); o mantenedor respondeu E.1a e E.1b da lista de decisões
+  de 2026-10-21, ambas opção A (Status).
 
 ## Contexto
 
@@ -185,3 +188,15 @@ mantenedor em 2026-10-01 (ponto 14):
 Aceito (2026-10-01): os pontos 1 a 3 e 8 decididos pelo mantenedor; os pontos
 4 a 7 e 9 a 13 aceitos pelo mantenedor no mesmo dia, com os pontos 14 e 15.
 `[ABERTO]`: o cofre de demonstração em inglês — `[DECIDIDO 2026-10-21]` (0058, **opção B**, não a A recomendada, no questionário de decisões de 2026-10-20): o cofre de demonstração em inglês é feito **antes da V1**, aceitando mais um espelho a manter a cada lição do tutorial (roadmap, linha nova).
+Construído em 2026-10-21 (`demo-vault-en/`: as 29 notas, os dois boards e as
+pastas de exemplo; "Importar cofre de exemplo" traz o da língua da janela, e
+um segundo comando traz o outro). `[DECIDIDO 2026-10-21]`, respondendo E.1a e
+E.1b da lista de decisões: **(E.1a, opção A) as chaves das propriedades
+também são traduzidas** no cofre inglês (`role`, `level`, `priority`…, onde o
+português tem `papel`, `nível`, `prioridade`…), de modo que um tutorial em
+inglês não tem palavras soltas em português; as bases e os modelos do cofre
+inglês acompanham. (Uma nota copiada de um cofre para o outro não leva as
+chaves consigo; a opção B, chaves iguais, não foi escolhida.) **(E.1b, opção
+A) as capturas em inglês são feitas quando a interface estabilizar, antes da
+V1**: as três capturas do servidor, os SVGs e o PDF de exemplo mostram hoje a
+interface em português nos dois cofres. Roadmap V.31.

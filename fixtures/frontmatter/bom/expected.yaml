@@ -1,4 +1,3 @@
-# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
 # Construct: a byte order mark before the opening `---`. Spec: §5.1 and Q24 a
 # (decided 2026-10-21: the BOM is accepted; the file is never rewritten,
 # invariant 7). The frontmatter is read as if the file began after the mark.

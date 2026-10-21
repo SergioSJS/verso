@@ -31,7 +31,8 @@
   (item 3); the contradictions of the first text are fixed (it spoke of an
   `rpg` preset, which [0103](0103-feature-presets-and-capability-flags.md)
   removed, and gave an absolute path on the maintainer's computer). Stays
-  Proposed until item 3 is closed.
+  Proposed until item 3 is closed. 2026-10-21, later — item 3 decided by the
+  maintainer (0101.1c, option A); **Accepted**, being built.
 
 ## Context
 
@@ -52,7 +53,8 @@ maintainer wants it in V1 all the same.
 
 `[DECIDED 2026-10-21]` marks what the maintainer decided on 2026-10-21 by
 marking the option written in the item in the questionnaire of 2026-10-20
-(with his own words where he gave them). One item is `[OPEN]`.
+(with his own words where he gave them). Item 3 was `[OPEN]` until the
+later answer of the same day recorded in it.
 
 1. **3D dice are in V1, rewritten** (0101.0, option B; roadmap V.29).
    `[DECIDED 2026-10-21]`. This text is that rewrite; it is accepted, and
@@ -67,7 +69,9 @@ marking the option written in the item in the questionnaire of 2026-10-20
    Excalidraw and MapLibre (`--splitting`, `chunks/`). 0088 records the
    revision in its Revisions line.
 
-3. **The library: `[OPEN]` until an evaluation** (0101.1b, "Outra").
+3. **The library: `three` + `cannon-es`, our own code** (0101.1b, "Outra",
+   then 0101.1c, option A). `[DECIDED 2026-10-21]` — see the end of this item.
+   The first answer (0101.1b, "Outra").
    The maintainer: *"Avalie entre A e B qual a melhor abordagem, seria bom
    aproveitar algo pronto do rolai msm, mas vale avaliar o A um pouco mais,
    assim como B"* (evaluate between A and B which is the better approach; it
@@ -88,6 +92,22 @@ marking the option written in the item in the questionnaire of 2026-10-20
    other two options of the questionnaire — `@3d-dice/dice-box` and a hand-made
    CSS 3D die with no physics — were not chosen for the evaluation; the
    maintainer named A and B.
+
+   **Decided on 2026-10-21 by the maintainer (0101.1c, option A), after the
+   evaluation he asked for** (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`,
+   measured with Verso's `esbuild`: option A 621 KB minified / 158 KB gzip,
+   option B 550 KB / 143 KB, both loaded only when 3D is on; option B is
+   unmaintained since 2022, Rolai needed about 400 lines of patches for it, it
+   has open bugs of a shown number differing from the returned one and of a
+   promise that never ends, and its textures and sounds carry no declared
+   licence): the library is **`three` + `cannon-es` (MIT), our own code**,
+   with **Rolai as a design reference** (the d100 as two dice, the d66, the
+   lessons on sound). The landing on the drawn face is code we test for each
+   die (d4 to d100); the animation is a recorded replay, which gives reduced
+   motion, skip, pause and an idle loop stopped; it costs about 600 to 700
+   lines plus tests. The rule "the result is decided before the animation"
+   does not tolerate the shown-number bug of the other option. Babylon (about
+   1.7 MB) stays out.
 
 4. **The landing is deterministic: the physics never draws** (0101.2,
    option A). `[DECIDED 2026-10-21]`: the number comes from the cryptographic
@@ -130,7 +150,8 @@ marking the option written in the item in the questionnaire of 2026-10-20
 
 9. **Status** (0101.7, option B). `[DECIDED 2026-10-21]`: rewrite (done
    here), accept once the library has been evaluated and its chunk measured
-   (item 3), and build.
+   (item 3), and build. The evaluation was done and the library decided on
+   2026-10-21 (item 3), so this ADR is **Accepted** and being built.
 
 ## Consequences
 
@@ -139,8 +160,10 @@ marking the option written in the item in the questionnaire of 2026-10-20
 - `app/ui/src/dice/` gains the lazy 3D module, behind the switch; the
   service worker lists the chunk; the strings in pt-BR and EN; the switch
   and its description in Settings › App › Features.
-- The evaluation of item 3 is a short report in `docs/reference/`, with the
-  measurements, before any dependency is added.
+- The evaluation of item 3 was a report outside the repository
+  (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`); the
+  dependencies it names (`three`, `cannon-es`, both MIT) enter with the code,
+  justified in the PR and checked by the npm licence allowlist.
 - A user-visible change: the changelog and the demo vault
   ([0058](0058-demo-vault-as-tutorial.md)).
 
@@ -161,9 +184,13 @@ Only what the maintainer refused when he marked these answers:
 - **A switch on by default except on a phone** (0101.5, B), and **no switch,
   only detecting the device** (0101.5, C).
 - **Announcing only when the dice stop** (0101.6, B).
+- **`@3d-dice/dice-box-threejs` with Rolai's patches and no sounds**
+  (0101.1c, B): unmaintained since 2022, a shown-number bug, undeclared
+  licence of its textures and sounds.
+- **Babylon** (about 1.7 MB): left out of the evaluation by size.
 
 ## Status
 
-Proposed. Rewritten on 2026-10-21 with the maintainer's answers; stays
-Proposed until item 3 (the library) is evaluated and closed, then it is
-accepted and built (0101.7, option B). Nothing is built.
+Accepted on 2026-10-21. Rewritten that day with the maintainer's answers,
+and accepted once item 3 (the library) was evaluated and decided (0101.1c,
+option A; 0101.7, option B). Being built; roadmap V.29.

@@ -108,3 +108,38 @@ clippy; a suíte de ponta a ponta da janela no Docker, WebKit e Chromium com
 os projetos de celular e tablet — 1269 passaram, 0 falharam. Sem push, sem
 versão; o beta em `4bea839` instalado no Mac do mantenedor. O app real não
 foi exercitado à mão.
+
+## 7. As respostas do mantenedor de 2026-10-21
+
+O mantenedor respondeu a lista de decisões de 2026-10-21 (`[DECIDIDO
+2026-10-21]`) e olhou o beta instalado em `4bea839`. Os itens que não têm uma
+ADR própria ficam registrados aqui; os outros estão no documento que cada um
+nomeia.
+
+- **I3 resolvido** (RL.1a, opção A): só o hash; o endereço mostrado uma vez.
+  [ADR 0105](../adr/0105-read-links-without-an-account.md) item 5.
+- **M1 resolvido** (DL.1, opção A; DL.2, opção **B**): `...` não fecha o
+  frontmatter; `tags: 2024` **é** a tag "2024", escolha explícita do
+  mantenedor, que difere do Obsidian (spec Q24, v0.48). **M3 resolvido** (D.4,
+  opção A): o TSV fica ([ADR 0106](../adr/0106-structured-data-as-a-diagram.md)).
+- **F.1, opção A: onde ficam as dobras lembradas.** Neste aparelho, fora da
+  nota e da pasta; as últimas 200 notas são lembradas. A nota nunca é
+  reescrita; outro aparelho abre tudo expandido. (Não na conta do usuário, não
+  no `.verso/`.)
+- **M.1, opção A: o menu do botão direito agrupado** como construído
+  (`menu.ts`). "Selecionar" e "Abrir em nova janela" não voltam ao topo.
+- **R.3, opção A:** "Adicionar propriedade" continua sempre visível em toda
+  nota, também no celular, onde não há "passar o mouse".
+- **R.4, opção A:** nenhum selo de recarga nas fichas (`recharge 5-6`) por
+  agora; nenhuma ADR pede.
+- **L.1, opção A:** os rótulos genéricos das fichas do Old Dragon (Descrição,
+  Tamanho, Alinhamento, Habitat, Atributos, Idiomas, Utilidades) ganham
+  rótulos em inglês na janela em inglês, mantendo as siglas do jogo (CA, BA,
+  JP), como as do Fractal já têm.
+- **X.1, opção A:** a exceção de três avisos "sem manutenção" no `deny.toml`
+  está ratificada até 2026-12-31 (rever quando os plugins do Tauri trocarem de
+  biblioteca).
+- **O beta, visto pelo mantenedor:** *"Quase tudo ok, exceto a parte do wizard
+  de tema, achei a tela mega poluída…"*: o wizard de tema é revisado ([ADR
+  0100](../adr/0100-visual-customization-wizard.md) item 2). Ele leu as
+  traduções do cofre de exemplo em inglês; nada mais foi apontado contra elas.

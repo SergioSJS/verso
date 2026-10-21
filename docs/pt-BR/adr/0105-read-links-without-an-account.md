@@ -26,7 +26,10 @@
   é Aceita. Nada está construído. 2026-10-21, mais tarde no mesmo dia —
   construída em `feat/rpg-tools` (Status, Como construído); a revisão do
   lote achou o item 5 se contradizendo e o registrou como `[ABERTO]` sob
-  esse item.
+  esse item. 2026-10-21, mais tarde — o mantenedor respondeu RL.1a a RL.1d da
+  lista de decisões de 2026-10-21, todas opção A: o `[ABERTO]` do item 5 está
+  fechado (só o hash; o endereço mostrado uma vez), e os itens 4 e 6 ganham as
+  notas abaixo.
 
 ## Contexto
 
@@ -103,7 +106,8 @@ marcou no questionário de 2026-10-20.
    foi aberto pela última vez; **revogar** o encerra na hora, páginas
    abertas incluídas.
 
-   `[ABERTO]` (registrado em 2026-10-21 pela revisão do lote; regra zero
+   ~~`[ABERTO]`~~ **Fechado em 2026-10-21** — veja a decisão no fim deste
+   item. (Registrado em 2026-10-21 pela revisão do lote; regra zero
    item 3, nenhum lado escolhido): este item se contradiz. Diz que o token
    é "guardado só como hash" e também que o endereço é "copiável de novo
    pelo painel enquanto vive"; um armazenamento que guarda só o hash não
@@ -116,7 +120,17 @@ marcou no questionário de 2026-10-20.
    responde (pergunta RL.1a da lista de decisões de 2026-10-21): ou
    "copiável de novo" significa "na janela que o fez", e este item é
    emendado, ou o servidor guarda o token cifrado em repouso, uma decisão
-   diferente que pede a sua própria linha no modelo de ameaças.
+   diferente que pede a sua própria linha no modelo de ameaças.)
+
+   **`[DECIDIDO 2026-10-21]` (RL.1a, opção A): só o hash, como construído.**
+   O token é guardado só como hash; o endereço é mostrado **uma vez**, quando
+   o link é feito, e só pode ser copiado de novo na mesma janela que o fez,
+   enquanto ela está aberta. Quem perde o endereço faz outro link. A frase
+   "copiável de novo pelo painel enquanto vive" do primeiro parágrafo deve ser
+   lida assim. Motivo (o da lista): quem roubar o banco do servidor não
+   consegue abrir nenhum link. A alternativa, o endereço cifrado no servidor
+   para poder copiar de novo de qualquer lugar (B), não foi escolhida: o banco
+   passaria a guardar algo que abre a pasta.
 
 6. **Limites e abuso.** `[DECIDIDO 2026-10-21]` (0105.6, opção A): um
    pedido anônimo tem ritmo por
@@ -127,6 +141,17 @@ marcou no questionário de 2026-10-20.
    atrás de um link é só de leitura e recusa qualquer outra coisa antes
    de o núcleo agir; os cabeçalhos do item 9 valem; um link nunca revela o
    caminho da pasta, o e-mail do dono nem outros membros.
+
+   **`[DECIDIDO 2026-10-21]` (RL.1b e RL.1c, ambas opção A).** O ritmo como
+   construído fica: por endereço e por link, 20 pedidos por segundo (rajada
+   de 100) e 32 conexões por link; uma mesa de seis jogadores atrás do mesmo
+   roteador divide o mesmo endereço. Ele é medido numa sessão real (está nas
+   verificações manuais, `docs/reference/manual-checks.md`) antes de os
+   números mudarem. E um link de pasta não mostra anexos (imagens) guardados
+   fora da pasta compartilhada, por exemplo numa pasta de anexos na raiz: só o
+   que está dentro da pasta compartilhada aparece, de modo que o link nunca
+   revela nada de fora. Servir os anexos que as notas da pasta citam, mesmo
+   fora dela (B), não foi escolhido.
 
 7. **O que a janela mostra ao dono.** `[DECIDIDO 2026-10-21]` (0105.7,
    opção A, a marca e o aviso de segredos): uma nota ou pasta com
@@ -161,6 +186,10 @@ marcou no questionário de 2026-10-20.
   do Quartz): considerado com o mantenedor em 2026-10-20; ele escolheu o
   link por ora. Não precisa de servidor, mas toda mudança é uma nova
   exportação.
+- **Guardar o endereço cifrado no servidor, para copiar de novo de qualquer
+  lugar** (RL.1a, B): o banco passaria a guardar algo que abre a pasta.
+- **Servir, por um link de pasta, os anexos que as notas citam de fora da
+  pasta** (RL.1c, B): o link revelaria o que está fora dela.
 
 ## Status
 
@@ -174,4 +203,6 @@ no servidor), `95827830` (fuzzing do que qualquer um sem conta pode enviar),
 contrato), `c4534607` (fazer e ler links na janela), `8ec0dc3f` (testes de
 ponta a ponta), `4dbe4bbb` (modelo de ameaças, verificações manuais,
 changelog, tutorial); integrada por `5690057e`. A contradição do item 5
-segue `[ABERTO]` acima.
+esteve `[ABERTO]` e foi fechada em 2026-10-21 (RL.1a, opção A). A linha V.33
+do roadmap fica na V1 (RL.1d, opção A): foi construída agora e entra com a
+V1; não vai para a Fase 3.

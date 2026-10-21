@@ -76,6 +76,10 @@ remédio barato, se isso pesar, é casar por prefixo (`castelo*`), hoje
 impossível porque o guardrail da feature 3 cita toda palavra do usuário para
 neutralizar a gramática do FTS5 ([0029](0029-guardrails-in-ci.md)); uma opção
 explícita de "prefixo" poria o `*` fora das aspas. Não decidido aqui.
+**Decidido em 2026-10-21 pelo mantenedor** (o item 0046 da lista de decisões,
+opção A): a busca por prefixo só é construída se virar problema no uso real,
+como esta ADR já diz ("se isso pesar"); uma opção explícita de prefixo já (B)
+não foi escolhida.
 
 ## Consequências
 

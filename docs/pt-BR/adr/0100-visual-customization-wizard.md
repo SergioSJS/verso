@@ -31,7 +31,11 @@
   `--border`, `--accent`, `--font-body`…), a sua janela flutuante, o seu
   diálogo de 15 segundos "Manter alterações?" e a sua importação só por
   arrastar saíram; a sua "tema recomendado na pasta" fica, agora por escolha
-  explícita do mantenedor (item 3).
+  explícita do mantenedor (item 3). 2026-10-21, depois — **item 2 revisado
+  pelo mantenedor** depois de olhar o beta instalado: o painel dentro de
+  Ajustes é substituído por uma galeria de cartões de tema e uma janela
+  própria de construção de tema (item 2, Revisão); item 4 confirmado (T.1,
+  opção A).
 
 ## Contexto
 
@@ -73,6 +77,24 @@ onde uma opção difere da recomendada primeiro, o item diz.
    ([0076](0076-the-window-on-every-screen.md)); a prévia ao vivo é uma
    troca de variáveis em `:root`, sem recarregar e sem piscar.
 
+   **Revisão, 2026-10-21 (o mantenedor, depois de olhar o beta instalado
+   nesse dia): este item está revisado.** Ele olhou o beta e escreveu:
+   *"Quase tudo ok, exceto a parte do wizard de tema, achei a tela mega
+   poluída, bora fazer uma nova janela só para construção do tema. pensei de
+   em settings aparência ele ter várias caixas com amostra mínima de cada
+   tema para simplificar a escolha, e botões para copiar e alterar o tema aí
+   sim abrindo a janela com as opções que foram feitas"*. Então: **Ajustes ›
+   Aparência mostra uma galeria de cartões de tema, cada um com uma amostra
+   mínima, com botões Copiar e Alterar; Alterar (e Copiar, que abre a cópia)
+   abre uma janela própria de construção de tema com as opções feitas.** Os
+   controles e o documento de exemplo deste item saem de Ajustes para essa
+   janela. O que o item diz sobre o documento de exemplo mudando na hora, a
+   acessibilidade por teclado e leitor de tela e a prévia ao vivo como troca
+   de variáveis em `:root` continua e vale para a janela nova. O detalhe da
+   janela (tamanho, se é uma janela do Verso ou um diálogo, como um cartão é
+   desenhado) não é decidido por esta revisão. Roadmap: uma linha nova na V1,
+   na fatia da V.28.
+
 3. **O contrato de tokens, `tokensVersion: 1`** (0100.2, opção A): uma lista
    curta e fixa sobre os nomes reais — `--paper`, `--paper-2`, `--hair`,
    `--ink`, `--ink-2`, `--seal`, `--brass-ink`, `--heading-font`, `--book`,
@@ -98,6 +120,10 @@ onde uma opção difere da recomendada primeiro, o item diz.
    [0103](0103-feature-presets-and-capability-flags.md) diz "a escolha da
    pessoa, nunca a da pasta" para as chaves de funcionalidades: para temas
    ele decidiu diferente, e a 0103 traz uma nota datada dizendo isso.
+   **Confirmado em 2026-10-21 (T.1, opção A):** a sugestão é só o tema
+   inteiro, escrito dentro do `.verso/settings.json`; um lugar só, nada a
+   seguir. O caminho de um arquivo `.verso-theme` dentro de `.verso/` não é
+   aceito.
 
 5. **O contraste é conferido ao vivo, e uma tela ilegível é desfeita**
    (0100.4, opção A). Para os pares reais — tinta sobre papel, tinta 2 e
@@ -159,6 +185,11 @@ são registradas):
 - **Um diálogo temporizado "Manter alterações?" a cada mudança drástica**
   (0100.4, B), e **só um aviso, sem reversão automática** (0100.4, C).
 - **Só perfis locais, sem exportar nem importar na V1** (0100.5, B).
+- **Aceitar também o caminho de um `.verso-theme` dentro de `.verso/` como a
+  sugestão da pasta** (T.1, B): mais um caminho a validar.
+- **O painel de personalização mantido dentro de Ajustes** (o mantenedor,
+  2026-10-21): poluído demais; substituído pela galeria e pela janela de
+  construção (item 2).
 
 ## Status
 
@@ -170,3 +201,6 @@ lançada): `f41fb433` (a matemática de cores, os arquivos de tema e os
 perfis) e `6b3ec1fa` (o painel Personalizar aparência em Ajustes), com
 `9e97507d` (a pasta sugere um tema no seu arquivo de configurações) e
 `55cf1ecf` (o tutorial e o changelog); integrada por `203b8989`.
+
+Revisada em 2026-10-21 (item 2): o painel de Ajustes dá lugar a uma galeria
+de cartões de tema e a uma janela própria de construção de tema; a construir.

@@ -18,7 +18,8 @@
   of items 2, 3, 5 and 6 are decided as proposed (0102.2, 0102.3, 0102.5,
   0102.6), and the three other styles of odds are approved with the
   maintainer's own change to the name and tooltip of one (S.1, in item 1).
-  Status Accepted.
+  Status Accepted. 2026-10-21, later — R.2 (option B): the index command that
+  lists every `^id` is built now (item 3).
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
@@ -114,6 +115,15 @@ questionnaire of 2026-10-20; nothing is left `[PROPOSED]`.
    through the index, by name, with the note it comes from.
    An "import" of a JSON list writes a new note holding it as a list with
    an `^id`, shown before it is written.
+
+   `[DECIDED 2026-10-21]` (R.2, option **B**): the build lists the tables by
+   reading the folder's notes (up to 3000, at most every 20 s), because the
+   index has no command that lists every `^id`. The maintainer chose to
+   **build that command in the index now** (Rust, in the core, the Tauri host
+   and the server), and the oracle then lists the tables "through the index",
+   as this item says; the reading of the notes goes away. Option A, accepting
+   the build as it was and building the command only if a large folder got
+   slow, was not chosen. Roadmap: a work item in V1.
 
 4. **The answer is written in the note, and answers accumulate.**
    `[DECIDED 2026-10-20]`: *"qual o motivo de não poder gravar na nota? na

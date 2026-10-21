@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.47
+# Verso dialect spec — v0.48
 
-- Version: v0.47 · 2026-10-21
+- Version: v0.48 · 2026-10-21
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -972,7 +972,8 @@ Raised while writing this spec. All of them need an answer before
   window applies it — an embed, a link to the block — and a client of the
   MCP reads it there.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
-  title on 2026-09-23; `DECIDED` for nesting on 2026-10-21.
+  title on 2026-09-23; `DECIDED` for nesting on 2026-10-21; **closed in full
+  on 2026-10-21** (fixture approved, below).
   Recognized kinds, `-`/`+`, nesting (section 5.8).
 
   **Decided on 2026-09-23 by the maintainer, for the reading view**
@@ -1015,6 +1016,17 @@ Raised while writing this spec. All of them need an answer before
   *(2026-10-21: the parser part is built on branch `feat/nested-callouts-index`
   — `Callout.depth`, the limit of 32, `fixtures/callout/nested` drafted for
   approval, `depth` added to §4.3.)*
+
+  **Closed in full on 2026-10-21 by the maintainer** (question Q5.fx of the
+  decisions list of 2026-10-21, option A, "Aprovar como está"): the fixture
+  `fixtures/callout/nested` is **approved as drafted**, and its draft mark is
+  removed. It asserts, case by case, the nesting to 32 levels in the index, the
+  `depth` field (§4.3), the `+`/`-` folds kept, a `[!secret]` inside another
+  callout listed as a level-2 callout (what a reader sees stays governed by
+  `callout/secret`), and the 33rd level a plain blockquote. A plain blockquote
+  inside a callout does not count as a level, and a callout inside that
+  blockquote counts as nested: this is what the reading view does, and it is
+  recorded here as the rule (no earlier sentence of the spec said it).
 
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
@@ -1241,6 +1253,16 @@ Raised while writing this spec. All of them need an answer before
   filter "Existing files only", on by default, off draws each unresolved
   target as a hollow, dashed node linked from the notes that name it
   (Obsidian's public "Graph view" help documents the same filter).*
+
+  **Decided on 2026-10-21 by the maintainer** (question G.1 of the decisions
+  list of 2026-10-21). (a) Option A: in a shared folder of a UniVerso the
+  filter "Existing files only" off shows nothing and says why, since the name
+  of a note that does not exist would tell someone who sees only part of the
+  folder whether that note exists outside the share
+  ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md) item 11).
+  (b) Option **B**: clicking an unresolved node **asks before creating** the
+  note (the build created it at once, as a click on a link to a note that does
+  not exist does; the maintainer chose to ask). To be built.
 
 - **Q15. Markdown extensions outside the base.** `DECIDED` for the reading view
   on 2026-09-23; `DECIDED` for the parser that feeds the index on 2026-10-21.
@@ -1472,6 +1494,12 @@ the parser was chosen.
   tags (§4.6), so the tag rules are tests in `crates/verso-dialect/tests/tags.rs`
   and `crates/verso-index/tests/search.rs`.
 
+  **Closed in full on 2026-10-21 by the maintainer** (question DL.3 of the
+  decisions list of 2026-10-21, option A, "Aprovar todas"): the fixtures
+  `block/id-chars` and `frontmatter/tags-hash` are **approved as drafted** and
+  their draft marks removed. Q22 is closed: (a) `^id` charset, (b) nested tags
+  counted under the tag above, (c) `#ideia` and `ideia` one tag.
+
 - **Q23. Combined forms and wikilink escapes.** `DECIDED` on 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
   (same file — does it count as a backlink to itself?), `[[pasta/nota]]`,
@@ -1567,6 +1595,28 @@ the parser was chosen.
   `frontmatterLinks`, `backlinks` and `links` agree; fixture
   `frontmatter/wikilink-values`.
 
+  **Closed in full on 2026-10-21 by the maintainer** (questions DL.1, DL.2 and
+  DL.3 of the decisions list of 2026-10-21).
+  (a) **`...` (DL.1, option A):** it does **not** close the frontmatter; only
+  `---` does, as in Obsidian. The decision of 2026-10-21 that accepted `...`
+  is replaced by this one. (b) **`tags: 2024` (DL.2, option B, the maintainer's
+  explicit choice):** the maintainer chose *"Voltar ao que eu decidi: `2024`
+  vira a tag '2024'"* — a numeric `tags` value **is** a tag in Verso. **This
+  differs from Obsidian, and both facts are on record**: Obsidian was observed
+  (1.13.7, repeated on 1.14.4) and does not list a number in `tags` as a tag
+  (`tags: [2025, yes]` lists only `#yes`; `true`, `1.5` and `"7"` list none).
+  Invariant 12 asks that Verso never contradict Obsidian; the maintainer
+  decided knowingly, so this is an extension decided by him, not a build
+  choice, and a note with `tags: 2024` shows a tag in Verso and none in
+  Obsidian. The code is changed to follow this and the fixture
+  `frontmatter/tags-number`, which today asserts the Obsidian reading, is
+  updated by the code that builds it; that fixture keeps its draft mark until
+  then, and the other five fixtures of Q22 and Q24 (`block/id-chars`,
+  `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`,
+  `frontmatter/wikilink-values`) are **approved as drafted** (DL.3, option A),
+  their draft marks removed. (c) The BOM, YAML 1.2, wikilinks in values and
+  mixed line endings stand as decided on 2026-10-21 and built.
+
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
@@ -1650,3 +1700,5 @@ the parser was chosen.
 | v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |
 | v0.46 | 2026-10-20 | §6: two rows, the fenced block ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) and the `> [!oracle]` callout ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), constructs Verso draws and Obsidian reads as a code block and a callout; the parser does not change. No fixture (nothing here answers a §9 question or changes what the parser returns). No question closed |
 | v0.47 | 2026-10-21 | The maintainer's answers of the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **Q2, Q5 (nesting), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 and Q24 `DECIDED`**, each as the option marked — Q14 with both options, A (ratify) and B (unresolved links as graph nodes). Every decision is recorded; none closes in full, since each that needs a fixture or an observation of Obsidian waits for the PR that adds it (invariant 17); Q5's `callout/nested` is a separate code PR. §5 and §7 brought up to date: §7 now points to [ADR 0093](../adr/0093-periodic-notes.md) for periodic notes, not to §9. No fixture changed |
+| v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved in principle and its expectation changes with the code. Q14: clicking an unresolved graph node asks before creating the note. |
+| v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` keeps its draft mark until the code changes its expectation. Q14: clicking an unresolved graph node asks before creating the note. |

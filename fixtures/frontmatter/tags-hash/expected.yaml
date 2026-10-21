@@ -1,4 +1,3 @@
-# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
 # Construct: a `#` in a frontmatter tag. Spec: Q22 c (decided 2026-10-21:
 # `#ideia` and `ideia` are the same tag). Observed: the `#` of a quoted
 # item is dropped by the tag list (`#quoted` listed once). An unquoted

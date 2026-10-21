@@ -1,4 +1,3 @@
-# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
 # Construct: the YAML dialect of the frontmatter. Spec: §5.1 and Q24 b
 # (decided 2026-10-21: YAML 1.2 — `yes` is text, a date is text, nothing
 # converts by itself; a number stays a number).
