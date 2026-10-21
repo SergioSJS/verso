@@ -127,6 +127,12 @@ This demo vault does not have two accounts: to see the other side, use two brows
 
 Whoever only **reads** a note does not receive its `[!secret]` blocks: the game master's secret stays in the note for whoever edits it (see [[25 - Dice and Random Tables#The Game Master's Secret|the game master's secret]]).
 
+## A read link, with no account
+
+For players, or anyone, to **read** the world without making an account, the folder's owner makes a **read link**: right-click the folder and choose **Read link…**, or a note and choose **Copy read link…**. Pick the expiry (none, 1, 7 or 30 days, or until a date) and, if you like, a **password**. The address (`/r/…`) shows **once**, already copied: the server keeps only a mark of it. Whoever opens it reads, in a browser, only what the link points at — the folder, or the note and what it embeds —, in the reader's view: **without** the `[!secret]` blocks, no editing, no history, and a link to a note that was not shared shows as plain text *(not shared)*. Dice roll in the reader's browser and write nothing.
+
+Before the link is made, the dialog says how many notes have secrets and that readers will not see them. The tree marks what has a live link, and the panel lists the links with who made each and when it was last opened. **Revoke** ends the link at once, open pages included. Read links **start off**: whoever runs the server turns them on in *Administration › Server*, and turning them off ends them all. A wrong password counts as a refused sign-in, and the owner is mailed when there are many.
+
 ---
 
 For the phone and the tablet, see [[22 - Verso on Phone and Tablet]]; to roll dice and draw from a table, [[25 - Dice and Random Tables]]. Go back to the [[00 - Welcome to Verso|Home Page]] or open the [[Verso Tour.canvas|Verso Tour]].

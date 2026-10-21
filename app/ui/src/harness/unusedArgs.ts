@@ -34,6 +34,10 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   share_grant: ["path", "email", "role"],
   share_revoke: ["path", "account"],
   share_attachments: ["path", "attachments"],
+  // Read links are a server's (ADR 0105): refused here whatever they carry.
+  read_link_secrets: ["kind", "path"],
+  read_link_create: ["kind", "path", "expiresDays", "expiresAt", "password"],
+  read_link_revoke: ["id"],
   // A fresh proof to the window's server (ADR 0083 item 6).
   server_prove: ["password"],
   reopen_folder: ["key"],

@@ -272,7 +272,7 @@ fn the_database_the_files_and_the_version_say_no_more_than_they_must() {
 
 /// A server behind a trusted proxy on this machine: a test's requests
 /// then come from the address their `X-Forwarded-For` names.
-async fn behind_proxy() -> crate::tests::Running {
+pub(crate) async fn behind_proxy() -> crate::tests::Running {
     start_with(|c| c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap()).await
 }
 
@@ -674,7 +674,7 @@ fn as_fail2ban_sees(line: &str) -> [String; 2] {
 
 /// The address each of `lines` bans, by the filter, in each way it is read;
 /// `None` for a line it lets pass.
-fn banned(lines: &[String]) -> Vec<[Option<String>; 2]> {
+pub(crate) fn banned(lines: &[String]) -> Vec<[Option<String>; 2]> {
     let re = fail2ban_regex(FAIL2BAN_FILTER);
     lines
         .iter()

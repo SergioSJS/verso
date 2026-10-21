@@ -127,6 +127,12 @@ Este vault de demonstração não tem duas contas: para ver o outro lado, use do
 
 Quem só **lê** uma nota não recebe os blocos `[!secret]` dela: o segredo do mestre fica na nota para quem a edita (veja [[25 - Dados e Tabelas Sorteadas#O segredo do mestre|o segredo do mestre]]).
 
+## Um link de leitura, sem conta
+
+Para que jogadores, ou qualquer pessoa, **leiam** o mundo sem fazer uma conta, a dona da pasta faz um **link de leitura**: clique com o botão direito na pasta e escolha **Link de leitura…**, ou numa nota e escolha **Copiar link de leitura…**. Escolha a validade (sem validade, 1, 7 ou 30 dias, ou até uma data) e, se quiser, uma **senha**. O endereço (`/r/…`) aparece **uma vez**, já copiado: o servidor guarda só uma marca dele. Quem o abrir lê, num navegador, só o que o link aponta — a pasta, ou a nota e o que ela incorpora —, na visão do leitor: **sem** os blocos `[!secret]`, sem editar, sem histórico, e um link para uma nota que não foi compartilhada aparece como texto simples *(não compartilhado)*. Os dados rolam no navegador de quem lê e não escrevem nada.
+
+Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor*, e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas.
+
 ---
 
 Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]; para rolar dados e sortear numa tabela, [[25 - Dados e Tabelas Sorteadas]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

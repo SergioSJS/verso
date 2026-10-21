@@ -805,4 +805,4 @@ export const started: Promise<void> = (async () => {
 // What Leaf (leaves/leaf.ts) uses of the layout, through the entry (ADR 0067).
 export { armDrag } from "./layout/drag";
 export { landIn } from "./layout/pane";
-export { persistSoon } from "./layout/spaces";
+export { persistSoon, openNote } from "./layout/spaces";

@@ -229,6 +229,17 @@ fn sizes() {
     write("size", "bytes.txt", b"1073741824");
 }
 
+/// What `fuzz_targets/link.rs` reads: a read link's token, a command, an
+/// address under `/r/`.
+fn links() {
+    write("link", "token.txt", b"3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A");
+    write("link", "command.txt", b"read_note");
+    write("link", "write.txt", b"write_note");
+    write("link", "file.txt", b"/r/3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A/f/Mesa/p.png");
+    write("link", "page.txt", b"/r/3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A");
+    write("link", "traversal.txt", b"/r/x/f/../../etc/passwd");
+}
+
 fn main() {
     notes();
     boards();
@@ -236,4 +247,5 @@ fn main() {
     requests();
     hosts();
     sizes();
+    links();
 }

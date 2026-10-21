@@ -1223,6 +1223,52 @@ duas notas.
   sob o `verso` de cada nó (a nova observação do O4 na versão do dia, ADR 0090
   Consequências).
 
+### Links de leitura (ADR 0105, feat/read-links, 2026-10-21)
+
+Precisa de um UniVerso de verdade num endereço público atrás de um proxy (ou
+Tailscale), um celular, um segundo navegador que nunca entrou nele e o shell
+do host para as linhas do fail2ban e do e-mail. Os ritmos, os caminhos e os
+segredos estão nos testes em Rust e nos testes de ponta a ponta do servidor;
+o que um proxy, um servidor de e-mail, o fail2ban e um polegar fazem com um
+link não está.
+
+- [ ] **Um link atravessando o proxy**: ligue os links no console
+  (Servidor). Faça um link para uma nota que tem um bloco secreto, abra no
+  celular e no segundo navegador. A página é a visão do leitor: nenhum
+  bloco secreto, um link para uma nota de fora como texto simples "não
+  compartilhado", os dados rolam, nada pode ser editado. A barra de
+  endereço mostra só `/r/<43 caracteres>`; o log do proxy não mostra
+  consulta nem nome de nota no endereço da página.
+- [ ] **O endereço em segredo**: siga um link da web de dentro da nota
+  compartilhada (uma nota com `https://`); o log do outro site, ou as
+  ferramentas do navegador, não mostram `Referer`. Procure o endereço num
+  buscador que você consiga consultar (`site:` do host público): nada.
+- [ ] **A senha e as ferramentas do host**: faça um link com senha; tente
+  senhas erradas do celular fora do Wi-Fi. `journalctl -u universo` (ou
+  `docker logs`) mostra uma linha `WARN sign-in failed from <endereço> for
+  <o e-mail mascarado do dono>` para cada uma; com o fail2ban instalado
+  pelo pacote, `fail2ban-client status universo` conta esse endereço e o
+  bane no limite da jaula. A 20ª errada numa hora avisa o dono por e-mail
+  (precisa de `VERSO_SMTP_URL`); a 21ª não.
+- [ ] **Revogar, com uma página de verdade aberta**: leia um link no
+  celular e revogue-o no painel do computador. A página do celular muda
+  para "O acesso a esta página acabou" em até um segundo, sem recarregar.
+  Faça um vencer (uma data de amanhã, depois mude o relógio do servidor, ou
+  espere) e veja uma página aberta acabar quando chega a hora.
+- [ ] **Desligar o recurso**: com dois links abertos em dois navegadores,
+  desligue os links no console; as duas páginas acabam na hora, todo
+  endereço responde "Este link não abre", e ligar de novo abre os mesmos
+  endereços.
+- [ ] **Leitor de tela e teclado de quem lê**: na página de um link, ande
+  com Tab e as setas pela árvore, abra uma nota, siga um link dentro da
+  parte compartilhada, chegue ao texto simples "(não compartilhado)" e ouça
+  a língua da página (navegadores em pt-BR e em inglês); a página da senha
+  anuncia o erro.
+- [ ] **Uma mesa de jogadores**: seis celulares abrem um link juntos, cada
+  um com uma dúzia de figuras. Se as figuras falharem com 429, o ritmo por
+  link (20 por segundo, 100 de uma vez, ADR 0083 item 7) está apertado para
+  uma mesa: diga, o número é do mantenedor mudar.
+
 ## Para reproduzir
 
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se

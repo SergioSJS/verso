@@ -1406,6 +1406,11 @@ export class Core {
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // Read links are a server's (ADR 0105): a test answers them as one.
+    read_link_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_secrets: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_create: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
