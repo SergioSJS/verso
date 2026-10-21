@@ -54,6 +54,11 @@ test("every acknowledgement has a name, a line in both languages and a link", ()
   for (const id of ["igor", "fractal", "rolai", "fantasy-statblocks", "obsidian"]) assert.ok(C.CREDITS.some((c) => c.id === id), id);
 });
 
+test("Igor Téuri's credit links to Dados Críticos, not to Fractal's page", () => {
+  assert.equal(C.CREDITS.find((c) => c.id === "igor").link, "https://linktr.ee/dadoscriticos");
+  assert.equal(C.CREDITS.find((c) => c.id === "fractal").link, "https://fractal-system.itch.io/pt-br");
+});
+
 test("the Fractal line is the one its SRD requires, word for word", () => {
   const f = C.CREDITS.find((c) => c.id === "fractal");
   assert.equal(f.quote, "Esse trabalho é compatível com Fractal, de Igor Téuri e Walter Licínio, desenvolvido sob licença Creative Commons Attribution 4.0 License.");
