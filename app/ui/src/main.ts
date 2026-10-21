@@ -86,6 +86,10 @@ import { pt, t } from "./strings";
 import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
 import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
+import { importFile } from "./theme/actions";
+import { watchSuggestion } from "./theme/suggest";
+
+watchSuggestion();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 watchWindow();
@@ -190,6 +194,12 @@ document.addEventListener("drop", (e) => {
   e.preventDefault();
   const files = e.dataTransfer?.files ?? null;
   if (!files || files.length === 0) return;
+  // A theme file dropped anywhere on the window (ADR 0100 item 6).
+  const theme = [...files].find((f) => f.name.toLowerCase().endsWith(".verso-theme"));
+  if (theme) {
+    void importFile(theme);
+    return;
+  }
   const at = e.target as HTMLElement;
   if (at.closest(".side")) {
     void copyFilesInto(at.closest<HTMLElement>("[data-folder]")?.dataset["folder"] ?? "", files);
