@@ -218,6 +218,32 @@ function flag(node: CanvasNode, key: "map" | "pin" | "secret"): boolean {
   return key === "secret" ? v !== undefined && v !== false && v !== null : v === true;
 }
 
+/** A link card that shows its page, live, in a frame (ADR 0057 point 10,
+ *  decided 2026-10-21; ADR 0056): still a JSON Canvas `link` node, with the
+ *  flag Verso keeps under its `verso`. Obsidian, which keeps the key, shows
+ *  the address as it shows any link. */
+export const isPage = (node: CanvasNode): boolean => node.type === "link" && isRecord(node["verso"]) && node["verso"]["page"] === true;
+
+/** The node with its page shown (or taken back to a plain link); `verso`'s
+ *  other keys kept. */
+export function withPage(node: CanvasNode, on: boolean): CanvasNode {
+  const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+  put(verso, "page", on ? true : undefined);
+  const out: CanvasNode = { ...node };
+  put(out, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+  return out;
+}
+
+/** The origin an address is on, or null when it names no web page. */
+export function pageOrigin(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The picture of a map: locked, at the bottom, drawn from tiles when large. */
 export const isMap = (node: CanvasNode): boolean => flag(node, "map");
 /** A file card that is a pin on a map: drawn at one size at any zoom. */
@@ -526,14 +552,14 @@ export function nodeElement(node: CanvasNode): Partial<El> {
 }
 
 /** A new node's canvas data, at a point: a card the board makes. */
-export function newNode(kind: "file" | "text" | "link", value: string, at: [number, number], id: string): CanvasNode {
-  const size: Record<string, [number, number]> = { file: [400, 400], text: [250, 60], link: [400, 120] };
+export function newNode(kind: "file" | "text" | "link", value: string, at: [number, number], id: string, page = false): CanvasNode {
+  const size: Record<string, [number, number]> = { file: [400, 400], text: [250, 60], link: page ? [480, 360] : [400, 120] };
   const [width, height] = size[kind] ?? [250, 60];
   const node: CanvasNode = { id, type: kind, x: Math.round(at[0] - width / 2), y: Math.round(at[1] - height / 2), width, height };
   if (kind === "file") node.file = value;
   else if (kind === "text") node.text = value;
   else node.url = value;
-  return node;
+  return page && kind === "link" ? withPage(node, true) : node;
 }
 
 /** The elements of a canvas, partial, bottom first: the edges and their

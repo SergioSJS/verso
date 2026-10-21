@@ -6,7 +6,8 @@ import { type CSSProperties, type JSX, memo, type ReactNode, type RefObject, use
 import { CARD_COMMAND } from "./command";
 import { mapStrings } from "./mapStrings";
 import { MapTiles, SecretBadge, useMapInfo } from "./mapsView";
-import { type CanvasNode, CARD_PAPER, cardCrop, type El, isMap, nodeData, nodeName, type Outline } from "./model";
+import { type CanvasNode, CARD_PAPER, cardCrop, type El, isMap, isPage, nodeData, nodeName, type Outline } from "./model";
+import { PageCard } from "./page";
 import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
@@ -46,7 +47,13 @@ export function Card({
   fill,
   zoom,
   rect,
+  interacting,
+  interact,
 }: {
+  /** The card is entered (the pointer is the page's, not the board's), and
+   *  the way in and out of that for a page card (ADR 0057 point 10). */
+  interacting: boolean;
+  interact: (id: string, on: boolean) => void;
   /** Point the card at another file of the folder (its id). */
   swap: (id: string) => void;
   /** Where the card is on the board, for a map's tiles (ADR 0090). */
@@ -222,7 +229,7 @@ export function Card({
     el.addEventListener(CARD_COMMAND, take);
     return () => el.removeEventListener(CARD_COMMAND, take);
   }, [note, open, host, file, onEdit]);
-  const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
+  const kind = node.type === "text" ? s.textCard : node.type === "link" ? (isPage(node) && host.web ? s.pageCard : s.linkCard) : ext(file) || node.type;
   return (
     <div
       className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}${picture ? " board-card-bare" : ""}`}
@@ -291,7 +298,8 @@ export function Card({
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>
       ))}
-      {node.type === "link" && (
+      {node.type === "link" && isPage(node) && host.web && <PageCard id={id} url={url} host={host} web={host.web} interacting={interacting} interact={interact} />}
+      {node.type === "link" && !(isPage(node) && host.web) && (
         <div className="board-card-link">
           <div className="board-card-head">
             <span className="board-card-title">{s.linkCard}</span>
@@ -440,8 +448,11 @@ export function CardLayer({
   setEditing,
   swap,
   draw,
+  interact,
 }: {
   swap: (id: string) => void;
+  /** Enter a page card, or leave it. */
+  interact: (id: string, on: boolean) => void;
   cards: readonly El[];
   overlays: ReadonlyMap<string, Overlay>;
   /** The view the cards are placed for. */
@@ -583,6 +594,8 @@ export function CardLayer({
                   setEditing={setEditing}
                   swap={swap}
                   draw={draw}
+                  interacting={active === e.id}
+                  interact={interact}
                 />
                 {over && (
                   <div
