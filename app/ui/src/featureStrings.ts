@@ -43,6 +43,7 @@ const pt: Words = {
     oracles: "Oráculos",
     statblocks: "Fichas",
     campaignBundles: "Assistente de mundo e campanha",
+    dataDiagram: "Diagrama de dados",
   },
   descs: {
     diceRolling: "Um `dice:` numa nota vira um botão que rola; também liga o comando \"Rolar dados…\" e os botões de dados dentro das fichas.",
@@ -50,6 +51,7 @@ const pt: Words = {
     oracles: "Os callouts [!oracle] ganham um botão, e entram o comando \"Perguntar ao oráculo\" e o item da barra / no editor.",
     statblocks: "Blocos ```statblock aparecem como fichas visuais, e entra o item da barra / que cria uma ficha.",
     campaignBundles: "O assistente \"Novo projeto a partir de modelo\", no menu de criar e na paleta de comandos.",
+    dataDiagram: "Arquivos JSON, YAML, TOML, XML e CSV ganham a vista \"Diagrama\" (caixas e linhas, só leitura), e um bloco de código desses formatos numa nota ganha o botão \"Ver como diagrama\".",
   },
   on: "ligado",
   off: "desligado",
@@ -76,6 +78,7 @@ const en: Words = {
     oracles: "Oracles",
     statblocks: "Statblocks",
     campaignBundles: "World and campaign wizard",
+    dataDiagram: "Data diagram",
   },
   descs: {
     diceRolling: "A `dice:` in a note becomes a button that rolls; also turns on the \"Roll dice…\" command and the dice buttons inside statblocks.",
@@ -83,6 +86,7 @@ const en: Words = {
     oracles: "[!oracle] callouts get a button, and the \"Ask the oracle\" command and the / menu item come in.",
     statblocks: "```statblock blocks show as visual cards, and the / menu item that makes a statblock comes in.",
     campaignBundles: "The \"New project from a template\" wizard, in the create menu and the command palette.",
+    dataDiagram: "JSON, YAML, TOML, XML and CSV files get a \"Diagram\" view (boxes and lines, read-only), and a code block of those formats in a note gets a \"View as diagram\" button.",
   },
   on: "on",
   off: "off",

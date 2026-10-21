@@ -185,6 +185,39 @@ export class CodeCopyWidget extends WidgetType {
 }
 
 
+/** "View as diagram" on a fenced block of structured data (ADR 0106). */
+export class DiagramButtonWidget extends WidgetType {
+  constructor(
+    readonly code: string,
+    readonly lang: string,
+    readonly label: string,
+    readonly open: (lang: string, text: string) => void,
+  ) {
+    super();
+  }
+  override eq(other: DiagramButtonWidget): boolean {
+    return other.code === this.code && other.lang === this.lang && other.label === this.label;
+  }
+  override toDOM(): HTMLElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cm-lp-copy-code cm-lp-diagram-btn";
+    btn.title = this.label;
+    btn.setAttribute("aria-label", this.label);
+    btn.dataset["action"] = "view-diagram";
+    btn.append(icon("diagram"));
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.open(this.lang, this.code);
+    });
+    return btn;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
 /** The folded frontmatter: a hint that properties live above. */
 export class FrontmatterWidget extends WidgetType {
   constructor(readonly lines: number, readonly onClick: (() => void) | undefined, readonly title: string) {
