@@ -15,6 +15,6 @@ observed:
   how: >-
     Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
     public API only (ADR 0009). `obsidian eval` on `getCache(...).frontmatter`
-    -> { tags: ["#quoted"] }; `obsidian tags counts` lists #quoted (1) and
-    no ##quoted. A note `tags: [idea]` and another `tags: [#idea]` (unquoted):
+    -> { tags: ["#quoted", "plain"] } on this fixture's exact input.md;
+    `obsidian tags counts` lists #quoted (1) and #plain (1) and no ##quoted. A note `tags: [idea]` and another `tags: [#idea]` (unquoted):
     the first lists #idea, the second has no frontmatter in the cache.
