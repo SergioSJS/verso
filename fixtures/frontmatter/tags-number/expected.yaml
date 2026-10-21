@@ -1,0 +1,20 @@
+# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
+# Construct: `tags: 2024`. Spec: Q24 b. The decision said it is the tag
+# "2024"; Obsidian was observed and DIFFERS, so per the decision's own clause
+# the answer adjusts: a number is no tag. The schema (§4.1) has no key for
+# the tags a note has, so this fixture asserts only what the parser reads (an
+# integer); the tag rule is tested in crates/verso-index (store.rs) and
+# crates/verso-dialect (tags.rs). The maintainer decides whether §4 grows a key.
+frontmatter:
+  tags: 2024
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on
+    `app.metadataCache.getCache(...).frontmatter` -> { tags: 2024 } (a
+    number). `obsidian tags counts` lists no #2024, nor #2025 for
+    `tags: [2025, yes]` (only #yes), nor #true, #1.5 or #7 for
+    `tags: [true, 1.5, "7", nested/x]` (only #nested/x).
