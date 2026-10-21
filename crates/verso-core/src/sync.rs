@@ -131,6 +131,11 @@ pub struct Cloud {
     /// is theirs (ADR 0104 item 6).
     #[serde(default)]
     pub plain_http: bool,
+    /// What the capability probe found the service can do (ADR 0104 item
+    /// 7), as the adapter's own names for them; kept so that the probe
+    /// runs when the person connects, not at every start.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caps: Vec<String>,
 }
 
 /// A share revoked by its owner, as the device heard it.

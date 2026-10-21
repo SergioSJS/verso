@@ -51,6 +51,9 @@ pub enum RemoteErrorKind {
     Exists,
     /// A new name differs there only in case from another (spec Q8).
     CaseTwin,
+    /// The service would not keep a file by this name; the message says
+    /// why.
+    NameInvalid,
     /// The remote's storage is full, or the folder's quota passed.
     Quota,
     /// This file is not readable there now.
@@ -177,7 +180,7 @@ pub struct Meta {
 /// Where a write's bytes come from: the file on this computer, a piece at
 /// a time, never whole in memory (ADR 0079 item 12). The host implements
 /// it over `verso-fs`; the remote never touches a disk.
-pub trait Source {
+pub trait Source: Send {
     /// The next piece; `None` after the last.
     ///
     /// # Errors
