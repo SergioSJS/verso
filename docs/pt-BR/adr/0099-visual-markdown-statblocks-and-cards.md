@@ -32,7 +32,16 @@
   muda. 2026-10-21, mais tarde — o mantenedor respondeu S.3a a S.3d e A.1 da
   lista de decisões de 2026-10-21 (itens 1 e 6 abaixo) e, na A.1, as duas
   entradas marcadas "(a primeira construção)" também saem de "Alternativas
-  descartadas" (ninguém as considerou; regra zero, item 4).
+  descartadas" (ninguém as considerou; regra zero, item 4). 2026-10-21,
+  revisão do lote da tarde — (a) a construção manteve uma linha de aviso
+  apontando para a página de Créditos em cada ficha com licença, o que a
+  S.3b = B (item 6) não diz: registrado abaixo como escolha de quem construiu,
+  à espera do mantenedor (pergunta S.3b-bis da lista de decisões da tarde),
+  a decisão do item 6 em si inalterada; (b) os nomes dos campos em pt-BR dos
+  layouts de World of Darkness e de Cyberpunk RED foram escolhidos pela
+  construção a partir de termos comuns da comunidade, provisórios (S.3c,
+  "traduzir agora, corrigir depois"); (c) "Alternativas descartadas" diz
+  "Nenhuma registrada." (regra zero, item 4).
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -210,12 +219,24 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
      (`docs/reference/statblock-sources.md`, 3.28), e o acordo da Paradox pede
      o logo "em algum lugar do seu material"; o mantenedor escolheu a página
      de Créditos para os dois.
+     *Desvio, 2026-10-21 (revisão do lote da tarde), escolha de quem
+     construiu, à espera do mantenedor (pergunta S.3b-bis):* a construção
+     manteve uma linha de aviso apontando para a página de Créditos em cada
+     ficha com licença (os seis layouts de World of Darkness e Cyberpunk
+     RED), porque o acordo do Dark Pack pede um aviso "em algum lugar do seu
+     material" e a política da R. Talsorian pede o seu aviso "em um local
+     facilmente visível". A resposta do mantenedor (S.3b = B) não mandou
+     acrescentá-la e ela não é atribuída a ele; os avisos completos e o logo
+     ficam só na página de Créditos. Manter a linha ou tirá-la: decisão dele.
    - **Nomes dos campos** (S.3c, "Outra"): *"Como em B, depois a gente
      corrige"* — os nomes dos campos dos layouts de World of Darkness e de
      Cyberpunk RED são **traduzidos para pt-BR agora**, e corrigidos depois
      contra os livros brasileiros (foram construídos em inglês, porque os
      nomes oficiais das edições brasileiras não foram verificados). O risco de
-     não bater com os livros é aceito.
+     não bater com os livros é aceito. *Registrado em 2026-10-21 (revisão do
+     lote da tarde):* os nomes em pt-BR em si foram escolhidos pela construção
+     a partir de termos comuns da comunidade brasileira de RPG, não dos
+     livros: provisórios, a corrigir como ele disse.
 
 7. **Edição no lugar.** No Live Preview o YAML aparece enquanto o cursor
    está no bloco; o cartão tem um botão para a sua fonte e a fonte um de
@@ -261,7 +282,7 @@ escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
 
 ## Alternativas descartadas
 
-- Nenhuma outra registrada.
+- Nenhuma registrada.
 
 ## Status
 

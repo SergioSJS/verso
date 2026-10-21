@@ -70,7 +70,7 @@ palavras dele onde as deu). O item 3 esteve `[ABERTO]` até a resposta posterior
 
 3. **A biblioteca: `three` + `cannon-es`, código nosso** (0101.1b, "Outra",
    depois 0101.1c, opção A). `[DECIDIDO 2026-10-21]` — veja o fim deste item.
-   A primeira resposta (0101.1b, "Outra"). O mantenedor: *"Avalie entre A e B qual a melhor abordagem, seria bom
+   A primeira resposta (0101.1b, "Outra") foi a seguinte. O mantenedor: *"Avalie entre A e B qual a melhor abordagem, seria bom
    aproveitar algo pronto do rolai msm, mas vale avaliar o A um pouco mais,
    assim como B"*. Os dois candidatos:
    - **A — `three` (MIT) + `cannon-es` (MIT), código nosso**: controle

@@ -55,6 +55,13 @@
   [0105](0105-read-links-without-an-account.md), Aceita naquele dia: um link
   de leitura sem conta numa pasta ou numa nota, desligado num servidor novo;
   compartilhar uma nota **para escrever** fica como o item 17 o deixou.
+  2026-10-21 (revisão do lote da tarde, **à espera do mantenedor**, pergunta
+  T.9 da lista de decisões da tarde; nada decidido aqui) — o item 5 diz
+  "nomes e chaves, sem caminho", e o seletor de pastas agora mostra um
+  rótulo `place` por pasta recente: os dois últimos componentes da pasta
+  pai, nunca absoluto, nunca `..` (ver a linha da mesma data na
+  [0026](0026-core-ui-contract-inviolable-rules.md), regra 4). Se o rótulo
+  revisa o item 5 é decisão dele.
 
 ## Contexto
 

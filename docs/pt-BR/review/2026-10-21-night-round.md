@@ -140,6 +140,62 @@ nomeia.
   está ratificada até 2026-12-31 (rever quando os plugins do Tauri trocarem de
   biblioteca).
 - **O beta, visto pelo mantenedor:** *"Quase tudo ok, exceto a parte do wizard
-  de tema, achei a tela mega poluída…"*: o wizard de tema é revisado ([ADR
-  0100](../adr/0100-visual-customization-wizard.md) item 2). Ele leu as
-  traduções do cofre de exemplo em inglês; nada mais foi apontado contra elas.
+  de tema, achei a tela mega puida…"* [poluída]: o wizard de tema é revisado
+  ([ADR 0100](../adr/0100-visual-customization-wizard.md) item 2). Ao lado,
+  ele marcou "Ler as traduções do cofre em inglês" (notas 00, 15 e 26
+  primeiro), sem comentário: o que ele achou ali, se algo, não está
+  registrado. (Corrigido em 2026-10-21, ver a seção 8: esta linha dizia que
+  ele as leu e que nada foi apontado, o que é mais do que uma caixa marcada
+  diz.) Ele também marcou "Licença do Fractal — resposta dos autores" sem
+  escrever o resultado (o crédito segue dizendo CC BY 4.0, 0099.6b; perguntado
+  de novo como T.1 da lista de decisões da tarde) e "Revisão da relação
+  Opus/Sonnet", também sem comentário.
+
+
+## 8. A revisão da tarde
+
+Uma segunda revisão, pelo Fable 5.1, do lote da tarde de 2026-10-21
+(`89a10272..013ba5ed`, `feat/rpg-tools`), registrada em
+`verso-revisao-fable-tarde-2026-10-21.md` (fora do repositório): um
+BLOQUEANTE (nos documentos), dez IMPORTANTES (seis no código da sincronização
+com a nuvem, quatro nos documentos) e vinte e um MENORES. "Corrigido em
+`fix/review-cloud` (merge pendente)" é o ramo de código de outro agente, não
+verificado a partir deste ramo; "Corrigido aqui" é este ramo de documentação,
+`docs/review-afternoon`, ainda não integrado e ainda não lido pelo outro
+modelo. "Pergunta para o mantenedor" significa que nada foi decidido: as
+perguntas estão na lista de decisões da tarde.
+
+| Id | Nível | Achado | Resolução |
+|---|---|---|---|
+| B-1 | BLOQUEANTE | Os cartões levam uma linha de licença enquanto a S.3b = B disse "só na página de Créditos"; dois documentos atribuíam a linha ao mantenedor. | Pergunta para o mantenedor (S.3b-bis). Registrada aqui como escolha da construção na ADR 0099 item 6, em `statblock-sources.md` e nos CHANGELOGs, sem atribuí-la a ele; nenhum lado escolhido. |
+| I-1 | IMPORTANTE | `write` do S3 pode devolver o ETag de outro aparelho como versão dos nossos bytes. | Corrigido em `fix/review-cloud` (merge pendente). |
+| I-2 | IMPORTANTE | O rename do S3 apaga o destino sem condição quando a cópia discorda. | Corrigido em `fix/review-cloud` (merge pendente). |
+| I-3 | IMPORTANTE | A exclusão num serviço sem `DELETE` condicional tem uma janela HEAD-depois-DELETE sem proteção, não registrada na ADR. | Pergunta para o mantenedor: aceitar a janela ou recusar a conexão (a C.3 disse recusar). Registrada em "Como construída" da ADR 0104. |
+| I-4 | IMPORTANTE | O `exists` do WebDAV baixa o arquivo. | Corrigido em `fix/review-cloud` (merge pendente): um `PROPFIND` de profundidade zero. Registrado em "Como construída" da ADR 0104. |
+| I-5 | IMPORTANTE | Corpos de resposta do S3 lidos sem limite. | Corrigido em `fix/review-cloud` (merge pendente). |
+| I-6 | IMPORTANTE | Desligar a sincronização de uma pasta de nuvem joga fora a base. | Corrigido em `fix/review-cloud` (merge pendente): a base é mantida, só o segredo é apagado. Registrado em "Como construída" da ADR 0104. |
+| I-7 | IMPORTANTE | Carimbos `[DECIDIDO]` em itens da ADR 0104 que nenhuma pergunta fez; "Recomendado" ficou depois de C.1/C.6 respondidas; C.7 não declarada. | Corrigido aqui: ADR 0104 (+ pt-BR) — "aceito com a ADR, não perguntado um a um", C.1 = A, C.6 = A e C.7 = A declaradas. |
+| I-8 | IMPORTANTE | A Q24 da spec e a linha v0.48 discordam sobre a marca de rascunho de `tags-number`; o texto do arquivo aprovado mudou depois da aprovação. | Corrigido aqui: a Q24 concorda com o arquivo (sem marca de rascunho). Pergunta para o mantenedor: reconfirmar o arquivo como está agora (I-8). |
+| I-9 | IMPORTANTE | A Q5 e a Q22(b) da spec registram regras além das respostas. | Corrigido aqui: a regra da citação comum na Q5 marcada como comportamento da construção à espera dele (pergunta Q5-bis, pergunta para o mantenedor); a Q22(b) cita a resposta dele Q22b = A da lista de 2026-10-20 (estava decidida; a revisão não viu). |
+| I-10 | IMPORTANTE | "Como construída" da ADR 0104 omite escolhas de construção; o limite do Windows é apresentado como 2000. | Corrigido aqui: "Como construída" da ADR 0104 (+ pt-BR), a linha V.40 do roadmap e o modelo de ameaças dizem que 2560 é da Microsoft e 2000 a margem da construção; C.13 registrada (sendo corrigida em `fix/review-cloud`). (A V.38 do roadmap é a linha do dialeto e não leva essa cifra.) |
+| M-1 | MENOR | Um segredo fica no chaveiro antes de a pessoa começar. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-2 | MENOR | A sonda deixa uploads multipart abertos. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-3 | MENOR | A sonda do WebDAV apaga a pasta compartilhada `.verso-probe`. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-4 | MENOR | URIs de coleção do WebDAV pedidas sem barra final (PLAUSÍVEL). | Corrigido em `fix/review-cloud` (merge pendente); a conferir contra um servidor que não seja Nextcloud nas verificações manuais. |
+| M-5 | MENOR | Um arquivo alterado durante a listagem custa uma leitura na passada seguinte (seguro). | Nenhuma mudança necessária; o custo some com a I-4. |
+| M-6 | MENOR | `list_block_ids` carrega todas as linhas antes de truncar. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-7 | MENOR | `truncated` é calculado antes de o escopo filtrar. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-8 | MENOR | Inteiros negativos e floats não serem tags é escolha da construção, fora da spec. | Registrado na Q24 da spec como escolha da construção; pergunta para o mantenedor (T.3). |
+| M-9 | MENOR | `create_picked` lê o arquivo inteiro na memória. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-10 | MENOR | Tokens de uma janela fechada nunca são soltos. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-11 | MENOR | O rótulo `place` do seletor de pastas não tem linha de revisão nas ADRs 0026/0081. | Linha datada acrescentada às ADRs 0026 e 0081; pergunta para o mantenedor (T.9). Nada decidido. |
+| M-12 | MENOR | O construtor de temas edita `settings.look` no lugar. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-13 | MENOR | `throwDice` pode vazar um contexto WebGL em caso de falha. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-14 | MENOR | Um arquivo de dados vazio mostra um `<pre>` vazio; a caixa do diagrama aparece durante o carregamento. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-15 | MENOR | `statblock-sources.md` ainda diz que o aviso da RTG fica no rodapé de cada ficha em branco. | Corrigido aqui: reescrito para o estado atual, datado, nos dois idiomas. |
+| M-16 | MENOR | A chave de foco da galeria de temas se parte em `|`. | Corrigido em `fix/review-cloud` (merge pendente). |
+| M-17 | MENOR | Linhas do índice de ADRs: item 5 da 0105, "não construída" da 0104, revisão do item 2 da 0100. | Corrigido aqui, nos dois idiomas. |
+| M-18 | MENOR | "mega puida" citado como "mega poluída". | Corrigido aqui: citado literalmente, com "[poluída]" depois (ADR 0100, a seção 7 desta revisão, V.28 do roadmap, os gêmeos pt-BR). |
+| M-19 | MENOR | A seção 7 inferiu "ele leu as traduções; nada apontado" de uma caixa marcada. | Corrigido aqui: a seção 7 diz que ele marcou, sem comentário; os itens do Fractal e do Opus/Sonnet registrados como marcados sem resultado. |
+| M-20 | MENOR | "Nenhuma outra registrada" na ADR 0099; frase solta no item 3 da 0101; linha em branco da 0106; desvio da 0104.2 dentro da linha de origem. | Corrigido aqui: "Nenhuma registrada."; a frase completada; a linha em branco restaurada (EN; o gêmeo pt-BR já a tinha); o desvio declarado em linha própria. |
+| M-21 | MENOR | Os nomes de campos em pt-BR dos layouts de World of Darkness e Cyberpunk RED são da construção, não declarados na ADR 0099. | Corrigido aqui: o item 6 da ADR 0099 diz que foram escolhidos pela construção a partir de termos da comunidade, provisórios (S.3c). |

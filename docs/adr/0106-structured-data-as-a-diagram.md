@@ -33,6 +33,7 @@
   as roadmap row V.30, after wave D. 2026-10-21, later — the maintainer
   answered D.1 to D.4 of the decisions list of 2026-10-21, all option A
   (items 8, 9 and 12, Status).
+
 ## Context
 
 A `.json` or `.yaml` file opens in Verso today as text, in the source

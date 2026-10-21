@@ -54,6 +54,13 @@
   [0105](0105-read-links-without-an-account.md), Accepted that day: a read
   link without an account on a folder or on one note, off on a new server;
   sharing one note **to write** stays as item 17 left it.
+  2026-10-21 (review of the afternoon batch, **awaiting the maintainer**,
+  question T.9 of the decisions list of the afternoon; nothing decided here)
+  — item 5 says "names and keys, no path", and the folder switcher now shows a
+  `place` label per recent folder: the last two components of its parent
+  folder, never absolute, never `..` (see the same-date line in
+  [0026](0026-core-ui-contract-inviolable-rules.md), rule 4). Whether the
+  label revises item 5 is his to say.
 
 ## Context
 
