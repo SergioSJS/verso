@@ -146,6 +146,7 @@ pub const REFUSED: &[&str] = &[
     "open_claude_download",
     "copy_full_path",
     "pick_files",
+    "create_picked",
     "reveal",
     "open_url",
     "open_window",

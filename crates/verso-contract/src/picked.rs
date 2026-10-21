@@ -8,13 +8,18 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 /// One file the person chose with the system's file picker ("Import
-/// files…", A11Y.10): its name and its bytes, never the path it came from
-/// (ADR 0026 rule 4). The window creates it in the folder through
-/// `create_file`, as a file dropped on the tree.
+/// files…", A11Y.10): its name and either its bytes or a token, never the
+/// path it came from (ADR 0026 rule 4). On a window of this computer's own
+/// folder the file stays where it is and the token stands for it:
+/// `create_picked` copies it into the folder on the host's side, so that a
+/// large file never crosses as base64. On a window of a server's folder the
+/// bytes are in `base64` and the window creates the file through
+/// `create_file`, as a file dropped on the tree. Exactly one of the two.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct PickedFile {
     pub name: String,
-    pub base64: String,
+    pub base64: Option<String>,
+    pub token: Option<String>,
 }
 
 /// Why a chosen file was not read.
@@ -44,4 +49,18 @@ pub struct SkippedPick {
 pub struct PickedFiles {
     pub files: Vec<PickedFile>,
     pub skipped: Vec<SkippedPick>,
+}
+
+/// A folder of this computer opened before, for the folder switcher's
+/// "On this computer" (ADR 0081 item 5): its name, the key
+/// `reopen_folder` takes and a short label of where it lives — never its
+/// path (ADR 0026 rule 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecentFolder {
+    pub key: String,
+    pub name: String,
+    /// Where the folder sits, to tell two of one name apart: its parent
+    /// shortened to `~/…/Documents/obsidian`, `…/Volumes/Disco` — never
+    /// absolute, never with `..`, and empty when there is nothing to say.
+    pub place: String,
 }

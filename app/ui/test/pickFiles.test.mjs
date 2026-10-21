@@ -21,8 +21,8 @@ describe("Reading the files a browser's picker gave", () => {
     const got = await readChosen([new File(["oi"], "a.txt"), new File([new Uint8Array([0, 255, 128])], "b.bin")]);
     assert.deepEqual(got.skipped, []);
     assert.deepEqual(got.files, [
-      { name: "a.txt", base64: Buffer.from("oi").toString("base64") },
-      { name: "b.bin", base64: Buffer.from([0, 255, 128]).toString("base64") },
+      { name: "a.txt", base64: Buffer.from("oi").toString("base64"), token: null },
+      { name: "b.bin", base64: Buffer.from([0, 255, 128]).toString("base64"), token: null },
     ]);
   });
 
@@ -31,6 +31,15 @@ describe("Reading the files a browser's picker gave", () => {
     const got = await readChosen([big, new File(["x"], "pequeno.txt")]);
     assert.deepEqual(got.skipped, [{ name: "grande.bin", reason: "too_large" }]);
     assert.deepEqual(got.files.map((f) => f.name), ["pequeno.txt"]);
+  });
+
+  test("the limit asked is kept, but never past what a message to the server carries", async () => {
+    const two = new File([new Uint8Array(2 * 1024 * 1024)], "dois.bin");
+    const small = await readChosen([two], 1);
+    assert.deepEqual(small.skipped, [{ name: "dois.bin", reason: "too_large" }]);
+    const wide = new File([new Uint8Array(33 * 1024 * 1024)], "trinta-e-tres.bin");
+    const got = await readChosen([wide], 200);
+    assert.deepEqual(got.skipped, [{ name: "trinta-e-tres.bin", reason: "too_large" }]);
   });
 
   test("nothing chosen is nothing", async () => {

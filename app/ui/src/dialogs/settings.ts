@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { can, host } from "../can";
+import { IMPORT_CEILING_MB, importSetting } from "../attachName";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
 import { localServerBody, phonesConnected, restartNote } from "./localServer";
@@ -575,6 +576,12 @@ export class SettingsDialog {
     }
     addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
     addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));
+    add("files", t.importMax, t.importMaxDesc, () => {
+      const i = h("input");
+      i.type = "number"; i.min = "1"; i.max = String(IMPORT_CEILING_MB); i.step = "1"; i.value = String(importSetting(settings.importMaxMb));
+      i.addEventListener("change", () => { settings.importMaxMb = importSetting(Number(i.value)); i.value = String(settings.importMaxMb); saveSettings(); });
+      return i;
+    });
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
