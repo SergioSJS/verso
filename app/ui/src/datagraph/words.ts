@@ -50,6 +50,8 @@ type Words = {
   members: (shape: Shape, n: number) => string;
   emptyBox: string;
   empty: string;
+  /** A parser's message in this language (the YAML library's own stay as it wrote them). */
+  parseError: (message: string) => string;
   errorLine: (message: string) => string;
   errorGo: string;
   staleNote: string;
@@ -74,6 +76,61 @@ type Words = {
   jumpText: string;
   unfoldedTo: (path: string) => string;
 };
+
+const ERRORS_PT: Record<string, string> = {
+  "A quoted cell is never closed": "Uma célula entre aspas nunca é fechada",
+  "The file is empty": "O arquivo está vazio",
+  "A comment is never closed": "Um comentário nunca é fechado",
+  "A string is never closed": "Um texto entre aspas nunca é fechado",
+  "A string runs past the end of its line": "Um texto entre aspas passa do fim da linha",
+  "A string has a bad escape": "Um texto tem uma sequência de escape inválida",
+  "A bad \\u escape in a string": "Um texto tem um escape \\u inválido",
+  "The text ends before the value is closed": "O texto termina antes de o valor ser fechado",
+  "There is no value": "Não há nenhum valor",
+  "A comma with nothing after it": "Uma vírgula sem nada depois",
+  "A key must be a string in quotes": "Uma chave precisa ser um texto entre aspas",
+  'A ":" is missing after the key': 'Falta ":" depois da chave',
+  'A "=" is expected after the key': 'Falta "=" depois da chave',
+  "A key has no value": "Uma chave está sem valor",
+  "A key is expected here": "Uma chave é esperada aqui",
+  "A value is expected here": "Um valor é esperado aqui",
+  "There is more text after the value": "Há mais texto depois do valor",
+  "Something follows the value on its line": "Algo vem depois do valor, na mesma linha",
+  'A "," or "]" is expected': 'Era esperado "," ou "]"',
+  'A "," or "}" is expected': 'Era esperado "," ou "}"',
+  "Text outside the root element": "Texto fora do elemento raiz",
+  "A CDATA section is never closed": "Uma seção CDATA nunca é fechada",
+  "A processing instruction is never closed": "Uma instrução de processamento nunca é fechada",
+  "A declaration is never closed": "Uma declaração nunca é fechada",
+  "A closing tag is never closed": "Uma marca de fechamento nunca é fechada",
+  "A tag has no name": "Uma marca está sem nome",
+  "There is more than one root element": "Há mais de um elemento raiz",
+  "An attribute is expected here": "Um atributo é esperado aqui",
+  "An attribute value is never closed": "O valor de um atributo nunca é fechado",
+  "There is no element": "Não há nenhum elemento",
+  "The YAML nests too deeply to draw": "O YAML tem aninhamento fundo demais para desenhar",
+  "Not YAML": "Não é YAML",
+};
+
+const PATTERNS_PT: [RegExp, string][] = [
+  [/^Unexpected closing tag <\/(.*)>$/s, "Marca de fechamento inesperada </$1>"],
+  [/^Unexpected "(.*)"$/s, 'Inesperado "$1"'],
+  [/^"(.*)" is an empty array$/s, '"$1" é uma lista vazia'],
+  [/^A "(.*)" is expected$/s, 'Era esperado "$1"'],
+  [/^<\/(.*)> closes <(.*)>$/s, "</$1> fecha <$2>"],
+  [/^The tag <(.*)> is never closed$/s, "A marca <$1> nunca é fechada"],
+  [/^The attribute (.*) has no value$/s, "O atributo $1 está sem valor"],
+  [/^The value of (.*) must be in quotes$/s, "O valor de $1 precisa estar entre aspas"],
+  [/^<(.*)> is never closed$/s, "<$1> nunca é fechado"],
+];
+
+/** The parsers write their messages in English; in pt-BR they are told in pt-BR (the YAML library's own are not ours to translate). */
+export function parseErrorPt(message: string): string {
+  const exact = ERRORS_PT[message];
+  if (exact !== undefined) return exact;
+  for (const [re, to] of PATTERNS_PT) if (re.test(message)) return message.replace(re, to);
+  return message;
+}
 
 const pt: Words = {
   text: "Texto",
@@ -122,7 +179,8 @@ const pt: Words = {
   },
   emptyBox: "vazio",
   empty: "Nada para desenhar.",
-  errorLine: (m) => `O texto não é válido: ${m}`,
+  parseError: parseErrorPt,
+  errorLine: (m) => `O texto não é válido: ${parseErrorPt(m)}`,
   errorGo: "Ir ao erro",
   staleNote: "Mostrando o último diagrama válido.",
   tooBig: (mb) => `Este arquivo tem ${mb} MB, mais que os 20 MB que o diagrama aceita. Só o texto está disponível.`,
@@ -194,6 +252,7 @@ const en: Words = {
   },
   emptyBox: "empty",
   empty: "Nothing to draw.",
+  parseError: (m) => m,
   errorLine: (m) => `The text is not valid: ${m}`,
   errorGo: "Go to the error",
   staleNote: "Showing the last valid diagram.",
