@@ -33,6 +33,15 @@
   mantenedor como construídos e testados, respondendo à auditoria dos
   ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
   nota datada ao lado de cada um.
+  2026-10-21 (revisão do lote da tarde, **à espera do mantenedor**, pergunta
+  T.9 da lista de decisões da tarde; nada decidido aqui) — o seletor de
+  pastas mostra cada pasta recente com um rótulo `place`, os dois últimos
+  componentes da pasta pai (`~/…/Documents/obsidian`, `…/Volumes/Disco`;
+  `RecentFolder::place` em `crates/verso-contract`). A letra da regra 4
+  vale (nunca absoluto, nunca `..`) e é um rótulo, não uma capacidade; mas a
+  [0081](0081-sharing-between-people-on-one-universo.md) item 5 diz "nomes e
+  chaves, sem caminho" e não tem linha de revisão para isso. Aceitar o rótulo
+  como leitura da regra 4 é decisão dele.
 
 ## Contexto
 
