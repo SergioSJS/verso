@@ -14,6 +14,8 @@
 .dg-error { flex: none; display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; padding: .4rem clamp(.7rem, 1.5vw, 1.2rem); background: var(--seal-wash); color: var(--ink); border-bottom: 1px solid var(--hair); font-size: .82rem; }
 .dg-error-go { color: var(--seal); text-decoration: underline; padding: 0; }
 .dg-empty { padding: 1.5rem clamp(.7rem, 1.5vw, 1.2rem); color: var(--ink-3); }
+.dg-loading { margin: 0; padding: 1rem clamp(.7rem, 1.5vw, 1.2rem); font-size: .85rem; color: var(--ink-2); }
+.dg-loading[role=alert] { color: var(--seal); }
 .dg-hint { flex: none; margin: 0; padding: .3rem clamp(.7rem, 1.5vw, 1.2rem); font-size: .74rem; color: var(--ink-3); border-top: 1px solid var(--hair); }
 
 .dg-stage { position: relative; flex: 1; min-height: 12rem; overflow: hidden; touch-action: none; cursor: grab; background: var(--paper); user-select: none; -webkit-user-select: none; outline: none; }

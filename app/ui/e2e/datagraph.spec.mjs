@@ -450,3 +450,25 @@ test("turning the switch off takes the diagram away from tabs already open, and 
   await page.locator(".preview:visible pre").hover();
   await expect(page.locator(".preview:visible [data-action=view-diagram]")).toHaveCount(1);
 });
+test("the diagram's code loads on the first diagram only", async ({ app, page }) => {
+  const chunks = [];
+  page.on("request", (r) => {
+    if (/chunks\/datagraph/.test(r.url())) chunks.push(r.url());
+  });
+  await openFile(app, { "mesa-teste.json": NPCS }, "mesa-teste");
+  await expect(page.locator(".leaf:visible .editor.source")).toBeVisible();
+  await expect(page.locator(".leaf:visible .data-modes")).toBeVisible();
+  expect(chunks).toEqual([]);
+  await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
+  await expect(page.locator(".dg-box").first()).toBeVisible();
+  expect(chunks.length).toBe(1);
+});
+
+test("a diagram whose code cannot load shows an error line, not a blank tab", async ({ app, page }) => {
+  app.expectFault(/request failed: .*chunks\/datagraph|console: Failed to load resource: net::ERR_FAILED/);
+  await page.route(/chunks\/datagraph/, (route) => route.abort());
+  await openFile(app, { "mesa-teste.json": NPCS }, "mesa-teste");
+  await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
+  await expect(page.locator(".leaf:visible .dg-loading[role=alert]")).toContainText("Não foi possível carregar o diagrama");
+  await expect(page.locator(".dg-box")).toHaveCount(0);
+});
