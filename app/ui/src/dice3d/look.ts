@@ -38,6 +38,13 @@ export type DiceStyles = Record<SlotId, DiceStyle>;
  *  percent, which stays with the viewer and never travels with a roll. */
 export type DiceLook = { size: number; styles: DiceStyles };
 
+/** The picture file of each texture in `dice-textures/` (the original
+ *  images of MajorVictory's 3DDiceRoller, The Unlicense; see
+ *  docs/reference/dice-textures.md); `none` has none. */
+export const TEXTURE_FILES: Record<TextureId, string | null> = {
+  none: null, marble: "marble.png", speckles: "speckles.png", glitter: "glitter.png", stars: "stars.png", astral: "astral.png", cloudy: "cloudy.png", fire: "fire.png", water: "water.png", ice: "ice.png", paper: "paper.png", wood: "wood.png", metal: "metal.png", stainedglass: "stainedglass.png", skulls: "skulls.png", dragon: "dragon.png", leopard: "leopard.png", tiger: "tiger.png", lizard: "lizard.png", bird: "feather.png",
+};
+
 export const SIZE_MIN = 70;
 export const SIZE_MAX = 160;
 export const SIZE_DEFAULT = 100;

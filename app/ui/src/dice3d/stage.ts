@@ -36,7 +36,7 @@ import { paintTexture } from "./textures";
 import { type Die3, forceLabels, baseValues, labelText } from "./force";
 import { solid, type Shape, type Vec } from "./polyhedra";
 import { type Arena, simulate } from "./sim";
-import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId } from "./look";
+import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId, type TextureId } from "./look";
 import { playhead, timeline } from "./timeline";
 
 /** What the stage reports to the caller. */
@@ -196,7 +196,7 @@ function atlas(die: Die3, values: readonly number[], pal: Palette, cells: Cell[]
 
 /** A slot's body for an atlas of `w` x `h`: the body colour with the
  *  texture painted over it. Drawn once for each kind of die in a roll. */
-function bodyOf(pal: Palette, texture: DiceStyle["texture"], w: number, h: number): HTMLCanvasElement {
+function bodyOf(pal: Palette, texture: DiceStyle["texture"], w: number, h: number, image?: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
@@ -204,7 +204,7 @@ function bodyOf(pal: Palette, texture: DiceStyle["texture"], w: number, h: numbe
   if (ctx) {
     ctx.fillStyle = pal.body;
     ctx.fillRect(0, 0, w, h);
-    paintTexture(ctx, w, h, texture);
+    paintTexture(ctx, w, h, texture, 7, image);
   }
   return canvas;
 }
@@ -239,7 +239,7 @@ function geometryOf(shape: Shape, cells: Cell[]): BufferGeometry {
  *  active pane, or the window), drawn in `styles` — whoever's they are —
  *  at the viewer's `size` (percent). Null when it cannot
  *  (no WebGL): the caller shows the 2D card at once. */
-export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: number, area: { left: number; top: number; width: number; height: number } = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }): Stage | null {
+export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: number, images: ReadonlyMap<TextureId, HTMLImageElement>, area: { left: number; top: number; width: number; height: number } = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }): Stage | null {
   if (area.width < 2 || area.height < 2) return null;
   const region = throwRegion(area, dice.length);
   const aspect = region.width / region.height;
@@ -333,7 +333,7 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     const key = `${slot}|${die.role}|${cols}x${rows}`;
     let base = bodies.get(key);
     if (!base) {
-      base = bodyOf(pal, styleFor(die).texture, cols * CELL, rows * CELL);
+      base = bodyOf(pal, styleFor(die).texture, cols * CELL, rows * CELL, images.get(styleFor(die).texture));
       bodies.set(key, base);
     }
     const material = finishes[i] as (typeof finishes)[number];

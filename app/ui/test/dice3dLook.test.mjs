@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
+import { existsSync } from "node:fs";
 
 await esbuild.build({
   stdin: { contents: `export * from "./src/dice3d/look"; export * from "./src/dice3d/textures"; export * from "./src/theme/color";`, resolveDir: ".", loader: "ts" },
@@ -139,4 +140,9 @@ test("a dice style is closed JSON: whatever arrives, only listed ids and #rrggbb
   // It survives JSON as it is.
   assert.deepEqual(JSON.parse(JSON.stringify(out)), out);
   assert.deepEqual(m.readDiceLook(m.defaultLook()).styles, m.defaultLook().styles);
+});
+
+test("the original texture images: one file per texture but Plain, each shipped", () => {
+  assert.equal(m.TEXTURE_FILES.none, null);
+  for (const t of m.TEXTURES.filter((x) => x !== "none")) assert.ok(existsSync(`dice-textures/${m.TEXTURE_FILES[t]}`), t);
 });

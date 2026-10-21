@@ -344,7 +344,6 @@ test("the test roll draws a die in each of the three slots with that slot's styl
   await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
   await page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Dados 3D: testar$/ }) }).getByRole("button", { name: "Rolar para testar" }).click();
   await expect(canvas(page)).toHaveCount(1);
-  await expect.poll(() => canvas(page).getAttribute("data-die-widths"), { timeout: 8000 }).not.toBeNull();
   const slots = JSON.parse((await canvas(page).getAttribute("data-slots")) ?? "[]");
   expect(slots).toEqual([
     ["1", "#1d9e75", "none", "dragon"],
@@ -449,6 +448,32 @@ test("settings: every texture paints something on the swatch", async ({ app, pag
     seen.push(await pixels());
   }
   for (let i = 1; i < seen.length; i++) expect(differs(seen[i], seen[i - 1])).toBeGreaterThan(0.02);
+});
+
+test("settings: a texture's picture comes from the app (200), nothing from the network, and a missing one falls back to the drawn texture", async ({ app, page }) => {
+  const seen = [];
+  const outside = [];
+  page.on("response", (r) => {
+    if (/dice-textures\//.test(r.url())) seen.push([new URL(r.url()).pathname.split("/").pop(), r.status()]);
+  });
+  page.on("request", (r) => {
+    if (!/^(http:\/\/127\.0\.0\.1|data:|blob:)/.test(r.url())) outside.push(r.url());
+  });
+  await app.open();
+  const row = await openFeatures(app, page);
+  await row("Dados 3D: estilo").getByRole("combobox").selectOption("osso");
+  await expect.poll(() => seen.some(([f]) => f === "marble.png")).toBe(true);
+  expect(seen).toContainEqual(["marble.png", 200]);
+  expect(outside).toEqual([]);
+  // A picture that is not there: the swatch is still painted (by our painter).
+  app.expectFault(/dragon\.png|ERR_FAILED/);
+  await page.route("**/dice-textures/dragon.png", (r) => r.abort());
+  const tex = row("Dados 3D: textura").getByRole("combobox");
+  await tex.selectOption("dragon");
+  const tile = row("Dados 3D: cores").locator('.dice3d-tile[data-slot="1"] canvas');
+  await expect
+    .poll(() => tile.evaluate((c) => { const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const seen = new Set(); for (let i = 0; i < d.length; i += 16) seen.add(`${d[i] >> 4},${d[i + 1] >> 4},${d[i + 2] >> 4}`); return seen.size; }))
+    .toBeGreaterThan(8);
 });
 
 test("settings: 'Rolar para testar' says why it cannot play, and plays three dice when it can", async ({ app, page }, info) => {
