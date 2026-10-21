@@ -18,7 +18,7 @@ No Verso, as conexões entre notas são cidadãs de primeira classe. Este guia d
 ## 1. Tipos de Wikilinks
 
 ### Link Direto
-No modo **Leitura**, um clique segue o link. No modo **Editar**, o clique põe o cursor no link, para editá-lo — `⌘` + clique o segue.
+No modo **Leitura**, um clique segue o link. No modo **Editar**, o clique põe o cursor no link, para editá-lo — `⌘` + clique o segue, e `⌥ Enter` (`Alt + Enter`) abre o link sob o cursor — um `[[link]]`, um `![[embed]]`, um link `[texto](endereço)` ou um endereço solto — sem o mouse. Está na paleta como **Abrir link sob o cursor**.
 
 Link para uma nota existente pelo nome. Ao digitar `[[`, o Verso sugere as notas e os arquivos da pasta, o mais parecido primeiro; `[[Nota#` sugere os títulos daquela nota, e `[[#` os títulos desta. O formato do link inserido segue **Ajustes › Arquivos e links › Formato de novo link** (o mais curto possível, relativo à nota, ou a partir da raiz da pasta).
 - [[00 - Bem-vindo ao Verso]]

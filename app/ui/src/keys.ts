@@ -74,6 +74,8 @@ export const DEFAULT_KEYS: Record<string, string> = {
   "block-move-down": "Mod-Shift-ArrowDown",
   "block-duplicate": "Mod-d",
   "block-turn-into": "Mod-/",
+  // Obsidian's "Follow link under cursor"; no Mod, so `runHotkey` lets it through.
+  "follow-link": "Alt-Enter",
   "reload-window": "Mod-r",
   // The window's zoom (ADR 0072, revised 2026-10-20); ⌘⇧= and the numpad's
   // + are the same key as ⌘= (`runHotkey`).
@@ -179,11 +181,14 @@ export function openFindInActiveLeaf(): void {
   }
 }
 
+/** The few hotkeys that hold no Mod: a modifier and a key that types nothing. */
+export const PLAIN_HOTKEYS = new Set(["Alt-Enter"]);
+
 /** Run the command a key event is the hotkey of; true when one ran. Every
  *  hotkey holds Mod, so plain typing never reaches a command. */
 export function runHotkey(e: KeyboardEvent): boolean {
   const combo = comboOf(e);
-  if (!combo.startsWith("Mod-")) return false;
+  if (!combo.startsWith("Mod-") && !PLAIN_HOTKEYS.has(combo)) return false;
   if (combo === "Mod-f") {
     e.preventDefault();
     openFindInActiveLeaf();
@@ -235,6 +240,7 @@ export function allCommands(all = false): Command[] {
     { id: "block-duplicate", label: t.blocks.duplicateBlock, need: Boolean(live), editorOnly: true, run: () => live?.duplicateBlock() },
     { id: "block-turn-into", label: t.blocks.turnBlock, need: Boolean(live), editorOnly: true, run: () => live?.turnBlockMenu() },
     { id: "block-delete", label: t.blocks.deleteBlock, need: Boolean(live), editorOnly: true, run: () => live?.deleteBlock() },
+    { id: "follow-link", label: t.followLink, need: Boolean(note && note.mode !== "preview"), editorOnly: true, run: () => note?.followLinkAtCaret() },
     { id: "block-copy-link", label: t.blocks.copyLink, need: Boolean(live), editorOnly: true, run: () => live?.copyBlockLink() },
     { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },

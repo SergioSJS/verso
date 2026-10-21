@@ -571,6 +571,7 @@ export class NoteLeaf extends Leaf {
   declare caretPoint: typeof editing.caretPoint;
   declare turnBlockMenu: typeof editing.turnBlockMenu;
   declare copyBlockLink: typeof editing.copyBlockLink;
+  declare followLinkAtCaret: typeof editing.followLinkAtCaret;
   declare blockMenu: typeof editing.blockMenu;
   declare blockPlusAt: typeof editing.blockPlusAt;
   declare blockPlus: typeof editing.blockPlus;

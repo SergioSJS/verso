@@ -101,12 +101,19 @@ test.describe("the graph", () => {
     const view = () => page.locator("svg.graph > g").first().getAttribute("transform");
     // Pan the graph until its leftmost node is 10 px from the view's edge.
     const box = await svg.boundingBox();
-    const xs = await page.locator("svg.graph .node circle").evaluateAll((cs) => cs.map((c) => c.getBoundingClientRect().left + c.getBoundingClientRect().width / 2));
-    const dx = box.x + 10 - Math.min(...xs);
-    await page.mouse.move(box.x + box.width - 6, box.y + box.height - 6);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width - 6 + dx, box.y + box.height - 6, { steps: 4 });
-    await page.mouse.up();
+    const leftmost = () => page.locator("svg.graph .node circle").evaluateAll((cs) => Math.min(...cs.map((c) => c.getBoundingClientRect().left + c.getBoundingClientRect().width / 2)));
+    for (let i = 0; i < 6; i++) {
+      const want = box.x + 10 - (await leftmost());
+      if (Math.abs(want) < 2) break;
+      // One drag inside the view; a longer pan takes another.
+      const room = box.width - 24;
+      const dx = Math.max(-room, Math.min(room, want));
+      const from = { x: dx < 0 ? box.x + box.width - 8 : box.x + 8, y: box.y + 8 };
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      await page.mouse.move(from.x + dx, from.y, { steps: 6 });
+      await page.mouse.up();
+    }
     const target = page.locator("svg.graph .node circle").filter({}).evaluateAll((cs) => {
       let best = null;
       for (const c of cs) {
@@ -124,5 +131,70 @@ test.describe("the graph", () => {
     const during = await view();
     await page.mouse.up();
     expect(during).toBe(before);
+  });
+});
+
+test.describe("Alt+Enter follows the link under the caret", () => {
+  const FILES = {
+    "Origem.md": "Veja [[Porto#Cais]] e ![[Mesa]] e [texto](Rota.md) e https://exemplo.org/x agora.\n\nSem link aqui.\n",
+    "Porto.md": "# Porto\n\n## Cais\n\nTexto do cais.\n",
+    "Mesa.md": "# Mesa\n",
+    "Rota.md": "# Rota\n",
+  };
+  async function seeded(app, mode = "Editar") {
+    await app.open("?vault=empty");
+    for (const [p, text] of Object.entries(FILES)) await app.writeOutside(p, text);
+    await app.folderChanged(Object.keys(FILES), true);
+    await app.quickOpen("Origem");
+    if (mode === "Fonte") await app.page.getByRole("button", { name: "Fonte", exact: true }).click();
+    else await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+    await app.page.locator(".pane.focused .cm-content").filter({ visible: true }).click();
+  }
+  /** The caret `n` characters into the first line. */
+  async function caretAt(page, n) {
+    await page.keyboard.press("ControlOrMeta+Home");
+    for (let i = 0; i < n; i++) await page.keyboard.press("ArrowRight");
+  }
+  const active = (page) => page.locator(".tab[aria-selected='true']").first();
+
+  for (const mode of ["Editar", "Fonte"]) {
+    test(`a wikilink with a heading, an embed and a Markdown link open their notes (${mode})`, async ({ app, page }) => {
+      await seeded(app, mode);
+      await caretAt(page, 9); // inside "[[Porto#Cais]]"
+      await page.keyboard.press("Alt+Enter");
+      await expect(active(page)).toContainText("Porto");
+      // Back to the origin; the embed.
+      await app.quickOpen("Origem");
+      await page.locator(".pane.focused .cm-content").filter({ visible: true }).click();
+      await caretAt(page, 24); // inside "![[Mesa]]"
+      await page.keyboard.press("Alt+Enter");
+      await expect(active(page)).toContainText("Mesa");
+      await app.quickOpen("Origem");
+      await page.locator(".pane.focused .cm-content").filter({ visible: true }).click();
+      await caretAt(page, 40); // inside "[texto](Rota.md)"
+      await page.keyboard.press("Alt+Enter");
+      await expect(active(page)).toContainText("Rota");
+    });
+  }
+
+  test("a bare address goes to the external opener; elsewhere the status says there is no link", async ({ app, page }) => {
+    await seeded(app);
+    await caretAt(page, 62);
+    await page.keyboard.press("Alt+Enter");
+    await expect.poll(() => app.calls("open_url")).toEqual([{ url: "https://exemplo.org/x" }]);
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press("Alt+Enter");
+    await expect(page.locator("#status")).toHaveText("Nenhum link sob o cursor.");
+  });
+
+  test("the command is in the palette and in Settings › Atalhos, with its key", async ({ app, page }) => {
+    await seeded(app);
+    await caretAt(page, 9);
+    await app.command("Abrir link sob o cursor");
+    await expect(active(page)).toContainText("Porto");
+    await app.key("Mod+,");
+    await page.locator(".settings-nav-item", { hasText: "Atalhos" }).click();
+    await expect(page.locator(".settings-body").getByText("Abrir link sob o cursor").first()).toBeVisible();
+    await expect(page.locator(".hotkey kbd", { hasText: /Alt\+Enter|⌥Enter/ }).first()).toBeVisible();
   });
 });
