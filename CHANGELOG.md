@@ -61,6 +61,7 @@ test release.
 
 ### Fixed
 
+- **Settings › Servers no longer moves under your pointer**: the network search's sentence grew from one line to four 0.3 s after the page opened, pushing the computer-name form (and its Save button) down as it was clicked, so the click could miss. The sentence now has its room from the start.
 - **A data file on a board no longer draws an empty box**: a `.json` file card (and `.yaml`, `.csv`…) was an empty box. It shows its text now (see Added). Any other file with no body of its own on a card — a sound, an `.html`, another board, a base — shows its extension and says to open it, instead of nothing.
 - **Small fixes in the window**: an imported theme that could not be kept because the profile list is full now says so instead of "imported"; attached or imported files lose a trailing dot or space and get an underscore when their name is one Windows reserves (`con`, `nul`, `com1`…); a data diagram too large for the browser's storage no longer stops every diagram from remembering its moved boxes.
 - **The app's own address is never shown in an embedded frame**: a note, a board card or a web tab pointing at the app's own origin (or the desktop host's) gets no frame and no question to the network, so a reverse proxy that strips the framing headers can no longer put the app, with its session, inside a page. A site check that failed (offline, timeout) is no longer remembered as "forbids framing" for the whole session, and when the app cannot save the approval of a site the gate now says so instead of leaving a dead button.
