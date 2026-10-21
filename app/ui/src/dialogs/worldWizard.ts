@@ -7,6 +7,7 @@ import { afterFileChange } from "../changes";
 import { commands } from "../bindings";
 import { checkEdited, type Plan, planBundle } from "../bundles/plan";
 import { BUILTIN_PRESETS } from "../bundles/presets";
+import { bundleInLanguage } from "../bundles/presetsEn";
 import { applyPlan, needsReading, type Report } from "../bundles/run";
 import { systemPromptFor } from "../bundles/systemPrompt";
 import { freeId, loadFolderBundles, saveFolderBundle } from "../bundles/store";
@@ -281,13 +282,16 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   let selected: TemplateBundle = getAvailableBundles()[0] ?? BUILTIN_PRESETS[0]!;
   const cards = new Map<string, HTMLButtonElement>();
 
-  const planNow = (): Plan => planBundle(selected, { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
+  /** The chosen bundle in the window's language (ADR 0098 item 10). */
+  const chosen = (): TemplateBundle => bundleInLanguage(selected, isPt);
+  const planNow = (): Plan => planBundle(chosen(), { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
 
   const paintPreview = (): void => {
     const typed = nameInput.value.trim();
     projectSummary.textContent = bw.rootLine(typed || bw.rootPlaceholder);
-    foldersSummary.textContent = bw.foldersLine(selected.folders.length, selected.folders.join(", "));
-    filesSummary.textContent = bw.filesLine(selected.files.length);
+    const bundle = chosen();
+    foldersSummary.textContent = bw.foldersLine(bundle.folders.length, bundle.folders.join(", "));
+    filesSummary.textContent = bw.filesLine(bundle.files.length);
     const plan = planNow();
     listBody.replaceChildren(...plan.folders.map((f) => h("li", "", `📂 ${f}/`)), ...plan.files.map((f) => h("li", "", `📄 ${f.path}`)));
     // Problems of the bundle itself show at once; the name's wait for one.
@@ -491,7 +495,7 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
       return;
     }
     reportBox.hidden = true;
-    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
+    const plan = planBundle(chosen(), { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
     if (plan.problems.length > 0) {
       statusLine.textContent = bw.planRefused(plan.problems.length);
       showReport(plan, null);

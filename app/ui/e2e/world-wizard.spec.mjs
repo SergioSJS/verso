@@ -95,3 +95,26 @@ test("an imported bundle is kept in the folder: it is a file, it comes back, and
   await expect(dialog.locator(".world-folder-bundles-note")).toContainText("quebrado");
   await page.keyboard.press("Escape");
 });
+
+test.describe("in English", () => {
+  test.use({ locale: "en-US" });
+  test("a built-in bundle is previewed and created with English folder and note names (ADR 0098 item 10)", async ({ app, page }) => {
+    await app.open();
+    await app.command("New project from a template");
+    const dialog = page.getByRole("dialog", { name: "Create New World or Campaign" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("World or campaign name").fill("Realm");
+    await dialog.getByRole("button", { name: /RPG Campaign \(Dados Críticos\)/ }).click();
+    await expect(dialog.locator(".world-preview-folders")).toContainText("2. Sessions");
+    await expect(dialog.locator(".world-preview-folders")).not.toContainText("Sessões");
+    await dialog.getByRole("button", { name: "Create structure" }).click();
+    await expect(dialog.getByLabel("Include Realm/Templates/Session Log.md", { exact: true })).toBeChecked();
+    await dialog.getByRole("button", { name: "Create now" }).click();
+    await expect(dialog).toBeHidden();
+    expect(await app.folders()).toContain("Realm/2. Sessions");
+    const files = await app.files();
+    expect(files).toContain("Realm/Templates/Session Log.md");
+    expect(files).toContain("Realm/Campaign Overview.md");
+    expect(files.some((f) => f.includes("Sessão") || f.includes("Modelos"))).toBe(false);
+  });
+});

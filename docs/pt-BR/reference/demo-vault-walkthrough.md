@@ -1303,7 +1303,9 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    IA*: *Copiar System Prompt para IA* copia e não envia nada; um JSON ruim
    colado responde com a falha e *Copiar pedido de correção para a IA*. Um JSON
    válido colado, *Validar e Importar*, vira um cartão e o arquivo
-   `.verso/bundles/<id>.json`; colá-lo de novo o guarda com outro id e avisa;
+   `.verso/bundles/<id>.json`; colá-lo de novo o guarda com outro id e avisa; com a janela em inglês os
+   quatro modelos embutidos listam e criam pastas e notas com nomes em inglês
+   (*Sessions*, *Templates/Session Log*);
    feche o assistente e abra de novo: os cartões continuam lá (lidos da pasta).
    Nível: H; E: `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`,
    `test/bundleStore.test.mjs`.

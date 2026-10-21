@@ -281,8 +281,8 @@ export function bundleWords(lang: string): BundleWords {
 }
 
 /** The built-in bundles' names and descriptions in English; the Portuguese
- *  ones live with the bundles (`presets.ts`). The files they create are
- *  written in Portuguese. */
+ *  ones live with the bundles (`presets.ts`), and their folders and notes in
+ *  English in `presetsEn.ts`. */
 export const PRESET_TEXT_EN: Record<string, { name: string; description: string }> = {
   "dados-criticos-campanha": {
     name: "RPG Campaign (Dados Críticos)",
