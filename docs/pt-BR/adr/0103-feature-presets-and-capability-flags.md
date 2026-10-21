@@ -21,6 +21,16 @@
   [0101](0101-3d-dice-physics-overlay.md) (uma chave desligada por padrão)
   e a [0106](0106-structured-data-as-a-diagram.md) (uma chave nova) tocam
   esta ADR. Status Aceita.
+  2026-10-21, noite — onde ficam as chaves: o mantenedor, *"os recursos
+  de rpg deveriam estar separados dos recursos da aplicação"*, e, ao vê-los
+  como dois grupos numa página só, *"colocar esses recursos de rpg dentro
+  do grupo RPG & Mesa Solo"*. Ajustes › Recursos fica com os atalhos
+  "Tudo" / "Só escrita" (que continuam valendo para todas as chaves) e as
+  chaves gerais; as chaves de RPG (dados, tabelas sorteadas, oráculos,
+  fichas, o assistente de mundo, dados 3D), o seu "ligar / desligar
+  todos" (que nunca liga o 3D) e a aparência dos dados 3D vão para uma
+  página "Dados e RPG" / "Dice and RPG", a primeira do grupo RPG & Mesa
+  Solo dos Ajustes. O nome da página é do autor.
 - Relacionados: [0012](0012-files-are-source-of-truth.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
