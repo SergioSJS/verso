@@ -536,6 +536,18 @@ async fn handle(
             can: Vec::new(),
             latency_ms: None,
         }),
+        // A visitor walks nothing: a run takes the session's lock and
+        // tells every window on the folder, the owner's too. It is
+        // answered with the summary the folder has (review I1).
+        "reindex" => {
+            let ask = Request {
+                id: r.id,
+                cmd: "current_folder".to_owned(),
+                args: Value::Null,
+            };
+            let info = crate::rpc::command(server, who, client, ask).await?;
+            Ok(info.get("index").cloned().unwrap_or(Value::Null))
+        }
         c if QUIET.contains(&c) => Ok(Value::Null),
         "fetch_file" | "embed_frameable" => Ok(Value::Bool(false)),
         _ => {

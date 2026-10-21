@@ -43,6 +43,9 @@ async function visitor(token: string): Promise<void> {
   // A link to one note opens that note: there is nothing else to choose.
   // Heard before the window starts, which shows the folder as it does.
   const { note } = gate;
+  // The window of a note link is named for the note: the tree must not
+  // take that note for the root's folder note and hide it.
+  if (note) document.documentElement.dataset.visitorNote = "1";
   const loaded = import("./main");
   addEventListener(
     "verso:folder-shown",

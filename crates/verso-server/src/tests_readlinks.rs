@@ -409,6 +409,34 @@ fn no_command_hands_a_visitor_a_secret_block_or_a_write() {
     });
 }
 
+/// A visitor's `reindex` walks nothing: it answers with the summary the
+/// folder has, and no window of the owner is told of a run (review I1).
+#[test]
+fn a_visitors_reindex_walks_nothing() {
+    block_on(async {
+        let r = start().await;
+        let admin = admin(&r).await;
+        let (id, mut owner) = furnish(&r, &admin).await;
+        on(&r, &admin).await;
+        let whole = made(&r, &admin, &id, json!({ "kind": "folder", "path": "" })).await;
+        let (mut ws, _) = reader(&r, &token_of(&whole)).await;
+        // What the owner's window heard until now is not the question.
+        while !listen(&mut owner, 800).await.is_empty() {}
+        let before = ask(&mut ws, 2, "current_folder", json!({})).await;
+        let answer = ask(&mut ws, 3, "reindex", json!({})).await;
+        assert!(answer.get("ok").is_some(), "{answer}");
+        assert_eq!(
+            answer["ok"]["indexed"], before["ok"]["index"]["indexed"],
+            "{answer}"
+        );
+        let heard = listen(&mut owner, 500).await;
+        assert!(
+            !heard.iter().any(|e| e["event"] == "index-progress"),
+            "a visitor made the owner's folder walk: {heard:?}"
+        );
+    });
+}
+
 /// A link to a folder reaches that folder and nothing above, beside or
 /// outside it; search and backlinks cover only what was shared (item 4).
 #[test]
@@ -530,9 +558,12 @@ fn a_note_link_reaches_the_note_and_what_it_embeds() {
         let (_, state) = crate::tests::get(&r, &format!("/r/{token}/state"), None).await;
         assert_eq!(state["open"], "Mesa/Notas.md", "{state}");
         let (mut ws, info) = reader(&r, &token).await;
-        // Named for the folder, not the note: the tree would take a note
-        // named as its folder for the folder's own note and hide it.
-        assert_eq!(info["ok"]["name"], "Campanha", "{info}");
+        // Named for the note, never for the owner's folder, whose name was
+        // not shared (item 6; review I2).
+        assert_eq!(info["ok"]["name"], "Notas", "{info}");
+        assert!(!info.to_string().contains("Campanha"), "{info}");
+        let (_, state) = crate::tests::get(&r, &format!("/r/{token}/state"), None).await;
+        assert!(!state.to_string().contains("Campanha"), "{state}");
         let listed = ask(&mut ws, 2, "list_notes", json!({})).await;
         assert_eq!(paths(&listed["ok"]), ["Mesa/Notas.md", "Mesa/Outra.md"]);
         let note = ask(&mut ws, 3, "read_note", json!({ "path": "Mesa/Notas.md" })).await;
