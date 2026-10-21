@@ -39,6 +39,7 @@ versão de teste.
 
 ### Corrigido
 
+- **A lista de tabelas do oráculo mostra o anel de foco do teclado**, como o resto da janela, em vez de só a borda mudar de cor.
 - **Uma ficha numa nota incorporada é desenhada como cartão**: `![[Ficha]]` no modo Leitura mostra o cartão da ficha (só leitura, com a imagem e o layout dela) em vez do bloco de código; edite a ficha na nota dela.
 - **As abas na vertical ficam uma embaixo da outra e dá para desligar**: a coluna de abas agora empilha as abas, uma por linha (ícone, nome, fechar), os botões do painel ficam no alto da coluna, então "Abas na horizontal" está sempre ao alcance com uma aba aberta, e a nota ocupa a largura que sobra. O nome do botão agora diz para que lado ele vai trocar.
 - **Esc na lista do `@` a mantém fechada**: depois que Esc dispensa a lista de notas aberta pelo `@`, digitar mais letras da mesma palavra não a traz de volta; um novo `@` a abre de novo.
