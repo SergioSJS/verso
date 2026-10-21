@@ -50,6 +50,14 @@ export function dataModes(leaf: Leaf, on: "text" | "diagram"): HTMLElement {
   return modes;
 }
 
+/** The feature's switch changed: a text tab shows or hides its "Text | Diagram"; a file's diagram tab, switched off, is the text again (what was moved and folded is kept for the file already). A block's diagram has no text to go back to and stays until closed. */
+export function syncDataView(leaf: Leaf): void {
+  if (leaf instanceof TextLeaf) leaf.dataModes.hidden = diagramFormat(leaf.path) === null;
+  else if (leaf instanceof DataLeaf && !leaf.block && !hasCapability("dataDiagram")) {
+    void leaf.pane.swap(leaf, new TextLeaf(leaf.pane));
+  }
+}
+
 /** A block of code in a note: its text, the format its language names, and the note it is in. */
 export type BlockSource = { text: string; format: Format; note: string };
 

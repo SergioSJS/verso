@@ -59,6 +59,7 @@ import { Layout } from "./layout/layout";
 import { Pane } from "./layout/pane";
 import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, spaces, spaceTabs } from "./layout/spaces";
 import { folderSort, setFolderSort } from "./leaves/folderView";
+import { syncDataView } from "./leaves/data";
 import { NoteLeaf } from "./leaves/note";
 import { onLayoutsChanged } from "./statblock/store";
 import { wireFolderLayouts } from "./statblock/folderWire";
@@ -279,6 +280,10 @@ const repaintNotes = (): void => {
   }
 };
 window.addEventListener("verso:features-changed", repaintNotes);
+// "Data diagram" switched (ADR 0106 item 12): the open tabs follow at once.
+window.addEventListener("verso:features-changed", () => {
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of [...p.leaves]) syncDataView(l);
+});
 // The folder's statblock layouts read or written (ADR 0099 item 2): every
 // card drawn again with them.
 onLayoutsChanged(repaintNotes);
