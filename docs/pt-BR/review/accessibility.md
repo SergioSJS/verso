@@ -104,7 +104,7 @@ respondiam ao teclado.
 | 14 | MENOR | No Live Preview e na Fonte, um wikilink abre só com ⌘-clique; nada segue o link sob o cursor | **Registrado.** A visão de leitura (achado 3) e os "Links de saída" do painel direito chegam às mesmas notas. Um comando que siga o link sob o cursor é a seção 8, item 11 |
 | 15 | MENOR | Na nota da própria pasta, mostrada no topo da visão de pasta, os wikilinks não fazem nada, pelo ponteiro ou pelo teclado: nenhum tratador os alcança | **Registrado, não corrigido:** uma lacuna da visão de pasta, não só de acessibilidade; esta passada deixou os links da nota da pasta como estavam em vez de tornar focáveis links inertes |
 | 16 | MENOR | Os divisores se movem com as setas mas não têm jeito de ponteiro único (2.5.7), e só dizem o seu valor depois de uma tecla — os das áreas em porcentagem, os das barras laterais em pixels contra a faixa padrão de 0 a 100 | **Registrado**; seção 8, item 9 |
-| 17 | MENOR | Arquivos soltos do sistema sobre a árvore não têm entrada pelo teclado ou por um clique: a janela não tem comando "copiar arquivos para a pasta" | **Registrado**; a cópia do próprio sistema, depois "Reindexar", chega ao mesmo lugar. Seção 8, item 10 |
+| 17 | MENOR | Arquivos soltos do sistema sobre a árvore não têm entrada pelo teclado ou por um clique: a janela não tem comando "copiar arquivos para a pasta" | **Corrigido** (seção 8, item 10): o comando "Importar arquivos…" abre o seletor de arquivos do sistema e copia os escolhidos para uma pasta, pela paleta ou pelo submenu "Novo" de um menu |
 | 18 | MENOR | A largura de uma imagem no Live Preview é ajustada arrastando o canto; o outro jeito é digitar a largura (`![[mapa.png\|300]]`) | **Registrado**: digitar cobre o teclado; um jeito de ponteiro único (2.5.7) seriam controles novos |
 | 19 | MENOR | As notas do grafo só se posicionam, e a vista só se desloca, arrastando | **Registrado**: o layout é automático e "Ver tudo" o enquadra; nada que o usuário precise fazer exige o arrasto |
 
@@ -320,8 +320,14 @@ ela é uma linha do roadmap (V.13).
     host — uma mudança no host.
     **Resolvido em 2026-10-21** (A11Y.10, opção B, não a A recomendada):
     construir um comando "Importar arquivos…" com o seletor de arquivos do
-    sistema; muda o host (`app/src-tauri`) nas três plataformas. Trabalho
-    novo, a construir.
+    sistema; muda o host (`app/src-tauri`) nas três plataformas.
+    **Construído** em `feat/import-files`: o comando "Importar arquivos…"
+    (paleta, submenu "Novo" do menu de um arquivo ou pasta, menu do espaço
+    vazio da árvore) abre o seletor do sistema (o `pick_files` do host; no
+    navegador, `<input type=file multiple>`), e os arquivos são criados na
+    pasta de destino com `create_file`, como numa soltura; um nome já usado
+    vira `nome (2).ext`. Não executado no app real: o diálogo nativo em cada
+    sistema.
 
 11. **Seguir um link a partir do editor** (seção 1, achado 14): um comando
     que abre o link sob o cursor, com ou sem tecla padrão.

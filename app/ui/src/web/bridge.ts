@@ -20,6 +20,7 @@ import { api, ApiError, byApp, pageContract, signedIn } from "./api";
 import { noNetwork, offline } from "./offline/manager";
 import { o } from "./offline/strings";
 import { notice } from "./notice";
+import { pickFiles } from "./pickFiles";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
 
@@ -342,6 +343,10 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
   // window starts as a server's window that can only read the folder list.
   if (cmd === "capabilities" && folderId === null && isDown()) return done({ host: "server", can: ["account"], latency_ms: null });
   switch (cmd) {
+    // "Import files…" (A11Y.10): the browser's own file picker, and the
+    // chosen files' names and bytes, as the desktop host answers.
+    case "pick_files":
+      return done(await pickFiles());
     case "pick_folder": {
       const id = chooser ? await chooser() : null;
       if (!id) return done(null);

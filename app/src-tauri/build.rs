@@ -23,6 +23,7 @@ fn main() {
         "write_note",
         "create_note",
         "create_file",
+        "pick_files",
         "create_folder",
         "delete_note",
         "rename_note",

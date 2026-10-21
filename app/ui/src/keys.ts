@@ -6,6 +6,8 @@ import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView } from "codemirror";
 import { insertBase, newBase } from "./bases";
+import { importFiles } from "./importFiles";
+import { imp } from "./importStrings";
 import { commands } from "./bindings";
 import { can, canWrite } from "./can";
 import { trashStrings } from "./dialogs/trash";
@@ -250,6 +252,7 @@ export function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "import-files", label: imp.command, need: hasFolder, run: () => void importFiles(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
     // ADR 0106: the diagram as it is arranged, written as a new board.
