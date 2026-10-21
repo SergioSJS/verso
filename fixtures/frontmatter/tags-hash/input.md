@@ -1,0 +1,5 @@
+---
+tags: ["#quoted", plain]
+---
+
+Corpo.
