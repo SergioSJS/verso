@@ -22,6 +22,7 @@ import { host } from "../../can";
 import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
 import { completeMarkdown } from "../../editor/complete";
+import { openLinkAt } from "../../editor/linkCard";
 import { baseEditorExtensions } from "../../editor/extensions";
 import { linkSuggestFor } from "../../editor/linkSuggestWire";
 import { fail } from "../../errors";
@@ -468,6 +469,16 @@ export function blockMenu(this: NoteLeaf, blocks: Block[], x: number, y: number)
     [t.blocks.delete, () => this.deleteBlock(blocks), "close"],
   ];
   showMenu(x, y, items);
+}
+
+/** "Open link under cursor" (A11Y.11): the `[[wikilink]]`, `![[embed]]`,
+ *  Markdown link or bare address at the caret, opened as a click opens it. */
+export function followLinkAtCaret(this: NoteLeaf): void {
+  const opened = openLinkAt(this.editor.state, this.editor.state.selection.main.head, {
+    navigate: (target) => this.follow(target),
+    openUrl: (url) => void commands.openUrl(url),
+  });
+  if (!opened) ui.status.textContent = t.noLinkAtCaret;
 }
 
 /** `+` clicked on an empty line: a `/` there, the `/` menu open, apart
