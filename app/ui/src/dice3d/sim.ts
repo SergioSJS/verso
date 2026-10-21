@@ -25,10 +25,21 @@ export type Fall = {
   landed: number[];
   /** Whether every die was asleep when the recording stopped. */
   rested: boolean;
+  /** The frame each die enters the table: 0 for the dice thrown first, later
+   *  for the extra dice of an exploding die, thrown once the wave before
+   *  them has settled. */
+  born: number[];
 };
 
-/** About five seconds of physics at most. */
-export const STEPS_MOST = 300;
+/** Steps after a wave has settled before the next is thrown. */
+export const WAVE_GAP_STEPS = 6;
+/** The latest step a wave is thrown at, however the one before is doing, so
+ *  that it still has time to fall inside STEPS_MOST. */
+export const WAVE_LATEST_STEP = 180;
+
+/** About four seconds of physics at most: at the replay speed, the
+ *  fall's hard maximum (MAX_ANIMATION_MS). */
+export const STEPS_MOST = 240;
 
 /** A random source in [0, 1). */
 export type Rng = () => number;
@@ -54,7 +65,8 @@ function bodyFor(shape: Shape, material: Material): Body {
 }
 
 /** Throw `shapes` onto a table of `arena` and record the fall. */
-export function simulate(shapes: readonly Shape[], arena: Arena, rng: Rng = cryptoRng()): Fall {
+export function simulate(shapes: readonly Shape[], arena: Arena, rng: Rng = cryptoRng(), waves: readonly number[] = []): Fall {
+  const waveOf = (i: number): number => waves[i] ?? 0;
   const world = new World({ gravity: new Vec3(0, -70, 0) });
   world.allowSleep = true;
   const table = new Material("table");
@@ -85,26 +97,45 @@ export function simulate(shapes: readonly Shape[], arena: Arena, rng: Rng = cryp
     b.velocity.set(-Math.cos(angle) * speed, 2 + rng() * 6, -Math.sin(angle) * speed);
     b.angularVelocity.set((rng() - 0.5) * 40, (rng() - 0.5) * 40, (rng() - 0.5) * 40);
     b.quaternion.setFromEuler(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
-    world.addBody(b);
+    if (waveOf(i) === 0) world.addBody(b);
     return b;
   });
+  const born = bodies.map(() => 0);
+  const last = Math.max(0, ...bodies.map((_, i) => waveOf(i)));
+  // The wave to throw next, and the step the one before it came to rest.
+  let next = 1;
+  let calmAt = -1;
   const poses = bodies.map(() => new Float32Array(STEPS_MOST * 7));
   let frames = 0;
   let rested = false;
   while (frames < STEPS_MOST) {
+    if (next <= last) {
+      const before = bodies.filter((_, i) => waveOf(i) === next - 1);
+      if (calmAt < 0 && before.every((b) => b.sleepState === Body.SLEEPING)) calmAt = frames;
+      if ((calmAt >= 0 && frames >= calmAt + WAVE_GAP_STEPS) || frames >= WAVE_LATEST_STEP) {
+        bodies.forEach((b, i) => {
+          if (waveOf(i) === next) {
+            world.addBody(b);
+            born[i] = frames;
+          }
+        });
+        next++;
+        calmAt = -1;
+      }
+    }
     world.step(STEP);
     bodies.forEach((b, i) => {
       const p = poses[i] as Float32Array;
       p.set([b.position.x, b.position.y, b.position.z, b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w], frames * 7);
     });
     frames++;
-    if (bodies.every((b) => b.sleepState === Body.SLEEPING)) {
+    if (next > last && bodies.every((b) => b.sleepState === Body.SLEEPING)) {
       rested = true;
       break;
     }
   }
   const landed = bodies.map((b, i) => readUp(shapes[i] as Shape, [b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w] as Quat));
-  return { frames, poses: poses.map((p) => p.slice(0, frames * 7)), landed, rested };
+  return { frames, poses: poses.map((p) => p.slice(0, frames * 7)), landed, rested, born };
 }
 
 /** Quaternion helper for callers that read the last pose of a die. */

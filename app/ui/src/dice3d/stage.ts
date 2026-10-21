@@ -34,6 +34,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { mix, parseColor, toHex, type RGB } from "../theme/color";
 import { paintTexture } from "./textures";
 import { type Die3, forceLabels, baseValues, labelText } from "./force";
+import { CELL, type Cell, cellsOf, centred, fitSize, inkOf, inradius, type Measure } from "./labels";
 import { solid, type Shape, type Vec } from "./polyhedra";
 import { type Arena, simulate } from "./sim";
 import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId, type TextureId } from "./look";
@@ -54,7 +55,13 @@ const FOV = 20;
 const TABLE_HALF_MOST = 16;
 /** A die's width across, in world units, on average. */
 const DIE_UNITS = 2.3;
-const CELL = 128;
+/** How far inside the face, as a share of its inscribed radius, a number stays. */
+const LABEL_INSET = 0.22;
+/** The most a number may span, as a share of the inscribed radius. */
+const LABEL_CAP = 1.3;
+/** The dot of a 6 or a 9: its gap below the digits and its radius, per pixel of size. */
+const DOT_GAP = 0.1;
+const DOT_RADIUS = 0.055;
 
 type Palette = { body: string; ink: string; edge: string; outline: string };
 
@@ -95,52 +102,8 @@ function palettes(style: DiceStyle): Record<Die3["role"], Palette> {
   };
 }
 
-type Cell = { u: number[]; v: number[]; points: [number, number][] };
-
-/** The atlas cells of a solid: for each face, its polygon in the cell's
- *  own plane (upright toward the face's first vertex), and the UVs. */
-function cellsOf(shape: Shape, cols: number, rows: number): Cell[] {
-  const s = solid(shape);
-  return s.faces.map((face, f) => {
-    const pts = face.map((i) => s.verts[i] as Vec);
-    const n = s.normals[f] as Vec;
-    const c: Vec = [0, 1, 2].map((k) => pts.reduce((a, p) => a + (p[k] as number), 0) / pts.length) as Vec;
-    const first: Vec = [(pts[0] as Vec)[0] - c[0], (pts[0] as Vec)[1] - c[1], (pts[0] as Vec)[2] - c[2]];
-    const dn = first[0] * n[0] + first[1] * n[1] + first[2] * n[2];
-    const e1raw: Vec = [first[0] - n[0] * dn, first[1] - n[1] * dn, first[2] - n[2] * dn];
-    const l = Math.hypot(...e1raw);
-    const e1: Vec = [e1raw[0] / l, e1raw[1] / l, e1raw[2] / l];
-    // e2 = n x e1: up in the cell, so the text reads right from outside.
-    const e2: Vec = [n[1] * e1[2] - n[2] * e1[1], n[2] * e1[0] - n[0] * e1[2], n[0] * e1[1] - n[1] * e1[0]];
-    const flat = pts.map((p) => {
-      const d: Vec = [p[0] - c[0], p[1] - c[1], p[2] - c[2]];
-      return [d[0] * e1[0] + d[1] * e1[1] + d[2] * e1[2], d[0] * e2[0] + d[1] * e2[1] + d[2] * e2[2]] as [number, number];
-    });
-    const reach = Math.max(...flat.map((p) => Math.hypot(p[0], p[1])));
-    const col = f % cols;
-    const row = Math.floor(f / cols);
-    // Cell coordinates in 0..1, up positive, with a margin against bleed.
-    const cell = flat.map(([x, y]) => [0.5 + (0.9 * x) / (2 * reach), 0.5 + (0.9 * y) / (2 * reach)] as [number, number]);
-    const u = cell.map(([a]) => (col * CELL + a * CELL) / (cols * CELL));
-    const v = cell.map(([, b]) => 1 - (row * CELL + (1 - b) * CELL) / (rows * CELL));
-    return { u, v, points: cell };
-  });
-}
-
-/** The distance from a polygon's middle to its nearest edge. */
-function inradius(points: [number, number][]): number {
-  let least = Infinity;
-  points.forEach((p, i) => {
-    const q = points[(i + 1) % points.length] as [number, number];
-    const dx = q[0] - p[0];
-    const dy = q[1] - p[1];
-    const d = Math.abs(dx * (p[1] - 0.5) - dy * (p[0] - 0.5)) / Math.hypot(dx, dy);
-    least = Math.min(least, d);
-  });
-  return least;
-}
-
-/** The die's atlas: every face's number in its own cell. */
+/** The die's atlas: every face's number in its own cell, centred by its
+ *  ink and sized to fit inside the face (labels.ts). */
 function atlas(die: Die3, values: readonly number[], pal: Palette, cells: Cell[], cols: number, rows: number, base: HTMLCanvasElement): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = cols * CELL;
@@ -148,9 +111,12 @@ function atlas(die: Die3, values: readonly number[], pal: Palette, cells: Cell[]
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
   ctx.drawImage(base, 0, 0);
-  const family = NUMBER_FONT;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.textBaseline = "alphabetic";
+  const measure: Measure = (t) => {
+    ctx.font = `700 100px ${NUMBER_FONT}`;
+    return ctx.measureText(t);
+  };
   const d4 = die.shape === "d4";
   cells.forEach((cell, f) => {
     const x0 = (f % cols) * CELL;
@@ -168,28 +134,50 @@ function atlas(die: Die3, values: readonly number[], pal: Palette, cells: Cell[]
     ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.fillStyle = pal.ink;
+    ctx.strokeStyle = pal.outline;
     const r = inradius(cell.points) * CELL;
+    // A number of `size` px centred by its ink on (cx, cy), turned by `turn`;
+    // the dot of a 6 or a 9 goes below the digits without moving them.
+    const draw = (full: string, cx: number, cy: number, size: number, turn: number) => {
+      const marked = full.endsWith(".");
+      const text = marked ? full.slice(0, -1) : full;
+      const ink = inkOf(measure, text);
+      const at = centred(ink, size, 0, 0);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(turn);
+      ctx.font = `700 ${size}px ${NUMBER_FONT}`;
+      ctx.lineWidth = Math.max(1.5, size * 0.1);
+      ctx.strokeText(text, at.x, at.y);
+      ctx.fillText(text, at.x, at.y);
+      if (marked) {
+        ctx.beginPath();
+        ctx.arc(0, ((ink.a + ink.d) / 2) * size + size * DOT_GAP, size * DOT_RADIUS, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+    /** The font size at which `full` fits the face, around the cell's middle. */
+    const fit = (full: string) => {
+      const marked = full.endsWith(".");
+      const ink = inkOf(measure, marked ? full.slice(0, -1) : full);
+      const h = ink.a + ink.d + (marked ? 2 * (DOT_GAP + DOT_RADIUS) : 0);
+      return fitSize(cell.points, ink.l + ink.r, h, CELL, r * LABEL_INSET, r * LABEL_CAP);
+    };
     if (d4) {
-      // The numbers sit at the corners, each the number of its vertex.
+      // The numbers sit at the corners, each the number of its vertex and
+      // standing toward it.
       const face = solid(die.shape).faces[f] as number[];
       cell.points.forEach(([a, b], i) => {
         const text = labelText(die.set, die.sides, values[face[i] as number] as number);
-        ctx.font = `700 ${Math.round(r * 0.8)}px ${family}`;
         const size = Math.round(r * 0.8);
-        ctx.lineWidth = Math.max(1.5, size * 0.1);
-        ctx.strokeStyle = pal.outline;
-        ctx.strokeText(text, px(0.5 + (a - 0.5) * 0.62), py(0.5 + (b - 0.5) * 0.62));
-        ctx.fillText(text, px(0.5 + (a - 0.5) * 0.62), py(0.5 + (b - 0.5) * 0.62));
+        draw(text, px(0.5 + (a - 0.5) * 0.6), py(0.5 + (b - 0.5) * 0.6), size, Math.atan2(a - 0.5, b - 0.5));
       });
       return;
     }
     const text = labelText(die.set, die.sides, values[f] as number);
-    const size = r * (text.length > 2 ? 0.85 : text.length > 1 ? 1.1 : 1.45);
-    ctx.font = `700 ${Math.round(size)}px ${family}`;
-    ctx.lineWidth = Math.max(1.5, size * 0.1);
-    ctx.strokeStyle = pal.outline;
-    ctx.strokeText(text, px(0.5), py(0.5) + size * 0.04);
-    ctx.fillText(text, px(0.5), py(0.5) + size * 0.04);
+    draw(text, px(0.5), py(0.5), fit(text), 0);
   });
   return canvas;
 }
@@ -273,6 +261,8 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const fall = simulate(
     dice.map((d) => d.shape),
     arena,
+    undefined,
+    dice.map((d) => d.wave ?? 0),
   );
   const pals = new Map<SlotId, Record<Die3["role"], Palette>>();
   for (const d of dice) if (!pals.has(slotOf(d))) pals.set(slotOf(d), palettes(styleFor(d)));
@@ -367,6 +357,8 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     const b = Math.min(a + 1, fall.frames - 1);
     const t = at - a;
     meshes.forEach((mesh, i) => {
+      // A die an explosion adds is not on the table until it is thrown.
+      mesh.visible = at >= (fall.born[i] as number);
       const p = fall.poses[i] as Float32Array;
       const lerp = (k: number) => (p[a * 7 + k] as number) * (1 - t) + (p[b * 7 + k] as number) * t;
       mesh.position.set(lerp(0), lerp(1), lerp(2));

@@ -29,6 +29,10 @@ export type Die3 = {
    *  dice are in slot 1 unless a dice profile gives a group another (as
    *  Rolai does); the engine honours it. */
   slot?: 1 | 2 | 3;
+  /** For an exploding die's extra dice: which wave it is thrown in (0 or
+   *  absent for the dice thrown first, 1 for those an exploded die adds, 2
+   *  for those the added ones add). */
+  wave?: number;
 };
 
 /** The value pairs that sit on opposite faces, in order. */
