@@ -78,13 +78,14 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
    **e imagens** — o mantenedor: *"A mas cara, seria top poder compartilhar
    imagem também"*. A opção B, só rolagens, não foi escolhida.
 
-   `[OPEN]` Para onde vai uma imagem compartilhada:
+   `[DECIDED 2026-10-21]` Para onde vai uma imagem compartilhada — opção
+   A, como recomendado (o mantenedor: *"aceito suas recomendações"*):
    - **A — Para a pasta, como arquivo:** enviada à mesa, é gravada na pasta
      de anexos da pasta por ação de quem enviou, como um arquivo
      importado, conta na cota da pasta
      ([0077](0077-the-server-administration-console-and-folder-quotas.md)),
      aparece na lista de arquivos e pode ser incorporada numa nota. Um
-     leitor, que não grava arquivo, não envia imagem. _(recomendado)_
+     leitor, que não grava arquivo, não envia imagem. _(escolhida)_
    - **B — Para o armazenamento do servidor,** ao lado do registro da
      mesa, fora da pasta; um leitor pode enviar.
 
@@ -117,10 +118,11 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
      gravação de qualquer edição, com a sua conferência de versão
      (invariante 11). Uma imagem entra como incorporação do seu arquivo.
 
-   `[OPEN]` Onde o registro é guardado:
+   `[DECIDED 2026-10-21]` Onde o registro é guardado — opção A, como
+   recomendado:
    - **A — No banco do servidor,** por pasta, em `VERSO_DATA_DIR`, com o
      backup do servidor; não viaja com uma cópia sincronizada da pasta.
-     _(recomendado)_ — nenhum arquivo da pasta é gravado em nome de todos
+     _(escolhida)_ — nenhum arquivo da pasta é gravado em nome de todos
      os presentes, a cada poucos segundos
      ([0012](0012-files-are-source-of-truth.md)); o que deve viver com as
      notas vai para elas por "Adicionar à nota".
@@ -135,10 +137,10 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
    para todos, pergunta antes, e é só do dono da pasta; as entradas
    fixadas ficam, a não ser que o dono diga o contrário na mesma pergunta.
 
-   `[OPEN]` Apagar uma entrada:
+   `[DECIDED 2026-10-21]` Apagar uma entrada — opção A, como recomendado:
    - **A — Quem escreveu apaga a sua mensagem ou imagem; um dono apaga
      qualquer uma.** Uma rolagem não se apaga uma a uma (para ninguém
-     rolar de novo e esconder a primeira). _(recomendado)_
+     rolar de novo e esconder a primeira). _(escolhida)_
    - **B — Só o dono,** limpando a mesa.
 
 7. **Rolagens secretas.** `[DECIDED 2026-10-21]` **Já, para os donos da
@@ -235,12 +237,10 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
   Verso" um cartão ([0058](0058-demo-vault-as-tutorial.md)).
 - A 0088 item 4 é revisada para a mesa (item 5), registrado nas revisões
   da 0088 na mesma mudança das decisões desta ADR.
-- O banco do servidor ganha o registro da mesa, as fixadas e as imagens
-  se as perguntas abertas dos itens 5 e 3 forem para o servidor (opção A
-  do item 5; opção B do item 3).
+- O banco do servidor ganha o registro da mesa e as fixadas (item 5);
+  uma imagem é um arquivo da pasta (item 3).
 - Nada é gravado num arquivo da pasta em nome da mesa, a não ser por
-  "Adicionar à nota" e, se a pergunta aberta do item 3 for A, uma imagem
-  que quem enviou envia.
+  "Adicionar à nota" e uma imagem que quem enviou envia.
 
 ## Alternativas descartadas
 
@@ -249,13 +249,17 @@ ou uma mesa com nome por link como mesa (item 2); só rolagens, sem
 mensagens (item 3); só memória, uma retenção no banco do servidor, ou uma
 nota da sessão acrescentada a cada entrada (item 5); rolagens secretas
 depois numa ADR própria (item 7); uma barra na base ou uma gaveta
-flutuante (item 10); só as suas rolagens em 3D (item 11).
+flutuante (item 10); só as suas rolagens em 3D (item 11); a imagem no
+armazenamento do servidor (item 3); o registro num arquivo dentro da
+pasta (item 5); só o dono apaga, limpando (item 6).
 
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo
 mantenedor em 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
-fora do repositório). Abertos: para onde vai uma imagem (item 3), onde o
-registro é guardado (item 5), apagar uma entrada (item 6). Não
-construída; o mantenedor a pediu "em algum momento". Espera essas
-respostas e uma leitura do outro modelo.
+fora do repositório); as três perguntas que essas respostas abriram —
+para onde vai uma imagem (item 3), onde o registro é guardado (item 5),
+apagar uma entrada (item 6) — decididas no mesmo dia como recomendado.
+Os itens marcados `[PROPOSED]` continuam do autor até a aceitação. Não
+construída; o mantenedor a pediu "em algum momento". Espera uma leitura
+do outro modelo.
