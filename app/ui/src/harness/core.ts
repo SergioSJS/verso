@@ -61,6 +61,7 @@ import type {
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
+import { Clouds } from "./cloud";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
@@ -292,12 +293,13 @@ export class Core {
   /** The folder's sync (ADR 0079), as a test sets it: the harness has no
    *  server, so what crosses is whatever a test says (`sync-status`). */
   sync: SyncStatus = Core.syncOff();
+  readonly clouds = new Clouds(this, () => Core.syncOff()); // ADR 0104
   /** This computer's name as the person set it in Settings › Servers;
    *  null, the system's ("Mac de Teste"). */
   deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
-    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null };
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
   }
 
   constructor(
@@ -1439,6 +1441,7 @@ export class Core {
       return null;
     },
     folder_sync_now: () => null,
+    ...this.clouds.handlers(),
     ...this.bin.handlers(),
     ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).

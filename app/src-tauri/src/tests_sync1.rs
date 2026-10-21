@@ -28,7 +28,7 @@ fn a_device_of_sync_2_sends_and_fetches_pieces_from_a_server_of_sync_1() {
     write(&a, "anexos/mapa.bin", &bytes);
     let mut la = kept(&a);
     assert!(
-        !la.remote.binary(),
+        !la.socket.as_ref().unwrap().binary(),
         "a server of sync 1 takes no binary pieces"
     );
     let passed = on(&a, &mut la);
@@ -40,7 +40,7 @@ fn a_device_of_sync_2_sends_and_fetches_pieces_from_a_server_of_sync_1() {
     // Fetched from the server by another device, in pieces, as base64.
     let b = device(&r, &r.owner, &[]);
     let mut lb = kept(&b);
-    assert!(!lb.remote.binary());
+    assert!(!lb.socket.as_ref().unwrap().binary());
     on(&b, &mut lb);
     assert_eq!(
         read(&b, "anexos/mapa.bin").as_deref(),
@@ -67,7 +67,7 @@ fn the_same_server_of_sync_2_takes_binary_pieces() {
     let r = serve(&[]);
     let a = device(&r, &r.owner, &[]);
     let la = kept(&a);
-    assert!(la.remote.binary());
+    assert!(la.socket.as_ref().unwrap().binary());
 }
 
 /// A file larger than a message, between two devices of this app's own

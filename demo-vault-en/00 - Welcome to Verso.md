@@ -77,6 +77,7 @@ Explore the modules below to see each feature in detail:
 26. [[26 - Statblocks]] — An example of each `statblock` layout, with dice and counters that write to the note, and the layout editor. A complete example, the Fractal, is in the [[Fractal Campaign/World|Fractal Campaign]].
 27. [[27 - Oracles and World Building]] — The oracle that writes the answer into the highlight; random tables; the new-project wizard with the tree in view; and each feature's switch in Settings.
 28. [[28 - Structured Data as a Diagram]] — A JSON, YAML, TOML, XML or CSV file, or a code block in one of those formats, seen as boxes and lines to move, collapse and search; read-only.
+29. [[29 - Syncing with a Cloud]] — A folder kept the same as a folder in a Nextcloud (WebDAV) or an S3 bucket you already have, with no server: the form, the S3 key limited to one folder, the password in the keychain and what to expect.
 
 ---
 

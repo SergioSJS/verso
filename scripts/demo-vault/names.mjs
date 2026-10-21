@@ -39,6 +39,7 @@ export const NAMES = {
   "26 - Fichas.md": "26 - Statblocks.md",
   "27 - Oráculos e Criação de Mundos.md": "27 - Oracles and World Building.md",
   "28 - Dados Estruturados como Diagrama.md": "28 - Structured Data as a Diagram.md",
+  "29 - Sincronizar com uma Nuvem.md": "29 - Syncing with a Cloud.md",
   "Tour do Verso.canvas": "Verso Tour.canvas",
   "Treino do Board.canvas": "Board Training.canvas",
   "Board de Demonstração.canvas": "Demo Board.canvas",
