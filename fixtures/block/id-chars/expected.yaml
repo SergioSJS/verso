@@ -1,4 +1,3 @@
-# AI draft — awaiting the maintainer's approval (drafted by Sonnet 5.5 on 2026-10-21, ADR 0031).
 # Construct: the charset of a `^id`. Spec: docs/spec/dialect.md §5.7 and Q22 a
 # (decided 2026-10-21: only letters, digits and hyphen; anything else stays
 # plain text; accented letters do not count, as observed). Only `abc-1` is an
