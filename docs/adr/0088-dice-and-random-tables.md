@@ -32,6 +32,14 @@
   ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, the
   maintainer: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
   app meu aberto"*).
+  2026-10-21 — item 5 revised again: "no new runtime dependency" no longer
+  forbids the 3D roll. The maintainer put 3D dice in V1
+  ([0101](0101-3d-dice-physics-overlay.md), 0101.0 and 0101.1, marking
+  options of the questionnaire of 2026-10-20): a lazy chunk, loaded by
+  `import()` only when the "3D dice" switch is on and cached by the service
+  worker, the initial bundle staying free of any 3D library. The library is
+  not chosen yet (0101 item 3). "The 3D roll … stays Rolai's" in item 5 no
+  longer holds.
 
 ## Context
 
@@ -99,7 +107,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
    and roller copied into the window** (`app/ui/src/dice/`), the MIT
    notice kept in the files, rather than a dependency on a package not
    published to npm; no new runtime dependency. The 3D roll, rooms by
-   link and the OBS mode stay Rolai's.
+   link and the OBS mode stay Rolai's (revised 2026-10-21: the 3D roll does
+   not, see Revisions and [0101](0101-3d-dice-physics-overlay.md)).
 6. **A roller without a note.** `[DECIDED 2026-10-14]`: a "Roll dice…" command that
    opens a small roller, a notation typed and rolled, nothing written.
    Decided: **yes**, in the command palette; a drawer as Rolai's
