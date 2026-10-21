@@ -1,4 +1,3 @@
-# AI draft (Sonnet 5.5, 2026-10-21), awaiting the maintainer's approval in the PR that adds it (ADR 0031; spec Q5, nesting decided 2026-10-21).
 # Construct: callouts nested in callouts (spec §5.8, Q5). Each callout inside another is listed on its own, in
 # document order, with `depth` = how many callouts enclose it, itself included. Recognized up to 32 deep,
 # the reading view's limit; the 33rd level is a plain blockquote, so it is not listed (and `[!note] Nível 33`
