@@ -65,6 +65,7 @@ export type Strings = Record<
   confirmDelete: (n: string) => string;
   confirmDeleteFocus: (name: string) => string;
   pathAddedToFocus: (path: string, focus: string) => string;
+  mermaidSyntaxError: string; mermaidEditTip: string; mermaidEditCode: string; pdfEditLink: string; pdfNotFound: (file: string) => string; svgFailed: string;
   fetching: (n: string) => string;
   fetchFailed: (n: string) => string;
   deleted: (where: string) => string;
@@ -328,6 +329,7 @@ export const pt: Strings = {
   focusesTab: "Focos", homeFocus: "Início", createFocus: "Criar foco", createFocusHere: "Criar foco aqui", addToFocus: "Adicionar ao foco…", switchFocus: "Trocar foco", syncFocuses: "Manter os focos iguais aos do make.md", syncFocusesDesc: "Grava as alterações de foco no arquivo .space/waypoints.json compatível com o make.md.", syncFocusesWarning: "O arquivo do make.md (.space/waypoints.json) não tem um formato público publicado e uma versão futura do plugin pode interpretá-lo de forma diferente. Manter os focos iguais aos do make.md mesmo assim?", syncFocusesEnable: "Manter iguais", syncFocusesOffInfo: "Manter local", syncFocusesOffBanner: "Focos separados do make.md: as alterações ficam nas configurações do Verso.", syncLocalFocusesQuestion: "Levar os focos que estão só no Verso para o arquivo .space/waypoints.json do make.md?", focusesConflict: "Nada gravado: o arquivo mudou no make.md.", focusNamePrompt: "Nome do foco", noFocuses: "Nenhum foco criado.", readOnlyFocuses: "O arquivo .space/waypoints.json está em formato desconhecido ou somente leitura.", readOnlyCloudPlaceholder: "O arquivo .space/waypoints.json está na nuvem (iCloud) e ainda não foi baixado neste computador.", readOnlyInvalidJson: "O arquivo .space/waypoints.json não contém um JSON válido.", readOnlyUnknownFormat: "O arquivo .space/waypoints.json está em formato desconhecido ou não suportado.", resetToHome: "Voltar para Início", focusCreated: "Foco criado.", focusDeleted: "Foco excluído.", deleteFocus: "Excluir",
   confirmDeleteFocus: (name: string) => `Excluir o foco "${name}"?`,
   pathAddedToFocus: (path: string, focus: string) => `"${path}" adicionado ao foco "${focus}".`,
+  mermaidSyntaxError: "Diagrama Mermaid com erro de sintaxe:", mermaidEditTip: "Clique para editar o código Mermaid", mermaidEditCode: "Editar código Mermaid", pdfEditLink: "Editar link do PDF", pdfNotFound: (file) => `PDF não encontrado: ${file}`, svgFailed: "Falha ao gerar SVG do diagrama",
 };
 
 export const en: Strings = {
@@ -514,6 +516,7 @@ export const en: Strings = {
   focusesTab: "Focuses", homeFocus: "Home", createFocus: "Create focus", createFocusHere: "Create focus here", addToFocus: "Add to focus…", switchFocus: "Switch focus", syncFocuses: "Keep focuses the same as make.md's", syncFocusesDesc: "Save focus changes to .space/waypoints.json compatible with make.md.", syncFocusesWarning: "The make.md file (.space/waypoints.json) is not a published format and a later version of the plugin may read it differently. Keep focuses the same as make.md's anyway?", syncFocusesEnable: "Keep them the same", syncFocusesOffInfo: "Keep local", syncFocusesOffBanner: "Focuses apart from make.md: changes are kept in Verso's settings.", syncLocalFocusesQuestion: "Copy the focuses only Verso has into make.md's .space/waypoints.json file?", focusesConflict: "Nothing written: the file changed in make.md.", focusNamePrompt: "Focus name", noFocuses: "No focuses created.", readOnlyFocuses: "The .space/waypoints.json file is in an unknown format or read-only.", readOnlyCloudPlaceholder: "The .space/waypoints.json file is in the cloud (iCloud) and has not been downloaded to this computer yet.", readOnlyInvalidJson: "The .space/waypoints.json file does not contain valid JSON.", readOnlyUnknownFormat: "The .space/waypoints.json file is in an unknown or unsupported format.", resetToHome: "Reset to Home", focusCreated: "Focus created.", focusDeleted: "Focus deleted.", deleteFocus: "Delete",
   confirmDeleteFocus: (name: string) => `Delete focus "${name}"?`,
   pathAddedToFocus: (path: string, focus: string) => `"${path}" added to focus "${focus}".`,
+  mermaidSyntaxError: "Mermaid diagram with a syntax error:", mermaidEditTip: "Click to edit the Mermaid code", mermaidEditCode: "Edit Mermaid code", pdfEditLink: "Edit the PDF link", pdfNotFound: (file) => `PDF not found: ${file}`, svgFailed: "Could not generate the diagram's SVG",
 };
 
 /** The interface language: the setting when it names one, else the system's. */

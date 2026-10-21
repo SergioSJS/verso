@@ -30,7 +30,7 @@ export const RIBBON: RibbonItem[] = [
   { id: "new", icon: "plus", label: () => t.newNote, keys: "new-note", needsFolder: true, run: (b) => {
     const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
     const r = b.getBoundingClientRect();
-    showMenu(r.right + 6, r.top, createMenuItems(folder));
+    showMenu(r.right + 6, r.top, createMenuItems(folder), t.menuNew);
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
   { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => paneToOpenIn().openGraph("") },
