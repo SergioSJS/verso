@@ -439,7 +439,7 @@ A version is now recorded only when the bytes match the change.
 
 ### Sync with a cloud provider (ADR 0104)
 
-Accepted 2026-10-21, **not built**: this section is the threat model the feature has to meet, written before the code so each row becomes a test (or a manual check) in the PR that builds it. A folder syncs with a cloud the person chose (WebDAV, S3, Dropbox, OneDrive, Google Drive) through the sync of ADR 0079; the adapters live on the desktop host's side and the core still reaches no network (0104 item 3).
+Accepted 2026-10-21. **WebDAV and S3 are built (2026-10-21, merge `a816d15b`)**; the OAuth providers (Dropbox, OneDrive, Google Drive) are not. This section was written before the code so each row becomes a test (or a manual check) in the PR that builds it. A folder syncs with a cloud the person chose (WebDAV, S3, Dropbox, OneDrive, Google Drive) through the sync of ADR 0079; the adapters live on the desktop host's side and the core still reaches no network (0104 item 3).
 
 | Threat | Answer decided (to be built) |
 |---|---|
@@ -453,6 +453,10 @@ Accepted 2026-10-21, **not built**: this section is the threat model the feature
 | Provider data corrupting the folder | Names are NFC and made safe for every provider; a name a provider forbids is not synced and is listed; a file is written here only when every piece arrived and its hash or size matched (0104 items 9 and 10). A lost cursor is a full comparison from the bases, never a first sync that treats everything as new (item 8). |
 | A deletion spreading | Remote deletions go into the provider's trash where it has one (Drive with `trashed: true`, never `files.delete`); 0079's mass-deletion pause and the placeholder guard (0043) hold for a cloud folder (0104 items 4 and 11). |
 | A flood against a provider | HTTP 429 and 503, and Drive's 403 with a rate-limit reason, are honoured with `Retry-After` or exponential backoff with jitter; small concurrency per provider; polls never in a fast loop (0104 items 8 and 15). |
+| The probe's objects in the person's storage (built) | At connect the WebDAV and S3 adapters write a probe object (`.verso-probe`) and temporary keys (`.verso-tmp`) to the person's storage to test conditional writes, and delete them; a failure to clean up leaves a small named file the person can delete. |
+| `keyring` and the Secret Service on Linux (built) | Secrets go through the `keyring` crate (4.2); on Linux that reaches the Secret Service over D-Bus (zbus). A Linux with no Secret Service is refused with the reason. A secret over 2000 bytes is refused (the Windows Credential Manager's limit), never truncated. |
+| HEAD then DELETE on S3 services that ignore a conditional DELETE (built) | Where a service ignores `If-Match` on DELETE, the delete is a HEAD followed by a DELETE and a writer can slip in between; the window says so at connect. |
+| A redirect leading the credentials elsewhere (built) | The WebDAV adapter never follows a redirect, so a server cannot send the Basic credentials to another host. |
 
 ## Gaps found on 2026-10-11
 
