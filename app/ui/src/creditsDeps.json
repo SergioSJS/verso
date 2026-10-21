@@ -54,5 +54,19 @@
     "version": "19.3.0",
     "license": "MIT",
     "link": "https://react.dev"
+  },
+  {
+    "name": "three.js",
+    "pkg": "three",
+    "version": "0.186.1",
+    "license": "MIT",
+    "link": "https://threejs.org"
+  },
+  {
+    "name": "cannon-es",
+    "pkg": "cannon-es",
+    "version": "0.20.0",
+    "license": "MIT",
+    "link": "https://pmndrs.github.io/cannon-es/"
   }
 ]
