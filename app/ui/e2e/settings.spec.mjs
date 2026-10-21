@@ -11,7 +11,7 @@ test("the settings have the sections the tutorial names", async ({ app }) => {
   const names = [
     "Geral", "Aparência", "Recursos", "Notificações", "Atalhos", "Créditos e agradecimentos",
     "Editor", "Arquivos e links", "Organização", "Notas periódicas", "Lixeira", "Board",
-    "Oráculos e Solo RPG", "Fichas e Templates",
+    "Dados e RPG", "Oráculos e Solo RPG", "Fichas e Templates",
     "Terminal e agentes", "Servidores", "Transformar em servidor", "Sincronizar",
   ];
   const shown = await app.page.locator(".settings-nav-item").allTextContents();

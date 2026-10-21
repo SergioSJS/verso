@@ -14,9 +14,9 @@ Ferramentas para mestres, jogadores solo e quem constrói mundos — ou só escr
 
 ---
 
-## 🎚️ Ligar e desligar: Ajustes › Aplicação › Recursos
+## 🎚️ Ligar e desligar: Ajustes › RPG & Mesa Solo › Dados e RPG
 
-A página tem dois grupos: **Aplicação** (por ora, o **Diagrama de dados**) e **RPG e mesa**. Cada ferramenta é um recurso com a sua chave: **Dados**, **Tabelas sorteadas**, **Oráculos**, **Fichas** (as de [[26 - Fichas]]) e **Assistente de mundo e campanha** e **Dados 3D**. Todas vêm **ligadas**, menos os Dados 3D. O grupo de RPG tem os links **Ligar todos** e **Desligar todos**, e **Oráculos** e **Fichas** têm um link **Ajustes…** para a própria página. Os atalhos **Tudo** e **Só escrita** ligam ou desligam todas de uma vez — antes, o Verso mostra o que vai mudar, e você pode cancelar.
+Os recursos de RPG têm uma página só deles, a primeira do grupo **RPG & Mesa Solo**: **Dados e RPG**. Cada ferramenta é um recurso com a sua chave: **Dados**, **Tabelas sorteadas**, **Oráculos**, **Fichas** (as de [[26 - Fichas]]) e **Assistente de mundo e campanha** e **Dados 3D**. Todas vêm **ligadas**, menos os Dados 3D. A página tem os links **Ligar todos** e **Desligar todos**, e **Oráculos** e **Fichas** têm um link **Ajustes…** para a própria página. Os atalhos **Tudo** e **Só escrita**, em **Ajustes › Aplicação › Recursos** (onde fica também o **Diagrama de dados**), ligam ou desligam todas de uma vez, as de RPG também — antes, o Verso mostra o que vai mudar, e você pode cancelar.
 
 Desligar não muda arquivo nenhum: uma ficha vira um bloco de código, um `[!oracle]` vira um destaque comum, como o Obsidian os mostra sem o plugin. Ligar de novo traz tudo de volta. A escolha é **sua**: uma pasta nunca liga nem desliga um recurso para quem a abre.
 

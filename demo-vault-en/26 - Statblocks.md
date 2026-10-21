@@ -11,7 +11,7 @@ status: active
 
 A monster, a character or a faction sheet without leaving the note. Here you see **one example of every layout that ships with Verso** — 40 in all — and learn how to use them. What the statblock stores is **plain Markdown**: a code block any editor can read.
 
-It is a feature with its own switch: **Settings › Application › Features › Statblocks** (see [[27 - Oracles and World Building]]). Turned off, each statblock becomes a code block.
+It is a feature with its own switch: **Settings › RPG & Solo Play › Dice and RPG › Statblocks** (see [[27 - Oracles and World Building]]). Turned off, each statblock becomes a code block.
 
 ---
 

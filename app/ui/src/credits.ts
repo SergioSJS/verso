@@ -40,8 +40,8 @@ export const CREDITS: Credit[] = [
     id: "dice-textures",
     name: "3D Dice Roller (MajorVictory)",
     line: {
-      pt: "As imagens das texturas dos dados 3D (Ajustes › Recursos › Dados 3D: textura) vêm do repositório MajorVictory/3DDiceRoller, dedicado ao domínio público.",
-      en: "The 3D dice texture images (Settings › Features › 3D dice: texture) come from the MajorVictory/3DDiceRoller repository, dedicated to the public domain.",
+      pt: "As imagens das texturas dos dados 3D (Ajustes › RPG & Mesa Solo › Dados e RPG › Dados 3D: textura) vêm do repositório MajorVictory/3DDiceRoller, dedicado ao domínio público.",
+      en: "The 3D dice texture images (Settings › RPG & Solo Play › Dice and RPG › 3D dice: texture) come from the MajorVictory/3DDiceRoller repository, dedicated to the public domain.",
     },
     link: "https://github.com/MajorVictory/3DDiceRoller",
     licence: "The Unlicense",

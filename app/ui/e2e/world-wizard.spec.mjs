@@ -45,7 +45,7 @@ test("the wizard shows the tree first, and only what stays ticked is created", a
 test("the Project wizard switch takes the command away", async ({ app, page }) => {
   await app.open();
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   const row = page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Assistente de mundo e campanha$/ }) });
   await row.locator("label.switch").click();
   await page.keyboard.press("Escape");

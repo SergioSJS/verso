@@ -1269,7 +1269,7 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
 0102](../adr/0102-creative-oracles-and-improvisation.md), [ADR
 0103](../adr/0103-feature-presets-and-capability-flags.md)).
 
-1. *Ajustes* › *Aplicação* › *Recursos* lista cinco chaves, *Dados*, *Tabelas
+1. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* lista cinco chaves, *Dados*, *Tabelas
    sorteadas*, *Oráculos*, *Fichas* e *Assistente de mundo e campanha*, todas
    ligadas, e os atalhos *Tudo* e *Só escrita*; o antigo "Modo de Uso" não
    está em lugar nenhum. *Só escrita* diz antes o que vai desligar e não faz

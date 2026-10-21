@@ -30,7 +30,7 @@ die (`thecage.png`, `isabelle.png`) and the bump maps.
 Nineteen images, one per texture but "Plain", copied unchanged to
 `app/ui/dice-textures/` and to `dist/dice-textures/` by the build, kept for
 offline use by the service worker. They are used whenever a texture is
-chosen in Settings › Features › "3D dice: texture".
+chosen in Settings › RPG & Solo Play › Dice and RPG › "3D dice: texture".
 
 | File | SHA-256 |
 |---|---|
