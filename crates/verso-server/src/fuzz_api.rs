@@ -31,6 +31,32 @@ fn plain(r: crate::rpc::Request) -> Request {
     (r.id, r.cmd, r.args)
 }
 
+/// Whether `token` is shaped like a read link's (`readlinks::token_shaped`).
+#[must_use]
+pub fn link_token(token: &str) -> bool {
+    crate::readlinks::token_shaped(token)
+}
+
+/// Whether a visitor of a read link may call `cmd` (`visit::allowed`), and
+/// whether the command writes.
+#[must_use]
+pub fn link_command(cmd: &str) -> (bool, bool) {
+    (
+        crate::visit::allowed(cmd),
+        verso_service::ops::access(cmd) == Some(verso_service::Access::Write),
+    )
+}
+
+/// Whether `path` is under a read link, and whether it is a file under one
+/// (`http::is_link_route`, `http::is_link_file`).
+#[must_use]
+pub fn link_path(path: &str) -> (bool, bool) {
+    (
+        crate::http::is_link_route(path),
+        crate::http::is_link_file(path),
+    )
+}
+
 /// A text message's request (`rpc::text_request`).
 #[must_use]
 pub fn text_request(text: &str) -> Option<Request> {
