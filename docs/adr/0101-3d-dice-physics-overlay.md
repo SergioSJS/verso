@@ -51,6 +51,20 @@
   item 11). As built, not decided: the look is kept with the other
   display settings, so on a server it follows the account; a profile
   roll's colour set 2 or 3 (Hunger, Dark) is not yet drawn in 3D.
+  2026-10-21, night — three reports by the maintainer on the beta. The
+  numbers off centre (*"pq os números não estão centralizados na forma
+  como todos os roladores e dados reais por aí?"*): each face now takes
+  the real dice's up — an edge on top of the d6, a corner up on the d4,
+  d8, d12 and d20, the sharp tip on the d10 — with the digit centred by
+  its ink and the 6/9 mark apart. The wait (*"tá demorando muito tempo
+  para mostrar o resultado ao rolar"*), which also answers the pending
+  T.8 against keeping 6.5 s and 1.1 s: the maximum animation time is now
+  2.5 s, the dice rest 0.3 s before the card, the fall plays 1.6× fast.
+  Explosions (*"`dice: 3d6!` não tá rolando dado 3D"*): item 5's "with
+  explosions … only the 2D card" no longer holds; an exploding roll
+  falls in 3D, each extra die thrown after the die it came from rests,
+  within the same maximum and the 20-dice bound (an exploding d100 keeps
+  the card alone).
 
 ## Context
 

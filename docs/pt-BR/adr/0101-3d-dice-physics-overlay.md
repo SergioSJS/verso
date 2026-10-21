@@ -49,6 +49,20 @@
   construído, não decidido: a aparência fica com os outros ajustes de
   exibição, então num servidor acompanha a conta; o conjunto de cor 2 ou
   3 de uma rolagem de perfil (Fome, Sombrio) ainda não é desenhado em 3D.
+  2026-10-21, madrugada — três relatos do mantenedor no beta. Os números
+  fora do centro (*"pq os números não estão centralizados na forma como
+  todos os roladores e dados reais por aí?"*): cada face agora segue o
+  "para cima" dos dados reais — uma borda em cima no d6, um canto para
+  cima no d4, d8, d12 e d20, a ponta no d10 — com o algarismo centrado
+  pela tinta e a marca do 6/9 à parte. A espera (*"tá demorando muito
+  tempo para mostrar o resultado ao rolar"*), que também responde a T.8
+  pendente contra manter 6,5 s e 1,1 s: o tempo máximo da animação passa
+  a 2,5 s, os dados ficam 0,3 s parados antes do cartão, a queda roda
+  1,6× mais rápida. Explosões (*"`dice: 3d6!` não tá rolando dado 3D"*):
+  o "com explosões … só o cartão 2D" do item 5 já não vale; uma rolagem
+  que explode cai em 3D, cada dado extra lançado depois que o dado de onde
+  veio para, dentro do mesmo máximo e do limite de 20 dados (um d100 que
+  explode continua só com o cartão).
 
 ## Contexto
 
