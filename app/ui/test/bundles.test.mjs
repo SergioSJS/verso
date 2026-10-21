@@ -343,3 +343,12 @@ test("the built-in bundles come in English for an English window: same shape, no
   const mine = { version: 1, id: "dados-criticos-campanha", name: "X", description: "", folders: [], files: [] };
   assert.equal(bundleInLanguage(mine, false), mine);
 });
+
+test("review M13: past the count limit the plan stops reading and says so", () => {
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ path: `F${i}` }));
+  const plan = planBundle(bundle({ files: many(LIMITS.files + 3000), folders: Array.from({ length: LIMITS.folders + 3000 }, (_, i) => `D${i}`) }), input());
+  assert.ok(plan.files.length <= LIMITS.files);
+  assert.ok(plan.folders.length <= LIMITS.folders + 1);
+  assert.ok(plan.problems.some((p) => p.at === "/files"));
+  assert.ok(plan.problems.some((p) => p.at === "/folders"));
+});

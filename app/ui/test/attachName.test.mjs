@@ -63,3 +63,22 @@ describe("The bound on an image sent to a server", () => {
     assert.ok(Math.ceil((MAX_IMAGE_BYTES * 4) / 3) < 48 * 1024 * 1024 - 1024 * 1024);
   });
 });
+
+describe("review M13: names Windows would refuse or rewrite", () => {
+  test("a trailing dot or space is dropped", () => {
+    assert.equal(fitName("capa.png."), "capa.png");
+    assert.equal(fitName("capa. . "), "capa");
+    assert.equal(freeAttachment("a", "capa.png. ", new Set()), "a/capa.png");
+  });
+  test("a reserved device name gets an underscore, with any extension and in any case", () => {
+    for (const [name, want] of [["con.txt", "con_.txt"], ["CON", "CON_"], ["Nul.PNG", "Nul_.PNG"], ["com1.png", "com1_.png"], ["LPT9.tar.gz", "LPT9_.tar.gz"], ["aux", "aux_"], ["prn.md", "prn_.md"]]) {
+      assert.equal(freeAttachment("", name, new Set()), want, name);
+    }
+  });
+  test("names that only resemble a reserved one stay", () => {
+    for (const name of ["console.png", "com10.png", "com0.png", "lpt.png", "nulo.png", "aux x.png"]) assert.equal(freeAttachment("", name, new Set()), name);
+  });
+  test("the underscore name still collides on its own terms", () => {
+    assert.equal(freeAttachment("", "con.txt", new Set(["con_.txt"])), "con_ (2).txt");
+  });
+});
