@@ -22,6 +22,20 @@
   with the providers' pages cited); revised by Opus 5.5 after it. The
   questions are in `verso-decisoes-0104-nuvens-2026-10-21.md`, outside the
   repository (questions C.1 to C.17).
+- Deviation (stated 2026-10-21, review of the afternoon batch): 0104.2 asked
+  for the independent review "before it is committed"; the text was
+  committed as Proposed before the review so the reviewer could read it from
+  the repository. The maintainer's answer is recorded in the Source line; the
+  deviation from its letter is stated here, not left inside it.
+- Revisions: 2026-10-21, review of the afternoon batch — (a) the per-item
+  `[DECIDED 2026-10-21]` stamp is removed from the items and sub-rules no
+  question asked (items 4, 15, 16 and 18; the sub-rules of items 6, 10 and
+  14): the maintainer's acceptance of the whole ADR is his, but the stamp
+  means "he answered this one", and he was not asked; they now read
+  "accepted with the ADR (2026-10-21), not asked one by one". (b) Items 6 and
+  13 say what C.1 = A, C.6 = A and C.7 = A decided instead of
+  "recommended". (c) "As built" gains the building choices the review found
+  missing (I-3, I-4, I-6, I-10 of `verso-revisao-fable-tarde-2026-10-21.md`).
 - Related: [0079](0079-sync-a-local-folder-with-a-server.md) (the sync this
   reuses), [0050](0050-outbound-network-access.md) (revised here),
   [0020](0020-sync-merge-in-core-transports-as-plugins.md),
@@ -108,7 +122,10 @@ Accepted (2026-10-21). Item 1 is the maintainer's answer of the morning;
 every other item was a recommendation or a question (C.1 to C.17 of
 `verso-decisoes-0104-nuvens-2026-10-21.md`) that the maintainer answered the
 same afternoon, every one as recommended, `[DECIDED 2026-10-21]`; where an
-item said "recommended", that recommendation is the decision. His note on
+item said "recommended", that recommendation is the decision. The exceptions
+are the items and sub-rules no question asked (4, 15, 16, 18 and the
+sub-rules of 6, 10 and 14, each marked below): they are *accepted with the
+ADR (2026-10-21), not asked one by one*. His note on
 the tasks of C.1: *"Farei tudo depois e te aviso quando concluído"* — he
 creates the developer accounts later.
 
@@ -143,7 +160,7 @@ creates the developer accounts later.
    [0028](0028-crate-structure.md) gains a line). The folder's files are
    touched only through `verso-fs` (invariant 5).
 
-4. **One sync, many remotes — what of 0079 holds.** `[DECIDED 2026-10-21]` One local
+4. **One sync, many remotes — what of 0079 holds.** *Accepted with the ADR (2026-10-21), not asked one by one.* One local
    folder syncs with **one** remote — a UniVerso or one cloud folder, never
    two at once. Item by item:
    - **Hold as written**: 0079 items 2 (the file as the unit; NFC names —
@@ -176,14 +193,14 @@ creates the developer accounts later.
    - **WebDAV**: an address and a folder the person gives, with user and
      password (or an app password); HTTPS only, except an address on the
      local network the person confirms (as [0096](0096-this-app-is-a-server.md)
-     does for plain HTTP).
+     does for plain HTTP) *(this sub-rule: accepted with the ADR, not asked)*.
    - **S3**: endpoint, bucket, prefix, access key and secret; the how-to in
      the demo vault tells the person to scope the key to that bucket and
      prefix (C.15).
    - **Dropbox**: the App folder access type (`Apps/Verso/<folder>`).
    - **OneDrive**: `Files.ReadWrite.AppFolder` (`Apps/Verso/<folder>`), for
-     personal accounts and, if the maintainer wants them (C.6), work or
-     school accounts — whose administrators may block the consent.
+     personal accounts and, decided in C.6 = A, work or school accounts —
+     whose administrators may block the consent (the window says why).
    - **Google Drive**: `drive.file` only; the full `drive` scope is never
      asked. Its limit is said plainly in the window: files added to the
      folder through Drive's web page or another app are not seen; add them
@@ -244,7 +261,8 @@ creates the developer accounts later.
     its reason. Two remote names that fold to one locally (a provider that
     keeps case where this disk does not; Drive allowing two files of one
     name in a folder): one is synced, the other held and listed, never
-    merged silently (spec Q8).
+    merged silently (spec Q8). *(Listing a forbidden local name with its
+    reason: accepted with the ADR, not asked.)*
 
 11. **Deletions on the remote.** `[DECIDED 2026-10-21]` (C.9) Into the provider's
     trash where it has one (Dropbox and OneDrive delete into their own;
@@ -265,12 +283,16 @@ creates the developer accounts later.
     and is treated as public.
 
 13. **Client identities.** `[DECIDED 2026-10-21]` C.1 — 0104.4 said "decide when the
-    first OAuth provider is chosen", and all three are chosen. Recommended:
-    **the project registers its own apps** (a Dropbox app, production status
-    past 50 accounts; a Google Cloud project — non-sensitive scope, so no
-    verification is required to publish; brand verification optional, for
-    the name and logo on the consent screen, C.7; a Microsoft Entra app,
-    publisher verification needing a Partner Center account, C.6), shipped
+    first OAuth provider is chosen", and all three are chosen. Decided
+    (C.1 = A): **the project registers its own apps** (a Dropbox app,
+    production status past 50 accounts; a Google Cloud project —
+    non-sensitive scope, so no verification is required to publish; brand
+    verification, for the name and logo on the consent screen, **not asked
+    for in V1** — C.7 = A: the project publishes without it and the consent
+    screen shows the domain, `versomd.com`, instead of the name and logo,
+    and asks for the brand verification later; a Microsoft Entra app,
+    publisher verification needing a Partner Center account, and work or
+    school accounts accepted, C.6 = A), shipped
     as public clients; **BYOK** as an advanced field, with the rule that one
     folder uses one client identity on every device (Drive's grant is per
     client). During Google's "Testing" status: at most 100 testers, a new
@@ -282,7 +304,10 @@ creates the developer accounts later.
     the folder, the configuration file or a log; never sent to the window
     (the window sends a secret once, when the person types it, and never
     reads it back — a contract rule, 0026). On Windows a secret over the
-    Credential Manager's 2560-byte limit is split or refused with a message.
+    Credential Manager's 2560-byte limit is split or refused with a message
+    *(this sub-rule: accepted with the ADR, not asked; as built, the 2560
+    bytes are Microsoft's limit and the 2000 the build refuses at is its own
+    margin below it — see "As built")*.
     On a Linux without Secret Service: `[DECIDED 2026-10-21]` C.4 — recommended, refuse
     the cloud sync with the reason and how to install a keyring. One rule
     for every secret: `[DECIDED 2026-10-21]` C.5 — recommended, the UniVerso device token,
@@ -290,7 +315,7 @@ creates the developer accounts later.
     keychain is a new dependency, justified in its PR. "Disconnect" deletes
     the secrets and revokes the token where the provider allows.
 
-15. **The network.** `[DECIDED 2026-10-21]` Sync with a cloud is the person's explicit
+15. **The network.** *Accepted with the ADR (2026-10-21), not asked one by one.* Sync with a cloud is the person's explicit
     choice per folder; the app then talks to that provider's API and sign-in
     hosts **and to the addresses the provider hands back for one transfer**
     (OneDrive's pre-authenticated download and upload-session URLs on other
@@ -302,7 +327,7 @@ creates the developer accounts later.
     or, without it, exponential backoff with jitter; small concurrency per
     provider. A full storage quota is a sync error said in the window.
 
-16. **What a person sees.** `[DECIDED 2026-10-21]` The folder's settings offer "Sync
+16. **What a person sees.** *Accepted with the ADR (2026-10-21), not asked one by one.* The folder's settings offer "Sync
     with…": a UniVerso (0079) or a cloud; choosing a cloud names the
     provider, signs in, shows the space, what the first sync will do (0079
     item 11), what does not apply to a cloud folder (item 4) and that the
@@ -317,7 +342,7 @@ creates the developer accounts later.
     trait and the race guardrail), then Dropbox, OneDrive, Google Drive.
 
 18. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-    `[DECIDED 2026-10-21]` Every step of "Sync with…" by keyboard and screen reader;
+    *Accepted with the ADR (2026-10-21), not asked one by one.* Every step of "Sync with…" by keyboard and screen reader;
     the browser step announced; pt-BR and EN.
 
 ## Consequences
@@ -383,3 +408,31 @@ decisions: the `exists` guard; a WebDAV root that answers 404 is an error;
 a secret over 2000 bytes is refused; S3 content hashes are kept in the
 uploaded object's metadata; the first connect to an existing WebDAV folder
 downloads each file once to learn its hash.
+
+Also recorded 2026-10-21 (review of the afternoon batch,
+`verso-revisao-fable-tarde-2026-10-21.md`), the choices the paragraph above
+left out, as built and not as the maintainer's decisions:
+
+- **Turning a cloud folder's sync off** used to throw the base away (I-6):
+  now the base is **kept on disconnect, only the secret deleted** (fixed
+  after the review, branch `fix/review-cloud`, pending merge). Item 14 says
+  "Disconnect deletes the secrets"; it never said the base goes.
+- **A delete on a service without a conditional `DELETE`** (no
+  `CAP_DELETE_IF_MATCH`): the build does a `HEAD` and then an unconditional
+  `DELETE`, so a write by another device between the two is lost, and on S3
+  and WebDAV a deletion is final (item 11). The probe tells the person ("with
+  a short window"). C.3 decided *refuse* for a service that cannot keep the
+  promise; whether this window is acceptable or the connection must be
+  refused is **the maintainer's call (I-3, a question for him)**; until he
+  answers it is the build's choice, with no guardrail test on this path.
+- **WebDAV `exists`** was a full read of the file (the trait's default); it is
+  now a `PROPFIND` at depth zero (fixed after the review, `fix/review-cloud`).
+  The text above and commit `84e1e124` said so before it was true.
+- **C.13 (the device's name set in the folder's sync settings, not in
+  Settings › Servers)** is not built as asked: the copy's name still comes
+  from the servers' settings; being fixed on `fix/review-cloud`, pending
+  merge.
+- **The Windows secret limit**: 2560 bytes is the Credential Manager's own
+  limit (Microsoft's); 2000 bytes is the build's margin below it, where the
+  build refuses. The roadmap rows V.38 and V.40 and the threat model say so
+  too.
