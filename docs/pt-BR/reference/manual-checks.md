@@ -20,6 +20,18 @@ app real.
 
 ## Ainda não conferido
 
+### Sync com um provedor de nuvem (ADR 0104, aceito em 2026-10-21, não construído)
+
+Escrita antes do código para que as checagens existam quando a funcionalidade existir; nenhuma pode ser feita hoje. Cada uma precisa do app desktop instalado e de uma conta real no provedor; nada aqui trava um commit, um merge ou uma beta. Os provedores OAuth também esperam as contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm primeiro (C.16). Repita a lista por provedor.
+
+- [ ] **Login pelo navegador** (A): "Sincronizar com…" um Dropbox, OneDrive ou Google Drive; o navegador do sistema abre (sem view embutida), a tela de consentimento nomeia só o escopo estreito (pasta do app, `drive.file`), o app volta logado e o ouvinte fecha (uma segunda visita ao endereço de loopback não recebe nada). Fechar a aba sem consentir deixa a pasta desconectada, com uma mensagem.
+- [ ] **Primeiro sync** (A): com notas dos dois lados, mostra o que vai fazer (0079 item 11) e o que não se aplica a uma pasta de nuvem; nada é apagado em nenhum dos lados; a pasta aparece em `Apps/Verso/<pasta>` (ou na pasta do WebDAV, ou no prefixo do bucket).
+- [ ] **Uma corrida entre dois computadores** (A): edite a mesma nota em dois computadores, offline, e reconecte os dois; nenhuma edição se perde: uma versão fica com o nome e a outra é uma cópia de conflito com o nome do dispositivo. No Google Drive, confira que a revisão sobrescrita continua no histórico de versões do Drive.
+- [ ] **Exclusão na lixeira do provedor** (A): apague uma nota aqui; ela chega à lixeira do provedor (Dropbox, OneDrive, Drive), não a uma exclusão permanente; no WebDAV e no S3 a janela avisa, antes de conectar, que a exclusão é definitiva a menos que o bucket tenha versionamento.
+- [ ] **Desconectar revoga** (A): Desconectar remove os segredos do chaveiro do sistema e o app some da lista de apps conectados do provedor (ou o token deixa de funcionar); a pasta local fica intacta.
+- [ ] **Um Linux sem Secret Service** (A): o sync com a nuvem é recusado, com o motivo e como instalar um chaveiro.
+- [ ] **WebDAV e S3** (A): um servidor sem ETags fortes ou um serviço compatível com S3 sem escrita condicional é recusado ao conectar, com o motivo; WebDAV em HTTP puro exige a confirmação de rede local.
+
 ### O diagrama de dados (ADR 0106, feat/datagraph, 2026-10-21)
 
 Precisa do app desktop instalado num Mac (e de uma tela com dedos para o primeiro item); os testes de ponta a ponta estão em `app/ui/e2e/datagraph.spec.mjs`, e o harness não é a web view de verdade.

@@ -113,7 +113,7 @@
   with a folder that is already there stays each row's own *Sync*. *Make an
   empty folder…* is a small second action; an account that may not make
   folders keeps the invitation text. The host's `server_create_folder`
-  asks the server's `POST /api/folders` with the device's session.
+  asks the server's `POST /api/folders` with the device's session. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) makes a cloud folder another remote of this sync (its item 4 maps which items hold, adapt, or do not apply).
 
 ## Context
 

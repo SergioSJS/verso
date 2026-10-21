@@ -18,7 +18,7 @@
   the end of Phase 2" for Phase 3, after the first release of the server
   ([0034](0034-roadmap-in-phases.md), revised the same day). Item 2
   stands; merge by block comes after conflicts have been seen in use (0073
-  item 10).
+  item 10). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md): the first cloud transports are built into the desktop app, not plugins.
 
 ## Context
 

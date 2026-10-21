@@ -9,7 +9,7 @@
   um plugin de código aberto que o Obsidian publica sob a própria licença
   — o `obsidianmd/obsidian-maps`, MIT, por exemplo — é uma fonte
   admissível, como o `obsidian.d.ts` é. Inspecionar, descompilar ou
-  desminificar o próprio app continua proibido.
+  desminificar o próprio app continua proibido. 2026-10-21 — as linhas de OAuth e de cotas respondidas para o sync pelo [0104](0104-external-cloud-storage-transports-and-quotas.md) (`drive.file` não sensível, PKCE e clientes públicos, limites por provedor).
 
 ## Contexto
 

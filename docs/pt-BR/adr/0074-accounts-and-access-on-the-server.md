@@ -38,7 +38,7 @@
   dispositivo, guardado com a sessão dele, pode ser definido pela pessoa
   em Ajustes › Servidores, por padrão o nome do sistema — o *"Sim para
   todos"* do mantenedor naquela noite, registrado no
-  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisões, item 8).
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisões, item 8). 2026-10-21 — o [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): o token do dispositivo passa do `servers.json` para o chaveiro do sistema (a construir).
 
 ## Contexto
 
