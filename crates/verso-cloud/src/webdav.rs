@@ -105,6 +105,26 @@ impl WebDav {
         url.to_string()
     }
 
+    /// The address of a collection: with the trailing slash RFC 4918 §8.3
+    /// allows to be left out but some servers (Apache's `mod_dav`) answer
+    /// with a redirect, which is refused.
+    fn dir_url(&self, path: &str) -> String {
+        let url = self.url(path);
+        if url.ends_with('/') {
+            url
+        } else {
+            format!("{url}/")
+        }
+    }
+
+    /// A request on a collection (a folder).
+    fn req_dir(&self, method: &str, path: &str) -> reqwest::blocking::RequestBuilder {
+        self.http
+            .request(method, &self.dir_url(path))
+            .basic_auth(&self.user, Some(&self.password))
+            .header("Accept-Encoding", "identity")
+    }
+
     fn req(&self, method: &str, path: &str) -> reqwest::blocking::RequestBuilder {
         self.http
             .request(method, &self.url(path))
@@ -112,12 +132,22 @@ impl WebDav {
             .header("Accept-Encoding", "identity")
     }
 
-    /// `PROPFIND` the resource at `path`, `depth` 0 or 1.
-    fn propfind(&self, path: &str, depth: u8, body: &'static str) -> Result<Response> {
+    /// `PROPFIND` the resource at `path`, `depth` 0 or 1; `collection`
+    /// when it is a folder.
+    fn propfind(
+        &self,
+        path: &str,
+        depth: u8,
+        body: &'static str,
+        collection: bool,
+    ) -> Result<Response> {
         self.http.send(&mut || {
-            Ok(self
-                .req("PROPFIND", path)
-                .header("Depth", depth.to_string())
+            let r = if collection {
+                self.req_dir("PROPFIND", path)
+            } else {
+                self.req("PROPFIND", path)
+            };
+            Ok(r.header("Depth", depth.to_string())
                 .header("Content-Type", "application/xml")
                 .body(body))
         })
@@ -180,7 +210,7 @@ impl WebDav {
 
     /// What is at `path`: its ETag and size, or `None` when nothing.
     fn stat(&self, path: &str) -> Result<Option<Found>> {
-        let response = self.propfind(path, 0, PROPFIND_BODY)?;
+        let response = self.propfind(path, 0, PROPFIND_BODY, path.is_empty())?;
         match response.status().as_u16() {
             404 => Ok(None),
             207 | 200 => Ok(self.found(response)?.into_iter().next()),
@@ -207,7 +237,7 @@ impl WebDav {
         if self.made.lock().is_ok_and(|m| m.contains(dir)) {
             return Ok(());
         }
-        let response = self.http.send(&mut || Ok(self.req("MKCOL", dir)))?;
+        let response = self.http.send(&mut || Ok(self.req_dir("MKCOL", dir)))?;
         match response.status().as_u16() {
             // 405: it exists already.
             200 | 201 | 204 | 405 => {
@@ -320,15 +350,17 @@ impl WebDav {
         let mut notes = Vec::new();
         let result = self.probe_object(&key, &mut notes);
         // Cleaned up whatever happened.
+        // Its own object only: the folder is shared with any other device
+        // connecting at the same moment, and deleting it would take that
+        // device's check file from under it. It stays, empty.
         let _ = self.http.send(&mut || Ok(self.req("DELETE", &key)));
-        let _ = self.http.send(&mut || Ok(self.req("DELETE", dir)));
         result?;
         let (files, bytes) = self.count()?;
         let free = self
             .http
             .send(&mut || {
                 Ok(self
-                    .req("PROPFIND", "")
+                    .req_dir("PROPFIND", "")
                     .header("Depth", "0")
                     .header("Content-Type", "application/xml")
                     .body(QUOTA_BODY))
@@ -472,7 +504,7 @@ impl Remote for WebDav {
         let mut queue = VecDeque::from([(String::new(), 0_usize)]);
         let mut seen = BTreeSet::new();
         while let Some((dir, depth)) = queue.pop_front() {
-            let response = self.propfind(&dir, 1, PROPFIND_BODY)?;
+            let response = self.propfind(&dir, 1, PROPFIND_BODY, true)?;
             match response.status().as_u16() {
                 // The folder is not there: not an empty folder (every file
                 // would look deleted there) but a folder to find again. It
