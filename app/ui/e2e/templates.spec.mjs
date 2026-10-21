@@ -4,6 +4,7 @@
 // own choice.
 
 import { test, expect } from "./fixtures.mjs";
+import { pickMenu } from "./menuPath.mjs";
 
 const picker = (app) => app.page.locator(".template-picker");
 const choice = (app, name) => picker(app).getByRole("button", { name, exact: true });
@@ -62,7 +63,7 @@ test("a folder's items_template makes the note and shows no list", async ({ app 
   await app.writeOutside("Pasta/Pasta.md", "---\nitems_template: Novo Projeto\n---\n# Pasta\n");
   await app.folderChanged(["Pasta/Pasta.md"], true);
   await app.page.locator('#notes summary[data-folder="Pasta"]').click({ button: "right" });
-  await app.page.locator('.menu:not([hidden]) button[role="menuitem"]', { hasText: "Nova nota nesta pasta" }).click();
+  await pickMenu(app.page, "Novo", "Nova nota nesta pasta");
   const field = app.page.locator("input.new-note");
   await field.fill("Feita");
   await field.press("Enter");

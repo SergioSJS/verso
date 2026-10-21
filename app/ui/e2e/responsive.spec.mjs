@@ -306,6 +306,7 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   };
   await menuOf(row("01 - Guia de Markdown e Sintaxe.md"));
   const menu = page.locator(".menu:not([hidden])");
+  await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
   await menu.getByRole("menuitem", { name: "Selecionar" }).click();
   await expect(page.locator("#notes.select-mode")).toHaveCount(1);
   await expect(row("01 - Guia de Markdown e Sintaxe.md")).toHaveAttribute("aria-pressed", "true");

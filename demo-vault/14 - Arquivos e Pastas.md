@@ -28,10 +28,10 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 
 Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo sobre ela e solte):
 
-- **Abrir em nova aba**, **Abrir ao lado**, **Abrir em nova janela** e **Relações** (o grafo em volta dela).
+- **Abrir**, **Abrir em nova aba**, **Abrir ao lado** e **Relações** (o grafo em volta dela). **Abrir em nova janela** fica no grupo **Janela e localização**.
 - **Renomear** (ou `F2` — na árvore ou com a nota aberta —, ou um clique no título da nota aberta). Se outras notas apontam para ela, o Verso mostra, nota por nota, como cada link vai ficar, e pergunta: **Atualizar links** ou **Deixar como está**.
 - **Mover para…** leva a nota para outra pasta; **Duplicar** faz uma cópia.
-- **Mostrar no Finder**, **Copiar caminho relativo** e **Copiar caminho completo**.
+- O que é raro fica em grupos, que abrem num submenu (passe o mouse, ou `→` e `Enter`; `←` ou `Esc` volta): **Personalizar** (figurinha e cor), **Organizar** (selecionar, fixar, mover para cima ou para baixo, ocultar da árvore, transformar em pasta, **Criar foco aqui**), **Janela e localização** (**Abrir em nova janela**, **Mostrar no Finder**, **Copiar caminho relativo** e **Copiar caminho completo**) e **Novo** (nota, pasta, base, board, página web e projeto a partir de modelo).
 - **Mover para a lixeira** (ou `Delete`, ou `⌘⌫`, na árvore): a nota vai para a pasta `.trash` do cofre, como no Obsidian — nada se perde de vez; veja [[#A Lixeira]].
 
 ---
