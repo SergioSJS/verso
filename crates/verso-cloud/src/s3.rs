@@ -793,7 +793,7 @@ impl S3 {
         } else {
             // The service ignored it (and deleted) or does not know it.
             report.notes.push(
-                "the service does not honour If-Match on a delete: a delete is checked against the file just before, with a short window".to_owned(),
+                "the service does not honour If-Match on a delete: a delete is checked against the file just before, and an edit another device makes in the short window between the two is deleted with it".to_owned(),
             );
             let _ = write(Condition::Absent, "verso 7", false);
         }
