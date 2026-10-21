@@ -526,3 +526,53 @@ describe("the parsers' messages in pt-BR", () => {
     assert.equal(D.parseErrorPt("something else"), "something else");
   });
 });
+
+describe("review I5: YAML aliases resolve in linear time", () => {
+  test("one anchor and 100 000 aliases parse in well under a second", () => {
+    const text = "base: &a x\nlist:\n" + "  - *a\n".repeat(100_000);
+    const [t, took] = ms(() => D.parse(text, "yaml"));
+    assert.equal(t.error, null);
+    assert.ok(took < 3000, `${took} ms`);
+    assert.equal(t.nodes[1].rows[0].text, "*a = x");
+  });
+  test("an anchor on a box still gets a line, and a redefined anchor resolves to the nearest before", () => {
+    const t = D.parse("a: &x [1]\nb: *x\nc: &x [2]\nd: *x\n", "yaml");
+    const root = t.nodes[0];
+    const b = root.rows.find((r) => r.key === "b");
+    const d = root.rows.find((r) => r.key === "d");
+    assert.equal(b.link, 1);
+    assert.equal(d.link, 2);
+  });
+});
+
+describe("review I6: a box cap", () => {
+  const many = (n) => "[" + "{},".repeat(n - 1) + "{}]";
+  test("at the cap the diagram is built", () => {
+    const t = D.parse(many(D.MAX_BOXES - 1), "json");
+    assert.equal(t.error, null);
+    assert.equal(t.tooMany, undefined);
+    assert.equal(t.nodes.length, D.MAX_BOXES);
+  });
+  test("past the cap no diagram is built and the tree says why", () => {
+    for (const [text, format] of [
+      [many(D.MAX_BOXES), "json"],
+      ["- {}\n".repeat(D.MAX_BOXES), "yaml"],
+      ["a\n" + "1\n".repeat(D.MAX_BOXES), "csv"],
+      ["<a>" + "<b><c/></b>".repeat(D.MAX_BOXES) + "</a>", "xml"],
+      ["[[a]]\n".repeat(D.MAX_BOXES), "toml"],
+    ]) {
+      const t = D.parse(text, format);
+      assert.equal(t.tooMany, true, format);
+      assert.equal(t.nodes.length, 0, format);
+    }
+  });
+});
+
+describe("review I6: a saved board is capped", () => {
+  test("a board of more than MAX_BOARD_CARDS cards does not fit", () => {
+    assert.ok(D.MAX_BOARD_CARDS <= D.MAX_BOXES);
+    const doc = (n) => ({ nodes: Array.from({ length: n }, (_, i) => ({ id: `n${i}` })), edges: [] });
+    assert.equal(D.boardFits(doc(D.MAX_BOARD_CARDS)), true);
+    assert.equal(D.boardFits(doc(D.MAX_BOARD_CARDS + 1)), false);
+  });
+});

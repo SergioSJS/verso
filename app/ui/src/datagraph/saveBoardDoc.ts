@@ -12,6 +12,11 @@ export type Card = { id: string; type: "text"; x: number; y: number; width: numb
 export type Line = { id: string; fromNode: string; toNode: string; fromSide: string; toSide: string; label?: string };
 export type BoardDoc = { nodes: Card[]; edges: Line[] };
 
+/** The most cards a saved board holds: a board redraws every card, so far fewer than the diagram's own box limit. */
+export const MAX_BOARD_CARDS = 2000;
+
+export const boardFits = (doc: BoardDoc): boolean => doc.nodes.length <= MAX_BOARD_CARDS;
+
 const CELL = 200;
 
 function cell(text: string): string {
