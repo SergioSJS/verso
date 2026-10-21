@@ -528,7 +528,7 @@ biblioteca foi decidida (0101.1c, opção A) e a 0101 está Aceita.
 | V.37 | A janela de construção de tema: uma galeria de cartões de tema em Ajustes › Aparência, Copiar e Alterar, alterar numa janela própria | [0100](adr/0100-visual-customization-wizard.md) item 2 | decidido em 2026-10-21, a revisão do mantenedor depois de ver o beta; não construído; os detalhes (tamanho, janela ou diálogo, desenho do cartão) não estão decididos |
 | V.38 | Dialeto: `tags: 2024` é a tag "2024", sabidamente diferente do Obsidian; `...` não fecha o frontmatter | spec Q24 | decidido em 2026-10-21 (DL.2, opção B; DL.1, opção A); o código e a fixture `frontmatter/tags-number` são mudados pelo PR de código |
 | V.39 | Layouts de World of Darkness e Cyberpunk RED: o logo do Dark Pack buscado pelo agente na página de Créditos, avisos de licença só ali, nomes dos campos em pt-BR já | [0099](adr/0099-visual-markdown-statblocks-and-cards.md) item 6 | decidido em 2026-10-21 (S.3a, S.3b, S.3c); não construído |
-| V.40 | Sync com uma nuvem que a pessoa já tem: WebDAV, S3, Dropbox, OneDrive e Google Drive, pelo sync do ADR 0079 (só no desktop) | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Aceito em 2026-10-21; WebDAV e S3 primeiro (C.16); os provedores OAuth esperam as contas de desenvolvedor que o mantenedor cria (C.1); não construído |
+| V.40 | Sync com uma nuvem que a pessoa já tem: WebDAV, S3, Dropbox, OneDrive e Google Drive, pelo sync do ADR 0079 (só no desktop) | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Aceito em 2026-10-21; parte 1 construída em 2026-10-21 (WebDAV, S3; merge `a816d15b`), não enviada; os provedores OAuth esperam as contas de desenvolvedor (C.1); C.5 não feita |
 
 ### Decisões que precisam sair para a V1
 

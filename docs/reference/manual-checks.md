@@ -20,9 +20,9 @@ in the real app.
 
 ## Not yet checked
 
-### Sync with a cloud provider (ADR 0104, accepted 2026-10-21, not built)
+### Sync with a cloud provider (ADR 0104, accepted 2026-10-21; WebDAV and S3 built)
 
-Written ahead of the code so the checks exist when the feature does; none can be run today. Each needs the installed desktop app and a real account at that provider; nothing here blocks a commit, a merge or a beta. The OAuth providers also wait for the developer accounts the maintainer creates (C.1); WebDAV and S3 come first (C.16). Repeat the list per provider.
+Written ahead of the code. Since 2026-10-21 the WebDAV (Nextcloud) and S3 (AWS, R2, MinIO) checks can be run; the OAuth ones (Dropbox, OneDrive, Google Drive) still cannot. Each needs the installed desktop app and a real account at that provider; nothing here blocks a commit, a merge or a beta. The OAuth providers also wait for the developer accounts the maintainer creates (C.1); WebDAV and S3 come first (C.16). Repeat the list per provider.
 
 - [ ] **Sign-in through the browser** (A): "Sync with…" a Dropbox, OneDrive or Google Drive; the system's browser opens (no embedded view), the consent names only the narrow scope (app folder, `drive.file`), the app comes back signed in, and the listener closes (a second visit to the loopback address gets nothing). Closing the browser tab without consenting leaves the folder unconnected, with a message.
 - [ ] **First sync** (A): with notes on both sides, it shows what it will do (0079 item 11) and what does not apply to a cloud folder; nothing is deleted on either side; the folder appears under `Apps/Verso/<folder>` (or the WebDAV folder, or the bucket prefix).
@@ -31,6 +31,10 @@ Written ahead of the code so the checks exist when the feature does; none can be
 - [ ] **Disconnect revokes** (A): Disconnect removes the secrets from the system's keychain and the app disappears from the provider's list of connected apps (or the token stops working); the local folder is untouched.
 - [ ] **A Linux without Secret Service** (A): the cloud sync is refused with the reason and how to install a keyring.
 - [ ] **WebDAV and S3** (A): a server without strong ETags or an S3-compatible service without conditional writes is refused at connect with the reason; plain-HTTP WebDAV needs the local-network confirmation.
+- [ ] **WebDAV on Nextcloud** (A): connect, first sync, an edit on each side, a delete; the folder appears where chosen and a deletion is final (said before connecting).
+- [ ] **S3 on AWS, R2 and MinIO** (A): repeat the same list on each; the bucket prefix holds the folder, the probe leaves no `.verso-probe` or `.verso-tmp` object behind, and the HEAD-then-DELETE notice appears on a service that ignores a conditional DELETE.
+- [ ] **A refused service** (A): a WebDAV server without strong ETags, and Backblaze B2 (no conditional writes), are refused at connect with the reason, and nothing is written to the person's storage.
+- [ ] **The keychain, per OS** (A): on macOS the secret is in Keychain Access; on Windows in the Credential Manager; on Linux in the Secret Service (a keyring such as GNOME Keyring). Disconnect removes it; a secret over 2000 bytes is refused with a message; a Linux without a Secret Service is refused with how to install one.
 
 ### The data diagram (ADR 0106, feat/datagraph, 2026-10-21)
 
