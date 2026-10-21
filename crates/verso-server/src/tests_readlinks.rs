@@ -762,7 +762,9 @@ fn an_expired_link_opens_nothing_and_closes_open_pages() {
             .await;
             assert_eq!(status, 400);
         }
-        let soon = crate::db::now() + 2;
+        // Far enough ahead for a slow machine to open the page first (2 s
+        // expired before the connect on the Windows VM under load).
+        let soon = crate::db::now() + 8;
         let link = made(
             &r,
             &admin,
