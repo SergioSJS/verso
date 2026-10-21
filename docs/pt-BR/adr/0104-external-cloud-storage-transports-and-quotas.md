@@ -392,4 +392,20 @@ pelo Opus 5.5 a pedido dele, revisada pelo Fable 5.1 (0104.2) e revisada
 depois da revisão; C.1 a C.17 respondidas pelo mantenedor naquela tarde,
 todas como recomendado. Não construída. Os provedores OAuth esperam as
 contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm
-primeiro (C.16).
+
+Como construída (2026-10-21): a parte 1 está construída e integrada (merge
+`a816d15b`, não enviado): o trait de remoto no `verso-core` (`79d6830c`), o
+crate novo `crates/verso-cloud` com WebDAV e S3 (`3b421105`), a sonda com
+objetos `.verso-probe` e chaves `.verso-tmp`, o teste de propriedade da
+corrida nos dois adaptadores, o contrato, o host e o chaveiro pelo `keyring`
+4.2 (`73f4bb2c`), a janela (`55c48885`), a nota 29 do tutorial (`ecfcedd2`) e
+`8a156e56`, `84e1e124` (uma guarda `exists` antes de uma exclusão local que só
+uma listagem pede). Falta: os provedores OAuth (esperam as contas de
+desenvolvedor, C.1); a C.5 (o token de dispositivo do UniVerso para o
+chaveiro), não feita; o aviso do item 16 sobre uma pasta dentro da pasta do
+cliente de uma nuvem, cuja detecção segue `[ABERTO]` na 0043. Escolhas feitas
+na construção, além do texto acima, registradas como construídas e não como
+decisões do mantenedor: a guarda `exists`; uma raiz WebDAV que responde 404 é
+um erro; um segredo com mais de 2000 bytes é recusado; os hashes de conteúdo
+do S3 ficam nos metadados do objeto enviado; a primeira conexão a uma pasta
+WebDAV existente baixa cada arquivo uma vez para saber o hash.
