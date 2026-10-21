@@ -21,7 +21,7 @@
   the same day by Fable 5.1 (2 BLOCKING, 14 IMPORTANT, 13 MINOR findings,
   with the providers' pages cited); revised by Opus 5.5 after it. The
   questions are in `verso-decisoes-0104-nuvens-2026-10-21.md`, outside the
-  repository (questions C.1 to C.16).
+  repository (questions C.1 to C.17).
 - Related: [0079](0079-sync-a-local-folder-with-a-server.md) (the sync this
   reuses), [0050](0050-outbound-network-access.md) (revised here),
   [0020](0020-sync-merge-in-core-transports-as-plugins.md),
@@ -128,7 +128,7 @@ with its number in the decisions list.
    click, a new reach, as the update check (0055), the server (0073), the
    local server (0096/0097) each were.
 
-3. **Where the code lives.** `[PROPOSED]` (C.1) The core stays without
+3. **Where the code lives.** `[PROPOSED]` (C.17) The core stays without
    network ([0050](0050-outbound-network-access.md), 0079's Consequences):
    `verso-core` holds only a **network-free remote trait** — list changes
    after a cursor, read, conditional write, delete, rename — and the engine
@@ -358,4 +358,4 @@ with its number in the decisions list.
 
 Proposed (2026-10-21). Item 1 decided by the maintainer; rewritten by Opus
 5.5 at his request, reviewed by Fable 5.1 the same day (0104.2) and revised
-after the review; it is accepted when the maintainer answers C.1 to C.16.
+after the review; it is accepted when the maintainer answers C.1 to C.17.
