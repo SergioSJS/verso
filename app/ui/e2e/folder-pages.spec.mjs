@@ -72,7 +72,8 @@ test("turn note into folder moves note into new folder as folder note", async ({
   const menu = app.page.locator(".menu:not([hidden])");
   await expect(menu).toBeVisible();
 
-  const turnBtn = menu.locator("button", { hasText: "Transformar em pasta" });
+  await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  const turnBtn = menu.getByRole("menuitem", { name: "Transformar em pasta" });
   await expect(turnBtn).toBeVisible();
   await turnBtn.click();
 

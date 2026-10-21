@@ -42,7 +42,7 @@ import { installPreview } from "./preview/install";
 import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
-import { can, loadCan } from "./can";
+import { can, canWrite, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -67,7 +67,7 @@ import { S } from "./statblock/strings";
 import { allLayouts } from "./statblock/store";
 import { TextLeaf } from "./leaves/textfile";
 import { embedViews, syncEmbedViews, syncWebViews, webLeaves } from "./leaves/web";
-import { createMenuItems, menu, MenuItem, menuOpener, showMenu } from "./menu";
+import { createMenuItems, menu, MenuItem, menuKeydown, showMenu, trackMenuPointer } from "./menu";
 import { joinAsPopout, openFolderBy, openFolderDialog, showFolder } from "./open";
 import { folderNoteOf, pushFolderNoteName } from "./organize/folderNotes";
 import { orderMenuItems, orderModeChanged, paintOrderToggle } from "./organize/order";
@@ -81,7 +81,7 @@ import { Ribbon } from "./ribbon";
 import { configureEmbeds } from "./sanitize";
 import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
-import { giveBack } from "./side";
+import { importDemoVault } from "./demo";
 import { pt, t } from "./strings";
 import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
 import { UpdateController } from "./update";
@@ -329,23 +329,8 @@ window.addEventListener("storage", (e) => {
 menu.hidden = true;
 menu.setAttribute("role", "menu");
 document.body.append(menu);
-menu.addEventListener("keydown", (e) => {
-  const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
-  const i = items.indexOf(document.activeElement as HTMLButtonElement);
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    e.preventDefault();
-    items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
-  } else if (e.key === "Home" || e.key === "End") {
-    e.preventDefault();
-    (e.key === "Home" ? items[0] : items[items.length - 1])?.focus();
-  } else if (e.key === "Escape" || e.key === "Tab") {
-    // Closed, the menu gives the focus back to what opened it: Tab from
-    // the last item used to leave it on the page.
-    e.preventDefault();
-    menu.hidden = true;
-    giveBack(menuOpener);
-  }
-});
+menu.addEventListener("keydown", menuKeydown);
+trackMenuPointer();
 document.addEventListener("mousedown", (e) => {
   if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
 });
@@ -464,6 +449,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
   const rootNote = folderNoteOf("");
   const items: MenuItem[] = [
     ...createMenuItems(""),
+    ...(canWrite() ? [sep, [t.importDemoVault, () => void importDemoVault(), "template"] as MenuItem] : []),
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
