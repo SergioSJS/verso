@@ -21,6 +21,8 @@ import { type BlockSource, DataLeaf, diagramFormat } from "../leaves/data";
 import { typeKey } from "../datagraph/model";
 import { lastView } from "../datagraph/store";
 import { GraphLeaf } from "../leaves/graph";
+import { ThemeLeaf } from "../leaves/theme";
+import type { BuildSpec } from "../theme/builder";
 import { ImageLeaf } from "../leaves/image";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
@@ -228,6 +230,19 @@ export class Pane {
     this.activate(leaf, false);
     return leaf;
   }
+  /** The theme builder (ADR 0100), in a tab of this pane: one at a time. */
+  openTheme(spec: BuildSpec): Leaf {
+    let leaf = this.layoutLeaves().find((l) => l.kind === "theme");
+    if (!leaf) {
+      leaf = new ThemeLeaf(this, spec);
+      this.insert(leaf);
+    }
+    leaf.pane.activate(leaf, true);
+    return leaf;
+  }
+  private layoutLeaves(): Leaf[] {
+    return layout().panes().flatMap((p) => p.leaves);
+  }
   openFolder(path: string, preview = false): Leaf {
     let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
     if (leaf && !preview) leaf.keep();
@@ -296,8 +311,10 @@ export class Pane {
       })(), "maximize"] as MenuItem] : []),
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      ...(leaf.kind === "theme" ? [] : [
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      ] as MenuItem[]),
       ...(splits ? [
         [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"] as MenuItem,
         [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"] as MenuItem,
