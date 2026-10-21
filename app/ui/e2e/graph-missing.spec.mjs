@@ -55,6 +55,17 @@ test.describe("the graph with notes that do not exist yet", () => {
     await expect(missing).toBeFocused();
     expect(await app.file("Goblin Rei.md")).toBeNull();
     await page.keyboard.press("Enter");
+    // It asks first; Cancel leaves everything as it was, and Enter on the
+    // question's own button is not the graph's Enter.
+    const ask = page.getByRole("alertdialog");
+    await expect(ask).toContainText("Criar a nota \"Goblin Rei\"?");
+    await ask.getByRole("button", { name: "Cancelar" }).click();
+    await expect(ask).toHaveCount(0);
+    expect(await app.file("Goblin Rei.md")).toBeNull();
+    await missing.focus();
+    await page.keyboard.press("Enter");
+    await expect(ask).toBeVisible();
+    await ask.getByRole("button", { name: "Criar" }).click();
     await expect.poll(() => app.file("Goblin Rei.md")).toContain("# Goblin Rei");
   });
 

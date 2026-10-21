@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands, type NoteText } from "../bindings";
+import { ask } from "../dialog";
 import { button, h } from "../dom";
 import { allNotes } from "../folder";
 import { icon } from "../icons";
@@ -607,9 +608,13 @@ export class GraphLeaf extends Leaf {
     this.frames = 0;
     this.resume();
   }
-  /** A note that does not exist yet, made in the folder of the first note
-   *  that links to it and opened (the way a click on its link does). */
+  /** A note that does not exist yet, made — once the person says yes — in the
+   *  folder of the first note that links to it and opened (the way a click on
+   *  its link does). */
   private async make(m: MissingNode): Promise<void> {
+    // A click, an Enter or a double click on a hollow node is easy to give
+    // by accident: it asks first (G.1b, decided 2026-10-21).
+    if (!(await ask(st.graphMakeAsk(m.target), { yes: st.graphMakeYes, no: t.cancel }))) return;
     const made = await createNote(dirOf(m.from[0] ?? ""), m.target, this.pane);
     if (made !== "exists" && this.el.isConnected) void this.load(this.path);
   }
