@@ -139,3 +139,21 @@ test("World of Darkness 5th edition carries the Dark Pack's required lines, word
   const r = C.SYSTEMS.find((x) => x.id === "cyberpunk-red");
   for (const l of r.lines) assert.match(l, /is unofficial content provided under the Homebrew Content Policy of R\. Talsorian Games and is not approved or endorsed by RTG\. This content references materials that are the property of R\. Talsorian Games and its licensees\.$/);
 });
+
+test("the Dark Pack entries show Paradox's own logo file, with alt text, beside the notice", async () => {
+  const { createHash } = await import("node:crypto");
+  const { readFileSync } = await import("node:fs");
+  // The file is Paradox's DarkPack_Logo1.png from its Dark Pack kit, unaltered
+  // (the hash is recorded in docs/reference/statblock-sources.md).
+  const bytes = readFileSync(new URL("../web-assets/darkpack-logo.png", import.meta.url));
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), "6d521644dabd493c1447bf7188130e4e49ade132b3d18ee76dc395208aa49083");
+  const ctx = { item: (t, d, control) => { const r = document.createElement("div"); if (control) r.append(control); return r; } };
+  const items = C.creditsItems(ctx);
+  for (const name of ["Vampire: The Masquerade", "Werewolf: The Apocalypse", "Hunter: The Reckoning"]) {
+    const img = items.find((i) => i.title === name).node().querySelector("img.credit-logo");
+    assert.ok(img, name);
+    assert.equal(img.getAttribute("src"), "darkpack-logo.png");
+    assert.ok(img.getAttribute("alt").includes("Dark Pack"));
+  }
+  assert.equal(items.find((i) => i.title === "Cyberpunk RED").node().querySelector("img"), null);
+});
