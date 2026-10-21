@@ -52,7 +52,7 @@ export type Strings = Record<
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "extractingUpdate" | "installingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
   | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "folderNoteCreated" | "coverUrlPrompt"
-  | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom"
+  | "menuCustomize" | "menuOrganize" | "menuFocus" | "menuNew" | "menuWhere" | "menuWindowWhere" | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom"
   | "focusesTab" | "homeFocus" | "createFocus" | "createFocusHere" | "addToFocus" | "switchFocus" | "syncFocuses" | "syncFocusesDesc" | "syncFocusesWarning" | "syncFocusesEnable" | "syncFocusesOffInfo" | "syncFocusesOffBanner" | "syncLocalFocusesQuestion" | "focusesConflict" | "focusNamePrompt" | "noFocuses" | "readOnlyFocuses" | "readOnlyCloudPlaceholder" | "readOnlyInvalidJson" | "readOnlyUnknownFormat" | "resetToHome" | "focusCreated" | "focusDeleted" | "deleteFocus",
   string
 > & {
@@ -314,6 +314,7 @@ export const pt: Strings = {
   turnIntoFolder: "Transformar em pasta", turnIntoFolderDesc: "Cria uma pasta com este nome e move a nota para dentro dela.",
   folderNoteCreated: "Nota da pasta criada: {path}",
   coverUrlPrompt: "URL da imagem de capa ou caminho de imagem:",
+  menuCustomize: "Personalizar", menuOrganize: "Organizar", menuFocus: "Foco", menuNew: "Novo", menuWhere: "Localização", menuWindowWhere: "Janela e localização",
   pinToFolder: "Fixar na pasta", unpinFromFolder: "Desafixar da pasta",
   moveUp: "Mover para cima", moveDown: "Mover para baixo",
   hideFromTree: "Ocultar da árvore", hiddenFromTree: "Itens ocultos da árvore",
@@ -499,6 +500,7 @@ export const en: Strings = {
   turnIntoFolder: "Turn into folder", turnIntoFolderDesc: "Create a folder with this name and move note inside as folder note.",
   folderNoteCreated: "Folder note created: {path}",
   coverUrlPrompt: "Cover image URL or vault image path:",
+  menuCustomize: "Customize", menuOrganize: "Organize", menuFocus: "Focus", menuNew: "New", menuWhere: "Location", menuWindowWhere: "Window and location",
   pinToFolder: "Pin to folder", unpinFromFolder: "Unpin from folder",
   moveUp: "Move up", moveDown: "Move down",
   hideFromTree: "Hide from tree", hiddenFromTree: "Hidden from tree",

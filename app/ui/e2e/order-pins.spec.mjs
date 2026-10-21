@@ -1,6 +1,7 @@
 // End-to-end tests for make.md manual order, pins, and hide from tree (ADR 0060 S3).
 
 import { test, expect } from "./fixtures.mjs";
+import { pickMenu } from "./menuPath.mjs";
 
 test("pinned items sort first in tree and show pin badge", async ({ app }) => {
   await app.open();
@@ -108,7 +109,8 @@ test("pin and unpin via context menu updates folder note frontmatter", async ({ 
   const menu = app.page.locator(".menu:not([hidden])");
   await expect(menu).toBeVisible();
 
-  const pinBtn = menu.locator("button", { hasText: "Fixar na pasta" });
+  await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  const pinBtn = menu.getByRole("menuitem", { name: "Fixar na pasta" });
   await expect(pinBtn).toBeVisible();
   await pinBtn.click();
 
@@ -123,7 +125,8 @@ test("pin and unpin via context menu updates folder note frontmatter", async ({ 
   const menu2 = app.page.locator(".menu:not([hidden])");
   await expect(menu2).toBeVisible();
 
-  const unpinBtn = menu2.locator("button", { hasText: "Desafixar da pasta" });
+  await menu2.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  const unpinBtn = menu2.getByRole("menuitem", { name: "Desafixar da pasta" });
   await expect(unpinBtn).toBeVisible();
   await unpinBtn.click();
 
@@ -148,7 +151,8 @@ test("hide from tree removes item from tree and unhide in settings restores it",
   const menu = app.page.locator(".menu:not([hidden])");
   await expect(menu).toBeVisible();
 
-  const hideBtn = menu.locator("button", { hasText: "Ocultar da árvore" });
+  await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  const hideBtn = menu.getByRole("menuitem", { name: "Ocultar da árvore" });
   await expect(hideBtn).toBeVisible();
   await hideBtn.click();
 
@@ -180,7 +184,7 @@ test("pinning in a folder with no folder note creates it, with no question", asy
   await details.evaluate((d) => { d.open = true; d.dispatchEvent(new Event("toggle")); });
   const row = details.locator(`li[data-path="${item}"] > button`);
   await row.click({ button: "right" });
-  await app.page.locator(".menu:not([hidden])").locator("button", { hasText: "Fixar na pasta" }).click();
+  await pickMenu(app.page, "Organizar", "Fixar na pasta");
 
   // Made at once (the maintainer, 2026-10-02), and said in the status bar.
   await expect.poll(async () => (await app.files()).includes("Solo/Solo.md")).toBe(true);
@@ -205,13 +209,13 @@ test("the menu switches the tree between alphabetical and custom order, keeping 
 
   const menu = app.page.locator(".menu:not([hidden])");
   await summary.click({ button: "right" });
-  await menu.locator("button", { hasText: "Ordem alfabética" }).click();
+  await pickMenu(app.page, "Organizar", "Ordem alfabética");
   await expect.poll(order).toEqual(["Lista/A.md", "Lista/B.md"]);
   // The custom order is kept, not taken out.
   expect(await app.file("Lista/Lista.md")).toBe(text);
 
   await app.page.locator('#notes summary[data-folder="Lista"]').click({ button: "right" });
-  await menu.locator("button", { hasText: "Ordem personalizada" }).click();
+  await pickMenu(app.page, "Organizar", "Ordem personalizada");
   await expect.poll(order).toEqual(["Lista/B.md", "Lista/A.md"]);
   expect(await app.file("Lista/Lista.md")).toBe(text);
 
@@ -306,6 +310,6 @@ test("a folder's note is not a row of the tree; the folder's menu opens it", asy
   await expect(app.page.locator('#notes li[data-path="Lado.md"]')).toHaveCount(0);
 
   await summary.click({ button: "right" });
-  await app.page.locator(".menu:not([hidden])").locator("button", { hasText: "Abrir nota da pasta" }).click();
+  await pickMenu(app.page, "Organizar", "Abrir nota da pasta");
   await expect(app.page.locator(".tab", { hasText: "Caixa" })).toBeVisible();
 });
