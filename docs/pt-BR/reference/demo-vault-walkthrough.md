@@ -824,9 +824,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `Pasta/README.md` a nota da pasta — a figurinha dela aparece na linha da
    pasta. Nível: H; E: `labels.spec.mjs`, "the folder note name setting
    names the note a folder's labels come from".
-6. Ordem e fixados: "Mover para cima" numa linha escreve o `order:` da nota
+6. Ordem e fixados: "Organizar › Mover para cima" numa linha escreve o `order:` da nota
    da pasta; "Fixar na pasta" escreve `pinned:` e põe a linha primeiro;
-   "Desafixar da pasta" tira; "Ordem alfabética" no menu de uma
+   "Desafixar da pasta" tira; "Organizar › Ordem alfabética" no menu de uma
    pasta, ou o botão ao lado de "Arquivos", ordena a árvore toda pelo nome e "Ordem personalizada" traz de volta
    todo `order:`, intacto; arrastar uma nota da raiz escreve a nota da raiz, com o nome
    da pasta aberta. Numa pasta sem nota, o primeiro desses a cria, sem pergunta, e
@@ -844,7 +844,7 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `Crew/Crew.md`, e a aba aberta acompanha. Nível: H; E:
    `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
    its open tab follows".
-8. "Ocultar da árvore" tira a linha; Ajustes › Organização › "Itens ocultos
+8. "Organizar › Ocultar da árvore" tira a linha; Ajustes › Organização › "Itens ocultos
    da árvore" a lista, e "Mostrar" a traz de volta. Nível: H; E:
    `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
    in settings restores it".
@@ -861,7 +861,7 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 11. Focos (ADR 0062): a aba "Focos" no painel da direita lista todos os focos,
     com Início sempre primeiro. Escolher um foco exibe a árvore de arquivos a
     partir dele, e o cabeçalho mostra o foco ativo (ex: `ARQUIVOS · Projetos`).
-    O menu de contexto na árvore oferece "Criar foco aqui" e "Adicionar ao foco…".
+    O menu de contexto na árvore oferece "Organizar › Criar foco aqui" e "Organizar › Adicionar ao foco…".
     "Trocar foco" na paleta alterna entre eles. Se `.space/waypoints.json` estiver
     presente e a sincronização ativa, as alterações são gravadas de volta
     preservando bytes intocados; se desativada ou com formato desconhecido, os

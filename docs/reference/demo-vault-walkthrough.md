@@ -800,9 +800,9 @@ point 13).
    `Pasta/README.md` the folder's note — its sticker shows on the folder's
    row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names
    the note a folder's labels come from".
-6. Order and pins: "Mover para cima" on a row writes the folder note's
+6. Order and pins: "Organizar › Mover para cima" on a row writes the folder note's
    `order:`; "Fixar na pasta" writes `pinned:` and puts the row first;
-   "Desafixar da pasta" takes it out; "Ordem alfabética" in a folder's
+   "Desafixar da pasta" takes it out; "Organizar › Ordem alfabética" in a folder's
    menu, or the button beside "Arquivos", sorts the whole tree by name and "Ordem personalizada" brings every
    `order:` back, untouched; dragging a root note writes the root's note, named
    after the open folder. In a folder with no folder note, the first of
@@ -820,7 +820,7 @@ point 13).
    `Crew/Crew.md`, and its open tab follows. Level: H; E:
    `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
    its open tab follows".
-8. "Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
+8. "Organizar › Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
    ocultos da árvore" lists it, and "Mostrar" brings it back. Level: H; E:
    `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
    in settings restores it".
@@ -837,7 +837,7 @@ point 13).
 11. Focuses (ADR 0062): the right panel's "Focos" tab lists every focus, with
     Início first. Choosing a focus shows the file tree from its paths, and the
     heading shows the active focus (e.g. `ARQUIVOS · Projetos`). The context menu
-    on a tree item offers "Criar foco aqui" and "Adicionar ao foco…". "Trocar foco"
+    on a tree item offers "Organizar › Criar foco aqui" and "Organizar › Adicionar ao foco…". "Trocar foco"
     in the command palette switches focuses. If `.space/waypoints.json` is present
     and sync is enabled, changes write back preserving untouched bytes; if disabled
     or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
