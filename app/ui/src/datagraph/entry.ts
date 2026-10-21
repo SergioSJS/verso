@@ -6,3 +6,4 @@ export * from "./search";
 export * from "./state";
 export * from "./store";
 export { boardOf } from "./saveBoardDoc";
+export { parseErrorPt } from "./words";

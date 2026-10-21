@@ -13,6 +13,11 @@ import { type DNode, type Tree } from "./model";
 import { type DiagramModel } from "./state";
 import { dgw } from "./words";
 
+/** A key or a name as long as a file can make it is cut for the page (the whole of it is the title). */
+function cut(text: string): string {
+  return text.length > 120 ? text.slice(0, 119) + "…" : text;
+}
+
 /** What a box is called in its title bar: `$`, `#2`, a key, or `[3]`. */
 export function titleOf(tree: Tree, n: DNode): string {
   if (n.parent < 0) return tree.roots.length > 1 ? `#${tree.roots.indexOf(n.id) + 1}` : "$";
@@ -54,7 +59,10 @@ export function buildBox(model: DiagramModel, id: number, rowsShown: number, mar
     fold.append(icon("chevron"));
     head.append(fold);
   }
-  head.append(h("span", "dg-name", titleOf(tree, n)));
+  const title = titleOf(tree, n);
+  const name = h("span", "dg-name", cut(title));
+  if (name.textContent !== title) name.title = title;
+  head.append(name);
   if (n.anchor) head.append(h("span", "dg-badge", `&${n.anchor}`));
   if (n.tag) head.append(h("span", "dg-badge", n.tag));
   head.append(h("span", "dg-count", n.rows.length === 0 ? dgw.emptyBox : dgw.members(n.shape, n.rows.length)));
@@ -84,8 +92,13 @@ function buildRow(n: DNode, i: number, marks: BoxMarks): HTMLElement {
   if (marks.caret === i) row.classList.add("dg-caret");
   if (marks.selectedRow === i) row.classList.add("dg-selrow");
   const key = r.key === "" ? "" : n.shape === "array" ? `[${r.key}]` : r.key;
-  if (key !== "") row.append(h("span", "dg-key", key));
-  const val = h("span", "dg-val", r.child >= 0 ? r.text : clip(r.text));
+  if (key !== "") {
+    const k = h("span", "dg-key", cut(key));
+    if (k.textContent !== key) k.title = key;
+    row.append(k);
+  }
+  // A parser's message in a JSON Lines error row is told in the window's language.
+  const val = h("span", "dg-val", r.child >= 0 ? r.text : clip(r.type === "error" ? dgw.parseError(r.text) : r.text));
   row.append(val);
   if (r.tag) row.append(h("span", "dg-badge", r.tag));
   if (r.link >= 0) {

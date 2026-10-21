@@ -12,11 +12,8 @@ import { opening } from "../opening";
 import { Kind, name } from "../paths";
 import { linkDiagram, liveText, revealInText } from "../datagraph/link";
 import { formatOfPath, type Format, typeKey } from "../datagraph/model";
-import { saveAsBoard } from "../datagraph/saveBoard";
-import { boardOf } from "../datagraph/saveBoardDoc";
 import { readFile, setLastView, writeFile } from "../datagraph/store";
-import { titleOf } from "../datagraph/boxes";
-import { DataDiagram, type DiagramHost, type Range } from "../datagraph/view";
+import type { DataDiagram, DiagramHost, Range } from "../datagraph/datagraph";
 import { dgw } from "../datagraph/words";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
@@ -50,6 +47,24 @@ export function dataModes(leaf: Leaf, on: "text" | "diagram"): HTMLElement {
   return modes;
 }
 
+/** The feature's switch changed: a text tab shows or hides its "Text | Diagram"; a file's diagram tab, switched off, is the text again (what was moved and folded is kept for the file already). A block's diagram has no text to go back to and stays until closed. */
+export function syncDataView(leaf: Leaf): void {
+  if (leaf instanceof TextLeaf) leaf.dataModes.hidden = diagramFormat(leaf.path) === null;
+  else if (leaf instanceof DataLeaf && !leaf.block && !hasCapability("dataDiagram")) {
+    void leaf.pane.swap(leaf, new TextLeaf(leaf.pane));
+  }
+}
+
+/** The diagram's code, fetched once, the first time a diagram is shown. */
+let library: Promise<typeof import("../datagraph/datagraph")> | null = null;
+function loadLibrary(): Promise<typeof import("../datagraph/datagraph")> {
+  library ??= import("../datagraph/datagraph").catch((e: unknown) => {
+    library = null; // the next try fetches again
+    throw e;
+  });
+  return library;
+}
+
 /** A block of code in a note: its text, the format its language names, and the note it is in. */
 export type BlockSource = { text: string; format: Format; note: string };
 
@@ -60,7 +75,12 @@ export class DataLeaf extends Leaf {
   readonly kind: Kind = "data";
   readonly crumbs = crumbsNav();
   readonly modes: HTMLElement;
-  readonly diagram: DataDiagram;
+  /** The drawing, once its code has loaded (null before, and when it could not). */
+  diagram: DataDiagram | null = null;
+  private lib: typeof import("../datagraph/datagraph") | null = null;
+  private building: Promise<DataDiagram | null> | null = null;
+  private destroyed = false;
+  private readonly sheet = h("div", "sheet data-sheet");
   private format: Format = "json";
   private revision = "";
   private off: (() => void) | null = null;
@@ -73,12 +93,40 @@ export class DataLeaf extends Leaf {
     readonly block: BlockSource | null = null,
   ) {
     super(pane);
+    this.modes = block === null ? dataModes(this, "diagram") : h("span");
+    this.el.classList.add("data-leaf");
+    const head = h("header", "leaf-head");
+    head.append(this.crumbs, this.modes);
+    this.el.append(head, this.sheet);
+    if (block) this.showBlock(block);
+  }
+
+  /** The drawing, built on the first call: a line says it is loading, or that it could not. */
+  private ensure(): Promise<DataDiagram | null> {
+    this.building ??= this.build();
+    return this.building;
+  }
+
+  private async build(): Promise<DataDiagram | null> {
+    const line = h("p", "dg-loading", dgw.loading);
+    line.setAttribute("role", "status");
+    this.sheet.replaceChildren(line);
+    let lib: typeof import("../datagraph/datagraph");
+    try {
+      lib = await loadLibrary();
+    } catch {
+      line.setAttribute("role", "alert");
+      line.textContent = dgw.loadFailed;
+      this.building = null; // the next load tries again
+      return null;
+    }
+    if (this.destroyed) return null;
     const leaf = this;
     const host: DiagramHost = {
       get name() {
         return leaf.block ? leaf.block.note : name(leaf.path);
       },
-      canText: block === null,
+      canText: this.block === null,
       select: (r) => void revealInText(leaf.path, r, false),
       toText: (r) => leaf.toText(r),
       changed: () => leaf.keepSoon(),
@@ -86,23 +134,19 @@ export class DataLeaf extends Leaf {
       copy: (text) => void navigator.clipboard?.writeText(text).catch(() => undefined),
       saveBoard: () => leaf.saveBoard(),
     };
-    this.diagram = new DataDiagram(host);
-    this.modes = block === null ? dataModes(this, "diagram") : h("span");
-    this.el.classList.add("data-leaf");
-    const head = h("header", "leaf-head");
-    head.append(this.crumbs, this.modes);
-    const sheet = h("div", "sheet data-sheet");
-    sheet.append(this.diagram.el);
-    this.el.append(head, sheet);
-    if (block) this.showBlock(block);
+    this.lib = lib;
+    const diagram = new lib.DataDiagram(host);
+    this.diagram = diagram;
+    this.sheet.replaceChildren(diagram.el);
+    return diagram;
   }
 
   private showBlock(block: BlockSource): void {
     this.setTitle(dgw.diagramOfBlock(block.note));
     this.crumbs.replaceChildren(h("span", "crumb-self", dgw.diagramOfBlock(block.note)));
     this.format = block.format;
-    this.diagram.setText(block.text, block.format);
     this.restored = true;
+    void this.ensure().then((d) => d?.setText(block.text, block.format));
   }
 
   async load(path: string, force = false): Promise<void> {
@@ -127,15 +171,17 @@ export class DataLeaf extends Leaf {
       this.revision = r.data.revision;
       text = r.data.text;
     }
-    this.diagram.setText(text, format);
+    const diagram = await this.ensure();
+    if (!diagram || this.path !== path) return;
+    diagram.setText(text, format);
     if (!this.restored) {
-      this.diagram.restore(readFile(currentFolder, path));
+      diagram.restore(readFile(currentFolder, path));
       this.restored = true;
     }
     this.off?.();
     this.off = linkDiagram(path, {
       typed: () => this.followText(),
-      caret: (pos) => this.diagram.showCaret(pos),
+      caret: (pos) => this.diagram?.showCaret(pos),
     });
     const type = typeKey(path);
     if (type) setLastView(type, "diagram");
@@ -148,7 +194,7 @@ export class DataLeaf extends Leaf {
     window.clearTimeout(this.typedTimer);
     this.typedTimer = window.setTimeout(() => {
       const text = liveText(this.path);
-      if (text !== null) this.diagram.setText(text, this.format);
+      if (text !== null) this.diagram?.setText(text, this.format);
     }, 400);
   }
 
@@ -159,7 +205,7 @@ export class DataLeaf extends Leaf {
     const r = await opening.readText(path, true);
     if (r.status !== "ok" || this.path !== path || r.data.revision === this.revision) return;
     this.revision = r.data.revision;
-    this.diagram.setText(r.data.text, this.format);
+    this.diagram?.setText(r.data.text, this.format);
   }
 
   override moved(path: string): void {
@@ -181,9 +227,10 @@ export class DataLeaf extends Leaf {
   }
 
   saveBoard(): void {
-    const a = this.diagram.arranged();
-    if (!a) return;
-    saveAsBoard(boardOf(a.tree, a.lay, a.dir, (id) => titleOf(a.tree, a.tree.nodes[id]!)), this.path || this.block?.note || "diagram");
+    const lib = this.lib;
+    const a = this.diagram?.arranged();
+    if (!lib || !a) return;
+    lib.saveAsBoard(lib.boardOf(a.tree, a.lay, a.dir, (id) => lib.titleOf(a.tree, a.tree.nodes[id]!)), this.path || this.block?.note || "diagram");
   }
 
   /** The moves and folds are kept for this file on this device, soon after they change. */
@@ -194,12 +241,12 @@ export class DataLeaf extends Leaf {
   }
 
   private keepNow(): void {
-    const saved = this.diagram.snapshot();
+    const saved = this.diagram?.snapshot();
     if (saved && this.path !== "") writeFile(currentFolder, this.path, saved);
   }
 
   override focusContent(): void {
-    this.diagram.focusBox();
+    this.diagram?.focusBox();
   }
 
   override destroy(): void {
@@ -210,6 +257,7 @@ export class DataLeaf extends Leaf {
     window.clearTimeout(this.typedTimer);
     this.off?.();
     this.off = null;
-    this.diagram.destroy();
+    this.destroyed = true;
+    this.diagram?.destroy();
   }
 }

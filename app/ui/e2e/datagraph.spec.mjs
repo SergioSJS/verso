@@ -248,7 +248,7 @@ test("the diagram and the text side by side: a box selects its range, the caret 
     const v = el.__cmView;
     v.dispatch({ changes: { from: v.state.doc.length, insert: "}}" } });
   });
-  await expect(panes.nth(1).locator(".dg-error")).toContainText("O texto não é válido");
+  await expect(panes.nth(1).locator(".dg-error")).toContainText("O texto não é válido: Há mais texto depois do valor");
   await expect(panes.nth(1).locator(".dg-box", { hasText: "Zed" })).toBeVisible();
   await panes.nth(1).getByRole("button", { name: "Ir ao erro" }).click();
   const where = await text().evaluate((el) => {
@@ -348,7 +348,7 @@ test("YAML: every document a root, an alias a dashed line to its anchor's box; J
   await expect(page.locator(".dg-box .dg-badge", { hasText: "&p" })).toBeVisible();
   await expect(page.locator(".dg-alias-edge")).toHaveAttribute("d", /^M.+C/);
   for (const [file, text, expected] of [
-    ["dg-log.jsonl", '{"a":1}\nnot json\n{"b":2}\n', "Unexpected"],
+    ["dg-log.jsonl", '{"a":1}\nnot json\n{"b":2}\n', "Inesperado"],
     ["dg-conf.toml", 'title = "T"\n[server]\nport = 8080\n', "8080"],
     ["dg-data.xml", '<r a="1"><n>Rowan</n></r>', "Rowan"],
     ["dg-people.csv", "name,hp\nRowan,12\n", "Rowan"],
@@ -411,5 +411,64 @@ test("a file past 20 MB is text only", async ({ app, page }) => {
   await expect(page.locator(".leaf:visible .editor.source")).toBeVisible();
   await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
   await expect(page.locator(".dg-empty")).toContainText("mais que os 20 MB");
+  await expect(page.locator(".dg-box")).toHaveCount(0);
+});
+
+/** Flip "Diagrama de dados" in Settings › Recursos (the dialog is closed again after). */
+async function flipSwitch(app, page) {
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  const row = page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Diagrama de dados$/ }) });
+  await row.locator("label.switch").click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".settings:not([hidden])")).toHaveCount(0);
+}
+
+test("turning the switch off takes the diagram away from tabs already open, and on brings it back", async ({ app, page }) => {
+  const note = "```json\n{\"a\": 1}\n```\n";
+  await openFile(app, { "Dg Bloco.md": note, "mesa-teste.json": NPCS }, "mesa-teste");
+  await expect(page.locator(".leaf:visible .data-modes")).toBeVisible();
+  await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
+  await expect(page.locator(".dg-box").first()).toBeVisible();
+  await app.quickOpen("Dg Bloco");
+  await page.locator(".preview:visible pre").hover();
+  await expect(page.locator(".preview:visible [data-action=view-diagram]")).toHaveCount(1);
+
+  await flipSwitch(app, page);
+  // The note's button is gone, the diagram tab is text again, no tab has the switch.
+  await expect(page.locator(".preview:visible [data-action=view-diagram]")).toHaveCount(0);
+  await expect(page.locator(".dg-box")).toHaveCount(0);
+  await expect(page.locator(".data-modes:visible")).toHaveCount(0);
+  await page.locator(".tab", { hasText: "mesa-teste" }).click();
+  await expect(page.locator(".leaf:visible .editor.source")).toBeVisible();
+  await expect(page.locator(".data-modes:visible")).toHaveCount(0);
+
+  await flipSwitch(app, page);
+  await page.locator(".tab", { hasText: "mesa-teste" }).click();
+  await expect(page.locator(".leaf:visible .data-modes")).toBeVisible();
+  await page.locator(".tab", { hasText: "Dg Bloco" }).click();
+  await page.locator(".preview:visible pre").hover();
+  await expect(page.locator(".preview:visible [data-action=view-diagram]")).toHaveCount(1);
+});
+test("the diagram's code loads on the first diagram only", async ({ app, page }) => {
+  const chunks = [];
+  page.on("request", (r) => {
+    if (/chunks\/datagraph/.test(r.url())) chunks.push(r.url());
+  });
+  await openFile(app, { "mesa-teste.json": NPCS }, "mesa-teste");
+  await expect(page.locator(".leaf:visible .editor.source")).toBeVisible();
+  await expect(page.locator(".leaf:visible .data-modes")).toBeVisible();
+  expect(chunks).toEqual([]);
+  await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
+  await expect(page.locator(".dg-box").first()).toBeVisible();
+  expect(chunks.length).toBe(1);
+});
+
+test("a diagram whose code cannot load shows an error line, not a blank tab", async ({ app, page }) => {
+  app.expectFault(/request failed: .*chunks\/datagraph|console: Failed to load resource: net::ERR_FAILED/);
+  await page.route(/chunks\/datagraph/, (route) => route.abort());
+  await openFile(app, { "mesa-teste.json": NPCS }, "mesa-teste");
+  await page.locator(".leaf:visible .data-modes button[data-mode=diagram]").click();
+  await expect(page.locator(".leaf:visible .dg-loading[role=alert]")).toContainText("Não foi possível carregar o diagrama");
   await expect(page.locator(".dg-box")).toHaveCount(0);
 });
