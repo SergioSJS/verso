@@ -110,15 +110,19 @@ sistema.
 
 ## Decisão
 
-Proposta (2026-10-21). O item 1 é do mantenedor; todo outro item é uma
-recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
-`[ABERTO]`, com o número dela na lista de decisões.
+Aceita (2026-10-21). O item 1 é a resposta do mantenedor da manhã; todo
+outro item era uma recomendação ou uma pergunta (C.1 a C.17 de
+`verso-decisoes-0104-nuvens-2026-10-21.md`) que o mantenedor respondeu na
+mesma tarde, todas como recomendado, `[DECIDIDO 2026-10-21]`; onde um item
+dizia "recomendado", essa recomendação é a decisão. A nota dele sobre as
+tarefas de C.1: *"Farei tudo depois e te aviso quando concluído"* — ele cria
+as contas de desenvolvedor depois.
 
 1. **Na V1, cinco provedores.** `[DECIDIDO 2026-10-21]` (0104.1 B, 0104.3):
    WebDAV, S3 (e compatíveis com S3), Dropbox, OneDrive, Google Drive — para
    **a sincronização de uma pasta local pelo app de desktop**.
 
-2. **O que isto revisa.** `[PROPOSTO]` (C.12) O 0104.1 B do mantenedor
+2. **O que isto revisa.** `[DECIDIDO 2026-10-21]` (C.12) O 0104.1 B do mantenedor
    traz para a V1 parte da linha `[DECIDED 2026-10-14]` do roadmap "depois
    da V1, um bucket e WebDAV", e é preciso dizer qual parte: a
    **sincronização do desktop com uma pasta WebDAV ou um bucket** entra na
@@ -136,7 +140,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
    sem um clique, um alcance novo, como foram a checagem de atualização
    (0055), o servidor (0073) e o servidor local (0096/0097).
 
-3. **Onde o código mora.** `[PROPOSTO]` (C.17) O núcleo continua sem rede
+3. **Onde o código mora.** `[DECIDIDO 2026-10-21]` (C.17) O núcleo continua sem rede
    ([0050](0050-outbound-network-access.md), Consequências da 0079): o
    `verso-core` guarda só um **trait de remoto sem rede** — listar as
    mudanças depois de um cursor, ler, gravar condicionalmente, apagar,
@@ -149,7 +153,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
    (invariante 5).
 
 4. **Uma sincronização, vários remotos — o que da 0079 vale.**
-   `[PROPOSTO]` Uma pasta local sincroniza com **um** remoto — um UniVerso
+   `[DECIDIDO 2026-10-21]` Uma pasta local sincroniza com **um** remoto — um UniVerso
    ou uma pasta de nuvem, nunca os dois ao mesmo tempo. Item a item:
    - **Valem como escritos**: itens 2 da 0079 (o arquivo como unidade;
      nomes em NFC — enviados em NFC), 3 (o estado fora da pasta), a pausa
@@ -171,14 +175,14 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
      aparelho, uma exclusão desfeita pela lixeira do servidor (0080 item
      12) — a lixeira da própria nuvem é o item 11 abaixo.
 
-5. **Só o desktop.** `[PROPOSTO]` (C.2) Uma pasta sincronizada com uma
+5. **Só o desktop.** `[DECIDIDO 2026-10-21]` (C.2) Uma pasta sincronizada com uma
    nuvem é alcançada pelos apps de desktop que a sincronizam, não por um
    celular nem por um navegador: o modo offline do celular
    ([0092](0092-the-phone-offline.md)) é feito sobre um UniVerso, e
    celulares e navegadores não sincronizam (0079 item 14). A janela diz
    isso quando a pessoa escolhe uma nuvem: "no celular, use um UniVerso".
 
-6. **O lugar mais estreito de cada provedor.** `[PROPOSTO]`
+6. **O lugar mais estreito de cada provedor.** `[DECIDIDO 2026-10-21]`
    - **WebDAV**: um endereço e uma pasta que a pessoa informa, com usuário
      e senha (ou uma senha de app); só HTTPS, exceto um endereço da rede
      local que a pessoa confirma (como a
@@ -200,7 +204,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
      provedores (os caracteres do item 3 da 0070, mais os nomes proibidos
      de cada provedor).
 
-7. **Gravações e corridas — nenhuma sobrescrita silenciosa.** `[PROPOSTO]`
+7. **Gravações e corridas — nenhuma sobrescrita silenciosa.** `[DECIDIDO 2026-10-21]`
    (C.3, C.11) Toda gravação é condicionada à base, e onde um provedor não
    consegue torná-la condicional, a corrida é pega depois da gravação e
    reparada sem perder nenhuma das versões:
@@ -223,13 +227,13 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
      guarda a revisão sobrescrita.
    - **Um serviço sem condição e sem revisões** (alguns compatíveis com S3,
      servidores WebDAV sem ETags fortes) não consegue cumprir essa
-     promessa: `[ABERTO]` C.3 — recomendado, **recusar a conexão** dizendo o
+     promessa: `[DECIDIDO 2026-10-21]` C.3 — recomendado, **recusar a conexão** dizendo o
      motivo, para que "sincronizado" nunca esconda uma edição perdida.
    - A guarda do recurso: um teste de propriedade com um provedor de
      mentira que faz dois aparelhos correrem em cada adaptador, afirmando
      que nenhuma versão se perde.
 
-8. **As mudanças do remoto.** `[PROPOSTO]` (C.14) Dropbox: o cursor e o
+8. **As mudanças do remoto.** `[DECIDIDO 2026-10-21]` (C.14) Dropbox: o cursor e o
    long-poll do `list_folder`; OneDrive: `delta`, consultado; Google Drive:
    `changes.list` com um page token, consultado; WebDAV e S3: uma listagem
    com ETags comparada com o estado (WebDAV com `Depth: 1` por pasta, não
@@ -241,7 +245,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
    comparação completa a partir das bases, como uma reconexão — nunca uma
    primeira sincronização que trataria tudo como novo.
 
-9. **Envios, downloads e integridade.** `[PROPOSTO]` (C.11) Arquivos
+9. **Envios, downloads e integridade.** `[DECIDIDO 2026-10-21]` (C.11) Arquivos
    grandes nos pedaços do provedor (sessões de envio do Dropbox e do
    OneDrive, multipart do S3, envios retomáveis do Drive), o arquivo gravado
    aqui só quando todos os pedaços chegaram (0079 item 12). Depois de cada
@@ -250,7 +254,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
    `md5Checksum` do Drive, `x-amz-checksum-sha256` do S3 onde houver — e,
    senão, tamanho mais ETag.
 
-10. **Nomes que não cabem.** `[PROPOSTO]` (C.10) Nomes enviados em NFC
+10. **Nomes que não cabem.** `[DECIDIDO 2026-10-21]` (C.10) Nomes enviados em NFC
     (0079 item 2). Um nome local que um provedor proíbe (a lista do
     OneDrive, nomes reservados do Windows em algumas nuvens) não é
     sincronizado e aparece na lista com o motivo. Dois nomes remotos que
@@ -259,14 +263,14 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     é sincronizado, o outro fica retido e listado, nunca fundidos em
     silêncio (spec Q8).
 
-11. **Exclusões no remoto.** `[PROPOSTO]` (C.9) Para a lixeira do provedor
+11. **Exclusões no remoto.** `[DECIDIDO 2026-10-21]` (C.9) Para a lixeira do provedor
     onde ela existe (Dropbox e OneDrive apagam para a deles; o Google Drive
     com `trashed: true`, nunca `files.delete`, que é definitivo); no S3 e no
     WebDAV uma exclusão é definitiva, a não ser que o bucket tenha
     versionamento — dito quando a pessoa conecta. Exclusões locais vão para
     `.trash/` como sempre (0080).
 
-12. **Entrar.** `[PROPOSTO]` (C.8) Provedores OAuth pelo **navegador do
+12. **Entrar.** `[DECIDIDO 2026-10-21]` (C.8) Provedores OAuth pelo **navegador do
     sistema** com PKCE e um redirecionamento de loopback (RFC 8252), nunca
     uma visão web embutida. Por provedor: o Google aceita qualquer porta de
     loopback; a Microsoft ignora a porta, mas `127.0.0.1` precisa estar no
@@ -277,7 +281,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     do modelo de ameaças. O cliente desktop do Google recebe um
     `client_secret` que não é secreto e é tratado como público.
 
-13. **Identidades de cliente.** `[ABERTO]` C.1 — a 0104.4 disse "decidir
+13. **Identidades de cliente.** `[DECIDIDO 2026-10-21]` C.1 — a 0104.4 disse "decidir
     quando o primeiro provedor OAuth for escolhido", e os três estão
     escolhidos. Recomendado: **o projeto registra seus próprios apps** (um
     app no Dropbox, status de produção passadas 50 contas; um projeto no
@@ -291,7 +295,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     no máximo 100 testadores, uma nova entrada a cada 7 dias — dito na
     janela.
 
-14. **Segredos.** `[PROPOSTO]` (C.4, C.5) Tokens de atualização, senhas de
+14. **Segredos.** `[DECIDIDO 2026-10-21]` (C.4, C.5) Tokens de atualização, senhas de
     WebDAV e segredos de S3 ficam no **chaveiro do sistema** (0019 item 2;
     Keychain do macOS, Gerenciador de Credenciais do Windows, Secret Service
     do Linux), nunca na pasta, no arquivo de configuração ou num log; nunca
@@ -299,15 +303,15 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     digita, e nunca o lê de volta — uma regra do contrato, 0026). No
     Windows, um segredo acima do limite de 2560 bytes do Gerenciador de
     Credenciais é dividido ou recusado com uma mensagem. Num Linux sem
-    Secret Service: `[ABERTO]` C.4 — recomendado, recusar a sincronização
+    Secret Service: `[DECIDIDO 2026-10-21]` C.4 — recomendado, recusar a sincronização
     com nuvem dizendo o motivo e como instalar um chaveiro. Uma regra para
-    todo segredo: `[ABERTO]` C.5 — recomendado, o token de aparelho do
+    todo segredo: `[DECIDIDO 2026-10-21]` C.5 — recomendado, o token de aparelho do
     UniVerso, hoje em `servers.json` (0074 item 8), também vai para o
     chaveiro. O chaveiro é uma dependência nova, justificada no seu PR.
     "Desconectar" apaga os segredos e revoga o token onde o provedor
     permite.
 
-15. **A rede.** `[PROPOSTO]` Sincronizar com uma nuvem é escolha explícita
+15. **A rede.** `[DECIDIDO 2026-10-21]` Sincronizar com uma nuvem é escolha explícita
     da pessoa, por pasta; o app então fala com os hosts de API e de entrada
     daquele provedor **e com os endereços que o provedor devolve para uma
     transferência** (as URLs pré-autenticadas de download e de sessão de
@@ -321,7 +325,7 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     Uma cota de armazenamento cheia é um erro de sincronização dito na
     janela.
 
-16. **O que a pessoa vê.** `[PROPOSTO]` Os ajustes da pasta oferecem
+16. **O que a pessoa vê.** `[DECIDIDO 2026-10-21]` Os ajustes da pasta oferecem
     "Sincronizar com…": um UniVerso (0079) ou uma nuvem; escolher uma nuvem
     nomeia o provedor, faz a entrada, mostra o espaço, o que a primeira
     sincronização fará (0079 item 11), o que não se aplica a uma pasta de
@@ -332,12 +336,12 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
     sincronizações dos mesmos arquivos são um risco — não uma recusa (como
     detectar isso ainda está `[ABERTO]` na [0043](0043-placeholder-guard.md)).
 
-17. **Ordem de construção.** `[ABERTO]` C.16 (antes C.2). Recomendado:
+17. **Ordem de construção.** `[DECIDIDO 2026-10-21]` C.16 (antes C.2). Recomendado:
     WebDAV e S3 primeiro (sem registro de app; exercitam o trait de remoto e
     a guarda das corridas), depois Dropbox, OneDrive, Google Drive.
 
 18. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)).
-    `[PROPOSTO]` Cada passo do "Sincronizar com…" pelo teclado e pelo leitor
+    `[DECIDIDO 2026-10-21]` Cada passo do "Sincronizar com…" pelo teclado e pelo leitor
     de tela; o passo no navegador anunciado; pt-BR e EN.
 
 ## Consequências
@@ -383,6 +387,9 @@ recomendação que ele ainda não respondeu, `[PROPOSTO]`, ou uma pergunta,
 
 ## Situação
 
-Proposta (2026-10-21). Item 1 decidido pelo mantenedor; reescrita pelo Opus
-5.5 a pedido dele, revisada pelo Fable 5.1 no mesmo dia (0104.2) e revisada
-depois da revisão; é aceita quando o mantenedor responder de C.1 a C.17.
+Aceita (2026-10-21). Item 1 decidido pelo mantenedor de manhã; reescrita
+pelo Opus 5.5 a pedido dele, revisada pelo Fable 5.1 (0104.2) e revisada
+depois da revisão; C.1 a C.17 respondidas pelo mantenedor naquela tarde,
+todas como recomendado. Não construída. Os provedores OAuth esperam as
+contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm
+primeiro (C.16).
