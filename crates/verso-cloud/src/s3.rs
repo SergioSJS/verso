@@ -1231,12 +1231,34 @@ impl Remote for S3 {
                 ),
             });
         }
+        // The copy's own ETag, as the service answered it: what is at the
+        // new name after, if it is not that, is another device's.
+        let copy_etag = xml::first_text(&xml::events(&body), "ETag").ok_or_else(|| {
+            RemoteError::new(
+                RemoteErrorKind::Failed,
+                "the service gave no ETag for the copy",
+            )
+        })?;
         // The copy's size and hash, before the original goes.
         let copied = self.head(&to_key)?.ok_or_else(|| {
             RemoteError::new(RemoteErrorKind::Failed, "the copy is not in the bucket")
         })?;
+        if !same_etag(&copied.etag, &copy_etag) {
+            // Another device wrote the new name right after our copy (it
+            // saw the copy in a listing). That file is theirs: it stays,
+            // and so does the original; the next pass lists both.
+            return Err(RemoteError::new(
+                RemoteErrorKind::Changed,
+                "the new name was written by another device while the file was moved",
+            ));
+        }
         if copied.size != source.size || copied.hash != source.hash {
-            let _ = self.send("DELETE", &to_key, &[], &[]);
+            // A bad copy goes only against its own ETag. Without a
+            // conditional delete it stays: a duplicate is recoverable, a
+            // deleted file is not.
+            if self.can(CAP_DELETE_IF_MATCH) {
+                let _ = self.send("DELETE", &to_key, &[], &[("if-match", copy_etag)]);
+            }
             return Err(RemoteError::new(
                 RemoteErrorKind::Failed,
                 "the copy is not the file that was copied",
@@ -1245,7 +1267,7 @@ impl Remote for S3 {
         self.delete(from, &Condition::Version(version.clone()))?;
         Ok(Written {
             path: to,
-            version: copied.etag,
+            version: copy_etag,
         })
     }
 }

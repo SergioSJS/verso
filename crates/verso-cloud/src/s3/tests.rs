@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use super::*;
-use crate::fake::{BUCKET, S3 as Fake, S3Mode, agrees};
+use crate::fake::{BUCKET, S3 as Fake, S3Mode, agrees, removal_agrees};
 use crate::testkit::{Bytes, Collect, meta, sha};
 
 fn settings(fake: &Fake) -> Settings {
@@ -600,4 +600,70 @@ fn a_write_answers_with_the_version_it_made_not_the_one_that_landed_after_it() {
     assert_eq!(fake.get("Cofre/g.bin").unwrap(), vec![2_u8; 30]);
     assert_eq!(written.version, etag_of_last_write(&fake, "Cofre/g.bin"));
     assert_ne!(written.version, version_of(&s, "g.bin"));
+}
+
+#[test]
+fn a_rename_never_deletes_a_name_that_another_device_wrote_after_the_copy() {
+    let fake = Fake::start(S3Mode::default());
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    // Another device sees the copy in a listing and writes against it.
+    fake.after("PUT", "Cofre/c.md", b"theirs, longer");
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Changed, "{e}");
+    assert_eq!(fake.get("Cofre/c.md").unwrap(), b"theirs, longer");
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"um");
+    assert!(
+        fake.removed().iter().all(|r| !r.path.ends_with("c.md")),
+        "{:?}",
+        fake.removed()
+    );
+}
+
+#[test]
+fn a_bad_copy_is_deleted_only_against_its_own_version_or_left_alone() {
+    // With a conditional delete: gone, and only if it is still the copy.
+    let fake = Fake::start(S3Mode {
+        corrupt_copy: true,
+        ..S3Mode::default()
+    });
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version.clone()))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(fake.get("Cofre/c.md").is_none());
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"um");
+    let removed: Vec<_> = fake
+        .removed()
+        .into_iter()
+        .filter(|r| !r.path.contains(".verso-"))
+        .collect();
+    assert_eq!(removed.len(), 1, "{removed:?}");
+    assert!(removal_agrees(&removed[0]));
+    // Without one: nothing is deleted, the duplicate stays for the next
+    // pass to sort out.
+    let fake = Fake::start(S3Mode {
+        corrupt_copy: true,
+        ignore_delete_if_match: true,
+        ..S3Mode::default()
+    });
+    let s = connect(&fake);
+    assert!(!s.can(CAP_DELETE_IF_MATCH));
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    let e = s
+        .rename("a.md", "c.md", &Condition::Version(a.version))
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Failed, "{e}");
+    assert!(fake.get("Cofre/c.md").is_some());
+    assert!(
+        fake.requests()
+            .iter()
+            .all(|r| r != "DELETE /bucket/Cofre/c.md"),
+        "{:?}",
+        fake.requests()
+    );
 }
