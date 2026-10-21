@@ -39,6 +39,7 @@ test release.
 
 ### Fixed
 
+- **A statblock in an embedded note is drawn as a card**: `![[Sheet]]` in Reading mode shows the sheet's card (read-only, with its own picture and layout) instead of its code block; edit the sheet in its own note.
 - **Vertical tabs list the tabs one under another and can be turned off**: the tab column now stacks the tabs one per row (icon, name, close), the pane's buttons sit at the top of the column so "Horizontal tabs" is always reachable with a tab open, and the note takes the width that is left. The toggle's name now says which way it will switch.
 - **Esc on the `@` list keeps it closed**: after Esc dismisses the note list opened by `@`, typing more letters of the same word no longer brings it back; a new `@` opens it again.
 - **The oracle's "Mythic GME" style is now "Likely twists"**: the odds are the same, but the style carries a name of Verso's own and says, on hover and in its description, that it is inspired by Mythic GME and does not model its chaos factor. "Ironsworn" keeps its name.

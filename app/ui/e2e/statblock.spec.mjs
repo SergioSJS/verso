@@ -91,3 +91,21 @@ test("the Statblocks switch turns the card into the code it always was", async (
   await page.waitForTimeout(500);
   expect(await app.file(NOTE)).toBe(TEXT);
 });
+
+test("a statblock inside an embedded note is drawn as a card, read-only, and the host note is left as it was", async ({ app, page }) => {
+  await app.open();
+  await openSheet(app);
+  const HOST = "Mesa de ensaio.md";
+  const HOST_TEXT = "# Mesa de ensaio\n\nA ficha da Yara:\n\n![[Ficha de ensaio]]\n";
+  await app.writeOutside(HOST, HOST_TEXT);
+  await app.folderChanged([HOST], true);
+  await app.quickOpen("Mesa de ensaio");
+  const card = page.locator(".preview:visible .embed-note .statblock-card");
+  await expect(card).toBeVisible();
+  await expect(card.locator(".statblock-badge")).toHaveCount(0);
+  // Read-only inside an embed: a reserve's box is no button.
+  await expect(card.locator("button.statblock-box")).toHaveCount(0);
+  await page.waitForTimeout(500);
+  expect(await app.file(HOST)).toBe(HOST_TEXT);
+  expect(await app.file(NOTE)).toBe(TEXT);
+});
