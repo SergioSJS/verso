@@ -720,3 +720,34 @@ fn an_answer_that_never_ends_is_cut_off_not_read_into_memory() {
     let e = put(&s, "a.md", &Condition::Absent, b"um").unwrap_err();
     assert!(e.message.contains("500"), "{e}");
 }
+
+#[test]
+fn the_probe_leaves_no_multipart_upload_open() {
+    let fake = Fake::start(S3Mode::default());
+    let other = fake.start_upload("Cofre/pessoa.md");
+    S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    // The probe's own uploads are all aborted, the refused one too; the
+    // person's own is not ours to abort.
+    assert_eq!(fake.open_uploads(), 1);
+    let _ = other;
+    // A service that honours no condition completes both: none open.
+    let fake = Fake::start(S3Mode {
+        ignore_multipart_conditions: true,
+        ..S3Mode::default()
+    });
+    S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    assert_eq!(fake.open_uploads(), 0);
+}
+
+#[test]
+fn the_probes_cleanup_aborts_open_uploads_under_its_key_and_only_there() {
+    let fake = Fake::start(S3Mode::default());
+    fake.start_upload("Cofre/.verso-probe/x-multi");
+    fake.start_upload("Cofre/.verso-probe/outro-multi");
+    fake.start_upload("Cofre/pessoa.md");
+    S3::new(settings(&fake))
+        .unwrap()
+        .quick()
+        .abort_uploads_under("Cofre/.verso-probe/x");
+    assert_eq!(fake.open_uploads(), 2);
+}
