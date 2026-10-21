@@ -132,8 +132,34 @@ export type BoardHost = {
     served: () => boolean;
     project: (json: string) => Promise<string>;
   };
+  /** A web page shown live in a link card (ADR 0057 point 10, decided
+   *  2026-10-21; ADR 0056): the window's approvals and its frameability
+   *  check. Absent where the window cannot show a page; a page card is
+   *  then a link card. */
+  web?: BoardWeb;
   /** A note's sticker drawn at `size`, for its pin; null for none. */
   sticker?: (path: string, size: number) => HTMLElement | null;
+};
+
+/** What a page card needs of the window (ADR 0056). */
+export type BoardWeb = {
+  /** Why the page may not load yet: its origin is not approved (`origin`),
+   *  remote content is off (`remote`) or it is no web address (`invalid`);
+   *  null when it may load. */
+  gate: (url: string) => { why: "origin" | "remote"; origin: string } | { why: "invalid" } | null;
+  /** The origin approved for good, the same list as the notes'. */
+  approve: (origin: string) => Promise<boolean>;
+  /** The warning to show before approving, if the site forbids framing
+   *  (the host's one check, made on the click); null for none. */
+  warn: (url: string) => Promise<string | null>;
+  /** Whether the site allows being framed, once per origin. */
+  frameable: (url: string) => Promise<boolean>;
+  /** The sandboxed frame for `url`, titled `title`. */
+  frame: (url: string, title: string) => HTMLIFrameElement;
+  /** The words of the approval, those of the notes' gate. */
+  words: { local: string; approve: string; approveAnyway: string };
+  /** Whether a name is on the local network, for the stronger wording. */
+  isLocal: (hostname: string) => boolean;
 };
 
 /** What the settings say of boards. */

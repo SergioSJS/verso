@@ -34,6 +34,7 @@ import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
 import { hasSecret, keptIds, mapAt, mapsOf, pinsOf } from "./maps";
 import { mapActions, readerActions } from "./mapsActions";
+import { pageActions } from "./pageActions";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
 import { mapStrings } from "./mapStrings";
@@ -41,7 +42,7 @@ import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
-import { useCardPreview, useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
+import { useCardButtons, useCardPreview, useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
 import { useOverlays } from "./overlays";
 import { useSceneFixes } from "./arrows";
 import {
@@ -60,6 +61,7 @@ import {
   relationEnds,
   toElements,
   withCrop,
+  isPage,
   type CanvasDoc,
   type CanvasNode,
   type Crop,
@@ -551,58 +553,7 @@ function Board({
   const { overlays, scheduleOverlays } = useOverlays(api, dark);
   useCardPreview(container, host.preview);
 
-  // A card's buttons (open, swap), under Excalidraw's selection canvas, are pressed
-  // here: the topmost card under the pointer decides, as the eye does.
-  useEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    let pressed: HTMLElement | null = null;
-    let hover: HTMLElement | null = null;
-    const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-    const buttonAt = (x: number, y: number): HTMLElement | null => {
-      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
-      for (let i = slots.length - 1; i >= 0; i--) {
-        const slot = slots[i]!;
-        if (!inside(slot.getBoundingClientRect(), x, y)) continue;
-        if (slot.classList.contains("is-active")) return null;
-        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open")) if (inside(b.getBoundingClientRect(), x, y)) return b;
-        return null;
-      }
-      return null;
-    };
-    const down = (e: PointerEvent): void => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-      const b = buttonAt(e.clientX, e.clientY);
-      if (!b) return;
-      pressed = b;
-      e.stopPropagation();
-      e.preventDefault();
-    };
-    const up = (e: PointerEvent): void => {
-      if (!pressed) return;
-      const b = pressed;
-      pressed = null;
-      e.stopPropagation();
-      if (buttonAt(e.clientX, e.clientY) === b) b.click();
-    };
-    const move = (e: PointerEvent): void => {
-      const b = e.buttons ? null : buttonAt(e.clientX, e.clientY);
-      if (b === hover) return;
-      hover?.classList.remove("is-hover");
-      b?.classList.add("is-hover");
-      root.classList.toggle("is-over-open", !!b);
-      hover = b;
-    };
-    root.addEventListener("pointerdown", down, true);
-    root.addEventListener("pointerup", up, true);
-    root.addEventListener("pointermove", move, true);
-    return () => {
-      root.removeEventListener("pointerdown", down, true);
-      root.removeEventListener("pointerup", up, true);
-      root.removeEventListener("pointermove", move, true);
-    };
-  }, []);
-
+  useCardButtons(container);
 
   // "Loose arrows": an arrow drawn while it is on attaches to no card, as
   // one drawn with ⌘ held does (Excalidraw's own way, which nothing
@@ -797,6 +748,12 @@ function Board({
 
   const relinkRef = useRef(relink);
   relinkRef.current = relink;
+  // Page cards (ADR 0057 point 10): the commands in `pageActions`; the card
+  // gets one function that does not change between renders.
+  const pageAct = pageActions({ api, host, touched, center, add, focusBoard });
+  const pageRef = useRef(pageAct);
+  pageRef.current = pageAct;
+  const interact = useCallback((id: string, on: boolean): void => pageRef.current.interact(id, on), []);
   const swapCard = useCallback((id: string): void => {
     const e = (api.current?.getSceneElements() as unknown as El[] | undefined)?.find((x) => x.id === id);
     const n = e ? nodeData(e) : null;
@@ -822,6 +779,8 @@ function Board({
   const selectedData = selectedNode && isNode(selectedNode) ? nodeData(selectedNode) : null;
   const lost = selectedData?.type === "file" && typeof selectedData.file === "string" && !host.exists(selectedData.file);
   const openable = !lost && selectedNode && isNode(selectedNode) && ["file", "link"].includes(nodeData(selectedNode)?.type ?? "");
+
+  const pageToggle = !readOnly && host.web && selectedNode && selectedData?.type === "link" ? { on: isPage(selectedData), run: () => pageAct.setPage(selectedNode, selectedData, !isPage(selectedData)) } : null;
 
   const promote = async (): Promise<void> => {
     const a = api.current;
@@ -928,6 +887,8 @@ function Board({
       return;
     }
     if (kind === "file" && !(ev.metaKey || ev.ctrlKey)) return;
+    // A page card is entered, as a note's card is; its button opens it.
+    if (kind === "link" && data && isPage(data) && host.web && !(ev.metaKey || ev.ctrlKey)) return;
     if (openNode(hit, ev.metaKey || ev.ctrlKey)) {
       ev.stopPropagation();
       ev.preventDefault();
@@ -1082,6 +1043,7 @@ function Board({
       addFile={() => void addFile()}
       addText={() => void addText()}
       addLink={() => void addLink()}
+      addPage={host.web ? () => void pageAct.addPage() : undefined}
       takeFiles={takeFiles}
       looseOn={looseOn}
       toggleLoose={() => {
@@ -1317,6 +1279,7 @@ function Board({
                 s={s}
                 insert={slot ? null : insertMenu}
                 cropPicture={cropPicture}
+                pageToggle={pageToggle}
                 maps={mapTools}
                 selectedNode={selectedNode}
                 selectedData={selectedData}
@@ -1347,6 +1310,7 @@ function Board({
                   s={s}
                   insert={slot ? null : insertMenu}
                   cropPicture={cropPicture}
+                pageToggle={pageToggle}
                   maps={mapTools}
                   selectedNode={selectedNode}
                   selectedData={selectedData}
@@ -1391,6 +1355,7 @@ function Board({
                 editing={editing}
                 setEditing={setEditing}
                 swap={swapCard}
+                interact={interact}
                 draw={draw}
                 cards={cards}
                 overlays={overlays}

@@ -454,3 +454,33 @@ describe("the file a board writes has the same bytes for the same board", () => 
     }
   });
 });
+
+describe("a web page as a link card (ADR 0057 point 10, decided 2026-10-21)", () => {
+  test("a new page card is a JSON Canvas link node with the page flag under verso", () => {
+    const n = b.newNode("link", "https://ok.example/p", [0, 0], "p1", true);
+    assert.equal(n.type, "link");
+    assert.equal(n.url, "https://ok.example/p");
+    assert.deepEqual(n.verso, { page: true });
+    assert.equal(b.isPage(n), true);
+    assert.equal(b.isPage(b.newNode("link", "https://ok.example/p", [0, 0], "p2")), false, "a plain link card is no page");
+  });
+  test("it round-trips as a link node, the flag kept, and nothing is added to a plain link", () => {
+    const doc = { nodes: [b.newNode("link", "https://ok.example/p", [0, 0], "p1", true), { id: "l", type: "link", x: 0, y: 500, width: 400, height: 120, url: "https://plain.example/" }], edges: [] };
+    const back = b.fromElements(restored(doc), doc);
+    assert.deepEqual(back.nodes, doc.nodes);
+    assert.equal(back.nodes[1].verso, undefined);
+  });
+  test("the switch writes and takes off the flag, other verso keys kept", () => {
+    const plain = { id: "l", type: "link", x: 0, y: 0, width: 400, height: 120, url: "https://a.example/", verso: { background: "#a5d8ff" } };
+    const on = b.withPage(plain, true);
+    assert.deepEqual(on.verso, { background: "#a5d8ff", page: true });
+    const off = b.withPage(on, false);
+    assert.deepEqual(off.verso, { background: "#a5d8ff" });
+    assert.equal(b.withPage({ ...plain, verso: undefined }, false).verso, undefined);
+  });
+  test("a page's origin is read from its address; only the web has one", () => {
+    assert.equal(b.pageOrigin("https://ok.example:8080/a?b#c"), "https://ok.example:8080");
+    assert.equal(b.pageOrigin("javascript:alert(1)"), null);
+    assert.equal(b.pageOrigin("not a url"), null);
+  });
+});

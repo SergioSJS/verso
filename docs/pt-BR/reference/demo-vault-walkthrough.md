@@ -660,6 +660,25 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     ferramentas, os ladrilhos nas respostas de ladrilho do harness, o board
     do leitor na projeção dele), A (os ladrilhos de verdade, o servidor de
     verdade, um celular); E: `maps.spec.mjs`.
+13. Lição 14, uma página da web num cartão (ADR 0057 ponto 10, ADR 0056): o
+    cartão de `example.com` pergunta primeiro ("Permitir sempre"); o clique
+    consulta o site, e um site que proíbe ser incorporado diz isso no cartão
+    antes de ser permitido ("Permitir mesmo assim" segue). Permitida, a
+    página aparece num quadro abaixo de um cabeçalho com a origem; o arrastar
+    e o zoom do board ficam com o ponteiro até o cartão ser entrado (um
+    clique no meio dele, ou o botão "Interagir com a página"), e então a
+    página rola e recebe os cliques; "Sair da página", um clique fora, ou Esc
+    com o foco no cabeçalho devolvem ao board. "Inserir › Página web…" pede
+    um endereço e acrescenta um nó `link` com `verso.page`; um cartão de
+    link comum muda com "Mostrar página" / "Mostrar como link". Um site que
+    recusa mostra "Este site não permite ser incorporado" e um link para uma
+    aba; a visão nativa recortada nunca é usada num board. A exportação de
+    imagem desenha o cartão como a caixa dele com a origem. Numa nota:
+    permitir um site que proíbe ser incorporado mostra o aviso antes, com o
+    texto do que este sistema fará com ele. Nível: H (o cartão, o aviso, o
+    arquivo), A (o quadro dentro do zoom do board e o recorte do cartão no
+    WKWebView, WebView2 e WebKitGTK; os cabeçalhos reais de um site real);
+    E: `board-web-card.spec.mjs`, `web-embed.spec.mjs`.
 
 ## 10. Ajustes, ajuda, a linha de comando
 

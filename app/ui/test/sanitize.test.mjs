@@ -180,6 +180,57 @@ describe("a gate box stands on its own", () => {
       s.allowEmbedOrigins([]);
     }
   });
+  test("a site that forbids framing is said so before the approval, and approving waits for a second click", async () => {
+    const approvals = [];
+    const checks = [];
+    const warnStrings = { ...strings, unframed: "forbids", approveAnyway: "anyway" };
+    s.configureEmbeds({ strings: warnStrings, approve: async (o) => (approvals.push(o), true), frameable: async (u) => (checks.push(u), false) });
+    const mount = mounted(s.cleanHtmlText(`<iframe src="https://no.example/p"></iframe>`));
+    try {
+      assert.deepEqual(checks, [], "nothing is asked of the network before the click");
+      mount.querySelector('[data-embed-action="approve"]').click();
+      await new Promise((r) => setTimeout(r, 0));
+      assert.deepEqual(checks, ["https://no.example/p"]);
+      assert.deepEqual(approvals, [], "not approved by the first click");
+      assert.equal(mount.querySelector(".embed-gate-warn").textContent, "forbids");
+      assert.equal(mount.querySelector(".embed-gate-warn").getAttribute("role"), "alert");
+      assert.ok(mount.querySelector("div.embed-web") === null);
+      mount.querySelector('[data-embed-action="approve-anyway"]').click();
+      await new Promise((r) => setTimeout(r, 0));
+      assert.deepEqual(approvals, ["https://no.example"]);
+      assert.equal(mount.querySelector("div.embed-web").getAttribute("data-embed-web"), "https://no.example/p");
+    } finally {
+      mount.remove();
+      s.allowEmbedOrigins([]);
+    }
+  });
+  test("a site that may be framed is approved by the one click; cancel leaves a link", async () => {
+    const approvals = [];
+    s.configureEmbeds({ strings: { ...strings, unframed: "forbids" }, approve: async (o) => (approvals.push(o), true), frameable: async () => true });
+    const mount = mounted(s.cleanHtmlText(`<iframe src="https://yes.example/p"></iframe>`));
+    try {
+      mount.querySelector('[data-embed-action="approve"]').click();
+      await new Promise((r) => setTimeout(r, 0));
+      assert.deepEqual(approvals, ["https://yes.example"]);
+      assert.ok(mount.querySelector(".embed-gate-warn") === null);
+    } finally {
+      mount.remove();
+      s.allowEmbedOrigins([]);
+    }
+  });
+  test("remote content off: no check is made, so no request waits for consent", async () => {
+    const checks = [];
+    s.configureEmbeds({ strings: { ...strings, unframed: "forbids" }, approve: async () => true, frameable: async (u) => (checks.push(u), false) });
+    s.allowRemoteContent(false);
+    try {
+      assert.equal(await s.frameWarning("https://no.example/p"), null);
+      assert.deepEqual(checks, []);
+    } finally {
+      s.allowRemoteContent(true);
+    }
+    assert.equal(await s.frameWarning("https://no.example/p"), "forbids");
+    assert.equal(await s.frameWarning("https://no.example/p", true), null, "no board wording wired: nothing to say");
+  });
   test("approved, the box builds its frame from its own address", async () => {
     let asked = "";
     s.configureEmbeds({ strings, approve: async (origin) => ((asked = origin), true) });
