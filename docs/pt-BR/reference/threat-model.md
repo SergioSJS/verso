@@ -453,7 +453,7 @@ batem com a mudança.
 
 ### Sync com um provedor de nuvem (ADR 0104)
 
-Aceito em 2026-10-21, **não construído**: esta seção é o modelo de ameaças que a funcionalidade precisa atender, escrito antes do código para que cada linha vire um teste (ou uma checagem manual) no PR que a construir. Uma pasta sincroniza com uma nuvem que a pessoa escolheu (WebDAV, S3, Dropbox, OneDrive, Google Drive) pelo sync do ADR 0079; os adaptadores ficam do lado do host do desktop e o núcleo continua sem alcançar a rede (0104 item 3).
+Aceito em 2026-10-21. **WebDAV e S3 estão construídos (2026-10-21, merge `a816d15b`)**; os provedores OAuth (Dropbox, OneDrive, Google Drive) não. Esta seção foi escrita antes do código para que cada linha vire um teste (ou uma checagem manual) no PR que a construir. Uma pasta sincroniza com uma nuvem que a pessoa escolheu (WebDAV, S3, Dropbox, OneDrive, Google Drive) pelo sync do ADR 0079; os adaptadores ficam do lado do host do desktop e o núcleo continua sem alcançar a rede (0104 item 3).
 
 | Ameaça | Resposta decidida (a construir) |
 |---|---|
@@ -467,6 +467,10 @@ Aceito em 2026-10-21, **não construído**: esta seção é o modelo de ameaças
 | Dados do provedor corrompendo a pasta | Nomes em NFC e tornados seguros para todo provedor; um nome que um provedor proíbe não é sincronizado e é listado; um arquivo só é escrito aqui quando todas as partes chegaram e o hash ou o tamanho conferiu (0104 itens 9 e 10). Um cursor perdido é uma comparação completa a partir das bases, nunca um primeiro sync que trata tudo como novo (item 8). |
 | Uma exclusão se espalhando | Exclusões remotas vão para a lixeira do provedor onde ela existe (Drive com `trashed: true`, nunca `files.delete`); a pausa de exclusão em massa do 0079 e a guarda de placeholder (0043) valem para uma pasta de nuvem (0104 itens 4 e 11). |
 | Uma enxurrada contra um provedor | HTTP 429 e 503, e o 403 do Drive com motivo de limite de taxa, são respeitados com `Retry-After` ou recuo exponencial com jitter; pouca concorrência por provedor; consultas nunca em laço rápido (0104 itens 8 e 15). |
+| Os objetos da sonda no armazenamento da pessoa (construído) | Ao conectar, os adaptadores WebDAV e S3 gravam um objeto de sonda (`.verso-probe`) e chaves temporárias (`.verso-tmp`) no armazenamento da pessoa para testar escritas condicionais, e os apagam; se a limpeza falhar fica um arquivo pequeno, com nome conhecido, que a pessoa pode apagar. |
+| O `keyring` e o Secret Service no Linux (construído) | Os segredos passam pelo crate `keyring` (4.2); no Linux isso chega ao Secret Service por D-Bus (zbus). Um Linux sem Secret Service é recusado, com o motivo. Um segredo com mais de 2000 bytes é recusado (o limite do Credential Manager do Windows), nunca truncado. |
+| HEAD e depois DELETE em serviços S3 que ignoram um DELETE condicional (construído) | Onde um serviço ignora `If-Match` no DELETE, a exclusão é um HEAD seguido de um DELETE e um escritor pode entrar no intervalo; a janela diz isso ao conectar. |
+| Um redirecionamento levando as credenciais para outro lugar (construído) | O adaptador WebDAV nunca segue um redirecionamento, então um servidor não pode mandar as credenciais Basic para outro host. |
 
 ## Lacunas encontradas em 2026-10-11
 

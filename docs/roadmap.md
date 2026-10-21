@@ -525,7 +525,7 @@ decided (0101.1c, option A) and 0101 is Accepted.
 | V.37 | The theme-builder window: a gallery of theme cards in Settings › Appearance, Copy and Edit, editing in a dedicated window | [0100](adr/0100-visual-customization-wizard.md) item 2 | decided 2026-10-21, the maintainer's revision after seeing the beta; not built; its details (size, window or dialog, card drawing) are not decided |
 | V.38 | Dialect: `tags: 2024` is the tag "2024", knowingly different from Obsidian; `...` does not close the frontmatter | spec Q24 | decided 2026-10-21 (DL.2, option B; DL.1, option A); the code and the fixture `frontmatter/tags-number` are changed by the code PR |
 | V.39 | World of Darkness and Cyberpunk RED layouts: the Dark Pack logo fetched by the agent onto the Credits page, licence notices only there, field names in pt-BR now | [0099](adr/0099-visual-markdown-statblocks-and-cards.md) item 6 | decided 2026-10-21 (S.3a, S.3b, S.3c); not built |
-| V.40 | Sync with a cloud the person already has: WebDAV, S3, Dropbox, OneDrive and Google Drive, through ADR 0079's sync (desktop only) | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Accepted 2026-10-21; WebDAV and S3 first (C.16); the OAuth providers wait for the developer accounts the maintainer creates (C.1); not built |
+| V.40 | Sync with a cloud the person already has: WebDAV, S3, Dropbox, OneDrive and Google Drive, through ADR 0079's sync (desktop only) | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Accepted 2026-10-21; part 1 built 2026-10-21 (WebDAV, S3; merge `a816d15b`), not pushed; OAuth providers wait for the developer accounts (C.1); C.5 not done |
 
 ### Decisions that have to come out for V1
 

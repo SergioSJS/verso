@@ -214,6 +214,10 @@ only through `verso-service`, `verso-core` and `verso-fs`, and opens only
 its own database in `VERSO_DATA_DIR`, an exception like `verso-index`'s.
 `verso serve` is a subcommand of `verso` (`verso-cli`).
 
+`crates/verso-cloud` holds the cloud remotes (WebDAV, S3) of ADR 0104, host-side:
+`verso-core` and `verso-fs` never depend on it and it touches no disk (ADR 0028,
+revised 2026-10-21).
+
 ---
 
 ## 4. PR workflow — [ADR 0033](docs/adr/0033-pr-workflow.md)
