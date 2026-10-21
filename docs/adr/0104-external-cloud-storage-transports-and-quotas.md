@@ -366,3 +366,20 @@ revised after the review; C.1 to C.17 answered by the maintainer that
 afternoon, all as recommended. Not built. The OAuth providers wait for the
 developer accounts the maintainer creates (C.1); WebDAV and S3 come first
 (C.16).
+
+As built (2026-10-21): part 1 is built and merged (merge `a816d15b`, not
+pushed): the remote trait in `verso-core` (`79d6830c`), the new crate
+`crates/verso-cloud` with WebDAV and S3 (`3b421105`), the probe under
+`.verso-probe` objects and `.verso-tmp` keys, the race property test on both
+adapters, the contract, the host and the keychain through `keyring` 4.2
+(`73f4bb2c`), the window (`55c48885`), the tutorial note 29 (`ecfcedd2`), and
+`8a156e56`, `84e1e124` (an `exists` guard before a local deletion that a
+listing alone asks for). Remaining: the OAuth providers (they wait for the
+developer accounts, C.1); C.5 (the UniVerso device token moved to the
+keychain), not done; item 16's notice about a folder inside a cloud client's
+folder, whose detection stays `[OPEN]` in 0043. Choices made while building,
+beyond the text above, recorded as built and not as the maintainer's
+decisions: the `exists` guard; a WebDAV root that answers 404 is an error;
+a secret over 2000 bytes is refused; S3 content hashes are kept in the
+uploaded object's metadata; the first connect to an existing WebDAV folder
+downloads each file once to learn its hash.
