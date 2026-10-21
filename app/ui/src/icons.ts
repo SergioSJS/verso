@@ -21,6 +21,7 @@ const PATHS: Record<string, string> = {
   source: "M6 4 2.5 8 6 12M10 4l3.5 4L10 12",
   save: "M3 2.5h8l2.5 2.5v8.5h-10.5zM5 2.5v4h6v-4M5 13.5V9h6v4.5",
   chevron: "M6 3.5 10.5 8 6 12.5",
+  diagram: "M2 6.5h4v3H2zM10 2.5h4v3h-4zM10 10.5h4v3h-4zM6 8h2q1 0 1-1V5.5q0-1 1-1M8 8q1 0 1 1v2q0 1 1 1",
   plus: "M8 3v10M3 8h10",
   warn: "M8 2.5 14 13H2zM8 6.5v3M8 11.2v.3",
   outline: "M3 4h10M5 8h8M7 12h6",

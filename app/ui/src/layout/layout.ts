@@ -230,7 +230,7 @@ export class Layout {
           else if (tt.kind === "graph") made = tt.path === "" || allNotes.includes(tt.path) ? pane.openGraph(tt.path) : null;
           else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) {
             quietPaths.add(tt.path);
-            made = pane.open(tt.path, false);
+            made = tt.kind === "data" ? pane.openDiagram(tt.path) : pane.open(tt.path, false);
           }
           if (made && tt.pinned === true) made.setPinned(true);
           if (made && (i <= wanted || !active)) active = made;

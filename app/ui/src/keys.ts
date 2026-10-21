@@ -31,6 +31,8 @@ import { Pane } from "./layout/pane";
 import { layout, newSpace, openNote, paneToOpenIn, showSpace, spaces } from "./layout/spaces";
 import { BaseLeaf } from "./leaves/base";
 import { BoardLeaf, newBoard } from "./leaves/board";
+import { DataLeaf } from "./leaves/data";
+import { dgw } from "./datagraph/words";
 import { NoteLeaf } from "./leaves/note";
 import { PdfLeaf } from "./leaves/pdf";
 import { TextLeaf } from "./leaves/textfile";
@@ -166,6 +168,8 @@ export function openFindInActiveLeaf(): void {
     // The board's own search (ADR 0057).
   } else if (leaf instanceof TextLeaf) {
     openSearchPanel(leaf.editor);
+  } else if (leaf instanceof DataLeaf) {
+    leaf.diagram.focusSearch();
   } else if (leaf instanceof PdfLeaf) {
     leaf.view.searchInput.focus();
     leaf.view.searchInput.select();
@@ -242,6 +246,8 @@ export function allCommands(all = false): Command[] {
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
+    // ADR 0106: the diagram as it is arranged, written as a new board.
+    { id: "diagram-save-board", label: dgw.saveBoard, need: leaf instanceof DataLeaf, run: () => leaf instanceof DataLeaf && leaf.saveBoard() },
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },

@@ -28,6 +28,8 @@ import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { htmlModes } from "./frame";
+import { dataModes, diagramFormat } from "./data";
+import { linkText, textCaret, textTyped } from "../datagraph/link";
 import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
 import * as textLive from "./textLive";
@@ -43,6 +45,11 @@ export class TextLeaf extends Leaf {
   readonly crumbs = crumbsNav();
   /** For an HTML file, the way back to its page. */
   readonly modes = htmlModes(this, "source");
+  /** For a JSON, YAML, TOML, XML or CSV file, the way to its diagram (ADR 0106). */
+  readonly dataModes = dataModes(this, "text");
+  /** A range to show once the file is read (the diagram's "go to the text"). */
+  pendingReveal: { from: number; to: number } | null = null;
+  private unlink: (() => void) | null = null;
   readonly conflict = new ConflictBanner(
     () => void this.keepDisk(),
     () => void this.overwrite(),
@@ -79,12 +86,15 @@ export class TextLeaf extends Leaf {
     this.roomHandlers = this.makeHandlers();
     const head = h("header", "leaf-head");
     this.liveMark.hidden = true;
-    head.append(this.crumbs, this.modes, this.liveMark);
+    head.append(this.crumbs, this.modes, this.dataModes, this.liveMark);
+    this.dataModes.hidden = true;
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
     sheet.append(this.flags, this.conflict.el, this.host);
     this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
+    // The tests reach the editor as a note's tab lets them (note.ts).
+    (this.host as unknown as { __cmView: EditorView }).__cmView = this.editor;
   }
   /** What a kind of text tab adds to its editor (a base redraws its view). */
   protected extras(): Extension {
@@ -123,6 +133,10 @@ export class TextLeaf extends Leaf {
         this.extras(),
         room,
         EditorView.updateListener.of((u) => {
+          if (this.path !== "" && (u.docChanged || u.selectionSet)) {
+            if (u.docChanged) textTyped(this.path);
+            textCaret(this.path, u.state.selection.main.head);
+          }
           if (u.docChanged) {
             // The others' edits, brought in by the room: nothing of this
             // tab's to save.
@@ -153,6 +167,7 @@ export class TextLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     this.modes.hidden = kindOf(path) !== "frame";
+    this.dataModes.hidden = diagramFormat(path) === null;
     const r = await opening.readText(path, this.quiet(path));
     if (r.status !== "ok") {
       if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
@@ -191,8 +206,24 @@ export class TextLeaf extends Leaf {
     this.setDirty(false);
     this.flags.textContent = sep === null ? t.mixedEol : this.readOnly ? st.readOnly : "";
     this.flags.hidden = !this.readOnly;
+    this.unlink?.();
+    this.unlink = linkText(path, { text: () => this.editor.state.doc.toString(), reveal: (r, focus) => this.reveal(r, focus) });
+    const wanted = this.pendingReveal;
+    this.pendingReveal = null;
+    if (wanted) this.reveal(wanted, true);
     markCurrent();
     persistSoon();
+  }
+  /** Select a range of the text and bring it into view; the diagram's way back to the data. */
+  reveal(range: { from: number; to: number }, focus: boolean): void {
+    const len = this.editor.state.doc.length;
+    const from = Math.max(0, Math.min(range.from, len));
+    const to = Math.max(from, Math.min(range.to, len));
+    this.editor.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+    if (focus) {
+      this.pane.activate(this, true);
+      this.editor.focus();
+    }
   }
   /** Renamed: as a note's tab does (NoteLeaf.moved). */
   override moved(path: string): void {
@@ -200,6 +231,8 @@ export class TextLeaf extends Leaf {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    this.unlink?.();
+    this.unlink = linkText(path, { text: () => this.editor.state.doc.toString(), reveal: (r, focus) => this.reveal(r, focus) });
     markCurrent();
     persistSoon();
   }
@@ -330,6 +363,8 @@ export class TextLeaf extends Leaf {
   }
   override destroy(): void {
     window.clearTimeout(this.saveTimer);
+    this.unlink?.();
+    this.unlink = null;
     this.collab?.release(this.roomHandlers);
     this.collab = null;
     this.editor.destroy();
