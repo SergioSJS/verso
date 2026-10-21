@@ -1299,7 +1299,59 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    cada um com *Abrir*, que abre o site no navegador. Nível: H (a página); A (o
    link abrindo no navegador do sistema); U: `test/credits.test.mjs`.
 
-## 15. O fim
+## 15. Dados estruturados como diagrama (nota 28, os arquivos de exemplo)
+
+Abra a nota 28 (*Dados Estruturados como Diagrama*) e os dois arquivos de
+`Dados de Exemplo/` numa pasta que tem o conteúdo da demonstração ([ADR
+0106](../adr/0106-structured-data-as-a-diagram.md)).
+
+1. `npcs-da-campanha.json` abre como texto, com *Texto | Diagrama* no alto da
+   aba. *Diagrama* desenha caixas e linhas: a raiz, *npcs* com as três
+   pessoas, cada uma com *itens* e *segredo*, e *locais*. Um valor cortado
+   tem um *…* que mostra tudo; Esc fecha. *Texto* traz o editor de volta, e o
+   arquivo em disco está como estava (o diagrama nunca escreve).
+   Nível: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs`.
+2. Arraste uma caixa pelo título: o que está pendurado nela vai junto; com
+   Alt apertado, só a caixa. Feche a aba e abra o arquivo de novo como
+   diagrama: as caixas estão onde foram postas. *Arrumar de novo* as devolve.
+   Nível: H; E: `datagraph.spec.mjs`.
+3. Recolha um ramo pela setinha ou com Enter: a caixa diz *3 itens* ou *6
+   chaves* e o que estava pendurado some; *Recolher tudo*, *Expandir tudo* e
+   *Expandir até o nível…* fazem o mesmo com todas. Busque *revelada*: o
+   resultado dentro de um ramo recolhido abre o caminho até ele; Enter e
+   Shift+Enter vão adiante e voltam, Esc limpa. Nível: H; E:
+   `datagraph.spec.mjs`.
+4. Abra o mesmo arquivo como texto num segundo painel (⌘\) e clique numa
+   caixa: o trecho dela fica selecionado no texto; ponha o cursor no texto e
+   a caixa que o contém fica marcada; digite uma letra e o diagrama acompanha
+   depois de uma pausa; quebre o JSON e o último diagrama continua sob uma
+   linha com o erro e *Ir ao erro*, que leva ao lugar. Nível: H; E:
+   `datagraph.spec.mjs`.
+5. Só com o teclado: Tab entra no diagrama, ↓ ↑ entre irmãs, ← para a
+   caixa-mãe, → para a primeira filha, Enter ou Espaço recolhe, Alt+setas
+   move a caixa, T vai ao texto, / à busca. Um leitor de tela lê uma árvore,
+   com níveis e *expandido*/*recolhido* (VoiceOver: à mão,
+   `manual-checks.md`). Nível: H; E: `datagraph.spec.mjs`.
+6. Botão direito numa linha: *Copiar caminho* dá `$.npcs[0].itens`, *Copiar
+   valor* o valor. Nível: H; E: `datagraph.spec.mjs`.
+7. `npcs-da-campanha.yaml`: duas raízes (*#1*, *#2*, um segundo documento),
+   uma linha tracejada de `conhece: *aliados` até a caixa marcada
+   `&aliados`. Nível: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs`
+   (um arquivo feito para virar milhões de valores desenha poucas caixas).
+8. O bloco ```json da própria nota 28: *Ver como diagrama* no bloco abre o
+   diagrama dele numa aba ao lado, só para ler, sem o seletor de texto.
+   Nível: H; E: `datagraph.spec.mjs`.
+9. *Salvar como board…* (a barra, ou ⌘⇧P): um diálogo com o nome, a pasta e
+   *O board terá N cartões de texto e M linhas*; *Criar board* escreve o
+   `.canvas` e o abre. Nível: H; E: `datagraph.spec.mjs`.
+10. *Ajustes* › *Aplicação* › *Recursos* › *Diagrama de dados* desligado:
+    nenhum *Texto | Diagrama* numa aba nova e nenhum botão nos blocos;
+    nenhum arquivo mudou. Ligado: de volta. Nível: H; E: `datagraph.spec.mjs`.
+11. A pinça do trackpad ou Ctrl com a roda aproxima o diagrama (não a
+    janela); dois dedos numa tela fazem a pinça e movem. Nível: H (a roda);
+    os dedos, à mão.
+
+## 16. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

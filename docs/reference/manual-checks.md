@@ -20,6 +20,17 @@ in the real app.
 
 ## Not yet checked
 
+### The data diagram (ADR 0106, feat/datagraph, 2026-10-21)
+
+Needs the installed desktop app on a Mac (and a screen with fingers for the first item); the end-to-end tests are in `app/ui/e2e/datagraph.spec.mjs`, and the harness is not the real web view.
+
+- [ ] **Pinch and wheel in the real web view** (A): over a diagram (the demo's `Dados de Exemplo/npcs-da-campanha.json`), a trackpad's pinch and Ctrl/Cmd with the wheel zoom the diagram and not the window; two fingers on the trackpad move it; on a touch screen two fingers pinch and move it and one finger on a box's title drags the box.
+- [ ] **Drag in WKWebView** (A): a box dragged by its title carries what hangs under it and drops where the pointer is; Alt held while dragging moves the box alone; the pointer leaving the window mid-drag ends the drag cleanly.
+- [ ] **VoiceOver on the tree** (A): Tab into the diagram: it reads a tree, each box with its level and *expandido*/*recolhido*; the arrows walk parent, child and siblings, Enter folds; Alt+Shift+arrows and Alt+arrows move a box and the move is announced on the status line.
+- [ ] **A big file** (A): a JSON of 5 to 20 MB opens as a diagram without freezing the window; fold all, unfold all, search and a drag stay smooth enough to use.
+- [ ] **Save as board in the app** (A): *Salvar como board…* creates the `.canvas` in the chosen folder, opens it, and the cards and lines are where the diagram had them.
+- [ ] **Windows and Linux** (A): the same on the Windows and Linux builds (WebView2, WebKitGTK).
+
 ### The RPG round: oracle, statblocks, layout editor, wizard, Credits (ADRs 0098, 0099, 0102, 0103, feat/rpg-tutorial, 2026-10-20)
 
 Needs the installed desktop app on a Mac (and, for the last items, a UniVerso with two windows); the end-to-end tests of this round were written without being run (`oracle`, `statblock`, `layout-editor` and `world-wizard` specs in `app/ui/e2e/`) and the harness is not the real web view.

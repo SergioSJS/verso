@@ -65,6 +65,16 @@ export const CREDITS: Credit[] = [
     },
     link: "https://obsidian.md",
   },
+  {
+    id: "jsoncrack",
+    name: "JSON Crack",
+    line: {
+      pt: "De Aykut Saraç, licença Apache-2.0: a ideia da vista de caixas e linhas para dados estruturados, que o diagrama de dados do Verso segue. Nenhum código dele é usado; o desenho e a organização das caixas são do Verso.",
+      en: "By Aykut Saraç, Apache-2.0: the idea of the box-and-line view of structured data, which Verso's data diagram follows. None of its code is used; the drawing and the layout of the boxes are Verso's own.",
+    },
+    link: "https://github.com/AykutSarac/jsoncrack.com",
+    licence: "Apache-2.0",
+  },
 ];
 
 export type SystemNotice = {
