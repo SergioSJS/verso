@@ -576,3 +576,12 @@ describe("review I6: a saved board is capped", () => {
     assert.equal(D.boardFits(doc(D.MAX_BOARD_CARDS + 1)), false);
   });
 });
+
+describe("review M7: an inherited name is no entity", () => {
+  test("&constructor; and &toString; stay as written; the five predefined ones decode", () => {
+    const t = D.parse("<a>&constructor; &toString; &__proto__; &lt;&amp;&gt;&quot;&apos;</a>", "xml");
+    assert.equal(t.error, null);
+    const text = JSON.stringify(t.nodes[0].rows);
+    assert.ok(text.includes("&constructor; &toString; &__proto__; <&>\\\"'"), text);
+  });
+});
