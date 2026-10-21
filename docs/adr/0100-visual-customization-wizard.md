@@ -1,6 +1,6 @@
-# ADR 0100 — Visual customization wizard: live CSS styler, versioned token contract, and personal theme profiles
+# ADR 0100 — Appearance wizard: a live preview in Settings over the real tokens, saved profiles, and `.verso-theme` files
 
-- Date: 2026-10-17
+- Date: 2026-10-17; rewritten 2026-10-21
 - Source: the maintainer, in session on 2026-10-17: *"Tem uma outra feature
   também que seria importante Da gente ter, é uma Espécie de wizard de
   customização visual aí é customizar o CSS padrão da aplicação a gente tem
@@ -9,10 +9,16 @@
   que a pessoa conseguisse customizar e salvar esses perfis e exportar e
   importar não seria legal se tivesse isso também já adiciono essa
   funcionalidade na lista aí de coisas pra se fazer antes mesmo de battle
-  mapping de zone token etc."* Reviewed by Claude Opus 5.5 on 2026-10-17
-  (`review_adrs_0098_0102.md`) to establish a versioned token contract, align
-  with personal settings layering ([0070](0070-what-travels-with-the-folder.md)),
-  enforce WCAG AA contrast validation, and prevent remote CSS injections.
+  mapping de zone token etc."* (there is another feature we should have, a
+  kind of visual-customization wizard … the options we have are okay but
+  weak, the names say little, a person has to change one to see it; I'd like
+  a wizard where a person customizes, saves these profiles, exports and
+  imports them … before even the battle map). On 2026-10-21, answering the
+  review of the rpg round, which had found that only one of the ADR's eleven
+  properties exists in the window's CSS under that name: *"Atualize a ADR pra
+  refletir a realidade então"* (then update the ADR to reflect reality).
+  This text replaces the first one, written on 2026-10-17 by another AI and
+  marked Accepted with no acceptance.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0026](0026-core-ui-contract-inviolable-rules.md),
@@ -21,88 +27,142 @@
   [0070](0070-what-travels-with-the-folder.md),
   [0076](0076-the-window-on-every-screen.md),
   [0103](0103-feature-presets-and-capability-flags.md).
-- Status in the briefing: not present; visual customization primitive.
+- Status in the briefing: not present.
+- Revisions: 2026-10-20 — the first text went back to Proposed (it called
+  itself Accepted on 2026-10-17 with no acceptance recorded).
+  2026-10-21 — rewritten over the window's real tokens with the maintainer's
+  answers 0100.0 to 0100.6 (marking the options of the decisions
+  questionnaire of 2026-10-20); Accepted. The first text's tokens (`--bg`,
+  `--card-bg`, `--border`, `--accent`, `--font-body`…), its floating window,
+  its 15-second "Keep changes?" dialog and its drag-and-drop-only import are
+  gone; its "recommended theme in the folder" stays, now by the maintainer's
+  explicit choice (item 3).
 
 ## Context
 
-Verso provides a curated aesthetic ("Manuscript") with light/dark modes and
-vault accent colors ([0070](0070-what-travels-with-the-folder.md)). However, writers and
-game masters desire tailored visual atmospheres (such as sepia parchment for
-fantasy campaigns, high-contrast dark for late-night editing, or clean editorial
-serif for long-form prose).
+Settings › Appearance already offers a theme (auto, light, dark), four
+palettes (`paper`, `sepia`, `slate`, `moss`), three tones of dark (`soft`,
+`deep`, `dusk`), the font size, a heading font, a body font, a heading colour
+and a reading width (`app/ui/src/settings.ts`, `app/ui/css/base.css`), all
+kept as the person's settings, never in a note. What it lacks is what the
+maintainer complained of on 2026-10-17: a person cannot see the result
+before changing it, cannot make a look of their own and keep it, and cannot
+hand it to someone.
 
-Currently, testing appearance adjustments requires navigating modal dialogs blind.
-Furthermore, ad-hoc CSS overrides risk breaking interface contrast, and importing
-arbitrary CSS files poses security hazards (such as `url(https://tracker/...)`
-invoking outbound network requests in violation of ADR 0050
-([0050](0050-outbound-network-access.md))).
-
-A native visual styler is required, operating via a **versioned design token
-contract**, previewing changes live, checking WCAG AA readability, and keeping
-theme profiles at the personal device layer ([0070](0070-what-travels-with-the-folder.md)).
+The first text of this ADR asked for eleven properties. Checked against the
+CSS on 2026-10-20 (review D-I15): only `--ink` exists under that name. The
+window's tokens are `--paper`, `--paper-2`, `--paper-3`, `--hair`, `--ink`,
+`--ink-2`, `--ink-3`, `--seal` (the accent), `--seal-wash`, `--brass`,
+`--brass-ink`, `--brass-wash`, `--heading-font`, `--book` (body font),
+`--mono`, and the `font-size` of the `<html>` element; there is no radius
+token and no "hover" colour. The idea stands; the contract has to be written
+over the real names.
 
 ## Decision
 
-Proposed (2026-10-17). The first text said it was accepted that day, with every item
-marked `[DECIDED 2026-10-17]`; no acceptance by the maintainer is recorded, and on
-2026-10-20 it went back to Proposed: each item marked so is a proposal (the review of
-2026-10-20, docs/review/).
+Accepted on 2026-10-21. Each item is `[DECIDED 2026-10-21]`: the maintainer
+marked the option written in it in the decisions questionnaire of 2026-10-20;
+where an option differs from the one first recommended, the item says so.
 
-1. **The Visual Styler Wizard ("Personalizar aparência…")**.
-   `[DECIDED 2026-10-17]`: Opens a floating or docked customizer alongside a live
-   sample document (featuring headings, body paragraphs, blockquotes, code blocks,
-   tables, and UI buttons). Changes apply to the preview in real time without
-   reloading or flashing the window.
+1. **It is in V1, as a small slice** (0100.0, option A; roadmap V.28). A live
+   preview in Settings, over the real tokens, with saved profiles and
+   export/import; no free-CSS field. No dependency, only CSS variables and
+   JSON, so it works offline and weighs nothing.
 
-2. **Versioned Design Token Contract (`tokensVersion: 1`)**.
-   `[DECIDED 2026-10-17]`: Customization is strictly mapped to defined CSS custom
-   properties:
-   - **Surfaces**: `--bg` (canvas), `--card-bg` (cards/panels), `--border` (dividers).
-   - **Typography**: `--font-body`, `--font-heading`, `--font-mono`, `--font-size-base`.
-   - **Accents & State**: `--accent`, `--accent-hover`, `--ink` (primary text), `--ink-muted`.
-   - **Geometry**: `--radius` (corner radius: 0px, 6px, 12px), interface density.
-   Tokens are typed and sanitized: raw CSS rules and external `url()` references are
-   forbidden, guaranteeing local-first privacy ([0050](0050-outbound-network-access.md)).
+2. **The panel is inside Settings › Appearance** (0100.1, option A), not a
+   floating window: a sample document beside the controls (headings, body
+   text, a quotation, code, a table, buttons) that changes at once as a value
+   changes. The Settings screen is already keyboard- and screen-reader-
+   accessible and works the same on the phone and in the browser
+   ([0076](0076-the-window-on-every-screen.md)); the live preview is a change
+   of variables on `:root`, with no reload and no flash.
 
-3. **Layering follows ADR 0070: personal themes with optional vault suggestion**.
-   `[DECIDED 2026-10-17]`: Theme profiles live in the **person layer** (`localStorage` /
-   local app config, unsynced). A shared vault never forces an unreadable theme
-   onto another reader. A vault may declare an optional `"recommendedTheme": "parchment"`
-   in `.verso/settings.json`, which the user may choose to accept or dismiss.
+3. **The token contract, `tokensVersion: 1`** (0100.2, option A): a short,
+   fixed list over the real names — `--paper`, `--paper-2`, `--hair`,
+   `--ink`, `--ink-2`, `--seal`, `--brass-ink`, `--heading-font`, `--book`,
+   `--mono` and the font size. A theme is only a list of values for these
+   tokens: **never free CSS, never `url()`**, never a rule
+   ([0050](0050-outbound-network-access.md)); each value is checked against
+   its type (a colour, a font from the allowed set, a size in a range). The
+   values the person does not edit one by one (`--paper-3`, `--ink-3`, the
+   washes, the dark tones) are derived by the wizard from these, so the
+   palettes already validated for contrast are not touched. There is no radius
+   token: none exists today and the maintainer did not ask for one.
+   `tokensVersion` lets the list grow without breaking a saved theme. A theme
+   never touches a note: it is variable values, kept outside the folder.
 
-4. **Live WCAG AA contrast check and safety revert**.
-   `[DECIDED 2026-10-17]`: The styler computes live luminance contrast ratios
-   between text (`--ink`) and background (`--bg`). If a color choice produces a
-   ratio below WCAG AA requirements (4.5:1 for normal text), an accessible warning
-   is displayed. When applying a drastic theme change, a 15-second "Keep changes?"
-   confirmation dialog offers an automatic safety rollback to prevent lockouts.
+4. **Where a theme lives: the person's layer, plus an optional suggestion
+   from the folder** (0100.3, **option B — the maintainer's explicit
+   choice**). Saved profiles are the person's settings
+   ([0070](0070-what-travels-with-the-folder.md) item 1; on a server, the
+   account's), unsynced between people, so in a room each person sees their
+   own theme. A folder may carry an optional `recommendedTheme` in
+   `.verso/settings.json`, which the person accepts or dismisses; the folder
+   never applies it by itself. The maintainer chose this knowing that
+   [0103](0103-feature-presets-and-capability-flags.md) item 4 says "the
+   person's choice, never the folder's" for feature switches: for themes he
+   decided otherwise, and 0103 carries a dated note saying so.
 
-5. **Theme Export and Import (`.verso-theme`)**.
-   `[DECIDED 2026-10-17]`: Users can export their saved themes as clean `.verso-theme`
-   JSON files containing metadata (name, author, light/dark mode, `tokensVersion: 1`)
-   and token values. Dragging a `.verso-theme` file onto the window validates the
-   schema and registers the profile into the local theme library.
+5. **Contrast is checked live, and an unreadable screen is undone**
+   (0100.4, option A). For the real pairs — ink on paper, ink 2 and ink 3 on
+   paper, the accent on paper — the panel shows the ratio live and warns
+   below 4.5:1 (WCAG AA for text). Only if a choice would drop a pair
+   **below 3:1** is it reverted automatically, once, with a message saying
+   what was undone; there is no timed "Keep changes?" dialog on every change.
+   "Restore default" is always on the panel and reachable by keyboard, with
+   a visible label, whatever the state.
 
-6. **Accessibility and internationalization ([0035](0035-cross-cutting-requirements.md))**.
-   `[DECIDED 2026-10-17]`: All slider controls, color swatches, font pickers, and
-   contrast indicators provide descriptive ARIA labels in Portuguese (`pt-BR`) and
-   English (`en`).
+6. **Export and import `.verso-theme`** (0100.5, option A). A theme is a small
+   JSON (name, light or dark, `tokensVersion`, the values) that is exported
+   and imported with **strict validation**: only the tokens of the list, only
+   colours and fonts it knows, a maximum size, no `url()`, nothing else. A
+   file dragged onto the window is accepted, and there is also an
+   **"Import…"** button, so a person who uses only the keyboard or a screen
+   reader can do it without dragging. Fonts are only those the app ships and
+   the system's; a font fetched from outside would break the network rule
+   ([0050](0050-outbound-network-access.md)).
+
+7. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
+   every control labelled in pt-BR and EN; colours and sizes operable by
+   keyboard; the contrast ratios and a revert announced in a polite live
+   region; the preview does not move focus.
 
 ## Consequences
 
-- Core application stylesheets remain unchanged and clean; themes override CSS
-  variables at the `:root` level.
-- Contrast validation protects accessibility and prevents unusable color combinations.
-- Users can share curated aesthetics across the community safely as plain JSON.
+- The core stylesheets do not change: a theme overrides variables at `:root`
+  (and the existing `data-palette` and dark-tone mechanisms keep working).
+- Profiles live in the person's settings (`app/ui/src/settings.ts` gains a
+  list of themes); `recommendedTheme` is one more key of
+  `.verso/settings.json` (the contract's `FolderSettings`, its bindings
+  regenerated).
+- A validator for `.verso-theme` files with a test of hostile inputs (a
+  `url()`, an unknown token, a huge value, a wrong type); the pairs'
+  contrast computed from the real tokens; a test that the revert happens
+  only below 3:1.
+- The demo vault teaches it ([0058](0058-demo-vault-as-tutorial.md)); the
+  changelog gets its line; roadmap row V.28.
 
 ## Discarded alternatives
 
-- **Storing active themes in synced vault folders (`.verso/themes/`)**: Rejected
-  because it forces one person's color scheme onto all collaborators in a room
-  ([0070](0070-what-travels-with-the-folder.md)).
-- **Allowing arbitrary raw CSS stylesheet imports**: Rejected because unchecked CSS
-  allows remote network tracking (`url()`) and selector injections.
+Only what the maintainer refused when he marked these answers (the first
+text's "alternatives" were never considered by anyone but its author and are
+not recorded):
+
+- **Waiting until after V1, or not doing it** (0100.0, B and C): the
+  maintainer wants it in V1.
+- **A floating or docked window** (0100.1, B), and **no sample document**
+  (0100.1, C): the first is a new focus-and-keys component, hard on a phone;
+  the second keeps "change it to see it".
+- **Creating the tokens of the first text (`--bg`, `--accent`…) and making the
+  CSS use them** (0100.2, B), and **only adding two or three palettes, with no
+  editor** (0100.2, C).
+- **Only the person's layer, the folder never suggesting** (0100.3, A): the
+  maintainer chose the optional suggestion instead.
+- **A timed "Keep changes?" dialog on every drastic change** (0100.4, B), and
+  **a warning only, with no automatic revert** (0100.4, C).
+- **Local profiles only, with no export or import in V1** (0100.5, B).
 
 ## Status
 
-**Proposed (2026-10-17)**; back to Proposed on 2026-10-20, nothing built.
+Accepted (2026-10-21), the rewrite over the real tokens with the maintainer's
+answers to 0100.0–0100.6. Nothing is built.

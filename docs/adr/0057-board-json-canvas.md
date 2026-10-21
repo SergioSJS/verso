@@ -131,7 +131,11 @@ decided by the maintainer on 2026-10-01 (point 18).
       saved beside the board in the attachments folder, saved to Downloads,
       or copied. Excalidraw's own copies as PNG or SVG are hidden.
     - **Web embed** is hidden: the board draws only its own cards, and the
-      tool ended in an error. Embedding a page on a board is not decided.
+      tool ended in an error. `[DECIDED 2026-10-21]` (the maintainer's mark,
+      **option B**, not the recommended A): an embedded web page **is
+      allowed as a board card**, reusing [0056](0056-embedded-web-pages.md)
+      (the page loads in its frame from an origin the person approved); one
+      more card type. Until it is built the tool stays hidden.
     - **Background.** A board's background colour is kept in the file, under
       `verso.background`; none means the app's paper.
     - **A card's colour.** The background chosen for a card from the

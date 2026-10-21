@@ -33,7 +33,12 @@
   acentos; escolher uma nota escreve `[[Nome]]` (ou `[[Nome|digitado]]`,
   como no item 2) no lugar do `@` e do que veio depois — o arquivo
   continua no dialeto do Obsidian, onde `@` não significa nada.
-  `[PROPOSTO]`: ligado por padrão (só abre quando pedido); só no começo
+  `[DECIDIDO 2026-10-21]` (0089.a, "Outra": *"A, mas caso o usuário aperte
+  Esc pra dispensar a janela, ela naoa deve voltar ao usuário digitar mais
+  caracteres"*): ligado por padrão (só abre
+  quando pedido), **e depois que o Esc dispensou a lista do `@`, digitar
+  mais caracteres da mesma palavra não a reabre** (um novo `@` sim); só
+  no começo
   de uma palavra (`fulano@mail` nunca o abre); sem escolha, o `@` e o
   texto ficam como digitados; nunca em código, no frontmatter, num link,
   em fórmulas, em HTML ou numa tag.
@@ -41,7 +46,8 @@
   primeiras letras das palavras recém-digitadas, uma lista curta das notas
   (e apelidos) cujo nome começa por elas, que se estreita conforme se
   digita; setas escolhem, Tab ou Enter aceita, Esc dispensa naquela
-  palavra. `[PROPOSTO]`: três letras no mínimo, e só para uma palavra que
+  palavra. `[DECIDIDO 2026-10-21]` (0089.b, opção A: como construída,
+  desligada por padrão): três letras no mínimo, e só para uma palavra que
   começa com maiúscula — nomes de lugares, pessoas e facções começam, as
   palavras comuns que tornaram necessária a regra do nome inteiro em geral
   não; no máximo cinco entradas; um nome inteiro digitado mantém o chip,
@@ -52,11 +58,20 @@
   ajustes da pessoa. O mantenedor, ao experimentar: *"você não adicionou
   número de caracteres pra acionar a busca por notas nesse parâmetro"*.
   `[DECIDIDO 2026-10-20]`: o número de letras antes de a lista aparecer é
-  um ajuste ao lado da sugestão, padrão 3. `[PROPOSTO]`: de 1 a 10; e a
-  regra da inicial maiúscula um interruptor ao lado, ligado por padrão. Uma
+  um ajuste ao lado da sugestão, padrão 3. `[DECIDIDO 2026-10-21]` (0089.c,
+  opção A): de 1 a 10, padrão 3; e a regra da inicial maiúscula um
+  interruptor ao lado, ligado por padrão. Uma
   palavra que começa com um algarismo conta como maiúscula — o mantenedor:
   *"você não considerou notas que começam com número, tipo 2026"*,
   `[DECIDIDO 2026-10-20]`.
+  2026-10-21 — os detalhes `[PROPOSTO]` acima decididos pelas marcas do
+  mantenedor no questionário de 2026-10-20 (0089.a a 0089.c), e mais uma
+  pergunta respondida: **0089.a2** `[DECIDIDO 2026-10-21]`, opção A —
+  `@Goblin` digitado inteiro continua listando "Goblin Rei" abaixo de
+  "Goblin": o nome exato primeiro (nota 100), os que começam com o texto
+  depois (80), os que apenas o contêm por último (40), o mesmo comportamento
+  da lista do `[[`, para que um nome mais longo possa ser escolhido sem
+  apagar nada.
 
 ## Contexto
 

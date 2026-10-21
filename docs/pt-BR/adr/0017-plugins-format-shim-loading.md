@@ -46,3 +46,5 @@ plugin de Obsidian.
 ## Status
 
 Proposto.
+
+*2026-10-21* — o questionário de decisões de 2026-10-20 (respondido em 2026-10-21): `[DECIDIDO 2026-10-21]` (opção A) os seis itens esperam a depois da V1, o momento já decidido (plugins ficam fora da V1). O Status continua Proposto.

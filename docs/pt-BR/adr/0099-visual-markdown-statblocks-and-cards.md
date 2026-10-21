@@ -18,6 +18,11 @@
   Fantasy Statblocks (MIT, Jeremy Valentine; estudado em f248f4af, v4.10.3),
   e as regras, SRDs e licenças publicados de cerca de 35 sistemas, cada
   campo com a sua fonte, em `docs/reference/statblock-sources.md`.
+- Revisões: 2026-10-21 — o mantenedor marcou as opções do questionário de
+  decisões de 2026-10-20 (respondido em 2026-10-21): os detalhes
+  `[PROPOSTO]` dos itens 1, 5 e 6 ficam decididos como propostos (0099.1,
+  0099.5, 0099.6a a c), e as palavras de resultado em inglês dos perfis de
+  dados (item 4) estão aprovadas. Status Aceita.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -55,8 +60,9 @@ permitem nada.
 ## Decisão
 
 Aceita em 2026-10-20 para o desenho proposto ao mantenedor naquele dia;
-`[DECIDIDO 2026-10-20]` cita as respostas dele, `[PROPOSTO]` marca um
-detalhe que ele não leu.
+`[DECIDIDO 2026-10-20]` cita as respostas dele; `[DECIDIDO 2026-10-21]` é a
+opção que ele marcou no questionário de decisões de 2026-10-20 (a opção
+escrita no item, sem palavras próprias dele); nada resta `[PROPOSTO]`.
 
 1. **Um cartão vem de um bloco ```` ```statblock ````, e só dele.** O bloco
    guarda YAML. Suas chaves são os nomes de chave do Fantasy Statblocks
@@ -67,8 +73,9 @@ detalhe que ele não leu.
    `layout:` nomeia um layout por id ou por nome, exatamente, ignorando
    maiúsculas e acentos; um desconhecido desenha o layout padrão com um
    "layout não encontrado" visível. Nenhum cartão é adivinhado a partir de
-   propriedades comuns (`hp:` numa nota sobre um computador). `[PROPOSTO]`:
-   `monster: Goblin` e `extends: [[Goblin]]` pegam o statblock da nota assim
+   propriedades comuns (`hp:` numa nota sobre um computador).
+   `[DECIDIDO 2026-10-21]` (0099.1, opção A): `monster: Goblin` e
+   `extends: [[Goblin]]` pegam o statblock da nota assim
    nomeada e sobrepõem as chaves dele — o bestiário do plugin, feito de
    notas.
 
@@ -114,7 +121,14 @@ detalhe que ele não leu.
    aplicam). A resposta se lê do jeito que o sistema a lê — o dado mais
    alto, sucessos contados, uma faixa de 2d6 — e é mostrada, não escrita
    ([0088](0088-dice-and-random-tables.md) item 2); numa sala o servidor
-   sorteia e a sala vê (item 4 de lá).
+   sorteia e a sala vê (item 4 de lá). `[DECIDIDO 2026-10-21]` (S.1, opção
+   A): as palavras de resultado em inglês dos perfis Fractal, Trophy e
+   Infaernum em `app/ui/src/dice/profileWords.ts` estão aprovadas como
+   construídas (Success / Failure, Success with Momentum ×2 a ×4, Rupture
+   ×1 a ×4, Miracle, Misfortune, Feat e Glimpse ×1 a ×3, Yes / No, "Ruin
+   rises", Number of Facts / Dark dice / Your Ruin, e as listas de "ideias"
+   do Infaernum); traduções literais, trocadas quando os autores publicarem
+   os termos em inglês.
 
 5. **Os marcadores escrevem na nota.** `[DECIDIDO 2026-10-20]`: *"13.
    deveria gravar"*. Um bloco **marcador** mostra um valor atual contra um
@@ -122,15 +136,17 @@ detalhe que ele não leu.
    Esperança — como caixas ou um número. Um clique é ação da pessoa
    (invariante 8): substitui aquele único valor no YAML do bloco, pelo
    editor ou pela sala, nunca o bloco inteiro, nunca direto no disco.
-   `[PROPOSTO]`: numa sala, depois que dois cliques se fundem, um valor que
-   já não se lê como um número dentro dos seus limites mostra uma insígnia
-   e um reparo de um clique, nunca um palpite silencioso.
+   `[DECIDIDO 2026-10-21]` (0099.5, opção A): numa sala, depois que dois
+   cliques se fundem, um valor que já não se lê como um número dentro dos
+   seus limites mostra uma insígnia e um reparo de um clique, nunca um
+   palpite silencioso (nem um ajuste silencioso ao limite).
 
 6. **Quais layouts vêm embutidos.** `[DECIDIDO 2026-10-20]`, sobre a
    recomendação depois da pesquisa de licenças: embutidos só onde as regras
    são abertas, mais layouts genéricos nomeados pelas suas mecânicas; o resto
-   importado, ou embutido quando a editora permitir. `[PROPOSTO]`: a lista
-   abaixo, montada depois dessa resposta. Embutidos, cada campo com a
+   importado, ou embutido quando a editora permitir. `[DECIDIDO 2026-10-21]`
+   (0099.6a, opção A: a lista aprovada como está, treze famílias de
+   `credits.ts`): a lista abaixo, montada depois dessa resposta. Embutidos, cada campo com a
    sua fonte em `docs/reference/statblock-sources.md`, a linha de cada
    licença na página de Créditos:
    - sistemas cujas regras são abertas: o SRD de D&D 5e (5.1 e 5.2.1, CC BY
@@ -145,7 +161,9 @@ detalhe que ele não leu.
      texto);
    - **Fractal** (Igor Téuri e Walter Licínio, CC BY 4.0 pelo texto do seu
      SRD, cujo selo mostra BY-SA — a confirmar com os autores; só nomes de
-     campos, em qualquer caso): um personagem (reservas, até doze fatos que quebram e se
+     campos, em qualquer caso; `[DECIDIDO 2026-10-21]` (0099.6b, opção A)
+     continua embutido, só nomes de campos, com o crédito "CC BY 4.0 conforme
+     o texto do SRD", e muda se a resposta dos autores mudar): um personagem (reservas, até doze fatos que quebram e se
      consertam, XP) e um **desafio** cujos obstáculos podem ser, cada um, um
      `[[link]]` para a nota de outro desafio — uma campanha, os seus arcos e
      os seus episódios como uma árvore que o grafo já desenha;
@@ -156,9 +174,10 @@ detalhe que ele não leu.
    Para o resto — Daggerheart, Tormenta20, Call of Cthulhu, Savage Worlds,
    os jogos da Free League, Mothership e outros — um layout é um arquivo que a
    pessoa importa, ou que vem embutido quando a editora permitir por
-   escrito. `[PROPOSTO]`: os jogos da 5ª edição de World of Darkness sob o
-   Dark Pack da Paradox, e um layout em branco de Cyberpunk RED sob a
-   política de homebrew da R. Talsorian, cada um com o seu aviso. Todo
+   escrito. `[DECIDIDO 2026-10-21]` (0099.6c, opção A): os jogos da 5ª edição
+   de World of Darkness sob o Dark Pack da Paradox, e um layout em branco
+   de Cyberpunk RED sob a política de homebrew da R. Talsorian, cada um
+   embutido com o seu aviso na página de Créditos. Todo
    layout embutido tem uma ficha de personagem e, onde o sistema tem, uma
    ficha de adversário separada.
 
@@ -218,5 +237,6 @@ detalhe que ele não leu.
 
 ## Status
 
-Aceita (2026-10-20), o desenho proposto ao mantenedor naquele dia; os
-detalhes `[PROPOSTO]` esperam a leitura dele.
+Aceita (2026-10-20), o desenho proposto ao mantenedor naquele dia, com todos
+os detalhes decididos em 2026-10-21. Ainda fora desta ADR: a licença do
+Fractal, que o mantenedor está perguntando aos autores (item 6).

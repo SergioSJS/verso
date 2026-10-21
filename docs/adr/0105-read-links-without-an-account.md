@@ -21,6 +21,10 @@
   [0076](0076-the-window-on-every-screen.md),
   [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21), 0105.2 to 0105.8, all
+  as recommended: every `[PROPOSED]` becomes `[DECIDED 2026-10-21]`, and
+  the ADR is Accepted. Nothing is built.
 
 ## Context
 
@@ -41,8 +45,9 @@ the link.
 
 ## Decision
 
-Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
-2026-10-20]`; the rest is `[PROPOSED]`, each with the recommendation.
+Accepted (2026-10-21). Item 1 is the maintainer's choice, `[DECIDED
+2026-10-20]`; the rest is `[DECIDED 2026-10-21]`, each the option he marked
+in the questionnaire of 2026-10-20.
 
 1. **A read link, on UniVerso, needing no account.** `[DECIDED
    2026-10-20]`. Whoever holds the link reads, in a browser, what it
@@ -50,7 +55,9 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
    way to write. This revises [0081](0081-sharing-between-people-on-one-universo.md)
    item 4's "not now".
 
-2. **What a link points at: a folder, or one note.** `[PROPOSED]`: a
+2. **What a link points at: a folder, or one note.** `[DECIDED 2026-10-21]`
+   (0105.2, option A; it also answers the read half of the per-note
+   permission left open in [0073](0073-self-hosted-server-first.md)): a
    folder (with what is under it) or **a single note**. A note alone is
    the read-only share of one document that [0081](0081-sharing-between-people-on-one-universo.md)
    item 17 recommended "if it is asked for": being read-only, it needs no
@@ -59,16 +66,18 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
    "not shared". Sharing one note **to write** stays where item 17 left
    it.
 
-3. **Who makes a link.** `[PROPOSED]`: the **owner** of the folder, as
+3. **Who makes a link.** `[DECIDED 2026-10-21]` (0105.3a, option A): the
+   **owner** of the folder, as
    for every share ([0081](0081-sharing-between-people-on-one-universo.md)
    item 4: one author per share in the audit log); from the folder's
    sharing panel and from a note's menu ("Copy read link…"). The
    **administrator** may turn the whole feature off for the server; it
    starts **off** on a new server and is turned on in the console
-   `[PROPOSED]`, so a server of private notes stays as it was until
-   someone chooses.
+   `[DECIDED 2026-10-21]` (0105.3b, option A), so a server of private notes
+   stays as it was until someone chooses.
 
-4. **What the reader is served.** `[PROPOSED]`: the reader's projection
+4. **What the reader is served.** `[DECIDED 2026-10-21]` (0105.4, option
+   A, not also a download of the folder as a zip): the reader's projection
    of [0087](0087-secret-blocks-hidden-from-readers.md) — no `[!secret]`
    block anywhere: the page, search, backlinks, the graph, counts; only
    what the link points at; notes, boards, maps and statblocks drawn
@@ -77,7 +86,8 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
    sync, no history, no MCP, no download of the folder as a whole.
    Search and backlinks cover only what was shared.
 
-5. **The link itself.** `[PROPOSED]`: an unguessable token of 256 bits in
+5. **The link itself.** `[DECIDED 2026-10-21]` (0105.5, option A, with
+   passphrase and expiry): an unguessable token of 256 bits in
    the path (`/r/<token>`), stored only as a hash; shown once in full
    when made (and copyable again from the panel while it lives); the page
    sends `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`, and
@@ -87,7 +97,7 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
    what it points at, when it was made, its expiry, and when it was last
    opened; **revoke** ends it at once, open pages included.
 
-6. **Bounds and abuse.** `[PROPOSED]`: an anonymous request is paced per
+6. **Bounds and abuse.** `[DECIDED 2026-10-21]` (0105.6, option A): an anonymous request is paced per
    token and per address like the server's other routes ([0083](0083-security-hardening-of-universo.md)
    item 7); a wrong passphrase counts as a refused sign-in — the log line
    fail2ban reads and the bucket that mails the owner (0083 items 1
@@ -96,14 +106,15 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
    of item 9 apply; a link never reveals the folder's path, the owner's
    e-mail or other members.
 
-7. **What the window shows to the owner.** `[PROPOSED]`: a note or folder
+7. **What the window shows to the owner.** `[DECIDED 2026-10-21]`
+   (0105.7, option A, the mark and the warning of secrets): a note or folder
    with a live read link carries a small mark in the tree, so nobody
    forgets that a page is open to the world; making a link for a folder
    that holds secret blocks says, before it is made, how many notes have
    them and that readers will not see them.
 
-8. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
-   the reading page in the reader's browser language, pt-BR or EN; the
+8. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md))
+   `[DECIDED 2026-10-21]` (0105.8, option A): the reading page in the reader's browser language, pt-BR or EN; the
    panel's words in both; the page usable by keyboard and a screen
    reader, as the web window is ([0076](0076-the-window-on-every-screen.md)).
 
@@ -129,5 +140,5 @@ Proposed (2026-10-20). Item 1 is the maintainer's choice, `[DECIDED
 
 ## Status
 
-Proposed (2026-10-20). Item 1 decided by the maintainer; items 2–8 are
-recommendations for him to answer.
+Accepted (2026-10-21). Item 1 decided by the maintainer on 2026-10-20,
+items 2–8 on 2026-10-21. Nothing is built.

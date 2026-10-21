@@ -116,3 +116,5 @@ Ajustes › Servidores mantém o nome, com UniVerso na descrição. A ser lida
 por Fable 5.1 com o código da rodada *(histórico: lida por Fable 5.1 em 2026-10-10/11, na sessão da campanha
 de sync; o relatório final dela,
 `verso-sync-campaign/relatorio-final.md`, está fora do repositório)*.
+
+*2026-10-21* — o questionário de decisões de 2026-10-20 (respondido em 2026-10-21): `[DECIDIDO 2026-10-21]` (opção A) nenhum domínio nem logo próprio para o UniVerso por ora; usa o versomd.com. É um nome de produto dentro do Verso, não uma marca separada.

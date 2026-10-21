@@ -17,7 +17,10 @@
   com a aceitação do [0073](0073-self-hosted-server-first.md) e do
   [0074](0074-accounts-and-access-on-the-server.md) pelo mantenedor naquele
   dia; cada resposta é um parágrafo depois do seu grupo, e o texto acima
-  dele fica. O MCP pela rede segue `[ABERTO]` (0073 item 11).
+  dele fica. O MCP pela rede segue `[ABERTO]` (0073 item 11) —
+  `[DECIDIDO 2026-10-21]`: depois da V1, com o MCP local por stdio
+  inalterado (0073.mcp). 2026-10-21 — o idioma do que um modelo lê está
+  decidido: só inglês (0045.lang).
 
 ## Contexto
 
@@ -146,7 +149,8 @@ ele diz `[ABERTO]`: o mantenedor decidiu o grupo do `verso mcp` em 2026-09-22 �
 a lista acima, com a qual este registro concorda — e em 2026-09-24 confirmou o
 caminho relativo como identificador de nota
 (`docs/reference/handles-decision.md`). O resto continua o registro do que o
-código faz; a língua do que um modelo lê continua `[ABERTO]`, abaixo.)*
+código faz; a língua do que um modelo lê continuava `[ABERTO]` então, abaixo, e está
+decidida: só inglês, 2026-10-21.)*
 
 - **Transporte: stdio, e nada fica escutando.** O `verso mcp <pasta>` é lançado
   pelo cliente como processo filho e fala JSON-RPC pela própria entrada e saída
@@ -187,8 +191,11 @@ código faz; a língua do que um modelo lê continua `[ABERTO]`, abaixo.)*
 - **As descrições das ferramentas e as instruções do servidor são literais só em
   inglês**, e as mensagens de `ErrorData` que o cliente recebe também. Se o que
   um modelo lê é bilíngue como as mensagens voltadas ao usuário
-  ([0035](0035-cross-cutting-requirements.md)) é `[ABERTO]` (§7 do memo): não
-  está decidido, e o código tomou a opção mais estreita em vez de inventar uma.
+  ([0035](0035-cross-cutting-requirements.md)) era `[ABERTO]` (§7 do memo);
+  `[DECIDIDO 2026-10-21]` (0045.lang, opção A): **só inglês** — um modelo o
+  lê, uma pessoa não, e as mensagens ao usuário seguem bilíngues (a
+  [0035](0035-cross-cutting-requirements.md) cobre texto para pessoas, não
+  para modelos). É o que o código faz.
 - **Dependência:** `rmcp` 3.4 com `default-features = false` e
   `features = ["server", "transport-io", "macros"]` — o lado servidor, o
   transporte stdio e as macros de ferramenta, com toda a metade de HTTP, auth e

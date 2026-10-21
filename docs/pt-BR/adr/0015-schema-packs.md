@@ -39,3 +39,5 @@ Schemas são distribuíveis como conteúdo — diário, worldbuilding, sistemas 
 ## Status
 
 Proposto.
+
+*2026-10-21* — o questionário de decisões de 2026-10-20 (respondido em 2026-10-21): **0015** `[DECIDIDO 2026-10-21]` (opção A) fica para depois da V1, ligada à [0047](0047-plugin-api-open-questions.md) e à [0098](0098-world-and-campaign-wizard-template-bundles.md). Conciliada com o item 11 da 0098, decidido no mesmo dia (0098.R, opção A): o **pacote da 0098 é o formato dos packs de estrutura distribuídos como conteúdo**, um conceito e uma tela, e esta ADR passa a apontar para lá; tudo o que esta ADR imagina além do que um pacote faz (tipos de nota e esquemas, um pack por sistema de jogo, a integridade de um pack baixado) fica depois da V1. O Status continua Proposto.

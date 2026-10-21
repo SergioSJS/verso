@@ -25,6 +25,11 @@
   feature e é visto falhando antes), [0033](0033-pr-workflow.md) (os
   níveis), [0035](0035-cross-cutting-requirements.md) (as duas línguas,
   acessibilidade), `docs/reference/threat-model.md`.
+- Revisões: 2026-10-21 — dois pontos que o mantenedor respondeu no questionário
+  de decisões de 2026-10-20 (respondido em 2026-10-21): a caixa de correio do
+  item 15 (0083.15, opção B: ainda não existe, ele vai criá-la; o ponto
+  continua aberto até lá) e os achados do fuzzing do `yrs` (0083.14, opção
+  C: não reportar ao projeto original; as nossas proteções ficam).
 
 ## Contexto
 
@@ -356,6 +361,10 @@ decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
       `security@versomd.com`, uma caixa que o mantenedor lê; sem bug
       bounty. *Decidido:* `security@versomd.com`, sem bug bounty; falta o
       mantenedor confirmar que a caixa existe, o que não segura o item.
+      *2026-10-21* (0083.15, opção B): **a caixa ainda não existe; o
+      mantenedor vai criá-la.** O ponto continua `[ABERTO]` até ele confirmar
+      que existe — até lá o `security.txt` promete um endereço que ninguém
+      lê.
 
 16. **A leitura de fora, e a revisão cruzada do sanitizador** (F9). Antes
     do anúncio: `app/ui/src/sanitize.ts` lido pelo modelo que não o
@@ -794,8 +803,10 @@ alvos acharam, e o que fechou cada achado:
 Estado final: 60 s sob `-O` nos alvos `note` e `board` sem nenhum crash
 *(relatado)*; as sementes, entre elas as seis entradas antes guardadas à
 parte como abertas (f95226d), repassam limpas (8d419e9). Os achados do
-yrs são para relatar ao projeto, esperando o OK do mantenedor
-*(relatado)*.
+yrs eram para relatar ao projeto, esperando o OK do mantenedor
+*(relatado)*; `[DECIDIDO 2026-10-21]` (0083.14, opção C): **não são
+reportados** ao projeto `yrs`, e as nossas proteções (os limites, os testes
+do `yjs_bounds.rs`, as sementes do fuzz) ficam.
 
 **Item 16** (0b5fea1; e86eee8, 1e25bcf). A leitura:
 `app/ui/src/sanitize.ts`, escrito pelo Opus 5.5, lido pelo Fable 5.1 em

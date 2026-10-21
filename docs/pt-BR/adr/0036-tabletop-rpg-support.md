@@ -60,3 +60,5 @@ Nenhuma registrada.
 ## Status
 
 Aceito para a intenção. Escopo: Proposto.
+
+*2026-10-21* — o questionário de decisões de 2026-10-20 (respondido em 2026-10-21), todas opção A: **0036.a** `[DECIDIDO 2026-10-21]` a integração com o Foundry VTT vem depois da V1, como plugin; **0036.b** `[DECIDIDO 2026-10-21]` atalhos de enquadramento (viewports) nomeados no board vêm depois da V1 (a [0090](0090-maps-on-the-board.md) não os decidiu); **0036.c** `[DECIDIDO 2026-10-21]` o pacote de esquemas por sistema de jogo segue a [0015](0015-schema-packs.md), depois da V1.

@@ -228,3 +228,5 @@ OneDrive's among them, on 2026-10-08; `[OPEN]` for the other providers,
 each one when its platform arrives or a user needs it. Opening a file in the
 window fetches it: decided on 2026-09-30; what opening covers, and the index
 across a version: decided on 2026-10-01.
+
+*2026-10-21* — `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the remaining providers (Dropbox, Google Drive, macOS's own) are handled each when its platform arrives or someone needs it, as this Status already says; a real Windows placeholder has still to be observed.

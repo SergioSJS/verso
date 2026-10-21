@@ -19,7 +19,8 @@
   ctrl+scroll ou command + e - não arrumam o zoom?"*. `[DECIDIDO
   2026-10-20]`: Cmd/Ctrl `+` e `-` e Ctrl com a roda (a pinça de um
   trackpad) dão zoom na janela inteira, como o Obsidian e um navegador
-  fazem; Cmd/Ctrl `0` volta a 100 %. `[PROPOSTO]`: de 50 % a 200 % em
+  fazem; Cmd/Ctrl `0` volta a 100 %. `[DECIDIDO 2026-10-21]` (0072.z, opção A: aprovado como
+  construído, em `zoomCore.ts` e `zoom.ts`): de 50 % a 200 % em
   passos de 10 %; guardado por aparelho (depende da tela), não com a
   conta; sobre um board, um mapa, um PDF ou o grafo, a pinça e Ctrl com a
   roda continuam dando zoom naquela vista; na versão do navegador vale o

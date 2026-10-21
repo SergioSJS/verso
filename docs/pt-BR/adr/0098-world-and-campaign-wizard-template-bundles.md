@@ -12,6 +12,11 @@
   2026-10-20 achou o assistente dando sucesso quando o núcleo tinha
   recusado todos os arquivos. As respostas do mantenedor de 2026-10-20 estão
   citadas nos itens; este texto substitui o primeiro.
+- Revisões: 2026-10-21 — os quatro detalhes `[PROPOSTO]` decididos e a
+  pergunta da [0015](0015-schema-packs.md) respondida, com o mantenedor
+  marcando as opções do questionário de decisões de 2026-10-20 (respondido
+  em 2026-10-21): itens 2, 5, 7 e 10 como propostos, e um item 11 novo.
+  Status Aceita.
 - Relacionados: [0012](0012-files-are-source-of-truth.md),
   [0015](0015-schema-packs.md),
   [0019](0019-generative-opt-in-and-keychain.md),
@@ -36,8 +41,10 @@ confiável.
 ## Decisão
 
 Aceita em 2026-10-20 para os itens marcados `[DECIDIDO 2026-10-20]`, nas
-palavras do mantenedor; o resto repete o primeiro texto como construído e
-revisado; `[PROPOSTO]` marca um detalhe que ele não leu.
+palavras do mantenedor, e em 2026-10-21 para os itens marcados
+`[DECIDIDO 2026-10-21]`, em que o mantenedor escolheu a opção escrita no
+item no questionário de decisões de 2026-10-20 (ele a marcou, sem palavras
+próprias); nada resta `[PROPOSTO]`.
 
 1. **O assistente.** "Novo projeto a partir de um pacote…", pela paleta e
    pela árvore de arquivos: um nome, uma pasta de destino, um pacote. Todo
@@ -48,8 +55,8 @@ revisado; `[PROPOSTO]` marca um detalhe que ele não leu.
 2. **Um pacote declara, e nada mais.** JSON: `folders` (caminhos
    relativos) e `files` (um caminho, um objeto de frontmatter opcional,
    conteúdo Markdown; um arquivo `.canvas` ou `.base` mantido como é).
-   Nenhum script, nenhum código. `[PROPOSTO]`: os pacotes que uma pessoa
-   importa ficam na pasta, em `.verso/bundles/<id>.json`, pelos mesmos
+   Nenhum script, nenhum código. `[DECIDIDO 2026-10-21]` (0098.2, opção A):
+   os pacotes que uma pessoa importa ficam na pasta, em `.verso/bundles/<id>.json`, pelos mesmos
    comandos do contrato que os layouts ([0099](0099-visual-markdown-statblocks-and-cards.md)
    item 2), de modo que uma pasta compartilhada os compartilha; uma
    importação com o id de outro pacote recebe um id novo e avisa.
@@ -73,16 +80,18 @@ revisado; `[PROPOSTO]` marca um detalhe que ele não leu.
    guardar ([0070](0070-what-travels-with-the-folder.md) item 3) ou uma
    escrita em `.verso`, `.obsidian` ou `.git` é recusado antes de o ensaio
    terminar. Limites: 200 pastas, 500 arquivos, 256 KB por arquivo, 4 MB no
-   total, 8 níveis; `[PROPOSTO]` as 200 pastas contam os ancestrais que o
-   plano cria. Um pacote colado é limitado antes de ser lido.
+   total, 8 níveis; `[DECIDIDO 2026-10-21]` (0098.5, opção A) as 200 pastas
+   contam os ancestrais que o plano cria, de modo que um pacote fundo gasta
+   mais do limite. Um pacote colado é limitado antes de ser lido.
 
 6. **O frontmatter é escrito por uma biblioteca de YAML**, de modo que
    `Taverna #3`, `05`, `2026-10-17`, `yes` e `[[link]]` continuam sendo o
    que eram.
 
 7. **Marcadores.** Os dos Modelos do núcleo do Obsidian: `{{title}}`,
-   `{{date}}`, `{{time}}`, `{{date:FORMATO}}` `[PROPOSTO]`; o próprio do
-   Verso: `{{uuid}}`. Qualquer outra marca, `<% … %>` inclusive, é mantida
+   `{{date}}`, `{{time}}`, `{{date:FORMATO}}` `[DECIDIDO 2026-10-21]` (0098.7,
+   opção A: a construir, para que um pacote copiado do Obsidian funcione
+   igual); o próprio do Verso: `{{uuid}}`. Qualquer outra marca, `<% … %>` inclusive, é mantida
    como foi escrita.
 
 8. **Copiar um prompt para uma IA.** `[DECIDIDO 2026-10-20]`: o botão fica
@@ -96,13 +105,25 @@ revisado; `[PROPOSTO]` marca um detalhe que ele não leu.
 9. **O pacote Dados Críticos.** `[DECIDIDO 2026-10-20]`: *"o Igor Téuri é
    meu amigo, ele autorizou a gente a copiar a estrutura"*. O pacote de
    campanha segue a estrutura do cofre dele, diz isso na descrição e consta
-   na página de Créditos.
+   na página de Créditos. `[DECIDIDO 2026-10-21]` (S.2, opção A): o link do
+   crédito leva à página do próprio cofre, `https://linktr.ee/dadoscriticos`
+   (até então apontava provisoriamente para a página do Fractal no
+   itch.io).
 
 10. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
     cada palavra do assistente em pt-BR e EN, os nomes e as descrições dos
-    pacotes também; `[PROPOSTO]` os nomes de pastas e notas dos pacotes e
-    os conteúdos também no idioma da pessoa. Rótulos ligados aos seus
+    pacotes também; `[DECIDIDO 2026-10-21]` (0098.10, opção A) os nomes de
+    pastas e notas dos pacotes e os conteúdos também no idioma da pessoa
+    ("Sessões" vira "Sessions"). Rótulos ligados aos seus
     campos, abas com papéis e setas, o resultado numa região viva.
+
+11. **Os pacotes são o formato dos packs.** `[DECIDIDO 2026-10-21]`
+    (0098.R, opção A): o pacote é o formato que a [0015](0015-schema-packs.md)
+    previu para packs de estrutura distribuídos como conteúdo, não código;
+    a 0015 passa a apontar para cá, um conceito e uma tela. O que a 0015
+    imagina além do que um pacote faz (tipos de nota e esquemas, um pack
+    por sistema de jogo) fica depois da V1, como o mantenedor decidiu para
+    a 0015 no mesmo questionário.
 
 ## Consequências
 
@@ -121,5 +142,4 @@ revisado; `[PROPOSTO]` marca um detalhe que ele não leu.
 
 ## Status
 
-Aceita (2026-10-20) para os itens marcados `[DECIDIDO 2026-10-20]`; os
-detalhes `[PROPOSTO]` esperam a leitura do mantenedor.
+Aceita (2026-10-20, com todos os detalhes decididos em 2026-10-21).
