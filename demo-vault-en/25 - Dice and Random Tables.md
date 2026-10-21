@@ -1,0 +1,95 @@
+---
+title: Dice and Random Tables
+date: 2026-10-14
+tags:
+  - rpg
+  - data
+status: active
+---
+
+# Dice and Random Tables
+
+A `dice:` code in a note is a **die**: in **Reading** and in **Edit**, away from the cursor line, it shows up as a button. One click — or `Tab` to it and `Enter` — rolls it and shows the result on a card beside it: the total, each die, and what was added, with **Roll again**. It is the same form as Obsidian's Dice Roller plugin, so a vault that already uses the plugin rolls here, and a note written here rolls there.
+
+**Nothing is written to the note.** Rolling, rolling again and closing the card leave the file as it was: open the note in **Source** mode and see that the code is still just code.
+
+---
+
+## Rolling
+
+- Sword attack: `dice: 1d20+5`
+- Damage: `dice: 2d6+3`
+- Ability score, the lowest of four dice dropped: `dice: 4d6dl1`
+- With advantage, the higher of two d20s: `dice: 2d20kh1`
+- Fudge dice, from Fate: `dice: 4dF`
+- Sums and differences: `dice: 1d12+1d10-1d4+2`
+- An exploding die — on a 6, roll another and add it: `dice: 3d6!`
+- Percentile, a d100: `dice: d%`
+
+Verso reads dice (`2d6`; `d20` is just one), sums and differences of dice and numbers, **keep** and **drop** with a count (`kh2` keeps the 2 highest, `kl1` the lowest, `dh1` drops the highest, `dl1` the lowest), the fudge die (`dF`), the percentile (`d%`, a d100) and the die that **explodes** (`!` right after the die: on the highest face it rolls one more, which can explode again, up to 100 extra dice in one roll). Spaces do not count: `dice: 3d4 + 3` is `3d4+3`.
+
+A form Verso does not read stays **code**, and never turns into another roll: `dice: 1d20*2` down here is just code.
+
+`dice: 1d20*2`
+
+With a screen reader, the button is named *Roll 1d20+5*, and the result is spoken: *1d20+5: 17 — 12 plus 5*.
+
+---
+
+## Random tables
+
+A table or a list with a `^id` is a **random table**. A `dice:` code with a link to it draws a row:
+
+Who shows up on the road? `dice: [[25 - Dice and Random Tables#^encontros]]`
+
+| d6 | Encounter |
+| --- | --- |
+| 1–2 | A guard patrol, suspicious |
+| 3–4 | A merchant with his cart stuck in the mud |
+| 5 | Starving wolves, and [[Captain Ruy]] arrives to help |
+| 6 | Nothing; just the wind |
+
+^encontros
+
+The first column has a **die in the header** (`d6`, `d100`, `2d6`): each row says which ranges pick it (`1–2`, `5`, `01–05`, `96–00`), like in a printed table. The links in the drawn row open with a click.
+
+In a table with no die in the header, or in a list, every row has the same chance:
+
+The weather today: `dice: [[25 - Dice and Random Tables#^tempo]]`
+
+- Blazing sun
+- Light drizzle
+- Fog until noon
+- Storm at night
+
+^tempo
+
+---
+
+## In a shared note
+
+In a [[23 - Verso on a Server|UniVerso]], with other people in the same note, the one who rolls is the **server**: nobody picks their own number. Everyone in the note sees the roll with the name of who rolled — *Ana rolled* — and whoever joins later sees the room's latest rolls. With no connection, the die rolls in this window and the card says that nobody else saw it.
+
+---
+
+## The game master's secret
+
+A callout of the `secret` kind keeps what only whoever writes the note should see. Type `/` in Edit and choose **Secret**, or write:
+
+> [!secret] What the players don't know
+> The innkeeper is the baron's sister, and the cellar opens onto the harbor tunnel.
+
+In a [[23 - Verso on a Server|UniVerso]], whoever may only **read** the note gets it **without** this block — on screen, in search, in links and tags, in what syncs to their device, in a live note. Whoever can edit sees everything, with a padlock and *Hidden from readers*; the **View as a reader** button, beside Reading and Edit, shows the note the way a reader receives it, and **See the whole note** goes back. In a folder on this computer nothing is hidden, and the block says *Visible to anyone with the file*.
+
+> [!WARNING] Not encryption
+> Whoever can edit the note sees the secret — otherwise they would erase it on the next edit. So does whoever has the file: Obsidian, a computer that syncs as an editor, a copy handed over by hand. The secret is hidden from the server's readers, not encrypted; and a reader knows the note changed only when what they see changes.
+
+---
+
+## Without a note
+
+In the command palette (`⌘⇧P`), **Roll dice…** opens a roller: type the notation, `Enter`, and the result appears. It writes nothing either.
+
+---
+
+Next, see the visual statblocks in [[26 - Statblocks]], and the oracle for solo play and for building campaigns in [[27 - Oracles and World Building]]. Go back to the [[00 - Welcome to Verso|Home Page]] or open the [[Verso Tour.canvas|Verso Tour]].

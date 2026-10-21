@@ -18,7 +18,7 @@ import { bookmarks, toggleBookmark } from "./bookmarks";
 import { hasCapability } from "./capabilities";
 import { narrow, toggleRight, toggleSide } from "./chrome";
 import { insertTemplate, saveAsTemplate } from "./daily";
-import { importDemoVault } from "./demo";
+import { DEMO_LANG, importDemoVault } from "./demo";
 import { openRoller } from "./dice/roller";
 import { ds } from "./dice/strings";
 import { askOracleInActiveNote } from "./oracle/active";
@@ -269,6 +269,8 @@ export function allCommands(all = false): Command[] {
     { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
     { id: "unfold-all-headings", label: t.unfoldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(false) },
     { id: "import-demo-vault", label: t.importDemoVault, run: () => void importDemoVault() },
+    // The tutorial in the other language, when the window's is not the one wanted (ADR 0058 point 15).
+    { id: "import-demo-vault-other", label: t.importDemoVaultOther, run: () => void importDemoVault(DEMO_LANG === "pt" ? "en" : "pt") },
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
@@ -335,7 +337,7 @@ export function allCommands(all = false): Command[] {
 /** The commands that change the folder: absent for a reader on a server. */
 const WRITES = new Set([
   "new-note", "new-note-named", "new-folder", "world-wizard", "new-board", "new-base", "insert-base", "insert-template", "save-template",
-  "import-demo-vault", "replace", "new-web-page", "move-file", "rename", "delete",
+  "import-demo-vault", "import-demo-vault-other", "replace", "new-web-page", "move-file", "rename", "delete",
   "block-move-up", "block-move-down", "block-duplicate", "block-turn-into", "block-delete",
 ]);
 /** Whether a command means something here (ADR 0076 items 2 and 11): the

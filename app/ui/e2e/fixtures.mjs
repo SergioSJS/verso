@@ -39,9 +39,9 @@ export class App {
 
   /** Open a file by name with the quick switcher (⌘P): the name typed
    *  into its field, and Enter only once the list answers it. */
-  async quickOpen(name) {
+  async quickOpen(name, label = "Abrir…") {
     await this.key("Mod+p");
-    const field = this.page.getByRole("combobox", { name: "Abrir…" });
+    const field = this.page.getByRole("combobox", { name: label });
     await expect(field).toBeFocused();
     await field.fill(name);
     await expect(this.page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);

@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const LIMIT = 1500;
-const GENERATED = /^app\/ui\/src\/(bindings|demoVault)\.ts$/;
+const GENERATED = /^app\/ui\/src\/(bindings|demoVault|demoVaultEn)\.ts$/;
 const SOURCE = /\.(rs|ts|tsx|js|mjs|css)$/;
 const EXCEPTIONS = "scripts/size-exceptions.txt";
 
