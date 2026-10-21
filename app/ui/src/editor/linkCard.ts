@@ -141,6 +141,17 @@ export function linkCard(opts: LinkCardOptions) {
   return [card, taps];
 }
 
+/** Follow the link at `pos` as a click on it would: a note of the folder
+ *  (with its `#heading` or `^id`) or a web address outside the window.
+ *  False when there is no link there. */
+export function openLinkAt(state: EditorState, pos: number, opts: Pick<LinkCardOptions, "navigate" | "openUrl">): boolean {
+  const link = linkAt(state, pos);
+  if (!link) return false;
+  if (link.url) opts.openUrl(link.target);
+  else opts.navigate(decoded(link.target));
+  return true;
+}
+
 /** A link's target as the note names it: a malformed `%xx` is kept as
  *  typed instead of throwing in the click. */
 function decoded(target: string): string {

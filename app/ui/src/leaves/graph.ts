@@ -15,6 +15,9 @@ import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
 
+/** How long typing in the filter must pause before the count is announced. */
+const COUNT_PAUSE_MS = 1000;
+
 /* The graph: every note of the vault and every resolved link, or the
  * neighbourhood of one note to a chosen depth. Force-laid in SVG,
  * zoomed and panned, filtered by name or tag, colored by folder. */
@@ -27,6 +30,10 @@ export class GraphLeaf extends Leaf {
   readonly world = document.createElementNS("http://www.w3.org/2000/svg", "g");
   readonly title = h("h1", "note-title");
   readonly count = h("span", "graph-count");
+  /** What a screen reader hears of the count: the same words, a second after
+   *  typing in the filter stops (A11Y.16), not at every key. */
+  private readonly countLive = h("span", "sr-only");
+  private countTimer = 0;
   readonly controls = h("aside", "graph-controls");
   readonly legend = h("div", "graph-legend");
   private opts: GraphOpts = { ...GRAPH_DEFAULTS };
@@ -67,9 +74,11 @@ export class GraphLeaf extends Leaf {
       const open = body.classList.toggle("controls-open");
       toggle.setAttribute("aria-expanded", String(open));
     });
-    head.append(this.title, this.count, toggle);
-    // How many notes and links the filters leave, announced as they change.
-    this.count.setAttribute("role", "status");
+    head.append(this.title, this.count, this.countLive, toggle);
+    // How many notes and links the filters leave, announced once the typing
+    // pauses; the count drawn changes at once.
+    this.countLive.setAttribute("role", "status");
+    this.count.setAttribute("aria-hidden", "true");
     // The help for the input the screen has: a finger, or a mouse and keys.
     const hint = h("p", "graph-hint");
     const coarse = window.matchMedia("(pointer: coarse)");
@@ -379,7 +388,11 @@ export class GraphLeaf extends Leaf {
         folder: id.includes("/") ? id.split("/")[0] ?? "" : "",
       };
     });
-    this.count.textContent = t.graphNodes(this.nodes.length, edges.filter(([a, b]) => keep.has(a) && keep.has(b)).length);
+    const counted = t.graphNodes(this.nodes.length, edges.filter(([a, b]) => keep.has(a) && keep.has(b)).length);
+    this.count.textContent = counted;
+    window.clearTimeout(this.countTimer);
+    if (this.countLive.textContent === "") this.countLive.textContent = counted;
+    else this.countTimer = window.setTimeout(() => void (this.countLive.textContent = counted), COUNT_PAUSE_MS);
     this.draw(edges.filter(([a, b]) => keep.has(a) && keep.has(b)));
   }
   private hue(folder: string): number {
@@ -507,9 +520,11 @@ export class GraphLeaf extends Leaf {
       g.addEventListener("mouseenter", light);
       g.addEventListener("mouseleave", unlight);
       g.addEventListener("focus", () => {
-        // The Tab stop follows the keyboard, and the note is brought into view.
+        // The Tab stop follows the focus; the keyboard brings the note into view.
         for (const d of this.dots) d.g.setAttribute("tabindex", d.g === g ? "0" : "-1");
-        this.reveal(n);
+        // Only for the keyboard: a press with a pointer focuses the note too,
+        // and must not slide the view under the finger before a drag (A11Y.17).
+        if (g.matches(":focus-visible")) this.reveal(n);
         light();
       });
       g.addEventListener("blur", unlight);
@@ -593,6 +608,7 @@ export class GraphLeaf extends Leaf {
     this.stop = () => { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; };
   }
   override destroy(): void {
+    window.clearTimeout(this.countTimer);
     this.stop?.();
   }
 }

@@ -24,7 +24,7 @@ import type { Scope } from "../organize/layerRules";
 import { periodicBody } from "../periodic/settingsView";
 import { ps } from "../periodic/strings";
 import { icon } from "../icons";
-import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
+import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
@@ -839,7 +839,7 @@ export class SettingsDialog {
         if (combo === "Escape") return stop();
         // Without Mod a combination never fires; a reserved one would take
         // copy, paste or undo away. Say so, and keep listening.
-        if (!combo.startsWith("Mod-")) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
+        if (!combo.startsWith("Mod-") && !PLAIN_HOTKEYS.has(combo)) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
         if (RESERVED.has(combo) && DEFAULT_KEYS[id] !== combo) return void (shown.textContent = `${prettyKeys(combo)}: ${t.hotkeyReserved}`);
         stop();
         // The same keys cannot mean two things: the other command loses them.

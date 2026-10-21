@@ -1,5 +1,5 @@
 ---
-title: Abas, Painéis, Áreas e Janelas
+title: Abas, Painéis, Espaços de Trabalho e Janelas
 date: 2026-10-01
 tags:
   - abas
@@ -9,9 +9,9 @@ tags:
 status: ativo
 ---
 
-# Abas, Painéis, Áreas e Janelas
+# Abas, Painéis, Espaços de Trabalho e Janelas
 
-Várias notas abertas ao mesmo tempo: em abas, lado a lado, em áreas de trabalho separadas ou em janelas próprias.
+Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de trabalho separados ou em janelas próprias.
 
 ---
 
@@ -19,7 +19,7 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em áreas de trabalh
 
 - **Aba de pré-visualização**: um clique numa nota da árvore, da busca ou do **Abrir…** abre uma aba temporária, com o nome em itálico; o clique seguinte a substitui. Um duplo clique, uma edição ou fixar a aba a mantém. Desligue em **Ajustes › Editor › Abas de pré-visualização**.
 - **Fixar aba** (menu da aba): a aba encolhe para o ícone, como no navegador, e não fecha com **Fechar as outras**.
-- O menu de uma aba (botão direito) também tem **Abrir em nova aba**, **Duplicar aba**, **Dividir à direita**, **Dividir abaixo**, **Mover aba para a área seguinte**, **Mostrar na árvore**, **Renomear**, **Mover para…**, **Copiar caminho relativo** e as opções de fechar.
+- O menu de uma aba (botão direito) também tem **Abrir em nova aba**, **Duplicar aba**, **Dividir à direita**, **Dividir abaixo**, **Mover aba para o painel seguinte**, **Mostrar na árvore**, **Renomear**, **Mover para…**, **Copiar caminho relativo** e as opções de fechar.
 
 | Atalho | Faz |
 | :--- | :--- |
@@ -39,13 +39,13 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em áreas de trabalh
 
 ---
 
-## Áreas de Trabalho
+## Espaços de Trabalho
 
-Uma área é um conjunto de painéis e abas, para trocar de assunto sem fechar nada.
+Um espaço de trabalho é um conjunto de painéis e abas, para trocar de assunto sem fechar nada.
 
-- `⌘T` cria uma área nova; com duas ou mais, aparece a barra de áreas e `⌘1` a `⌘9` trocam entre elas.
-- Um duplo clique no nome de uma área (ou `F2`, ou **Renomear** no botão direito) a renomeia.
-- Arraste uma aba para o nome de outra área para levá-la até lá.
+- `⌘T` cria um espaço de trabalho novo; com dois ou mais, aparece a barra de espaços e `⌘1` a `⌘9` trocam entre elas.
+- Um duplo clique no nome de um espaço de trabalho (ou `F2`, ou **Renomear** no botão direito) a renomeia.
+- Arraste uma aba para o nome de outro espaço de trabalho para levá-la até lá.
 
 ---
 

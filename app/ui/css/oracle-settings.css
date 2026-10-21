@@ -104,7 +104,7 @@
 .orc-row-kept { margin: .3rem 0 0; font-size: .74rem; }
 .orc-cell { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
 .orc-cell-label { display: none; font-size: .7rem; color: var(--ink-2); }
-.orc-cell-input { box-sizing: border-box; width: 100%; min-width: 0; padding: .38rem .2rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-family: var(--mono); font-size: .86rem; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.orc-cell-input { box-sizing: border-box; width: 100%; min-width: 0; padding: .38rem .2rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-family: var(--mono); font-size: .86rem; text-align: center; appearance: textfield; -moz-appearance: textfield; }
 .orc-cell-input::-webkit-inner-spin-button, .orc-cell-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .orc-cell-input:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 1px; }
 .orc-row.is-off .orc-cell-input { border-color: color-mix(in oklch, var(--seal) 60%, var(--hair)); }

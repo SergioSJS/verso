@@ -9,7 +9,7 @@ import { commands, type PropertyValue } from "./bindings";
 import { changeBookmarks } from "./bookmarks";
 import { canWrite } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
-import { templateText, today } from "./daily";
+import { templateText } from "./daily";
 import { ask } from "./dialog";
 import { h, ui } from "./dom";
 import { fail, nameTaken } from "./errors";
@@ -30,7 +30,8 @@ import { dirOf, ext, Kind, kindOf, name } from "./paths";
 import { st } from "./screen/strings";
 import { getHiddenFromTree, setHiddenFromTree } from "./settings";
 import { keyboardIn, returnFromSide, showSide } from "./side";
-import { t } from "./strings";
+import { fillTemplate } from "./templateFill";
+import { LOCALE, t } from "./strings";
 import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
 import { foldsMoved } from "./foldMemory";
@@ -188,7 +189,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
             if (rdTpl.status === "ok") tpl = rdTpl.data.text;
           }
           if (tpl) {
-            initialText = tpl.replace(/{{date}}/g, today()).replace(/{{title}}/g, clean.split("/").pop() ?? clean);
+            initialText = fillTemplate(tpl, clean.split("/").pop() ?? clean, new Date(), LOCALE);
             fromFolder = true;
           }
         }

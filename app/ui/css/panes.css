@@ -346,3 +346,24 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .links-section:first-child .links-head { margin-top: .4rem; }
 .links-section + .links-section { margin-top: .9rem; border-top: 1px solid var(--hair); }
 
+
+/* Target size (WCAG 2.5.8, A11Y.13): the tab's close mark, a pill's remove
+   mark and the status bar's buttons are drawn small; their click area is a
+   24 x 24 px box around the mark's centre, made of an invisible pseudo-element
+   (absolute, so no bar or pill changes its size). The pill no longer clips its
+   children, so the box can reach past its rounded edge. */
+.tab-close, .bar-toggle, .pill-x, .status-keys button { position: relative; }
+.tab-close::after, .bar-toggle::after, .pill-x::after {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.pill { overflow: visible; }
+/* The remove mark's icon is 14px at the box's left edge (no left padding): its centre is 7px in. */
+.pill-x::after { left: -5px; transform: translateY(-50%); }
+/* The status bar's text buttons are wide enough; only the height grows. */
+.status-keys button::after { content: ""; position: absolute; inset: -5px -2px; }
