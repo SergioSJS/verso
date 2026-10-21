@@ -102,6 +102,7 @@ The number is **already drawn** before the dice fall, by the window's cryptograp
 - **No animation:** if the system asks for less motion, or the roll has more than 20 dice or an exploding die (`!`), only the card shows.
 - **In a room**, each person sees the dice fall only if *their* 3D dice feature is on; the others see the card.
 - The 3D engine is downloaded only on the first 3D roll and kept for offline use. No sound.
+- **Appearance:** just below the switch, on the same page, as in Rolai: the **size** (70% to 160%; 100% is a die about 70 pixels across on a laptop), **three colour sets** (1, 2 and 3 — a roll uses 1; a dice profile can give a group 2 or 3) and, for the chosen set, the **style** (Verso's own, Emerald, Bone, Obsidian, Blood, Abyssal, Ice, Scales, Tavern), the **body**, **number** and **outline** colours, the **texture** (Plain, Marble, Speckles, Glitter, Stars, Astral sky, Clouds, Fire, Water, Ice, Paper, Wood, Steel, Stained glass, Skulls, Dragon, Leopard, Tiger, Lizard, Feather — drawn by Verso, no images) and the **material** (Automatic, Plastic, Metal, Wood, Glass, Matte). If the number is too close to the body colour, Verso warns you (contrast below 3:1). **Roll to test** rolls a d20 and two d6, one in each set. It is for this device only: in a room, each person sees the roll with *their own* dice.
 
 ---
 
