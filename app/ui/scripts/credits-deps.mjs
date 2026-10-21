@@ -20,6 +20,8 @@ const MAIN = {
   "maplibre-gl": ["MapLibre GL JS", "https://maplibre.org"],
   mermaid: ["Mermaid", "https://mermaid.js.org"],
   react: ["React", "https://react.dev"],
+  three: ["three.js", "https://threejs.org"],
+  "cannon-es": ["cannon-es", "https://pmndrs.github.io/cannon-es/"],
 };
 const out = Object.entries(MAIN).map(([pkg, [name, link]]) => {
   const j = JSON.parse(readFileSync(`${root}node_modules/${pkg}/package.json`, "utf8"));

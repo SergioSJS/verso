@@ -21,6 +21,7 @@ import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import { setHtml } from "../sanitize";
 import { hasCapability } from "../capabilities";
+import { play3d, will3d } from "../dice3d";
 import { type DiceCode, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
 import { readTable, rowOf, type RandomTable } from "./table";
@@ -48,7 +49,7 @@ const slot = (path: string, key: string) => `${path}\n${key}`;
 
 let region: HTMLElement | null = null;
 /** Said to a screen reader, politely (item 8). */
-function say(text: string): void {
+export function say(text: string): void {
   if (!region || !region.isConnected) {
     region = h("div", "sr-only dice-said");
     region.setAttribute("role", "status");
@@ -295,6 +296,14 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     } catch (e) {
       s = { roll: null, row: null, from: null, note: ds.refused(e instanceof Error ? e.message : String(e)) };
     }
+    // With the 3D switch on (ADR 0101), the result is drawn already: it is
+    // said at once, the dice fall, and the card shows when they have rested
+    // or been skipped. The card is made either way.
+    const fall = s.roll !== null && will3d(path, s.roll);
+    if (fall && s.roll) {
+      say(said(s, false));
+      await play3d(path, s.roll);
+    }
     busy = false;
     roll.removeAttribute("aria-busy");
     box.classList.remove("rolling");
@@ -303,7 +312,7 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     // (a card's two "+2" are two dice).
     for (const d of drawn) if (d.el !== box && !d.pop && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
     show(s);
-    say(said(s, false));
+    if (!fall) say(said(s, false));
   };
   roll.addEventListener("click", () => void go());
   again.addEventListener("click", () => void go());
@@ -345,10 +354,21 @@ async function heard(e: CollabRoll): Promise<void> {
   const s = await withRow({ roll: e.roll, row: null, from: null, note: null }, e.path);
   last.set(slot(e.path, key), s);
   const here = [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key);
+  // Another member's roll falls in 3D only for someone whose own switch is
+  // on (ADR 0101 item 6): said at once, shown when the dice have rested.
+  const fall = will3d(e.path, e.roll);
+  if (fall) {
+    say(said(s, true));
+    await play3d(e.path, e.roll);
+  }
+  // The dice drawn now: a page may have changed while they fell.
+  const now = fall ? [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key) : here;
   // Every die in a line shows it; of a card's popovers, the first.
-  const pop = here.find((d) => d.pop);
-  for (const d of here) if (!d.pop || d === pop) d.show(s);
-  if (here.length > 0) say(said(s, true));
+  const pop = now.find((d) => d.pop);
+  for (const d of now) if (!d.pop || d === pop) d.show(s);
+  if (now.length > 0) {
+    if (!fall) say(said(s, true));
+  }
   // Not a notification of ADR 0084 — no kind, no line in the list — but
   // its toast, titled with the note the die is in.
   else flash("info", name(e.path), said(s, true));

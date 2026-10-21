@@ -11,7 +11,7 @@
  */
 
 import { ui } from "./dom";
-import { type FeatureId, type Features, FEATURE_IDS, type ShortcutId, readFeatures, shortcutFeatures, shortcutOf } from "./featureList";
+import { type FeatureId, type Features, FEATURE_IDS, OFF_BY_DEFAULT, type ShortcutId, readFeatures, shortcutFeatures, shortcutOf } from "./featureList";
 import { fs } from "./featureStrings";
 import { saveSettings, settings } from "./settings";
 
@@ -51,17 +51,25 @@ export function setFeature(id: FeatureId, on: boolean): void {
 /** What a shortcut would turn on and off, by the features' names. */
 export function shortcutChanges(id: ShortcutId): { on: string[]; off: string[] } {
   const now = currentFeatures();
-  const to = shortcutFeatures(id);
+  const to = shortcutFeatures(id, now);
   return {
     on: FEATURE_IDS.filter((f) => to[f] && !now[f]).map((f) => fs.names[f]),
     off: FEATURE_IDS.filter((f) => !to[f] && now[f]).map((f) => fs.names[f]),
   };
 }
 
+/** The features "Everything" does not turn on (off by default), by name,
+ *  for the shortcut to say so before it applies. Empty for other shortcuts. */
+export function shortcutKeepsOff(id: ShortcutId): string[] {
+  if (id !== "everything") return [];
+  const now = currentFeatures();
+  return OFF_BY_DEFAULT.filter((f) => !now[f]).map((f) => fs.names[f]);
+}
+
 /** Apply a shortcut's switches (after the person agreed to what it changes). */
 export function applyShortcut(id: ShortcutId): void {
-  const next = shortcutFeatures(id);
   const now = currentFeatures();
+  const next = shortcutFeatures(id, now);
   if (FEATURE_IDS.every((f) => now[f] === next[f])) return;
   announce(next, fs.statusShortcut(fs.shortcutNames[id]));
 }

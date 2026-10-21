@@ -62,3 +62,8 @@
 .dice-roller-out .dice-total { font-size: 1.6rem; }
 .dice-roller-out.failed { color: var(--seal); }
 .dice-roller-hint { margin: 0; font-size: .8rem; color: var(--ink-3); }
+
+/* The 3D dice (ADR 0101): a transparent canvas over the window while the
+ * dice fall; a click anywhere skips it, as does Esc. It is aria-hidden, and
+ * it is removed when the dice have rested. */
+.dice3d-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 5000; cursor: pointer; touch-action: manipulation; }
