@@ -109,14 +109,24 @@ export const commands = {
 	 */
 	createFile: (path: string, base64: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_file", { path, base64 })),
 	/**
-	 *  Open the system's file picker, several files at once, and give back
-	 *  what was chosen as names and bytes ("Import files…", A11Y.10): the
-	 *  paths stay on this side (rule 4), and the window creates the files in
-	 *  the folder with `create_file`, so that confinement, the atomic write
-	 *  and a name taken are the drop's own. Empty when cancelled. The picker
-	 *  and the reads run off the event loop.
+	 *  Open the system's file picker, several files at once ("Import files…",
+	 *  A11Y.10). The paths stay on this side (rule 4). For a window on this
+	 *  computer's own folder, what comes back is each file's name and a token
+	 *  (`max_mb`: the most the person allows one file, 1 to 1024): no byte
+	 *  crosses, `create_picked` copies it. For a window on a server's folder it
+	 *  is the name and the bytes (at most 32 MiB each), and the window creates
+	 *  them with `create_file`. Empty when cancelled. The picker and the reads
+	 *  run off the event loop.
 	 */
-	pickFiles: () => typedError<PickedFiles, ContractError>(__TAURI_INVOKE("pick_files")),
+	pickFiles: (maxMb: number) => typedError<PickedFiles, ContractError>(__TAURI_INVOKE("pick_files", { maxMb })),
+	/**
+	 *  Copy a file `pick_files` named by token into the open folder at `path`
+	 *  (relative, confined, written atomically, `exists` when something stands
+	 *  there), and answer the confined path. The bytes are read here and handed
+	 *  to the core: they never cross to the window. A token serves once (a
+	 *  name taken is not a use).
+	 */
+	createPicked: (token: string, path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_picked", { token, path })),
 	/**  Create a folder inside the open folder; returns its confined path. */
 	createFolder: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_folder", { path })),
 	/**
@@ -607,8 +617,8 @@ export const commands = {
 	serverProve: (password: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_prove", { password })),
 	/**
 	 *  The folders of this computer opened before, freshest first, for the
-	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
-	 *  no path.
+	 *  folder switcher's "On this computer" (ADR 0081 item 5): names, keys and
+	 *  a short label of where each sits, no path.
 	 */
 	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
 	localServerStatus: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_status")),
@@ -2353,13 +2363,18 @@ export type PickSkip =
 
 /**
  *  One file the person chose with the system's file picker ("Import
- *  files…", A11Y.10): its name and its bytes, never the path it came from
- *  (ADR 0026 rule 4). The window creates it in the folder through
- *  `create_file`, as a file dropped on the tree.
+ *  files…", A11Y.10): its name and either its bytes or a token, never the
+ *  path it came from (ADR 0026 rule 4). On a window of this computer's own
+ *  folder the file stays where it is and the token stands for it:
+ *  `create_picked` copies it into the folder on the host's side, so that a
+ *  large file never crosses as base64. On a window of a server's folder the
+ *  bytes are in `base64` and the window creates the file through
+ *  `create_file`, as a file dropped on the tree. Exactly one of the two.
  */
 export type PickedFile = {
 	name: string,
-	base64: string,
+	base64: string | null,
+	token: string | null,
 };
 
 /**
@@ -2438,12 +2453,19 @@ export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown
 
 /**
  *  A folder of this computer opened before, for the folder switcher's
- *  "On this computer" (ADR 0081 item 5): its name and the key
- *  `reopen_folder` takes — never its path (ADR 0026 rule 4).
+ *  "On this computer" (ADR 0081 item 5): its name, the key
+ *  `reopen_folder` takes and a short label of where it lives — never its
+ *  path (ADR 0026 rule 4).
  */
 export type RecentFolder = {
 	key: string,
 	name: string,
+	/**
+	 *  Where the folder sits, to tell two of one name apart: its parent
+	 *  shortened to `~/…/Documents/obsidian`, `…/Volumes/Disco` — never
+	 *  absolute, never with `..`, and empty when there is nothing to say.
+	 */
+	place: string,
 };
 
 /**  An entry a move left where it was, and why. */

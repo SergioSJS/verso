@@ -379,7 +379,7 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     // "Import files…" (A11Y.10): the browser's own file picker, and the
     // chosen files' names and bytes, as the desktop host answers.
     case "pick_files":
-      return done(await pickFiles());
+      return done(await pickFiles(Number(a["maxMb"]) || undefined));
     case "pick_folder": {
       const id = chooser ? await chooser() : null;
       if (!id) return done(null);

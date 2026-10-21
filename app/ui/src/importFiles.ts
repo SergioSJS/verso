@@ -9,15 +9,26 @@
 // own way: confined, written atomically, and a name taken moves on to
 // `name (2).ext`, never an overwrite.
 
-import { freeAttachment } from "./attachName";
-import { commands } from "./bindings";
+import { importLimitMb } from "./attachName";
+import { commands, type PickedFile } from "./bindings";
+import { host } from "./can";
 import { afterFileChange } from "./changes";
 import { ui } from "./dom";
 import { fail } from "./errors";
 import { readable } from "./files";
 import { allFiles, allNotes } from "./folder";
 import { imp } from "./importStrings";
+import { placeFile } from "./placeFile";
+import { settings } from "./settings";
 import { allFolders, openFolders, revealInTree } from "./tree/tree";
+
+/** The file as `placeFile` creates it: by the host's token, which copies it
+ *  from where it is without a byte crossing (a window on this computer's own
+ *  folder), or from the bytes the picker gave (a server's). */
+function maker(f: PickedFile): (path: string) => ReturnType<typeof commands.createFile> {
+  const token = f.token;
+  return token ? (path) => commands.createPicked(token, path) : (path) => commands.createFile(path, f.base64 ?? "");
+}
 
 /** Choose files with the system's picker and copy them into `folder`
  *  (`""` is the root). The first file made is focused in the tree and the
@@ -25,7 +36,8 @@ import { allFolders, openFolders, revealInTree } from "./tree/tree";
  *  out. Cancelling the picker changes nothing and says nothing. */
 export async function importFiles(folder: string): Promise<void> {
   if (!readable()) return;
-  const picked = await commands.pickFiles();
+  const limitMb = importLimitMb(settings.importMaxMb, host() === "server");
+  const picked = await commands.pickFiles(limitMb);
   if (picked.status !== "ok") return fail(picked.error);
   const { files, skipped } = picked.data;
   if (files.length === 0 && skipped.length === 0) return;
@@ -34,35 +46,20 @@ export async function importFiles(folder: string): Promise<void> {
   const renamed: string[] = [];
   const failed: string[] = [];
   for (const f of files) {
-    // Another member (or program) may take the name a moment before: the
-    // next free one is tried, a few times.
-    for (let tries = 0; tries < 8; tries++) {
-      const path = freeAttachment(folder, f.name, taken);
-      const r = await commands.createFile(path, f.base64);
-      taken.add(path.toLowerCase());
-      if (r.status === "ok") {
-        made.push(r.data);
-        const given = r.data.split("/").pop() ?? r.data;
-        if (given !== f.name) renamed.push(`${f.name} → ${given}`);
-        break;
-      }
-      if (r.error.kind !== "exists" || tries === 7) {
-        fail(r.error);
-        failed.push(f.name);
-        break;
-      }
+    const placed = await placeFile(folder, f.name, taken, maker(f));
+    if ("failed" in placed) {
+      fail(placed.failed);
+      failed.push(f.name);
+      continue;
     }
+    made.push(placed.made);
+    if (placed.renamed) renamed.push(`${f.name} → ${placed.given}`);
   }
   if (made.length > 0) {
     openFolders.add(folder);
     await afterFileChange();
     await revealInTree(made[0] ?? "");
   }
-  const said = [
-    made.length > 0 ? imp.imported(made.length) : "",
-    renamed.length > 0 ? imp.renamed(renamed.join(", ")) : "",
-    skipped.length > 0 ? imp.skipped(skipped.map((s) => `${s.name} (${imp.reason[s.reason]})`).join(", ")) : "",
-    ...failed.map((n) => imp.failed(n)),
-  ].filter(Boolean);
-  if (said.length > 0) ui.status.textContent = said.join(" ");
+  const said = imp.summary({ made: made.length, renamed, skipped, failed, limitMb });
+  if (said) ui.status.textContent = said;
 }

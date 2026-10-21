@@ -12,6 +12,36 @@
  *  it, with room for the rest of the message. */
 export const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 
+/** "Maximum size of an imported file" (Settings › Files and links): the
+ *  default, and the most the setting takes. */
+export const IMPORT_DEFAULT_MB = 32;
+export const IMPORT_CEILING_MB = 1024;
+/** The most of one file a window on a server sends: `MAX_IMAGE_BYTES`. */
+export const SERVER_FILE_MB = MAX_IMAGE_BYTES / (1024 * 1024);
+
+/** The setting as a whole number of megabytes between 1 and the ceiling;
+ *  the default for what is not a number. */
+export function importSetting(raw: unknown): number {
+  const n = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : IMPORT_DEFAULT_MB;
+  return Math.min(IMPORT_CEILING_MB, Math.max(1, n));
+}
+
+/** The most megabytes of one file "Import files…" takes: the setting on this
+ *  computer's own folder (the host copies the file itself, no byte crosses);
+ *  on a server's folder, at most what a message to the server carries. */
+export function importLimitMb(setting: unknown, onServer: boolean): number {
+  const mb = importSetting(setting);
+  return onServer ? Math.min(mb, SERVER_FILE_MB) : mb;
+}
+
+/** The most megabytes of one file dropped on the tree. A drop hands the page
+ *  the file's bytes, which cross to the host as base64: it stops at what a
+ *  message carries, whatever the setting says; a larger file goes by
+ *  "Import files…". */
+export function dropLimitMb(setting: unknown, onServer: boolean): number {
+  return Math.min(importLimitMb(setting, onServer), SERVER_FILE_MB);
+}
+
 /** What a name may not hold to be reached by a link (`[ ] | # ^`) or to be
  *  kept on every system (`\ / : * ? " < >` and control characters). */
 // eslint-disable-next-line no-control-regex

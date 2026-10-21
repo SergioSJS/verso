@@ -13,7 +13,7 @@ await esbuild.build({
   outfile: "test/.bundles/attachName.test-bundle.mjs",
   logLevel: "error",
 });
-const { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } = await import("./.bundles/attachName.test-bundle.mjs");
+const { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES, importSetting, importLimitMb, dropLimitMb } = await import("./.bundles/attachName.test-bundle.mjs");
 
 describe("The name of an attached image", () => {
   test("is kept as it came when nothing holds it", () => {
@@ -80,5 +80,28 @@ describe("review M13: names Windows would refuse or rewrite", () => {
   });
   test("the underscore name still collides on its own terms", () => {
     assert.equal(freeAttachment("", "con.txt", new Set(["con_.txt"])), "con_ (2).txt");
+  });
+});
+
+describe("The size limit of an imported file (I.1b)", () => {
+  test("the setting is a whole number of megabytes between 1 and 1024; 32 for what is not a number", () => {
+    assert.equal(importSetting(200), 200);
+    assert.equal(importSetting(0), 1);
+    assert.equal(importSetting(5000), 1024);
+    assert.equal(importSetting(12.6), 13);
+    assert.equal(importSetting(undefined), 32);
+    assert.equal(importSetting(Number.NaN), 32);
+  });
+
+  test("Import files takes the setting on this computer's folder and at most 32 MB on a server's", () => {
+    assert.equal(importLimitMb(200, false), 200);
+    assert.equal(importLimitMb(200, true), 32);
+    assert.equal(importLimitMb(8, true), 8);
+  });
+
+  test("a drop never goes past what a message carries, since its bytes cross as base64", () => {
+    assert.equal(dropLimitMb(200, false), 32);
+    assert.equal(dropLimitMb(8, false), 8);
+    assert.equal(dropLimitMb(200, true), 32);
   });
 });

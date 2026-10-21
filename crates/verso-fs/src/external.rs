@@ -86,6 +86,25 @@ fn open_regular(path: &Path) -> Result<(std::fs::File, u64), PickedError> {
     Ok((file, meta.len()))
 }
 
+/// The size of the file the person picked at `path`, read from its
+/// metadata and no byte of it: the same refusals as [`read_picked`] (not a
+/// regular file, a placeholder, more than `max`). The window's "Import
+/// files…" asks it first, so that a large file is named before anything is
+/// copied.
+///
+/// # Errors
+/// [`PickedError`], as [`read_picked`].
+pub fn check_picked(path: &Path, max: u64) -> Result<u64, PickedError> {
+    if crate::placeholder::stands_in(path).map_err(PickedError::Io)? {
+        return Err(PickedError::Placeholder);
+    }
+    let (_file, len) = open_regular(path)?;
+    if len > max {
+        return Err(PickedError::TooLarge);
+    }
+    Ok(len)
+}
+
 /// The bytes of the file the person picked at `path`, at most `max` of them.
 ///
 /// # Errors
@@ -113,6 +132,23 @@ pub fn read_picked(path: &Path, max: u64) -> Result<Vec<u8>, PickedError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn checking_a_pick_measures_it_and_reads_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("a.bin");
+        std::fs::write(&p, vec![0u8; 11]).unwrap();
+        assert_eq!(check_picked(&p, 11).unwrap(), 11);
+        assert!(matches!(check_picked(&p, 10), Err(PickedError::TooLarge)));
+        assert!(matches!(
+            check_picked(dir.path(), 100),
+            Err(PickedError::NotAFile)
+        ));
+        assert!(matches!(
+            check_picked(&dir.path().join("none"), 100),
+            Err(PickedError::Io(_))
+        ));
+    }
 
     #[test]
     fn reads_a_regular_file() {
