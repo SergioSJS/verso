@@ -108,6 +108,15 @@ export const commands = {
 	 *  path. `exists` when something stands there.
 	 */
 	createFile: (path: string, base64: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_file", { path, base64 })),
+	/**
+	 *  Open the system's file picker, several files at once, and give back
+	 *  what was chosen as names and bytes ("Import files…", A11Y.10): the
+	 *  paths stay on this side (rule 4), and the window creates the files in
+	 *  the folder with `create_file`, so that confinement, the atomic write
+	 *  and a name taken are the drop's own. Empty when cancelled. The picker
+	 *  and the reads run off the event loop.
+	 */
+	pickFiles: () => typedError<PickedFiles, ContractError>(__TAURI_INVOKE("pick_files")),
 	/**  Create a folder inside the open folder; returns its confined path. */
 	createFolder: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_folder", { path })),
 	/**
@@ -2298,6 +2307,37 @@ export type PeriodicSettings = {
 	language: string | null,
 };
 
+/**  Why a chosen file was not read. */
+export type PickSkip = 
+/**  A directory or another entry that is not a file. */
+"not_a_file" | 
+/**  Kept in the cloud, not on this computer (ADR 0043). */
+"placeholder" | 
+/**  Larger than one file may be (or the choice as a whole was). */
+"too_large" | 
+/**  The system refused the read. */
+"unreadable";
+
+/**
+ *  One file the person chose with the system's file picker ("Import
+ *  files…", A11Y.10): its name and its bytes, never the path it came from
+ *  (ADR 0026 rule 4). The window creates it in the folder through
+ *  `create_file`, as a file dropped on the tree.
+ */
+export type PickedFile = {
+	name: string,
+	base64: string,
+};
+
+/**
+ *  What the system's file picker gave: the files read, and those left out.
+ *  Both empty when the picker was cancelled.
+ */
+export type PickedFiles = {
+	files: PickedFile[],
+	skipped: SkippedPick[],
+};
+
 /**  One frontmatter key and its value. */
 export type Property = {
 	key: string,
@@ -2529,6 +2569,12 @@ export type SkipReason =
 export type Skipped = {
 	path: string,
 	reason: SkipReason,
+};
+
+/**  A chosen file that was left out, and why. */
+export type SkippedPick = {
+	name: string,
+	reason: PickSkip,
 };
 
 /**  One thing that crossed. */

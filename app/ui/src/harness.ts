@@ -15,7 +15,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
-import type { Capabilities, Mentions } from "./bindings";
+import type { Capabilities, Mentions, PickedFiles } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
@@ -141,8 +141,22 @@ internals.convertFileSrc = (path: string) => `/__vault/${path.split("/").map(enc
 // What the tests read and do: the folder, the commands asked for, the
 // app's log, an event from the host. `__VERSO_TEST__` asks the window for
 // the board's scene (board/view.tsx); the app never sets it.
+// "Import files…" (A11Y.10): the system's file picker is the host's; a test
+// says what the person chose with `pickNext` and the next `pick_files`
+// answers it (then the picker is "cancelled" again).
+let nextPick: PickedFiles = { files: [], skipped: [] };
+core.handlers["pick_files"] = () => {
+  const now = nextPick;
+  nextPick = { files: [], skipped: [] };
+  return now;
+};
+
 const harness = {
   ready: false,
+  /** What the next `pick_files` gives: files by name and text. */
+  pickNext: (files: { name: string; text: string }[], skipped: PickedFiles["skipped"] = []) => {
+    nextPick = { files: files.map((f) => ({ name: f.name, base64: btoa(String.fromCharCode(...new TextEncoder().encode(f.text))) })), skipped };
+  },
   core,
   read: (path: string) => core.read(path),
   bytes: (path: string) => core.bytes(path),
