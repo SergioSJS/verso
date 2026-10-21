@@ -171,7 +171,7 @@ export function openFindInActiveLeaf(): void {
   } else if (leaf instanceof TextLeaf) {
     openSearchPanel(leaf.editor);
   } else if (leaf instanceof DataLeaf) {
-    leaf.diagram.focusSearch();
+    leaf.diagram?.focusSearch();
   } else if (leaf instanceof PdfLeaf) {
     leaf.view.searchInput.focus();
     leaf.view.searchInput.select();

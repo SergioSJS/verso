@@ -14,6 +14,8 @@ type Words = {
   viewAsDiagram: string;
   diagramOf: (name: string) => string;
   diagramOfBlock: (note: string) => string;
+  loading: string;
+  loadFailed: string;
   searchPlaceholder: string;
   searchLabel: string;
   matchCount: (i: number, n: number, more: boolean) => string;
@@ -80,6 +82,8 @@ const pt: Words = {
   viewAsDiagram: "Ver como diagrama",
   diagramOf: (name) => `Diagrama de ${name}`,
   diagramOfBlock: (note) => `Diagrama de um bloco de ${note}`,
+  loading: "Carregando diagrama…",
+  loadFailed: "Não foi possível carregar o diagrama. Feche a aba e abra de novo.",
   searchPlaceholder: "Buscar nos dados",
   searchLabel: "Buscar nos dados (chaves e valores)",
   matchCount: (i, n, more) => (n === 0 ? "Nada encontrado" : `${i} de ${n}${more ? "+" : ""}`),
@@ -150,6 +154,8 @@ const en: Words = {
   viewAsDiagram: "View as diagram",
   diagramOf: (name) => `Diagram of ${name}`,
   diagramOfBlock: (note) => `Diagram of a block in ${note}`,
+  loading: "Loading diagram…",
+  loadFailed: "The diagram could not be loaded. Close the tab and open it again.",
   searchPlaceholder: "Search the data",
   searchLabel: "Search the data (keys and values)",
   matchCount: (i, n, more) => (n === 0 ? "No match" : `${i} of ${n}${more ? "+" : ""}`),
