@@ -47,6 +47,7 @@ versão de teste.
 
 ### Corrigido
 
+- **A porta do servir para celulares sobrevive a desligar e ligar**: a porta escolhida na primeira vez é aguardada (até cinco segundos) enquanto o ouvinte antigo se fecha, em vez de trocada por outra na hora, então o endereço que os celulares guardaram continua valendo.
 - **Apertar uma nota no grafo não move mais a vista (acessibilidade)**: um clique ou arrasto numa nota perto da borda do grafo recentrava a vista antes do arrasto começar; agora só ir até uma nota pelo teclado a traz para a vista.
 - **A contagem do grafo é anunciada quando a digitação pausa (acessibilidade)**: filtrar o grafo atualiza a contagem na tela a cada tecla, mas o leitor de tela só a lê cerca de um segundo depois que você para de digitar.
 - **Áreas de clique maiores (acessibilidade)**: a marca de fechar da aba, a de remover de uma pílula de lista nas propriedades e os botões da barra de status respondem a um clique dentro de 24 × 24 px ao redor deles, embora continuem desenhados do mesmo tamanho e a barra de abas mantenha a altura.

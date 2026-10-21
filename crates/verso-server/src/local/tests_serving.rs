@@ -836,6 +836,35 @@ fn the_port_is_kept_across_starts() {
     });
 }
 
+/// Item 4, on a machine that is slow to close a socket (a Windows runner):
+/// serving turned off and on again finds the old listener still closing,
+/// and waits for it rather than choosing another port.
+#[test]
+fn the_port_is_kept_when_the_old_listener_is_still_closing() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let first = lab.port;
+        lab.local.stop();
+        // Whatever of the old listener is left, a socket of ours takes its
+        // place for a moment.
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], first));
+        let holder = loop {
+            if let Ok(l) = std::net::TcpListener::bind(addr) {
+                break l;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            drop(holder);
+        });
+        lab.serve();
+        release.join().unwrap();
+        assert_eq!(lab.port, first, "the port the phones know");
+    });
+}
+
 /// Item 11: a folder with no folder ticked refuses to start.
 #[test]
 fn it_will_not_start_with_nothing_ticked() {
