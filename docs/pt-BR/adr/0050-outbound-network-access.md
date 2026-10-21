@@ -38,7 +38,7 @@
   ele envia **consultas DNS UDP aos servidores DNS do próprio sistema** para o
   nome desse servidor e tenta os outros endereços que eles dão, o nome e o
   esquema inalterados; e um servidor Verso **se anuncia** por mDNS por padrão
-  quando escuta além do loopback (`VERSO_ANNOUNCE=off` o desliga).
+  quando escuta além do loopback (`VERSO_ANNOUNCE=off` o desliga). 2026-10-21 — revisado pelo [0104](0104-external-cloud-storage-transports-and-quotas.md): um provedor de nuvem que a pessoa conectou é consultado sem um clique (um alcance novo, como a checagem de atualização do 0055, o servidor do 0073, o servidor local do 0096/0097); o núcleo continua sem alcançar a rede — os adaptadores ficam do lado do host do desktop (0104 item 3).
 
 ## Contexto
 

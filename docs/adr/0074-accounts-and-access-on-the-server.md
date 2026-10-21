@@ -38,7 +38,7 @@
   device's name, kept with its session, may be set by the person in
   Settings › Servers, the system's name by default — the maintainer's
   *"Sim para todos"* of that evening, recorded in
-  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8).
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): the device token moves from `servers.json` to the system's keychain (to be built).
 
 ## Context
 
