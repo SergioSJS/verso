@@ -184,7 +184,12 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     name.append(h("span", "theme-name-text", card.name));
     if (active) name.append(h("span", "theme-on", `✓ ${W.gallery.active}`));
     pick.append(face, name);
-    pick.addEventListener("click", () => use(card));
+    // WebKit on macOS does not focus a button on a mouse click, so the
+    // card used is named here: the rebuilt list puts the focus back on it.
+    pick.addEventListener("click", () => {
+      focusKey = `${card.key}|pick`;
+      use(card);
+    });
     li.append(pick);
     const row = h("div", "theme-acts");
     if (card.kind !== "folder") row.append(act(W.gallery.copyOf(card.name), "copy", () => copy(card, face), "copy"));
