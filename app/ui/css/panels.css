@@ -255,13 +255,17 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .side-divider::after { content: ""; position: absolute; inset: 0 3px; }
 .side-divider:hover::after, .side-divider:active::after { background: var(--brass); inset: 0 2px; }
 
-/* Vertical tabs, as Safari has them */
+/* Vertical tabs: a column at the pane's left, the pane's tools on top of it
+   (so the mode can always be left), one tab per row under them. */
 .pane.vertical { flex-direction: row; }
-.pane.vertical .tabs { flex-direction: column; align-items: stretch; width: 200px; border-bottom: 0; border-right: 1px solid var(--hair); padding: .5rem .3rem; overflow-y: auto; }
-.pane.vertical .tab-list { flex-direction: column; align-items: stretch; overflow: visible; }
-.pane.vertical .tab { max-width: none; border-bottom: 0; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; margin: 0; padding: .35rem .4rem .35rem .6rem; }
-.pane.vertical .tab[aria-selected="true"] { border-left-color: var(--seal); background: var(--seal-wash); }
-.pane.vertical .pane-tools { flex-direction: row; flex-wrap: wrap; padding: .4rem 0 0; justify-content: flex-start; }
+.pane.vertical .tabs { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .35rem; width: var(--tabs-w, 200px); flex: none; height: auto; min-height: 0; max-height: none; border-bottom: 0; box-shadow: none; border-right: 1px solid var(--hair); padding: .4rem .3rem; overflow-x: hidden; overflow-y: auto; }
+.pane.vertical .tabs.frame-push-t { height: auto; min-height: 0; max-height: none; }
+.pane.vertical .tab-list { flex: 1 1 auto; flex-direction: column; align-items: stretch; align-self: stretch; gap: .1rem; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.pane.vertical .tab { flex: none; height: auto; min-height: 2rem; max-width: none; width: 100%; border-bottom: 1px solid transparent; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; margin: 0; padding: .3rem .4rem .3rem .6rem; box-shadow: none; }
+.pane.vertical .tab .tab-name { flex: 1 1 auto; min-width: 0; }
+.pane.vertical .tab[aria-selected="true"] { border-color: var(--hair); border-left-color: var(--seal); background: var(--seal-wash); box-shadow: none; }
+.pane.vertical .pane-tools { flex: none; flex-direction: row; flex-wrap: wrap; align-self: stretch; margin: 0; justify-content: flex-start; opacity: 1; }
+.pane.vertical .tabs.drop { box-shadow: inset -2px 0 0 var(--brass); }
 .pane.vertical .pane-body { flex: 1; min-width: 0; }
 
 /* Frames, graph */
@@ -477,7 +481,6 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 /* Tab bar hidden, vertical tab column resize */
 .pane.tabs-hidden .tabs, .pane.tabs-hidden .tabs-divider { display: none; }
-.pane.vertical .tabs { width: var(--tabs-w, 200px); }
 .tabs-divider { display: none; }
 .pane.vertical .tabs-divider { display: block; width: 7px; margin: 0 -3px; cursor: col-resize; position: relative; z-index: 1; }
 .pane.vertical .tabs-divider:hover::after { content: ""; position: absolute; inset: 0 2px; background: var(--brass); }
