@@ -6033,6 +6033,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "verso-cloud"
+version = "0.8.3-beta.2"
+dependencies = [
+ "base64 0.22.1",
+ "proptest",
+ "reqwest",
+ "sha2",
+ "unicode-normalization",
+ "verso-core",
+]
+
+[[package]]
 name = "verso-contract"
 version = "0.8.3-beta.2"
 dependencies = [
