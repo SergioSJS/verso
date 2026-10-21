@@ -83,7 +83,8 @@ import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
 import { importDemoVault } from "./demo";
 import { pt, t } from "./strings";
-import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
+import { installTreeKeys } from "./tree/aria";
+import { collapseAll, collapsed, listAll } from "./tree/tree";
 import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
@@ -344,30 +345,7 @@ document.addEventListener(
   },
   true,
 );
-ui.notes.addEventListener("keydown", (e) => {
-  if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
-  const row = e.target as HTMLElement;
-  const rows = treeRows();
-  const i = rows.indexOf(row);
-  if (i < 0) return;
-  const folder = row.tagName === "SUMMARY" && row.parentElement instanceof HTMLDetailsElement ? row.parentElement : null;
-  let to: HTMLElement | null | undefined = null;
-  if (e.key === "ArrowDown") to = rows[i + 1];
-  else if (e.key === "ArrowUp") to = rows[i - 1];
-  else if (e.key === "Home") to = rows[0];
-  else if (e.key === "End") to = rows[rows.length - 1];
-  else if (e.key === "ArrowRight" && folder) {
-    if (!folder.open) {
-      folder.open = true;
-      (folder as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
-    } else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
-  } else if (e.key === "ArrowLeft") {
-    if (folder?.open) folder.open = false;
-    else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
-  } else return;
-  e.preventDefault();
-  to?.focus();
-});
+installTreeKeys();
 export const quick = new QuickSwitcher();
 export const paletteDialog = new Palette();
 export const replaceDialog = new ReplaceDialog();

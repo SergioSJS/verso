@@ -29,6 +29,7 @@ versão de teste.
 
 ### Alterado
 
+- **A árvore de arquivos é uma árvore acessível**: um leitor de tela agora ouve a lista de arquivos como uma árvore: o nível e a posição de cada item ("3 de 5, nível 2"), se uma pasta está aberta e quais itens estão selecionados. A árvore inteira é uma única parada do Tab, que lembra o item em que você estava; dentro dela, as setas percorrem os itens (→ abre uma pasta ou entra nela, ← fecha ou sai), Home e End vão às pontas, Enter abre uma nota ou abre e fecha uma pasta, Espaço seleciona, `*` abre as pastas ao lado do item, digitar as primeiras letras de um nome pula para ele, e a tecla de menu ou Shift+F10 abre o menu do item. O visual e o mouse não mudam.
 - **O menu do botão direito de um arquivo ou pasta ficou curto, com grupos**: tinha umas trinta linhas soltas. Agora a primeira lista guarda *Abrir*, *Abrir em nova aba*, *Abrir ao lado*, *Relações*, *Histórico de versões*, *Renomear*, *Mover para…*, *Duplicar* e *Mover para a lixeira*, e o resto está em submenus: *Personalizar* (figurinha, cor), *Organizar* (selecionar, fixar, mover para cima e para baixo, ocultar da árvore, transformar em pasta, criar ou adicionar a um foco), *Janela e localização* (abrir em nova janela, mostrar no gerenciador de arquivos, copiar o caminho) e *Novo*. Um submenu abre com o mouse por cima (ir na diagonal até ele não o fecha), com clique ou toque, ou com `→` ou `Enter`; `←` ou `Esc` volta para a linha dele. *Importar cofre de exemplo* saiu do menu de um arquivo: está no espaço vazio da árvore e na paleta de comandos.
 
 ### Corrigido

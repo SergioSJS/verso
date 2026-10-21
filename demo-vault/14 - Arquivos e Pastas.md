@@ -71,6 +71,18 @@ Cada nota, quadro e base guarda as suas **versões**: o que estava escrito a cad
 
 ---
 
+## A Árvore pelo Teclado
+
+A árvore de arquivos é uma única parada do `Tab`: ela lembra o item em que você estava, então `Tab` entra nela e `Tab` de novo sai. Lá dentro:
+
+- `↓` e `↑` vão ao item de baixo e ao de cima; `Home` e `End` vão ao primeiro e ao último.
+- `→` abre uma pasta fechada; numa pasta aberta, entra nela. `←` fecha a pasta aberta; num item, sobe para a pasta dele.
+- `Enter` abre a nota, ou abre e fecha a pasta. `Espaço` seleciona o item (como `⌘` + clique) sem abrir nada.
+- Digite as primeiras letras de um nome para pular para ele; a mesma letra de novo vai ao próximo. `*` abre todas as pastas ao lado do item.
+- A tecla de menu, ou `Shift` + `F10`, abre o menu do item; `F2` renomeia e `Delete` manda para a lixeira.
+
+---
+
 ## A Visão de Pasta
 
 A setinha ao lado de uma pasta abre e fecha a pasta na árvore. O Verso lembra quais pastas você deixou abertas: ao abrir o app de novo, a árvore volta como estava. Num cofre grande, as pastas de primeiro nível começam fechadas, para a árvore não desenhar milhares de linhas de uma vez.
