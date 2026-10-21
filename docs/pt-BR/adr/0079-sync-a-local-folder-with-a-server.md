@@ -117,7 +117,7 @@
   Sincronizar com uma pasta que já está lá continua sendo o *Sincronizar*
   de cada linha. *Criar pasta vazia…* é uma segunda ação pequena; conta que
   não pode criar pastas mantém o texto do convite. O `server_create_folder`
-  do host pede ao `POST /api/folders` do servidor com a sessão do aparelho.
+  do host pede ao `POST /api/folders` do servidor com a sessão do aparelho. 2026-10-21 — o [0104](0104-external-cloud-storage-transports-and-quotas.md) faz de uma pasta de nuvem outro remoto deste sync (o item 4 dele mapeia quais itens valem, se adaptam ou não se aplicam).
 
 ## Contexto
 

@@ -225,7 +225,7 @@
   opcional. O texto antigo do item 6 fica acima, marcado.
   2026-10-21 — seis `[ABERTO]` do Status respondidos pelas marcas do
   mantenedor no questionário de decisões de 2026-10-20 (respondido em
-  2026-10-21), todas como recomendadas; cada uma está escrita sob o Status.
+  2026-10-21), todas como recomendadas; cada uma está escrita sob o Status. 2026-10-21 — o [0104](0104-external-cloud-storage-transports-and-quotas.md) traz o sync do desktop com WebDAV e um bucket para a V1; o item 4(b), o bucket do servidor, inalterado e depois da V1.
 
 ## Contexto
 

@@ -218,7 +218,7 @@
   optional step. The old wording of item 6 is kept above, marked.
   2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
   in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
-  recommended; each is written under the Status.
+  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
 
 ## Context
 
