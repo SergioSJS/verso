@@ -78,10 +78,10 @@ test("a Vampire: The Masquerade 5e sheet draws with the Dark Pack notice and rol
   await app.quickOpen("V5 de ensaio");
   const card = page.locator(".preview:visible .statblock-card");
   await expect(card.getByText("Ilse Varga").first()).toBeVisible();
-  await expect(card.getByRole("group", { name: /Hunger/ })).toBeVisible();
   const notice = card.locator('[data-block="notice"]');
-  await expect(notice).toContainText("Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission.");
+  await expect(notice).toContainText("Paradox Interactive AB");
   await expect(notice).toContainText("não é material oficial de World of Darkness");
+  await expect(card.getByRole("group", { name: /Fome/ })).toBeVisible();
   const fields = card.locator(".statblock-roll-field input");
   await fields.nth(0).fill("3");
   await fields.nth(1).fill("1");

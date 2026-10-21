@@ -31,9 +31,9 @@
   "appearance": {},
   "blocks": [
     {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
-    {"type":"property","id":"difficulty","properties":["difficulty"],"label":{"pt":"Difficulty","en":"Difficulty"},"hideWhenEmpty":true},
-    {"type":"saves","id":"pools","properties":["pools"],"label":{"pt":"Dice pools","en":"Dice pools"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"property","id":"difficulty","properties":["difficulty"],"label":{"pt":"Dificuldade","en":"Difficulty"},"hideWhenEmpty":true},
+    {"type":"saves","id":"pools","properties":["pools"],"label":{"pt":"Reservas de dados","en":"Dice pools"},"hideWhenEmpty":true,"dice":false,"rule":true},
     {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
-    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness, publicado sob o Dark Pack. Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com.","en":"Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."},"dice":false,"rule":false}
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). © Paradox Interactive AB — veja os créditos em Ajustes.","en":"Unofficial fan-made material, not official World of Darkness material (Dark Pack). © Paradox Interactive AB — see Credits in Settings."},"dice":false,"rule":false}
   ]
 }
