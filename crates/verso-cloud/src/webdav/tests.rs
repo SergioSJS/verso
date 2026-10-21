@@ -397,3 +397,54 @@ fn a_fingerprint_reads_the_file_once() {
         .count();
     assert_eq!(gets, 1);
 }
+
+#[test]
+fn the_probe_deletes_only_its_own_object_never_the_shared_folder() {
+    let dav = Dav::start(mode());
+    // Another device is probing the same folder at the same moment: its
+    // object is in `.verso-probe`.
+    dav.put(".verso-probe/probe-outro", b"verso");
+    connect(&dav).probe().unwrap();
+    assert_eq!(dav.get(".verso-probe/probe-outro").unwrap(), b"verso");
+    assert!(dav.has_dir(".verso-probe"));
+    let deleted_folder: Vec<_> = dav
+        .requests()
+        .into_iter()
+        .filter(|r| r.starts_with("DELETE ") && r.trim_end_matches('/').ends_with("/.verso-probe"))
+        .collect();
+    assert!(deleted_folder.is_empty(), "{deleted_folder:?}");
+}
+
+#[test]
+fn collections_are_asked_for_with_a_trailing_slash() {
+    // Apache's mod_dav answers a collection asked for without one with a
+    // redirect, which is refused (credentials follow no redirect).
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "pasta/fundo/a.md", &Condition::Absent, b"um").unwrap();
+    w.list(None).unwrap();
+    w.probe().unwrap();
+    let collections: Vec<String> = dav
+        .requests()
+        .into_iter()
+        .filter(|r| r.starts_with("MKCOL ") || r.starts_with("PROPFIND "))
+        .collect();
+    assert!(collections.len() > 4, "{collections:?}");
+    // A PROPFIND of a file (the stat after a write) is the only one
+    // without.
+    for r in &collections {
+        let path = r.split_once(' ').map_or("", |(_, p)| p);
+        assert!(
+            path.ends_with('/') || path.ends_with(".md") || path.contains("/probe-"),
+            "{r}"
+        );
+    }
+    assert!(collections.iter().any(|r| r == "PROPFIND /dav/"));
+    assert!(
+        collections
+            .iter()
+            .any(|r| r == "PROPFIND /dav/pasta/fundo/")
+    );
+    assert!(collections.iter().any(|r| r == "MKCOL /dav/pasta/"));
+    assert!(collections.iter().any(|r| r == "MKCOL /dav/.verso-probe/"));
+}
