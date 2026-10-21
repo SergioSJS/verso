@@ -116,11 +116,11 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   const switcher = page.locator(".pane.focused .pane-switch");
   await expect(switcher).toBeVisible();
   await expect(switcher).toHaveText("2/2");
-  await expect(switcher).toHaveAttribute("aria-label", "Área 2 de 2");
+  await expect(switcher).toHaveAttribute("aria-label", "Painel 2 de 2");
   await switcher.click();
   const menu = page.locator(".menu:not([hidden])");
   await expect(menu.getByRole("menuitem")).toHaveCount(2);
-  await menu.getByRole("menuitem", { name: /Área 1: 01 - Guia/ }).click();
+  await menu.getByRole("menuitem", { name: /Painel 1: 01 - Guia/ }).click();
   await expect(page.locator(".pane:visible")).toHaveCount(1);
   await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
   // On a phone the split commands are absent: from the palette and from a tab.

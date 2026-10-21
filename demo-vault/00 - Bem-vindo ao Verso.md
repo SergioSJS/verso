@@ -61,7 +61,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 10. [[10 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
 11. [[11 - Escrevendo no Editor]] — Os modos Leitura, Editar e Fonte, a barra de formatação, o menu `/` e o salvamento.
 12. [[12 - Busca e Navegação]] — Buscar, abrir pelo nome, trocar texto em todas as notas, backlinks e favoritos.
-13. [[13 - Abas, Painéis, Áreas e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, áreas e janelas.
+13. [[13 - Abas, Painéis, Espaços de Trabalho e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, espaços de trabalho e janelas.
 14. [[14 - Arquivos e Pastas]] — Criar, renomear sem quebrar links, mover, anexar imagens e a lixeira.
 15. [[15 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
 16. [[16 - Páginas Web e HTML]] — Páginas da web guardadas como notas e arquivos HTML.
@@ -70,7 +70,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 19. [[19 - Organizando com figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
 20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
 21. [[21 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
-22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, uma área por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
+22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
 23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
 24. [[24 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
 25. [[25 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
@@ -93,7 +93,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 | **Alternar Barra Direita** | `⌘ ⌥ →` | `Ctrl + Alt + →` |
 | **Dividir Painel (Lado a Lado)** | `⌘ \` | `Ctrl + \` |
 | **Alternar Leitura / Edição** | `⌘ E` | `Ctrl + E` |
-| **Nova Área de Trabalho** | `⌘ T` | `Ctrl + T` |
+| **Novo Espaço de Trabalho** | `⌘ T` | `Ctrl + T` |
 | **Localizar e Substituir no Cofre** | `⌘ ⇧ H` | `Ctrl + Shift + H` |
 | **Ajustes** | `⌘ ,` | `Ctrl + ,` |
 
