@@ -31,6 +31,7 @@ versão de teste.
 
 ### Alterado
 
+- **O índice enxerga callouts dentro de callouts**: a busca, os backlinks e a regra do `[!secret]` agora veem um callout dentro de outro (até 32 níveis, como a leitura os desenha), e não só o de fora.
 - **O menu do botão direito de um arquivo ou pasta ficou curto, com grupos**: tinha umas trinta linhas soltas. Agora a primeira lista guarda *Abrir*, *Abrir em nova aba*, *Abrir ao lado*, *Relações*, *Histórico de versões*, *Renomear*, *Mover para…*, *Duplicar* e *Mover para a lixeira*, e o resto está em submenus: *Personalizar* (figurinha, cor), *Organizar* (selecionar, fixar, mover para cima e para baixo, ocultar da árvore, transformar em pasta, criar ou adicionar a um foco), *Janela e localização* (abrir em nova janela, mostrar no gerenciador de arquivos, copiar o caminho) e *Novo*. Um submenu abre com o mouse por cima (ir na diagonal até ele não o fecha), com clique ou toque, ou com `→` ou `Enter`; `←` ou `Esc` volta para a linha dele. *Importar cofre de exemplo* saiu do menu de um arquivo: está no espaço vazio da árvore e na paleta de comandos.
 
 ### Corrigido

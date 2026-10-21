@@ -61,6 +61,7 @@ fixture_tests! {
     // AI draft of ADR 0087 (secret blocks, spec Q9), awaiting approval
     // (first line of its expected.yaml).
     callout_secret => "callout/secret",
+    callout_nested => "callout/nested",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
     // AI draft of the board's PR, awaiting approval (first line of its
@@ -383,6 +384,13 @@ impl<'a, 'y> Fields<'a, 'y> {
         }
     }
 
+    /// An integer asserted only when the fixture gives it.
+    fn int_if_given(&mut self, field: &str, actual: i64) {
+        if self.map.iter().any(|(k, _)| k == field) {
+            self.int(field, actual);
+        }
+    }
+
     /// `syntax` is `wikilink` when omitted (spec §4.2); writing it out is the
     /// same assertion. `markdown` (spec §5.13) is PROPOSED and not produced.
     fn syntax(&mut self) {
@@ -586,6 +594,7 @@ fn check_callout(ctx: &mut Ctx<'_>, item: &Yaml<'_>, callout: &verso_dialect::Ca
         verso_dialect::Fold::Expanded => "+",
     });
     fields.optional_text("fold", fold);
+    fields.int_if_given("depth", i64::from(callout.depth));
     fields.pos(callout.pos);
     fields.finish();
 }
