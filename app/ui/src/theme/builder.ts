@@ -2,31 +2,49 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Settings › Appearance › Customize appearance (ADR 0100): controls for the
-// token list on one side and a sample page on the other; every change is
-// written as variables on `<html>` at once, with the contrast of the real
-// pairs shown live. Built once and refreshed in place, so a change never
-// moves focus.
+// The theme builder (ADR 0100): the controls for the token list on one
+// side and a large sample page on the other, in a tab of its own
+// (leaves/theme.ts). Every change is written as variables on `<html>` at
+// once — through `applySettings`, not `saveSettings`, so nothing is kept
+// until the person saves — with the contrast of the real pairs shown live.
+// Cancel puts the look back as it was when the builder opened.
 
 import { ask } from "../dialog";
 import { button, h } from "../dom";
 import { icon } from "../icons";
-import { onFolderLayer } from "../folderLayer";
-import { saveSettings, settings } from "../settings";
-import { applyLook, effective, shippedColors } from "./apply";
+import { applySettings, DEFAULTS, saveSettings, settings } from "../settings";
+import { applyLook } from "./apply";
+import { effective, shippedColors } from "./apply";
 import { toHex } from "./color";
 import { PAIRS, ratios, warnings } from "./derive";
 import { changeColor } from "./edit";
-import {
-  applyTheme, currentTheme, exportCurrent, hasOwnLook, importFile, LOOK_EVENT, lookNow, profilesNow, restoreDefault, say, setProfiles,
-} from "./actions";
-import { remove, rename, saveAs } from "./profiles";
+import { applyTheme, currentTheme, hasOwnLook, lookNow, profilesNow, say, setProfiles, told } from "./actions";
+import { rename, saveAs } from "./profiles";
 import { sampleDocument } from "./sample";
 import { cannotSuggest, setSuggestion, suggestion } from "./suggest";
 import { W } from "./strings";
 import {
-  COLOR_TOKENS, type ColorToken, emptyLook, FONT_CHOICES, type FontKey, type FontToken, SIZE_MAX, SIZE_MIN, type Side,
+  COLOR_TOKENS, type ColorToken, emptyLook, FONT_CHOICES, type FontKey, type FontToken, type Look, SIZE_MAX, SIZE_MIN, type Side,
 } from "./tokens";
+
+/** What the builder edits: one of the person's themes, or a new one. */
+export type BuildSpec = { mode: "edit"; name: string } | { mode: "new" };
+export type Builder = {
+  el: HTMLElement;
+  /** Put the look back as it was when the builder opened. */
+  revert: () => void;
+  /** Whether anything changed since it opened. */
+  changed: () => boolean;
+  focus: () => void;
+};
+export type BuilderHooks = {
+  /** Something changed (the tab shows the dot). */
+  onChange: () => void;
+  /** The theme was saved under this name. */
+  onSaved: (name: string) => void;
+  /** Cancel was pressed: the look is back; the tab may close. */
+  onCancel: () => void;
+};
 
 let ids = 0;
 const uid = (): string => `look-${++ids}`;
@@ -53,15 +71,29 @@ function select(label: string, options: [string, string][], value: string, on: (
   return { row, el };
 }
 
-/** The panel. `paint` repaints the Settings page when something outside the panel's own controls must follow. */
-export function appearancePanel(): HTMLElement {
-  const root = h("section", "look");
-  const titleId = uid();
-  root.setAttribute("aria-labelledby", titleId);
-  const title = h("h3", "look-title", W.panel.title);
-  title.id = titleId;
-  root.append(title, h("p", "look-lead", W.panel.lead));
+/** The builder. `spec` says which theme it starts from. */
+export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
+  // The look as it is now, for Cancel.
+  const snap = {
+    look: JSON.parse(JSON.stringify(lookNow())) as Look,
+    headingFont: settings.headingFont,
+    fontSize: settings.fontSize,
+    lookName: settings.lookName,
+  };
+  if (spec.mode === "edit") {
+    const p = profilesNow().find((x) => x.name === spec.name);
+    if (p) applyTheme({ ...p.theme, mode: "both" });
+  }
+  settings.look ??= emptyLook();
+  let dirty = false;
+  const touched = (): void => {
+    dirty = true;
+    hooks.onChange();
+  };
+  /** The window follows the settings without writing them down. */
+  const live = (): void => applySettings();
 
+  const root = h("div", "builder");
   let side: Side = prefersDark() ? "dark" : "light";
   const status = h("p", "look-status");
   status.setAttribute("role", "status");
@@ -73,17 +105,32 @@ export function appearancePanel(): HTMLElement {
     window.setTimeout(() => void (status.textContent = text), 30);
   };
 
-  // --- the side and the default
+  // --- the name and the side
+  const nameId = uid();
+  const nameRow = h("div", "builder-name");
+  const nameLabel = h("label", "look-name", W.builder.name);
+  nameLabel.htmlFor = nameId;
+  const nameInput = h("input");
+  nameInput.id = nameId;
+  nameInput.type = "text";
+  nameInput.maxLength = 40;
+  nameInput.autocomplete = "off";
+  nameInput.value = spec.mode === "edit" ? spec.name : "";
+  nameInput.placeholder = W.defaultName;
+  nameInput.addEventListener("input", touched);
+  nameRow.append(nameLabel, nameInput);
+
   const bar = h("div", "look-bar");
   const sides = h("div", "look-sides");
   sides.setAttribute("role", "radiogroup");
   sides.setAttribute("aria-label", W.panel.sideLegend);
   const radios: Record<Side, HTMLInputElement> = {} as Record<Side, HTMLInputElement>;
+  const groupName = uid();
   for (const s of ["light", "dark"] as const) {
     const label = h("label", "look-side");
     const input = h("input");
     input.type = "radio";
-    input.name = uid();
+    input.name = groupName;
     input.checked = s === side;
     input.addEventListener("change", () => {
       if (!input.checked) return;
@@ -95,30 +142,25 @@ export function appearancePanel(): HTMLElement {
     label.append(input, h("span", "", s === "light" ? W.panel.light : W.panel.dark));
     sides.append(label);
   }
-  // Radios of one group share a name.
-  radios.dark.name = radios.light.name;
   const reset = h("button", "ghost look-reset", W.panel.reset);
   reset.type = "button";
   reset.prepend(icon("refresh"));
   reset.addEventListener("click", () => {
-    restoreDefault();
+    settings.look = emptyLook();
+    settings.headingFont = DEFAULTS.headingFont;
+    settings.fontSize = DEFAULTS.fontSize;
+    live();
+    touched();
+    refresh(true);
     announce(W.panel.resetDone);
   });
   bar.append(sides, reset);
-  root.append(bar, h("p", "look-hint", W.panel.sideHint));
 
   // --- controls
   const controls = h("div", "look-controls");
   const colors = field(W.panel.colors, "look-colors");
+  colors.add(h("p", "look-hint", W.panel.sideHint));
   const rows = new Map<ColorToken, { picker: HTMLInputElement; text: HTMLInputElement; reset: HTMLButtonElement; row: HTMLElement }>();
-  let saveTimer = 0;
-  const saveSoon = (): void => {
-    window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => {
-      saveTimer = 0;
-      saveSettings();
-    }, 350);
-  };
   const edit = (token: ColorToken, text: string | null): void => {
     const out = changeColor(shippedColors()[side], lookNow(), side, token, text);
     if (out.invalid) {
@@ -134,8 +176,8 @@ export function appearancePanel(): HTMLElement {
     }
     settings.look = out.look;
     applyLook(settings.look);
+    touched();
     refresh();
-    saveSoon();
   };
   for (const token of COLOR_TOKENS) {
     const name = W.panel.tokens[token];
@@ -175,7 +217,8 @@ export function appearancePanel(): HTMLElement {
   ];
   const heading = select(W.panel.fontLabels["--heading-font"], fontOptions("--heading-font", false), settings.headingFont ?? "serif", (v) => {
     settings.headingFont = v as typeof settings.headingFont;
-    saveSettings();
+    live();
+    touched();
   });
   const setFont = (key: "book" | "mono", v: string): void => {
     const look = lookNow();
@@ -183,7 +226,8 @@ export function appearancePanel(): HTMLElement {
     if (v === "") delete next[key];
     else next[key] = v as FontKey;
     settings.look = next;
-    saveSettings();
+    live();
+    touched();
   };
   const book = select(W.panel.fontLabels["--book"], fontOptions("--book", true), "", (v) => setFont("book", v));
   const mono = select(W.panel.fontLabels["--mono"], fontOptions("--mono", true), "", (v) => setFont("mono", v));
@@ -202,13 +246,20 @@ export function appearancePanel(): HTMLElement {
     settings.fontSize = Number(size.value);
     size.setAttribute("aria-valuetext", W.panel.sizeValue(settings.fontSize));
     sizeOut.textContent = W.panel.sizeValue(settings.fontSize);
-    saveSettings();
+    live();
+    touched();
   });
   sizeRow.append(sizeLabel, size, sizeOut);
   fonts.add(heading.row, book.row, mono.row, sizeRow);
 
-  const contrast = field(W.panel.contrast, "look-contrast");
-  contrast.add(h("p", "look-hint", W.panel.contrastLead));
+  // The contrast is a closed section with its verdict on the summary: a
+  // calm builder shows it when there is something to read.
+  const contrast = h("details", "look-set look-contrast");
+  const summary = h("summary", "look-contrast-summary");
+  const summaryName = h("span", "", W.panel.contrast);
+  const summaryState = h("span", "look-contrast-state");
+  summary.append(summaryName, summaryState);
+  contrast.append(summary, h("p", "look-hint", W.panel.contrastLead));
   const list = h("ul", "look-ratios");
   const ratioRows = new Map<string, { value: HTMLElement; state: HTMLElement; li: HTMLElement }>();
   for (const pair of PAIRS) {
@@ -220,118 +271,22 @@ export function appearancePanel(): HTMLElement {
     list.append(li);
     ratioRows.set(pair.id, { value, state, li });
   }
-  contrast.add(list);
-  controls.append(colors.box, fonts.box, contrast.box);
+  contrast.append(list);
 
-  // --- the sample
-  const sample = sampleDocument();
-  const sampleBox = h("div", "look-sample-box");
-  sampleBox.append(h("p", "look-sample-title", W.panel.sample), sample.el);
-  const grid = h("div", "look-grid");
-  grid.append(controls, sampleBox);
-  root.append(grid, status);
-
-  // --- profiles
-  const profiles = field(W.profile.legend, "look-profiles");
-  profiles.add(h("p", "look-hint", W.profile.lead));
-  const pickRow = select(W.profile.pick, [["", W.profile.none]], "", () => {});
-  const useBtn = button("ghost", W.profile.use);
-  const nameRow = h("div", "look-row");
-  const nameId = uid();
-  const nameLabel = h("label", "look-name", W.profile.name);
-  nameLabel.htmlFor = nameId;
-  const nameInput = h("input");
-  nameInput.id = nameId;
-  nameInput.type = "text";
-  nameInput.maxLength = 40;
-  nameInput.autocomplete = "off";
-  const saveBtn = button("save", W.profile.save);
-  const renameBtn = button("ghost", W.profile.rename);
-  const delBtn = button("ghost", W.profile.del);
-  nameRow.append(nameLabel, nameInput);
-  const actions = h("div", "look-actions");
-  actions.append(saveBtn, renameBtn, delBtn);
-  pickRow.row.append(useBtn);
-  profiles.add(pickRow.row, nameRow, actions);
-  const chosen = (): string => pickRow.el.value;
+  // The folder's suggestion, for whoever shares a folder.
+  const share = h("details", "look-set look-share");
+  share.append(h("summary", "", W.builder.folderLegend));
+  const suggestBtn = button("ghost", W.share.suggest);
+  const unsuggestBtn = button("ghost", W.share.unsuggest);
+  const suggestWhy = h("p", "look-hint");
   const report = (text: string): void => {
     announce(text);
     say(text);
   };
-  useBtn.addEventListener("click", () => {
-    const p = profilesNow().find((x) => x.name === chosen());
-    if (!p) return;
-    applyTheme({ ...p.theme, mode: "both" });
-    report(W.profile.applied(p.name));
-  });
-  saveBtn.addEventListener("click", () => {
-    void (async () => {
-      const name = nameInput.value.trim() || chosen();
-      const list = profilesNow();
-      const theme = currentTheme(name);
-      let r = saveAs(list, name, theme);
-      if (!r.ok && list.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-        if (!(await ask(W.profile.replaceQ(name), { yes: W.profile.replace, no: W.profile.no }))) return;
-        r = saveAs(list, name, theme, true);
-      }
-      if (!r.ok) return void announce(r.why);
-      settings.lookName = r.name;
-      setProfiles(r.list);
-      nameInput.value = "";
-      pickRow.el.value = r.name;
-      report(W.profile.saved(r.name));
-    })();
-  });
-  renameBtn.addEventListener("click", () => {
-    const r = rename(profilesNow(), chosen(), nameInput.value);
-    if (!r.ok) return void announce(r.why);
-    if (settings.lookName === chosen()) settings.lookName = r.name;
-    setProfiles(r.list);
-    nameInput.value = "";
-    pickRow.el.value = r.name;
-    report(W.profile.renamed(r.name));
-  });
-  delBtn.addEventListener("click", () => {
-    void (async () => {
-      const name = chosen();
-      if (!name || !(await ask(W.profile.confirmDelete(name), { yes: W.profile.yes, no: W.profile.no }))) return;
-      const r = remove(profilesNow(), name);
-      if (!r.ok) return void announce(r.why);
-      setProfiles(r.list);
-      report(W.profile.deleted(name));
-    })();
-  });
-
-  // --- sharing
-  const share = field(W.share.legend, "look-share");
-  share.add(h("p", "look-hint", W.share.lead));
-  const exportBtn = button("ghost", W.share.export);
-  const importBtn = button("ghost", W.share.import);
-  const file = h("input");
-  file.type = "file";
-  file.accept = ".verso-theme,.json,application/json";
-  file.hidden = true;
-  file.tabIndex = -1;
-  file.setAttribute("aria-hidden", "true");
-  file.setAttribute("data-look-import", "");
-  importBtn.addEventListener("click", () => file.click());
-  file.addEventListener("change", () => {
-    const f = file.files?.[0];
-    file.value = "";
-    if (f) void importFile(f);
-  });
-  exportBtn.addEventListener("click", () => {
-    if (exportCurrent()) announce(W.share.exported(currentTheme().name));
-  });
-  const fileRow = h("div", "look-actions");
-  fileRow.append(exportBtn, importBtn, file);
-  const suggestBtn = button("ghost", W.share.suggest);
-  const unsuggestBtn = button("ghost", W.share.unsuggest);
-  const suggestWhy = h("p", "look-hint");
   suggestBtn.addEventListener("click", () => {
     void (async () => {
       if (!hasOwnLook()) return void announce(W.share.exportEmpty);
-      const theme = currentTheme();
+      const theme = currentTheme(nameInput.value.trim() || undefined);
       if (await setSuggestion(theme)) report(W.share.suggested(theme.name));
       else announce(W.share.suggestFail);
       refresh();
@@ -346,8 +301,34 @@ export function appearancePanel(): HTMLElement {
   });
   const folderRow = h("div", "look-actions");
   folderRow.append(suggestBtn, unsuggestBtn);
-  share.add(fileRow, folderRow, suggestWhy);
-  root.append(profiles.box, share.box);
+  share.append(suggestWhy, folderRow);
+
+  controls.append(colors.box, fonts.box, contrast, share);
+
+  // --- the sample
+  const sample = sampleDocument();
+  const sampleBox = h("div", "look-sample-box");
+  sampleBox.append(h("p", "look-sample-title", W.panel.sample), sample.el);
+
+  // --- the footer
+  const foot = h("div", "builder-foot");
+  const save = button("save", W.builder.save);
+  const cancel = button("ghost", W.builder.cancel);
+  const keep = h("div", "builder-keep");
+  keep.append(cancel, save);
+  foot.append(status, keep);
+
+  const head = h("div", "builder-head");
+  const title = h("h2", "builder-title", spec.mode === "edit" ? W.builder.editing(spec.name) : W.builder.creating);
+  title.id = uid();
+  root.setAttribute("role", "region");
+  root.setAttribute("aria-labelledby", title.id);
+  head.append(title, h("p", "look-lead", W.builder.lead));
+  const left = h("div", "builder-left");
+  left.append(nameRow, bar, controls);
+  const body = h("div", "builder-body");
+  body.append(left, sampleBox);
+  root.append(head, body, foot);
 
   // --- keeping the controls in step with the settings
   function refresh(force = false): void {
@@ -379,51 +360,73 @@ export function appearancePanel(): HTMLElement {
       row.state.textContent = low ? `⚠ ${W.panel.warn}` : `✓ ${W.panel.ok}`;
       row.li.dataset["state"] = low ? "warn" : "ok";
     }
+    summaryState.textContent = warned.length > 0 ? `⚠ ${W.builder.contrastWarn(warned.length)}` : `✓ ${W.builder.contrastOk}`;
+    summaryState.dataset["state"] = warned.length > 0 ? "warn" : "ok";
     const key = `${side}:${warned.join(",")}`;
     if (key !== lastWarned) {
       const before = lastWarned;
       lastWarned = key;
-      if (before !== "" && warned.length > 0) announce(W.panel.warned(warned.map((id) => W.panel.pairs[id]).join(", ")));
+      if (before !== "" && warned.length > 0) {
+        contrast.open = true;
+        announce(W.panel.warned(warned.map((id) => W.panel.pairs[id]).join(", ")));
+      }
     }
-    reset.disabled = false;
-    // Profiles
-    const list = profilesNow();
-    const was = pickRow.el.value;
-    pickRow.el.replaceChildren(new Option(W.profile.none, ""), ...list.map((p) => new Option(p.name, p.name)));
-    pickRow.el.value = list.some((p) => p.name === was) ? was : list.some((p) => p.name === settings.lookName) ? (settings.lookName ?? "") : "";
-    const any = chosen() !== "";
-    useBtn.disabled = !any;
-    renameBtn.disabled = !any;
-    delBtn.disabled = !any;
-    // The folder
     const why = cannotSuggest();
     suggestBtn.disabled = why !== null;
     unsuggestBtn.disabled = why !== null || suggestion() === null;
     unsuggestBtn.hidden = suggestion() === null;
     suggestWhy.textContent = why === "folder" ? W.share.suggestNoFolder : why === "reader" ? W.share.suggestRead : W.share.suggestDesc;
   }
-  pickRow.el.addEventListener("change", () => {
-    const any = chosen() !== "";
-    useBtn.disabled = !any;
-    renameBtn.disabled = !any;
-    delBtn.disabled = !any;
-  });
-  const follow = (): void => {
-    if (!root.isConnected) return;
-    refresh();
+
+  const revert = (): void => {
+    settings.look = snap.look;
+    settings.headingFont = snap.headingFont;
+    settings.fontSize = snap.fontSize;
+    if (snap.lookName === undefined) delete settings.lookName;
+    else settings.lookName = snap.lookName;
+    saveSettings();
+    told();
+    dirty = false;
   };
-  addEventListener(LOOK_EVENT, follow);
-  addEventListener("verso:settings-saved", follow);
-  onFolderLayer(follow);
-  // A page repainted before the debounce fired keeps the edit.
-  root.addEventListener("focusout", () => {
-    if (saveTimer) {
-      window.clearTimeout(saveTimer);
-      saveTimer = 0;
-      saveSettings();
-    }
+  cancel.addEventListener("click", () => {
+    revert();
+    say(W.builder.cancelled);
+    hooks.onCancel();
+  });
+  save.addEventListener("click", () => {
+    void (async () => {
+      const name = nameInput.value.trim();
+      if (name === "") {
+        announce(W.builder.noName);
+        nameInput.focus();
+        return;
+      }
+      let list = profilesNow();
+      const theme = currentTheme(name);
+      if (spec.mode === "edit" && spec.name !== name) {
+        const renamed = rename(list, spec.name, name);
+        if (!renamed.ok) return void announce(renamed.why);
+        list = renamed.list;
+      }
+      let r = saveAs(list, name, theme, spec.mode === "edit");
+      if (!r.ok && list.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+        if (!(await ask(W.profile.replaceQ(name), { yes: W.profile.replace, no: W.profile.no }))) return;
+        r = saveAs(list, name, theme, true);
+      }
+      if (!r.ok) return void announce(r.why);
+      settings.lookName = r.name;
+      setProfiles(r.list);
+      dirty = false;
+      say(W.builder.saved(r.name));
+      hooks.onSaved(r.name);
+    })();
   });
   settings.look ??= emptyLook();
   refresh();
-  return root;
+  return {
+    el: root,
+    revert,
+    changed: () => dirty,
+    focus: () => nameInput.focus(),
+  };
 }

@@ -704,14 +704,22 @@ point 13).
    Level: H; E: `settings.spec.mjs`, the sections and Aparência;
    `dark-tone.spec.mjs`, every palette and tone at 4.5:1 or more;
    `ribbon.spec.mjs`, a hidden button brought back. Aparência's
-   *Personalizar aparência* (ADR 0100): a colour typed in changes the
-   sample and the window at once, a low-contrast one warns, one under 3:1
-   is undone with a message, *Restaurar padrão* puts all back by keyboard;
-   a look saved as a profile, exported, and imported again (the button, or
+   *Temas* gallery (ADR 0100): four cards of Verso's (Papel, Sépia,
+   Ardósia, Musgo), each a tiny page in that theme's own colours, the one in
+   use marked; a click (or Tab and Space) uses a theme at once; *Copiar*
+   makes "Cópia de …"; Verso's own have no *Editar*; *Editar* on one's own
+   opens the *Construtor de tema* in a tab, the settings page stepping
+   aside: a colour typed in changes the sample and the window at once, a
+   low-contrast one warns, one under 3:1 is undone with a message,
+   *Restaurar padrão* puts the draft back by keyboard; *Cancelar* (or
+   closing the tab and *Descartar*) puts the look back, *Salvar tema* keeps
+   it, and the settings page returns on the theme's card with the focus
+   there; a theme exported from its card and imported again (the button, or
    the file dropped on the window) as it was; `assets/temas/Pergaminho.verso-theme`
    applies; a hostile file is refused with the reason; a folder's
-   suggested theme is offered and never applied by itself. Level: H, A
-   (the real file save: the host's download); E: `appearance-wizard.spec.mjs`.
+   suggested theme is offered, shown as a card, and never applied by itself.
+   Level: H, A (the real file save: the host's download; the builder's tab
+   in the phone layout); E: `appearance-themes.spec.mjs`.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;
