@@ -34,6 +34,14 @@
   decisions list of 2026-10-21 (items 1 and 6 below) and, in A.1, the two
   entries marked "(the first build)" are also removed from "Discarded
   alternatives" (nobody considered them either; rule zero, item 4).
+  2026-10-21, review of the afternoon batch — (a) the build kept a one-line
+  pointer to the Credits page on each licensed card, which S.3b = B (item 6)
+  does not say: recorded below as a builder's choice awaiting the maintainer
+  (question S.3b-bis of the decisions list of the afternoon), the decision of
+  item 6 itself unchanged; (b) the pt-BR field names of the World of Darkness
+  and Cyberpunk RED layouts were chosen by the build from community terms,
+  provisional (S.3c, "translate now, correct later"); (c) "Discarded
+  alternatives" reads "None recorded." (rule zero, item 4).
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -206,12 +214,24 @@ written in the item, with no words of his own); nothing is left
      (`docs/reference/statblock-sources.md`, 3.28), and Paradox's agreement
      asks for the logo "somewhere in your material"; the maintainer chose the
      Credits page for both.
+     *Deviation, 2026-10-21 (review of the afternoon batch), a builder's
+     choice awaiting the maintainer (question S.3b-bis):* the build kept a
+     one-line pointer to the Credits page on each licensed card (the six
+     World of Darkness and Cyberpunk RED layouts), because the Dark Pack
+     agreement asks for a notice "somewhere on Your Material" and R.
+     Talsorian's policy asks for its disclaimer "in an easily noticeable
+     location". The maintainer's answer (S.3b = B) did not say to add it and
+     it is not attributed to him; the full notices and the logo stay on the
+     Credits page only. Keep the pointer or remove it: his call.
    - **Field names** (S.3c, "Outra"): *"Como em B, depois a gente corrige"*
      — the names of the fields of the World of Darkness and Cyberpunk RED
      layouts are **translated to pt-BR now**, and corrected later against the
      Brazilian books (they were built in English, since the official names of
      the Brazilian editions were not verified). The risk of not matching the
-     books is accepted.
+     books is accepted. *Recorded 2026-10-21 (review of the afternoon batch):*
+     the pt-BR names themselves were chosen by the build from common Brazilian
+     RPG-community terms, not from the books: provisional, to be corrected as
+     he said.
 
 7. **Editing in place.** In Live Preview the YAML shows while the caret is
    in the block; the card has a button to its source and the source one
@@ -257,7 +277,7 @@ written in the item, with no words of his own); nothing is left
 
 ## Discarded alternatives
 
-- None other recorded.
+- None recorded.
 
 ## Status
 
