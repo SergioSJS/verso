@@ -28,6 +28,7 @@ versão de teste.
 
 ### Corrigido
 
+- **A contagem do grafo é anunciada quando a digitação pausa (acessibilidade)**: filtrar o grafo atualiza a contagem na tela a cada tecla, mas o leitor de tela só a lê cerca de um segundo depois que você para de digitar.
 - **Áreas de clique maiores (acessibilidade)**: a marca de fechar da aba, a de remover de uma pílula de lista nas propriedades e os botões da barra de status respondem a um clique dentro de 24 × 24 px ao redor deles, embora continuem desenhados do mesmo tamanho e a barra de abas mantenha a altura.
 - **"Área" deixa de nomear duas coisas (acessibilidade)**: em toda a interface em português, um painel agora é *painel* e uma área de trabalho é *espaço de trabalho*, de modo que "Fechar painel" e "Fechar espaço de trabalho" são dois controles com dois nomes; a nota do tutorial sobre abas, painéis e espaços de trabalho acompanha (agora *Abas, Painéis, Espaços de Trabalho e Janelas*).
 - **Salvamentos de rotina não são mais lidos em voz alta (acessibilidade)**: "Salvo." continua na linha de estado, mas o leitor de tela só anuncia o que dá errado ou pede atenção (uma gravação recusada, um erro, um conflito, a contagem de uma busca ou do grafo), não cada salvamento automático.
