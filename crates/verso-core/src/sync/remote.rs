@@ -246,6 +246,22 @@ pub trait Remote: Send + Sync {
         Ok((read.version, sink.finish()))
     }
 
+    /// Whether the file is there. Asked before a deletion here that a
+    /// listing alone asks for: a listing that lags behind a write (a
+    /// service that is not strongly consistent) must not delete a file the
+    /// remote has. The default reads and hashes it; a cloud's adapter
+    /// asks for its metadata only.
+    ///
+    /// # Errors
+    /// Whatever the remote failed with, other than the file being gone.
+    fn exists(&self, path: &str) -> Result<bool> {
+        match self.fingerprint(path) {
+            Ok(_) => Ok(true),
+            Err(e) if e.kind == RemoteErrorKind::NotFound => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
     /// The file's bytes into `sink`, in order. The remote verifies what it
     /// can (size, its own checksum) before it says it is read.
     ///

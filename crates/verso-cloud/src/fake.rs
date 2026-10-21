@@ -282,6 +282,9 @@ struct DavStore {
     counter: u64,
     writes: Vec<Write>,
     removed: Vec<Removed>,
+    /// Files a listing leaves out though they are there (a service that
+    /// lags behind its writes).
+    hidden: BTreeSet<String>,
 }
 
 /// A fake WebDAV server rooted at `/dav`.
@@ -359,6 +362,23 @@ impl Dav {
         s.counter += 1;
         let etag = format!("\"e{}\"", s.counter);
         s.files.insert(path.to_owned(), (bytes.to_vec(), etag));
+    }
+
+    /// A listing leaves `path` out from now on, though it is there.
+    pub fn hide(&self, path: &str) {
+        lock(&self.store).hidden.insert(path.to_owned());
+    }
+
+    /// Someone deleted `path` there.
+    pub fn remove(&self, path: &str) {
+        lock(&self.store).files.remove(path);
+    }
+
+    /// The whole folder is gone from the server.
+    pub fn remove_folder(&self) {
+        let mut s = lock(&self.store);
+        s.files.clear();
+        s.dirs.clear();
     }
 
     #[must_use]
@@ -464,7 +484,7 @@ fn dav(s: &mut DavStore, mode: &DavMode, r: &Req) -> Resp {
                     }
                 }
                 for (p, f) in &s.files {
-                    if parent(p) == rel {
+                    if parent(p) == rel && !s.hidden.contains(p) {
                         entry(&mut out, p, false, Some(f));
                     }
                 }
@@ -663,6 +683,7 @@ struct S3Store {
     counter: u64,
     writes: Vec<Write>,
     removed: Vec<Removed>,
+    hidden: BTreeSet<String>,
 }
 
 /// A fake S3 service with one bucket, `bucket`, in path style.
@@ -735,6 +756,16 @@ impl S3 {
 
     pub fn throttle(&self, n: u32) {
         self.throttle.store(n, Ordering::SeqCst);
+    }
+
+    /// A listing leaves `key` out from now on, though it is there.
+    pub fn hide(&self, key: &str) {
+        lock(&self.store).hidden.insert(key.to_owned());
+    }
+
+    /// Someone deleted `key` there.
+    pub fn remove(&self, key: &str) {
+        lock(&self.store).objects.remove(key);
     }
 
     pub fn mode(&self, f: impl FnOnce(&mut S3Mode)) {
@@ -1083,7 +1114,7 @@ fn s3_bucket(s: &S3Store, mode: &S3Mode, r: &Req) -> Resp {
     let keys: Vec<&String> = s
         .objects
         .keys()
-        .filter(|k| k.starts_with(prefix) && k.as_str() > after)
+        .filter(|k| k.starts_with(prefix) && k.as_str() > after && !s.hidden.contains(*k))
         .collect();
     let page = &keys[..keys.len().min(mode.page)];
     let mut out = String::from("<?xml version=\"1.0\"?><ListBucketResult>");

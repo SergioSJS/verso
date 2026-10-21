@@ -538,3 +538,15 @@ fn aws_is_addressed_by_region_and_a_dotted_bucket_in_the_path() {
         )
     );
 }
+
+#[test]
+fn an_object_is_asked_for_by_itself() {
+    let fake = Fake::start(S3Mode::default());
+    let s = connect(&fake);
+    put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    assert!(s.exists("a.md").unwrap());
+    assert!(!s.exists("b.md").unwrap());
+    fake.hide("Cofre/a.md");
+    assert!(s.list(None).unwrap().changes.is_empty());
+    assert!(s.exists("a.md").unwrap());
+}

@@ -434,9 +434,16 @@ impl Remote for WebDav {
         while let Some((dir, depth)) = queue.pop_front() {
             let response = self.propfind(&dir, 1, PROPFIND_BODY)?;
             match response.status().as_u16() {
-                // The folder does not exist yet: empty, made on the first
-                // write.
-                404 if dir.is_empty() => break,
+                // The folder is not there: not an empty folder (every file
+                // would look deleted there) but a folder to find again. It
+                // was made when the person connected.
+                404 if dir.is_empty() => {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::NotFound,
+                        "the folder is not on the server: it was moved or deleted there",
+                    ));
+                }
+                // A folder that went while the listing ran.
                 404 => continue,
                 207 | 200 => {}
                 other => return Err(fail(other, "listing the folder", response)),

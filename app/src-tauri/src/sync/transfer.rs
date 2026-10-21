@@ -524,6 +524,20 @@ impl Side<'_> {
                 s.crossed(ctx, "deleted_there", path, None);
             }
             Action::DeleteLocal { path } => {
+                // A cloud's listing alone is not proof that a file is gone
+                // there: a service that lags behind its writes, or a
+                // folder that moved, lists too little. Ask for the file
+                // itself before it leaves this computer (ADR 0104 item 8).
+                if s.cloud.is_some() {
+                    let there = tokio::task::block_in_place(|| remote.exists(path))
+                        .map_err(|e| of_remote(path, e))?;
+                    if there {
+                        return Err(Refusal::Again(
+                            path.clone(),
+                            "the cloud still has it, though its listing did not".to_owned(),
+                        ));
+                    }
+                }
                 let p = path.clone();
                 let by = format!(
                     "{}{}",
