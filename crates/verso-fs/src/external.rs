@@ -46,6 +46,46 @@ impl std::fmt::Display for PickedError {
 
 impl std::error::Error for PickedError {}
 
+/// `O_NONBLOCK`, which std does not name: the same value on every Linux
+/// the project ships on (x86-64, arm64) and on macOS and the BSDs. A
+/// `libc` dependency for one constant is not worth its place in the tree.
+#[cfg(all(unix, any(target_os = "linux", target_os = "android")))]
+const O_NONBLOCK: i32 = 0o4000;
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+const O_NONBLOCK: i32 = 0x4;
+
+/// `path` opened, and the length of what was opened, only if it is a
+/// regular file. On Unix the file is opened first and judged by its own
+/// handle (`fstat`), and opened without blocking: a FIFO swapped in for
+/// the file between a check by name and the open would otherwise wait
+/// for a writer and hold the host's thread for good. Where there are no
+/// FIFOs to speak of (Windows), the name is checked first, as a directory
+/// cannot be opened there.
+#[cfg(unix)]
+fn open_regular(path: &Path) -> Result<(std::fs::File, u64), PickedError> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(O_NONBLOCK)
+        .open(path)
+        .map_err(PickedError::Io)?;
+    let meta = file.metadata().map_err(PickedError::Io)?;
+    if !meta.is_file() {
+        return Err(PickedError::NotAFile);
+    }
+    Ok((file, meta.len()))
+}
+
+#[cfg(not(unix))]
+fn open_regular(path: &Path) -> Result<(std::fs::File, u64), PickedError> {
+    let meta = std::fs::metadata(path).map_err(PickedError::Io)?;
+    if !meta.is_file() {
+        return Err(PickedError::NotAFile);
+    }
+    let file = std::fs::File::open(path).map_err(PickedError::Io)?;
+    Ok((file, meta.len()))
+}
+
 /// The bytes of the file the person picked at `path`, at most `max` of them.
 ///
 /// # Errors
@@ -55,14 +95,10 @@ pub fn read_picked(path: &Path, max: u64) -> Result<Vec<u8>, PickedError> {
     if crate::placeholder::stands_in(path).map_err(PickedError::Io)? {
         return Err(PickedError::Placeholder);
     }
-    let meta = std::fs::metadata(path).map_err(PickedError::Io)?;
-    if !meta.is_file() {
-        return Err(PickedError::NotAFile);
-    }
-    if meta.len() > max {
+    let (file, len) = open_regular(path)?;
+    if len > max {
         return Err(PickedError::TooLarge);
     }
-    let file = std::fs::File::open(path).map_err(PickedError::Io)?;
     // The file may have grown since it was measured: the bound holds.
     let mut bytes = Vec::new();
     file.take(max.saturating_add(1))
@@ -106,6 +142,25 @@ mod tests {
         std::fs::write(&p, vec![0u8; 11]).unwrap();
         assert!(matches!(read_picked(&p, 10), Err(PickedError::TooLarge)));
         assert_eq!(read_picked(&p, 11).unwrap().len(), 11);
+    }
+
+    /// A FIFO is no regular file and opening it does not wait for a writer
+    /// (review M6): the answer comes at once, whoever swapped it in.
+    #[cfg(unix)]
+    #[test]
+    fn a_fifo_is_refused_without_waiting_for_a_writer() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("pipe");
+        let made = std::process::Command::new("mkfifo").arg(&p).status().unwrap();
+        assert!(made.success());
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(matches!(read_picked(&p, 100), Err(PickedError::NotAFile)));
+        });
+        let refused = rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("read_picked waited on the FIFO");
+        assert!(refused);
     }
 
     #[cfg(unix)]
