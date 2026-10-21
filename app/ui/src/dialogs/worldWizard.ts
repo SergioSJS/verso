@@ -199,7 +199,9 @@ function populate(dialog: HTMLElement, defaultFolder: string): void {
       sessionBundles.unshift(fresh);
     }
     presets.add(fresh);
-    show("presets");
+    // The import button is now hidden: focus goes to the tab it left for,
+    // or the keyboard (Esc) would no longer reach the dialog.
+    show("presets", true);
     ui.status.textContent = [t.worldWizard.importSuccess(fresh.name), ...notes].join(" ");
     presets.say(notes.join(" "));
   });
@@ -575,6 +577,7 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
   importBtn.type = "button";
   importBtn.prepend(icon("check"));
 
+  let importing = false;
   importBtn.addEventListener("click", async () => {
     const raw = jsonArea.value.trim();
     if (!raw) return;
@@ -592,12 +595,15 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
       }
       return;
     }
-    importBtn.disabled = true;
+    // Not disabled while it works: a button that loses its focus takes
+    // the keyboard (Esc) away from the dialog with it.
+    if (importing) return;
+    importing = true;
     try {
       await onImported(validation.bundle);
       jsonArea.value = "";
     } finally {
-      importBtn.disabled = false;
+      importing = false;
     }
   });
 
