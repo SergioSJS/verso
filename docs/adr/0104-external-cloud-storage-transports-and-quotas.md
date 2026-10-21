@@ -104,15 +104,19 @@ keychain.
 
 ## Decision
 
-Proposed (2026-10-21). Item 1 is the maintainer's; every other item is a
-recommendation he has not answered, `[PROPOSED]`, or a question, `[OPEN]`,
-with its number in the decisions list.
+Accepted (2026-10-21). Item 1 is the maintainer's answer of the morning;
+every other item was a recommendation or a question (C.1 to C.17 of
+`verso-decisoes-0104-nuvens-2026-10-21.md`) that the maintainer answered the
+same afternoon, every one as recommended, `[DECIDED 2026-10-21]`; where an
+item said "recommended", that recommendation is the decision. His note on
+the tasks of C.1: *"Farei tudo depois e te aviso quando concluído"* — he
+creates the developer accounts later.
 
 1. **In V1, five providers.** `[DECIDED 2026-10-21]` (0104.1 B, 0104.3):
    WebDAV, S3 (and S3-compatible), Dropbox, OneDrive, Google Drive — for
    **the desktop app's sync of a local folder**.
 
-2. **What this revises.** `[PROPOSED]` (C.12) The maintainer's 0104.1 B
+2. **What this revises.** `[DECIDED 2026-10-21]` (C.12) The maintainer's 0104.1 B
    moves part of the roadmap's `[DECIDED 2026-10-14]` line "after V1 a
    bucket and WebDAV" into V1, and it must be said which part: the
    **desktop's sync with a WebDAV folder or a bucket** enters V1 with this
@@ -128,7 +132,7 @@ with its number in the decisions list.
    click, a new reach, as the update check (0055), the server (0073), the
    local server (0096/0097) each were.
 
-3. **Where the code lives.** `[PROPOSED]` (C.17) The core stays without
+3. **Where the code lives.** `[DECIDED 2026-10-21]` (C.17) The core stays without
    network ([0050](0050-outbound-network-access.md), 0079's Consequences):
    `verso-core` holds only a **network-free remote trait** — list changes
    after a cursor, read, conditional write, delete, rename — and the engine
@@ -139,7 +143,7 @@ with its number in the decisions list.
    [0028](0028-crate-structure.md) gains a line). The folder's files are
    touched only through `verso-fs` (invariant 5).
 
-4. **One sync, many remotes — what of 0079 holds.** `[PROPOSED]` One local
+4. **One sync, many remotes — what of 0079 holds.** `[DECIDED 2026-10-21]` One local
    folder syncs with **one** remote — a UniVerso or one cloud folder, never
    two at once. Item by item:
    - **Hold as written**: 0079 items 2 (the file as the unit; NFC names —
@@ -161,14 +165,14 @@ with its number in the decisions list.
      device's name, a deletion undone from the server's trash (0080 item 12)
      — a cloud's own trash is item 11 below.
 
-5. **The desktop only.** `[PROPOSED]` (C.2) A cloud-synced folder is
+5. **The desktop only.** `[DECIDED 2026-10-21]` (C.2) A cloud-synced folder is
    reachable from the desktop apps that sync it, not from a phone or a
    browser: the phone's offline mode ([0092](0092-the-phone-offline.md)) is
    built on a UniVerso, and phones and browsers do not sync (0079 item 14).
    The window says it when the person chooses a cloud: "on the phone, use a
    UniVerso".
 
-6. **Each provider's narrowest place.** `[PROPOSED]`
+6. **Each provider's narrowest place.** `[DECIDED 2026-10-21]`
    - **WebDAV**: an address and a folder the person gives, with user and
      password (or an app password); HTTPS only, except an address on the
      local network the person confirms (as [0096](0096-this-app-is-a-server.md)
@@ -188,7 +192,7 @@ with its number in the decisions list.
    - The folder's name under `Apps/Verso/` is made safe for every provider
      (0070 item 3's characters, plus the provider's own forbidden names).
 
-7. **Writes and races — no silent overwrite.** `[PROPOSED]` (C.3, C.11)
+7. **Writes and races — no silent overwrite.** `[DECIDED 2026-10-21]` (C.3, C.11)
    Every write is conditional on the base, and where a provider cannot make
    it conditional, the race is caught after the write and repaired without
    losing either version:
@@ -210,12 +214,12 @@ with its number in the decisions list.
      keeps the overwritten revision.
    - **A service with neither a precondition nor revisions** (some
      S3-compatibles, WebDAV servers without strong ETags) cannot keep this
-     promise: `[OPEN]` C.3 — recommended, **refuse to connect** with the
+     promise: `[DECIDED 2026-10-21]` C.3 — recommended, **refuse to connect** with the
      reason said, so "synced" never hides a lost edit.
    - The guardrail of the feature: a property test with a fake provider
      that races two devices on every adapter, asserting no version is lost.
 
-8. **The remote's changes.** `[PROPOSED]` (C.14) Dropbox: `list_folder`'s
+8. **The remote's changes.** `[DECIDED 2026-10-21]` (C.14) Dropbox: `list_folder`'s
    cursor and long-poll; OneDrive: `delta`, polled; Google Drive:
    `changes.list` with a page token, polled; WebDAV and S3: a listing with
    ETags compared with the state (WebDAV with `Depth: 1` per folder, not
@@ -226,7 +230,7 @@ with its number in the decisions list.
    Dropbox's reset) is a full comparison from the bases, as a reconnect is —
    never a first sync that would treat everything as new.
 
-9. **Uploads, downloads and integrity.** `[PROPOSED]` (C.11) Large files
+9. **Uploads, downloads and integrity.** `[DECIDED 2026-10-21]` (C.11) Large files
    in the provider's pieces (Dropbox upload sessions, OneDrive upload
    sessions, S3 multipart, Drive resumable uploads), the file written here
    only when every piece arrived (0079 item 12). After each transfer the
@@ -234,7 +238,7 @@ with its number in the decisions list.
    OneDrive `sha1Hash`/`quickXorHash`, Drive `md5Checksum`, S3
    `x-amz-checksum-sha256` where supported — and size plus ETag otherwise.
 
-10. **Names that do not fit.** `[PROPOSED]` (C.10) Names are uploaded in NFC
+10. **Names that do not fit.** `[DECIDED 2026-10-21]` (C.10) Names are uploaded in NFC
     (0079 item 2). A local name a provider forbids (OneDrive's list,
     Windows-reserved names on some clouds) is not synced and listed with
     its reason. Two remote names that fold to one locally (a provider that
@@ -242,14 +246,14 @@ with its number in the decisions list.
     name in a folder): one is synced, the other held and listed, never
     merged silently (spec Q8).
 
-11. **Deletions on the remote.** `[PROPOSED]` (C.9) Into the provider's
+11. **Deletions on the remote.** `[DECIDED 2026-10-21]` (C.9) Into the provider's
     trash where it has one (Dropbox and OneDrive delete into their own;
     Google Drive with `trashed: true`, never `files.delete`, which is
     permanent); on S3 and WebDAV a deletion is final unless the bucket has
     versioning — said when the person connects. Local deletions go into
     `.trash/` as always (0080).
 
-12. **Sign-in.** `[PROPOSED]` (C.8) OAuth providers through the **system's
+12. **Sign-in.** `[DECIDED 2026-10-21]` (C.8) OAuth providers through the **system's
     browser** with PKCE and a loopback redirect (RFC 8252), never an
     embedded web view. Per provider: Google accepts any loopback port;
     Microsoft ignores the port but `127.0.0.1` must be set in the manifest
@@ -260,7 +264,7 @@ with its number in the decisions list.
     Google's desktop client is issued a `client_secret` that is not secret
     and is treated as public.
 
-13. **Client identities.** `[OPEN]` C.1 — 0104.4 said "decide when the
+13. **Client identities.** `[DECIDED 2026-10-21]` C.1 — 0104.4 said "decide when the
     first OAuth provider is chosen", and all three are chosen. Recommended:
     **the project registers its own apps** (a Dropbox app, production status
     past 50 accounts; a Google Cloud project — non-sensitive scope, so no
@@ -272,21 +276,21 @@ with its number in the decisions list.
     client). During Google's "Testing" status: at most 100 testers, a new
     sign-in every 7 days — said in the window.
 
-14. **Secrets.** `[PROPOSED]` (C.4, C.5) Refresh tokens, WebDAV passwords
+14. **Secrets.** `[DECIDED 2026-10-21]` (C.4, C.5) Refresh tokens, WebDAV passwords
     and S3 secrets live in the **system's keychain** (0019 item 2; macOS
     Keychain, Windows Credential Manager, Linux Secret Service), never in
     the folder, the configuration file or a log; never sent to the window
     (the window sends a secret once, when the person types it, and never
     reads it back — a contract rule, 0026). On Windows a secret over the
     Credential Manager's 2560-byte limit is split or refused with a message.
-    On a Linux without Secret Service: `[OPEN]` C.4 — recommended, refuse
+    On a Linux without Secret Service: `[DECIDED 2026-10-21]` C.4 — recommended, refuse
     the cloud sync with the reason and how to install a keyring. One rule
-    for every secret: `[OPEN]` C.5 — recommended, the UniVerso device token,
+    for every secret: `[DECIDED 2026-10-21]` C.5 — recommended, the UniVerso device token,
     today in `servers.json` (0074 item 8), moves to the keychain too. The
     keychain is a new dependency, justified in its PR. "Disconnect" deletes
     the secrets and revokes the token where the provider allows.
 
-15. **The network.** `[PROPOSED]` Sync with a cloud is the person's explicit
+15. **The network.** `[DECIDED 2026-10-21]` Sync with a cloud is the person's explicit
     choice per folder; the app then talks to that provider's API and sign-in
     hosts **and to the addresses the provider hands back for one transfer**
     (OneDrive's pre-authenticated download and upload-session URLs on other
@@ -298,7 +302,7 @@ with its number in the decisions list.
     or, without it, exponential backoff with jitter; small concurrency per
     provider. A full storage quota is a sync error said in the window.
 
-16. **What a person sees.** `[PROPOSED]` The folder's settings offer "Sync
+16. **What a person sees.** `[DECIDED 2026-10-21]` The folder's settings offer "Sync
     with…": a UniVerso (0079) or a cloud; choosing a cloud names the
     provider, signs in, shows the space, what the first sync will do (0079
     item 11), what does not apply to a cloud folder (item 4) and that the
@@ -308,12 +312,12 @@ with its number in the decisions list.
     two syncs of the same files are a risk — not a refusal (how to detect
     it is still `[OPEN]` in [0043](0043-placeholder-guard.md)).
 
-17. **Order of building.** `[OPEN]` C.16 (formerly C.2). Recommended:
+17. **Order of building.** `[DECIDED 2026-10-21]` C.16 (formerly C.2). Recommended:
     WebDAV and S3 first (no app registration; they exercise the remote
     trait and the race guardrail), then Dropbox, OneDrive, Google Drive.
 
 18. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-    `[PROPOSED]` Every step of "Sync with…" by keyboard and screen reader;
+    `[DECIDED 2026-10-21]` Every step of "Sync with…" by keyboard and screen reader;
     the browser step announced; pt-BR and EN.
 
 ## Consequences
@@ -356,6 +360,9 @@ with its number in the decisions list.
 
 ## Status
 
-Proposed (2026-10-21). Item 1 decided by the maintainer; rewritten by Opus
-5.5 at his request, reviewed by Fable 5.1 the same day (0104.2) and revised
-after the review; it is accepted when the maintainer answers C.1 to C.17.
+Accepted (2026-10-21). Item 1 decided by the maintainer in the morning;
+rewritten by Opus 5.5 at his request, reviewed by Fable 5.1 (0104.2) and
+revised after the review; C.1 to C.17 answered by the maintainer that
+afternoon, all as recommended. Not built. The OAuth providers wait for the
+developer accounts the maintainer creates (C.1); WebDAV and S3 come first
+(C.16).
