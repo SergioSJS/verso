@@ -131,7 +131,13 @@ function append(a: unknown, b: unknown): unknown {
 /** The sheet a block draws: its own keys over its bases'. `traitKeys` says,
  *  from the scalar-merged sheet (whose `layout:` may itself be inherited),
  *  which keys the layout draws as traits. */
-export function compose(own: Sheet, lookup: Lookup, traitKeys: (merged: Sheet) => ReadonlySet<string>): Composed {
+export function compose(
+  own: Sheet,
+  lookup: Lookup,
+  traitKeys: (merged: Sheet) => ReadonlySet<string>,
+  /** The block's own note and name: meeting them again among the bases is a cycle at once, not one walk later. */
+  self?: { path: string; name: string },
+): Composed {
   const problems: Problem[] = [];
   const bases: { name: string; path: string }[] = [];
   const layers: Sheet[] = [];
@@ -158,7 +164,7 @@ export function compose(own: Sheet, lookup: Lookup, traitKeys: (merged: Sheet) =
         note({ kind: "pending", ref: ref.text });
         continue;
       }
-      if (stack.includes(found.id)) {
+      if (stack.includes(found.id) || (self && self.name !== "" && found.path === self.path && found.name === self.name)) {
         note({ kind: "cycle", ref: ref.text });
         continue;
       }

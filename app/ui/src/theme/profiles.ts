@@ -87,3 +87,8 @@ export function remove(list: Profile[], name: string): Change {
   if (at < 0) return { ok: false, why: W.profiles.gone(name) };
   return { ok: true, list: list.filter((_, i) => i !== at), name };
 }
+
+/** What an imported theme says of itself once applied: whether it is also in the profile list, or why it is not. */
+export function importSaid(kept: Change, name: string): string {
+  return kept.ok ? W.share.imported(kept.name) : W.share.importedNotKept(name, kept.why);
+}

@@ -606,3 +606,39 @@ describe("review M8: Save as board writes data as literal text", () => {
     assert.ok(doc.nodes[1].text.startsWith("**\\[\\[k\\]\\]**"), doc.nodes[1].text);
   });
 });
+
+describe("review M13: the per-device store survives a full storage", () => {
+  const big = (n) => ({ dir: "lr", base: { kind: "auto" }, folds: [], moves: Array.from({ length: n }, (_, i) => ({ p: String(i), d: [1, 2] })) });
+  test("a quota error drops the oldest entries and the newest is still kept", () => {
+    const mem = new Map();
+    // A storage that holds at most 20 000 characters in all, as a full one would.
+    const s = {
+      getItem: (k) => mem.get(k) ?? null,
+      setItem: (k, v) => {
+        const total = [...mem].reduce((a, [kk, vv]) => a + (kk === k ? 0 : vv.length), 0) + v.length;
+        if (total > 20_000) throw new Error("QuotaExceededError");
+        mem.set(k, v);
+      },
+      removeItem: (k) => mem.delete(k),
+    };
+    for (let i = 0; i < 40; i++) D.writeFile("f", `f${i}.json`, big(40), s, i);
+    assert.ok(D.readFile("f", "f39.json", s), "the newest is kept");
+    assert.equal(D.readFile("f", "f0.json", s), null, "the oldest went to make room");
+  });
+  test("one file larger than the whole storage loses only itself", () => {
+    const mem = new Map();
+    const s = {
+      getItem: (k) => mem.get(k) ?? null,
+      setItem: (k, v) => {
+        if (v.length > 5_000) throw new Error("QuotaExceededError");
+        mem.set(k, v);
+      },
+      removeItem: (k) => mem.delete(k),
+    };
+    D.writeFile("f", "small.json", big(2), s, 1);
+    D.writeFile("f", "huge.json", big(2000), s, 2);
+    assert.ok(D.readFile("f", "small.json", s), "other files keep saving");
+    D.writeFile("f", "small2.json", big(2), s, 3);
+    assert.ok(D.readFile("f", "small2.json", s));
+  });
+});

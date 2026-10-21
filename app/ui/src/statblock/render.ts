@@ -120,7 +120,7 @@ function buildCard(own: Sheet, onToggleSource: (() => void) | undefined, opts: C
   let bases: { name: string; path: string }[] = [];
   let baseProblems: Problem[] = [];
   if (inherits(own)) {
-    const c = compose(own, lookupFor(opts.source), (merged) => traitKeysOf(merged, opts));
+    const c = compose(own, lookupFor(opts.source), (merged) => traitKeysOf(merged, opts), { path: opts.source ?? "", name: textOf(valueOf(own, "name")).trim() });
     sheet = c.sheet;
     bases = c.bases;
     baseProblems = c.problems;
