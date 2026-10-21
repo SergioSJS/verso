@@ -667,3 +667,37 @@ fn a_bad_copy_is_deleted_only_against_its_own_version_or_left_alone() {
         fake.requests()
     );
 }
+
+#[test]
+fn a_delete_without_a_conditional_delete_has_a_window_and_the_probe_says_so() {
+    // I-3: on a service that ignores If-Match on DELETE, the adapter looks
+    // at the file just before and deletes unconditionally. Another
+    // device's write between the two is lost. Not changed here (the
+    // maintainer decides); documented so the window is seen.
+    let fake = Fake::start(S3Mode {
+        ignore_delete_if_match: true,
+        ..S3Mode::default()
+    });
+    let report = S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
+    assert!(!report.caps.iter().any(|c| c == CAP_DELETE_IF_MATCH));
+    let note = report
+        .notes
+        .iter()
+        .find(|n| n.contains("If-Match on a delete"))
+        .expect("the person is told");
+    assert!(
+        note.contains("short window") && note.contains("deleted with it"),
+        "{note}"
+    );
+    let s = connect(&fake);
+    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    // The window: the file changes after the adapter's look and before
+    // its DELETE. The fake lands a write right after the HEAD.
+    fake.after("HEAD", "Cofre/a.md", b"ou");
+    s.delete("a.md", &Condition::Version(a.version)).unwrap();
+    assert!(
+        fake.get("Cofre/a.md").is_none(),
+        "the other device's write was deleted: the window this test documents"
+    );
+    assert!(!fake.removed().iter().all(removal_agrees));
+}
