@@ -56,3 +56,65 @@ test("the Project wizard switch takes the command away", async ({ app, page }) =
   await expect(page.locator(".quick:not([hidden]) .quick-list li", { hasText: "a partir de modelo" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 });
+
+test("an imported bundle is kept in the folder: it is a file, it comes back, and a taken id gets a new one (ADR 0098 item 2)", async ({ app, page }) => {
+  await app.open();
+  const bundle = { version: 1, id: "minha-mesa", name: "Minha Mesa", description: "Uma mesa de teste.", folders: ["Sessões"], files: [{ path: "Visão Geral.md", content: "# {{title}}" }] };
+  const openWizard = async () => {
+    await app.command("Novo projeto a partir de modelo");
+    const dialog = page.getByRole("dialog", { name: "Criar Novo Mundo ou Campanha" });
+    await expect(dialog).toBeVisible();
+    return dialog;
+  };
+  const importIt = async (dialog) => {
+    await dialog.getByRole("tab", { name: "Gerador com IA" }).click();
+    await dialog.getByLabel("Cole aqui o JSON gerado pela sua IA").fill(JSON.stringify(bundle));
+    await dialog.getByRole("button", { name: "Validar e Importar" }).click();
+  };
+
+  let dialog = await openWizard();
+  await importIt(dialog);
+  await expect(dialog.getByRole("button", { name: /Minha Mesa/ })).toHaveCount(1);
+  expect(JSON.parse(await app.file(".verso/bundles/minha-mesa.json")).name).toBe("Minha Mesa");
+  await expect(dialog.locator(".world-status-line")).toContainText("guardado na pasta");
+
+  // The same id again: kept under a new one, said.
+  await importIt(dialog);
+  await expect(dialog.getByRole("button", { name: /Minha Mesa/ })).toHaveCount(2);
+  expect(JSON.parse(await app.file(".verso/bundles/minha-mesa-2.json")).id).toBe("minha-mesa-2");
+  await expect(dialog.locator(".world-status-line")).toContainText("identificador novo");
+
+  // Closed and opened again: read from the folder, not from the window's memory.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await app.writeOutside(".verso/bundles/de-fora.json", JSON.stringify({ ...bundle, id: "de-fora", name: "Veio de Fora" }));
+  await app.writeOutside(".verso/bundles/quebrado.json", JSON.stringify({ version: 1 }));
+  dialog = await openWizard();
+  await expect(dialog.getByRole("button", { name: /Minha Mesa/ })).toHaveCount(2);
+  await expect(dialog.getByRole("button", { name: /Veio de Fora/ })).toHaveCount(1);
+  await expect(dialog.locator(".world-folder-bundles-note")).toContainText("quebrado");
+  await page.keyboard.press("Escape");
+});
+
+test.describe("in English", () => {
+  test.use({ locale: "en-US" });
+  test("a built-in bundle is previewed and created with English folder and note names (ADR 0098 item 10)", async ({ app, page }) => {
+    await app.open();
+    await app.command("New project from a template");
+    const dialog = page.getByRole("dialog", { name: "Create New World or Campaign" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("World or campaign name").fill("Realm");
+    await dialog.getByRole("button", { name: /RPG Campaign \(Dados Críticos\)/ }).click();
+    await expect(dialog.locator(".world-preview-folders")).toContainText("2. Sessions");
+    await expect(dialog.locator(".world-preview-folders")).not.toContainText("Sessões");
+    await dialog.getByRole("button", { name: "Create structure" }).click();
+    await expect(dialog.getByLabel("Include Realm/Templates/Session Log.md", { exact: true })).toBeChecked();
+    await dialog.getByRole("button", { name: "Create now" }).click();
+    await expect(dialog).toBeHidden();
+    expect(await app.folders()).toContain("Realm/2. Sessions");
+    const files = await app.files();
+    expect(files).toContain("Realm/Templates/Session Log.md");
+    expect(files).toContain("Realm/Campaign Overview.md");
+    expect(files.filter((f) => f.startsWith("Realm/")).some((f) => f.includes("Sessão") || f.includes("Modelos"))).toBe(false);
+  });
+});

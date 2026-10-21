@@ -81,7 +81,7 @@ Em vez de criar pastas e arquivos um a um para um mundo, uma campanha ou um livr
 3. **Criar estrutura** mostra a árvore completa — *Confira o que será criado* — **antes de escrever qualquer coisa**. Desmarque o que não quer (uma pasta desmarcada leva o que há dentro) ou mude um nome, e confirme com **Criar agora**.
 4. Nada que já existe é sobrescrito: o relatório diz o que foi criado, o que já estava lá e o que foi recusado.
 
-Na aba **Gerador com IA**, **Copiar System Prompt para IA** copia as instruções para colar no Claude, no ChatGPT ou no Gemini (o Verso não envia nada a lugar nenhum). Cole de volta o JSON que a IA devolver e clique em **Validar e Importar**: o modelo entra na lista. Se o JSON não passa, **Copiar pedido de correção para a IA** diz o que está errado.
+Na aba **Gerador com IA**, **Copiar System Prompt para IA** copia as instruções para colar no Claude, no ChatGPT ou no Gemini (o Verso não envia nada a lugar nenhum). Cole de volta o JSON que a IA devolver e clique em **Validar e Importar**: o modelo entra na lista e fica guardado na pasta (`.verso/bundles/`), então volta na próxima vez e quem abrir a pasta também o tem. Se o JSON não passa, **Copiar pedido de correção para a IA** diz o que está errado.
 
 ---
 

@@ -74,26 +74,31 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
   return { shade: el, input };
 }
 
-/** Open the roller, its notation field focused. */
-export function openRoller(): void {
+/** Show the roller, its notation field focused; with a notation, rolled at
+ *  once as if typed and submitted. */
+function showRoller(notation?: string): void {
   const made = shade ? { shade, input: shade.querySelector("input") as HTMLInputElement } : build();
   shade = made.shade;
   opened(shade);
   shade.hidden = false;
+  if (notation !== undefined) {
+    made.input.value = notation;
+    shade.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    made.input.focus();
+    return;
+  }
   made.input.focus();
   made.input.select();
 }
 
+/** Open the roller, its notation field focused. */
+export function openRoller(): void {
+  showRoller();
+}
+
 /** Open the roller with a pre-filled notation and roll immediately. */
 export function openRollerWith(notation: string): void {
-  const made = shade ? { shade, input: shade.querySelector("input") as HTMLInputElement } : build();
-  shade = made.shade;
-  opened(shade);
-  shade.hidden = false;
-  made.input.value = notation;
-  const form = shade.querySelector("form");
-  form?.dispatchEvent(new Event("submit", { cancelable: true }));
-  made.input.focus();
+  showRoller(notation);
 }
 
 if (typeof window !== "undefined") {

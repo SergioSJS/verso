@@ -7,11 +7,14 @@ import { afterFileChange } from "../changes";
 import { commands } from "../bindings";
 import { checkEdited, type Plan, planBundle } from "../bundles/plan";
 import { BUILTIN_PRESETS } from "../bundles/presets";
+import { bundleInLanguage } from "../bundles/presetsEn";
 import { applyPlan, needsReading, type Report } from "../bundles/run";
 import { systemPromptFor } from "../bundles/systemPrompt";
+import { freeId, loadFolderBundles, saveFolderBundle } from "../bundles/store";
 import { MAX_PASTE_BYTES, type TemplateBundle, validateBundle } from "../bundles/types";
 import { bundleWords, PRESET_TEXT_EN } from "../bundles/words";
 import { h, ui } from "../dom";
+import { onFolderData } from "../folderData";
 import { openNote } from "../layout/spaces";
 import { icon } from "../icons";
 import { LANG, t } from "../strings";
@@ -21,10 +24,31 @@ const bw = bundleWords(LANG);
 const isPt = LANG.toLowerCase().startsWith("pt");
 
 let shade: HTMLElement | null = null;
-/** Bundles imported in this session (ADR 0098 item 2 also names a folder
- *  of them, `.verso/templates/`; not built yet). */
-const customBundles: TemplateBundle[] = [];
+/** The bundles the folder keeps in `.verso/bundles/` (ADR 0098 item 2),
+ *  read each time the wizard opens and when the folder's data changes. */
+let folderBundles: TemplateBundle[] = [];
+/** What the last read of them has to say: a file that is no bundle. */
+let folderNotes: string[] = [];
+/** Bundles that could not be kept in the folder (a read-only member, a
+ *  refusal): they last until the window closes, and the person is told. */
+const sessionBundles: TemplateBundle[] = [];
+/** Draws the cards again when the folder's bundles are read. */
+let onFolderBundles: (() => void) | null = null;
 let ids = 0;
+
+async function refreshFolderBundles(): Promise<void> {
+  try {
+    const read = await loadFolderBundles(bw);
+    folderBundles = read.bundles;
+    folderNotes = read.notes;
+  } catch {
+    // No folder open, or its list cannot be read now: the built-in ones remain.
+    folderBundles = [];
+    folderNotes = [];
+  }
+  onFolderBundles?.();
+}
+onFolderData("bundles", () => void refreshFolderBundles());
 
 /** The name and description of a bundle in the window's language: the
  *  built-in ones are translated, an imported one reads as its author wrote. */
@@ -36,22 +60,19 @@ function textOf(bundle: TemplateBundle): { name: string; description: string } {
 /** Every bundle, whatever the features' switches say: the wizard is itself
  *  a feature (ADR 0103, revised 2026-10-20), and its categories are not. */
 function getAvailableBundles(): TemplateBundle[] {
-  return [...customBundles, ...BUILTIN_PRESETS];
+  return [...sessionBundles, ...folderBundles, ...BUILTIN_PRESETS];
 }
 
-/** An id no bundle has yet: the one asked for, or that with a number. */
-function freshId(id: string): string {
-  const taken = new Set([...customBundles, ...BUILTIN_PRESETS].map((b) => b.id));
-  if (!taken.has(id)) return id;
-  let n = 2;
-  while (taken.has(`${id}-${n}`)) n++;
-  return `${id}-${n}`;
+/** The ids no import may take: every bundle the wizard lists. */
+function takenIds(): Set<string> {
+  return new Set(getAvailableBundles().map((b) => b.id));
 }
 
 /** Open the World and Campaign Creation Wizard (ADR 0098). */
 export function showWorldWizard(defaultFolder = ""): void {
   if (!shade) shade = build();
   populate(shade, defaultFolder);
+  void refreshFolderBundles();
   shade.hidden = false;
   opened(shade);
   const nameInput = shade.querySelector<HTMLInputElement>(".world-name-input");
@@ -160,16 +181,29 @@ function populate(dialog: HTMLElement, defaultFolder: string): void {
   });
 
   const presets = renderPresetsTab(panels.presets, defaultFolder);
-  renderAiTab(panels.ai, (bundle) => {
-    const original = bundle.id;
-    const fresh: TemplateBundle = { ...bundle, id: freshId(bundle.id) };
-    customBundles.unshift(fresh);
+  renderAiTab(panels.ai, async (bundle) => {
+    // Kept in the folder, so a reload and whoever opens the folder have it
+    // (ADR 0098 item 2); a bundle with the id of another gets a new one.
+    const notes: string[] = [];
+    const saved = await saveFolderBundle(bundle, takenIds());
+    let fresh: TemplateBundle;
+    if (saved.ok) {
+      fresh = saved.bundle;
+      if (saved.renamed) notes.push(bw.importedRenamed(fresh.name));
+      notes.push(bw.savedInFolder(fresh.name));
+      folderBundles = [...folderBundles.filter((b) => b.id !== fresh.id), fresh];
+    } else {
+      fresh = { ...bundle, id: freeId(bundle.id, takenIds()) };
+      if (fresh.id !== bundle.id) notes.push(bw.importedRenamed(fresh.name));
+      notes.push(bw.keptHere(fresh.name, saved.message));
+      sessionBundles.unshift(fresh);
+    }
     presets.add(fresh);
-    show("presets");
-    const notes: string[] = [t.worldWizard.importSuccess(fresh.name)];
-    if (fresh.id !== original) notes.push(bw.importedRenamed(fresh.name));
-    ui.status.textContent = notes.join(" ");
-    presets.say(notes.slice(1).join(" "));
+    // The import button is now hidden: focus goes to the tab it left for,
+    // or the keyboard (Esc) would no longer reach the dialog.
+    show("presets", true);
+    ui.status.textContent = [t.worldWizard.importSuccess(fresh.name), ...notes].join(" ");
+    presets.say(notes.join(" "));
   });
   show("presets");
 }
@@ -212,7 +246,10 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   const bundlesList = h("div", "world-bundles-grid");
   bundlesList.setAttribute("role", "group");
   bundlesList.setAttribute("aria-labelledby", bundleLabel.id);
-  bundleRow.append(bundleLabel, bundlesList);
+  const folderNote = h("p", "world-field-hint world-folder-bundles-note");
+  folderNote.setAttribute("role", "status");
+  folderNote.hidden = true;
+  bundleRow.append(bundleLabel, bundlesList, folderNote);
 
   // 4. Preview
   const previewBox = h("div", "world-bundle-preview");
@@ -247,13 +284,16 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   let selected: TemplateBundle = getAvailableBundles()[0] ?? BUILTIN_PRESETS[0]!;
   const cards = new Map<string, HTMLButtonElement>();
 
-  const planNow = (): Plan => planBundle(selected, { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
+  /** The chosen bundle in the window's language (ADR 0098 item 10). */
+  const chosen = (): TemplateBundle => bundleInLanguage(selected, isPt);
+  const planNow = (): Plan => planBundle(chosen(), { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
 
   const paintPreview = (): void => {
     const typed = nameInput.value.trim();
     projectSummary.textContent = bw.rootLine(typed || bw.rootPlaceholder);
-    foldersSummary.textContent = bw.foldersLine(selected.folders.length, selected.folders.join(", "));
-    filesSummary.textContent = bw.filesLine(selected.files.length);
+    const bundle = chosen();
+    foldersSummary.textContent = bw.foldersLine(bundle.folders.length, bundle.folders.join(", "));
+    filesSummary.textContent = bw.filesLine(bundle.files.length);
     const plan = planNow();
     listBody.replaceChildren(...plan.folders.map((f) => h("li", "", `📂 ${f}/`)), ...plan.files.map((f) => h("li", "", `📄 ${f.path}`)));
     // Problems of the bundle itself show at once; the name's wait for one.
@@ -288,6 +328,8 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
     }
     if (nodes.length === 0) nodes.push(h("p", "world-field-hint", bw.noBundles));
     bundlesList.replaceChildren(...nodes);
+    folderNote.textContent = folderNotes.join(" ");
+    folderNote.hidden = folderNotes.length === 0;
     choose(selected);
   };
 
@@ -297,6 +339,9 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   });
   folderInput.addEventListener("input", paintPreview);
   drawCards();
+  // The folder's bundles arrive after the dialog is drawn (and again when
+  // they change): the cards are drawn again, the choice kept.
+  onFolderBundles = drawCards;
 
   const showReport = (plan: Plan, report: Report | null): void => {
     reportBox.replaceChildren();
@@ -452,7 +497,7 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
       return;
     }
     reportBox.hidden = true;
-    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
+    const plan = planBundle(chosen(), { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw, lang: isPt ? "pt-BR" : "en" });
     if (plan.problems.length > 0) {
       statusLine.textContent = bw.planRefused(plan.problems.length);
       showReport(plan, null);
@@ -473,7 +518,7 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
   };
 }
 
-function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => void): void {
+function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => Promise<void>): void {
   const container = h("div", "world-ai-container");
   const uid = ++ids;
 
@@ -532,7 +577,8 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
   importBtn.type = "button";
   importBtn.prepend(icon("check"));
 
-  importBtn.addEventListener("click", () => {
+  let importing = false;
+  importBtn.addEventListener("click", async () => {
     const raw = jsonArea.value.trim();
     if (!raw) return;
 
@@ -549,8 +595,16 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
       }
       return;
     }
-    onImported(validation.bundle);
-    jsonArea.value = "";
+    // Not disabled while it works: a button that loses its focus takes
+    // the keyboard (Esc) away from the dialog with it.
+    if (importing) return;
+    importing = true;
+    try {
+      await onImported(validation.bundle);
+      jsonArea.value = "";
+    } finally {
+      importing = false;
+    }
   });
 
   container.append(intro, promptActionRow, importLabel, jsonArea, errorBox, copyFixBtn, importBtn);

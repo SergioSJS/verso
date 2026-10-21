@@ -1301,8 +1301,14 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    agora* cria só o que está marcado e relata; a primeira nota abre. Com
    *Assistente de mundo e campanha* desligado, o comando some. *Gerador com
    IA*: *Copiar System Prompt para IA* copia e não envia nada; um JSON ruim
-   colado responde com a falha e *Copiar pedido de correção para a IA*.
-   Nível: H; E: `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`.
+   colado responde com a falha e *Copiar pedido de correção para a IA*. Um JSON
+   válido colado, *Validar e Importar*, vira um cartão e o arquivo
+   `.verso/bundles/<id>.json`; colá-lo de novo o guarda com outro id e avisa; com a janela em inglês os
+   quatro modelos embutidos listam e criam pastas e notas com nomes em inglês
+   (*Sessions*, *Templates/Session Log*);
+   feche o assistente e abra de novo: os cartões continuam lá (lidos da pasta).
+   Nível: H; E: `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`,
+   `test/bundleStore.test.mjs`.
 8. *Ajustes* › *Aplicação* › *Créditos e agradecimentos*: as pessoas e obras de
    que o app parte, os avisos dos layouts que vêm com ele e o software livre,
    cada um com *Abrir*, que abre o site no navegador. Nível: H (a página); A (o
