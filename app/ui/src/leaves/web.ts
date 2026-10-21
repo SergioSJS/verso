@@ -5,7 +5,7 @@
 import { commands } from "../bindings";
 import { can } from "../can";
 import { h } from "../dom";
-import { frameable, framedPage, frameVerdicts } from "../screen/framed";
+import { frameable, framedPage, frameVerdicts, isAppOrigin } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
 import { embedPlace, webPlace, type Rect } from "./embedClip";
 import type { NoteLeaf } from "./note";
@@ -43,6 +43,7 @@ const waiting = new Set<string>();
 /** Whether `url`'s site may be framed: undefined while the host is asked
  *  (the embeds are looked at again when it answers). */
 function frameableNow(url: string): boolean | undefined {
+  if (isAppOrigin(url)) return false;
   let origin: string;
   try {
     origin = new URL(url).origin;

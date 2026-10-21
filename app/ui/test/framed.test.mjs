@@ -8,7 +8,7 @@ import * as esbuild from "esbuild";
 import { Window } from "happy-dom";
 
 const win = new Window({ url: "http://localhost:7340/", settings: { navigation: { disableMainFrameNavigation: true } } });
-for (const name of ["window", "document", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "getComputedStyle"]) {
+for (const name of ["window", "document", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "getComputedStyle", "location"]) {
   globalThis[name] = name === "window" ? win : typeof win[name] === "function" ? win[name].bind(win) : win[name];
 }
 Object.defineProperty(globalThis, "navigator", { value: win.navigator, configurable: true });
@@ -44,7 +44,7 @@ await esbuild.build({
   outfile: "test/.bundles/framed.test-bundle.mjs",
   logLevel: "error",
 });
-const { framedPage } = await import("./.bundles/framed.test-bundle.mjs");
+const { framedPage, frameable: frameableFn, frameVerdicts, forgetFailedVerdicts, isAppOrigin } = await import("./.bundles/framed.test-bundle.mjs");
 
 const later = () => new Promise((r) => setTimeout(r, 20));
 
@@ -92,5 +92,50 @@ describe("framedPage on a server without child web views", () => {
 
     assert.equal(box.querySelector("iframe"), null, "no iframe");
     assert.ok(box.querySelector(".framed-card"), "card is shown on error");
+  });
+});
+
+describe("review I7: the app's own origin is never framed", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    asked = [];
+    frameable = {};
+    frameVerdicts.clear();
+  });
+  test("the page's own origin, even when the host would say yes, is a card and no question is asked", async () => {
+    frameable = { "http://localhost:7340": true };
+    const box = framedPage("http://localhost:7340/api/state");
+    document.body.append(box);
+    await later();
+    assert.equal(box.querySelector("iframe"), null);
+    assert.ok(box.querySelector(".framed-card"));
+    assert.deepEqual(asked, []);
+  });
+  test("the desktop host's origins and the app's schemes are the app", async () => {
+    for (const url of ["tauri://localhost/index.html", "http://tauri.localhost/x", "https://tauri.localhost/", "verso://app/x", "HTTP://TAURI.LOCALHOST/x"]) {
+      assert.equal(isAppOrigin(url), true, url);
+      assert.equal(await frameableFn(url), false, url);
+    }
+    for (const url of ["https://site.example/", "http://localhost:9999/", "https://tauri.localhost.evil.example/"]) assert.equal(isAppOrigin(url), false, url);
+    assert.deepEqual(asked, []);
+  });
+});
+
+describe("review M9: only a definite answer is kept", () => {
+  beforeEach(() => {
+    asked = [];
+    frameable = {};
+    frameVerdicts.clear();
+  });
+  test("a failed check is asked again later; a definite no is kept", async () => {
+    frameable = { "https://flaky.example": "error", "https://shut.example": false };
+    assert.equal(await frameableFn("https://flaky.example/a"), false);
+    assert.equal(await frameableFn("https://shut.example/a"), false);
+    assert.equal(await frameableFn("https://flaky.example/a"), false);
+    assert.equal(asked.length, 2, "within the pause nothing is asked again");
+    frameable = { "https://flaky.example": true, "https://shut.example": true };
+    forgetFailedVerdicts();
+    assert.equal(await frameableFn("https://flaky.example/a"), true, "the failure is retried");
+    assert.equal(await frameableFn("https://shut.example/a"), false, "a definite no stays");
   });
 });
