@@ -23,6 +23,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView } from "codemirror";
 import { commands, type FolderChanged, type IndexProgress } from "./bindings";
 import { CARD_COMMAND } from "./board/command";
+import "./statblock/bestiaryHost";
 import { changedOutside, flushed, remoteContentChanged, whenNotRenaming } from "./changes";
 import { arrowResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
 import { ask } from "./dialog";

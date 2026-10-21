@@ -12,9 +12,11 @@
 
 import { icon } from "../icons";
 import { type CardOptions, type Ctx, drawAll } from "./blocks";
+import { lookupFor, onBestiaryChange } from "./bestiary";
 import { beginDiceBudget, endDiceBudget } from "./dice";
 import { h } from "./h";
-import type { Appearance, Layout } from "./model";
+import { compose, inherits, type Problem } from "./inherit";
+import type { Appearance, Block, Layout } from "./model";
 import { readSheet, layoutNamed, STATBLOCK_MAX_CHARS, type Sheet, numberOf, textOf, valueOf } from "./sheet";
 import { resolveLayout } from "./store";
 import { S, word } from "./strings";
@@ -90,7 +92,39 @@ function sayAloud(text: string): void {
   setTimeout(() => (r.textContent = text), 30);
 }
 
-function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts: CardOptions, stale: boolean, sourceText: string): HTMLElement {
+/** The keys the layout draws as traits lists (what inheritance merges by
+ *  name), for the sheet as its bases left it. */
+function traitKeysOf(merged: Sheet, opts: CardOptions): Set<string> {
+  const layout = opts.layout ?? resolveLayout(layoutNamed(merged)).stored.layout;
+  const keys = new Set<string>();
+  const walk = (blocks: readonly Block[], depth: number): void => {
+    if (depth > 12) return;
+    for (const b of blocks) {
+      if (b.type === "traits") for (const k of b.properties) keys.add(k);
+      if ("nested" in b) walk(b.nested, depth + 1);
+      if ("branches" in b) for (const br of b.branches) walk(br.nested, depth + 1);
+    }
+  };
+  walk(layout.blocks, 0);
+  return keys;
+}
+
+function problemText(p: Problem): string {
+  return p.kind === "missing" ? S.baseMissing(p.ref) : p.kind === "cycle" ? S.baseCycle(p.ref) : p.kind === "depth" ? S.baseDepth(p.ref) : S.basePending(p.ref);
+}
+
+function buildCard(own: Sheet, onToggleSource: (() => void) | undefined, opts: CardOptions, stale: boolean, sourceText: string): HTMLElement {
+  // `monster:` and `extends:` (ADR 0099 item 1): the sheet drawn is the
+  // block's keys over its bases', read-only — nothing is written to a base.
+  let sheet = own;
+  let bases: { name: string; path: string }[] = [];
+  let baseProblems: Problem[] = [];
+  if (inherits(own)) {
+    const c = compose(own, lookupFor(opts.source), (merged) => traitKeysOf(merged, opts));
+    sheet = c.sheet;
+    bases = c.bases;
+    baseProblems = c.problems;
+  }
   const named = layoutNamed(sheet);
   let layout: Layout;
   let known = true;
@@ -152,6 +186,26 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
     tools.append(toggle);
   }
   card.append(tools);
+  if (bases.length > 0) {
+    const line = h("div", "statblock-based");
+    bases.forEach((b, i) => {
+      const a = h("a", "wikilink statblock-based-link", S.basedOn(b.name));
+      a.dataset["target"] = b.path;
+      a.tabIndex = 0;
+      a.setAttribute("role", "link");
+      a.title = S.basedOnLink(b.name);
+      a.setAttribute("aria-label", S.basedOnLink(b.name));
+      a.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          a.click();
+        }
+      });
+      if (i > 0) line.append(", ");
+      line.append(a);
+    });
+    card.append(line);
+  }
 
   // The plugin's `columns:` in the block wins over the layout's.
   const columns = Math.max(1, Math.min(3, Math.floor(numberOf(valueOf(sheet, "columns")) ?? layout.columns)));
@@ -175,6 +229,8 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
     b.setAttribute("role", "status");
     card.append(b);
   };
+  // A base still being read is not a problem: the card draws what it has and again when it arrives.
+  for (const p of baseProblems) if (p.kind !== "pending") note(problemText(p), "statblock-badge-base");
   if (stale) note(S.invalidKept, "statblock-badge-stale");
   if (!known) note(S.unknownLayout(named ?? ""), "statblock-badge-layout");
   if (problems > 0) note(S.layoutProblems(problems));
@@ -185,6 +241,27 @@ function buildCard(sheet: Sheet, onToggleSource: (() => void) | undefined, opts:
 /** A ```statblock block's text as a card, or a badge saying why there is
  *  none with the text under it. Never throws. */
 export function renderStatblock(text: string, onToggleSource?: () => void, opts: CardOptions = {}): HTMLElement {
+  const card = renderOnce(text, onToggleSource, opts);
+  try {
+    const read = readSheet(text);
+    // A card that inherits is drawn again, in place, when a base is read or
+    // changes (the base's note was edited, or arrived from another device).
+    if (read.ok && inherits(read.sheet)) {
+      const off = onBestiaryChange(() => {
+        if (!card.isConnected) return off();
+        const next = renderOnce(text, onToggleSource, opts);
+        card.className = next.className;
+        for (const a of Array.from(next.attributes)) if (a.name !== "hidden") card.setAttribute(a.name, a.value);
+        card.replaceChildren(...Array.from(next.childNodes));
+      });
+    }
+  } catch {
+    // The card drawn stays as it is.
+  }
+  return card;
+}
+
+function renderOnce(text: string, onToggleSource: (() => void) | undefined, opts: CardOptions): HTMLElement {
   try {
     const read = readSheet(text);
     const id = identityOf(opts.key, text);
