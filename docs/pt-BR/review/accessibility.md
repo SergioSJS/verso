@@ -328,6 +328,18 @@ ela é uma linha do roadmap (V.13).
     pasta de destino com `create_file`, como numa soltura; um nome já usado
     vira `nome (2).ext`. Não executado no app real: o diálogo nativo em cada
     sistema.
+    **Detalhes decididos em 2026-10-21** (I.1 da lista de decisões). (a) Nome
+    repetido, opção A: importar renomeia, e **arrastar para a árvore passa a
+    renomear também** (hoje recusa o arquivo que já existe), um comportamento
+    só, nada sobrescrito nem perdido. (b) Limites, opção B: hoje 32 MB por
+    arquivo e 256 MB por vez, os mesmos dos anexos de imagem, acima disso o
+    arquivo aparece como não importado; o mantenedor: *"deveria ser
+    configurável, eu mesmo devo colocar uns pdfs grandes de 200 MB"* — então
+    **o limite de tamanho da importação passa a ser um ajuste**; o padrão e os
+    limites dele não são decididos aqui. (c) Nomes, opção A: `.env` vira `env`
+    (nenhum arquivo oculto é criado na pasta); `[ ] | # ^` são trocados porque
+    quebram links; nomes reservados do Windows (`con.txt`) ganham `_`. A
+    construir: (a) e (b).
 
 11. **Seguir um link a partir do editor** (seção 1, achado 14): um comando
     que abre o link sob o cursor, com ou sem tecla padrão.
