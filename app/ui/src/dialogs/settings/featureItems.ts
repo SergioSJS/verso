@@ -7,14 +7,17 @@
 // it shows, and two shortcuts named by what they do. A shortcut says what
 // it will turn on and off before it does anything.
 
-import { applyShortcut, currentFeatures, currentShortcut, setFeature, shortcutChanges, shortcutKeepsOff } from "../../capabilities";
+import { applyShortcut, currentFeatures, currentShortcut, setFeature, setFeatures, shortcutChanges, shortcutKeepsOff } from "../../capabilities";
 import { ask } from "../../dialog";
 import { button, h } from "../../dom";
-import { FEATURE_IDS, type FeatureId, type ShortcutId } from "../../featureList";
+import { FEATURE_GROUPS, FEATURE_IDS, type FeatureGroupId, type FeatureId, type ShortcutId } from "../../featureList";
 import { fs } from "../../featureStrings";
 import type { ItemCtx, SettingItem } from "./types";
 
 const SHORTCUTS: ShortcutId[] = ["everything", "writing"];
+
+/** The features that have a settings page of their own under "RPG & Mesa Solo". */
+const OWN_PAGE: Partial<Record<FeatureId, string>> = { oracles: "oracles", statblocks: "statblocks" };
 
 /** The page: the shortcuts, then the switches in a labelled group. One item
  *  for the search, whose words are every feature's. */
@@ -25,7 +28,7 @@ export function featureItems(ctx: ItemCtx): SettingItem[] {
 
 function featuresNode(ctx: ItemCtx): HTMLElement {
   const group = h("fieldset", "features-group");
-  group.append(h("legend", "features-legend", fs.section));
+  group.append(h("legend", "features-legend sr-only", fs.section));
 
   const boxes = new Map<FeatureId, HTMLInputElement>();
   const current = h("span", "");
@@ -59,14 +62,52 @@ function featuresNode(ctx: ItemCtx): HTMLElement {
   group.append(ctx.item(fs.shortcuts, fs.shortcutsDesc, bar));
 
   const f = currentFeatures();
-  for (const id of FEATURE_IDS) {
-    const sw = ctx.toggle(f[id], (v) => {
-      setFeature(id, v);
-      sync();
-    });
-    const box = sw.querySelector("input");
-    if (box) boxes.set(id, box);
-    group.append(ctx.item(fs.names[id], fs.descs[id], sw));
+  for (const gid of ["app", "rpg"] as FeatureGroupId[]) {
+    const ids = FEATURE_GROUPS[gid];
+    const name = fs.groups[gid];
+    const sub = h("fieldset", "features-subgroup");
+    sub.dataset.group = gid;
+    sub.append(h("legend", "features-legend features-sub-legend", name));
+    // A group of one needs no "all" links.
+    if (ids.length > 1) {
+      const bulk = h("div", "features-bulk");
+      bulk.setAttribute("role", "group");
+      bulk.setAttribute("aria-label", fs.groupBulk(name));
+      for (const on of [true, false]) {
+        const b = button("ghost", on ? fs.allOn : fs.allOff);
+        b.removeAttribute("title");
+        b.classList.add("features-bulk-link");
+        b.addEventListener("click", () => {
+          setFeatures(ids, on, fs.statusGroup(name, on));
+          sync();
+        });
+        bulk.append(b);
+      }
+      sub.append(bulk);
+    }
+    for (const id of ids) {
+      const sw = ctx.toggle(f[id], (v) => {
+        setFeature(id, v);
+        sync();
+      });
+      const box = sw.querySelector("input");
+      if (box) boxes.set(id, box);
+      let control: HTMLElement = sw;
+      const page = OWN_PAGE[id];
+      if (page && ctx.open) {
+        const open = ctx.open;
+        const wrap = h("span", "features-ctl");
+        const link = button("ghost", fs.settingsLink);
+        link.removeAttribute("title");
+        link.classList.add("features-own-link");
+        link.setAttribute("aria-label", fs.settingsLinkFor(fs.names[id]));
+        link.addEventListener("click", () => open(page));
+        wrap.append(link, sw);
+        control = wrap;
+      }
+      sub.append(ctx.item(fs.names[id], fs.descs[id], control));
+    }
+    group.append(sub);
   }
   sync();
   return group;

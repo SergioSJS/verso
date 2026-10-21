@@ -26,6 +26,13 @@ type Words = {
   statusShortcut: (name: string) => string;
   offHere: (feature: string) => string;
   turnOn: string;
+  groups: { app: string; rpg: string };
+  allOn: string;
+  allOff: string;
+  groupBulk: (group: string) => string;
+  statusGroup: (group: string, on: boolean) => string;
+  settingsLink: string;
+  settingsLinkFor: (feature: string) => string;
 };
 
 const list = (names: string[]) => names.join(", ");
@@ -65,6 +72,13 @@ const pt: Words = {
   statusShortcut: (name) => `Recursos: ${name}`,
   offHere: (feature) => `O recurso "${feature}" está desligado. Os arquivos não mudam; as notas mostram texto simples.`,
   turnOn: "Ligar",
+  groups: { app: "Aplicação", rpg: "RPG e mesa" },
+  allOn: "Ligar todos",
+  allOff: "Desligar todos",
+  groupBulk: (group) => `Todos os recursos de ${group}`,
+  statusGroup: (group, on) => `Recursos de ${group}: ${on ? "ligados" : "desligados"}`,
+  settingsLink: "Ajustes…",
+  settingsLinkFor: (feature) => `Abrir os ajustes de ${feature}`,
 };
 
 const en: Words = {
@@ -102,6 +116,13 @@ const en: Words = {
   statusShortcut: (name) => `Features: ${name}`,
   offHere: (feature) => `The "${feature}" feature is off. Files do not change; notes show plain text.`,
   turnOn: "Turn on",
+  groups: { app: "Application", rpg: "RPG and tabletop" },
+  allOn: "Turn all on",
+  allOff: "Turn all off",
+  groupBulk: (group) => `Every feature of ${group}`,
+  statusGroup: (group, on) => `${group} features: ${on ? "on" : "off"}`,
+  settingsLink: "Settings…",
+  settingsLinkFor: (feature) => `Open the settings of ${feature}`,
 };
 
 export const fs: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;
