@@ -14,7 +14,7 @@
 
 import { Builder, type DNode, ParseFailure, type Row, type Tree } from "./model";
 
-const NAMED: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
+const NAMED = new Map<string, string>([["lt", "<"], ["gt", ">"], ["amp", "&"], ["quot", '"'], ["apos", "'"]]);
 
 /** Character data with the predefined entities and numeric references decoded; any other reference is left as written. */
 export function decodeEntities(s: string): string {
@@ -24,7 +24,7 @@ export function decodeEntities(s: string): string {
       const code = name[1] === "x" ? Number.parseInt(name.slice(2), 16) : Number.parseInt(name.slice(1), 10);
       return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : whole;
     }
-    return NAMED[name] ?? whole;
+    return NAMED.get(name) ?? whole;
   });
 }
 
