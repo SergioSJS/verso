@@ -106,8 +106,9 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
  *  dice the note's own (in a room, the server rolls), their trackers
  *  written through the oracle's safe path — found again by their text
  *  among the note's (statblock/edit.ts). A card of an embedded note is
- *  drawn, never written to. */
-export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
+ *  drawn, never written to, and its picture is read as its own note names
+ *  it (`source`: the note the cards under `root` belong to). */
+export function wireStatblocks(this: NoteLeaf, root: HTMLElement, source: string = this.path): void {
   if (!hasCapability("statblocks")) return;
   const dice = hasCapability("diceRolling");
   const host = { path: () => this.path, follow: (target: string) => this.follow(target) };
@@ -124,8 +125,8 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
     const same = mine.filter((m) => sameText(m.text, f.text));
     const ordinal = same.indexOf(f);
     const card = renderStatblockHost(f.text, {
-      source: this.path,
-      key: this.path,
+      source,
+      key: source,
       ...(dice ? { dice: (notation: string, look?: DieLook) => diceBox({ kind: "roll", notation }, host, { ...look, popover: true }) } : {}),
       rolls: dice,
       ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
@@ -632,6 +633,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
       span.replaceWith(box);
       void this.embedImages(forPath, body, to);
       void noteImages(body, to);
+      this.wireStatblocks(body, to);
 
       let activeCard: CardEditing | null = null;
       let destroyed = false;
@@ -657,6 +659,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
           this.wireMermaidBlocks(body);
           void this.embedImages(forPath, body, to);
           void noteImages(body, to);
+          this.wireStatblocks(body, to);
         }
         destroyed = false;
       };
