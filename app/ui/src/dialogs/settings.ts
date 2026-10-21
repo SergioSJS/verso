@@ -165,6 +165,7 @@ export class SettingsDialog {
       { id: "board", label: boardText.sBoard, icon: "board", category: "editor" },
 
       // 3. RPG & Mesa Solo / RPG & Solo Play
+      { id: "rpgfeatures", label: fs.rpgSection, icon: "dice", category: "rpg" },
       { id: "oracles", label: ss.sOracles, icon: "sparkles", category: "rpg" },
       { id: "statblocks", label: ss.sStatblocks, icon: "dice", category: "rpg" },
 
@@ -903,7 +904,7 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "notify" ? notifyStrings().sectionLead : this.section === "credits" ? cs.lead : "";
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "rpgfeatures" ? fs.rpgLead : this.section === "notify" ? notifyStrings().sectionLead : this.section === "credits" ? cs.lead : "";
       this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }

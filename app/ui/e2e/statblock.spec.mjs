@@ -82,7 +82,7 @@ test("the Statblocks switch turns the card into the code it always was", async (
   await expect(page.locator(".preview:visible .statblock-card")).toBeVisible();
 
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   const row = page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Fichas$/ }) });
   await row.locator("label.switch").click();
   await page.keyboard.press("Escape");

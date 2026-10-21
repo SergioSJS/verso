@@ -51,7 +51,7 @@ const canvas = (page) => page.locator("canvas.dice3d-canvas");
 test("the 3D dice switch is off by default, 'Tudo' leaves it off, and a person can turn it on", async ({ app, page }) => {
   await app.open();
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   const row = (title) => page.locator(".setting", { has: page.locator(".setting-title", { hasText: new RegExp(`^${title}$`) }) });
   const box = (title) => row(title).locator("input[type=checkbox]");
   await expect(box("Dados 3D")).not.toBeChecked();
@@ -59,9 +59,12 @@ test("the 3D dice switch is off by default, 'Tudo' leaves it off, and a person c
   // "Tudo" says it does not turn the 3D dice on, and does not.
   await row("Oráculos").locator("label.switch").click();
   await expect(box("Oráculos")).not.toBeChecked();
+  // The shortcuts are on the general page, "Recursos"; they cover the RPG ones.
+  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
   await page.getByRole("button", { name: "Tudo", exact: true }).click();
   await expect(page.locator(".confirm-box p")).toContainText("Não liga: Dados 3D");
   await page.locator(".confirm-box button.save").click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   await expect(box("Oráculos")).toBeChecked();
   await expect(box("Dados 3D")).not.toBeChecked();
   await row("Dados 3D").locator("label.switch").click();
@@ -341,7 +344,7 @@ test("the test roll draws a die in each of the three slots with that slot's styl
   await app.open();
   await needGl(page, info);
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   await page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Dados 3D: testar$/ }) }).getByRole("button", { name: "Rolar para testar" }).click();
   await expect(canvas(page)).toHaveCount(1);
   const slots = JSON.parse((await canvas(page).getAttribute("data-slots")) ?? "[]");
@@ -355,7 +358,7 @@ test("the test roll draws a die in each of the three slots with that slot's styl
 
 async function openFeatures(app, page) {
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   return (title) => page.locator(".setting", { has: page.locator(".setting-title", { hasText: new RegExp(`^${title}$`) }) });
 }
 

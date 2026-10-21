@@ -1,6 +1,6 @@
 // Walkthrough, section 14 (notes 26): the oracle (ADR 0102) and the
 // features' switches (ADR 0103). The switch for Oracles in Settings ›
-// Aplicação › Recursos takes the button off an [!oracle] callout and puts it
+// Dados e RPG takes the button off an [!oracle] callout and puts it
 // back; the dialog writes its answer into the callout, a second answer to
 // the same question piles up below, a line the person wrote stays, and a
 // rewritten question replaces only the lines the oracle wrote.
@@ -53,7 +53,7 @@ test("the Oracles switch takes the button off an [!oracle] callout and puts it b
   await expect(askButton(page)).toHaveCount(1);
 
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   const row = page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Oráculos$/ }) });
   await expect(row.locator("input[type=checkbox]")).toBeChecked();
   await row.locator("label.switch").click();
@@ -66,7 +66,7 @@ test("the Oracles switch takes the button off an [!oracle] callout and puts it b
   await expect(askButton(page)).toHaveCount(0);
 
   await app.key("Mod+,");
-  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".settings-nav-item", { hasText: "Dados e RPG" }).click();
   await row.locator("label.switch").click();
   await expect(row.locator("input[type=checkbox]")).toBeChecked();
   await page.keyboard.press("Escape");

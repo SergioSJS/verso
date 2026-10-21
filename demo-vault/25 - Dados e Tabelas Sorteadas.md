@@ -94,7 +94,7 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ## Dados 3D
 
-Quer ver os dados caírem? Em **Ajustes › Recursos**, ligue **Dados 3D**. Ele vem **desligado**, mesmo no atalho *Tudo*: é o recurso mais pesado, para a bateria também. Ligado, ao rolar um dado — num botão `dice:` ou no rolador — dados de verdade (d4, d6, d8, d10, d12, d20 e o percentil como dois d10) caem sobre a tela e param; só então o cartão com o resultado aparece.
+Quer ver os dados caírem? Em **Ajustes › RPG & Mesa Solo › Dados e RPG**, ligue **Dados 3D**. Ele vem **desligado**, mesmo no atalho *Tudo*: é o recurso mais pesado, para a bateria também. Ligado, ao rolar um dado — num botão `dice:` ou no rolador — dados de verdade (d4, d6, d8, d10, d12, d20 e o percentil como dois d10) caem sobre a tela e param; só então o cartão com o resultado aparece.
 
 O número **já foi sorteado** antes de os dados caírem, pelo gerador criptográfico da janela ou, numa sala, pelo servidor; a queda só o encena, e o dado pousa mostrando exatamente esse número. Por isso o leitor de tela diz o resultado na hora, sem esperar, e o cartão com o texto existe sempre.
 
