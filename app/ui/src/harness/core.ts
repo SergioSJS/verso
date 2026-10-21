@@ -89,18 +89,7 @@ function refuse(kind: ErrorKind, message: string): never {
   throw error;
 }
 
-export function fromBase64(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-export function toBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
+export { fromBase64, toBase64 };
 
 /** A name as a link compares it: NFC, any case. */
 const fold = (s: string): string => s.normalize("NFC").toLowerCase();
@@ -262,6 +251,7 @@ function linksIn(text: string): Found[] {
 }
 
 import { canvasLayout } from "./canvas";
+import { fromBase64, toBase64 } from "./base64";
 export { canvasLayout };
 
 export class Core {
