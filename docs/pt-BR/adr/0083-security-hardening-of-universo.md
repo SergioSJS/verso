@@ -30,6 +30,12 @@
   item 15 (0083.15, opção B: ainda não existe, ele vai criá-la; o ponto
   continua aberto até lá) e os achados do fuzzing do `yrs` (0083.14, opção
   C: não reportar ao projeto original; as nossas proteções ficam).
+  2026-10-21, mais tarde — a primeira superfície aberta a um visitante sem
+  conta, os links de leitura da
+  [0105](0105-read-links-without-an-account.md), está construída; o modelo de
+  ameaças (`docs/reference/threat-model.md`) tem as suas linhas, e o
+  `tests_threats.rs` confere os cabeçalhos do item 9 também em `/r/<token>`,
+  `/r/<token>/state` e `/r/<token>/f/`. Nenhum item desta ADR muda.
 
 ## Contexto
 

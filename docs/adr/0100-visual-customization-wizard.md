@@ -165,4 +165,10 @@ not recorded):
 ## Status
 
 Accepted (2026-10-21), the rewrite over the real tokens with the maintainer's
-answers to 0100.0–0100.6. Nothing is built.
+answers to 0100.0–0100.6.
+
+As built 2026-10-21, on `feat/rpg-tools` (not pushed, not released):
+`f41fb433` (the colour maths, the theme files and the profiles) and
+`6b3ec1fa` (the Customize appearance panel in Settings), with `9e97507d`
+(a folder suggests a theme in its settings file) and `55cf1ecf` (the
+tutorial and the changelog); merged by `203b8989`.

@@ -151,7 +151,7 @@ the test.
 | The walk of `X-Forwarded-For` past the trusted proxies (`proxy.rs`: two hops, a spoofed left entry, a CIDR) | a forged address, or every visitor keyed as the proxy | ADR 0083 item 5 |
 | The REST pace: the 101st request of a burst answers 429, the next second's does not; a forwarded loopback is paced (`tests_bounds.rs`) | a flood of the REST routes | ADR 0083 item 7 |
 | The bounds: a head past 64 KiB answers 431, a note update past 4 MB refused, a wrong poll delayed, the mail key, no redirect followed (`tests_bounds.rs`, `update.rs`); PDF.js's build without `eval` (`app/ui/test/pdf.test.mjs`) | a loose bound coming back | ADR 0083 item 8 |
-| The whole set of security headers, name and value, on `/`, `/api/state` and `/f/` (`tests_threats.rs`) | a header lost in a refactor | ADR 0083 item 9 |
+| The whole set of security headers, name and value, on `/`, `/api/state` and `/f/`, and on the read-link routes `/r/<token>`, `/r/<token>/state` and `/r/<token>/f/` (`tests_threats.rs`) | a header lost in a refactor | ADR 0083 item 9 |
 | The audit retention: a row older than `VERSO_AUDIT_DAYS` goes, a younger one stays, 0 keeps all (`audit::tests`) | the audit log kept for ever | ADR 0083 item 10 |
 | A new folder `0750` (`verso-fs`); the unit and the read-only image started by `scripts/check-server-image.sh`, a step of `scripts/check-linux.sh` | a service or a container that can do more than it needs | ADR 0083 item 11 |
 | The backup script test in `scripts/check-linux.sh` (`--script`): an encrypted backup restored and compared, the secret key on no file | a backup that does not restore, or its key left on the host | ADR 0083 item 12 |

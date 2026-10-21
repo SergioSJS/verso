@@ -14,4 +14,6 @@ observed:
     Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
     public API only (ADR 0009). `obsidian eval` on
     `app.metadataCache.getCache(...).frontmatter` -> { tags: [2025, "yes"],
-    flag: "yes", d: "2024-01-02" } (the date key was named `d` in the observed copy).
+    flag: "yes", when: "2024-01-02" }. Re-observed with this fixture's exact
+    input.md (key `when`) on the same day; the first observation had named the
+    date key `d`.

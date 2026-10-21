@@ -19,6 +19,8 @@
 #     a working branch may carry a draft while the maintainer looks at it,
 #     main may not.
 #
+# Every fixture also carries `observed:` or `source:` (spec §4.5).
+#
 # Deliberately dependency-free (bash, find, grep, sed, awk; git only for the
 # base-branch comparison, skipped when the base is not there). The Phase 1 test
 # harness deserialises expected.yaml into a strict type and is the real
@@ -150,6 +152,11 @@ while IFS= read -r dir; do
     fail=1
     printf '%s\n' "$out" >&2
   fi
+
+  # Spec §4.5: every fixture records how its behavior was observed or what
+  # authorizes it.
+  grep -q -E '^(observed|source):' "$dir/expected.yaml" \
+    || problem "$dir: neither observed: nor source: (spec §4.5)"
 
   if head -1 "$dir/expected.yaml" | grep -q 'AI draft'; then
     printf 'draft:    %s\n' "$dir"
