@@ -222,6 +222,7 @@ export class Syncer {
       problem: null,
       versions: null,
       revoked: null,
+      cloud: null,
     };
   }
 

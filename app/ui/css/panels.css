@@ -686,6 +686,15 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-first { margin: .3rem 0 1rem; font-size: .83rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 .sync-first strong { font-weight: 600; color: var(--ink-2); }
 .sync-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
+/* A cloud the person already has (ADR 0104): the check's answer, and the
+   lines a folder tied to one adds. */
+.sync-cloud-list { margin: .5rem 0 .8rem; padding: 0 0 0 1.1rem; font-size: .85rem; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+.sync-cloud-list li { padding: .12rem 0; }
+.sync-cloud-ok { margin-top: 1rem; }
+.sync-cloud-ok:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
+.sync-cloud { margin-top: 1.4rem; }
+.sync-device .sync-saved { margin-left: .6rem; font-size: .8rem; color: var(--ink-3); }
+.sync-body { display: block; }
 .sync-together { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1.1rem; cursor: pointer; }
 .sync-together input { margin-top: .2rem; }
 .sync-together-words { display: flex; flex-direction: column; gap: .2rem; }
