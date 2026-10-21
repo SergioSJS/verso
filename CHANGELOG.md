@@ -48,6 +48,7 @@ test release.
 
 ### Fixed
 
+- **The quick switcher (⌘P) puts the name typed whole first**: typing `N` opened a longer name that starts with N and sorts earlier by its folder; the note named exactly as typed now leads the list.
 - **Portuguese in the English window, and English in the Portuguese one**: the Fractal statblock layouts now say Reserves, Facts, Broken, Obstacles, Trigger, Consequence and Risk roll in an English window (the game's Portuguese terms stay in the YAML keys); the in-note find panel (its replace toggle and the invalid-regex badge), the server address example, the ignored-folder examples, the Mermaid error and edit tooltips and the missing-PDF line follow the window's language; the *+* menu is named *New* for a screen reader. An end-to-end sweep (`e2e/language-sweep.spec.mjs`) opens the main screens in both languages and fails on a word of the other one.
 - **On Windows, a save no longer changes the case of a file's name**: a write through another spelling of the name (a device that still knew `Receita.md` for the file the disk holds as `receita.md`) replaced the file and, on NTFS, renamed it to the case written. The write now goes over the name as the disk keeps it.
 - **The phone-serving port survives turning serving off and on**: the port chosen the first time is waited for (up to five seconds) while the old listener closes, instead of being swapped for another at once, so the address phones saved keeps working.
