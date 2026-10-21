@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "wta5-character",
+  "name": {
+    "pt": "Werewolf (W5) — Personagem",
+    "en": "Werewolf (W5) — Character"
+  },
+  "description": {
+    "pt": "Werewolf: The Apocalypse 5ª edição. Ficha de personagem: identidade, atributos, perícias, Renome, Dons e Ritos, Fúria e as trilhas de dano. Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). Só nomes e ordem dos campos.",
+    "en": "Werewolf: The Apocalypse 5th edition. A character sheet: identity, attributes, skills, Renown, Gifts and Rites, Rage and the damage tracks. Unofficial fan-made material, not official World of Darkness material (Dark Pack). Field names and order only."
+  },
+  "sources": [
+    {
+      "label": "Werewolf: The Apocalypse wiki, character creation (CC BY-SA 3.0)",
+      "url": "https://wta.paradoxwikis.com/Character_creation"
+    },
+    {
+      "label": "Werewolf: The Apocalypse wiki, Rage",
+      "url": "https://wta.paradoxwikis.com/Rage_system"
+    },
+    {
+      "label": "Werewolf: The Apocalypse wiki, Forms",
+      "url": "https://wta.paradoxwikis.com/Forms"
+    },
+    {
+      "label": "Paradox Dark Pack Agreement",
+      "url": "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement"
+    }
+  ],
+  "profile": "wod5",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"identity","properties":["concept","patron","chronicle","auspice","tribe","form"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"concept","properties":["concept"],"label":{"pt":"Concept","en":"Concept"},"hideWhenEmpty":true},{"type":"property","id":"patron","properties":["patron"],"label":{"pt":"Patron","en":"Patron"},"hideWhenEmpty":true},{"type":"property","id":"chronicle","properties":["chronicle"],"label":{"pt":"Chronicle","en":"Chronicle"},"hideWhenEmpty":true},{"type":"property","id":"auspice","properties":["auspice"],"label":{"pt":"Auspice","en":"Auspice"},"hideWhenEmpty":true},{"type":"property","id":"tribe","properties":["tribe"],"label":{"pt":"Tribe","en":"Tribe"},"hideWhenEmpty":true},{"type":"property","id":"form","properties":["form"],"label":{"pt":"Form","en":"Form"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"attributes-physical","properties":["attributes_physical"],"label":{"pt":"Attributes: Physical","en":"Attributes: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-social","properties":["attributes_social"],"label":{"pt":"Attributes: Social","en":"Attributes: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-mental","properties":["attributes_mental"],"label":{"pt":"Attributes: Mental","en":"Attributes: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-physical","properties":["skills_physical"],"label":{"pt":"Skills: Physical","en":"Skills: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-social","properties":["skills_social"],"label":{"pt":"Skills: Social","en":"Skills: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-mental","properties":["skills_mental"],"label":{"pt":"Skills: Mental","en":"Skills: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"renown","properties":["renown"],"label":{"pt":"Renown","en":"Renown"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"traits","id":"gifts","properties":["gifts"],"label":{"pt":"Gifts","en":"Gifts"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"rites","properties":["rites"],"label":{"pt":"Rites","en":"Rites"},"hideWhenEmpty":true,"dice":false},
+    {"type":"tracker","id":"rage","properties":["rage","rage_max"],"label":{"pt":"Rage","en":"Rage"},"hideWhenEmpty":true,"current":"rage","max":"rage_max","style":"boxes"},
+    {"type":"group","id":"tracks-damage","properties":["health_superficial","health","health_aggravated","health","willpower_superficial","willpower","willpower_aggravated","willpower","health","willpower"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"health-superficial","properties":["health_superficial","health"],"label":{"pt":"Health: superficial damage","en":"Health: superficial damage"},"hideWhenEmpty":true,"current":"health_superficial","max":"health","style":"boxes"},{"type":"tracker","id":"health-aggravated","properties":["health_aggravated","health"],"label":{"pt":"Health: aggravated damage","en":"Health: aggravated damage"},"hideWhenEmpty":true,"current":"health_aggravated","max":"health","style":"boxes"},{"type":"tracker","id":"willpower-superficial","properties":["willpower_superficial","willpower"],"label":{"pt":"Willpower: superficial damage","en":"Willpower: superficial damage"},"hideWhenEmpty":true,"current":"willpower_superficial","max":"willpower","style":"boxes"},{"type":"tracker","id":"willpower-aggravated","properties":["willpower_aggravated","willpower"],"label":{"pt":"Willpower: aggravated damage","en":"Willpower: aggravated damage"},"hideWhenEmpty":true,"current":"willpower_aggravated","max":"willpower","style":"boxes"},{"type":"property","id":"health","properties":["health"],"label":{"pt":"Health (track)","en":"Health (track)"},"hideWhenEmpty":true},{"type":"property","id":"willpower","properties":["willpower"],"label":{"pt":"Willpower (track)","en":"Willpower (track)"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"chronicle-tenets","properties":["chronicle_tenets"],"label":{"pt":"Chronicle Tenets","en":"Chronicle Tenets"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"touchstones","properties":["touchstones"],"label":{"pt":"Touchstones","en":"Touchstones"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"favors","properties":["favors"],"label":{"pt":"Favors","en":"Favors"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"bans","properties":["bans"],"label":{"pt":"Bans","en":"Bans"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"advantages","properties":["advantages"],"label":{"pt":"Advantages","en":"Advantages"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"flaws","properties":["flaws"],"label":{"pt":"Flaws","en":"Flaws"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool (dados regulares e de Fúria)","en":"Roll the pool (regular and Rage dice)"},"inputs":{}},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness, publicado sob o Dark Pack. Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com.","en":"Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."},"dice":false,"rule":false}
+  ]
+}
