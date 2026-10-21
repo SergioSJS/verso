@@ -35,7 +35,9 @@
 //!
 //! The periodic notes' settings live there too, under `periodic` (ADR
 //! 0093 item 4; `periodic.rs`), and the oracle's odds and spark words
-//! under `oracle` (ADR 0102 item 2; `oracle.rs`).
+//! under `oracle` (ADR 0102 item 2; `oracle.rs`), and the theme the folder
+//! suggests under `recommendedTheme` (ADR 0100 item 4): one JSON object the
+//! window checks, offered to the person and never applied by itself.
 //!
 //! Which value applies: when the folder has a usable settings file, the
 //! file's — a key it does not set takes the default (no bookmarks, the
@@ -55,6 +57,9 @@ const BOOKMARKS: &str = "bookmarks";
 const FOLDER_NOTE_NAME: &str = "folderNoteName";
 const IGNORE_BUILD_DIRS: &str = "ignoreBuildDirs";
 const RESPECT_GITIGNORE: &str = "respectGitignore";
+const RECOMMENDED_THEME: &str = "recommendedTheme";
+/// The most a suggested theme's JSON text may be, in bytes (ADR 0100 item 6).
+const RECOMMENDED_THEME_MOST: usize = 16 * 1024;
 
 /// The folder's settings a file holds, or a change to them: `None` is
 /// "not set here".
@@ -71,6 +76,10 @@ pub struct FolderSettings {
     pub periodic: Option<super::periodic::Periodic>,
     /// The oracle's odds and spark words (ADR 0102 item 2).
     pub oracle: Option<super::oracle::Oracle>,
+    /// The theme the folder suggests (ADR 0100 item 4): the JSON text of one
+    /// object, up to 16 KiB. The window validates its tokens; the core only
+    /// keeps it well-formed.
+    pub recommended_theme: Option<String>,
 }
 
 /// Why a settings file that stands in the folder is not used now.
@@ -202,6 +211,11 @@ fn settings_of(map: &serde_json::Map<String, Value>) -> FolderSettings {
         respect_gitignore: map.get(RESPECT_GITIGNORE).and_then(Value::as_bool),
         periodic: super::periodic::read(map),
         oracle: super::oracle::read(map),
+        recommended_theme: map
+            .get(RECOMMENDED_THEME)
+            .filter(|v| v.is_object())
+            .and_then(|v| serde_json::to_string(v).ok())
+            .filter(|text| text.len() <= RECOMMENDED_THEME_MOST),
     }
 }
 
@@ -244,6 +258,17 @@ fn apply(map: &mut serde_json::Map<String, Value>, change: &FolderSettings) {
     if let Some(oracle) = &change.oracle {
         super::oracle::apply(map, oracle);
     }
+    if let Some(text) = &change.recommended_theme {
+        match serde_json::from_str::<Value>(text) {
+            Ok(value @ Value::Object(_)) => {
+                map.insert(RECOMMENDED_THEME.to_owned(), value);
+            }
+            // Checked before; an empty text takes the suggestion away.
+            _ => {
+                map.remove(RECOMMENDED_THEME);
+            }
+        }
+    }
 }
 
 impl Workspace {
@@ -276,6 +301,17 @@ impl Workspace {
         }
         if let Some(oracle) = &change.oracle {
             super::oracle::check(oracle)?;
+        }
+        if let Some(text) = &change.recommended_theme
+            && !text.is_empty()
+        {
+            let well_formed = text.len() <= RECOMMENDED_THEME_MOST
+                && matches!(serde_json::from_str::<Value>(text), Ok(Value::Object(_)));
+            if !well_formed {
+                return Err(CoreError::FolderSettings(format!(
+                    "a suggested theme is one JSON object of at most {RECOMMENDED_THEME_MOST} bytes"
+                )));
+            }
         }
         let file = Path::new(SETTINGS_FILE);
         let warnings = match revision {
