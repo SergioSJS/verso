@@ -189,10 +189,8 @@ pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError
     // A symlink is followed: the target is what gets replaced (ADR 0044),
     // and the guard runs on the target too.
     let followed: PathBuf = placeholder::follow(path).map_err(WriteError::Io)?;
-    if followed != path {
-        if placeholder::stands_in(&followed).map_err(WriteError::Io)? {
-            return Err(WriteError::Placeholder);
-        }
+    if followed != path && placeholder::stands_in(&followed).map_err(WriteError::Io)? {
+        return Err(WriteError::Placeholder);
     }
     // The name as the disk holds it, which the rename over the file keeps.
     let target = os::kept_spelling(followed.clone());
