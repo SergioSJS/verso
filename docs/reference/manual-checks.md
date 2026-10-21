@@ -20,6 +20,18 @@ in the real app.
 
 ## Not yet checked
 
+### Sync with a cloud provider (ADR 0104, accepted 2026-10-21, not built)
+
+Written ahead of the code so the checks exist when the feature does; none can be run today. Each needs the installed desktop app and a real account at that provider; nothing here blocks a commit, a merge or a beta. The OAuth providers also wait for the developer accounts the maintainer creates (C.1); WebDAV and S3 come first (C.16). Repeat the list per provider.
+
+- [ ] **Sign-in through the browser** (A): "Sync with…" a Dropbox, OneDrive or Google Drive; the system's browser opens (no embedded view), the consent names only the narrow scope (app folder, `drive.file`), the app comes back signed in, and the listener closes (a second visit to the loopback address gets nothing). Closing the browser tab without consenting leaves the folder unconnected, with a message.
+- [ ] **First sync** (A): with notes on both sides, it shows what it will do (0079 item 11) and what does not apply to a cloud folder; nothing is deleted on either side; the folder appears under `Apps/Verso/<folder>` (or the WebDAV folder, or the bucket prefix).
+- [ ] **A race between two computers** (A): edit the same note on two computers, offline, then reconnect both; no edit is lost: one version keeps the name and the other is a conflict copy named with the device's name. On Google Drive, check the overwritten revision is still in Drive's version history.
+- [ ] **Deletion into the provider's trash** (A): delete a note here; it reaches the provider's trash (Dropbox, OneDrive, Drive), not a permanent deletion; on WebDAV and S3 the window says before connecting that a deletion is final unless the bucket has versioning.
+- [ ] **Disconnect revokes** (A): Disconnect removes the secrets from the system's keychain and the app disappears from the provider's list of connected apps (or the token stops working); the local folder is untouched.
+- [ ] **A Linux without Secret Service** (A): the cloud sync is refused with the reason and how to install a keyring.
+- [ ] **WebDAV and S3** (A): a server without strong ETags or an S3-compatible service without conditional writes is refused at connect with the reason; plain-HTTP WebDAV needs the local-network confirmation.
+
 ### The data diagram (ADR 0106, feat/datagraph, 2026-10-21)
 
 Needs the installed desktop app on a Mac (and a screen with fingers for the first item); the end-to-end tests are in `app/ui/e2e/datagraph.spec.mjs`, and the harness is not the real web view.
