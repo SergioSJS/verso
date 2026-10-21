@@ -56,6 +56,8 @@ import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
 import * as reading from "./note/reading";
+import * as folds from "./note/folds";
+import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
@@ -235,6 +237,13 @@ export class NoteLeaf extends Leaf {
   private checkWaits = false;
   /** The note the reading view last drew. */
   shownPath = "";
+  /** What the note has folded, in either mode, and whose it is
+   *  (`leaves/note/folds.ts`). */
+  folds = new Set<string>();
+  foldsFor = "";
+  /** The editor's folds being put as the note's: not a person's doing. */
+  restoringFolds = false;
+  private foldTimer = 0;
   eol = "\n";
   /** Shown, never edited: the file mixes line endings (`mixedEol`), or
    *  the side lets this person only read the folder (ADR 0076 item 11). */
@@ -551,6 +560,7 @@ export class NoteLeaf extends Leaf {
       this.wireTableResizers(this.preview);
     }
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? [this.live, this.blockExt] : []) });
+    if (m !== "preview") this.applyEditorFolds();
     this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
@@ -961,6 +971,7 @@ export class NoteLeaf extends Leaf {
     // A reader of a synced folder is present in the room, not typing
     // (ADR 0082 item 4).
     this.readOnly = this.mixedEol || !canWrite() || (this.collab?.reader ?? false);
+    this.loadFoldsFor(note.path);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.goneBanner.hide();
@@ -1032,6 +1043,22 @@ export class NoteLeaf extends Leaf {
   declare wireBlockquoteFolds: typeof reading.wireBlockquoteFolds;
   declare wireReadingLineNumbers: typeof reading.wireReadingLineNumbers;
   declare foldAllHeadings: typeof reading.foldAllHeadings;
+  declare loadFoldsFor: typeof folds.loadFoldsFor;
+  declare keepFolds: typeof folds.keepFolds;
+  declare setFold: typeof folds.setFold;
+  declare applyReadingFolds: typeof folds.applyReadingFolds;
+  declare rememberCallouts: typeof folds.rememberCallouts;
+  declare revealInReading: typeof folds.revealInReading;
+  declare applyEditorFolds: typeof folds.applyEditorFolds;
+  declare editorFoldsChanged: typeof folds.editorFoldsChanged;
+  /** The editor's folds into the note's, after the typing settles (a
+   *  heading retyped is another name). */
+  syncFoldsLater(): void {
+    window.clearTimeout(this.foldTimer);
+    this.foldTimer = window.setTimeout(() => {
+      if (!this.destroyed && this.mode !== "preview") this.editorFoldsChanged();
+    }, 400);
+  }
   declare paintPreview: typeof reading.paintPreview;
   declare relink: typeof reading.relink;
   declare dressLinks: typeof reading.dressLinks;
@@ -1207,13 +1234,17 @@ export class NoteLeaf extends Leaf {
   }
   override jumpTo(line: number): void {
     if (this.mode === "preview") {
-      const heads = Array.from(this.preview.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      const heads = Array.from(this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"));
       const n = this.headings().findIndex((hd) => hd.line === line);
-      heads[n]?.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
+      const head = heads[n];
+      if (!head) return;
+      // A heading inside a folded section is reached by opening the sections.
+      this.revealInReading(head);
+      head.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
       return;
     }
     const l = this.editor.state.doc.line(Math.min(line, this.editor.state.doc.lines));
-    this.editor.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    this.editor.dispatch({ effects: unfoldFor(this.editor.state, l.from), selection: { anchor: l.from }, scrollIntoView: true });
     this.editor.focus();
   }
   override destroy(): void {
@@ -1222,6 +1253,7 @@ export class NoteLeaf extends Leaf {
     this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);
+    window.clearTimeout(this.foldTimer);
     this.readingSearch?.close();
     // The tab's close saved them already (`flush`); this one catches a
     // keystroke typed since, and writes nothing over a conflict.
@@ -1243,4 +1275,5 @@ methods(NoteLeaf, cover);
 methods(NoteLeaf, web);
 methods(NoteLeaf, editing);
 methods(NoteLeaf, reading);
+methods(NoteLeaf, folds);
 methods(NoteLeaf, live);

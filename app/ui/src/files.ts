@@ -33,6 +33,7 @@ import { keyboardIn, returnFromSide, showSide } from "./side";
 import { t } from "./strings";
 import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
+import { foldsMoved } from "./foldMemory";
 import { currentFolder } from "./folder";
 import { selectionMoved } from "./tree/selection";
 import { offerTemplates } from "./templatePicker";
@@ -75,6 +76,7 @@ export async function copyFilesInto(folder: string, files: FileList): Promise<vo
  *  recents — follows the file, or a folder's contents. */
 export function pathsMoved(from: string, to: string): void {
   tableWidthsMoved(currentFolder, from, to);
+  foldsMoved(currentFolder, from, to);
   selectionMoved(from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
   changeBookmarks((list) => list.map(follow));
