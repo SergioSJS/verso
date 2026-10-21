@@ -1012,6 +1012,10 @@ impl Remote for S3 {
         Ok((read.version, sink.finish()))
     }
 
+    fn exists(&self, path: &str) -> Result<bool> {
+        Ok(self.head(&self.key(path))?.is_some())
+    }
+
     fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read> {
         let key = self.key(path);
         let headers = [("x-amz-checksum-mode", "ENABLED".to_owned())];

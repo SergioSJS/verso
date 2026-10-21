@@ -23,8 +23,8 @@ import { type Cloud, chooser, cloudProblem, deviceNameRow, drawCloudForm } from 
 
 const pt = {
   section: "Sincronizar",
-  title: "Sincronizar com um servidor",
-  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um UniVerso guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.",
+  title: "Sincronizar com um servidor ou uma nuvem",
+  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um UniVerso guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você — ou uma nuvem que você já tem (WebDAV, S3) para os seus outros computadores.",
   noServer: "Conecte a um servidor em Servidores primeiro.",
   toServers: "Ir para Servidores",
   server: "Servidor",
@@ -121,8 +121,8 @@ const pt = {
 };
 const en: typeof pt = {
   section: "Sync",
-  title: "Sync with a server",
-  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a UniVerso keeps the same files for your other devices, the browser and whoever shares the folder with you.",
+  title: "Sync with a server or a cloud",
+  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a UniVerso keeps the same files for your other devices, the browser and whoever shares the folder with you — or a cloud you already have (WebDAV, S3) for your other computers.",
   noServer: "Connect to a server in Servers first.",
   toServers: "Go to Servers",
   server: "Server",

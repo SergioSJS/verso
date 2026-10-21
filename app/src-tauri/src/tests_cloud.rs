@@ -454,3 +454,57 @@ fn a_service_that_asks_to_slow_down_is_waited_for_not_failed() {
     csync(&a);
     assert_eq!(fake.get("a.md").unwrap(), b"um");
 }
+
+/// A service whose listing lags behind its writes does not tell a device
+/// that a file is gone: asked for the file itself, the cloud still has it,
+/// and it stays on this computer.
+fn a_listing_that_lags_deletes_nothing(fake: &Fake, hide: impl Fn(&str)) {
+    let a = device_on(fake, &[("a.md", "um"), ("b.md", "dois"), ("c.md", "tres")]);
+    csync(&a);
+    hide("a.md");
+    changed(&a, &[]);
+    let passed = csync(&a);
+    // The pass found `a.md` missing from the listing and did not delete it.
+    assert_eq!(passed.actions, 0);
+    assert_eq!(text(&a, "a.md").as_deref(), Some("um"));
+    assert!(fake.get("a.md").is_some());
+    // A file really gone there is deleted here, as before.
+    match fake {
+        Fake::Dav(d) => d.remove("b.md"),
+        Fake::S3(s) => s.remove("Cofre/b.md"),
+    }
+    changed(&a, &[]);
+    csync(&a);
+    assert_eq!(text(&a, "b.md"), None);
+}
+
+#[test]
+fn a_webdav_listing_that_lags_deletes_nothing() {
+    let fake = dav();
+    let Fake::Dav(d) = &fake else { unreachable!() };
+    a_listing_that_lags_deletes_nothing(&fake, |p| d.hide(p));
+}
+
+#[test]
+fn an_s3_listing_that_lags_deletes_nothing() {
+    let fake = s3();
+    let Fake::S3(s) = &fake else { unreachable!() };
+    a_listing_that_lags_deletes_nothing(&fake, |p| s.hide(&format!("Cofre/{p}")));
+}
+
+#[test]
+fn a_webdav_folder_that_is_gone_is_an_error_not_an_empty_folder() {
+    let fake = dav();
+    let a = device_on(&fake, &[("a.md", "um"), ("b.md", "dois"), ("c.md", "tres")]);
+    csync(&a);
+    let Fake::Dav(d) = &fake else { unreachable!() };
+    d.remove_folder();
+    let e = tauri::async_runtime::block_on(async {
+        let mut l = cloud::link(&a.ctx, &a.s).await.unwrap();
+        pass(&a.ctx, &a.s, &mut l).await
+    })
+    .unwrap_err();
+    assert_eq!(e.kind, ErrorKind::NotFound);
+    // Nothing here was deleted for it.
+    assert_eq!(files(&a).len(), 3);
+}

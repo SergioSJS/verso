@@ -318,3 +318,21 @@ fn nothing_is_reachable_at_a_closed_port() {
     assert_eq!(e.kind, RemoteErrorKind::Unreachable);
     assert!(!e.message.contains("segredo"));
 }
+
+#[test]
+fn a_file_is_asked_for_by_itself_and_a_folder_that_is_gone_is_an_error() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    put(&w, "pasta/a.md", &Condition::Absent, b"um").unwrap();
+    assert!(w.exists("pasta/a.md").unwrap());
+    assert!(!w.exists("pasta/b.md").unwrap());
+    // A folder is not a file.
+    assert!(!w.exists("pasta").unwrap());
+    // The listing lagging does not make a file not exist.
+    dav.hide("pasta/a.md");
+    assert!(w.list(None).unwrap().changes.is_empty());
+    assert!(w.exists("pasta/a.md").unwrap());
+    // The folder itself gone: an error, not an empty folder.
+    dav.remove_folder();
+    assert_eq!(w.list(None).unwrap_err().kind, RemoteErrorKind::NotFound);
+}
