@@ -10,10 +10,13 @@
 /** The physics step, in seconds; the recording has one frame per step. */
 export const STEP = 1 / 60;
 /** How long the settled dice stay on screen before the canvas goes. */
-export const HOLD_MS = 1100;
+export const HOLD_MS = 300;
+/** The replay runs the recorded fall this many times faster than it was
+ *  simulated, so the dice settle sooner on screen. */
+export const PLAYBACK_SPEED = 1.6;
 /** The longest a roll's animation lasts, from first frame to the canvas
  *  leaving. A value to tune; ADR 0101 item 5 sets none. */
-export const MAX_ANIMATION_MS = 6500;
+export const MAX_ANIMATION_MS = 2500;
 
 export type Timeline = {
   /** Frames recorded. */
@@ -25,7 +28,7 @@ export type Timeline = {
 };
 
 export function timeline(frames: number): Timeline {
-  const settleMs = Math.max(0, frames - 1) * STEP * 1000;
+  const settleMs = (Math.max(0, frames - 1) * STEP * 1000) / PLAYBACK_SPEED;
   return { frames, settleMs: Math.min(settleMs, MAX_ANIMATION_MS), endMs: Math.min(settleMs + HOLD_MS, MAX_ANIMATION_MS) };
 }
 
@@ -37,6 +40,6 @@ export function timeline(frames: number): Timeline {
 export function playhead(tl: Timeline, elapsedMs: number, skipped: boolean): { at: number; done: boolean } {
   const last = Math.max(0, tl.frames - 1);
   if (skipped || elapsedMs >= tl.endMs) return { at: last, done: true };
-  const at = Math.min(last, (elapsedMs / 1000) / STEP);
+  const at = Math.min(last, ((elapsedMs / 1000) * PLAYBACK_SPEED) / STEP);
   return { at, done: false };
 }

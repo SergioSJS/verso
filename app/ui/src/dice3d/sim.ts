@@ -27,8 +27,9 @@ export type Fall = {
   rested: boolean;
 };
 
-/** About five seconds of physics at most. */
-export const STEPS_MOST = 300;
+/** About four seconds of physics at most: at the replay speed, the
+ *  fall's hard maximum (MAX_ANIMATION_MS). */
+export const STEPS_MOST = 240;
 
 /** A random source in [0, 1). */
 export type Rng = () => number;
