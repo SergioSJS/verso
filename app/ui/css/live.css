@@ -179,20 +179,38 @@
   font-variant-numeric: tabular-nums;
   vertical-align: baseline;
 }
+/* Drawn by us, as in reading.css: the platform's checkbox sits on the
+   line differently in WebKit and in Chromium. */
 .editor input.cm-lp-task-check {
-  appearance: auto;
-  -webkit-appearance: auto;
-  accent-color: var(--seal);
-  width: 1em;
-  height: 1em;
-  margin: 0;
-  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  font-size: inherit; /* a control does not inherit it; em would be the platform's 13px */
+  position: relative;
   display: inline-block;
-  margin-left: -1.25em;
-  margin-right: 0.25em;
-  vertical-align: -0.02em;
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 0.3em 0 -1.2em;
+  padding: 0;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 0.2em;
+  background: var(--paper);
+  vertical-align: calc(0.36em - 0.45em);
   cursor: pointer;
 }
+.editor input.cm-lp-task-check:checked { background: var(--seal); border-color: var(--seal); }
+.editor input.cm-lp-task-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0.24em;
+  height: 0.46em;
+  border: solid var(--paper);
+  border-width: 0 0.12em 0.12em 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.editor input.cm-lp-task-check:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
 .editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
 
 /* Single unified vertical hierarchy guide line for ALL list types (bullets, tasks, ordered) */
