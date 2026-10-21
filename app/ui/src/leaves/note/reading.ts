@@ -25,6 +25,7 @@ import { sameText, writeInReading, type Value, type ValuePath } from "../../stat
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
+import { headingVisibility, setHeadingFolded } from "./folds";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
 import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
@@ -291,20 +292,13 @@ export function wireHeadingFolds(this: NoteLeaf, root: HTMLElement): void {
     if (h.querySelector(".heading-fold-btn") || h.closest(".statblock-card")) continue;
     const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     btn.type = "button";
+    btn.setAttribute("aria-expanded", "true");
     h.prepend(btn);
     const toggle = () => {
-      const level = parseInt(h.tagName.slice(1), 10);
       const folded = !h.classList.contains("heading-folded");
-      h.classList.toggle("heading-folded", folded);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = folded ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+      setHeadingFolded(h, folded);
+      if (h.parentElement) headingVisibility(h.parentElement);
+      this.setFold(h.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -333,6 +327,7 @@ export function wireListFolds(this: NoteLeaf, root: HTMLElement): void {
       const folded = !li.classList.contains("list-folded");
       li.classList.toggle("list-folded", folded);
       btn.setAttribute("aria-expanded", String(!folded));
+      this.setFold(li.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -359,6 +354,7 @@ export function wireBlockquoteFolds(this: NoteLeaf, root: HTMLElement): void {
       e.stopPropagation();
       bq.classList.toggle("quote-folded");
       btn.setAttribute("aria-expanded", String(!bq.classList.contains("quote-folded")));
+      this.setFold(bq.dataset["foldKey"], bq.classList.contains("quote-folded"));
     });
   }
 }
@@ -442,20 +438,14 @@ export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: 
 
 export function foldAllHeadings(this: NoteLeaf, fold: boolean): void {
   if (this.mode === "preview") {
-    const headings = Array.from(this.preview.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
-    for (const h of headings) {
-      const level = parseInt(h.tagName.slice(1), 10);
-      h.classList.toggle("heading-folded", fold);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = fold ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+    for (const h of this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
+      if (h.dataset["foldKey"] === undefined) continue;
+      setHeadingFolded(h, fold);
+      if (fold) this.folds.add(h.dataset["foldKey"]);
+      else this.folds.delete(h.dataset["foldKey"]);
     }
+    headingVisibility(this.preview);
+    this.keepFolds();
   } else {
     if (fold) foldAll(this.editor);
     else unfoldAll(this.editor);
@@ -516,6 +506,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
+  this.applyReadingFolds(this.preview);
   this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
