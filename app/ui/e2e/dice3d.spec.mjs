@@ -134,7 +134,9 @@ test("Esc and a click skip the fall; the card shows the result they held back", 
   // A click anywhere on the canvas.
   await preview.getByRole("button", { name: "Rolar de novo" }).click();
   await expect(canvas(page)).toHaveCount(1);
-  await page.mouse.click(300, 300);
+  // Anywhere on the canvas, which lies over the lower part of the pane.
+  const box = await canvas(page).boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(canvas(page)).toHaveCount(0);
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
 });
@@ -239,4 +241,246 @@ test("in a room with the switch off: another member's roll shows at once, no can
   await expect(card.locator(".dice-total")).toHaveText("17");
   await expect(canvas(page)).toHaveCount(0);
   expect(chunk).toEqual([]);
+});
+
+// ---- Appearance (Rolai's model: three colour slots, presets, textures, materials, size) ----
+
+/** The 3D switch on and a look stored, before the window loads. */
+async function withLook(page, look) {
+  await page.addInitScript((l) => {
+    const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
+    localStorage.setItem("verso.settings", JSON.stringify({ ...s, features: { ...(s.features ?? {}), dice3d: true }, dice3dLook: s.dice3dLook ?? l }));
+  }, look);
+}
+
+/** Store a look and load the window again with Mesa open. */
+async function reloadWith(app, page, look) {
+  await page.evaluate((l) => {
+    const st = JSON.parse(localStorage.getItem("verso.settings"));
+    st.dice3dLook = l;
+    localStorage.setItem("verso.settings", JSON.stringify(st));
+  }, look);
+  await page.reload();
+  await page.waitForFunction(() => window.__harness?.ready === true);
+  await openNote(app);
+}
+
+/** Roll the note's 1d20+3 and read what the stage says about the resting dice. */
+async function rolled(page) {
+  const preview = page.locator(".preview:visible");
+  await preview.getByRole("button", { name: /^Rolar (1d20\+3|de novo)$/ }).first().click();
+  const c = canvas(page);
+  await expect(c).toHaveCount(1);
+  await expect.poll(() => c.getAttribute("data-die-widths"), { timeout: 8000 }).not.toBeNull();
+  return page.evaluate(() => {
+    const el = document.querySelector("canvas.dice3d-canvas");
+    const r = el.getBoundingClientRect();
+    return { widths: JSON.parse(el.dataset.dieWidths), slots: JSON.parse(el.dataset.slots), rect: { x: r.x, y: r.y, w: r.width, h: r.height }, win: { w: innerWidth, h: innerHeight } };
+  });
+}
+
+const shot = async (page, name) => {
+  if (process.env.DICE3D_SHOTS) await page.screenshot({ path: `${process.env.DICE3D_SHOTS}/${name}.png` });
+};
+
+async function needGl(page, info) {
+  if (await gl(page)) return true;
+  info.annotations.push({ type: "webgl", description: "NOT available" });
+  test.skip(true, "no WebGL in this browser");
+  return false;
+}
+
+test("size: the percent changes the die's size on the screen, and the dice fall on the lower part of the window", async ({ app, page }, info) => {
+  await withLook(page, { size: 100 });
+  await app.open();
+  await needGl(page, info);
+  const out = {};
+  for (const size of [70, 100, 160]) {
+    await reloadWith(app, page, { size, styles: { 1: { body: "#1d9e75" } } });
+    out[size] = await rolled(page);
+    await shot(page, `size-${size}pct`);
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
+  }
+  const mean = (r) => r.widths.reduce((a, b) => a + b, 0) / r.widths.length;
+  info.annotations.push({ type: "die px", description: JSON.stringify({ 70: mean(out[70]), 100: mean(out[100]), 160: mean(out[160]), win: out[100].win }) });
+  expect(mean(out[70])).toBeLessThan(mean(out[100]));
+  expect(mean(out[100])).toBeLessThan(mean(out[160]));
+  // Modest: well under a quarter of the window's height, even at 160%.
+  expect(mean(out[160])).toBeLessThan(out[160].win.h / 4);
+  expect(mean(out[100])).toBeGreaterThan(40);
+  expect(mean(out[100])).toBeLessThan(110);
+  // The strip is the lower part of the window, not all of it.
+  expect(out[100].rect.h).toBeLessThan(out[100].win.h * 0.6);
+  expect(out[100].rect.y + out[100].rect.h).toBeGreaterThan(out[100].win.h * 0.9);
+});
+
+test("a preset sets the slot's colour, texture and material; 'Automático' takes the texture's own", async ({ app, page }, info) => {
+  await withLook(page, { size: 100, styles: { 1: { body: "#8c1f2b", number: "#f7e8e2", outline: "#2b0a0e", texture: "marble", material: "plastic" } } });
+  await app.open();
+  await needGl(page, info);
+  await openNote(app);
+  let r = await rolled(page);
+  expect(r.slots[0]).toEqual(["1", "#8c1f2b", "plastic", "marble"]);
+  await shot(page, "preset-sangue");
+  await page.keyboard.press("Escape");
+  // Gelo: glass; Osso: the material is Automático and marble brings glass.
+  await reloadWith(app, page, { size: 100, styles: { 1: { body: "#e8e0cd", number: "#3a3226", outline: "#3a3226", texture: "marble", material: "auto" } } });
+  r = await rolled(page);
+  expect(r.slots[0]).toEqual(["1", "#e8e0cd", "glass", "marble"]);
+  await page.keyboard.press("Escape");
+  // Do Verso: slot 1 follows the app's palette, not a preset colour.
+  await reloadWith(app, page, { size: 100 });
+  r = await rolled(page);
+  expect(r.slots[0][1]).not.toBe("#1d9e75");
+  expect(r.slots[0][1]).toBeTruthy();
+});
+
+test("the test roll draws a die in each of the three slots with that slot's style", async ({ app, page }, info) => {
+  await withLook(page, { size: 100, styles: { 1: { body: "#1d9e75", texture: "dragon", material: "auto" }, 2: { body: "#14171c", texture: "speckles", material: "metal" }, 3: { body: "#7a4a22", texture: "tiger", material: "wood" } } });
+  await app.open();
+  await needGl(page, info);
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  await page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Dados 3D: testar$/ }) }).getByRole("button", { name: "Rolar para testar" }).click();
+  await expect(canvas(page)).toHaveCount(1);
+  await expect.poll(() => canvas(page).getAttribute("data-die-widths"), { timeout: 8000 }).not.toBeNull();
+  const slots = JSON.parse((await canvas(page).getAttribute("data-slots")) ?? "[]");
+  expect(slots).toEqual([
+    ["1", "#1d9e75", "none", "dragon"],
+    ["2", "#14171c", "metal", "speckles"],
+    ["3", "#7a4a22", "wood", "tiger"],
+  ]);
+  await shot(page, "slots-three-dice");
+});
+
+async function openFeatures(app, page) {
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Recursos" }).click();
+  return (title) => page.locator(".setting", { has: page.locator(".setting-title", { hasText: new RegExp(`^${title}$`) }) });
+}
+
+test("settings: slots, presets, colours, contrast warning, texture, material and size are labelled and saved on this device", async ({ app, page }) => {
+  await app.open();
+  const row = await openFeatures(app, page);
+  const look = () => page.evaluate(() => JSON.parse(localStorage.getItem("verso.settings")).dice3dLook);
+  // Size.
+  await row("Dados 3D: tamanho").getByRole("slider").fill("130");
+  expect((await look()).size).toBe(130);
+  await expect(row("Dados 3D: tamanho").locator("output")).toHaveText("130%");
+  // Slots: tabs with arrow keys, and the preview tiles.
+  const tabs = row("Dados 3D: cores").getByRole("tab");
+  await expect(tabs).toHaveCount(3);
+  await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
+  await expect(row("Dados 3D: cores").locator(".dice3d-tile canvas")).toHaveCount(3);
+  // The styles list holds Rolai's names, in Portuguese.
+  const style = row("Dados 3D: estilo").getByRole("combobox");
+  await expect(style.locator("option")).toHaveText(["Personalizado", "Do Verso", "Esmeralda", "Osso", "Obsidiana", "Sangue", "Abissal", "Gelo", "Escamas", "Taverna"]);
+  await expect(style).toHaveValue("verso");
+  await tabs.nth(1).click();
+  await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
+  await style.selectOption("gelo");
+  let l = await look();
+  expect(l.styles["2"]).toMatchObject({ body: "#bfe6f2", number: "#123a4a", outline: "#0b2733", texture: "ice", material: "glass" });
+  expect(l.styles["1"].app).toBe(true);
+  await tabs.nth(1).press("ArrowRight");
+  await expect(tabs.nth(2)).toHaveAttribute("aria-selected", "true");
+  await row("Dados 3D: cores").locator('.dice3d-tile[data-slot="1"]').click();
+  await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
+  // Slot 1: a colour edit leaves "Do Verso" and the style becomes Personalizado.
+  const body = row("Dados 3D: corpo").getByRole("textbox", { name: "Dados 3D: corpo, em hexadecimal" });
+  await body.fill("#224466");
+  await body.press("Enter");
+  l = await look();
+  expect(l.styles["1"].body).toBe("#224466");
+  expect(l.styles["1"].app).toBeUndefined();
+  await expect(style).toHaveValue("custom");
+  // The same colour for the number: the warning shows.
+  const num = row("Dados 3D: número").getByRole("textbox", { name: "Dados 3D: número, em hexadecimal" });
+  await num.fill("#254768");
+  await num.press("Enter");
+  await expect(page.locator(".dice3d-contrast")).toHaveAttribute("data-low", "true");
+  await expect(page.locator(".dice3d-contrast")).toContainText("Atenção: contraste de");
+  await expect(page.locator(".dice3d-contrast")).toHaveAttribute("role", "alert");
+  await num.fill("#ffffff");
+  await num.press("Enter");
+  await expect(page.locator(".dice3d-contrast")).toHaveAttribute("data-low", "false");
+  // Not a colour: flagged, nothing saved.
+  await num.fill("banana");
+  await num.press("Enter");
+  await expect(num).toHaveAttribute("aria-invalid", "true");
+  expect((await look()).styles["1"].number).toBe("#ffffff");
+  await row("Dados 3D: contorno").getByRole("textbox", { name: "Dados 3D: contorno, em hexadecimal" }).fill("#000000");
+  await row("Dados 3D: contorno").getByRole("textbox", { name: "Dados 3D: contorno, em hexadecimal" }).press("Enter");
+  // The twenty textures and the six materials, by Rolai's names.
+  const tex = row("Dados 3D: textura").getByRole("combobox");
+  await expect(tex.locator("option")).toHaveText(["Lisa", "Mármore", "Pintas", "Glitter", "Estrelas", "Céu astral", "Nuvens", "Fogo", "Água", "Gelo", "Papel", "Madeira", "Aço", "Vitral", "Caveiras", "Dragão", "Leopardo", "Tigre", "Lagarto", "Pena"]);
+  const mat = row("Dados 3D: material").getByRole("combobox");
+  await expect(mat.locator("option")).toHaveText(["Automático (da textura)", "Plástico", "Metal", "Madeira", "Vidro", "Fosco"]);
+  await tex.selectOption("dragon");
+  await mat.selectOption("none");
+  l = await look();
+  expect([l.styles["1"].texture, l.styles["1"].material, l.styles["1"].outline]).toEqual(["dragon", "none", "#000000"]);
+  if (process.env.DICE3D_SHOTS) await page.screenshot({ path: `${process.env.DICE3D_SHOTS}/settings-appearance.png` });
+  // A reload keeps it, and the tile of slot 1 is painted.
+  await page.keyboard.press("Escape");
+});
+
+test("settings: every texture paints something on the swatch", async ({ app, page }) => {
+  await app.open();
+  const row = await openFeatures(app, page);
+  const tex = row("Dados 3D: textura").getByRole("combobox");
+  const tile = row("Dados 3D: cores").locator('.dice3d-tile[data-slot="1"] canvas');
+  // The tile's pixels, to tell one texture from another and from none.
+  const pixels = () => tile.evaluate((c) => Array.from(c.getContext("2d").getImageData(0, 0, c.width, c.height).data));
+  const differs = (a, b) => {
+    let n = 0;
+    for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++;
+    return n / (a.length / 4);
+  };
+  await row("Dados 3D: estilo").getByRole("combobox").selectOption("esmeralda");
+  await expect.poll(async () => (await pixels()).some((v) => v > 0)).toBe(true);
+  const plain = await pixels();
+  const seen = [];
+  for (const id of ["marble", "speckles", "glitter", "stars", "astral", "cloudy", "fire", "water", "ice", "paper", "wood", "metal", "stainedglass", "skulls", "dragon", "leopard", "tiger", "lizard", "bird"]) {
+    await tex.selectOption(id);
+    // Different from the plain body on at least 2% of the swatch, and from the one before.
+    await expect.poll(async () => differs(await pixels(), plain), { message: id }).toBeGreaterThan(0.02);
+    seen.push(await pixels());
+  }
+  for (let i = 1; i < seen.length; i++) expect(differs(seen[i], seen[i - 1])).toBeGreaterThan(0.02);
+});
+
+test("settings: 'Rolar para testar' says why it cannot play, and plays three dice when it can", async ({ app, page }, info) => {
+  await app.open();
+  const row = await openFeatures(app, page);
+  const test3 = row("Dados 3D: testar").getByRole("button", { name: "Rolar para testar" });
+  // Switch off: it says so and rolls nothing.
+  await test3.click();
+  await expect(page.locator(".dice3d-say")).toContainText('Os dados 3D estão desligados');
+  await expect(canvas(page)).toHaveCount(0);
+  // Switch on.
+  await row("Dados 3D").locator("label.switch").click();
+  const hasGl = await gl(page);
+  info.annotations.push({ type: "webgl", description: hasGl ? "available" : "NOT available: only the fallback is checked" });
+  await test3.click();
+  if (hasGl) {
+    await expect(canvas(page)).toHaveCount(1);
+    await expect(canvas(page)).toHaveAttribute("aria-hidden", "true");
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
+    // Esc only skipped: Settings is still open.
+    await expect(test3).toBeVisible();
+  }
+  await expect(page.locator(".dice3d-say")).toHaveText(/^d20: \d+, d6: \d+, d6: \d+$/);
+});
+
+test("settings: under reduced motion the test says nothing is animated", async ({ app, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await withSwitch(page);
+  await app.open();
+  const row = await openFeatures(app, page);
+  await row("Dados 3D: testar").getByRole("button", { name: "Rolar para testar" }).click();
+  await expect(page.locator(".dice3d-say")).toContainText("menos movimento");
+  await expect(canvas(page)).toHaveCount(0);
 });
