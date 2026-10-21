@@ -50,6 +50,11 @@
   datada: itens 4, 8 e 11. Duas delas, ambas no item 11, estão decididas
   e ainda não construídas; uma, no item 8, estava sendo construída naquela
   noite.
+  2026-10-21 — os itens 4 ("links que qualquer um abre: agora não") e 17
+  ("um documento só: não na primeira versão") são revisados pela
+  [0105](0105-read-links-without-an-account.md), Aceita naquele dia: um link
+  de leitura sem conta numa pasta ou numa nota, desligado num servidor novo;
+  compartilhar uma nota **para escrever** fica como o item 17 o deixou.
 
 ## Contexto
 

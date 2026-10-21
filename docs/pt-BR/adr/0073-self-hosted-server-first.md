@@ -223,6 +223,9 @@
   proxies de verdade, ou `none`, para fechar isso. Serve em casa, não num
   Wi-Fi público. O HTTPS continua o que o manual recomenda, como passo posterior e
   opcional. O texto antigo do item 6 fica acima, marcado.
+  2026-10-21 — seis `[ABERTO]` do Status respondidos pelas marcas do
+  mantenedor no questionário de decisões de 2026-10-20 (respondido em
+  2026-10-21), todas como recomendadas; cada uma está escrita sob o Status.
 
 ## Contexto
 
@@ -684,3 +687,20 @@ critérios que mandariam o iPad do navegador para um app nativo; como um
 custo seria repassado se um dia existir armazenamento nosso; e, das
 Consequências, "este app é um servidor" atualizando pelo
 [0055](0055-in-app-updater.md) com celulares conectados.
+
+Respondidos em 2026-10-21 (`[DECIDIDO 2026-10-21]`, as marcas do
+mantenedor, todas opção A): **permissão mais fina que a pasta** (0073.perm)
+— só **leitura** por nota, pelo link de leitura de uma nota
+([0105](0105-read-links-without-an-account.md) item 2); escrita por nota só
+se alguém pedir (fica com o item 17 da
+[0081](0081-sharing-between-people-on-one-universo.md)); **criptografia
+ponta a ponta opcional** (0073.e2e) — depois da V1, o momento decidido em
+2026-10-14; **o transporte e a autorização do MCP pela rede** (0073.mcp) —
+depois da V1, o MCP local por stdio segue funcionando; **a URL
+pré-assinada do item 4 contra a regra 4** (0073.bucket) — decidido quando o
+modo bucket for construído, depois da V1, com o desenho na mão; **os
+critérios para o iPad passar do navegador a um app nativo** (0073.ipad) —
+adiados, fica no navegador até haver uma queixa concreta; **repassar um
+custo se um dia existir armazenamento nosso** (0073.custo) — fora do
+escopo, como a ADR já condiciona a haver empresa, meio de pagamento e nota
+fiscal.

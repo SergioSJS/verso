@@ -755,7 +755,8 @@ Fase 2); se as **descrições das ferramentas** que o modelo lê são bilíngues
 só em inglês enquanto as mensagens da CLI ao usuário são as duas
 ([ADR 0035](../adr/0035-cross-cutting-requirements.md) diz "nenhum literal de
 string solto" para mensagens ao usuário, e descrição de ferramenta é lida por
-um modelo, não pelo usuário — `[OPEN]`, quem decide é o mantenedor); a
+um modelo, não pelo usuário — `[DECIDED 2026-10-21]`, só inglês, a marca do
+mantenedor em 0045.lang); a
 desambiguação entre `verso <pasta>` e um subcomando, que agora ganha um quarto
 subcomando ([ADR 0042](../adr/0042-open-from-command-line.md)); o código de
 saída de um servidor feito para rodar até o cliente fechar o stdin, contra o

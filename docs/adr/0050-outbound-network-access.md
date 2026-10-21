@@ -92,6 +92,8 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
   before the setting existed and as Obsidian loads remote images. The
   maintainer asked for the setting without naming a default; the default is
   the author's, and the maintainer may choose off.
+  `[DECIDED 2026-10-21]` (the maintainer's mark, option A): **on**, as it is;
+  the same as Obsidian, and turning it off is a click in Settings.
 
 ## Discarded alternatives
 

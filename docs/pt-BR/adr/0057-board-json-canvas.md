@@ -136,8 +136,12 @@ decididos pelo mantenedor em 2026-10-01 (ponto 18).
       Downloads, ou copiado. As cópias como PNG ou SVG do próprio Excalidraw
       ficam escondidas.
     - **Incorporação web** fica escondida: o board desenha só os seus
-      cartões, e a ferramenta terminava num erro. Incorporar uma página num
-      board não está decidido.
+      cartões, e a ferramenta terminava num erro. `[DECIDIDO 2026-10-21]` (a
+      marca do mantenedor, **opção B**, não a A recomendada): uma página web
+      embutida **é permitida como cartão de board**, reaproveitando a
+      [0056](0056-embedded-web-pages.md) (a página carrega no seu frame, de
+      uma origem que a pessoa aprovou); mais um tipo de cartão. Até ser
+      construída a ferramenta continua escondida.
     - **Fundo.** A cor de fundo de um board fica no arquivo, em
       `verso.background`; nenhuma quer dizer o papel do app.
     - **A cor de um cartão.** O fundo escolhido para um cartão no painel do

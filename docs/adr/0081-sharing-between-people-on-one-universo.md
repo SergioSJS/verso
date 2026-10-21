@@ -49,6 +49,11 @@
   the building raised (Status), each recorded in its item, dated: items
   4, 8 and 11. Two of them, both in item 11, are decided and not built
   yet; one, in item 8, was being built that night.
+  2026-10-21 — items 4 ("links anyone may open: not now") and 17 ("a single
+  document: not in the first version") are revised by
+  [0105](0105-read-links-without-an-account.md), Accepted that day: a read
+  link without an account on a folder or on one note, off on a new server;
+  sharing one note **to write** stays as item 17 left it.
 
 ## Context
 
