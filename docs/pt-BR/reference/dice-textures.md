@@ -30,7 +30,7 @@ dado (`thecage.png`, `isabelle.png`) e os mapas de relevo.
 Dezenove imagens, uma por textura menos "Lisa", copiadas sem mudança para
 `app/ui/dice-textures/` e para `dist/dice-textures/` pela build, guardadas para
 uso sem conexão pelo service worker. Valem sempre que uma textura é escolhida
-em Ajustes › Recursos › "Dados 3D: textura".
+em Ajustes › RPG & Mesa Solo › Dados e RPG › "Dados 3D: textura".
 
 | Arquivo | SHA-256 |
 |---|---|
