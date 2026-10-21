@@ -236,4 +236,20 @@ a caixa (0106.8, B); sempre o diagrama ou sempre o texto (0106.9, B e C).
 ## Situação
 
 Aceita (2026-10-21). Itens 1 a 3 nas palavras do mantenedor de 2026-10-20,
-os demais pelas marcas dele de 2026-10-21. Nada está construído.
+os demais pelas marcas dele de 2026-10-21.
+
+Como construído em 2026-10-21, em `feat/rpg-tools` (não enviada, não
+lançada): `2db25eb7` (o modelo, os analisadores, o layout de árvore
+compacta, o estado e a busca), `96ed0e2d` (o interruptor em Ajustes >
+Recursos), `71e77390` e `be77ad76` (a vista, a aba, o interruptor
+Texto | Diagrama, "Ver como diagrama" num bloco de código), `2be226ea`
+(testes de ponta a ponta), `558b6659` (a nota do tutorial, amostras,
+créditos, changelog), `34aaba1b` (uma passada de revisão contra esta ADR),
+`f60c59b0` e `d71b5dc8` (pedaço carregado sob demanda, interruptor ao
+vivo); integrada por `59a2e894` e `2ebbbfc4`.
+
+Nota de como construído, **não uma decisão do mantenedor**: o código também
+lê **TSV** (um CSV com tabulações) como CSV com tabulações, um oitavo
+formato ao lado dos sete do item 3 (`app/ui/src/datagraph/parse.ts`; o
+commit `2db25eb7` diz "eight formats"). Ninguém decidiu isso; fica
+registrado aqui para ser confirmado ou retirado.

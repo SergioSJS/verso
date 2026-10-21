@@ -791,3 +791,11 @@ The roadmap's V.20 row ([`docs/roadmap.md`](../roadmap.md)) is "decided
 2026-10-09; not built" and stays in V1, wave C
 (`[DECIDED 2026-10-14]`). To be read by the other model before it is
 accepted. Nothing was built or run to write it.
+
+**Correction, 2026-10-21** (the review of the batch, M11): the paragraph above
+was written on 2026-10-15, before the build. The feature is built: see *As
+built* above, `feat/local-server-build` merged by `404ba0d4` (2026-10-15),
+the server on Windows by `273fc25c`, the folders served as a tree by
+`7550a68a`; the roadmap's V.20 row says built 2026-10-15 (macOS and Linux,
+Windows after, item 17 (a)). The "Not built" in the paragraph and in the
+index row was true when written and is no longer.

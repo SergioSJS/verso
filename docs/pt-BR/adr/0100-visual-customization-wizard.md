@@ -163,4 +163,10 @@ são registradas):
 ## Status
 
 Aceita (2026-10-21), a reescrita sobre os tokens reais com as respostas do
-mantenedor a 0100.0–0100.6. Nada está construído.
+mantenedor a 0100.0–0100.6.
+
+Como construído em 2026-10-21, em `feat/rpg-tools` (não enviada, não
+lançada): `f41fb433` (a matemática de cores, os arquivos de tema e os
+perfis) e `6b3ec1fa` (o painel Personalizar aparência em Ajustes), com
+`9e97507d` (a pasta sugere um tema no seu arquivo de configurações) e
+`55cf1ecf` (o tutorial e o changelog); integrada por `203b8989`.
