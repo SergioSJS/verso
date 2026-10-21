@@ -64,6 +64,7 @@ test release.
 
 ### Fixed
 
+- **Numbers on the 3D dice are centred on their faces**: each number sits in the middle of its face, drawn by its own ink instead of its text box, upright the way real dice print it (a corner up on triangles and pentagons, an edge on the d6, the sharp tip on the d10), sized to fit inside the face with a margin, and the dot of a 6 or a 9 goes below the digit without pushing it off centre; the d4 numbers stand toward their corners.
 - **Settings › Servers no longer moves under your pointer**: the network search's sentence grew from one line to four 0.3 s after the page opened, pushing the computer-name form (and its Save button) down as it was clicked, so the click could miss. The sentence now has its room from the start.
 - **A data file on a board no longer draws an empty box**: a `.json` file card (and `.yaml`, `.csv`…) was an empty box. It shows its text now (see Added). Any other file with no body of its own on a card — a sound, an `.html`, another board, a base — shows its extension and says to open it, instead of nothing.
 - **Small fixes in the window**: an imported theme that could not be kept because the profile list is full now says so instead of "imported"; attached or imported files lose a trailing dot or space and get an underscore when their name is one Windows reserves (`con`, `nul`, `com1`…); a data diagram too large for the browser's storage no longer stops every diagram from remembering its moved boxes.

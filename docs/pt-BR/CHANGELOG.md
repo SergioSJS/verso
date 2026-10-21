@@ -64,6 +64,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Os números dos dados 3D ficam no centro de cada face**: cada número fica no meio da face, centrado pela tinta do próprio desenho e não pela caixa do texto, em pé como nos dados de verdade (uma ponta para cima nos triângulos e pentágonos, uma aresta no d6, a ponta afiada no d10), com tamanho que cabe dentro da face com folga, e o ponto do 6 e do 9 vai abaixo do dígito sem empurrá-lo do centro; os números do d4 ficam voltados para os seus cantos.
 - **Ajustes › Servidores deixa de se mover sob o ponteiro**: a frase da busca na rede passava de uma linha para quatro 0,3 s depois de a página abrir, empurrando para baixo o formulário do nome do computador (e o botão Salvar) no meio do clique, que podia errar. A frase agora já tem seu espaço desde o começo.
 - **Um arquivo de dados no board não desenha mais uma caixa vazia**: o cartão de um arquivo `.json` (e `.yaml`, `.csv`…) era uma caixa vazia. Agora mostra o texto (veja Acrescentado). Qualquer outro arquivo sem corpo próprio num cartão — um som, um `.html`, outro board, uma base — mostra a extensão e diz para abri-lo, em vez de nada.
 - **Pequenos ajustes na janela**: um tema importado que não coube porque a lista de perfis está cheia agora diz isso em vez de "importado"; arquivos anexados ou importados perdem ponto ou espaço final e ganham um sublinhado quando o nome é um que o Windows reserva (`con`, `nul`, `com1`…); um diagrama de dados grande demais para o armazenamento do navegador não impede mais todos os diagramas de lembrar as caixas movidas.
