@@ -673,7 +673,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    nenhum.
    Nível: H; E: `settings.spec.mjs`, as seções e a Aparência;
    `dark-tone.spec.mjs`, toda paleta e tom em 4,5:1 ou mais;
-   `ribbon.spec.mjs`, um botão oculto trazido de volta.
+   `ribbon.spec.mjs`, um botão oculto trazido de volta. A *Personalizar
+   aparência* da Aparência (ADR 0100): uma cor digitada muda o exemplo e a
+   janela na hora, uma de pouco contraste avisa, uma abaixo de 3:1 é
+   desfeita com uma mensagem, *Restaurar padrão* devolve tudo pelo
+   teclado; um visual salvo como perfil, exportado e importado de volta
+   (o botão, ou o arquivo solto na janela) como era;
+   `assets/temas/Pergaminho.verso-theme` se aplica; um arquivo hostil é
+   recusado com o motivo; o tema que a pasta sugere é oferecido e nunca
+   aplicado sozinho. Nível: H, A (o salvamento real do arquivo: o
+   download do host); E: `appearance-wizard.spec.mjs`.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
 3. A linha de comando na pasta: `verso search <pasta> reunião`;
