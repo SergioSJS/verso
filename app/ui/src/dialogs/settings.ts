@@ -588,8 +588,10 @@ export class SettingsDialog {
       i.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(i.value) || 1.5); saveSettings(); });
       return i;
     });
-    add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
-    add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }));
+    add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }), lookWords.gallery.title);
+    add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }), lookWords.gallery.title);
+    // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
+    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, group: lookWords.gallery.title, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); } }) });
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
       // Up to twice the default (15 px): the window has no page zoom, so
       // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
@@ -600,10 +602,8 @@ export class SettingsDialog {
       // The appearance wizard may change the size (a profile, a theme).
       addEventListener(LOOK_EVENT, () => { if (r.isConnected) { r.value = String(settings.fontSize); r.setAttribute("aria-valuetext", `${r.value} px`); } });
       return r;
-    });
-    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
-    // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
-    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); } }) });
+    }, lookWords.gallery.textGroup);
+    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }), lookWords.gallery.textGroup);
     add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
       ["sans", t.fontSans],
       ["serif", t.fontEditorial],
