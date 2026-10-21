@@ -336,3 +336,32 @@ fn a_file_is_asked_for_by_itself_and_a_folder_that_is_gone_is_an_error() {
     dav.remove_folder();
     assert_eq!(w.list(None).unwrap_err().kind, RemoteErrorKind::NotFound);
 }
+
+#[test]
+fn a_write_answers_with_the_version_it_made_not_the_one_that_landed_after_it() {
+    let dav = Dav::start(mode());
+    let w = connect(&dav);
+    // Another device's write, made against our version, lands before our
+    // next request, with as many bytes as ours.
+    dav.after("PUT", "a.md", b"ou");
+    let written = put(&w, "a.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(dav.get("a.md").unwrap(), b"ou");
+    let ours = dav.writes().into_iter().rev().nth(1).unwrap().etag;
+    assert_eq!(written.version, ours);
+    assert_ne!(written.version, version_of(&w, "a.md"));
+}
+
+#[test]
+fn with_no_etag_on_the_put_a_stat_never_gives_our_bytes_another_devices_version() {
+    let dav = Dav::start(DavMode {
+        no_put_etag: true,
+        ..mode()
+    });
+    let w = connect(&dav);
+    dav.after("PUT", "a.md", b"ou");
+    let e = put(&w, "a.md", &Condition::Absent, b"um").unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Changed, "{e}");
+    // Nothing landed: the version is the one the read-back saw.
+    let written = put(&w, "b.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(written.version, version_of(&w, "b.md"));
+}

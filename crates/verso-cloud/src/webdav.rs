@@ -17,8 +17,8 @@ use std::sync::Mutex;
 use reqwest::Url;
 use reqwest::blocking::Response;
 use verso_core::sync::remote::{
-    Change, Condition, Entry, Listing, Meta, Read, Remote, RemoteError, RemoteErrorKind, Result,
-    Sink, Source, Written,
+    Change, Condition, Entry, HashingSink, Listing, Meta, Read, Remote, RemoteError,
+    RemoteErrorKind, Result, Sink, Source, Written,
 };
 
 use crate::http::{Http, check_transport};
@@ -229,33 +229,67 @@ impl WebDav {
         !etag.trim().is_empty() && !etag.trim_start().starts_with("W/")
     }
 
-    /// The version a file left on the server by a write has: the answer's
-    /// ETag, or, when it gave none, what `PROPFIND` says; the size checked
-    /// against the bytes sent (ADR 0104 item 11).
-    fn landed(&self, response: &Response, path: &str, size: u64) -> Result<String> {
+    /// The version a file left on the server by a write has (ADR 0104 item
+    /// 11, and never another device's).
+    ///
+    /// The answer's ETag is the version our write made. When a `PROPFIND`
+    /// afterwards shows another, a later write of another device (made
+    /// against ours) landed in between: ours is answered still, so the
+    /// next listing shows a version the host has not seen and the file is
+    /// fingerprinted. When the answer gave none, a stat could only guess,
+    /// and might attribute a later version to our bytes: the file is read
+    /// back instead, and its hash must be the hash sent; the ETag of that
+    /// very read is the version. A different hash is a change.
+    fn landed(&self, response: &Response, path: &str, meta: &Meta) -> Result<String> {
         let sent = response
             .headers()
             .get("etag")
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
-        let there = self.stat(path)?.ok_or_else(|| {
-            RemoteError::new(
-                RemoteErrorKind::Failed,
-                "the file is not on the server after it was sent",
-            )
-        })?;
-        if there.size.is_some_and(|s| s != size) {
-            return Err(RemoteError::new(
-                RemoteErrorKind::Failed,
-                "the server kept a different number of bytes than were sent",
-            ));
-        }
-        let version = sent.or(there.etag).ok_or_else(|| {
-            RemoteError::new(
-                RemoteErrorKind::Refused,
-                "the server gives no ETag for the file it just kept",
-            )
-        })?;
+        let version = match sent {
+            Some(sent) => {
+                let there = self.stat(path)?.ok_or_else(|| {
+                    RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the file is not on the server after it was sent",
+                    )
+                })?;
+                let ours = there.etag.as_deref().is_none_or(|e| same_etag(e, &sent));
+                if ours && there.size.is_some_and(|s| s != meta.size) {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the server kept a different number of bytes than were sent",
+                    ));
+                }
+                sent
+            }
+            None => {
+                let mut sink = HashingSink::default();
+                let read = self.read(path, &mut sink).map_err(|e| {
+                    if e.kind == RemoteErrorKind::NotFound {
+                        RemoteError::new(
+                            RemoteErrorKind::Failed,
+                            "the file is not on the server after it was sent",
+                        )
+                    } else {
+                        e
+                    }
+                })?;
+                if read.size != meta.size {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Failed,
+                        "the server kept a different number of bytes than were sent",
+                    ));
+                }
+                if sink.finish() != meta.hash {
+                    return Err(RemoteError::new(
+                        RemoteErrorKind::Changed,
+                        "the file on the server changed while it was being sent",
+                    ));
+                }
+                read.version
+            }
+        };
         if !Self::strong(&version) {
             return Err(RemoteError::new(
                 RemoteErrorKind::Refused,
@@ -410,6 +444,18 @@ impl WebDav {
     }
 }
 
+/// Whether two ETags name the same version, whatever quotes the answers
+/// put on them.
+fn same_etag(a: &str, b: &str) -> bool {
+    let bare = |e: &str| {
+        e.trim()
+            .trim_start_matches("W/")
+            .trim_matches('"')
+            .to_owned()
+    };
+    bare(a) == bare(b)
+}
+
 /// The body of an answer as text, no more than the listing's cap.
 fn capped_text(response: Response) -> Result<String> {
     let mut text = Vec::new();
@@ -561,7 +607,7 @@ impl Remote for WebDav {
             })?;
             match response.status().as_u16() {
                 200 | 201 | 204 => {
-                    let version = self.landed(&response, &path, meta.size)?;
+                    let version = self.landed(&response, &path, meta)?;
                     return Ok(Written { path, version });
                 }
                 412 => {

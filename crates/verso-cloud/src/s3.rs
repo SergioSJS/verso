@@ -951,6 +951,18 @@ impl S3 {
     }
 }
 
+/// Whether two ETags name the same version, whatever quotes the answers
+/// put on them.
+fn same_etag(a: &str, b: &str) -> bool {
+    let bare = |e: &str| {
+        e.trim()
+            .trim_start_matches("W/")
+            .trim_matches('"')
+            .to_owned()
+    };
+    bare(a) == bare(b)
+}
+
 /// What a `HEAD` found.
 struct Head {
     etag: String,
@@ -1097,7 +1109,14 @@ impl Remote for S3 {
                 "the file is not in the bucket after it was sent",
             )
         })?;
-        if there.size != meta.size {
+        // The version answered is always the one our own write made, never
+        // the `HEAD`'s: when they differ, another device's write (made
+        // against the version ours created) landed in between, and
+        // recording its ETag for our bytes would hide it for ever. With
+        // ours, the next listing shows a different version, so the file is
+        // fingerprinted and compared, and nothing is overwritten unseen.
+        // The size says nothing then: the file is not ours any more.
+        if same_etag(&there.etag, &etag) && there.size != meta.size {
             return Err(RemoteError::new(
                 RemoteErrorKind::Failed,
                 "the service kept a different number of bytes than were sent",
@@ -1105,7 +1124,7 @@ impl Remote for S3 {
         }
         Ok(Written {
             path,
-            version: if there.etag == etag { etag } else { there.etag },
+            version: etag,
         })
     }
 
