@@ -98,3 +98,87 @@ test("a picture's right click is Verso's menu: open, download, copy, reveal — 
   await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: /^Mostrar no / }).click();
   await expect.poll(() => app.calls("reveal")).toEqual([{ path: "assets/diagrama.svg" }]);
 });
+
+// A file's menu is grouped (2026-10-21): the often-used actions stay in
+// the first list, the rest sits in submenus that open by hover, by → /
+// Enter and by a tap, and close by ← / Esc.
+const topRows = (page) => page.locator(".menu:not([hidden]) > li:not(.menu-sep) > button");
+
+async function openFileMenu(app, page) {
+  await app.open();
+  const row = page.locator("#notes li[data-path] > button").first();
+  const path = await row.locator("xpath=..").getAttribute("data-path");
+  await row.click({ button: "right" });
+  await expect(page.locator(".menu:not([hidden])")).toBeVisible();
+  return path;
+}
+
+test("a file's menu is short, its groups are submenus", async ({ app, page }) => {
+  await openFileMenu(app, page);
+  const n = await topRows(page).count();
+  expect(n, "top-level rows").toBeLessThanOrEqual(14);
+  for (const group of ["Personalizar", "Organizar", "Novo"]) {
+    const b = page.getByRole("menuitem", { name: group, exact: true });
+    await expect(b).toHaveAttribute("aria-haspopup", "menu");
+    await expect(b).toHaveAttribute("aria-expanded", "false");
+  }
+  // What was loose before is now inside a group, not in the first list.
+  for (const gone of ["Alterar cor…", "Mover para cima", "Criar foco aqui", "Nova pasta", "Importar cofre de exemplo"]) {
+    await expect(page.getByRole("menuitem", { name: gone })).toHaveCount(0);
+  }
+  await expect(page.getByRole("menuitem", { name: "Renomear" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Mover para a lixeira" })).toBeVisible();
+});
+
+test("a submenu opens by hover and closes by Esc and by the left arrow", async ({ app, page }) => {
+  await openFileMenu(app, page);
+  const parent = page.getByRole("menuitem", { name: "Novo", exact: true });
+  await parent.hover();
+  await expect(parent).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("menuitem", { name: "Nova pasta" })).toBeVisible();
+  // Moving to another group swaps the submenu.
+  await page.getByRole("menuitem", { name: "Organizar", exact: true }).hover();
+  await expect(page.getByRole("menuitem", { name: "Nova pasta" })).toBeHidden();
+  await expect(page.getByRole("menuitem", { name: "Ocultar da árvore" })).toBeVisible();
+  // Enter on it: the keyboard path, the first item focused.
+  await page.getByRole("menuitem", { name: "Novo", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("menuitem", { name: "Nova nota nesta pasta" })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("menuitem", { name: "Nova pasta" })).toBeHidden();
+  await expect(page.getByRole("menuitem", { name: "Novo", exact: true })).toBeFocused();
+  await expect(page.locator(".menu:not([hidden])")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "Nova nota nesta pasta" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menuitem", { name: "Nova pasta" })).toBeHidden();
+  await expect(page.getByRole("menuitem", { name: "Novo", exact: true })).toBeFocused();
+  // A second Esc closes the menu itself.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".menu:not([hidden])")).toHaveCount(0);
+});
+
+test("an action inside a submenu runs and closes the menu", async ({ app, page }) => {
+  const path = await openFileMenu(app, page);
+  await page.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Ocultar da árvore" }).click();
+  await expect(page.locator(".menu:not([hidden])")).toHaveCount(0);
+  await expect(page.locator(`#notes li[data-path="${path}"]`)).toHaveCount(0);
+});
+
+test("a submenu stays on the screen near the right edge", async ({ app, page }) => {
+  await app.open();
+  const row = page.locator("#notes li[data-path] > button").first();
+  const box = await row.boundingBox();
+  const vw = page.viewportSize().width;
+  await row.click({ button: "right", position: { x: Math.min(box.width - 4, 40), y: 8 } });
+  // Put the menu against the right edge, then open a group.
+  await page.evaluate(() => {
+    const m = document.querySelector(".menu:not([hidden])");
+    m.style.left = `${window.innerWidth - m.offsetWidth - 8}px`;
+  });
+  await page.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  const sub = await page.locator(".menu-sub:not([hidden])").boundingBox();
+  expect(sub.x).toBeGreaterThanOrEqual(0);
+  expect(sub.x + sub.width).toBeLessThanOrEqual(vw);
+});

@@ -23,6 +23,8 @@ test("on a server: a browser's tab for a window, the note's address for its path
   await app.open("?side=server");
   const menu = page.locator(".menu:not([hidden])");
   await row(page, NOTE).click({ button: "right" });
+  // The location group: here no window, the address instead of a path.
+  await menu.getByRole("menuitem", { name: "Janela e localização", exact: true }).click();
   await expect(menu.getByRole("menuitem", { name: "Copiar caminho relativo" })).toBeVisible();
   for (const gone of ["Mostrar no Finder", "Abrir em nova janela", "Copiar caminho completo"]) await expect(menu.getByRole("menuitem", { name: gone })).toHaveCount(0);
   await expect(menu.getByRole("menuitem", { name: "Abrir numa nova aba do navegador" })).toBeVisible();
@@ -78,6 +80,7 @@ test("a reader only reads: the editor, the tree's menus, the ribbon and the pale
   await expect(page.locator('.ribbon-item[data-id="new"]')).toHaveCount(0);
   const menu = page.locator(".menu:not([hidden])");
   await row(page, NOTE).click({ button: "right" });
+  await menu.getByRole("menuitem", { name: "Janela e localização", exact: true }).click();
   await expect(menu.getByRole("menuitem", { name: "Copiar caminho relativo" })).toBeVisible();
   for (const gone of ["Renomear", "Apagar", "Duplicar", "Nova nota nesta pasta", "Mover para…"]) await expect(menu.getByRole("menuitem", { name: gone })).toHaveCount(0);
   await page.keyboard.press("Escape");

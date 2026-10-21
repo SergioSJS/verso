@@ -25,6 +25,10 @@ test release.
 - **Credits and acknowledgements**: *Settings › App › Credits and acknowledgements* names the people and works Verso draws from, shows the notices each shipped game-system layout requires (quoted as their sources give them) and lists the main open-source libraries with their licences.
 - **The tutorial's sheets note, split in two**: note 26 *Fichas* now shows one working statblock card for each built-in layout (character and adversary, system by system) and how to use and edit them; the oracle, the random tables, the project wizard and the feature switches moved to the new note 27 *Oráculos e Criação de Mundos*. The old note 26 is moved to the trash on the next import if you never edited it.
 
+### Changed
+
+- **The right-click menu of a file or folder is short, with groups**: it had about thirty loose rows. Now the first list keeps *Open*, *Open in new tab*, *Open to the side*, *Relations*, *Version history*, *Rename*, *Move to…*, *Duplicate* and *Move to the bin*, and the rest sits in submenus: *Customize* (sticker, colour), *Organize* (select, pin, move up and down, hide from tree, turn into folder, create or add to a focus), *Window and location* (open in a new window, show in the file manager, copy the path) and *New*. A submenu opens by hover (moving diagonally towards it does not close it), by a click or tap, or by `→` or `Enter`; `←` or `Esc` goes back to its row. *Import the sample vault* left the file menu: it is in the empty space of the tree and in the command palette.
+
 ### Fixed
 
 - **A task's checkbox sits in the middle of its line again in the Mac and Linux windows**: on a bold or long line it sat low, while a browser showed it centred. The box is now drawn by Verso the same way everywhere, in reading and in Edit mode.

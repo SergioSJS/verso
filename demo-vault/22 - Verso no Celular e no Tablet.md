@@ -36,7 +36,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 - **Segurar e soltar** é o clique direito: abre o menu de uma linha da árvore, de uma aba ou de um cartão.
 - **Segurar e arrastar** move: uma nota para outra pasta, uma aba, um cartão do kanban. Arrastar sem segurar antes só rola a lista.
 - **Nada só por gesto**: a linha da árvore em foco tem um botão **…** ao lado com o mesmo menu, e cada cartão do kanban tem o seu.
-- **Selecionar** no menu de uma linha transforma a árvore numa seleção: uma caixa em cada linha e uma barra com **Mover para…**, **Copiar caminhos**, **Apagar** e **Concluir**.
+- **Organizar › Selecionar** no menu de uma linha transforma a árvore numa seleção: uma caixa em cada linha e uma barra com **Mover para…**, **Copiar caminhos**, **Apagar** e **Concluir**.
 - **Manter aberta**, no menu de uma aba, guarda uma aba de pré-visualização, e **Abrir**, no menu de uma nota, abre sem pré-visualização — o que o duplo clique faz no computador.
 
 ---

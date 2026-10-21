@@ -25,6 +25,10 @@ versão de teste.
 - **Créditos e agradecimentos**: *Ajustes › Aplicação › Créditos e agradecimentos* nomeia as pessoas e obras de que o Verso parte, mostra os avisos que cada layout de sistema de jogo incluído exige (citados como as fontes os dão) e lista as principais bibliotecas livres com suas licenças.
 - **A nota de fichas do tutorial, dividida em duas**: a nota 26 *Fichas* agora mostra um cartão de ficha funcionando para cada layout embutido (personagem e adversário, sistema por sistema) e como usá-los e editá-los; o oráculo, as tabelas sorteadas, o assistente de projeto e as chaves dos recursos foram para a nova nota 27 *Oráculos e Criação de Mundos*. A antiga nota 26 vai para a lixeira na próxima importação, se você nunca a editou.
 
+### Alterado
+
+- **O menu do botão direito de um arquivo ou pasta ficou curto, com grupos**: tinha umas trinta linhas soltas. Agora a primeira lista guarda *Abrir*, *Abrir em nova aba*, *Abrir ao lado*, *Relações*, *Histórico de versões*, *Renomear*, *Mover para…*, *Duplicar* e *Mover para a lixeira*, e o resto está em submenus: *Personalizar* (figurinha, cor), *Organizar* (selecionar, fixar, mover para cima e para baixo, ocultar da árvore, transformar em pasta, criar ou adicionar a um foco), *Janela e localização* (abrir em nova janela, mostrar no gerenciador de arquivos, copiar o caminho) e *Novo*. Um submenu abre com o mouse por cima (ir na diagonal até ele não o fecha), com clique ou toque, ou com `→` ou `Enter`; `←` ou `Esc` volta para a linha dele. *Importar cofre de exemplo* saiu do menu de um arquivo: está no espaço vazio da árvore e na paleta de comandos.
+
 ### Corrigido
 
 - **A caixa de uma tarefa volta a ficar no meio da linha nas janelas do Mac e do Linux**: numa linha em negrito ou longa ela ficava baixa, enquanto o navegador a mostrava centrada. A caixa agora é desenhada pelo Verso do mesmo jeito em todo lugar, no modo Leitura e no modo Edição.
