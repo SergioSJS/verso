@@ -63,7 +63,7 @@ import { Bin } from "./trash";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
-import { applyOracle, checkOracle, FolderData, oracleProblems, readOracle, writeGuard } from "./folderData";
+import { applyOracle, applyTheme, checkOracle, FolderData, oracleProblems, readOracle, readTheme, writeGuard } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { projectSecrets } from "./secret";
 import { unlinkedMentions } from "./mentions";
@@ -363,7 +363,7 @@ export class Core {
    *  items 1–2), as the core reads it. */
   private folderLayer(): FolderLayer {
     const stored = this.files.get(SETTINGS_FILE);
-    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null };
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null, recommended_theme: null };
     if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
     const revision = String(stored.revision);
     let obj: unknown;
@@ -386,6 +386,7 @@ export class Core {
         respect_gitignore: bool(o["respectGitignore"]),
         periodic: readPeriodic(o),
         oracle: readOracle(o),
+        recommended_theme: readTheme(o),
       },
       warnings: oracleProblems(o),
     };
@@ -416,6 +417,7 @@ export class Core {
     if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
     if (change.periodic) applyPeriodic(obj, change.periodic);
     if (change.oracle) applyOracle(obj, change.oracle);
+    applyTheme(obj, change.recommended_theme);
     this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sortedDeep(obj), null, 2)}\n`));
     return this.folderLayer();
   }

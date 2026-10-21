@@ -1580,6 +1580,12 @@ export type FolderSettings = {
 	periodic: PeriodicSettings | null,
 	/**  The oracle's odds and spark words (ADR 0102 item 2). */
 	oracle: OracleSettings | null,
+	/**
+	 *  The theme the folder suggests (ADR 0100 item 4): the JSON text of
+	 *  one object, at most 16 KiB; an empty text takes the suggestion away.
+	 *  The window checks its tokens.
+	 */
+	recommended_theme: string | null,
 };
 
 /**

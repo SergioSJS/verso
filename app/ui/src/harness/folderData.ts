@@ -226,3 +226,26 @@ export function applyOracle(file: Record<string, unknown>, change: OracleSetting
   if (Object.keys(o).length === 0) delete file["oracle"];
   else file["oracle"] = o;
 }
+
+/** The theme a folder suggests (ADR 0100 item 4), as the core reads it: the JSON text of the object under `recommendedTheme`. */
+export function readTheme(o: Record<string, unknown>): string | null {
+  const v = o["recommendedTheme"];
+  return v !== null && typeof v === "object" && !Array.isArray(v) ? JSON.stringify(v) : null;
+}
+
+/** A change of the suggestion, as the core applies it: "" takes it away, else one JSON object of at most 16 KiB. */
+export function applyTheme(obj: Record<string, unknown>, text: string | null | undefined): void {
+  if (text === null || text === undefined) return;
+  if (text === "") {
+    delete obj["recommendedTheme"];
+    return;
+  }
+  let value: unknown = null;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    // Refused below.
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value) || text.length > 16 * 1024) refuse("refused", "a suggested theme is one JSON object of at most 16384 bytes");
+  obj["recommendedTheme"] = value;
+}

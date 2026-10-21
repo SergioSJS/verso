@@ -179,6 +179,10 @@ pub struct FolderSettings {
     pub periodic: Option<PeriodicSettings>,
     /// The oracle's odds and spark words (ADR 0102 item 2).
     pub oracle: Option<OracleSettings>,
+    /// The theme the folder suggests (ADR 0100 item 4): the JSON text of
+    /// one object, at most 16 KiB; an empty text takes the suggestion away.
+    /// The window checks its tokens.
+    pub recommended_theme: Option<String>,
 }
 
 /// The folder's layer of settings as read now (ADR 0070 items 1–2).
