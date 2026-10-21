@@ -234,6 +234,38 @@ export function withPage(node: CanvasNode, on: boolean): CanvasNode {
   return out;
 }
 
+/** How a data file's card shows the file (ADR 0057 point 10, ADR 0106): its
+ *  text, or its data diagram. Kept on the node under `verso.view`; the text,
+ *  the default, is not written, and any other value reads as the text. */
+export type CardView = "text" | "diagram";
+export function cardView(node: CanvasNode): CardView {
+  const v = isRecord(node["verso"]) ? node["verso"]["view"] : undefined;
+  return v === "diagram" ? "diagram" : "text";
+}
+
+/** The node showing its file as `view`; `verso`'s other keys kept. */
+export function withView(node: CanvasNode, view: CardView): CanvasNode {
+  const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+  put(verso, "view", view === "diagram" ? "diagram" : undefined);
+  const out: CanvasNode = { ...node };
+  put(out, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+  return out;
+}
+
+/** A text card shows at most this many characters of its file; past it, an
+ *  ellipsis (the diagram reads the whole file, within its own limits). */
+export const CARD_TEXT_MAX = 64 * 1024;
+
+/** `text` cut to what a card shows, and whether it was cut. */
+export function cardText(text: string): { shown: string; cut: boolean } {
+  if (text.length <= CARD_TEXT_MAX) return { shown: text, cut: false };
+  // Not in the middle of a surrogate pair.
+  let end = CARD_TEXT_MAX;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end--;
+  return { shown: text.slice(0, end), cut: true };
+}
+
 /** The origin an address is on, or null when it names no web page. */
 export function pageOrigin(url: string): string | null {
   try {

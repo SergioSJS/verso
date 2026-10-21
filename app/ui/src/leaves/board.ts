@@ -54,6 +54,7 @@ import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
 import { fromDisk, lineSeparator, readOnlyText } from "./text";
 import { TextLeaf } from "./textfile";
+import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
@@ -230,7 +231,13 @@ export class BoardLeaf extends TextLeaf {
       settled: () => {
         if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
       },
-      openFile: (path, aside) => void openNote(listed(path), aside),
+      openFile: (path, aside, view) => {
+        openData(listed(path), view);
+        void openNote(listed(path), aside);
+      },
+      fileText: (path) => fileText(listed(path)),
+      renderCode: (el, text, path) => renderCode(el, text, listed(path)),
+      data: dataHost(listed),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
         if (r.status === "ok") await drawCard(el, r.data.html, listed(path));

@@ -689,6 +689,26 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     WKWebView, WebView2 e WebKitGTK; os cabeçalhos reais de um site real);
     E: `board-web-card.spec.mjs`, `web-embed.spec.mjs`.
 
+14. Lição 15, um arquivo de dados num cartão (ADR 0057 ponto 10, ADR 0106,
+    ADR 0103): o cartão de `npcs-da-campanha.json` mostra o texto do arquivo,
+    nas cores do editor de fonte, rolável depois de entrar no cartão; nada
+    é uma caixa vazia (um som, um `.html`, um board ou uma base num cartão
+    diz o que é). "Texto | Diagrama" no cabeçalho troca para as caixas e
+    linhas; a escolha é `verso.view` no nó e sobrevive a fechar o board; o
+    arquivo de dados nunca é gravado. O diagrama só recebe o ponteiro
+    quando entrado ("Interagir com o diagrama"): arrastar o fundo o move e o
+    cartão fica; Esc, "Sair do diagrama" ou um clique fora devolvem ao
+    board. "Abrir" abre a aba do arquivo na vista que o cartão mostra. O
+    cartão segue o arquivo quando ele muda no disco. Um arquivo acima de
+    64 KB mostra os primeiros 64 KB e reticências; acima de 20 MB ou
+    200.000 caixas o diagrama diz o motivo e o texto aparece. Com "Diagrama
+    de dados" desligado o cartão é só texto e não tem alternador (o nó
+    guarda a vista). A exportação de imagem desenha o cartão como a caixa
+    dele com o nome e as primeiras linhas de texto. Um `.yaml` também tem as
+    duas vistas. Nível: H, A (o arrastar real no zoom do board, WKWebView,
+    WebView2 e WebKitGTK); E: `board-data-card.spec.mjs`; U:
+    `board.test.mjs` (a vista, o corte de 64 KB).
+
 ## 10. Ajustes, ajuda, a linha de comando
 
 1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal
