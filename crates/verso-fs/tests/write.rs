@@ -167,6 +167,31 @@ fn a_write_through_a_symlink_lands_on_the_target_and_keeps_the_link() {
     assert!(report.wrote_through_symlink_to.is_some());
 }
 
+/// The report names where the write landed as the disk spells it, not as
+/// the link wrote it (review M5). Only Windows respells; a symlink there
+/// may need a privilege the machine does not give, and then it is skipped.
+#[cfg(windows)]
+#[test]
+fn the_report_of_a_write_through_a_symlink_names_the_target_as_the_disk_spells_it() {
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("real.md"), "conteudo real").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    if std::os::windows::fs::symlink_file(
+        outside.path().join("REAL.md"),
+        dir.path().join("nota.md"),
+    )
+    .is_err()
+    {
+        return;
+    }
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let report = root.write(h, b"editado", &stamp).unwrap();
+    let landed = report.wrote_through_symlink_to.unwrap();
+    assert_eq!(landed.file_name().unwrap(), "real.md");
+}
+
 #[test]
 fn refuses_to_write_over_a_placeholder_and_read_reports_it_unavailable() {
     let dir = tempfile::tempdir().unwrap();
