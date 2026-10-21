@@ -338,9 +338,10 @@
   font-family: var(--ui);
   font-size: 0.92rem;
   color: var(--ink);
-  outline: none;
   cursor: pointer;
 }
+/* The keyboard's focus ring is the app's (base.css :focus-visible); the
+   border changing colour alone was all a keyboard user had. */
 .oracle-select:focus {
   border-color: var(--seal);
 }

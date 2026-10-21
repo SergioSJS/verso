@@ -39,6 +39,7 @@ test release.
 
 ### Fixed
 
+- **The oracle's table list shows the keyboard's focus ring**, as the rest of the window does, instead of only a border changing colour.
 - **A statblock in an embedded note is drawn as a card**: `![[Sheet]]` in Reading mode shows the sheet's card (read-only, with its own picture and layout) instead of its code block; edit the sheet in its own note.
 - **Vertical tabs list the tabs one under another and can be turned off**: the tab column now stacks the tabs one per row (icon, name, close), the pane's buttons sit at the top of the column so "Horizontal tabs" is always reachable with a tab open, and the note takes the width that is left. The toggle's name now says which way it will switch.
 - **Esc on the `@` list keeps it closed**: after Esc dismisses the note list opened by `@`, typing more letters of the same word no longer brings it back; a new `@` opens it again.
