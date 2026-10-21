@@ -7,8 +7,8 @@ tags:
   - template
   - guide
 status: active
-autor: Sérgio J. Sousa
-fixado: true
+author: Sérgio J. Sousa
+pinned: true
 ---
 
 # Welcome to Verso

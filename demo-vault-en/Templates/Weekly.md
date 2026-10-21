@@ -1,9 +1,9 @@
 ---
 title: "{{title}}"
-semana: "{{date}}"
+week: "{{date}}"
 tags:
   - weekly
-foco_da_semana: ""
+week_focus: ""
 ---
 
 # {{title}}

@@ -11,19 +11,19 @@ The **schema** of the `character` type: it says which properties a note with `ty
 type: character
 label: { pt-BR: Personagem, en: Character }
 properties:
-  - key: papel
+  - key: role
     kind: text
     label: { pt-BR: Papel, en: Role }
-  - key: nível
+  - key: level
     kind: number
     label: { pt-BR: Nível, en: Level }
-  - key: aliados
+  - key: allies
     kind: list
     label: { pt-BR: Aliados, en: Allies }
-  - key: ativo
+  - key: active
     kind: checkbox
     label: { pt-BR: Em jogo, en: In play }
-  - key: aparição
+  - key: first_appearance
     kind: date
     label: { pt-BR: Primeira aparição, en: First appearance }
 ```

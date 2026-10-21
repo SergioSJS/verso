@@ -1,12 +1,12 @@
 ---
 type: place
-mapa: "[[porto-cinzento.svg|Gray Harbor seen from the lighthouse]]"
-região: North Coast
-perigo: 2
-habitantes:
+map: "[[porto-cinzento.svg|Gray Harbor seen from the lighthouse]]"
+region: North Coast
+danger: 2
+inhabitants:
   - "[[Characters/Lia Torres]]"
   - "[[Characters/Captain Ruy]]"
-clima: cloudy
+weather: cloudy
 ---
 
 # Gray Harbor

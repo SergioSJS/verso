@@ -35,7 +35,7 @@ A base can have several views; switch views with the menu at the top of it.
 3. **List**: compact, for quick reading.
 4. **Kanban**: columns by a property (here, `status`). Drag a card to another column and Verso writes the new value into the note.
 5. **Calendar**: each note on the day of its date property (here, `date`). The projects are from September 2026: go back there with the **‹** arrow. Drag a note to another day and the date changes in the note; the **+** on a day creates a note on it.
-6. **Map**: each note with coordinates becomes a marker (here, the projects' `local` property — São Paulo, Lisbon, Recife). See below.
+6. **Map**: each note with coordinates becomes a marker (here, the projects' `location` property — São Paulo, Lisbon, Recife). See below.
 
 ---
 
@@ -54,7 +54,7 @@ The base's **Map** view, embedded:
 
 ![[Projects.base#Map]]
 
-- The coordinates come from a property: a `"lat, lng"` text (`local: "-23.5505, -46.6333"`) or a list of two numbers. In **View settings**, choose that property, the markers' icon and color, the zoom and the height inside the note.
+- The coordinates come from a property: a `"lat, lng"` text (`location: "-23.5505, -46.6333"`) or a list of two numbers. In **View settings**, choose that property, the markers' icon and color, the zoom and the height inside the note.
 - Click a marker and the note opens; hover over it and it shows up in a preview.
 - Below the map, the same places in a list, in the view's order: it is how the keyboard and the screen reader reach each place.
 - Right-click on the map: **Copy coordinates**, **Make this the view's centre** and **Make this the view's zoom**.
@@ -88,10 +88,10 @@ filters:
   and:
     - file.inFolder("projects")   # only the notes in this folder
 formulas:
-  orcamento_mil: "(orcamento / 1000).toFixed(1)"   # a calculated column
+  budget_k: "(budget / 1000).toFixed(1)"   # a calculated column
   mes: 'date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")'   # a regular expression
 properties:
-  formula.orcamento_mil:
+  formula.budget_k:
     displayName: Budget (k)   # the name the column shows
 views:
   - type: table
@@ -100,7 +100,7 @@ views:
       - property: date
         direction: DESC
     summaries:
-      orcamento: Sum   # the summary row
+      budget: Sum   # the summary row
   - type: kanban
     name: By Status
     groupBy: status
@@ -109,7 +109,7 @@ views:
     startDate: date
   - type: map
     name: Map
-    coordinates: note.local   # the property with the coordinates
+    coordinates: note.location   # the property with the coordinates
 ```
 
 > [!warning] Without a filter, the base lists everything
@@ -130,7 +130,7 @@ views:
     name: Daily notes
     order:
       - file.name
-      - foco_principal
+      - main_focus
 ```
 
 ---
