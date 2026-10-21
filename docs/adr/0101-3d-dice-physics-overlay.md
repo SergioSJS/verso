@@ -33,6 +33,24 @@
   removed, and gave an absolute path on the maintainer's computer). Stays
   Proposed until item 3 is closed. 2026-10-21, later — item 3 decided by the
   maintainer (0101.1c, option A); **Accepted**, being built.
+  2026-10-21, evening — the maintainer found the dice far too big and
+  asked for Rolai's appearance settings (*"o dado 3d está gigantesco,
+  onde estão as configurações do dado? tema, textura, tamanho, cor da
+  fonte"*; *"achei que teríamos as mesmas opções de customizações dos
+  dados que o Rolai tem"*). Built: a die about 72 px at 100% (a 70–160%
+  slider, scaled with the window), thrown on the lower part of the
+  focused pane; Rolai's model — three colour sets, its 8 styles plus
+  "Do Verso" (the app's palette), body, number and outline colours, 20
+  textures, 6 materials — with a warning under 3:1 contrast and a test
+  roll. The textures are the original images of MajorVictory's
+  3DDiceRoller (The Unlicense), approved by the maintainer the same day
+  (X.1, option A), credited, with source and hashes in
+  `docs/reference/dice-textures.md`; drawn textures stay as a fallback.
+  The style is closed JSON passed per roll, so a roller's dice can
+  travel with their rolls ([0107](0107-the-table-a-shared-roll-and-chat-log.md)
+  item 11). As built, not decided: the look is kept with the other
+  display settings, so on a server it follows the account; a profile
+  roll's colour set 2 or 3 (Hunger, Dark) is not yet drawn in 3D.
 
 ## Context
 
