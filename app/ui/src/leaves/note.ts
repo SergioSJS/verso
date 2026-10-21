@@ -67,6 +67,8 @@ import { currentFolder } from "../folder";
 import { fillLinkCard, wireNotePreview } from "../preview/install";
 import { diceWidget } from "../dice/live";
 import { diceBox } from "../dice/card";
+import { diagramLang, openBlockDiagram } from "../datagraph/block";
+import { dgw } from "../datagraph/words";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -317,6 +319,7 @@ export class NoteLeaf extends Leaf {
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      diagram: { label: dgw.viewAsDiagram, wants: (lang) => diagramLang(lang) !== null, open: (lang, text) => openBlockDiagram(this, lang, text) },
       canEditEmbed: () => settings.inlineEmbedEdit,
       notePath: () => this.path,
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
