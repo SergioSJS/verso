@@ -94,6 +94,16 @@ point 13).
    Caught: an import that wrote nothing said "imported" and left no trace;
    a folder imported from an older demo never got the tutorial's new
    sections ("0 created, 28 kept").
+4. With the window in English, import into an empty folder. Expect: the
+   English vault of `demo-vault-en/` (file names such as `00 - Welcome to
+   Verso.md` and `Verso Tour.canvas`) plus the shared `assets/` of
+   `demo-vault/`, no Portuguese note; the English welcome note opens, the
+   tour opens with its stops in English, and a translated note opens from it.
+   The palette's "Import the demo content in Portuguese (Português)" writes
+   the Portuguese vault instead (and, in a Portuguese window, "Importar cofre
+   de exemplo em inglês (English)" the English one). Level: S (`node
+   scripts/demo-vault.mjs check` holds the two vaults as twins), H; E:
+   `demo-vault-en.spec.mjs`.
 
 ## 2. The tour
 
