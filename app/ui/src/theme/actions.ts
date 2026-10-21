@@ -10,7 +10,7 @@
 
 import { tell } from "../dialog";
 import { h, ui } from "../dom";
-import { DEFAULTS, saveSettings, settings } from "../settings";
+import { DEFAULTS, type Hue, saveSettings, settings } from "../settings";
 import { shippedColors } from "./apply";
 import { unreadableIn } from "./edit";
 import { parseThemeText, type Theme, themeFileName, themeText } from "./file";
@@ -20,7 +20,7 @@ import { W } from "./strings";
 import { emptyLook, FILE_MOST, type Look } from "./tokens";
 
 export const LOOK_EVENT = "verso:look";
-const told = (): void => void dispatchEvent(new Event(LOOK_EVENT));
+export const told = (): void => void dispatchEvent(new Event(LOOK_EVENT));
 
 export const lookNow = (): Look => settings.look ?? emptyLook();
 export const profilesNow = (): Profile[] => readProfiles(settings.looks);
@@ -61,6 +61,17 @@ export function restoreDefault(): void {
   settings.look = emptyLook();
   settings.headingFont = DEFAULTS.headingFont;
   settings.fontSize = DEFAULTS.fontSize;
+  delete settings.lookName;
+  saveSettings();
+  told();
+}
+
+/** One of Verso's own themes: its palette, and none of the person's colours,
+ *  fonts or name. The size and the dark tone stay the person's. */
+export function useBuiltin(palette: Hue): void {
+  settings.palette = palette;
+  settings.look = emptyLook();
+  settings.headingFont = DEFAULTS.headingFont;
   delete settings.lookName;
   saveSettings();
   told();
@@ -117,14 +128,9 @@ export async function importFile(file: File): Promise<boolean> {
   return importText(text);
 }
 
-/** The current look as a `.verso-theme` file, saved through the page's
- *  download (the desktop host files it in Downloads and says where). */
-export function exportCurrent(): boolean {
-  if (!hasOwnLook()) {
-    say(W.share.exportEmpty);
-    return false;
-  }
-  const theme = currentTheme();
+/** A theme as a `.verso-theme` file, saved through the page's download
+ *  (the desktop host files it in Downloads and says where). */
+export function exportTheme(theme: Theme): boolean {
   const a = h("a");
   const url = URL.createObjectURL(new Blob([themeText(theme)], { type: "application/json" }));
   a.href = url;

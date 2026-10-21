@@ -26,7 +26,7 @@ import { ps } from "../periodic/strings";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
-import { spaces } from "../layout/spaces";
+import { paneToOpenIn, spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, ribbon, updateController } from "../main";
 import { walkRulesChanged } from "../open";
@@ -57,7 +57,7 @@ import { creditsItems } from "./settings/creditsItems";
 import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import { LOOK_EVENT } from "../theme/actions";
-import { appearancePanel } from "../theme/panel";
+import { themeGallery } from "../theme/gallery";
 import { W as lookWords } from "../theme/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
 
@@ -582,7 +582,6 @@ export class SettingsDialog {
       return i;
     });
     add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
-    add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
     add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }));
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
       // Up to twice the default (15 px): the window has no page zoom, so
@@ -595,23 +594,15 @@ export class SettingsDialog {
       addEventListener(LOOK_EVENT, () => { if (r.isConnected) { r.value = String(settings.fontSize); r.setAttribute("aria-valuetext", `${r.value} px`); } });
       return r;
     });
-    add("appearance", t.headingFont, t.headingFontDesc, () => {
-      const sel = this.select([
-        ["serif", t.fontSerif],
-        ["sans", t.fontSans],
-        ["editorial", t.fontEditorial],
-        ["mono", t.fontMono],
-        ["system", t.fontSystem],
-      ], settings.headingFont || "serif", (v) => { settings.headingFont = v as any; saveSettings(); });
-      addEventListener(LOOK_EVENT, () => { if (sel.isConnected) sel.value = settings.headingFont || "serif"; });
-      return sel;
-    });
+    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
+    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); } }) });
     add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
       ["sans", t.fontSans],
       ["serif", t.fontEditorial],
       ["mono", t.fontMono],
       ["system", t.fontSystem],
-    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }));
+    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }), lookWords.gallery.moreText);
     add("appearance", t.headingColor, t.headingColorDesc, () => this.select([
       ["brass", t.colorBrass],
       ["default", t.colorDefault],
@@ -620,10 +611,7 @@ export class SettingsDialog {
       ["slate", t.colorSlate],
       ["royal", t.colorRoyal],
       ["amethyst", t.colorAmethyst],
-    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
-    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
-    // The appearance wizard (ADR 0100): a live sample beside the colours.
-    out.push({ section: "appearance", title: lookWords.panel.title, desc: lookWords.panel.lead, node: () => appearancePanel() });
+    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }), lookWords.gallery.moreText);
     // The ribbon's buttons, each shown or hidden here as from its menu;
     // the gear stays, so the way back is never hidden with the others.
     for (const b of ribbon?.buttons() ?? []) {
