@@ -92,4 +92,17 @@ In the command palette (`⌘⇧P`), **Roll dice…** opens a roller: type the no
 
 ---
 
+## 3D dice
+
+Want to watch the dice fall? In **Settings › Features**, turn on **3D dice**. It starts **off**, even with the *Everything* shortcut: it is the heaviest feature, on the battery too. On, when you roll — from a `dice:` button or from the roller — real dice (d4, d6, d8, d10, d12, d20, and the percentile as two d10) fall onto the screen and settle; only then does the card with the result appear.
+
+The number is **already drawn** before the dice fall, by the window's cryptographic generator or, in a room, by the server; the fall only stages it, and the die lands showing exactly that number. That is why a screen reader says the result at once, without waiting, and the card with the text always exists.
+
+- **Skip:** a click anywhere, or `Esc`. It also ends by itself within a few seconds.
+- **No animation:** if the system asks for less motion, or the roll has more than 20 dice or an exploding die (`!`), only the card shows.
+- **In a room**, each person sees the dice fall only if *their* 3D dice feature is on; the others see the card.
+- The 3D engine is downloaded only on the first 3D roll and kept for offline use. No sound.
+
+---
+
 Next, see the visual statblocks in [[26 - Statblocks]], and the oracle for solo play and for building campaigns in [[27 - Oracles and World Building]]. Go back to the [[00 - Welcome to Verso|Home Page]] or open the [[Verso Tour.canvas|Verso Tour]].
