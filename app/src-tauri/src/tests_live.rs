@@ -284,7 +284,7 @@ fn saved(c: &mut Browser, must: &[&str]) {
 
 /// The device's link dropped, as a network drops it (item 8).
 fn drop_link(d: &Device, l: Link) {
-    l.remote.hang_up();
+    l.socket.as_ref().unwrap().hang_up();
     drop(l);
     d.s.live.lost();
 }
