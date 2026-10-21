@@ -140,12 +140,12 @@ const STOPS = [
     heading: "🪟 Abas e janelas",
     color: BLUE,
     canvasColor: "5",
-    cards: [["n-abas", "13 - Abas, Painéis, Áreas e Janelas.md", 640]],
+    cards: [["n-abas", "13 - Abas, Painéis, Espaços de Trabalho e Janelas.md", 640]],
     tip:
       "Um clique abre uma aba de pré-visualização, em itálico; um duplo clique a mantém. Arraste uma aba até a borda de um painel para dividir. " +
-      "Áreas guardam conjuntos de abas; Nova janela abre outra janela, e uma nota pode ganhar uma janela só dela.",
+      "Espaços de trabalho guardam conjuntos de abas; Nova janela abre outra janela, e uma nota pode ganhar uma janela só dela.",
     extra(b, x, y, f) {
-      keys(b, "d-abas", x + 740, y + 160, [[["⌘", "\\"], "dividir ao lado"], [["⌘", "T"], "nova área"], [["⌘", "⇧", "T"], "reabrir a aba"], [["⌘", "W"], "fechar a aba"], [["⌘", "R"], "recarregar a janela"]], f);
+      keys(b, "d-abas", x + 740, y + 160, [[["⌘", "\\"], "dividir ao lado"], [["⌘", "T"], "novo espaço de trabalho"], [["⌘", "⇧", "T"], "reabrir a aba"], [["⌘", "W"], "fechar a aba"], [["⌘", "R"], "recarregar a janela"]], f);
     },
   },
   {
@@ -339,7 +339,7 @@ const STOPS = [
     canvasColor: "5",
     cards: [["n-celular", "22 - Verso no Celular e no Tablet.md", 640]],
     tip:
-      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. " +
+      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra um painel por vez. " +
       "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
   },
   {

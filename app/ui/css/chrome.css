@@ -138,7 +138,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .replace-box .input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
 .replace-box .input-with-icon .icon { position: absolute; left: .65rem; width: 14px; height: 14px; color: var(--ink-3); pointer-events: none; }
 .replace-box input { width: auto; box-shadow: none; font-size: .9rem; }
-.replace-box .input-with-icon input[type="text"] { width: 100%; font: inherit; padding: .45rem .6rem .45rem 2.2rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper-2); color: var(--ink); min-width: 0; transition: border-color .15s, background .15s; }
+.replace-box .input-with-icon input[type="text"] { width: 100%; font: inherit; padding: .45rem .6rem .45rem 2.2rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper-2); color: var(--ink); min-width: 0; transition: border-color .15s, background .15s; }
 .replace-box .input-with-icon input[type="text"]:focus { outline: none; background: var(--paper); border-color: var(--seal); box-shadow: 0 0 0 2px color-mix(in oklch, var(--seal) 25%, transparent); }
 .replace-opts input[type="checkbox"] { width: 1.05rem; height: 1.05rem; padding: 0; border: 0; accent-color: var(--seal); cursor: pointer; }
 .replace-note { min-height: 1.2em; margin: .5rem 0 0; font-size: .85rem; color: var(--ink-3); }
@@ -154,8 +154,8 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .editor .cm-panels.cm-panels-top { border-bottom: 1px solid var(--hair); }
 .editor .cm-panel.cm-search { padding: .4rem .6rem; }
 .editor .cm-panel.cm-search input, .editor .cm-panel.cm-search button { font: inherit; font-size: .85rem; }
-.editor .cm-panel.cm-search input { background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .45rem; }
-.editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
+.editor .cm-panel.cm-search input { background: var(--paper); color: var(--ink); border: 1px solid var(--control-line); border-radius: 5px; padding: .2rem .45rem; }
+.editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--control-line); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
 .editor .cm-panel.cm-search button:hover { color: var(--ink); background: var(--paper-3); }
 .editor .cm-panel.cm-search label { color: var(--ink-3); margin-left: .5rem; }
 .editor .cm-searchMatch { background: var(--brass-wash); outline: 1px solid var(--brass); border-radius: 2px; }

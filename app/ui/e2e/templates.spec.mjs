@@ -71,3 +71,20 @@ test("a folder's items_template makes the note and shows no list", async ({ app 
   await expect(app.page.locator(".tab", { hasText: "Feita" })).toHaveCount(1);
   await expect(picker(app)).toHaveCount(0);
 });
+
+test("{{date:FORMAT}} and {{time:FORMAT}} in a template are filled, as Obsidian's core Templates do", async ({ app }) => {
+  await app.open();
+  await app.writeOutside("Templates/Formatos.md", "# {{title}}\n\nBR: {{date:DD/MM/YYYY}}\nHora: {{time:HH:mm}} / {{time}}\nIso: {{date}}\nFica: {{date:YYYY ZZ}}\n");
+  await app.folderChanged(["Templates/Formatos.md"], true);
+  await app.key("Mod+n");
+  await expect(picker(app)).toBeVisible();
+  await app.page.keyboard.press("Escape");
+  await choice(app, "Formatos").click();
+  await expect.poll(() => app.file("Sem título.md"), { timeout: 10000 }).toContain("BR: ");
+  const text = await app.file("Sem título.md");
+  expect(text).toMatch(/BR: \d{2}\/\d{2}\/\d{4}\n/);
+  expect(text).toMatch(/Hora: \d{2}:\d{2} \/ \d{2}:\d{2}\n/);
+  expect(text).toMatch(/Iso: \d{4}-\d{2}-\d{2}\n/);
+  expect(text).toContain("Fica: {{date:YYYY ZZ}}");
+  expect(text).toContain("# Sem título");
+});

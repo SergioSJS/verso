@@ -22,9 +22,9 @@ Numa tela com menos de 760 px de largura:
 
 - **A barra de baixo** tem cinco verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar** e **Comandos** (a paleta). A fita lateral e a barra de status do computador saem.
 - **A árvore é uma gaveta**: abre por **Arquivos** e fecha com um toque fora dela.
-- **Uma área por vez**: um layout dividido em [[13 - Abas, Painéis, Áreas e Janelas|áreas lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de área. O layout fica guardado e volta inteiro numa tela mais larga.
-- **As ferramentas de uma área estreita** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
-- **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto da área, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
+- **Um painel por vez**: um layout dividido em [[13 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
+- **As ferramentas de um painel estreito** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
+- **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto do painel, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
 
 No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore são mais altas para o dedo.
 

@@ -34,6 +34,12 @@
   /* Secondary text: 4.5:1 or more on every paper, wash and palette it sits on. */
   --ink-3: light-dark(oklch(49% 0.025 65), oklch(calc(67% + var(--dk-up)) 0.02 70));
   --hair: light-dark(oklch(86% 0.02 75), oklch(calc(31% + var(--dk-lift)) 0.015 62));
+  /* The line of a control (a field, a select, the off switch's track):
+     WCAG 1.4.11 asks 3:1 for what identifies a control, and --hair is the
+     page's hairline, 1.2:1 to 1.4:1. Lightness 55% in light and 58% in dark,
+     3.4:1 or more on every paper of every palette (light 3.49:1; dark 3.49:1 soft,
+     3.41:1 deep, 3.50:1 dusk, worst case); in dark the lightness rises with the papers. Checked by test/controlLine.test.mjs. */
+  --control-line: light-dark(oklch(55% 0.02 70), oklch(calc(58% + var(--dk-lift)) 0.02 70));
   --seal: light-dark(oklch(46% 0.15 28), oklch(calc(72% + var(--dk-up)) 0.13 32));
   --seal-ink: light-dark(oklch(98% 0.01 80), oklch(calc(19% + var(--dk-lift)) 0.012 62));
   --seal-wash: light-dark(oklch(93% 0.035 30), oklch(calc(28% + var(--dk-lift)) 0.045 30));
