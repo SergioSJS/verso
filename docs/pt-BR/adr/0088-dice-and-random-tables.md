@@ -40,6 +40,14 @@
   pelo service worker, o pacote inicial continuando livre de qualquer
   biblioteca 3D. A biblioteca ainda não está escolhida (item 3 da 0101).
   "A rolagem 3D … fica do Rolai" no item 5 já não vale.
+  2026-10-21 — item 4 revisado para a mesa da [0107](0107-the-table-a-shared-roll-and-chat-log.md):
+  uma rolagem numa nota de uma pasta do UniVerso chega também à mesa da
+  pasta, cujo registro é guardado sem prazo de validade (0107 item 5, o
+  mantenedor: *"deveria ficar salvo, sem prazo de validade"*), então "nada
+  é guardado" já não vale ali; a rolagem leva a aparência dos dados de quem
+  rolou (0107 item 11); uma rolagem secreta chega só a quem rolou e aos
+  donos da pasta (0107 item 7). A sala de uma nota continua guardando as
+  últimas rolagens em memória.
 
 ## Contexto
 

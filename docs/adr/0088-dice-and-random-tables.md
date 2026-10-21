@@ -40,6 +40,13 @@
   worker, the initial bundle staying free of any 3D library. The library is
   not chosen yet (0101 item 3). "The 3D roll … stays Rolai's" in item 5 no
   longer holds.
+  2026-10-21 — item 4 revised for the table of [0107](0107-the-table-a-shared-roll-and-chat-log.md):
+  a roll in a note of a UniVerso folder also reaches the folder's table,
+  whose log is kept with no expiry (0107 item 5, the maintainer:
+  *"deveria ficar salvo, sem prazo de validade"*), so "nothing is stored"
+  no longer holds there; the roll carries the roller's dice appearance
+  (0107 item 11); a secret roll reaches only the roller and the folder's
+  owners (0107 item 7). A note's room still keeps its last rolls in memory.
 
 ## Context
 

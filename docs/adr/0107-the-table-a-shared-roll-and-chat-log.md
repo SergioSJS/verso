@@ -63,25 +63,35 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    at the same table, in the order the server received them, each with
    the roller's name (stamped by the server, as presence is), the time
    (the server's clock), the notation, the dice, the total, and the note
-   it was rolled from as a link. Plus typed messages, if item 3 says so.
+   it was rolled from as a link. Plus typed messages and images (item 3).
 
-2. **What a table is.** `[OPEN]` Who is "connected together":
-   - **A — The folder.** Everyone who has the same UniVerso folder open,
-     in any note, shares one table. A campaign is a folder; a roll in any
-     of its notes reaches the table. _(recommended)_
-   - **B — The note.** The table is the note's room, as today; the panel
-     only shows what 0088 already relays.
-   - **C — A named table by link,** as in Rolai: someone opens a table,
-     shares a link, and whoever joins sees it, whatever note they are in.
+2. **What a table is.** `[DECIDED 2026-10-21]` **The folder** (option A
+   of three; the others were B, the note's room as today, and C, a named
+   table by link as in Rolai). Everyone who has the same UniVerso folder
+   open, in any note, shares one table. A campaign is a folder; a roll in
+   any of its notes reaches the table: it is relayed to the note's room
+   (as today) **and** to the folder's table, rolled once by the server.
 
-   With A, a roll in a note room is relayed to the note's room (as today)
-   **and** to the folder's table; the server rolls once.
+3. **Messages and images, not only rolls.** `[DECIDED 2026-10-21]`
+   Rolls and short typed messages (option A: plain text, no Markdown, no
+   HTML; a link to a note of the folder is shown as a link), **and
+   images** — the maintainer: *"A mas cara, seria top poder compartilhar
+   imagem também"*. Option B, rolls only, was not taken.
 
-3. **Messages, not only rolls.** `[OPEN]`
-   - **A — Rolls and short typed messages.** Plain text, no Markdown, no
-     HTML, no images; a link to a note of the folder is shown as a link.
-     _(recommended)_
-   - **B — Rolls only,** a log with no input.
+   `[OPEN]` Where a shared image goes:
+   - **A — Into the folder, as a file:** sent to the table, it is written
+     to the folder's attachments folder by the sender's action, as an
+     imported file is, counts toward the folder's quota
+     ([0077](0077-the-server-administration-console-and-folder-quotas.md)),
+     is seen in the file list and may be embedded in a note. A reader,
+     who writes no file, sends no image. _(recommended)_
+   - **B — Into the server's storage,** beside the table's log, outside
+     the folder; a reader may send one.
+
+   Either way an image is PNG, JPEG, WebP or GIF, checked by its bytes and
+   not its name, under the folder's upload limit, served with its own
+   type and `nosniff` ([0083](0083-security-hardening-of-universo.md)
+   items 8 and 9), and never an SVG.
 
 4. **Rolling from the table.** `[PROPOSED]` The table's input rolls when
    the text is a dice notation after `/r` (`/r 1d20+3`), or from a dice
@@ -89,41 +99,61 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    server draws the number (0088 item 4). A random table or an oracle is
    rolled from its note, not from the table.
 
-5. **What is kept, and where.** `[OPEN]` 0088 item 4 decided that a room
-   keeps its last rolls in memory and nothing is stored. A table may need
-   more; any option but A revises 0088 item 4.
-   - **A — Memory only, as 0088.** The server keeps the last 200 entries
-     per table while it runs; a restart forgets them. A button
-     **"Copiar para uma nota"** / **"Copy to a note"** writes what the
-     panel shows into a new note of the folder, by the user's action, as
-     any new note is written. _(recommended)_
-   - **B — The server's database,** per folder, with a retention like the
-     audit log's ([0083](0083-security-hardening-of-universo.md) item 10).
-   - **C — A session note,** appended to on every entry. Discouraged by
-     the author: it writes a file of the folder on behalf of everyone
-     present, every few seconds, which is neither a user's action
-     ([0012](0012-files-are-source-of-truth.md); invariant 8) nor a
-     single writer.
+5. **What is kept, and where.** `[DECIDED 2026-10-21]` **Kept, with no
+   expiry,** and the user may clear it, pin entries and add them to notes
+   — the maintainer: *"deveria ficar salvo, sem prazo de validade, com
+   possibilidade de limpar, pinar, adicionar nas notas"*. None of the
+   three options offered was taken (A, memory only as 0088, the
+   recommended one; B, the server's database with a retention; C, a
+   session note appended on every entry). This revises
+   [0088](0088-dice-and-random-tables.md) item 4 ("nothing is stored")
+   for the table; recorded there.
+   - **Pin.** Any member pins an entry; pinned entries stay at the top of
+     the panel for everyone, until unpinned.
+   - **Add to a note.** "Adicionar à nota…" / "Add to note…" on an entry
+     (or a selection) appends its text — the notation, the dice, the
+     total, who and when — to a note the user picks, showing what will be
+     added before writing it (invariant 8), through the same write as any
+     edit, with its stale check (invariant 11). An image is added as an
+     embed of its file.
+
+   `[OPEN]` Where the log is saved:
+   - **A — The server's database,** per folder, in `VERSO_DATA_DIR`,
+     backed up with the server; it does not travel with a synced copy of
+     the folder. _(recommended)_ — no file of the folder is written on
+     behalf of everyone present, every few seconds
+     ([0012](0012-files-are-source-of-truth.md)); what should live with
+     the notes goes there by "Add to note".
+   - **B — A file inside the folder** (under `.verso/`), written by the
+     server through `verso-fs`; it travels with the folder and its sync,
+     and is rewritten on every entry.
 
 6. **Clearing.** `[PROPOSED]` As Rolai: **"Ocultar daqui pra trás"** /
    **"Hide up to here"** hides the log in your window only, can be undone,
    and is cut at the server's time of the last entry shown, never the
    local clock; **"Limpar a mesa"** / **"Clear the table"** empties it for
-   everyone, asks first, and is the folder owner's only.
+   everyone, asks first, and is the folder owner's only; pinned entries
+   are kept unless the owner says otherwise in the same question.
 
-7. **Secret rolls.** `[OPEN]` A roll seen only by its roller and the game
-   master.
-   - **A — Later, in its own ADR.** It needs a "game master" that Verso's
-     roles (owner, editor, reader — 0081) do not have. _(recommended)_
-   - **B — Now, to the folder's owners:** "roll to the owner" shows the
-     roll to the roller and the folder's owners; the others see "Ana rolou
-     em segredo".
+   `[OPEN]` Deleting one entry:
+   - **A — Its author deletes their own message or image; an owner
+     deletes any.** A roll is not deleted one by one (so nobody re-rolls
+     and hides the first). _(recommended)_
+   - **B — Only the owner,** by clearing the table.
+
+7. **Secret rolls.** `[DECIDED 2026-10-21]` **Now, to the folder's
+   owners** (option B; A was later, in its own ADR, the recommended one).
+   "Rolar para o dono" / "Roll to the owner" shows the roll to the roller
+   and to the folder's owners; the other members see "Ana rolou em
+   segredo" / "Ana rolled in secret", with no notation and no number. The
+   server decides who receives it from the folder's roles, never from
+   the window. A secret roll falls in 3D only on the screens that see it.
 
 8. **Who is at the table.** `[PROPOSED]` The panel's top shows who is
    there now (names stamped by the server, the same colours as their
    cursors). A reader of the folder is at the table and may roll, as 0088
-   decided for a note (D2–D11); whether a reader may also write messages
-   is item 3's, and the author recommends yes.
+   decided for a note (D2–D11), and may write messages (the author's
+   recommendation; item 3 decided messages, not who writes them).
 
 9. **Where the table exists.** `[PROPOSED]` On a UniVerso folder, in the
    browser and in the desktop app connected to it; in a synced folder
@@ -134,13 +164,10 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    the panel shows your own rolls of this run, as Rolai's local history,
    and says it is not shared.
 
-10. **Where the panel goes.** `[OPEN]`
-    - **A — A panel of the side area,** like Backlinks or Outline, which
-      the user may move as any panel; on the phone, a sheet from the
-      bottom. _(recommended)_
-    - **B — A bar along the bottom** of the window, always visible when
-      on.
-    - **C — A floating drawer** over the note.
+10. **Where the panel goes.** `[DECIDED 2026-10-21]` **A panel of the
+    side area** (option A), like Backlinks or Outline, which the user may
+    move as any panel; on the phone, a sheet from the bottom. Not taken: a
+    bar along the bottom (B), a floating drawer (C).
 
 11. **Each roller's own dice.** `[DECIDED 2026-10-21]` Everyone has
     their own dice appearance ([0101](0101-3d-dice-physics-overlay.md):
@@ -160,13 +187,10 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
       item 4) as well as at the table.
     - The log draws each roll's dice in the roller's colours.
 
-    `[OPEN]` Whether others' rolls also **fall in 3D** on your screen
-    when your 3D dice are on:
-    - **A — Yes, in the roller's appearance,** with a switch "Mostrar em
-      3D as rolagens dos outros" / "Show others' rolls in 3D", on.
-      _(recommended, after the maintainer's words above)_
-    - **B — Only your own rolls fall in 3D;** others' are drawn in the
-      roller's colours in the log only.
+    `[DECIDED 2026-10-21]` Others' rolls also **fall in 3D** on your
+    screen when your 3D dice are on, in the roller's appearance, with a
+    switch "Mostrar em 3D as rolagens dos outros" / "Show others' rolls
+    in 3D", on (option A; B was only your own rolls in 3D).
 
 12. **Bounds and hostile input** ([0083](0083-security-hardening-of-universo.md)).
     `[PROPOSED]` A message is at most 500 characters and plain text; the
@@ -209,15 +233,29 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
 - The window gains the panel, its button, its notification kind and its
   feature switch; the demo vault gains a note that teaches the table, and
   "Tour do Verso" a card ([0058](0058-demo-vault-as-tutorial.md)).
-- If item 5 is not A, 0088 item 4 is revised in the same pull request.
-- Nothing is written to a file of the folder except by "Copy to a note".
+- 0088 item 4 is revised for the table (item 5), recorded in 0088's
+  revisions in the same change as this ADR's decisions.
+- The server's database gains the table's log, its pins and its images
+  if item 5's and item 3's open questions go to the server (option A
+  of item 5; option B of item 3).
+- Nothing is written to a file of the folder on behalf of the table,
+  except by "Add to note" and, if item 3's open question is A, an image
+  its sender sends.
 
 ## Discarded alternatives
 
-None recorded. The options of items 2, 3, 5, 7, 10 and 11 are open, not
-discarded.
+Offered to the maintainer on 2026-10-21 and not taken: the note's room
+or a named table by link as the table (item 2); rolls only, with no
+messages (item 3); memory only, a retention in the server's database, or
+a session note appended on every entry (item 5); secret rolls later in
+their own ADR (item 7); a bar along the bottom or a floating drawer
+(item 10); only your own rolls in 3D (item 11).
 
 ## Status
 
-Proposed (2026-10-21). Not built. Waits for the maintainer's answers to
-items 2, 3, 5, 7, 10 and 11 and a reading by the other model.
+Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
+maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
+outside the repository). Open: where an image goes (item 3), where the
+log is saved (item 5), deleting one entry (item 6). Not built; the
+maintainer asked for it "em algum momento" (at some point). Waits for
+those answers and a reading by the other model.
