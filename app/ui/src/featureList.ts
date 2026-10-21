@@ -10,6 +10,14 @@ export const FEATURE_IDS = ["diceRolling", "randomTables", "oracles", "statblock
 export type FeatureId = (typeof FEATURE_IDS)[number];
 export type Features = Record<FeatureId, boolean>;
 
+/** The two groups the Features page shows (the maintainer, 2026-10-21: the
+ *  RPG features apart from the application's). Each feature is in exactly one. */
+export type FeatureGroupId = "app" | "rpg";
+export const FEATURE_GROUPS: Record<FeatureGroupId, readonly FeatureId[]> = {
+  app: ["dataDiagram"],
+  rpg: ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dice3d"],
+};
+
 /** The one feature that is off by default even with "Everything" (ADR 0103
  *  item 7, ADR 0101 item 7): the expensive one, in weight and battery. */
 export const OFF_BY_DEFAULT: readonly FeatureId[] = ["dice3d"];

@@ -48,6 +48,17 @@ export function setFeature(id: FeatureId, on: boolean): void {
   announce({ ...now, [id]: on }, fs.statusChanged(fs.names[id], on));
 }
 
+/** Turn a group of features on or off at once (one announcement). Turning
+ *  on never turns on one that is off by default, like "Everything"; turning
+ *  off turns every one off. */
+export function setFeatures(ids: readonly FeatureId[], on: boolean, status: string): void {
+  const now = currentFeatures();
+  const next = { ...now };
+  for (const id of ids) next[id] = on ? (OFF_BY_DEFAULT.includes(id) ? now[id] : true) : false;
+  if (FEATURE_IDS.every((f) => now[f] === next[f])) return;
+  announce(next, status);
+}
+
 /** What a shortcut would turn on and off, by the features' names. */
 export function shortcutChanges(id: ShortcutId): { on: string[]; off: string[] } {
   const now = currentFeatures();
