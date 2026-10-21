@@ -558,9 +558,12 @@ fn a_note_link_reaches_the_note_and_what_it_embeds() {
         let (_, state) = crate::tests::get(&r, &format!("/r/{token}/state"), None).await;
         assert_eq!(state["open"], "Mesa/Notas.md", "{state}");
         let (mut ws, info) = reader(&r, &token).await;
-        // Named for the folder, not the note: the tree would take a note
-        // named as its folder for the folder's own note and hide it.
-        assert_eq!(info["ok"]["name"], "Campanha", "{info}");
+        // Named for the note, never for the owner's folder, whose name was
+        // not shared (item 6; review I2).
+        assert_eq!(info["ok"]["name"], "Notas", "{info}");
+        assert!(!info.to_string().contains("Campanha"), "{info}");
+        let (_, state) = crate::tests::get(&r, &format!("/r/{token}/state"), None).await;
+        assert!(!state.to_string().contains("Campanha"), "{state}");
         let listed = ask(&mut ws, 2, "list_notes", json!({})).await;
         assert_eq!(paths(&listed["ok"]), ["Mesa/Notas.md", "Mesa/Outra.md"]);
         let note = ask(&mut ws, 3, "read_note", json!({ "path": "Mesa/Notas.md" })).await;

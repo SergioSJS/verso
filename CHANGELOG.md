@@ -48,6 +48,7 @@ test release.
 
 ### Fixed
 
+- A link to one note no longer shows the owner's folder name: the link's window is named after the note, and the tree keeps that note listed. Only a link to the whole folder carries the folder's name.
 - A read link's visitor can no longer make the owner's folder walk: `reindex` through a link answers with the summary the folder already has and walks nothing.
 - **Frontmatter and tags as Obsidian reads them (spec Q22, Q24)**: a note that starts with a byte order mark still has its frontmatter (the file is never rewritten); a number in `tags` (`tags: 2024`, `[2025]`) is no tag, as in Obsidian, and a `#` in a frontmatter tag is not part of its name; the tag list counts a nested tag (`a/b`) under each tag above it (`a`), as Obsidian's tag pane does.
 - **The quick switcher (⌘P) puts the name typed whole first**: typing `N` opened a longer name that starts with N and sorts earlier by its folder; the note named exactly as typed now leads the list.
