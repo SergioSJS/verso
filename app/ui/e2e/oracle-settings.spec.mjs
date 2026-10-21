@@ -114,7 +114,7 @@ for (const width of [1500, 600, 340]) {
     await everyNumberReadable(page);
     await page.evaluate(() => document.fonts.ready.then(() => true));
     await everyNumberReadable(page);
-    for (const [style, nearlyCertainYes] of [["Equilibrado", "54"], ["Mythic GME", "54"], ["Ironsworn", "80"], ["Narrativo", "40"]]) {
+    for (const [style, nearlyCertainYes] of [["Equilibrado", "54"], ["Viradas prováveis", "54"], ["Ironsworn", "80"], ["Narrativo", "40"]]) {
       const radio = page.getByRole("radio", { name: new RegExp(`^${style}`) });
       if (!(await radio.isChecked())) await radio.check();
       await expect(seg(page, "nearlyCertain", "yes")).toHaveAttribute("data-value", nearlyCertainYes);
@@ -127,6 +127,15 @@ for (const width of [1500, 600, 340]) {
     }
   });
 }
+
+test("the Likely twists style says it is inspired by Mythic GME, on hover and in text a reader reads", async ({ app, page }) => {
+  await openPage(app);
+  const label = page.locator("label.orc-style", { has: page.getByRole("radio", { name: /^Viradas prováveis/ }) });
+  await expect(label).toHaveAttribute("title", /Inspirado no Mythic GME — sem o fator caos dele/);
+  await expect(label).toContainText("Inspirado no Mythic GME");
+  await expect(page.getByRole("radio", { name: /^Viradas prováveis.*Mythic GME/ })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /^Mythic GME/ })).toHaveCount(0);
+});
 
 test("a style picked is saved in the folder at once, redraws the bars, and can be undone", async ({ app, page }, info) => {
   await openPage(app);

@@ -77,6 +77,7 @@ O JSON DEVE ter este formato exato:
   - \`{{title}}\`: É substituído pelo nome que o usuário der ao criar a pasta no Verso (ex: "Tormenta - O Reinado").
   - \`{{date}}\`: Substituído pela data atual (\`YYYY-MM-DD\`).
   - \`{{time}}\`: Substituído pela hora atual (\`HH:mm\`).
+  - \`{{date:FORMATO}}\` e \`{{time:FORMATO}}\`: data ou hora no formato pedido, com os símbolos do Moment (por exemplo \`{{date:DD/MM/YYYY}}\`, \`{{date:dddd, D [de] MMMM}}\`).
   - \`{{uuid}}\`: Substituído por um identificador único novo a cada uso.
 - **Outros arquivos**: além de notas \`.md\`, um arquivo pode terminar em \`.canvas\` (JSON Canvas) ou \`.base\`; nesses, \`content\` é o texto do arquivo e não há \`frontmatter\`.
 - **Limites**: até 200 pastas, 500 arquivos, 256 KB por arquivo, 4 MB no total e 8 níveis de pasta. Nomes não podem começar com ponto, terminar em ponto ou espaço, nem usar : * ? " < > | \\.
@@ -155,6 +156,7 @@ The JSON MUST have exactly this shape:
   - \`{{title}}\`: replaced by the name the user gives when creating the project in Verso (e.g. "Tormenta - The Reign").
   - \`{{date}}\`: replaced by today's date (\`YYYY-MM-DD\`).
   - \`{{time}}\`: replaced by the current time (\`HH:mm\`).
+  - \`{{date:FORMAT}}\` and \`{{time:FORMAT}}\`: the date or time in the format asked, with Moment tokens (for example \`{{date:DD/MM/YYYY}}\`, \`{{date:dddd, MMMM Do}}\`).
   - \`{{uuid}}\`: replaced by a new unique identifier at each use.
 - **Other files**: besides \`.md\` notes, a file may end in \`.canvas\` (JSON Canvas) or \`.base\`; for those, \`content\` is the file's text and there is no \`frontmatter\`.
 - **Limits**: up to 200 folders, 500 files, 256 KB per file, 4 MB in all and 8 folder levels. Names cannot start with a dot, end with a dot or a space, or use : * ? " < > | \\.

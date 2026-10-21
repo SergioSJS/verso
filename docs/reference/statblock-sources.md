@@ -257,7 +257,7 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 
 ### 3.10 Fractal RPG (Igor Téuri and Walter Licínio), SRD v1.0.3
 
-- **Licence.** Read from the official SRD v1.0.3 (the PDF the maintainer gave, 2026-10-20) **[OFFICIAL]**. The text says "Creative Commons Attribution 4.0 License" (CC BY 4.0); the badge image shows BY-SA. The two disagree; the text is followed unless the authors say otherwise, and the maintainer can ask Igor. "Fractal" is a trademark of Dados Críticos; the "FEITO PARA FRACTAL" mark may be used as extra credit. Authors: Igor Téuri and Walter Licínio (design, edition); Érika Brandão (visual identity).
+- **Licence.** Read from the official SRD v1.0.3 (the PDF the maintainer gave, 2026-10-20) **[OFFICIAL]**. The text says "Creative Commons Attribution 4.0 License" (CC BY 4.0); the badge image shows BY-SA. The two disagree; the text is followed unless the authors say otherwise, and the maintainer can ask Igor. "Fractal" is a trademark of Dados Críticos (https://linktr.ee/dadoscriticos); the "FEITO PARA FRACTAL" mark may be used as extra credit. Authors: Igor Téuri and Walter Licínio (design, edition); Érika Brandão (visual identity).
 - **Ships (ADR 0099 item 6).** Built in
 - **Credit line.** Required line (SRD p. 4): "Esse trabalho é compatível com Fractal, de Igor Téuri e Walter Licínio, desenvolvido sob licença Creative Commons Attribution 4.0 License." + https://fractal-system.itch.io/pt-br
 - **Character sheet, in display order.**
