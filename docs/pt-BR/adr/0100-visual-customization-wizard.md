@@ -80,7 +80,7 @@ onde uma opção difere da recomendada primeiro, o item diz.
    **Revisão, 2026-10-21 (o mantenedor, depois de olhar o beta instalado
    nesse dia): este item está revisado.** Ele olhou o beta e escreveu:
    *"Quase tudo ok, exceto a parte do wizard de tema, achei a tela mega
-   poluída, bora fazer uma nova janela só para construção do tema. pensei de
+   puida [poluída], bora fazer uma nova janela só para construção do tema. pensei de
    em settings aparência ele ter várias caixas com amostra mínima de cada
    tema para simplificar a escolha, e botões para copiar e alterar o tema aí
    sim abrindo a janela com as opções que foram feitas"*. Então: **Ajustes ›

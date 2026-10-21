@@ -71,7 +71,7 @@ later answer of the same day recorded in it.
 
 3. **The library: `three` + `cannon-es`, our own code** (0101.1b, "Outra",
    then 0101.1c, option A). `[DECIDED 2026-10-21]` — see the end of this item.
-   The first answer (0101.1b, "Outra").
+   The first answer (0101.1b, "Outra") was the following.
    The maintainer: *"Avalie entre A e B qual a melhor abordagem, seria bom
    aproveitar algo pronto do rolai msm, mas vale avaliar o A um pouco mais,
    assim como B"* (evaluate between A and B which is the better approach; it
