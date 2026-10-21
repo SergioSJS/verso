@@ -8,7 +8,7 @@
 
 import { CaptureUpdateAction, newElementWith } from "@excalidraw/excalidraw";
 import type { RefObject } from "react";
-import { type CanvasNode, type El, newNode, withPage } from "./model";
+import { type CanvasNode, type CardView, type El, newNode, withPage, withView } from "./model";
 import { BoardHost } from "./types";
 import { randomId } from "./util";
 import { Api } from "./view";
@@ -43,6 +43,21 @@ export function pageActions({ api, host, touched, center, add, focusBoard }: Pag
         appState: { activeEmbeddable: on ? { element: el, state: "active" } : null, selectedElementIds: { [id]: true } } as never,
       });
       if (!on) focusBoard();
+    },
+    /** A data file's card shows its text or its diagram (`verso.view`). */
+    setView: (id: string, view: CardView): void => {
+      const a = api.current;
+      if (!a) return;
+      const el = a.getSceneElementsIncludingDeleted().find((x) => x.id === id);
+      const n = el ? (el.customData?.["canvas"] as CanvasNode | undefined) : undefined;
+      if (!el || !n) return;
+      touched.current = true;
+      a.updateScene({
+        elements: a.getSceneElementsIncludingDeleted().map((x) => (x.id === id ? newElementWith(x, { customData: { ...(x.customData ?? {}), canvas: withView(n, view) } }) : x)),
+        // Leaving a diagram for the text: the card is not entered any more.
+        appState: { activeEmbeddable: null } as never,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
     },
     /** A link card shows its page, or only its address. */
     setPage: (e: El, n: CanvasNode, on: boolean): void => {

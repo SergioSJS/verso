@@ -484,3 +484,35 @@ describe("a web page as a link card (ADR 0057 point 10, decided 2026-10-21)", ()
     assert.equal(b.pageOrigin("not a url"), null);
   });
 });
+
+describe("a data file's card (ADR 0057 point 10, ADR 0106)", () => {
+  const file = { id: "d", type: "file", file: "Dados/npcs.json", x: 0, y: 0, width: 400, height: 400 };
+  test("it shows its text unless the node's own verso says diagram, and any other value reads as text", () => {
+    assert.equal(b.cardView(file), "text");
+    assert.equal(b.cardView({ ...file, verso: { view: "diagram" } }), "diagram");
+    assert.equal(b.cardView({ ...file, verso: { view: "nonsense" } }), "text");
+    assert.equal(b.cardView({ ...file, verso: "x" }), "text");
+  });
+  test("the switch writes the mode and takes it off for the text, other verso keys kept", () => {
+    const colored = { ...file, verso: { background: "#a5d8ff" } };
+    const on = b.withView(colored, "diagram");
+    assert.deepEqual(on.verso, { background: "#a5d8ff", view: "diagram" });
+    assert.deepEqual(b.withView(on, "text").verso, { background: "#a5d8ff" });
+    assert.equal(b.withView(file, "text").verso, undefined, "the default is not written");
+  });
+  test("the mode round-trips through the board, and a file card left alone gains nothing", () => {
+    const doc = { nodes: [{ ...file, verso: { view: "diagram" } }, { ...file, id: "e", y: 500 }], edges: [] };
+    const back = b.fromElements(restored(doc), doc);
+    assert.deepEqual(back.nodes, doc.nodes);
+    assert.equal(back.nodes[1].verso, undefined);
+  });
+  test("a card shows at most the first 64 KB of the file, cut with a flag, never in a surrogate pair", () => {
+    assert.deepEqual(b.cardText("abc"), { shown: "abc", cut: false });
+    const big = b.cardText("x".repeat(b.CARD_TEXT_MAX + 5));
+    assert.equal(big.shown.length, b.CARD_TEXT_MAX);
+    assert.equal(big.cut, true);
+    const pair = b.cardText("x".repeat(b.CARD_TEXT_MAX - 1) + "😀tail");
+    assert.equal(pair.cut, true);
+    assert.equal(pair.shown.length, b.CARD_TEXT_MAX - 1);
+  });
+});

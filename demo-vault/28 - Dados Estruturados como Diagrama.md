@@ -54,6 +54,12 @@ Um bloco de código de JSON, YAML, TOML, XML ou CSV numa nota tem o botão **Ver
 
 ---
 
+## Num cartão do board
+
+Um arquivo de dados posto num board (arraste-o da árvore) mostra o texto no cartão, colorido como no editor. No cabeçalho, **Texto | Diagrama** troca a vista; a escolha fica no próprio cartão, no canvas, e o arquivo nunca é gravado. O diagrama só recebe o mouse depois que você o entra (botão **Interagir com o diagrama**); **Esc** devolve o board. Com **Diagrama de dados** desligado, o cartão mostra só o texto. A lição 15 do [[Treino do Board.canvas|Treino do Board]] ensina isso.
+
+---
+
 ## Salvar como board
 
 O comando **Salvar como board…** (na barra do diagrama e na paleta) escreve um **board** novo com um cartão de texto para cada caixa à vista e uma linha para cada ligação, do jeito que estão dispostos agora. Antes de criar, o Verso mostra o nome, a pasta e quantos cartões e linhas o board terá. Veja [[09 - Board e Relações]].

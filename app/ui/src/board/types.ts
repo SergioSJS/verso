@@ -70,12 +70,24 @@ export type BoardHost = {
   /** The change was undone before it was saved: the board holds what was
    *  last sent, and the tab has nothing unsaved of the board's. */
   settled?: () => void;
-  openFile: (path: string, aside: boolean) => void;
+  /** Open a file in a tab; `view` is the way a data file's card shows it
+   *  (text or diagram), which the tab then opens in. */
+  openFile: (path: string, aside: boolean, view?: "text" | "diagram") => void;
   /** Draw a note into `el` as the reading view draws it (sanitized, its
    *  images and embeds resolved, its links live). */
   renderNote: (el: HTMLElement, path: string) => Promise<void>;
   /** Draw a text card's Markdown the same way, from the board's folder. */
   renderText: (el: HTMLElement, text: string) => Promise<void>;
+  /** A text file's whole text, as the window holds it (an open tab's first,
+   *  typing not yet saved included); null when it cannot be read. */
+  fileText: (path: string) => Promise<string | null>;
+  /** Draw `text` into `el` as source code, coloured by what `path`'s name
+   *  says it is (the source editor's own language data, loaded when needed). */
+  renderCode: (el: HTMLElement, text: string, path: string) => Promise<void>;
+  /** The data diagram of a data file (ADR 0106), when the window has it:
+   *  `available` is false for a file it cannot read and when its switch
+   *  (ADR 0103) is off. Absent where the window has no diagram. */
+  data?: DataHost;
   /** A note's text, for the board's search. */
   noteText: (path: string) => Promise<string>;
   fileSrc: (path: string) => string;
@@ -139,6 +151,24 @@ export type BoardHost = {
   web?: BoardWeb;
   /** A note's sticker drawn at `size`, for its pin; null for none. */
   sticker?: (path: string, size: number) => HTMLElement | null;
+};
+
+/** A diagram drawn in a card. */
+export type DataDiagramHandle = {
+  /** The text again (the file changed); why no diagram can be drawn of it,
+   *  if it cannot (the card then shows the text). */
+  set: (text: string) => "tooBig" | "tooMany" | null;
+  /** The keyboard goes into the diagram. */
+  focus: () => void;
+  destroy: () => void;
+};
+
+/** What a data card needs of the window (ADR 0106, ADR 0103). */
+export type DataHost = {
+  available: (path: string) => boolean;
+  /** The size past which no diagram is drawn, in MB (for the reason said). */
+  limitMb: number;
+  diagram: (el: HTMLElement, path: string) => Promise<DataDiagramHandle | null>;
 };
 
 /** What a page card needs of the window (ADR 0056). */
