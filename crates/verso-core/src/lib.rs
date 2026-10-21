@@ -37,7 +37,8 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
 pub use sync_io::Hashed;
 pub use verso_fs::{
-    Changes, ConfinementError, Mark, Placeholder, ReadError, Staged, WalkRules, Watch, WriteError,
+    Changes, ConfinementError, Mark, PickedError, Placeholder, ReadError, Staged, WalkRules, Watch,
+    WriteError, read_picked,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 

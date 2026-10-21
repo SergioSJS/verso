@@ -2,6 +2,7 @@
 //! listed with their details, and text files read and written.
 
 use super::*;
+use verso_contract::{PickSkip, PickedFile, PickedFiles, SkippedPick};
 
 /// Create a note (`name`, with or without `.md`, folders created) with
 /// `text`; `exists` when something stands there (ADR 0048).
@@ -28,6 +29,81 @@ pub(crate) fn create_file<R: tauri::Runtime>(
     base64: String,
 ) -> Result<String, ContractError> {
     with(&state, &window, |ws| ops::create_file(ws, path, base64))
+}
+
+/// The most bytes of one chosen file (a server's message is 48 MiB and
+/// bytes cross as base64: the window's `MAX_IMAGE_BYTES`), and of the
+/// whole choice.
+pub(crate) const PICK_FILE_MAX: u64 = 32 * 1024 * 1024;
+const PICK_TOTAL_MAX: u64 = 256 * 1024 * 1024;
+
+/// Read what the person chose: a file by its name and bytes, a path never
+/// handed on. A directory, a cloud placeholder, a file too large (alone or
+/// with the rest) or one the system will not read is named in `skipped`,
+/// not failed on: the others are still imported. Split out of the command
+/// so a test can give it paths without a dialog.
+pub(crate) fn read_picks(paths: &[PathBuf]) -> PickedFiles {
+    use base64::Engine;
+    use verso_core::PickedError;
+    let mut out = PickedFiles {
+        files: Vec::new(),
+        skipped: Vec::new(),
+    };
+    let mut total = 0u64;
+    for path in paths {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let room = PICK_FILE_MAX.min(PICK_TOTAL_MAX - total);
+        let reason = match verso_core::read_picked(path, room) {
+            Ok(bytes) if !name.is_empty() => {
+                total += bytes.len() as u64;
+                out.files.push(PickedFile {
+                    name,
+                    base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+                });
+                continue;
+            }
+            Ok(_) => PickSkip::NotAFile,
+            Err(PickedError::NotAFile) => PickSkip::NotAFile,
+            Err(PickedError::Placeholder) => PickSkip::Placeholder,
+            Err(PickedError::TooLarge) => PickSkip::TooLarge,
+            Err(PickedError::Io(_)) => PickSkip::Unreadable,
+        };
+        out.skipped.push(SkippedPick { name, reason });
+    }
+    out
+}
+
+/// Open the system's file picker, several files at once, and give back
+/// what was chosen as names and bytes ("Import files…", A11Y.10): the
+/// paths stay on this side (rule 4), and the window creates the files in
+/// the folder with `create_file`, so that confinement, the atomic write
+/// and a name taken are the drop's own. Empty when cancelled. The picker
+/// and the reads run off the event loop.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn pick_files<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<PickedFiles, ContractError> {
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
+    let parent = window.clone();
+    app.dialog()
+        .file()
+        .set_parent(&parent)
+        .pick_files(move |picked| {
+            let _ = tx.try_send(picked);
+        });
+    let picked = rx.recv().await.flatten().unwrap_or_default();
+    let paths: Vec<PathBuf> = picked
+        .into_iter()
+        .filter_map(|p| p.into_path().ok())
+        .collect();
+    tauri::async_runtime::spawn_blocking(move || read_picks(&paths))
+        .await
+        .map_err(|e| failed(format!("reading the chosen files: {e}")))
 }
 
 /// Create a folder inside the open folder; returns its confined path.
