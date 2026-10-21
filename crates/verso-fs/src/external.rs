@@ -151,7 +151,10 @@ mod tests {
     fn a_fifo_is_refused_without_waiting_for_a_writer() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("pipe");
-        let made = std::process::Command::new("mkfifo").arg(&p).status().unwrap();
+        let made = std::process::Command::new("mkfifo")
+            .arg(&p)
+            .status()
+            .unwrap();
         assert!(made.success());
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
