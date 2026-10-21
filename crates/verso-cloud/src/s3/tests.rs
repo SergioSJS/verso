@@ -550,3 +550,54 @@ fn an_object_is_asked_for_by_itself() {
     assert!(s.list(None).unwrap().changes.is_empty());
     assert!(s.exists("a.md").unwrap());
 }
+
+/// A client that sends a file of more than ten bytes in parts of eight.
+fn connect_parts(fake: &Fake) -> S3 {
+    let small = |caps: Vec<String>| Settings {
+        single_max: 10,
+        part_size: 8,
+        caps,
+        ..settings(fake)
+    };
+    let caps = S3::new(small(Vec::new()))
+        .unwrap()
+        .quick()
+        .probe()
+        .unwrap()
+        .caps;
+    S3::new(small(caps)).unwrap().quick()
+}
+
+/// The ETag the service gave the last write of `key` that was ours.
+fn etag_of_last_write(fake: &Fake, key: &str) -> String {
+    fake.writes()
+        .into_iter()
+        .filter(|w| w.path == key)
+        .rev()
+        .nth(1)
+        .unwrap()
+        .etag
+}
+
+#[test]
+fn a_write_answers_with_the_version_it_made_not_the_one_that_landed_after_it() {
+    // Another device's write, made against our version, lands between our
+    // PUT and our HEAD, with as many bytes as ours: the size cannot tell.
+    let fake = Fake::start(S3Mode::default());
+    let s = connect(&fake);
+    fake.after("PUT", "Cofre/a.md", b"ou");
+    let written = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
+    assert_eq!(fake.get("Cofre/a.md").unwrap(), b"ou");
+    let ours = etag_of_last_write(&fake, "Cofre/a.md");
+    assert_eq!(written.version, ours, "the version of our bytes");
+    assert_ne!(written.version, version_of(&s, "a.md"));
+    // The same through a multipart upload.
+    let fake = Fake::start(S3Mode::default());
+    let s = connect_parts(&fake);
+    let bytes = vec![1_u8; 30];
+    fake.after("POST", "Cofre/g.bin", &[2_u8; 30]);
+    let written = put(&s, "g.bin", &Condition::Absent, &bytes).unwrap();
+    assert_eq!(fake.get("Cofre/g.bin").unwrap(), vec![2_u8; 30]);
+    assert_eq!(written.version, etag_of_last_write(&fake, "Cofre/g.bin"));
+    assert_ne!(written.version, version_of(&s, "g.bin"));
+}
