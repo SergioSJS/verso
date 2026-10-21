@@ -81,6 +81,37 @@ fn index_search_backlinks_and_incremental_runs() {
 }
 
 #[test]
+fn the_graph_lists_links_no_note_and_no_file_answers_to() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(
+        vault.path(),
+        "A.md",
+        "[[Real]] [[Goblin Rei]] [[goblin rei]] [[Goblin Rei]] ![[mapa.png]] [[#Seção]] [[pasta/]]\n",
+    );
+    let _b = note(
+        vault.path(),
+        "B.md",
+        "[[Real]] [[Goblin Rei|rei]] [[Goblin Rei#Notas]]\n",
+    );
+    let _real = note(vault.path(), "Real.md", "# Real\n");
+    let _map = bytes(vault.path(), "mapa.png", b"png");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    // Once per note and name, one spelling, no file, no self link, no
+    // resolved note.
+    let want = |from: &str| (from.to_owned(), "Goblin Rei".to_owned());
+    assert_eq!(
+        ws.graph_unresolved().unwrap(),
+        vec![want("A.md"), want("B.md")]
+    );
+    assert_eq!(
+        ws.reader_graph_unresolved().unwrap(),
+        ws.graph_unresolved().unwrap()
+    );
+}
+
+#[test]
 fn config_dir_precedence_and_no_relative_fallback() {
     let home = Some(Path::new("/Users/x"));
     assert_eq!(

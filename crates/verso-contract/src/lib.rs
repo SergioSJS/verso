@@ -1076,6 +1076,16 @@ pub struct Edge {
     pub to: String,
 }
 
+/// A link of a note that no note answers to, for the graph's option of
+/// showing them (spec Q14, decision B): the note it is written in and the
+/// name it points at, as written (the smallest spelling in byte order when
+/// several notes spell it differently, so every source shows one node).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MissingLink {
+    pub from: String,
+    pub target: String,
+}
+
 /// A tag and the notes that carry it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Tag {

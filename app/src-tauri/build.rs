@@ -35,6 +35,7 @@ fn main() {
         "list_entries",
         "list_web_notes",
         "graph",
+        "graph_unresolved",
         "current_folder",
         "open_window",
         "popout_target",

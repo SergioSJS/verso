@@ -391,6 +391,13 @@ impl Workspace {
         self.index.reader_graph().map_err(CoreError::Index)
     }
 
+    /// [`Self::graph_unresolved`] as a reader asks it: without a link
+    /// inside a secret block.
+    pub fn reader_graph_unresolved(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let links = self.index.reader_all_links().map_err(CoreError::Index)?;
+        Ok(self.missing_of(links))
+    }
+
     /// [`Self::tags`] as a reader asks it.
     pub fn reader_tags(&self) -> Result<Vec<(String, Vec<String>)>, CoreError> {
         self.index.reader_tags().map_err(CoreError::Index)

@@ -307,6 +307,44 @@ impl Workspace {
         self.index.graph().map_err(CoreError::Index)
     }
 
+    /// Every link no note and no file answers to, as a pair of the note it
+    /// is written in and the name it points at: what the graph can show as
+    /// notes that do not exist yet (spec Q14, decision B). Once per note and
+    /// name, a name spelled several ways shown under its smallest spelling.
+    /// An empty target (`[[#Heading]]`) and one that cannot name a note
+    /// (`[[nota/]]`) are no missing note.
+    pub fn graph_unresolved(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let links = self.index.all_links().map_err(CoreError::Index)?;
+        Ok(self.missing_of(links))
+    }
+
+    pub(crate) fn missing_of(&self, links: Vec<verso_index::VaultLink>) -> Vec<(String, String)> {
+        let mut spelling: std::collections::BTreeMap<String, String> = Default::default();
+        let mut pairs: std::collections::BTreeSet<(String, String)> = Default::default();
+        for l in links {
+            let Some(key) = verso_index::target_key(&l.target).filter(|k| !k.is_empty()) else {
+                continue;
+            };
+            if l.resolved.is_some() || self.resolve_file(&l.from, &l.target).is_some() {
+                continue;
+            }
+            let shown = spelling
+                .entry(key.clone())
+                .or_insert_with(|| l.target.clone());
+            if l.target < *shown {
+                *shown = l.target.clone();
+            }
+            pairs.insert((l.from, key));
+        }
+        pairs
+            .into_iter()
+            .map(|(from, key)| {
+                let target = spelling.get(&key).cloned().unwrap_or_default();
+                (from, target)
+            })
+            .collect()
+    }
+
     /// Every tag of the vault with its notes (frontmatter and `#tag`).
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, CoreError> {
         self.index.tags().map_err(CoreError::Index)

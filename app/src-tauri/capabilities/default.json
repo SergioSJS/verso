@@ -42,6 +42,7 @@
     "allow-list-entries",
     "allow-list-web-notes",
     "allow-graph",
+    "allow-graph-unresolved",
     "allow-current-folder",
     "allow-app-info",
     "allow-open-window",
