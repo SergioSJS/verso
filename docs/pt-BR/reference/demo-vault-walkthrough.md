@@ -91,6 +91,15 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Pegou: uma importação que não escrevia nada dizia "importado" e não
    deixava rastro; uma pasta importada de um exemplo antigo nunca recebia
    as seções novas do tutorial ("0 criados, 28 mantidos").
+4. Com a janela em inglês, importe numa pasta vazia. Esperado: o cofre em
+   inglês de `demo-vault-en/` (nomes como `00 - Welcome to Verso.md` e `Verso
+   Tour.canvas`) mais os `assets/` compartilhados de `demo-vault/`, nenhuma
+   nota em português; a nota de boas-vindas em inglês abre, o tour abre com as
+   suas paradas em inglês, e uma nota traduzida abre a partir dele. O comando
+   da paleta "Import the demo content in Portuguese (Português)" grava o cofre
+   em português (e, numa janela em português, "Importar cofre de exemplo em
+   inglês (English)" grava o inglês). Nível: S (`node scripts/demo-vault.mjs
+   check` mantém os dois cofres como gêmeos), H; E: `demo-vault-en.spec.mjs`.
 
 ## 2. O tour
 
