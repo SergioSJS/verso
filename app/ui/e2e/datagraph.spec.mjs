@@ -450,6 +450,16 @@ test("turning the switch off takes the diagram away from tabs already open, and 
   await page.locator(".preview:visible pre").hover();
   await expect(page.locator(".preview:visible [data-action=view-diagram]")).toHaveCount(1);
 });
+test("turning the switch off closes a diagram tab opened from a note's code block (D.2)", async ({ app, page }) => {
+  await openFile(app, { "Dg Bloco.md": "# Bloco\n\n```json\n{\"a\": 1}\n```\n" }, "Dg Bloco");
+  await page.locator(".preview:visible pre", { hasText: '"a"' }).hover();
+  await page.locator(".preview:visible [data-action=view-diagram]").click();
+  await expect(page.locator(".dg-box").first()).toBeVisible();
+  await expect(page.locator(".tab")).toHaveCount(2);
+  await flipSwitch(app, page);
+  await expect(page.locator(".dg-box")).toHaveCount(0);
+  await expect(page.locator(".tab")).toHaveCount(1);
+});
 test("the diagram's code loads on the first diagram only", async ({ app, page }) => {
   const chunks = [];
   page.on("request", (r) => {
