@@ -236,6 +236,17 @@ test("frontmatter is written by a YAML library: values round-trip as the strings
   assert.equal(frontmatter(undefined), "");
 });
 
+test("planBundle counts the parent folders a path implies against the folder limit", () => {
+  // 26 chains of 8 segments list 26 folders but make 26 * 8 + 1 > 200
+  const deep = Array.from({ length: 26 }, (_, i) => `c${i}/b/c/d/e/f/g/h`);
+  const plan = planBundle(bundle({ folders: deep }), input());
+  assert.ok(plan.folders.length > LIMITS.folders);
+  assert.ok(plan.problems.some((p) => p.at === "/folders"));
+  // the same through the folders of the files
+  const viaFiles = planBundle(bundle({ files: Array.from({ length: 30 }, (_, i) => ({ path: `x${i}/b/c/d/e/f/g/n` })) }), input());
+  assert.ok(viaFiles.problems.some((p) => p.at === "/folders"));
+});
+
 test("planBundle fills tags in frontmatter strings and in lists", () => {
   const plan = planBundle(bundle({ files: [{ path: "a.md", frontmatter: { campanha: "{{title}}", tags: ["{{title}}", "x"], quando: "{{date}}" } }] }), input({ title: "Taverna #3" }));
   const back = parse(plan.files[0].text.split("---\n")[1]);
