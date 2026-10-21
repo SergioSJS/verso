@@ -42,6 +42,11 @@ fn of_remote(path: &str, e: RemoteError) -> Refusal {
             Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message)
         }
         RemoteErrorKind::Quota => Refusal::File(path.to_owned(), "quota".to_owned(), e.message),
+        // A name the service keeps for itself (ADR 0104 item 10): listed
+        // with the service's reason, the file stays here as it is.
+        RemoteErrorKind::NameInvalid => {
+            Refusal::File(path.to_owned(), "name_invalid".to_owned(), e.message)
+        }
         // The remote answered: that file is not readable there now.
         _ => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
     }
@@ -49,7 +54,7 @@ fn of_remote(path: &str, e: RemoteError) -> Refusal {
 
 /// A remote's error as the contract's, for the window to say: the kind the
 /// adapter carried through when it carried one.
-pub(super) fn contract_of(e: RemoteError) -> ContractError {
+pub(crate) fn contract_of(e: RemoteError) -> ContractError {
     let kind = e
         .detail
         .as_deref()
