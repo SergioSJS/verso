@@ -20,7 +20,11 @@
   dele fica. O MCP pela rede segue `[ABERTO]` (0073 item 11) —
   `[DECIDIDO 2026-10-21]`: depois da V1, com o MCP local por stdio
   inalterado (0073.mcp). 2026-10-21 — o idioma do que um modelo lê está
-  decidido: só inglês (0045.lang).
+  decidido: só inglês (0045.lang). 2026-10-21 — a primeira superfície aberta a
+  um visitante sem conta, os links de leitura da
+  [0105](0105-read-links-without-an-account.md), está construída; o modelo de
+  ameaças (`docs/reference/threat-model.md`) tem as suas linhas, e as decisões
+  desta ADR não mudam.
 
 ## Contexto
 
