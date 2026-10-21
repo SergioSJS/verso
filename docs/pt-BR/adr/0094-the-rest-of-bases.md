@@ -255,8 +255,7 @@ Obsidian publica — `obsidianmd/obsidian-maps` — uma fonte admissível
 depende a leitura das chaves da view no Contexto. Uma linha de Revisões
 no [0053](0053-views-bases.md) responde à lista "Não construído" dele.
 
-Registrado, não resolvido: o manifesto do plugin Maps pede o Obsidian
-1.13.1, a página de ajuda dele diz 1.10.
+Resolvido em 2026-10-21 (0094, opção A, no questionário de decisões de 2026-10-20): o manifesto do plugin Maps pede o Obsidian 1.13.1 e a página de ajuda dele diz 1.10; **as duas versões são citadas e vale a do manifesto (1.13.1)**, por ser código publicado, e a ajuda pode estar desatualizada.
 
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1
 pela resposta do mantenedor de 2026-10-14 (`docs/roadmap.md`, Fase 4 —

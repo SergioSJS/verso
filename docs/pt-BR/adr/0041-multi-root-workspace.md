@@ -37,4 +37,4 @@ Nenhuma registrada no briefing.
 
 ## Status
 
-Proposto.
+Proposto. `[DECIDIDO 2026-10-21]` (a marca do mantenedor, opção A, no questionário de decisões de 2026-10-20): o workspace de várias raízes vem depois da V1; a resolução de links entre raízes está em aberto e a V1 trabalha com uma pasta.

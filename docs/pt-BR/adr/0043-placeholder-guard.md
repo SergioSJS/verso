@@ -231,3 +231,5 @@ de nuvem do Windows, os do OneDrive entre eles, em 2026-10-08; `[ABERTO]` para o
 demais provedores, cada um quando a plataforma chegar ou um usuário precisar.
 Abrir um arquivo na janela o baixa: decidido em 2026-09-30; o que abrir cobre,
 e o índice entre versões: decidido em 2026-10-01.
+
+*2026-10-21* — `[DECIDIDO 2026-10-21]` (a marca do mantenedor, opção A, no questionário de decisões de 2026-10-20): os demais provedores (Dropbox, Google Drive, o do próprio macOS) são tratados cada um quando a plataforma chegar ou alguém precisar, como este Status já diz; falta ainda observar um placeholder real no Windows.

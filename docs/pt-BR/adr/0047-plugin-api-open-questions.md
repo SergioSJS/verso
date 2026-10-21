@@ -68,3 +68,5 @@ Nenhuma registrada.
 ## Status
 
 `[ABERTO]`. Responder antes de desenhar a API de plugin (depois da Fase 2).
+
+*2026-10-21* — o questionário de decisões de 2026-10-20 (respondido em 2026-10-21), todas opção A: as questões **0047.1** (modelo de UI), **0047.2** (segundo plano e mobile), **0047.3** (consentimento e permissões) e **0047.4** (a fronteira conteúdo × código nos pacotes, junto com a [0015](0015-schema-packs.md)) `[DECIDIDO 2026-10-21]` esperam a depois da V1, como os plugins. As questões em si seguem sem resposta; só o momento delas está decidido.
