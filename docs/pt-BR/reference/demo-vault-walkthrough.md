@@ -716,7 +716,7 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    botão — o verso.exe vem com o app) e os trechos do MCP, que mostram o
    comando que o host gravaria; sem o Claude Desktop, "Baixar o Claude
    Desktop" abre a página de download no navegador; o *Tom do escuro* da
-   Aparência muda o papel do tema escuro (Suave, Profundo, Penumbra), e os
+   Aparência (em *Temas*, junto do modo do tema e acima dos cartões) muda o papel do tema escuro (Suave, Profundo, Penumbra), e os
    botões da faixa lateral têm cada um o seu interruptor, a engrenagem
    nenhum.
    Nível: H; E: `settings.spec.mjs`, as seções e a Aparência;

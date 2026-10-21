@@ -89,6 +89,32 @@ test("a card shows the side the window is on", async ({ app }) => {
   await expect.poll(() => face.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(light);
 });
 
+test("the theme mode and the dark tone sit under Temas, above the cards; Texto is its own group", async ({ app }) => {
+  await openGallery(app);
+  const top = async (loc) => (await loc.first().boundingBox()).y;
+  const sub = (t) => app.page.locator(".settings-body .settings-subheading", { hasText: new RegExp(`^${t}$`) });
+  const order = {
+    temas: await top(sub("Temas")),
+    tema: await top(app.page.getByLabel("Tema", { exact: true })),
+    tom: await top(app.page.getByLabel("Tom do escuro")),
+    cards: await top(app.page.locator(".themes")),
+    texto: await top(sub("Texto")),
+    size: await top(app.page.locator('.settings-body input[type="range"]')),
+  };
+  expect(order.temas).toBeLessThan(order.tema);
+  expect(order.tema).toBeLessThan(order.tom);
+  expect(order.tom).toBeLessThan(order.cards);
+  expect(order.cards).toBeLessThan(order.texto);
+  expect(order.texto).toBeLessThan(order.size);
+  // The search still finds the mode and the tone.
+  for (const q of ["claro", "escuro", "tom"]) {
+    await app.page.locator(".settings-search").fill(q);
+    await expect(app.page.locator(".settings-body")).toContainText(q === "tom" ? "Tom do escuro" : "Tema");
+  }
+  await app.page.locator(".settings-search").fill("");
+  if (process.env.SHOTS) await app.page.screenshot({ path: `${process.env.SHOTS}/appearance.png` });
+});
+
 test("a click uses a theme at once, no reload, and the mark moves", async ({ app }) => {
   const gallery = await openGallery(app);
   await pick(app.page, "Sépia").click();
