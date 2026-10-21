@@ -126,3 +126,16 @@ test("13th Age carries the whole Section 15 and the Open Game License text", () 
   const node = C.creditsItems(ctx).find((i) => i.title === "13th Age").node();
   assert.match(node.querySelector("details").textContent, /Open Game License v1\.0a/);
 });
+
+test("World of Darkness 5th edition carries the Dark Pack's required lines, word for word; Cyberpunk RED the policy's disclaimer", () => {
+  for (const id of ["vtm5", "wta5", "htr5"]) {
+    const s = C.SYSTEMS.find((x) => x.id === id);
+    assert.equal(s.licence, "Paradox Dark Pack", id);
+    assert.ok(s.lines.includes("Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission."), id);
+    assert.ok(s.lines.includes("All rights reserved. For more information please visit worldofdarkness.com."), id);
+    assert.ok(s.lines.some((l) => /unofficial fan-made material, not official World of Darkness material/.test(l)), id);
+    assert.ok(s.lines[0].startsWith(s.name), id);
+  }
+  const r = C.SYSTEMS.find((x) => x.id === "cyberpunk-red");
+  for (const l of r.lines) assert.match(l, /is unofficial content provided under the Homebrew Content Policy of R\. Talsorian Games and is not approved or endorsed by RTG\. This content references materials that are the property of R\. Talsorian Games and its licensees\.$/);
+});

@@ -94,12 +94,12 @@ Este é o estado registrado pelo item 6 da ADR 0099 em 2026-10-20; os parágrafo
 | The One Ring | nenhuma | Não embutido (importado) |
 | Vaesen | nenhuma (Workshop, suplementos) | Não embutido (importado) |
 | Twilight: 2000 | nenhuma (Workshop, suplementos) | Não embutido (importado) |
-| Vampire: The Masquerade | Dark Pack | `[PROPOSTO]` embutido, Dark Pack |
-| Werewolf: The Apocalypse | Dark Pack | `[PROPOSTO]` embutido, Dark Pack |
-| Hunter: The Reckoning | Dark Pack | `[PROPOSTO]` embutido, Dark Pack |
+| Vampire: The Masquerade | Dark Pack | Embutido (decidido em 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
+| Werewolf: The Apocalypse | Dark Pack | Embutido (decidido em 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
+| Hunter: The Reckoning | Dark Pack | Embutido (decidido em 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
 | Mage: The Ascension | Dark Pack por analogia (não confirmado) | Não embutido (importado) |
 | Call of Cthulhu | Chaosium Fan Material Policy (apps excluídos) | Não embutido (importado) |
-| Cyberpunk RED | RTG Homebrew Content Policy | `[PROPOSTO]` embutido, layout em branco |
+| Cyberpunk RED | RTG Homebrew Content Policy | Embutido (decidido em 2026-10-21), layout em branco |
 | Shadowrun | nenhuma encontrada | Não citado no item 6; não embutido |
 | Starfinder | ORC | Embutido |
 | Warhammer Fantasy Roleplay | nenhuma encontrada | Não citado no item 6; não embutido |
@@ -488,7 +488,7 @@ Cada seção lista, nesta ordem: a licença, se vem embutido, a linha de crédit
 ### 3.23 Vampire: The Masquerade, 5th edition (Paradox / White Wolf; books by Renegade Game Studios; pt-BR Galapagos Jogos)
 
 - **Licença.** Dark Pack Agreement da Paradox (https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement) **[OFFICIAL]**: conteúdo de fãs não comercial é permitido sem permissão, incluindo "character sheets, and free online character generators"; "Online character generators, including downloadable and mobile apps, must be free, with no in-app purchases"; "Virtual dice rollers are permitted"; sem vender, sem copiar um livro inteiro, sem remover avisos; revogável "at any time, for any reason"; os termos mudam com 30 dias de aviso. Layouts em branco, sem texto literal. A Paradox anunciou um playtest alfa da V6 em 30 jul 2026 (https://www.paradoxinteractive.com/games/world-of-darkness/news/vtm-sixth-edition-alpha-playtests-open-now): a V5 pode ser substituída.
-- **Vem embutido (item 6 da ADR 0099).** `[PROPOSTO]` no item 6 da ADR 0099: embutido sob o Dark Pack da Paradox, com o aviso
+- **Vem embutido (item 6 da ADR 0099).** Embutido desde 2026-10-21 (decidido pelo mantenedor, 0099.6c = A) sob o Dark Pack da Paradox, com o aviso na página de créditos e na ficha. **O logo do Dark Pack, que o acordo pede, ainda não está no app**: ele vem do kit do Dark Pack da Paradox e o mantenedor precisa fornecê-lo.
 - **Linha de crédito.** Exigido literalmente: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Sugerido: "Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Ficha de personagem, na ordem de exibição.**
   - [COMMUNITY] wiki, CC BY-SA 3.0, hosted by Paradox (https://vtm.paradoxwikis.com/Character_creation).
@@ -506,7 +506,7 @@ Cada seção lista, nesta ordem: a licença, se vem embutido, a linha de crédit
 ### 3.24 Werewolf: The Apocalypse, 5th edition (Paradox / White Wolf)
 
 - **Licença.** Dark Pack, como em Vampiro acima. Encaixe: condicional.
-- **Vem embutido (item 6 da ADR 0099).** `[PROPOSTO]` no item 6 da ADR 0099: embutido sob o Dark Pack da Paradox, com o aviso
+- **Vem embutido (item 6 da ADR 0099).** Embutido desde 2026-10-21 (decidido pelo mantenedor, 0099.6c = A) sob o Dark Pack da Paradox, com o aviso na página de créditos e na ficha. **O logo do Dark Pack, que o acordo pede, ainda não está no app**: ele vem do kit do Dark Pack da Paradox e o mantenedor precisa fornecê-lo.
 - **Linha de crédito.** Exigido literalmente: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Sugerido: "Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Ficha de personagem, na ordem de exibição.**
   - [COMMUNITY] wiki (https://wta.paradoxwikis.com/Character_creation): the same 9 attributes and 27 skills as V5; Health = Stamina + 3; Willpower = Composure + Resolve; **Renown** (two dots in the tribe's type, one in another). **Seções:** Name, Concept, Patron, Chronicle, Auspice, Tribe; Attributes; Skills; Renown; Gifts and Rites; Chronicle Tenets; Touchstones; Favors and Bans; Advantages and Flaws.
@@ -520,7 +520,7 @@ Cada seção lista, nesta ordem: a licença, se vem embutido, a linha de crédit
 ### 3.25 Hunter: The Reckoning, 5th edition (Paradox / White Wolf)
 
 - **Licença.** Dark Pack, como em Vampiro acima. Encaixe: condicional.
-- **Vem embutido (item 6 da ADR 0099).** `[PROPOSTO]` no item 6 da ADR 0099: embutido sob o Dark Pack da Paradox, com o aviso
+- **Vem embutido (item 6 da ADR 0099).** Embutido desde 2026-10-21 (decidido pelo mantenedor, 0099.6c = A) sob o Dark Pack da Paradox, com o aviso na página de créditos e na ficha. **O logo do Dark Pack, que o acordo pede, ainda não está no app**: ele vem do kit do Dark Pack da Paradox e o mantenedor precisa fornecê-lo.
 - **Linha de crédito.** Exigido literalmente: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Sugerido: "Hunter: The Reckoning, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Ficha de personagem, na ordem de exibição.**
   - [COMMUNITY] wiki (https://htr.paradoxwikis.com/Character_creation): 9 attributes as V5; skills as V5 except Physical lists **Driving** (V5 and W5 pages say Drive: a discrepancy to verify). Health = Stamina + 3; Willpower = Composure + Resolve. **Creed** (Entrepreneurial, Faithful, Inquisitive, Martial, Underground) with a Creed Field; **Drive** (each with a Redemption method); **Edges** (no rating; choose 2 Edges + 1 Perk or 1 + 2) and Perks; Ambition, Desire, Touchstones (1–3), Advantages (7 dots), Flaws (2 dots). **Seções:** Name, Concept, Creed, Cell, Ambition, Desire, Drive, Redemption; Attributes; Skills; Edges and Perks; Chronicle Tenets; Touchstones; Creed Fields; Advantages and Flaws.
@@ -565,8 +565,8 @@ Cada seção lista, nesta ordem: a licença, se vem embutido, a linha de crédit
 ### 3.28 Cyberpunk RED (R. Talsorian Games)
 
 - **Licença.** Homebrew Content Policy (https://rtalsoriangames.com/homebrew-content-policy/) **[OFFICIAL]**: o conteúdo deve ser de acesso gratuito; produtos pagos não podem dizer "compatible with"; **sem reproduzir texto da RTG "including stat blocks and rulesets"**; sem título da RTG no título do seu produto. "You may create character sheets and generators that automate character creation, rolls, and random content"; o material do jogo "can only be summarized"; **"Full stat blocks for monsters, NPCs, or hazards are not allowed."** Conteúdo gratuito pode passar por lojas de aplicativos. Um aviso de conteúdo não oficial (cerca de 230 caracteres) é exigido onde seja facilmente visto. Encaixe: só layouts em branco e resumos.
-- **Vem embutido (item 6 da ADR 0099).** `[PROPOSTO]` no item 6 da ADR 0099: embutido como layout em branco, com o aviso
-- **Linha de crédito.** O texto exato do aviso da política não pôde ser capturado: **UNVERIFIED**. Só paráfrase: "Unofficial content made under R. Talsorian Games' Homebrew Content Policy; not approved or endorsed by R. Talsorian Games. Cyberpunk is a registered trademark of CD Projekt S.A." Trocar pelo texto exato da política antes de embutir.
+- **Vem embutido (item 6 da ADR 0099).** Embutido desde 2026-10-21 (decidido pelo mantenedor, 0099.6c = A) como layouts em branco (`cpr-blank-character`, `cpr-blank-npc`: só nomes de campos, sem texto de regras, sem ficha pronta), com título de subtítulo descritivo ("Ficha em branco — Cyberpunk RED", "Ficha de PNJ — Cyberpunk RED", em inglês "Blank sheet — for Cyberpunk RED", como a política permite). O aviso da política foi lido palavra por palavra em 2026-10-21 em https://rtalsoriangames.com/homebrew-content-policy/ e está na ficha e na página de créditos; a linha de crédito abaixo é a exata. O aviso
+- **Linha de crédito.** Verificada palavra por palavra em 2026-10-21 (https://rtalsoriangames.com/homebrew-content-policy/), exigida "num lugar bem visível, como o fim do documento" para conteúdo além de uma postagem de fórum: "[Title of your Content] is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees." com o título do conteúdo preenchido; a janela a mostra no rodapé de cada ficha em branco e na página de créditos. A política proíbe o título do jogo no título do conteúdo, mas o permite num subtítulo descritivo.
 - **Ficha de personagem, na ordem de exibição.**
   - Ficha oficial (https://rtalsoriangames.com/wp-content/uploads/2020/11/RTG-CPR-CharacterSheet.pdf).
   - **Atributos:** (10) INT, REF, DEX, TECH, COOL, WILL, MOVE, BODY, EMP, LUCK (LUCK and EMP shown "out of").

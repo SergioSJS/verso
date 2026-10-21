@@ -73,6 +73,12 @@ import l_moves_2d6_character from "./moves-2d6-character.json";
 import l_d6_pool_character from "./d6-pool-character.json";
 import l_difficulty_pool_character from "./difficulty-pool-character.json";
 import l_ladder_aspects_character from "./ladder-aspects-character.json";
+import l_vtm5_character from "./vtm5-character.json";
+import l_vtm5_antagonist from "./vtm5-antagonist.json";
+import l_wta5_character from "./wta5-character.json";
+import l_htr5_character from "./htr5-character.json";
+import l_cpr_blank_character from "./cpr-blank-character.json";
+import l_cpr_blank_npc from "./cpr-blank-npc.json";
 import { SAMPLE_YAML } from "./samplesData";
 
 /** The built-in layouts' files, in the order the list shows them. */
@@ -111,6 +117,12 @@ const FILES: readonly unknown[] = [
   l_d6_pool_character,
   l_difficulty_pool_character,
   l_ladder_aspects_character,
+  l_vtm5_character,
+  l_vtm5_antagonist,
+  l_wta5_character,
+  l_htr5_character,
+  l_cpr_blank_character,
+  l_cpr_blank_npc,
 ];
 
 /** The layout a block that names none is drawn with: the one a block

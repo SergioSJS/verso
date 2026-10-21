@@ -20,6 +20,7 @@ import { showMenu } from "./menu";
 import { opening } from "./opening";
 import { setNoteProperty } from "./organize/frontmatter";
 import { saveSettings, settings } from "./settings";
+import { refreshBestiary } from "./statblock/bestiary";
 import { baseStrings, LOCALE, t } from "./strings";
 import { dirOf } from "./paths";
 
@@ -38,6 +39,8 @@ export let basesTimer: number | undefined;
 export function refreshBases(): void {
   window.clearTimeout(basesTimer);
   basesTimer = window.setTimeout(() => {
+    // The notes a statblock inherits from, read again (ADR 0099 item 1).
+    refreshBestiary();
     for (const v of liveBases) void v.refresh();
     for (const b of liveBoards) b.refresh();
     // A daily note made or gone shows on the month too.

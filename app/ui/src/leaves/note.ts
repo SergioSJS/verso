@@ -19,6 +19,7 @@ import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { afterFileChange, tellOutcomes } from "../changes";
+import { refreshBestiary } from "../statblock/bestiary";
 import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
@@ -1138,6 +1139,8 @@ export class NoteLeaf extends Leaf {
     if (this.gone) this.setGone(false);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
+    // A statblock that inherits from this note draws again (ADR 0099 item 1).
+    refreshBestiary();
     ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
   }
   /** A write refused. `changed`: the file moved on since it was read
