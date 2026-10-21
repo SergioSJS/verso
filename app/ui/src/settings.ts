@@ -9,6 +9,10 @@ import { allOn, type Features, migratePreset, readFeatures } from "./featureList
 import { updateLeavesLineNumbers } from "./main";
 import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
 import { t } from "./strings";
+import { applyLook } from "./theme/apply";
+import { readLook } from "./theme/look";
+import { readProfiles, type Profile } from "./theme/profiles";
+import type { Look } from "./theme/tokens";
 
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
@@ -68,6 +72,12 @@ export type Settings = {
   mapTileOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
+  /** The appearance wizard (ADR 0100): the colours and fonts the person
+   *  changed, for light and dark; empty, the stylesheet's own. Saved looks
+   *  by name, and the last one applied. Never written into a folder. */
+  look?: Look;
+  looks?: Profile[];
+  lookName?: string;
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
   /** Boards (ADR 0057, 2026-09-30). */
@@ -208,6 +218,9 @@ export function loadSettings(): void {
       for (const key of ["suggestIgnoreFolders", "suggestIgnoreNames"] as const) {
         settings[key] = Array.isArray(settings[key]) ? settings[key].filter((v) => typeof v === "string") : [];
       }
+      settings.look = readLook(parsed.look);
+      settings.looks = readProfiles(parsed.looks);
+      if (typeof settings.lookName !== "string") delete settings.lookName;
       settings.suggestLinks = settings.suggestLinks === true;
       settings.mentionAt = settings.mentionAt !== false;
       settings.suggestCapitalOnly = settings.suggestCapitalOnly !== false;
@@ -317,6 +330,7 @@ export function applySettings(): void {
   document.documentElement.style.setProperty("--heading-font", headingFonts[settings.headingFont ?? "serif"] || headingFonts.serif!);
   document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
   document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
+  applyLook(settings.look);
   allowRemoteContent(settings.remoteContent);
   allowEmbedOrigins(settings.embedOrigins);
   updateLeavesLineNumbers?.();
