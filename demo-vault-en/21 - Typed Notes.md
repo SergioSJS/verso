@@ -22,7 +22,7 @@ A schema is a `verso-schema` code block in any note of the folder, like [[Types/
 type: character
 label: { pt-BR: Personagem, en: Character }
 properties:
-  - key: nível
+  - key: level
     kind: number
     label: { pt-BR: Nível, en: Level }
 ```
@@ -43,7 +43,7 @@ Open [[Characters/Lia Torres]] and [[Characters/Captain Ruy]]:
 
 - Above the properties, **Type: Character** and a shortcut to the schema.
 - The declared properties come first, in the schema's order, with the label in the window's language; a date gets a date picker, a checkbox becomes a box.
-- A value that does not fit the type — `nível: high` — shows up **as written, underlined**. Nothing converts it.
+- A value that does not fit the type — `level: high` — shows up **as written, underlined**. Nothing converts it.
 - A declared property the note does not have is an empty row: **nothing is written until you give it a value**.
 - The note's other keys come after.
 
@@ -57,7 +57,7 @@ Open [[Places/Gray Harbor]]. The [[Types/Place]] schema says `layout: infobox`, 
 
 - At the top, the type's first `image` property: the harbor map. The image's alt text is the link's alias — `"[[porto-cinzento.svg|Gray Harbor seen from the lighthouse]]"` —, otherwise the note's title.
 - Below, the type, and the declared properties in the schema's order.
-- The note's other keys (here, `clima`) are folded into **Other properties**.
+- The note's other keys (here, `weather`) are folded into **Other properties**.
 - **Inhabitants** is of the `link` kind: each quoted link shows up as a link — click to follow it. The **Add a link…** field offers the notes in the folder, like `[[` does.
 
 It is the same properties panel with another arrangement: editing on the card is editing the frontmatter, on the same lines, and opening the note writes nothing. In a narrow pane or on the phone, the card goes above the text, showing the image and the first three properties; **Show every property** opens the rest.

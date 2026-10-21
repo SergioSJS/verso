@@ -6,11 +6,11 @@ tags:
   - properties
   - yaml
   - organizing
-prioridade: alta
-estimativa_horas: 12
-concluido: false
-revisor: "Sérgio"
-url_referencia: https://versomd.com
+priority: high
+estimated_hours: 12
+done: false
+reviewer: "Sérgio"
+reference_url: https://versomd.com
 ---
 
 # Properties and Metadata
@@ -34,13 +34,13 @@ Look at the properties table at the top of this note:
 
 | Type | Example in YAML | How it renders in the interface |
 | :--- | :--- | :--- |
-| **Text** | `revisor: "Sérgio"` | Editable text field |
-| **Number** | `estimativa_horas: 12` | Numeric field |
+| **Text** | `reviewer: "Sérgio"` | Editable text field |
+| **Number** | `estimated_hours: 12` | Numeric field |
 | **Date** | `date: 2026-09-25` | Text, in the `YYYY-MM-DD` format (bases read it as a date) |
-| **Checkbox** | `concluido: false` | Checkbox you tick with a click |
+| **Checkbox** | `done: false` | Checkbox you tick with a click |
 | **List** | `tags: [frontmatter, yaml]` | One pill per item, each with a button to remove it |
-| **Address** | `url_referencia: https://versomd.com` | Text with a ↗ that opens the address |
-| **Link to a note** | `relacionado: "[[Project Alpha]]"` | A real link: it counts in the backlinks and follows renames |
+| **Address** | `reference_url: https://versomd.com` | Text with a ↗ that opens the address |
+| **Link to a note** | `related: "[[Project Alpha]]"` | A real link: it counts in the backlinks and follows renames |
 
 ---
 

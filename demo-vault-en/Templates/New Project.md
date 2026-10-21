@@ -2,11 +2,11 @@
 title: "{{title}}"
 date: "{{date}}"
 status: planned
-prioridade: medium
-responsavel: ""
+priority: medium
+owner: ""
 tags:
   - project
-orcamento: 0
+budget: 0
 ---
 
 # {{title}}

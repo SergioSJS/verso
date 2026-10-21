@@ -2,14 +2,14 @@
 title: Project Alpha
 date: 2026-09-20
 status: in_progress
-prioridade: high
-responsavel: "Sérgio"
+priority: high
+owner: "Sérgio"
 tags:
   - project
   - development
   - alpha
-orcamento: 15000
-local: "-23.5505, -46.6333"
+budget: 15000
+location: "-23.5505, -46.6333"
 ---
 
 # Project Alpha

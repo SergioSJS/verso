@@ -4,7 +4,7 @@ date: "{{date}}"
 tags:
   - meeting
   - notes
-participantes: []
+attendees: []
 ---
 
 # {{title}}
