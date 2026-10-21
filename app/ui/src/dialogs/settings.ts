@@ -217,6 +217,7 @@ export class SettingsDialog {
       select: (o, v, c) => this.select(o, v, c),
       toggle: (v, c) => this.toggle(v, c),
       paint: () => this.paint(),
+      open: (section) => { this.section = section; this.search.value = ""; this.paint(); },
     };
   }
   private select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {

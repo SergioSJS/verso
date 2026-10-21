@@ -14,4 +14,6 @@ export type ItemCtx = {
   select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement;
   toggle(value: boolean, onChange: (v: boolean) => void): HTMLLabelElement;
   paint(): void;
+  /** Go to another page of the settings (optional: tests omit it). */
+  open?(section: string): void;
 };
