@@ -16,6 +16,9 @@ async function closeWhenPage2IsAsked(page) {
       const out = post.call(this, msg, ...rest);
       if (!asked && msg && msg.action === "GetPage" && msg.data?.pageIndex >= 1) {
         asked = true;
+        // What the embed had drawn when the note went: the test reads this,
+        // since the page is gone in the same turn and a poll can miss it.
+        window.__page1WhenAsked = !!document.querySelector('.page[data-page-number="1"]');
         for (const k of [{ ctrlKey: true }, { metaKey: true }]) document.dispatchEvent(new KeyboardEvent("keydown", { key: "w", code: "KeyW", bubbles: true, cancelable: true, ...k }));
       }
       return out;
@@ -38,7 +41,11 @@ test("closing a note that embeds a multi-page PDF while its pages are still bein
   await app.writeOutside("Embed do manual.md", "# Embed\n\n![[manual-verso.pdf]]\n");
   await app.folderChanged(["Embed do manual.md"], true);
   await app.quickOpen("Embed do manual");
-  await expect(page.locator('.page[data-page-number="1"]').first()).toBeVisible({ timeout: 15_000 });
+  // The embed drew its first page and the viewer asked for the second; the
+  // note was closed in that same turn, so the page is not on screen to be
+  // polled for (a fast machine never lets a poll see it): the init script
+  // noted it was there.
+  await expect.poll(() => page.evaluate(() => window.__page1WhenAsked), { timeout: 15_000 }).toBe(true);
   await expect(page.locator('.page[data-page-number="1"]')).toHaveCount(0, { timeout: 15_000 });
   await page.waitForTimeout(1500);
 });

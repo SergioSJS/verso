@@ -227,10 +227,15 @@ async function sweepLanguage(app, page, lang, project) {
   });
   await app.key("Mod+e");
 
+  // A node under the pointer opens its note's hover preview (it settles under
+  // a pointer left by an earlier click, or not, by timing), and a sheet's
+  // preview shows its YAML as written: the person's content, in the game's
+  // language, which is no word of the window's.
+  const sheetsText = SHEETS.map((id) => readFileSync(new URL(`${id}.yaml`, SAMPLES), "utf8")).join("\n");
   await visit("graph", async () => {
     await app.command(L.graph);
     await page.waitForTimeout(500);
-  });
+  }, { own: sheetsText });
   await closeAll();
 
   // The settings, every section.

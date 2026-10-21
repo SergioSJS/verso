@@ -190,12 +190,15 @@ test("a tree for the keyboard and a screen reader: arrows walk it, Enter folds, 
   // Alt with an arrow moves the box with what hangs under it; with Shift, alone.
   const b1 = await at(page, 1);
   const b2 = await at(page, 2);
+  // The boxes are placed on the next animation frame after the key, so the
+  // positions are polled, never read in the turn of the key press.
+  const moved = (id, from, axis, by) => expect.poll(async () => close((await at(page, id))[axis] - from[axis], by)).toBe(true);
   await page.keyboard.press("Alt+ArrowDown");
-  expect(close((await at(page, 1)).y - b1.y, 16)).toBe(true);
-  expect(close((await at(page, 2)).y - b2.y, 16)).toBe(true);
+  await moved(1, b1, "y", 16);
+  await moved(2, b2, "y", 16);
   await page.keyboard.press("Alt+Shift+ArrowRight");
-  expect(close((await at(page, 1)).x - b1.x, 16)).toBe(true);
-  expect(close((await at(page, 2)).x - b2.x, 0)).toBe(true);
+  await moved(1, b1, "x", 16);
+  await moved(2, b2, "x", 0);
   // T: the text view, the box's range selected.
   await page.keyboard.press("t");
   await expect(page.locator(".leaf:visible .editor.source")).toBeVisible();
