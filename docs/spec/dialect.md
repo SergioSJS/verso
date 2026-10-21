@@ -1233,6 +1233,11 @@ Raised while writing this spec. All of them need an answer before
   of Obsidian closes in full only in the PR that adds it, with this section
   updated in the same PR; none is drafted yet.
 
+  *2026-10-21: (B) is built on branch `feat/graph-unresolved` — the graph's
+  filter "Existing files only", on by default, off draws each unresolved
+  target as a hollow, dashed node linked from the notes that name it
+  (Obsidian's public "Graph view" help documents the same filter).*
+
 - **Q15. Markdown extensions outside the base.** `DECIDED` for the reading view
   on 2026-09-23; `DECIDED` for the parser that feeds the index on 2026-10-21.
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
