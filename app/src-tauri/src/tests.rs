@@ -463,6 +463,16 @@ fn the_commands_answer_through_the_contract() {
     let revision = read["revision"].as_str().unwrap().to_owned();
     let links = call(&webview, "links", json!({ "path": "Taverna" })).unwrap();
     assert_eq!(links[0]["resolved"], "Barão.md", "{links}");
+    // Every `^id` block of the folder: the command is allowed to the window
+    // (build.rs and the capability) and answers in the contract's shape.
+    let ids = call(
+        &webview,
+        "list_block_ids",
+        json!({ "kinds": ["table", "list"] }),
+    )
+    .unwrap();
+    assert_eq!(ids["truncated"], false, "{ids}");
+    assert!(ids["blocks"].is_array(), "{ids}");
     let graph = call(&webview, "graph", json!({})).unwrap();
     assert_eq!(graph[0]["to"], "Barão.md", "{graph}");
 

@@ -85,8 +85,11 @@ pub mod secret {
 }
 use rename::*;
 pub use sidecar::Sidecar;
-/// The index's answers, as the core hands them out (its reader's too).
 pub use verso_index::{Backlink as IndexBacklink, Hit as IndexHit, Link as IndexLink};
+/// The index's answers, as the core hands them out (its reader's too).
+pub use verso_index::{
+    BlockKind as IndexBlockKind, BlockList as IndexBlockList, BlockRef as IndexBlockRef,
+};
 
 /// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
 /// the UI can hand it back without knowing what is in it.

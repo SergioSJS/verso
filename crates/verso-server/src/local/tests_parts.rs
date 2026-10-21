@@ -540,6 +540,7 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ("unlinked_mentions", r#"{"path":"a.md"}"#, true),
     ("list_files", "{}", true),
     ("list_tags", "{}", true),
+    ("list_block_ids", r#"{"kinds":["table","list"]}"#, true),
     ("list_web_notes", "{}", true),
     ("graph", "{}", true),
     // A share refuses it: told apart from a link that resolves outside the

@@ -10,7 +10,7 @@ import { LIKELIHOODS, type Likelihood, type OracleResult, type SparkResult } fro
 import { oddsIgnored, sparksIgnored } from "./folderData";
 import type { OracleHost, OracleTarget } from "./host";
 import { drawQuestion, drawSpark, drawTable } from "./room";
-import { scanNoteTables, SCAN_MOST } from "./scan";
+import { loadTableRows, scanNoteTables, SCAN_MOST } from "./scan";
 import { isPt, os } from "./strings";
 import { BUILTIN_ORACLE_TABLES, getAllOracleTables, type OracleTable, type TableRollResult } from "./tables";
 import { trackOracle } from "./track";
@@ -218,6 +218,18 @@ function build(): Dialog {
     selectedTable = all.find((x) => x.id === id) ?? all[0] ?? BUILTIN_ORACLE_TABLES[0]!;
     tableDesc.textContent = selectedTable.desc;
     if (lastTableResult && lastTableResult.table.id !== selectedTable.id) discardResult();
+    // A table the index listed: its note is read now that it is chosen.
+    if (selectedTable.unread) void loadChosen();
+  };
+  /** Read the chosen table's rows. False when it reads as no table: it is
+   *  taken off the list, and said so. */
+  const loadChosen = async (): Promise<boolean> => {
+    const want = selectedTable;
+    if (!want.unread) return true;
+    const loaded = await loadTableRows(want);
+    if (!loaded) say(os.tableUnusable(want.name));
+    populateTableSelect();
+    return loaded !== null;
   };
   const populateTableSelect = () => {
     const keep = selectedTable.id;
@@ -225,7 +237,7 @@ function build(): Dialog {
     for (const tbl of getAllOracleTables()) {
       const opt = document.createElement("option");
       opt.value = tbl.id;
-      opt.textContent = `${tbl.name} (${os.options(tbl.entries.length)})`;
+      opt.textContent = tbl.unread ? tbl.name : `${tbl.name} (${os.options(tbl.entries.length)})`;
       tableSelect.append(opt);
     }
     if (Array.from(tableSelect.options).some((o) => o.value === keep)) tableSelect.value = keep;
@@ -412,6 +424,7 @@ function build(): Dialog {
         note = d.note;
         renderSpark();
       } else {
+        if (!(await loadChosen())) return false;
         const d = await drawTable(path, selectedTable);
         if (!d.ok) {
           say(d.why);

@@ -52,10 +52,10 @@ async fn furnished(r: &Running, admin: &Browser) -> (String, Win) {
             "# Notas\n\nVer [[Segredo]] e [[Outra]] e [[Fora]].\n\n![[p.png]]\n\n#mesa\n",
         ),
         ("Mesa/Outra", "Outra nota palavrachave\n"),
-        ("Mesa/Sub/Funda", "Funda\n"),
+        ("Mesa/Sub/Funda", "Funda\n\n- a\n- b ^dentro\n"),
         (
             "Segredo",
-            "# Segredo\n\npalavrachave segredissima [[Notas]]\n\n#mesa\n",
+            "# Segredo\n\npalavrachave segredissima [[Notas]]\n\n#mesa\n\n- x ^fora\n",
         ),
         ("Mesa2/Fora", "Fora da mesa palavrachave, Notas\n"),
     ] {
@@ -180,6 +180,16 @@ fn a_reader_sees_the_shared_folder_and_nothing_above_or_beside_it() {
         }
         let tags = w.call("list_tags", json!({})).await;
         assert_eq!(tags["ok"][0]["notes"], json!(["Notas.md"]), "{tags}");
+        // The blocks of the share only, in its paths (the oracle's tables).
+        let blocks = w
+            .call("list_block_ids", json!({ "kinds": ["table", "list"] }))
+            .await;
+        assert_eq!(
+            blocks["ok"]["blocks"],
+            json!([{ "path": "Sub/Funda.md", "id": "dentro", "kind": "list", "label": "b", "under_heading": false }]),
+            "{blocks}"
+        );
+        says_nothing_outside(&blocks);
         let found = w
             .call("search", json!({ "words": "palavrachave", "limit": 20 }))
             .await;
