@@ -1043,6 +1043,15 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   leitura faz, e fica registrado aqui como regra (nenhuma frase anterior da
   spec dizia isso).
 
+  *Correção, 2026-10-21 (revisão do lote da tarde):* a frase acima (uma citação
+  comum dentro de um callout não conta como nível; um callout dentro dela
+  conta como aninhado) é **o comportamento da construção, à espera do
+  mantenedor, não uma decisão**: a resposta dele aprovou a fixture, e a nota
+  da própria fixture deixou o caso de fora de propósito porque nenhuma frase
+  da spec o dizia. A pergunta Q5-bis da lista de decisões da tarde pede que
+  ele o confirme ou decida diferente; até lá é um fato provisório, como o do
+  início desta entrada.
+
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `DECIDIDA` em 2026-10-21 para o índice e para HTML embutido; os comentários
   na visualização de leitura `DECIDIDOS` em 2026-09-23. Bloco indentado por 4
@@ -1522,7 +1531,11 @@ ser escolhido.
   `block/id-chars` e `frontmatter/tags-hash` estão **aprovadas como
   rascunhadas** e suas marcas de rascunho foram removidas. A Q22 está fechada:
   (a) charset do `^id`, (b) tags aninhadas contadas sob a tag acima, (c)
-  `#ideia` e `ideia` uma só tag.
+  `#ideia` e `ideia` uma só tag. *Registrado em 2026-10-21 (revisão do lote
+  da tarde):* (b) **está** decidida: é a resposta do mantenedor Q22b = A da
+  lista de decisões de 2026-10-20 ("Sim, `#a` acha `#a/b`", como o painel de
+  tags do Obsidian, conforme a documentação pública das tags aninhadas);
+  nenhuma fixture a cobre.
 
 - **Q23. Formas combinadas e escapes de wikilink.** `DECIDIDA` em 2026-10-21.
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` e `[[#^bloco]]`
@@ -1637,13 +1650,27 @@ ser escolhido.
   uma escolha da construção, e uma nota com `tags: 2024` mostra uma tag no
   Verso e nenhuma no Obsidian. O código é mudado para seguir isto e a fixture
   `frontmatter/tags-number`, que hoje afirma a leitura do Obsidian, é
-  atualizada pelo código que a constrói; essa fixture mantém a marca de
-  rascunho até lá, e as outras cinco fixtures da Q22 e da Q24
+  atualizada pelo código que a constrói; a marca de rascunho dessa fixture
+  foi removida quando ela foi aprovada com a DL.2 B (v0.48, `0d576e17`; ver as
+  linhas datadas abaixo), e as outras cinco fixtures da Q22 e da Q24
   (`block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`,
   `frontmatter/tags-hash`, `frontmatter/wikilink-values`) estão **aprovadas
   como rascunhadas** (DL.3, opção A), com as marcas de rascunho removidas. (c)
   O BOM, o YAML 1.2, os wikilinks em valores e as quebras de linha mistas
   valem como decididos em 2026-10-21 e construídos.
+
+  *Linhas datadas, 2026-10-21 (revisão do lote da tarde).* (1) O arquivo
+  `fixtures/frontmatter/tags-number/expected.yaml` não tem marca de rascunho e
+  foi aprovado com a DL.2 B (v0.48). O comentário e o texto de `observed:`
+  dele **mudaram depois da aprovação** (agora dizem que o Verso diverge do
+  Obsidian por decisão do mantenedor); o valor afirmado (`frontmatter: tags:
+  2024`, um inteiro) não mudou. A invariante 14 diz "nunca mudar
+  `expected.yaml` sem aprovação explícita", então se pede uma reconfirmação de
+  uma linha do arquivo como está agora (pergunta I-8 da lista de decisões da
+  tarde). (2) Que "um inteiro negativo não é tag" e "um float não é tag"
+  (`tags: 1.5`, `tags: -3`) são **escolha da construção**: a resposta citou só
+  `2024`; isso está no comentário do código e no teste dele
+  (`crates/verso-dialect/src/tags.rs`) e é perguntado como T.3 da mesma lista.
 
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
