@@ -149,7 +149,7 @@ test("the plan of a roll: which dice fall, showing what", () => {
   assert.deepEqual(m.planRoll(roll("2dF", [term(3, [-1, 1], [], 1, true)])).map((x) => [x.set, x.value]), [["fudge", -1], ["fudge", 1]]);
 });
 
-test("beyond twenty dice, exploding dice and odd sizes get no 3D fall", () => {
+test("beyond twenty dice and odd sizes get no 3D fall", () => {
   const n = (c) => Array.from({ length: c }, () => 3);
   assert.equal(m.planRoll(roll("20d6", [term(6, n(20))])).length, 20);
   assert.equal(m.planRoll(roll("21d6", [term(6, n(21))])), null);
@@ -158,10 +158,47 @@ test("beyond twenty dice, exploding dice and odd sizes get no 3D fall", () => {
   // A d100 counts as two dice.
   assert.equal(m.planRoll(roll("10d%", [term(100, Array.from({ length: 10 }, () => 50))])).length, 20);
   assert.equal(m.planRoll(roll("11d%", [term(100, Array.from({ length: 11 }, () => 50))])), null);
-  assert.equal(m.planRoll(roll("1d6!", [term(6, [6, 2])])), null);
   assert.equal(m.planRoll(roll("1d7", [term(7, [4])])), null);
   assert.equal(m.planRoll(roll("1d1000", [term(1000, [400])])), null);
   assert.equal(m.planRoll(roll("0", [])), null);
+});
+
+test("an exploding die falls in waves, each after the die that added it", () => {
+  const waves = (notation, kept, count = 3, sides = 6) => m.planRoll(roll(notation, [term(sides, kept)])).map((d) => d.wave ?? 0);
+  // No explosion: all at once.
+  assert.deepEqual(waves("3d6!", [3, 1, 5]), [0, 0, 0]);
+  // One explosion: the second die hit its highest face, the extra is wave 1.
+  assert.deepEqual(waves("3d6!", [3, 6, 5, 4]), [0, 0, 0, 1]);
+  // A chain, 6 then 6 then 2: the first 6 adds the 6 (wave 1), which adds the 2 (wave 2).
+  assert.deepEqual(waves("3d6!", [6, 4, 1, 6, 2]), [0, 0, 0, 1, 2]);
+  // Two sixes at once: two extras in wave 1, and the first extra's own explosion in wave 2.
+  assert.deepEqual(waves("3d6!", [6, 6, 1, 6, 3, 2]), [0, 0, 0, 1, 1, 2]);
+  assert.deepEqual(m.explosionWaves([6, 6, 1, 6, 3, 2], 3, 6), [0, 0, 0, 1, 1, 2]);
+  // A die of another size reads its own highest face.
+  assert.deepEqual(waves("1d20!", [20, 3], 1, 20), [0, 1]);
+  // The dice the explosions add count against the twenty.
+  assert.equal(m.planRoll(roll("20d6!", [term(6, [...Array.from({ length: 20 }, () => 3), 4])])), null);
+  // A plain term beside an exploding one stays in wave 0.
+  const mixed = m.planRoll(roll("1d20+1d6!", [term(20, [6]), term(6, [6, 2])]));
+  assert.deepEqual(mixed.map((d) => [d.shape, d.wave ?? 0]), [["d20", 0], ["d6", 0], ["d6", 1]]);
+  // With keep or drop the order they fell in is lost: all in one wave.
+  assert.deepEqual(m.planRoll(roll("2d6!kh2", [term(6, [6, 5], [2])])).map((d) => d.wave ?? 0), [0, 0, 0]);
+  // An exploding d100 stays a card.
+  assert.equal(m.planRoll(roll("1d%!", [term(100, [100, 3])])), null);
+});
+
+test("the waves are thrown one after the other: the extra dice enter the table later", () => {
+  const arena = { halfX: 7, halfZ: 4 };
+  const shapes = ["d6", "d6", "d6", "d6", "d6"];
+  const fall = m.simulate(shapes, arena, seeded(11), [0, 0, 0, 1, 2]);
+  assert.deepEqual(fall.born.slice(0, 3), [0, 0, 0]);
+  assert.ok(fall.born[3] > 0 && fall.born[4] >= fall.born[3], `born ${fall.born}`);
+  assert.ok(fall.frames <= m.STEPS_MOST);
+  assert.ok(fall.born[4] <= m.WAVE_LATEST_STEP);
+  // The ones thrown first have settled (or the latest step came) before the next.
+  assert.ok(fall.born[3] >= m.WAVE_GAP_STEPS);
+  const none = m.simulate(shapes, arena, seeded(11));
+  assert.deepEqual(none.born, [0, 0, 0, 0, 0]);
 });
 
 test("the switch's rules: off by default, 'Everything' leaves it alone, reduced motion forces it off", async () => {

@@ -41,17 +41,46 @@ function dieFor(sides: number, fudge: boolean): Pick<Die3, "shape" | "set" | "si
   }
 }
 
+/** The wave each die of an exploding term is thrown in, given its values in
+ *  the order they fell: the first `count` are thrown at once (wave 0); the
+ *  roller then walks the dice in order, and each one at its highest face
+ *  (`sides`) adds the next die of the list, one wave later than it. */
+export function explosionWaves(values: readonly number[], count: number, sides: number): number[] {
+  const waves = values.map(() => 0);
+  let child = count;
+  for (let i = 0; i < values.length && child < values.length; i++) {
+    if (values[i] === sides) {
+      waves[child] = (waves[i] as number) + 1;
+      child++;
+    }
+  }
+  return waves;
+}
+
+/** The `!` of each dice term of a notation, in order, and its dice count. */
+function explodingTerms(notation: string): { explode: boolean; count: number }[] {
+  const out: { explode: boolean; count: number }[] = [];
+  for (const m of notation.matchAll(/(\d*)d(%|F|\d+)(!?)/gi)) out.push({ explode: m[3] === "!", count: m[1] ? Number(m[1]) : 1 });
+  return out;
+}
+
 /** The dice to throw for `roll`, in the order of its terms (kept, then
- *  dropped), or null when it gets no 3D fall: it explodes, it has more than
- *  twenty dice, or a die of a size this build has no solid for. The result
+ *  dropped), or null when it gets no 3D fall: it has more than twenty dice
+ *  (an exploding one counts the dice it added), or a die of a size this build has no solid for. The result
  *  is already decided: each die only has to land showing its value. */
 export function planRoll(roll: DiceRoll): Die3[] | null {
-  // An exploding die adds dice nobody can count in advance.
-  if (roll.notation.includes("!")) return null;
+  const spec = explodingTerms(roll.notation);
   const dice: Die3[] = [];
-  for (const term of roll.terms) {
+  for (const [t, term] of roll.terms.entries()) {
     const faces: [number, boolean][] = [...term.kept.map((v) => [v, false] as [number, boolean]), ...term.dropped.map((v) => [v, true] as [number, boolean])];
-    for (const [value, dropped] of faces) {
+    // The result is already decided, so the extra dice of an exploding die
+    // are known: they fall in waves, each after the die that added it
+    // settles. With keep or drop the order they fell in is lost: one wave.
+    const sp = spec[t];
+    const exploding = !!sp?.explode;
+    if (exploding && term.sides === 100) return null;
+    const waves = exploding && term.dropped.length === 0 ? explosionWaves(term.kept, (sp as { count: number }).count, term.sides) : [];
+    for (const [n, [value, dropped]] of faces.entries()) {
       const role: Die3["role"] = dropped ? "dropped" : term.sign < 0 ? "negative" : "kept";
       if (term.sides === 100 && !term.fudge) {
         const units = value % 10;
@@ -60,7 +89,7 @@ export function planRoll(roll: DiceRoll): Die3[] | null {
       } else {
         const base = dieFor(term.sides, term.fudge);
         if (!base) return null;
-        dice.push({ ...base, value, role });
+        dice.push({ ...base, value, role, ...(waves[n] ? { wave: waves[n] } : {}) });
       }
       if (dice.length > DICE_MOST_3D) return null;
     }

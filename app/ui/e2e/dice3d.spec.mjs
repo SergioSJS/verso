@@ -141,7 +141,7 @@ test("Esc and a click skip the fall; the card shows the result they held back", 
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
 });
 
-test("more than twenty dice and exploding dice get only the 2D card", async ({ app, page }) => {
+test("more than twenty dice get only the 2D card", async ({ app, page }) => {
   await withSwitch(page);
   const chunk = watchChunk(page);
   await app.open();
@@ -149,10 +149,32 @@ test("more than twenty dice and exploding dice get only the 2D card", async ({ a
   const preview = page.locator(".preview:visible");
   await preview.getByRole("button", { name: "Rolar 21d6" }).click();
   await expect(preview.locator('.dice[data-dice="21d6"] .dice-total')).toHaveText(/^\d+$/);
-  await preview.getByRole("button", { name: "Rolar 1d6!" }).click();
-  await expect(preview.locator('.dice[data-dice="1d6!"] .dice-total')).toHaveText(/^\d+$/);
   await expect(canvas(page)).toHaveCount(0);
   expect(chunk).toEqual([]);
+});
+
+test("an exploding roll falls in 3D: the extra dice are thrown in waves, and the card shows the sum", async ({ app, page }, info) => {
+  await withSwitch(page);
+  await app.open();
+  await joinRoom(app, page);
+  if (!(await gl(page))) {
+    info.annotations.push({ type: "webgl", description: "NOT available: fallback only" });
+    test.skip(true, "no WebGL in this browser");
+  }
+  // 3d6! with the chain 6, then 6 (added), then 2 (added): five dice, total 6+4+1+6+2 = 19.
+  // The stage measures the dice as it ends: a watcher keeps what it wrote.
+  await page.evaluate(() => {
+    new MutationObserver((records) => {
+      for (const r of records) if (r.attributeName === "data-die-widths") window.__widths = r.target.dataset.dieWidths;
+    }).observe(document.body, { subtree: true, attributes: true });
+  });
+  await page.evaluate((n) => window.__harness.rooms.roll(n, "Bia", "3d6!", null, [6, 4, 1, 6, 2]), NOTE);
+  await expect(page.locator(".dice-said")).toContainText("3d6!: 19");
+  const c = canvas(page);
+  await expect(c).toHaveCount(1);
+  const widths = await page.waitForFunction(() => window.__widths ?? null, null, { timeout: 8000 });
+  expect(JSON.parse(await widths.jsonValue())).toHaveLength(5);
+  await expect(c).toHaveCount(0, { timeout: 9000 });
 });
 
 test("reduced motion: the switch on, no canvas and no chunk", async ({ app, page }) => {
@@ -269,14 +291,18 @@ async function reloadWith(app, page, look) {
 async function rolled(page) {
   const preview = page.locator(".preview:visible");
   await preview.getByRole("button", { name: /^Rolar (1d20\+3|de novo)$/ }).first().click();
-  const c = canvas(page);
-  await expect(c).toHaveCount(1);
-  await expect.poll(() => c.getAttribute("data-die-widths"), { timeout: 8000 }).not.toBeNull();
-  return page.evaluate(() => {
-    const el = document.querySelector("canvas.dice3d-canvas");
-    const r = el.getBoundingClientRect();
-    return { widths: JSON.parse(el.dataset.dieWidths), slots: JSON.parse(el.dataset.slots), rect: { x: r.x, y: r.y, w: r.width, h: r.height }, win: { w: innerWidth, h: innerHeight } };
-  });
+  // The dice stay only a moment once at rest (HOLD_MS): read on every frame.
+  const read = await page.waitForFunction(
+    () => {
+      const el = document.querySelector("canvas.dice3d-canvas");
+      if (!el || !el.dataset.dieWidths) return null;
+      const r = el.getBoundingClientRect();
+      return { widths: JSON.parse(el.dataset.dieWidths), slots: JSON.parse(el.dataset.slots), rect: { x: r.x, y: r.y, w: r.width, h: r.height }, win: { w: innerWidth, h: innerHeight } };
+    },
+    null,
+    { polling: "raf", timeout: 8000 },
+  );
+  return read.jsonValue();
 }
 
 const shot = async (page, name) => {

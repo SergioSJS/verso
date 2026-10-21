@@ -261,6 +261,8 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const fall = simulate(
     dice.map((d) => d.shape),
     arena,
+    undefined,
+    dice.map((d) => d.wave ?? 0),
   );
   const pals = new Map<SlotId, Record<Die3["role"], Palette>>();
   for (const d of dice) if (!pals.has(slotOf(d))) pals.set(slotOf(d), palettes(styleFor(d)));
@@ -355,6 +357,8 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     const b = Math.min(a + 1, fall.frames - 1);
     const t = at - a;
     meshes.forEach((mesh, i) => {
+      // A die an explosion adds is not on the table until it is thrown.
+      mesh.visible = at >= (fall.born[i] as number);
       const p = fall.poses[i] as Float32Array;
       const lerp = (k: number) => (p[a * 7 + k] as number) * (1 - t) + (p[b * 7 + k] as number) * t;
       mesh.position.set(lerp(0), lerp(1), lerp(2));
