@@ -6,7 +6,7 @@ tags:
   - canvas
   - relations
 status: active
-relacionado: "[[projects/Project Alpha]]"
+related: "[[projects/Project Alpha]]"
 ---
 
 # Board and Relations
@@ -46,7 +46,7 @@ An arrow between two notes can become a **relation**: select the arrow and use *
 depende_de: "[[projects/Project Alpha]]"
 ```
 
-This very note has one: the `relacionado` property at the top points to [[projects/Project Alpha]]. A property whose value is a wikilink **in quotes** (or a list of them) is a link — it appears in the target note's backlinks and follows renames. Without quotes, `[[x]]` is just YAML.
+This very note has one: the `related` property at the top points to [[projects/Project Alpha]]. A property whose value is a wikilink **in quotes** (or a list of them) is a link — it appears in the target note's backlinks and follows renames. Without quotes, `[[x]]` is just YAML.
 
 ---
 

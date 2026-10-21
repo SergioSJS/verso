@@ -1,11 +1,11 @@
 ---
 type: character
-papel: cartographer
-nível: 4
-aliados:
+role: cartographer
+level: 4
+allies:
   - Captain Ruy
-ativo: true
-aparição: 2026-09-12
+active: true
+first_appearance: 2026-09-12
 ---
 
 # Lia Torres

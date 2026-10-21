@@ -55,3 +55,21 @@ test("the other language is one command away", async ({ app }) => {
   await expect.poll(() => app.files()).toEqual([...PT].sort());
   await expect(app.page.locator(".tab", { hasText: "00 - Bem-vindo ao Verso" }).first()).toBeVisible();
 });
+
+// The English vault's properties are named in English (2026-10-21): a key
+// renamed in a note but missed in the base would show an empty column.
+test("the English Projects base shows its English property columns with values", async ({ app, page }) => {
+  await importIn(app, "Import the demo content");
+  await expect.poll(() => app.files()).toEqual(EN_FILES);
+  expect(await app.file("projects/Project Alpha.md")).toContain("priority: high");
+  // The formula column is evaluated by the core, not the harness: check the base text instead.
+  expect(await app.file("Projects.base")).toMatch(/formula\.budget_k/);
+  expect(await app.file("Projects.base")).not.toMatch(/orcamento/);
+  await app.quickOpen("Projects.base", "Open…");
+  const row = page.locator(".base tr", { has: page.locator("a.base-file", { hasText: /^Project Alpha$/ }) });
+  await expect(row).toBeVisible();
+  const headers = (await page.locator(".base th").allTextContents()).map((t) => t.trim());
+  expect(headers).toEqual(expect.arrayContaining(["priority", "owner", "budget"]));
+  const cells = (await row.locator("td").allTextContents()).map((t) => t.trim());
+  expect(cells).toEqual(expect.arrayContaining(["high", "Sérgio", "15,000"]));
+});

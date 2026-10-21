@@ -4,7 +4,7 @@ date: "{{date}}"
 tags:
   - daily
   - focus
-foco_principal: ""
+main_focus: ""
 ---
 
 # {{title}}

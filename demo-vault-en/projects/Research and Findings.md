@@ -2,14 +2,14 @@
 title: Research and Findings
 date: 2026-09-18
 status: done
-prioridade: high
-responsavel: "Sérgio"
+priority: high
+owner: "Sérgio"
 tags:
   - research
   - architecture
   - core
-orcamento: 5000
-local: "-8.0476, -34.877"
+budget: 5000
+location: "-8.0476, -34.877"
 ---
 
 # Research and Findings
