@@ -637,10 +637,16 @@ pub(crate) fn readable_vector(bytes: &[u8]) -> Result<(), ContractError> {
     }
 }
 
-/// A window's update, decoded once it is [`readable`].
+/// A window's update, decoded once it is [`readable`]. `yrs` asserts as it
+/// decodes (a client past 53 bits, `block.rs:92`, where debug assertions
+/// are on: the tests and the fuzz targets): a panic is a refusal, like any
+/// bytes it cannot read, and the room — which holds nothing of it yet —
+/// stays as it was.
 pub(crate) fn decode(bytes: &[u8]) -> Result<Update, ContractError> {
     readable(bytes)?;
-    Update::decode_v1(bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))
+    std::panic::catch_unwind(|| Update::decode_v1(bytes))
+        .map_err(|_| refused("an update the room cannot read"))?
+        .map_err(|e| refused(&format!("not a Yjs update: {e}")))
 }
 
 /// A window's update `bytes`, decoded, taken into a room's document: a
