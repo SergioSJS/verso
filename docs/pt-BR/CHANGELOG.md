@@ -28,6 +28,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Esc na lista do `@` a mantém fechada**: depois que Esc dispensa a lista de notas aberta pelo `@`, digitar mais letras da mesma palavra não a traz de volta; um novo `@` a abre de novo.
 - **O estilo “Mythic GME” do oráculo agora é “Viradas prováveis”**: as chances são as mesmas, mas o estilo tem um nome do próprio Verso e diz, ao passar o mouse e na descrição, que é inspirado no Mythic GME e não tem o fator caos dele. “Ironsworn” mantém o nome.
 - **A caixa de uma tarefa volta a ficar no meio da linha nas janelas do Mac e do Linux**: numa linha em negrito ou longa ela ficava baixa, enquanto o navegador a mostrava centrada. A caixa agora é desenhada pelo Verso do mesmo jeito em todo lugar, no modo Leitura e no modo Edição.
 - **Imagens SVG no quadro continuam nítidas com zoom**: uma imagem, cortada ou não, cujo desenho tem sombra (um filtro) aparecia borrada no app nessas partes quando o quadro estava ampliado, enquanto o resto ficava nítido. A imagem agora é desenhada no tamanho do zoom, com um teto de tamanho; o arquivo nunca é tocado.
