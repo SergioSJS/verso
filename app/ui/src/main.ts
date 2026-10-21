@@ -106,7 +106,7 @@ pushHistoryDays();
 const folderNoteNamePushed = pushFolderNoteName();
 pushMenuLanguage();
 configureEmbeds({
-  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel, approveAnyway: t.embedApproveAnyway,
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel, approveAnyway: t.embedApproveAnyway, approveFailed: t.embedApproveFailed,
     // A getter: which platform this is is known only after loadCan().
     get unframed() { return can("web_views") ? t.embedUnframed : t.embedUnframedBrowser; }, unframedBoard: t.embedUnframedBoard },
   approve: async (origin) => {

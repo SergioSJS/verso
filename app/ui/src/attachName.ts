@@ -20,7 +20,16 @@ const UNFIT = /[[\]|#^\\/:*?"<>\u0000-\u001f]/g;
 /** A file name made fit: the characters above replaced by a space, spaces
  *  gathered, the ends trimmed. Empty when nothing is left. */
 export function fitName(raw: string): string {
-  return raw.replace(UNFIT, " ").replace(/ {2,}/g, " ").replace(/^[.\s]+/, "").trim();
+  return raw.replace(UNFIT, " ").replace(/ {2,}/g, " ").replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
+}
+
+/** The names Windows keeps for devices, with any extension (`con.txt` is the console). */
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/** A stem that is a reserved device name, with an underscore after it (`con.tar` becomes `con_.tar`). */
+function unreserved(stem: string): string {
+  const first = stem.split(".")[0] ?? "";
+  return RESERVED.test(first) ? `${first}_${stem.slice(first.length)}` : stem;
 }
 
 /** The extension an image's type gives, when its name gives none. */
@@ -49,7 +58,7 @@ export function cameraName(taken: Date, ext: string, word = "Foto"): string {
 export function freeAttachment(folder: string, fileName: string, taken: ReadonlySet<string>): string {
   const fit = fitName(fileName);
   const dot = fit.lastIndexOf(".");
-  const stem = (dot > 0 ? fit.slice(0, dot) : fit) || "Imagem";
+  const stem = unreserved((dot > 0 ? fit.slice(0, dot) : fit) || "Imagem");
   const ext = dot > 0 ? fit.slice(dot) : "";
   const at = (n: number) => `${folder ? folder + "/" : ""}${stem}${n > 1 ? ` (${n})` : ""}${ext}`;
   let n = 1;

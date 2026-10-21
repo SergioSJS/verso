@@ -153,7 +153,8 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
   const folders = new Set<string>();
   // The target is the person's own, and stands; the project's folder is new.
   if (pathTitle) folders.add(base);
-  bundle.folders.forEach((raw, i) => {
+  // Past the limit the plan is refused anyway: the loops stop there instead of reading on.
+  bundle.folders.slice(0, LIMITS.folders).forEach((raw, i) => {
     const rel = relPath(fill(raw, pathTitle, input.now, input.uuid, input.lang), `/folders/${i}`, problems, w);
     if (!rel) return;
     const segs = rel.split("/");
@@ -163,7 +164,7 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
   const files: PlannedFile[] = [];
   const seen = new Set<string>();
   let total = 0;
-  bundle.files.forEach((def, i) => {
+  bundle.files.slice(0, LIMITS.files).forEach((def, i) => {
     let rel = relPath(fill(def.path, pathTitle, input.now, input.uuid, input.lang), `/files/${i}/path`, problems, w);
     if (!rel) return;
     const note = !OTHER_FILES.test(rel);

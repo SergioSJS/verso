@@ -204,6 +204,24 @@ describe("a gate box stands on its own", () => {
       s.allowEmbedOrigins([]);
     }
   });
+  test("review M9: when the host refuses the approval the reader is told, and the button comes back", async () => {
+    s.configureEmbeds({ strings: { ...strings, approveFailed: "could not save" }, approve: async () => false, frameable: async () => true });
+    const mount = mounted(s.cleanHtmlText(`<iframe src="https://refused.example/p"></iframe>`));
+    try {
+      const button = mount.querySelector('[data-embed-action="approve"]');
+      button.click();
+      await new Promise((r) => setTimeout(r, 0));
+      const note = mount.querySelector(".embed-gate-warn");
+      assert.ok(note, "a visible message");
+      assert.equal(note.textContent, "could not save");
+      assert.equal(note.getAttribute("role"), "alert");
+      assert.equal(button.disabled, false, "the button is usable again");
+      assert.ok(mount.querySelector("div.embed-web") === null);
+    } finally {
+      mount.remove();
+      s.allowEmbedOrigins([]);
+    }
+  });
   test("a site that may be framed is approved by the one click; cancel leaves a link", async () => {
     const approvals = [];
     s.configureEmbeds({ strings: { ...strings, unframed: "forbids" }, approve: async (o) => (approvals.push(o), true), frameable: async () => true });

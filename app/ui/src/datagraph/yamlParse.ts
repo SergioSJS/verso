@@ -11,7 +11,7 @@
 // the library's nodes is a loop with a stack, not a recursion.
 
 import { type Document, isAlias, isMap, isPair, isScalar, isSeq, type Node, type Pair, parseAllDocuments, type Scalar } from "yaml";
-import { Builder, closeBox, type DNode, type ParseError, type Row, type Tree } from "./model";
+import { Builder, BoxLimit, closeBox, type DNode, type ParseError, type Row, type Tree } from "./model";
 
 type Frame = {
   src: Node;
@@ -54,6 +54,9 @@ function keyText(text: string, k: unknown): string {
 }
 
 function walkDocument(text: string, doc: Document, label: string, b: Builder, anchors: Map<Node, number>): void {
+  // Anchors by name as the walk opens them: document order puts an anchor before its aliases, and a name defined again
+  // means the nearest one before. One lookup per alias; the library's own resolve() walks the whole document each time.
+  const byName = new Map<string, Node>();
   const contents = doc.contents;
   if (contents === null || contents === undefined) return;
   const stack: Frame[] = [];
@@ -84,6 +87,7 @@ function walkDocument(text: string, doc: Document, label: string, b: Builder, an
     const tag = tagOf((src as { tag?: string }).tag);
     if (tag) box.tag = tag;
     anchors.set(src, box.id);
+    if (anchor) byName.set(anchor, src);
     stack.push({ src, items: array ? src.items : (src as { items: unknown[] }).items, at: 0, box, row, map: !array });
   };
 
@@ -112,7 +116,7 @@ function walkDocument(text: string, doc: Document, label: string, b: Builder, an
       open(value, key, keyFrom, f);
     } else if (isAlias(value)) {
       const [from, to] = rangeOf(value);
-      const target = value.resolve(doc);
+      const target = byName.get(value.source);
       const id = target ? (anchors.get(target) ?? -1) : -1;
       if (id >= 0) b.row(f.box, { key, text: `*${value.source}`, type: "alias", from, to, keyFrom, link: id });
       else if (isScalar(target)) b.row(f.box, { key, text: `*${value.source} = ${scalarRow(text, target).text}`, type: "alias", from, to, keyFrom });
@@ -121,6 +125,7 @@ function walkDocument(text: string, doc: Document, label: string, b: Builder, an
       const [from, to] = rangeOf(value);
       const v = scalarRow(text, value);
       const anchor = value.anchor;
+      if (anchor) byName.set(anchor, value);
       const row = b.row(f.box, { key, text: anchor ? `&${anchor} ${v.text}` : v.text, type: v.type, from, to, keyFrom });
       const tag = tagOf(value.tag);
       if (tag) row.tag = tag;
@@ -146,6 +151,7 @@ export function parseYaml(text: string): Tree {
       walkDocument(text, doc, String(n), b, anchors);
     }
   } catch (e) {
+    if (e instanceof BoxLimit) throw e;
     // The library itself recurses on nesting: past its stack it says so, and the diagram says it too.
     const range = e instanceof RangeError;
     error = { message: range ? "The YAML nests too deeply to draw" : e instanceof Error ? e.message : "Not YAML", from: 0, to: Math.min(1, text.length) };

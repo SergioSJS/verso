@@ -42,11 +42,13 @@ function load(s: Storage | null): All {
   return { files: {}, last: {} };
 }
 
-function save(s: Storage | null, all: All): void {
+function save(s: Storage | null, all: All): boolean {
   try {
     s?.setItem(KEY, JSON.stringify(all));
+    return true;
   } catch {
-    // No storage: kept for as long as the tab lives.
+    // No storage, or it is full: the caller makes room.
+    return false;
   }
 }
 
@@ -64,7 +66,23 @@ export function writeFile(scope: string, path: string, saved: Saved, s: Storage 
     keys.sort((a, b) => (all.files[a]!.t ?? 0) - (all.files[b]!.t ?? 0));
     for (const k of keys.slice(0, keys.length - MAX_FILES)) delete all.files[k];
   }
-  save(s, all);
+  // A full storage (one huge diagram, or many): the oldest files go until it fits, and
+  // a file too large for the storage on its own goes too. Nothing else breaks: this is
+  // only where the boxes were moved and folded, and the diagram opens without it.
+  const before = { ...all.files };
+  delete before[fileKey(scope, path)];
+  while (!save(s, all)) {
+    const oldest = Object.keys(all.files)
+      .filter((k) => k !== fileKey(scope, path))
+      .sort((a, b) => (all.files[a]!.t ?? 0) - (all.files[b]!.t ?? 0))[0];
+    if (oldest === undefined) {
+      // It does not fit even alone: it is not kept, and the others come back.
+      all.files = before;
+      save(s, all);
+      return;
+    }
+    delete all.files[oldest];
+  }
 }
 
 export function forgetFile(scope: string, path: string, s: Storage | null = pageStorage()): void {

@@ -129,6 +129,16 @@ describe("an embedded page in a note", () => {
     assert.equal(web.embedViews.has(el), true, "the child view's bookkeeping started");
   });
 
+  test("review I7: the app's own origin is never framed, and the host is not asked", async () => {
+    frameable = { "http://tauri.localhost": true };
+    const el = box("http://tauri.localhost/index.html");
+    web.tickEmbedViews();
+    await later();
+    web.tickEmbedViews();
+    assert.equal(el.querySelector("iframe"), null);
+    assert.deepEqual(asked, []);
+  });
+
   test("an error in the check is a no: the child view takes it", async () => {
     frameable = { "https://down.example": "error" };
     const el = box("https://down.example/");
