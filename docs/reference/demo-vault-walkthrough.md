@@ -654,7 +654,15 @@ point 13).
    Penumbra), and the ribbon's buttons each have a switch, the gear none.
    Level: H; E: `settings.spec.mjs`, the sections and Aparência;
    `dark-tone.spec.mjs`, every palette and tone at 4.5:1 or more;
-   `ribbon.spec.mjs`, a hidden button brought back.
+   `ribbon.spec.mjs`, a hidden button brought back. Aparência's
+   *Personalizar aparência* (ADR 0100): a colour typed in changes the
+   sample and the window at once, a low-contrast one warns, one under 3:1
+   is undone with a message, *Restaurar padrão* puts all back by keyboard;
+   a look saved as a profile, exported, and imported again (the button, or
+   the file dropped on the window) as it was; `assets/temas/Pergaminho.verso-theme`
+   applies; a hostile file is refused with the reason; a folder's
+   suggested theme is offered and never applied by itself. Level: H, A
+   (the real file save: the host's download); E: `appearance-wizard.spec.mjs`.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;
