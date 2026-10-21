@@ -800,10 +800,29 @@ async function noCopies(page, stem) {
   return files.filter((f) => f.startsWith(stem) && !/\.(canvas|txt|base)$/.test(f.replace(stem, "")));
 }
 
+/** A phone shows a joined window's "entered the note" toast along the top,
+ *  over the editor's first line and the board's first row, and the emulated
+ *  pointer resting there pauses its clock for good; a click or a drag
+ *  aimed under it never lands. These two tests are about the files and the
+ *  scene, not the toast (the notifications' own tests are in e2e/), so it
+ *  takes no pointer here. */
+async function toastsTakeNoPointer(context) {
+  await context.addInitScript(() => {
+    const style = () => {
+      const s = document.createElement("style");
+      s.textContent = ".notify-toasts, .notify-toasts * { pointer-events: none !important; }";
+      document.documentElement.append(s);
+    };
+    if (document.documentElement) style();
+    else document.addEventListener("DOMContentLoaded", style);
+  });
+}
+
 /** Two cards, as Obsidian writes a canvas. */
 const TWO_CARDS = '{\n\t"nodes":[\n\t\t{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},\n\t\t{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}\n\t],\n\t"edges":[]\n}';
 
 test("two windows on one board: a card moved in one and a text added in the other land in both and in the file", async ({ page }) => {
+  await toastsTakeNoPointer(page.context());
   await page.context().addInitScript(() => {
     window.__VERSO_TEST__ = {};
   });
@@ -876,6 +895,7 @@ test("two windows on one board: a card moved in one and a text added in the othe
 });
 
 test("two windows on a text file and on a base's settings edit them together, and the files follow", async ({ page }) => {
+  await toastsTakeNoPointer(page.context());
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
