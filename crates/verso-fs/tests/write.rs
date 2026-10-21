@@ -421,7 +421,7 @@ fn a_write_through_another_case_keeps_the_name_the_disk_holds() {
     }
     let h = root.handle(Path::new("Receita.md")).unwrap();
     let (_, stamp) = root.read(h).unwrap();
-    root.write(h, b"depois", &stamp).unwrap();
+    let _report = root.write(h, b"depois", &stamp).unwrap();
     let names: Vec<String> = fs::read_dir(dir.path())
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
