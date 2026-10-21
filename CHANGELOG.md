@@ -31,6 +31,7 @@ test release.
 
 ### Changed
 
+- **Callouts nested inside callouts are seen by the index**: search, backlinks and the `[!secret]` rule now see a callout inside another callout (up to 32 levels, as the reading view draws them), not only the outer one.
 - **The right-click menu of a file or folder is short, with groups**: it had about thirty loose rows. Now the first list keeps *Open*, *Open in new tab*, *Open to the side*, *Relations*, *Version history*, *Rename*, *Move to…*, *Duplicate* and *Move to the bin*, and the rest sits in submenus: *Customize* (sticker, colour), *Organize* (select, pin, move up and down, hide from tree, turn into folder, create or add to a focus), *Window and location* (open in a new window, show in the file manager, copy the path) and *New*. A submenu opens by hover (moving diagonally towards it does not close it), by a click or tap, or by `→` or `Enter`; `←` or `Esc` goes back to its row. *Import the sample vault* left the file menu: it is in the empty space of the tree and in the command palette.
 
 ### Fixed

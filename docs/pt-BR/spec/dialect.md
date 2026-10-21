@@ -110,7 +110,7 @@ fixture nenhuma o usa.
 |---|---|
 | `headings` | `level` (1–6), `text` (texto cru, sem `#` e sem espaços nas pontas), `pos` |
 | `blocks` | `id` (sem `^`), `pos` (posição do `^`), `lines` (`[primeira, última]`, as linhas do bloco que o id nomeia; conferido quando dado — Q3, Q21) |
-| `callouts` | `kind` (texto entre `[!` e `]`, como escrito), `title` (resto da primeira linha, sem espaços nas pontas; ausente se vazio), `fold` (`-`, `+`, ou ausente), `pos` |
+| `callouts` | `kind` (texto entre `[!` e `]`, como escrito), `title` (resto da primeira linha, sem espaços nas pontas; ausente se vazio), `fold` (`-`, `+`, ou ausente), `depth` (opcional, afirmado quando dado: quantos callouts o envolvem, ele incluído, de 1 a 32 — Q5), `pos` |
 
 ### 4.4 Posição
 
@@ -1025,7 +1025,11 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   constrói isto; nenhum arquivo de `fixtures/**` mudou com esta resposta. Pela
   invariante 17, uma questão que precisa de fixture ou de observação do
   Obsidian só fecha por inteiro no PR que a acrescenta, com esta seção
-  atualizada no mesmo PR; nenhuma está rascunhada ainda.
+  atualizada no mesmo PR.
+
+  *(2026-10-21: a parte do parser está construída no branch
+  `feat/nested-callouts-index` — `Callout.depth`, o limite de 32, a fixture
+  `callout/nested` rascunhada para aprovação, `depth` acrescentado à §4.3.)*
 
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `DECIDIDA` em 2026-10-21 para o índice e para HTML embutido; os comentários
