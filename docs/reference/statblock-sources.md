@@ -92,12 +92,12 @@ This is the state recorded by ADR 0099 item 6 on 2026-10-20; the paragraphs of s
 | The One Ring | none | Not built in (imported) |
 | Vaesen | none (Workshop, supplements) | Not built in (imported) |
 | Twilight: 2000 | none (Workshop, supplements) | Not built in (imported) |
-| Vampire: The Masquerade | Dark Pack | `[PROPOSED]` built in, Dark Pack |
-| Werewolf: The Apocalypse | Dark Pack | `[PROPOSED]` built in, Dark Pack |
-| Hunter: The Reckoning | Dark Pack | `[PROPOSED]` built in, Dark Pack |
+| Vampire: The Masquerade | Dark Pack | Built in (decided 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
+| Werewolf: The Apocalypse | Dark Pack | Built in (decided 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
+| Hunter: The Reckoning | Dark Pack | Built in (decided 2026-10-21, ADR 0099.1/6c = A), Dark Pack |
 | Mage: The Ascension | Dark Pack by analogy (unconfirmed) | Not built in (imported) |
 | Call of Cthulhu | Chaosium Fan Material Policy (apps excluded) | Not built in (imported) |
-| Cyberpunk RED | RTG Homebrew Content Policy | `[PROPOSED]` built in, blank layout |
+| Cyberpunk RED | RTG Homebrew Content Policy | Built in (decided 2026-10-21), blank layout |
 | Shadowrun | none found | Not named in item 6; not built in |
 | Starfinder | ORC | Built in |
 | Warhammer Fantasy Roleplay | none found | Not named in item 6; not built in |
@@ -486,7 +486,7 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 ### 3.23 Vampire: The Masquerade, 5th edition (Paradox / White Wolf; books by Renegade Game Studios; pt-BR Galapagos Jogos)
 
 - **Licence.** Paradox's Dark Pack Agreement (https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement) **[OFFICIAL]**: non-commercial fan content is allowed without permission, including "character sheets, and free online character generators"; "Online character generators, including downloadable and mobile apps, must be free, with no in-app purchases"; "Virtual dice rollers are permitted"; no selling, no copying a book in full, no removing notices; revocable "at any time, for any reason"; terms change on 30 days' notice. Blank layouts, no verbatim text. Paradox announced a V6 alpha playtest on 30 Jul 2026 (https://www.paradoxinteractive.com/games/world-of-darkness/news/vtm-sixth-edition-alpha-playtests-open-now): V5 may be superseded.
-- **Ships (ADR 0099 item 6).** `[PROPOSED]` in ADR 0099 item 6: built in under Paradox's Dark Pack, with its notice
+- **Ships (ADR 0099 item 6).** Built in since 2026-10-21 (decided by the maintainer, 0099.6c = A) under Paradox's Dark Pack, with its notice on the credits page and on the card. Layouts: see the status line below. **The Dark Pack logo, which the agreement asks for, is not in the app yet**: it must come from Paradox's Dark Pack kit and the maintainer has to supply it.
 - **Credit line.** Required verbatim: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Suggested: "Vampire: The Masquerade, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Character sheet, in display order.**
   - [COMMUNITY] wiki, CC BY-SA 3.0, hosted by Paradox (https://vtm.paradoxwikis.com/Character_creation).
@@ -504,7 +504,7 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 ### 3.24 Werewolf: The Apocalypse, 5th edition (Paradox / White Wolf)
 
 - **Licence.** Dark Pack, as for Vampire above. Fit: conditional.
-- **Ships (ADR 0099 item 6).** `[PROPOSED]` in ADR 0099 item 6: built in under Paradox's Dark Pack, with its notice
+- **Ships (ADR 0099 item 6).** Built in since 2026-10-21 (decided by the maintainer, 0099.6c = A) under Paradox's Dark Pack, with its notice on the credits page and on the card. Layouts: see the status line below. **The Dark Pack logo, which the agreement asks for, is not in the app yet**: it must come from Paradox's Dark Pack kit and the maintainer has to supply it.
 - **Credit line.** Required verbatim: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Suggested: "Werewolf: The Apocalypse, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Character sheet, in display order.**
   - [COMMUNITY] wiki (https://wta.paradoxwikis.com/Character_creation): the same 9 attributes and 27 skills as V5; Health = Stamina + 3; Willpower = Composure + Resolve; **Renown** (two dots in the tribe's type, one in another). **Sections:** Name, Concept, Patron, Chronicle, Auspice, Tribe; Attributes; Skills; Renown; Gifts and Rites; Chronicle Tenets; Touchstones; Favors and Bans; Advantages and Flaws.
@@ -518,7 +518,7 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 ### 3.25 Hunter: The Reckoning, 5th edition (Paradox / White Wolf)
 
 - **Licence.** Dark Pack, as for Vampire above. Fit: conditional.
-- **Ships (ADR 0099 item 6).** `[PROPOSED]` in ADR 0099 item 6: built in under Paradox's Dark Pack, with its notice
+- **Ships (ADR 0099 item 6).** Built in since 2026-10-21 (decided by the maintainer, 0099.6c = A) under Paradox's Dark Pack, with its notice on the credits page and on the card. Layouts: see the status line below. **The Dark Pack logo, which the agreement asks for, is not in the app yet**: it must come from Paradox's Dark Pack kit and the maintainer has to supply it.
 - **Credit line.** Required verbatim: "Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission." and "All rights reserved. For more information please visit worldofdarkness.com." plus the Dark Pack logo and a statement that the content is not official World of Darkness material (no exact wording provided). Suggested: "Hunter: The Reckoning, World of Darkness and related terms are trademarks of Paradox Interactive AB. Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved. For more information please visit worldofdarkness.com. This template is unofficial fan-made material, not official World of Darkness material, published under the Dark Pack."
 - **Character sheet, in display order.**
   - [COMMUNITY] wiki (https://htr.paradoxwikis.com/Character_creation): 9 attributes as V5; skills as V5 except Physical lists **Driving** (V5 and W5 pages say Drive: a discrepancy to verify). Health = Stamina + 3; Willpower = Composure + Resolve. **Creed** (Entrepreneurial, Faithful, Inquisitive, Martial, Underground) with a Creed Field; **Drive** (each with a Redemption method); **Edges** (no rating; choose 2 Edges + 1 Perk or 1 + 2) and Perks; Ambition, Desire, Touchstones (1–3), Advantages (7 dots), Flaws (2 dots). **Sections:** Name, Concept, Creed, Cell, Ambition, Desire, Drive, Redemption; Attributes; Skills; Edges and Perks; Chronicle Tenets; Touchstones; Creed Fields; Advantages and Flaws.
@@ -563,8 +563,8 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 ### 3.28 Cyberpunk RED (R. Talsorian Games)
 
 - **Licence.** Homebrew Content Policy (https://rtalsoriangames.com/homebrew-content-policy/) **[OFFICIAL]**: content must be free to access; paid products may not say "compatible with"; **no reproducing RTG text "including stat blocks and rulesets"**; no RTG title in your product title. "You may create character sheets and generators that automate character creation, rolls, and random content"; game material "can only be summarized"; **"Full stat blocks for monsters, NPCs, or hazards are not allowed."** Free content may go through app marketplaces. An unofficial-content disclaimer (about 230 characters) is required where easily noticed. Fit: blank layouts and summaries only.
-- **Ships (ADR 0099 item 6).** `[PROPOSED]` in ADR 0099 item 6: built in as a blank layout, with its notice
-- **Credit line.** The policy's exact disclaimer wording could not be captured: **UNVERIFIED**. Paraphrase only: "Unofficial content made under R. Talsorian Games' Homebrew Content Policy; not approved or endorsed by R. Talsorian Games. Cyberpunk is a registered trademark of CD Projekt S.A." Replace with the policy's exact text before shipping.
+- **Ships (ADR 0099 item 6).** Built in since 2026-10-21 (decided by the maintainer, 0099.6c = A) as blank layouts (`cpr-blank-character`, `cpr-blank-npc`: field names only, no rules text, no stat block, no sheet text copied), titled as a descriptive subtitle ("Blank sheet — for Cyberpunk RED", "NPC sheet — for Cyberpunk RED", as the policy allows). The policy's disclaimer was read word for word on 2026-10-21 at https://rtalsoriangames.com/homebrew-content-policy/ and is on the card and on the credits page, so the credit line below is the exact one.
+- **Credit line.** Verified word for word on 2026-10-21 (https://rtalsoriangames.com/homebrew-content-policy/), required "in an easily noticeable location such as the end of the document" for content beyond a forum post: "[Title of your Content] is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees." with the title of the content filled in; the window shows it as the foot of each blank card and on the credits page. The policy forbids the game's title in the content's own title but allows it in a descriptive subtitle.
 - **Character sheet, in display order.**
   - Official sheet (https://rtalsoriangames.com/wp-content/uploads/2020/11/RTG-CPR-CharacterSheet.pdf).
   - **Attributes:** (10) INT, REF, DEX, TECH, COOL, WILL, MOVE, BODY, EMP, LUCK (LUCK and EMP shown "out of").

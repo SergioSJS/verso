@@ -284,6 +284,10 @@ select.statblock-roll-input { width: auto; max-width: 9rem; }
   padding: .3rem .5rem;
 }
 .statblock-tracker .statblock-badge { margin-top: 0; flex-basis: 100%; }
+.statblock-badge-base { border-color: var(--seal); }
+.statblock-based { margin: .1rem 0 .4rem; font-family: var(--ui); font-size: .78rem; color: var(--ink-3); }
+.statblock-based-link { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.statblock-based-link:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; border-radius: 3px; }
 .statblock-error { border-top-color: var(--seal); border-bottom-color: var(--seal); padding-top: .8rem; }
 .statblock-error > .statblock-badge:first-child { margin-top: 0; }
 .statblock-error-source { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: .8rem; max-height: 24rem; overflow: auto; }
