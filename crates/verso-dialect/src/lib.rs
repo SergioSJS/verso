@@ -54,7 +54,7 @@ pub use schema::{
     Layout, PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty,
 };
 pub use secret::{Secrets, is_secret_kind, project, project_line};
-pub use tags::{BodyTag, body_tags};
+pub use tags::{BodyTag, body_tags, frontmatter_tag};
 
 /// Everything the parser found in one note, in document order per list.
 ///
