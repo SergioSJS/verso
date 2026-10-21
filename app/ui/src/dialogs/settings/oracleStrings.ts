@@ -36,10 +36,10 @@ const pt = {
   styleLegend: "Estilo",
   styles: {
     balanced: { name: "Equilibrado", desc: "O padrão do Verso: o sim segue a chance escolhida, com um “e…” ou um “mas…” de vez em quando." },
-    mythic: { name: "Mythic GME", desc: "Próximo do oráculo clássico de jogo solo: as viradas pendem para o lado mais provável." },
+    mythic: { name: "Viradas prováveis", desc: "As viradas pendem para o lado mais provável. Inspirado no Mythic GME — sem o fator caos dele.", tip: "Inspirado no Mythic GME — sem o fator caos dele." },
     ironsworn: { name: "Ironsworn", desc: "Sim ou não direto, sem “mas…”; às vezes, um extremo." },
     narrative: { name: "Narrativo", desc: "Quase toda resposta traz uma complicação: bom para escrever." },
-  } satisfies Record<StyleId, { name: string; desc: string }>,
+  } satisfies Record<StyleId, { name: string; desc: string; tip?: string }>,
   custom: { name: "Personalizado", desc: "Os seus próprios números, ajustados à mão." },
   defaultTag: "padrão",
   styleApplied: (name: string) => `Estilo ${name} aplicado.`,
@@ -159,7 +159,7 @@ const en: Words = {
   styleLegend: "Style",
   styles: {
     balanced: { name: "Balanced", desc: "Verso's default: the yes follows the odds you chose, with an “and…” or a “but…” now and then." },
-    mythic: { name: "Mythic GME", desc: "Close to the classic solo-play oracle: the twists lean to the likelier side." },
+    mythic: { name: "Likely twists", desc: "The twists lean to the likelier side. Inspired by Mythic GME — without its chaos factor.", tip: "Inspired by Mythic GME — without its chaos factor." },
     ironsworn: { name: "Ironsworn", desc: "A plain yes or no, no “but…”; now and then, an extreme." },
     narrative: { name: "Narrative", desc: "Nearly every answer brings a complication: good for writing." },
   },

@@ -85,6 +85,10 @@ export function oddsControl(): HTMLElement {
   const option = (id: StyleId | "custom"): HTMLElement => {
     const words = id === "custom" ? ow.custom : ow.styles[id];
     const label = h("label", "orc-style");
+    // The hover; the same words are in the visible description, so a
+    // keyboard or a screen reader reads them with the option.
+    const tip = id === "custom" ? undefined : (ow.styles[id] as { tip?: string }).tip;
+    if (tip) label.title = tip;
     const radio = h("input");
     radio.type = "radio";
     radio.name = `orc-style-${n}`;
