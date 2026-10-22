@@ -556,7 +556,7 @@ test("a phone's search: a 44 px field, a long name beside its icon, a title with
   await app.writeOutside("Um nome de arquivo muito longo para caber numa gaveta de celular inteira.md", "---\ntitle: Dragão\n---\n\nO **dragão** dorme no [[Porto]].\n");
   await tree(app);
   const search = page.locator("#search");
-  await search.fill("dragão");
+  await search.fill("dorme");
   const row = page.locator('#notes li[data-path^="Um nome de arquivo"] > button.row');
   await expect(row).toBeVisible();
   await expect(row.locator(".row-name")).not.toContainText(".md");

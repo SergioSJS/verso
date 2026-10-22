@@ -75,7 +75,7 @@ export async function searchNotes(words: string): Promise<void> {
         const label = b.querySelector(".row-name");
         if (label && /\.md$/i.test(hit.path) && label.textContent === (hit.path.split("/").pop() ?? hit.path)) label.textContent = name(hit.path);
         if (dirOf(hit.path)) b.append(h("span", "path", dirOf(hit.path)));
-        if (hit.snippet) b.append(snippetNode(hit.snippet));
+        if (cleanSnippet(hit.snippet) !== "") b.append(snippetNode(hit.snippet));
       }),
     ),
   );
