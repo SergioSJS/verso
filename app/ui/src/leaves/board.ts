@@ -33,6 +33,7 @@ import { served } from "../secret/blocks";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
+import { wireDice } from "../dice/card";
 import { openNote } from "../layout/spaces";
 import { listKeymap } from "../listKeymap";
 import { livePreview, redraw, sizeOf } from "../live";
@@ -179,6 +180,11 @@ export class BoardLeaf extends TextLeaf {
   declare roomChanged: typeof boardLive.roomChanged;
   declare saveLocalNow: typeof boardLive.saveLocalNow;
   declare followSaved: typeof boardLive.followSaved;
+  /** A link of a rolled table's row, followed from a die on a card. */
+  followDice(target: string, from: string): void {
+    const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", from);
+    if (to) void openNote(to, false);
+  }
   declare boardConflict: typeof boardLive.boardConflict;
   declare boardWentLocal: typeof boardLive.boardWentLocal;
   declare boardReadAnew: typeof boardLive.boardReadAnew;
@@ -243,7 +249,12 @@ export class BoardLeaf extends TextLeaf {
         if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
         else el.replaceChildren();
       },
-      renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
+      renderText: async (el, text) => {
+        await drawCard(el, await commands.renderMarkdown(text), this.path);
+        // A `dice:` code of a text card is a die, as in a note; its roll is
+        // the board's, nothing is written (ADR 0088).
+        wireDice(el, { path: () => this.path, follow: (target, from) => this.followDice(target, from) });
+      },
       noteText: async (path) => {
         const r = await opening.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";

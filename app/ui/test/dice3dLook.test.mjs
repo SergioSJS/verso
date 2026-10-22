@@ -147,14 +147,20 @@ test("the original texture images: one file per texture but Plain, each shipped"
   for (const t of m.TEXTURES.filter((x) => x !== "none")) assert.ok(existsSync(`dice-textures/${m.TEXTURE_FILES[t]}`), t);
 });
 
-test("the roll time and the sound switch: closed values, Normal and off by default", () => {
+test("the roll time and the sound switch: closed values, Normal, and sound on by default", () => {
   const d = m.defaultLook();
   assert.equal(d.time, "normal");
-  assert.equal(d.sound, false);
+  assert.equal(d.sound, true);
+  // Rolai plays by default; a stored false counts only once the person chose it.
+  assert.equal(m.readDiceLook(undefined).sound, true);
+  assert.equal(m.readDiceLook({ size: 50 }).sound, true);
+  assert.equal(m.readDiceLook({ sound: false }).sound, true, "saved by an edit of another field");
+  assert.equal(m.readDiceLook({ sound: false, soundChosen: true }).sound, false);
+  assert.equal(m.readDiceLook({ sound: true, soundChosen: true }).sound, true);
   assert.equal(m.readDiceLook({ time: "slow", sound: true }).time, "slow");
   assert.equal(m.readDiceLook({ time: "slow", sound: true }).sound, true);
   for (const odd of ["", "turbo", 3, null, {}]) assert.equal(m.readDiceLook({ time: odd }).time, "normal", String(odd));
-  for (const odd of ["true", 1, null, undefined]) assert.equal(m.readDiceLook({ sound: odd }).sound, false, String(odd));
+  for (const odd of ["true", 1, null, undefined, "x"]) assert.equal(m.readDiceLook({ sound: odd, soundChosen: true }).sound, false, String(odd));
 });
 
 test("the sound's rules are Rolai's: slow hits are silent, the volume follows the speed, wood and metal are their own", () => {

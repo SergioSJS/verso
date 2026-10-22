@@ -78,6 +78,9 @@ test release.
 
 ### Fixed
 - A web page embedded in a note no longer stays where it was when a theme or look changes the text width, spacing or font size: the page follows its box when the look is applied, when a font loads and when the box changes size, and the box behind it takes the theme's colours instead of a fixed cream.
+
+- **Dice sound is on by default and plays in the Mac app**: the *Dice sound* switch now starts on, as in Rolai (anyone who turned it off keeps it off; before, an unrelated change to the 3D look could store "off" for someone who never chose it, and that stored value is now read as "not chosen"). In the Mac app the sound was silent because the window's content-security policy gave `media-src` no `'self'`, so the `<audio>` elements were refused; the recordings now play through Web Audio (an audio context unlocked by the first click or key press), and a line in the app log says once when the sound cannot play.
+- **Dice on the board**: a `dice:` code in the text of a board text card is a die, as in a note — pressing it, even without entering the card, rolls (3D dice and sound included) and shows the result in the card; nothing is written to the board file.
 -- **A phone's second pass**: the command palette shows no key hints and no "Open console" on a phone; the search field in the drawer is a 44 px target; search results keep the icon and the (ellipsized) name on one line, show the note's title without `.md`, and read as plain text (no frontmatter lines, no `**` or link marks) with the match still highlighted; the board's main-menu button has a name for screen readers.
  Pressing Escape or ⌘P right after "Edit" on a built-in statblock layout no longer lets the layout editor appear a moment later over what you opened; the copy it made is in the gallery.
 
