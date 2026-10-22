@@ -20,7 +20,7 @@ test("a hidden ribbon button comes back, and the gear never hides", async ({ app
   // The gear's menu: no "hide", and the hidden one comes back from it.
   await gear.click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Ocultar este botão" })).toHaveCount(0);
-  await expect(page.getByRole("menuitem", { name: /Mostrar botões ocultos \(1\)/ })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /Mostrar botões ocultos \(2\)/ })).toBeVisible();
   await page.keyboard.press("Escape");
   // Hidden again from the settings, and shown again there.
   await gear.click();
