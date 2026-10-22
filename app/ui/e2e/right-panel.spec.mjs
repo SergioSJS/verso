@@ -92,9 +92,11 @@ test("every control of the right panel carries the same name @layout", async ({ 
   }
 });
 
-test("the files button is not on the ribbon by default, and comes back from the settings @layout", async ({ app, page }) => {
-  test.skip(phone(page), "a phone has no ribbon");
-  await app.open("?vault=empty");
-  await expect(page.locator('.ribbon-item[data-id="files"]')).toHaveCount(0);
-  await expect(page.locator("#toggle-side")).toBeVisible();
+test.describe("the ribbon's top", () => {
+  test.skip(({ viewport }) => viewport.width < 760, "a phone has no ribbon");
+  test("the files button is not on the ribbon by default (the status bar has the toggle) @layout", async ({ app, page }) => {
+    await app.open("?vault=empty");
+    await expect(page.locator('.ribbon-item[data-id="files"]')).toHaveCount(0);
+    await expect(page.locator("#toggle-side")).toBeVisible();
+  });
 });
