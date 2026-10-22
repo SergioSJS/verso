@@ -69,7 +69,7 @@ import { readSheet } from "./statblock/sheet";
 import { S } from "./statblock/strings";
 import { allLayouts } from "./statblock/store";
 import { TextLeaf } from "./leaves/textfile";
-import { embedViews, syncEmbedViews, syncWebViews, webLeaves } from "./leaves/web";
+import { embedViews, syncEmbedViews, syncWebViews, watchEmbedLayout, webLeaves } from "./leaves/web";
 import { createMenuItems, menu, MenuItem, menuKeydown, showMenu, trackMenuPointer } from "./menu";
 import { joinAsPopout, openFolderBy, openFolderDialog, showFolder } from "./open";
 import { folderNoteOf, pushFolderNoteName } from "./organize/folderNotes";
@@ -239,6 +239,7 @@ window.addEventListener("resize", syncEmbedViews);
 document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
 // New boxes appear after async renders; a cheap sweep catches them.
 window.setInterval(syncEmbedViews, 700);
+watchEmbedLayout();
 // A window moved to a screen of another scale keeps its CSS size, and the
 // host places the pages in device pixels (app/src-tauri/src/web_clip).
 const watchScale = (): void =>
