@@ -383,8 +383,13 @@ test("an admin ends another account's sessions and tokens from its page", async 
   // the address opened again asks to sign in. The admin's session stays.
   await expect(lost).toHaveURL(/\/signin/, { timeout: 30_000 });
   await lost.waitForLoadState("load");
-  await lost.goto("/");
-  await expect(lost).toHaveURL(/\/signin/);
+  // The window may be told twice (the server's message, then the socket
+  // closing) and land on the sign-in page twice: a goto in between is
+  // interrupted (seen once on the phone project), so it is tried again.
+  await expect(async () => {
+    await lost.goto("/");
+    await expect(lost).toHaveURL(/\/signin/);
+  }).toPass({ timeout: 15_000 });
   await other.close();
   // The log says it, about whom.
   await page.goto("/admin/audit");
