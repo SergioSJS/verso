@@ -55,6 +55,8 @@ mod history;
 mod local_server;
 mod log;
 mod menu;
+#[cfg(target_os = "macos")]
+mod menu_spec;
 mod notes;
 mod protocol;
 mod reach;
@@ -143,6 +145,9 @@ pub struct App {
     menu_recents: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
+    /// What the window pushed for the menu: its features, keys and the
+    /// commands that can run now (`menu_spec::MenuState`).
+    menu_state: Mutex<MenuState>,
     /// Set once the setup made the main window. On macOS the folder of
     /// `open -a Verso <folder>` arrives as an open event before the setup
     /// runs (tao hands `application:openURLs:` over before the launch
@@ -174,6 +179,7 @@ impl App {
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
+            menu_state: Mutex::new(MenuState::default()),
             started: std::sync::atomic::AtomicBool::new(false),
             local_server: local_server::LocalSlot::default(),
         }
@@ -751,6 +757,8 @@ macro_rules! commands_for {
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
+                set_menu_commands::<$runtime>,
+                set_menu_enabled::<$runtime>,
                 reindex::<$runtime>,
                 capabilities::<$runtime>,
                 folder_space::<$runtime>,
@@ -1003,6 +1011,14 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         } else if id == CLOSE_WINDOW {
             if let Some(w) = focused_window(app) {
                 let _ = w.close();
+            }
+        } else if let Some(command) = id.strip_prefix(menu_spec::COMMAND_PREFIX) {
+            // An item of the window's own commands: the focused window
+            // runs the same command the palette runs.
+            if let Some(w) = focused_window(app)
+                && is_app_view(w.label())
+            {
+                let _ = app.emit("menu-command", (w.label().to_owned(), command.to_owned()));
             }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
