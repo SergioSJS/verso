@@ -68,6 +68,10 @@
 .theme-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; font-size: .9rem; }
 .theme-name-text { font-weight: 600; overflow-wrap: anywhere; }
 .theme-on { font-size: .78rem; color: var(--seal); }
+.theme-credit { margin: 0; font-size: .76rem; line-height: 1.35; color: var(--ink-2); overflow-wrap: anywhere; }
+.theme-credit-link { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.theme-credit-link:hover { color: var(--seal); }
+.look-credit-box:empty { display: none; }
 .theme-acts { display: flex; gap: .15rem; min-height: 1.9rem; margin-left: -.3rem; }
 .theme-act { padding: .3rem; border-radius: 6px; color: var(--ink-2); }
 .theme-act:hover { color: var(--ink); background: var(--paper-2); }

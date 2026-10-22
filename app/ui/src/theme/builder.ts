@@ -23,6 +23,7 @@ import { rename, saveAs } from "./profiles";
 import { sampleDocument } from "./sample";
 import { cannotSuggest, setSuggestion, suggestion } from "./suggest";
 import { W } from "./strings";
+import { creditLine } from "./creditLine";
 import { V2 } from "./moreStrings";
 import {
   type AnyColor, CODE_TOKENS, COLOR_TOKENS, emptyLook, FONT_CHOICES, type FontKey, type FontToken, HEADING_TOKENS, type Look, SEMANTIC_TOKENS, SIZE_MAX, SIZE_MIN, type Side, STYLE_CHOICES, STYLE_KEYS, type Style,
@@ -93,6 +94,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     headingFont: settings.headingFont,
     fontSize: settings.fontSize,
     lookName: settings.lookName,
+    lookCredit: settings.lookCredit,
   };
   if (spec.mode === "edit") {
     const p = profilesNow().find((x) => x.name === spec.name);
@@ -163,6 +165,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     settings.look = emptyLook();
     settings.headingFont = DEFAULTS.headingFont;
     settings.fontSize = DEFAULTS.fontSize;
+    delete settings.lookCredit;
     live();
     touched();
     refresh(true);
@@ -363,7 +366,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     });
   }
 
-  controls.append(colors.box, headings.box, code.box, callouts.box, structure.box, contrast, share);
+  const credit = h("div", "look-credit-box");
+  controls.append(colors.box, headings.box, code.box, callouts.box, structure.box, contrast, share, credit);
 
   // --- the sample
   const sample = sampleDocument();
@@ -405,6 +409,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
       r.row.dataset["custom"] = own ? "true" : "false";
       r.reset.disabled = !own;
     }
+    credit.replaceChildren(...(settings.lookCredit ? [creditLine(settings.lookCredit, "theme-credit look-credit")] : []));
     for (const [key, el] of styleSelects) el.value = look.style?.[key] ?? STYLE_CHOICES[key][0];
     heading.el.value = settings.headingFont ?? "serif";
     book.el.value = look.book ?? "";
@@ -445,6 +450,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     settings.fontSize = snap.fontSize;
     if (snap.lookName === undefined) delete settings.lookName;
     else settings.lookName = snap.lookName;
+    if (snap.lookCredit === undefined) delete settings.lookCredit;
+    else settings.lookCredit = snap.lookCredit;
     saveSettings();
     told();
     dirty = false;

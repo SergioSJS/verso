@@ -17,6 +17,7 @@ import { button, h } from "../dom";
 import { icon } from "../icons";
 import { onFolderLayer } from "../folderLayer";
 import { type Hue, settings } from "../settings";
+import { creditLine } from "./creditLine";
 import { t } from "../strings";
 import {
   applyTheme, exportTheme, importFile, importText, LOOK_EVENT, lookNow, profilesNow, say, setProfiles, useBuiltin,
@@ -190,6 +191,8 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
       use(card);
     });
     li.append(pick);
+    // The credit sits under the card, not in the button: a link may not live inside one.
+    if (card.theme?.inspiredBy) li.append(creditLine(card.theme.inspiredBy));
     const row = h("div", "theme-acts");
     if (card.kind !== "folder") row.append(act(W.gallery.copyOf(card.name), "copy", () => copy(card, face), "copy"));
     if (card.kind === "mine" && card.profile) {

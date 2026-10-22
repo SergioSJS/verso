@@ -11,9 +11,9 @@ import { updateLeavesLineNumbers } from "./main";
 import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
 import { t } from "./strings";
 import { applyLook } from "./theme/apply";
-import { readLook } from "./theme/look";
+import { readLook, readLookCredit } from "./theme/look";
 import { readProfiles, type Profile } from "./theme/profiles";
-import type { Look } from "./theme/tokens";
+import type { InspiredBy, Look } from "./theme/tokens";
 
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
@@ -82,6 +82,8 @@ export type Settings = {
   look?: Look;
   looks?: Profile[];
   lookName?: string;
+  /** The credit of the theme in force, when it was inspired by another (ADR 0109 item 5). */
+  lookCredit?: InspiredBy;
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
   /** Boards (ADR 0057, 2026-09-30). */
@@ -233,6 +235,9 @@ export function loadSettings(): void {
       settings.look = readLook(parsed.look);
       settings.looks = readProfiles(parsed.looks);
       if (typeof settings.lookName !== "string") delete settings.lookName;
+      const credit = readLookCredit(parsed.lookCredit);
+      if (credit && settings.lookName !== undefined) settings.lookCredit = credit;
+      else delete settings.lookCredit;
       settings.suggestLinks = settings.suggestLinks === true;
       settings.mentionAt = settings.mentionAt !== false;
       settings.suggestCapitalOnly = settings.suggestCapitalOnly !== false;
