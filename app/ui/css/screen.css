@@ -71,6 +71,15 @@
      connection there too, not under the bar. */
   .failed-line:not([hidden]) { display: flex; }
   .web-notice { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; }
+  /* The bell floats at the row's end: the pane's own tools stop short of it,
+     and the fold ("More") is a target a finger finds. */
+  body .pane .tabs, body.no-right:not(.framed-windows) .pane .tabs { padding-right: 48px; height: 44px; min-height: 44px; max-height: 44px; }
+  /* Targets of 44 px: the tab, the drawer's head, the place, the cover. */
+  .pane .tab { height: calc(44px - .35rem); }
+  .folder-button, #collapse, .side-order { min-height: 44px; }
+  #collapse, .side-order { min-width: 44px; }
+  .crumbs .crumb, .note-add-cover-btn { min-height: 36px; }
+  .pane-fold { min-width: 44px; min-height: 36px; justify-content: center; align-items: center; }
   /* One pane at a time: the others kept, behind the switcher (item 2). */
   .panes.many .pane:not(.focused), .panes.many .divider, .panes.many .split:not(:has(.pane.focused)) { display: none; }
   .panes.many .pane-switch { display: inline-flex; align-self: center; flex: none; min-width: 44px; min-height: 36px; justify-content: center; font-variant-numeric: tabular-nums; }
