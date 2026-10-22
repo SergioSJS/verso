@@ -64,6 +64,7 @@ test release.
 - **The right-click menu of a file or folder is short, with groups**: it had about thirty loose rows. Now the first list keeps *Open*, *Open in new tab*, *Open to the side*, *Relations*, *Version history*, *Rename*, *Move to…*, *Duplicate* and *Move to the bin*, and the rest sits in submenus: *Customize* (sticker, colour), *Organize* (select, pin, move up and down, hide from tree, turn into folder, create or add to a focus), *Window and location* (open in a new window, show in the file manager, copy the path) and *New*. A submenu opens by hover (moving diagonally towards it does not close it), by a click or tap, or by `→` or `Enter`; `←` or `Esc` goes back to its row. *Import the sample vault* left the file menu: it is in the empty space of the tree and in the command palette.
 
 ### Fixed
+- Pressing Escape or ⌘P right after "Edit" on a built-in statblock layout no longer lets the layout editor appear a moment later over what you opened; the copy it made is in the gallery.
 
 - **A UniVerso upgrade is met by the new window, not the old one**: the server sent the window's script and style files (`web.js`, `style.css`, the fonts and the like) with a date and no caching rule, so a browser kept the previous version for a while after the server was upgraded (Settings missing whole pages until a forced reload). They are now asked about each time and answered "unchanged" when they are, and the files whose name carries a hash are kept for good. One forced reload (Cmd/Ctrl+Shift+R) is needed once, on the browser that still holds an old copy.
 

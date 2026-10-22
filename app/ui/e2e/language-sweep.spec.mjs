@@ -305,7 +305,9 @@ async function sweepLanguage(app, page, lang, project) {
     await app.key("Mod+,");
     await page.locator(".settings-nav-item", { hasText: lang === "en" ? "Statblock" : "Fichas" }).click();
     await page.locator(".statblock-gallery-card").getByRole("button", { name: lang === "en" ? "Edit" : "Editar", exact: true }).first().click();
-    await page.waitForTimeout(300);
+    // The editor opens once the layout's copy is written: Escape or ⌘P before
+    // that find nothing to close, and the editor then covers what they opened.
+    await expect(page.locator(".sbe-shade")).toBeVisible();
   }, { keep: true });
   await closeAll();
   await closeAll();
