@@ -77,6 +77,9 @@ versão de teste.
 
 ### Corrigido
 - Uma página web incorporada numa nota não fica mais para trás quando um tema ou aparência muda a largura do texto, o espaçamento ou o tamanho da fonte: a página acompanha a sua caixa ao aplicar a aparência, ao carregar uma fonte e quando a caixa muda de tamanho, e a caixa atrás dela usa as cores do tema em vez de um creme fixo.
+
+- **O som dos dados vem ligado e toca no app do Mac**: o botão *Som dos dados* agora começa ligado, como no Rolai (quem o desligou continua com ele desligado; antes, uma mudança sem relação no visual dos dados 3D podia gravar "desligado" para quem nunca escolheu, e esse valor gravado agora é lido como "não escolhido"). No app do Mac o som ficava mudo porque a política de segurança de conteúdo da janela não dava `'self'` a `media-src`, e os elementos `<audio>` eram recusados; as gravações agora tocam pelo Web Audio (um contexto de áudio liberado pelo primeiro clique ou tecla), e uma linha no log do app avisa uma vez quando o som não consegue tocar.
+- **Dados no Board**: um código `dice:` no texto de um cartão de texto do Board é um dado, como numa nota — apertá-lo, mesmo sem entrar no cartão, rola (com dados 3D e som) e mostra o resultado no cartão; nada é escrito no arquivo do Board.
 -- **A segunda passada no celular**: a paleta de comandos não mostra dicas de teclas nem "Abrir console" no celular; o campo de busca da gaveta é um alvo de 44 px; os resultados da busca mantêm o ícone e o nome (com reticências) na mesma linha, mostram o título da nota sem `.md` e leem como texto simples (sem linhas de frontmatter, sem `**` nem marcas de link), com o trecho encontrado ainda destacado; o botão do menu principal do board tem nome para leitores de tela.
  Apertar Escape ou ⌘P logo depois de "Editar" em um layout de ficha embutido não deixa mais o editor de layout aparecer um instante depois sobre o que você abriu; a cópia feita está na galeria.
 

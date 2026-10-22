@@ -100,7 +100,8 @@ O número **já foi sorteado** antes de os dados caírem, pelo gerador criptogr�
 
 - **Os dados ficam na mesa**, como no Rolai, até você mexer em algo: um clique em qualquer lugar que não seja um botão ou uma janela, `Esc` ou a próxima rolagem os tira. Eles não seguram o clique: a página continua usável por baixo. Enquanto caem, `Esc` ou um clique também os pula.
 - **Duração da rolagem:** em *Dados e RPG*, **Rápida**, **Normal** ou **Lenta** muda a velocidade da queda.
-- **Som dos dados:** um botão **Som dos dados**, desligado por padrão, toca o barulho de cada batida dos dados na mesa e uns nos outros, com as gravações do Rolai (domínio público); o timbre segue o material do dado (plástico, madeira ou metal).
+- **Som dos dados:** o botão **Som dos dados** vem **ligado**, como no Rolai (desligue-o em *Dados e RPG*), e toca o barulho de cada batida dos dados na mesa e uns nos outros, com as gravações do Rolai (domínio público); o timbre segue o material do dado (plástico, madeira ou metal).
+- **No Board:** um código `dice:` no texto de um cartão de texto do Board também é um dado — clique nele, mesmo sem entrar no cartão, e o resultado (e os dados 3D e o som) aparece como numa nota. Nada é escrito no arquivo do Board.
 - **Sem animação:** se o sistema pede menos movimento, ou se a rolagem tem mais de 20 dados ou um dado que explode (`!`), só o cartão aparece.
 - **Numa sala**, cada pessoa vê os dados cair só se o *seu* recurso Dados 3D estiver ligado; as outras veem o cartão.
 - O motor 3D é baixado só na primeira rolagem em 3D e guardado para uso sem conexão, com os sons, se você os ligar.

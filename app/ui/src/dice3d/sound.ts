@@ -9,8 +9,10 @@
 // from the material's recordings, at a volume that follows the speed of the
 // hit, and a hit too slow to be a hit (a die settling) is silent. The
 // recordings are the ones of Rolai's `@3d-dice/dice-box-threejs`, kept in
-// `dice-sounds/` (docs/reference/dice-sounds.md). Off by default, behind
-// Settings › Dice and RPG › "Dice sound". Loaded only when the switch is on.
+// `dice-sounds/` (docs/reference/dice-sounds.md). On by default (as in Rolai), behind
+// Settings › Dice and RPG › "Dice sound". Web Audio (audio.ts). Loaded only when the switch is on.
+
+import { audioContext, warnOnce } from "./audio";
 
 /** The die materials that have their own recordings; the rest are plastic. */
 export type SoundMaterial = "plastic" | "wood" | "metal";
@@ -44,26 +46,30 @@ export type SoundKit = {
 
 const base = (): string => new URL("dice-sounds/", document.baseURI).href;
 
-/** One recording, loaded; resolves null if it does not (a missing file is
- *  silence, never a failure of the roll). */
-function load(file: string): Promise<HTMLAudioElement | null> {
-  return new Promise((done) => {
-    const a = new Audio();
-    a.preload = "auto";
-    const fin = (ok: boolean) => done(ok ? a : null);
-    a.addEventListener("canplaythrough", () => fin(true), { once: true });
-    a.addEventListener("error", () => fin(false), { once: true });
-    a.src = base() + file;
-    a.load();
-  });
+/** One recording, fetched and decoded; resolves null if it does not (a
+ *  missing file, or a webview that cannot decode MP3, is silence, never a
+ *  failure of the roll). Web Audio, not `<audio>`: the Mac app's CSP asks
+ *  `media-src` for its sources, and `fetch` is `connect-src 'self'`. */
+async function load(ctx: AudioContext, file: string): Promise<AudioBuffer | null> {
+  try {
+    const r = await fetch(base() + file);
+    if (!r.ok) return null;
+    return await ctx.decodeAudioData(await r.arrayBuffer());
+  } catch {
+    return null;
+  }
 }
 
-const sets = new Map<string, Promise<HTMLAudioElement[]>>();
-function set(name: keyof typeof SOUND_COUNTS): Promise<HTMLAudioElement[]> {
+const sets = new Map<string, Promise<AudioBuffer[]>>();
+function set(ctx: AudioContext, name: keyof typeof SOUND_COUNTS): Promise<AudioBuffer[]> {
   let p = sets.get(name);
   if (!p) {
     const prefix = name === "felt" ? "surface_felt" : `dicehit_${name}`;
-    p = Promise.all(Array.from({ length: SOUND_COUNTS[name] }, (_, i) => load(`${prefix}${i + 1}.mp3`))).then((all) => all.filter((a): a is HTMLAudioElement => a !== null));
+    p = Promise.all(Array.from({ length: SOUND_COUNTS[name] }, (_, i) => load(ctx, `${prefix}${i + 1}.mp3`))).then((all) => {
+      const ok = all.filter((a): a is AudioBuffer => a !== null);
+      if (ok.length === 0) warnOnce(`no recording of "${name}" could be loaded or decoded`);
+      return ok;
+    });
     sets.set(name, p);
   }
   return p;
@@ -71,13 +77,18 @@ function set(name: keyof typeof SOUND_COUNTS): Promise<HTMLAudioElement[]> {
 
 /** Load the felt and the recordings of `materials`, waiting at most
  *  `waitMs` (a slow network or a hidden tab must not hold the dice back);
- *  what has not come by then is silence for this roll. */
-export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 2500): Promise<SoundKit> {
+ *  what has not come by then is silence for this roll. Null when there is
+ *  no audio context at all. */
+export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 2500): Promise<SoundKit | null> {
+  const ctx = audioContext();
+  if (!ctx) return null;
+  // Inside the roll's own gesture this resumes; later it is a no-op.
+  if (ctx.state !== "running") void ctx.resume().catch(() => undefined);
   const wanted = [...new Set(materials)];
-  const ready = new Map<string, HTMLAudioElement[]>();
-  const all = Promise.all(["felt" as const, ...wanted].map(async (n) => ready.set(n, await set(n))));
+  const ready = new Map<string, AudioBuffer[]>();
+  const all = Promise.all(["felt" as const, ...wanted].map(async (n) => ready.set(n, await set(ctx, n))));
   await Promise.race([all, new Promise((r) => setTimeout(r, waitMs))]);
-  const pick = (name: string): HTMLAudioElement | undefined => {
+  const pick = (name: string): AudioBuffer | undefined => {
     const list = ready.get(name);
     return list && list.length > 0 ? list[Math.floor(Math.random() * list.length)] : undefined;
   };
@@ -85,10 +96,23 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 25
     hit(kind, material, speed) {
       const volume = hitVolume(speed);
       if (volume === null || document.hidden) return;
-      const a = pick(kind === "dice" ? material : "felt");
-      if (!a) return;
-      a.volume = volume;
-      void a.play().catch(() => undefined);
+      const buffer = pick(kind === "dice" ? material : "felt");
+      if (!buffer) return;
+      if (ctx.state !== "running") {
+        void ctx.resume().catch(() => undefined);
+        warnOnce(`the audio context is ${ctx.state}: it needs a click or a key press first`);
+        return;
+      }
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.value = volume;
+        src.connect(gain).connect(ctx.destination);
+        src.start();
+      } catch {
+        // A hit that cannot play is silence.
+      }
     },
   };
 }

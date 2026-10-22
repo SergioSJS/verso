@@ -246,7 +246,7 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
     item(ls.size, ls.sizeDesc, sizeBox),
     item(ls.time, ls.timeDesc, () => select(pairs(ROLL_TIMES, ls.times), () => look().time, (v) => save({ ...look(), time: v }))),
     item(ls.sound, ls.soundDesc, () => {
-      const sw = ctx.toggle(look().sound, (v) => save({ ...look(), sound: v }));
+      const sw = ctx.toggle(look().sound, (v) => save({ ...look(), sound: v, soundChosen: true }));
       const box = sw.querySelector("input");
       if (box) {
         box.setAttribute("aria-label", ls.sound);

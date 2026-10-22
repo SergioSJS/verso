@@ -409,13 +409,16 @@ test("settings: slots, presets, colours, contrast warning, texture, material and
   await row("Dados 3D: tamanho").getByRole("slider").fill("130");
   expect((await look()).size).toBe(130);
   await expect(row("Dados 3D: tamanho").locator("output")).toHaveText("130%");
-  // Roll duration (Normal by default) and the sound switch (off by default).
+  // Roll duration (Normal by default) and the sound switch (on by default, as in Rolai).
   const time = row("Duração da rolagem").getByRole("combobox");
   await expect(time.locator("option")).toHaveText(["Rápida", "Normal", "Lenta"]);
   await expect(time).toHaveValue("normal");
   await time.selectOption("slow");
   expect((await look()).time).toBe("slow");
   const sound = row("Som dos dados").locator("input[type=checkbox]");
+  await expect(sound).toBeChecked();
+  await row("Som dos dados").locator("label.switch").click();
+  expect(await look()).toMatchObject({ sound: false, soundChosen: true });
   await expect(sound).not.toBeChecked();
   await row("Som dos dados").locator("label.switch").click();
   expect((await look()).sound).toBe(true);
@@ -626,7 +629,8 @@ test("the roll duration setting: Slow takes longer to rest than Fast", async ({ 
   await openNote(app);
   await needGl(page, info);
   const timeTo = async (time) => {
-    await reloadWith(app, page, { time });
+    // The sound off: loading the recordings is not what is timed.
+    await reloadWith(app, page, { time, sound: false, soundChosen: true });
     const btn = page.locator(".preview:visible").getByRole("button", { name: "Rolar 1d20+3" });
     await btn.scrollIntoViewIfNeeded();
     const t0 = Date.now();
@@ -655,8 +659,30 @@ test("Esc clears the lingering dice at once @layout", async ({ app, page }, info
   await expect(canvas(page)).toHaveCount(0);
 });
 
-test("the dice sound: off, no recording is fetched; on, the hits play Rolai's recordings from the app (200 or a range's 206)", async ({ app, page }, info) => {
+test("the dice sound: off by the person, no recording is fetched; on (the default), Web Audio is used (one context, buffers fetched and decoded), never an <audio> element", async ({ app, page }, info) => {
   await withSwitch(page);
+  await page.addInitScript(() => {
+    const w = window;
+    w.__audio = { made: 0, decoded: 0, audioEls: 0 };
+    const Orig = w.AudioContext || w.webkitAudioContext;
+    if (Orig) {
+      w.AudioContext = class extends Orig {
+        constructor(...a) {
+          super(...a);
+          w.__audio.made++;
+        }
+        decodeAudioData(buf, ...rest) {
+          w.__audio.decoded++;
+          return super.decodeAudioData(buf, ...rest);
+        }
+      };
+    }
+    const orig = HTMLMediaElement.prototype.load;
+    HTMLMediaElement.prototype.load = function () {
+      w.__audio.audioEls++;
+      return orig.call(this);
+    };
+  });
   const seen = [];
   page.on("response", (r) => {
     if (/dice-sounds\//.test(r.url())) seen.push([new URL(r.url()).pathname.split("/").pop(), r.status()]);
@@ -664,20 +690,26 @@ test("the dice sound: off, no recording is fetched; on, the hits play Rolai's re
   await app.open();
   await openNote(app);
   await needGl(page, info);
+  await reloadWith(app, page, { sound: false, soundChosen: true });
   const preview = page.locator(".preview:visible");
   const rollBtn = preview.getByRole("button", { name: "Rolar 1d20+3" });
   await rollBtn.scrollIntoViewIfNeeded();
   await rollBtn.click();
-  await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 6000 });
+  await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
   expect(seen).toEqual([]);
   await page.keyboard.press("Escape");
-  await reloadWith(app, page, { sound: true });
+  // Nothing stored about the sound: it is on.
+  await reloadWith(app, page, { size: 100 });
   const again = page.locator(".preview:visible").getByRole("button", { name: "Rolar 1d20+3" });
   await again.scrollIntoViewIfNeeded();
   await again.click();
   await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
   expect(seen.length).toBeGreaterThan(0);
-  // The WebKit build Playwright ships has no MP3 decoder: its requests end with no status (0); the app stays silent and the roll is unharmed.
-  const okStatus = (st) => st === 200 || st === 206 || (st === 0 && info.project.name.includes("webkit"));
+  const used = await page.evaluate(() => window.__audio);
+  expect(used.audioEls).toBe(0);
+  expect(used.made).toBe(1);
+  // The WebKit build Playwright ships has no MP3 decoder: the files come (200 or a range's 206) and decoding fails; the app stays silent and the roll is unharmed.
+  expect(used.decoded).toBeGreaterThan(0);
+  const okStatus = (st) => st === 200 || st === 206;
   expect(seen.filter(([f, st]) => !(okStatus(st) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
 });
