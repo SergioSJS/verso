@@ -12,7 +12,8 @@ import type { DiceRoll } from "../bindings";
 import { hasCapability } from "../capabilities";
 import { settings } from "../settings";
 import type { Die3 } from "./force";
-import { type DiceLook, type DiceStyles, readDiceLook } from "./look";
+import { type DiceLook, type DiceStyles, materialOf, readDiceLook, type SlotId } from "./look";
+import type { SoundKit } from "./sound";
 import { dice3dActive, planRoll, rollId, seenIds } from "./plan";
 
 const ids = seenIds();
@@ -67,11 +68,18 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
     // (The engine's chunk is asked for at once, with the pictures.)
     const [engine, textures] = await Promise.all([import("./stage"), import("./textures")]);
     const images = await textures.loadTextureImages(Object.values(styles).map((s) => s.texture));
-    const stage = engine.throwDice(dice, styles, look.size, images, area());
+    // The sound is loaded before the throw (the felt and the materials the
+    // dice are of), and only when the switch is on.
+    let sound: SoundKit | null = null;
+    if (look.sound) {
+      const { loadSounds, soundMaterial } = await import("./sound");
+      sound = await loadSounds(dice.map((d) => soundMaterial(materialOf(styles[String(d.slot ?? 1) as SlotId] ?? styles["1"]))));
+    }
+    const stage = engine.throwDice(dice, styles, look.size, images, area(), { time: look.time, sound });
     if (!stage) return;
     running = stage;
     // Resolves when the dice have rested: the card shows then, and the dice
-    // stay on the table for a while (the stage ends them).
+    // stay on the table until the person touches something (the stage).
     void stage.done.then(() => {
       if (running === stage) running = null;
     });
