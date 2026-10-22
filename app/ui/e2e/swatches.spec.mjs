@@ -55,7 +55,7 @@ test("Reading shows a swatch beside each code that is no tag, and no picker; the
   expect(await names(sw)).toEqual(SHOWN.slice(1).map((c) => `Cor ${c}`));
   // The property's value, in the properties panel, shows its colour too.
   await expect(page.locator(".prop-value .swatch:visible")).toHaveCount(1);
-  await expect(page.locator(".prop-value .swatch:visible")).toHaveAttribute("aria-label", "Cor #abcdef");
+  await expect(page.locator(".prop-value .swatch:visible")).toHaveAttribute("aria-label", "Cor #abcdef — ajustar");
   // The tags stay tags, with no swatch beside them.
   // (The harness draws a tag as text; the core's reader as a link. Either way: no swatch.)
   const tagged = swatches(page, ".preview:visible p:has-text('Etiqueta:')");
@@ -146,6 +146,8 @@ test("the switch removes the swatches everywhere, and bringing it back draws the
   await box.uncheck();
   await page.keyboard.press("Escape");
   await expect(swatches(page, ".preview:visible")).toHaveCount(0);
+  // The property's swatch goes too, without leaving and coming back.
+  await expect(page.locator(".prop-value .swatch:visible")).toHaveCount(0);
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".cm-content:visible .cm-swatch")).toHaveCount(0);
   expect(await app.file(NOTE)).toBe(TEXT);
@@ -154,6 +156,35 @@ test("the switch removes the swatches everywhere, and bringing it back draws the
   await page.locator(".settings-body").getByRole("checkbox", { name: /Amostras de cor/ }).check();
   await page.keyboard.press("Escape");
   await expect(page.locator(".cm-content:visible .cm-swatch")).toHaveCount(SHOWN.length - 1);
+  await expect(page.locator(".prop-value .swatch:visible")).toHaveCount(1);
+});
+
+test("the property's swatch opens the picker; the pick is written into the frontmatter value in its format, nothing else changes @layout", async ({ app, page }) => {
+  await app.open();
+  await openNote(app);
+  const sw = page.locator(".prop-value").getByRole("button", { name: "Cor #abcdef — ajustar", exact: true });
+  await sw.click();
+  await expect(picker(page)).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(picker(page)).toHaveCount(0);
+  await app.key("Mod+s");
+  await expect.poll(async () => (await app.file(NOTE)).includes("#abcdef")).toBe(false);
+  const after = await app.file(NOTE);
+  const line = /^cor: "?(#[0-9a-f]{6})"?$/m.exec(after);
+  expect(line).not.toBeNull();
+  expect(after.replace(line[0], 'cor: "#abcdef"')).toBe(TEXT);
+  // The field and the swatch follow the new colour.
+  await expect(page.locator(".prop-input[aria-label='cor']")).toHaveValue(line[1]);
+  // Keyboard: Enter on the swatch opens it; Esc leaves the file as it is.
+  await page.locator(".prop-value").getByRole("button", { name: `Cor ${line[1]} — ajustar`, exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(picker(page)).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Escape");
+  await expect(picker(page)).toHaveCount(0);
+  await app.key("Mod+s");
+  expect(await app.file(NOTE)).toBe(after);
 });
 
 test("the picker is keyboard operable and named @layout", async ({ app, page }, info) => {
