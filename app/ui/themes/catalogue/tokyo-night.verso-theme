@@ -56,8 +56,8 @@
       "--blue": "#7aa2f7",
       "--purple": "#bb9af7"
     },
-    "--heading-font": "system",
-    "--book": "system",
+    "--heading-font": "mono",
+    "--book": "mono",
     "--mono": "mono",
     "font-size": 16,
     "tag-style": "pill",
