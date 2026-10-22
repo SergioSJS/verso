@@ -582,6 +582,7 @@ test("the dice stay on the table after the card shows, never catch a tap, and a 
     watch();
   });
   await rollBtn.click();
+  await expect(canvas(page)).toHaveCount(1);
   await expect(canvas(page)).toHaveCount(0, { timeout: 8000 });
   const seen = await page.evaluate(() => window.__linger.gone - window.__linger.card);
   info.annotations.push({ type: "dice after card (ms)", description: String(Math.round(seen)) });
