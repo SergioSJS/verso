@@ -174,3 +174,16 @@ Windows e Linux ganham um menu como a "moldura do Obsidian" — um botão de men
 no canto da janela que abre os mesmos menus da barra do Mac, Alt e Alt+letra
 abrindo-os — (*"como é o Obsidian no Windows e no Linux? Poderíamos seguir
 similar"*); em construção.
+
+Como construído em 2026-10-22 (item 3 acima): o botão do menu (☰, "Menu") fica
+no canto de cima à esquerda da janela no Windows e no Linux, na largura da
+faixa lateral, que começa abaixo dele como no Mac. Abre os menus da barra do
+Mac a partir da mesma especificação (`menu_spec.rs`, exposta como o comando
+`menu_sections`): Arquivo, Edição, Visualização, Ir, RPG, Janela, Ajuda, cada
+linha com a sua tecla (Ctrl no lugar de ⌘), as linhas de um recurso desligado
+de fora, as que a paleta não pode rodar em cinza, e Ajustes… e Encerrar no
+fim de Arquivo (o Mac os tem no menu do app). Os itens rodam o comando da
+paleta. Alt sozinho o abre; Alt e a letra sublinhada abre um menu (pt: A E V I
+R J U; en: F E V G R W H, escolhidas para nenhuma letra se repetir e nenhuma
+ser uma tecla que a janela usa com Alt sozinho). Não construído: um menu na
+janela do navegador ou no celular. Registrado, não decidido.

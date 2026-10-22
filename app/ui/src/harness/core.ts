@@ -16,6 +16,7 @@
 // has an answer).
 
 import YAML from "yaml";
+import { menuSections } from "./menu";
 import type {
   Capabilities,
   FolderSpace,
@@ -1346,6 +1347,8 @@ export class Core {
     set_menu_language: () => null,
     set_menu_commands: () => null,
     set_menu_enabled: () => null,
+    menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
+    quit_app: () => null,
     reindex: () => this.summary(),
     query_base: (a) => this.queryBase(a["query"] as BaseQuery),
     new_window: () => null,

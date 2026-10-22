@@ -207,6 +207,12 @@ pub const REFUSED: &[&str] = &[
     "recent_folders",
     "cli_status",
     "open_devtools",
+    // The desktop's own menu (the Mac bar, and the in-window menu of Windows
+    // and Linux): it acts on this window, and a phone has none.
+    "set_menu_commands",
+    "set_menu_enabled",
+    "menu_sections",
+    "quit_app",
 ];
 
 /// The prefix of the commands that run this mode itself.

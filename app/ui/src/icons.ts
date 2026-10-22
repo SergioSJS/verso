@@ -26,6 +26,7 @@ const PATHS: Record<string, string> = {
   minus: "M3 8h10",
   warn: "M8 2.5 14 13H2zM8 6.5v3M8 11.2v.3",
   outline: "M3 4h10M5 8h8M7 12h6",
+  menu: "M2.5 4h11M2.5 8h11M2.5 12h11",
   camera: "M2.5 5h2l1-1.5h5l1 1.5h2v7.5h-11zM8 10.8a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z",
   image: "M2.5 3.5h11v9h-11zM2.5 10.5l3-3 2.5 2.5 2-2 3.5 3.5M10.5 6.5h.01",
   text: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3M6 8h4M6 10.5h4",
