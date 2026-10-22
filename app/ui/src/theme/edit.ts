@@ -8,8 +8,8 @@
 
 import { parseColor, toHex } from "./color";
 import { customRgb } from "./colorsOf";
-import { FLOOR, ratios, type Full, type Ratio, resolve, undoneBy } from "./derive";
-import type { ColorToken, Look, Side } from "./tokens";
+import { FLOOR, ratios, type Ratio, resolve, type Shipped, undoneBy } from "./derive";
+import type { AnyColor, Look, Side } from "./tokens";
 
 export type Outcome = {
   look: Look;
@@ -21,11 +21,11 @@ export type Outcome = {
   invalid: boolean;
 };
 
-const measure = (side: Side, shipped: Full, look: Look): Ratio[] => ratios(resolve(side, shipped, customRgb(look[side])));
+const measure = (side: Side, shipped: Shipped, look: Look): Ratio[] => ratios(resolve(side, shipped, customRgb(look[side])));
 
 /** `text` as the colour of `token` on `side` (`null`: the stylesheet's own
  *  again). */
-export function changeColor(shipped: Full, look: Look, side: Side, token: ColorToken, text: string | null): Outcome {
+export function changeColor(shipped: Shipped, look: Look, side: Side, token: AnyColor, text: string | null): Outcome {
   const before = measure(side, shipped, look);
   const next: Look = { ...look, light: { ...look.light }, dark: { ...look.dark } };
   if (text === null) {
@@ -44,7 +44,7 @@ export function changeColor(shipped: Full, look: Look, side: Side, token: ColorT
 /** The pairs a theme would leave unreadable (under 3:1) on the sides it
  *  sets, laid over the stylesheet's colours: an imported file that blanks
  *  the window is refused, not applied. Empty when it is fit to apply. */
-export function unreadableIn(shipped: Record<Side, Full>, theme: { mode: "light" | "dark" | "both"; light: Look["light"]; dark: Look["dark"] }): { side: Side; pair: Ratio }[] {
+export function unreadableIn(shipped: Record<Side, Shipped>, theme: { mode: "light" | "dark" | "both"; light: Look["light"]; dark: Look["dark"] }): { side: Side; pair: Ratio }[] {
   const out: { side: Side; pair: Ratio }[] = [];
   for (const side of ["light", "dark"] as const) {
     if (theme.mode !== "both" && theme.mode !== side) continue;
