@@ -7,25 +7,28 @@
 // text a screen reader reads with the group's name.
 
 import { h } from "./dom";
+import { icon } from "./icons";
 import { currentZoom, onZoom, zoomIn, zoomOut, zoomReset, zoomWords } from "./zoom";
 import { ZOOM_MAX, ZOOM_MIN, zoomPercent } from "./zoomCore";
 
 export function zoomControl(): HTMLElement {
-  const box = h("span", "ls-steps settings-steps zoom-control");
+  const wrap = h("span", "zoom-control");
+  const box = h("span", "ls-steps settings-steps");
   box.setAttribute("role", "group");
   box.setAttribute("aria-label", zoomWords.title);
-  const step = (label: string, glyph: string, run: () => void): HTMLButtonElement => {
-    const b = h("button", "btn ls-step", glyph);
+  const step = (label: string, glyph: "plus" | "minus", run: () => void): HTMLButtonElement => {
+    const b = h("button", "btn ls-step");
+    b.append(icon(glyph));
     b.type = "button";
     b.setAttribute("aria-label", label);
     b.addEventListener("click", run);
     return b;
   };
-  const less = step(zoomWords.out, "−", zoomOut);
-  const more = step(zoomWords.in, "+", zoomIn);
+  const less = step(zoomWords.out, "minus", zoomOut);
+  const more = step(zoomWords.in, "plus", zoomIn);
   const level = h("span", "zoom-level");
   level.id = "zoom-level";
-  const reset = h("button", "btn zoom-reset", zoomWords.resetBtn);
+  const reset = h("button", "btn ghost zoom-reset", zoomWords.resetBtn);
   reset.type = "button";
   reset.addEventListener("click", zoomReset);
   const paint = (z: number): void => {
@@ -35,11 +38,12 @@ export function zoomControl(): HTMLElement {
     reset.disabled = z === 1;
   };
   paint(currentZoom());
-  box.append(less, level, more, reset);
+  box.append(less, level, more);
+  wrap.append(box, reset);
   // Follows the keys and the wheel while the row is on screen.
   const off = onZoom((z) => {
-    if (!box.isConnected) { off(); return; }
+    if (!wrap.isConnected) { off(); return; }
     paint(z);
   });
-  return box;
+  return wrap;
 }
