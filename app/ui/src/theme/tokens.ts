@@ -5,7 +5,7 @@
 // The appearance wizard's token contract, `tokensVersion` 1 (ADR 0100
 // item 3) and 2 (ADR 0109 item 2): a short fixed list over the stylesheet's
 // real names. Version 2 adds, all optional, the code colours, a colour per
-// heading level, eight semantic colours and five structural choices. A theme is
+// heading level, eight semantic colours and fifteen structural choices. A theme is
 // only values for these — a colour, a font from the allowed set, a size in
 // a range; never CSS, never `url()`. The values the person does not edit
 // (`--paper-3`, `--ink-3`, the washes) are derived from these
@@ -40,13 +40,28 @@ export const STYLE_CHOICES = {
   "table-style": ["hairline", "striped", "bordered"],
   "tag-style": ["pill", "outline", "minimal"],
   radius: ["soft", "sharp", "round"],
+  // ADR 0109, decided 2026-10-22 (TM.4 = B): ten more, all optional. The first value is
+  // what the window is today (so a theme that names it, or none, changes nothing).
+  "heading-scale": ["standard", "compact", "large"],
+  "heading-weight": ["semibold", "regular", "bold"],
+  "line-width": ["standard", "narrow", "wide"],
+  "line-height": ["normal", "snug", "relaxed"],
+  "blockquote-style": ["bar-italic", "bar", "panel", "plain"],
+  "link-style": ["underline", "hover", "plain"],
+  "emphasis-color": ["ink", "accent", "semantic"],
+  "checkbox-style": ["square", "rounded", "round"],
+  "paragraph-spacing": ["standard", "tight", "loose"],
+  "callout-style": ["tinted", "outlined", "title-bar"],
 } as const;
 export type StyleKey = keyof typeof STYLE_CHOICES;
 export const STYLE_KEYS = Object.keys(STYLE_CHOICES) as StyleKey[];
 export type Style = Partial<{ [K in StyleKey]: (typeof STYLE_CHOICES)[K][number] }>;
 export const styleAllowed = (key: string, v: unknown): boolean => Object.hasOwn(STYLE_CHOICES, key) && (STYLE_CHOICES[key as StyleKey] as readonly unknown[]).includes(v);
 /** The `data-*` attribute each choice is written as on the window's root. */
-export const STYLE_ATTR: Record<StyleKey, string> = { "surface-mode": "surface", "heading-style": "headingStyle", "table-style": "tableStyle", "tag-style": "tagStyle", radius: "radius" };
+export const STYLE_ATTR: Record<StyleKey, string> = { "surface-mode": "surface", "heading-style": "headingStyle", "table-style": "tableStyle", "tag-style": "tagStyle", radius: "radius",
+  "heading-scale": "headingScale", "heading-weight": "headingWeight", "line-width": "lineWidth", "line-height": "lineHeight", "blockquote-style": "blockquoteStyle",
+  "link-style": "linkStyle", "emphasis-color": "emphasisColor", "checkbox-style": "checkboxStyle", "paragraph-spacing": "paragraphSpacing", "callout-style": "calloutStyle",
+};
 
 /** A theme's credit to the one it is inspired by (ADR 0109 item 5): text
  *  only, never fetched. */
