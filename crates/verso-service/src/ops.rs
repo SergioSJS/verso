@@ -585,6 +585,8 @@ pub(crate) fn block_ids_out(list: verso_core::IndexBlockList) -> FolderBlocks {
                 },
                 label: b.label,
                 under_heading: b.under_heading,
+                rows: b.rows,
+                tasks: b.tasks,
             })
             .collect(),
     }
