@@ -16,7 +16,8 @@ export * from "./src/theme/edit";
 export * from "./src/theme/colorsOf";
 export * from "./src/theme/file";
 export * from "./src/theme/look";
-export * from "./src/theme/profiles";`,
+export * from "./src/theme/profiles";
+export * from "./src/theme/moreStrings";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -258,5 +259,20 @@ describe("version 2 contrast (ADR 0109 item 3)", () => {
     const out = T.changeColor(shipped(), T.emptyLook(), "light", "--h4-color", "#f6edd8");
     assert.deepEqual(out.undone.map((r) => r.id), ["h4"]);
     assert.equal(T.changeColor(shipped(), T.emptyLook(), "light", "--h4-color", "#223344").undone.length, 0);
+  });
+});
+
+describe("the credit (ADR 0109 item 5)", () => {
+  test("a credit line names the theme, the author and the licence", () => {
+    const line = T.V2.credit({ theme: "Minimal", author: "Steph Ango", license: "MIT" });
+    for (const part of ["Minimal", "Steph Ango", "(MIT)"]) assert.ok(line.includes(part), line);
+    assert.ok(T.V2.credit({ theme: "Só o nome" }).includes("Só o nome"));
+    assert.equal(T.V2.credit({ theme: "X" }).includes("undefined"), false);
+  });
+  test("a credit kept in the settings is read again as the file reads it, or dropped", () => {
+    assert.deepEqual(T.readLookCredit({ theme: "Minimal", repoUrl: "https://github.com/kepano/obsidian-minimal" }), { theme: "Minimal", repoUrl: "https://github.com/kepano/obsidian-minimal" });
+    assert.equal(T.readLookCredit({ theme: "Minimal", repoUrl: "http://x.example" }), undefined);
+    assert.equal(T.readLookCredit("Minimal"), undefined);
+    assert.equal(T.readLookCredit(undefined), undefined);
   });
 });
