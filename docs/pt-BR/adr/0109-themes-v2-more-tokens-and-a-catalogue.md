@@ -181,3 +181,18 @@ Proposta (2026-10-22). Itens 2, 6 e 7 decididos pelo mantenedor no mesmo
 dia (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
 opções A); os itens `[PROPOSED]` continuam do autor até a aceitação. Em
 construção; aguarda uma leitura pelo outro modelo.
+
+Decidido em 2026-10-22, mais tarde (`~/Projects/person/apps/verso-decisoes-temas-fidelidade-2026-10-22.md`),
+depois que o mantenedor viu que o catálogo não parecia com os originais
+(*"tá a mesma fonte do nosso… não tá mudando tanta coisa"*) e de uma
+comparação lado a lado: **TM.4 = B** — mais dez chaves de estrutura, listas
+fechadas, sem CSS: tamanho dos títulos, peso dos títulos, largura do texto,
+entrelinha, estilo de citação, estilo de link, cor da ênfase, estilo de
+caixa de seleção, espaço entre parágrafos e estilo de callout (a opção A
+eram só as quatro primeiras; a C, só as duas dos títulos); **TM.5 = A** —
+"Ayu" é a paleta oficial MIT com a fonte padrão do catálogo, não o tema
+antigo do Obsidian sem licença; **TM.6 = A** — "Things" e "Atom" mantêm o
+nome com o crédito. Registrado também: toda fonte que um tema usa precisa
+mostrar o português completo (acentos, cedilha, ª º, aspas, travessões) — o
+mantenedor: *"o foco principal vai ser a aplicação atender público
+brasileiro"*; as cinco chaves de fonte foram conferidas e passam.

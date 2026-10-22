@@ -128,3 +128,7 @@ frontmatter value such as `ticket: #123`; (2) the properties panel shows a
 swatch beside a colour value, view only. The picker writes on release and
 on each key, not while dragging. The theme builder keeps its system colour
 field.
+
+Confirmed 2026-10-22 by the maintainer: (1) AC.1 = A, short digit-only
+codes in plain text stay without a swatch; (2) AC.2 = A, the swatch in the
+properties panel stays and a click on it opens the picker too.

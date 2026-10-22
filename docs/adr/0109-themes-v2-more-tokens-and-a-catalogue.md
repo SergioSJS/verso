@@ -181,3 +181,17 @@ Proposed (2026-10-22). Items 2, 6 and 7 decided by the maintainer the same
 day (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
 options A); the `[PROPOSED]` items stay the author's until accepted. Being
 built; waits for a reading by the other model.
+
+Decided 2026-10-22, later (`~/Projects/person/apps/verso-decisoes-temas-fidelidade-2026-10-22.md`),
+after the maintainer saw that the catalogue did not look like its originals
+(*"tá a mesma fonte do nosso… não tá mudando tanta coisa"*) and a side-by-side
+comparison: **TM.4 = B** — ten more structural keys, closed lists, no CSS:
+heading scale, heading weight, line width, line height, blockquote style,
+link style, emphasis colour, checkbox style, paragraph spacing and callout
+style (option A was the first four only; C, the heading two only);
+**TM.5 = A** — "Ayu" is the official MIT palette with the catalogue's
+default font, not the unlicensed old Obsidian theme; **TM.6 = A** — "Things"
+and "Atom" keep their names with the credit. Also recorded: every font a
+theme uses must render Portuguese in full (accents, cedilla, ª º, quotes,
+dashes) — the maintainer: *"o foco principal vai ser a aplicação atender
+público brasileiro"*; the five font keys were checked and pass.
