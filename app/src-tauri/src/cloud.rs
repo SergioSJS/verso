@@ -107,7 +107,10 @@ fn refuse(problem: &str, message: impl Into<String>) -> CloudCheck {
 /// A probe's failure as the answer to the form.
 fn refusal(e: &RemoteError) -> CloudCheck {
     let problem = match (&e.kind, e.detail.as_deref()) {
-        (_, Some(d @ ("plain_http_unconfirmed" | "plain_http_refused"))) => d,
+        (
+            _,
+            Some(d @ ("plain_http_unconfirmed" | "plain_http_refused" | "no_conditional_delete")),
+        ) => d,
         (RemoteErrorKind::Refused, _) if e.message.starts_with("cloud sign-in refused") => "auth",
         (RemoteErrorKind::Refused, _) => "service_refused",
         (RemoteErrorKind::Unreachable | RemoteErrorKind::RateLimited(_), _) => "unreachable",
