@@ -132,3 +132,41 @@ test("a text file changed here and on disk keeps both on a third choice: the dis
   await expect(page.locator(".tab.active, .tab[aria-selected='true']").first()).toContainText("conflito, Mac de Teste");
   await expect(page.locator("#status")).toContainText("Os dois ficaram");
 });
+
+test("a hidden tab bar always has a named way back: the pane's own button on a phone, the palette, Settings @layout", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("03 - Propriedades");
+  const bar = page.locator(".pane .tabs");
+  const phone = (page.viewportSize()?.width ?? 1500) <= 760;
+  await expect(bar).toBeVisible();
+  // Hide it from the palette, which a phone opens from its bottom bar.
+  await app.command("Ocultar barra de abas");
+  await expect(page.locator(".pane.tabs-hidden")).toHaveCount(1);
+  await expect(bar).toBeHidden();
+  if (phone) {
+    // The only thing on a phone: a button with the bar's name on it.
+    const back = page.getByRole("button", { name: "Mostrar barra de abas" });
+    await expect(back).toBeVisible();
+    if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/tabs-hidden-${page.viewportSize().width}.png` });
+    const box = await back.boundingBox();
+    expect(box.height).toBeGreaterThanOrEqual(40);
+    await back.click();
+    await expect(bar).toBeVisible();
+    await app.command("Ocultar barra de abas");
+    await expect(bar).toBeHidden();
+  }
+  // The palette brings it back, by the name the button has.
+  await app.command("Mostrar barra de abas");
+  await expect(bar).toBeVisible();
+  // And so does the switch in Settings.
+  await app.command("Ocultar barra de abas");
+  await expect(bar).toBeHidden();
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Editor" }).click();
+  const sw = page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Mostrar barra de abas$/ }) });
+  await expect(sw).toBeVisible();
+  await sw.locator("label.switch").click();
+  await expect(page.locator(".pane.tabs-hidden")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(bar).toBeVisible();
+});

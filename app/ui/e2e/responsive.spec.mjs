@@ -505,3 +505,14 @@ for (const [title, steps] of [
     expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
   });
 }
+
+test("a phone with every drawer closed has no shadow on its edges and no empty tab row @layout", async ({ app, page }) => {
+  await app.open();
+  if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
+  await page.evaluate(() => document.body.classList.remove("side-open", "right-open"));
+  for (const sel of ["aside.side", "aside.right"]) {
+    expect(await page.locator(sel).evaluate((e) => getComputedStyle(e).boxShadow)).toBe("none");
+  }
+  if ((await page.locator(".pane .tab").count()) === 0) await expect(page.locator(".pane .tabs")).toBeHidden();
+  if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/closed-${process.env.SHOT_TAG ?? "after"}-390.png` });
+});

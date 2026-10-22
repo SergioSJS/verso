@@ -5,12 +5,19 @@
 // The replay's clock (ADR 0101 item 5): the fall is recorded step by step
 // and played back in real time; it ends when the dice have rested and been
 // seen for a moment, when the person skips it, or at the maximum time —
-// whichever comes first, so a fall stuck on screen always ends. Pure.
+// whichever comes first, so a fall stuck on screen always ends. After it the
+// dice linger at rest for LINGER_MS, then fade for FADE_MS (the stage). Pure.
 
 /** The physics step, in seconds; the recording has one frame per step. */
 export const STEP = 1 / 60;
-/** How long the settled dice stay on screen before the canvas goes. */
+/** How long the settled dice are seen before the result card shows. */
 export const HOLD_MS = 300;
+/** How long the dice stay on the table, at rest, after the card has shown
+ *  (as Rolai keeps them): long enough to read them, short enough not to
+ *  linger. A tap, a key or a new roll ends it at once. */
+export const LINGER_MS = 2800;
+/** The fade at the end of the linger. */
+export const FADE_MS = 400;
 /** The replay runs the recorded fall this many times faster than it was
  *  simulated, so the dice settle sooner on screen. */
 export const PLAYBACK_SPEED = 1.6;

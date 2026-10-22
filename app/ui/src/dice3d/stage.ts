@@ -38,11 +38,14 @@ import { CELL, type Cell, cellsOf, centred, fitSize, inkOf, inradius, type Measu
 import { solid, type Shape, type Vec } from "./polyhedra";
 import { type Arena, simulate } from "./sim";
 import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId, type TextureId } from "./look";
-import { playhead, timeline } from "./timeline";
+import { FADE_MS, LINGER_MS, playhead, timeline } from "./timeline";
 
 /** What the stage reports to the caller. */
 export type Stage = {
-  /** Ends when the animation is over, for whatever reason; never rejects. */
+  /** Ends when the dice have rested (or the fall was skipped): the moment
+   *  for the result card. The dice then stay on screen a while longer. */
+  rested: Promise<void>;
+  /** Ends when the canvas is gone, for whatever reason; never rejects. */
   done: Promise<void>;
   /** Ends it now. */
   skip: () => void;
@@ -375,10 +378,17 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   let ended = false;
   let resolve: () => void = () => undefined;
   const done = new Promise<void>((r) => (resolve = r));
+  let settle: () => void = () => undefined;
+  const rested = new Promise<void>((r) => (settle = r));
+  let lingerTimer = 0;
+  let fadeTimer = 0;
   const end = () => {
     if (ended) return;
     ended = true;
     cancelAnimationFrame(raf);
+    clearTimeout(lingerTimer);
+    clearTimeout(fadeTimer);
+    document.removeEventListener("pointerdown", skip, true);
     canvas.removeEventListener("pointerdown", skip);
     canvas.removeEventListener("webglcontextlost", lost);
     document.removeEventListener("keydown", key, true);
@@ -387,7 +397,23 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     renderer.dispose();
     renderer.forceContextLoss();
     canvas.remove();
+    settle();
     resolve();
+  };
+  // The dice are at rest and the card is due: they stay a while, never
+  // catching a tap (the page works under them), and any press or Esc, or
+  // the next roll, takes them away at once.
+  const linger = () => {
+    settle();
+    canvas.style.pointerEvents = "none";
+    canvas.dataset["state"] = "resting";
+    document.addEventListener("pointerdown", skip, true);
+    lingerTimer = window.setTimeout(() => {
+      canvas.dataset["state"] = "fading";
+      canvas.style.transition = `opacity ${FADE_MS}ms ease-out`;
+      canvas.style.opacity = "0";
+      fadeTimer = window.setTimeout(end, FADE_MS);
+    }, LINGER_MS);
   };
   function skip(): void {
     skipped = true;
@@ -399,8 +425,11 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   }
   function key(e: KeyboardEvent): void {
     if (e.key !== "Escape") return;
-    e.preventDefault();
-    e.stopPropagation();
+    // Falling, Esc is the fall's; resting, it is also the page's.
+    if (canvas.dataset["state"] !== "resting") {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     skip();
   }
   canvas.addEventListener("pointerdown", skip);
@@ -451,9 +480,13 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     place(head.at);
     renderer.render(scene, camera);
     if (!measured && head.at >= fall.frames - 1) measure();
-    if (head.done) end();
-    else raf = requestAnimationFrame(frame);
+    if (head.done) {
+      // Skipped: gone. Rested: the last frame stays, drawn, and the clock
+      // of the linger starts; no more frames are asked for.
+      if (skipped) end();
+      else linger();
+    } else raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
-  return { done, skip };
+  return { rested, done, skip };
 }
