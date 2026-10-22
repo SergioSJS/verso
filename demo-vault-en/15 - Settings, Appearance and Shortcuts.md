@@ -98,7 +98,10 @@ On a Mac, the bar at the top of the screen gathers what Verso does, with each co
 - **RPG**: **Roll Dice…**, **Ask the Oracle**, **New Project from Template…** and **Dice and RPG Settings…**. A feature turned off in **Settings › Features** leaves the menu; the settings item stays, to turn it back on.
 - **Help**: notifications, the tutorial, updates, report a problem and credits.
 
-A grey item does not apply right now (for example **Save** with no note open). Windows and Linux have no such bar: the same commands are in the palette and in the settings.
+A grey item does not apply right now (for example **Save** with no note open). 
+### On Windows and Linux
+
+There is no bar at the top of the screen: there is a **☰ Menu** button in the window's top-left corner, as in Obsidian. It opens the **same menus** (File, Edit, View, Go, RPG, Window and Help), with the same keys (**Ctrl** in place of ⌘), the grey items, and the RPG items that leave with their feature turned off. **Settings…** and **Quit Verso** are at the end of **File**. From the keyboard: **Alt** alone opens the menu; **Alt** and the underlined letter opens a menu directly (**Alt+F** File, **Alt+E** Edit, **Alt+V** View, **Alt+G** Go, **Alt+R** RPG, **Alt+W** Window, **Alt+H** Help); the arrows walk it, **Enter** runs and **Esc** steps back. A browser and a phone have no such button: the palette (`Ctrl+⇧+P`) has the same commands.
 
 ---
 
