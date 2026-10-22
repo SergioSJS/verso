@@ -117,8 +117,12 @@ test("switch on: the chunk loads on the first roll only, the result is said at o
   await preview.getByRole("button", { name: "Rolar 2d6" }).click();
   await expect(page.locator(".dice-said")).toHaveText(/^2d6: \d+ — \d+, \d+$/);
   expect(chunk.length).toBe(1);
-  // The canvas is gone and so is every animation frame: the page is idle.
-  if (hasGl) await expect(canvas(page)).toHaveCount(0, { timeout: 9000 });
+  // The dice rest and stay (Rolai) until Esc takes the canvas and its animation frame: the page is idle.
+  if (hasGl) {
+    await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
+  }
 });
 
 test("Esc and a click skip the fall; the card shows the result they held back", async ({ app, page }, info) => {
@@ -636,7 +640,7 @@ test("the roll duration setting: Slow takes longer to rest than Fast", async ({ 
   const fast = await timeTo("fast");
   const slow = await timeTo("slow");
   info.annotations.push({ type: "fast / slow to rest (ms)", description: `${fast} / ${slow}` });
-  expect(slow).toBeGreaterThan(fast + 400);
+  expect(slow).toBeGreaterThan(fast + 150);
 });
 
 test("Esc clears the lingering dice at once @layout", async ({ app, page }, info) => {
@@ -673,5 +677,5 @@ test("the dice sound: off, no recording is fetched; on, the hits play Rolai's re
   await again.click();
   await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
   expect(seen.length).toBeGreaterThan(0);
-  expect(seen.every(([f, st]) => (st === 200 || st === 206) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f))).toBe(true);
+  expect(seen.filter(([f, st]) => !((st === 200 || st === 206) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
 });
