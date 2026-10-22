@@ -193,7 +193,20 @@ impl Workspace {
         self.index
             .upsert(&key, note_stamp(&stamp), text, &verso_dialect::parse(text))
             .map_err(CoreError::Index)?;
+        self.remember_parents(&key);
         self.note_text(key, text.to_owned(), revision::encode(&stamp), false, false)
+    }
+
+    /// The folders above `key` that its creation may have made, listed at
+    /// once as the walk lists them, so `folders` agrees with `notes` and
+    /// `files` before the watcher's next walk.
+    fn remember_parents(&mut self, key: &str) {
+        let mut at = 0;
+        while let Some(i) = key[at..].find('/') {
+            at += i;
+            self.dirs.insert(key[..at].to_owned());
+            at += 1;
+        }
     }
 
     /// Create a file that is not a note — an image pasted into a note,
@@ -209,6 +222,7 @@ impl Workspace {
             .entry(verso_index::file_key(name_of(&key)))
             .or_default()
             .push(key.clone());
+        self.remember_parents(&key);
         if is_canvas(&key) {
             let stamp = self.stamp_of_written(handle, report.stamp, bytes);
             self.index_canvas(&key, bytes, note_stamp(&stamp))?;
@@ -246,6 +260,7 @@ impl Workspace {
             .entry(verso_index::file_key(name_of(&key)))
             .or_default()
             .push(key.clone());
+        self.remember_parents(&key);
         Ok(key)
     }
 
