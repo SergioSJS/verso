@@ -11,7 +11,7 @@
 .hover-preview-path { min-width: 0; flex: 1 1 0; font-size: .74rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
 .hover-preview-message { flex: none; margin: 0; padding: .45rem .75rem; font-size: .82rem; color: var(--ink-2); background: var(--paper-2); }
 .hover-preview-message[hidden] { display: none; }
-.hover-preview-body.preview { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0; max-width: none; padding: .55rem .85rem .8rem; font-size: .86rem; line-height: 1.55; }
+.hover-preview-body.preview { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0; max-width: none; padding: .55rem .85rem .8rem; font-size: calc(.86rem * var(--note-scale, 1)); line-height: 1.55; }
 .hover-preview-body.preview:empty { display: none; }
 .hover-preview-body.preview[aria-busy="true"] { color: var(--ink-3); font-family: var(--ui); }
 .hover-preview-body.preview img { max-width: 100%; height: auto; }

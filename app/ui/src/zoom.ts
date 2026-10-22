@@ -20,9 +20,38 @@ import { clampZoom, parseZoom, selfZooming, stepZoom, wheelSteps, zoomPercent } 
 const KEY = "verso.zoom";
 
 const words = t === pt
-  ? { status: (p: number) => `Zoom ${p} %`, zoomIn: "Aumentar zoom", zoomOut: "Diminuir zoom", zoomReset: "Zoom real (100%)" }
-  : { status: (p: number) => `Zoom ${p} %`, zoomIn: "Zoom in", zoomOut: "Zoom out", zoomReset: "Actual size" };
+  ? { status: (p: number) => `Zoom ${p} %`, zoomIn: "Aumentar zoom", zoomOut: "Diminuir zoom", zoomReset: "Zoom real (100%)",
+      title: "Zoom da janela", desc: "Amplia a janela inteira (50 % a 200 %), neste computador. Atalhos: Ctrl/⌘ com + − 0, ou Ctrl com a roda.", resetBtn: "Redefinir (100%)" }
+  : { status: (p: number) => `Zoom ${p} %`, zoomIn: "Zoom in", zoomOut: "Zoom out", zoomReset: "Actual size",
+      title: "Window zoom", desc: "Scales the whole window (50 % to 200 %), on this computer. Keys: Ctrl/⌘ with + − 0, or Ctrl with the wheel.", resetBtn: "Reset (100%)" };
 export const zoomLabels = { in: words.zoomIn, out: words.zoomOut, reset: words.zoomReset };
+export const zoomWords = { title: words.title, desc: words.desc, resetBtn: words.resetBtn, in: words.zoomIn, out: words.zoomOut, level: (p: number) => `${p} %` };
+
+const listeners = new Set<(z: number) => void>();
+/** Told whenever the zoom changes (the settings row follows it). Returns the way off. */
+export function onZoom(fn: (z: number) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+let badge: HTMLElement | null = null;
+let badgeTimer = 0;
+/** A small level shown over the window for a moment ("Zoom 110 %"). Not a
+ *  live region itself: the status line it is also written to is mirrored by
+ *  the polite one (statusLive.ts), and two would say it twice. */
+function showBadge(p: number): void {
+  if (!badge) {
+    badge = document.createElement("div");
+    badge.id = "zoom-badge";
+    badge.className = "zoom-badge";
+    badge.setAttribute("aria-hidden", "true");
+    document.body.append(badge);
+  }
+  badge.textContent = words.status(p);
+  badge.classList.add("on");
+  clearTimeout(badgeTimer);
+  badgeTimer = window.setTimeout(() => badge?.classList.remove("on"), 1400);
+}
 
 /** The desktop host, or the harness playing it (`?zoom=host`). */
 export function hasHostZoom(): boolean {
@@ -60,7 +89,11 @@ export function setZoom(z: number, say = true): void {
     // Not kept; it still applies to this window.
   }
   void apply(next);
-  if (say && changed) ui.status.textContent = words.status(zoomPercent(next));
+  if (say && changed) {
+    ui.status.textContent = words.status(zoomPercent(next));
+    showBadge(zoomPercent(next));
+  }
+  if (changed) for (const fn of listeners) fn(next);
 }
 
 export const zoomIn = (): void => setZoom(stepZoom(current, 1));
