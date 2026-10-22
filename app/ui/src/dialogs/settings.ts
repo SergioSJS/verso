@@ -17,6 +17,8 @@ import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
+import { hasHostZoom, zoomWords } from "../zoom";
+import { zoomControl } from "../zoomControl";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
 import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
@@ -644,7 +646,9 @@ export class SettingsDialog {
       addEventListener(LOOK_EVENT, () => { if (r.isConnected) { r.value = String(settings.fontSize); r.setAttribute("aria-valuetext", `${r.value} px`); } });
       return r;
     }, lookWords.gallery.textGroup);
-    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }), lookWords.gallery.textGroup);
+    add("appearance", t.measure, t.measureDesc, () => this.liveSelect([["theme", t.measureTheme], ["narrow", t.measureNarrow], ["medium", t.measureMedium], ["standard", t.measureStandard], ["large", t.measureLarge], ["full", t.measureFull]], () => settings.measure, (v) => { settings.measure = v; saveSettings(); }), lookWords.gallery.textGroup);
+    // The window's zoom (ADR 0072): only where the host zooms; a browser has its own.
+    if (hasHostZoom()) add("appearance", zoomWords.title, zoomWords.desc, () => zoomControl(), lookWords.gallery.textGroup);
     add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
       ["sans", t.fontSans],
       ["serif", t.fontEditorial],
