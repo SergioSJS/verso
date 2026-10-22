@@ -202,3 +202,16 @@ largura de coluna nem entrelinha fica com os padrões do Obsidian (coluna de
 700 px, entrelinha 1,5) — `line-width: narrow`, `line-height: snug` — para
 parecer como o original parece no Obsidian (o mantenedor, opção A: *"A
 então"*; a B era manter os da janela).
+
+Decidido em 2026-10-22, depois da linha horizontal: o mantenedor viu que os
+temas do catálogo ainda desenhavam uma só linha, uma linha com três asteriscos
+(⁂), e disse *"Tem uma coisa que esses temas não estão customizando, que é a
+linha horizontal. Vários desses temas têm uma linha horizontal customizada e a
+gente está usando a mesma coisa, que é uma linha horizontal e três asteriscos,
+que em algum momento a gente fez isso e nunca mudou."* Mais uma chave
+estrutural, `hr-style`, de lista fechada — `asterism` (a da janela, não
+escreve nada), `line` (a linha simples de 2px do Obsidian), `thin` (1px) e
+`fade` (linha que se desfaz nas duas pontas) — e uma cor opcional,
+`--hr-color` (a cor da linha fina quando não há), as duas na leitura e no Live
+Preview; os valores são só os que os originais usam (levantamento em
+`docs/reference/theme-catalogue.md`). São dezesseis chaves estruturais.

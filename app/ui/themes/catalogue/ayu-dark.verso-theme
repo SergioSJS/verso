@@ -33,6 +33,7 @@
     "heading-scale": "large",
     "line-height": "snug",
     "line-width": "narrow",
-    "blockquote-style": "bar"
+    "blockquote-style": "bar",
+    "hr-style": "line"
   }
 }

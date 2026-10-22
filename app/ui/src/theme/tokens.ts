@@ -5,7 +5,7 @@
 // The appearance wizard's token contract, `tokensVersion` 1 (ADR 0100
 // item 3) and 2 (ADR 0109 item 2): a short fixed list over the stylesheet's
 // real names. Version 2 adds, all optional, the code colours, a colour per
-// heading level, eight semantic colours and fifteen structural choices. A theme is
+// heading level, eight semantic colours and sixteen structural choices. A theme is
 // only values for these — a colour, a font from the allowed set, a size in
 // a range; never CSS, never `url()`. The values the person does not edit
 // (`--paper-3`, `--ink-3`, the washes) are derived from these
@@ -23,7 +23,9 @@ export type ColorToken = (typeof COLOR_TOKENS)[number];
 export const CODE_TOKENS = ["--code-paper", "--code-ink"] as const;
 export const HEADING_TOKENS = ["--h1-color", "--h2-color", "--h3-color", "--h4-color", "--h5-color", "--h6-color"] as const;
 export const SEMANTIC_TOKENS = ["--red", "--orange", "--yellow", "--green", "--cyan", "--blue", "--purple", "--pink"] as const;
-export const EXTRA_TOKENS = [...CODE_TOKENS, ...HEADING_TOKENS, ...SEMANTIC_TOKENS] as const;
+/** The horizontal rule's colour (the `hr-style` choice's ink); without it, the hair colour. */
+export const RULE_TOKENS = ["--hr-color"] as const;
+export const EXTRA_TOKENS = [...CODE_TOKENS, ...HEADING_TOKENS, ...SEMANTIC_TOKENS, ...RULE_TOKENS] as const;
 export type ExtraToken = (typeof EXTRA_TOKENS)[number];
 /** Every colour a theme file may carry on a side. */
 export const ALL_COLOR_TOKENS: readonly AnyColor[] = [...COLOR_TOKENS, ...EXTRA_TOKENS];
@@ -52,6 +54,9 @@ export const STYLE_CHOICES = {
   "checkbox-style": ["square", "rounded", "round"],
   "paragraph-spacing": ["standard", "tight", "loose"],
   "callout-style": ["tinted", "outlined", "title-bar"],
+  // ADR 0109, decided 2026-10-22 (the horizontal rule): asterism is the window's own line with the
+  // ⁂ ornament; line is Obsidian's plain 2px rule; thin its 1px one; fade a rule that fades at both ends.
+  "hr-style": ["asterism", "line", "thin", "fade"],
 } as const;
 export type StyleKey = keyof typeof STYLE_CHOICES;
 export const STYLE_KEYS = Object.keys(STYLE_CHOICES) as StyleKey[];
@@ -60,7 +65,7 @@ export const styleAllowed = (key: string, v: unknown): boolean => Object.hasOwn(
 /** The `data-*` attribute each choice is written as on the window's root. */
 export const STYLE_ATTR: Record<StyleKey, string> = { "surface-mode": "surface", "heading-style": "headingStyle", "table-style": "tableStyle", "tag-style": "tagStyle", radius: "radius",
   "heading-scale": "headingScale", "heading-weight": "headingWeight", "line-width": "lineWidth", "line-height": "lineHeight", "blockquote-style": "blockquoteStyle",
-  "link-style": "linkStyle", "emphasis-color": "emphasisColor", "checkbox-style": "checkboxStyle", "paragraph-spacing": "paragraphSpacing", "callout-style": "calloutStyle",
+  "link-style": "linkStyle", "emphasis-color": "emphasisColor", "checkbox-style": "checkboxStyle", "paragraph-spacing": "paragraphSpacing", "callout-style": "calloutStyle", "hr-style": "hrStyle",
 };
 
 /** A theme's credit to the one it is inspired by (ADR 0109 item 5): text

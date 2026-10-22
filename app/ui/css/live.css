@@ -258,7 +258,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--hair);
+  background: var(--hr-color, var(--hair));
 }
 .editor .cm-line.cm-lp-hr-line::after {
   content: "⁂";

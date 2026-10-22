@@ -31,7 +31,8 @@
       "--cyan": "#56949f",
       "--blue": "#286983",
       "--purple": "#907aa9",
-      "--pink": "#d7827e"
+      "--pink": "#d7827e",
+      "--hr-color": "#ea9d34"
     },
     "dark": {
       "--paper": "#191724",
@@ -54,7 +55,8 @@
       "--cyan": "#9ccfd8",
       "--blue": "#31748f",
       "--purple": "#c4a7e7",
-      "--pink": "#ebbcba"
+      "--pink": "#ebbcba",
+      "--hr-color": "#f6c177"
     },
     "--heading-font": "sans",
     "--book": "sans",
@@ -63,6 +65,7 @@
     "line-width": "narrow",
     "line-height": "snug",
     "blockquote-style": "panel",
-    "emphasis-color": "accent"
+    "emphasis-color": "accent",
+    "hr-style": "fade"
   }
 }
