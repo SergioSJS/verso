@@ -1,0 +1,61 @@
+{
+  "verso-theme": 1,
+  "name": "Aurora de teste",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Origem de Teste",
+    "author": "Autora de Teste",
+    "repoUrl": "https://example.invalid/origem-de-teste",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#fbfaf6",
+      "--paper-2": "#f0eee6",
+      "--hair": "#d9d5c8",
+      "--ink": "#23211c",
+      "--ink-2": "#4d493f",
+      "--seal": "#a3262a",
+      "--brass-ink": "#7a5a12",
+      "--code-paper": "#ece9dd",
+      "--code-ink": "#3b2f6b",
+      "--h1-color": "#1d4e6b",
+      "--h2-color": "#2a5d3a",
+      "--h3-color": "#6b3a1d",
+      "--h4-color": "#5a3a6b",
+      "--h5-color": "#3c3c3c",
+      "--h6-color": "#555555",
+      "--red": "#a82424",
+      "--orange": "#a24a0a",
+      "--yellow": "#7a5f00",
+      "--green": "#1f6b3a",
+      "--cyan": "#0b6a7a",
+      "--blue": "#1f4fb0",
+      "--purple": "#6a2fb0",
+      "--pink": "#a82468"
+    },
+    "dark": {
+      "--paper": "#16181d",
+      "--paper-2": "#1d2027",
+      "--hair": "#343843",
+      "--ink": "#e3e1da",
+      "--ink-2": "#b4b1a6",
+      "--seal": "#f0868a",
+      "--brass-ink": "#e0be6a",
+      "--code-paper": "#232733",
+      "--code-ink": "#c9bdf5",
+      "--h1-color": "#8cc8e8",
+      "--h2-color": "#94d6a8",
+      "--h3-color": "#e8b48c",
+      "--blue": "#8fb0f5",
+      "--green": "#84d49c"
+    },
+    "--heading-font": "serif",
+    "surface-mode": "cards",
+    "heading-style": "rule",
+    "table-style": "striped",
+    "tag-style": "outline",
+    "radius": "round"
+  }
+}
