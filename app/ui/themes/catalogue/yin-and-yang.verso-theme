@@ -17,7 +17,13 @@
       "--ink": "#1d282f",
       "--ink-2": "#6a89a0",
       "--seal": "#bc6fff",
-      "--brass-ink": "#1d282f"
+      "--brass-ink": "#1d282f",
+      "--h1-color": "#ff33e4",
+      "--h2-color": "#ae76ff",
+      "--h3-color": "#ff5280",
+      "--h4-color": "#e17400",
+      "--h5-color": "#00ab2c",
+      "--h6-color": "#5192fb"
     },
     "dark": {
       "--paper": "#0a0d10",
@@ -26,7 +32,17 @@
       "--ink": "#f2f8fd",
       "--ink-2": "#8ca4b5",
       "--seal": "#ffc2ee",
-      "--brass-ink": "#f2f8fd"
-    }
+      "--brass-ink": "#f2f8fd",
+      "--h1-color": "#f2b3cf",
+      "--h2-color": "#d2b3ff",
+      "--h3-color": "#ff5582",
+      "--h4-color": "#ffb86c",
+      "--h5-color": "#85ffa4",
+      "--h6-color": "#bdd2ff"
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 17,
+    "radius": "soft"
   }
 }

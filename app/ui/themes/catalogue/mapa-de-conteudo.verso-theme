@@ -34,6 +34,12 @@
       "--blue": "#027aff",
       "--purple": "#a882ff",
       "--pink": "#fa99cd"
-    }
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "--mono": "mono",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "sharp"
   }
 }
