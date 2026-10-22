@@ -332,7 +332,11 @@ export function allCommands(all = false): Command[] {
     // Creative Oracles & Solo Improvisation (ADR 0102).
     { id: "ask-oracle", label: t.oracle, need: hasCapability("oracles"), run: () => askOracleInActiveNote() },
   ];
-  return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
+  return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: hideKeyHints() ? undefined : prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
+}
+/** A phone or a touch screen has no keyboard to teach: the palette lists no key hints. */
+function hideKeyHints(): boolean {
+  return narrow.matches || window.matchMedia("(pointer: coarse)").matches;
 }
 /** The commands that change the folder: absent for a reader on a server. */
 const WRITES = new Set([
@@ -346,7 +350,7 @@ function possible(id: string): boolean {
   if (WRITES.has(id)) return canWrite();
   if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
   if (id === "new-window" || id === "new-window-here") return can("windows");
-  if (id === "open-console") return can("devtools");
+  if (id === "open-console") return can("devtools") && !narrow.matches;
   if (id === "zoom-in" || id === "zoom-out" || id === "zoom-reset") return hasHostZoom();
   if (id === "check-updates") return can("updates");
   return true;
