@@ -201,7 +201,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 /* Callouts — Obsidian's, by kind. The kind's colour is the title's text:
    4.5:1 or more on the callout's paper in every palette (light lightness
    lowered for note, tip and warning; dark mode unchanged). */
-.callout { margin: 0 0 1em; padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
+.callout { margin: 0 0 var(--flow, .9em); padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
 .callout .callout-title { margin: 0 0 .3rem; font-family: var(--ui); font-weight: 600; font-size: .82em; letter-spacing: .04em; text-transform: uppercase; color: var(--kind, var(--brass-ink)); }
 .callout > :last-child { margin-bottom: 0; }
 /* A foldable callout (`[!kind]+`, `[!kind]-`), as Obsidian shows it: the
