@@ -15,13 +15,11 @@ import { t } from "./strings";
 /* ---------- Toggles ---------- */
 export const toggleSideButton = el<HTMLButtonElement>("toggle-side");
 export const toggleRightButton = el<HTMLButtonElement>("toggle-right");
-export const toggleRightTop = el<HTMLButtonElement>("toggle-right-top");
 export function paintToggles(): void {
   refreshFrame();
   ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
-  toggleRightTop.classList.toggle("off", document.body.classList.contains("no-right"));
   paintExpanded();
 }
 /** The sidebar, and the right panel, on screen: a drawer open in a
@@ -42,7 +40,7 @@ export function paintExpanded(): void {
   // Named for what a press does now, with its keys: "Mostrar painel da
   // direita (⌘⌥→)". The same name on every control that toggles it.
   const verbLabel = shown ? t.hideRight : t.showRight;
-  for (const b of [toggleRightButton, toggleRightTop, ...document.querySelectorAll<HTMLElement>(".bar-right")]) {
+  for (const b of [toggleRightButton, ...document.querySelectorAll<HTMLElement>(".bar-right")]) {
     b.setAttribute("aria-expanded", String(shown));
     b.dataset["label"] = verbLabel;
     b.title = withKeys(verbLabel, keyOf("toggle-right"));

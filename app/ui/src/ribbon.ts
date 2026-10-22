@@ -48,6 +48,9 @@ export const RIBBON: RibbonItem[] = [
 /** The button that is never hidden: the settings, where the others come
  *  back from. */
 const KEPT = "settings";
+/** Hidden until the person shows them: the files button repeats the status
+ *  bar's left toggle. A saved state (it lists what its owner hides) wins. */
+const DEFAULT_HIDDEN = ["files"];
 /** What the side cannot do leaves the ribbon (ADR 0076 item 11): a reader
  *  on a server makes and changes nothing; a browser opens no window. */
 function possible(id: string): boolean {
@@ -58,7 +61,7 @@ function possible(id: string): boolean {
 }
 export class Ribbon {
   private order: string[] = RIBBON.map((i) => i.id);
-  private hidden = new Set<string>();
+  private hidden = new Set<string>(DEFAULT_HIDDEN);
   constructor(readonly el: HTMLElement) {
     try {
       const raw = localStorage.getItem("verso.ribbon");
@@ -109,7 +112,7 @@ export class Ribbon {
     const hiddenCount = this.hidden.size;
     return [
       ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
-      [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
+      [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden = new Set(DEFAULT_HIDDEN); this.save(); this.paint(); }],
       [t.ribbonButtons, () => settingsDialog.show("appearance")],
     ];
   }
