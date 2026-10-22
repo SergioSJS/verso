@@ -17,6 +17,7 @@ export type ScreenStrings = {
   barNew: string;
   barBack: string;
   barCommands: string;
+  barPanel: string;
   /** The pane switcher of a split layout on a phone (item 2). */
   paneSwitch: (i: number, n: number) => string;
   paneItem: (i: number, name: string) => string;
@@ -80,6 +81,7 @@ const pt: ScreenStrings = {
   barNew: "Nova nota",
   barBack: "Voltar",
   barCommands: "Comandos",
+  barPanel: "Painel",
   paneSwitch: (i, n) => `Painel ${i} de ${n}`,
   paneItem: (i, name) => `Painel ${i}: ${name}`,
   paneEmpty: "vazio",
@@ -129,6 +131,7 @@ const en: ScreenStrings = {
   barNew: "New note",
   barBack: "Back",
   barCommands: "Commands",
+  barPanel: "Panel",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,
   paneItem: (i, name) => `Pane ${i}: ${name}`,
   paneEmpty: "empty",

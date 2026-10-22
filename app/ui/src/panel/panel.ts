@@ -291,6 +291,12 @@ export class Panel {
   paint(): void {
     const leaf = this.leaf;
     this.painted++;
+    // No note open: the tabs say what the panel holds, and the body why it
+    // is empty, not a blank column.
+    if (!leaf && (this.current === "outline" || this.current === "backlinks")) {
+      this.list([], t.panelNoNote);
+      return;
+    }
     switch (this.current) {
       case "calendar": {
         this.daily.render();
