@@ -36,6 +36,7 @@
     "heading-scale": "large",
     "heading-weight": "bold",
     "line-height": "snug",
+    "line-width": "narrow",
     "blockquote-style": "bar",
     "callout-style": "outlined"
   }

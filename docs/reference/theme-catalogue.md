@@ -86,171 +86,171 @@ The pairs checked in both modes are `--ink`, `--ink-2`, `--seal` and `--brass-in
 
 ### Nord
 
-- File: `nord.verso-theme` (mode dark) — SHA-256: `d7b60d9b6948d28faaaaa59f3f10a47cc08e853ab9f7e6f6f01d5e4fc6166573`
+- File: `nord.verso-theme` (mode dark) — SHA-256: `e91c0432631dcfcd44d15a45783e05d002d9d4bcdd9086d614621dc22048197f`
 - Credit in the file: Nord, Sven Greb (Arctic Ice Studio), MIT
 - Source: https://github.com/nordtheme/nord/blob/1cef71605416a222e57225b544540ce0fcec18d4/src/nord.css
 - Commit or tag: 1cef71605416a222e57225b544540ce0fcec18d4 (develop, tag v0.2.0 is older)
 - Licence: MIT, (c) 2016-present Sven Greb
 - Author: Sven Greb
 - Mapping: Polar Night nord0 / nord1 / nord2 for page, panels and lines; nord4 text; links in Frost nord8, headings nord9; the Aurora colours for the semantic ones (no pink in the palette: omitted). Nord has no light palette, so none is shipped. ink-2 is nord3, the palette's comment colour.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Structural sources: System sans (`system`), Hack mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = red, yellow, green, purple, frost0, frost2; striped tables: `striped`; tag pill (.5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5).
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: System sans (`system`), Hack mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = red, yellow, green, purple, frost0, frost2; striped tables: `striped`; tag pill (.5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: dark `--ink-2` `#4c566a` → `#6f7d98` (3.01:1, adjusted for contrast)
 
 ### Dracula
 
-- File: `dracula.verso-theme` (mode dark) — SHA-256: `1dabc4bf362bc903022bb3d22f39ecd307a11a80af5da1b1cbb0bf4c47352619`
+- File: `dracula.verso-theme` (mode dark) — SHA-256: `eb80f26103186ad74db04d63f7dd0ce09fffa95974be2701d1e047549f5cc613`
 - Credit in the file: Dracula, Zeno Rocha, MIT
 - Source: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (UI palette, read 2026-10-22)
 - Commit or tag: e22ebcc048b8aff586f9bc94db30ff5347070b42 (tag v1.2.5 is older)
 - Licence: MIT, (c) 2023 Dracula Theme
 - Author: Zeno Rocha
 - Mapping: Background, Foreground, Comment, Current Line and the functional colours from the README palette; "Background Dark" #21222C and "Floating interactive elements" #343746 from the spec's UI table. Borders use Current Line, as the spec's component guidelines say. Dracula's spec has no Blue, so --blue is the Purple (the spec maps ANSI blue to it). The spec asks for 4.5:1 text contrast and "exact colour values"; the comment colour used for ink-2 is under 4.5:1 and is corrected only to the 3:1 floor, if needed.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Structural sources: The theme sets no font (Obsidian's system sans: `system`); `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the six heading colours are the theme's `--text-title-h1`…`h6` (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); code blocks with 4px radius: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: The theme sets no font (Obsidian's system sans: `system`); `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the six heading colours are the theme's `--text-title-h1`…`h6` (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); code blocks with 4px radius: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Dracula Alucard
 
-- File: `dracula-alucard.verso-theme` (mode light) — SHA-256: `17b6431e22cfdec970f189cce3a4b15300bef1ebfa309d6539ed428d1f9d4f5e`
+- File: `dracula-alucard.verso-theme` (mode light) — SHA-256: `b076541443ac6d73275b695ba5548703c943b0565a030a7b2425003f34d131fc`
 - Credit in the file: Dracula Alucard, Zeno Rocha, MIT
 - Source: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (Alucard UI palette)
 - Commit or tag: e22ebcc048b8aff586f9bc94db30ff5347070b42
 - Licence: MIT, (c) 2023 Dracula Theme
 - Author: Zeno Rocha
 - Mapping: Dracula's own light palette, Alucard (README "Alucard" table and the spec's UI table); it is not an invented light for Dracula. Same mapping as Dracula; Verso names it "Dracula Alucard" to say whose palette it is.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Structural sources: Same structure as Dracula (the theme sets no font, Obsidian's defaults); heading colours by Dracula's role order (purple, orange, green, red, yellow, purple) in this palette's own light equivalents. Alucard is not in the Obsidian theme, so the order is Dracula's, not Alucard's. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: Same structure as Dracula (the theme sets no font, Obsidian's defaults); heading colours by Dracula's role order (purple, orange, green, red, yellow, purple) in this palette's own light equivalents. Alucard is not in the Obsidian theme, so the order is Dracula's, not Alucard's. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Rosé Pine
 
-- File: `rose-pine.verso-theme` (mode both) — SHA-256: `fa158c007715c6d2376cc1d4c5aabc31dbccfeb1994ccbdeda9b8ae9963c48fd`
+- File: `rose-pine.verso-theme` (mode both) — SHA-256: `54b5ab9b8e4a194fae9d3866a6b08f4edd7e16f76a6a1258c1cb04cea83c49eb`
 - Credit in the file: Rosé Pine, Rosé Pine, MIT
 - Source: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit or tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licence: MIT, (c) mvllow
 - Author: Rosé Pine
 - Mapping: Base / Surface / Overlay for page, panels and lines; Text and Subtle for text; Iris for links, Rose for headings; Love, Gold, Foam, Pine, Iris and Rose for red, yellow, cyan, blue, purple and pink. Rosé Pine has no orange or green: left to Verso's own. Dark is Rosé Pine (main), light is Dawn.
-- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
-- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). The light side's pink and gold were corrected for contrast. New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not.
+- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: accent`
+- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). The light side's pink and gold were corrected for contrast. New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not. Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: light `--brass-ink` `#d7827e` → `#d2726d` (3.02:1, adjusted for contrast); light `--h3-color` `#d7827e` → `#d2716c` (3.04:1, adjusted for contrast); light `--h4-color` `#ea9d34` → `#c77c15` (3.04:1, adjusted for contrast)
 
 ### Rosé Pine Moon
 
-- File: `rose-pine-moon.verso-theme` (mode dark) — SHA-256: `43559ec66f0c3ff7074666b696256605159dd368495a68de9e2eccb53bb40faf`
+- File: `rose-pine-moon.verso-theme` (mode dark) — SHA-256: `5ce4d9c39d16d40910d5d16af36089a80f7c2176d91ff94589c6606927f596e7`
 - Credit in the file: Rosé Pine Moon, Rosé Pine, MIT
 - Source: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit or tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licence: MIT, (c) mvllow
 - Author: Rosé Pine
 - Mapping: Base / Surface / Overlay for page, panels and lines; Text and Subtle for text; Iris for links, Rose for headings; Love, Gold, Foam, Pine, Iris and Rose for red, yellow, cyan, blue, purple and pink. Rosé Pine has no orange or green: left to Verso's own.
-- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
-- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not.
+- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: accent`
+- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not. Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Everforest
 
-- File: `everforest.verso-theme` (mode both) — SHA-256: `6965e4d5e784df1087ec90ee061bac644463a18ba9e3d13f84935f972314142c`
+- File: `everforest.verso-theme` (mode both) — SHA-256: `e2bc9ff3b638719bfc04b4e345cb990bab14132040fe3ee5f1f590b9bba0f7be`
 - Credit in the file: Everforest, sainnhe, MIT
 - Source: https://github.com/sainnhe/everforest/blob/85a86eb62409e3ec88713bff3d1b9d7374e112e4/docs/palette.md
 - Commit or tag: 85a86eb62409e3ec88713bff3d1b9d7374e112e4 (tag v0.3.0)
 - Licence: MIT, (c) 2019 sainnhe
 - Author: sainnhe
 - Mapping: The palette's medium-contrast variant, dark and light. bg0 / bg1 / bg2 (dark) and bg0 / bg1 / bg4 (light) for the surfaces; fg for text, grey2 (dark) and grey1 (light) for muted text; green for links and yellow for headings; the accent row for the semantic colours (aqua is the cyan). The light accents are pale on the light page and several are corrected for contrast (see adjustments).
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `heading-scale: large`, `heading-weight: regular`, `blockquote-style: bar`
-- Structural sources: System sans, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); heading colours are the theme's `--h1-color`…`--h6-color` (dim set in dark, light set in light: red, orange, yellow, green, aqua, purple); tags with an aqua 1px border: `outline`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 2.125em (look profile 3.7); `heading-weight: regular`, headings at weight 500 (look profile 3.7), nearer `regular`; `blockquote-style: bar`, Obsidian's default bar (look profile 1).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `heading-scale: large`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Structural sources: System sans, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); heading colours are the theme's `--h1-color`…`--h6-color` (dim set in dark, light set in light: red, orange, yellow, green, aqua, purple); tags with an aqua 1px border: `outline`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 2.125em (look profile 3.7); `heading-weight: regular`, headings at weight 500 (look profile 3.7), nearer `regular`; `blockquote-style: bar`, Obsidian's default bar (look profile 1). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: light `--ink-2` `#939f91` → `#849282` (3.03:1, adjusted for contrast); light `--seal` `#8da101` → `#859801` (3:1, adjusted for contrast); light `--brass-ink` `#dfa000` → `#ba8500` (3.02:1, adjusted for contrast); light `--h2-color` `#f57d26` → `#e8670b` (3.05:1, adjusted for contrast); light `--h3-color` `#bf983d` → `#ac8937` (3.05:1, adjusted for contrast); light `--h4-color` `#899c40` → `#84973e` (3.01:1, adjusted for contrast); light `--h5-color` `#569d79` → `#559b78` (3.07:1, adjusted for contrast)
 
 ### Gruvbox
 
-- File: `gruvbox.verso-theme` (mode both) — SHA-256: `68be029a24920764c61022bdb1b6e0b4ea49b8c4f4a98f815f20cc0c19c3af82`
+- File: `gruvbox.verso-theme` (mode both) — SHA-256: `95efb19fb206fc9c2eec37ff91c6a34c3c3e9985379b49e0352b896813cba702`
 - Credit in the file: Gruvbox, Pavel Pertsev (morhetz), MIT
 - Source: https://github.com/gruvbox-community/gruvbox/blob/180ad85971343df68be3422a5630fa84e45a9ab2/colors/gruvbox.vim
 - Commit or tag: 180ad85971343df68be3422a5630fa84e45a9ab2 (tag v3.6.1)
 - Licence: MIT, (c) 2018 Pavel Pertsev (community fork; morhetz/gruvbox, the original, has no LICENSE file)
 - Author: Pavel Pertsev (morhetz)
 - Mapping: The palette and the dark/light role table of colors/gruvbox.vim: dark uses bg0 / bg1 / bg2, fg1 and fg4 with the bright accents; light uses light0 / light1 / light2, dark1 and dark4 with the faded accents. Links in blue, headings in yellow, as the vim script's Markdown groups do. The community fork is credited because the original repository carries no licence file.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `callout-style: outlined`
-- Structural sources: System sans (`system`), Hack Nerd Font mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = neutral red, yellow, green, aqua, blue, purple; tables with alternate rows: `striped`; tag pill (radius .5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5); `callout-style: outlined`, 1px border, opacity .4 (look profile 3.5).
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `callout-style: outlined`
+- Structural sources: System sans (`system`), Hack Nerd Font mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = neutral red, yellow, green, aqua, blue, purple; tables with alternate rows: `striped`; tag pill (radius .5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5); `callout-style: outlined`, 1px border, opacity .4 (look profile 3.5). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: dark `--h1-color` `#cc241d` → `#dc271f` (3.06:1, adjusted for contrast); light `--h2-color` `#d79921` → `#b6811c` (3.01:1, adjusted for contrast); light `--h3-color` `#98971a` → `#8f8e19` (3.06:1, adjusted for contrast); light `--h4-color` `#689d6a` → `#629764` (3.02:1, adjusted for contrast)
 
 ### Solarized
 
-- File: `solarized.verso-theme` (mode both) — SHA-256: `59e06de6bfabe5149cbb5d60ec5e46b7875a3f9e97f30376557c850efb15c927`
+- File: `solarized.verso-theme` (mode both) — SHA-256: `81bba37c9698c988c6765e85316a3af8f5a73ab0d34cc007d048a6d6af6b5e9a`
 - Credit in the file: Solarized, Ethan Schoonover, MIT
 - Source: https://github.com/altercation/solarized/blob/62f656a02f93c5190a8753159e34b385588d5ff3/README.md ("The Values" table)
 - Commit or tag: 62f656a02f93c5190a8753159e34b385588d5ff3 (tag v1.0.0beta1)
 - Licence: MIT, (c) 2011 Ethan Schoonover
 - Author: Ethan Schoonover
 - Mapping: The 16 values of the README table, with Solarized's own light/dark role swap: base3 / base2 (light) and base03 / base02 (dark) for page and panels, base00 / base0 for body text, base1 / base01 for secondary content, blue for links, orange for headings; magenta is the pink and violet the purple. The secondary text colours are below the floor on the page (the palette is low contrast by design) and are corrected.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`
-- Structural sources: The theme sets no font (Obsidian's system sans: `system`) and `font-size: 16`; tag pill with the accent at 10–20%: `pill`. Only the code blocks' radius is `unset`, so `radius` stays the window's own. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Structural sources: The theme sets no font (Obsidian's system sans: `system`) and `font-size: 16`; tag pill with the accent at 10–20%: `pill`. Only the code blocks' radius is `unset`, so `radius` stays the window's own. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: light `--ink-2` `#93a1a1` → `#829292` (3.01:1, adjusted for contrast); dark `--ink-2` `#586e75` → `#5d747c` (3.04:1, adjusted for contrast)
 
 ### Flexoki
 
-- File: `flexoki.verso-theme` (mode both) — SHA-256: `8f0417a50f7d82a62fe74a2962c131cf1159b776c46a6ca0447bf3c0d0b25200`
+- File: `flexoki.verso-theme` (mode both) — SHA-256: `ed98cfde69e4014e5c69af11c71eafa5ae133f57ed4b7b968e207eafca66fb66`
 - Credit in the file: Flexoki, Steph Ango (kepano), stephango.com/flexoki, MIT
 - Source: https://github.com/kepano/flexoki/blob/8d723bac4a9ac46adfdf99d42155286977aac72a/README.md
 - Commit or tag: 8d723bac4a9ac46adfdf99d42155286977aac72a (tag 2.0.0)
 - Licence: MIT, (c) 2023 Steph Ango
 - Author: Steph Ango
 - Mapping: Flexoki's scale as its README gives it: paper / base-50 / base-100 and black / base-950 / base-900 for surfaces and lines, black and base-200 for text, base-600 and base-500 for muted text; the 600 accents on the light side and the 400 accents on the dark side; blue for links, orange for headings. Flexoki's README asks ports to "include attribution and a link to stephango.com/flexoki": the author line of the credit carries it and the Credits page must show it.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `heading-scale: large`, `blockquote-style: bar`
-- Structural sources: The theme is only colour variables (1.9 KB): typography is Obsidian's default, `system` and `font-size: 16`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Structural sources: The theme is only colour variables (1.9 KB): typography is Obsidian's default, `system` and `font-size: 16`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Tokyo Night
 
-- File: `tokyo-night.verso-theme` (mode both) — SHA-256: `c2755c41bc2b766ce93ba71eca71c435099cb75407ebb84194351eb543862e36`
+- File: `tokyo-night.verso-theme` (mode both) — SHA-256: `fbb036942cd27e98d752da37867c698d276536c128ef6c921bbded1d89f1ce95`
 - Credit in the file: Tokyo Night, enkia (Tokyo Night VS Code theme), MIT
 - Source: https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/7c0f11eaef322f293621ca7befe462214b7ea468/themes/tokyo-night-color-theme.json and tokyo-night-light-color-theme.json
 - Commit or tag: 7c0f11eaef322f293621ca7befe462214b7ea468
 - Licence: MIT (LICENSE.txt)
 - Author: enkia
 - Mapping: Colours: read from the two VS Code colour themes (editor and side-bar backgrounds, editor and description text, the link colour, the text-code-block background, the inline-code colour); the ANSI colours for red, yellow, green, cyan, blue and purple. The six heading colours are not the VS Code Markdown ones but the Obsidian theme's order (red, yellow, green, cyan, blue, magenta) over those ANSI colours. Dark is "Tokyo Night", light is the theme's own light variant.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: panel`, `emphasis-color: semantic`, `checkbox-style: round`
-- Structural sources: System sans (the declared JetBrains Mono default font is not used by the theme): `system`, JetBrains mono: `mono`, `font-size: 16`; heading colours are the Obsidian theme's `--h1-color`…`h6` = red, yellow, green, cyan, blue, magenta, taken in this file's palette values; magenta tag pill: `pill`; callout radius 4px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.8); `blockquote-style: panel`, quote on a darker background (look profile 3.8); `emphasis-color: semantic`, bold and italic both cyan (look profile 3.8): `semantic` gives the theme's cyan bold and green (teal) italic, the nearest; `checkbox-style: round`, checkbox radius 12px (look profile 3.8).
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: semantic`, `checkbox-style: round`
+- Structural sources: System sans (the declared JetBrains Mono default font is not used by the theme): `system`, JetBrains mono: `mono`, `font-size: 16`; heading colours are the Obsidian theme's `--h1-color`…`h6` = red, yellow, green, cyan, blue, magenta, taken in this file's palette values; magenta tag pill: `pill`; callout radius 4px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.8); `blockquote-style: panel`, quote on a darker background (look profile 3.8); `emphasis-color: semantic`, bold and italic both cyan (look profile 3.8): `semantic` gives the theme's cyan bold and green (teal) italic, the nearest; `checkbox-style: round`, checkbox radius 12px (look profile 3.8). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Ayu Light
 
-- File: `ayu-light.verso-theme` (mode light) — SHA-256: `121fe1ab91a810712c2708651292881d9a120afd1eee9c9190a50b37e6d15f7f`
+- File: `ayu-light.verso-theme` (mode light) — SHA-256: `2c86675f7236bc313877dde11953b08fcbf514e477ebcf48949b1233cc2fc753`
 - Credit in the file: Ayu Light, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/light.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
-- Structural choices: `heading-scale: large`
-- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset.
+- Structural choices: `heading-scale: large`, `line-width: narrow`, `line-height: snug`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset. Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: light `--seal` `#f29718` → `#d27f0c` (3.02:1, adjusted for contrast); light `--brass-ink` `#fa8532` → `#f36806` (3.01:1, adjusted for contrast)
 
 ### Ayu Mirage
 
-- File: `ayu-mirage.verso-theme` (mode dark) — SHA-256: `4bbb8b680d67313ec30214d94b9225fcf8b0195a00188188f221679afc008748`
+- File: `ayu-mirage.verso-theme` (mode dark) — SHA-256: `62fc1ba72c062c697584949e142ee65c0ae88cee5afb597bf3c2c629c0372c3a`
 - Credit in the file: Ayu Mirage, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/mirage.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
-- Structural choices: `heading-scale: large`
-- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset.
+- Structural choices: `heading-scale: large`, `line-width: narrow`, `line-height: snug`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset. Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Ayu Dark
 
-- File: `ayu-dark.verso-theme` (mode dark) — SHA-256: `84b7ed27f32030c4e83393444e15b93e54b3f645072cf1872902487bed934cd6`
+- File: `ayu-dark.verso-theme` (mode dark) — SHA-256: `46d7cb278bc1242acfadf3bda184bcf2d2faffefacc6990086eb1b6967ddb5d3`
 - Credit in the file: Ayu Dark, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/dark.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
-- Structural choices: `--heading-font: system`, `--book: system`, `heading-scale: large`, `line-height: snug`, `blockquote-style: bar`
-- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.9); `line-height: snug`, line height 1.5 (look profile 3.9); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
+- Structural choices: `--heading-font: system`, `--book: system`, `heading-scale: large`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.9); `line-height: snug`, line height 1.5 (look profile 3.9); `blockquote-style: bar`, Obsidian's default bar (look profile 1). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` — the theme's CSS sets no `--file-line-width`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Minimal
@@ -320,54 +320,54 @@ The pairs checked in both modes are `--ink`, `--ink-2`, `--seal` and `--brass-in
 
 ### Obsidianotion
 
-- File: `obsidianotion.verso-theme` (mode both) — SHA-256: `ae67321dab354243e5ff3e0e4d1203e3a38e903a1e7594b47dc765ffbb3b74f9`
+- File: `obsidianotion.verso-theme` (mode both) — SHA-256: `34d2df1af0036fb296e180501635551dcb28c321bf3453372c6749d0f1efe9ab`
 - Credit in the file: Obsidianotion, Diego Eis, Unlicense
 - Source: https://github.com/diegoeis/obsidianotion/blob/420469845836be3f116d9070e7548362289b8ee7/theme.css
 - Commit or tag: 420469845836be3f116d9070e7548362289b8ee7
 - Licence: Unlicense, public domain
 - Author: Diego Eis
 - Mapping: The theme's own light and dark variables; its system-ui font stack maps to the system key. The name stays the theme's own (it is not called Notion).
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `callout-style: outlined`
-- Structural sources: ui-sans-serif / -apple-system stack: `system`; 16px; tags are pills (colour cycle not expressible): `pill`; radii 4/8/12/16: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 1.875em`, nearer `large` (2.1em) than `standard` (1.65em); `heading-weight: bold`, `--h1-weight: 700`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 3px grey bar on muted text (look profile 2.5); `callout-style: outlined`, `--callout-border-width: 1px`, tinted border (look profile 2.5).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`, `callout-style: outlined`
+- Structural sources: ui-sans-serif / -apple-system stack: `system`; 16px; tags are pills (colour cycle not expressible): `pill`; radii 4/8/12/16: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 1.875em`, nearer `large` (2.1em) than `standard` (1.65em); `heading-weight: bold`, `--h1-weight: 700`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 3px grey bar on muted text (look profile 2.5); `callout-style: outlined`, `--callout-border-width: 1px`, tinted border (look profile 2.5). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` — the theme's CSS sets no `--file-line-width`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Atom
 
-- File: `atom.verso-theme` (mode both) — SHA-256: `9ca00ab16a5eabfb8062f13a50ced7d6bb4f562a1b7672094b03c556723f8be8`
+- File: `atom.verso-theme` (mode both) — SHA-256: `5a346c5a9e21736e45f96733c5ad5e0c550c378f78792ed07248fe7ef78794e2`
 - Credit in the file: Atom, kognise, Unlicense
 - Source: https://github.com/kognise/obsidian-atom/blob/650d6463d377a096520373c4752fef66f3f18f46/obsidian.css
 - Commit or tag: 650d6463d377a096520373c4752fef66f3f18f46
 - Licence: Unlicense, public domain
 - Author: kognise
 - Mapping: The theme sets page, panel, border, text, muted text and accent for both sides and nothing else.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `checkbox-style: rounded`
-- Structural sources: no font family is set by the theme, so Obsidian's system sans: `system`; `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the tag is a rounded chip with 4px radius (theme.css, `a.tag`), radii are Obsidian's: `tag-style: pill`, `radius: soft`; the yellow tag colour cannot be set. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 2.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1); the theme only adds an indent; `link-style: plain`, `--link-decoration: none`; `checkbox-style: rounded`, accent-coloured rounded square (look profile 2.6).
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `checkbox-style: rounded`
+- Structural sources: no font family is set by the theme, so Obsidian's system sans: `system`; `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the tag is a rounded chip with 4px radius (theme.css, `a.tag`), radii are Obsidian's: `tag-style: pill`, `radius: soft`; the yellow tag colour cannot be set. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 2.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1); the theme only adds an indent; `link-style: plain`, `--link-decoration: none`; `checkbox-style: rounded`, accent-coloured rounded square (look profile 2.6). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Yin and Yang
 
-- File: `yin-and-yang.verso-theme` (mode both) — SHA-256: `d7623320110fcd9c7ddfbda25707155b0f146110a41f9a528089fe9feb503634`
+- File: `yin-and-yang.verso-theme` (mode both) — SHA-256: `a61680babd868bc055cf2d222c46ee26ee4811cd040d3747856d5e23da0b7cdd`
 - Credit in the file: Yin and Yang, Chetachi Ezikeuzor, MPL-2.0
 - Source: https://github.com/chetachiezikeuzor/Yin-and-Yang-Theme/blob/e780f0d58301cfa11c05d0cc351ee82a95d920de/obsidian.css
 - Commit or tag: e780f0d58301cfa11c05d0cc351ee82a95d920de
 - Licence: MPL-2.0, Mozilla Public License 2.0 (colour values only; the CSS is not redistributed)
 - Author: Chetachi Ezikeuzor
 - Mapping: Page, panel, border, text and accent for both sides. The theme's accent colours are pastel and are corrected for contrast on the page.
-- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`
-- Structural sources: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); heading colours are the theme's `--text-title-h1`…`h6` (dark: pink, purple, red, orange, green, pale blue; light: light pink, purple, red, orange, green, cornflower blue); radii 4–6px: `soft`. Its pastels fail 3:1 on the light page and were darkened by the rule below. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.98em (look profile 2.7); `heading-weight: bold`, h1 weight 750, nearer `bold` (700).
+- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-width: narrow`, `line-height: snug`
+- Structural sources: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); heading colours are the theme's `--text-title-h1`…`h6` (dark: pink, purple, red, orange, green, pale blue; light: light pink, purple, red, orange, green, cornflower blue); radii 4–6px: `soft`. Its pastels fail 3:1 on the light page and were darkened by the rule below. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.98em (look profile 2.7); `heading-weight: bold`, h1 weight 750, nearer `bold` (700). Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` and `line-height: snug` — the theme's CSS sets neither `--file-line-width` nor `--line-height-normal`, so Obsidian's own default is used.
 - Contrast adjustments: light `--seal` `#cd94ff` → `#bc6fff` (3.01:1, adjusted for contrast); light `--h1-color` `#ffabf4` → `#ff33e4` (3.01:1, adjusted for contrast); light `--h2-color` `#d2b3ff` → `#ae76ff` (3.01:1, adjusted for contrast); light `--h3-color` `#ff5582` → `#ff5280` (3.04:1, adjusted for contrast); light `--h4-color` `#ffb86c` → `#e17400` (3.08:1, adjusted for contrast); light `--h5-color` `#85ffa4` → `#00ab2c` (3.00:1, adjusted for contrast); light `--h6-color` `#a1c4fd` → `#5192fb` (3.01:1, adjusted for contrast)
 
 ### Border
 
-- File: `border.verso-theme` (mode both) — SHA-256: `203a5cbb3a854360a8621f50b65ac2ebd0e597339a0e52521f27854953bb3dbb`
+- File: `border.verso-theme` (mode both) — SHA-256: `ae5f222cf2fd04afeebc4c3420397031d37046eab8f87d2d837bbea0fe3217ad`
 - Credit in the file: Border, Akifyss, MIT
 - Source: https://github.com/akifyss/obsidian-border/blob/dd59bd54438597f61b38eb5b967919e979526c41/theme.css
 - Commit or tag: dd59bd54438597f61b38eb5b967919e979526c41
 - Licence: MIT, (c) 2022 Akifyss
 - Author: Akifyss
 - Mapping: Colours resolved from the theme's default variables (its HSL chains computed).
-- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `checkbox-style: rounded`
-- Structural sources: Inter in the theme's own capture (Style Settings): `sans`; `font-size: 16`; 2em pill tag with a 1px border: `outline`; table grid: `bordered`; radii 8px (cards) and 6px (checkbox): `soft`. The cards layout is an optional Style Settings choice, not the default, so the default look (tonal surface) is kept and `surface-mode: cards` was removed; no heading style (an h1 rule and an h2 bar, mixed). New keys (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700` falling to 575 by level, so `bold`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, `--blockquote-border-thickness: 3px`; `checkbox-style: rounded`, `--checkbox-radius: 6px`.
+- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `heading-weight: bold`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`, `checkbox-style: rounded`
+- Structural sources: Inter in the theme's own capture (Style Settings): `sans`; `font-size: 16`; 2em pill tag with a 1px border: `outline`; table grid: `bordered`; radii 8px (cards) and 6px (checkbox): `soft`. The cards layout is an optional Style Settings choice, not the default, so the default look (tonal surface) is kept and `surface-mode: cards` was removed; no heading style (an h1 rule and an h2 bar, mixed). New keys (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700` falling to 575 by level, so `bold`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, `--blockquote-border-thickness: 3px`; `checkbox-style: rounded`, `--checkbox-radius: 6px`. Obsidian defaults (ADR 0109, last paragraph): `line-width: narrow` — the theme's CSS sets no `--file-line-width`, so Obsidian's own default is used.
 - Contrast adjustments: none
 
 ### Mapa de Conteúdo
@@ -417,4 +417,4 @@ ADR 0109, TM.4 = B: ten more closed lists in `values` of a version 2 file, all o
 
 Where the numbers differ from the draft: `line-width: wide` is 72rem, not 52rem, because the window's own column (100ch in the body font) is already about 55rem; `line-height: relaxed` is 1.9, not 1.75, because the window's own is 1.7; `heading-weight` calls today's 600 `semibold`; the `bar` quote is upright because today's quote (`bar-italic`) is italic.
 
-Rules used to set the keys per theme (the sources are under each theme): a value is set where the theme's own CSS gives one (nearest of the closed values); where the theme sets none and the profile records Obsidian's default (h1 2em, the plain 2px quote bar), that default is used; line width and line height are set only where the theme's CSS declares them, so the themes that lean on Obsidian's default 700px column and 1.5 line height keep the window's own (a decision for the maintainer: apply those defaults too?). The checkbox cannot be square-cornered (radius 0) as Gruvbox, Nord and Solarized draw it: `square` is today's small radius.
+Rules used to set the keys per theme (the sources are under each theme): a value is set where the theme's own CSS gives one (nearest of the closed values); where the theme sets none and the profile records Obsidian's default (h1 2em, the plain 2px quote bar), that default is used; line width and line height are set where the theme's CSS declares them; where it declares none, Obsidian's default is used (`line-width: narrow`, the 700px column, and `line-height: snug`, 1.5; ADR 0109, last paragraph). The checkbox cannot be square-cornered (radius 0) as Gruvbox, Nord and Solarized draw it: `square` is today's small radius.

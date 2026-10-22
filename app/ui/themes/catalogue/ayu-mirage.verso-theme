@@ -28,6 +28,8 @@
       "--blue": "#73d0ff",
       "--purple": "#dfbfff"
     },
-    "heading-scale": "large"
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug"
   }
 }
