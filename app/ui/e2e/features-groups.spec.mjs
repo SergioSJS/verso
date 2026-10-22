@@ -24,7 +24,7 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     await openPage(app, page, general);
     const body = page.locator(".settings-body");
     // The general page: one switch, the shortcuts, no sub-headings, a way to the RPG page.
-    expect(await body.locator("input[type=checkbox]").count()).toBe(1);
+    expect(await body.locator("input[type=checkbox]").count()).toBe(2);
     await expect(body.locator("fieldset fieldset")).toHaveCount(0);
     await expect(body.getByText(rpgLine)).toBeVisible();
     await expect(body.getByRole("button", { name: all, exact: true })).toHaveCount(0);

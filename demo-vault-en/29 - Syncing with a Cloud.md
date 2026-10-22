@@ -123,3 +123,7 @@ The WebDAV password and the S3 secret key go to the **system's keychain** (Keych
 - **To stop:** **Disconnect…** in the same section. The files stay as they are, here and in the cloud.
 
 Your computer's name, which shows in a conflict's copy, is changed in **Settings › Sync › This computer's name**, with no server needed.
+
+---
+
+To finish, see [[30 - Colour Swatches]]: the small square of the colour beside a colour code.

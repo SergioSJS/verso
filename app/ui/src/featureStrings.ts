@@ -54,6 +54,7 @@ const pt: Words = {
     statblocks: "Fichas",
     campaignBundles: "Assistente de mundo e campanha",
     dataDiagram: "Diagrama de dados",
+    colorSwatches: "Amostras de cor",
     dice3d: "Dados 3D",
   },
   descs: {
@@ -63,6 +64,7 @@ const pt: Words = {
     statblocks: "Blocos ```statblock aparecem como fichas visuais, e entra o item da barra / que cria uma ficha.",
     campaignBundles: "O assistente \"Novo projeto a partir de modelo\", no menu de criar e na paleta de comandos.",
     dataDiagram: "Arquivos JSON, YAML, TOML, XML e CSV ganham a vista \"Diagrama\" (caixas e linhas, só leitura), e um bloco de código desses formatos numa nota ganha o botão \"Ver como diagrama\".",
+    colorSwatches: "Um código de cor numa nota (#1d9e75, rgb(29 158 117), hsl(…)) ganha um quadradinho da cor ao lado; no editor, um clique nele abre um seletor de cor que reescreve o código. Um #código solto no texto que o Verso lê como etiqueta (#bada55) continua etiqueta e não ganha quadradinho; dentro de um código, `#bada55`, ganha.",
     dice3d: "Ao rolar um dado, dados 3D caem na tela antes de o resultado aparecer; o resultado já foi sorteado, a animação só o mostra. Fica desligado mesmo no atalho \"Tudo\" (pesa na bateria) e nunca anima se o sistema pede menos movimento. Os dados ficam na mesa até você mexer em algo (um clique fora dos botões, Esc ou a próxima rolagem).",
   },
   on: "ligado",
@@ -101,6 +103,7 @@ const en: Words = {
     statblocks: "Statblocks",
     campaignBundles: "World and campaign wizard",
     dataDiagram: "Data diagram",
+    colorSwatches: "Colour swatches",
     dice3d: "3D dice",
   },
   descs: {
@@ -110,6 +113,7 @@ const en: Words = {
     statblocks: "```statblock blocks show as visual cards, and the / menu item that makes a statblock comes in.",
     campaignBundles: "The \"New project from a template\" wizard, in the create menu and the command palette.",
     dataDiagram: "JSON, YAML, TOML, XML and CSV files get a \"Diagram\" view (boxes and lines, read-only), and a code block of those formats in a note gets a \"View as diagram\" button.",
+    colorSwatches: "A colour code in a note (#1d9e75, rgb(29 158 117), hsl(…)) gets a small square of its colour beside it; in the editor, a click on it opens a colour picker that rewrites the code. A bare #code in text that Verso reads as a tag (#bada55) stays a tag and gets no square; inside code, `#bada55`, it does.",
     dice3d: "Rolling a die drops 3D dice on the screen before the result shows; the result is already drawn, the animation only stages it. It stays off even with the \"Everything\" shortcut (it is heavy on the battery) and never animates when the system asks for less motion. The dice stay on the table until you touch something (a click away from the buttons, Esc or the next roll).",
   },
   on: "on",

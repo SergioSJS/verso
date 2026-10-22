@@ -13,6 +13,11 @@ import { markOracles } from "./oracle/blocks";
 import type { OracleHost } from "./oracle/host";
 import { t } from "./strings";
 
+/** What is told when a code block has been given its colours, which replaces
+ *  the block's content some time after it was drawn: whatever was added to
+ *  the block meanwhile (a colour swatch) is added again. */
+export const highlightedHooks = new Set<(code: HTMLElement) => void>();
+
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
 export function typeset(root: HTMLElement): void {
@@ -47,6 +52,7 @@ export function typeset(root: HTMLElement): void {
         () => frag.append("\n"),
       );
       code.replaceChildren(frag);
+      for (const f of highlightedHooks) f(code);
     });
   }
 }

@@ -78,6 +78,7 @@ Explore the modules below to see each feature in detail:
 27. [[27 - Oracles and World Building]] — The oracle that writes the answer into the highlight; random tables; the new-project wizard with the tree in view; and each feature's switch in Settings.
 28. [[28 - Structured Data as a Diagram]] — A JSON, YAML, TOML, XML or CSV file, or a code block in one of those formats, seen as boxes and lines to move, collapse and search; read-only.
 29. [[29 - Syncing with a Cloud]] — A folder kept the same as a folder in a Nextcloud (WebDAV) or an S3 bucket you already have, with no server: the form, the S3 key limited to one folder, the password in the keychain and what to expect.
+30. [[30 - Colour Swatches]] — A small square of the colour beside `#1d9e75`, `rgb()` and `hsl()`; a click in the editor opens the picker, and the code comes back in the same format.
 
 ---
 
