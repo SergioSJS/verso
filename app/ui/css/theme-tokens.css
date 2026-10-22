@@ -123,7 +123,7 @@
 [data-checkbox-style="rounded"] .preview li input[type="checkbox"], [data-checkbox-style="rounded"] .editor input.cm-lp-task-check { border-radius: 0.35em; }
 [data-checkbox-style="round"] .preview li input[type="checkbox"], [data-checkbox-style="round"] .editor input.cm-lp-task-check { border-radius: 50%; }
 
-/* Space between paragraphs (reading): standard is 1em. */
+/* Space between paragraphs (reading): standard is the reading view's --flow, .9em. */
 [data-paragraph-spacing="tight"] .preview p { margin-bottom: .5em; }
 [data-paragraph-spacing="loose"] .preview p { margin-bottom: 1.6em; }
 

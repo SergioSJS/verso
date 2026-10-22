@@ -245,11 +245,18 @@
 .editor .cm-lp-link { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 40%, transparent); cursor: pointer; text-decoration: none; }
 .editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
 
+/* A blank line between two blocks (ADR 0061, revised 2026-10-22): a thin gap
+   while the caret is elsewhere (it is full height under the caret, which is
+   not decorated), and a further blank line of the same run at 0.6 of a line.
+   The editor's line is 1.7: the gap is 0.4 of it, the extra one 0.6. */
+.editor .cm-line.cm-lp-gap { line-height: .68; overflow: hidden; }
+.editor .cm-line.cm-lp-gap-extra { line-height: 1.02; overflow: hidden; }
+
 /* Horizontal rule line in Live Preview */
 .editor .cm-line.cm-lp-hr-line {
   position: relative;
   text-align: center;
-  padding: .8em 0;
+  padding: .2em 0;
 }
 .editor .cm-line.cm-lp-hr-line::before {
   content: "";

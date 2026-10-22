@@ -28,6 +28,7 @@ import { colourSwatches } from "../../colour/swatches";
 import { baseEditorExtensions } from "../../editor/extensions";
 import { linkSuggestFor } from "../../editor/linkSuggestWire";
 import { fail } from "../../errors";
+import { ruleEnterKeymap } from "../../editor/rule";
 import { readable, fileBase64 } from "../../files";
 import { allFiles, allNotes } from "../../folder";
 import { icon } from "../../icons";
@@ -93,6 +94,8 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       // The text box is named after the note, as it is now (a rename
       // with unsaved text keeps this state).
       EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
+      // `---` then Enter writes the blank lines around the rule (ADR 0061).
+      ruleEnterKeymap,
       slashKeymap(this.slash),
       tableKeymap,
       listKeymap,
