@@ -123,3 +123,7 @@ A senha do WebDAV e a chave secreta do S3 vão para o **chaveiro do sistema** (K
 - **Para parar:** **Desconectar…** na mesma seção. Os arquivos ficam como estão, aqui e na nuvem.
 
 O nome do seu computador, que aparece na cópia de um conflito, se muda em **Ajustes › Sincronizar › Nome deste computador**, sem precisar de servidor nenhum.
+
+---
+
+Para fechar, veja [[30 - Amostras de Cor]]: o quadradinho da cor ao lado de um código de cor.

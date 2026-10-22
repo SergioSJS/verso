@@ -6,7 +6,7 @@
 // 2026-10-20): one switch per feature, all on unless the person turned one
 // off. No imports: settings.ts reads this to migrate the old `preset`.
 
-export const FEATURE_IDS = ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dataDiagram", "dice3d"] as const;
+export const FEATURE_IDS = ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dataDiagram", "colorSwatches", "dice3d"] as const;
 export type FeatureId = (typeof FEATURE_IDS)[number];
 export type Features = Record<FeatureId, boolean>;
 
@@ -14,7 +14,7 @@ export type Features = Record<FeatureId, boolean>;
  *  RPG features apart from the application's). Each feature is in exactly one. */
 export type FeatureGroupId = "app" | "rpg";
 export const FEATURE_GROUPS: Record<FeatureGroupId, readonly FeatureId[]> = {
-  app: ["dataDiagram"],
+  app: ["dataDiagram", "colorSwatches"],
   rpg: ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dice3d"],
 };
 
@@ -25,11 +25,11 @@ export const OFF_BY_DEFAULT: readonly FeatureId[] = ["dice3d"];
 /** Every feature on but the one that is off by default: the default, and the
  *  shortcut "Everything". */
 export function allOn(): Features {
-  return { diceRolling: true, randomTables: true, oracles: true, statblocks: true, campaignBundles: true, dataDiagram: true, dice3d: false };
+  return { diceRolling: true, randomTables: true, oracles: true, statblocks: true, campaignBundles: true, dataDiagram: true, colorSwatches: true, dice3d: false };
 }
 /** Every feature off: the shortcut "Writing only". */
 export function allOff(): Features {
-  return { diceRolling: false, randomTables: false, oracles: false, statblocks: false, campaignBundles: false, dataDiagram: false, dice3d: false };
+  return { diceRolling: false, randomTables: false, oracles: false, statblocks: false, campaignBundles: false, dataDiagram: false, colorSwatches: false, dice3d: false };
 }
 
 /** The stored switches as a whole record: a missing or odd value is on,
