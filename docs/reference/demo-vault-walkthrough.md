@@ -1385,7 +1385,33 @@ Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
     window); two fingers on a screen pinch and move it. Level: H (the wheel);
     the fingers by hand.
 
-## 16. The end
+## 16. Colour swatches (note 30)
+
+Open note 30 (*Colour Swatches*) in a folder that has the demo content
+([ADR 0108](../adr/0108-colour-swatches-for-colour-codes.md)).
+
+1. *Leitura*: a small square of the colour before each code of the note, in
+   inline code, in the code block and in the table; none beside a bare
+   `#abc`-style tag in text; none inside `[[nota#abc]]`. A click on a square
+   opens nothing. The file on disk is as it was. Level: H; E:
+   `swatches.spec.mjs`; U: `test/colour.test.mjs`.
+2. *Editar* and *Fonte*: click the square of `#1d9e75` (or Tab to it and
+   Enter): the picker opens below it, inside the window, with the code at the
+   top, the saturation and brightness square, the opacity strip and the hue
+   strip. Drag and let go: only the code's characters change, in the same
+   format (hex case and digits, `rgb()` with spaces or commas, `hsl()`);
+   ⌘Z puts the original back; Esc closes it and puts the code back. Level: H;
+   E: `swatches.spec.mjs`.
+3. By keyboard only: Tab goes round the three controls, the arrows adjust
+   (Shift for bigger steps), Enter applies and closes. VoiceOver reads each
+   control by name (by hand, `manual-checks.md`). Level: H; E:
+   `swatches.spec.mjs`.
+4. On a phone's width the picker stays inside the screen. Level: H; E:
+   `swatches.spec.mjs` (`@layout`).
+5. *Ajustes* › *Aplicação* › *Recursos* › *Amostras de cor* off: no square
+   anywhere, no file changed. On: back. Level: H; E: `swatches.spec.mjs`.
+
+## 17. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

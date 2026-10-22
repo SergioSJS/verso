@@ -369,13 +369,15 @@ const STOPS = [
     cards: [
       ["n-dados", "25 - Dados e Tabelas Sorteadas.md", 600],
       ["n-diagrama", "28 - Dados Estruturados como Diagrama.md", 600],
+      ["n-cores", "30 - Amostras de Cor.md", 600],
     ],
     tip:
       "Um arquivo JSON, YAML, TOML, XML ou CSV tem o seletor Texto | Diagrama: caixas para mover, recolher e buscar, sem tocar no arquivo. " +
       "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
       "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
-      "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como.",
+      "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como. " +
+      "Um código de cor — `#1d9e75`, `rgb()`, `hsl()` — ganha um quadradinho da cor, e no editor um clique nele abre o seletor.",
   },
   {
     id: "mundos-rpg",

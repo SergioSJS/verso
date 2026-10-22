@@ -1421,7 +1421,33 @@ Abra a nota 28 (*Dados Estruturados como Diagrama*) e os dois arquivos de
     janela); dois dedos numa tela fazem a pinça e movem. Nível: H (a roda);
     os dedos, à mão.
 
-## 16. O fim
+## 16. Amostras de cor (nota 30)
+
+Abra a nota 30 (*Amostras de Cor*) numa pasta que tem o conteúdo da
+demonstração ([ADR 0108](../adr/0108-colour-swatches-for-colour-codes.md)).
+
+1. *Leitura*: um quadradinho da cor antes de cada código da nota, no código
+   em linha, no bloco de código e na tabela; nenhum ao lado de uma etiqueta
+   solta no estilo `#abc` no texto; nenhum dentro de `[[nota#abc]]`. Um clique
+   num quadradinho não abre nada. O arquivo em disco está como estava. Nível:
+   H; E: `swatches.spec.mjs`; U: `test/colour.test.mjs`.
+2. *Editar* e *Fonte*: clique no quadradinho de `#1d9e75` (ou Tab até ele e
+   Enter): o seletor abre embaixo, dentro da janela, com o código no alto, o
+   quadrado de saturação e brilho, a faixa de opacidade e a de matiz. Arraste
+   e solte: só os caracteres do código mudam, no mesmo formato (maiúsculas e
+   dígitos do hexadecimal, `rgb()` com espaços ou vírgulas, `hsl()`); ⌘Z põe o
+   original de volta; Esc fecha e devolve o código. Nível: H; E:
+   `swatches.spec.mjs`.
+3. Só pelo teclado: Tab percorre os três controles, as setas ajustam (Shift
+   em passos maiores), Enter aplica e fecha. O VoiceOver lê cada controle
+   pelo nome (à mão, `manual-checks.md`). Nível: H; E: `swatches.spec.mjs`.
+4. Na largura de um celular o seletor fica dentro da tela. Nível: H; E:
+   `swatches.spec.mjs` (`@layout`).
+5. *Ajustes* › *Aplicação* › *Recursos* › *Amostras de cor* desligado:
+   nenhum quadradinho em lugar nenhum, nenhum arquivo mudou. Ligado: voltam.
+   Nível: H; E: `swatches.spec.mjs`.
+
+## 17. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

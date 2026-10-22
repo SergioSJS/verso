@@ -40,6 +40,7 @@ import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
 import { diceBox, wireDice } from "../../dice/card";
+import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
 import { diagramLang, openBlockDiagram } from "../../datagraph/block";
 import { dgw } from "../../datagraph/words";
@@ -517,6 +518,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.wireMermaidBlocks(this.preview);
   this.wireStatblocks(this.preview);
   this.wireCodeBlocks(this.preview);
+  wireSwatches(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
