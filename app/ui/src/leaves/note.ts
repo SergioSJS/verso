@@ -40,6 +40,7 @@ import { methods } from "../methods";
 import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
+import { hasCapability } from "../capabilities";
 import { PropertiesView } from "../props";
 import { propertySuggestions } from "../resolve";
 import { st } from "../screen/strings";
@@ -127,6 +128,7 @@ export class NoteLeaf extends Leaf {
     title: () => name(this.path),
     suggest: (kind) => propertySuggestions(this.path, kind),
     status: (message) => (ui.status.textContent = message),
+    swatches: () => hasCapability("colorSwatches"),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the

@@ -24,6 +24,7 @@ import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
 import { completeMarkdown } from "../../editor/complete";
 import { openLinkAt } from "../../editor/linkCard";
+import { colourSwatches } from "../../colour/swatches";
 import { baseEditorExtensions } from "../../editor/extensions";
 import { linkSuggestFor } from "../../editor/linkSuggestWire";
 import { fail } from "../../errors";
@@ -81,6 +82,8 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       // asking, not only when its list is open.
       linkSuggestFor(() => this.path),
       baseEditorExtensions,
+      // A square of the colour beside a colour code (ADR 0108).
+      colourSwatches(),
       this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
       md.language.data.of({ autocomplete: completeMarkdown }),
       md,

@@ -20,6 +20,7 @@
 // first picture at its head, the type under it, the declared properties,
 // the note's other keys folded below.
 
+import { propSwatch } from "./colour/prop";
 import type { Label, NoteType, Property, PropertyValue, TypedProperty } from "./bindings";
 import { frontmatterClose, opensWithFence } from "./frontmatter";
 import { icon } from "./icons";
@@ -105,6 +106,8 @@ export type PropsOptions = {
   suggest?: (kind: "link" | "image") => { value: string; label: string }[];
   /** Something to say on the status line. */
   status?: (message: string) => void;
+  /** Whether a colour code as a value shows its colour (ADR 0108); not asked: it does. */
+  swatches?: () => boolean;
 };
 
 /** A label for `lang` among a schema's labels: the language itself, its
@@ -662,6 +665,8 @@ export class PropertiesView {
           input.blur();
         }
       });
+      // A colour code as the value shows its colour (ADR 0108).
+      if (input.type === "text") value.append(propSwatch(input, this.opts.swatches));
       value.append(input);
       if (d && d.kind === "image") {
         value.append(this.suggestFor(input, "image"));
