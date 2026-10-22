@@ -12,9 +12,11 @@ import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
 import { t } from "./strings";
 import { applyLook } from "./theme/apply";
 import { readLook, readLookCredit } from "./theme/look";
+import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
 import { readProfiles, type Profile } from "./theme/profiles";
 import type { InspiredBy, Look } from "./theme/tokens";
 
+export type { Measure };
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
 /** How dark the dark theme is (css/base.css, `--dk-lift`). */
@@ -48,7 +50,9 @@ export type Settings = {
   /** The note a link names shown where the pointer rests (ADR 0085 item 8). */
   hoverPreview: boolean;
   defaultMode: "preview" | "live";
-  measure: "normal" | "wide";
+  /** The text width: "theme" follows the theme's `line-width` (or the
+   *  window's standard), the others are the person's own and win over it. */
+  measure: Measure;
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
   /** What "Add to Claude Desktop" writes (ADR 0054, 2026-10-08): this
@@ -167,7 +171,7 @@ export const DEFAULTS: Settings = {
   enterNewBlock: false,
   hoverPreview: true,
   defaultMode: "preview",
-  measure: "normal",
+  measure: "theme",
   linkFormat: "shortest",
   remoteContent: true,
   mcpMode: "folder",
@@ -234,6 +238,7 @@ export function loadSettings(): void {
       for (const key of ["suggestIgnoreFolders", "suggestIgnoreNames"] as const) {
         settings[key] = Array.isArray(settings[key]) ? settings[key].filter((v) => typeof v === "string") : [];
       }
+      settings.measure = readMeasure(parsed.measure);
       settings.look = readLook(parsed.look);
       settings.looks = readProfiles(parsed.looks);
       if (typeof settings.lookName !== "string") delete settings.lookName;
@@ -321,8 +326,14 @@ export function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.dataset["dark"] = settings.darkTone ?? "soft";
-  document.documentElement.dataset["measure"] = settings.measure;
-  document.documentElement.style.fontSize = `${settings.fontSize}px`;
+  const measure = measureAttr(settings.measure);
+  if (measure === null) delete document.documentElement.dataset["measure"];
+  else document.documentElement.dataset["measure"] = measure;
+  // The window's own size is fixed (the interface, the settings dialog, the
+  // bars); the font size setting sets only the notes' text, through
+  // --note-scale (css/reading.css and the note's other text).
+  document.documentElement.style.fontSize = `${DEFAULTS.fontSize}px`;
+  document.documentElement.style.setProperty("--note-scale", String(noteScale(settings.fontSize, DEFAULTS.fontSize)));
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
   document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
   document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));

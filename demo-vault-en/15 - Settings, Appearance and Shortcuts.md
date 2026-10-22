@@ -39,7 +39,8 @@ Try it: in **Files and links**, turn off **Ignore build folders** and watch the 
 
 - **Themes**, at the top, together: the **Theme** (**System**, **Light** or **Dark**), the **Dark tone** and, right below, the gallery (see next); changing the mode redraws the cards at once.
   - **Dark tone**, in the dark theme: **Soft (default)** (for reading and writing for hours), **Deep** (nearly black, for a dark room or an OLED screen) and **Dusk** (lighter).
-- **Text**: the **Font size**, from 12 to 30 pixels, and the **Text width**, comfortable (100 characters) or the whole area.
+- **Text**: the **Font size**, from 12 to 30 pixels, and the **Text width**: **From the theme** (the default: follows the theme's width, or Verso's), **Narrow** (40 rem), **Medium** (48 rem), **Standard** (100 characters), **Large** (72 rem) or **Full width**. The font size changes only the text of notes — reading and editing — never the interface nor this window; the width you choose wins over the theme's, and the effect shows at once.
+- **Window zoom** (in the desktop app): − , the level and + , with **Reset (100%)**, the same zoom as the shortcuts; each zoom change also shows for a moment in a badge at the corner of the window.
 - **More text options**: the interface's text font and the heading accent color, from amber to amethyst.
 - **Side ribbon buttons**: each with its own switch; the Settings gear is always there, so there is a way back.
 
@@ -80,7 +81,7 @@ Try it: **Copy** **Paper**, **Edit** the copy, change the **Ink** to a dark blue
 
 In **Hotkeys**, each command shows its key and the **Change** button: click, and press the new combination — it must include `⌘` (or be `⌥ Enter`, the one for **Open link under cursor**). If another command was already using that combination, it loses it. **Restore** goes back to the default.
 
-**Window zoom** (in the desktop app): `⌘+` zooms in, `⌘-` zooms out and `⌘0` goes back to 100 % (`Ctrl` on Windows and Linux), from 50 % to 200 %, in steps of 10; `Ctrl` with the mouse wheel or the pinch gesture on the trackpad do the same — except over a board, a map, a PDF or the graph, which zoom themselves. Each computer keeps its own zoom. It is different from **Font size**, which only enlarges the text. In the browser, the browser's own zoom applies.
+**Window zoom** (in the desktop app): `⌘+` zooms in, `⌘-` zooms out and `⌘0` goes back to 100 % (`Ctrl` on Windows and Linux), from 50 % to 200 %, in steps of 10; `Ctrl` with the mouse wheel or the pinch gesture on the trackpad do the same — except over a board, a map, a PDF or the graph, which zoom themselves. Each computer keeps its own zoom. It is different from **Font size**, which only enlarges the text of notes. The level shows in a badge for a moment and stays in **Settings › Appearance › Window zoom**. In the browser, the browser's own zoom applies.
 
 The everyday shortcuts are on the [[00 - Welcome to Verso|Home Page]]; the board's, in [[10 - Drawing on the Board]].
 
