@@ -30,6 +30,8 @@ const pt = {
     empty: "O tema não traz nenhum valor.",
     unreadable: (what: string, ratio: string, side: string) => `Este tema deixaria o texto ilegível (${what}: ${ratio}, no lado ${side}; o mínimo é 3:1). Ele não foi aplicado.`,
     readFailed: "Não foi possível ler o arquivo.",
+    style: (key: string, choices: string) => `“${key}” só aceita: ${choices}.`,
+    credit: (path: string) => `“${path}” não é um crédito aceito: texto curto, sem caracteres de controle; o link só pode ser https.`,
   },
   profiles: {
     badName: (max: number) => `O nome deve ter de 1 a ${max} caracteres.`,
@@ -217,6 +219,8 @@ const en: typeof pt = {
     empty: "The theme carries no values.",
     unreadable: (what: string, ratio: string, side: string) => `This theme would make the text unreadable (${what}: ${ratio}, on the ${side} side; the minimum is 3:1). It was not applied.`,
     readFailed: "The file could not be read.",
+    style: (key: string, choices: string) => `“${key}” only takes: ${choices}.`,
+    credit: (path: string) => `“${path}” is not an accepted credit: short text with no control characters; the link may only be https.`,
   },
   profiles: {
     badName: (max: number) => `The name must be 1 to ${max} characters.`,

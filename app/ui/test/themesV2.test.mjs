@@ -1,0 +1,153 @@
+// Themes, second step (ADR 0109): the version 2 file format — read, written
+// back, refused when hostile — the version 1 files unchanged, the credit,
+// and the closed lists of the structural choices. Derivation and contrast
+// are tested further down.
+import { test, describe } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import * as esbuild from "esbuild";
+
+await esbuild.build({
+  stdin: {
+    contents: `export * from "./src/theme/color";
+export * from "./src/theme/tokens";
+export * from "./src/theme/derive";
+export * from "./src/theme/edit";
+export * from "./src/theme/colorsOf";
+export * from "./src/theme/file";
+export * from "./src/theme/look";
+export * from "./src/theme/profiles";`,
+    resolveDir: ".",
+    loader: "ts",
+  },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "test/.bundles/themesV2.test-bundle.mjs",
+  logLevel: "error",
+});
+const T = await import("./.bundles/themesV2.test-bundle.mjs");
+
+const load = (name) => readFileSync(new URL(`./fixtures/themes/${name}.verso-theme`, import.meta.url), "utf8");
+const aurora = () => JSON.parse(load("v2-aurora"));
+const parse = (o) => T.parseThemeText(typeof o === "string" ? o : JSON.stringify(o));
+
+describe("version 2 files", () => {
+  test("the two sample files read", () => {
+    for (const f of ["v2-aurora", "v2-plain-night"]) {
+      const r = parse(load(f));
+      assert.ok(r.ok, `${f}: ${r.why}`);
+    }
+  });
+  test("the extras, the structure and the credit are kept", () => {
+    const r = parse(load("v2-aurora"));
+    assert.equal(r.theme.light["--code-ink"], "#3b2f6b");
+    assert.equal(r.theme.dark["--h1-color"], "#8cc8e8");
+    assert.equal(r.theme.light["--pink"], "#a82468");
+    assert.deepEqual(r.theme.style, { "surface-mode": "cards", "heading-style": "rule", "table-style": "striped", "tag-style": "outline", radius: "round" });
+    assert.deepEqual(r.theme.inspiredBy, { theme: "Origem de Teste", author: "Autora de Teste", repoUrl: "https://example.invalid/origem-de-teste", license: "MIT" });
+  });
+  test("written and read back, it is the same theme; a theme with no v2 content is written as version 1", () => {
+    const r = parse(load("v2-aurora"));
+    const again = parse(T.themeText(r.theme));
+    assert.ok(again.ok, again.why);
+    assert.deepEqual(again.theme, r.theme);
+    assert.equal(JSON.parse(T.themeText(r.theme)).tokensVersion, 2);
+    const plain = { name: "Plano", mode: "light", light: { "--paper": "#ffffff" }, dark: {} };
+    assert.equal(JSON.parse(T.themeText(plain)).tokensVersion, 1);
+  });
+  test("version 1 files stay valid and refuse what only version 2 knows", () => {
+    const v1 = { "verso-theme": 1, name: "Velho", mode: "light", tokensVersion: 1, values: { light: { "--paper": "#ffffff", "--ink": "#000000" } } };
+    assert.ok(parse(v1).ok);
+    for (const mutate of [
+      (o) => (o.values.light["--h1-color"] = "#112233"),
+      (o) => (o.values["radius"] = "sharp"),
+      (o) => (o.inspiredBy = { theme: "X" }),
+    ]) {
+      const o = structuredClone(v1);
+      mutate(o);
+      assert.equal(parse(o).ok, false);
+    }
+  });
+  test("a v2 theme of one mode refuses the other side's extras", () => {
+    const o = aurora();
+    o.mode = "light";
+    assert.equal(parse(o).ok, false);
+  });
+  const hostile = {
+    "a url() in an extra colour": (o) => (o.values.light["--code-ink"] = "url(https://evil.example/x.png)"),
+    "a var() in a heading colour": (o) => (o.values.dark["--h1-color"] = "var(--ink)"),
+    "braces in a semantic colour": (o) => (o.values.light["--red"] = "#fff } body { display: none"),
+    "a semicolon in a semantic colour": (o) => (o.values.light["--pink"] = "#fff; color: red"),
+    "an unknown extra": (o) => (o.values.light["--h7-color"] = "#fff"),
+    "a style outside its list": (o) => (o.values["radius"] = "pill"),
+    "a style that is not text": (o) => (o.values["surface-mode"] = 3),
+    "a style with css in it": (o) => (o.values["heading-style"] = "plain; x"),
+    "a credit that is not an object": (o) => (o.inspiredBy = "Minimal"),
+    "a credit with an unknown key": (o) => (o.inspiredBy.upstreamUrl = "https://x.example/"),
+    "a credit with no theme": (o) => delete o.inspiredBy.theme,
+    "a credit link that is http": (o) => (o.inspiredBy.repoUrl = "http://example.invalid/x"),
+    "a credit link that is javascript": (o) => (o.inspiredBy.repoUrl = "javascript:alert(1)"),
+    "a credit link with a login": (o) => (o.inspiredBy.repoUrl = "https://user:pw@example.invalid/x"),
+    "a credit link with a space": (o) => (o.inspiredBy.repoUrl = "https://example.invalid/a b"),
+    "a credit with a control character": (o) => (o.inspiredBy.author = "Ana\u0007"),
+    "a credit with a newline": (o) => (o.inspiredBy.theme = "A\nB"),
+    "a credit too long": (o) => (o.inspiredBy.author = "x".repeat(81)),
+    "a theme name of the credit too long": (o) => (o.inspiredBy.theme = "x".repeat(61)),
+    "a licence too long": (o) => (o.inspiredBy.license = "x".repeat(31)),
+    "an empty credit field": (o) => (o.inspiredBy.author = "  "),
+    "a credit field that is a number": (o) => (o.inspiredBy.license = 7),
+  };
+  for (const [what, mutate] of Object.entries(hostile)) {
+    test(`refused: ${what}`, () => {
+      const o = aurora();
+      mutate(o);
+      const r = parse(o);
+      assert.equal(r.ok, false);
+      assert.ok(typeof r.why === "string" && r.why.length > 10);
+    });
+  }
+  test("a file over 16 KB is refused, credit or not", () => {
+    const o = aurora();
+    o.inspiredBy.author = "x".repeat(80);
+    const big = JSON.stringify(o) + " ".repeat(17 * 1024);
+    assert.equal(parse(big).ok, false);
+  });
+  test("a credit needs only the theme's name; the rest is optional", () => {
+    const o = aurora();
+    o.inspiredBy = { theme: "Só o nome" };
+    const r = parse(o);
+    assert.ok(r.ok, r.why);
+    assert.deepEqual(r.theme.inspiredBy, { theme: "Só o nome" });
+  });
+  test("a look read from the settings keeps the extras and the structure, drops the rest", () => {
+    const look = T.readLook({
+      light: { "--paper": "#ffffff", "--h2-color": "#123456", "--bogus": "#000000", "--pink": "not a colour" },
+      dark: {},
+      style: { radius: "round", "tag-style": "nope", other: "x" },
+    });
+    assert.equal(look.light["--h2-color"], "#123456");
+    assert.equal(look.light["--pink"], undefined);
+    assert.equal(look.light["--bogus"], undefined);
+    assert.deepEqual(look.style, { radius: "round" });
+    assert.equal(T.isEmpty(T.readLook({ style: { radius: "sharp" } })), false);
+    assert.equal(T.isEmpty(T.readLook({ style: { radius: "nope" } })), true);
+  });
+  test("a theme laid over the look brings its structure; a theme of both clears the old", () => {
+    const base = T.emptyLook();
+    base.style = { radius: "sharp" };
+    const t = parse(load("v2-plain-night")).theme;
+    const next = T.withTheme(base, t);
+    assert.equal(next.style["surface-mode"], "flat");
+    assert.equal(next.style.radius, "sharp");
+    const bare = { name: "x", mode: "both", light: { "--paper": "#ffffff" }, dark: { "--paper": "#000000" } };
+    assert.equal(T.withTheme(base, bare).style, undefined);
+    assert.deepEqual(T.themeOf("n", next, undefined, undefined).style, next.style);
+  });
+  test("the profiles keep the extras, the structure and the credit", () => {
+    const r = parse(load("v2-aurora"));
+    const kept = T.readProfiles(T.storable([{ name: r.theme.name, theme: r.theme }]));
+    assert.equal(kept.length, 1);
+    assert.deepEqual(kept[0].theme, r.theme);
+  });
+});

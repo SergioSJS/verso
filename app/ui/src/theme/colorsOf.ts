@@ -6,12 +6,12 @@
 // and the tests need no DOM.
 
 import { parseColor, type RGB } from "./color";
-import { COLOR_TOKENS, type ColorToken } from "./tokens";
+import { ALL_COLOR_TOKENS, type AnyColor, type Colors } from "./tokens";
 
 /** A side's custom colours as colours (what does not parse is left out). */
-export function customRgb(side: Partial<Record<ColorToken, string>>): Partial<Record<ColorToken, RGB>> {
-  const out: Partial<Record<ColorToken, RGB>> = {};
-  for (const token of COLOR_TOKENS) {
+export function customRgb(side: Colors): Partial<Record<AnyColor, RGB>> {
+  const out: Partial<Record<AnyColor, RGB>> = {};
+  for (const token of ALL_COLOR_TOKENS) {
     const text = side[token];
     const rgb = text === undefined ? null : parseColor(text);
     if (rgb) out[token] = rgb;
