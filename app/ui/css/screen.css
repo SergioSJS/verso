@@ -39,11 +39,15 @@
   .graph-controls-toggle { display: inline-flex; }
   .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
   .graph-body.controls-open .graph-controls { display: flex; }
+  .graph-body.controls-open .graph-show-all:not(.in-panel) { display: none; }
+  .graph-body.controls-open .graph-show-all.in-panel { display: inline-flex; }
 }
 @media (max-width: 760px) {
   .graph-controls-toggle { display: inline-flex; }
   .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
   .graph-body.controls-open .graph-controls { display: flex; }
+  .graph-body.controls-open .graph-show-all:not(.in-panel) { display: none; }
+  .graph-body.controls-open .graph-show-all.in-panel { display: inline-flex; }
 }
 
 /* ---------- The frame's rows: what the pane says on top, the phone's bar ---------- */
