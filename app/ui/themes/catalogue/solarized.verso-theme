@@ -65,6 +65,8 @@
     "font-size": 16,
     "tag-style": "pill",
     "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "bar"
   }
 }

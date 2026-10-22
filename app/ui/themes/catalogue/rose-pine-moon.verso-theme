@@ -37,6 +37,8 @@
     "--book": "sans",
     "font-size": 18,
     "heading-weight": "regular",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "panel",
     "emphasis-color": "accent"
   }

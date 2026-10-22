@@ -45,6 +45,8 @@
     "font-size": 17,
     "radius": "soft",
     "heading-scale": "large",
-    "heading-weight": "bold"
+    "heading-weight": "bold",
+    "line-width": "narrow",
+    "line-height": "snug"
   }
 }

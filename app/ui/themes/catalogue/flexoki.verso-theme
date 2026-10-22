@@ -64,6 +64,8 @@
     "--book": "system",
     "font-size": 16,
     "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "bar"
   }
 }
