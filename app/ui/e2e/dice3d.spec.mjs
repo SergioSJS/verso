@@ -538,3 +538,64 @@ test("settings: under reduced motion the test says nothing is animated", async (
   await expect(page.locator(".dice3d-say")).toContainText("menos movimento");
   await expect(canvas(page)).toHaveCount(0);
 });
+
+test("the dice stay on the table after the card shows, never catch a tap, and a tap clears them @layout", async ({ app, page }, info) => {
+  await withSwitch(page);
+  await app.open();
+  await openNote(app);
+  await needGl(page, info);
+  const preview = page.locator(".preview:visible");
+  const card = preview.locator('.dice[data-dice="1d20+3"] .dice-card');
+  const rollBtn = preview.getByRole("button", { name: "Rolar 1d20+3" });
+  await rollBtn.scrollIntoViewIfNeeded();
+  const t0 = Date.now();
+  await rollBtn.click();
+  await expect(canvas(page)).toHaveCount(1);
+  await expect(card).toBeHidden();
+  // The card shows as soon as the dice rest...
+  await expect(card).toBeVisible({ timeout: 6000 });
+  const toCard = Date.now() - t0;
+  // ...and the dice are still there, at rest, letting taps through.
+  await expect(canvas(page)).toHaveCount(1);
+  await expect(canvas(page)).toHaveAttribute("data-state", "resting");
+  expect(await canvas(page).evaluate((c) => getComputedStyle(c).pointerEvents)).toBe("none");
+  await shot(page, `linger-${page.viewportSize().width}`);
+  // They stay for a while after the card (the linger is ~2.8 s)...
+  await page.waitForTimeout(1500);
+  await expect(canvas(page)).toHaveCount(1);
+  // ...a tap on the page works under them and clears them at once.
+  const heading = preview.locator("h1").first();
+  await heading.click();
+  await expect(canvas(page)).toHaveCount(0);
+  info.annotations.push({ type: "click to card (ms)", description: String(toCard) });
+  expect(toCard).toBeLessThan(6000);
+  // Left alone, they fade by themselves, a few seconds after the card (read
+  // in the page, so the polling of the test does not count).
+  await page.evaluate(() => {
+    const t = (window.__linger = {});
+    const watch = () => {
+      // The stage marks the canvas "resting" in the very turn the card is let show.
+      if (document.querySelector('canvas.dice3d-canvas[data-state="resting"]') && t.card === undefined) t.card = performance.now();
+      if (t.card !== undefined && !document.querySelector("canvas.dice3d-canvas")) t.gone = performance.now();
+    };
+    new MutationObserver(watch).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state"] });
+  });
+  await rollBtn.click();
+  await expect(canvas(page)).toHaveCount(0, { timeout: 8000 });
+  const seen = await page.evaluate(() => window.__linger.gone - window.__linger.card);
+  info.annotations.push({ type: "dice after card (ms)", description: String(Math.round(seen)) });
+  expect(seen).toBeGreaterThan(2500);
+  expect(seen).toBeLessThan(4000);
+});
+
+test("Esc clears the lingering dice at once @layout", async ({ app, page }, info) => {
+  await withSwitch(page);
+  await app.open();
+  await openNote(app);
+  await needGl(page, info);
+  const preview = page.locator(".preview:visible");
+  await preview.getByRole("button", { name: "Rolar 1d20+3" }).click();
+  await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 6000 });
+  await page.keyboard.press("Escape");
+  await expect(canvas(page)).toHaveCount(0);
+});
