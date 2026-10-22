@@ -70,8 +70,12 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
     const stage = engine.throwDice(dice, styles, look.size, images, area());
     if (!stage) return;
     running = stage;
-    await stage.done;
-    if (running === stage) running = null;
+    // Resolves when the dice have rested: the card shows then, and the dice
+    // stay on the table for a while (the stage ends them).
+    void stage.done.then(() => {
+      if (running === stage) running = null;
+    });
+    await stage.rested;
   } catch {
     running = null;
   }
