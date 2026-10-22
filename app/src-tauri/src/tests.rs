@@ -672,8 +672,13 @@ fn a_folders_index_progress_reaches_only_its_windows() {
     main.listen("index-progress", move |_| {
         m.fetch_add(1, Ordering::SeqCst);
     });
-    other.listen("index-progress", move |_| {
-        t.fetch_add(1, Ordering::SeqCst);
+    // The other window may still hear its own folder being indexed (seen on
+    // Windows, where that pass is slower): what must never reach it is a
+    // progress of the main window's folder, which names `Uma.md`.
+    other.listen("index-progress", move |e| {
+        if e.payload().contains("Uma.md") {
+            t.fetch_add(1, Ordering::SeqCst);
+        }
     });
     call(&main, "reindex", json!({})).unwrap();
     assert!(mine.load(Ordering::SeqCst) > 0);
