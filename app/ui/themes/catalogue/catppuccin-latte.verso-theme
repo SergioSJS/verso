@@ -33,7 +33,8 @@
       "--cyan": "#179299",
       "--blue": "#1e66f5",
       "--purple": "#8839ef",
-      "--pink": "#ea76cb"
+      "--pink": "#ea76cb",
+      "--hr-color": "#1e66f5"
     },
     "--heading-font": "editorial",
     "--book": "editorial",
@@ -46,6 +47,7 @@
     "line-height": "snug",
     "blockquote-style": "bar",
     "link-style": "hover",
-    "emphasis-color": "semantic"
+    "emphasis-color": "semantic",
+    "hr-style": "line"
   }
 }

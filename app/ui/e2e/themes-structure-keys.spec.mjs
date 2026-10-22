@@ -271,7 +271,7 @@ test("the builder's Structure group has a labelled control for each key, written
   const builder = page.locator(".builder");
   await expect(builder).toBeVisible();
   await builder.locator('[data-group="structure"] > summary').click();
-  await expect(builder.locator('[data-group="structure"] select')).toHaveCount(15);
+  await expect(builder.locator('[data-group="structure"] select')).toHaveCount(16);
   for (const [key, [label, value, name]] of Object.entries(KEYS)) {
     const control = builder.getByLabel(label, { exact: true });
     await expect(control, label).toBeVisible();

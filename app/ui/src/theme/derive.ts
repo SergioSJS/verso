@@ -77,10 +77,10 @@ const SEMANTIC_LITERAL: Record<Side, Record<"--orange" | "--yellow" | "--green" 
   dark: { "--blue": "oklch(75% 0.1 240)", "--green": "oklch(75% 0.12 150)", "--yellow": "oklch(78% 0.14 75)", "--orange": "oklch(78% 0.14 75)", "--purple": "oklch(75% 0.1 300)", "--cyan": "oklch(76% 0.1 200)", "--pink": "oklch(76% 0.13 350)" },
 };
 const REFERENCE: Partial<Record<ExtraToken, ColorToken | DerivedToken>> = {
-  "--code-paper": "--paper-2", "--code-ink": "--ink", "--h1-color": "--brass-ink", "--h2-color": "--brass-ink", "--h3-color": "--brass-ink", "--h4-color": "--ink-2", "--h5-color": "--ink-2", "--h6-color": "--ink-3", "--red": "--seal",
+  "--code-paper": "--paper-2", "--code-ink": "--ink", "--h1-color": "--brass-ink", "--h2-color": "--brass-ink", "--h3-color": "--brass-ink", "--h4-color": "--ink-2", "--h5-color": "--ink-2", "--h6-color": "--ink-3", "--red": "--seal", "--hr-color": "--hair",
 };
 /** The stylesheet's own variable an extra follows when the theme sets it on one side only. */
-const REFERENCE_CSS: Partial<Record<ExtraToken, string>> = { "--h1-color": "--heading-color", "--h2-color": "--heading-color", "--h3-color": "--heading-color" };
+const REFERENCE_CSS: Partial<Record<ExtraToken, string>> = { "--h1-color": "--heading-color", "--h2-color": "--heading-color", "--h3-color": "--heading-color", "--hr-color": "--hair" };
 
 /** The colour of an extra on a side when the theme does not set it. */
 export function extraFallback(side: Side, token: ExtraToken, from: Shipped): RGB {

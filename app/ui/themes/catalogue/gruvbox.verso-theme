@@ -69,6 +69,7 @@
     "line-height": "snug",
     "blockquote-style": "bar",
     "link-style": "plain",
-    "callout-style": "outlined"
+    "callout-style": "outlined",
+    "hr-style": "line"
   }
 }

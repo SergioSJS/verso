@@ -137,3 +137,17 @@
 [data-callout-style="title-bar"] .callout.folded { padding-bottom: 0; }
 [data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout { background: transparent; }
 [data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout-head { background: color-mix(in oklch, var(--callout-color, var(--brass)) 18%, var(--paper)); }
+
+/* ---------- The horizontal rule (---), decided 2026-10-22 ---------- */
+/* asterism (the line with the ⁂) is the window's own and writes nothing.
+   line is Obsidian's plain 2px rule, thin its 1px one, fade a rule that
+   fades at both ends; all in --hr-color, which without a theme's own is the
+   hair colour. Reading (.preview) and Live Preview (.editor) both. */
+[data-hr-style] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::after { content: none; }
+[data-hr-style="line"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before { height: 2px; margin-top: -1px; }
+[data-hr-style="thin"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before { height: 1px; }
+[data-hr-style="fade"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before {
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, transparent, var(--hr-color, var(--hair)) 20%, var(--hr-color, var(--hair)) 80%, transparent);
+}

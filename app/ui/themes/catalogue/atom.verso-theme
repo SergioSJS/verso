@@ -38,6 +38,7 @@
     "line-height": "snug",
     "blockquote-style": "bar",
     "link-style": "plain",
-    "checkbox-style": "rounded"
+    "checkbox-style": "rounded",
+    "hr-style": "line"
   }
 }

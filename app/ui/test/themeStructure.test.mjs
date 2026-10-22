@@ -12,6 +12,7 @@ await esbuild.build({
     contents: `export * from "./src/theme/tokens";
 export * from "./src/theme/file";
 export * from "./src/theme/look";
+export { extraFallbackCss } from "./src/theme/derive";
 export { applyLook } from "./src/theme/apply";`,
     resolveDir: ".",
     loader: "ts",
@@ -35,16 +36,17 @@ const NEW = {
   "checkbox-style": { attr: "checkboxStyle", values: ["square", "rounded", "round"] },
   "paragraph-spacing": { attr: "paragraphSpacing", values: ["standard", "tight", "loose"] },
   "callout-style": { attr: "calloutStyle", values: ["tinted", "outlined", "title-bar"] },
+  "hr-style": { attr: "hrStyle", values: ["asterism", "line", "thin", "fade"] },
 };
 const css = readFileSync(new URL("../css/theme-tokens.css", import.meta.url), "utf8");
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const file = (values) => ({ "verso-theme": 1, name: "T", mode: "light", tokensVersion: 2, values: { light: { "--paper": "#ffffff", "--ink": "#000000" }, ...values } });
 const parse = (o) => T.parseThemeText(JSON.stringify(o));
 
-describe("the ten structural keys", () => {
+describe("the structural keys (ten, and the horizontal rule)", () => {
   test("the lists are the closed ones, the first value being the window's own", () => {
     for (const [key, def] of Object.entries(NEW)) assert.deepEqual([...T.STYLE_CHOICES[key]], def.values, key);
-    assert.equal(T.STYLE_KEYS.length, 15);
+    assert.equal(T.STYLE_KEYS.length, 16);
   });
   for (const [key, def] of Object.entries(NEW)) {
     test(`${key}: every value is read and written back; a value outside the list is refused`, () => {
@@ -88,5 +90,33 @@ describe("the ten structural keys", () => {
   test("a theme with two of them keeps both and nothing else", () => {
     const r = parse(file({ "heading-scale": "compact", "callout-style": "outlined" }));
     assert.deepEqual(r.theme.style, { "heading-scale": "compact", "callout-style": "outlined" });
+  });
+});
+
+describe("the horizontal rule (hr-style and --hr-color)", () => {
+  const hairy = readFileSync(new URL("../css/reading.css", import.meta.url), "utf8") + readFileSync(new URL("../css/live.css", import.meta.url), "utf8");
+  test("--hr-color is read on a side and refused when it is not a colour", () => {
+    const r = parse(file({ light: { "--paper": "#ffffff", "--ink": "#000000", "--hr-color": "#336699" } }));
+    assert.ok(r.ok);
+    assert.equal(r.theme.light["--hr-color"], "#336699");
+    const bad = parse(file({ light: { "--paper": "#ffffff", "--ink": "#000000", "--hr-color": "red; x: y" } }));
+    assert.ok(!bad.ok);
+  });
+  test("a v1 file with hr-style is refused", () => {
+    const o = file({ "hr-style": "line" });
+    o.tokensVersion = 1;
+    assert.ok(!parse(o).ok);
+  });
+  test("a value outside the list is refused", () => {
+    assert.ok(!parse(file({ "hr-style": "<hr style=x>" })).ok);
+    assert.ok(!parse(file({ "hr-style": "gradient" })).ok);
+  });
+  test("the colour defaults to the hair colour everywhere the stylesheet reads it", () => {
+    assert.ok(hairy.includes("var(--hr-color, var(--hair))"));
+    assert.ok(css.includes("var(--hr-color, var(--hair))"));
+    assert.equal(T.extraFallbackCss("light", "--hr-color"), "var(--hair)");
+  });
+  test("each value but asterism hides the ornament, in reading and in Live Preview", () => {
+    assert.ok(css.includes(`[data-hr-style] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::after { content: none; }`));
   });
 });

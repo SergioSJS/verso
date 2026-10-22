@@ -54,6 +54,7 @@
     "line-width": "narrow",
     "line-height": "snug",
     "blockquote-style": "panel",
-    "callout-style": "title-bar"
+    "callout-style": "title-bar",
+    "hr-style": "line"
   }
 }
