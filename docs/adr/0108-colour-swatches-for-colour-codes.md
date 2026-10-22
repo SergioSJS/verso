@@ -42,7 +42,8 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
    (invariant 7). It has a thin border so a colour close to the page still
    shows, and a chequerboard under a colour with transparency.
 
-2. **Which codes.** `[OPEN]`
+2. **Which codes.** `[DECIDED 2026-10-22]` Option A — the maintainer:
+   *"Todos esses"* (all of them).
    - **A — Hex (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), `rgb()`/`rgba()`
      and `hsl()`/`hsla()`, in both the comma and the space syntax.**
      _(recommended)_ — what VS Code's colour decorators read.
@@ -50,7 +51,10 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
    - Named colours (`red`, `teal`) are left out of both: too many ordinary
      words would get a swatch.
 
-3. **Where in a note.** `[OPEN]`
+3. **Where in a note.** `[DECIDED 2026-10-22]` Option A, the swatch a
+   small square beside the code — the maintainer: *"a amostra aparece num
+   quadradinho ao lado de onde está escrito"* (the swatch shows as a small
+   square beside where it is written).
    - **A — In code (inline code and code blocks), in property values, and
      in plain text when the code is not a tag.** A hex code that the
      dialect reads as a tag (`#bada55` in a paragraph) stays a tag and gets
@@ -67,7 +71,11 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
    swatch shows the colour and does not edit. Keyboard: the swatch is a
    button with a name ("Cor #1d9e75 — ajustar"), Enter opens the picker.
 
-5. **Which picker.** `[OPEN]`
+5. **Which picker.** `[DECIDED 2026-10-22]` Option A, the theme builder's
+   colour field, laid out like VS Code's colour picker — the maintainer:
+   *"pode ser do construtor, exemplo do VS Code"* with a screenshot of VS
+   Code's picker: a header in the colour showing its code, a
+   saturation/brightness square, an alpha strip and a hue strip.
    - **A — The same colour field the theme builder uses**
      ([0100](0100-visual-customization-wizard.md)), with a hex field and
      an alpha slider when the code had alpha. _(recommended)_
@@ -100,9 +108,12 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
 
 ## Discarded alternatives
 
-None recorded. The options of items 2, 3 and 5 are open, not discarded.
+Offered to the maintainer on 2026-10-22 and not taken: hex and `rgb()`
+only (item 2); a swatch beside a colour-like tag too, or only in code and
+property values (item 3); the system's colour picker (item 5).
 
 ## Status
 
-Proposed (2026-10-22). Not built. Waits for the maintainer's answers to
-items 2, 3 and 5 and a reading by the other model.
+Proposed (2026-10-22). Items 2, 3 and 5 decided by the maintainer the
+same day; the items marked `[PROPOSED]` stay the author's until accepted.
+Being built; waits for a reading by the other model.

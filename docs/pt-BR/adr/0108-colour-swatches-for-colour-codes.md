@@ -40,7 +40,8 @@ marcados `[PROPOSED]` são a recomendação do autor.
    (invariante 7). Tem uma borda fina para que uma cor parecida com a página
    apareça, e um xadrez por baixo de uma cor com transparência.
 
-2. **Quais códigos.** `[OPEN]`
+2. **Quais códigos.** `[DECIDED 2026-10-22]` Opção A — o mantenedor:
+   *"Todos esses"*.
    - **A — Hex (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), `rgb()`/`rgba()`
      e `hsl()`/`hsla()`, na sintaxe com vírgulas e com espaços.**
      _(recomendado)_ — o que os decoradores de cor do VS Code leem.
@@ -48,7 +49,9 @@ marcados `[PROPOSED]` são a recomendação do autor.
    - Cores por nome (`red`, `teal`) ficam fora das duas: palavras comuns
      demais ganhariam amostra.
 
-3. **Onde, numa nota.** `[OPEN]`
+3. **Onde, numa nota.** `[DECIDED 2026-10-22]` Opção A, a amostra um
+   quadradinho ao lado do código — o mantenedor: *"a amostra aparece num
+   quadradinho ao lado de onde está escrito"*.
    - **A — Em código (código inline e blocos de código), em valores de
      propriedades, e em texto comum quando o código não é uma tag.** Um hex
      que o dialeto lê como tag (`#bada55` num parágrafo) continua tag e não
@@ -65,7 +68,11 @@ marcados `[PROPOSED]` são a recomendação do autor.
    mostra a cor e não edita. Teclado: a amostra é um botão com nome ("Cor
    #1d9e75 — ajustar"), Enter abre o seletor.
 
-5. **Qual seletor.** `[OPEN]`
+5. **Qual seletor.** `[DECIDED 2026-10-22]` Opção A, o campo de cor do
+   construtor de temas, com a disposição do seletor de cor do VS Code — o
+   mantenedor: *"pode ser do construtor, exemplo do VS Code"*, com uma
+   captura do seletor do VS Code: um cabeçalho na cor mostrando o código, um
+   quadrado de saturação/brilho, uma faixa de alfa e uma de matiz.
    - **A — O mesmo campo de cor do construtor de temas**
      ([0100](0100-visual-customization-wizard.md)), com campo hex e um
      controle de alfa quando o código tinha alfa. _(recomendado)_
@@ -96,10 +103,12 @@ marcados `[PROPOSED]` são a recomendação do autor.
 
 ## Alternativas descartadas
 
-Nenhuma registrada. As opções dos itens 2, 3 e 5 estão abertas, não
-descartadas.
+Oferecidas ao mantenedor em 2026-10-22 e não escolhidas: só hex e `rgb()`
+(item 2); amostra também ao lado de uma tag que parece cor, ou só em código
+e valores de propriedades (item 3); o seletor de cor do sistema (item 5).
 
 ## Situação
 
-Proposta (2026-10-22). Não construída. Espera as respostas do mantenedor aos
-itens 2, 3 e 5 e uma leitura do outro modelo.
+Proposta (2026-10-22). Itens 2, 3 e 5 decididos pelo mantenedor no mesmo
+dia; os itens marcados `[PROPOSED]` continuam do autor até a aceitação. Em
+construção; espera uma leitura do outro modelo.
