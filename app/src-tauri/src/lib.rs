@@ -688,6 +688,7 @@ macro_rules! commands_for {
                 create_file::<$runtime>,
                 pick_files::<$runtime>,
                 create_picked::<$runtime>,
+                take_dropped::<$runtime>,
                 create_folder::<$runtime>,
                 delete_note::<$runtime>,
                 rename_note::<$runtime>,
@@ -840,6 +841,8 @@ macro_rules! commands_for {
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
+            .typ::<verso_contract::FilesDropped>()
+            .typ::<verso_contract::FilesOver>()
             .typ::<UpdateProgress>()
             .typ::<IndexProgress>()
             .typ::<CollabUpdate>()
@@ -1109,6 +1112,13 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
                 app.windows().len()
             ),
         ),
+        // Files dragged in from the system's file manager (T.11): the host
+        // gets the paths, the window the names and where they fell.
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::DragDrop(drag),
+            ..
+        } => files::dragged(app, label, drag),
         tauri::RunEvent::WindowEvent {
             label,
             event: tauri::WindowEvent::Destroyed,

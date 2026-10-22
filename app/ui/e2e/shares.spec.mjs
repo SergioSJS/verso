@@ -69,7 +69,7 @@ test("the folder switcher sets its action apart, tells two folders of one name a
   await expect(here.locator(".switcher-list button", { hasText: "Abrir outra pasta" })).toHaveCount(0);
   await expect(action.locator("svg")).toHaveCount(1);
   // Two of one name: told apart by where they sit, and the title says it whole.
-  const rows = here.locator(".switcher-list button");
+  const rows = here.locator(".switcher-list li > button:not(.sw-hide)");
   await expect(rows.nth(0)).toContainText("~/Documents");
   await expect(rows.nth(1)).toContainText("~/…/Dropbox/antigo");
   await expect(rows.nth(0)).toHaveAttribute("title", "Caderno — ~/Documents");

@@ -2,7 +2,7 @@
 //! listed with their details, and text files read and written.
 
 use super::*;
-use verso_contract::{PickSkip, PickedFile, PickedFiles, SkippedPick};
+use verso_contract::{FilesDropped, FilesOver, PickSkip, PickedFile, PickedFiles, SkippedPick};
 
 /// Create a note (`name`, with or without `.md`, folders created) with
 /// `text`; `exists` when something stands there (ADR 0048).
@@ -110,6 +110,119 @@ pub(crate) fn drop_picks(window: &str) {
     if let Ok(mut held) = HELD.lock() {
         held.retain(|_, h| h.window != window);
     }
+    if let Ok(mut dropped) = DROPPED.lock() {
+        dropped.remove(window);
+    }
+}
+
+/// The files dropped on a window from the system's file manager and not
+/// taken yet (T.11): window → their paths. Tauri's own drop event carries
+/// the paths to this side; they stay here (rule 4) and the window gets the
+/// names, then asks `take_dropped`. A new drop replaces an untaken one.
+static DROPPED: std::sync::LazyLock<Mutex<std::collections::HashMap<String, Vec<PathBuf>>>> =
+    std::sync::LazyLock::new(Mutex::default);
+
+/// How many files of one drop are kept: a drop of a whole disk is not a
+/// list the window should be handed.
+const DROP_MOST: usize = 500;
+
+/// Keep what was dropped on `window` and answer the files' names (a drop
+/// of a folder holds the folder: `take_dropped` names it as skipped).
+pub(crate) fn stash_drop(window: &str, paths: Vec<PathBuf>) -> Vec<String> {
+    let paths: Vec<PathBuf> = paths.into_iter().take(DROP_MOST).collect();
+    let names = paths.iter().map(|p| name_of(p)).collect();
+    if let Ok(mut dropped) = DROPPED.lock() {
+        dropped.insert(window.to_owned(), paths);
+    }
+    names
+}
+
+/// The paths a window has not taken, taken now.
+fn take_stash(window: &str) -> Vec<PathBuf> {
+    DROPPED
+        .lock()
+        .ok()
+        .and_then(|mut d| d.remove(window))
+        .unwrap_or_default()
+}
+
+/// A file drag over a window of a folder, or its drop (T.11). Tauri's drag
+/// and drop handler hands the host the paths: a drop is kept here
+/// (`stash_drop`) and the window is told its position and the files'
+/// names; a drag over is told as a position only. A window that is not a
+/// folder's — a note's, a web page's — takes no files.
+pub(crate) fn dragged<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    drag: &tauri::DragDropEvent,
+) {
+    use tauri::DragDropEvent;
+    if label != "main" && !label.starts_with("window-") {
+        return;
+    }
+    let scale = app
+        .get_window(label)
+        .and_then(|w| w.scale_factor().ok())
+        .filter(|s| *s > 0.0)
+        .unwrap_or(1.0);
+    // Whole CSS pixels: the window's coordinates, not the screen's.
+    let at = |p: &tauri::PhysicalPosition<f64>| {
+        ((p.x / scale).round() as i32, (p.y / scale).round() as i32)
+    };
+    let _ = match drag {
+        DragDropEvent::Enter { position, .. } | DragDropEvent::Over { position } => {
+            let (x, y) = at(position);
+            app.emit_to(label, "files-over", FilesOver { over: true, x, y })
+        }
+        DragDropEvent::Leave => app.emit_to(
+            label,
+            "files-over",
+            FilesOver {
+                over: false,
+                x: 0,
+                y: 0,
+            },
+        ),
+        DragDropEvent::Drop { paths, position } => {
+            let (x, y) = at(position);
+            let names = stash_drop(label, paths.clone());
+            app.emit_to(label, "files-dropped", FilesDropped { x, y, names })
+        }
+        _ => Ok(()),
+    };
+}
+
+#[cfg(test)]
+pub(crate) fn take_stash_for_test(window: &str) -> Vec<PathBuf> {
+    take_stash(window)
+}
+
+#[cfg(test)]
+pub(crate) fn settle_picks_for_test(
+    window: &str,
+    on_server: bool,
+    as_bytes: bool,
+    paths: &[PathBuf],
+    max_mb: u32,
+) -> PickedFiles {
+    settle_picks(window, on_server, as_bytes, paths, max_mb)
+}
+
+/// What a set of paths becomes for a window: on a server's folder, or when
+/// the window wants the bytes, each file's name and bytes (at most 32 MiB
+/// each); otherwise a name and a token, with the limit the person set.
+fn settle_picks(
+    window: &str,
+    on_server: bool,
+    as_bytes: bool,
+    paths: &[PathBuf],
+    max_mb: u32,
+) -> PickedFiles {
+    if on_server || as_bytes {
+        read_picks(paths)
+    } else {
+        hold_picks(window, paths, max_mb)
+    }
 }
 
 /// What the person chose for a window on this computer's own folder: each
@@ -196,14 +309,40 @@ pub(crate) async fn pick_files<R: tauri::Runtime>(
         .collect();
     let label = window.label().to_owned();
     tauri::async_runtime::spawn_blocking(move || {
-        if on_server {
-            read_picks(&paths)
-        } else {
-            hold_picks(&label, &paths, max_mb)
-        }
+        settle_picks(&label, on_server, false, &paths, max_mb)
     })
     .await
     .map_err(|e| failed(format!("reading the chosen files: {e}")))
+}
+
+/// The files the person dropped on this window from the system's file
+/// manager (T.11), after the host told the window `files-dropped`: what
+/// `pick_files` answers for a chosen file — a name and a token for a
+/// window on this computer's own folder (`max_mb`: the most the person
+/// allows one file, up to 1 GiB; no byte crosses, `create_picked` copies
+/// it), a name and the bytes (at most 32 MiB each) when the window asks
+/// `as_bytes` — a note or a board taking the file in — or shows a server's
+/// folder. Empty when nothing is waiting: a drop is taken once.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn take_dropped<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    max_mb: u32,
+    as_bytes: bool,
+) -> Result<PickedFiles, ContractError> {
+    let on_server = state
+        .remotes
+        .lock()
+        .map(|r| r.contains_key(window.label()))
+        .unwrap_or(false);
+    let paths = take_stash(window.label());
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        settle_picks(&label, on_server, as_bytes, &paths, max_mb)
+    })
+    .await
+    .map_err(|e| failed(format!("reading the dropped files: {e}")))
 }
 
 /// Copy a file `pick_files` named by token into the open folder at `path`

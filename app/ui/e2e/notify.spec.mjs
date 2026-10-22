@@ -131,10 +131,13 @@ test("toasts sit above Settings and are never made inert: an action is reached w
   await expect(page.locator(".settings-title")).toHaveText("Servidores");
   await expect(toast).toHaveCount(0);
   if (phone(page)) {
-    // On a phone the toasts are at the top, the whole width but the margins.
+    // On a phone the toasts are at the bottom, above the bottom bar, the
+    // whole width but the margins (T.6): never over the first line.
     await app.emit("share-given", { id: "s10", name: "Mapa", role: "editor", by: "Bia", share: true, server: "https://notas.casa" });
     const box = await toasts(page).first().boundingBox();
-    expect(box.y).toBeLessThan(80);
+    const bar = await page.locator(".bottom-bar").boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+    expect(box.y).toBeGreaterThan(page.viewportSize().height / 2);
     expect(Math.round(box.x)).toBe(16);
     expect(Math.round(box.width)).toBe(page.viewportSize().width - 32);
   }

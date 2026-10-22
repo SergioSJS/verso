@@ -18,8 +18,10 @@ import { icon } from "../icons";
 import { errorSentence } from "../errors";
 import { attempt } from "../reach";
 import { currentFolder, folderName } from "../folder";
+import { flash } from "../notify";
 import { openFolderBy, openFolderDialog } from "../open";
 import { roleWord, sh } from "../shareStrings";
+import { hiddenFolderKeys, hideFolder, visibleRecents } from "./hiddenFolders";
 
 let shown: HTMLElement | null = null;
 
@@ -44,6 +46,8 @@ type Row = {
   /** An action, not a folder: set apart, with its own icon, never read as one more folder. */
   action?: boolean;
   icon?: string;
+  /** Takes the folder off the list (T.10): a × beside the row, nothing deleted. */
+  hide?: () => void;
   run: () => void;
 };
 
@@ -64,6 +68,20 @@ function entry(r: Row): HTMLLIElement {
     r.run();
   });
   li.append(b);
+  if (r.hide) {
+    li.classList.add("sw-row");
+    const x = h("button", "sw-hide");
+    x.type = "button";
+    x.append(icon("close"));
+    const label = sh.hideFolder(r.label);
+    x.setAttribute("aria-label", label);
+    x.title = label;
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      r.hide?.();
+    });
+    li.append(x);
+  }
   return li;
 }
 
@@ -98,8 +116,10 @@ function addRows(list: HTMLUListElement, rows: HTMLLIElement[]): void {
 /** The arrows walk the switcher's buttons, Home and End reach the ends. */
 function walk(box: HTMLElement, e: KeyboardEvent): void {
   if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
-  const buttons = [...box.querySelectorAll<HTMLButtonElement>("button")];
-  const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  // The × beside a row is reached by Tab: the arrows walk the rows.
+  const buttons = [...box.querySelectorAll<HTMLButtonElement>("button:not(.sw-hide)")];
+  const now = document.activeElement;
+  const at = buttons.indexOf((now?.classList.contains("sw-hide") ? now.previousElementSibling : now) as HTMLButtonElement);
   const to = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : e.key === "ArrowDown" ? Math.min(buttons.length - 1, at + 1) : Math.max(0, at - 1);
   e.preventDefault();
   buttons[to]?.focus();
@@ -138,10 +158,36 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
     const actions = h("ul", "switcher-actions");
     actions.append(entry({ label: sh.openOther, action: true, icon: "folderOpen", run: () => void openFolderDialog() }));
     local.section.insertBefore(actions, local.list);
-    fill(
-      local.list,
-      (await commands.recentFolders()).map((f) => entry({ label: f.name, place: f.place, note: f.key === currentFolder ? sh.current : "", current: f.key === currentFolder, run: () => void openFolderBy(() => commands.reopenFolder(f.key)) })),
-    );
+    const recents = await commands.recentFolders();
+    const list = local.list;
+    const draw = (): void => {
+      const rows = visibleRecents(recents, hiddenFolderKeys(), currentFolder).map((f) => {
+        const here = f.key === currentFolder;
+        return entry({
+          label: f.name,
+          place: f.place,
+          note: here ? sh.current : "",
+          current: here,
+          // The open folder has no ×: it is the one the person is in.
+          ...(here
+            ? {}
+            : {
+                hide: () => {
+                  const at = [...list.querySelectorAll("li")].findIndex((li) => li.contains(document.activeElement));
+                  hideFolder(f.key);
+                  draw();
+                  const rest = [...list.querySelectorAll<HTMLButtonElement>("li > button:first-child")];
+                  (rest[Math.min(at, rest.length - 1)] ?? box.querySelector<HTMLButtonElement>("button"))?.focus();
+                  flash("info", sh.folderHidden(f.name), sh.folderHiddenWhy);
+                },
+              }),
+          run: () => void openFolderBy(() => commands.reopenFolder(f.key)),
+        });
+      });
+      list.replaceChildren();
+      fill(list, rows);
+    };
+    draw();
     box.append(local.section);
   }
   const loading = h("p", "switcher-note", sh.loading);

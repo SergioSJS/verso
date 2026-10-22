@@ -506,6 +506,25 @@ point 13).
    `crates/verso-server/src/tests_history.rs` (the server's: roles, rooms,
    renames, the console); A: the history file outside the folder and a
    room's restore in two browsers (`manual-checks.md`).
+13. The folder switcher (the button with the folder's name): each recent
+    folder but the open one has a **×**, named "Ocultar “<name>” da lista"
+    (a 44 px target on a phone); it takes the folder off the list, says so
+    in a notice with the way back, and nothing is deleted. Closed and
+    opened again it stays off. *Settings › Files and links › Show hidden
+    folders* brings them all back. Level: H; E: `folder-switcher-hide.spec.mjs`
+    (also at a phone's and a tablet's size); U: `hiddenFolders.test.mjs`;
+    A (the real folder list of the app).
+14. Drag a file from the Finder or Explorer onto the tree, a folder in it
+    and its empty part: in the desktop app the folder under the pointer
+    is marked while the drag is over it, the file is copied in by the app
+    itself (up to *Settings › Files and links › Largest imported file*, a
+    200 MB PDF with the limit raised) and the status line says it, a name
+    taken getting `(2)`; a file past the limit is named. A file dropped on a
+    note's text or on a board is taken in as before (32 MB). Level: A (the
+    real drag on macOS and Windows: Tauri's drag-and-drop events replace
+    the page's drop there); H for the window's side; E: `drop-host.spec.mjs`
+    (the harness plays the host); S: `app/src-tauri/src/tests_pick.rs`
+    (the host keeps the paths, the window gets names).
 
 ## 7. The web
 
@@ -793,8 +812,8 @@ point 13).
     6 s unless the pointer is over it; a warning stays; the keyboard
     reaches a toast and Escape closes it, the focus going back where it
     was; a toast never takes the focus. With Settings open a toast stays
-    above it and its action works. On a phone the toasts are at the top,
-    the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
+    above it and its action works. On a phone the toasts are at the bottom,
+    above the bottom bar and the keyboard's bar, the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
     toasts" and "toasts sit above Settings" (phone and tablet too).
 12. The bell, before "Relatar problema" (on a phone, at the top of the
     pane): named "Notificações" or "n notificações não lidas"; it opens

@@ -135,11 +135,17 @@ export function tablesOfNote(
   return out;
 }
 
+/** A listed block worth offering (T.2): a table with two body rows or more,
+ *  or a list that is not a task list. */
+export function drawable(b: FolderBlock): boolean {
+  return b.kind === "table" ? b.rows >= 2 : b.kind === "list" ? !b.tasks : false;
+}
+
 /** The tables the index lists (`list_block_ids`: lists and tables with an
  *  `^id`), named as [`tablesOfNote`] names them — by the heading above, else
  *  by the id — with their rows not read yet. */
 export function tablesOfIndex(blocks: readonly FolderBlock[]): OracleTable[] {
-  const out: OracleTable[] = blocks.map((b) => ({
+  const out: OracleTable[] = blocks.filter(drawable).map((b) => ({
     id: `${b.path}#^${b.id}`,
     name: b.under_heading && b.label.trim() ? b.label.trim() : idAsName(b.id),
     desc: `${b.path} ^${b.id}`,

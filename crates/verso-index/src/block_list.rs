@@ -42,6 +42,10 @@ pub struct BlockRef {
     pub label: String,
     /// `label` is the heading above (else it is the block's first line).
     pub under_heading: bool,
+    /// A table's body rows, or a list's top-level items (0 for the rest).
+    pub rows: u32,
+    /// A list with a task item (`- [ ]`, `- [x]`).
+    pub tasks: bool,
 }
 
 /// The blocks of the folder and whether more were left out.
@@ -68,16 +72,23 @@ impl Index {
 
     fn folder_blocks_as(&self, kinds: &[BlockKind], reader: bool) -> Result<BlockList, IndexError> {
         let mut st = self.conn.prepare(
-            "SELECT n.id, n.path, b.id, b.line, b.first_line FROM blocks b
+            "SELECT n.id, n.path, b.id, b.line, b.first_line, b.last_line FROM blocks b
              JOIN notes n ON n.id = b.note
              WHERE n.kind = 'note' AND (?1 = 0 OR b.secret = 0)
              ORDER BY n.path, b.start LIMIT ?2",
         )?;
         // One row more than the bound: a folder with a million ids does
         // not load them all, and the extra row says there were more.
-        let rows: Vec<(i64, String, String, u32, Option<u32>)> = st
+        let rows: Vec<BlockRow> = st
             .query_map(params![reader, BLOCKS_MOST as i64 + 1], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
             })?
             .collect::<Result<_, _>>()?;
         // Rows left unread may hold blocks of the kinds asked for.
@@ -115,7 +126,7 @@ impl Index {
             let Some((_, lines, headings)) = &loaded else {
                 continue;
             };
-            for (i, (_, path, id, line, first)) in group.iter().enumerate() {
+            for (i, (_, path, id, line, first, last)) in group.iter().enumerate() {
                 if group[i + 1..].iter().any(|g| g.2 == *id) {
                     continue;
                 }
@@ -130,6 +141,11 @@ impl Index {
                     truncated = true;
                     break;
                 }
+                let last = last.unwrap_or(*line).max(first);
+                let body: &[String] = lines
+                    .get(first as usize - 1..(last as usize).min(lines.len()))
+                    .unwrap_or(&[]);
+                let (rows, tasks) = size_of(kind, body);
                 let above = headings.iter().rev().find(|(l, _)| *l < first);
                 let (label, under_heading) = match (kind, above) {
                     (BlockKind::Heading, _) | (_, None) => (first_line_label(first_text), false),
@@ -141,6 +157,8 @@ impl Index {
                     kind,
                     label,
                     under_heading,
+                    rows,
+                    tasks,
                 });
             }
             if truncated {
@@ -153,6 +171,10 @@ impl Index {
         })
     }
 }
+
+/// A block's row: its note's id and path, its id, the line of its `^id`, and
+/// the first and last lines of the block it names.
+type BlockRow = (i64, String, String, u32, Option<u32>, Option<u32>);
 
 /// A note's id, its lines and its headings (line and text), as read.
 type Loaded = (i64, Vec<String>, Vec<(u32, String)>);
@@ -174,6 +196,54 @@ fn kind_of(first: &str, next: &str) -> BlockKind {
     } else {
         BlockKind::Paragraph
     }
+}
+
+/// A block's rows and whether it is a task list: a table's body rows (the
+/// lines but its header and delimiter), a list's top-level items.
+fn size_of(kind: BlockKind, body: &[String]) -> (u32, bool) {
+    match kind {
+        BlockKind::Table => {
+            // A line that is only the `^id` is no row.
+            let filled = body
+                .iter()
+                .filter(|l| !l.trim().is_empty() && !is_id_only(l))
+                .count();
+            (
+                u32::try_from(filled.saturating_sub(2)).unwrap_or(u32::MAX),
+                false,
+            )
+        }
+        BlockKind::List => {
+            let mut rows = 0u32;
+            let mut tasks = false;
+            for line in body {
+                // Top level only: a nested item is part of its parent.
+                if line.starts_with([' ', '\t']) {
+                    continue;
+                }
+                let Some(n) = list_marker(line) else {
+                    continue;
+                };
+                rows = rows.saturating_add(1);
+                let item = line[n..].trim_start().as_bytes();
+                if item.len() >= 3
+                    && item[0] == b'['
+                    && item[2] == b']'
+                    && matches!(item[1], b' ' | b'x' | b'X')
+                {
+                    tasks = true;
+                }
+            }
+            (rows, tasks)
+        }
+        _ => (0, false),
+    }
+}
+
+fn is_id_only(line: &str) -> bool {
+    let t = line.trim();
+    t.strip_prefix('^')
+        .is_some_and(|id| !id.is_empty() && !id.contains(char::is_whitespace))
 }
 
 fn is_delimiter_row(line: &str) -> bool {
