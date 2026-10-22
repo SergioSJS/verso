@@ -63,6 +63,10 @@ pub(crate) struct Counted {
     pub(crate) ran: std::sync::atomic::AtomicUsize,
     now: std::sync::atomic::AtomicUsize,
     pub(crate) peak: std::sync::atomic::AtomicUsize,
+    /// Milliseconds each counted hash is held in its place, so a test sees
+    /// the places taken whatever the hash costs (a test's own, never a
+    /// production parameter).
+    pub(crate) hold_ms: std::sync::atomic::AtomicU64,
 }
 
 impl Default for Hashes {
@@ -147,6 +151,9 @@ impl Hashes {
                 counted.ran.fetch_add(1, Ordering::SeqCst);
                 let now = counted.now.fetch_add(1, Ordering::SeqCst) + 1;
                 counted.peak.fetch_max(now, Ordering::SeqCst);
+                std::thread::sleep(std::time::Duration::from_millis(
+                    counted.hold_ms.load(Ordering::SeqCst),
+                ));
             }
             let out = hash();
             #[cfg(test)]
