@@ -38,7 +38,7 @@ export const RIBBON: RibbonItem[] = [
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
   { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: false, run: () => void commands.newWindow(false).then((r) => r.status === "ok" || fail(r.error)) },
-  { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
+  { id: "right", icon: "panelRight", label: () => (rightShown() ? t.hideRight : t.showRight), keys: "toggle-right", bottom: true, run: () => toggleRight() },
   // On a server, the person's account and, for an admin, the server's
   // administration are sections of the settings (ADR 0074 items 7 and 9):
   // their button stands beside the gear.
