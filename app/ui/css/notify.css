@@ -64,15 +64,16 @@
 @media (max-width: 760px) {
   /* The bell at the top of the pane, at the right end of its first row —
      the failed line's when it shows, the tab bar's otherwise — taking no
-     row of its own: a phone's height is the text's. The toasts at the top,
+     row of its own: a phone's height is the text's. The toasts at the bottom,
      the whole width but the margins. */
   .work-notices { position: relative; }
   .work-notices > :not(.notify-bell-phone) { padding-right: 48px; }
   .notify-bell-phone { display: inline-flex; position: absolute; top: 0; right: 0; z-index: 6; align-items: center; justify-content: center; min-width: 44px; height: 44px; color: var(--ink-2); background: var(--paper-2); }
   .notify-bell-phone .notify-count { top: .25rem; right: .3rem; }
-  .notify-toasts { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; left: 16px; right: 16px; width: auto; }
-  .notify-toast { animation-name: notify-in-top; }
-  @keyframes notify-in-top { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  /* At the bottom (T.6, 2026-10-22): above the bottom bar, and above the
+     keyboard and its bar when they show (--keyboard, screen/keyboard.ts) —
+     never over the first line of the note or the board. */
+  .notify-toasts { top: auto; bottom: max(calc(53px + env(safe-area-inset-bottom) + 8px), calc(var(--keyboard, 0px) + 8px)); left: 16px; right: 16px; width: auto; }
   .notify-action, .notify-toast-close, .notify-centre-head button { min-height: 40px; }
 }
 

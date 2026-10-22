@@ -49,6 +49,7 @@ test release.
 
 ### Changed
 
+- **The "joined the note" notice sits at the bottom on a phone**: the toasts (someone joined your note, a sync failure…) now show above the bottom bar — and above the keyboard and its bar while you type — instead of covering the first line of the note or the board at the top of the screen.
 - **The oracle lists only tables worth drawing from**: the oracle's table list (from the folder's notes) now shows a table only when it has two rows or more, and a list only when it is not a task list; a task list with an `^id` no longer appears to be chosen and then refused.
 - **The theme mode and the dark tone sit with the themes**: in *Settings › Appearance*, the *Theme* (System, Light, Dark) and the *Dark tone* now come under the *Themes* heading, right above the cards, which are drawn in the mode you pick; *Text* (size and width) is its own group below. Nothing else changes, and searching "theme", "light", "dark" or "tone" still finds them.
 - **The RPG switches have a page of their own**: *Settings › Application › Features* keeps the shortcuts (*Everything*, *Writing only*, which still cover every feature) and the general switches, and a new first page of *RPG & Solo Play*, **Dice and RPG**, holds the RPG switches (dice, random tables, oracles, statblocks, the world and campaign wizard, 3D dice) with "Turn all on" / "Turn all off" ("Turn all on" never turns 3D dice on), the "Settings…" links, and the 3D dice's appearance. The search finds every one of them.

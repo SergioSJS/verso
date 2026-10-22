@@ -813,8 +813,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     em 6 s, a não ser com o ponteiro em cima; um de atenção fica; o
     teclado alcança um aviso e Esc o fecha, o foco voltando para onde
     estava; um aviso nunca toma o foco. Com os Ajustes abertos, o aviso
-    fica por cima e a ação dele funciona. No celular os avisos ficam no
-    alto, na largura toda menos as margens. Nível: H; E:
+    fica por cima e a ação dele funciona. No celular os avisos ficam embaixo,
+    acima da barra de baixo e da barra do teclado, na largura toda menos as margens. Nível: H; E:
     `notify.spec.mjs`, "the toasts" e "toasts sit above Settings" (celular
     e tablet também).
 12. O sino, antes de "Relatar problema" (no celular, no alto da área):

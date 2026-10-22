@@ -793,8 +793,8 @@ point 13).
     6 s unless the pointer is over it; a warning stays; the keyboard
     reaches a toast and Escape closes it, the focus going back where it
     was; a toast never takes the focus. With Settings open a toast stays
-    above it and its action works. On a phone the toasts are at the top,
-    the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
+    above it and its action works. On a phone the toasts are at the bottom,
+    above the bottom bar and the keyboard's bar, the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
     toasts" and "toasts sit above Settings" (phone and tablet too).
 12. The bell, before "Relatar problema" (on a phone, at the top of the
     pane): named "Notificações" or "n notificações não lidas"; it opens
