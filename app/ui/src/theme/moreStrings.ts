@@ -72,6 +72,7 @@ const pt = {
     loadFail: "Não foi possível ler o catálogo de temas.",
     card: (n: string, mode: string, on: boolean) => `${n}, tema ${mode.toLowerCase()}${on ? ", ativo" : ""}`,
     applied: (n: string) => `Tema “${n}” aplicado.`,
+    appliedSide: (n: string, side: string) => `Tema “${n}” aplicado. Ele só tem o lado ${side.toLowerCase()}, então o modo do Verso passou para ele.`,
     unreadable: (n: string) => `O tema “${n}” não pôde ser aplicado: deixaria o texto ilegível.`,
   },
   credits: {
@@ -139,6 +140,7 @@ const en: typeof pt = {
     loadFail: "The theme catalogue could not be read.",
     card: (n: string, mode: string, on: boolean) => `${n}, ${mode.toLowerCase()} theme${on ? ", active" : ""}`,
     applied: (n: string) => `Theme “${n}” applied.`,
+    appliedSide: (n: string, side: string) => `Theme “${n}” applied. It has only the ${side.toLowerCase()} side, so Verso's mode switched to it.`,
     unreadable: (n: string) => `The theme “${n}” could not be applied: it would make the text unreadable.`,
   },
   credits: {

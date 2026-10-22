@@ -18,6 +18,7 @@ import { icon } from "../icons";
 import { onFolderLayer } from "../folderLayer";
 import { type Hue, settings } from "../settings";
 import { creditLine } from "./creditLine";
+import { V2 as W2 } from "./moreStrings";
 import { t } from "../strings";
 import {
   applyTheme, exportTheme, importFile, importText, LOOK_EVENT, lookNow, profilesNow, say, setProfiles, useBuiltin,
@@ -39,31 +40,34 @@ const HUES: { palette: Hue; name: () => string }[] = [
   { palette: "moss", name: () => t.hueMoss },
 ];
 
-type Card = {
+export type Card = {
   key: string;
-  kind: "builtin" | "mine" | "folder";
+  kind: "builtin" | "mine" | "folder" | "catalogue";
   name: string;
   palette?: Hue;
   profile?: Profile;
   theme?: Theme;
+  /** A catalogue theme's file text, read again when it is applied (ADR 0109 item 8). */
+  file?: string;
   /** The suggestion's own text, for a folder card. */
   text?: string;
 };
 
-const prefersDark = (): boolean => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-const lookOf = (theme: Theme): Look => withTheme(emptyLook(), { ...theme, mode: "both" });
+export const prefersDark = (): boolean => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+export const lookOf = (theme: Theme): Look => withTheme(emptyLook(), { ...theme, mode: "both" });
 
 /** Whether a card is the one in force. */
-function isActive(card: Card): boolean {
+export function isActive(card: Card): boolean {
   const look = lookNow();
   if (card.kind === "builtin") return settings.palette === card.palette && isEmpty(look) && settings.lookName === undefined;
   if (card.kind === "mine" && card.profile) return settings.lookName === card.profile.name && sameLook(look, lookOf(card.profile.theme));
+  if (card.kind === "catalogue" && card.theme) return settings.lookName === card.theme.name && sameLook(look, lookOf(card.theme));
   return false;
 }
 
 /** The mini page: paper, a heading, two lines, a link, a tag, drawn with the
  *  theme's tokens. Decoration only: the button's name says all there is. */
-function mini(): HTMLElement {
+export function mini(): HTMLElement {
   const g = W.gallery;
   const card = h("span", "theme-card");
   const heading = h("span", "theme-mini-h", g.sampleHeading);
@@ -78,19 +82,44 @@ function mini(): HTMLElement {
 /** The card's tokens: the palette and dark tone in force on the window (a
  *  built-in's own palette), the person's colours of a profile written on
  *  the card itself, from the window's own colours. */
-function paint(el: HTMLElement, card: Card, dark: boolean): void {
+export function paint(el: HTMLElement, card: Card, dark: boolean): void {
   el.dataset["palette"] = card.palette ?? settings.palette;
   el.dataset["dark"] = settings.darkTone ?? "soft";
-  el.style.colorScheme = dark ? "dark" : "light";
+  // A theme of one side is drawn on that side.
+  el.style.colorScheme = card.theme?.mode === "dark" ? "dark" : card.theme?.mode === "light" ? "light" : dark ? "dark" : "light";
   const look = card.theme ? lookOf(card.theme) : undefined;
   applyLook(look, el);
   if (card.theme?.headingFont) el.style.setProperty("--heading-font", FONT_STACKS[card.theme.headingFont]);
   else el.style.removeProperty("--heading-font");
 }
 
+/** A copy of a card's theme, kept as a profile of the person's (its credit with it). */
+export function copyCard(card: Card, el: HTMLElement, before?: (name: string) => void): { ok: true; name: string } | { ok: false; why: string } {
+  const list = profilesNow();
+  let theme: Theme;
+  if (card.profile) theme = card.profile.theme;
+  else if (card.theme) theme = card.theme;
+  else {
+    const both = measure(el);
+    theme = { name: card.name, mode: "both", light: {}, dark: {} };
+    for (const token of COLOR_TOKENS) {
+      theme.light[token] = toHex(both.light[token]);
+      theme.dark[token] = toHex(both.dark[token]);
+    }
+  }
+  const name = uniqueName(list, W.gallery.copyName(card.name));
+  const r = saveAs(list, name, theme);
+  if (!r.ok) return r;
+  before?.(r.name);
+  setProfiles(r.list);
+  return { ok: true, name: r.name };
+}
+
 export type GalleryDeps = {
   /** Open the theme builder on a theme; the settings page steps aside. */
   openBuilder: (spec: BuildSpec) => void;
+  /** Open the "More themes" window (ADR 0109); the button is given back the focus. */
+  openMore: (opener: HTMLElement) => void;
 };
 
 export function themeGallery(deps: GalleryDeps): HTMLElement {
@@ -137,22 +166,8 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
   };
 
   const copy = (card: Card, el: HTMLElement): void => {
-    const list = profilesNow();
-    let theme: Theme;
-    if (card.profile) theme = card.profile.theme;
-    else {
-      const both = measure(el);
-      theme = { name: card.name, mode: "both", light: {}, dark: {} };
-      for (const token of COLOR_TOKENS) {
-        theme.light[token] = toHex(both.light[token]);
-        theme.dark[token] = toHex(both.dark[token]);
-      }
-    }
-    const name = uniqueName(list, W.gallery.copyName(card.name));
-    const r = saveAs(list, name, theme);
+    const r = copyCard(card, el, (name) => void (focusKey = `p:${name}|pick`));
     if (!r.ok) return void announce(r.why);
-    focusKey = `p:${r.name}|pick`;
-    setProfiles(r.list);
     announce(W.gallery.copied(r.name));
   };
 
@@ -269,7 +284,10 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     file.value = "";
     if (f) void importFile(f);
   });
-  foot.append(create, importBtn, file);
+  const more = button("ghost", W2.more.button);
+  more.dataset["more"] = "";
+  more.addEventListener("click", () => deps.openMore(more));
+  foot.append(create, importBtn, more, file);
 
   root.append(h("p", "look-lead", W.gallery.lead), groups, foot, status);
 

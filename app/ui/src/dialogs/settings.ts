@@ -61,6 +61,7 @@ import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import { LOOK_EVENT } from "../theme/actions";
 import { themeGallery } from "../theme/gallery";
+import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
 
@@ -612,7 +613,7 @@ export class SettingsDialog {
     add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }), lookWords.gallery.title);
     add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }), lookWords.gallery.title);
     // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
-    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, group: lookWords.gallery.title, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); } }) });
+    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, group: lookWords.gallery.title, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); }, openMore: (opener) => openMoreThemes(opener) }) });
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
       // Up to twice the default (15 px): the window has no page zoom, so
       // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
