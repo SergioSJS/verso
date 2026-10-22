@@ -18,6 +18,12 @@
   aprovados com a mudança do próprio mantenedor no nome e na dica de um
   deles (S.1, no item 1). Status Aceita. 2026-10-21, mais tarde — R.2 (opção
   B): o comando do índice que lista todo `^id` é construído já (item 3).
+  2026-10-22 — T.2, opção A (o mantenedor respondeu a lista de decisões da
+  tarde de 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em
+  2026-10-22): a lista de tabelas do oráculo mostra **só tabelas com 2 linhas
+  ou mais e listas que não são de tarefas** (**em construção**); até lá uma
+  lista de tarefas com `^id` aparecia e só sumia quando escolhida, com um
+  aviso. A opção B (deixar como está) não foi escolhida.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
