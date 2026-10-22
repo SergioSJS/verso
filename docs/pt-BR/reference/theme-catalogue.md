@@ -125,7 +125,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Rosé Pine
 
-- Arquivo: `rose-pine.verso-theme` (modo both) — SHA-256: `dcf831c1bad72083ca59366a63dfb1f58e89791a8b38480d326204470755b591`
+- Arquivo: `rose-pine.verso-theme` (modo both) — SHA-256: `1d290c49a970dcb0507db1f78dea9e4ca0a5b86ac0db0422d08720b0d4b6102d`
 - Crédito no arquivo: Rosé Pine, Rosé Pine, MIT
 - Fonte: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit ou tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
@@ -138,7 +138,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Rosé Pine Moon
 
-- Arquivo: `rose-pine-moon.verso-theme` (modo dark) — SHA-256: `6b71e827e986832038dd8aa024bead9ea280b520fa11313a0807ce25ff033ea0`
+- Arquivo: `rose-pine-moon.verso-theme` (modo dark) — SHA-256: `e6ab43d78d7fa8b6e8eb9cf0b470262b61afc2e42dc1a41eb6f80a1c1675c1a1`
 - Crédito no arquivo: Rosé Pine Moon, Rosé Pine, MIT
 - Fonte: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit ou tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
@@ -177,7 +177,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Solarized
 
-- Arquivo: `solarized.verso-theme` (modo both) — SHA-256: `431ce7401f64eff22c8cbbe83c3295d42b82988a714cd32e6acf302ce3c9ecac`
+- Arquivo: `solarized.verso-theme` (modo both) — SHA-256: `8e4b49c57e05733894ebd10cdccd81e0329f8a1aaaeb5996424bbc793542a167`
 - Crédito no arquivo: Solarized, Ethan Schoonover, MIT
 - Fonte: https://github.com/altercation/solarized/blob/62f656a02f93c5190a8753159e34b385588d5ff3/README.md ("The Values" table)
 - Commit ou tag: 62f656a02f93c5190a8753159e34b385588d5ff3 (tag v1.0.0beta1)
@@ -190,7 +190,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Flexoki
 
-- Arquivo: `flexoki.verso-theme` (modo both) — SHA-256: `16a5dbbcb0e1890417bdd6668db49e4e57d5c26367cf0ef156c5b9d3ce4a3578`
+- Arquivo: `flexoki.verso-theme` (modo both) — SHA-256: `edad3c96733d4316f017092760464e9be9c99e13e3ab786653ab3d53a4020f93`
 - Crédito no arquivo: Flexoki, Steph Ango (kepano), stephango.com/flexoki, MIT
 - Fonte: https://github.com/kepano/flexoki/blob/8d723bac4a9ac46adfdf99d42155286977aac72a/README.md
 - Commit ou tag: 8d723bac4a9ac46adfdf99d42155286977aac72a (tag 2.0.0)
@@ -203,7 +203,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Tokyo Night
 
-- Arquivo: `tokyo-night.verso-theme` (modo both) — SHA-256: `f31aae3a7aa7b315d4b88f17307f80b6081d0a3c9b9c1addc30c893cfa484b58`
+- Arquivo: `tokyo-night.verso-theme` (modo both) — SHA-256: `be37a2d1971ddc9022fcbb75af6c1aa661a6ca934c27d7171b71fa142e9ad4f0`
 - Crédito no arquivo: Tokyo Night, enkia (Tokyo Night VS Code theme), MIT
 - Fonte: https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/7c0f11eaef322f293621ca7befe462214b7ea468/themes/tokyo-night-color-theme.json and tokyo-night-light-color-theme.json
 - Commit ou tag: 7c0f11eaef322f293621ca7befe462214b7ea468
@@ -238,7 +238,7 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Ayu Dark
 
-- Arquivo: `ayu-dark.verso-theme` (modo dark) — SHA-256: `1143f49e916593403184f50910e2cab9bce687d06d5a55be9e6fb2e0aa9ea115`
+- Arquivo: `ayu-dark.verso-theme` (modo dark) — SHA-256: `699d3526d729b0451c42eb4533418c0a08303a3a6811f4a3a528020019dd31b0`
 - Crédito no arquivo: Ayu Dark, Konstantin Pschera, MIT
 - Fonte: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/dark.yaml
 - Commit ou tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
@@ -383,3 +383,11 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 - **Sem arquivo de licença:** os repositórios do Ayu listados no catálogo do Obsidian (o Ayu é entregue a partir do oficial, MIT, `ayu-theme/ayu-colors`) e o `morhetz/gruvbox` original (entregue a partir do fork MIT da comunidade `gruvbox-community/gruvbox`).
 - **Licença boa, cores não entregues nesta passada:** Baseline e Cupertino (uma paleta calculada com `oklch()` e `pow()` a partir do matiz escolhido pela pessoa: não há um conjunto fixo de valores a tirar), Maple, Prism (paletas montadas de vários esquemas selecionáveis por cadeias `:not()` e variáveis de execução), Shimmering Focus (cores atrás de `color-mix()` e variáveis em camadas), Shiba Inu (doze acentos selecionáveis, nenhum o padrão) e Red Graphite (seu lado claro tem um painel lateral escuro que os modos de superfície do Verso ainda não expressam). Cada um pode ser acrescentado tirando seus valores de novo da fonte numa passada futura.
 - **Dracula claro:** o Dracula não tem paleta clara própria além do Alucard, que é entregue com esse nome; nenhum claro foi inventado.
+
+## Passe de fidelidade, 2026-10-22
+
+A comparação lado a lado (capturas dos originais contra o Verso) foi conferida com o CSS de cada original, que é a autoridade; onde os dois divergem o arquivo segue o CSS e a captura é registrada como imagem de capa ou configurada pelo usuário.
+
+- **Alterados.** Rosé Pine e Rosé Pine Moon: `--book` agora é `sans` (a pilha do editor do original é Inter; a da leitura é Georgia, mas as capturas e o editor são sans, decisão do maintainer). Tokyo Night: `--heading-font` e `--book` são `mono` (o original define `--default-font` como JetBrains Mono). Ayu Dark: `system` nos dois (o CSS de adnan-malik não define fonte, vale o sans do sistema do Obsidian). Solarized: h1 a h6 em ciano (o `--text-title` do original é o ciano nos seis), #2aa198 no escuro e #279a91 no claro, o menor escurecimento que passa do piso de 3:1 sobre a página. Flexoki: h1 a h6 na cor do texto (o original não define nenhuma, vale o padrão do Obsidian).
+- **Conferidos, sem mudança.** Catppuccin x4: a fonte do corpo no CSS é Vollkorn (`--font-text-theme`), serifada de livro, então `editorial` fica (o "sans" da comparação veio de um esboço sem texto), e todo título é o acento (`--ctp-hN` cai em `--ctp-accent`), o que os arquivos já têm. Nord e Gruvbox: o CSS dá h1 a h6 como vermelho, amarelo, verde, roxo, frost0, frost2 (Nord) e vermelho, amarelo, verde, aqua, azul, roxo (Gruvbox), exatamente como nos arquivos; o h2 laranja das capturas não está no CSS. Mapa de Conteúdo: o arco-íris do CSS (yellow-900, purple-700, cyan-533, green-710, slate-500, slate-700) é o do arquivo. Blue Topaz: os padrões do CSS são o h1 lima e a página `#202020` do arquivo, com Bookerly no texto; o rosa e o azul-marinho da captura são escolhas do Style Settings. Ayu Light e Mirage: os originais leem em Gentium Plus (serifada) e usam 24px por conta própria; o arquivo guarda só a paleta.
+- **Border.** Não é bug do renderizador: `border.verso-theme` simplesmente não declara `heading-style`, e o renderizador aplica a chave quando o arquivo a declara (`data-heading-style` em `css/theme-tokens.css`). Deixado sem declarar de propósito: o original desenha a barra laranja só no h2 (`--h2-accent-color`, um `::before` de 3px), enquanto o `accent-bar` do Verso desenha uma barra na cor do título em h1 a h4, o que acrescentaria barras que o original não tem. `surface-mode: cards` foi removido de propósito (Style Settings opcional, ADR 0109).
