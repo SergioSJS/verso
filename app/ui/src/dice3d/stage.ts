@@ -42,7 +42,7 @@ import { type Arena, simulate } from "./sim";
 import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId, type TextureId } from "./look";
 import type { SoundKit, SoundMaterial } from "./sound";
 import { soundMaterial } from "./sound";
-import { playhead, ROLL_TIME_DEFAULT, type RollTime, speedOf, timeline } from "./timeline";
+import { advance, dueHits, frameMs, playhead, ROLL_TIME_DEFAULT, type RollTime, speedOf, timeline } from "./timeline";
 
 /** What the stage reports to the caller. */
 export type Stage = {
@@ -380,6 +380,14 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const sound = opts.sound ?? null;
   const soundOf = dice.map((d): SoundMaterial => soundMaterial(materialOf(styleFor(d))));
   let heard = 0;
+  // The harness (and only it) asks for a record of each hit: when its sound
+  // was placed on the audio clock against when its frame was on screen.
+  type Played = { frame: number; dueMs: number; audioMs: number; visualMs: number | null; gapMs: number };
+  const testHook = (window as unknown as { __VERSO_TEST__?: { diceSound?: { runs: { speed: number; settleMs: number; frames: number; hits: Played[]; lost: number; silent: number; late: number; total: number; firstHit: number; maxGapMs: number }[] } } }).__VERSO_TEST__;
+  const run = testHook && sound ? { speed: tl.speed, settleMs: tl.settleMs, frames: fall.frames, hits: [] as Played[], lost: 0, silent: 0, late: 0, total: fall.hits.length, firstHit: fall.hits[0]?.frame ?? -1, maxGapMs: 0 } : null;
+  if (testHook && run) (testHook.diceSound ??= { runs: [] }).runs.push(run);
+  const record = run?.hits ?? null;
+  let lastElapsed = 0;
   let skipped = false;
   let raf = 0;
   let ended = false;
@@ -479,18 +487,48 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   // or the maximum time could be spent before the dice were seen.
   renderer.render(scene, camera);
   const started = performance.now();
+  // The replay's own clock: wall time, but a long frame advances it by a
+  // bounded amount (timeline.advance), so the dice and their sounds never part.
+  let replayed = 0;
+  let tickedAt = started;
   const frame = () => {
     if (ended) return;
-    const head = playhead(tl, performance.now() - started, skipped);
+    const nowMs = performance.now();
+    const gapMs = nowMs - tickedAt;
+    const elapsed = advance(replayed, gapMs);
+    replayed = elapsed;
+    tickedAt = nowMs;
+    // A fall stuck on screen always ends: past twice its time on the wall clock it is over, whatever the replay clock says.
+    const head = playhead(tl, nowMs - started > tl.endMs * 2 + 1000 ? Infinity : elapsed, skipped);
     place(head.at);
-    // The sound of the hits the replay has reached (Rolai: by collision).
+    // The sound of the hits (Rolai: by collision, at the moment of impact).
+    // Each is placed on the audio clock at its frame's own replay time (the
+    // same speed and frame index that place the dice), a few ms ahead, so
+    // it sounds with the picture and not at the next callback; one more than
+    // 60 ms late is dropped, never played late.
     if (sound && !skipped) {
-      const upTo = Math.floor(head.at);
-      for (; heard < fall.hits.length && (fall.hits[heard] as (typeof fall.hits)[number]).frame <= upTo; heard++) {
-        const hit = fall.hits[heard] as (typeof fall.hits)[number];
-        sound.hit(hit.kind, soundOf[hit.die] as SoundMaterial, hit.speed);
+      const due = dueHits(fall.hits, tl, heard, elapsed);
+      if (run) {
+        run.late += due.next - heard - due.play.length;
+        run.maxGapMs = Math.max(run.maxGapMs, elapsed - lastElapsed);
+        lastElapsed = elapsed;
+      }
+      heard = due.next;
+      const now = sound.clock();
+      for (const d of due.play) {
+        const hit = fall.hits[d.index] as (typeof fall.hits)[number];
+        const at = now + d.inMs / 1000;
+        const result = sound.hit(hit.kind, soundOf[hit.die] as SoundMaterial, hit.speed, at);
+        if (run && result !== "played") run[result]++;
+        if (result === "played" && record) {
+          record.push({ frame: hit.frame, dueMs: frameMs(hit.frame, tl.speed), audioMs: elapsed + (Math.max(at, now) - now) * 1000, visualMs: null, gapMs: 0 });
+        }
       }
     }
+    if (record) for (const r of record) if (r.visualMs === null && head.at >= r.frame) {
+        r.visualMs = elapsed;
+        r.gapMs = gapMs;
+      }
     renderer.render(scene, camera);
     if (!measured && head.at >= fall.frames - 1) measure();
     if (head.done) {

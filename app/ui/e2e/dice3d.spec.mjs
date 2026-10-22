@@ -691,6 +691,8 @@ test("the dice sound: off by the person, no recording is fetched; on (the defaul
   await openNote(app);
   await needGl(page, info);
   await reloadWith(app, page, { sound: false, soundChosen: true });
+  // (The first load, with the sound on by default, preloaded the recordings; what counts is this one.)
+  seen.length = 0;
   const preview = page.locator(".preview:visible");
   const rollBtn = preview.getByRole("button", { name: "Rolar 1d20+3" });
   await rollBtn.scrollIntoViewIfNeeded();
@@ -711,5 +713,69 @@ test("the dice sound: off by the person, no recording is fetched; on (the defaul
   // The WebKit build Playwright ships has no MP3 decoder: the files come (200 or a range's 206) and decoding fails; the app stays silent and the roll is unharmed.
   expect(used.decoded).toBeGreaterThan(0);
   const okStatus = (st) => st === 200 || st === 206;
-  expect(seen.filter(([f, st]) => !(okStatus(st) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
+  expect(seen.filter(([f, st]) => !(okStatus(st) && /^(dicehit_(plastic|wood|metal)|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
+});
+
+test("the dice sound: the recordings are decoded before the first roll, and each hit is placed on the audio clock at its collision's frame (|audio - picture| < 50 ms; none after the rest) at Fast, Normal and Slow", async ({ app, page, browserName }, info) => {
+  // Playwright's WebKit has no MP3 decoder: there is nothing to place there.
+  test.setTimeout(120_000);
+  await withSwitch(page);
+  await page.addInitScript(() => {
+    const w = window;
+    w.__audio = { decoded: 0, ctx: null };
+    const Orig = w.AudioContext || w.webkitAudioContext;
+    w.AudioContext = class extends Orig {
+      constructor(...a) {
+        super(...a);
+        w.__audio.ctx = this;
+      }
+      decodeAudioData(buf, ...rest) {
+        return super.decodeAudioData(buf, ...rest).then((b) => {
+          w.__audio.decoded++;
+          return b;
+        });
+      }
+    };
+  });
+  await app.open();
+  test.skip(browserName !== "chromium", "needs MP3 decoding (Chromium)");
+  await openNote(app);
+  await needGl(page, info);
+  // Preload: the 46 recordings (15 + 12 + 12 + 7) are decoded with no roll and no click.
+  await reloadWith(app, page, {});
+  await expect.poll(() => page.evaluate(() => window.__audio.decoded), { timeout: 20_000 }).toBe(46);
+  const offsets = [];
+  for (const time of ["normal", "fast", "slow"]) {
+    await reloadWith(app, page, { time });
+    // (A page loaded afresh has its own preload; a roll before it is done plays only the hits it can.)
+    await expect.poll(() => page.evaluate(() => window.__audio.decoded), { timeout: 20_000 }).toBe(46);
+    await page.evaluate(() => {
+      window.__VERSO_TEST__.diceSound = { runs: [] };
+    });
+    const btn = page.locator(".preview:visible").getByRole("button", { name: "Rolar 2d6" });
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click();
+    await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+    const runs = await page.evaluate(() => window.__VERSO_TEST__.diceSound.runs);
+    expect(runs).toHaveLength(1);
+    const run = runs[0];
+    const state = await page.evaluate(() => window.__audio.ctx?.state);
+    expect(run.hits.length, `${time}: the roll made sound (audio context ${state})`).toBeGreaterThan(0);
+    info.annotations.push({ type: `${time} run`, description: JSON.stringify({ ...run, hits: run.hits.length }) });
+    // With the context running and the recordings decoded, no hit that should sound is lost.
+    expect(run.lost, `${time}: hits lost (audio context ${state})`).toBe(0);
+    for (const h of run.hits) {
+      expect(h.visualMs, `${time}: frame ${h.frame} was seen`).not.toBeNull();
+      offsets.push(`${time} f${h.frame} ${(h.audioMs - h.visualMs).toFixed(1)}`);
+      // A software renderer's slow frame shows the picture late, not the sound: that frame is judged against the moment it was due.
+      if (h.gapMs <= 50) expect(Math.abs(h.audioMs - h.visualMs), `${time}: frame ${h.frame}`).toBeLessThan(50);
+      expect(Math.abs(h.audioMs - h.dueMs), `${time}: frame ${h.frame} against its due moment`).toBeLessThan(50);
+      // Never later than its own moment by more than the lateness allowed, and none after the rest.
+      expect(h.audioMs - h.dueMs, `${time}: frame ${h.frame} late`).toBeLessThanOrEqual(60);
+      expect(h.dueMs, `${time}: frame ${h.frame} after the rest`).toBeLessThanOrEqual(run.settleMs);
+    }
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
+  }
+  info.annotations.push({ type: "audio - picture (ms)", description: offsets.join("; ") });
 });

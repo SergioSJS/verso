@@ -29,6 +29,9 @@ const SCALE = 2.3 / 100;
 export const HIT_MIN_SPEED = 250 * SCALE;
 const HIT_LOUD_SPEED = 8000 * SCALE;
 
+/** The longest a roll waits for a starting audio context. */
+const RESUME_WAIT_MS = 500;
+
 /** The material whose recordings a die's material sounds like. */
 export function soundMaterial(material: string): SoundMaterial {
   return material === "wood" || material === "metal" ? material : "plastic";
@@ -40,8 +43,16 @@ export function hitVolume(speed: number): number | null {
 }
 
 export type SoundKit = {
-  /** Play one hit. Never throws; a browser that refuses to play stays silent. */
-  hit: (kind: HitKind, material: SoundMaterial, speed: number) => void;
+  /** The audio clock now, in seconds (`AudioContext.currentTime`): hits are
+   *  placed on it, so the replay and the sound share a time. */
+  clock: () => number;
+  /** Play one hit at the audio time `at` (now when omitted or past). Never
+   *  throws; a browser that refuses to play, a hit too slow to sound or a
+   *  recording not yet decoded stays silent (never queued, so never late).
+   *  Says what became of it: "played" (scheduled), "silent" (too slow to be
+   *  a hit) or "lost" (should have sounded: no recording yet, the context not
+   *  running, or the browser refused). */
+  hit: (kind: HitKind, material: SoundMaterial, speed: number, at?: number) => "played" | "silent" | "lost";
 };
 
 const base = (): string => new URL("dice-sounds/", document.baseURI).href;
@@ -75,11 +86,21 @@ function set(ctx: AudioContext, name: keyof typeof SOUND_COUNTS): Promise<AudioB
   return p;
 }
 
-/** Load the felt and the recordings of `materials`, waiting at most
- *  `waitMs` (a slow network or a hidden tab must not hold the dice back);
- *  what has not come by then is silence for this roll. Null when there is
- *  no audio context at all. */
-export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 2500): Promise<SoundKit | null> {
+/** Fetch and decode every recording in the background (all four sets, 46
+ *  files, 300 KB), so the first roll finds them ready. Safe to repeat. */
+export function preloadSounds(): void {
+  const ctx = audioContext();
+  if (!ctx) return;
+  for (const name of Object.keys(SOUND_COUNTS) as (keyof typeof SOUND_COUNTS)[]) void set(ctx, name);
+}
+
+/** The kit for `materials`, waiting at most `waitMs` for the recordings (they
+ *  are normally ready: `preloadSounds` ran at the start; a slow network or a
+ *  hidden tab must not hold the dice back). A recording that comes after is
+ *  used by the hits from then on (the kit looks it up at each hit); the hits
+ *  before it are silence, never played late. Null when there is no audio
+ *  context at all. */
+export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 400): Promise<SoundKit | null> {
   const ctx = audioContext();
   if (!ctx) return null;
   // Inside the roll's own gesture this resumes; later it is a no-op.
@@ -88,20 +109,25 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 25
   const ready = new Map<string, AudioBuffer[]>();
   const all = Promise.all(["felt" as const, ...wanted].map(async (n) => ready.set(n, await set(ctx, n))));
   await Promise.race([all, new Promise((r) => setTimeout(r, waitMs))]);
+  // A context still starting (the first gesture of the session may be this
+  // very roll) takes a moment to run, and a hit before it runs is lost: the
+  // throw waits for it, a moment at most, once.
+  if (ctx.state !== "running") await Promise.race([ctx.resume().catch(() => undefined), new Promise((r) => setTimeout(r, RESUME_WAIT_MS))]);
   const pick = (name: string): AudioBuffer | undefined => {
     const list = ready.get(name);
     return list && list.length > 0 ? list[Math.floor(Math.random() * list.length)] : undefined;
   };
   return {
-    hit(kind, material, speed) {
+    clock: () => ctx.currentTime,
+    hit(kind, material, speed, at) {
       const volume = hitVolume(speed);
-      if (volume === null || document.hidden) return;
+      if (volume === null || document.hidden) return "silent";
       const buffer = pick(kind === "dice" ? material : "felt");
-      if (!buffer) return;
+      if (!buffer) return "lost";
       if (ctx.state !== "running") {
         void ctx.resume().catch(() => undefined);
         warnOnce(`the audio context is ${ctx.state}: it needs a click or a key press first`);
-        return;
+        return "lost";
       }
       try {
         const src = ctx.createBufferSource();
@@ -109,9 +135,11 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 25
         const gain = ctx.createGain();
         gain.gain.value = volume;
         src.connect(gain).connect(ctx.destination);
-        src.start();
+        src.start(Math.max(at ?? 0, ctx.currentTime));
+        return "played";
       } catch {
         // A hit that cannot play is silence.
+        return "lost";
       }
     },
   };
