@@ -48,8 +48,16 @@
 .failed-line { display: none; align-items: center; gap: .5rem; padding: .25rem .4rem .25rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); color: var(--seal); background: var(--seal-wash); border-bottom: 1px solid var(--hair); }
 .failed-line .failed-text { flex: 1; min-width: 0; }
 
+/* The phone's top row: both side areas, named, within reach (ADR 0076). */
+.phone-top { grid-area: top; display: none; }
 /* ---------- A phone (item 6) ---------- */
 @media (max-width: 760px) {
+  .work { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "top" "spaces" "notices" "panes" "status" "bar"; }
+  .phone-top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 max(.3rem, env(safe-area-inset-right)) 0 max(.3rem, env(safe-area-inset-left)); background: var(--paper-2); border-bottom: 1px solid var(--hair); }
+  .phone-top button { display: inline-flex; align-items: center; gap: .35rem; min-width: 44px; min-height: 44px; padding: 0 .5rem; color: var(--ink-2); }
+  .phone-top button:active { color: var(--seal); background: var(--paper-3); }
+  .phone-top .icon { width: 20px; height: 20px; }
+  .phone-top-label { font-size: 12px; }
   /* The ribbon and the status bar leave; a bar of five verbs comes. */
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
   .ribbon, .status-bar { display: none; }

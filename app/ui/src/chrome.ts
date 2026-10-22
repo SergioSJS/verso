@@ -6,7 +6,7 @@ import { importDemoVault } from "./demo";
 import { el, h, ui } from "./dom";
 import { refreshFrame } from "./frame";
 import { icon } from "./icons";
-import { keyOf, prettyKeys } from "./keys";
+import { keyOf, prettyKeys, withKeys } from "./keys";
 import { ribbon } from "./main";
 import { openFolderDialog } from "./open";
 import { page } from "./settings";
@@ -15,11 +15,13 @@ import { t } from "./strings";
 /* ---------- Toggles ---------- */
 export const toggleSideButton = el<HTMLButtonElement>("toggle-side");
 export const toggleRightButton = el<HTMLButtonElement>("toggle-right");
+export const toggleRightTop = el<HTMLButtonElement>("toggle-right-top");
 export function paintToggles(): void {
   refreshFrame();
   ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
+  toggleRightTop.classList.toggle("off", document.body.classList.contains("no-right"));
   paintExpanded();
 }
 /** The sidebar, and the right panel, on screen: a drawer open in a
@@ -36,7 +38,16 @@ export function rightShown(): boolean {
 export function paintExpanded(): void {
   refreshFrame();
   toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
-  toggleRightButton.setAttribute("aria-expanded", String(rightShown()));
+  const shown = rightShown();
+  // Named for what a press does now, with its keys: "Mostrar painel da
+  // direita (⌘⌥→)". The same name on every control that toggles it.
+  const verbLabel = shown ? t.hideRight : t.showRight;
+  for (const b of [toggleRightButton, toggleRightTop, ...document.querySelectorAll<HTMLElement>(".bar-right")]) {
+    b.setAttribute("aria-expanded", String(shown));
+    b.dataset["label"] = verbLabel;
+    b.title = withKeys(verbLabel, keyOf("toggle-right"));
+    b.setAttribute("aria-label", verbLabel);
+  }
   ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));
   ui.ribbon.querySelector('[data-id="right"]')?.setAttribute("aria-expanded", String(rightShown()));
 }

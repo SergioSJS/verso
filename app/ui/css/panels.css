@@ -905,3 +905,26 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .features-bulk { display: flex; gap: .4rem; padding: .25rem 0 0; }
 .features-bulk-link, .features-own-link { font-size: .82rem; padding: .15rem .5rem; }
 .features-ctl { display: inline-flex; align-items: center; gap: .6rem; }
+
+/* The right panel's toggle at the top-right of the window, always there as
+   Obsidian's is. The bars under it leave its room; on a phone the bottom
+   bar carries the same verb, and with the system's own buttons at the
+   right (Windows) the corner src/frame.ts keeps takes it in. */
+.top-toggle { position: fixed; top: 0; right: 0; z-index: 30; width: 2.2rem; height: 2.45rem; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-3); border-radius: 0; }
+.top-toggle:hover { color: var(--ink); background: var(--paper-3); }
+.top-toggle.off { opacity: .7; }
+.top-toggle .icon { width: 16px; height: 16px; }
+.framed-windows .top-toggle { right: 138px; }
+body:not(.framed-windows) .right-tabs,
+body.no-right:not(.framed-windows) .spaces,
+body.no-right:not(.framed-windows) .pane .tabs { padding-right: 2.4rem; }
+body.popout .top-toggle { display: none; }
+.right-close { display: none; }
+/* A phone: the corner's toggle gives way to the phone's own top row
+   (src/screen/frame.ts), which has both side areas' buttons, and the
+   drawer has its own close. */
+@media (max-width: 760px) {
+  .top-toggle { display: none; }
+  .right-close { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 0 .4rem 0 .8rem; min-height: 44px; border-bottom: 1px solid var(--hair); font-weight: 600; color: var(--ink-2); }
+  .right-close .ghost { min-width: 44px; min-height: 44px; }
+}

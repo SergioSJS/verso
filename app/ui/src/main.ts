@@ -25,7 +25,7 @@ import { commands, type FolderChanged, type IndexProgress } from "./bindings";
 import { CARD_COMMAND } from "./board/command";
 import "./statblock/bestiaryHost";
 import { changedOutside, flushed, remoteContentChanged, whenNotRenaming } from "./changes";
-import { arrowResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
+import { arrowResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleRightTop, toggleSide, toggleSideButton } from "./chrome";
 import { ask } from "./dialog";
 import { dialogUp } from "./dialogs/a11y";
 import { BugDialog } from "./dialogs/bug";
@@ -381,6 +381,7 @@ toggleSideButton.title = t.toggleSide;
 toggleRightButton.replaceChildren(icon("sidebar", t.toggleRight));
 toggleRightButton.title = t.toggleRight;
 toggleRightButton.classList.add("flip");
+toggleRightTop.replaceChildren(icon("panelRight", t.toggleRight));
 narrow.addEventListener("change", () => {
   document.body.classList.remove("side-open", "right-open");
   paintExpanded();
@@ -391,11 +392,19 @@ document.addEventListener("mousedown", (e) => {
   // A menu a row of the drawer opened, and the phone's own toggle (ADR
   // 0076 item 6), leave it open.
   if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side, .bar-files, .menu")) document.body.classList.remove("side-open");
-  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
+  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right, #toggle-right-top, .bar-right")) document.body.classList.remove("right-open");
   paintExpanded();
 });
 toggleSideButton.addEventListener("click", toggleSide);
 toggleRightButton.addEventListener("click", toggleRight);
+toggleRightTop.addEventListener("click", toggleRight);
+// The drawer's own way out on a phone: a named close, as the side's.
+const rightClose = el<HTMLButtonElement>("right-close");
+el("right-title").textContent = t.rightPanel;
+rightClose.replaceChildren(icon("close", t.hideRight));
+rightClose.title = t.hideRight;
+rightClose.setAttribute("aria-label", t.hideRight);
+rightClose.addEventListener("click", toggleRight);
 try {
   if (localStorage.getItem("verso.right") === "true") {
     document.body.classList.remove("no-right");
@@ -421,7 +430,9 @@ keyHint(ui.open, t.open, "open-folder");
 keyHint(newSpaceButton, t.newSpace, "new-space");
 keyHint(toggleSideButton, t.toggleSide, "toggle-side");
 keyHint(toggleRightButton, t.toggleRight, "toggle-right");
+keyHint(toggleRightTop, t.toggleRight, "toggle-right");
 paintKeyHints();
+paintExpanded();
 // The phone's frame, the keyboard's bar and what the side cannot do
 // (ADR 0076).
 installScreen();
