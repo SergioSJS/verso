@@ -23,7 +23,7 @@
 /* Room for a finger: 44px is the size Apple and Google ask of a target. */
 @media (pointer: coarse) {
   .search { padding-top: .55rem; padding-bottom: .55rem; }
-  .ribbon button, #toggle-side, #toggle-right, #toggle-right-top, #report-bug, #keys-commands { min-width: 44px; min-height: 44px; }
+  .ribbon button, #toggle-side, #toggle-right, #report-bug, #keys-commands { min-width: 44px; min-height: 44px; }
   #notes li > button, #notes summary { min-height: 40px; }
   .side-divider, .divider { touch-action: none; }
   .side-divider::after { inset: 0 -10px; }

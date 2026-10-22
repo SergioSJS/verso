@@ -85,7 +85,7 @@ Os atalhos do dia a dia estão na [[00 - Bem-vindo ao Verso|Página Inicial]]; o
 
 ## A Faixa da Esquerda
 
-Os botões da faixa da esquerda (arquivos, busca, nota de hoje, grafo…) se arrastam para mudar de ordem. Com o botão direito num deles: **Mover para cima**, **Mover para baixo**, **Ocultar este botão**, **Mostrar botões ocultos** e **Restaurar ordem**.
+Os botões da faixa da esquerda (busca, abrir, nota de hoje, grafo…) se arrastam para mudar de ordem. Com o botão direito num deles: **Mover para cima**, **Mover para baixo**, **Ocultar este botão**, **Mostrar botões ocultos** e **Restaurar ordem**.
 
 ---
 

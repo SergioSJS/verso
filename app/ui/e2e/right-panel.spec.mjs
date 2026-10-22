@@ -18,8 +18,8 @@ async function shot(page, name) {
     await page.screenshot({ path: `${SHOTS}/${name}-${page.viewportSize().width}.png` });
   } catch { /* no place to write */ }
 }
-/** The control to press: the corner's, the bottom bar's Panel verb on a phone. */
-const control = (page) => (phone(page) ? page.locator(".bottom-bar .bar-right") : page.locator("#toggle-right-top"));
+/** The control to press: the status bar's, the bottom bar's Panel verb on a phone. */
+const control = (page) => (phone(page) ? page.locator(".bottom-bar .bar-right") : page.locator("#toggle-right"));
 const settle = (page) => page.locator("aside.right").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
 
 for (const [locale, show, hide, tab, shortcutHint] of [
@@ -84,7 +84,7 @@ for (const [locale, show, hide, tab, shortcutHint] of [
 
 test("every control of the right panel carries the same name @layout", async ({ app, page }) => {
   await app.open("?vault=empty");
-  const names = await page.evaluate(() => [...document.querySelectorAll("#toggle-right, #toggle-right-top, .bar-right")].map((b) => b.getAttribute("aria-label")));
+  const names = await page.evaluate(() => [...document.querySelectorAll("#toggle-right, .bar-right")].map((b) => b.getAttribute("aria-label")));
   expect(names.length).toBeGreaterThanOrEqual(2);
   for (const n of names) expect(n).toBe("Mostrar painel da direita");
   if (!phone(page)) {
@@ -92,13 +92,11 @@ test("every control of the right panel carries the same name @layout", async ({ 
   }
 });
 
-test.describe("a window's corner", () => {
-  test.skip(({ viewport }) => viewport.width < 760, "a phone has its own top row");
-  test("the toggle sits at the window's top-right @layout", async ({ app, page }) => {
+test.describe("the ribbon's top", () => {
+  test.skip(({ viewport }) => viewport.width < 760, "a phone has no ribbon");
+  test("the files button is not on the ribbon by default (the status bar has the toggle) @layout", async ({ app, page }) => {
     await app.open("?vault=empty");
-    const t = await page.locator("#toggle-right-top").boundingBox();
-    const w = page.viewportSize().width;
-    expect(Math.round(t.x + t.width)).toBe(w);
-    expect(Math.round(t.y)).toBe(0);
+    await expect(page.locator('.ribbon-item[data-id="files"]')).toHaveCount(0);
+    await expect(page.locator("#toggle-side")).toBeVisible();
   });
 });

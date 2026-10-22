@@ -85,7 +85,7 @@ The everyday shortcuts are on the [[00 - Welcome to Verso|Home Page]]; the board
 
 ## The Left Ribbon
 
-The buttons on the left ribbon (files, search, today's note, graph…) can be dragged to change their order. Right-click one for: **Move up**, **Move down**, **Hide this button**, **Show hidden buttons** and **Restore order**.
+The buttons on the left ribbon (search, open, today's note, graph…) can be dragged to change their order. Right-click one for: **Move up**, **Move down**, **Hide this button**, **Show hidden buttons** and **Restore order**.
 
 ---
 
