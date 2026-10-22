@@ -61,6 +61,13 @@
   folder, never absolute, never `..` (see the same-date line in
   [0026](0026-core-ui-contract-inviolable-rules.md), rule 4). Whether the
   label revises item 5 is his to say.
+  2026-10-22 — the maintainer answered T.9 and T.10 of the afternoon list.
+  T.9, option A: the `place` label is accepted as a display label, recorded in
+  [0026](0026-core-ui-contract-inviolable-rules.md) (rule 4); item 5's text is
+  unchanged. T.10, option A (**being built**): the folder switcher gets an ×
+  on a recent folder that **hides it from the list** (nothing is deleted), and
+  Settings gets "Mostrar pastas ocultas" (show hidden folders) to bring them
+  back.
 
 ## Context
 

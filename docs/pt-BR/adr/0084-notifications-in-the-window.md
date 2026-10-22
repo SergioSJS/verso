@@ -11,6 +11,14 @@
   contagem na barra de status e uma central de notificações; ajustes por
   categoria; os eventos do item 7. Em 2026-10-14 escolheu esta como a
   primeira missão da rodada seguinte. Escrito pelo Opus 5.5.
+- Revisões: 2026-10-22 — T.6 da lista da tarde de 2026-10-21, respondida em
+  2026-10-22. Opção A: no celular o aviso "fulano entrou na nota" aparece
+  **embaixo, acima da barra do teclado**, não no alto sobre a primeira linha
+  do editor e do board (**em construção**). A pergunta dele, *"Não faz mais
+  sentido falar que entrou no cofre em vez de nota?"*, está `[ABERTO]`: a
+  presença é por nota hoje (a linha Presença do item 7), e uma presença no
+  nível da pasta vem com a tabela da
+  [0107](0107-the-table-a-shared-roll-and-chat-log.md); nada é decidido aqui.
 - Relacionados: [0026](0026-core-ui-contract-inviolable-rules.md) (regra
   2, a janela não supõe de que lado do fio o core está; regra 3, tipos
   gerados do Rust), [0035](0035-cross-cutting-requirements.md) (pt-BR e

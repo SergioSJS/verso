@@ -63,6 +63,21 @@
   que explode cai em 3D, cada dado extra lançado depois que o dado de onde
   veio para, dentro do mesmo máximo e do limite de 20 dados (um d100 que
   explode continua só com o cartão).
+  2026-10-22 — o mantenedor respondeu a lista de decisões da tarde de
+  2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em 2026-10-22:
+  (a) T.7, opção A mais a pergunta dele *"não da pra aproveitar do Rolai?"*:
+  **um clique curto sintetizado pelo próprio app (sem arquivo), atrás de um
+  interruptor "Som dos dados", desligado por padrão** (**em construção**); os
+  sons de dados do próprio Rolai estão **em avaliação**, com a licença
+  conferida, e nada está decidido sobre eles. (b) T.8, opção C, nas palavras
+  dele: *"O Dado deveria ficar na tela até o usuario mexer em algo, como no
+  Rolai, ja falei mais de uma vez para copiar os mesmos comportamentos de lá,
+  nao sei pq vc está teimando tanto, de toda forma adiciona configuração do
+  tempo de rolagem"*. **Os dados ficam na tela até o usuário agir, como os do
+  Rolai, e há um ajuste para a duração da rolagem** (**em construção**). Isto
+  revisa a revisão da noite acima (máximo de 2,5 s, 0,3 s parado antes do
+  cartão, queda 1,6x), que respondia T.8 provisoriamente; o padrão e os
+  limites do ajuste, e o que conta como "agir", não são decididos aqui.
 
 ## Contexto
 

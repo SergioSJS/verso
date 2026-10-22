@@ -339,6 +339,14 @@ is a row of the roadmap (V.13).
     # ^` are replaced because they break links; Windows reserved names
     (`con.txt`) get a `_`. To be built: (a) and (b).
 
+    **Answered 2026-10-22** (T.11 and T.12 of the decisions list of the
+    afternoon of 2026-10-21). T.11, option A: dragging a file from Finder uses
+    Tauri's own file events (they carry the path), so a drag also goes up to
+    the configured import limit instead of 32 MB. T.12, option B (not the
+    recommended A): a large file is read and written **in chunks now**, not
+    whole in memory (a `verso-fs` change to the atomic write; see ADR 0044,
+    Revisions). Both **being built**; nothing here is built yet.
+
 11. **Following a link from the editor** (section 1, finding 14): a
     command that opens the link under the caret, with or without a
     default key.

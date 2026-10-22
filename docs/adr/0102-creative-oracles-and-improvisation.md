@@ -20,6 +20,12 @@
   maintainer's own change to the name and tooltip of one (S.1, in item 1).
   Status Accepted. 2026-10-21, later — R.2 (option B): the index command that
   lists every `^id` is built now (item 3).
+  2026-10-22 — T.2, option A (the maintainer answered the decisions list of
+  the afternoon of 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`)
+  on 2026-10-22): the oracle's table list shows **only tables of 2 rows or
+  more and lists that are not task lists** (**being built**); until then a
+  task list with an `^id` showed up and vanished only when chosen, with a
+  warning. Option B (leave it) was not chosen.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),

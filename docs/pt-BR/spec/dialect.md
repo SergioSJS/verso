@@ -1052,6 +1052,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   ele o confirme ou decida diferente; até lá é um fato provisório, como o do
   início desta entrada.
 
+  *Respondido em 2026-10-22 (Q5-bis da lista de decisões da tarde de
+  2026-10-21, opção A):* o mantenedor aceitou a regra como a leitura já a
+  segue. **Uma citação comum (`>`) dentro de um callout não conta como nível;
+  um callout dentro dessa citação conta como aninhado.** Agora é decisão, não
+  fato provisório, e a correção acima está respondida. A fixture
+  `callout/nested` não é tocada.
+
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `DECIDIDA` em 2026-10-21 para o índice e para HTML embutido; os comentários
   na visualização de leitura `DECIDIDOS` em 2026-09-23. Bloco indentado por 4
@@ -1672,6 +1679,16 @@ ser escolhido.
   `2024`; isso está no comentário do código e no teste dele
   (`crates/verso-dialect/src/tags.rs`) e é perguntado como T.3 da mesma lista.
 
+  *Respondido em 2026-10-22 (lista de decisões da tarde de 2026-10-21).*
+  **T.3, opção A:** um valor numérico de `tags` é tag **só quando é inteiro
+  não negativo** (`2024`); um inteiro negativo, um número com ponto decimal e
+  `true` não são tags. O motivo na lista: ele falou de `2024`. A escolha da
+  construção em (2) agora é decisão dele. **I-8, opção A:** ele **reconfirma a
+  fixture `frontmatter/tags-number` como está agora**, com o comentário e o
+  texto de `observed:` alterados e o mesmo valor afirmado (`tags: 2024` um
+  inteiro); esta é a aprovação explícita que a invariante 14 pede. Nenhum
+  arquivo de fixture foi editado para este registro.
+
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
@@ -1757,3 +1774,4 @@ ser escolhido.
 | v0.46 | 2026-10-20 | §6: duas linhas, o bloco cercado ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) e o callout `> [!oracle]` ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), construções que o Verso desenha e o Obsidian lê como um bloco de código e um callout; o parser não muda. Nenhuma fixture (nada aqui responde a uma pergunta da §9 nem muda o que o parser devolve). Nenhuma pergunta fechada |
 | v0.47 | 2026-10-21 | As respostas do mantenedor ao questionário de decisões de 2026-10-20 (respondido em 2026-10-21): **Q2, Q5 (aninhamento), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 e Q24 `DECIDIDAS`**, cada uma como a opção marcada — a Q14 com as duas opções, A (ratificar) e B (links não resolvidos como nós do grafo). Cada decisão está registrada; nenhuma fecha por inteiro, pois as que precisam de fixture ou de observação do Obsidian esperam o PR que as acrescenta (invariante 17); a `callout/nested` da Q5 é um PR de código separado. §5 e §7 atualizadas: a §7 agora aponta para o [ADR 0093](../adr/0093-periodic-notes.md) para as notas periódicas, não para a §9. Nenhuma fixture mudou |
 | v0.48 | 2026-10-21 | As respostas do mantenedor à lista de decisões de 2026-10-21: **Q5, Q22 e Q24 fechadas por inteiro**, seis das sete fixtures rascunhadas em 2026-10-21 **aprovadas** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; marcas de rascunho removidas). Q24: `...` não fecha o frontmatter (como o Obsidian); `tags: 2024` **é** a tag "2024", escolha explícita do mantenedor, sabidamente diferente do Obsidian, o que fica registrado; `frontmatter/tags-number` está aprovada, a expectativa mudou com o código do DL.2 B e a marca de rascunho saiu (`0d576e17`). Q14: clicar num nó não resolvido do grafo pergunta antes de criar a nota. |
+| v0.49 | 2026-10-22 | As respostas do mantenedor à lista da tarde de 2026-10-21: **Q5-bis A** (uma citação comum dentro de um callout não é nível; um callout dentro dela é aninhado), **T.3 A** (`tags`: só inteiros não negativos), **I-8 A** (`frontmatter/tags-number` reconfirmada como está). Nenhuma fixture mudou |

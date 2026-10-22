@@ -62,6 +62,12 @@
   pai, nunca absoluto, nunca `..` (ver a linha da mesma data na
   [0026](0026-core-ui-contract-inviolable-rules.md), regra 4). Se o rótulo
   revisa o item 5 é decisão dele.
+  2026-10-22 — o mantenedor respondeu T.9 e T.10 da lista da tarde. T.9, opção
+  A: o rótulo `place` é aceito como rótulo de exibição, registrado na
+  [0026](0026-core-ui-contract-inviolable-rules.md) (regra 4); o texto do item
+  5 não muda. T.10, opção A (**em construção**): o seletor de pastas ganha um
+  × numa pasta recente que **a esconde da lista** (nada é apagado), e os
+  Ajustes ganham "Mostrar pastas ocultas" para trazê-las de volta.
 
 ## Contexto
 
