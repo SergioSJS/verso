@@ -27,7 +27,7 @@ Verso's **Knowledge Graph** maps the connections between all your notes, reveali
 - **Filter: name or tag:x**: type part of a name, or `tag:` and a tag, to see only those notes; **All tags** picks a tag from the list.
 - **Depth** (in **Relations**): 1, 2 or 3 steps from the note.
 - **Show notes without links**, **Names** and **Color by folder** turn what you see on and off.
-- **Existing files only** starts on. Turn it off to also see the notes you have already cited with `[[ ]]` but not created yet: each is an empty circle with a dashed outline and an italic name, joined to the notes that cite it. Click it, or reach it with the arrow keys and press Enter, to create the note and open it — Verso asks first (**Create the note "Goblin Rei"?**).
+- **Existing files only** starts on. Turn it off to also see the notes you have already cited with `[[ ]]` but not created yet: each is an empty circle with a dashed outline and an italic name, joined to the notes that cite it. Double-click it, or reach it with the arrow keys and press Enter, to create the note and open it — Verso asks first (**Create the note "Goblin Rei"?**).
 - **Repulsion**, **Distance** and **Size** adjust the drawing.
 - **Zoom out**, **Zoom in** and **See everything**; in **Relations**, the **Vault graph** button goes back to the whole graph.
 
@@ -40,6 +40,7 @@ Navigation in the graph was designed to behave with the fluidity expected of mod
 - **Mouse Wheel Zoom**: Turn the scroll to zoom the view in or out smoothly.
 - **Trackpad Pinch (Pinch-to-zoom)**: Move two fingers together or apart on the trackpad for continuous, precise zoom.
 - **Two-Finger Navigation / Pan**: Swipe with two fingers on the trackpad to move the view area in any direction.
+- **Click and double-click**: one click on a node **centers** the graph on it (the same as **Relations** for that note); a double-click — or a double tap, on a phone — **opens** the note. From the keyboard, Enter opens and ⇧Enter centers.
 - **Dragging Nodes**: Click and hold any node to reposition it in space.
 
 ---
