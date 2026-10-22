@@ -380,6 +380,17 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const sound = opts.sound ?? null;
   const soundOf = dice.map((d): SoundMaterial => soundMaterial(materialOf(styleFor(d))));
   let heard = 0;
+  const tally = { played: 0, lost: 0, silent: 0, late: 0 };
+  let diagnosed = false;
+  const diagnose = () => {
+    if (diagnosed || !sound) return;
+    diagnosed = true;
+    try {
+      sound.diagnose(tally);
+    } catch {
+      // The log line is a courtesy.
+    }
+  };
   // The harness (and only it) asks for a record of each hit: when its sound
   // was placed on the audio clock against when its frame was on screen.
   type Played = { frame: number; dueMs: number; audioMs: number; visualMs: number | null; gapMs: number };
@@ -398,6 +409,7 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const end = () => {
     if (ended) return;
     ended = true;
+    diagnose();
     cancelAnimationFrame(raf);
     document.removeEventListener("click", touched);
     canvas.removeEventListener("webglcontextlost", lost);
@@ -513,12 +525,14 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
         run.maxGapMs = Math.max(run.maxGapMs, elapsed - lastElapsed);
         lastElapsed = elapsed;
       }
+      tally.late += due.next - heard - due.play.length;
       heard = due.next;
       const now = sound.clock();
       for (const d of due.play) {
         const hit = fall.hits[d.index] as (typeof fall.hits)[number];
         const at = now + d.inMs / 1000;
         const result = sound.hit(hit.kind, soundOf[hit.die] as SoundMaterial, hit.speed, at);
+        tally[result === "played" ? "played" : result]++;
         if (run && result !== "played") run[result]++;
         if (result === "played" && record) {
           record.push({ frame: hit.frame, dueMs: frameMs(hit.frame, tl.speed), audioMs: elapsed + (Math.max(at, now) - now) * 1000, visualMs: null, gapMs: 0 });
@@ -532,6 +546,7 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     renderer.render(scene, camera);
     if (!measured && head.at >= fall.frames - 1) measure();
     if (head.done) {
+      diagnose();
       // Skipped: gone. Rested: the last frame stays, drawn, and the clock
       // of the linger starts; no more frames are asked for.
       if (skipped) end();
