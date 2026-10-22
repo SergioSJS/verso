@@ -27,7 +27,18 @@ export function diceLook(): DiceLook {
 
 // The sound's audio context is unlocked by the first press or touch, while the
 // switch is on (a gesture does not survive the awaits of a roll).
-if (typeof document !== "undefined") armAudio(() => diceLook().sound && hasCapability("dice3d"));
+if (typeof document !== "undefined") {
+  armAudio(() => diceLook().sound && hasCapability("dice3d"));
+  // With the sound on, the recordings are fetched and decoded as soon as the
+  // app is idle, so the first roll finds them ready (a hit never waits).
+  const preload = () => {
+    if (!diceLook().sound || !hasCapability("dice3d")) return;
+    void import("./sound").then((m) => m.preloadSounds()).catch(() => undefined);
+  };
+  const idle = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  if (idle) idle(preload, { timeout: 4000 });
+  else setTimeout(preload, 1500);
+}
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -77,7 +88,8 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
     // dice are of), and only when the switch is on.
     let sound: SoundKit | null = null;
     if (look.sound) {
-      const { loadSounds, soundMaterial } = await import("./sound");
+      const { loadSounds, preloadSounds, soundMaterial } = await import("./sound");
+      preloadSounds();
       sound = await loadSounds(dice.map((d) => soundMaterial(materialOf(styles[String(d.slot ?? 1) as SlotId] ?? styles["1"]))));
     }
     const stage = engine.throwDice(dice, styles, look.size, images, area(), { time: look.time, sound });

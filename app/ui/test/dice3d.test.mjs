@@ -281,6 +281,58 @@ test("the fall records its hits for the sound: on the table, die on die, one of 
   }
 });
 
+test("a hit's replay time is the playhead's own mapping, inverted, at every speed", () => {
+  for (const time of ["fast", "normal", "slow"]) {
+    const speed = m.speedOf(time);
+    const tl = m.timeline(m.STEPS_MOST, speed);
+    for (const frame of [0, 1, 17, 60, 119, m.STEPS_MOST - 1]) {
+      const ms = m.frameMs(frame, speed);
+      if (ms >= tl.endMs) continue;
+      // The dice are drawn at the hit's frame exactly at that time.
+      assert.ok(Math.abs(m.playhead(tl, ms, false).at - frame) < 1e-9, `${time} frame ${frame}`);
+    }
+  }
+});
+
+test("due hits: placed ahead of their moment, in order, never twice, none late past 60 ms, none after the last frame", () => {
+  const speed = m.speedOf("normal");
+  const tl = m.timeline(121, speed);
+  const hits = [10, 10 + 1, 40, 40, 90, 120].map((frame) => ({ frame }));
+  // Walk the replay in 16 ms callbacks: every hit comes out once, ahead of time.
+  const heardAt = new Map();
+  let next = 0;
+  for (let t = 0; t <= tl.endMs + 100; t += 16) {
+    const due = m.dueHits(hits, tl, next, t);
+    next = due.next;
+    for (const d of due.play) {
+      assert.ok(!heardAt.has(d.index), "once");
+      assert.ok(d.inMs <= m.HIT_AHEAD_MS && d.inMs >= -m.HIT_LATE_MS);
+      heardAt.set(d.index, t + d.inMs);
+    }
+  }
+  assert.equal(heardAt.size, hits.length);
+  hits.forEach((h, i) => assert.ok(Math.abs(heardAt.get(i) - m.frameMs(h.frame, speed)) < 1e-6));
+  // A stall: the callback comes 500 ms late. The hits long past are dropped, not bunched.
+  const stalled = m.dueHits(hits, tl, 0, m.frameMs(40, speed) + 500);
+  assert.deepEqual(stalled.play.map((d) => d.index), [4], "only the one still ahead; frames 10 to 40 are passed over");
+  assert.equal(stalled.next, 5);
+  // A hit 50 ms late is still played (immediately); 70 ms late is not.
+  assert.equal(m.dueHits([{ frame: 30 }], tl, 0, m.frameMs(30, speed) + 50).play.length, 1);
+  assert.equal(m.dueHits([{ frame: 30 }], tl, 0, m.frameMs(30, speed) + 70).play.length, 0);
+  // A fall cut at the maximum time: hits past the last replayed frame are never played.
+  const cut = m.timeline(5000, speed);
+  const beyond = [{ frame: 100 }, { frame: 4000 }];
+  const all = m.dueHits(beyond, cut, 0, cut.settleMs + 10);
+  assert.equal(all.next, 2);
+  assert.ok(all.play.every((d) => d.index === 0));
+});
+
+test("the replay clock: a long frame advances it by a bounded amount, a normal one by its own time, never backwards", () => {
+  assert.equal(m.advance(100, 16), 116);
+  assert.equal(m.advance(100, 698), 100 + m.FRAME_MAX_MS);
+  assert.equal(m.advance(100, -5), 100);
+});
+
 /** A seeded generator, so a failure repeats. */
 function seeded(seed) {
   let a = seed;
