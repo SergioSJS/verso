@@ -28,6 +28,11 @@ export type ScreenStrings = {
   /** The graph's controls as a panel (item 3). */
   graphControls: string;
   graphHintTouch: string;
+  /** The one control that clears the centre, the filter and the tag. */
+  graphShowAll: string;
+  graphClearFilter: string;
+  /** The note the arrows reached, said once to a screen reader. */
+  graphCurrent: (name: string) => string;
   /** The graph's filter "existing files only" (spec Q14, decision B). */
   graphExisting: string;
   /** A node for a note that does not exist yet: its accessible name. */
@@ -95,6 +100,9 @@ const pt: ScreenStrings = {
   graphMissingLegend: "Nota que ainda não existe",
   graphNodesMissing: (n, m, k) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} ainda não existe${k === 1 ? "" : "m"}`,
   graphMissingShared: "numa pasta compartilhada, notas que não existem não aparecem",
+  graphShowAll: "Mostrar tudo",
+  graphClearFilter: "Limpar o filtro",
+  graphCurrent: (name) => `Nota atual: ${name}`,
   graphHintTouch: "Toque centra · duplo toque abre · arraste move uma nota ou o grafo · pinça amplia · dois dedos deslocam",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Abrir",
@@ -145,6 +153,9 @@ const en: ScreenStrings = {
   graphMissingLegend: "Note that does not exist yet",
   graphNodesMissing: (n, m, k) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} not created yet`,
   graphMissingShared: "in a shared folder, notes that do not exist are not shown",
+  graphShowAll: "Show all",
+  graphClearFilter: "Clear the filter",
+  graphCurrent: (name) => `Current note: ${name}`,
   graphHintTouch: "Tap centers · double tap opens · drag moves a note or the graph · pinch zooms · two fingers pan",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Open",
