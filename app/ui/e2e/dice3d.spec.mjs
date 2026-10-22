@@ -408,6 +408,8 @@ test("settings: slots, presets, colours, contrast warning, texture, material and
   await row("Som dos dados").locator("label.switch").click();
   expect((await look()).sound).toBe(true);
   await expect(sound).toBeChecked();
+  await row("Duração da rolagem").scrollIntoViewIfNeeded();
+  await shot(page, `settings-${page.viewportSize().width}`);
   // Slots: tabs with arrow keys, and the preview tiles.
   const tabs = row("Dados 3D: cores").getByRole("tab");
   await expect(tabs).toHaveCount(3);
