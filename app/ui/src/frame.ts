@@ -54,28 +54,20 @@ function which(): Frame | null {
 }
 
 let frame: Frame | null = null;
+/** The windows frame's menu button, at the top-left (winMenu.ts). */
+let menuButton: HTMLButtonElement | null = null;
+/** The menu button of Windows and Linux, once the frame is installed. */
+export function frameMenuButton(): HTMLButtonElement | null {
+  return menuButton;
+}
 /** macOS hides its buttons in full screen: nothing is reserved then. */
 let fullscreen = false;
 let pending = 0;
 
-/** Push every bar of the top row clear of the reserved corner: sideways
- *  by as much as it reaches into it (a spacer at its start or end), or —
- *  when it is narrower than that, a column (vertical tabs), or its content
- *  would no longer fit beside the corner (the right bar's tabs in a narrow
- *  bar) — down, below the corner. */
-function avoid(): void {
-  pending = 0;
-  if (!frame) return;
-  const bars = [...document.querySelectorAll<HTMLElement>(BARS)];
-  for (const bar of bars) {
-    bar.classList.remove("frame-push-l", "frame-push-r", "frame-push-t");
-    for (const v of ["--frame-l", "--frame-r", "--frame-t"]) bar.style.removeProperty(v);
-  }
-  const corner = frame === "mac" && fullscreen ? 0 : CORNER[frame];
+/** Push the bars that reach into one corner clear of it: `side` is the
+ *  corner's (`l` or `r`) and `corner` how far it reaches in. */
+function clearCorner(bars: HTMLElement[], side: "l" | "r", corner: number, ROW: number, width: number): void {
   if (!corner) return;
-  const width = document.documentElement.clientWidth;
-  const side = frame === "mac" ? "l" : "r";
-  const ROW = band();
   for (const bar of bars) {
     const r = bar.getBoundingClientRect();
     // A bar off screen (a side bar slid away in a narrow window) is left
@@ -83,7 +75,7 @@ function avoid(): void {
     if (!r.width || !r.height || r.top >= ROW - 1 || r.right <= 0 || r.left >= width) continue;
     // Nor one that is not shown (the closed side bar is hidden, not gone).
     if (!bar.checkVisibility({ visibilityProperty: true })) continue;
-    const reach = frame === "mac" ? corner - r.left : r.right - (width - corner);
+    const reach = side === "l" ? corner - r.left : r.right - (width - corner);
     if (reach <= 0) continue;
     if (r.height <= r.width * 1.5 && reach < r.width) {
       // As much as its own padding on that side does not cover already.
@@ -107,6 +99,31 @@ function avoid(): void {
     if (down <= 0) continue;
     bar.style.setProperty("--frame-t", `${Math.ceil(down) + 1}px`);
     bar.classList.add("frame-push-t");
+  }
+}
+
+/** Push every bar of the top row clear of the reserved corner: sideways
+ *  by as much as it reaches into it (a spacer at its start or end), or —
+ *  when it is narrower than that, a column (vertical tabs), or its content
+ *  would no longer fit beside the corner (the right bar's tabs in a narrow
+ *  bar) — down, below the corner. */
+function avoid(): void {
+  pending = 0;
+  if (!frame) return;
+  const bars = [...document.querySelectorAll<HTMLElement>(BARS)];
+  for (const bar of bars) {
+    bar.classList.remove("frame-push-l", "frame-push-r", "frame-push-t");
+    for (const v of ["--frame-l", "--frame-r", "--frame-t"]) bar.style.removeProperty(v);
+  }
+  const width = document.documentElement.clientWidth;
+  const ROW = band();
+  if (frame === "mac") {
+    if (!fullscreen) clearCorner(bars, "l", CORNER.mac, ROW, width);
+  } else {
+    // Windows and Linux: the buttons at the right end, the menu button
+    // (the ribbon's width) at the left.
+    clearCorner(bars, "r", CORNER.windows, ROW, width);
+    clearCorner(bars, "l", menuButton?.getBoundingClientRect().right ?? 0, ROW, width);
   }
   observeBars(bars);
 }
@@ -188,11 +205,18 @@ export function installFrame(): void {
   frame = which();
   if (!frame) return;
   document.body.classList.add("framed", `framed-${frame}`);
-  if (frame === "windows") document.body.append(controls());
+  if (frame === "windows") {
+    document.body.append(controls());
+    // Obsidian's menu button, in the corner where the Mac has its lights.
+    menuButton = h("button", "frame-menu");
+    menuButton.type = "button";
+    menuButton.tabIndex = 0;
+    document.body.append(menuButton);
+  }
   // macOS, as Obsidian has it: one title row across the window — the
   // system's buttons, the side bar's head, the tabs — and the ribbon
   // starting below it. This strip carries the row over the ribbon's top.
-  if (frame === "mac") {
+  if (frame === "mac" || frame === "windows") {
     const strip = h("div", "frame-strip");
     strip.setAttribute("data-tauri-drag-region", "");
     strip.setAttribute("aria-hidden", "true");

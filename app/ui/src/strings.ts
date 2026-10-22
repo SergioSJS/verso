@@ -13,7 +13,7 @@ export type Strings = Record<
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists"
   | "keepBoth" | "conflictPendingBoth" | "thisComputer" | "saveAgain" | "closeWithoutSaving" | "goneUnsaved" | "goneUnsavedElsewhere" | "gonePending" | "planRetryNothing"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "lessonServerTitle" | "lessonServerBody" | "lessonServerOpen" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
-  | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
+  | "frameMenu" | "frameMenuHint" | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere" | "newWorld" | "oracle"
   | "planApply" | "planSkip" | "exists" | "unlinkableName" | "unportableName" | "caseTwinName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
@@ -166,7 +166,7 @@ export const pt: Strings = {
   lessonKeys: "{open-folder} abre uma pasta · {new-note} nova nota · {quick} abre pelo nome · {search} busca · {split-right} divide · {new-space} novo espaço de trabalho",
   lessonServerTitle: "Escolha uma pasta deste servidor.", lessonServerBody: "As notas ficam nas pastas do servidor. O botão de pasta, no alto da barra lateral — «Nenhuma pasta» enquanto nada está aberto —, lista as que você pode abrir.", lessonServerOpen: "Escolher uma pasta",
   split: "Dividir à direita", splitDown: "Dividir abaixo", emptyPane: "Escolha um arquivo na lista, ou arraste uma aba para cá.",
-  frameControls: "Controles da janela", frameMinimize: "Minimizar", frameMaximize: "Maximizar", frameRestore: "Restaurar", frameClose: "Fechar",
+  frameMenu: "Menu", frameMenuHint: "Menu (Alt)", frameControls: "Controles da janela", frameMinimize: "Minimizar", frameMaximize: "Maximizar", frameRestore: "Restaurar", frameClose: "Fechar",
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar painel", maximize: "Maximizar painel", restore: "Restaurar painéis",
   newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar", newWorld: "Novo projeto a partir de modelo…", oracle: "Oráculo (sim/não e faíscas)…",
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
@@ -355,7 +355,7 @@ export const en: Strings = {
   lessonKeys: "{open-folder} opens a folder · {new-note} new note · {quick} opens by name · {search} searches · {split-right} splits · {new-space} new workspace",
   lessonServerTitle: "Choose a folder of this server.", lessonServerBody: "The notes live in the server's folders. The folder button at the top of the side bar — “No folder” while none is open — lists the ones you may open.", lessonServerOpen: "Choose a folder",
   split: "Split right", splitDown: "Split down", emptyPane: "Pick a file from the list, or drag a tab here.",
-  frameControls: "Window controls", frameMinimize: "Minimize", frameMaximize: "Maximize", frameRestore: "Restore", frameClose: "Close",
+  frameMenu: "Menu", frameMenuHint: "Menu (Alt)", frameControls: "Window controls", frameMinimize: "Minimize", frameMaximize: "Maximize", frameRestore: "Restore", frameClose: "Close",
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
   newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete", newWorld: "New project from a template…", oracle: "Oracle (yes/no and sparks)…",
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",

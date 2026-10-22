@@ -36,7 +36,7 @@ import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
-import { installFrame } from "./frame";
+import { frameMenuButton, installFrame } from "./frame";
 import { initZoom } from "./zoom";
 import { installStatusLive } from "./statusLive";
 import { installLongPress } from "./touch";
@@ -54,6 +54,7 @@ import { hearSync } from "./dialogs/sync";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
 import { installMenuBar } from "./menuBar";
+import { installWinMenu } from "./winMenu";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
 import { Layout } from "./layout/layout";
@@ -700,6 +701,10 @@ export function openConsole(): void {
   else ui.status.textContent = t.devtoolsOff;
 }
 if (!popout) installMenuBar();
+/* Windows and Linux: the menu in the window's corner (ADR 0072, decided
+ * 2026-10-22), the Mac bar's menus from the same spec. */
+const winMenuButton = frameMenuButton();
+if (!popout && winMenuButton) installWinMenu(winMenuButton);
 void listen<string>("menu-devtools", (e) => {
   if (e.payload === getCurrentWindow().label) openConsole();
 });
@@ -727,6 +732,12 @@ void listen<[string, string]>("menu-edit", (e) => {
   // A site shown in this window has the focus: the host runs the command
   // there, and nothing here acts behind it.
   if (!document.hasFocus()) return;
+  runEditCommand(command);
+});
+/** The Edit menu's Undo, Redo and Select All where the focus is (the Mac's
+ *  items through the host's `menu-edit`; the in-window menu of Windows and
+ *  Linux, `winMenu.ts`, directly). */
+export function runEditCommand(command: string): void {
   const active = document.activeElement;
   const field =
     active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
@@ -767,7 +778,7 @@ void listen<[string, string]>("menu-edit", (e) => {
     return;
   }
   if (typing || command === "select-all") document.execCommand(command === "select-all" ? "selectAll" : command);
-});
+}
 /** The input types text is typed in, which take the web view's Undo. */
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));

@@ -98,7 +98,10 @@ No Mac, a barra do topo da tela reúne o que o Verso faz, com a tecla de cada co
 - **RPG**: **Rolar dados…**, **Perguntar ao oráculo**, **Novo projeto a partir de modelo…** e **Ajustes de Dados e RPG…**. Um recurso desligado em **Ajustes › Recursos** some do menu; o item dos ajustes fica, para ligá-lo de volta.
 - **Ajuda**: notificações, tutorial, atualizações, relatar um problema e créditos.
 
-Um item cinza não vale agora (por exemplo **Salvar** sem nenhuma nota aberta). No Windows e no Linux não há essa barra: os mesmos comandos estão na paleta e nos ajustes.
+Um item cinza não vale agora (por exemplo **Salvar** sem nenhuma nota aberta). 
+### No Windows e no Linux
+
+Não há barra no topo da tela: há um botão **☰ Menu** no canto de cima à esquerda da janela, como o do Obsidian. Ele abre os **mesmos menus** (Arquivo, Edição, Visualização, Ir, RPG, Janela e Ajuda), com as mesmas teclas (**Ctrl** no lugar de ⌘), os itens cinza e o RPG que some com o recurso desligado. **Ajustes…** e **Encerrar o Verso** ficam no fim de **Arquivo**. Pelo teclado: **Alt** sozinho abre o menu; **Alt** e a letra sublinhada abre um menu direto (**Alt+A** Arquivo, **Alt+E** Edição, **Alt+V** Visualização, **Alt+I** Ir, **Alt+R** RPG, **Alt+J** Janela, **Alt+U** Ajuda); as setas andam, **Enter** executa e **Esc** volta um passo. No navegador e no celular não há esse botão: a paleta (`Ctrl+⇧+P`) tem os mesmos comandos.
 
 ---
 

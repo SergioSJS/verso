@@ -165,3 +165,15 @@ tabletop menu is named "RPG" (*"pode ser RPG mesmo"*); (3) Windows and Linux get
 a menu like Obsidian's "Obsidian frame" — a menu button in the window's corner
 opening the same menus as the Mac bar, Alt and Alt+letter opening them — (*"como
 é o Obsidian no Windows e no Linux? Poderíamos seguir similar"*); being built.
+
+As built 2026-10-22 (item 3 above): the menu button (☰, "Menu") sits in the
+window's top-left corner on Windows and Linux, over the ribbon's width, which
+starts below it as on the Mac. It opens the Mac bar's menus from the same
+spec (`menu_spec.rs`, exposed as the `menu_sections` command): File, Edit,
+View, Go, RPG, Window, Help, each row with its key (Ctrl for ⌘), the rows of
+a feature that is off left out, the rows the palette cannot run grey, and
+Settings… and Quit at the end of File (the Mac has them in the app menu).
+Items run the palette's command. Alt alone opens it; Alt and the underlined
+letter opens one (pt: A E V I R J U; en: F E V G R W H, chosen so that no
+letter repeats and none is a key the window binds with Alt alone). Not built:
+a menu in the browser window or on a phone. Recorded, not decided.

@@ -1,7 +1,8 @@
 //! The native menu, in the interface's language, and what its items do.
 
+use super::menu_spec;
 #[cfg(target_os = "macos")]
-use super::menu_spec::{self, Own, Row, System};
+use super::menu_spec::{Own, Row, System};
 use super::*;
 
 /// What the window last pushed about itself: the features that are on,
@@ -32,6 +33,31 @@ pub(crate) fn set_menu_language<R: tauri::Runtime>(
     #[cfg(not(any(target_os = "macos", windows)))]
     let _ = app;
     Ok(())
+}
+
+/// The menus of the in-window menu of Windows and Linux, in the window's
+/// language (`menu_spec::window_menu`): the same menus as the Mac bar,
+/// from the same data, the rows whose feature is off already left out. The
+/// window greys those the palette cannot run and writes the keys as bound.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn menu_sections(
+    language: String,
+    features: Vec<String>,
+) -> Vec<menu_spec::MenuSection> {
+    let state = MenuState {
+        features: features.into_iter().collect(),
+        ..MenuState::default()
+    };
+    menu_spec::window_menu(&language, &state)
+}
+
+/// Quit from the in-window menu (File › Quit): the windows are asked to
+/// save their tabs first, as the Mac's Quit and the last window's close do.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn quit_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    ask_windows_to_quit(&app);
 }
 
 /// The id of the app menu's own Quit item.
@@ -109,119 +135,10 @@ pub(crate) const CLOSE_WINDOW: &str = "verso-close-window";
 #[cfg(target_os = "macos")]
 pub(crate) const RECENT_PREFIX: &str = "verso-recent-";
 
-/// The menu's words in the window's language ("pt" is the default, as
-/// the product's; ADR 0035). Predefined items keep the system's own.
+/// The menu's words in the window's language (`menu_spec::word`).
 #[cfg(target_os = "macos")]
 fn menu_label(lang: &str, key: &str) -> &'static str {
-    let pt = lang != "en";
-    match key {
-        "quit" => {
-            if pt {
-                "Encerrar o Verso"
-            } else {
-                "Quit Verso"
-            }
-        }
-        "settings" => {
-            if pt {
-                "Ajustes…"
-            } else {
-                "Settings…"
-            }
-        }
-        "file" => {
-            if pt {
-                "Arquivo"
-            } else {
-                "File"
-            }
-        }
-        "new-window" => {
-            if pt {
-                "Nova janela"
-            } else {
-                "New Window"
-            }
-        }
-        "open-folder" => {
-            if pt {
-                "Abrir pasta…"
-            } else {
-                "Open Folder…"
-            }
-        }
-        "open-recent" => {
-            if pt {
-                "Abrir recente"
-            } else {
-                "Open Recent"
-            }
-        }
-        "close-tab" => {
-            if pt {
-                "Fechar aba"
-            } else {
-                "Close Tab"
-            }
-        }
-        "close-window" => {
-            if pt {
-                "Fechar janela"
-            } else {
-                "Close Window"
-            }
-        }
-        "edit" => {
-            if pt {
-                "Edição"
-            } else {
-                "Edit"
-            }
-        }
-        "undo" => {
-            if pt {
-                "Desfazer"
-            } else {
-                "Undo"
-            }
-        }
-        "redo" => {
-            if pt {
-                "Refazer"
-            } else {
-                "Redo"
-            }
-        }
-        "select-all" => {
-            if pt {
-                "Selecionar tudo"
-            } else {
-                "Select All"
-            }
-        }
-        "devtools" => {
-            if pt {
-                "Abrir console"
-            } else {
-                "Open Console"
-            }
-        }
-        "view" => {
-            if pt {
-                "Visualização"
-            } else {
-                "View"
-            }
-        }
-        "window" => {
-            if pt {
-                "Janela"
-            } else {
-                "Window"
-            }
-        }
-        _ => "",
-    }
+    menu_spec::word(lang, key)
 }
 
 /// The macOS menu bar: the system's own items, except Quit and the Edit
@@ -317,10 +234,7 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
         Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
     let mut menus: Vec<Submenu<R>> = vec![verso];
     for (key, rows) in menu_spec::sections() {
-        let title = match key {
-            "file" | "edit" | "view" | "window" => l(key),
-            other => menu_spec::title(&lang, other),
-        };
+        let title = menu_spec::title(&lang, key);
         let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<R>>> = Vec::new();
         for row in menu_spec::visible(&rows, &menu_state) {
             let item: Box<dyn tauri::menu::IsMenuItem<R>> = match row {
