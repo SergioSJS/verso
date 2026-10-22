@@ -88,6 +88,10 @@ const pt = {
     applied: (n: string) => `Tema “${n}” aplicado.`,
     appliedSide: (n: string, side: string) => `Tema “${n}” aplicado. Ele só tem o lado ${side.toLowerCase()}, então o modo do Verso passou para ele.`,
     unreadable: (n: string) => `O tema “${n}” não pôde ser aplicado: deixaria o texto ilegível.`,
+    recentHeading: "Do catálogo, usados por você",
+    onlyLight: "só claro",
+    onlyDark: "só escuro",
+    modeNow: (m: string) => `o modo atual é ${m.toLowerCase()}`,
   },
   credits: {
     heading: "Temas do catálogo",
@@ -170,6 +174,10 @@ const en: typeof pt = {
     applied: (n: string) => `Theme “${n}” applied.`,
     appliedSide: (n: string, side: string) => `Theme “${n}” applied. It has only the ${side.toLowerCase()} side, so Verso's mode switched to it.`,
     unreadable: (n: string) => `The theme “${n}” could not be applied: it would make the text unreadable.`,
+    recentHeading: "From the catalogue, used by you",
+    onlyLight: "light only",
+    onlyDark: "dark only",
+    modeNow: (m: string) => `the current mode is ${m.toLowerCase()}`,
   },
   credits: {
     heading: "Catalogue themes",

@@ -228,6 +228,25 @@ export class SettingsDialog {
       open: (section) => { this.section = section; this.search.value = ""; this.paint(); },
     };
   }
+  /** A select that shows `current()` whenever the settings change under it (a theme applied elsewhere may switch the mode). */
+  private liveSelect<T extends string>(options: [T, string][], current: () => T, onChange: (v: T) => void): HTMLSelectElement {
+    const sel = this.select(options, current(), onChange);
+    let seen = false;
+    const sync = (): void => {
+      if (!sel.isConnected) {
+        if (seen) {
+          removeEventListener("verso:settings-saved", sync);
+          removeEventListener(LOOK_EVENT, sync);
+        }
+        return;
+      }
+      seen = true;
+      sel.value = current();
+    };
+    addEventListener("verso:settings-saved", sync);
+    addEventListener(LOOK_EVENT, sync);
+    return sel;
+  }
   private select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
     const sel = h("select");
     for (const [v, l] of options) {
@@ -610,8 +629,8 @@ export class SettingsDialog {
       i.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(i.value) || 1.5); saveSettings(); });
       return i;
     });
-    add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }), lookWords.gallery.title);
-    add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }), lookWords.gallery.title);
+    add("appearance", t.theme, t.themeDesc, () => this.liveSelect([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], () => settings.theme, (v) => { settings.theme = v; saveSettings(); }), lookWords.gallery.title);
+    add("appearance", t.darkTone, t.darkToneDesc, () => this.liveSelect([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], () => settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }), lookWords.gallery.title);
     // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
     out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, group: lookWords.gallery.title, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); }, openMore: (opener) => openMoreThemes(opener) }) });
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
