@@ -36,6 +36,14 @@
   13 say what C.1 = A, C.6 = A and C.7 = A decided instead of
   "recommended". (c) "As built" gains the building choices the review found
   missing (I-3, I-4, I-6, I-10 of `verso-revisao-fable-tarde-2026-10-21.md`).
+  2026-10-22 — I-3, option A (the maintainer answered the decisions list of
+  the afternoon of 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`)
+  on 2026-10-22): an S3-compatible service that accepts a conditional write
+  but not a conditional delete is **refused**, as C.3b refused a service that
+  cannot keep the promise: "sincronizado" never hides a loss (**being
+  built**). This replaces the build's choice recorded under "As built"
+  (connect and warn). The answer names S3 services; the same paragraph also
+  mentions WebDAV, and the answer says nothing about it.
 - Related: [0079](0079-sync-a-local-folder-with-a-server.md) (the sync this
   reuses), [0050](0050-outbound-network-access.md) (revised here),
   [0020](0020-sync-merge-in-core-transports-as-plugins.md),

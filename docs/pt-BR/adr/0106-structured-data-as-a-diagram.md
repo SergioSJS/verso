@@ -28,6 +28,14 @@
   linha V.30 do roadmap, depois da onda D. 2026-10-21, mais tarde — o
   mantenedor respondeu D.1 a D.4 da lista de decisões de 2026-10-21, todas
   opção A (itens 8, 9 e 12, Status).
+  2026-10-22 — T.5, "Outra" (o mantenedor respondeu a lista de decisões da
+  tarde de 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em
+  2026-10-22), sobre o cartão de arquivo no board: *"A mas não seria possível
+  ter opção de mostrar textou ou modo diagrama?"*. A é o cartão mostrando o
+  texto de **todo arquivo de texto** (`.txt`, `.css`, `.js`, `.py`…, cortado
+  em 64 KB); o acréscimo dele é uma **chave Texto | Diagrama no cartão, para
+  os arquivos que esta ADR sabe ler como diagrama**. Os dois estão **em
+  construção**. A opção B (só os formatos do diagrama) não foi escolhida.
 
 ## Contexto
 

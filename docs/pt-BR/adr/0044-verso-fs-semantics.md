@@ -50,6 +50,15 @@
   mantenedor como construídos e testados, respondendo à auditoria dos
   ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
   nota datada ao lado de cada um.
+  2026-10-22 — T.12, opção B (o mantenedor respondeu a lista de decisões da
+  tarde de 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em
+  2026-10-22): importar um arquivo grande (um PDF de 200 MB) passa a ser lido
+  e gravado **aos pedaços já**, sem mantê-lo inteiro na memória antes da
+  gravação atômica; o mantenedor escolheu "Fazer aos pedaços já" em vez de
+  aceitar por ora. Isso muda a gravação atômica do `verso-fs`; **em
+  construção**. A gravação continua atômica pela invariante 9 e pela [ADR
+  0029](0029-guardrails-in-ci.md). Ver `docs/review/accessibility.md`
+  (A11Y.10).
 
 ## Contexto
 

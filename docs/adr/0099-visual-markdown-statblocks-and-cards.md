@@ -42,6 +42,20 @@
   and Cyberpunk RED layouts were chosen by the build from community terms,
   provisional (S.3c, "translate now, correct later"); (c) "Discarded
   alternatives" reads "None recorded." (rule zero, item 4).
+  2026-10-22 — the maintainer answered the decisions list of the afternoon of
+  2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) on 2026-10-22:
+  (a) T.1, option A: the Fractal credit **stays CC BY 4.0**, as the SRD's text
+  says (item 6b). The authors' answer is still not on record, and the SRD's
+  badge still shows BY-SA (`docs/reference/statblock-sources.md` 3.10); item
+  6b's clause that it is changed if the authors' answer changes stands. (b)
+  T.4, option A: the attribute names on the Vampire and Cyberpunk sheets
+  (`strength`, `INT`) **stay as the note's data keys, in English, for now**;
+  translating them needs a new feature (a label per key) that was not chosen
+  (option B). (c) S.3b-bis, option A: **keep the short licence line on the
+  World of Darkness and Cyberpunk RED sheets**, the full text and the logo
+  only on the Credits page — "cumpre os dois acordos" (it meets both
+  agreements). The deviation recorded under S.3b is now the maintainer's
+  decision, not a builder's choice.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),

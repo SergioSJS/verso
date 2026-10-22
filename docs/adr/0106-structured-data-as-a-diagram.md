@@ -33,6 +33,15 @@
   as roadmap row V.30, after wave D. 2026-10-21, later — the maintainer
   answered D.1 to D.4 of the decisions list of 2026-10-21, all option A
   (items 8, 9 and 12, Status).
+  2026-10-22 — T.5, "Outra" (the maintainer answered the decisions list of the
+  afternoon of 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) on
+  2026-10-22), on the board's file card: *"A mas não seria possível ter opção
+  de mostrar textou ou modo diagrama?"* (A, but couldn't there be an option to
+  show text or diagram mode?). A is the card showing the text of **every text
+  file** (`.txt`, `.css`, `.js`, `.py`…, cut at 64 KB); his addition is a
+  **Text | Diagram switch on the card, for files this ADR can read as a
+  diagram**. Both are **being built**. Option B (only the diagram's formats)
+  was not chosen.
 
 ## Context
 
