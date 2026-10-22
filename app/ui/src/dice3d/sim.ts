@@ -29,7 +29,14 @@ export type Fall = {
    *  for the extra dice of an exploding die, thrown once the wave before
    *  them has settled. */
   born: number[];
+  /** The collisions, in order, for the sound: the step, what the die hit,
+   *  which die was hit, and the speed of the hit (Rolai's rule: a die on the table
+   *  counts its own speed, a die on a die the other's). One a step at most
+   *  of each kind, as Rolai throttles them. */
+  hits: Hit[];
 };
+
+export type Hit = { frame: number; kind: "table" | "dice"; die: number; speed: number };
 
 /** Steps after a wave has settled before the next is thrown. */
 export const WAVE_GAP_STEPS = 6;
@@ -101,6 +108,21 @@ export function simulate(shapes: readonly Shape[], arena: Arena, rng: Rng = cryp
     return b;
   });
   const born = bodies.map(() => 0);
+  const hits: Hit[] = [];
+  let hitFrame = -1;
+  let hitKind = "";
+  bodies.forEach((b, i) => {
+    b.addEventListener("collide", (e: { body: Body; target: Body }) => {
+      const other = e.body;
+      const kind = other.mass > 0 ? "dice" : "table";
+      // Rolai: in one step, one sound; a die hit does not give way to a table hit.
+      if (hitFrame === frames && !(kind === "dice" && hitKind === "table")) return;
+      const speed = (kind === "dice" ? other : e.target).velocity.length();
+      hitFrame = frames;
+      hitKind = kind;
+      hits.push({ frame: frames, kind, die: i, speed });
+    });
+  });
   const last = Math.max(0, ...bodies.map((_, i) => waveOf(i)));
   // The wave to throw next, and the step the one before it came to rest.
   let next = 1;
@@ -135,7 +157,7 @@ export function simulate(shapes: readonly Shape[], arena: Arena, rng: Rng = cryp
     }
   }
   const landed = bodies.map((b, i) => readUp(shapes[i] as Shape, [b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w] as Quat));
-  return { frames, poses: poses.map((p) => p.slice(0, frames * 7)), landed, rested, born };
+  return { frames, poses: poses.map((p) => p.slice(0, frames * 7)), landed, rested, born, hits };
 }
 
 /** Quaternion helper for callers that read the last pose of a die. */

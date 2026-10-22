@@ -67,13 +67,13 @@
 .dice-roller-out.failed { color: var(--seal); }
 .dice-roller-hint { margin: 0; font-size: .8rem; color: var(--ink-3); }
 
-/* The 3D dice (ADR 0101): a transparent canvas over the window while the
- * dice fall; a click anywhere skips it, as does Esc. It is aria-hidden. When
- * the dice have rested it lets every tap through (pointer-events none, set by
- * the stage) and stays a few seconds, then fades and is removed; any press,
- * Esc or the next roll removes it at once. */
+/* The 3D dice (ADR 0101): a transparent canvas over the window. It never
+ * catches a tap (pointer-events none, set by the stage), so the page works
+ * under the dice; they stay on the table, as in Rolai, until a click on
+ * something that is not a control, Esc or the next roll removes them. It is
+ * aria-hidden. */
 /* The stage sets left, top, width and height: the lower part of the active pane. */
-.dice3d-canvas { position: fixed; z-index: 5000; cursor: pointer; touch-action: manipulation; }
+.dice3d-canvas { position: fixed; z-index: 5000; pointer-events: none; }
 
 /* The 3D dice's appearance settings (Settings › Features). */
 .dice3d-colour { display: flex; align-items: center; gap: .5rem; }

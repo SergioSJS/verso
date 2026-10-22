@@ -4,9 +4,11 @@
 
 // The 3D stage (ADR 0101): the lazy chunk. It throws the dice headless,
 // then replays the recorded fall in three.js on a transparent canvas laid
-// over the window, and takes the canvas away when the dice have rested, when
-// the person clicks or presses Esc, at the maximum time, or if the graphics
-// context is lost. It never decides a number: each die is made to show the
+// over the window. The dice stay on the table, as in Rolai, until the person
+// touches something: a click anywhere but on a control or a dialog, Esc, or
+// the next roll (the canvas never catches a tap, so the page works under
+// the dice). The canvas also goes at the maximum time of the fall, or if
+// the graphics context is lost. It never decides a number: each die is made to show the
 // value the roll already holds (force.ts). Nothing is left running when it
 // ends: no canvas, no animation frame, no GPU resource.
 
@@ -38,12 +40,14 @@ import { CELL, type Cell, cellsOf, centred, fitSize, inkOf, inradius, type Measu
 import { solid, type Shape, type Vec } from "./polyhedra";
 import { type Arena, simulate } from "./sim";
 import { type DiceStyles, type DiceStyle, edgeFor, FINISHES, materialOf, NUMBER_FONT, diePixels, throwRegion, type SlotId, type TextureId } from "./look";
-import { FADE_MS, LINGER_MS, playhead, timeline } from "./timeline";
+import type { SoundKit, SoundMaterial } from "./sound";
+import { soundMaterial } from "./sound";
+import { playhead, ROLL_TIME_DEFAULT, type RollTime, speedOf, timeline } from "./timeline";
 
 /** What the stage reports to the caller. */
 export type Stage = {
   /** Ends when the dice have rested (or the fall was skipped): the moment
-   *  for the result card. The dice then stay on screen a while longer. */
+   *  for the result card. The dice then stay on screen until a touch. */
   rested: Promise<void>;
   /** Ends when the canvas is gone, for whatever reason; never rejects. */
   done: Promise<void>;
@@ -230,7 +234,7 @@ function geometryOf(shape: Shape, cells: Cell[]): BufferGeometry {
  *  active pane, or the window), drawn in `styles` — whoever's they are —
  *  at the viewer's `size` (percent). Null when it cannot
  *  (no WebGL): the caller shows the 2D card at once. */
-export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: number, images: ReadonlyMap<TextureId, HTMLImageElement>, area: { left: number; top: number; width: number; height: number } = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }): Stage | null {
+export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: number, images: ReadonlyMap<TextureId, HTMLImageElement>, area: { left: number; top: number; width: number; height: number } = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }, opts: { time?: RollTime; sound?: SoundKit | null } = {}): Stage | null {
   if (area.width < 2 || area.height < 2) return null;
   const region = throwRegion(area, dice.length);
   const aspect = region.width / region.height;
@@ -248,7 +252,7 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const canvas = document.createElement("canvas");
   canvas.className = "dice3d-canvas";
   canvas.setAttribute("aria-hidden", "true");
-  Object.assign(canvas.style, { left: `${region.left}px`, top: `${region.top}px`, width: `${region.width}px`, height: `${region.height}px` });
+  Object.assign(canvas.style, { pointerEvents: "none", left: `${region.left}px`, top: `${region.top}px`, width: `${region.width}px`, height: `${region.height}px` });
   let renderer: WebGLRenderer;
   try {
     renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
@@ -372,7 +376,10 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   };
   place(0);
 
-  const tl = timeline(fall.frames);
+  const tl = timeline(fall.frames, speedOf(opts.time ?? ROLL_TIME_DEFAULT));
+  const sound = opts.sound ?? null;
+  const soundOf = dice.map((d): SoundMaterial => soundMaterial(materialOf(styleFor(d))));
+  let heard = 0;
   let skipped = false;
   let raf = 0;
   let ended = false;
@@ -380,16 +387,11 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   const done = new Promise<void>((r) => (resolve = r));
   let settle: () => void = () => undefined;
   const rested = new Promise<void>((r) => (settle = r));
-  let lingerTimer = 0;
-  let fadeTimer = 0;
   const end = () => {
     if (ended) return;
     ended = true;
     cancelAnimationFrame(raf);
-    clearTimeout(lingerTimer);
-    clearTimeout(fadeTimer);
-    document.removeEventListener("pointerdown", skip, true);
-    canvas.removeEventListener("pointerdown", skip);
+    document.removeEventListener("click", touched);
     canvas.removeEventListener("webglcontextlost", lost);
     document.removeEventListener("keydown", key, true);
     window.removeEventListener("resize", skip);
@@ -400,21 +402,23 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     settle();
     resolve();
   };
-  // The dice are at rest and the card is due: they stay a while, never
-  // catching a tap (the page works under them), and any press or Esc, or
-  // the next roll, takes them away at once.
+  // The dice are at rest and the card is due: they stay on the table, never
+  // catching a tap, until the person touches something (Rolai's rule).
   const linger = () => {
     settle();
-    canvas.style.pointerEvents = "none";
     canvas.dataset["state"] = "resting";
-    document.addEventListener("pointerdown", skip, true);
-    lingerTimer = window.setTimeout(() => {
-      canvas.dataset["state"] = "fading";
-      canvas.style.transition = `opacity ${FADE_MS}ms ease-out`;
-      canvas.style.opacity = "0";
-      fadeTimer = window.setTimeout(end, FADE_MS);
-    }, LINGER_MS);
   };
+  // What counts as touching something: a click anywhere that is not a
+  // control or a dialog (those are being used, not dismissed). The listener
+  // only watches: it does not stop or swallow the click.
+  const CONTROLS = "button, a, input, select, textarea, label, summary, [role=button], [role=menuitem], [role=tab], [role=dialog], [aria-modal=true], .confirm";
+  function touched(e: MouseEvent): void {
+    // The click that started the roll is not a touch of the dice.
+    if (e.timeStamp <= startedAt) return;
+    const target = e.target;
+    if (target instanceof Element && target.closest(CONTROLS)) return;
+    skip();
+  }
   function skip(): void {
     skipped = true;
     end();
@@ -432,7 +436,8 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     }
     skip();
   }
-  canvas.addEventListener("pointerdown", skip);
+  const startedAt = performance.now();
+  document.addEventListener("click", touched);
   canvas.addEventListener("webglcontextlost", lost);
   document.addEventListener("keydown", key, true);
   window.addEventListener("resize", skip);
@@ -478,6 +483,14 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
     if (ended) return;
     const head = playhead(tl, performance.now() - started, skipped);
     place(head.at);
+    // The sound of the hits the replay has reached (Rolai: by collision).
+    if (sound && !skipped) {
+      const upTo = Math.floor(head.at);
+      for (; heard < fall.hits.length && (fall.hits[heard] as (typeof fall.hits)[number]).frame <= upTo; heard++) {
+        const hit = fall.hits[heard] as (typeof fall.hits)[number];
+        sound.hit(hit.kind, soundOf[hit.die] as SoundMaterial, hit.speed);
+      }
+    }
     renderer.render(scene, camera);
     if (!measured && head.at >= fall.frames - 1) measure();
     if (head.done) {
