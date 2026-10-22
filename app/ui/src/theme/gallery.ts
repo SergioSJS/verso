@@ -17,6 +17,8 @@ import { button, h } from "../dom";
 import { icon } from "../icons";
 import { onFolderLayer } from "../folderLayer";
 import { type Hue, settings } from "../settings";
+import { type CatalogueEntry, loadCatalogue } from "./catalogue";
+import { useCatalogueTheme } from "./useCatalogue";
 import { creditLine } from "./creditLine";
 import { V2 as W2 } from "./moreStrings";
 import { t } from "../strings";
@@ -137,11 +139,30 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
   };
   const groups = h("div", "themes-groups");
 
-  const cards = (): { builtin: Card[]; mine: Card[]; folder: Card[] } => {
+  // The catalogue themes the person used lately stay here, to use again and to copy (ADR 0109).
+  let catalogue: CatalogueEntry[] = [];
+  let asked = false;
+  const recent = (): Card[] => {
+    const files = settings.lookRecent ?? [];
+    if (files.length > 0 && !asked) {
+      asked = true;
+      void loadCatalogue().then((list) => {
+        catalogue = list;
+        if (list.length > 0) render();
+      });
+    }
+    return files.flatMap((f) => {
+      const e = catalogue.find((x) => x.file === f);
+      return e ? [{ key: `c:${e.file}`, kind: "catalogue" as const, name: e.theme.name, theme: e.theme, file: e.text }] : [];
+    });
+  };
+
+  const cards = (): { builtin: Card[]; recent: Card[]; mine: Card[]; folder: Card[] } => {
     const mine = profilesNow();
     const s = suggestion();
     return {
       builtin: HUES.map((x) => ({ key: `b:${x.palette}`, kind: "builtin" as const, name: x.name(), palette: x.palette })),
+      recent: recent(),
       mine: mine.map((p) => ({ key: `p:${p.name}`, kind: "mine" as const, name: p.name, profile: p, theme: p.theme })),
       folder: s && !mine.some((p) => p.name === s.theme.name) ? [{ key: "f:", kind: "folder" as const, name: s.theme.name, theme: s.theme, text: s.text }] : [],
     };
@@ -178,6 +199,8 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     } else if (card.kind === "mine" && card.profile) {
       applyTheme({ ...card.profile.theme, mode: "both" });
       announce(W.profile.applied(card.name));
+    } else if (card.kind === "catalogue" && card.file) {
+      announce(useCatalogueTheme(card.name, card.key.slice(2), card.file));
     } else if (card.kind === "folder" && card.text) {
       void importText(card.text).then((ok) => ok && announce(W.banner.used(card.name)));
     }
@@ -191,12 +214,21 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     const pick = h("button", "theme-pick");
     pick.type = "button";
     pick.setAttribute("aria-pressed", String(active));
-    pick.setAttribute("aria-label", card.kind === "builtin" ? W.gallery.builtin(card.name, active) : card.kind === "mine" ? W.gallery.mine(card.name, active) : W.gallery.folder(card.name));
+    pick.setAttribute("aria-label", card.kind === "builtin" ? W.gallery.builtin(card.name, active) : card.kind === "mine" ? W.gallery.mine(card.name, active) : card.kind === "catalogue" ? W2.more.card(card.name, W2.more.modes[card.theme?.mode ?? "both"]!, active) : W.gallery.folder(card.name));
     const face = mini();
     paint(face, card, dark);
     face.setAttribute("aria-hidden", "true");
     const name = h("span", "theme-name");
     name.append(h("span", "theme-name-text", card.name));
+    // A theme of one side says so; in use on the other mode, it says which mode the window is in.
+    const side = card.kind === "catalogue" ? card.theme?.mode : undefined;
+    if (side === "light" || side === "dark") {
+      const now = prefersDark() ? "dark" : "light";
+      const wrong = active && now !== side;
+      const mode = h("span", "theme-mode", `${side === "dark" ? W2.more.onlyDark : W2.more.onlyLight}${wrong ? ` · ${W2.more.modeNow(W2.more.modes[now]!)}` : ""}`);
+      if (wrong) mode.dataset["wrongMode"] = "";
+      name.append(mode);
+    }
     if (active) name.append(h("span", "theme-on", `✓ ${W.gallery.active}`));
     pick.append(face, name);
     // WebKit on macOS does not focus a button on a mouse click, so the
@@ -254,7 +286,7 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     const dark = prefersDark();
     const c = cards();
     groups.replaceChildren(
-      ...[group(W.gallery.builtinHeading, c.builtin, dark), group(W.gallery.mineHeading, c.mine, dark), group(W.gallery.folderHeading, c.folder, dark)].filter((n): n is HTMLElement => n !== null),
+      ...[group(W.gallery.builtinHeading, c.builtin, dark), group(W2.more.recentHeading, c.recent, dark), group(W.gallery.mineHeading, c.mine, dark), group(W.gallery.folderHeading, c.folder, dark)].filter((n): n is HTMLElement => n !== null),
     );
     if (focusKey) {
       const [key, what] = focusKey.split("|");
