@@ -39,7 +39,11 @@
   explicit choice (item 3). 2026-10-21, later — **item 2 revised by the
   maintainer** after looking at the installed beta: the panel inside Settings
   is replaced by a gallery of theme cards and a dedicated theme-builder
-  window (item 2, Revision); item 4 confirmed (T.1, option A).
+  window (item 2, Revision); item 4 confirmed (T.1, option A). 2026-10-22 —
+  item 3 (`tokensVersion: 1`) **extended, not replaced**, by
+  [0109](0109-themes-v2-more-tokens-and-a-catalogue.md): `tokensVersion: 2`
+  adds optional colours, structural choices and a credit; version 1 files stay
+  valid and look the same.
 
 ## Context
 
