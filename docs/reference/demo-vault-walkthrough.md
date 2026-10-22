@@ -506,6 +506,14 @@ point 13).
    `crates/verso-server/src/tests_history.rs` (the server's: roles, rooms,
    renames, the console); A: the history file outside the folder and a
    room's restore in two browsers (`manual-checks.md`).
+13. The folder switcher (the button with the folder's name): each recent
+    folder but the open one has a **×**, named "Ocultar “<name>” da lista"
+    (a 44 px target on a phone); it takes the folder off the list, says so
+    in a notice with the way back, and nothing is deleted. Closed and
+    opened again it stays off. *Settings › Files and links › Show hidden
+    folders* brings them all back. Level: H; E: `folder-switcher-hide.spec.mjs`
+    (also at a phone's and a tablet's size); U: `hiddenFolders.test.mjs`;
+    A (the real folder list of the app).
 
 ## 7. The web
 

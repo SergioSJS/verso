@@ -36,6 +36,12 @@ Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo 
 
 ---
 
+## Trocar de Pasta
+
+O botão com o nome da pasta, no alto da árvore, abre o seletor: as pastas deste computador que você já abriu, as suas e as compartilhadas num servidor. Duas pastas de mesmo nome mostram, embaixo, onde cada uma fica. Uma pasta que você não quer mais ver na lista tem um **×** ao lado (a pasta aberta não tem): ele só a tira da lista — nada é apagado do disco. Para trazê-las de volta, **Ajustes › Arquivos e links › Mostrar pastas ocultas**.
+
+---
+
 ## Arrastar e Soltar
 
 - Arraste uma nota da árvore para outra pasta para movê-la. Com o dedo, segure a nota um instante antes de arrastar: deslizar direto só rola a árvore.
