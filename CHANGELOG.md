@@ -85,6 +85,8 @@ test release.
 
 ### Fixed
 
+- **The 3D dice make sound again in the Mac app**: the recordings are fetched when the app is idle, but the audio is only started by your first click or key press (the Mac's web view never starts audio made earlier), and each roll writes one line to the log (`dice sound: ctx=… buffers=… played=… lost=…`) so a silent roll can be explained.
+
 - **A note or file created in a new folder shows the folder at once**: the folder list now includes the folders a new note or file made, without waiting for the next scan, so a person who opens the shared folder right after sees its subfolders beside the notes.
 - **The window zoom row is aligned**: in Settings › Appearance the − | level | + control is one joined stepper of equal-height segments with the same icons as the other steppers, and "Reset (100%)" is a ghost button on the same line.
 - **The dice's sound lands with the picture**: each bounce is now placed on the audio clock at the exact moment its frame is on screen (the same speed and frame as the dice, in Fast, Normal and Slow), a few milliseconds ahead of the screen's next frame, instead of being started at the next screen refresh; a bounce that is already more than 60 ms past is skipped, never played late or in a burst. The 46 recordings are now fetched and decoded in the background soon after the app starts (with *Dice sound* on), so the first roll no longer waits for them or loses its first bounces; a roll no longer holds back up to two and a half seconds for a slow download. A slow first frame no longer makes the dice jump ahead of their own sounds (the replay clock slows for a moment instead), and a roll waits a moment, once, for a still-starting audio context, so the first bounces are not lost.

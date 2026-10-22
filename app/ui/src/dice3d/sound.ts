@@ -12,7 +12,7 @@
 // `dice-sounds/` (docs/reference/dice-sounds.md). On by default (as in Rolai), behind
 // Settings › Dice and RPG › "Dice sound". Web Audio (audio.ts). Loaded only when the switch is on.
 
-import { audioContext, warnOnce } from "./audio";
+import { audioContext, logLine, warnOnce, whenContext } from "./audio";
 
 /** The die materials that have their own recordings; the rest are plastic. */
 export type SoundMaterial = "plastic" | "wood" | "metal";
@@ -46,6 +46,8 @@ export type SoundKit = {
   /** The audio clock now, in seconds (`AudioContext.currentTime`): hits are
    *  placed on it, so the replay and the sound share a time. */
   clock: () => number;
+  /** One INFO line to the app's log about the roll that just ended. */
+  diagnose: (tally: { played: number; lost: number; silent: number; late: number }) => void;
   /** Play one hit at the audio time `at` (now when omitted or past). Never
    *  throws; a browser that refuses to play, a hit too slow to sound or a
    *  recording not yet decoded stays silent (never queued, so never late).
@@ -57,15 +59,34 @@ export type SoundKit = {
 
 const base = (): string => new URL("dice-sounds/", document.baseURI).href;
 
-/** One recording, fetched and decoded; resolves null if it does not (a
- *  missing file, or a webview that cannot decode MP3, is silence, never a
- *  failure of the roll). Web Audio, not `<audio>`: the Mac app's CSP asks
- *  `media-src` for its sources, and `fetch` is `connect-src 'self'`. */
+/** The recordings' bytes, fetched at idle with no audio context at all (so
+ *  no gesture is needed); a context decodes them once a gesture made it. */
+const raw = new Map<string, Promise<ArrayBuffer | null>>();
+function fetchFile(file: string): Promise<ArrayBuffer | null> {
+  let p = raw.get(file);
+  if (!p) {
+    p = (async () => {
+      try {
+        const r = await fetch(base() + file);
+        return r.ok ? await r.arrayBuffer() : null;
+      } catch {
+        return null;
+      }
+    })();
+    raw.set(file, p);
+  }
+  return p;
+}
+
+/** One recording, decoded; resolves null if it cannot be (a missing file, or
+ *  a webview that cannot decode MP3, is silence, never a failure of the roll).
+ *  Web Audio, not `<audio>`: the Mac app's CSP asks `media-src` for its
+ *  sources, and `fetch` is `connect-src 'self'`. */
 async function load(ctx: AudioContext, file: string): Promise<AudioBuffer | null> {
   try {
-    const r = await fetch(base() + file);
-    if (!r.ok) return null;
-    return await ctx.decodeAudioData(await r.arrayBuffer());
+    const bytes = await fetchFile(file);
+    // decodeAudioData detaches what it is given: a copy, so a second context could decode too.
+    return bytes ? await ctx.decodeAudioData(bytes.slice(0)) : null;
   } catch {
     return null;
   }
@@ -86,12 +107,16 @@ function set(ctx: AudioContext, name: keyof typeof SOUND_COUNTS): Promise<AudioB
   return p;
 }
 
-/** Fetch and decode every recording in the background (all four sets, 46
- *  files, 300 KB), so the first roll finds them ready. Safe to repeat. */
+const NAMES = Object.keys(SOUND_COUNTS) as (keyof typeof SOUND_COUNTS)[];
+
+/** Fetch every recording in the background (all four sets, 46 files, 300 KB)
+ *  and decode them as soon as a gesture has made the audio context. Makes no
+ *  context itself. Safe to repeat. */
 export function preloadSounds(): void {
-  const ctx = audioContext();
-  if (!ctx) return;
-  for (const name of Object.keys(SOUND_COUNTS) as (keyof typeof SOUND_COUNTS)[]) void set(ctx, name);
+  for (const name of NAMES) for (let i = 1; i <= SOUND_COUNTS[name]; i++) void fetchFile(`${name === "felt" ? "surface_felt" : `dicehit_${name}`}${i}.mp3`);
+  whenContext((ctx) => {
+    for (const name of NAMES) void set(ctx, name);
+  });
 }
 
 /** The kit for `materials`, waiting at most `waitMs` for the recordings (they
@@ -102,9 +127,10 @@ export function preloadSounds(): void {
  *  context at all. */
 export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 400): Promise<SoundKit | null> {
   const ctx = audioContext();
-  if (!ctx) return null;
-  // Inside the roll's own gesture this resumes; later it is a no-op.
-  if (ctx.state !== "running") void ctx.resume().catch(() => undefined);
+  if (!ctx) {
+    warnOnce("no audio context: no click or key press has happened since the app opened");
+    return null;
+  }
   const wanted = [...new Set(materials)];
   const ready = new Map<string, AudioBuffer[]>();
   const all = Promise.all(["felt" as const, ...wanted].map(async (n) => ready.set(n, await set(ctx, n))));
@@ -119,6 +145,12 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
   };
   return {
     clock: () => ctx.currentTime,
+    diagnose(t) {
+      let n = 0;
+      for (const l of ready.values()) n += l.length;
+      logLine("INFO", `ctx=${ctx.state} buffers=${n} played=${t.played} lost=${t.lost} silent=${t.silent} late=${t.late}`);
+      if (t.lost > 0 && ctx.state !== "running") warnOnce(`the audio context is ${ctx.state} while hits were due`);
+    },
     hit(kind, material, speed, at) {
       const volume = hitVolume(speed);
       if (volume === null || document.hidden) return "silent";
@@ -126,7 +158,6 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
       if (!buffer) return "lost";
       if (ctx.state !== "running") {
         void ctx.resume().catch(() => undefined);
-        warnOnce(`the audio context is ${ctx.state}: it needs a click or a key press first`);
         return "lost";
       }
       try {
