@@ -220,3 +220,43 @@ describe("version 2 derivation", () => {
     assert.deepEqual(T.STYLE_KEYS, ["surface-mode", "heading-style", "table-style", "tag-style", "radius"]);
   });
 });
+
+// --- contrast: the new pairs ------------------------------------------------
+describe("version 2 contrast (ADR 0109 item 3)", () => {
+  test("the watched pairs include the code's ink and each heading level", () => {
+    const ids = T.PAIRS.map((p) => p.id);
+    for (const id of ["codeInk", "h1", "h2", "h3", "h4", "h5", "h6"]) assert.ok(ids.includes(id), id);
+  });
+  test("a heading colour under 3:1 on the paper is undone; between 3 and 4.5 it only warns", () => {
+    const s = shipped();
+    const before = T.ratios(T.resolve("light", s, {}));
+    const bad = T.ratios(T.resolve("light", s, { "--h2-color": hexRgb("#e8dcc0") }));
+    assert.deepEqual(T.undoneBy(before, bad).map((r) => r.id), ["h2"]);
+    const mid = T.ratios(T.resolve("light", s, { "--h3-color": hexRgb("#8a7a5a") }));
+    assert.equal(T.undoneBy(before, mid).length, 0);
+    assert.ok(T.warnings(mid).includes("h3"));
+  });
+  test("code ink on code paper is watched with the code paper the theme sets", () => {
+    const s = shipped();
+    const before = T.ratios(T.resolve("light", s, {}));
+    const bad = T.ratios(T.resolve("light", s, { "--code-paper": hexRgb("#2a2218") }));
+    assert.deepEqual(T.undoneBy(before, bad).map((r) => r.id), ["codeInk"]);
+  });
+  test("an import that blanks a heading is refused, naming the pair", () => {
+    const sh = { light: shipped(), dark: shipped() };
+    const theme = { mode: "light", light: { "--h1-color": "#f6edd8" }, dark: {} };
+    const bad = T.unreadableIn(sh, theme);
+    assert.deepEqual(bad.map((b) => b.pair.id), ["h1"]);
+    const fine = T.unreadableIn(sh, { mode: "light", light: { "--h1-color": "#1d4e6b" }, dark: {} });
+    assert.equal(fine.length, 0);
+  });
+  test("a version 1 theme with legible colours is still accepted", () => {
+    const sh = { light: shipped(), dark: shipped() };
+    assert.equal(T.unreadableIn(sh, { mode: "light", light: { "--paper": "#f6edd8", "--ink": "#2a2218" }, dark: {} }).length, 0);
+  });
+  test("the edit rule undoes a change to a new token under the floor", () => {
+    const out = T.changeColor(shipped(), T.emptyLook(), "light", "--h4-color", "#f6edd8");
+    assert.deepEqual(out.undone.map((r) => r.id), ["h4"]);
+    assert.equal(T.changeColor(shipped(), T.emptyLook(), "light", "--h4-color", "#223344").undone.length, 0);
+  });
+});

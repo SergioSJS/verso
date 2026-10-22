@@ -95,13 +95,22 @@ export function extraFallbackCss(side: Side, token: ExtraToken): string {
   return SEMANTIC_LITERAL[side][token as keyof (typeof SEMANTIC_LITERAL)["light"]];
 }
 
-/** The pairs the panel shows and watches: the text colours on the paper. */
+/** The pairs the panel shows and watches: the text colours on the paper;
+ *  since ADR 0109 item 3 also the code's ink on its paper and each heading
+ *  level's colour on the paper. */
 export const PAIRS = [
   { id: "ink", fg: "--ink", bg: "--paper" },
   { id: "ink2", fg: "--ink-2", bg: "--paper" },
   { id: "ink3", fg: "--ink-3", bg: "--paper" },
   { id: "seal", fg: "--seal", bg: "--paper" },
   { id: "inkOn2", fg: "--ink", bg: "--paper-2" },
+  { id: "codeInk", fg: "--code-ink", bg: "--code-paper" },
+  { id: "h1", fg: "--h1-color", bg: "--paper" },
+  { id: "h2", fg: "--h2-color", bg: "--paper" },
+  { id: "h3", fg: "--h3-color", bg: "--paper" },
+  { id: "h4", fg: "--h4-color", bg: "--paper" },
+  { id: "h5", fg: "--h5-color", bg: "--paper" },
+  { id: "h6", fg: "--h6-color", bg: "--paper" },
 ] as const;
 export type PairId = (typeof PAIRS)[number]["id"];
 export type Ratio = { id: PairId; ratio: number };
