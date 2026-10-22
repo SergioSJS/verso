@@ -151,3 +151,72 @@ describe("version 2 files", () => {
     assert.deepEqual(kept[0].theme, r.theme);
   });
 });
+
+// --- derivation: what a theme that does not set an extra gets --------------
+const hexRgb = (h) => T.parseColor(h);
+const shipped = () => {
+  const colors = { "--paper": "#f6edd8", "--paper-2": "#ece1c6", "--hair": "#d6c9a6", "--ink": "#2a2218", "--ink-2": "#4a3f2e", "--seal": "#9a2a22", "--brass-ink": "#6b4a10" };
+  const base = Object.fromEntries(Object.entries(colors).map(([k, v]) => [k, hexRgb(v)]));
+  return { ...base, ...T.derive("light", base) };
+};
+const same = (a, b) => ["r", "g", "b"].every((k) => Math.abs(a[k] - b[k]) < 1e-9);
+
+describe("version 2 derivation", () => {
+  test("every extra has a fallback from the seven, so a theme that sets none is what it was", () => {
+    const s = shipped();
+    const full = T.resolve("light", s, {});
+    assert.ok(same(full["--code-paper"], s["--paper-2"]));
+    assert.ok(same(full["--code-ink"], s["--ink"]));
+    for (const h of ["--h1-color", "--h2-color", "--h3-color"]) assert.ok(same(full[h], s["--brass-ink"]), h);
+    assert.ok(same(full["--h4-color"], s["--ink-2"]));
+    assert.ok(same(full["--h5-color"], s["--ink-2"]));
+    assert.ok(same(full["--h6-color"], s["--ink-3"]));
+    assert.ok(same(full["--red"], s["--seal"]));
+    for (const t of T.EXTRA_TOKENS) assert.ok(full[t], t);
+    // The seven and the derived ones are exactly what they were.
+    for (const t of [...T.COLOR_TOKENS, ...T.DERIVED_TOKENS]) assert.ok(same(full[t], s[t]), t);
+  });
+  test("the extras follow an edited base colour while they are not set", () => {
+    const s = shipped();
+    const custom = { "--ink": hexRgb("#101010"), "--brass-ink": hexRgb("#003355") };
+    const full = T.resolve("light", s, custom);
+    assert.ok(same(full["--code-ink"], hexRgb("#101010")));
+    assert.ok(same(full["--h1-color"], hexRgb("#003355")));
+  });
+  test("a colour the theme sets is the one used", () => {
+    const full = T.resolve("light", shipped(), { "--h2-color": hexRgb("#336699"), "--blue": hexRgb("#123456") });
+    assert.ok(same(full["--h2-color"], hexRgb("#336699")));
+    assert.ok(same(full["--blue"], hexRgb("#123456")));
+  });
+  test("the semantic fallbacks are the colours the callouts always had in chrome.css", () => {
+    const css = readFileSync(new URL("../css/chrome.css", import.meta.url), "utf8");
+    for (const side of ["light", "dark"]) {
+      for (const t of ["--blue", "--green", "--yellow", "--orange", "--purple"]) {
+        const lit = T.extraFallbackCss(side, t);
+        assert.match(lit, /^oklch\(/);
+        assert.ok(css.includes(lit), `${side} ${t}: ${lit} is in the stylesheet`);
+      }
+    }
+    assert.equal(T.extraFallbackCss("light", "--red"), "var(--seal)");
+  });
+  test("the other side of a one-sided colour follows the stylesheet's variable", () => {
+    assert.equal(T.extraFallbackCss("dark", "--h1-color"), "var(--heading-color)");
+    assert.equal(T.extraFallbackCss("dark", "--h4-color"), "var(--ink-2)");
+    assert.equal(T.extraFallbackCss("light", "--code-paper"), "var(--paper-2)");
+    assert.equal(T.extraFallbackCss("light", "--code-ink"), "var(--ink)");
+  });
+  test("the stylesheet reads each extra with its old value as the fallback", () => {
+    const read = (f) => readFileSync(new URL(`../css/${f}.css`, import.meta.url), "utf8");
+    const reading = read("reading");
+    for (const rule of ["var(--h1-color, var(--heading-color, var(--ink)))", "var(--h4-color, var(--ink-2))", "var(--code-paper, var(--paper-2))", "var(--code-paper, var(--paper-3))"]) assert.ok(reading.includes(rule), rule);
+    const live = read("live");
+    for (const rule of ["var(--h1-color, var(--heading-color, var(--ink)))", "var(--code-paper, var(--paper-3))", "var(--red, var(--seal))"]) assert.ok(live.includes(rule), rule);
+  });
+  test("the structural attributes are written only for a choice that is not the window's own", () => {
+    for (const [key, list] of Object.entries(T.STYLE_CHOICES)) {
+      assert.ok(T.STYLE_ATTR[key], key);
+      assert.ok(list.length >= 3, key);
+    }
+    assert.deepEqual(T.STYLE_KEYS, ["surface-mode", "heading-style", "table-style", "tag-style", "radius"]);
+  });
+});
