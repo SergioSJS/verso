@@ -145,6 +145,33 @@ mod revision {
 /// (`docs/reference/watcher-decision.md`).
 pub const WATCH_QUIET: std::time::Duration = std::time::Duration::from_millis(300);
 
+/// Why a picked file was not created in the folder
+/// ([`Workspace::create_file_from_picked`]).
+#[derive(Debug)]
+pub enum PickedCreateError {
+    /// The picked file was refused or could not be read.
+    Picked(PickedError),
+    /// The folder's side: a name taken, a path refused, the disk.
+    Core(CoreError),
+}
+
+impl From<PickedError> for PickedCreateError {
+    fn from(e: PickedError) -> Self {
+        Self::Picked(e)
+    }
+}
+
+impl std::fmt::Display for PickedCreateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Picked(e) => write!(f, "{e}"),
+            Self::Core(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for PickedCreateError {}
+
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
 pub enum CoreError {

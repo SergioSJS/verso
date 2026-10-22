@@ -231,14 +231,24 @@ pub(crate) async fn create_picked<R: tauri::Runtime>(
             })?;
         (h.path.clone(), h.max)
     };
-    let bytes = tauri::async_runtime::spawn_blocking(move || verso_core::read_picked(&file, max))
-        .await
-        .map_err(|e| failed(format!("reading the chosen file: {e}")))?
-        .map_err(|e| match e {
-            verso_core::PickedError::TooLarge => refused("the file is larger than the limit"),
-            e => failed(e.to_string()),
-        })?;
-    let made = with(&state, &window, |ws| Ok(ws.create_file(&path, &bytes)?));
+    // Copied in pieces (`PICK_CHUNK`) off the event loop: the file is never
+    // whole in memory, and a name taken answers before a byte is read.
+    let service = Arc::clone(&state.service);
+    let label = window.label().to_owned();
+    let made = tauri::async_runtime::spawn_blocking(move || {
+        service.with(&label, |ws| {
+            ws.create_file_from_picked(&path, &file, max)
+                .map_err(|e| match e {
+                    verso_core::PickedCreateError::Picked(verso_core::PickedError::TooLarge) => {
+                        refused("the file is larger than the limit").into()
+                    }
+                    verso_core::PickedCreateError::Picked(e) => failed(e.to_string()).into(),
+                    verso_core::PickedCreateError::Core(e) => OpError::from(e),
+                })
+        })
+    })
+    .await
+    .map_err(|e| failed(format!("copying the chosen file: {e}")))?;
     // A name taken leaves the token, so that the window may try the next
     // free name; anything else ends it.
     if !matches!(&made, Err(e) if e.kind == ErrorKind::Exists)
