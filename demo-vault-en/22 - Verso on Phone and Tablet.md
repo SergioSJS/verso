@@ -20,7 +20,7 @@ Verso opens in the browser of your phone and tablet, served by `verso serve` —
 
 On a screen less than 760 px wide:
 
-- **The bottom bar** has five verbs: **Files** (the drawer with the tree), **Search**, **New note**, **Back** and **Commands** (the palette). The side ribbon and the desktop status bar go away.
+- **The bottom bar** has six verbs: **Files** (the drawer with the tree), **Search**, **New note**, **Back**, **Commands** (the palette) and **Panel** (the right drawer, with outline, backlinks and tags). The side ribbon and the desktop status bar go away.
 - **The tree is a drawer**: it opens with **Files** and closes with a tap outside it.
 - **One pane at a time**: a layout split into [[13 - Tabs, Panes, Workspaces and Windows|side-by-side panes]] shows just one, with a **1/2** button in the tab bar that switches panes. The layout is kept and comes back whole on a wider screen.
 - **The tools of a narrow pane** fit in a **…** button: back, new note, the tabs and the **Tab actions…**.
