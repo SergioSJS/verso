@@ -1,4 +1,11 @@
 # ADR 0101 — 3D dice: a lazy module that only stages the fall, onto a result already drawn
+  2026-10-22, testing the installed app — the sound is **on by default**, as
+  in Rolai (the maintainer: *"som de dados tem que ser habilitado por
+  padrão"*; it revises T.7's "off"); it was silent in the desktop app because
+  its content policy allowed no `'self'` media source — now played through
+  Web Audio from the first gesture; and a `dice:` in a board text card rolls
+  as in a note (*"eu consigo rolar dados a partir do board?"*), nothing
+  written.
 
 - Date: 2026-10-17; rewritten 2026-10-21
 - Source: the maintainer, in session on 2026-10-17, referring to his own
