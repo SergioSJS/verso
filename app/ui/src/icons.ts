@@ -23,6 +23,7 @@ const PATHS: Record<string, string> = {
   chevron: "M6 3.5 10.5 8 6 12.5",
   diagram: "M2 6.5h4v3H2zM10 2.5h4v3h-4zM10 10.5h4v3h-4zM6 8h2q1 0 1-1V5.5q0-1 1-1M8 8q1 0 1 1v2q0 1 1 1",
   plus: "M8 3v10M3 8h10",
+  minus: "M3 8h10",
   warn: "M8 2.5 14 13H2zM8 6.5v3M8 11.2v.3",
   outline: "M3 4h10M5 8h8M7 12h6",
   camera: "M2.5 5h2l1-1.5h5l1 1.5h2v7.5h-11zM8 10.8a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z",
