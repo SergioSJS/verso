@@ -11,6 +11,7 @@
 // own dice.
 
 import { contrast, mix, parseColor, toHex, BLACK } from "../theme/color";
+import { ROLL_TIME_DEFAULT, ROLL_TIMES, type RollTime } from "./timeline";
 
 export const SLOTS = ["1", "2", "3"] as const;
 export type SlotId = (typeof SLOTS)[number];
@@ -35,8 +36,9 @@ export type DiceStyle = { body: string; number: string; outline: string; texture
 export type DiceStyles = Record<SlotId, DiceStyle>;
 
 /** What is kept in the settings: the person's dice styles, and the size in
- *  percent, which stays with the viewer and never travels with a roll. */
-export type DiceLook = { size: number; styles: DiceStyles };
+ *  percent, the roll time and the sound switch, which stay with the viewer
+ *  and never travel with a roll. */
+export type DiceLook = { size: number; styles: DiceStyles; time: RollTime; sound: boolean };
 
 /** The picture file of each texture in `dice-textures/` (the original
  *  images of MajorVictory's 3DDiceRoller, The Unlicense; see
@@ -78,7 +80,7 @@ export const DEFAULT_STYLES: Record<SlotId, DiceStyle> = {
 
 /** A fresh default look, so no caller shares the constant. */
 export function defaultLook(): DiceLook {
-  return { size: SIZE_DEFAULT, styles: { "1": { ...DEFAULT_STYLES["1"] }, "2": { ...DEFAULT_STYLES["2"] }, "3": { ...DEFAULT_STYLES["3"] } } };
+  return { size: SIZE_DEFAULT, time: ROLL_TIME_DEFAULT, sound: false, styles: { "1": { ...DEFAULT_STYLES["1"] }, "2": { ...DEFAULT_STYLES["2"] }, "3": { ...DEFAULT_STYLES["3"] } } };
 }
 
 const hex = (v: unknown, fallback: string): string => {
@@ -123,7 +125,7 @@ export function readDiceStyles(raw: unknown): DiceStyles {
 export function readDiceLook(raw: unknown): DiceLook {
   if (!raw || typeof raw !== "object") return defaultLook();
   const r = raw as Record<string, unknown>;
-  return { size: clampSize(r["size"]), styles: readDiceStyles(r["styles"]) };
+  return { size: clampSize(r["size"]), styles: readDiceStyles(r["styles"]), time: oneOf(ROLL_TIMES, r["time"], ROLL_TIME_DEFAULT), sound: r["sound"] === true };
 }
 
 /** The preset a style is exactly, or null ("Personalizado"). */

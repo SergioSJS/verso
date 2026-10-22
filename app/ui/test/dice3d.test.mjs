@@ -247,6 +247,40 @@ test("the replay's clock: real time, skip, and a maximum", () => {
   assert.ok(m.timeline(1).endMs >= 0);
 });
 
+test("the roll time: Fast and Slow replay the same fall sooner and later, Normal is the old speed", () => {
+  const normal = m.timeline(121, m.speedOf("normal"));
+  assert.deepEqual(normal, m.timeline(121));
+  const fast = m.timeline(121, m.speedOf("fast"));
+  const slow = m.timeline(121, m.speedOf("slow"));
+  assert.ok(fast.settleMs < normal.settleMs && normal.settleMs < slow.settleMs);
+  assert.equal(Math.round(slow.settleMs), 2000);
+  // Half way through, each is at the frame its speed gives.
+  assert.ok(m.playhead(fast, 500, false).at > m.playhead(slow, 500, false).at);
+  // The longest fall (the physics' maximum) still reaches its last frame on Slow.
+  const longest = m.timeline(m.STEPS_MOST, m.speedOf("slow"));
+  assert.ok(longest.endMs > m.MAX_ANIMATION_MS);
+  assert.equal(m.playhead(longest, longest.endMs, false).done, true);
+  assert.equal(m.playhead(longest, longest.endMs - 1, false).done, false);
+  assert.equal(m.playhead(longest, longest.settleMs, false).at, m.STEPS_MOST - 1);
+  assert.equal(m.timeline(m.STEPS_MOST).endMs <= m.MAX_ANIMATION_MS, true);
+});
+
+test("the fall records its hits for the sound: on the table, die on die, one of each kind a step", () => {
+  const arena = { halfX: 12, halfZ: 7 };
+  for (const seed of [1, 2, 3]) {
+    const fall = m.simulate(["d6", "d20", "d6", "d8"], arena, seeded(seed * 31));
+    assert.ok(fall.hits.length > 0, `seed ${seed}`);
+    assert.ok(fall.hits.some((h) => h.kind === "table"));
+    const frames = fall.hits.map((h) => h.frame);
+    assert.deepEqual(frames, [...frames].sort((a, b) => a - b));
+    assert.equal(new Set(fall.hits.map((h) => `${h.frame}${h.kind}`)).size, frames.length, "one of each kind a step");
+    for (const h of fall.hits) {
+      assert.ok(h.frame >= 0 && h.frame < fall.frames);
+      assert.ok(h.speed >= 0 && h.die >= 0 && h.die < 4);
+    }
+  }
+});
+
 /** A seeded generator, so a failure repeats. */
 function seeded(seed) {
   let a = seed;
