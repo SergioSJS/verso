@@ -64,6 +64,12 @@ export function isTop(el: HTMLElement): boolean {
   const open = openNow().filter(shownNow);
   return open.length === 0 || open[open.length - 1] === el;
 }
+/** The overlay on top now (none: null) — what a slow opening compares
+ *  before and after it waits, to know the person has moved on. */
+export function topOverlay(): HTMLElement | null {
+  const open = openNow().filter(shownNow);
+  return open[open.length - 1] ?? null;
+}
 /** A dialog opens: where the focus was, to give it back; above every
  *  overlay open, which goes inert under it. */
 export function opened(el: HTMLElement): void {
