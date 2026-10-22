@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The toasts (ADR 0084 item 3): bottom right, above the status bar — at
-// the top on a phone (item 6) — at most three, the newest on top.
+// the bottom on a phone, above its bar and the keyboard (item 6, T.6) — at
+// most three, the newest on top.
 // Information and success leave after 6 s; a warning or an error stays
 // until it is closed or its state changes. A pointer over a toast or the
 // keyboard in it pauses its clock. A toast never takes the focus: it is

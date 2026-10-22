@@ -146,3 +146,20 @@ fn only_a_bounded_number_of_rows_is_read_and_a_bound_reached_says_so() {
     assert!(tables.blocks.is_empty());
     assert!(tables.truncated);
 }
+
+#[test]
+fn a_block_says_how_many_rows_it_has_and_whether_it_is_a_task_list() {
+    let mut index = Index::in_memory().unwrap();
+    put(
+        &mut index,
+        "A.md",
+        "| d6 | x |\n|---|---|\n| 1 | a |\n| 2 | b |\n\n^dois\n\n| d6 | x |\n|---|---|\n| 1 | a |\n\n^um\n\n- [ ] fazer\n- [x] feito\n\n^tarefas\n\n- a\n  - fundo\n- b\n- c\n\n^itens\n",
+    );
+    let all = index.folder_blocks(&[]).unwrap();
+    let get = |id: &str| all.blocks.iter().find(|b| b.id == id).unwrap();
+    assert_eq!(get("dois").rows, 2, "{all:?}");
+    assert_eq!(get("um").rows, 1);
+    assert_eq!((get("tarefas").rows, get("tarefas").tasks), (2, true));
+    // A nested item belongs to its parent.
+    assert_eq!((get("itens").rows, get("itens").tasks), (3, false));
+}

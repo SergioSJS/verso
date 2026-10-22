@@ -46,6 +46,10 @@ pub struct FolderBlock {
     pub label: String,
     /// `label` is the heading above the block (else its first line).
     pub under_heading: bool,
+    /// A table's body rows, or a list's top-level items (0 for the rest).
+    pub rows: u32,
+    /// A list with a task item (`- [ ]`, `- [x]`).
+    pub tasks: bool,
 }
 
 /// The `^id` blocks of the folder, and whether more were left out of a

@@ -1408,7 +1408,11 @@ export class Core {
     server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
-    recent_folders: () => [{ key: "harness", name: this.name, place: "~/Documents" }],
+    recent_folders: () => [
+      { key: "harness", name: this.name, place: "~/Documents" },
+      { key: "mundo", name: "Mundo antigo", place: "~/…/Dropbox/antigo" },
+      { key: "mesa", name: "Mesa de testes", place: "~/Documents" },
+    ],
     // The folder's sync (ADR 0079): turned on against the server a test
     // signs in to (`server_accounts`), synced at once — nothing to cross.
     folder_sync: (): SyncStatus => this.sync,

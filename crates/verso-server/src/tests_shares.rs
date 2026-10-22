@@ -186,7 +186,7 @@ fn a_reader_sees_the_shared_folder_and_nothing_above_or_beside_it() {
             .await;
         assert_eq!(
             blocks["ok"]["blocks"],
-            json!([{ "path": "Sub/Funda.md", "id": "dentro", "kind": "list", "label": "b", "under_heading": false }]),
+            json!([{ "path": "Sub/Funda.md", "id": "dentro", "kind": "list", "label": "b", "under_heading": false, "rows": 1, "tasks": false }]),
             "{blocks}"
         );
         says_nothing_outside(&blocks);

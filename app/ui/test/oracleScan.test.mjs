@@ -101,7 +101,7 @@ test("a note is read when its table is chosen, and only that note", async () => 
 
 test("a listed block that does not read as a table is taken off the list", async () => {
   await S.scanNoteTables(true);
-  S.core.invoke("create_note", { name: "Tarefas", text: "- [ ] uma ^tarefas\n" });
+  S.core.invoke("create_note", { name: "Tarefas", text: "- uma ^tarefas\n" });
   const found = await S.scanNoteTables(true);
   const t = found.tables.find((x) => x.block === "tarefas");
   assert.ok(t, "listed from the index");
@@ -124,4 +124,15 @@ test("the settings read the notes that hold a table, once each", async () => {
   assert.equal(S.calls.length, notes.size);
   assert.ok(all.every((t) => t.entries.length > 0 && !t.unread));
   assert.deepEqual(all.find((t) => t.block === "clima").entries, ["sol", "chuva", "neve"]);
+});
+
+test("T.2: a table of one row and a task list are not offered; a table of two rows and a plain list are", async () => {
+  S.core.invoke("create_note", {
+    name: "Misto",
+    text: "| d4 | A |\n| --- | --- |\n| 1 | so uma |\n\n^pouca\n\n| d4 | A |\n| --- | --- |\n| 1 | um |\n| 2 | dois |\n\n^duas\n\n- [ ] a fazer\n- [x] feito\n\n^tarefas\n\n- um\n- dois\n\n^lista2\n",
+  });
+  const found = await S.scanNoteTables(true);
+  const mine = found.tables.filter((t) => t.note === "Misto.md").map((t) => t.block);
+  assert.deepEqual(mine, ["duas", "lista2"]);
+  S.core.invoke("delete_note", { path: "Misto.md" });
 });

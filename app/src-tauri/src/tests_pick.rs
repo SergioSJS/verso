@@ -155,3 +155,89 @@ fn a_closed_windows_tokens_go_with_it_and_another_windows_stay() {
     assert!(!held.contains_key(&closed));
     assert!(held.contains_key(&open));
 }
+
+// --- Files dragged in from the system's file manager (T.11) ---
+
+#[test]
+fn a_drop_tells_the_window_names_only_and_is_taken_once() {
+    let outside = tempfile::tempdir().unwrap();
+    let a = picked(&outside, "Livro.pdf", &[1u8; 1024]);
+    let b = picked(&outside, "Mapa.png", &[2u8; 1024]);
+    let names = crate::files::stash_drop("w-drop", vec![a, b]);
+    assert_eq!(names, ["Livro.pdf", "Mapa.png"]);
+    let said = serde_json::to_string(&verso_contract::FilesDropped {
+        x: 10,
+        y: 20,
+        names,
+    })
+    .unwrap();
+    assert!(!said.contains(outside.path().to_str().unwrap()), "{said}");
+    // The window takes them once, as tokens of its own.
+    let paths = crate::files::take_stash_for_test("w-drop");
+    assert_eq!(paths.len(), 2);
+    assert!(crate::files::take_stash_for_test("w-drop").is_empty());
+}
+
+#[test]
+fn a_drop_belongs_to_the_window_it_fell_on_and_goes_with_it() {
+    let outside = tempfile::tempdir().unwrap();
+    let a = picked(&outside, "a.bin", &[1u8; 16]);
+    let b = picked(&outside, "b.bin", &[1u8; 16]);
+    crate::files::stash_drop("w-one", vec![a]);
+    crate::files::stash_drop("w-two", vec![b]);
+    crate::files::drop_picks("w-one");
+    assert!(crate::files::take_stash_for_test("w-one").is_empty());
+    assert_eq!(crate::files::take_stash_for_test("w-two").len(), 1);
+    // A new drop replaces one not taken yet.
+    let c = picked(&outside, "c.bin", &[1u8; 16]);
+    let d = picked(&outside, "d.bin", &[1u8; 16]);
+    crate::files::stash_drop("w-three", vec![c]);
+    crate::files::stash_drop("w-three", vec![d]);
+    let kept = crate::files::take_stash_for_test("w-three");
+    assert_eq!(kept.len(), 1);
+    assert!(kept[0].ends_with("d.bin"));
+}
+
+#[test]
+fn a_dropped_file_goes_up_to_the_limit_the_person_set_not_32_mib() {
+    let outside = tempfile::tempdir().unwrap();
+    // 40 MiB, past what the web view hands over; held, not read.
+    let big = picked(&outside, "Livro.pdf", &[]);
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&big)
+        .unwrap()
+        .set_len(40 * 1024 * 1024)
+        .unwrap();
+    let held =
+        crate::files::settle_picks_for_test("w-big", false, false, std::slice::from_ref(&big), 64);
+    assert!(held.skipped.is_empty(), "{:?}", held.skipped);
+    assert!(held.files[0].token.is_some() && held.files[0].base64.is_none());
+    // A note or a board taking the bytes in keeps the 32 MiB bound.
+    let bytes =
+        crate::files::settle_picks_for_test("w-big", false, true, std::slice::from_ref(&big), 64);
+    assert!(bytes.files.is_empty());
+    assert_eq!(bytes.skipped[0].reason, PickSkip::TooLarge);
+    // Past the limit the person set: named, not imported.
+    let over = crate::files::settle_picks_for_test("w-big", false, false, &[big], 16);
+    assert_eq!(over.skipped[0].reason, PickSkip::TooLarge);
+}
+
+#[test]
+fn a_dropped_folder_is_named_as_skipped() {
+    let outside = tempfile::tempdir().unwrap();
+    let got = crate::files::settle_picks_for_test(
+        "w-dir",
+        false,
+        false,
+        &[outside.path().to_path_buf()],
+        64,
+    );
+    assert!(got.files.is_empty());
+    assert_eq!(got.skipped[0].reason, PickSkip::NotAFile);
+}
+
+#[test]
+fn the_window_may_take_a_drop_and_it_is_not_forwarded_to_a_server() {
+    assert!(!crate::remote::forwards("take_dropped"));
+}
