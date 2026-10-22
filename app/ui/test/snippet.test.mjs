@@ -9,8 +9,8 @@ const { cleanSnippet } = await import(`data:text/javascript;base64,${Buffer.from
 test("frontmatter lines are skipped", () => {
   assert.equal(cleanSnippet("---\ntitle: Ajustes\ntags: x\n---\nO [tema] muda"), "O [tema] muda");
 });
-test("a snippet that is only frontmatter stays", () => {
-  assert.equal(cleanSnippet("title: [Ajustes]"), "title: [Ajustes]");
+test("a snippet that is only frontmatter is empty", () => {
+  assert.equal(cleanSnippet("title: [Ajustes]"), "");
 });
 test("emphasis, code and links read as text", () => {
   assert.equal(cleanSnippet("**Ajustes ›** o [tema] e `code` e [[Nota|alias]] e [site](https://x.y) e *it*"), "Ajustes › o [tema] e code e alias e site e it");
