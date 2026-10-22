@@ -129,7 +129,7 @@ const STOPS = [
     cards: [["n-busca", "12 - Busca e Navegação.md", 640]],
     tip:
       "Buscar nas notas aceita tag:, path: e file:. Localizar e substituir no cofre (⌘⇧H) mostra cada mudança antes de gravar. " +
-      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→, ou o botão no canto de cima à direita) tem backlinks, tags e favoritos.",
+      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→, ou o botão da barra de status) tem backlinks, tags e favoritos.",
     extra(b, x, y, f) {
       keys(b, "d-busca", x + 740, y + 160, [[["⌘", "K"], "buscar nas notas"], [["⌘", "P"], "abrir pelo nome"], [["⌘", "⇧", "P"], "todos os comandos"], [["⌘", "⇧", "H"], "trocar em tudo"]], f);
     },
