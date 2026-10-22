@@ -196,3 +196,9 @@ nome com o crédito. Registrado também: toda fonte que um tema usa precisa
 mostrar o português completo (acentos, cedilha, ª º, aspas, travessões) — o
 mantenedor: *"o foco principal vai ser a aplicação atender público
 brasileiro"*; as cinco chaves de fonte foram conferidas e passam.
+
+Decidido em 2026-10-22, por último: um tema do catálogo cujo CSS não declara
+largura de coluna nem entrelinha fica com os padrões do Obsidian (coluna de
+700 px, entrelinha 1,5) — `line-width: narrow`, `line-height: snug` — para
+parecer como o original parece no Obsidian (o mantenedor, opção A: *"A
+então"*; a B era manter os da janela).

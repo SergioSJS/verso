@@ -195,3 +195,8 @@ and "Atom" keep their names with the credit. Also recorded: every font a
 theme uses must render Portuguese in full (accents, cedilla, ª º, quotes,
 dashes) — the maintainer: *"o foco principal vai ser a aplicação atender
 público brasileiro"*; the five font keys were checked and pass.
+
+Decided 2026-10-22, last: a catalogue theme whose CSS declares no line width or
+line height takes Obsidian's defaults (a 700 px column, line height 1.5) —
+`line-width: narrow`, `line-height: snug` — so it looks as its original does in
+Obsidian (the maintainer, option A: *"A então"*; B was to keep the window's own).
