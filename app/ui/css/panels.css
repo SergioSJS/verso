@@ -484,6 +484,16 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 /* Tab bar hidden, vertical tab column resize */
 .pane.tabs-hidden .tabs, .pane.tabs-hidden .tabs-divider { display: none; }
+/* The way back from a hidden tab bar where there is no double click to find:
+   a phone gets a strip with the bar's name on it (the notification bell
+   takes the right edge, as it does over the bar). */
+.tabs-restore { display: none; }
+@media (max-width: 760px) {
+  .pane.tabs-hidden .tabs-restore { display: flex; align-items: center; min-height: 40px; padding: 0 48px 0 .4rem; background: var(--paper-2); box-shadow: inset 0 -1px 0 var(--hair); }
+  .tabs-restore-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 40px; padding: 0 .6rem; font-size: max(12px, .8rem); color: var(--ink-2); }
+  .tabs-restore-button .icon { width: 16px; height: 16px; }
+  .tabs-restore-button:active { color: var(--seal); background: var(--paper-3); }
+}
 .tabs-divider { display: none; }
 .pane.vertical .tabs-divider { display: block; width: 7px; margin: 0 -3px; cursor: col-resize; position: relative; z-index: 1; }
 .pane.vertical .tabs-divider:hover::after { content: ""; position: absolute; inset: 0 2px; background: var(--brass); }

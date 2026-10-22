@@ -65,6 +65,8 @@ test release.
 
 ### Fixed
 
+- **The 3D dice stay on the table after you roll**: the result card still shows as soon as the dice rest, but the dice now stay on screen, at rest, about three more seconds and fade out, instead of vanishing at once. They never block a tap on the page; any tap, Esc or the next roll clears them.
+- **A hidden tab bar always has a way back**: on a phone, hiding the tab bar left nothing to bring it back. Now a pane with its bar hidden shows a strip named *Mostrar barra de abas* at its top, the same switch is in *Settings › Editor*, and the Command palette (the *Comandos* button of the phone's bottom bar) has it too.
 - **A UniVerso upgrade is met by the new window, not the old one**: the server sent the window's script and style files (`web.js`, `style.css`, the fonts and the like) with a date and no caching rule, so a browser kept the previous version for a while after the server was upgraded (Settings missing whole pages until a forced reload). They are now asked about each time and answered "unchanged" when they are, and the files whose name carries a hash are kept for good. One forced reload (Cmd/Ctrl+Shift+R) is needed once, on the browser that still holds an old copy.
 
 - **The 3D dice show the result sooner**: the fall is replayed 1.6 times faster, the dice stay 0.3 seconds once they rest (it was 1.1) before the card shows, and a roll that has not come to rest by 2.5 seconds (it was 6.5) snaps to its result; a typical roll shows its card in under two seconds.

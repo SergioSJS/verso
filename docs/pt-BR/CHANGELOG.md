@@ -65,6 +65,8 @@ versão de teste.
 
 ### Corrigido
 
+- **Os dados 3D ficam na mesa depois da rolagem**: o cartão do resultado continua aparecendo assim que os dados param, mas agora os dados ficam na tela, parados, mais uns três segundos e somem suavemente, em vez de sumir na hora. Eles nunca seguram um toque na página; qualquer toque, Esc ou a rolagem seguinte os tira.
+- **A barra de abas oculta sempre tem volta**: no celular, ocultar a barra de abas não deixava nada para trazê-la de volta. Agora o painel com a barra oculta mostra no topo uma faixa chamada *Mostrar barra de abas*, o mesmo interruptor está em *Ajustes › Editor* e a Paleta de comandos (o botão *Comandos* da barra de baixo do celular) também o tem.
 - **Uma atualização do UniVerso traz a janela nova, não a velha**: o servidor mandava os arquivos de script e estilo da janela (`web.js`, `style.css`, as fontes e afins) com uma data e sem regra de cache, então o navegador guardava a versão anterior por um tempo depois da atualização (Ajustes sem páginas inteiras até um recarregamento forçado). Agora eles são consultados a cada vez e respondidos como "sem mudança" quando são iguais, e os arquivos cujo nome leva um hash ficam guardados de vez. É preciso um recarregamento forçado (Cmd/Ctrl+Shift+R) uma vez, no navegador que ainda guarda uma cópia velha.
 
 - **Os dados 3D mostram o resultado mais cedo**: a queda é repetida 1,6 vez mais rápido, os dados ficam 0,3 segundo parados antes de o cartão aparecer (eram 1,1) e uma rolagem que não parou em 2,5 segundos (eram 6,5) vai direto ao resultado; uma rolagem comum mostra o cartão em menos de dois segundos.
