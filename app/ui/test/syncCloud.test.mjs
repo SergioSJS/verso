@@ -186,6 +186,23 @@ describe("The form to sync with a cloud", () => {
     assert.equal(box.querySelector(".sync-cloud-ok"), null);
   });
 
+  test("a cloud with no conditional delete is refused with its own sentence and the reason", async () => {
+    checked = { accepted: false, problem: "no_conditional_delete", message: "the service does not honour If-Match on a delete", label: "", deletions: "unknown", notes: [], free: null, remote_files: 0, remote_bytes: 0 };
+    const box = document.createElement("div");
+    document.body.append(box);
+    drawCloudForm(box, "s3", deps());
+    input(box, "Bucket").value = "cofre";
+    input(box, "ID da chave de acesso").value = "AKIA123";
+    input(box, "Chave secreta").value = "xyz";
+    box.querySelector("button.primary").click();
+    await tick();
+    const failure = box.querySelector(".sync-failure");
+    assert.equal(failure.hidden, false);
+    assert.match(failure.textContent, /não confere a versão antes de apagar/);
+    assert.match(failure.textContent, /If-Match on a delete/);
+    assert.equal(box.querySelector(".sync-cloud-ok"), null);
+  });
+
   test("an S3 form asks for the bucket, the prefix and the key, and sends the path style only with an endpoint", async () => {
     const box = document.createElement("div");
     document.body.append(box);

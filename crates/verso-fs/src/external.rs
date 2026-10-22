@@ -46,6 +46,39 @@ impl std::fmt::Display for PickedError {
 
 impl std::error::Error for PickedError {}
 
+/// Why a picked file was not created in the folder ([`crate::Root::create_from_picked`]).
+#[derive(Debug)]
+pub enum ImportError {
+    /// The picked file itself was refused or could not be read.
+    Picked(PickedError),
+    /// The folder's side refused or failed: a name taken, a path that
+    /// cannot be named, the disk.
+    Write(crate::WriteError),
+}
+
+impl From<PickedError> for ImportError {
+    fn from(e: PickedError) -> Self {
+        Self::Picked(e)
+    }
+}
+
+impl From<crate::WriteError> for ImportError {
+    fn from(e: crate::WriteError) -> Self {
+        Self::Write(e)
+    }
+}
+
+impl std::fmt::Display for ImportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Picked(e) => write!(f, "{e}"),
+            Self::Write(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for ImportError {}
+
 /// `O_NONBLOCK`, which std does not name: the same value on every Linux
 /// the project ships on (x86-64, arm64) and on macOS and the BSDs. A
 /// `libc` dependency for one constant is not worth its place in the tree.
@@ -127,6 +160,58 @@ pub fn read_picked(path: &Path, max: u64) -> Result<Vec<u8>, PickedError> {
         return Err(PickedError::TooLarge);
     }
     Ok(bytes)
+}
+
+/// How much of a picked file one read takes when it is copied into the
+/// folder: the most that is ever in memory at once, whatever the file's size.
+pub const PICK_CHUNK: usize = 1 << 20;
+
+/// `reader` read in pieces of at most `chunk` bytes, each handed to `sink`,
+/// and the number of bytes read. More than `max` bytes — the file may have
+/// grown since it was measured — stops the copy at once.
+fn copy_bounded<R: Read>(
+    mut reader: R,
+    max: u64,
+    chunk: usize,
+    mut sink: impl FnMut(&[u8]) -> std::io::Result<()>,
+) -> Result<u64, PickedError> {
+    let mut buffer = vec![0_u8; chunk.max(1)];
+    let mut total = 0_u64;
+    loop {
+        let n = match reader.read(&mut buffer) {
+            Ok(0) => return Ok(total),
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(PickedError::Io(e)),
+        };
+        total = total.saturating_add(n as u64);
+        if total > max {
+            return Err(PickedError::TooLarge);
+        }
+        sink(buffer.get(..n).unwrap_or_default()).map_err(PickedError::Io)?;
+    }
+}
+
+/// The file the person picked at `path`, copied in pieces of [`PICK_CHUNK`]
+/// to `sink` — the same refusals as [`read_picked`] (not a regular file, a
+/// placeholder, more than `max`), but never the whole file in memory. The
+/// number of bytes copied.
+///
+/// # Errors
+/// [`PickedError`]; `sink`'s own failure comes back as [`PickedError::Io`].
+pub fn copy_picked(
+    path: &Path,
+    max: u64,
+    sink: impl FnMut(&[u8]) -> std::io::Result<()>,
+) -> Result<u64, PickedError> {
+    if crate::placeholder::stands_in(path).map_err(PickedError::Io)? {
+        return Err(PickedError::Placeholder);
+    }
+    let (file, len) = open_regular(path)?;
+    if len > max {
+        return Err(PickedError::TooLarge);
+    }
+    copy_bounded(file, max, PICK_CHUNK, sink)
 }
 
 #[cfg(test)]
@@ -229,5 +314,84 @@ mod tests {
             read_picked(&p, 100),
             Err(PickedError::Placeholder)
         ));
+    }
+
+    /// A reader that fails the test if it is asked for more than one chunk.
+    struct Strict {
+        left: usize,
+        chunk: usize,
+    }
+    impl Read for Strict {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            assert!(buf.len() <= self.chunk, "asked for {} bytes", buf.len());
+            let n = buf.len().min(self.left);
+            buf[..n].fill(7);
+            self.left -= n;
+            Ok(n)
+        }
+    }
+
+    #[test]
+    fn copying_never_asks_for_more_than_a_chunk() {
+        let chunk = 4096;
+        let mut seen = 0_u64;
+        let n = copy_bounded(
+            Strict {
+                left: 50 * chunk + 3,
+                chunk,
+            },
+            u64::MAX,
+            chunk,
+            |piece| {
+                assert!(piece.len() <= chunk);
+                seen += piece.len() as u64;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(n, 50 * chunk as u64 + 3);
+        assert_eq!(seen, n);
+    }
+
+    #[test]
+    fn copying_stops_at_the_bound_and_on_a_sink_failure() {
+        let r = Strict {
+            left: 100,
+            chunk: 16,
+        };
+        assert!(matches!(
+            copy_bounded(r, 99, 16, |_| Ok(())),
+            Err(PickedError::TooLarge)
+        ));
+        let r = Strict {
+            left: 100,
+            chunk: 16,
+        };
+        assert!(matches!(
+            copy_bounded(r, 100, 16, |_| Err(std::io::Error::other("full"))),
+            Err(PickedError::Io(_))
+        ));
+    }
+
+    #[test]
+    fn copy_picked_refuses_like_read_picked() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("a.bin");
+        std::fs::write(&p, vec![1u8; 11]).unwrap();
+        assert!(matches!(
+            copy_picked(&p, 10, |_| Ok(())),
+            Err(PickedError::TooLarge)
+        ));
+        assert!(matches!(
+            copy_picked(dir.path(), 10, |_| Ok(())),
+            Err(PickedError::NotAFile)
+        ));
+        let stub = dir.path().join(".Foto.png.icloud");
+        std::fs::write(&stub, b"stub").unwrap();
+        assert!(matches!(
+            copy_picked(&stub, 100, |_| Ok(())),
+            Err(PickedError::Placeholder)
+        ));
+        assert_eq!(copy_picked(&p, 11, |_| Ok(())).unwrap(), 11);
     }
 }

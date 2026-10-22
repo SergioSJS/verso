@@ -65,6 +65,11 @@ pub enum Deletions {
     Unknown,
 }
 
+/// The `detail` of the refusal of a service that cannot make a delete
+/// conditional on the file's version (I-3, decided 2026-10-22): the window
+/// says it in its language.
+pub const DETAIL_NO_CONDITIONAL_DELETE: &str = "no_conditional_delete";
+
 /// What connecting found, for the window to show before the first sync.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {

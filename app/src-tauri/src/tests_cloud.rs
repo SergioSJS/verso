@@ -425,6 +425,31 @@ fn a_service_that_would_lose_an_edit_is_refused_with_the_reason() {
 }
 
 #[test]
+fn a_service_without_a_conditional_delete_is_refused_with_its_own_reason() {
+    // I-3 (decided 2026-10-22): WebDAV and S3 alike; the window says it
+    // with `no_conditional_delete`, the English reason stays the message.
+    let secrets = Memory::default();
+    let dav = Fake::Dav(Dav::start(DavMode {
+        user: "ana".into(),
+        password: "segredo".into(),
+        ignore_delete_if_match: true,
+        ..DavMode::default()
+    }));
+    let s3 = Fake::S3(FakeS3::start(S3Mode {
+        ignore_delete_if_match: true,
+        ..S3Mode::default()
+    }));
+    for fake in [dav, s3] {
+        let (answer, cloud) = cloud::check(&secrets, &fake.settings(), fake.secret());
+        assert!(!answer.accepted);
+        assert_eq!(answer.problem.as_deref(), Some("no_conditional_delete"));
+        assert!(answer.message.unwrap().contains("If-Match on a delete"));
+        assert!(cloud.is_none());
+    }
+    assert!(secrets.accounts().is_empty());
+}
+
+#[test]
 fn the_secret_reaches_the_keychain_only_when_the_person_starts() {
     let fake = dav();
     let secrets = Memory::default();

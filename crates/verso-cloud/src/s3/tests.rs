@@ -90,10 +90,11 @@ fn a_bucket_that_keeps_versions_says_so() {
 #[test]
 fn the_probe_refuses_a_service_that_would_lose_an_edit() {
     type Tweak = fn(&mut S3Mode);
-    let cases: [(&str, Tweak); 3] = [
+    let cases: [(&str, Tweak); 4] = [
         ("If-None-Match", |m| m.ignore_if_none_match = true),
         ("If-Match", |m| m.ignore_if_match = true),
         ("conditional", |m| m.not_implemented = true),
+        ("If-Match on a delete", |m| m.ignore_delete_if_match = true),
     ];
     for (needle, tweak) in cases {
         let mut m = S3Mode::default();
@@ -106,6 +107,13 @@ fn the_probe_refuses_a_service_that_would_lose_an_edit() {
             .unwrap_err();
         assert_eq!(e.kind, RemoteErrorKind::Refused, "{needle}: {e}");
         assert!(e.message.contains(needle), "{needle}: {e}");
+        // A service with no conditional delete is refused with its own
+        // reason, for the window to say (I-3).
+        assert_eq!(
+            e.detail.as_deref() == Some(crate::DETAIL_NO_CONDITIONAL_DELETE),
+            needle == "If-Match on a delete",
+            "{needle}: {e:?}"
+        );
         assert!(fake.keys().is_empty(), "{needle}: {:?}", fake.keys());
     }
 }
@@ -114,14 +122,13 @@ fn the_probe_refuses_a_service_that_would_lose_an_edit() {
 fn what_a_service_does_not_honour_is_noted_not_refused() {
     let fake = Fake::start(S3Mode {
         checksum: false,
-        ignore_delete_if_match: true,
         ignore_copy_conditions: true,
         ignore_multipart_conditions: true,
         ..S3Mode::default()
     });
     let report = S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
-    assert!(report.caps.is_empty(), "{:?}", report.caps);
-    assert!(report.notes.len() >= 3, "{:?}", report.notes);
+    assert_eq!(report.caps, [CAP_DELETE_IF_MATCH], "{:?}", report.caps);
+    assert!(report.notes.len() >= 2, "{:?}", report.notes);
 }
 
 #[test]
@@ -400,7 +407,14 @@ fn a_delete_and_a_rename_hold_to_the_version() {
             ignore_delete_if_match: ignore,
             ..S3Mode::default()
         });
-        let s = connect(&fake);
+        // A service with no conditional delete is refused at connection;
+        // one connected before that was decided still deletes by looking at
+        // the file first.
+        let s = if ignore {
+            S3::new(settings(&fake)).unwrap().quick()
+        } else {
+            connect(&fake)
+        };
         put(&s, "a.md", &Condition::Absent, b"um").unwrap();
         put(&s, "b.md", &Condition::Absent, b"dois").unwrap();
         let (va, vb) = (version_of(&s, "a.md"), version_of(&s, "b.md"));
@@ -651,7 +665,8 @@ fn a_bad_copy_is_deleted_only_against_its_own_version_or_left_alone() {
         ignore_delete_if_match: true,
         ..S3Mode::default()
     });
-    let s = connect(&fake);
+    // (A connection made before such a service was refused at connection.)
+    let s = S3::new(settings(&fake)).unwrap().quick();
     assert!(!s.can(CAP_DELETE_IF_MATCH));
     let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
     let e = s
@@ -669,37 +684,27 @@ fn a_bad_copy_is_deleted_only_against_its_own_version_or_left_alone() {
 }
 
 #[test]
-fn a_delete_without_a_conditional_delete_has_a_window_and_the_probe_says_so() {
-    // I-3: on a service that ignores If-Match on DELETE, the adapter looks
-    // at the file just before and deletes unconditionally. Another
-    // device's write between the two is lost. Not changed here (the
-    // maintainer decides); documented so the window is seen.
+fn a_service_without_a_conditional_delete_is_refused_at_connection() {
+    // I-3, decided 2026-10-22: on a service that ignores If-Match on
+    // DELETE an edit another device makes between the adapter's look and
+    // its DELETE would be lost, so the person is not connected to it. The
+    // check file is cleaned up even so.
     let fake = Fake::start(S3Mode {
         ignore_delete_if_match: true,
         ..S3Mode::default()
     });
-    let report = S3::new(settings(&fake)).unwrap().quick().probe().unwrap();
-    assert!(!report.caps.iter().any(|c| c == CAP_DELETE_IF_MATCH));
-    let note = report
-        .notes
-        .iter()
-        .find(|n| n.contains("If-Match on a delete"))
-        .expect("the person is told");
-    assert!(
-        note.contains("short window") && note.contains("deleted with it"),
-        "{note}"
+    let e = S3::new(settings(&fake))
+        .unwrap()
+        .quick()
+        .probe()
+        .unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Refused, "{e}");
+    assert_eq!(
+        e.detail.as_deref(),
+        Some(crate::DETAIL_NO_CONDITIONAL_DELETE)
     );
-    let s = connect(&fake);
-    let a = put(&s, "a.md", &Condition::Absent, b"um").unwrap();
-    // The window: the file changes after the adapter's look and before
-    // its DELETE. The fake lands a write right after the HEAD.
-    fake.after("HEAD", "Cofre/a.md", b"ou");
-    s.delete("a.md", &Condition::Version(a.version)).unwrap();
-    assert!(
-        fake.get("Cofre/a.md").is_none(),
-        "the other device's write was deleted: the window this test documents"
-    );
-    assert!(!fake.removed().iter().all(removal_agrees));
+    assert!(e.message.contains("If-Match on a delete"), "{e}");
+    assert!(fake.keys().is_empty(), "{:?}", fake.keys());
 }
 
 #[test]

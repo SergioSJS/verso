@@ -216,6 +216,39 @@ impl Workspace {
         Ok(key)
     }
 
+    /// [`Workspace::create_file`] for a file the person picked outside the
+    /// folder: copied from `source` in pieces and never held whole in
+    /// memory, atomic, refused when something stands there (nothing is
+    /// copied then), at most `max` bytes. A board is small and indexed from
+    /// its bytes, so it is read whole (bounded by `max`) and created by
+    /// `create_file`.
+    pub fn create_file_from_picked(
+        &mut self,
+        relative: &str,
+        source: &std::path::Path,
+        max: u64,
+    ) -> Result<String, PickedCreateError> {
+        let key = self.write_key(relative).map_err(PickedCreateError::Core)?;
+        if is_canvas(&key) {
+            let bytes = verso_fs::read_picked(source, max)?;
+            return self
+                .create_file(&key, &bytes)
+                .map_err(PickedCreateError::Core);
+        }
+        let (_handle, _report) = self
+            .root
+            .create_from_picked(Path::new(&key), source, max)
+            .map_err(|e| match e {
+                verso_fs::ImportError::Picked(p) => PickedCreateError::Picked(p),
+                verso_fs::ImportError::Write(w) => PickedCreateError::Core(CoreError::Write(w)),
+            })?;
+        self.files
+            .entry(verso_index::file_key(name_of(&key)))
+            .or_default()
+            .push(key.clone());
+        Ok(key)
+    }
+
     /// Create a folder inside the open folder. The walk does not list an
     /// empty folder, so the caller shows it until something lands in it.
     pub fn create_folder(&mut self, relative: &str) -> Result<String, CoreError> {
