@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use crate::MenuState;
 
 /// The prefix of an item whose id names a command of the window.
+#[cfg(target_os = "macos")]
 pub(crate) const COMMAND_PREFIX: &str = "verso-cmd-";
 
 /// The host's own items, whose behaviour lives in `lib.rs`.
@@ -306,13 +307,71 @@ const LABELS: &[(&str, &str, &str)] = &[
 pub(crate) fn title(lang: &str, key: &str) -> &'static str {
     let pt = lang != "en";
     match (key, pt) {
+        ("file", true) => "Arquivo",
+        ("file", false) => "File",
+        ("edit", true) => "Edição",
+        ("edit", false) => "Edit",
+        ("view", true) => "Visualização",
+        ("view", false) => "View",
         ("go", true) => "Ir",
         ("go", false) => "Go",
         ("rpg", _) => "RPG",
+        ("window", true) => "Janela",
+        ("window", false) => "Window",
         ("help", true) => "Ajuda",
         ("help", false) => "Help",
         _ => "",
     }
+}
+
+/// The key that opens a menu with Alt on Windows and Linux (the letter
+/// underlined in its title), per language. None repeats within a language,
+/// and none is a letter the window binds with Alt alone (keys.ts binds
+/// only Alt-Enter and combinations with Mod).
+pub(crate) fn mnemonic(lang: &str, key: &str) -> &'static str {
+    let pt = lang != "en";
+    match (key, pt) {
+        ("file", true) => "a",
+        ("file", false) => "f",
+        ("edit", _) => "e",
+        ("view", _) => "v",
+        ("go", true) => "i",
+        ("go", false) => "g",
+        ("rpg", _) => "r",
+        ("window", true) => "j",
+        ("window", false) => "w",
+        ("help", true) => "u",
+        ("help", false) => "h",
+        _ => "",
+    }
+}
+
+/// The words of the host's own and the system's items, and of the app
+/// menu's, in the window's language ("pt" is the default, as the product's;
+/// ADR 0035). The macOS bar keeps the system's own words for the
+/// predefined items; the in-window menu of Windows and Linux uses these.
+pub(crate) fn word(lang: &str, key: &str) -> &'static str {
+    let (pt, en) = match key {
+        "quit" => ("Encerrar o Verso", "Quit Verso"),
+        "settings" => ("Ajustes…", "Settings…"),
+        "new-window" => ("Nova janela", "New Window"),
+        "open-folder" => ("Abrir pasta…", "Open Folder…"),
+        "open-recent" => ("Abrir recente", "Open Recent"),
+        "close-tab" => ("Fechar aba", "Close Tab"),
+        "close-window" => ("Fechar janela", "Close Window"),
+        "undo" => ("Desfazer", "Undo"),
+        "redo" => ("Refazer", "Redo"),
+        "select-all" => ("Selecionar tudo", "Select All"),
+        "cut" => ("Recortar", "Cut"),
+        "copy" => ("Copiar", "Copy"),
+        "paste" => ("Colar", "Paste"),
+        "fullscreen" => ("Tela cheia", "Full Screen"),
+        "minimize" => ("Minimizar", "Minimize"),
+        "maximize" => ("Maximizar", "Maximize"),
+        "devtools" => ("Abrir console", "Open Console"),
+        _ => ("", ""),
+    };
+    if lang == "en" { en } else { pt }
 }
 
 /// A command's label in the menu, in the window's language; empty for an
@@ -322,6 +381,111 @@ pub(crate) fn label(lang: &str, command: &str) -> &'static str {
         .iter()
         .find(|(id, _, _)| *id == command)
         .map_or("", |(_, pt, en)| if lang == "en" { en } else { pt })
+}
+
+/// One row of a menu, as the window gets it (Windows and Linux draw the
+/// menu inside the window; macOS has the native bar and never asks).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, specta::Type)]
+pub(crate) struct MenuEntry {
+    /// "sep", "command" (a command of the window's registry, `id`), "own"
+    /// (the host's own, run by the window: `id` names the action) or
+    /// "system" (an editing or window action of the web view).
+    pub(crate) kind: String,
+    pub(crate) id: String,
+    pub(crate) label: String,
+    /// The feature switch (ADR 0103) that must be on for the row to show.
+    pub(crate) feature: Option<String>,
+    /// The fixed key of an own or system row, as the window writes it
+    /// (`Mod-z`); a command's key is the window's, as bound now.
+    pub(crate) key: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, specta::Type)]
+pub(crate) struct MenuSection {
+    pub(crate) key: String,
+    pub(crate) title: String,
+    /// The letter that opens it with Alt.
+    pub(crate) mnemonic: String,
+    pub(crate) items: Vec<MenuEntry>,
+}
+
+fn entry(kind: &str, id: &str, label: &str, feature: Option<&str>, key: Option<&str>) -> MenuEntry {
+    MenuEntry {
+        kind: kind.to_owned(),
+        id: id.to_owned(),
+        label: label.to_owned(),
+        feature: feature.map(str::to_owned),
+        key: key.map(str::to_owned),
+    }
+}
+
+fn own_id(own: Own) -> (&'static str, Option<&'static str>) {
+    match own {
+        Own::NewWindow => ("new-window", None),
+        Own::OpenFolder => ("open-folder", None),
+        Own::OpenRecent => ("open-recent", None),
+        Own::CloseTab => ("close-tab", None),
+        Own::CloseWindow => ("close-window", None),
+        Own::Undo => ("undo", Some("Mod-z")),
+        Own::Redo => ("redo", Some("Mod-Shift-z")),
+        Own::SelectAll => ("select-all", Some("Mod-a")),
+        Own::Devtools => ("devtools", None),
+    }
+}
+
+fn system_id(system: System) -> (&'static str, Option<&'static str>) {
+    match system {
+        System::Cut => ("cut", Some("Mod-x")),
+        System::Copy => ("copy", Some("Mod-c")),
+        System::Paste => ("paste", Some("Mod-v")),
+        System::Fullscreen => ("fullscreen", None),
+        System::Minimize => ("minimize", None),
+        System::Maximize => ("maximize", None),
+    }
+}
+
+/// The menus as the window of Windows and Linux draws them: the Mac bar's
+/// menus (`sections`), every row with its words, and — where Windows and
+/// Linux users look for them — Settings… and Quit at the end of File (the
+/// Mac has them in the app menu, which is not here). The rows whose feature
+/// is off, and the separators left alone, are dropped by `visible`, as for
+/// the bar; the window greys the rows the palette cannot run.
+pub(crate) fn window_menu(lang: &str, state: &MenuState) -> Vec<MenuSection> {
+    sections()
+        .into_iter()
+        .map(|(key, rows)| {
+            let mut items: Vec<MenuEntry> = visible(&rows, state)
+                .into_iter()
+                .map(|row| match row {
+                    Row::Sep => entry("sep", "", "", None, None),
+                    Row::Own(own) => {
+                        let (id, k) = own_id(own);
+                        entry("own", id, word(lang, id), None, k)
+                    }
+                    Row::System(system) => {
+                        let (id, k) = system_id(system);
+                        entry("system", id, word(lang, id), None, k)
+                    }
+                    Row::Command(id, feature) => {
+                        entry("command", id, label(lang, id), feature, None)
+                    }
+                })
+                .collect();
+            if key == "file" {
+                if items.last().is_some_and(|i| i.kind != "sep") {
+                    items.push(entry("sep", "", "", None, None));
+                }
+                items.push(entry("own", "settings", word(lang, "settings"), None, None));
+                items.push(entry("own", "quit", word(lang, "quit"), None, None));
+            }
+            MenuSection {
+                key: key.to_owned(),
+                title: title(lang, key).to_owned(),
+                mnemonic: mnemonic(lang, key).to_owned(),
+                items,
+            }
+        })
+        .collect()
 }
 
 /// What a menu shows now: the rows whose feature is off dropped, and the
@@ -346,12 +510,14 @@ pub(crate) fn visible(rows: &[Row], state: &MenuState) -> Vec<Row> {
 }
 
 /// The id a command's item has in the bar.
+#[cfg(target_os = "macos")]
 pub(crate) fn item_id(command: &str) -> String {
     format!("{COMMAND_PREFIX}{command}")
 }
 
 /// Whether a command's item is enabled: before the window says anything,
 /// every one is.
+#[cfg(target_os = "macos")]
 pub(crate) fn is_enabled(state: &MenuState, command: &str) -> bool {
     state
         .enabled
@@ -454,6 +620,7 @@ mod tests {
         assert_eq!(label("en", "roll-dice"), "Roll Dice…");
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn a_command_not_enabled_is_disabled_and_before_any_word_all_are_enabled() {
         let mut s = MenuState::default();
@@ -461,5 +628,68 @@ mod tests {
         s.enabled = Some(["quick".to_owned()].into_iter().collect());
         assert!(is_enabled(&s, "quick"));
         assert!(!is_enabled(&s, "save"));
+    }
+
+    #[test]
+    fn every_menu_has_a_title_and_its_own_mnemonic_in_both_languages() {
+        for lang in ["pt", "en"] {
+            let mut seen = HashSet::new();
+            for section in window_menu(lang, &all_on()) {
+                assert!(!section.title.is_empty(), "{lang} {}", section.key);
+                assert_eq!(section.mnemonic.len(), 1, "{lang} {}", section.key);
+                assert!(
+                    section.title.to_lowercase().contains(&section.mnemonic),
+                    "{lang}: the {} menu's letter is not in its title",
+                    section.key
+                );
+                assert!(seen.insert(section.mnemonic), "{lang}: a letter twice");
+                for item in section.items {
+                    if item.kind != "sep" {
+                        assert!(!item.label.is_empty(), "{} has no {lang} label", item.id);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_window_menu_has_the_bars_menus_and_settings_and_quit_in_file() {
+        let menu = window_menu("en", &all_on());
+        let keys: Vec<_> = menu.iter().map(|s| s.key.as_str()).collect();
+        let bar: Vec<_> = sections().iter().map(|(k, _)| *k).collect();
+        assert_eq!(keys, bar);
+        let file: Vec<_> = menu[0].items.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(&file[file.len() - 3..], ["", "settings", "quit"]);
+        let rpg = menu.iter().find(|s| s.key == "rpg").map(|s| &s.items);
+        let dice = rpg.and_then(|r| r.iter().find(|i| i.id == "roll-dice"));
+        assert_eq!(dice.and_then(|i| i.feature.as_deref()), Some("diceRolling"));
+        // A feature that is off has no row, as in the bar.
+        let off = window_menu("en", &MenuState::default());
+        let rpg_off: Vec<_> = off
+            .iter()
+            .find(|s| s.key == "rpg")
+            .map(|s| s.items.iter().map(|i| i.id.as_str()).collect())
+            .unwrap_or_default();
+        assert_eq!(rpg_off, vec!["settings-rpg"]);
+    }
+
+    /// The browser harness has no host: it reads this file. It is the
+    /// spec as the host exposes it, so a change of the spec fails here
+    /// until the file is written again (`VERSO_WRITE_MENU_SPEC=1`).
+    #[test]
+    fn the_harness_has_the_spec_the_host_exposes() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../ui/src/harness/menuSpec.json");
+        let now = serde_json::to_string_pretty(&serde_json::json!({
+            "pt": window_menu("pt", &all_on()),
+            "en": window_menu("en", &all_on()),
+        }))
+        .unwrap_or_default()
+            + "\n";
+        if std::env::var_os("VERSO_WRITE_MENU_SPEC").is_some() {
+            std::fs::write(&path, &now).unwrap_or_default();
+        }
+        let have = std::fs::read_to_string(&path).unwrap_or_default();
+        assert_eq!(have, now, "app/ui/src/harness/menuSpec.json is stale");
     }
 }

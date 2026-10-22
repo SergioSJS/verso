@@ -55,7 +55,6 @@ mod history;
 mod local_server;
 mod log;
 mod menu;
-#[cfg(target_os = "macos")]
 mod menu_spec;
 mod notes;
 mod protocol;
@@ -759,6 +758,8 @@ macro_rules! commands_for {
                 set_menu_language::<$runtime>,
                 set_menu_commands::<$runtime>,
                 set_menu_enabled::<$runtime>,
+                menu_sections,
+                quit_app::<$runtime>,
                 reindex::<$runtime>,
                 capabilities::<$runtime>,
                 folder_space::<$runtime>,

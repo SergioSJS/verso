@@ -88,6 +88,8 @@ fn main() {
         "set_menu_language",
         "set_menu_commands",
         "set_menu_enabled",
+        "menu_sections",
+        "quit_app",
         "reindex",
         "capabilities",
         "folder_space",
