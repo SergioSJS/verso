@@ -43,14 +43,14 @@ const center = async (locator) => {
   return [b.x + b.width / 2, b.y + b.height / 2];
 };
 
-test("the frame follows the screen: a phone's bar of five verbs, the desktop's ribbon and status bar @layout", async ({ app, page }) => {
+test("the frame follows the screen: a phone's bar of six verbs, the desktop's ribbon and status bar @layout", async ({ app, page }) => {
   await app.open();
   const width = page.viewportSize().width;
   if (phone(page)) {
     await expect(page.locator(".ribbon")).toBeHidden();
     await expect(page.locator(".status-bar")).toBeHidden();
     const items = page.locator(".bottom-bar .bottom-bar-item");
-    await expect(items).toHaveCount(5);
+    await expect(items).toHaveCount(6);
     for (const b of await items.all()) {
       const box = await b.boundingBox();
       expect(Math.round(box.height), "a target of 44 px at least").toBeGreaterThanOrEqual(44);

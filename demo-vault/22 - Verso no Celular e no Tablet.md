@@ -20,7 +20,7 @@ O Verso abre no navegador do celular e do tablet, servido pelo `verso serve` —
 
 Numa tela com menos de 760 px de largura:
 
-- **A barra de baixo** tem cinco verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar** e **Comandos** (a paleta). A fita lateral e a barra de status do computador saem.
+- **A barra de baixo** tem seis verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar**, **Comandos** (a paleta) e **Painel** (a gaveta da direita, com estrutura, backlinks e tags). A fita lateral e a barra de status do computador saem.
 - **A árvore é uma gaveta**: abre por **Arquivos** e fecha com um toque fora dela.
 - **Um painel por vez**: um layout dividido em [[13 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
 - **As ferramentas de um painel estreito** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.

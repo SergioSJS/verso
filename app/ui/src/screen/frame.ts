@@ -11,7 +11,7 @@
 // the controls it shows and what they do.
 
 import { canWrite, can, loadCan, onCan } from "../can";
-import { narrow, toggleSide } from "../chrome";
+import { narrow, paintExpanded, toggleRight, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { newUntitled } from "../files";
 import { icon } from "../icons";
@@ -58,8 +58,26 @@ function buildBar(): void {
     verb(st.barNew, "plus", () => void newUntitled(paneToOpenIn()), "bar-folder bar-write"),
     back,
     verb(st.barCommands, "command", () => paletteDialog.show(), "bar-folder"),
+    verb(st.barPanel, "panelRight", () => toggleRight(), "bar-right"),
   );
+  // The panel at the right (backlinks, outline, tags…) opens from here on
+  // a phone: a visible verb with a name, not a gesture to guess.
   document.querySelector("main.work")?.append(bar);
+  // The top row: the files at the left, the right panel at the right, each
+  // with its word — Obsidian's mobile top bar, which people know.
+  const top = h("div", "phone-top");
+  const files = h("button", "ghost bar-files");
+  files.type = "button";
+  files.append(icon("sidebar"), h("span", "phone-top-label", st.barFiles));
+  files.setAttribute("aria-label", t.toggleSide);
+  files.addEventListener("click", () => toggleSide());
+  const panel = h("button", "ghost bar-right");
+  panel.type = "button";
+  panel.append(h("span", "phone-top-label", st.barPanel), icon("panelRight"));
+  panel.addEventListener("click", () => toggleRight());
+  top.append(files, panel);
+  document.querySelector("main.work")?.prepend(top);
+  paintExpanded();
   paintBar();
   // A folder opened or closed enables the search field: the bar follows.
   new MutationObserver(paintBar).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
