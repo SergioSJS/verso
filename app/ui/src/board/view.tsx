@@ -42,7 +42,7 @@ import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
-import { useCardButtons, useCardPreview, useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
+import { useCardButtons, useCardPreview, useHintSlot, useMenuName, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
 import { useOverlays } from "./overlays";
 import { useSceneFixes } from "./arrows";
 import {
@@ -1037,6 +1037,7 @@ function Board({
   );
 
   const slot = useToolbarSlot(container);
+  useMenuName(container, s.boardMenu);
   const toolsBelow = useToolsBelow(container);
   useTidyContextMenu(container);
   const insertMenu = readOnly ? null : (
