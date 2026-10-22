@@ -27,6 +27,8 @@
       "--cyan": "#95e6cb",
       "--blue": "#59c2ff",
       "--purple": "#d2a6ff"
-    }
+    },
+    "--heading-font": "system",
+    "--book": "system"
   }
 }
