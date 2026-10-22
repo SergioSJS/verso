@@ -1116,8 +1116,11 @@ fn the_log_has_the_modes_life_and_no_secret() {
         let refused = call(&mut ws, 3, "reveal", json!({ "path": "Sessao.md" })).await;
         assert_eq!(refused["err"]["kind"], "not_on_phone");
         drop(ws);
-        // The server notices the closed socket on its own time.
-        for _ in 0..100 {
+        // The server notices the closed socket on its own time: it closes the
+        // phone's folder first, and on macOS that waits on `fseventsd`, which
+        // under a loaded suite took more than the 5 s once (2026-10-22).
+        // Bounded, and ending as soon as the line is there.
+        for _ in 0..600 {
             let gone = LOGGED
                 .lock()
                 .unwrap()
