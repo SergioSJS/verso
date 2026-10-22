@@ -34,6 +34,17 @@ const ENUMS = {
   "table-style": ["hairline", "striped", "bordered"],
   "tag-style": ["pill", "outline", "minimal"],
   radius: ["sharp", "soft", "round"],
+  // ADR 0109, TM.4 = B: the ten more structural keys (app/ui/src/theme/tokens.ts).
+  "heading-scale": ["standard", "compact", "large"],
+  "heading-weight": ["semibold", "regular", "bold"],
+  "line-width": ["standard", "narrow", "wide"],
+  "line-height": ["normal", "snug", "relaxed"],
+  "blockquote-style": ["bar-italic", "bar", "panel", "plain"],
+  "link-style": ["underline", "hover", "plain"],
+  "emphasis-color": ["ink", "accent", "semantic"],
+  "checkbox-style": ["square", "rounded", "round"],
+  "paragraph-spacing": ["standard", "tight", "loose"],
+  "callout-style": ["tinted", "outlined", "title-bar"],
 };
 // Licences the project may ship a credit under (ADR 0109 item 6): the
 // permissive ones and MPL-2.0 (the project's own). A palette under another

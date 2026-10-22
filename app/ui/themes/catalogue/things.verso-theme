@@ -63,6 +63,9 @@
     "heading-style": "rule",
     "table-style": "hairline",
     "tag-style": "pill",
-    "radius": "soft"
+    "radius": "soft",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "checkbox-style": "round"
   }
 }

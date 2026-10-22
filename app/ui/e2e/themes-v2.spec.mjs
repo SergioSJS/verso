@@ -69,7 +69,7 @@ export const file = (obj, name = "tema.verso-theme") => ({ name, mimeType: "appl
 export function settingsOf(theme) {
   const out = { look: { light: theme.values.light ?? {}, dark: theme.values.dark ?? {} }, lookName: theme.name };
   if (theme.values["--heading-font"]) out.headingFont = theme.values["--heading-font"];
-  for (const key of ["surface-mode", "heading-style", "table-style", "tag-style", "radius"]) if (theme.values[key]) (out.look.style ??= {})[key] = theme.values[key];
+  for (const key of ["surface-mode", "heading-style", "table-style", "tag-style", "radius", "heading-scale", "heading-weight", "line-width", "line-height", "blockquote-style", "link-style", "emphasis-color", "checkbox-style", "paragraph-spacing", "callout-style"]) if (theme.values[key]) (out.look.style ??= {})[key] = theme.values[key];
   if (theme.values["--book"]) out.look.book = theme.values["--book"];
   return out;
 }

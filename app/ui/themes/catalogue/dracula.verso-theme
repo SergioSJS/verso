@@ -38,6 +38,9 @@
     "--heading-font": "system",
     "--book": "system",
     "font-size": 16,
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "blockquote-style": "bar",
+    "link-style": "plain"
   }
 }
