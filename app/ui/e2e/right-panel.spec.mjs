@@ -18,8 +18,8 @@ async function shot(page, name) {
     await page.screenshot({ path: `${SHOTS}/${name}-${page.viewportSize().width}.png` });
   } catch { /* no place to write */ }
 }
-/** The control to press: the corner's, in the top row on a phone too. */
-const control = (page) => (phone(page) ? page.locator(".phone-top .bar-right") : page.locator("#toggle-right-top"));
+/** The control to press: the corner's, the bottom bar's Panel verb on a phone. */
+const control = (page) => (phone(page) ? page.locator(".bottom-bar .bar-right") : page.locator("#toggle-right-top"));
 const settle = (page) => page.locator("aside.right").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
 
 for (const [locale, show, hide, tab, shortcutHint] of [
