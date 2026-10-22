@@ -35,7 +35,10 @@ export let lastSaid = "";
 
 /** The current look as a theme, with the heading font and the size. */
 export function currentTheme(name?: string): Theme {
-  return themeOf(name ?? settings.lookName ?? W.defaultName, lookNow(), settings.headingFont, settings.fontSize);
+  const theme = themeOf(name ?? settings.lookName ?? W.defaultName, lookNow(), settings.headingFont, settings.fontSize);
+  // The credit goes with the look it was given for, and with every copy of it (ADR 0109 item 5).
+  if (settings.lookCredit) theme.inspiredBy = { ...settings.lookCredit };
+  return theme;
 }
 
 /** Whether there is anything of the person's own to keep or send. */
@@ -51,6 +54,8 @@ export function applyTheme(theme: Theme): void {
   if (theme.headingFont) settings.headingFont = theme.headingFont;
   if (theme.fontSize !== undefined) settings.fontSize = theme.fontSize;
   settings.lookName = theme.name;
+  if (theme.inspiredBy) settings.lookCredit = { ...theme.inspiredBy };
+  else delete settings.lookCredit;
   saveSettings();
   told();
 }
@@ -62,6 +67,7 @@ export function restoreDefault(): void {
   settings.headingFont = DEFAULTS.headingFont;
   settings.fontSize = DEFAULTS.fontSize;
   delete settings.lookName;
+  delete settings.lookCredit;
   saveSettings();
   told();
 }
@@ -73,6 +79,7 @@ export function useBuiltin(palette: Hue): void {
   settings.look = emptyLook();
   settings.headingFont = DEFAULTS.headingFont;
   delete settings.lookName;
+  delete settings.lookCredit;
   saveSettings();
   told();
 }

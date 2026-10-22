@@ -274,7 +274,7 @@ describe(".verso-theme files", () => {
     "a string font size": (o) => (o.values["font-size"] = "16px"),
     "a missing format marker": (o) => delete o["verso-theme"],
     "another format version": (o) => (o["verso-theme"] = 2),
-    "a newer token list": (o) => (o.tokensVersion = 2),
+    "a newer token list": (o) => (o.tokensVersion = 3),
     "a zero token list": (o) => (o.tokensVersion = 0),
     "a bad mode": (o) => (o.mode = "auto"),
     "an empty name": (o) => (o.name = "  "),

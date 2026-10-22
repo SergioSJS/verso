@@ -8,11 +8,15 @@
 // that a palette re-entered through the wizard gives back what it shipped
 // with (derive.test.mjs checks the contrast it keeps).
 
-import { BLACK, contrast, mix, type RGB, WHITE } from "./color";
-import { type ColorToken, type DerivedToken, type Side } from "./tokens";
+import { BLACK, contrast, mix, parseColor, type RGB, WHITE } from "./color";
+import { type AnyColor, COLOR_TOKENS, type ColorToken, type DerivedToken, EXTRA_TOKENS, type ExtraToken, type Side } from "./tokens";
 
 export type Base = Record<ColorToken, RGB>;
-export type Full = Record<ColorToken | DerivedToken, RGB>;
+/** What the stylesheet gives a side: the seven and the colours derived from them. */
+export type Shipped = Record<ColorToken | DerivedToken, RGB>;
+/** Every colour of a side, the version 2 extras included (each one the
+ *  person's own, or its fallback from the seven). */
+export type Full = Shipped & Record<ExtraToken, RGB>;
 
 /** Which edited colours each derived one depends on: a derived colour is
  *  only recomputed when one of these was changed; otherwise the shipped
@@ -64,13 +68,49 @@ export function derive(side: Side, b: Base): Record<DerivedToken, RGB> {
   };
 }
 
-/** The pairs the panel shows and watches: the text colours on the paper. */
+/** What a version 2 colour is when the theme does not say (ADR 0109 item
+ *  2), as the stylesheet reads it, so that a theme with none of them looks
+ *  as it always did: the semantic colours are the ones the callouts have
+ *  always had (chrome.css), the headings and the code follow the seven. */
+const SEMANTIC_LITERAL: Record<Side, Record<"--orange" | "--yellow" | "--green" | "--cyan" | "--blue" | "--purple" | "--pink", string>> = {
+  light: { "--blue": "oklch(50% 0.1 240)", "--green": "oklch(49% 0.12 150)", "--yellow": "oklch(51% 0.14 70)", "--orange": "oklch(51% 0.14 70)", "--purple": "oklch(50% 0.12 300)", "--cyan": "oklch(50% 0.1 200)", "--pink": "oklch(50% 0.15 350)" },
+  dark: { "--blue": "oklch(75% 0.1 240)", "--green": "oklch(75% 0.12 150)", "--yellow": "oklch(78% 0.14 75)", "--orange": "oklch(78% 0.14 75)", "--purple": "oklch(75% 0.1 300)", "--cyan": "oklch(76% 0.1 200)", "--pink": "oklch(76% 0.13 350)" },
+};
+const REFERENCE: Partial<Record<ExtraToken, ColorToken | DerivedToken>> = {
+  "--code-paper": "--paper-2", "--code-ink": "--ink", "--h1-color": "--brass-ink", "--h2-color": "--brass-ink", "--h3-color": "--brass-ink", "--h4-color": "--ink-2", "--h5-color": "--ink-2", "--h6-color": "--ink-3", "--red": "--seal",
+};
+/** The stylesheet's own variable an extra follows when the theme sets it on one side only. */
+const REFERENCE_CSS: Partial<Record<ExtraToken, string>> = { "--h1-color": "--heading-color", "--h2-color": "--heading-color", "--h3-color": "--heading-color" };
+
+/** The colour of an extra on a side when the theme does not set it. */
+export function extraFallback(side: Side, token: ExtraToken, from: Shipped): RGB {
+  const ref = REFERENCE[token];
+  if (ref) return from[ref];
+  return parseColor(SEMANTIC_LITERAL[side][token as keyof (typeof SEMANTIC_LITERAL)["light"]]) ?? from["--ink"];
+}
+/** The same, as CSS for the other side of a `light-dark()` when only one is set. */
+export function extraFallbackCss(side: Side, token: ExtraToken): string {
+  const ref = REFERENCE[token];
+  if (ref) return `var(${REFERENCE_CSS[token] ?? ref})`;
+  return SEMANTIC_LITERAL[side][token as keyof (typeof SEMANTIC_LITERAL)["light"]];
+}
+
+/** The pairs the panel shows and watches: the text colours on the paper;
+ *  since ADR 0109 item 3 also the code's ink on its paper and each heading
+ *  level's colour on the paper. */
 export const PAIRS = [
   { id: "ink", fg: "--ink", bg: "--paper" },
   { id: "ink2", fg: "--ink-2", bg: "--paper" },
   { id: "ink3", fg: "--ink-3", bg: "--paper" },
   { id: "seal", fg: "--seal", bg: "--paper" },
   { id: "inkOn2", fg: "--ink", bg: "--paper-2" },
+  { id: "codeInk", fg: "--code-ink", bg: "--code-paper" },
+  { id: "h1", fg: "--h1-color", bg: "--paper" },
+  { id: "h2", fg: "--h2-color", bg: "--paper" },
+  { id: "h3", fg: "--h3-color", bg: "--paper" },
+  { id: "h4", fg: "--h4-color", bg: "--paper" },
+  { id: "h5", fg: "--h5-color", bg: "--paper" },
+  { id: "h6", fg: "--h6-color", bg: "--paper" },
 ] as const;
 export type PairId = (typeof PAIRS)[number]["id"];
 export type Ratio = { id: PairId; ratio: number };
@@ -96,17 +136,21 @@ export function undoneBy(before: Ratio[], after: Ratio[]): Ratio[] {
 /** The edited colours with the derived ones laid over, for one side:
  *  `shipped` is what the stylesheet gives there, `custom` what the person
  *  changed. Derived colours none of whose inputs changed stay shipped. */
-export function resolve(side: Side, shipped: Full, custom: Partial<Record<ColorToken, RGB>>): Full {
-  const base = { ...pick(shipped), ...custom } as Base;
+export function resolve(side: Side, shipped: Shipped, custom: Partial<Record<AnyColor, RGB>>): Full {
+  const mine = {} as Partial<Record<ColorToken, RGB>>;
+  for (const token of COLOR_TOKENS) if (custom[token]) mine[token] = custom[token];
+  const base = { ...pick(shipped), ...mine } as Base;
   const derived = derive(side, base);
-  const out = { ...shipped, ...base } as Full;
+  const settled = { ...shipped, ...base } as Shipped;
   for (const token of Object.keys(DEPENDS) as DerivedToken[]) {
-    if (DEPENDS[token].some((d) => custom[d] !== undefined)) out[token] = derived[token];
+    if (DEPENDS[token].some((d) => mine[d] !== undefined)) settled[token] = derived[token];
   }
+  const out = settled as Full;
+  for (const token of EXTRA_TOKENS) out[token] = custom[token] ?? extraFallback(side, token, settled);
   return out;
 }
 
-function pick(full: Full): Base {
+function pick(full: Shipped): Base {
   return {
     "--paper": full["--paper"],
     "--paper-2": full["--paper-2"],

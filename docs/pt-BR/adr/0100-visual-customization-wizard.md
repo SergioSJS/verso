@@ -35,7 +35,10 @@
   pelo mantenedor** depois de olhar o beta instalado: o painel dentro de
   Ajustes é substituído por uma galeria de cartões de tema e uma janela
   própria de construção de tema (item 2, Revisão); item 4 confirmado (T.1,
-  opção A).
+  opção A). 2026-10-22 — item 3 (`tokensVersion: 1`) **estendido, não
+  substituído**, pela [0109](0109-themes-v2-more-tokens-and-a-catalogue.md):
+  `tokensVersion: 2` acrescenta cores opcionais, escolhas de forma e um
+  crédito; os arquivos da versão 1 continuam válidos e com o mesmo visual.
 
 ## Contexto
 

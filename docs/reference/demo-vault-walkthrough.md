@@ -739,6 +739,19 @@ point 13).
    suggested theme is offered, shown as a card, and never applied by itself.
    Level: H, A (the real file save: the host's download; the builder's tab
    in the phone layout); E: `appearance-themes.spec.mjs`.
+   Second step (ADR 0109): *Mais temas…*, under the gallery, opens a dialog
+   with Verso's four and the catalogue's, a labelled search (name or author),
+   filters by Modo and Superfície, each card drawn with the theme's own tokens
+   and with its credit and link (Flexoki's names stephango.com/flexoki as a
+   link); a click uses the theme (a theme of one side takes Verso's mode to it,
+   said in the status), *Copiar* keeps the credit, Escape closes only the
+   dialog, a full screen with *Voltar* on a phone; *Créditos e agradecimentos*
+   lists the catalogue from the files' own credits; the *Construtor de tema*
+   groups Base (open), Títulos, Código, Cores das callouts and Estrutura, one at
+   a time on a phone, the sample page showing h1 to h6, code, a table, a tag and
+   a callout of each colour; a heading colour under 3:1 is undone. A version 1
+   theme looks exactly as before. E: `more-themes.spec.mjs`,
+   `themes-v2-builder.spec.mjs`, `themes-v2.spec.mjs`.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;

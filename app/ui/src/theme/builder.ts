@@ -23,8 +23,10 @@ import { rename, saveAs } from "./profiles";
 import { sampleDocument } from "./sample";
 import { cannotSuggest, setSuggestion, suggestion } from "./suggest";
 import { W } from "./strings";
+import { creditLine } from "./creditLine";
+import { V2 } from "./moreStrings";
 import {
-  COLOR_TOKENS, type ColorToken, emptyLook, FONT_CHOICES, type FontKey, type FontToken, type Look, SIZE_MAX, SIZE_MIN, type Side,
+  type AnyColor, CODE_TOKENS, COLOR_TOKENS, emptyLook, FONT_CHOICES, type FontKey, type FontToken, HEADING_TOKENS, type Look, SEMANTIC_TOKENS, SIZE_MAX, SIZE_MIN, type Side, STYLE_CHOICES, STYLE_KEYS, type Style,
 } from "./tokens";
 
 /** What the builder edits: one of the person's themes, or a new one. */
@@ -57,6 +59,19 @@ function field(legend: string, cls = ""): { box: HTMLFieldSetElement; add: (...n
   return { box, add: (...n) => box.append(...n) };
 }
 
+/** A group of controls, folded until opened (ADR 0109 item 4). */
+function group(title: string, id: string, open: boolean): { box: HTMLDetailsElement; body: HTMLElement; add: (...n: Node[]) => void } {
+  const box = h("details", "look-set look-group");
+  box.dataset["group"] = id;
+  if (id === "base") box.classList.add("look-colors");
+  box.open = open;
+  const body = h("div", "look-group-body");
+  box.append(h("summary", "", title), body);
+  return { box, body, add: (...n) => body.append(...n) };
+}
+
+const tokenName = (token: AnyColor): string => (COLOR_TOKENS as readonly string[]).includes(token) ? W.panel.tokens[token as (typeof COLOR_TOKENS)[number]] : V2.tokens[token];
+
 function select(label: string, options: [string, string][], value: string, on: (v: string) => void): { row: HTMLElement; el: HTMLSelectElement } {
   const row = h("div", "look-row");
   const id = uid();
@@ -79,6 +94,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     headingFont: settings.headingFont,
     fontSize: settings.fontSize,
     lookName: settings.lookName,
+    lookCredit: settings.lookCredit,
   };
   if (spec.mode === "edit") {
     const p = profilesNow().find((x) => x.name === spec.name);
@@ -149,6 +165,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     settings.look = emptyLook();
     settings.headingFont = DEFAULTS.headingFont;
     settings.fontSize = DEFAULTS.fontSize;
+    delete settings.lookCredit;
     live();
     touched();
     refresh(true);
@@ -158,10 +175,10 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
 
   // --- controls
   const controls = h("div", "look-controls");
-  const colors = field(W.panel.colors, "look-colors");
+  const colors = group(V2.groups.base, "base", true);
   colors.add(h("p", "look-hint", W.panel.sideHint));
-  const rows = new Map<ColorToken, { picker: HTMLInputElement; text: HTMLInputElement; reset: HTMLButtonElement; row: HTMLElement }>();
-  const edit = (token: ColorToken, text: string | null): void => {
+  const rows = new Map<AnyColor, { picker: HTMLInputElement; text: HTMLInputElement; reset: HTMLButtonElement; row: HTMLElement }>();
+  const edit = (token: AnyColor, text: string | null): void => {
     const out = changeColor(shippedColors()[side], lookNow(), side, token, text);
     if (out.invalid) {
       announce(W.panel.invalid);
@@ -179,8 +196,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     touched();
     refresh();
   };
-  for (const token of COLOR_TOKENS) {
-    const name = W.panel.tokens[token];
+  const addColor = (token: AnyColor, into: { add: (...n: Node[]) => void }): void => {
+    const name = tokenName(token);
     const row = h("div", "look-row look-color");
     row.dataset["token"] = token;
     const id = uid();
@@ -207,8 +224,9 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     rst.addEventListener("click", () => edit(token, null));
     row.append(label, picker, text, rst);
     rows.set(token, { picker, text, reset: rst, row });
-    colors.add(row);
-  }
+    into.add(row);
+  };
+  for (const token of COLOR_TOKENS) addColor(token, colors);
 
   const fonts = field(W.panel.fonts);
   const fontOptions = (token: FontToken, withDefault: boolean): [string, string][] => [
@@ -303,7 +321,53 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
   folderRow.append(suggestBtn, unsuggestBtn);
   share.append(suggestWhy, folderRow);
 
-  controls.append(colors.box, fonts.box, contrast, share);
+  colors.add(fonts.box);
+
+  // The version 2 groups (ADR 0109 item 4), each folded until opened.
+  const mk = (title: string, id: string, hint: string, tokens: readonly AnyColor[]): ReturnType<typeof group> => {
+    const g = group(title, id, false);
+    g.add(h("p", "look-hint", hint));
+    for (const token of tokens) addColor(token, g);
+    return g;
+  };
+  const headings = mk(V2.groups.headings, "headings", V2.hints.headings, HEADING_TOKENS);
+  const code = mk(V2.groups.code, "code", V2.hints.code, CODE_TOKENS);
+  const callouts = mk(V2.groups.callouts, "callouts", V2.hints.callouts, SEMANTIC_TOKENS);
+  const structure = group(V2.groups.structure, "structure", false);
+  structure.add(h("p", "look-hint", V2.hints.structure));
+  const styleSelects = new Map<(typeof STYLE_KEYS)[number], HTMLSelectElement>();
+  const setStyle = (key: (typeof STYLE_KEYS)[number], v: string): void => {
+    const look = lookNow();
+    const style: Record<string, string> = { ...(look.style ?? {}) };
+    if (v === STYLE_CHOICES[key][0]) delete style[key];
+    else style[key] = v;
+    const ordered: Record<string, string> = {};
+    for (const k of STYLE_KEYS) if (style[k] !== undefined) ordered[k] = style[k];
+    const next: Look = { ...look, light: { ...look.light }, dark: { ...look.dark } };
+    if (Object.keys(ordered).length > 0) next.style = ordered as Style;
+    else delete next.style;
+    settings.look = next;
+    live();
+    touched();
+    refresh();
+  };
+  for (const key of STYLE_KEYS) {
+    const def = V2.styles[key];
+    const sel = select(def.label, STYLE_CHOICES[key].map((v): [string, string] => [v, def.values[v]!]), STYLE_CHOICES[key][0], (v) => setStyle(key, v));
+    sel.row.dataset["style"] = key;
+    styleSelects.set(key, sel.el);
+    structure.add(sel.row);
+  }
+  // On a phone one group is open at a time.
+  const groups = [colors, headings, code, callouts, structure];
+  for (const g of groups) {
+    g.box.addEventListener("toggle", () => {
+      if (g.box.open && window.matchMedia("(max-width: 760px)").matches) for (const other of groups) if (other !== g) other.box.open = false;
+    });
+  }
+
+  const credit = h("div", "look-credit-box");
+  controls.append(colors.box, headings.box, code.box, callouts.box, structure.box, contrast, share, credit);
 
   // --- the sample
   const sample = sampleDocument();
@@ -345,6 +409,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
       r.row.dataset["custom"] = own ? "true" : "false";
       r.reset.disabled = !own;
     }
+    credit.replaceChildren(...(settings.lookCredit ? [creditLine(settings.lookCredit, "theme-credit look-credit")] : []));
+    for (const [key, el] of styleSelects) el.value = look.style?.[key] ?? STYLE_CHOICES[key][0];
     heading.el.value = settings.headingFont ?? "serif";
     book.el.value = look.book ?? "";
     mono.el.value = look.mono ?? "";
@@ -384,6 +450,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     settings.fontSize = snap.fontSize;
     if (snap.lookName === undefined) delete settings.lookName;
     else settings.lookName = snap.lookName;
+    if (snap.lookCredit === undefined) delete settings.lookCredit;
+    else settings.lookCredit = snap.lookCredit;
     saveSettings();
     told();
     dirty = false;
