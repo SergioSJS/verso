@@ -929,3 +929,11 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .right-close { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 0 .4rem 0 .8rem; min-height: 44px; border-bottom: 1px solid var(--hair); font-weight: 600; color: var(--ink-2); }
   .right-close .ghost { min-width: 44px; min-height: 44px; }
 }
+
+/* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */
+.font-sample { display: grid; gap: .3rem; min-width: 0; margin: .2rem 0 .6rem; }
+.font-sample-label { font: 600 .78rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.font-sample-frame { position: relative; overflow: hidden; box-sizing: border-box; padding: 0; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 8px; pointer-events: none; user-select: none; }
+.font-sample-frame .font-sample-body { margin: 0; padding: .6rem .9rem; box-sizing: border-box; transform-origin: top left; }
+.font-sample-body > :first-child { margin-top: 0; }
+.font-sample-body > :last-child { margin-bottom: 0; }
