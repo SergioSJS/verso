@@ -10,7 +10,7 @@
 // `name (2).ext`, never an overwrite.
 
 import { importLimitMb } from "./attachName";
-import { commands, type PickedFile } from "./bindings";
+import { commands, type PickedFile, type PickedFiles } from "./bindings";
 import { host } from "./can";
 import { afterFileChange } from "./changes";
 import { ui } from "./dom";
@@ -39,7 +39,26 @@ export async function importFiles(folder: string): Promise<void> {
   const limitMb = importLimitMb(settings.importMaxMb, host() === "server");
   const picked = await commands.pickFiles(limitMb);
   if (picked.status !== "ok") return fail(picked.error);
-  const { files, skipped } = picked.data;
+  await placePicked(folder, picked.data, limitMb, true);
+}
+
+/** Files dropped from the system's file manager onto the tree (T.11): the
+ *  host caught the drop with Tauri's own events and holds the paths, so a
+ *  drop goes up to the limit the person set, like the picker; the window
+ *  asks for them and copies each by its token. */
+export async function importDropped(folder: string): Promise<void> {
+  if (!readable()) return;
+  const limitMb = importLimitMb(settings.importMaxMb, host() === "server");
+  const taken = await commands.takeDropped(limitMb, false);
+  if (taken.status !== "ok") return fail(taken.error);
+  await placePicked(folder, taken.data, limitMb, false);
+}
+
+/** The files the host gave — by token or by bytes — created in `folder`
+ *  (`reveal`: the first one is focused in the tree), and the status line says
+ *  how many came, which were renamed and which were left out. */
+async function placePicked(folder: string, picked: PickedFiles, limitMb: number, reveal: boolean): Promise<void> {
+  const { files, skipped } = picked;
   if (files.length === 0 && skipped.length === 0) return;
   const taken = new Set([...allNotes, ...allFiles, ...allFolders].map((p) => p.toLowerCase()));
   const made: string[] = [];
@@ -58,7 +77,7 @@ export async function importFiles(folder: string): Promise<void> {
   if (made.length > 0) {
     openFolders.add(folder);
     await afterFileChange();
-    await revealInTree(made[0] ?? "");
+    if (reveal) await revealInTree(made[0] ?? "");
   }
   const said = imp.summary({ made: made.length, renamed, skipped, failed, limitMb });
   if (said) ui.status.textContent = said;

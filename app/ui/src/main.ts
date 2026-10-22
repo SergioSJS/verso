@@ -92,6 +92,7 @@ import { collapseAll, collapsed, listAll } from "./tree/tree";
 import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
 import { importFile } from "./theme/actions";
+import { installDropHost } from "./dropHost";
 import { watchSuggestion } from "./theme/suggest";
 
 watchSuggestion();
@@ -439,6 +440,7 @@ installScreen();
 // Notifications (ADR 0084): the bells, the centre, where each kind comes
 // from.
 installNotify(() => settingsDialog.show("notify"));
+installDropHost();
 installSources();
 window.addEventListener("verso:open-statblock-settings", () => {
   settingsDialog.show("statblocks");

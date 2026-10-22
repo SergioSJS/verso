@@ -42,7 +42,9 @@ pub use sync::{
     CloudCheck, CloudSettings, CloudStatus, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions,
 };
 mod picked;
-pub use picked::{PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick};
+pub use picked::{
+    FilesDropped, FilesOver, PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick,
+};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod history;

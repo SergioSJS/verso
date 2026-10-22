@@ -514,6 +514,17 @@ point 13).
     folders* brings them all back. Level: H; E: `folder-switcher-hide.spec.mjs`
     (also at a phone's and a tablet's size); U: `hiddenFolders.test.mjs`;
     A (the real folder list of the app).
+14. Drag a file from the Finder or Explorer onto the tree, a folder in it
+    and its empty part: in the desktop app the folder under the pointer
+    is marked while the drag is over it, the file is copied in by the app
+    itself (up to *Settings › Files and links › Largest imported file*, a
+    200 MB PDF with the limit raised) and the status line says it, a name
+    taken getting `(2)`; a file past the limit is named. A file dropped on a
+    note's text or on a board is taken in as before (32 MB). Level: A (the
+    real drag on macOS and Windows: Tauri's drag-and-drop events replace
+    the page's drop there); H for the window's side; E: `drop-host.spec.mjs`
+    (the harness plays the host); S: `app/src-tauri/src/tests_pick.rs`
+    (the host keeps the paths, the window gets names).
 
 ## 7. The web
 
