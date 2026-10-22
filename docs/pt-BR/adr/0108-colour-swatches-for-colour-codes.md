@@ -112,3 +112,14 @@ e valores de propriedades (item 3); o seletor de cor do sistema (item 5).
 Proposta (2026-10-22). Itens 2, 3 e 5 decididos pelo mantenedor no mesmo
 dia; os itens marcados `[PROPOSED]` continuam do autor até a aceitação. Em
 construção; espera uma leitura do outro modelo.
+
+Construído em 2026-10-22 em `feat/colour-swatches` (`6ac74b9d`, juntado
+por `55aa528d`), não enviado. Duas escolhas da construção, **não decisões
+do mantenedor**, registradas para serem confirmadas ou desfeitas: (1) em
+texto comum, um código só de algarismos com menos de seis (`#123`,
+`#1234`) não ganha amostra, embora o dialeto não o leia como tag — parece
+número de chamado; em código e em valores de propriedades ganha, menos um
+valor de frontmatter como `ticket: #123`; (2) o painel de propriedades
+mostra uma amostra ao lado de um valor de cor, só para ver. O seletor grava
+ao soltar e a cada tecla, não enquanto arrasta. O construtor de temas
+continua com o campo de cor do sistema.

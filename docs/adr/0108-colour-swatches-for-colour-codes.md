@@ -117,3 +117,14 @@ property values (item 3); the system's colour picker (item 5).
 Proposed (2026-10-22). Items 2, 3 and 5 decided by the maintainer the
 same day; the items marked `[PROPOSED]` stay the author's until accepted.
 Being built; waits for a reading by the other model.
+
+As built 2026-10-22 on `feat/colour-swatches` (`6ac74b9d`, merged by
+`55aa528d`), not pushed. Two choices of the build, **not decisions of the
+maintainer's**, recorded to be confirmed or dropped: (1) in plain text, a
+hash code of digits only shorter than six (`#123`, `#1234`) gets no swatch
+although the dialect does not read it as a tag — it reads as an issue
+number; in code and in property values it still gets one, except a
+frontmatter value such as `ticket: #123`; (2) the properties panel shows a
+swatch beside a colour value, view only. The picker writes on release and
+on each key, not while dragging. The theme builder keeps its system colour
+field.
