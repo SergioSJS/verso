@@ -65,6 +65,8 @@ test release.
 
 ### Fixed
 
+- **A UniVerso upgrade is met by the new window, not the old one**: the server sent the window's script and style files (`web.js`, `style.css`, the fonts and the like) with a date and no caching rule, so a browser kept the previous version for a while after the server was upgraded (Settings missing whole pages until a forced reload). They are now asked about each time and answered "unchanged" when they are, and the files whose name carries a hash are kept for good. One forced reload (Cmd/Ctrl+Shift+R) is needed once, on the browser that still holds an old copy.
+
 - **The 3D dice show the result sooner**: the fall is replayed 1.6 times faster, the dice stay 0.3 seconds once they rest (it was 1.1) before the card shows, and a roll that has not come to rest by 2.5 seconds (it was 6.5) snaps to its result; a typical roll shows its card in under two seconds.
 - **Numbers on the 3D dice are centred on their faces**: each number sits in the middle of its face, drawn by its own ink instead of its text box, upright the way real dice print it (a corner up on triangles and pentagons, an edge on the d6, the sharp tip on the d10), sized to fit inside the face with a margin, and the dot of a 6 or a 9 goes below the digit without pushing it off centre; the d4 numbers stand toward their corners.
 - **Settings › Servers no longer moves under your pointer**: the network search's sentence grew from one line to four 0.3 s after the page opened, pushing the computer-name form (and its Save button) down as it was clicked, so the click could miss. The sentence now has its room from the start.

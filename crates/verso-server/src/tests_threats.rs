@@ -258,8 +258,19 @@ fn every_answer_carries_the_whole_set_of_headers() {
                 set[0] = ("x-robots-tag", robots.map(str::to_owned));
                 set
             };
+            let ui = r.server.config.ui_dir.clone();
+            crate::data::ensure_dir(&ui.join("chunks")).unwrap();
+            crate::data::write_for_tests(&ui.join("web.js"), "export {};");
+            crate::data::write_for_tests(&ui.join("chunks/note-A1B2C3D4.js"), "export {};");
             let routes = [
                 ("/", common(&page, None, Some("no-store"))),
+                // The window's files (static_cache.rs): asked about each
+                // time, or kept for good when the name has a hash.
+                ("/web.js", common(&page, None, Some("no-cache"))),
+                (
+                    "/chunks/note-A1B2C3D4.js",
+                    common(&page, None, Some("public, max-age=31536000, immutable")),
+                ),
                 ("/api/state", common(&page, None, None)),
                 (
                     &*format!("/f/{id}/mapa.svg"),

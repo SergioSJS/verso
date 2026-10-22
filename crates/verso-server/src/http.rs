@@ -257,6 +257,11 @@ pub fn router(server: Arc<Server>) -> Router {
     let static_files = tower_http::services::ServeDir::new(&ui)
         .append_index_html_on_directories(false)
         .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    // Revalidated each time, or kept for good when the name has a hash
+    // (static_cache.rs): an upgraded server is met by its own window.
+    let static_files = Router::new()
+        .fallback_service(static_files)
+        .layer(middleware::from_fn(crate::static_cache::keep));
     let router: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
