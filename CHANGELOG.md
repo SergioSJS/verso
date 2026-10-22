@@ -86,6 +86,8 @@ test release.
 
 ### Fixed
 
+- **Dice in a note shown on a board**: a board's file card that shows a note with `dice:` codes now draws them as dice, which roll in place like in the note (button, result, 3D dice and sound), without writing the note or the board.
+
 - **The graph's arrow keys work, and one button shows everything again**: the arrows, Home, End, Enter and Shift-Enter used to do nothing in the graph after a click, because a click centred the graph by redrawing every note, which threw away the one that held the keyboard. The graph itself is now the keyboard's stop (a click on the background or on a note focuses it, with a visible ring); the arrows move a ringed **current note** to the nearest one in that direction, a screen reader hears its name, Enter opens it, Shift-Enter centres on it, and a click on a note makes it current. A new **Show all** button at the top of the graph — there whenever a centre, a filter or a tag narrows the view — clears all three at once (it replaces the **Vault graph** button in the controls); the filter field has a **×** and Esc in it clears the filter. Note 05 of the tutorial says so.
 - **The 3D dice make sound again in the Mac app**: the recordings are fetched when the app is idle, but the audio is only started by your first click or key press (the Mac's web view never starts audio made earlier), and each roll writes one line to the log (`dice sound: ctx=… buffers=… played=… lost=…`) so a silent roll can be explained.
 

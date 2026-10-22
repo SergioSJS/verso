@@ -246,8 +246,12 @@ export class BoardLeaf extends TextLeaf {
       data: dataHost(listed),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
-        if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
-        else el.replaceChildren();
+        if (r.status === "ok") {
+          await drawCard(el, r.data.html, listed(path));
+          // The note's `dice:` codes are dice here as in its own tab; the
+          // roll is the board's, the note is not written (ADR 0088).
+          wireDice(el, { path: () => listed(path), follow: (target, from) => this.followDice(target, from) });
+        } else el.replaceChildren();
       },
       renderText: async (el, text) => {
         await drawCard(el, await commands.renderMarkdown(text), this.path);

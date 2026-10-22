@@ -85,6 +85,8 @@ versão de teste.
 
 ### Corrigido
 
+- **Dados numa nota mostrada no board**: um cartão de arquivo do board que mostra uma nota com códigos `dice:` agora os desenha como dados, que rolam ali mesmo como na nota (botão, resultado, dados 3D e som), sem escrever a nota nem o board.
+
 - **As setas do grafo funcionam, e um botão mostra tudo de novo**: as setas, Home, End, Enter e Shift-Enter não faziam nada no grafo depois de um clique, porque o clique centrava o grafo redesenhando todas as notas, o que jogava fora a que segurava o teclado. Agora o próprio grafo é a parada do teclado (um clique no fundo ou numa nota o foca, com um anel visível); as setas movem uma **nota atual** com anel para a mais próxima naquela direção, o leitor de tela diz o nome dela, Enter abre, Shift-Enter centra nela, e um clique numa nota a torna a atual. Um botão novo, **Mostrar tudo**, no alto do grafo — presente sempre que um centro, um filtro ou uma tag restringe a vista — limpa os três de uma vez (ele substitui o botão **Grafo do cofre** dos controles); o campo de filtro tem um **×** e Esc nele limpa o filtro. A nota 05 do tutorial explica.
 - **Os dados 3D voltam a fazer som no app do Mac**: as gravações são buscadas quando o app está ocioso, mas o áudio só é iniciado pelo seu primeiro clique ou tecla (a janela web do Mac nunca inicia um áudio criado antes), e cada rolagem escreve uma linha no log (`dice sound: ctx=… buffers=… played=… lost=…`) para explicar uma rolagem muda.
 
