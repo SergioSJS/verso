@@ -321,7 +321,27 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await bar.getByRole("button", { name: "Concluir" }).click();
   await expect(bar).toBeHidden();
   await expect(page.locator("#notes.select-mode")).toHaveCount(0);
-  // A tap opens a preview tab; "Keep open" in its menu keeps it.
+  // A tap opens a preview tab; "Keep open" in its menu keeps it. The bar
+  // leaving gives the list its height back and the rows settle (the scroll
+  // clamps): a press and a lift on two different rows make no click, as
+  // seen in WebKit on 1 run of 45. Click once the row stands still.
+  await row("02 - Links, Âncoras e Notas Incorporadas.md").scrollIntoViewIfNeeded();
+  await row("02 - Links, Âncoras e Notas Incorporadas.md").evaluate(
+    (el) =>
+      new Promise((done) => {
+        let last = "";
+        let still = 0;
+        const look = () => {
+          const r = el.getBoundingClientRect();
+          const now = `${r.top}/${r.left}/${r.height}`;
+          still = now === last ? still + 1 : 0;
+          last = now;
+          if (still >= 10) done(undefined);
+          else requestAnimationFrame(look);
+        };
+        look();
+      }),
+  );
   await row("02 - Links, Âncoras e Notas Incorporadas.md").click();
   await expect(page.locator(".tab.preview")).toHaveCount(1);
   await menuOf(page.locator(".tab.preview"));
