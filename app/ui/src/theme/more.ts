@@ -13,9 +13,10 @@
 import { h } from "../dom";
 import { icon } from "../icons";
 import { onFolderLayer } from "../folderLayer";
-import { type Hue, saveSettings, settings } from "../settings";
+import { type Hue } from "../settings";
 import { t } from "../strings";
-import { applyTheme, LOOK_EVENT, say, useBuiltin, vet } from "./actions";
+import { LOOK_EVENT, say, useBuiltin } from "./actions";
+import { useCatalogueTheme } from "./useCatalogue";
 import { type Filters, loadCatalogue, matches } from "./catalogue";
 import { type Card, copyCard, isActive, mini, paint, prefersDark } from "./gallery";
 import { creditLine } from "./creditLine";
@@ -99,16 +100,7 @@ export function openMoreThemes(opener: HTMLElement | null): void {
       useBuiltin(card.palette);
       announce(W.gallery.builtinApplied(card.name));
     } else if (card.kind === "catalogue" && card.theme && card.file) {
-      // The same vet as an import: a catalogue theme that would blank the page is not applied.
-      const r = vet(card.file);
-      if (!r.ok) return void announce(V2.more.unreadable(card.name));
-      applyTheme({ ...r.theme, mode: "both" });
-      // A theme of one side is only seen on that side: the window goes to it (the person's own choice of mode is changed by theirs).
-      if (r.theme.mode !== "both" && settings.theme !== r.theme.mode) {
-        settings.theme = r.theme.mode;
-        saveSettings();
-        announce(V2.more.appliedSide(card.name, V2.more.modes[r.theme.mode]!));
-      } else announce(V2.more.applied(card.name));
+      announce(useCatalogueTheme(card.name, card.key.slice(2), card.file));
     }
   };
 
