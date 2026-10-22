@@ -45,6 +45,13 @@
       "--blue": "#6c99bb",
       "--purple": "#9e86c8",
       "--pink": "#b05279"
-    }
+    },
+    "surface-mode": "flat",
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "table-style": "hairline",
+    "tag-style": "minimal",
+    "radius": "soft"
   }
 }

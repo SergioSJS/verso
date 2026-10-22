@@ -20,6 +20,12 @@
       "--brass-ink": "#d2726d",
       "--code-paper": "#fffaf3",
       "--code-ink": "#464261",
+      "--h1-color": "#b4637a",
+      "--h2-color": "#907aa9",
+      "--h3-color": "#d2716c",
+      "--h4-color": "#c77c15",
+      "--h5-color": "#56949f",
+      "--h6-color": "#286983",
       "--red": "#b4637a",
       "--yellow": "#ea9d34",
       "--cyan": "#56949f",
@@ -37,12 +43,21 @@
       "--brass-ink": "#ebbcba",
       "--code-paper": "#1f1d2e",
       "--code-ink": "#e0def4",
+      "--h1-color": "#eb6f92",
+      "--h2-color": "#c4a7e7",
+      "--h3-color": "#ebbcba",
+      "--h4-color": "#f6c177",
+      "--h5-color": "#9ccfd8",
+      "--h6-color": "#31748f",
       "--red": "#eb6f92",
       "--yellow": "#f6c177",
       "--cyan": "#9ccfd8",
       "--blue": "#31748f",
       "--purple": "#c4a7e7",
       "--pink": "#ebbcba"
-    }
+    },
+    "--heading-font": "sans",
+    "--book": "editorial",
+    "font-size": 18
   }
 }

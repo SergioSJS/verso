@@ -30,6 +30,11 @@
       "--brass-ink": "#ffffff",
       "--code-ink": "#ffffff"
     },
-    "surface-mode": "flat"
+    "surface-mode": "flat",
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "outline",
+    "radius": "soft"
   }
 }

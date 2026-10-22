@@ -47,6 +47,9 @@
       "--blue": "#4385be",
       "--purple": "#8b7ec8",
       "--pink": "#ce5d97"
-    }
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16
   }
 }
