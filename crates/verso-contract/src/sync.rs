@@ -113,7 +113,8 @@ pub struct CloudCheck {
     pub accepted: bool,
     /// When not accepted, why, for the window to say in its language:
     /// `plain_http_unconfirmed`, `plain_http_refused`, `invalid`,
-    /// `auth`, `unreachable`, `service_refused`, `no_keyring`, `failed`.
+    /// `auth`, `unreachable`, `service_refused`, `no_conditional_delete`,
+    /// `no_keyring`, `failed`.
     pub problem: Option<String>,
     /// The reason in English, for the log and as the window's fallback.
     pub message: Option<String>,

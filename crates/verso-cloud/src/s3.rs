@@ -27,7 +27,10 @@ use crate::http::{Http, check_transport};
 use crate::names;
 use crate::sigv4::{Signer, stamp_now};
 use crate::xml::{self, Ev};
-use crate::{Deletions, Report, capped_text, fail_body, nonce, pct_component, pct_path};
+use crate::{
+    DETAIL_NO_CONDITIONAL_DELETE, Deletions, Report, capped_text, fail_body, nonce, pct_component,
+    pct_path,
+};
 
 /// Names of what the probe found the service honours, as the state keeps
 /// them.
@@ -798,11 +801,15 @@ impl S3 {
         if del.status().as_u16() == 412 {
             report.caps.push(CAP_DELETE_IF_MATCH.to_owned());
         } else {
-            // The service ignored it (and deleted) or does not know it.
-            report.notes.push(
-                "the service does not honour If-Match on a delete: a delete is checked against the file just before, and an edit another device makes in the short window between the two is deleted with it".to_owned(),
-            );
-            let _ = write(Condition::Absent, "verso 7", false);
+            // The service ignored it (and deleted) or does not know it. A
+            // delete that cannot hold to the version would lose an edit
+            // another device makes in the short window between looking and
+            // deleting: refused at connection (I-3, decided 2026-10-22),
+            // like a service without a conditional write.
+            return Err(refused(
+                "the service does not honour If-Match on a delete: a delete could remove an edit another device just made",
+            )
+            .detailed(DETAIL_NO_CONDITIONAL_DELETE));
         }
         let _ = etag;
         // A copy to a name that is taken.
@@ -1195,9 +1202,9 @@ impl Remote for S3 {
         let headers = if self.can(CAP_DELETE_IF_MATCH) {
             vec![("if-match", version.clone())]
         } else {
-            // The service cannot make the delete conditional: look at the
-            // file just before. A short window remains, said when the
-            // person connected.
+            // A connection made before the probe refused such a service
+            // (I-3, 2026-10-22): look at the file just before. A short
+            // window remains. A new connection to one is refused.
             match self.head(&key)? {
                 None => return Ok(()),
                 Some(h) if h.etag != *version => {

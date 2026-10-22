@@ -451,7 +451,8 @@ impl WebDav {
         if del.status().as_u16() != 412 {
             return Err(refused(
                 "the server does not honour If-Match on a delete: it would delete a file another device just changed",
-            ));
+            )
+            .detailed(crate::DETAIL_NO_CONDITIONAL_DELETE));
         }
         let ok = self
             .http
