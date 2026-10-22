@@ -98,10 +98,12 @@ Quer ver os dados caírem? Em **Ajustes › RPG & Mesa Solo › Dados e RPG**, l
 
 O número **já foi sorteado** antes de os dados caírem, pelo gerador criptográfico da janela ou, numa sala, pelo servidor; a queda só o encena, e o dado pousa mostrando exatamente esse número. Por isso o leitor de tela diz o resultado na hora, sem esperar, e o cartão com o texto existe sempre.
 
-- **Pular:** um clique em qualquer lugar, ou `Esc`. Também termina sozinho em poucos segundos.
+- **Os dados ficam na mesa**, como no Rolai, até você mexer em algo: um clique em qualquer lugar que não seja um botão ou uma janela, `Esc` ou a próxima rolagem os tira. Eles não seguram o clique: a página continua usável por baixo. Enquanto caem, `Esc` ou um clique também os pula.
+- **Duração da rolagem:** em *Dados e RPG*, **Rápida**, **Normal** ou **Lenta** muda a velocidade da queda.
+- **Som dos dados:** um botão **Som dos dados**, desligado por padrão, toca o barulho de cada batida dos dados na mesa e uns nos outros, com as gravações do Rolai (domínio público); o timbre segue o material do dado (plástico, madeira ou metal).
 - **Sem animação:** se o sistema pede menos movimento, ou se a rolagem tem mais de 20 dados ou um dado que explode (`!`), só o cartão aparece.
 - **Numa sala**, cada pessoa vê os dados cair só se o *seu* recurso Dados 3D estiver ligado; as outras veem o cartão.
-- O motor 3D é baixado só na primeira rolagem em 3D e guardado para uso sem conexão. Sem som.
+- O motor 3D é baixado só na primeira rolagem em 3D e guardado para uso sem conexão, com os sons, se você os ligar.
 - **Aparência:** logo abaixo do botão, na mesma página, como no Rolai: o **tamanho** (de 70% a 160%; 100% é um dado de uns 70 pixels num notebook), **três conjuntos de cor** (1, 2 e 3 — uma rolagem usa o 1; um perfil de dados pode dar a um grupo o 2 ou o 3), e, para o conjunto escolhido, o **estilo** (Do Verso, Esmeralda, Osso, Obsidiana, Sangue, Abissal, Gelo, Escamas, Taverna), as cores do **corpo**, do **número** e do **contorno**, a **textura** (Lisa, Mármore, Pintas, Glitter, Estrelas, Céu astral, Nuvens, Fogo, Água, Gelo, Papel, Madeira, Aço, Vitral, Caveiras, Dragão, Leopardo, Tigre, Lagarto, Pena — as imagens originais do 3DDiceRoller, que vêm com o aplicativo) e o **material** (Automático, Plástico, Metal, Madeira, Vidro, Fosco). Se o número ficar parecido demais com o corpo, o Verso avisa (contraste abaixo de 3:1). **Rolar para testar** rola um d20 e dois d6, um em cada conjunto. Vale só para este aparelho: numa sala, cada pessoa vê a rolagem com os *seus* dados.
 
 ---
