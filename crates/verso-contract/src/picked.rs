@@ -64,3 +64,27 @@ pub struct RecentFolder {
     /// absolute, never with `..`, and empty when there is nothing to say.
     pub place: String,
 }
+
+/// Files dropped on a window from the system's file manager (T.11, decided
+/// 2026-10-22; event `files-dropped`). The host catches the drop itself —
+/// the web view only ever hands bytes — and keeps the paths: the window is
+/// told where in it the drop fell (whole CSS pixels from the window's top left)
+/// and the files' names, and then asks `take_dropped` for them (rule 4: no
+/// path crosses).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FilesDropped {
+    pub x: i32,
+    pub y: i32,
+    pub names: Vec<String>,
+}
+
+/// Files being dragged over a window (event `files-over`), for the window to
+/// show where a drop would land: `over` is false when the drag left. The
+/// position is in CSS pixels from the window's top left; the names are not
+/// known until the drop.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FilesOver {
+    pub over: bool,
+    pub x: i32,
+    pub y: i32,
+}

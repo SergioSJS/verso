@@ -127,6 +127,17 @@ export const commands = {
 	 *  name taken is not a use).
 	 */
 	createPicked: (token: string, path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_picked", { token, path })),
+	/**
+	 *  The files the person dropped on this window from the system's file
+	 *  manager (T.11), after the host told the window `files-dropped`: what
+	 *  `pick_files` answers for a chosen file — a name and a token for a
+	 *  window on this computer's own folder (`max_mb`: the most the person
+	 *  allows one file, up to 1 GiB; no byte crosses, `create_picked` copies
+	 *  it), a name and the bytes (at most 32 MiB each) when the window asks
+	 *  `as_bytes` — a note or a board taking the file in — or shows a server's
+	 *  folder. Empty when nothing is waiting: a drop is taken once.
+	 */
+	takeDropped: (maxMb: number, asBytes: boolean) => typedError<PickedFiles, ContractError>(__TAURI_INVOKE("take_dropped", { maxMb, asBytes })),
 	/**  Create a folder inside the open folder; returns its confined path. */
 	createFolder: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_folder", { path })),
 	/**
@@ -1508,6 +1519,32 @@ export type FileEntry_Serialize = {
 export type FileKind = "note" | "file" | "folder" | 
 /**  Present, content in the cloud (ADR 0043). */
 "placeholder";
+
+/**
+ *  Files dropped on a window from the system's file manager (T.11, decided
+ *  2026-10-22; event `files-dropped`). The host catches the drop itself —
+ *  the web view only ever hands bytes — and keeps the paths: the window is
+ *  told where in it the drop fell (whole CSS pixels from the window's top left)
+ *  and the files' names, and then asks `take_dropped` for them (rule 4: no
+ *  path crosses).
+ */
+export type FilesDropped = {
+	x: number,
+	y: number,
+	names: string[],
+};
+
+/**
+ *  Files being dragged over a window (event `files-over`), for the window to
+ *  show where a drop would land: `over` is false when the drag left. The
+ *  position is in CSS pixels from the window's top left; the names are not
+ *  known until the drop.
+ */
+export type FilesOver = {
+	over: boolean,
+	x: number,
+	y: number,
+};
 
 /**  A named root of the file tree (ADR 0062). */
 export type Focus = Focus_Serialize | Focus_Deserialize;

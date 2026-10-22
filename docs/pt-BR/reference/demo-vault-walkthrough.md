@@ -529,6 +529,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     de volta. Nível: H; E: `folder-switcher-hide.spec.mjs` (também no
     tamanho de um celular e de um tablet); U: `hiddenFolders.test.mjs`; A
     (a lista real de pastas do app).
+14. Arraste um arquivo do Finder ou do Explorer para a árvore, para uma
+    pasta dela e para a parte vazia: no app de computador a pasta sob o
+    ponteiro é marcada enquanto o arraste passa por ela, o arquivo é
+    copiado pelo próprio app (até *Ajustes › Arquivos e links › Tamanho
+    máximo de um arquivo importado*, um PDF de 200 MB com o limite
+    aumentado) e a barra de status diz, um nome já usado ganhando `(2)`;
+    um arquivo acima do limite é nomeado. Um arquivo solto no texto de uma
+    nota ou num board entra como antes (32 MB). Nível: A (o arraste real no
+    macOS e no Windows: os eventos de arrastar e soltar do Tauri
+    substituem o soltar da página ali); H para o lado da janela; E:
+    `drop-host.spec.mjs` (o harness faz o papel do host); S:
+    `app/src-tauri/src/tests_pick.rs` (o host guarda os caminhos, a janela
+    recebe nomes).
 
 ## 7. A web
 

@@ -162,6 +162,10 @@ core.handlers["pick_files"] = (a) => {
   return { files, skipped };
 };
 
+// Files dropped from the file manager: the host took the paths, the window
+// asks for them (`take_dropped`) and gets what a picker would have.
+core.handlers["take_dropped"] = core.handlers["pick_files"];
+
 // A file chosen "on this computer's own folder" is held by the host under a
 // token and copied by `create_picked`: the text of each, by token.
 const held = new Map<string, string>();
