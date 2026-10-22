@@ -63,7 +63,11 @@ export function folderBlocks(paths: readonly string[], textOf: (path: string) =>
       }
       const above = [...heads].reverse().find((h) => h.line < b.first_line);
       const under = kind !== "heading" && above !== undefined;
-      blocks.push({ path, id: b.id, kind, label: under && above ? short(above.text) : firstLineLabel(first), under_heading: under });
+      const body = lines.slice(b.first_line - 1, b.last_line).filter((l) => l.trim() !== "" && !/^\s*\^\S+\s*$/.test(l));
+      const items = kind === "list" ? body.filter((l) => marker.test(l)) : [];
+      const rows = kind === "table" ? Math.max(0, body.length - 2) : items.length;
+      const tasks = items.some((l) => /^\S+[ \t]+\[[ xX]\]/.test(l));
+      blocks.push({ path, id: b.id, kind, label: under && above ? short(above.text) : firstLineLabel(first), under_heading: under, rows, tasks });
     });
     if (truncated) break;
   }

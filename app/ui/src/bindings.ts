@@ -1571,6 +1571,10 @@ export type FolderBlock = {
 	label: string,
 	/**  `label` is the heading above the block (else its first line). */
 	under_heading: boolean,
+	/**  A table's body rows, or a list's top-level items (0 for the rest). */
+	rows: number,
+	/**  A list with a task item (`- [ ]`, `- [x]`). */
+	tasks: boolean,
 };
 
 /**
