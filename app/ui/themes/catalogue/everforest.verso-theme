@@ -64,6 +64,8 @@
     "tag-style": "outline",
     "heading-scale": "large",
     "heading-weight": "regular",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "bar"
   }
 }

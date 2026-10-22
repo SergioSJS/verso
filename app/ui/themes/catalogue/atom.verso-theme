@@ -34,6 +34,8 @@
     "tag-style": "pill",
     "radius": "soft",
     "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "bar",
     "link-style": "plain",
     "checkbox-style": "rounded"

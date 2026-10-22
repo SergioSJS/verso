@@ -86,171 +86,171 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Nord
 
-- Arquivo: `nord.verso-theme` (modo dark) — SHA-256: `d7b60d9b6948d28faaaaa59f3f10a47cc08e853ab9f7e6f6f01d5e4fc6166573`
+- Arquivo: `nord.verso-theme` (modo dark) — SHA-256: `e91c0432631dcfcd44d15a45783e05d002d9d4bcdd9086d614621dc22048197f`
 - Crédito no arquivo: Nord, Sven Greb (Arctic Ice Studio), MIT
 - Fonte: https://github.com/nordtheme/nord/blob/1cef71605416a222e57225b544540ce0fcec18d4/src/nord.css
 - Commit ou tag: 1cef71605416a222e57225b544540ce0fcec18d4 (develop, tag v0.2.0 is older)
 - Licença: MIT, (c) 2016-present Sven Greb
 - Autor: Sven Greb
 - Mapeamento: Polar Night nord0 / nord1 / nord2 para página, painéis e linhas; nord4 no texto; links em Frost nord8, títulos em nord9; as cores Aurora para as semânticas (a paleta não tem rosa: omitido). O Nord não tem paleta clara, então nenhuma é entregue. ink-2 é nord3, a cor de comentário da paleta.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Fontes das escolhas estruturais: Sans do sistema (`system`), mono Hack (`mono`), `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema = vermelho, amarelo, verde, roxo, frost0, frost2; tabelas listradas: `striped`; tag pílula (.5em): `pill`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.5); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); `link-style: plain`, sem sublinhado (perfil visual 3.5).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Fontes das escolhas estruturais: Sans do sistema (`system`), mono Hack (`mono`), `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema = vermelho, amarelo, verde, roxo, frost0, frost2; tabelas listradas: `striped`; tag pílula (.5em): `pill`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.5); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); `link-style: plain`, sem sublinhado (perfil visual 3.5). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: dark `--ink-2` `#4c566a` → `#6f7d98` (3.01:1, ajustado para contraste)
 
 ### Dracula
 
-- Arquivo: `dracula.verso-theme` (modo dark) — SHA-256: `1dabc4bf362bc903022bb3d22f39ecd307a11a80af5da1b1cbb0bf4c47352619`
+- Arquivo: `dracula.verso-theme` (modo dark) — SHA-256: `eb80f26103186ad74db04d63f7dd0ce09fffa95974be2701d1e047549f5cc613`
 - Crédito no arquivo: Dracula, Zeno Rocha, MIT
 - Fonte: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (UI palette, read 2026-10-22)
 - Commit ou tag: e22ebcc048b8aff586f9bc94db30ff5347070b42 (tag v1.2.5 is older)
 - Licença: MIT, (c) 2023 Dracula Theme
 - Autor: Zeno Rocha
 - Mapeamento: Background, Foreground, Comment, Current Line e as cores funcionais da paleta do README; "Background Dark" #21222C e "Floating interactive elements" #343746 da tabela de UI da especificação. Bordas usam Current Line, como as diretrizes de componentes da especificação. A especificação não tem Blue, então --blue é o Purple (ela mapeia o azul ANSI para ele). A especificação pede contraste 4,5:1 no texto e "valores exatos de cor"; a cor de comentário usada em ink-2 fica abaixo de 4,5:1 e só é corrigida até o piso de 3:1, se preciso.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Fontes das escolhas estruturais: O tema não define fonte (sans do sistema do Obsidian: `system`); `font-size: 16` é o padrão do próprio Obsidian (`--font-text-size`); o tema não o altera; as seis cores de título são `--text-title-h1`…`h6` do tema (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); blocos de código com raio 4px: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.2); `blockquote-style: bar`, barra simples (`#b294bb`) em texto sem itálico (perfil visual 3.2); `link-style: plain`, sem sublinhado (perfil visual 3.2).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Fontes das escolhas estruturais: O tema não define fonte (sans do sistema do Obsidian: `system`); `font-size: 16` é o padrão do próprio Obsidian (`--font-text-size`); o tema não o altera; as seis cores de título são `--text-title-h1`…`h6` do tema (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); blocos de código com raio 4px: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.2); `blockquote-style: bar`, barra simples (`#b294bb`) em texto sem itálico (perfil visual 3.2); `link-style: plain`, sem sublinhado (perfil visual 3.2). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Dracula Alucard
 
-- Arquivo: `dracula-alucard.verso-theme` (modo light) — SHA-256: `17b6431e22cfdec970f189cce3a4b15300bef1ebfa309d6539ed428d1f9d4f5e`
+- Arquivo: `dracula-alucard.verso-theme` (modo light) — SHA-256: `b076541443ac6d73275b695ba5548703c943b0565a030a7b2425003f34d131fc`
 - Crédito no arquivo: Dracula Alucard, Zeno Rocha, MIT
 - Fonte: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (Alucard UI palette)
 - Commit ou tag: e22ebcc048b8aff586f9bc94db30ff5347070b42
 - Licença: MIT, (c) 2023 Dracula Theme
 - Autor: Zeno Rocha
 - Mapeamento: A paleta clara do próprio Dracula, Alucard (tabela "Alucard" do README e tabela de UI da especificação); não é um claro inventado para o Dracula. Mesmo mapeamento do Dracula; o Verso a chama de "Dracula Alucard" para dizer de quem é a paleta.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
-- Fontes das escolhas estruturais: Mesma estrutura do Dracula (o tema não define fonte, padrões do Obsidian); cores de título na ordem de papéis do Dracula (roxo, laranja, verde, vermelho, amarelo, roxo) nos equivalentes claros desta paleta. O Alucard não existe no tema do Obsidian, então a ordem é a do Dracula, não a do Alucard. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.2); `blockquote-style: bar`, barra simples (`#b294bb`) em texto sem itálico (perfil visual 3.2); `link-style: plain`, sem sublinhado (perfil visual 3.2).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Fontes das escolhas estruturais: Mesma estrutura do Dracula (o tema não define fonte, padrões do Obsidian); cores de título na ordem de papéis do Dracula (roxo, laranja, verde, vermelho, amarelo, roxo) nos equivalentes claros desta paleta. O Alucard não existe no tema do Obsidian, então a ordem é a do Dracula, não a do Alucard. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.2); `blockquote-style: bar`, barra simples (`#b294bb`) em texto sem itálico (perfil visual 3.2); `link-style: plain`, sem sublinhado (perfil visual 3.2). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Rosé Pine
 
-- Arquivo: `rose-pine.verso-theme` (modo both) — SHA-256: `fa158c007715c6d2376cc1d4c5aabc31dbccfeb1994ccbdeda9b8ae9963c48fd`
+- Arquivo: `rose-pine.verso-theme` (modo both) — SHA-256: `54b5ab9b8e4a194fae9d3866a6b08f4edd7e16f76a6a1258c1cb04cea83c49eb`
 - Crédito no arquivo: Rosé Pine, Rosé Pine, MIT
 - Fonte: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit ou tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licença: MIT, (c) mvllow
 - Autor: Rosé Pine
 - Mapeamento: Base / Surface / Overlay para página, painéis e linhas; Text e Subtle para o texto; Iris nos links, Rose nos títulos; Love, Gold, Foam, Pine, Iris e Rose para vermelho, amarelo, ciano, azul, roxo e rosa. O Rosé Pine não tem laranja nem verde: ficam os do Verso. O escuro é o Rosé Pine (main), o claro é o Dawn.
-- Escolhas estruturais: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
-- Fontes das escolhas estruturais: Inter na edição e nos títulos: `sans`; Georgia na leitura: a serifada de livro mais próxima, `editorial` (a pilha termina em Georgia); `font-size: 18` (theme.css `--font-text-size`); as cores de título são `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (aqui vermelho, roxo, rosa, amarelo, ciano, azul). O rosa e o dourado do claro foram corrigidos para contraste. Chaves novas (ADR 0109, TM.4 = B): `heading-weight: regular`, títulos com peso 500 (perfil visual 3.3), mais perto de `regular` que de `semibold`; `blockquote-style: panel`, painel com o fundo do código e barra de 4px, em itálico (perfil visual 3.3); `emphasis-color: accent`, itálico em Iris (perfil visual 3.3): `accent` é o Iris aqui (`--seal`); colore também o negrito, o que o original não faz.
+- Escolhas estruturais: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: accent`
+- Fontes das escolhas estruturais: Inter na edição e nos títulos: `sans`; Georgia na leitura: a serifada de livro mais próxima, `editorial` (a pilha termina em Georgia); `font-size: 18` (theme.css `--font-text-size`); as cores de título são `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (aqui vermelho, roxo, rosa, amarelo, ciano, azul). O rosa e o dourado do claro foram corrigidos para contraste. Chaves novas (ADR 0109, TM.4 = B): `heading-weight: regular`, títulos com peso 500 (perfil visual 3.3), mais perto de `regular` que de `semibold`; `blockquote-style: panel`, painel com o fundo do código e barra de 4px, em itálico (perfil visual 3.3); `emphasis-color: accent`, itálico em Iris (perfil visual 3.3): `accent` é o Iris aqui (`--seal`); colore também o negrito, o que o original não faz. Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: light `--brass-ink` `#d7827e` → `#d2726d` (3.02:1, ajustado para contraste); light `--h3-color` `#d7827e` → `#d2716c` (3.04:1, ajustado para contraste); light `--h4-color` `#ea9d34` → `#c77c15` (3.04:1, ajustado para contraste)
 
 ### Rosé Pine Moon
 
-- Arquivo: `rose-pine-moon.verso-theme` (modo dark) — SHA-256: `43559ec66f0c3ff7074666b696256605159dd368495a68de9e2eccb53bb40faf`
+- Arquivo: `rose-pine-moon.verso-theme` (modo dark) — SHA-256: `5ce4d9c39d16d40910d5d16af36089a80f7c2176d91ff94589c6606927f596e7`
 - Crédito no arquivo: Rosé Pine Moon, Rosé Pine, MIT
 - Fonte: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit ou tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licença: MIT, (c) mvllow
 - Autor: Rosé Pine
 - Mapeamento: Base / Surface / Overlay para página, painéis e linhas; Text e Subtle para o texto; Iris nos links, Rose nos títulos; Love, Gold, Foam, Pine, Iris e Rose para vermelho, amarelo, ciano, azul, roxo e rosa. O Rosé Pine não tem laranja nem verde: ficam os do Verso.
-- Escolhas estruturais: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
-- Fontes das escolhas estruturais: Inter na edição e nos títulos: `sans`; Georgia na leitura: a serifada de livro mais próxima, `editorial` (a pilha termina em Georgia); `font-size: 18` (theme.css `--font-text-size`); as cores de título são `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (aqui vermelho, roxo, rosa, amarelo, ciano, azul). Chaves novas (ADR 0109, TM.4 = B): `heading-weight: regular`, títulos com peso 500 (perfil visual 3.3), mais perto de `regular` que de `semibold`; `blockquote-style: panel`, painel com o fundo do código e barra de 4px, em itálico (perfil visual 3.3); `emphasis-color: accent`, itálico em Iris (perfil visual 3.3): `accent` é o Iris aqui (`--seal`); colore também o negrito, o que o original não faz.
+- Escolhas estruturais: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: accent`
+- Fontes das escolhas estruturais: Inter na edição e nos títulos: `sans`; Georgia na leitura: a serifada de livro mais próxima, `editorial` (a pilha termina em Georgia); `font-size: 18` (theme.css `--font-text-size`); as cores de título são `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (aqui vermelho, roxo, rosa, amarelo, ciano, azul). Chaves novas (ADR 0109, TM.4 = B): `heading-weight: regular`, títulos com peso 500 (perfil visual 3.3), mais perto de `regular` que de `semibold`; `blockquote-style: panel`, painel com o fundo do código e barra de 4px, em itálico (perfil visual 3.3); `emphasis-color: accent`, itálico em Iris (perfil visual 3.3): `accent` é o Iris aqui (`--seal`); colore também o negrito, o que o original não faz. Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Everforest
 
-- Arquivo: `everforest.verso-theme` (modo both) — SHA-256: `6965e4d5e784df1087ec90ee061bac644463a18ba9e3d13f84935f972314142c`
+- Arquivo: `everforest.verso-theme` (modo both) — SHA-256: `e2bc9ff3b638719bfc04b4e345cb990bab14132040fe3ee5f1f590b9bba0f7be`
 - Crédito no arquivo: Everforest, sainnhe, MIT
 - Fonte: https://github.com/sainnhe/everforest/blob/85a86eb62409e3ec88713bff3d1b9d7374e112e4/docs/palette.md
 - Commit ou tag: 85a86eb62409e3ec88713bff3d1b9d7374e112e4 (tag v0.3.0)
 - Licença: MIT, (c) 2019 sainnhe
 - Autor: sainnhe
 - Mapeamento: A variante de contraste médio da paleta, escura e clara. bg0 / bg1 / bg2 (escuro) e bg0 / bg1 / bg4 (claro) nas superfícies; fg no texto, grey2 (escuro) e grey1 (claro) no texto discreto; verde nos links e amarelo nos títulos; a linha de acentos nas semânticas (aqua é o ciano). Os acentos claros são pálidos sobre a página clara e vários são corrigidos para contraste (veja os ajustes).
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `heading-scale: large`, `heading-weight: regular`, `blockquote-style: bar`
-- Fontes das escolhas estruturais: Sans do sistema, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); as cores de título são `--h1-color`…`--h6-color` do tema (conjunto dim no escuro, light no claro: vermelho, laranja, amarelo, verde, aqua, roxo); tags com borda aqua de 1px: `outline`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 2,125em (perfil visual 3.7); `heading-weight: regular`, títulos com peso 500 (perfil visual 3.7), mais perto de `regular`; `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `heading-scale: large`, `heading-weight: regular`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Fontes das escolhas estruturais: Sans do sistema, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); as cores de título são `--h1-color`…`--h6-color` do tema (conjunto dim no escuro, light no claro: vermelho, laranja, amarelo, verde, aqua, roxo); tags com borda aqua de 1px: `outline`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 2,125em (perfil visual 3.7); `heading-weight: regular`, títulos com peso 500 (perfil visual 3.7), mais perto de `regular`; `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: light `--ink-2` `#939f91` → `#849282` (3.03:1, ajustado para contraste); light `--seal` `#8da101` → `#859801` (3:1, ajustado para contraste); light `--brass-ink` `#dfa000` → `#ba8500` (3.02:1, ajustado para contraste); light `--h2-color` `#f57d26` → `#e8670b` (3.05:1, ajustado para contraste); light `--h3-color` `#bf983d` → `#ac8937` (3.05:1, ajustado para contraste); light `--h4-color` `#899c40` → `#84973e` (3.01:1, ajustado para contraste); light `--h5-color` `#569d79` → `#559b78` (3.07:1, ajustado para contraste)
 
 ### Gruvbox
 
-- Arquivo: `gruvbox.verso-theme` (modo both) — SHA-256: `68be029a24920764c61022bdb1b6e0b4ea49b8c4f4a98f815f20cc0c19c3af82`
+- Arquivo: `gruvbox.verso-theme` (modo both) — SHA-256: `95efb19fb206fc9c2eec37ff91c6a34c3c3e9985379b49e0352b896813cba702`
 - Crédito no arquivo: Gruvbox, Pavel Pertsev (morhetz), MIT
 - Fonte: https://github.com/gruvbox-community/gruvbox/blob/180ad85971343df68be3422a5630fa84e45a9ab2/colors/gruvbox.vim
 - Commit ou tag: 180ad85971343df68be3422a5630fa84e45a9ab2 (tag v3.6.1)
 - Licença: MIT, (c) 2018 Pavel Pertsev (community fork; morhetz/gruvbox, the original, has no LICENSE file)
 - Autor: Pavel Pertsev (morhetz)
 - Mapeamento: A paleta e a tabela de papéis escuro/claro de colors/gruvbox.vim: o escuro usa bg0 / bg1 / bg2, fg1 e fg4 com os acentos bright; o claro usa light0 / light1 / light2, dark1 e dark4 com os acentos faded. Links em azul, títulos em amarelo, como os grupos de Markdown do script vim. O fork da comunidade é creditado porque o repositório original não tem arquivo de licença.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `callout-style: outlined`
-- Fontes das escolhas estruturais: Sans do sistema (`system`), mono Hack Nerd Font (`mono`), `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema = vermelho, amarelo, verde, aqua, azul e roxo neutros; tabelas com linhas alternadas: `striped`; tag pílula (raio .5em): `pill`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.5); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); `link-style: plain`, sem sublinhado (perfil visual 3.5); `callout-style: outlined`, borda de 1px, opacidade 0,4 (perfil visual 3.5).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `callout-style: outlined`
+- Fontes das escolhas estruturais: Sans do sistema (`system`), mono Hack Nerd Font (`mono`), `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema = vermelho, amarelo, verde, aqua, azul e roxo neutros; tabelas com linhas alternadas: `striped`; tag pílula (raio .5em): `pill`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.5); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); `link-style: plain`, sem sublinhado (perfil visual 3.5); `callout-style: outlined`, borda de 1px, opacidade 0,4 (perfil visual 3.5). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: dark `--h1-color` `#cc241d` → `#dc271f` (3.06:1, ajustado para contraste); light `--h2-color` `#d79921` → `#b6811c` (3.01:1, ajustado para contraste); light `--h3-color` `#98971a` → `#8f8e19` (3.06:1, ajustado para contraste); light `--h4-color` `#689d6a` → `#629764` (3.02:1, ajustado para contraste)
 
 ### Solarized
 
-- Arquivo: `solarized.verso-theme` (modo both) — SHA-256: `59e06de6bfabe5149cbb5d60ec5e46b7875a3f9e97f30376557c850efb15c927`
+- Arquivo: `solarized.verso-theme` (modo both) — SHA-256: `81bba37c9698c988c6765e85316a3af8f5a73ab0d34cc007d048a6d6af6b5e9a`
 - Crédito no arquivo: Solarized, Ethan Schoonover, MIT
 - Fonte: https://github.com/altercation/solarized/blob/62f656a02f93c5190a8753159e34b385588d5ff3/README.md ("The Values" table)
 - Commit ou tag: 62f656a02f93c5190a8753159e34b385588d5ff3 (tag v1.0.0beta1)
 - Licença: MIT, (c) 2011 Ethan Schoonover
 - Autor: Ethan Schoonover
 - Mapeamento: Os 16 valores da tabela do README, com a troca de papéis claro/escuro do próprio Solarized: base3 / base2 (claro) e base03 / base02 (escuro) em página e painéis, base00 / base0 no texto, base1 / base01 no conteúdo secundário, azul nos links, laranja nos títulos; magenta é o rosa e violet o roxo. As cores de texto secundário ficam abaixo do piso sobre a página (a paleta é de baixo contraste por desenho) e são corrigidas.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`
-- Fontes das escolhas estruturais: O tema não define fonte (sans do sistema do Obsidian: `system`) e `font-size: 16`; tag pílula com o acento a 10–20%: `pill`. Só o raio dos blocos de código é `unset`, então `radius` segue o da janela. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.4, 3.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Fontes das escolhas estruturais: O tema não define fonte (sans do sistema do Obsidian: `system`) e `font-size: 16`; tag pílula com o acento a 10–20%: `pill`. Só o raio dos blocos de código é `unset`, então `radius` segue o da janela. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.4, 3.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: light `--ink-2` `#93a1a1` → `#829292` (3.01:1, ajustado para contraste); dark `--ink-2` `#586e75` → `#5d747c` (3.04:1, ajustado para contraste)
 
 ### Flexoki
 
-- Arquivo: `flexoki.verso-theme` (modo both) — SHA-256: `8f0417a50f7d82a62fe74a2962c131cf1159b776c46a6ca0447bf3c0d0b25200`
+- Arquivo: `flexoki.verso-theme` (modo both) — SHA-256: `ed98cfde69e4014e5c69af11c71eafa5ae133f57ed4b7b968e207eafca66fb66`
 - Crédito no arquivo: Flexoki, Steph Ango (kepano), stephango.com/flexoki, MIT
 - Fonte: https://github.com/kepano/flexoki/blob/8d723bac4a9ac46adfdf99d42155286977aac72a/README.md
 - Commit ou tag: 8d723bac4a9ac46adfdf99d42155286977aac72a (tag 2.0.0)
 - Licença: MIT, (c) 2023 Steph Ango
 - Autor: Steph Ango
 - Mapeamento: A escala do Flexoki como o README a dá: paper / base-50 / base-100 e black / base-950 / base-900 em superfícies e linhas, black e base-200 no texto, base-600 e base-500 no texto discreto; os acentos 600 no lado claro e os 400 no escuro; azul nos links, laranja nos títulos. O README do Flexoki pede que os portes "incluam atribuição e um link para stephango.com/flexoki": a linha de autor do crédito o traz e a página de Créditos deve mostrá-lo.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `heading-scale: large`, `blockquote-style: bar`
-- Fontes das escolhas estruturais: O tema é só variáveis de cor (1,9 KB): a tipografia é a padrão do Obsidian, `system` e `font-size: 16`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.4, 3.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`
+- Fontes das escolhas estruturais: O tema é só variáveis de cor (1,9 KB): a tipografia é a padrão do Obsidian, `system` e `font-size: 16`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.4, 3.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Tokyo Night
 
-- Arquivo: `tokyo-night.verso-theme` (modo both) — SHA-256: `c2755c41bc2b766ce93ba71eca71c435099cb75407ebb84194351eb543862e36`
+- Arquivo: `tokyo-night.verso-theme` (modo both) — SHA-256: `fbb036942cd27e98d752da37867c698d276536c128ef6c921bbded1d89f1ce95`
 - Crédito no arquivo: Tokyo Night, enkia (Tokyo Night VS Code theme), MIT
 - Fonte: https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/7c0f11eaef322f293621ca7befe462214b7ea468/themes/tokyo-night-color-theme.json and tokyo-night-light-color-theme.json
 - Commit ou tag: 7c0f11eaef322f293621ca7befe462214b7ea468
 - Licença: MIT (LICENSE.txt)
 - Autor: enkia
 - Mapeamento: Cores: lidas dos dois temas de cor do VS Code (fundos do editor e da barra lateral, texto do editor e de descrição, a cor de link, o fundo de bloco de código, a cor de código em linha); as cores ANSI para vermelho, amarelo, verde, ciano, azul e roxo. As seis cores de título não são as do Markdown do VS Code, e sim a ordem do tema do Obsidian (vermelho, amarelo, verde, ciano, azul, magenta) sobre essas cores ANSI. O escuro é "Tokyo Night", o claro é a variante clara do próprio tema.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: panel`, `emphasis-color: semantic`, `checkbox-style: round`
-- Fontes das escolhas estruturais: Sans do sistema (a JetBrains Mono declarada como fonte padrão não é usada pelo tema): `system`, mono JetBrains: `mono`, `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema do Obsidian = vermelho, amarelo, verde, ciano, azul, magenta, tomadas dos valores da paleta deste arquivo; tag pílula magenta: `pill`; raio do callout 4px: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.8); `blockquote-style: panel`, citação sobre fundo mais escuro (perfil visual 3.8); `emphasis-color: semantic`, negrito e itálico em ciano (perfil visual 3.8): `semantic` dá o negrito ciano do tema e o itálico verde (azulado), o mais próximo; `checkbox-style: round`, raio de 12px na caixa de tarefa (perfil visual 3.8).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `emphasis-color: semantic`, `checkbox-style: round`
+- Fontes das escolhas estruturais: Sans do sistema (a JetBrains Mono declarada como fonte padrão não é usada pelo tema): `system`, mono JetBrains: `mono`, `font-size: 16`; as cores de título são `--h1-color`…`h6` do tema do Obsidian = vermelho, amarelo, verde, ciano, azul, magenta, tomadas dos valores da paleta deste arquivo; tag pílula magenta: `pill`; raio do callout 4px: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.8); `blockquote-style: panel`, citação sobre fundo mais escuro (perfil visual 3.8); `emphasis-color: semantic`, negrito e itálico em ciano (perfil visual 3.8): `semantic` dá o negrito ciano do tema e o itálico verde (azulado), o mais próximo; `checkbox-style: round`, raio de 12px na caixa de tarefa (perfil visual 3.8). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Ayu Light
 
-- Arquivo: `ayu-light.verso-theme` (modo light) — SHA-256: `121fe1ab91a810712c2708651292881d9a120afd1eee9c9190a50b37e6d15f7f`
+- Arquivo: `ayu-light.verso-theme` (modo light) — SHA-256: `2c86675f7236bc313877dde11953b08fcbf514e477ebcf48949b1233cc2fc753`
 - Crédito no arquivo: Ayu Light, Konstantin Pschera, MIT
 - Fonte: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/light.yaml
 - Commit ou tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licença: MIT, (c) Konstantin Pschera
 - Autor: Konstantin Pschera
 - Mapeamento: Os valores do tema YAML: fundo do editor (surface lift) na página, surface base nos painéis, primeiros planos do editor e da UI no texto, o tom de acento nos links, o laranja da paleta nos títulos, ui.line (ou surface sunk) nas linhas; vermelho, laranja, amarelo, verde, teal (ciano), azul e roxo da paleta. A paleta do Ayu não tem rosa próprio: omitido. Valores que o YAML deriva com expressões de cor (papéis de sintaxe) não são usados.
-- Escolhas estruturais: `heading-scale: large`
-- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,9em (perfil visual 3.9), mais perto de `large` (2,1em) que de `standard` (1,65em); altura de linha 1,7 e peso 600 já são os do Verso, então ficam sem valor.
+- Escolhas estruturais: `heading-scale: large`, `line-width: narrow`, `line-height: snug`
+- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,9em (perfil visual 3.9), mais perto de `large` (2,1em) que de `standard` (1,65em); altura de linha 1,7 e peso 600 já são os do Verso, então ficam sem valor. Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: light `--seal` `#f29718` → `#d27f0c` (3.02:1, ajustado para contraste); light `--brass-ink` `#fa8532` → `#f36806` (3.01:1, ajustado para contraste)
 
 ### Ayu Mirage
 
-- Arquivo: `ayu-mirage.verso-theme` (modo dark) — SHA-256: `4bbb8b680d67313ec30214d94b9225fcf8b0195a00188188f221679afc008748`
+- Arquivo: `ayu-mirage.verso-theme` (modo dark) — SHA-256: `62fc1ba72c062c697584949e142ee65c0ae88cee5afb597bf3c2c629c0372c3a`
 - Crédito no arquivo: Ayu Mirage, Konstantin Pschera, MIT
 - Fonte: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/mirage.yaml
 - Commit ou tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licença: MIT, (c) Konstantin Pschera
 - Autor: Konstantin Pschera
 - Mapeamento: Os valores do tema YAML: fundo do editor (surface lift) na página, surface base nos painéis, primeiros planos do editor e da UI no texto, o tom de acento nos links, o laranja da paleta nos títulos, ui.line (ou surface sunk) nas linhas; vermelho, laranja, amarelo, verde, teal (ciano), azul e roxo da paleta. A paleta do Ayu não tem rosa próprio: omitido. Valores que o YAML deriva com expressões de cor (papéis de sintaxe) não são usados.
-- Escolhas estruturais: `heading-scale: large`
-- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,9em (perfil visual 3.9), mais perto de `large` (2,1em) que de `standard` (1,65em); altura de linha 1,7 e peso 600 já são os do Verso, então ficam sem valor.
+- Escolhas estruturais: `heading-scale: large`, `line-width: narrow`, `line-height: snug`
+- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,9em (perfil visual 3.9), mais perto de `large` (2,1em) que de `standard` (1,65em); altura de linha 1,7 e peso 600 já são os do Verso, então ficam sem valor. Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Ayu Dark
 
-- Arquivo: `ayu-dark.verso-theme` (modo dark) — SHA-256: `84b7ed27f32030c4e83393444e15b93e54b3f645072cf1872902487bed934cd6`
+- Arquivo: `ayu-dark.verso-theme` (modo dark) — SHA-256: `46d7cb278bc1242acfadf3bda184bcf2d2faffefacc6990086eb1b6967ddb5d3`
 - Crédito no arquivo: Ayu Dark, Konstantin Pschera, MIT
 - Fonte: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/dark.yaml
 - Commit ou tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licença: MIT, (c) Konstantin Pschera
 - Autor: Konstantin Pschera
 - Mapeamento: Os valores do tema YAML: fundo do editor (surface lift) na página, surface base nos painéis, primeiros planos do editor e da UI no texto, o tom de acento nos links, o laranja da paleta nos títulos, ui.line (ou surface sunk) nas linhas; vermelho, laranja, amarelo, verde, teal (ciano), azul e roxo da paleta. A paleta do Ayu não tem rosa próprio: omitido. Valores que o YAML deriva com expressões de cor (papéis de sintaxe) não são usados.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `heading-scale: large`, `line-height: snug`, `blockquote-style: bar`
-- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.9); `line-height: snug`, altura de linha 1,5 (perfil visual 3.9); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `heading-scale: large`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`
+- Fontes das escolhas estruturais: Entrada de paleta; as chaves seguem o CSS ou o perfil visual (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 3.9); `line-height: snug`, altura de linha 1,5 (perfil visual 3.9); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` — o CSS do tema não define `--file-line-width`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Minimal
@@ -320,54 +320,54 @@ Os pares verificados nos dois modos são `--ink`, `--ink-2`, `--seal` e `--brass
 
 ### Obsidianotion
 
-- Arquivo: `obsidianotion.verso-theme` (modo both) — SHA-256: `ae67321dab354243e5ff3e0e4d1203e3a38e903a1e7594b47dc765ffbb3b74f9`
+- Arquivo: `obsidianotion.verso-theme` (modo both) — SHA-256: `34d2df1af0036fb296e180501635551dcb28c321bf3453372c6749d0f1efe9ab`
 - Crédito no arquivo: Obsidianotion, Diego Eis, Unlicense
 - Fonte: https://github.com/diegoeis/obsidianotion/blob/420469845836be3f116d9070e7548362289b8ee7/theme.css
 - Commit ou tag: 420469845836be3f116d9070e7548362289b8ee7
 - Licença: Unlicense, public domain
 - Autor: Diego Eis
 - Mapeamento: As variáveis claras e escuras do próprio tema; a pilha de fontes system-ui vira a chave system. O nome continua o do tema (não se chama Notion).
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `callout-style: outlined`
-- Fontes das escolhas estruturais: Pilha ui-sans-serif / -apple-system: `system`; 16px; tags em pílula (o ciclo de cores não é expressável): `pill`; raios 4/8/12/16: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 1.875em`, mais perto de `large` (2,1em) que de `standard` (1,65em); `heading-weight: bold`, `--h1-weight: 700`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, barra cinza de 3px e texto atenuado (perfil visual 2.5); `callout-style: outlined`, `--callout-border-width: 1px`, borda com tinta (perfil visual 2.5).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`, `callout-style: outlined`
+- Fontes das escolhas estruturais: Pilha ui-sans-serif / -apple-system: `system`; 16px; tags em pílula (o ciclo de cores não é expressável): `pill`; raios 4/8/12/16: `soft`. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 1.875em`, mais perto de `large` (2,1em) que de `standard` (1,65em); `heading-weight: bold`, `--h1-weight: 700`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, barra cinza de 3px e texto atenuado (perfil visual 2.5); `callout-style: outlined`, `--callout-border-width: 1px`, borda com tinta (perfil visual 2.5). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` — o CSS do tema não define `--file-line-width`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Atom
 
-- Arquivo: `atom.verso-theme` (modo both) — SHA-256: `9ca00ab16a5eabfb8062f13a50ced7d6bb4f562a1b7672094b03c556723f8be8`
+- Arquivo: `atom.verso-theme` (modo both) — SHA-256: `5a346c5a9e21736e45f96733c5ad5e0c550c378f78792ed07248fe7ef78794e2`
 - Crédito no arquivo: Atom, kognise, Unlicense
 - Fonte: https://github.com/kognise/obsidian-atom/blob/650d6463d377a096520373c4752fef66f3f18f46/obsidian.css
 - Commit ou tag: 650d6463d377a096520373c4752fef66f3f18f46
 - Licença: Unlicense, public domain
 - Autor: kognise
 - Mapeamento: O tema define página, painel, borda, texto, texto discreto e acento nos dois lados, e mais nada.
-- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `checkbox-style: rounded`
-- Fontes das escolhas estruturais: o tema não define fonte, então vale a sans do sistema do Obsidian: `system`; `font-size: 16` é o padrão do próprio Obsidian (`--font-text-size`); o tema não o altera; a tag é um chip arredondado de raio 4px (theme.css, `a.tag`), raios do Obsidian: `tag-style: pill`, `radius: soft`; a cor amarela da tag não pode ser definida. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 2.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); o tema só acrescenta um recuo; `link-style: plain`, `--link-decoration: none`; `checkbox-style: rounded`, quadrado arredondado na cor de acento (perfil visual 2.6).
+- Escolhas estruturais: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `checkbox-style: rounded`
+- Fontes das escolhas estruturais: o tema não define fonte, então vale a sans do sistema do Obsidian: `system`; `font-size: 16` é o padrão do próprio Obsidian (`--font-text-size`); o tema não o altera; a tag é um chip arredondado de raio 4px (theme.css, `a.tag`), raios do Obsidian: `tag-style: pill`, `radius: soft`; a cor amarela da tag não pode ser definida. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 padrão do Obsidian (2em); o tema não define (perfil visual 2.6); `blockquote-style: bar`, barra padrão do Obsidian (perfil visual 1); o tema só acrescenta um recuo; `link-style: plain`, `--link-decoration: none`; `checkbox-style: rounded`, quadrado arredondado na cor de acento (perfil visual 2.6). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Yin and Yang
 
-- Arquivo: `yin-and-yang.verso-theme` (modo both) — SHA-256: `d7623320110fcd9c7ddfbda25707155b0f146110a41f9a528089fe9feb503634`
+- Arquivo: `yin-and-yang.verso-theme` (modo both) — SHA-256: `a61680babd868bc055cf2d222c46ee26ee4811cd040d3747856d5e23da0b7cdd`
 - Crédito no arquivo: Yin and Yang, Chetachi Ezikeuzor, MPL-2.0
 - Fonte: https://github.com/chetachiezikeuzor/Yin-and-Yang-Theme/blob/e780f0d58301cfa11c05d0cc351ee82a95d920de/obsidian.css
 - Commit ou tag: e780f0d58301cfa11c05d0cc351ee82a95d920de
 - Licença: MPL-2.0, Mozilla Public License 2.0 (colour values only; the CSS is not redistributed)
 - Autor: Chetachi Ezikeuzor
 - Mapeamento: Página, painel, borda, texto e acento nos dois lados. Os acentos do tema são pastel e são corrigidos para contraste sobre a página.
-- Escolhas estruturais: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`
-- Fontes das escolhas estruturais: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); as cores de título são `--text-title-h1`…`h6` do tema (escuro: rosa, roxo, vermelho, laranja, verde, azul pálido; claro: rosa claro, roxo, vermelho, laranja, verde, azul centáurea); raios 4–6px: `soft`. Os pastéis não passam 3:1 na página clara e foram escurecidos pela regra abaixo. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,98em (perfil visual 2.7); `heading-weight: bold`, peso 750 no h1, mais perto de `bold` (700).
+- Escolhas estruturais: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-width: narrow`, `line-height: snug`
+- Fontes das escolhas estruturais: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); as cores de título são `--text-title-h1`…`h6` do tema (escuro: rosa, roxo, vermelho, laranja, verde, azul pálido; claro: rosa claro, roxo, vermelho, laranja, verde, azul centáurea); raios 4–6px: `soft`. Os pastéis não passam 3:1 na página clara e foram escurecidos pela regra abaixo. Chaves novas (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1,98em (perfil visual 2.7); `heading-weight: bold`, peso 750 no h1, mais perto de `bold` (700). Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` e `line-height: snug` — o CSS do tema não define `--file-line-width` nem `--line-height-normal`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: light `--seal` `#cd94ff` → `#bc6fff` (3.01:1, ajustado para contraste); light `--h1-color` `#ffabf4` → `#ff33e4` (3.01:1, ajustado para contraste); light `--h2-color` `#d2b3ff` → `#ae76ff` (3.01:1, ajustado para contraste); light `--h3-color` `#ff5582` → `#ff5280` (3.04:1, ajustado para contraste); light `--h4-color` `#ffb86c` → `#e17400` (3.08:1, ajustado para contraste); light `--h5-color` `#85ffa4` → `#00ab2c` (3.00:1, ajustado para contraste); light `--h6-color` `#a1c4fd` → `#5192fb` (3.01:1, ajustado para contraste)
 
 ### Border
 
-- Arquivo: `border.verso-theme` (modo both) — SHA-256: `203a5cbb3a854360a8621f50b65ac2ebd0e597339a0e52521f27854953bb3dbb`
+- Arquivo: `border.verso-theme` (modo both) — SHA-256: `ae5f222cf2fd04afeebc4c3420397031d37046eab8f87d2d837bbea0fe3217ad`
 - Crédito no arquivo: Border, Akifyss, MIT
 - Fonte: https://github.com/akifyss/obsidian-border/blob/dd59bd54438597f61b38eb5b967919e979526c41/theme.css
 - Commit ou tag: dd59bd54438597f61b38eb5b967919e979526c41
 - Licença: MIT, (c) 2022 Akifyss
 - Autor: Akifyss
 - Mapeamento: Cores resolvidas das variáveis padrão do tema (suas cadeias HSL calculadas).
-- Escolhas estruturais: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `checkbox-style: rounded`
-- Fontes das escolhas estruturais: Inter na captura do próprio tema (Style Settings): `sans`; `font-size: 16`; tag pílula de 2em com borda de 1px: `outline`; grade de tabela: `bordered`; raios 8px (cartões) e 6px (checkbox): `soft`. O layout em cartões é opção do Style Settings, não o padrão, então vale o visual padrão (superfície tonal) e `surface-mode: cards` foi removido; sem estilo de título (filete no h1 e barra no h2, misturados). Chaves novas (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700` caindo a 575 por nível, então `bold`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, `--blockquote-border-thickness: 3px`; `checkbox-style: rounded`, `--checkbox-radius: 6px`.
+- Escolhas estruturais: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `heading-weight: bold`, `line-height: snug`, `line-width: narrow`, `blockquote-style: bar`, `checkbox-style: rounded`
+- Fontes das escolhas estruturais: Inter na captura do próprio tema (Style Settings): `sans`; `font-size: 16`; tag pílula de 2em com borda de 1px: `outline`; grade de tabela: `bordered`; raios 8px (cartões) e 6px (checkbox): `soft`. O layout em cartões é opção do Style Settings, não o padrão, então vale o visual padrão (superfície tonal) e `surface-mode: cards` foi removido; sem estilo de título (filete no h1 e barra no h2, misturados). Chaves novas (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700` caindo a 575 por nível, então `bold`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, `--blockquote-border-thickness: 3px`; `checkbox-style: rounded`, `--checkbox-radius: 6px`. Padrão do Obsidian (ADR 0109, último parágrafo): `line-width: narrow` — o CSS do tema não define `--file-line-width`, então vale o padrão do próprio Obsidian.
 - Ajustes de contraste: nenhum
 
 ### Mapa de Conteúdo
@@ -417,4 +417,4 @@ ADR 0109, TM.4 = B: dez listas fechadas a mais em `values` de um arquivo de vers
 
 Onde os números diferem do rascunho: `line-width: wide` é 72rem, não 52rem, porque a coluna do próprio Verso (100ch na fonte do corpo) já tem cerca de 55rem; `line-height: relaxed` é 1,9, não 1,75, porque a do próprio Verso é 1,7; `heading-weight` chama de `semibold` o 600 de hoje; a citação `bar` fica sem itálico porque a de hoje (`bar-italic`) é em itálico.
 
-Regras usadas para definir as chaves em cada tema (as fontes estão sob cada tema): o valor é definido onde o CSS do próprio tema dá um (o mais próximo dos valores fechados); onde o tema não define e o perfil registra o padrão do Obsidian (h1 2em, a barra simples de 2px na citação), usa-se esse padrão; largura e altura de linha só são definidas onde o CSS do tema as declara, então os temas que dependem da coluna padrão de 700px e da altura de linha 1,5 do Obsidian ficam com as do Verso (decisão do maintainer: aplicar esses padrões também?). A caixa de tarefa não pode ter cantos retos (raio 0) como Gruvbox, Nord e Solarized desenham: `square` é o raio pequeno de hoje.
+Regras usadas para definir as chaves em cada tema (as fontes estão sob cada tema): o valor é definido onde o CSS do próprio tema dá um (o mais próximo dos valores fechados); onde o tema não define e o perfil registra o padrão do Obsidian (h1 2em, a barra simples de 2px na citação), usa-se esse padrão; largura e altura de linha são definidas onde o CSS do tema as declara; onde ele não declara, vale o padrão do Obsidian (`line-width: narrow`, a coluna de 700px, e `line-height: snug`, 1,5; ADR 0109, último parágrafo). A caixa de tarefa não pode ter cantos retos (raio 0) como Gruvbox, Nord e Solarized desenham: `square` é o raio pequeno de hoje.

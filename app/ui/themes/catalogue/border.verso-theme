@@ -54,6 +54,7 @@
     "radius": "soft",
     "heading-weight": "bold",
     "line-height": "snug",
+    "line-width": "narrow",
     "blockquote-style": "bar",
     "checkbox-style": "rounded"
   }
