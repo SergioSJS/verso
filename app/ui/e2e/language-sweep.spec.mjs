@@ -313,7 +313,14 @@ async function sweepLanguage(app, page, lang, project) {
   await closeAll();
 
   await visit("data diagram", async () => {
-    await app.quickOpen("mesa", L.quick);
+    // On the Mac's WebKit a ⌘P sent in the same moment Settings finishes
+    // closing is sometimes not heard (never seen in Docker; the switcher
+    // after the layout editor is held by quick-after-layout-editor.spec).
+    // This sweep reads words, so it tries again once.
+    await expect(async () => {
+      await page.keyboard.press("Escape");
+      await app.quickOpen("mesa", L.quick);
+    }).toPass({ timeout: 15_000 });
     await page.getByRole("button", { name: L.diagram, exact: true }).click();
     await page.waitForTimeout(400);
   });
