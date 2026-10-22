@@ -207,3 +207,11 @@ perfis) e `6b3ec1fa` (o painel Personalizar aparência em Ajustes), com
 
 Revisada em 2026-10-21 (item 2): o painel de Ajustes dá lugar a uma galeria
 de cartões de tema e a uma janela própria de construção de tema; a construir.
+
+Construído em 2026-10-22, depois do relato do mantenedor (*"a configuração de
+tamanho da fonte está estranha: eu arrasto, aí a tela muda de tamanho e some a
+barra, dependendo do zoom"*): o ajuste de tamanho da fonte — e o `font-size` de
+um tema — agora dimensiona só o texto das notas (`--note-scale`), não mais o
+elemento `<html>`; o tamanho da interface é o zoom da janela. Isso contradiz o
+texto desta ADR (o `font-size` de um tema "do elemento `<html>`"); registrado,
+**não decidido** — o mantenedor confirma ou desfaz.

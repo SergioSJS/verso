@@ -161,3 +161,8 @@ janela de uma pasta também não tem barra de título do sistema, e o app
 desenha minimizar, maximizar e fechar no alto à direita, como no Windows.
 A janela é criada escondida e mostrada depois de criada, porque o KWin do
 KDE mantinha a barra dele.
+
+Construído em 2026-10-22: a linha de cima não acompanha mais o ajuste de tamanho
+da fonte (2,45rem de uma raiz que não muda mais); o tamanho da fonte agora
+dimensiona só o texto das notas (ver a ADR 0100, nota do mesmo dia). Registrado,
+não decidido.
