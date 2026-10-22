@@ -94,6 +94,8 @@
     "allow-log-write",
     "allow-log-read",
     "allow-set-menu-language",
+    "allow-set-menu-commands",
+    "allow-set-menu-enabled",
     "allow-reindex",
     "allow-capabilities",
     "allow-folder-space",

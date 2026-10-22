@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-menu-commands"
+description = "Enables the set_menu_commands command without any pre-configured scope."
+commands.allow = ["set_menu_commands"]
+
+[[permission]]
+identifier = "deny-set-menu-commands"
+description = "Denies the set_menu_commands command without any pre-configured scope."
+commands.deny = ["set_menu_commands"]
