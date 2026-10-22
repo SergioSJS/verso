@@ -8,26 +8,10 @@ import { fail } from "./errors";
 import { allNotes } from "./folder";
 import { dirOf, name } from "./paths";
 import { t } from "./strings";
+import { cleanSnippet } from "./snippet";
 import { syncRoving } from "./tree/aria";
 import { fileRow, listAll, restoreTreeFocus, treeFocus } from "./tree/tree";
 
-/** A snippet as plain reading text (the match stays in `[brackets]`): no
- *  frontmatter lines, no emphasis marks, links as their text. */
-export function cleanSnippet(snippet: string): string {
-  const lines = snippet.split("\n");
-  let at = 0;
-  while (at < lines.length && /^\s*(---|[\w-]+:(\s.*)?)\s*$/.test(lines[at]!)) at++;
-  const body = lines.slice(at).join(" ");
-  const kept = (body.trim() === "" ? snippet : body)
-    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, "$1")
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/(\*\*|__|~~|`)/g, "")
-    .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\*)/g, "$1$2")
-    .replace(/(^|\s)#{1,6}\s+/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-  return kept;
-}
 export function snippetNode(snippet: string): HTMLSpanElement {
   const s = h("span", "snippet");
   for (const part of cleanSnippet(snippet).split(/(\[[^\]]*\])/)) {
