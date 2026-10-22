@@ -20,6 +20,12 @@
       "--brass-ink": "#ff79c6",
       "--code-paper": "#343746",
       "--code-ink": "#f8f8f2",
+      "--h1-color": "#bd93f9",
+      "--h2-color": "#ffb86c",
+      "--h3-color": "#50fa7b",
+      "--h4-color": "#ff5555",
+      "--h5-color": "#f1fa8c",
+      "--h6-color": "#bd93f4",
       "--red": "#ff5555",
       "--orange": "#ffb86c",
       "--yellow": "#f1fa8c",
@@ -28,6 +34,10 @@
       "--blue": "#bd93f9",
       "--purple": "#bd93f9",
       "--pink": "#ff79c6"
-    }
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "radius": "soft"
   }
 }

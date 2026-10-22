@@ -20,6 +20,12 @@
       "--brass-ink": "#cad3f5",
       "--code-paper": "#1e2030",
       "--code-ink": "#cad3f5",
+      "--h1-color": "#c6a0f6",
+      "--h2-color": "#c6a0f6",
+      "--h3-color": "#c6a0f6",
+      "--h4-color": "#c6a0f6",
+      "--h5-color": "#c6a0f6",
+      "--h6-color": "#c6a0f6",
       "--red": "#ed8796",
       "--orange": "#f5a97f",
       "--yellow": "#eed49f",
@@ -28,6 +34,12 @@
       "--blue": "#8aadf4",
       "--purple": "#c6a0f6",
       "--pink": "#f5bde6"
-    }
+    },
+    "--heading-font": "editorial",
+    "--book": "editorial",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "pill",
+    "radius": "soft"
   }
 }
