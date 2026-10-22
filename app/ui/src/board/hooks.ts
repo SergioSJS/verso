@@ -239,7 +239,7 @@ export function useCardPreview(canvas: RefObject<HTMLDivElement | null>, preview
   }, [canvas, preview]);
 }
 
-/** A card's buttons (open, swap, a page card's approval), under Excalidraw's
+/** A card's buttons (open, swap, a page card's approval, a die's roll), under Excalidraw's
  *  selection canvas, are pressed here: the topmost card under the pointer
  *  decides, as the eye does. Only a card that is not entered: an entered
  *  card takes the pointer itself. */
@@ -256,7 +256,7 @@ export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
         const slot = slots[i]!;
         if (!inside(slot.getBoundingClientRect(), x, y)) continue;
         if (slot.classList.contains("is-active")) return null;
-        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open, button.board-card-press")) if (inside(b.getBoundingClientRect(), x, y)) return b;
+        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open, button.board-card-press, button.dice-button, button.dice-again, button.dice-close")) if (inside(b.getBoundingClientRect(), x, y)) return b;
         return null;
       }
       return null;

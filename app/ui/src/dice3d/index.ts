@@ -13,6 +13,7 @@ import { hasCapability } from "../capabilities";
 import { settings } from "../settings";
 import type { Die3 } from "./force";
 import { type DiceLook, type DiceStyles, materialOf, readDiceLook, type SlotId } from "./look";
+import { armAudio } from "./audio";
 import type { SoundKit } from "./sound";
 import { dice3dActive, planRoll, rollId, seenIds } from "./plan";
 
@@ -23,6 +24,10 @@ let running: { skip: () => void } | null = null;
 export function diceLook(): DiceLook {
   return readDiceLook(settings.dice3dLook);
 }
+
+// The sound's audio context is unlocked by the first press or touch, while the
+// switch is on (a gesture does not survive the awaits of a roll).
+if (typeof document !== "undefined") armAudio(() => diceLook().sound && hasCapability("dice3d"));
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
