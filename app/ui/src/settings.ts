@@ -84,6 +84,8 @@ export type Settings = {
   lookName?: string;
   /** The credit of the theme in force, when it was inspired by another (ADR 0109 item 5). */
   lookCredit?: InspiredBy;
+  /** The catalogue themes used lately, newest first (file names; ADR 0109): the gallery keeps them at hand to use and copy. */
+  lookRecent?: string[];
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
   /** Boards (ADR 0057, 2026-09-30). */
@@ -238,6 +240,9 @@ export function loadSettings(): void {
       const credit = readLookCredit(parsed.lookCredit);
       if (credit && settings.lookName !== undefined) settings.lookCredit = credit;
       else delete settings.lookCredit;
+      settings.lookRecent = Array.isArray(parsed.lookRecent)
+        ? parsed.lookRecent.filter((f: unknown): f is string => typeof f === "string" && /^[a-z0-9][a-z0-9-]*\.verso-theme$/.test(f)).slice(0, 4)
+        : [];
       settings.suggestLinks = settings.suggestLinks === true;
       settings.mentionAt = settings.mentionAt !== false;
       settings.suggestCapitalOnly = settings.suggestCapitalOnly !== false;

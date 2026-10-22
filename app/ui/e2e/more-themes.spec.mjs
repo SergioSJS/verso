@@ -87,7 +87,7 @@ test("a click uses the theme at once and the mark moves; Copiar keeps a copy wit
   await card(dialog, "Nord").locator(".theme-pick").click();
   await expect(card(dialog, "Nord").locator(".theme-pick")).toHaveAttribute("aria-pressed", "true");
   await expect(card(dialog, "Dracula").locator(".theme-pick")).toHaveAttribute("aria-pressed", "false");
-  await page.getByRole("button", { name: "Copiar Nord" }).click();
+  await dialog.getByRole("button", { name: "Copiar Nord" }).click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("verso.settings")).looks);
   expect(saved.map((p) => p.name)).toEqual(["Cópia de Nord"]);
   expect(saved[0].theme.inspiredBy.theme).toBe("Nord");
@@ -128,4 +128,29 @@ test("the Credits page lists the catalogue's themes from their own credits, Flex
   await expect(list.locator(".credit-theme")).toHaveCount(CATALOGUE.length);
   await expect(list.locator('[data-catalogue-theme="Nord"]')).toContainText("Inspirado em Nord");
   await expect(list.locator('[data-catalogue-theme="Flexoki"] a[href="https://stephango.com/flexoki"]')).toBeVisible();
+});
+
+test("a catalogue theme in use shows in Appearance with copy; the mode select follows a dark-only theme @layout", async ({ app, page }) => {
+  const SH = process.env.INUSE_SHOTS;
+  const { dialog, button } = await openMore(app);
+  await expect(page.locator('.themes [data-theme-card="Dracula"]')).toHaveCount(0);
+  await card(dialog, "Dracula").locator(".theme-pick").click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  const gallery = page.locator(".themes");
+  const own = gallery.locator('[data-theme-card="Dracula"]');
+  await expect(own).toBeVisible();
+  await expect(own.locator(".theme-pick")).toHaveAttribute("aria-pressed", "true");
+  await expect(own.locator(".theme-on")).toBeVisible();
+  await expect(own.locator(".theme-mode")).toContainText("só escuro");
+  // The Tema select reads Escuro: the window is dark.
+  await expect(page.locator(".setting", { hasText: "Claro, escuro ou como o sistema" }).locator("select")).toHaveValue("dark");
+  if (SH) await page.screenshot({ path: `${SH}/inuse-${test.info().project.name}.png` });
+  await own.getByRole("button", { name: "Copiar Dracula" }).click();
+  await expect(gallery.locator('[data-theme-card="Cópia de Dracula"]')).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("verso.settings")));
+  expect(stored.looks.map((p) => p.name)).toEqual(["Cópia de Dracula"]);
+  expect(stored.looks[0].theme.inspiredBy.theme).toBe("Dracula");
+  expect(stored.lookRecent).toEqual(["dracula.verso-theme"]);
+  void button;
 });
