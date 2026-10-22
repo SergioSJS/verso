@@ -34,347 +34,353 @@ The pairs checked in both modes are `--ink`, `--ink-2`, `--seal` and `--brass-in
 
 ### Catppuccin Latte
 
-- File: `catppuccin-latte.verso-theme` (mode light) — SHA-256: `48674b5cb50a7dd64b755e7f6d9f56a3be3902b659b359d980e4545dfc87722f`
+- File: `catppuccin-latte.verso-theme` (mode light) — SHA-256: `c4a78f75fb2983eaabb77865136111b83a3c1f163083a71d130523cba2033f19`
 - Credit in the file: Catppuccin Latte, Catppuccin, MIT
 - Source: https://github.com/catppuccin/palette/blob/v1.8.0/palette.json
 - Commit or tag: v1.8.0 (07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd)
 - Licence: MIT, (c) 2021 Catppuccin
 - Author: Catppuccin
 - Mapping: Base, Mantle, Surface 0, Text and Subtext 0 for the surfaces and text; links in Blue and the headline in Text, as Catppuccin's style guide assigns them (docs/style-guide.md: "Links, URLs: Blue", "Main Headline: Text", "Sub-Headlines, Labels: Subtext 0/1"); inline code in Text on Mantle; Peach is the orange, Teal the cyan, Mauve the purple.
-- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`
-- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`.
+- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: hover`, `emphasis-color: semantic`
+- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's h1 2em, repeated in theme.css; `line-width: narrow`, `--file-line-width: 700px`, near `narrow`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 2px accent bar, upright (look profile 3.1); `link-style: hover`, underline only on hover (look profile 3.1); `emphasis-color: semantic`, bold in Sapphire, italic in Green (look profile 3.1): `semantic` is the theme's cyan for bold and green for italic, the nearest pair.
 - Contrast adjustments: none
 
 ### Catppuccin Frappé
 
-- File: `catppuccin-frappe.verso-theme` (mode dark) — SHA-256: `c793a0e9e6742b3f3809db5fb75ebb0f92f91b1cbc6c5b92b646566e099aacd7`
+- File: `catppuccin-frappe.verso-theme` (mode dark) — SHA-256: `8eeeb8f5b0c3b8903a59647134fa13daee21fc6db0278c89d4abec9b1edf303b`
 - Credit in the file: Catppuccin Frappé, Catppuccin, MIT
 - Source: https://github.com/catppuccin/palette/blob/v1.8.0/palette.json
 - Commit or tag: v1.8.0 (07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd)
 - Licence: MIT, (c) 2021 Catppuccin
 - Author: Catppuccin
 - Mapping: Base, Mantle, Surface 0, Text and Subtext 0 for the surfaces and text; links in Blue and the headline in Text, as Catppuccin's style guide assigns them (docs/style-guide.md: "Links, URLs: Blue", "Main Headline: Text", "Sub-Headlines, Labels: Subtext 0/1"); inline code in Text on Mantle; Peach is the orange, Teal the cyan, Mauve the purple.
-- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`
-- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`.
+- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: hover`, `emphasis-color: semantic`
+- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's h1 2em, repeated in theme.css; `line-width: narrow`, `--file-line-width: 700px`, near `narrow`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 2px accent bar, upright (look profile 3.1); `link-style: hover`, underline only on hover (look profile 3.1); `emphasis-color: semantic`, bold in Sapphire, italic in Green (look profile 3.1): `semantic` is the theme's cyan for bold and green for italic, the nearest pair.
 - Contrast adjustments: none
 
 ### Catppuccin Macchiato
 
-- File: `catppuccin-macchiato.verso-theme` (mode dark) — SHA-256: `960e77dab31022eb495f38a188124bc5440a12a7e2eb4a8330ae7b6dfa782064`
+- File: `catppuccin-macchiato.verso-theme` (mode dark) — SHA-256: `404021eb85f769b589d2f401c2afc1c15e93bc5369ce17d5b8c556873d8011e5`
 - Credit in the file: Catppuccin Macchiato, Catppuccin, MIT
 - Source: https://github.com/catppuccin/palette/blob/v1.8.0/palette.json
 - Commit or tag: v1.8.0 (07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd)
 - Licence: MIT, (c) 2021 Catppuccin
 - Author: Catppuccin
 - Mapping: Base, Mantle, Surface 0, Text and Subtext 0 for the surfaces and text; links in Blue and the headline in Text, as Catppuccin's style guide assigns them (docs/style-guide.md: "Links, URLs: Blue", "Main Headline: Text", "Sub-Headlines, Labels: Subtext 0/1"); inline code in Text on Mantle; Peach is the orange, Teal the cyan, Mauve the purple.
-- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`
-- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`.
+- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: hover`, `emphasis-color: semantic`
+- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's h1 2em, repeated in theme.css; `line-width: narrow`, `--file-line-width: 700px`, near `narrow`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 2px accent bar, upright (look profile 3.1); `link-style: hover`, underline only on hover (look profile 3.1); `emphasis-color: semantic`, bold in Sapphire, italic in Green (look profile 3.1): `semantic` is the theme's cyan for bold and green for italic, the nearest pair.
 - Contrast adjustments: none
 
 ### Catppuccin Mocha
 
-- File: `catppuccin-mocha.verso-theme` (mode dark) — SHA-256: `0aa0730debaea232be8f2f3e2a3ae7ac5237b2bdaf098bb1d61a7cc9f121bbe3`
+- File: `catppuccin-mocha.verso-theme` (mode dark) — SHA-256: `9d7b80bdb0bd994e87b26058190903d14a1d1b3d24453cb22dcb8f6b4a57e1cf`
 - Credit in the file: Catppuccin Mocha, Catppuccin, MIT
 - Source: https://github.com/catppuccin/palette/blob/v1.8.0/palette.json
 - Commit or tag: v1.8.0 (07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd)
 - Licence: MIT, (c) 2021 Catppuccin
 - Author: Catppuccin
 - Mapping: Base, Mantle, Surface 0, Text and Subtext 0 for the surfaces and text; links in Blue and the headline in Text, as Catppuccin's style guide assigns them (docs/style-guide.md: "Links, URLs: Blue", "Main Headline: Text", "Sub-Headlines, Labels: Subtext 0/1"); inline code in Text on Mantle; Peach is the orange, Teal the cyan, Mauve the purple.
-- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`
-- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`.
+- Structural choices: `--heading-font: editorial`, `--book: editorial`, `font-size: 16`, `table-style: bordered`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: hover`, `emphasis-color: semantic`
+- Structural sources: Vollkorn (a book serif; headings use the body font): the closest book serif key, `editorial` (Literata) for body and headings; `font-size: 16`; every heading in the accent colour, Mauve (catppuccin/obsidian theme.css), so `--h1-color`…`h6` are the Mauve of this flavour; 1px table grid: `bordered`; accent-coloured pill tag: `pill`; radii 4/8/10px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's h1 2em, repeated in theme.css; `line-width: narrow`, `--file-line-width: 700px`, near `narrow`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 2px accent bar, upright (look profile 3.1); `link-style: hover`, underline only on hover (look profile 3.1); `emphasis-color: semantic`, bold in Sapphire, italic in Green (look profile 3.1): `semantic` is the theme's cyan for bold and green for italic, the nearest pair.
 - Contrast adjustments: none
 
 ### Nord
 
-- File: `nord.verso-theme` (mode dark) — SHA-256: `03ffb7abd67cd2152fc23e787a8bc08998507e39040fded701d478e80c7adbb6`
+- File: `nord.verso-theme` (mode dark) — SHA-256: `d7b60d9b6948d28faaaaa59f3f10a47cc08e853ab9f7e6f6f01d5e4fc6166573`
 - Credit in the file: Nord, Sven Greb (Arctic Ice Studio), MIT
 - Source: https://github.com/nordtheme/nord/blob/1cef71605416a222e57225b544540ce0fcec18d4/src/nord.css
 - Commit or tag: 1cef71605416a222e57225b544540ce0fcec18d4 (develop, tag v0.2.0 is older)
 - Licence: MIT, (c) 2016-present Sven Greb
 - Author: Sven Greb
 - Mapping: Polar Night nord0 / nord1 / nord2 for page, panels and lines; nord4 text; links in Frost nord8, headings nord9; the Aurora colours for the semantic ones (no pink in the palette: omitted). Nord has no light palette, so none is shipped. ink-2 is nord3, the palette's comment colour.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`
-- Structural sources: System sans (`system`), Hack mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = red, yellow, green, purple, frost0, frost2; striped tables: `striped`; tag pill (.5em): `pill`.
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: System sans (`system`), Hack mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = red, yellow, green, purple, frost0, frost2; striped tables: `striped`; tag pill (.5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5).
 - Contrast adjustments: dark `--ink-2` `#4c566a` → `#6f7d98` (3.01:1, adjusted for contrast)
 
 ### Dracula
 
-- File: `dracula.verso-theme` (mode dark) — SHA-256: `60932f1ee2bef85b215637f90f67b5cd6e4583cbead5b057e2bd81447fd53d7b`
+- File: `dracula.verso-theme` (mode dark) — SHA-256: `1dabc4bf362bc903022bb3d22f39ecd307a11a80af5da1b1cbb0bf4c47352619`
 - Credit in the file: Dracula, Zeno Rocha, MIT
 - Source: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (UI palette, read 2026-10-22)
 - Commit or tag: e22ebcc048b8aff586f9bc94db30ff5347070b42 (tag v1.2.5 is older)
 - Licence: MIT, (c) 2023 Dracula Theme
 - Author: Zeno Rocha
 - Mapping: Background, Foreground, Comment, Current Line and the functional colours from the README palette; "Background Dark" #21222C and "Floating interactive elements" #343746 from the spec's UI table. Borders use Current Line, as the spec's component guidelines say. Dracula's spec has no Blue, so --blue is the Purple (the spec maps ANSI blue to it). The spec asks for 4.5:1 text contrast and "exact colour values"; the comment colour used for ink-2 is under 4.5:1 and is corrected only to the 3:1 floor, if needed.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`
-- Structural sources: The theme sets no font (Obsidian's system sans: `system`); `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the six heading colours are the theme's `--text-title-h1`…`h6` (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); code blocks with 4px radius: `soft`.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: The theme sets no font (Obsidian's system sans: `system`); `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the six heading colours are the theme's `--text-title-h1`…`h6` (#bd93f9, #ffb86c, #50fa7b, #ff5555, #f1fa8c, #bd93f4); code blocks with 4px radius: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2).
 - Contrast adjustments: none
 
 ### Dracula Alucard
 
-- File: `dracula-alucard.verso-theme` (mode light) — SHA-256: `a03d67353d7d57ca479156813ea86d982a8bdcb8023bf8c66325243b5057e3cf`
+- File: `dracula-alucard.verso-theme` (mode light) — SHA-256: `17b6431e22cfdec970f189cce3a4b15300bef1ebfa309d6539ed428d1f9d4f5e`
 - Credit in the file: Dracula Alucard, Zeno Rocha, MIT
 - Source: https://github.com/dracula/dracula-theme/blob/e22ebcc048b8aff586f9bc94db30ff5347070b42/README.md and https://draculatheme.com/spec (Alucard UI palette)
 - Commit or tag: e22ebcc048b8aff586f9bc94db30ff5347070b42
 - Licence: MIT, (c) 2023 Dracula Theme
 - Author: Zeno Rocha
 - Mapping: Dracula's own light palette, Alucard (README "Alucard" table and the spec's UI table); it is not an invented light for Dracula. Same mapping as Dracula; Verso names it "Dracula Alucard" to say whose palette it is.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`
-- Structural sources: Same structure as Dracula (the theme sets no font, Obsidian's defaults); heading colours by Dracula's role order (purple, orange, green, red, yellow, purple) in this palette's own light equivalents. Alucard is not in the Obsidian theme, so the order is Dracula's, not Alucard's.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: Same structure as Dracula (the theme sets no font, Obsidian's defaults); heading colours by Dracula's role order (purple, orange, green, red, yellow, purple) in this palette's own light equivalents. Alucard is not in the Obsidian theme, so the order is Dracula's, not Alucard's. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.2); `blockquote-style: bar`, a plain bar (`#b294bb`) on upright text (look profile 3.2); `link-style: plain`, no underline (look profile 3.2).
 - Contrast adjustments: none
 
 ### Rosé Pine
 
-- File: `rose-pine.verso-theme` (mode both) — SHA-256: `1d290c49a970dcb0507db1f78dea9e4ca0a5b86ac0db0422d08720b0d4b6102d`
+- File: `rose-pine.verso-theme` (mode both) — SHA-256: `fa158c007715c6d2376cc1d4c5aabc31dbccfeb1994ccbdeda9b8ae9963c48fd`
 - Credit in the file: Rosé Pine, Rosé Pine, MIT
 - Source: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit or tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licence: MIT, (c) mvllow
 - Author: Rosé Pine
 - Mapping: Base / Surface / Overlay for page, panels and lines; Text and Subtle for text; Iris for links, Rose for headings; Love, Gold, Foam, Pine, Iris and Rose for red, yellow, cyan, blue, purple and pink. Rosé Pine has no orange or green: left to Verso's own. Dark is Rosé Pine (main), light is Dawn.
-- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`
-- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). The light side's pink and gold were corrected for contrast.
+- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
+- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). The light side's pink and gold were corrected for contrast. New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not.
 - Contrast adjustments: light `--brass-ink` `#d7827e` → `#d2726d` (3.02:1, adjusted for contrast); light `--h3-color` `#d7827e` → `#d2716c` (3.04:1, adjusted for contrast); light `--h4-color` `#ea9d34` → `#c77c15` (3.04:1, adjusted for contrast)
 
 ### Rosé Pine Moon
 
-- File: `rose-pine-moon.verso-theme` (mode dark) — SHA-256: `e6ab43d78d7fa8b6e8eb9cf0b470262b61afc2e42dc1a41eb6f80a1c1675c1a1`
+- File: `rose-pine-moon.verso-theme` (mode dark) — SHA-256: `43559ec66f0c3ff7074666b696256605159dd368495a68de9e2eccb53bb40faf`
 - Credit in the file: Rosé Pine Moon, Rosé Pine, MIT
 - Source: https://github.com/rose-pine/palette/blob/92af52b465ab6e47437aca223c9b8d3009a2023b/palette.json
 - Commit or tag: 92af52b465ab6e47437aca223c9b8d3009a2023b (tag v4.0.1)
 - Licence: MIT, (c) mvllow
 - Author: Rosé Pine
 - Mapping: Base / Surface / Overlay for page, panels and lines; Text and Subtle for text; Iris for links, Rose for headings; Love, Gold, Foam, Pine, Iris and Rose for red, yellow, cyan, blue, purple and pink. Rosé Pine has no orange or green: left to Verso's own.
-- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`
-- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue).
+- Structural choices: `--heading-font: sans`, `--book: editorial`, `font-size: 18`, `heading-weight: regular`, `blockquote-style: panel`, `emphasis-color: accent`
+- Structural sources: Inter for editing and headings: `sans`; Georgia for reading: the closest book serif key, `editorial` (its stack ends in Georgia); `font-size: 18` (theme.css `--font-text-size`); heading colours are `--rp-h1`…`h6` = love, iris, rose, gold, foam, pine (here red, purple, pink, yellow, cyan, blue). New keys (ADR 0109, TM.4 = B): `heading-weight: regular`, headings at weight 500 (look profile 3.3), nearer `regular` than `semibold`; `blockquote-style: panel`, a panel on the code background with a 4px bar, italic (look profile 3.3); `emphasis-color: accent`, italic in Iris (look profile 3.3): `accent` is Iris here (`--seal`); it colours bold too, which the original does not.
 - Contrast adjustments: none
 
 ### Everforest
 
-- File: `everforest.verso-theme` (mode both) — SHA-256: `d7d4d685af4f6067890a41d5193c1d2f3e6570b353c7967e7874a29715a6d528`
+- File: `everforest.verso-theme` (mode both) — SHA-256: `6965e4d5e784df1087ec90ee061bac644463a18ba9e3d13f84935f972314142c`
 - Credit in the file: Everforest, sainnhe, MIT
 - Source: https://github.com/sainnhe/everforest/blob/85a86eb62409e3ec88713bff3d1b9d7374e112e4/docs/palette.md
 - Commit or tag: 85a86eb62409e3ec88713bff3d1b9d7374e112e4 (tag v0.3.0)
 - Licence: MIT, (c) 2019 sainnhe
 - Author: sainnhe
 - Mapping: The palette's medium-contrast variant, dark and light. bg0 / bg1 / bg2 (dark) and bg0 / bg1 / bg4 (light) for the surfaces; fg for text, grey2 (dark) and grey1 (light) for muted text; green for links and yellow for headings; the accent row for the semantic colours (aqua is the cyan). The light accents are pale on the light page and several are corrected for contrast (see adjustments).
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`
-- Structural sources: System sans, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); heading colours are the theme's `--h1-color`…`--h6-color` (dim set in dark, light set in light: red, orange, yellow, green, aqua, purple); tags with an aqua 1px border: `outline`.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `heading-scale: large`, `heading-weight: regular`, `blockquote-style: bar`
+- Structural sources: System sans, 16px (`system`, `font-size: 16`, theme.css `--font-text-size`); heading colours are the theme's `--h1-color`…`--h6-color` (dim set in dark, light set in light: red, orange, yellow, green, aqua, purple); tags with an aqua 1px border: `outline`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 2.125em (look profile 3.7); `heading-weight: regular`, headings at weight 500 (look profile 3.7), nearer `regular`; `blockquote-style: bar`, Obsidian's default bar (look profile 1).
 - Contrast adjustments: light `--ink-2` `#939f91` → `#849282` (3.03:1, adjusted for contrast); light `--seal` `#8da101` → `#859801` (3:1, adjusted for contrast); light `--brass-ink` `#dfa000` → `#ba8500` (3.02:1, adjusted for contrast); light `--h2-color` `#f57d26` → `#e8670b` (3.05:1, adjusted for contrast); light `--h3-color` `#bf983d` → `#ac8937` (3.05:1, adjusted for contrast); light `--h4-color` `#899c40` → `#84973e` (3.01:1, adjusted for contrast); light `--h5-color` `#569d79` → `#559b78` (3.07:1, adjusted for contrast)
 
 ### Gruvbox
 
-- File: `gruvbox.verso-theme` (mode both) — SHA-256: `95ba9894c30fe2c006222fe0e32bd2b777779df62c083613656a72af676d7114`
+- File: `gruvbox.verso-theme` (mode both) — SHA-256: `68be029a24920764c61022bdb1b6e0b4ea49b8c4f4a98f815f20cc0c19c3af82`
 - Credit in the file: Gruvbox, Pavel Pertsev (morhetz), MIT
 - Source: https://github.com/gruvbox-community/gruvbox/blob/180ad85971343df68be3422a5630fa84e45a9ab2/colors/gruvbox.vim
 - Commit or tag: 180ad85971343df68be3422a5630fa84e45a9ab2 (tag v3.6.1)
 - Licence: MIT, (c) 2018 Pavel Pertsev (community fork; morhetz/gruvbox, the original, has no LICENSE file)
 - Author: Pavel Pertsev (morhetz)
 - Mapping: The palette and the dark/light role table of colors/gruvbox.vim: dark uses bg0 / bg1 / bg2, fg1 and fg4 with the bright accents; light uses light0 / light1 / light2, dark1 and dark4 with the faded accents. Links in blue, headings in yellow, as the vim script's Markdown groups do. The community fork is credited because the original repository carries no licence file.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`
-- Structural sources: System sans (`system`), Hack Nerd Font mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = neutral red, yellow, green, aqua, blue, purple; tables with alternate rows: `striped`; tag pill (radius .5em): `pill`.
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `table-style: striped`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `callout-style: outlined`
+- Structural sources: System sans (`system`), Hack Nerd Font mono (`mono`), `font-size: 16`; heading colours are the theme's `--h1-color`…`h6` = neutral red, yellow, green, aqua, blue, purple; tables with alternate rows: `striped`; tag pill (radius .5em): `pill`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.5); `blockquote-style: bar`, Obsidian's default bar (look profile 1); `link-style: plain`, no underline (look profile 3.5); `callout-style: outlined`, 1px border, opacity .4 (look profile 3.5).
 - Contrast adjustments: dark `--h1-color` `#cc241d` → `#dc271f` (3.06:1, adjusted for contrast); light `--h2-color` `#d79921` → `#b6811c` (3.01:1, adjusted for contrast); light `--h3-color` `#98971a` → `#8f8e19` (3.06:1, adjusted for contrast); light `--h4-color` `#689d6a` → `#629764` (3.02:1, adjusted for contrast)
 
 ### Solarized
 
-- File: `solarized.verso-theme` (mode both) — SHA-256: `8e4b49c57e05733894ebd10cdccd81e0329f8a1aaaeb5996424bbc793542a167`
+- File: `solarized.verso-theme` (mode both) — SHA-256: `59e06de6bfabe5149cbb5d60ec5e46b7875a3f9e97f30376557c850efb15c927`
 - Credit in the file: Solarized, Ethan Schoonover, MIT
 - Source: https://github.com/altercation/solarized/blob/62f656a02f93c5190a8753159e34b385588d5ff3/README.md ("The Values" table)
 - Commit or tag: 62f656a02f93c5190a8753159e34b385588d5ff3 (tag v1.0.0beta1)
 - Licence: MIT, (c) 2011 Ethan Schoonover
 - Author: Ethan Schoonover
 - Mapping: The 16 values of the README table, with Solarized's own light/dark role swap: base3 / base2 (light) and base03 / base02 (dark) for page and panels, base00 / base0 for body text, base1 / base01 for secondary content, blue for links, orange for headings; magenta is the pink and violet the purple. The secondary text colours are below the floor on the page (the palette is low contrast by design) and are corrected.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`
-- Structural sources: The theme sets no font (Obsidian's system sans: `system`) and `font-size: 16`; tag pill with the accent at 10–20%: `pill`. Only the code blocks' radius is `unset`, so `radius` stays the window's own.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `heading-scale: large`, `blockquote-style: bar`
+- Structural sources: The theme sets no font (Obsidian's system sans: `system`) and `font-size: 16`; tag pill with the accent at 10–20%: `pill`. Only the code blocks' radius is `unset`, so `radius` stays the window's own. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
 - Contrast adjustments: light `--ink-2` `#93a1a1` → `#829292` (3.01:1, adjusted for contrast); dark `--ink-2` `#586e75` → `#5d747c` (3.04:1, adjusted for contrast)
 
 ### Flexoki
 
-- File: `flexoki.verso-theme` (mode both) — SHA-256: `edad3c96733d4316f017092760464e9be9c99e13e3ab786653ab3d53a4020f93`
+- File: `flexoki.verso-theme` (mode both) — SHA-256: `8f0417a50f7d82a62fe74a2962c131cf1159b776c46a6ca0447bf3c0d0b25200`
 - Credit in the file: Flexoki, Steph Ango (kepano), stephango.com/flexoki, MIT
 - Source: https://github.com/kepano/flexoki/blob/8d723bac4a9ac46adfdf99d42155286977aac72a/README.md
 - Commit or tag: 8d723bac4a9ac46adfdf99d42155286977aac72a (tag 2.0.0)
 - Licence: MIT, (c) 2023 Steph Ango
 - Author: Steph Ango
 - Mapping: Flexoki's scale as its README gives it: paper / base-50 / base-100 and black / base-950 / base-900 for surfaces and lines, black and base-200 for text, base-600 and base-500 for muted text; the 600 accents on the light side and the 400 accents on the dark side; blue for links, orange for headings. Flexoki's README asks ports to "include attribution and a link to stephango.com/flexoki": the author line of the credit carries it and the Credits page must show it.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`
-- Structural sources: The theme is only colour variables (1.9 KB): typography is Obsidian's default, `system` and `font-size: 16`.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `heading-scale: large`, `blockquote-style: bar`
+- Structural sources: The theme is only colour variables (1.9 KB): typography is Obsidian's default, `system` and `font-size: 16`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.4, 3.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
 - Contrast adjustments: none
 
 ### Tokyo Night
 
-- File: `tokyo-night.verso-theme` (mode both) — SHA-256: `be37a2d1971ddc9022fcbb75af6c1aa661a6ca934c27d7171b71fa142e9ad4f0`
+- File: `tokyo-night.verso-theme` (mode both) — SHA-256: `c2755c41bc2b766ce93ba71eca71c435099cb75407ebb84194351eb543862e36`
 - Credit in the file: Tokyo Night, enkia (Tokyo Night VS Code theme), MIT
 - Source: https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/7c0f11eaef322f293621ca7befe462214b7ea468/themes/tokyo-night-color-theme.json and tokyo-night-light-color-theme.json
 - Commit or tag: 7c0f11eaef322f293621ca7befe462214b7ea468
 - Licence: MIT (LICENSE.txt)
 - Author: enkia
 - Mapping: Colours: read from the two VS Code colour themes (editor and side-bar backgrounds, editor and description text, the link colour, the text-code-block background, the inline-code colour); the ANSI colours for red, yellow, green, cyan, blue and purple. The six heading colours are not the VS Code Markdown ones but the Obsidian theme's order (red, yellow, green, cyan, blue, magenta) over those ANSI colours. Dark is "Tokyo Night", light is the theme's own light variant.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`
-- Structural sources: System sans (the declared JetBrains Mono default font is not used by the theme): `system`, JetBrains mono: `mono`, `font-size: 16`; heading colours are the Obsidian theme's `--h1-color`…`h6` = red, yellow, green, cyan, blue, magenta, taken in this file's palette values; magenta tag pill: `pill`; callout radius 4px: `soft`.
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: panel`, `emphasis-color: semantic`, `checkbox-style: round`
+- Structural sources: System sans (the declared JetBrains Mono default font is not used by the theme): `system`, JetBrains mono: `mono`, `font-size: 16`; heading colours are the Obsidian theme's `--h1-color`…`h6` = red, yellow, green, cyan, blue, magenta, taken in this file's palette values; magenta tag pill: `pill`; callout radius 4px: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.8); `blockquote-style: panel`, quote on a darker background (look profile 3.8); `emphasis-color: semantic`, bold and italic both cyan (look profile 3.8): `semantic` gives the theme's cyan bold and green (teal) italic, the nearest; `checkbox-style: round`, checkbox radius 12px (look profile 3.8).
 - Contrast adjustments: none
 
 ### Ayu Light
 
-- File: `ayu-light.verso-theme` (mode light) — SHA-256: `b2fc0ca5feaab245f3404ca045d96ef48cda2c158e680d83bddcb2d35bdaf29d`
+- File: `ayu-light.verso-theme` (mode light) — SHA-256: `121fe1ab91a810712c2708651292881d9a120afd1eee9c9190a50b37e6d15f7f`
 - Credit in the file: Ayu Light, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/light.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
+- Structural choices: `heading-scale: large`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset.
 - Contrast adjustments: light `--seal` `#f29718` → `#d27f0c` (3.02:1, adjusted for contrast); light `--brass-ink` `#fa8532` → `#f36806` (3.01:1, adjusted for contrast)
 
 ### Ayu Mirage
 
-- File: `ayu-mirage.verso-theme` (mode dark) — SHA-256: `897d1618087bb3a7bf8b4051601cc814ad14e1776f16f4ceacf376ffbf40c4bb`
+- File: `ayu-mirage.verso-theme` (mode dark) — SHA-256: `4bbb8b680d67313ec30214d94b9225fcf8b0195a00188188f221679afc008748`
 - Credit in the file: Ayu Mirage, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/mirage.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
+- Structural choices: `heading-scale: large`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.9em (look profile 3.9), nearer `large` (2.1em) than `standard` (1.65em); line height 1.7 and weight 600 are Verso's own, so left unset.
 - Contrast adjustments: none
 
 ### Ayu Dark
 
-- File: `ayu-dark.verso-theme` (mode dark) — SHA-256: `699d3526d729b0451c42eb4533418c0a08303a3a6811f4a3a528020019dd31b0`
+- File: `ayu-dark.verso-theme` (mode dark) — SHA-256: `84b7ed27f32030c4e83393444e15b93e54b3f645072cf1872902487bed934cd6`
 - Credit in the file: Ayu Dark, Konstantin Pschera, MIT
 - Source: https://github.com/ayu-theme/ayu-colors/blob/d461f02983546636bc6e1e0c48190fdb74036426/themes/dark.yaml
 - Commit or tag: d461f02983546636bc6e1e0c48190fdb74036426 (tag v8.0.1)
 - Licence: MIT, (c) Konstantin Pschera
 - Author: Konstantin Pschera
 - Mapping: The YAML theme's own values: editor background (surface lift) for the page, surface base for panels, editor and UI foregrounds for text, the accent tint for links, the palette orange for headings, ui.line (or surface sunk) for lines; palette red, orange, yellow, green, teal (cyan), blue and purple. Ayu's palette has no pink of its own: omitted. Values the YAML derives with colour expressions (syntax roles) are not used.
+- Structural choices: `--heading-font: system`, `--book: system`, `heading-scale: large`, `line-height: snug`, `blockquote-style: bar`
+- Structural sources: Palette entry; the keys are set where its CSS or the look profile says so (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 3.9); `line-height: snug`, line height 1.5 (look profile 3.9); `blockquote-style: bar`, Obsidian's default bar (look profile 1).
 - Contrast adjustments: none
 
 ### Minimal
 
-- File: `minimal.verso-theme` (mode both) — SHA-256: `f8f998e83101d2ba1c9d66a4245dbeb2b25091667552df3314766221a4ecbf75`
+- File: `minimal.verso-theme` (mode both) — SHA-256: `7d58b0efac9b1de86530cf1a670e0d7c3cf3c1630ba331bafa8c6176d1fd4ac6`
 - Credit in the file: Minimal, Steph Ango (kepano), MIT
 - Source: https://github.com/kepano/obsidian-minimal/blob/93321bdc23fc879966e1e3aa0cfeda77012f540f/theme.css
 - Commit or tag: 93321bdc23fc879966e1e3aa0cfeda77012f540f
 - Licence: MIT, (c) 2020-2024 Steph Ango
 - Author: Steph Ango (kepano)
 - Mapping: The default colour scheme (minimal-default-light / minimal-default-dark) with the theme's own base and accent variables resolved; Minimal sets no heading or code colours of its own in that scheme, so the headline is the text colour and the code colours are left to Verso.
-- Structural choices: `surface-mode: flat`, `--heading-font: system`, `--book: system`, `font-size: 16`, `table-style: hairline`, `tag-style: minimal`, `radius: soft`
-- Structural sources: System sans for body and headings (`system`), 16px, the flat sidebar (`surface-mode: flat`), tags as plain text with no fill or border (`tag-style: minimal`), a table with a small header and no outer borders (`hairline`), Obsidian radii (`soft`).
+- Structural choices: `surface-mode: flat`, `--heading-font: system`, `--book: system`, `font-size: 16`, `table-style: hairline`, `tag-style: minimal`, `radius: soft`, `heading-scale: compact`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `paragraph-spacing: loose`, `callout-style: outlined`
+- Structural sources: System sans for body and headings (`system`), 16px, the flat sidebar (`surface-mode: flat`), tags as plain text with no fill or border (`tag-style: minimal`), a table with a small header and no outer borders (`hairline`), Obsidian radii (`soft`). New keys (ADR 0109, TM.4 = B): `heading-scale: compact`, h1 at 1.125em (`--h1-size`); `line-width: narrow`, `--line-width: 40rem`; `line-height: snug`, `--line-height: 1.5`; `blockquote-style: bar`, a 1px bar on muted upright text (`--blockquote-border-thickness: 1px`); `link-style: plain`, `--link-decoration: none`; `paragraph-spacing: loose`, `--p-spacing: 1.75rem` (look profile 2.1); `callout-style: outlined`, `--callout-border-width: 1px`.
 - Contrast adjustments: none
 
 ### E-Ink
 
-- File: `e-ink.verso-theme` (mode both) — SHA-256: `57623dc8df66bfed811cfbbbb13e0f483b304d5add4ea2563665917cca0494e6`
+- File: `e-ink.verso-theme` (mode both) — SHA-256: `a36f1bae098edc36888c7a3843504c30cd7d3e49e8672d320c5f70a1c461f07a`
 - Credit in the file: Minimal (E-Ink colour scheme), Steph Ango (kepano), MIT
 - Source: https://github.com/kepano/obsidian-minimal/blob/93321bdc23fc879966e1e3aa0cfeda77012f540f/theme.css
 - Commit or tag: 93321bdc23fc879966e1e3aa0cfeda77012f540f
 - Licence: MIT, (c) 2020-2024 Steph Ango
 - Author: Steph Ango (kepano)
 - Mapping: Minimal's own minimal-eink-light / minimal-eink-dark colour scheme: pure black on white and white on black, page and panels the same colour (flat surfaces). The scheme is monochrome, so no semantic colours are set; Minimal's default ones are not borrowed.
-- Structural choices: `surface-mode: flat`, `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `radius: soft`
-- Structural sources: The E-Ink scheme belongs to Minimal: system sans body and headings (`system`), `font-size: 16`; tags are outlined with a 1.25px border in the text colour: `outline`; radii are Obsidian's: `soft`. Surface stays `flat`.
+- Structural choices: `surface-mode: flat`, `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: outline`, `radius: soft`, `heading-scale: compact`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`, `paragraph-spacing: loose`, `callout-style: outlined`
+- Structural sources: The E-Ink scheme belongs to Minimal: system sans body and headings (`system`), `font-size: 16`; tags are outlined with a 1.25px border in the text colour: `outline`; radii are Obsidian's: `soft`. Surface stays `flat`. New keys (ADR 0109, TM.4 = B): `heading-scale: compact`, h1 at 1.125em (`--h1-size`); `line-width: narrow`, `--line-width: 40rem`; `line-height: snug`, `--line-height: 1.5`; `blockquote-style: bar`, a 1px bar on muted upright text (`--blockquote-border-thickness: 1px`); `link-style: plain`, `--link-decoration: none`; `paragraph-spacing: loose`, `--p-spacing: 1.75rem` (look profile 2.1); `callout-style: outlined`, `--callout-border-width: 1px`.
 - Contrast adjustments: none
 
 ### Blue Topaz
 
-- File: `blue-topaz.verso-theme` (mode both) — SHA-256: `76b35c424b38510156f761b911aff38e28f23be1d1b33f5060fbe0a53793aebf`
+- File: `blue-topaz.verso-theme` (mode both) — SHA-256: `6c54c4ce94d8a92337cb62db025bd1ca972301b4fc782f4dc9e0fe23d16b5d9a`
 - Credit in the file: Blue Topaz, whyt-byte & Pkmer, MIT
 - Source: https://github.com/pkm-er/Blue-Topaz_Obsidian-css/blob/8395f0d6d2966b517946dd2f202301d6b00763c4/theme.css
 - Commit or tag: 8395f0d6d2966b517946dd2f202301d6b00763c4
 - Licence: MIT, (c) 2020 whyt-byte
 - Author: whyt-byte & Pkmer
 - Mapping: Default colours without Style Settings choices; the six heading colours and the code colours are the theme's own. Fonts: Bookerly maps to the closest book serif key, `editorial`.
-- Structural choices: `--heading-font: editorial`, `--book: editorial`, `--mono: mono`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`
-- Structural sources: Bookerly (body) and the heading levels inherit it, so the closest book serif key, `editorial` (Literata), for body and headings; JetBrains Mono: `mono`; `font-size: 16` (1em); tag with a 1px border: `outline`; table grid with tinted header: `bordered` (its alternate rows cannot be added to it); radii 3/5/7/15px: `soft`.
+- Structural choices: `--heading-font: editorial`, `--book: editorial`, `--mono: mono`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `line-width: narrow`, `line-height: snug`, `blockquote-style: panel`, `callout-style: title-bar`
+- Structural sources: Bookerly (body) and the heading levels inherit it, so the closest book serif key, `editorial` (Literata), for body and headings; JetBrains Mono: `mono`; `font-size: 16` (1em); tag with a 1px border: `outline`; table grid with tinted header: `bordered` (its alternate rows cannot be added to it); radii 3/5/7/15px: `soft`. New keys (ADR 0109, TM.4 = B): `line-width: narrow`, `--file-line-width: 45rem`, nearer `narrow` (40rem) than `standard` (about 55rem); `line-height: snug`, `--line-height-main: 1.5`; `blockquote-style: panel`, quotes in translucent coloured boxes (look profile 2.2); `callout-style: title-bar`, a coloured title on the callout (look profile 2.2).
 - Contrast adjustments: light `--h5-color` `#5aa0e2` → `#4e99e0` (3.02:1, adjusted for contrast); light `--h6-color` `#89b9e6` → `#5399db` (3.02:1, adjusted for contrast)
 
 ### Things
 
-- File: `things.verso-theme` (mode both) — SHA-256: `0476f339086ffd733cfad75e6ef96cb294ef65cfdf8fd7a10f976e8a4a7173d1`
+- File: `things.verso-theme` (mode both) — SHA-256: `b79a49a540a3018b3390ae92bf47538827fd5e8ace994777419fed3e01721bb6`
 - Credit in the file: Things, Colin Eckert, MIT
 - Source: https://github.com/colineckert/obsidian-things/blob/9b8bef93d3919f7693ac78597beaa35bbbd4cfff/theme.css
 - Commit or tag: 9b8bef93d3919f7693ac78597beaa35bbbd4cfff
 - Licence: MIT, (c) 2020-2021 Stephan Ango (@kepano)
 - Author: Colin Eckert
 - Mapping: Default hue/saturation/lightness variables resolved (base 212, accent 215). The theme's name is also the name of a third-party app (Things, Cultured Code): kept as the Obsidian theme's own name, credited, and flagged for the maintainer. Fonts: the theme's system sans stack maps to the system key.
-- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `heading-style: rule`, `table-style: hairline`, `tag-style: pill`, `radius: soft`
-- Structural sources: System sans (`system`), JetBrains / Fira mono (`mono`), `font-size: 16`; section headings carry a thin rule in the theme's capture: `heading-style: rule`; green pill tag: `pill`; radii 4/8/10/16: `soft`; heading colours were already the theme's.
+- Structural choices: `--heading-font: system`, `--book: system`, `--mono: mono`, `font-size: 16`, `heading-style: rule`, `table-style: hairline`, `tag-style: pill`, `radius: soft`, `line-width: narrow`, `line-height: snug`, `checkbox-style: round`
+- Structural sources: System sans (`system`), JetBrains / Fira mono (`mono`), `font-size: 16`; section headings carry a thin rule in the theme's capture: `heading-style: rule`; green pill tag: `pill`; radii 4/8/10/16: `soft`; heading colours were already the theme's. New keys (ADR 0109, TM.4 = B): `line-width: narrow`, `--line-width: 40rem`; `line-height: snug`, `--line-height: 1.5`; `checkbox-style: round`, `--checkbox-radius: 30%` and round blue boxes (look profile 2.3).
 - Contrast adjustments: light `--h4-color` `#e5b567` → `#c78822` (3.01:1, adjusted for contrast)
 
 ### Sanctum
 
-- File: `sanctum.verso-theme` (mode both) — SHA-256: `9a1cc5b125a29c0ab0c015197cf03da0776499cc16ac892ed0a0ba2a6f84d6a5`
+- File: `sanctum.verso-theme` (mode both) — SHA-256: `1e3b309a9c99d8047f4c70160a036c8cae8a00023ac10c949749f71280ea671a`
 - Credit in the file: Sanctum, José Daniel Mourão (jdanielmourao), MIT
 - Source: https://github.com/jdanielmourao/obsidian-sanctum/blob/ac69e5992a66d2aeabb30d8c2d90c636d155fc25/theme.css
 - Commit or tag: ac69e5992a66d2aeabb30d8c2d90c636d155fc25
 - Licence: MIT, (c) 2021-2022 José Daniel Mourão
 - Author: José Daniel Mourão (jdanielmourao)
 - Mapping: Page and panels are the same colour in the theme (--background-secondary equals --background-primary), so the surface mode is flat; Inter maps to the sans key.
-- Structural choices: `surface-mode: flat`, `--heading-font: sans`, `--book: sans`, `font-size: 16`, `tag-style: pill`, `radius: soft`
-- Structural sources: Inter: `sans`; `font-size: 16`; flat surface; pill tag with no border (radius 2em): `pill`; radii 4/8/10px, so `soft` — not `sharp`, as the spec §1.4 says (recorded contradiction, not decided here).
+- Structural choices: `surface-mode: flat`, `--heading-font: sans`, `--book: sans`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `line-width: narrow`, `line-height: snug`, `blockquote-style: plain`, `checkbox-style: round`
+- Structural sources: Inter: `sans`; `font-size: 16`; flat surface; pill tag with no border (radius 2em): `pill`; radii 4/8/10px, so `soft` — not `sharp`, as the spec §1.4 says (recorded contradiction, not decided here). New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 2em`; `line-width: narrow`, `--file-line-width: 40rem`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: plain`, `--blockquote-border-thickness: 0px`; `checkbox-style: round`, `--checkbox-radius: 16px` on a small box.
 - Contrast adjustments: light `--seal` `#f68d45` → `#e8650b` (3.02:1, adjusted for contrast)
 
 ### Obsidianotion
 
-- File: `obsidianotion.verso-theme` (mode both) — SHA-256: `b91748f64cb118b5f119668ea4fb03586ba7f5e4569c26134f9e588ce7a24c52`
+- File: `obsidianotion.verso-theme` (mode both) — SHA-256: `ae67321dab354243e5ff3e0e4d1203e3a38e903a1e7594b47dc765ffbb3b74f9`
 - Credit in the file: Obsidianotion, Diego Eis, Unlicense
 - Source: https://github.com/diegoeis/obsidianotion/blob/420469845836be3f116d9070e7548362289b8ee7/theme.css
 - Commit or tag: 420469845836be3f116d9070e7548362289b8ee7
 - Licence: Unlicense, public domain
 - Author: Diego Eis
 - Mapping: The theme's own light and dark variables; its system-ui font stack maps to the system key. The name stays the theme's own (it is not called Notion).
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`
-- Structural sources: ui-sans-serif / -apple-system stack: `system`; 16px; tags are pills (colour cycle not expressible): `pill`; radii 4/8/12/16: `soft`.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `callout-style: outlined`
+- Structural sources: ui-sans-serif / -apple-system stack: `system`; 16px; tags are pills (colour cycle not expressible): `pill`; radii 4/8/12/16: `soft`. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 `--h1-size: 1.875em`, nearer `large` (2.1em) than `standard` (1.65em); `heading-weight: bold`, `--h1-weight: 700`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, a 3px grey bar on muted text (look profile 2.5); `callout-style: outlined`, `--callout-border-width: 1px`, tinted border (look profile 2.5).
 - Contrast adjustments: none
 
 ### Atom
 
-- File: `atom.verso-theme` (mode both) — SHA-256: `2942674c704ee67ecc1a11dd90695cda397a8e8b9912fe5decf3b3110ebbb339`
+- File: `atom.verso-theme` (mode both) — SHA-256: `9ca00ab16a5eabfb8062f13a50ced7d6bb4f562a1b7672094b03c556723f8be8`
 - Credit in the file: Atom, kognise, Unlicense
 - Source: https://github.com/kognise/obsidian-atom/blob/650d6463d377a096520373c4752fef66f3f18f46/obsidian.css
 - Commit or tag: 650d6463d377a096520373c4752fef66f3f18f46
 - Licence: Unlicense, public domain
 - Author: kognise
 - Mapping: The theme sets page, panel, border, text, muted text and accent for both sides and nothing else.
-- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`
-- Structural sources: no font family is set by the theme, so Obsidian's system sans: `system`; `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the tag is a rounded chip with 4px radius (theme.css, `a.tag`), radii are Obsidian's: `tag-style: pill`, `radius: soft`; the yellow tag colour cannot be set.
+- Structural choices: `--heading-font: system`, `--book: system`, `font-size: 16`, `tag-style: pill`, `radius: soft`, `heading-scale: large`, `blockquote-style: bar`, `link-style: plain`, `checkbox-style: rounded`
+- Structural sources: no font family is set by the theme, so Obsidian's system sans: `system`; `font-size: 16` is Obsidian's own default (`--font-text-size`); the theme does not change it; the tag is a rounded chip with 4px radius (theme.css, `a.tag`), radii are Obsidian's: `tag-style: pill`, `radius: soft`; the yellow tag colour cannot be set. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, Obsidian's default h1 (2em); the theme sets none (look profile 2.6); `blockquote-style: bar`, Obsidian's default bar (look profile 1); the theme only adds an indent; `link-style: plain`, `--link-decoration: none`; `checkbox-style: rounded`, accent-coloured rounded square (look profile 2.6).
 - Contrast adjustments: none
 
 ### Yin and Yang
 
-- File: `yin-and-yang.verso-theme` (mode both) — SHA-256: `5fbb274045a0c251834513cd65c1e2f5917259d4b6697db54f71f55a496f0685`
+- File: `yin-and-yang.verso-theme` (mode both) — SHA-256: `d7623320110fcd9c7ddfbda25707155b0f146110a41f9a528089fe9feb503634`
 - Credit in the file: Yin and Yang, Chetachi Ezikeuzor, MPL-2.0
 - Source: https://github.com/chetachiezikeuzor/Yin-and-Yang-Theme/blob/e780f0d58301cfa11c05d0cc351ee82a95d920de/obsidian.css
 - Commit or tag: e780f0d58301cfa11c05d0cc351ee82a95d920de
 - Licence: MPL-2.0, Mozilla Public License 2.0 (colour values only; the CSS is not redistributed)
 - Author: Chetachi Ezikeuzor
 - Mapping: Page, panel, border, text and accent for both sides. The theme's accent colours are pastel and are corrected for contrast on the page.
-- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`
-- Structural sources: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); heading colours are the theme's `--text-title-h1`…`h6` (dark: pink, purple, red, orange, green, pale blue; light: light pink, purple, red, orange, green, cornflower blue); radii 4–6px: `soft`. Its pastels fail 3:1 on the light page and were darkened by the rule below.
+- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 17`, `radius: soft`, `heading-scale: large`, `heading-weight: bold`
+- Structural sources: Inter (`--default-font`): `sans`; `font-size: 17` (`--normal-font-size`); heading colours are the theme's `--text-title-h1`…`h6` (dark: pink, purple, red, orange, green, pale blue; light: light pink, purple, red, orange, green, cornflower blue); radii 4–6px: `soft`. Its pastels fail 3:1 on the light page and were darkened by the rule below. New keys (ADR 0109, TM.4 = B): `heading-scale: large`, h1 1.98em (look profile 2.7); `heading-weight: bold`, h1 weight 750, nearer `bold` (700).
 - Contrast adjustments: light `--seal` `#cd94ff` → `#bc6fff` (3.01:1, adjusted for contrast); light `--h1-color` `#ffabf4` → `#ff33e4` (3.01:1, adjusted for contrast); light `--h2-color` `#d2b3ff` → `#ae76ff` (3.01:1, adjusted for contrast); light `--h3-color` `#ff5582` → `#ff5280` (3.04:1, adjusted for contrast); light `--h4-color` `#ffb86c` → `#e17400` (3.08:1, adjusted for contrast); light `--h5-color` `#85ffa4` → `#00ab2c` (3.00:1, adjusted for contrast); light `--h6-color` `#a1c4fd` → `#5192fb` (3.01:1, adjusted for contrast)
 
 ### Border
 
-- File: `border.verso-theme` (mode both) — SHA-256: `5fda8b3eff0f0187c703be7407baee9339eafe73dfa806e9775d64dbf896b7ab`
+- File: `border.verso-theme` (mode both) — SHA-256: `203a5cbb3a854360a8621f50b65ac2ebd0e597339a0e52521f27854953bb3dbb`
 - Credit in the file: Border, Akifyss, MIT
 - Source: https://github.com/akifyss/obsidian-border/blob/dd59bd54438597f61b38eb5b967919e979526c41/theme.css
 - Commit or tag: dd59bd54438597f61b38eb5b967919e979526c41
 - Licence: MIT, (c) 2022 Akifyss
 - Author: Akifyss
 - Mapping: Colours resolved from the theme's default variables (its HSL chains computed).
-- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`
-- Structural sources: Inter in the theme's own capture (Style Settings): `sans`; `font-size: 16`; 2em pill tag with a 1px border: `outline`; table grid: `bordered`; radii 8px (cards) and 6px (checkbox): `soft`. The cards layout is an optional Style Settings choice, not the default, so the default look (tonal surface) is kept and `surface-mode: cards` was removed; no heading style (an h1 rule and an h2 bar, mixed).
+- Structural choices: `--heading-font: sans`, `--book: sans`, `font-size: 16`, `table-style: bordered`, `tag-style: outline`, `radius: soft`, `heading-weight: bold`, `line-height: snug`, `blockquote-style: bar`, `checkbox-style: rounded`
+- Structural sources: Inter in the theme's own capture (Style Settings): `sans`; `font-size: 16`; 2em pill tag with a 1px border: `outline`; table grid: `bordered`; radii 8px (cards) and 6px (checkbox): `soft`. The cards layout is an optional Style Settings choice, not the default, so the default look (tonal surface) is kept and `surface-mode: cards` was removed; no heading style (an h1 rule and an h2 bar, mixed). New keys (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700` falling to 575 by level, so `bold`; `line-height: snug`, `--line-height-normal: 1.5`; `blockquote-style: bar`, `--blockquote-border-thickness: 3px`; `checkbox-style: rounded`, `--checkbox-radius: 6px`.
 - Contrast adjustments: none
 
 ### Mapa de Conteúdo
 
-- File: `mapa-de-conteudo.verso-theme` (mode dark) — SHA-256: `fc0e3f209f4a270e7e8861051b35f561ab3068b2b8041a8e19aed842f46d044a`
+- File: `mapa-de-conteudo.verso-theme` (mode dark) — SHA-256: `e0a235da149e533072a3bbce43d980cabfea12fb47103c913de5d9559931ed10`
 - Credit in the file: LYT Mode, Nick Milo, MIT
 - Source: https://github.com/nickmilo/LYT-Mode/blob/28f67f18a24f5c8d3b58954eb8374bf2ecffbb50/theme.css
 - Commit or tag: 28f67f18a24f5c8d3b58954eb8374bf2ecffbb50
 - Licence: MIT, (c) 2022 nickmilo
 - Author: Nick Milo
 - Mapping: The theme's dark side only (it sets no light colours). Renamed from "LYT Mode": LYT (Linking Your Thinking) is the author's method and mark, and ADR 0109 item 7 keeps third-party marks out of names; the credit still names the original.
-- Structural choices: `--heading-font: sans`, `--book: sans`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: sharp`
-- Structural sources: DM Sans (Inter as fallback): `sans`, DM Mono / Fira Code: `mono`, `font-size: 16`; radii 0/2/4px: `sharp`; dark tag pill: `pill`. Heading colours were already the theme's.
+- Structural choices: `--heading-font: sans`, `--book: sans`, `--mono: mono`, `font-size: 16`, `tag-style: pill`, `radius: sharp`, `heading-weight: bold`, `line-width: narrow`, `line-height: snug`, `blockquote-style: bar`, `link-style: plain`
+- Structural sources: DM Sans (Inter as fallback): `sans`, DM Mono / Fira Code: `mono`, `font-size: 16`; radii 0/2/4px: `sharp`; dark tag pill: `pill`. Heading colours were already the theme's. New keys (ADR 0109, TM.4 = B): `heading-weight: bold`, `--h1-weight: 700`; `line-width: narrow`, `--file-line-width: 700px`, near `narrow`; `line-height: snug`, `--line-height-normal: 1.58`, nearer `snug` (1.5) than `normal` (1.7); `blockquote-style: bar`, `--blockquote-border-thickness: 2px`; `link-style: plain`, `--link-decoration: none` and `--link-decoration-hover: none`.
 - Contrast adjustments: none
 
 ## Not shipped
@@ -391,3 +397,24 @@ The side-by-side comparison (screenshots of the originals against Verso) was che
 - **Changed.** Rosé Pine and Rosé Pine Moon: `--book` is now `sans` (the original's editor stack is Inter; its reading-view stack is Georgia, but the screenshots and the editor are sans, the maintainer's call). Tokyo Night: `--heading-font` and `--book` are `mono` (the original sets `--default-font` to JetBrains Mono). Ayu Dark: `system` for both (the adnan-malik CSS sets no font, so Obsidian's system sans). Solarized: h1 to h6 are cyan (the original's `--text-title` is its cyan on all six), #2aa198 in dark and #279a91 in light, the minimal darkening that clears the 3:1 floor on the page. Flexoki: h1 to h6 are the text colour (the original sets none, so Obsidian's default applies).
 - **Checked, not changed.** Catppuccin x4: the CSS body font is Vollkorn (`--font-text-theme`), a book serif, so `editorial` stays (the comparison's "sans" came from a textless sketch), and every heading is the accent (`--ctp-hN` defaults to `--ctp-accent`), which the files already carry. Nord and Gruvbox: the CSS gives h1 to h6 as red, yellow, green, purple, frost0, frost2 (Nord) and red, yellow, green, aqua, blue, purple (Gruvbox), exactly the files; the orange h2 in the screenshots is not in the CSS. Mapa de Conteúdo: the CSS rainbow (yellow-900, purple-700, cyan-533, green-710, slate-500, slate-700) is what the file has. Blue Topaz: the CSS defaults are the lime h1 and `#202020` page the file has, with Bookerly as the text font; the pink and navy of the screenshot are Style Settings choices. Ayu Light and Mirage: the originals read in Gentium Plus (serif) and are 24px by their own choice; the file keeps the palette only.
 - **Border.** Not a renderer bug: `border.verso-theme` simply does not declare `heading-style`, and the renderer applies the key when a file does (`data-heading-style` in `css/theme-tokens.css`). Left undeclared on purpose: the original draws its orange bar on h2 only (`--h2-accent-color`, a `::before` of 3px), while Verso's `accent-bar` draws a bar in the heading colour on h1 to h4, which would add bars the original does not have. `surface-mode: cards` was removed on purpose (optional Style Settings, ADR 0109).
+
+## Ten more structural keys, 2026-10-22
+
+ADR 0109, TM.4 = B: ten more closed lists in `values` of a version 2 file, all optional. The first value of each list is the window's own look and writes nothing, so a file without the key (or with that value) renders as before. The reader refuses a value outside its list and any of these keys in a version 1 file. The rules are in `css/theme-tokens.css`, for reading and for Live Preview.
+
+| Key | Values (first = the window's own) | What each does |
+|---|---|---|
+| `heading-scale` | `standard`, `compact`, `large` | h1 / h2 / h3 at 1.65 / 1.35 / 1.12em; 1.2 / 1.1 / 1.04em; 2.1 / 1.7 / 1.35em |
+| `heading-weight` | `semibold`, `regular`, `bold` | 600, 400, 700 |
+| `line-width` | `standard`, `narrow`, `wide` | the reading column: 100ch, 40rem, 72rem (the person's own wide measure still wins) |
+| `line-height` | `normal`, `snug`, `relaxed` | 1.7 (lists 1.6), 1.5 (1.4), 1.9 (1.8) |
+| `blockquote-style` | `bar-italic`, `bar`, `panel`, `plain` | a 2px bar and italic; the bar upright; a tinted panel with a 4px bar (italic); no bar, upright |
+| `link-style` | `underline`, `hover`, `plain` | a hairline under the text; only on hover; the colour alone |
+| `emphasis-color` | `ink`, `accent`, `semantic` | bold and italic in the text colour; both in the accent (`--seal`); bold in the cyan and italic in the green |
+| `checkbox-style` | `square`, `rounded`, `round` | corner radius .2em, .35em, 50% |
+| `paragraph-spacing` | `standard`, `tight`, `loose` | the gap after a paragraph (reading): 1em, .5em, 1.6em |
+| `callout-style` | `tinted`, `outlined`, `title-bar` | a wash and a bar; a 1px outline and the bar; a coloured title bar over an outlined box |
+
+Where the numbers differ from the draft: `line-width: wide` is 72rem, not 52rem, because the window's own column (100ch in the body font) is already about 55rem; `line-height: relaxed` is 1.9, not 1.75, because the window's own is 1.7; `heading-weight` calls today's 600 `semibold`; the `bar` quote is upright because today's quote (`bar-italic`) is italic.
+
+Rules used to set the keys per theme (the sources are under each theme): a value is set where the theme's own CSS gives one (nearest of the closed values); where the theme sets none and the profile records Obsidian's default (h1 2em, the plain 2px quote bar), that default is used; line width and line height are set only where the theme's CSS declares them, so the themes that lean on Obsidian's default 700px column and 1.5 line height keep the window's own (a decision for the maintainer: apply those defaults too?). The checkbox cannot be square-cornered (radius 0) as Gruvbox, Nord and Solarized draw it: `square` is today's small radius.

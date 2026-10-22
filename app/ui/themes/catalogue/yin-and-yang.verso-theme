@@ -43,6 +43,8 @@
     "--heading-font": "sans",
     "--book": "sans",
     "font-size": 17,
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "heading-weight": "bold"
   }
 }

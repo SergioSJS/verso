@@ -36,6 +36,11 @@
     "--book": "sans",
     "font-size": 16,
     "tag-style": "pill",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "plain",
+    "checkbox-style": "round"
   }
 }

@@ -40,6 +40,11 @@
     "--mono": "mono",
     "font-size": 16,
     "tag-style": "pill",
-    "radius": "sharp"
+    "radius": "sharp",
+    "heading-weight": "bold",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain"
   }
 }

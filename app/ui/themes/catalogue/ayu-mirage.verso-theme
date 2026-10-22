@@ -27,6 +27,7 @@
       "--cyan": "#95e6cb",
       "--blue": "#73d0ff",
       "--purple": "#dfbfff"
-    }
+    },
+    "heading-scale": "large"
   }
 }

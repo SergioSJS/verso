@@ -40,6 +40,12 @@
     "font-size": 16,
     "table-style": "bordered",
     "tag-style": "pill",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "hover",
+    "emphasis-color": "semantic"
   }
 }
