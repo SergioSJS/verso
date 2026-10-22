@@ -36,6 +36,9 @@ body.dragging * { cursor: grabbing !important; }
 .tree li > button.row, .list li > button.row { display: flex; align-items: center; gap: .45rem; }
 .list li > button.row { flex-wrap: wrap; }
 .list li > button.row .path, .list li > button.row .snippet { flex-basis: 100%; }
+/* The name takes the line's rest with no width of its own, so a long one is
+   ellipsized beside its icon instead of wrapping the icon off alone. */
+.list li > button.row .row-name { flex: 1 1 0; }
 .row .icon { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
 .row.kind-note .icon { color: var(--brass); }
 .row.kind-image .icon { color: light-dark(oklch(52% 0.1 240), oklch(75% 0.1 240)); }

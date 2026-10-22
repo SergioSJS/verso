@@ -550,3 +550,26 @@ test("a phone's note row: the place has its own row, the fold button is whole an
   expect((await page.locator(".pane .tabs").first().boundingBox()).height).toBeGreaterThanOrEqual(44);
   expect(await page.locator(".pane-fold").first().getAttribute("title")).toBeTruthy();
 });
+
+test("a phone's search: a 44 px field, a long name beside its icon, a title without .md, a snippet as plain text; the palette has no key hints @layout", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Um nome de arquivo muito longo para caber numa gaveta de celular inteira.md", "---\ntitle: Dragão\n---\n\nO **dragão** dorme no [[Porto]].\n");
+  await tree(app);
+  const search = page.locator("#search");
+  await search.fill("dorme");
+  const row = page.locator('#notes li[data-path^="Um nome de arquivo"] > button.row');
+  await expect(row).toBeVisible();
+  await expect(row.locator(".row-name")).not.toContainText(".md");
+  const snippet = await row.locator(".snippet").innerText();
+  expect(snippet).not.toMatch(/\*\*|title:|---|\[\[/);
+  await expect(row.locator(".snippet mark")).toHaveCount(1);
+  const icon = await row.locator(".icon").first().boundingBox();
+  const label = await row.locator(".row-name").boundingBox();
+  expect(Math.abs(icon.y + icon.height / 2 - (label.y + label.height / 2))).toBeLessThan(12);
+  if (phone(page)) expect((await search.boundingBox()).height).toBeGreaterThanOrEqual(43);
+  await search.fill("");
+  await app.key("Mod+Shift+p");
+  await expect(page.locator(".palette .quick-list li").first()).toBeVisible();
+  await expect(page.locator(".palette .quick-list kbd")).toHaveCount(phone(page) ? 0 : await page.locator(".palette .quick-list kbd").count());
+  if (phone(page)) await expect(page.locator(".palette .quick-list li", { hasText: /console/i })).toHaveCount(0);
+});
