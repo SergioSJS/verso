@@ -123,3 +123,7 @@ valor de frontmatter como `ticket: #123`; (2) o painel de propriedades
 mostra uma amostra ao lado de um valor de cor, só para ver. O seletor grava
 ao soltar e a cada tecla, não enquanto arrasta. O construtor de temas
 continua com o campo de cor do sistema.
+
+Confirmado em 2026-10-22 pelo mantenedor: (1) AC.1 = A, códigos curtos só de
+algarismos em texto comum continuam sem amostra; (2) AC.2 = A, a amostra no
+painel de propriedades fica e um clique nela também abre o seletor.
