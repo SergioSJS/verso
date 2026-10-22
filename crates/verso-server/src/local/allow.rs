@@ -147,6 +147,7 @@ pub const REFUSED: &[&str] = &[
     "copy_full_path",
     "pick_files",
     "create_picked",
+    "take_dropped",
     "reveal",
     "open_url",
     "open_window",
