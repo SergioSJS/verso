@@ -15,11 +15,17 @@ use std::io::Write;
 use verso_contract::PickSkip;
 
 fn picked(dir: &tempfile::TempDir, name: &str, bytes: &[u8]) -> PathBuf {
+    picked_len(dir, name, bytes, bytes.len() as u64)
+}
+
+/// Like `picked`, but the file is `len` bytes long (a hole past `bytes`).
+fn picked_len(dir: &tempfile::TempDir, name: &str, bytes: &[u8], len: u64) -> PathBuf {
     let mut f = tempfile::Builder::new()
         .prefix("pick")
         .tempfile_in(dir.path())
         .unwrap();
     f.write_all(bytes).unwrap();
+    f.as_file().set_len(len).unwrap();
     // Named as the person's file is, in a folder of its own.
     let sub = tempfile::tempdir_in(dir.path()).unwrap();
     let path = sub.keep().join(name);
@@ -202,13 +208,7 @@ fn a_drop_belongs_to_the_window_it_fell_on_and_goes_with_it() {
 fn a_dropped_file_goes_up_to_the_limit_the_person_set_not_32_mib() {
     let outside = tempfile::tempdir().unwrap();
     // 40 MiB, past what the web view hands over; held, not read.
-    let big = picked(&outside, "Livro.pdf", &[]);
-    std::fs::OpenOptions::new()
-        .write(true)
-        .open(&big)
-        .unwrap()
-        .set_len(40 * 1024 * 1024)
-        .unwrap();
+    let big = picked_len(&outside, "Livro.pdf", &[], 40 * 1024 * 1024);
     let held =
         crate::files::settle_picks_for_test("w-big", false, false, std::slice::from_ref(&big), 64);
     assert!(held.skipped.is_empty(), "{:?}", held.skipped);
