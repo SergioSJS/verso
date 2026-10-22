@@ -10,6 +10,7 @@ import { icon } from "../icons";
 import { calm } from "../format";
 import { Pane } from "../layout/pane";
 import { openNote, persistSoon } from "../layout/spaces";
+import { tapKind, type Tap } from "./tapKind";
 import { createNote } from "../files";
 import { Kind, dirOf, name } from "../paths";
 import { type MissingLink, type MissingNode, isMissingId, missingNodes } from "./graphMissing";
@@ -464,6 +465,8 @@ export class GraphLeaf extends Leaf {
   private raf = 0;
   private lines: { l: SVGLineElement; a: GNode; b: GNode }[] = [];
   private dots: { g: SVGGElement; n: GNode }[] = [];
+  /** The last click on a node, kept here because centring redraws the nodes. */
+  private lastTap: Tap = null;
   private draw(edges: [string, string][]): void {
     this.stop?.();
     const NS = "http://www.w3.org/2000/svg";
@@ -536,8 +539,16 @@ export class GraphLeaf extends Leaf {
         if (n.missing) void this.make(n.missing);
         else openNote(n.id, false);
       };
-      g.addEventListener("click", () => { if (!moved) open(); });
-      g.addEventListener("dblclick", () => void (n.missing ? this.make(n.missing) : this.load(n.id)));
+      // A click centres the graph on the note; a second on it, inside the
+      // double-click interval, opens it (a hollow one: makes it). Both mouse
+      // and touch arrive as `click`; a drag does neither.
+      g.addEventListener("click", () => {
+        if (moved) return;
+        const r = tapKind(this.lastTap, n.id, performance.now());
+        this.lastTap = r.last;
+        if (r.kind === "double") open();
+        else if (!n.missing && n.id !== this.path) void this.load(n.id);
+      });
       // From the keyboard: the graph is one Tab stop (the note in its
       // middle, else the first); the arrows walk the notes, Home and End
       // reach the ends, Enter opens one and Shift-Enter centers the graph
@@ -558,6 +569,7 @@ export class GraphLeaf extends Leaf {
         }
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
+        this.lastTap = null;
         if (e.shiftKey && !n.missing) void this.load(n.id);
         else open();
       });
