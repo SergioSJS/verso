@@ -106,8 +106,10 @@ test("switch on: the chunk loads on the first roll only, the result is said at o
     await expect(canvas(page)).toHaveCount(1);
     await expect(canvas(page)).toHaveAttribute("aria-hidden", "true");
     await expect(card).toBeHidden();
-    // The canvas lays over the window and is cleared by itself, at the latest at the maximum time.
-    await expect(canvas(page)).toHaveCount(0, { timeout: 9000 });
+    // The canvas lays over the window; the dice rest at the latest at the maximum time and stay (Rolai) until Esc.
+    await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
   }
   // The card is always made, with the same result.
   await expect(card.locator(".dice-total")).toHaveText(String(said));
@@ -178,7 +180,9 @@ test("an exploding roll falls in 3D: the extra dice are thrown in waves, and the
   await expect(c).toHaveCount(1);
   const widths = await page.waitForFunction(() => window.__widths ?? null, null, { timeout: 8000 });
   expect(JSON.parse(await widths.jsonValue())).toHaveLength(5);
-  await expect(c).toHaveCount(0, { timeout: 9000 });
+  await expect(c).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+  await page.keyboard.press("Escape");
+  await expect(c).toHaveCount(0);
 });
 
 test("reduced motion: the switch on, no canvas and no chunk", async ({ app, page }) => {
@@ -235,7 +239,11 @@ test("in a room: another member's roll falls only for a person whose switch is o
   const preview = page.locator(".preview:visible");
   await preview.getByRole("button", { name: "Rolar 1d20+3" }).click();
   await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
-  if (hasGl) await expect(canvas(page)).toHaveCount(0, { timeout: 9000 });
+  if (hasGl) {
+    await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+    await page.keyboard.press("Escape");
+    await expect(canvas(page)).toHaveCount(0);
+  }
   const card = preview.locator('.dice[data-dice="1d20+3"] .dice-card');
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
   // Bia rolls: the event the server relays.
@@ -582,6 +590,7 @@ test("the dice stay on the table like Rolai's: no timer, a control does not clea
     const b = document.createElement("button");
     b.id = "probe-control";
     b.textContent = "probe";
+    b.style.cssText = "position:fixed;top:8px;left:8px;z-index:99999";
     document.body.append(b);
   });
   await page.locator("#probe-control").click();
@@ -642,7 +651,7 @@ test("Esc clears the lingering dice at once @layout", async ({ app, page }, info
   await expect(canvas(page)).toHaveCount(0);
 });
 
-test("the dice sound: off, no recording is fetched; on, the hits play Rolai's recordings from the app (200)", async ({ app, page }, info) => {
+test("the dice sound: off, no recording is fetched; on, the hits play Rolai's recordings from the app (200 or a range's 206)", async ({ app, page }, info) => {
   await withSwitch(page);
   const seen = [];
   page.on("response", (r) => {
@@ -664,5 +673,5 @@ test("the dice sound: off, no recording is fetched; on, the hits play Rolai's re
   await again.click();
   await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
   expect(seen.length).toBeGreaterThan(0);
-  expect(seen.every(([f, st]) => st === 200 && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f))).toBe(true);
+  expect(seen.every(([f, st]) => (st === 200 || st === 206) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f))).toBe(true);
 });
