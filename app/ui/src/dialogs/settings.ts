@@ -62,6 +62,7 @@ import { creditsItems } from "./settings/creditsItems";
 import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import { LOOK_EVENT } from "../theme/actions";
+import { fontSample, fontSampleWords } from "../fontSample";
 import { themeGallery } from "../theme/gallery";
 import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
@@ -646,6 +647,7 @@ export class SettingsDialog {
       addEventListener(LOOK_EVENT, () => { if (r.isConnected) { r.value = String(settings.fontSize); r.setAttribute("aria-valuetext", `${r.value} px`); } });
       return r;
     }, lookWords.gallery.textGroup);
+    out.push({ section: "appearance", title: fontSampleWords.label, desc: "", group: lookWords.gallery.textGroup, node: () => fontSample() });
     add("appearance", t.measure, t.measureDesc, () => this.liveSelect([["theme", t.measureTheme], ["narrow", t.measureNarrow], ["medium", t.measureMedium], ["standard", t.measureStandard], ["large", t.measureLarge], ["full", t.measureFull]], () => settings.measure, (v) => { settings.measure = v; saveSettings(); }), lookWords.gallery.textGroup);
     // The window's zoom (ADR 0072): only where the host zooms; a browser has its own.
     if (hasHostZoom()) add("appearance", zoomWords.title, zoomWords.desc, () => zoomControl(), lookWords.gallery.textGroup);
