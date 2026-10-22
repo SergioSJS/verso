@@ -40,6 +40,8 @@
     "font-size": 16,
     "radius": "soft",
     "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "bar",
     "link-style": "plain"
   }

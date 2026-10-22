@@ -63,6 +63,8 @@
     "tag-style": "pill",
     "radius": "soft",
     "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
     "blockquote-style": "panel",
     "emphasis-color": "semantic",
     "checkbox-style": "round"
