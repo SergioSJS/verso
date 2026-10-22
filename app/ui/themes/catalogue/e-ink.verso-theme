@@ -42,6 +42,7 @@
     "blockquote-style": "bar",
     "link-style": "plain",
     "paragraph-spacing": "loose",
-    "callout-style": "outlined"
+    "callout-style": "outlined",
+    "hr-style": "line"
   }
 }

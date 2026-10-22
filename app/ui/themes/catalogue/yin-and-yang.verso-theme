@@ -47,6 +47,7 @@
     "heading-scale": "large",
     "heading-weight": "bold",
     "line-width": "narrow",
-    "line-height": "snug"
+    "line-height": "snug",
+    "hr-style": "thin"
   }
 }

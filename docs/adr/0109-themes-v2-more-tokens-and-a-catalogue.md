@@ -200,3 +200,16 @@ Decided 2026-10-22, last: a catalogue theme whose CSS declares no line width or
 line height takes Obsidian's defaults (a 700 px column, line height 1.5) —
 `line-width: narrow`, `line-height: snug` — so it looks as its original does in
 Obsidian (the maintainer, option A: *"A então"*; B was to keep the window's own).
+
+Decided 2026-10-22, after the horizontal rule: the maintainer saw that the
+catalogue's themes still drew one rule, a line with three asterisks (⁂), and
+said *"Tem uma coisa que esses temas não estão customizando, que é a linha
+horizontal. Vários desses temas têm uma linha horizontal customizada e a gente
+está usando a mesma coisa, que é uma linha horizontal e três asteriscos, que em
+algum momento a gente fez isso e nunca mudou."* One more structural key,
+`hr-style`, a closed list — `asterism` (the window's own, writes nothing),
+`line` (Obsidian's plain 2px rule), `thin` (1px) and `fade` (a rule that fades
+at both ends) — and one optional colour, `--hr-color` (the hair colour without
+one), both for the reading view and Live Preview; the values are only the ones
+the originals use (survey in `docs/reference/theme-catalogue.md`). Sixteen
+structural keys now.

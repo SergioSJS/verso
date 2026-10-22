@@ -31,7 +31,8 @@
       "--cyan": "#9ccfd8",
       "--blue": "#3e8fb0",
       "--purple": "#c4a7e7",
-      "--pink": "#ea9a97"
+      "--pink": "#ea9a97",
+      "--hr-color": "#f6c177"
     },
     "--heading-font": "sans",
     "--book": "sans",
@@ -40,6 +41,7 @@
     "line-width": "narrow",
     "line-height": "snug",
     "blockquote-style": "panel",
-    "emphasis-color": "accent"
+    "emphasis-color": "accent",
+    "hr-style": "fade"
   }
 }

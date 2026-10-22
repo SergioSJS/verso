@@ -357,6 +357,8 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
     sel.row.dataset["style"] = key;
     styleSelects.set(key, sel.el);
     structure.add(sel.row);
+    // The rule's colour sits right under its style.
+    if (key === "hr-style") addColor("--hr-color", structure);
   }
   // On a phone one group is open at a time.
   const groups = [colors, headings, code, callouts, structure];

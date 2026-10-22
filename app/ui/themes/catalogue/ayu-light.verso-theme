@@ -30,6 +30,7 @@
     },
     "heading-scale": "large",
     "line-width": "narrow",
-    "line-height": "snug"
+    "line-height": "snug",
+    "hr-style": "line"
   }
 }

@@ -38,6 +38,7 @@
     "line-height": "snug",
     "line-width": "narrow",
     "blockquote-style": "bar",
-    "callout-style": "outlined"
+    "callout-style": "outlined",
+    "hr-style": "line"
   }
 }
