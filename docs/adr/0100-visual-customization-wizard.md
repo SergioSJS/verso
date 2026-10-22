@@ -211,3 +211,11 @@ tutorial and the changelog); merged by `203b8989`.
 
 Revised 2026-10-21 (item 2): the Settings panel gives way to a gallery of
 theme cards and a dedicated theme-builder window; to be built.
+
+As built 2026-10-22, after the maintainer's report (*"a configuração de tamanho
+da fonte está estranha: eu arrasto, aí a tela muda de tamanho e some a barra,
+dependendo do zoom"*): the font size setting — and a theme's `font-size` — now
+sizes the notes' text only (`--note-scale`), no longer the `<html>` element; the
+interface's size is the window zoom. This contradicts the text of this ADR
+(a theme's `font-size` "of the `<html>` element"); recorded, **not decided** —
+the maintainer confirms or reverts it.

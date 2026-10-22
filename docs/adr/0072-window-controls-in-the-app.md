@@ -154,3 +154,7 @@ port") is met by the port (ADR 0071): on Linux a folder's window has no
 system title bar either, and the app draws minimize, maximize and close at
 the top right, as on Windows. The window is built hidden and shown once
 built, because KDE's KWin otherwise kept its own bar.
+
+As built 2026-10-22: the top row no longer follows the font size setting
+(2.45rem of a root that no longer changes); the font size now sizes the notes'
+text only (see ADR 0100, as-built note of the same day). Recorded, not decided.
