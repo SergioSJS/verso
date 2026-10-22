@@ -91,11 +91,13 @@
 .builder-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .7rem clamp(.7rem, 1.5vw, 1.4rem); border-top: 1px solid var(--hair); background: var(--paper); }
 .builder-foot .look-status { flex: 1 1 14rem; }
 .builder-keep { display: flex; gap: .5rem; margin-left: auto; }
-.look-contrast > summary, .look-share > summary { cursor: pointer; font: 600 .78rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); display: flex; justify-content: space-between; gap: .8rem; }
+.look-contrast > summary, .look-share > summary, .look-group > summary { cursor: pointer; font: 600 .78rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); display: flex; justify-content: space-between; gap: .8rem; }
 details.look-set { display: block; }
 .look-contrast-state { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: .84rem; }
 .look-contrast-state[data-state="warn"] { color: var(--seal); font-weight: 600; }
-.look-contrast[open] > summary, .look-share[open] > summary { margin-bottom: .5rem; }
+.look-contrast[open] > summary, .look-share[open] > summary, .look-group[open] > summary { margin-bottom: .5rem; }
+.look-group-body { display: grid; gap: .45rem; }
+.look-group-body > fieldset { margin-top: .4rem; }
 @container (max-width: 780px) {
   .builder-body { grid-template-columns: minmax(0, 1fr); }
   .builder .look-sample { padding: 1rem 1.2rem; }

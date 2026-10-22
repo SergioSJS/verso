@@ -104,7 +104,7 @@ const pt = {
     sampleRows: [["Papel", "claro"], ["Tinta", "escura"]],
     sampleButton: "Salvar",
     sampleCallout: "Nota",
-    sampleCalloutText: "Um aviso destacado, com a cor de latão.",
+    sampleCalloutText: "Um aviso destacado, na cor do seu tipo.",
   },
   profile: {
     legend: "Perfis",
@@ -300,7 +300,7 @@ const en: typeof pt = {
     sampleRows: [["Paper", "light"], ["Ink", "dark"]],
     sampleButton: "Save",
     sampleCallout: "Note",
-    sampleCalloutText: "A highlighted notice, in the brass colour.",
+    sampleCalloutText: "A highlighted notice, in the colour of its kind.",
   },
   profile: {
     legend: "Profiles",
