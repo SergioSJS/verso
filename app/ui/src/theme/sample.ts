@@ -25,8 +25,20 @@ export function sampleDocument(): { el: HTMLElement; show: (side: Side) => void 
   const link = h("a", "wikilink", p.sampleLink);
   const tag = h("a", "tag", `#${p.sampleTag}`);
   const code = h("code", "", "code");
-  para.append(`${p.sampleBody} `, link, `, ${p.sampleBody2} `, tag, ", ", code, ".");
-  page.append(para, h("h2", "", p.sampleHeading));
+  para.append(`${p.sampleBody} `, link, `, ${p.sampleBody2} `, tag, ", ", code, ", ", h("strong", "", V2.sampleStrong), " / ", h("em", "", V2.sampleEm), ".");
+  const more = h("p", "", V2.sampleMore);
+  const tasks = h("ul", "contains-task-list");
+  V2.sampleTasks.forEach((text, i) => {
+    const item = h("li", "task-item");
+    const box = h("input");
+    box.type = "checkbox";
+    box.checked = i === 0;
+    box.disabled = true;
+    box.tabIndex = -1;
+    item.append(box, text);
+    tasks.append(item);
+  });
+  page.append(para, more, tasks, h("h2", "", p.sampleHeading));
   for (const n of [3, 4, 5, 6] as const) page.append(h(`h${n}`, "", V2.sampleLevel(n)));
   page.append(h("blockquote", "", p.sampleQuote));
   const pre = h("pre");
