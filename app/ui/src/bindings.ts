@@ -491,6 +491,18 @@ export const commands = {
 	 *  window in focus): the other items are greyed, in place.
 	 */
 	setMenuEnabled: (enabled: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_enabled", { enabled })),
+	/**
+	 *  The menus of the in-window menu of Windows and Linux, in the window's
+	 *  language (`menu_spec::window_menu`): the same menus as the Mac bar,
+	 *  from the same data. The window turns off the rows whose feature is off,
+	 *  greys those the palette cannot run, and writes the keys as bound.
+	 */
+	menuSections: (language: string, features: string[]) => __TAURI_INVOKE<MenuSection[]>("menu_sections", { language, features }),
+	/**
+	 *  Quit from the in-window menu (File › Quit): the windows are asked to
+	 *  save their tabs first, as the Mac's Quit and the last window's close do.
+	 */
+	quitApp: () => __TAURI_INVOKE<void>("quit_app"),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**
@@ -2307,6 +2319,36 @@ export type Mention = {
 export type Mentions = {
 	mentions: Mention[],
 	more: boolean,
+};
+
+/**
+ *  One row of a menu, as the window gets it (Windows and Linux draw the
+ *  menu inside the window; macOS has the native bar and never asks).
+ */
+export type MenuEntry = {
+	/**
+	 *  "sep", "command" (a command of the window's registry, `id`), "own"
+	 *  (the host's own, run by the window: `id` names the action) or
+	 *  "system" (an editing or window action of the web view).
+	 */
+	kind: string,
+	id: string,
+	label: string,
+	/**  The feature switch (ADR 0103) that must be on for the row to show. */
+	feature: string | null,
+	/**
+	 *  The fixed key of an own or system row, as the window writes it
+	 *  (`Mod-z`); a command's key is the window's, as bound now.
+	 */
+	key: string | null,
+};
+
+export type MenuSection = {
+	key: string,
+	title: string,
+	/**  The letter that opens it with Alt. */
+	mnemonic: string,
+	items: MenuEntry[],
 };
 
 /**
