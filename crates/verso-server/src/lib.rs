@@ -58,6 +58,7 @@ pub mod share_sync;
 pub mod shares;
 pub mod signin;
 pub mod state;
+mod static_cache;
 pub mod storage;
 pub mod sync;
 pub mod texts;
