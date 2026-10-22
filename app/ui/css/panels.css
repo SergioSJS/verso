@@ -161,7 +161,7 @@ body.dragging * { cursor: grabbing !important; }
 .tok-link, .tok-url { color: var(--seal); }
 .preview pre code span { font: inherit; }
 /* Math */
-.preview .math-display { margin: 1rem 0; text-align: center; overflow-x: auto; }
+.preview .math-display { margin: 0 0 var(--flow); text-align: center; overflow-x: auto; }
 .preview .katex { font-size: 1.05em; }
 /* A note popped out: only the note, and a way back. */
 body.popout { grid-template-columns: 0 0 0 1fr 0 0 !important; }
