@@ -43,7 +43,7 @@ export function sampleDocument(): { el: HTMLElement; show: (side: Side) => void 
   page.append(h("blockquote", "", p.sampleQuote));
   const pre = h("pre");
   pre.append(h("code", "", p.sampleCode));
-  page.append(pre);
+  page.append(pre, h("hr"));
   const table = h("table");
   const head = h("tr");
   for (const c of p.sampleTable) head.append(h("th", "", c));

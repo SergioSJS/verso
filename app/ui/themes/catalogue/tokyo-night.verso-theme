@@ -67,6 +67,7 @@
     "line-height": "snug",
     "blockquote-style": "panel",
     "emphasis-color": "semantic",
-    "checkbox-style": "round"
+    "checkbox-style": "round",
+    "hr-style": "line"
   }
 }

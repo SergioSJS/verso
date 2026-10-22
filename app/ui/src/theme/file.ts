@@ -36,7 +36,8 @@
 //       "emphasis-color": "accent",       // ink accent semantic
 //       "checkbox-style": "round",        // square rounded round
 //       "paragraph-spacing": "loose",     // standard tight loose
-//       "callout-style": "outlined"       // tinted outlined title-bar
+//       "callout-style": "outlined",      // tinted outlined title-bar
+//       "hr-style": "fade"                // asterism line thin fade (--hr-color colours it)
 //     }
 //   }
 //

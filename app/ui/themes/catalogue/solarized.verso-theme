@@ -67,6 +67,7 @@
     "heading-scale": "large",
     "line-width": "narrow",
     "line-height": "snug",
-    "blockquote-style": "bar"
+    "blockquote-style": "bar",
+    "hr-style": "line"
   }
 }

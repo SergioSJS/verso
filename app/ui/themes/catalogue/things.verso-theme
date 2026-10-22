@@ -66,6 +66,7 @@
     "radius": "soft",
     "line-width": "narrow",
     "line-height": "snug",
-    "checkbox-style": "round"
+    "checkbox-style": "round",
+    "hr-style": "line"
   }
 }

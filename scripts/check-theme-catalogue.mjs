@@ -23,7 +23,7 @@ const DOCS = [`${ROOT}docs/reference/theme-catalogue.md`, `${ROOT}docs/pt-BR/ref
 const FILE_MOST = 16 * 1024;
 const NAME_MOST = 40;
 const BASE = ["--paper", "--paper-2", "--hair", "--ink", "--ink-2", "--seal", "--brass-ink"];
-const OPTIONAL = ["--code-paper", "--code-ink", "--h1-color", "--h2-color", "--h3-color", "--h4-color", "--h5-color", "--h6-color", "--red", "--orange", "--yellow", "--green", "--cyan", "--blue", "--purple", "--pink"];
+const OPTIONAL = ["--code-paper", "--code-ink", "--h1-color", "--h2-color", "--h3-color", "--h4-color", "--h5-color", "--h6-color", "--red", "--orange", "--yellow", "--green", "--cyan", "--blue", "--purple", "--pink", "--hr-color"];
 const COLORS = [...BASE, ...OPTIONAL];
 const ENUMS = {
   "--heading-font": ["serif", "sans", "editorial", "mono", "system"],
@@ -45,6 +45,7 @@ const ENUMS = {
   "checkbox-style": ["square", "rounded", "round"],
   "paragraph-spacing": ["standard", "tight", "loose"],
   "callout-style": ["tinted", "outlined", "title-bar"],
+  "hr-style": ["asterism", "line", "thin", "fade"],
 };
 // Licences the project may ship a credit under (ADR 0109 item 6): the
 // permissive ones and MPL-2.0 (the project's own). A palette under another

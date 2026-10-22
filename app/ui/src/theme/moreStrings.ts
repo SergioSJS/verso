@@ -21,7 +21,7 @@ const pt = {
     headings: "Uma cor para cada nível de título. Sem escolher, cada nível segue a cor que já tinha.",
     code: "O fundo e o texto do código, em linha e em bloco. Sem escolher, seguem o papel 2 e a tinta.",
     callouts: "As cores dos avisos (callouts), das respostas do oráculo e das fichas. Sem escolher, ficam as cores de sempre.",
-    structure: "Escolhas de forma, de uma lista fechada: como as superfícies, os títulos (tamanho e peso), a largura e a altura do texto, as citações, os links, o negrito e o itálico, as caixas de tarefa, os avisos, as tabelas, as etiquetas e os cantos aparecem.",
+    structure: "Escolhas de forma, de uma lista fechada: como as superfícies, os títulos (tamanho e peso), a largura e a altura do texto, as citações, os links, o negrito e o itálico, as caixas de tarefa, os avisos, a linha horizontal (---), as tabelas, as etiquetas e os cantos aparecem.",
   },
   tokens: {
     "--code-paper": "Fundo do código",
@@ -40,6 +40,7 @@ const pt = {
     "--blue": "Azul (nota, informação)",
     "--purple": "Roxo (exemplo, oráculo)",
     "--pink": "Rosa (destaque, importante)",
+    "--hr-color": "Linha horizontal (---)",
   } as Record<AnyColor, string>,
   styles: {
     "surface-mode": { label: "Superfície", values: { tonal: "Tonal", flat: "Plana", contrast: "Contraste", cards: "Cartões" } },
@@ -57,6 +58,7 @@ const pt = {
     "checkbox-style": { label: "Estilo das caixas de tarefa", values: { square: "Quadrada", rounded: "Cantos arredondados", round: "Redonda" } },
     "paragraph-spacing": { label: "Espaço entre parágrafos", values: { standard: "Padrão", tight: "Justo", loose: "Solto" } },
     "callout-style": { label: "Estilo dos avisos", values: { tinted: "Com fundo", outlined: "Com contorno", "title-bar": "Título em faixa" } },
+    "hr-style": { label: "Linha horizontal (---)", values: { asterism: "Linha com ⁂", line: "Linha simples", thin: "Linha fina", fade: "Linha que se desfaz nas pontas" } },
   } as Record<StyleKey, { label: string; values: Record<string, string> }>,
   sampleLevel: (n: number) => `Título ${n}`,
   sampleStrong: "negrito",
@@ -107,7 +109,7 @@ const en: typeof pt = {
     headings: "A colour for each heading level. Left alone, each level keeps the colour it always had.",
     code: "The background and the text of code, inline and in blocks. Left alone, they follow paper 2 and the ink.",
     callouts: "The colours of callouts, of the oracle's answers and of sheets. Left alone, they keep the colours they always had.",
-    structure: "Choices of shape, from a closed list: how surfaces, headings (size and weight), the text's width and line height, quotes, links, bold and italic, task boxes, callouts, tables, tags and corners look.",
+    structure: "Choices of shape, from a closed list: how surfaces, headings (size and weight), the text's width and line height, quotes, links, bold and italic, task boxes, callouts, the horizontal rule (---), tables, tags and corners look.",
   },
   tokens: {
     "--code-paper": "Code background",
@@ -126,6 +128,7 @@ const en: typeof pt = {
     "--blue": "Blue (note, info)",
     "--purple": "Purple (example, oracle)",
     "--pink": "Pink (highlight, important)",
+    "--hr-color": "Horizontal rule (---)",
   } as Record<AnyColor, string>,
   styles: {
     "surface-mode": { label: "Surface", values: { tonal: "Tonal", flat: "Flat", contrast: "Contrast", cards: "Cards" } },
@@ -143,6 +146,7 @@ const en: typeof pt = {
     "checkbox-style": { label: "Task box style", values: { square: "Square", rounded: "Rounded corners", round: "Round" } },
     "paragraph-spacing": { label: "Paragraph spacing", values: { standard: "Standard", tight: "Tight", loose: "Loose" } },
     "callout-style": { label: "Callout style", values: { tinted: "Tinted", outlined: "Outlined", "title-bar": "Title bar" } },
+    "hr-style": { label: "Horizontal rule (---)", values: { asterism: "Line with ⁂", line: "Plain line", thin: "Thin line", fade: "Line that fades at the ends" } },
   } as Record<StyleKey, { label: string; values: Record<string, string> }>,
   sampleLevel: (n: number) => `Heading ${n}`,
   sampleStrong: "bold",

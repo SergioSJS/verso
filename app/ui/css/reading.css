@@ -159,7 +159,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--hair);
+  background: var(--hr-color, var(--hair));
 }
 .preview hr::after {
   content: "⁂";
