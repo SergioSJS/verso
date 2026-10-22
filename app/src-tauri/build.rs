@@ -86,6 +86,8 @@ fn main() {
         "log_write",
         "log_read",
         "set_menu_language",
+        "set_menu_commands",
+        "set_menu_enabled",
         "reindex",
         "capabilities",
         "folder_space",

@@ -1344,6 +1344,8 @@ export class Core {
     },
     log_read: () => this.log.map((l) => `${l.level} ${l.message}`).join("\n"),
     set_menu_language: () => null,
+    set_menu_commands: () => null,
+    set_menu_enabled: () => null,
     reindex: () => this.summary(),
     query_base: (a) => this.queryBase(a["query"] as BaseQuery),
     new_window: () => null,
