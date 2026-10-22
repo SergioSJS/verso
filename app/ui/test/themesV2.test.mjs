@@ -4,7 +4,7 @@
 // are tested further down.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import * as esbuild from "esbuild";
 
 await esbuild.build({
@@ -17,7 +17,8 @@ export * from "./src/theme/colorsOf";
 export * from "./src/theme/file";
 export * from "./src/theme/look";
 export * from "./src/theme/profiles";
-export * from "./src/theme/moreStrings";`,
+export * from "./src/theme/moreStrings";
+export * from "./src/theme/catalogue";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -274,5 +275,68 @@ describe("the credit (ADR 0109 item 5)", () => {
     assert.equal(T.readLookCredit({ theme: "Minimal", repoUrl: "http://x.example" }), undefined);
     assert.equal(T.readLookCredit("Minimal"), undefined);
     assert.equal(T.readLookCredit(undefined), undefined);
+  });
+});
+
+// --- the catalogue (ADR 0109 item 8) ---------------------------------------
+const CATALOGUE_DIR = new URL("../themes/catalogue/", import.meta.url);
+const catalogueFiles = () => readdirSync(CATALOGUE_DIR).filter((f) => f.endsWith(".verso-theme")).sort();
+const readFromDisk = async (file) => {
+  if (file === "index.json") return JSON.stringify(catalogueFiles());
+  return readFileSync(new URL(file, CATALOGUE_DIR), "utf8");
+};
+
+describe("the theme catalogue", () => {
+  test("every file of themes/catalogue/ is read by the reader an import goes through", async () => {
+    const files = catalogueFiles();
+    assert.ok(files.length > 0, "the catalogue is not empty");
+    for (const f of files) {
+      const r = parse(readFileSync(new URL(f, CATALOGUE_DIR), "utf8"));
+      assert.ok(r.ok, `${f}: ${r.why}`);
+      assert.ok(r.theme.inspiredBy?.theme, `${f} is credited`);
+    }
+    const entries = await T.readCatalogue(readFromDisk);
+    assert.equal(entries.length, files.length, "none is left out by the loader");
+    assert.equal(new Set(entries.map((e) => e.theme.name.toLowerCase())).size, entries.length, "the names are unique");
+  });
+  test("each passes the contrast floor on the sides it sets, with the reader's own check", async () => {
+    const sh = { light: shipped(), dark: shipped() };
+    for (const e of await T.readCatalogue(readFromDisk)) {
+      // The seven are always set, so the stylesheet's colours do not enter the pairs of the code and the headings.
+      const bad = T.unreadableIn(sh, e.theme);
+      assert.deepEqual(bad.map((b) => `${b.side}:${b.pair.id}:${b.pair.ratio.toFixed(2)}`), [], e.file);
+    }
+  });
+  test("the loader leaves out what does not read, what is named oddly and a name that repeats", async () => {
+    const good = readFileSync(new URL("fixtures/themes/v2-aurora.verso-theme", import.meta.url), "utf8");
+    const files = { "index.json": JSON.stringify(["a.verso-theme", "b.verso-theme", "../x.verso-theme", "C.verso-theme", "d.verso-theme", 7]), "a.verso-theme": good, "b.verso-theme": "{ not json", "d.verso-theme": good };
+    const got = await T.readCatalogue(async (f) => {
+      if (!(f in files)) throw new Error("missing");
+      return files[f];
+    });
+    assert.deepEqual(got.map((e) => e.file), ["a.verso-theme"]);
+    assert.deepEqual(await T.readCatalogue(async () => { throw new Error("no"); }), []);
+    assert.deepEqual(await T.readCatalogue(async () => "{}"), []);
+    assert.deepEqual(await T.readCatalogue(async (f) => (f === "index.json" ? "[]" : "")), []);
+  });
+  test("the search and the filters", async () => {
+    const entries = await T.readCatalogue(readFromDisk);
+    const cards = entries.map((e) => ({ name: e.theme.name, theme: e.theme }));
+    const find = (f) => cards.filter((c) => T.matches(c, { query: "", mode: "", surface: "", ...f })).map((c) => c.name);
+    assert.equal(find({}).length, cards.length);
+    assert.deepEqual(find({ query: "nord" }), ["Nord"]);
+    assert.deepEqual(find({ query: "NORD " }), ["Nord"]);
+    assert.ok(find({ query: "kepano" }).includes("Minimal"), "by author");
+    assert.ok(find({ query: "rose pine" }).length >= 1, "accents do not matter: Rosé");
+    assert.equal(find({ query: "zzz" }).length, 0);
+    assert.ok(find({ mode: "dark" }).every((n) => cards.find((c) => c.name === n).theme.mode === "dark"));
+    assert.equal(find({ surface: "flat" }).length, cards.filter((c) => c.theme.style?.["surface-mode"] === "flat").length);
+    // One of Verso's own (no file): both modes, tonal.
+    assert.ok(T.matches({ name: "Papel" }, { query: "", mode: "both", surface: "tonal" }));
+    assert.ok(!T.matches({ name: "Papel" }, { query: "", mode: "dark", surface: "" }));
+  });
+  test("each file carries only what the window may show: no key the reader would refuse on import", async () => {
+    // The index and the files are plain data: no file is bigger than 16 KB.
+    for (const f of catalogueFiles()) assert.ok(readFileSync(new URL(f, CATALOGUE_DIR)).length <= 16 * 1024, f);
   });
 });

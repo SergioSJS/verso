@@ -88,7 +88,10 @@ test("the page draws one item per entry, with a named link in each", () => {
     if (control) row.append(control);
     return row;
   } };
-  const items = C.creditsItems(ctx);
+  const all = C.creditsItems(ctx);
+  // The catalogue's themes are one more item, listed from the files (ADR 0109); it has no link of its own.
+  const items = all.filter((i) => !/catálogo|catalogue/i.test(i.title));
+  assert.equal(all.length, items.length + 1);
   assert.equal(items.length, C.CREDITS.length + C.SYSTEMS.length + C.DEPENDENCIES.length);
   assert.ok(items.every((i) => i.section === "credits" && i.group));
   assert.equal(new Set(items.map((i) => i.group)).size, 3);

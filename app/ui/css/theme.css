@@ -107,3 +107,31 @@ details.look-set { display: block; }
   .builder .look-sample { padding: 1rem 1.2rem; }
 }
 @media (prefers-reduced-motion: reduce) { .theme-card { transition: none; } }
+
+/* ---------- "Mais temas…" (ADR 0109 item 1) ---------- */
+.more-themes { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.more-box { display: flex; flex-direction: column; gap: .7rem; width: min(64rem, calc(100vw - 3rem)); height: min(48rem, calc(100vh - 3rem)); padding: 1.1rem 1.3rem 1rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .45); min-height: 0; }
+.more-head { display: flex; align-items: center; gap: .8rem; }
+.more-title { margin: 0; flex: 1; font: 600 1.25rem var(--heading-font); color: var(--ink); }
+.more-back { display: none; align-items: center; gap: .35rem; }
+.more-back .icon { width: 14px; height: 14px; }
+.more-tools { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: end; }
+.more-field { display: grid; gap: .2rem; min-width: 0; }
+.more-field:first-child { flex: 1 1 14rem; }
+.more-field input, .more-field select { font: inherit; font-size: .88rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; padding: .35rem .55rem; min-width: 0; }
+.more-field input:focus, .more-field select:focus { outline: none; border-color: var(--brass-ink); }
+.more-count { min-height: 1.3em; color: var(--ink-2); }
+.more-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; gap: 1.4rem; align-content: start; padding: .2rem .3rem .6rem 0; }
+.more-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
+.theme-mode { font-size: .76rem; color: var(--ink-2); }
+@media (max-width: 760px) {
+  .more-box { width: 100vw; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: .8rem 1rem .6rem; box-shadow: none; }
+  .more-back { display: inline-flex; }
+  .more-close { display: none; }
+  .more-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); }
+}
+
+/* The catalogue on the Credits page. */
+.credit-themes { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
+.credit-theme { display: grid; gap: .05rem; }
+.credit-theme > strong { font-size: .9rem; }

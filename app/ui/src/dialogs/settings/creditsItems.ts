@@ -8,6 +8,9 @@
 import { h } from "../../dom";
 import { CREDITS, DEPENDENCIES, SYSTEMS } from "../../credits";
 import { cs, isPt } from "./creditsStrings";
+import { loadCatalogue } from "../../theme/catalogue";
+import { creditLine } from "../../theme/creditLine";
+import { V2 } from "../../theme/moreStrings";
 import type { ItemCtx, SettingItem } from "./types";
 
 /** A link named for a screen reader. External addresses open in the system
@@ -67,6 +70,33 @@ export function creditsItems(ctx: ItemCtx): SettingItem[] {
       return box;
     });
   }
+  // The catalogue's themes (ADR 0109 item 8), listed from each file's own
+  // `inspiredBy`: a theme added to themes/catalogue/ is credited here with
+  // no line written. The list is read from the build when the page is drawn.
+  out.push({
+    section: "credits",
+    group: V2.credits.heading,
+    title: V2.credits.heading,
+    desc: V2.credits.lead,
+    node: () => {
+      const list = h("ul", "credit-themes");
+      list.setAttribute("aria-label", V2.credits.heading);
+      void loadCatalogue().then((entries) => {
+        if (entries.length === 0) return void list.replaceChildren(h("li", "", V2.credits.failed));
+        list.replaceChildren(
+          ...entries.map((e) => {
+            const li = h("li", "credit-theme");
+            li.dataset["catalogueTheme"] = e.theme.name;
+            const name = h("strong", "", e.theme.name);
+            li.append(name);
+            if (e.theme.inspiredBy) li.append(creditLine(e.theme.inspiredBy, "theme-credit"));
+            return li;
+          }),
+        );
+      });
+      return ctx.item(V2.credits.heading, V2.credits.lead, list);
+    },
+  });
   for (const d of DEPENDENCIES) {
     add(cs.softwareGroup, d.name, `${d.version} · ${cs.licence(d.license)}`, () => link(d.link, d.name));
   }
