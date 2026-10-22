@@ -87,7 +87,8 @@ a recomendação do autor.
    voltar.
 
 2. **Mais tokens, no tema e no construtor.** `[DECIDED 2026-10-22]` na
-   direção (palavras dele acima). `[OPEN]` até onde:
+   direção (palavras dele acima); até onde `[DECIDED 2026-10-22]`: opção A
+   (TM.1, o mantenedor marcou a opção recomendada):
    - **A — O `tokensVersion: 2` da especificação:** as 7 cores base, fundo e
      texto de código, `--h1-color`…`--h6-color`, 8 cores semânticas
      (vermelho, laranja, amarelo, verde, ciano, azul, roxo, rosa — usadas
@@ -116,7 +117,8 @@ a recomendação do autor.
    cartão e no construtor ("Inspirado em Minimal, de Steph Ango (MIT)"),
    mantido quando um tema é copiado.
 
-6. **Quais temas são distribuídos.** `[OPEN]`
+6. **Quais temas são distribuídos.** `[DECIDED 2026-10-22]` Opção A (TM.2,
+   marcada pelo mantenedor):
    - **A — Só de licenças permissivas ou compatíveis, cores tomadas de novo
      da fonte.** Temas sob MIT, Unlicense ou MPL-2.0, e paletas abertas com
      especificação oficial (Catppuccin, Nord, Dracula escuro, Rosé Pine,
@@ -132,7 +134,8 @@ a recomendação do autor.
      mantenedor.
    - **C — Só as paletas abertas,** nenhum dos temas do Obsidian.
 
-7. **Nomes.** `[OPEN]`
+7. **Nomes.** `[DECIDED 2026-10-22]` Opção A (TM.3, marcada pelo
+   mantenedor):
    - **A — Uma paleta aberta mantém o seu nome** (Catppuccin Mocha, Nord,
      Dracula, Solarized…), seguindo as diretrizes de adaptação da própria
      paleta quando as tem; **um tema derivado de um tema do Obsidian mantém
@@ -174,5 +177,7 @@ o item 1 responde, não uma alternativa que tenha sido pesada.
 
 ## Situação
 
-Proposta (2026-10-22). Não construída. Aguarda as respostas do mantenedor
-aos itens 2, 6 e 7 e uma leitura pelo outro modelo.
+Proposta (2026-10-22). Itens 2, 6 e 7 decididos pelo mantenedor no mesmo
+dia (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
+opções A); os itens `[PROPOSED]` continuam do autor até a aceitação. Em
+construção; aguarda uma leitura pelo outro modelo.

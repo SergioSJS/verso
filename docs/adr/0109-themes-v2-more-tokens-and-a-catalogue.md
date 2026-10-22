@@ -89,7 +89,8 @@ recommendation.
    screen with a back control.
 
 2. **More tokens, in the theme and in the builder.** `[DECIDED 2026-10-22]`
-   in direction (his words above). `[OPEN]` how far:
+   in direction (his words above); how far `[DECIDED 2026-10-22]`: option
+   A (TM.1, the maintainer marked the recommended option):
    - **A — The specification's `tokensVersion: 2`:** the 7 base colours,
      code background and text, `--h1-color`…`--h6-color`, 8 semantic colours
      (red, orange, yellow, green, cyan, blue, purple, pink — used by
@@ -118,7 +119,8 @@ recommendation.
    card and in the builder ("Inspirado em Minimal, de Steph Ango (MIT)"),
    kept when a theme is copied.
 
-6. **Which themes ship.** `[OPEN]`
+6. **Which themes ship.** `[DECIDED 2026-10-22]` Option A (TM.2, marked by
+   the maintainer):
    - **A — Only from permissive or compatible licences, colours re-taken
      from the source.** Themes under MIT, Unlicense or MPL-2.0, and open
      palettes with an official specification (Catppuccin, Nord, Dracula
@@ -134,7 +136,8 @@ recommendation.
      a judgement for the maintainer.
    - **C — Only the open palettes,** none of the Obsidian themes.
 
-7. **Names.** `[OPEN]`
+7. **Names.** `[DECIDED 2026-10-22]` Option A (TM.3, marked by the
+   maintainer):
    - **A — An open palette keeps its name** (Catppuccin Mocha, Nord,
      Dracula, Solarized…), following the palette's own porting guidelines
      where it has them; **a theme derived from an Obsidian theme keeps its
@@ -174,5 +177,7 @@ answers, not an alternative that was weighed.
 
 ## Status
 
-Proposed (2026-10-22). Not built. Waits for the maintainer's answers to
-items 2, 6 and 7 and a reading by the other model.
+Proposed (2026-10-22). Items 2, 6 and 7 decided by the maintainer the same
+day (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
+options A); the `[PROPOSED]` items stay the author's until accepted. Being
+built; waits for a reading by the other model.
