@@ -62,6 +62,8 @@
     },
     "--heading-font": "system",
     "--book": "system",
-    "font-size": 16
+    "font-size": 16,
+    "heading-scale": "large",
+    "blockquote-style": "bar"
   }
 }

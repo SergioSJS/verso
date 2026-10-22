@@ -29,6 +29,9 @@
       "--purple": "#d2a6ff"
     },
     "--heading-font": "system",
-    "--book": "system"
+    "--book": "system",
+    "heading-scale": "large",
+    "line-height": "snug",
+    "blockquote-style": "bar"
   }
 }

@@ -114,9 +114,9 @@
 [data-link-style="plain"] .preview a:not(.tag), [data-link-style="plain"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title) { border-bottom: 0; }
 
 /* Bold and italic: ink is the window's own. accent is the accent colour for
-   both; semantic is the blue for bold and the green for italic. */
+   both; semantic is the cyan for bold and the green for italic. */
 [data-emphasis-color="accent"] .preview :is(strong, b, em, i), [data-emphasis-color="accent"] .editor :is(.cm-lp-strong, .cm-lp-em) { color: var(--seal); }
-[data-emphasis-color="semantic"] .preview :is(strong, b), [data-emphasis-color="semantic"] .editor .cm-lp-strong { color: var(--blue, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240))); }
+[data-emphasis-color="semantic"] .preview :is(strong, b), [data-emphasis-color="semantic"] .editor .cm-lp-strong { color: var(--cyan, light-dark(oklch(50% 0.1 200), oklch(76% 0.1 200))); }
 [data-emphasis-color="semantic"] .preview :is(em, i), [data-emphasis-color="semantic"] .editor .cm-lp-em { color: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150))); }
 
 /* Task boxes: square (a small radius) is the window's own. */

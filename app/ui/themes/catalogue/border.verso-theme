@@ -51,6 +51,10 @@
     "font-size": 16,
     "table-style": "bordered",
     "tag-style": "outline",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-weight": "bold",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "checkbox-style": "rounded"
   }
 }

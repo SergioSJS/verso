@@ -32,6 +32,10 @@
     "--book": "system",
     "font-size": 16,
     "tag-style": "pill",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "checkbox-style": "rounded"
   }
 }

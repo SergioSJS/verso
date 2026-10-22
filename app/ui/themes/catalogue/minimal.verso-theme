@@ -52,6 +52,13 @@
     "font-size": 16,
     "table-style": "hairline",
     "tag-style": "minimal",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "compact",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "paragraph-spacing": "loose",
+    "callout-style": "outlined"
   }
 }

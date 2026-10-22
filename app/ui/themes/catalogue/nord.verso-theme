@@ -39,6 +39,9 @@
     "--mono": "mono",
     "font-size": 16,
     "table-style": "striped",
-    "tag-style": "pill"
+    "tag-style": "pill",
+    "heading-scale": "large",
+    "blockquote-style": "bar",
+    "link-style": "plain"
   }
 }
