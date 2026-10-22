@@ -759,6 +759,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    oferecido, aparece como um cartão e nunca é aplicado sozinho. Nível: H,
    A (o salvamento real do arquivo: o download do host; a aba do construtor
    no layout do celular); E: `appearance-themes.spec.mjs`.
+   Segundo passo (ADR 0109): *Mais temas…*, sob a galeria, abre uma janela
+   com os quatro do Verso e os do catálogo, uma busca rotulada (nome ou
+   autor), filtros por Modo e Superfície, cada cartão desenhado com os
+   tokens do próprio tema e com o crédito e o link (o do Flexoki nomeia
+   stephango.com/flexoki como link); um clique usa o tema (um tema de um
+   lado só leva o modo do Verso a ele, dito no status), *Copiar* guarda o
+   crédito, Esc fecha só a janela, tela cheia com *Voltar* no celular;
+   *Créditos e agradecimentos* lista o catálogo pelos créditos dos próprios
+   arquivos; o *Construtor de tema* agrupa Base (aberto), Títulos, Código,
+   Cores das callouts e Estrutura, um por vez no celular, a página de
+   exemplo mostrando h1 a h6, código, tabela, etiqueta e uma callout de cada
+   cor; uma cor de título abaixo de 3:1 é desfeita. Um tema da versão 1 fica
+   exatamente como antes. E: `more-themes.spec.mjs`,
+   `themes-v2-builder.spec.mjs`, `themes-v2.spec.mjs`.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
 3. A linha de comando na pasta: `verso search <pasta> reunião`;
