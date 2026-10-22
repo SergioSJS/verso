@@ -1,4 +1,11 @@
 # ADR 0101 — Dados 3D: um módulo preguiçoso que só encena a queda, sobre um resultado já sorteado
+  2026-10-22, testando o app instalado — o som vem **ligado por padrão**, como
+  no Rolai (o mantenedor: *"som de dados tem que ser habilitado por
+  padrão"*; revisa o "desligado" da T.7); estava mudo no app de desktop
+  porque a política de conteúdo não permitia a mídia de `'self'` — agora toca
+  pelo Web Audio desde o primeiro gesto; e um `dice:` num cartão de texto do
+  board rola como numa nota (*"eu consigo rolar dados a partir do board?"*),
+  sem gravar nada.
 
 - Data: 2026-10-17; reescrita em 2026-10-21
 - Fonte: o mantenedor, em sessão em 2026-10-17, referindo-se ao seu próprio
