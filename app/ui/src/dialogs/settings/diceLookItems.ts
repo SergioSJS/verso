@@ -13,6 +13,7 @@
 import { h } from "../../dom";
 import { type DiceLook, type DiceStyle, applyPreset, clampSize, edgeFor, lowContrast, MATERIALS, numberContrast, presetOf, PRESETS, readDiceLook, SIZE_MAX, SIZE_MIN, SIZE_STEP, SLOTS, type SlotId, TEXTURES, withField } from "../../dice3d/look";
 import { ls } from "../../dice3d/lookStrings";
+import { ROLL_TIMES } from "../../dice3d/timeline";
 import { preview3d } from "../../dice3d";
 import { parseColor, toHex } from "../../theme/color";
 import { saveSettings, settings } from "../../settings";
@@ -243,6 +244,18 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
 
   return [
     item(ls.size, ls.sizeDesc, sizeBox),
+    item(ls.time, ls.timeDesc, () => select(pairs(ROLL_TIMES, ls.times), () => look().time, (v) => save({ ...look(), time: v }))),
+    item(ls.sound, ls.soundDesc, () => {
+      const sw = ctx.toggle(look().sound, (v) => save({ ...look(), sound: v }));
+      const box = sw.querySelector("input");
+      if (box) {
+        box.setAttribute("aria-label", ls.sound);
+        syncs.push(() => {
+          box.checked = look().sound;
+        });
+      }
+      return sw;
+    }),
     item(ls.slots, ls.slotsDesc, slotsBox),
     item(ls.style, ls.styleDesc, () =>
       select(styleOptions(), styleId, (v) => {

@@ -8,7 +8,7 @@ import * as esbuild from "esbuild";
 import { existsSync } from "node:fs";
 
 await esbuild.build({
-  stdin: { contents: `export * from "./src/dice3d/look"; export * from "./src/dice3d/textures"; export * from "./src/theme/color";`, resolveDir: ".", loader: "ts" },
+  stdin: { contents: `export * from "./src/dice3d/look"; export * from "./src/dice3d/textures"; export * from "./src/theme/color"; export * from "./src/dice3d/sound";`, resolveDir: ".", loader: "ts" },
   bundle: true,
   format: "esm",
   platform: "node",
@@ -145,4 +145,28 @@ test("a dice style is closed JSON: whatever arrives, only listed ids and #rrggbb
 test("the original texture images: one file per texture but Plain, each shipped", () => {
   assert.equal(m.TEXTURE_FILES.none, null);
   for (const t of m.TEXTURES.filter((x) => x !== "none")) assert.ok(existsSync(`dice-textures/${m.TEXTURE_FILES[t]}`), t);
+});
+
+test("the roll time and the sound switch: closed values, Normal and off by default", () => {
+  const d = m.defaultLook();
+  assert.equal(d.time, "normal");
+  assert.equal(d.sound, false);
+  assert.equal(m.readDiceLook({ time: "slow", sound: true }).time, "slow");
+  assert.equal(m.readDiceLook({ time: "slow", sound: true }).sound, true);
+  for (const odd of ["", "turbo", 3, null, {}]) assert.equal(m.readDiceLook({ time: odd }).time, "normal", String(odd));
+  for (const odd of ["true", 1, null, undefined]) assert.equal(m.readDiceLook({ sound: odd }).sound, false, String(odd));
+});
+
+test("the sound's rules are Rolai's: slow hits are silent, the volume follows the speed, wood and metal are their own", () => {
+  assert.equal(m.hitVolume(m.HIT_MIN_SPEED - 0.01), null);
+  assert.ok(m.hitVolume(m.HIT_MIN_SPEED) > 0);
+  assert.equal(m.hitVolume(1e6), 1);
+  assert.ok(m.hitVolume(10) < m.hitVolume(20));
+  assert.equal(m.soundMaterial("wood"), "wood");
+  assert.equal(m.soundMaterial("metal"), "metal");
+  for (const other of ["plastic", "glass", "none", "auto"]) assert.equal(m.soundMaterial(other), "plastic", other);
+  for (const [name, n] of Object.entries(m.SOUND_COUNTS)) {
+    const prefix = name === "felt" ? "surface_felt" : `dicehit_${name}`;
+    for (let i = 1; i <= n; i++) assert.ok(existsSync(`dice-sounds/${prefix}${i}.mp3`), `${prefix}${i}`);
+  }
 });

@@ -6,26 +6,33 @@
 // and played back in real time; it ends when the dice have rested and been
 // seen for a moment, when the person skips it, or at the maximum time —
 // whichever comes first, so a fall stuck on screen always ends. After it the
-// dice linger at rest for LINGER_MS, then fade for FADE_MS (the stage). Pure.
+// dice stay on the table until the person touches something, as in Rolai (the
+// stage); no clock runs for them. Pure.
 
 /** The physics step, in seconds; the recording has one frame per step. */
 export const STEP = 1 / 60;
 /** How long the settled dice are seen before the result card shows. */
 export const HOLD_MS = 300;
-/** How long the dice stay on the table, at rest, after the card has shown
- *  (as Rolai keeps them): long enough to read them, short enough not to
- *  linger. A tap, a key or a new roll ends it at once. */
-export const LINGER_MS = 2800;
-/** The fade at the end of the linger. */
-export const FADE_MS = 400;
 /** The replay runs the recorded fall this many times faster than it was
  *  simulated, so the dice settle sooner on screen. */
 export const PLAYBACK_SPEED = 1.6;
-/** The longest a roll's animation lasts, from first frame to the canvas
- *  leaving. A value to tune; ADR 0101 item 5 sets none. */
+/** The longest a roll's animation lasts, at the normal speed, from first
+ *  frame to the dice at rest. A value to tune; ADR 0101 item 5 sets none. */
 export const MAX_ANIMATION_MS = 2500;
 
+/** The roll time the person picks (Settings): how fast the recorded fall is
+ *  replayed. Normal is the speed the dice always had. Rolai has no such
+ *  setting; this one is Verso's. */
+export const ROLL_TIMES = ["fast", "normal", "slow"] as const;
+export type RollTime = (typeof ROLL_TIMES)[number];
+export const ROLL_TIME_DEFAULT: RollTime = "normal";
+const SPEEDS: Record<RollTime, number> = { fast: 2.4, normal: PLAYBACK_SPEED, slow: 1 };
+/** The replay speed of a roll time. */
+export const speedOf = (time: RollTime): number => SPEEDS[time];
+
 export type Timeline = {
+  /** The replay speed, times the simulated one. */
+  speed: number;
   /** Frames recorded. */
   frames: number;
   /** When the last recorded frame is reached. */
@@ -34,9 +41,11 @@ export type Timeline = {
   endMs: number;
 };
 
-export function timeline(frames: number): Timeline {
-  const settleMs = (Math.max(0, frames - 1) * STEP * 1000) / PLAYBACK_SPEED;
-  return { frames, settleMs: Math.min(settleMs, MAX_ANIMATION_MS), endMs: Math.min(settleMs + HOLD_MS, MAX_ANIMATION_MS) };
+export function timeline(frames: number, speed: number = PLAYBACK_SPEED): Timeline {
+  const settleMs = (Math.max(0, frames - 1) * STEP * 1000) / speed;
+  // A slower replay has the longer maximum, so the same fall always fits.
+  const most = (MAX_ANIMATION_MS * PLAYBACK_SPEED) / speed;
+  return { speed, frames, settleMs: Math.min(settleMs, most), endMs: Math.min(settleMs + HOLD_MS, most) };
 }
 
 /** What to show `elapsedMs` after the first frame: the (fractional) frame
@@ -47,6 +56,6 @@ export function timeline(frames: number): Timeline {
 export function playhead(tl: Timeline, elapsedMs: number, skipped: boolean): { at: number; done: boolean } {
   const last = Math.max(0, tl.frames - 1);
   if (skipped || elapsedMs >= tl.endMs) return { at: last, done: true };
-  const at = Math.min(last, ((elapsedMs / 1000) * PLAYBACK_SPEED) / STEP);
+  const at = Math.min(last, ((elapsedMs / 1000) * tl.speed) / STEP);
   return { at, done: false };
 }

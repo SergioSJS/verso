@@ -6,6 +6,7 @@
 // 0035): pt-BR and English. The names are Rolai's.
 
 import { LANG } from "../strings";
+import type { RollTime } from "./timeline";
 import type { MaterialId, SlotId, TextureId } from "./look";
 
 type Words = {
@@ -13,6 +14,11 @@ type Words = {
   size: string;
   sizeDesc: string;
   sizeValue: (pct: number) => string;
+  time: string;
+  timeDesc: string;
+  times: Record<RollTime, string>;
+  sound: string;
+  soundDesc: string;
   slots: string;
   slotsDesc: string;
   slotNames: Record<SlotId, string>;
@@ -49,6 +55,11 @@ const pt: Words = {
   size: "Dados 3D: tamanho",
   sizeDesc: "Quanto o dado ocupa na tela, de 70% a 160%. Os dados caem na parte de baixo do painel em uso; 100% é um dado de cerca de 70 pixels num notebook, e o tamanho acompanha a janela.",
   sizeValue: (p) => `${p}%`,
+  time: "Duração da rolagem",
+  timeDesc: "Quão depressa os dados caem: Rápida, Normal ou Lenta. Depois de parar, os dados ficam na mesa até você mexer em algo: um clique fora dos botões, Esc ou a próxima rolagem.",
+  times: { fast: "Rápida", normal: "Normal", slow: "Lenta" },
+  sound: "Som dos dados",
+  soundDesc: "Toca o barulho dos dados batendo na mesa e uns nos outros enquanto caem, com as gravações do Rolai (domínio público). Desligado por padrão.",
   slots: "Dados 3D: cores",
   slotsDesc: "Três conjuntos de cor. Uma rolagem usa o conjunto 1; um perfil de dados pode dar a um grupo de dados o 2 ou o 3 (como a Fome do Vampiro). Escolha o conjunto e mude o estilo abaixo.",
   slotNames: { "1": "1 · Primário", "2": "2 · Secundário", "3": "3 · Terciário" },
@@ -73,7 +84,7 @@ const pt: Words = {
   textures: { none: "Lisa", marble: "Mármore", speckles: "Pintas", glitter: "Glitter", stars: "Estrelas", astral: "Céu astral", cloudy: "Nuvens", fire: "Fogo", water: "Água", ice: "Gelo", paper: "Papel", wood: "Madeira", metal: "Aço", stainedglass: "Vitral", skulls: "Caveiras", dragon: "Dragão", leopard: "Leopardo", tiger: "Tigre", lizard: "Lagarto", bird: "Pena" },
   textureDesc: "As imagens originais do 3DDiceRoller (domínio público), que vêm com o aplicativo; se uma não carregar, o Verso desenha a textura.",
   test: "Dados 3D: testar",
-  testDesc: "Rola um d20 (cor 1) e dois d6 (cores 2 e 3) com a aparência de agora. Só para olhar: nada é escrito numa nota. Esc ou um clique pula.",
+  testDesc: "Rola um d20 (cor 1) e dois d6 (cores 2 e 3) com a aparência de agora. Só para olhar: nada é escrito numa nota. Esc pula a queda.",
   roll: "Rolar para testar",
   rolled: (a, b, c) => `d20: ${a}, d6: ${b}, d6: ${c}`,
   offSwitch: "Os dados 3D estão desligados. Ligue \"Dados 3D\" nesta página para testar.",
@@ -85,6 +96,11 @@ const en: Words = {
   size: "3D dice: size",
   sizeDesc: "How much room a die takes on the screen, from 70% to 160%. The dice fall on the lower part of the pane in use; 100% is a die about 70 pixels across on a laptop, and the size follows the window.",
   sizeValue: (p) => `${p}%`,
+  time: "Roll duration",
+  timeDesc: "How fast the dice fall: Fast, Normal or Slow. Once they stop, the dice stay on the table until you touch something: a click away from the buttons, Esc or the next roll.",
+  times: { fast: "Fast", normal: "Normal", slow: "Slow" },
+  sound: "Dice sound",
+  soundDesc: "Plays the sound of the dice hitting the table and each other as they fall, with Rolai's recordings (public domain). Off by default.",
   slots: "3D dice: colours",
   slotsDesc: "Three colour sets. A roll uses set 1; a dice profile can give a group of dice set 2 or 3 (like Vampire's Hunger dice). Pick a set and change its style below.",
   slotNames: { "1": "1 · Primary", "2": "2 · Secondary", "3": "3 · Tertiary" },
@@ -109,7 +125,7 @@ const en: Words = {
   textures: { none: "Plain", marble: "Marble", speckles: "Speckles", glitter: "Glitter", stars: "Stars", astral: "Astral sky", cloudy: "Clouds", fire: "Fire", water: "Water", ice: "Ice", paper: "Paper", wood: "Wood", metal: "Steel", stainedglass: "Stained glass", skulls: "Skulls", dragon: "Dragon", leopard: "Leopard", tiger: "Tiger", lizard: "Lizard", bird: "Feather" },
   textureDesc: "The original images of 3DDiceRoller (public domain), shipped with the app; if one does not load, Verso draws the texture.",
   test: "3D dice: test",
-  testDesc: "Rolls a d20 (colour 1) and two d6 (colours 2 and 3) with the look as it is now. For looking only: nothing is written to a note. Esc or a click skips.",
+  testDesc: "Rolls a d20 (colour 1) and two d6 (colours 2 and 3) with the look as it is now. For looking only: nothing is written to a note. Esc skips the fall.",
   roll: "Roll to test",
   rolled: (a, b, c) => `d20: ${a}, d6: ${b}, d6: ${c}`,
   offSwitch: "3D dice are off. Turn on \"3D dice\" on this page to test.",
