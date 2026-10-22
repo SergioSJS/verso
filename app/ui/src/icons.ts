@@ -152,7 +152,8 @@ export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGE
   svg.setAttribute("height", "16");
   svg.setAttribute("fill", "none");
   svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "1.5");
+  // The three dots of "more" are only points: a thicker pen makes them dots, not a speck.
+  svg.setAttribute("stroke-width", name === "more" ? "2.6" : "1.5");
   svg.setAttribute("stroke-linecap", "round");
   svg.setAttribute("stroke-linejoin", "round");
   svg.classList.add("icon");
