@@ -219,3 +219,6 @@ sizes the notes' text only (`--note-scale`), no longer the `<html>` element; the
 interface's size is the window zoom. This contradicts the text of this ADR
 (a theme's `font-size` "of the `<html>` element"); recorded, **not decided** —
 the maintainer confirms or reverts it.
+
+Confirmed 2026-10-22 by the maintainer — the font size sizes the notes only
+(*"deveria ser"*); the as-built note above is now the decision.

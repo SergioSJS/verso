@@ -215,3 +215,6 @@ um tema — agora dimensiona só o texto das notas (`--note-scale`), não mais o
 elemento `<html>`; o tamanho da interface é o zoom da janela. Isso contradiz o
 texto desta ADR (o `font-size` de um tema "do elemento `<html>`"); registrado,
 **não decidido** — o mantenedor confirma ou desfaz.
+
+Confirmado em 2026-10-22 pelo mantenedor — o tamanho da fonte dimensiona só as
+notas (*"deveria ser"*); a nota de construção acima passa a ser a decisão.
