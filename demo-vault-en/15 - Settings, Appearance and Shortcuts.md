@@ -86,6 +86,21 @@ The everyday shortcuts are on the [[00 - Welcome to Verso|Home Page]]; the board
 
 ---
 
+## The Menu Bar (macOS)
+
+On a Mac, the bar at the top of the screen gathers what Verso does, with each command's key beside it — the same keys as in **Hotkeys**, changing along with them. Each item does the same as the command of the same name in the palette (`⌘⇧P`).
+
+- **File**: new notes, folders, boards and bases; open a folder and recents; import files; **Sync with…**; save, rename, move, version history and trash.
+- **Edit**: undo, copy and paste; find in the note, replace, search the notes; property, template and base.
+- **View**: reading and editing, panels, tab bar and vertical tabs, split, zoom, graphs, **Appearance and Themes…** and **More Themes…**.
+- **Go**: back and forward, quick open, the palette, the daily note, switch focus, tabs.
+- **RPG**: **Roll Dice…**, **Ask the Oracle**, **New Project from Template…** and **Dice and RPG Settings…**. A feature turned off in **Settings › Features** leaves the menu; the settings item stays, to turn it back on.
+- **Help**: notifications, the tutorial, updates, report a problem and credits.
+
+A grey item does not apply right now (for example **Save** with no note open). Windows and Linux have no such bar: the same commands are in the palette and in the settings.
+
+---
+
 ## The Left Ribbon
 
 The buttons on the left ribbon (search, open, today's note, graph…) can be dragged to change their order. Right-click one for: **Move up**, **Move down**, **Hide this button**, **Show hidden buttons** and **Restore order**.

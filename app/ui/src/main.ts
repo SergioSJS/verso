@@ -53,6 +53,7 @@ import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
+import { installMenuBar } from "./menuBar";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
 import { Layout } from "./layout/layout";
@@ -698,6 +699,7 @@ export function openConsole(): void {
   if (settings.devtools) void commands.openDevtools();
   else ui.status.textContent = t.devtoolsOff;
 }
+if (!popout) installMenuBar();
 void listen<string>("menu-devtools", (e) => {
   if (e.payload === getCurrentWindow().label) openConsole();
 });

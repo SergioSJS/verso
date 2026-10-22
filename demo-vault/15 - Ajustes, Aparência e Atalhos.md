@@ -86,6 +86,21 @@ Os atalhos do dia a dia estão na [[00 - Bem-vindo ao Verso|Página Inicial]]; o
 
 ---
 
+## A Barra de Menus (macOS)
+
+No Mac, a barra do topo da tela reúne o que o Verso faz, com a tecla de cada comando ao lado — as mesmas teclas de **Atalhos**, e mudam junto com elas. Cada item faz o mesmo que o comando de mesmo nome na paleta (`⌘⇧P`).
+
+- **Arquivo**: novas notas, pastas, boards e bases; abrir pasta e recentes; importar arquivos; **Sincronizar com…**; salvar, renomear, mover, histórico de versões e lixeira.
+- **Edição**: desfazer, copiar e colar; buscar na nota, substituir, buscar nas notas; propriedade, template e base.
+- **Visualização**: leitura e edição, painéis, barra e abas verticais, dividir, zoom, grafos, **Aparência e temas…** e **Mais temas…**.
+- **Ir**: voltar e avançar, abrir nota, paleta, nota diária, trocar foco, abas.
+- **RPG**: **Rolar dados…**, **Perguntar ao oráculo**, **Novo projeto a partir de modelo…** e **Ajustes de Dados e RPG…**. Um recurso desligado em **Ajustes › Recursos** some do menu; o item dos ajustes fica, para ligá-lo de volta.
+- **Ajuda**: notificações, tutorial, atualizações, relatar um problema e créditos.
+
+Um item cinza não vale agora (por exemplo **Salvar** sem nenhuma nota aberta). No Windows e no Linux não há essa barra: os mesmos comandos estão na paleta e nos ajustes.
+
+---
+
 ## A Faixa da Esquerda
 
 Os botões da faixa da esquerda (busca, abrir, nota de hoje, grafo…) se arrastam para mudar de ordem. Com o botão direito num deles: **Mover para cima**, **Mover para baixo**, **Ocultar este botão**, **Mostrar botões ocultos** e **Restaurar ordem**.

@@ -43,6 +43,8 @@ import { openFolderDialog, reindex } from "./open";
 import { openCentre } from "./notify";
 import { notifyStrings } from "./notify/strings";
 import { dirOf } from "./paths";
+import { menuWords } from "./menuWords";
+import { openMoreThemes } from "./theme/more";
 import { periodicCommands } from "./periodic/notes";
 import { ptPhrases } from "./phrases";
 import { settings } from "./settings";
@@ -154,6 +156,8 @@ export function paintKeyHints(): void {
     if (kbd) kbd.textContent = prettyKeys(keyOf(ids[b.dataset["cmd"] ?? ""] ?? ""));
   }
   ribbon?.paint();
+  // The native menu shows the keys too (menuBar.ts).
+  window.dispatchEvent(new Event("verso:keys-painted"));
 }
 /** What the system and every text field need: bound to a command, they
  *  would stop copying, pasting, undoing, quitting… (a command keeps its
@@ -331,6 +335,12 @@ export function allCommands(all = false): Command[] {
     { id: "roll-dice", label: ds.command, need: hasCapability("diceRolling"), run: () => openRoller() },
     // Creative Oracles & Solo Improvisation (ADR 0102).
     { id: "ask-oracle", label: t.oracle, need: hasCapability("oracles"), run: () => askOracleInActiveNote() },
+    // Pages of the settings and windows the menu bar reaches (no default key).
+    { id: "settings-rpg", label: menuWords.rpg, run: () => settingsDialog.show("rpgfeatures") },
+    { id: "settings-appearance", label: menuWords.appearance, run: () => settingsDialog.show("appearance") },
+    { id: "more-themes", label: menuWords.moreThemes, run: () => openMoreThemes(null) },
+    { id: "open-sync", label: menuWords.sync, need: hasFolder && can("local_folders"), run: () => settingsDialog.show("sync") },
+    { id: "open-credits", label: menuWords.credits, run: () => settingsDialog.show("credits") },
   ];
   return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: hideKeyHints() ? undefined : prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }

@@ -480,6 +480,17 @@ export const commands = {
 	 *  start-up and when the setting changes.
 	 */
 	setMenuLanguage: (language: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_language", { language })),
+	/**
+	 *  What the window says about itself for the menu: the features that are
+	 *  on and the keys bound to commands (a change rebuilds the bar, as a
+	 *  change of language does).
+	 */
+	setMenuCommands: (features: string[], keys: { [key in string]: string }) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_commands", { features, keys })),
+	/**
+	 *  The commands that can run just now (the palette's own list, from the
+	 *  window in focus): the other items are greyed, in place.
+	 */
+	setMenuEnabled: (enabled: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_enabled", { enabled })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**
