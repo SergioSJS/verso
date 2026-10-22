@@ -1,8 +1,10 @@
 /* Reading */
-.preview { font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+/* The reading view's vertical rhythm (ADR 0061, revised 2026-10-22): every block
+   leaves --flow below it, and a blank line in the source adds nothing. */
+.preview { --flow: .9em; font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .preview:empty { display: none; }
 .preview > :first-child { margin-top: 0; }
-.preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.5em 0 .4em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
 /* A colour per heading level (ADR 0109): the theme's, else what each level always had. */
 .preview h1 { color: var(--h1-color, var(--heading-color, var(--ink))); }
@@ -11,12 +13,11 @@
 .preview h4 { color: var(--h4-color, var(--ink-2)); }
 .preview h5 { color: var(--h5-color, inherit); }
 .preview h6 { color: var(--h6-color, inherit); }
-.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
+.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 var(--flow); }
 .preview ul, .preview ol {
-  margin: 0.25em 0 0.75em;
+  margin: 0 0 var(--flow);
   padding-left: 1.5em;
 }
-.preview hr + ul, .preview hr + ol { margin-top: -0.4em; }
 
 /* All list items: compact vertical rhythm matching Edit mode */
 .preview li {
@@ -148,9 +149,9 @@
   position: relative;
   border: 0;
   text-align: center;
-  height: 1.8em;
-  line-height: 1.8em;
-  margin: 1.2em 0;
+  height: 1.4em;
+  line-height: 1.4em;
+  margin: 1em 0;
 }
 .preview hr::before {
   content: "";

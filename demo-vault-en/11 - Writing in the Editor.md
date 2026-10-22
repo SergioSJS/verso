@@ -54,6 +54,8 @@ At the start of a line, type `/` and choose a block. Typing filters the list; `E
 - **Callouts**: Callout: note, Callout: tip, Callout: warning.
 - **Insert**: Table, Internal link, Embed note, Image, Link, **Today's date**, **Time now** and **Insert template…**.
 
+**A divider from the keyboard**: type `---` and press Enter. Verso writes the blank lines Markdown wants around the divider — one before, when the text above would turn it into a heading underline, and one after — and leaves the caret below, ready to write; a single `⌘Z` undoes it. Away from the caret, the blank line between two blocks shows only as a thin gap, and Reading adds no space for it at all.
+
 Try it on this empty line, in Edit mode:
 
 

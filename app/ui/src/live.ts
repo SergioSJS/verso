@@ -20,6 +20,7 @@ import { heldImage } from "./sanitize";
 import { hasCapability } from "./capabilities";
 import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
+import { blankGaps } from "./live/gaps";
 import { blocksOf, foldBlocks, type Block } from "./live/blocks";
 import { frontmatterEnd, outOfFrontmatter, keepFrontmatter } from "./live/frontmatter";
 import { liveListNavKeymap, snapOutOfListPrefix } from "./live/lists";
@@ -145,6 +146,17 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // (The fold itself is a state field below: a replacement that spans
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
+
+  // A blank line that only separates two blocks is a thin gap, full height
+  // under the caret (ADR 0061, revised 2026-10-22); a further blank line in
+  // the same run is smaller than a line but kept.
+  for (const { from, to } of view.visibleRanges) {
+    for (const [n, kind] of blankGaps(doc, tree, from, to, fmEnd)) {
+      if (active.has(n)) continue;
+      const at = doc.line(n).from;
+      out.push({ from: at, to: at, deco: Decoration.line({ class: kind === "gap" ? "cm-lp-gap" : "cm-lp-gap-extra" }) });
+    }
+  }
 
   // Math the reader typesets, by its parser's rules, in the blocks that
   // hold inline text — never in code, which is not such a block, nor over

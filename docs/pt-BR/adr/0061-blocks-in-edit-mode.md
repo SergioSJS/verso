@@ -10,7 +10,8 @@
   Obsidian.
 - Revisões: 2026-10-06 — decidido pelo mantenedor (Status): D1 com S1 e S2
   num pull request só, D8 (b) com a nota diária em ⌘⇧D, D9 (b), o resto como
-  está escrito.
+  está escrito. 2026-10-22 — o mantenedor aprovou o item 9, linhas
+  vazias e a linha horizontal (abaixo), em sessão.
 - Status no briefing: não consta
 
 ## Contexto
@@ -277,6 +278,57 @@ fim da nota (macOS), ⌘D é a nota diária, ⌘/ alterna um comentário.
 | Vários blocos arrastados juntos | Os blocos que uma seleção de texto toca | S2 |
 | Arrastado para a direita para aninhar | Itens de lista, pela posição do ponteiro | S2 |
 | Arrastado para o lado, em colunas | — | O compositor da D9 do 0060 |
+
+### 9. Linhas vazias e a linha horizontal (revisão, 2026-10-22)
+
+O mantenedor, 2026-10-22, em sessão: "Como temos os componentes iguais aos do
+Notion para arrastar, e definimos que o Enter numa linha vazia delimita um
+componente do outro, quando usamos a linha horizontal precisamos de: linha
+vazia, os três traços, Enter, Enter, e então continuar escrevendo. Está uma
+distância gigantesca de um conteúdo para o outro, e acho que isso acontece
+com outros elementos também. Estamos espaçando muito as informações, sendo
+que esse Enter está ali para delimitar componentes. Inclusive no modo
+Leitura nem precisaria ter esse Enter vazio de separação." Ele aprovou três
+mudanças. O arquivo nunca é tocado pelas duas primeiras: são desenho, e o
+modo Fonte não muda.
+
+1. **Live Preview: uma linha vazia que só separa dois blocos é um vão fino.**
+   A primeira linha vazia de uma sequência, com o cursor fora dela e sem a
+   seleção atravessá-la, é desenhada com 0,4 de uma linha (uma decoração de
+   linha, `cm-lp-gap`, `line-height: .68` contra os 1,7 do editor). Sob o
+   cursor, ou dentro de uma seleção, ela tem a linha inteira, para que
+   digitar funcione. Cada linha vazia a mais da mesma sequência é espaço que
+   alguém digitou de propósito: é mantida, com 0,6 de uma linha
+   (`cm-lp-gap-extra`) — escolha do autor para o "visível mas reduzido" do
+   mantenedor. Uma linha vazia não é fina dentro de código, de um bloco HTML,
+   de uma tabela ou de um comentário (ali é conteúdo), no frontmatter
+   (dobrado), nem como a última linha da nota (o lugar onde se clica para
+   continuar escrevendo). O modelo de blocos e as alças não mudam: um bloco
+   continua limitado pela sua linha vazia, e as alças leem a geometria do
+   próprio editor.
+2. **Leitura: o espaço vem só das margens dos blocos.** Uma linha vazia no
+   texto-fonte nunca soma espaço — nem parágrafo vazio, nem `<br>`, nem
+   envoltório (verificado por máquina: cinco linhas vazias e uma dão a mesma
+   distância). O ritmo é uma unidade, `--flow` (0,9em, onde era 1em), abaixo
+   de parágrafos, citações, código, tabelas, avisos, listas e fórmulas em
+   bloco; um título tem 1,5em acima e 0,4em abaixo (eram 1,8 e 0,5); a linha
+   horizontal tem 1em acima e abaixo, com uma caixa de 1,4em (eram 1,2em e
+   1,8em), para todo valor de `hr-style`. O `paragraph-spacing` do tema
+   (justo, solto) continua definindo a margem inferior do parágrafo por cima.
+3. **`---` e Enter escrevem as linhas vazias em volta da linha horizontal.**
+   No Live Preview e no modo Fonte, com o cursor no fim de uma linha que é
+   exatamente `---`, `***` ou `___`: se a linha de cima é uma linha de
+   parágrafo (de modo que `---` seria o sublinhado de um título setext, Q19
+   da especificação), uma linha vazia é inserida antes; uma linha vazia é
+   escrita depois, e o cursor vai para a linha abaixo dela, de modo que um só
+   Enter continua a escrita. É o texto que uma pessoa teria digitado à mão,
+   como uma só mudança e um passo próprio do histórico de desfazer (um ⌘Z
+   devolve a linha como foi digitada). Não faz nada — o Enter é o comum —
+   dentro de código, de tabela, de lista ou de citação, no frontmatter (o
+   `---` que abre e o que fecha), na primeira linha da nota (ela pode abrir
+   um frontmatter), nem com seleção ou com o cursor fora do fim da linha. A
+   invariante 7 vale: nada é escrito ao abrir, só por uma tecla que a pessoa
+   apertou; nenhuma fixture muda.
 
 ## Consequências
 
