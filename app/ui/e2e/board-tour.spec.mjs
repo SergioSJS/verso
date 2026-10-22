@@ -64,3 +64,11 @@ test("⌘P opens the quick switcher from a board", async ({ app }) => {
   await app.key("Mod+p");
   await expect(app.page.getByRole("combobox", { name: "Abrir…" })).toBeFocused();
 });
+
+test("the board's main-menu button has a name for a screen reader @layout", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("Tour do Verso");
+  const menu = page.locator(".board-canvas .main-menu-trigger").first();
+  await expect(menu).toBeVisible();
+  await expect(menu).toHaveAccessibleName("Menu do board");
+});
