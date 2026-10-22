@@ -36,7 +36,7 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 - Ou arraste uma aba até a borda de um painel: a borda escolhe o lado; o meio põe a aba ali.
 - O **painel da direita** (estrutura, backlinks, tags, favoritos, focos e calendário) abre pelo botão **Mostrar painel da direita**, sempre no canto de cima à direita da janela, ou por `⌘⌥→`. No celular, é o botão **Painel** da barra de baixo.
 - `⌘⇧M` maximiza o painel e `⌘⇧W` o fecha.
-- O botão **Todas as abas**, no canto da barra de abas, lista as abas do painel e tem **Abas na vertical** e **Ocultar barra de abas** — um duplo clique no painel vazio traz a barra de volta.
+- O botão **Todas as abas**, no canto da barra de abas, lista as abas do painel e tem **Abas na vertical** e **Ocultar barra de abas** — para trazê-la de volta, no celular toque na faixa **Mostrar barra de abas** que aparece no alto do painel; em qualquer tela use a Paleta de comandos (`⌘⇧P`; no celular, o botão **Comandos** da barra de baixo) ou o interruptor em **Ajustes › Editor**; um duplo clique no painel vazio também serve.
 
 ---
 

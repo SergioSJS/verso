@@ -730,6 +730,11 @@ export class SettingsDialog {
       saveSettings();
       if (!v) for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) l.keep();
     }));
+    // A hide always has a way back (a phone has no double click): the bar
+    // is shown or hidden in every pane of every workspace from here.
+    add("editor", t.showTabs, t.showTabsDesc, () => this.toggle(!spaces.some((sp) => sp.layout.panes().some((p) => p.tabsHidden)), (v) => {
+      for (const sp of spaces) for (const p of sp.layout.panes()) p.setTabsHidden(!v);
+    }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));

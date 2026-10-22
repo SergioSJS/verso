@@ -50,6 +50,9 @@ export class Pane {
   readonly empty = h("div", "pane-empty");
   readonly leaves: Leaf[] = [];
   readonly tabsDivider = h("div", "tabs-divider");
+  /** With the tab bar hidden, a phone has nothing to open its menu from: a
+   *  thin named strip says where the bar went and brings it back. */
+  readonly restoreBar = h("div", "tabs-restore");
   active: Leaf | null = null;
   vertical = false;
   tabsHidden = false;
@@ -159,7 +162,12 @@ export class Pane {
     });
     this.empty.append(icon("outline"), h("p", "", t.emptyPane));
     this.body.append(this.empty);
-    this.el.append(this.tabs, this.tabsDivider, this.body);
+    const restore = h("button", "ghost tabs-restore-button");
+    restore.type = "button";
+    restore.append(icon("tab"), h("span", "", t.showTabs));
+    restore.addEventListener("click", () => this.setTabsHidden(false));
+    this.restoreBar.append(restore);
+    this.el.append(this.tabs, this.restoreBar, this.tabsDivider, this.body);
     this.el.addEventListener("mousedown", () => layout().focus(this));
   }
   setTabsHidden(hidden: boolean): void {
