@@ -120,6 +120,9 @@ export type Settings = {
   suggestIgnoreFolders: string[];
   suggestIgnoreNames: string[];
   hiddenFromTree: Record<string, string[]>;
+  /** Keys of the recent folders taken off the folder switcher's list (T.10,
+   *  2026-10-22); Settings › Files shows them again. This device only. */
+  hiddenFolders: string[];
   syncFocuses: Record<string, boolean>;
   syncFocusesAsked: Record<string, boolean>;
   localFocuses: Record<string, Focus[]>;
@@ -199,6 +202,7 @@ export const DEFAULTS: Settings = {
   suggestIgnoreFolders: [],
   suggestIgnoreNames: [],
   hiddenFromTree: {},
+  hiddenFolders: [],
   syncFocuses: {},
   syncFocusesAsked: {},
   localFocuses: {},
@@ -238,6 +242,7 @@ export function loadSettings(): void {
       if (typeof settings.mapTilesDark !== "string") settings.mapTilesDark = "";
       if (settings.mcpMode !== "all") settings.mcpMode = "folder";
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
+      settings.hiddenFolders = Array.isArray(settings.hiddenFolders) ? settings.hiddenFolders.filter((k) => typeof k === "string") : [];
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};

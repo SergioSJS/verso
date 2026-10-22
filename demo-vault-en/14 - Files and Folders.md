@@ -36,6 +36,12 @@ Right-click a note in the tree (on a phone or tablet, hold your finger on it and
 
 ---
 
+## Switching Folders
+
+The button with the folder's name, at the top of the tree, opens the switcher: the folders of this computer you opened before, your own and the shared ones on a server. Two folders with one name show, underneath, where each sits. A folder you no longer want in the list has a **×** beside it (the open folder has none): it only takes it off the list — nothing is deleted from the disk. To bring them back, **Settings › Files and links › Show hidden folders**.
+
+---
+
 ## Drag and Drop
 
 - Drag a note from the tree onto another folder to move it. With a finger, hold the note for a moment before dragging: sliding straight away only scrolls the tree.

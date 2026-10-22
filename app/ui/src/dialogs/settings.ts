@@ -31,6 +31,8 @@ import { paneToOpenIn, spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, ribbon, updateController } from "../main";
 import { walkRulesChanged } from "../open";
+import { hiddenFolderKeys, showHiddenFolders } from "../panel/hiddenFolders";
+import { sh } from "../shareStrings";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
@@ -588,6 +590,19 @@ export class SettingsDialog {
       i.addEventListener("change", () => { settings.importMaxMb = importSetting(Number(i.value)); i.value = String(settings.importMaxMb); saveSettings(); });
       return i;
     });
+    // The way back for a folder taken off the switcher's list (T.10).
+    if (can("local_folders")) {
+      add("files", sh.showHiddenTitle, sh.showHiddenDesc, () => {
+        const n = hiddenFolderKeys().length;
+        const b = button("ghost", sh.showHiddenButton(n));
+        b.disabled = n === 0;
+        b.addEventListener("click", () => {
+          showHiddenFolders();
+          this.paint();
+        });
+        return b;
+      });
+    }
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
