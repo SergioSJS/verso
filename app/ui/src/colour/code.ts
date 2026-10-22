@@ -104,6 +104,12 @@ export function parseCode(text: string): { colour: Colour; style: Style } | null
 const byte = (n: number): number => clamp(Math.round(n), 0, 255);
 const trim = (n: number, places: number): string => String(Number(n.toFixed(places)));
 
+/** `colour` written in the notation `code` is in; null when `code` is no colour. */
+export function rewriteLike(code: string, colour: Colour): string | null {
+  const read = parseCode(code.trim());
+  return read ? formatLike(read.style, colour) : null;
+}
+
 /** `colour` written as `style` says: the same notation, with only the
  *  digits or fields that the new colour needs. A 3 or 4 digit hex that
  *  cannot say the new colour grows to 6 or 8; a code with no alpha that

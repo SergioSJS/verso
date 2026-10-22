@@ -666,7 +666,7 @@ export class PropertiesView {
         }
       });
       // A colour code as the value shows its colour (ADR 0108).
-      if (input.type === "text") value.append(propSwatch(input, this.opts.swatches));
+      if (input.type === "text") value.append(propSwatch(input, { enabled: this.opts.swatches, commit: fixed ? undefined : done }));
       value.append(input);
       if (d && d.kind === "image") {
         value.append(this.suggestFor(input, "image"));

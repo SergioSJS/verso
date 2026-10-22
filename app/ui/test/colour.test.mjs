@@ -131,3 +131,13 @@ test("nothing here writes: reading a text leaves it as it was", () => {
   for (const l of text.split("\n")) swatchesIn(l, "prose");
   assert.equal(text, before);
 });
+
+test("a colour picked for a property value is written in the value's own format", async () => {
+  const { rewriteLike } = await import("./.bundles/colour.test-bundle.mjs");
+  const red = { r: 255, g: 0, b: 0, a: 1 };
+  assert.equal(rewriteLike("#abcdef", red), "#ff0000");
+  assert.equal(rewriteLike("#ABCDEF", red), "#FF0000");
+  assert.equal(rewriteLike(" rgb(10 20 30 / 50%) ", { ...red, a: 0.5 }), "rgb(255 0 0 / 50%)");
+  assert.equal(rewriteLike("hsl(160, 69%, 37%)", red), "hsl(0, 100%, 50%)");
+  assert.equal(rewriteLike("not a colour", red), null);
+});
