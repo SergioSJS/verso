@@ -25,7 +25,18 @@
 //       "heading-style": "rule",     //   plain rule accent-bar small-caps
 //       "table-style": "striped",    //   hairline striped bordered
 //       "tag-style": "outline",      //   pill outline minimal
-//       "radius": "sharp"            //   soft sharp round
+//       "radius": "sharp",           //   soft sharp round
+//       // ten more, each optional (the first value is the window's own look):
+//       "heading-scale": "compact",       // standard compact large
+//       "heading-weight": "regular",      // semibold regular bold
+//       "line-width": "narrow",           // standard narrow wide
+//       "line-height": "relaxed",         // normal snug relaxed
+//       "blockquote-style": "panel",      // bar-italic bar panel plain
+//       "link-style": "hover",            // underline hover plain
+//       "emphasis-color": "accent",       // ink accent semantic
+//       "checkbox-style": "round",        // square rounded round
+//       "paragraph-spacing": "loose",     // standard tight loose
+//       "callout-style": "outlined"       // tinted outlined title-bar
 //     }
 //   }
 //

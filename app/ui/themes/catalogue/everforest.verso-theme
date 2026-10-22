@@ -61,6 +61,9 @@
     "--heading-font": "system",
     "--book": "system",
     "font-size": 16,
-    "tag-style": "outline"
+    "tag-style": "outline",
+    "heading-scale": "large",
+    "heading-weight": "regular",
+    "blockquote-style": "bar"
   }
 }

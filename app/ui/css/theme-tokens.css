@@ -71,3 +71,69 @@
 [data-semantic] :is(.orc-a-yes, .orc-a-yesBut, .orc-a-noBut, .orc-a-no) { --on: var(--ink); }
 /* [!important] and [!todo] callouts take the pink only when a theme sets semantic colours. */
 [data-semantic] .callout:is([data-callout="important"], [data-callout="todo"]) { --kind: var(--pink, light-dark(oklch(50% 0.15 350), oklch(76% 0.13 350))); }
+
+/* ---------- Ten more structural choices (ADR 0109, TM.4 = B) ---------- */
+/* Each is a closed list in theme/tokens.ts whose first value is the window's
+   own look and writes nothing; what is written is answered here, for reading
+   (.preview) and for Live Preview (.editor), and nowhere else. */
+
+/* Heading scale: standard is 1.65 / 1.35 / 1.12 em. */
+[data-heading-scale="compact"] .preview h1, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h1 { font-size: 1.2em; }
+[data-heading-scale="compact"] .preview h2, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h2 { font-size: 1.1em; }
+[data-heading-scale="compact"] .preview h3, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h3 { font-size: 1.04em; }
+[data-heading-scale="large"] .preview h1, [data-heading-scale="large"] .editor .cm-line.cm-lp-h1 { font-size: 2.1em; }
+[data-heading-scale="large"] .preview h2, [data-heading-scale="large"] .editor .cm-line.cm-lp-h2 { font-size: 1.7em; }
+[data-heading-scale="large"] .preview h3, [data-heading-scale="large"] .editor .cm-line.cm-lp-h3 { font-size: 1.35em; }
+
+/* Heading weight: semibold (600) is the window's own. */
+[data-heading-weight="regular"] .preview :is(h1, h2, h3, h4, h5, h6), [data-heading-weight="regular"] .editor .cm-line.cm-lp-h { font-weight: 400; }
+[data-heading-weight="bold"] .preview :is(h1, h2, h3, h4, h5, h6), [data-heading-weight="bold"] .editor .cm-line.cm-lp-h { font-weight: 700; }
+
+/* Reading column: standard is 100ch. The person's own "wide" measure
+   (data-measure, css/panels.css) still wins. */
+[data-line-width="narrow"] :is(.preview, .editor, .props, .links) { max-width: 40rem; }
+[data-line-width="wide"] :is(.preview, .editor, .props, .links) { max-width: 72rem; }
+
+/* Line height: normal is 1.7 (lists 1.6). */
+[data-line-height="snug"] .preview, [data-line-height="snug"] .editor .cm-scroller { line-height: 1.5; }
+[data-line-height="snug"] .preview li, [data-line-height="snug"] .editor .cm-line.cm-lp-li { line-height: 1.4; }
+[data-line-height="relaxed"] .preview, [data-line-height="relaxed"] .editor .cm-scroller { line-height: 1.9; }
+[data-line-height="relaxed"] .preview li, [data-line-height="relaxed"] .editor .cm-line.cm-lp-li { line-height: 1.8; }
+
+/* Quotes: bar-italic is the window's own. */
+[data-blockquote-style="bar"] .preview blockquote, [data-blockquote-style="bar"] .editor .cm-line.cm-lp-quote { font-style: normal; }
+[data-blockquote-style="panel"] .preview blockquote { background: var(--paper-2); border-left: 4px solid var(--brass); border-radius: 0 var(--radius-m, 8px) var(--radius-m, 8px) 0; padding: .6rem 1rem; }
+[data-blockquote-style="panel"] .editor .cm-line.cm-lp-quote { background: var(--paper-2); border-left: 4px solid var(--brass); padding-left: 1rem; }
+[data-blockquote-style="plain"] .preview blockquote, [data-blockquote-style="plain"] .editor .cm-line.cm-lp-quote { border-left: 0; font-style: normal; }
+
+/* Links: underline (a hairline under the text) is the window's own. */
+[data-link-style="hover"] .preview a:not(.tag) { border-bottom-color: transparent; }
+[data-link-style="hover"] .preview a:not(.tag):hover { border-bottom-color: var(--seal); }
+[data-link-style="hover"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title) { border-bottom-color: transparent; }
+[data-link-style="hover"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title):hover { border-bottom-color: var(--seal); }
+[data-link-style="plain"] .preview a:not(.tag), [data-link-style="plain"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title) { border-bottom: 0; }
+
+/* Bold and italic: ink is the window's own. accent is the accent colour for
+   both; semantic is the cyan for bold and the green for italic. */
+[data-emphasis-color="accent"] .preview :is(strong, b, em, i), [data-emphasis-color="accent"] .editor :is(.cm-lp-strong, .cm-lp-em) { color: var(--seal); }
+[data-emphasis-color="semantic"] .preview :is(strong, b), [data-emphasis-color="semantic"] .editor .cm-lp-strong { color: var(--cyan, light-dark(oklch(50% 0.1 200), oklch(76% 0.1 200))); }
+[data-emphasis-color="semantic"] .preview :is(em, i), [data-emphasis-color="semantic"] .editor .cm-lp-em { color: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150))); }
+
+/* Task boxes: square (a small radius) is the window's own. */
+[data-checkbox-style="rounded"] .preview li input[type="checkbox"], [data-checkbox-style="rounded"] .editor input.cm-lp-task-check { border-radius: 0.35em; }
+[data-checkbox-style="round"] .preview li input[type="checkbox"], [data-checkbox-style="round"] .editor input.cm-lp-task-check { border-radius: 50%; }
+
+/* Space between paragraphs (reading): standard is 1em. */
+[data-paragraph-spacing="tight"] .preview p { margin-bottom: .5em; }
+[data-paragraph-spacing="loose"] .preview p { margin-bottom: 1.6em; }
+
+/* Callouts: tinted (a wash and a bar) is the window's own. */
+[data-callout-style="outlined"] .callout { background: transparent; border: 1px solid color-mix(in oklch, var(--kind, var(--brass)) 55%, var(--paper)); border-left-width: 3px; border-left-color: var(--kind, var(--brass)); }
+[data-callout-style="outlined"] .editor .cm-line.cm-lp-callout { background: transparent; }
+[data-callout-style="title-bar"] .callout { padding: 0 0 .55rem; background: transparent; border: 1px solid color-mix(in oklch, var(--kind, var(--brass)) 40%, var(--paper)); overflow: hidden; }
+[data-callout-style="title-bar"] .callout > .callout-title { margin: 0; padding: .4rem .9rem; background: color-mix(in oklch, var(--kind, var(--brass)) 18%, var(--paper)); }
+[data-callout-style="title-bar"] .callout > :not(.callout-title) { margin-left: .9rem; margin-right: .9rem; }
+[data-callout-style="title-bar"] .callout > .callout-title + * { margin-top: .6rem; }
+[data-callout-style="title-bar"] .callout.folded { padding-bottom: 0; }
+[data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout { background: transparent; }
+[data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout-head { background: color-mix(in oklch, var(--callout-color, var(--brass)) 18%, var(--paper)); }

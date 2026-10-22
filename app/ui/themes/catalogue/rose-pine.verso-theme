@@ -58,6 +58,9 @@
     },
     "--heading-font": "sans",
     "--book": "sans",
-    "font-size": 18
+    "font-size": 18,
+    "heading-weight": "regular",
+    "blockquote-style": "panel",
+    "emphasis-color": "accent"
   }
 }

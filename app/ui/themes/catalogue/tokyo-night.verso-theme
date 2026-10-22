@@ -61,6 +61,10 @@
     "--mono": "mono",
     "font-size": 16,
     "tag-style": "pill",
-    "radius": "soft"
+    "radius": "soft",
+    "heading-scale": "large",
+    "blockquote-style": "panel",
+    "emphasis-color": "semantic",
+    "checkbox-style": "round"
   }
 }
