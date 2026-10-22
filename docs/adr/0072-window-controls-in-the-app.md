@@ -158,3 +158,10 @@ built, because KDE's KWin otherwise kept its own bar.
 As built 2026-10-22: the top row no longer follows the font size setting
 (2.45rem of a root that no longer changes); the font size now sizes the notes'
 text only (see ADR 0100, as-built note of the same day). Recorded, not decided.
+
+Decided 2026-10-22 by the maintainer: (1) the font size sizes the notes only
+(*"deveria ser"*), so the top row keeps its own size; (2) the macOS menu bar's
+tabletop menu is named "RPG" (*"pode ser RPG mesmo"*); (3) Windows and Linux get
+a menu like Obsidian's "Obsidian frame" — a menu button in the window's corner
+opening the same menus as the Mac bar, Alt and Alt+letter opening them — (*"como
+é o Obsidian no Windows e no Linux? Poderíamos seguir similar"*); being built.

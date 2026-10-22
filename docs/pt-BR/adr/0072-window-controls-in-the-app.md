@@ -166,3 +166,11 @@ Construído em 2026-10-22: a linha de cima não acompanha mais o ajuste de taman
 da fonte (2,45rem de uma raiz que não muda mais); o tamanho da fonte agora
 dimensiona só o texto das notas (ver a ADR 0100, nota do mesmo dia). Registrado,
 não decidido.
+
+Decidido em 2026-10-22 pelo mantenedor: (1) o tamanho da fonte dimensiona só as
+notas (*"deveria ser"*), então a linha de cima mantém o próprio tamanho; (2) o
+menu de mesa da barra do macOS se chama "RPG" (*"pode ser RPG mesmo"*); (3)
+Windows e Linux ganham um menu como a "moldura do Obsidian" — um botão de menu
+no canto da janela que abre os mesmos menus da barra do Mac, Alt e Alt+letra
+abrindo-os — (*"como é o Obsidian no Windows e no Linux? Poderíamos seguir
+similar"*); em construção.
