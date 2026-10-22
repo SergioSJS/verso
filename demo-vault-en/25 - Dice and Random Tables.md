@@ -98,10 +98,12 @@ Want to watch the dice fall? In **Settings › RPG & Solo Play › Dice and RPG*
 
 The number is **already drawn** before the dice fall, by the window's cryptographic generator or, in a room, by the server; the fall only stages it, and the die lands showing exactly that number. That is why a screen reader says the result at once, without waiting, and the card with the text always exists.
 
-- **Skip:** a click anywhere, or `Esc`. It also ends by itself within a few seconds.
+- **The dice stay on the table**, as in Rolai, until you touch something: a click anywhere that is not a button or a dialog, `Esc` or the next roll takes them away. They do not hold the click: the page stays usable underneath. While they fall, `Esc` or a click also skips the fall.
+- **Roll duration:** in *Dice and RPG*, **Fast**, **Normal** or **Slow** changes how fast the dice fall.
+- **Dice sound:** a **Dice sound** switch, off by default, plays the sound of each hit of the dice on the table and on each other, with Rolai's recordings (public domain); the timbre follows the die's material (plastic, wood or metal).
 - **No animation:** if the system asks for less motion, or the roll has more than 20 dice or an exploding die (`!`), only the card shows.
 - **In a room**, each person sees the dice fall only if *their* 3D dice feature is on; the others see the card.
-- The 3D engine is downloaded only on the first 3D roll and kept for offline use. No sound.
+- The 3D engine is downloaded only on the first 3D roll and kept for offline use, with the sounds if you turn them on.
 - **Appearance:** just below the switch, on the same page, as in Rolai: the **size** (70% to 160%; 100% is a die about 70 pixels across on a laptop), **three colour sets** (1, 2 and 3 — a roll uses 1; a dice profile can give a group 2 or 3) and, for the chosen set, the **style** (Verso's own, Emerald, Bone, Obsidian, Blood, Abyssal, Ice, Scales, Tavern), the **body**, **number** and **outline** colours, the **texture** (Plain, Marble, Speckles, Glitter, Stars, Astral sky, Clouds, Fire, Water, Ice, Paper, Wood, Steel, Stained glass, Skulls, Dragon, Leopard, Tiger, Lizard, Feather — the original images of 3DDiceRoller, shipped with the app) and the **material** (Automatic, Plastic, Metal, Wood, Glass, Matte). If the number is too close to the body colour, Verso warns you (contrast below 3:1). **Roll to test** rolls a d20 and two d6, one in each set. It is for this device only: in a room, each person sees the roll with *their own* dice.
 
 ---
