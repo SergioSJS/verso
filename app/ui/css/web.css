@@ -123,7 +123,8 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 /* ---------- Plain HTTP, said (ADR 0073 item 6, amended 2026-10-16) ---------- */
 .plain-http-line { margin: 0 0 1rem; font-size: .8rem; line-height: 1.45; color: var(--ink-3); }
 .plain-http-how { align-self: auto; display: inline; border: 0; background: none; padding: 0; font: inherit; color: var(--seal); text-decoration: underline; cursor: pointer; }
-.plain-http-bar { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 999; max-width: calc(100vw - 32px); box-sizing: border-box;
+/* Below the tab row, never over its controls: 2.45rem on a desktop, 44 px on a phone. */
+.plain-http-bar { position: fixed; top: calc(max(8px, env(safe-area-inset-top)) + 2.45rem); left: 50%; transform: translateX(-50%); z-index: 999; max-width: calc(100vw - 32px); box-sizing: border-box;
   display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; padding: .35rem .5rem .35rem .8rem; font-size: .8rem; line-height: 1.4;
   background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 8px 24px -10px oklch(0% 0 0 / .3); }
 @media (max-width: 760px) { .plain-http-bar { top: calc(max(8px, env(safe-area-inset-top)) + 44px); } }
