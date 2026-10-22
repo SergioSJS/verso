@@ -34,7 +34,7 @@
       "--pink": "#ea9a97"
     },
     "--heading-font": "sans",
-    "--book": "editorial",
+    "--book": "sans",
     "font-size": 18
   }
 }
