@@ -59,3 +59,54 @@ export function playhead(tl: Timeline, elapsedMs: number, skipped: boolean): { a
   const at = Math.min(last, ((elapsedMs / 1000) * tl.speed) / STEP);
   return { at, done: false };
 }
+
+/** The replay time, in ms from the first frame, at which recorded frame
+ *  `frame` is on screen: the exact inverse of `playhead`'s mapping, so a hit
+ *  and the picture of its impact share one clock (the same speed, the same
+ *  frame index). */
+export const frameMs = (frame: number, speed: number): number => (frame * STEP * 1000) / speed;
+
+/** A hit later than this past its moment is dropped, never played late. */
+export const HIT_LATE_MS = 60;
+/** How far ahead of the clock the hits are handed to the audio clock, which
+ *  places them exactly; a frame callback is up to 16 ms apart. */
+export const HIT_AHEAD_MS = 40;
+
+/** The hits to hand to the sound at `elapsedMs`, from index `heard` on: those
+ *  whose moment is within `ahead` ms (`inMs` is that moment minus now,
+ *  negative when it has passed). One more than `late` ms past is passed over
+ *  (`next` moves beyond it) and not returned: never played late. A hit
+ *  after the replay's last frame (a fall cut at the maximum time, where the
+ *  dice jump to rest) is not seen, so not heard either. Pure. */
+export function dueHits(
+  hits: readonly { frame: number }[],
+  tl: Timeline,
+  heard: number,
+  elapsedMs: number,
+  ahead: number = HIT_AHEAD_MS,
+  late: number = HIT_LATE_MS,
+): { next: number; play: { index: number; inMs: number }[] } {
+  const play: { index: number; inMs: number }[] = [];
+  let i = heard;
+  for (; i < hits.length; i++) {
+    const at = frameMs((hits[i] as { frame: number }).frame, tl.speed);
+    if (at > tl.settleMs) {
+      i = hits.length;
+      break;
+    }
+    const inMs = at - elapsedMs;
+    if (inMs > ahead) break;
+    if (inMs >= -late) play.push({ index: i, inMs });
+  }
+  return { next: i, play };
+}
+
+/** The most a single frame callback advances the replay clock. A frame that
+ *  took longer (the first draw uploading textures, a busy window, a software
+ *  renderer) makes the replay slow down for a moment instead of jumping the
+ *  dice ahead and leaving the hits that fell in the gap behind: the picture
+ *  and the sound keep one clock. */
+export const FRAME_MAX_MS = 100;
+
+/** The replay clock after a callback `dtMs` after the last. */
+export const advance = (clockMs: number, dtMs: number): number => clockMs + Math.max(0, Math.min(dtMs, FRAME_MAX_MS));
