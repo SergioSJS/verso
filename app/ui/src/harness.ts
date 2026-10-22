@@ -164,7 +164,31 @@ core.handlers["pick_files"] = (a) => {
 
 // Files dropped from the file manager: the host took the paths, the window
 // asks for them (`take_dropped`) and gets what a picker would have.
-core.handlers["take_dropped"] = core.handlers["pick_files"];
+// As the host does (files.rs `take_dropped`): for the tree (`asBytes` false)
+// each file is held under a token up to the limit set (`maxMb`); for a note
+// or a board (`asBytes` true) it comes as its bytes, bounded at 32 MiB.
+core.handlers["take_dropped"] = (a) => {
+  const now = nextPick;
+  nextPick = { files: [], skipped: [] };
+  const asBytes = a["asBytes"] === true;
+  const max = (asBytes ? 32 : Number(a["maxMb"])) * 1024 * 1024;
+  const files: PickedFiles["files"] = [];
+  const skipped = [...now.skipped];
+  for (const f of now.files) {
+    const text = f.token ? (held.get(f.token) ?? "") : atob(f.base64 ?? "");
+    if (text.length > max) {
+      skipped.push({ name: f.name, reason: "too_large" as const });
+      continue;
+    }
+    if (asBytes) files.push({ name: f.name, base64: f.base64 ?? toBase64(text), token: null });
+    else {
+      const token = f.token ?? `pick-${files.length}-${f.name}`;
+      held.set(token, text);
+      files.push({ name: f.name, base64: null, token });
+    }
+  }
+  return { files, skipped };
+};
 
 // A file chosen "on this computer's own folder" is held by the host under a
 // token and copied by `create_picked`: the text of each, by token.
