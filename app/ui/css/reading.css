@@ -4,6 +4,13 @@
 .preview > :first-child { margin-top: 0; }
 .preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
+/* A colour per heading level (ADR 0109): the theme's, else what each level always had. */
+.preview h1 { color: var(--h1-color, var(--heading-color, var(--ink))); }
+.preview h2 { color: var(--h2-color, var(--heading-color, var(--ink))); }
+.preview h3 { color: var(--h3-color, var(--heading-color, var(--ink))); }
+.preview h4 { color: var(--h4-color, var(--ink-2)); }
+.preview h5 { color: var(--h5-color, inherit); }
+.preview h6 { color: var(--h6-color, inherit); }
 .preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
 .preview ul, .preview ol {
   margin: 0.25em 0 0.75em;
@@ -130,8 +137,8 @@
   border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent) !important;
 }
 .preview strong { font-weight: 600; }
-.preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--paper-2); border-radius: 4px; overflow: auto; }
-.preview code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); padding: .06em .3em; border-radius: 3px; }
+.preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--code-paper, var(--paper-2)); color: var(--code-ink, inherit); border-radius: 4px; overflow: auto; }
+.preview code { font-family: var(--mono); font-size: .88em; background: var(--code-paper, var(--paper-3)); color: var(--code-ink, inherit); padding: .06em .3em; border-radius: 3px; }
 .preview pre code { background: none; padding: 0; }
 .preview blockquote { padding: .1rem 0 .1rem 1.1rem; border-left: 2px solid var(--brass); color: var(--ink-2); font-style: italic; }
 .preview table { border-collapse: collapse; font-size: .92em; font-family: var(--ui); }

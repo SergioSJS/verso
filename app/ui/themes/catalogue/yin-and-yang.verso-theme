@@ -1,0 +1,32 @@
+{
+  "verso-theme": 1,
+  "name": "Yin and Yang",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Yin and Yang",
+    "author": "Chetachi Ezikeuzor",
+    "repoUrl": "https://github.com/chetachiezikeuzor/Yin-and-Yang-Theme",
+    "license": "MPL-2.0"
+  },
+  "values": {
+    "light": {
+      "--paper": "#fcfdfd",
+      "--paper-2": "#ecf0f3",
+      "--hair": "#e0e6eb",
+      "--ink": "#1d282f",
+      "--ink-2": "#6a89a0",
+      "--seal": "#bc6fff",
+      "--brass-ink": "#1d282f"
+    },
+    "dark": {
+      "--paper": "#0a0d10",
+      "--paper-2": "#0e1316",
+      "--hair": "#25323c",
+      "--ink": "#f2f8fd",
+      "--ink-2": "#8ca4b5",
+      "--seal": "#ffc2ee",
+      "--brass-ink": "#f2f8fd"
+    }
+  }
+}

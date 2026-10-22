@@ -52,6 +52,7 @@ const ALLOWED = [
   /Esse trabalho é compatível com Fractal[^]*|Old Dragon 2ª Edição[^]*/g, // licence notices, required in the licensor's own words
   /Hunter: The Reckoning|Vampire: The Masquerade|Werewolf: The Apocalypse|Blades in the Dark|Powered by the Apocalypse|Dark Pack|Fantasy Statblocks|Open Game License/g, // game and licence names
   /Sérgio|Téuri|Licínio|Críticos|Saraç|Érika|Brandão|Antonio Sá Neto/g, // authors and trademarks of the credits
+  /Catppuccin Frappé|Rosé Pine(?: Moon)?|Mapa de Conteúdo|José Daniel Mourão/g, // catalogue themes named for their sources, and their authors (ADR 0109 item 7): credits page and More themes
 ];
 
 /** Runs in the page: every visible word and accessible name, one per line. */

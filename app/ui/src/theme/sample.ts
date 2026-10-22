@@ -11,6 +11,7 @@
 
 import { h } from "../dom";
 import type { Side } from "./tokens";
+import { V2 } from "./moreStrings";
 import { W } from "./strings";
 
 export function sampleDocument(): { el: HTMLElement; show: (side: Side) => void } {
@@ -25,7 +26,9 @@ export function sampleDocument(): { el: HTMLElement; show: (side: Side) => void 
   const tag = h("a", "tag", `#${p.sampleTag}`);
   const code = h("code", "", "code");
   para.append(`${p.sampleBody} `, link, `, ${p.sampleBody2} `, tag, ", ", code, ".");
-  page.append(para, h("h2", "", p.sampleHeading), h("blockquote", "", p.sampleQuote));
+  page.append(para, h("h2", "", p.sampleHeading));
+  for (const n of [3, 4, 5, 6] as const) page.append(h(`h${n}`, "", V2.sampleLevel(n)));
+  page.append(h("blockquote", "", p.sampleQuote));
   const pre = h("pre");
   pre.append(h("code", "", p.sampleCode));
   page.append(pre);
@@ -48,9 +51,15 @@ export function sampleDocument(): { el: HTMLElement; show: (side: Side) => void 
   btn.tabIndex = -1;
   const row = h("p");
   row.append(btn);
-  const callout = h("div", "callout");
-  callout.append(h("div", "callout-title", p.sampleCallout), h("p", "", p.sampleCalloutText));
-  page.append(row, callout);
+  page.append(row);
+  // One callout of each colour the theme can set (ADR 0109): the first with its text.
+  for (const kind of ["note", "tip", "warning", "question", "danger", "example", "abstract"] as const) {
+    const callout = h("div", "callout");
+    callout.dataset["callout"] = kind;
+    callout.append(h("div", "callout-title", V2.kinds[kind]));
+    if (kind === "note") callout.append(h("p", "", p.sampleCalloutText));
+    page.append(callout);
+  }
   wrap.append(page);
   return { el: wrap, show: (side) => void (wrap.style.colorScheme = side) };
 }

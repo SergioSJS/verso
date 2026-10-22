@@ -220,13 +220,16 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 /* The reading view takes the focus when a link is followed from the
    keyboard (Tab goes on from there); it draws no ring of its own. */
 .preview:focus { outline: none; }
-.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)); }
-.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)); }
-.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)); }
-.callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--seal); }
-.callout[data-callout="example"] { --kind: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)); }
+/* The callouts follow the semantic colours of a version 2 theme (ADR 0109), and have always had these when it sets none. */
+.callout[data-callout="note"], .callout[data-callout="info"] { --kind: var(--blue, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240))); }
+.callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: var(--cyan, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240))); }
+.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150))); }
+.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"] { --kind: var(--orange, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))); }
+.callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: var(--yellow, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))); }
+.callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--red, var(--seal)); }
+.callout[data-callout="example"] { --kind: var(--purple, light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300))); }
 .callout[data-callout="quote"], .callout[data-callout="cite"] { --kind: var(--ink-3); }
-.callout[data-callout="oracle"] { --kind: light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305)); }
+.callout[data-callout="oracle"] { --kind: var(--purple, light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305))); }
 .preview mark, .editor mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
 
 /* An embedded note */
