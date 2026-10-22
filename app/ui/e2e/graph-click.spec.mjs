@@ -56,17 +56,109 @@ test.describe("a click and a double click on a graph node @layout", () => {
     await expect(tabs(page)).not.toContainText("C");
   });
 
-  test("the keyboard: Enter opens, Shift-Enter centres", async ({ app, page, isMobile }) => {
+  test("a click on the background gives the graph the keys: the arrows walk, Enter opens, Shift-Enter centres", async ({ app, page, isMobile }) => {
     await app.open();
     test.skip(isMobile, "no keyboard on a phone");
     await vault(app, page);
-    await page.locator("svg.graph .node[tabindex='0']").focus();
-    await node(page, "B.md").focus();
+    const svg = page.locator("svg.graph");
+    await svg.click({ position: { x: 8, y: 8 } });
+    await expect(svg).toBeFocused();
+    const cur = page.locator("svg.graph .node.current");
+    await expect(cur).toHaveCount(1);
+    const first = await cur.getAttribute("data-id");
+    // Some arrow leads away from the first note whatever the layout.
+    let moved = first;
+    for (const k of ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"]) {
+      await page.keyboard.press(k);
+      moved = await cur.getAttribute("data-id");
+      if (moved !== first) break;
+    }
+    expect(moved).not.toBe(first);
+    await expect(page.locator(".graph-current-live")).toContainText(/Nota atual|Current note/);
     await page.keyboard.press("Shift+Enter");
     await expect(depth(page)).toHaveJSProperty("hidden", false);
-    await node(page, "B.md").focus();
+    // Centred: the note is current, and the arrows still work after the redraw.
+    await expect(svg).toBeFocused();
+    await expect(page.locator("svg.graph .node.current")).toHaveAttribute("data-id", moved);
     await page.keyboard.press("Enter");
-    await expect(tabs(page)).toContainText("B");
+    await expect(tabs(page)).toContainText(moved.replace(/\.md$/, ""));
+  });
+
+  test("a click on a note centres it, makes it current and the arrows go on from it", async ({ app, page, isMobile }) => {
+    await app.open();
+    test.skip(isMobile, "no keyboard on a phone");
+    await vault(app, page);
+    await dot(page, "B.md").click();
+    await expect(depth(page)).toHaveJSProperty("hidden", false);
+    await expect(page.locator("svg.graph")).toBeFocused();
+    await expect(page.locator("svg.graph .node.current")).toHaveAttribute("data-id", "B.md");
+    let id = "B.md";
+    for (const k of ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"]) {
+      await page.keyboard.press(k);
+      id = await page.locator("svg.graph .node.current").getAttribute("data-id");
+      if (id !== "B.md") break;
+    }
+    expect(id).not.toBe("B.md");
+  });
+
+  test("Show all clears the filter", async ({ app, page }) => {
+    await app.open();
+    await vault(app, page);
+    const all = page.locator(".graph-show-all:visible");
+    const filter = page.locator(".graph-filter");
+    await expect(all).toBeHidden();
+    const toggle = page.locator(".graph-controls-toggle");
+    if (await toggle.isVisible()) await toggle.click();
+    await filter.fill("B");
+    await expect(page.locator("svg.graph .node")).toHaveCount(1);
+    await expect(all).toBeVisible();
+    await all.click();
+    await expect(filter).toHaveValue("");
+    await expect(page.locator("svg.graph .node")).toHaveCount(3);
+    await expect(all).toBeHidden();
+  });
+
+  test("Show all clears the centre and the filter together", async ({ app, page, isMobile }) => {
+    await app.open();
+    await vault(app, page);
+    const all = page.locator(".graph-show-all:visible");
+    const filter = page.locator(".graph-filter");
+    if (isMobile) {
+      await page.waitForTimeout(800);
+      const b = await dot(page, "B.md").boundingBox();
+      await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    } else await dot(page, "B.md").click();
+    await expect(depth(page)).toHaveJSProperty("hidden", false);
+    await expect(all).toBeVisible();
+    const toggle = page.locator(".graph-controls-toggle");
+    if (await toggle.isVisible()) await toggle.click();
+    await filter.fill("A");
+    await all.click();
+    await expect(depth(page)).toHaveJSProperty("hidden", true);
+    await expect(filter).toHaveValue("");
+    await expect(page.locator("svg.graph .node")).toHaveCount(3);
+    await expect(all).toBeHidden();
+  });
+
+  test("the x in the filter and Esc in it clear the filter only", async ({ app, page, isMobile }) => {
+    await app.open();
+    await vault(app, page);
+    const toggle = page.locator(".graph-controls-toggle");
+    if (await toggle.isVisible()) await toggle.click();
+    const filter = page.locator(".graph-filter");
+    const x = page.locator(".graph-filter-clear");
+    await expect(x).toBeHidden();
+    await filter.fill("B");
+    await expect(page.locator("svg.graph .node")).toHaveCount(1);
+    await x.click();
+    await expect(filter).toHaveValue("");
+    await expect(page.locator("svg.graph .node")).toHaveCount(3);
+    await expect(x).toBeHidden();
+    await filter.fill("C");
+    await expect(page.locator("svg.graph .node")).toHaveCount(1);
+    await filter.press("Escape");
+    await expect(filter).toHaveValue("");
+    await expect(page.locator("svg.graph .node")).toHaveCount(3);
   });
 
   test("a tap centres, a double tap opens", async ({ app, page, isMobile }) => {

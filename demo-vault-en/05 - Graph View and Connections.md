@@ -29,7 +29,7 @@ Verso's **Knowledge Graph** maps the connections between all your notes, reveali
 - **Show notes without links**, **Names** and **Color by folder** turn what you see on and off.
 - **Existing files only** starts on. Turn it off to also see the notes you have already cited with `[[ ]]` but not created yet: each is an empty circle with a dashed outline and an italic name, joined to the notes that cite it. Double-click it, or reach it with the arrow keys and press Enter, to create the note and open it — Verso asks first (**Create the note "Goblin Rei"?**).
 - **Repulsion**, **Distance** and **Size** adjust the drawing.
-- **Zoom out**, **Zoom in** and **See everything**; in **Relations**, the **Vault graph** button goes back to the whole graph.
+- **Zoom out**, **Zoom in** and **See everything**; the **Show all** button (at the top of the graph, shown only while a note, a filter or a tag narrows the view) clears everything and returns to the whole graph; the **×** in the filter field, or Esc inside it, clears the filter only.
 
 ---
 
@@ -40,7 +40,7 @@ Navigation in the graph was designed to behave with the fluidity expected of mod
 - **Mouse Wheel Zoom**: Turn the scroll to zoom the view in or out smoothly.
 - **Trackpad Pinch (Pinch-to-zoom)**: Move two fingers together or apart on the trackpad for continuous, precise zoom.
 - **Two-Finger Navigation / Pan**: Swipe with two fingers on the trackpad to move the view area in any direction.
-- **Click and double-click**: one click on a node **centers** the graph on it (the same as **Relations** for that note); a double-click — or a double tap, on a phone — **opens** the note. From the keyboard, Enter opens and ⇧Enter centers.
+- **Click and double-click**: one click on a node **centers** the graph on it (the same as **Relations** for that note); a double-click — or a double tap, on a phone — **opens** the note. From the keyboard, click the graph (or Tab to it) and use the **arrow keys** to walk the notes — the current note gets a ring and is announced —, Enter opens and ⇧Enter centers.
 - **Dragging Nodes**: Click and hold any node to reposition it in space.
 
 ---

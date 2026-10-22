@@ -50,9 +50,10 @@ test.describe("the graph with notes that do not exist yet", () => {
     const missing = page.locator("svg.graph .node.missing");
     await expect(missing).toHaveCount(1);
     // The graph is one Tab stop; the arrows walk the nodes.
-    await page.locator("svg.graph .node[tabindex='0']").focus();
-    for (let i = 0; i < 4 && !(await missing.evaluate((n) => n === document.activeElement)); i++) await page.keyboard.press("ArrowRight");
-    await expect(missing).toBeFocused();
+    await page.locator("svg.graph").focus();
+    const arrows = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+    for (let i = 0; i < 24 && !(await missing.evaluate((n) => n.classList.contains("current"))); i++) await page.keyboard.press(arrows[i % 4]);
+    await expect(missing).toHaveClass(/current/);
     expect(await app.file("Goblin Rei.md")).toBeNull();
     await page.keyboard.press("Enter");
     // It asks first; Cancel leaves everything as it was, and Enter on the
@@ -62,7 +63,7 @@ test.describe("the graph with notes that do not exist yet", () => {
     await ask.getByRole("button", { name: "Cancelar" }).click();
     await expect(ask).toHaveCount(0);
     expect(await app.file("Goblin Rei.md")).toBeNull();
-    await missing.focus();
+    await page.locator("svg.graph").focus();
     await page.keyboard.press("Enter");
     await expect(ask).toBeVisible();
     await ask.getByRole("button", { name: "Criar" }).click();

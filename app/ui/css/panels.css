@@ -294,11 +294,21 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph .node.missing circle { fill: transparent; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .graph .node.missing text { font-style: italic; fill: var(--ink-2); }
 .graph .node:hover circle, .graph .node:focus-visible circle { stroke: var(--seal); }
-.graph .node:focus-visible { outline: none; }
-.graph .node:focus-visible circle { stroke-width: 3; }
-.graph .node:focus-visible text.quiet { opacity: 1; }
+/* The graph is the one focus stop; the note the arrows are on is ringed. */
+.graph:focus { outline: none; }
+.graph:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.graph:focus .node.current circle { stroke: var(--seal); stroke-width: 3; }
+.graph:focus .node.current text.quiet { opacity: 1; }
+.graph:focus .node.current text { font-weight: 600; fill: var(--ink); }
 .graph-controls { flex: none; width: 15rem; padding: .8rem .9rem 1rem; border-left: 1px solid var(--hair); overflow: auto; display: flex; flex-direction: column; gap: .55rem; font-size: .82rem; color: var(--ink-2); }
 .graph-controls .graph-filter { font: inherit; padding: .35rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.graph-filter-wrap { position: relative; display: flex; }
+.graph-filter-wrap .graph-filter { flex: 1; min-width: 0; padding-right: 1.9rem; }
+.graph-filter::-webkit-search-cancel-button { display: none; }
+.graph-filter-clear { position: absolute; right: .25rem; top: 50%; transform: translateY(-50%); padding: 0 .45rem; line-height: 1.4; font-size: 1.05rem; }
+.graph-filter-clear[hidden], .graph-show-all[hidden] { display: none !important; }
+/* The copy inside the controls panel shows only where the panel covers the graph's head (css/screen.css). */
+.graph-show-all.in-panel { display: none; }
 .graph-controls .graph-filter:focus { outline: none; border-color: var(--brass-ink); }
 .graph-field { display: grid; grid-template-columns: 1fr; gap: .2rem; }
 .graph-field select, .graph-field input[type="range"] { font: inherit; width: 100%; accent-color: var(--seal); }
