@@ -20,6 +20,12 @@
       "--brass-ink": "#b57614",
       "--code-paper": "#f2e5bc",
       "--code-ink": "#3c3836",
+      "--h1-color": "#cc241d",
+      "--h2-color": "#b6811c",
+      "--h3-color": "#8f8e19",
+      "--h4-color": "#629764",
+      "--h5-color": "#458588",
+      "--h6-color": "#b16286",
       "--red": "#9d0006",
       "--orange": "#af3a03",
       "--yellow": "#b57614",
@@ -38,6 +44,12 @@
       "--brass-ink": "#fabd2f",
       "--code-paper": "#1d2021",
       "--code-ink": "#ebdbb2",
+      "--h1-color": "#dc271f",
+      "--h2-color": "#d79921",
+      "--h3-color": "#98971a",
+      "--h4-color": "#689d6a",
+      "--h5-color": "#458588",
+      "--h6-color": "#b16286",
       "--red": "#fb4934",
       "--orange": "#fe8019",
       "--yellow": "#fabd2f",
@@ -45,6 +57,12 @@
       "--cyan": "#8ec07c",
       "--blue": "#83a598",
       "--purple": "#d3869b"
-    }
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "--mono": "mono",
+    "font-size": 16,
+    "table-style": "striped",
+    "tag-style": "pill"
   }
 }

@@ -29,6 +29,9 @@
       "--brass-ink": "#e6e6e4"
     },
     "--heading-font": "system",
-    "--book": "system"
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft"
   }
 }

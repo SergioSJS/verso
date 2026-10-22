@@ -46,6 +46,11 @@
       "--purple": "#cb9eff",
       "--pink": "#f2b6de"
     },
-    "surface-mode": "cards"
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "outline",
+    "radius": "soft"
   }
 }

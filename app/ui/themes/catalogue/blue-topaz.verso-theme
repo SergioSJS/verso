@@ -43,6 +43,13 @@
       "--h4-color": "#75a2e6",
       "--h5-color": "#b296f3",
       "--h6-color": "#eaa5f8"
-    }
+    },
+    "--heading-font": "editorial",
+    "--book": "editorial",
+    "--mono": "mono",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "outline",
+    "radius": "soft"
   }
 }

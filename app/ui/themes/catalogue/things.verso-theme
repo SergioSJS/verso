@@ -58,6 +58,11 @@
     },
     "--heading-font": "system",
     "--book": "system",
-    "--mono": "mono"
+    "--mono": "mono",
+    "font-size": 16,
+    "heading-style": "rule",
+    "table-style": "hairline",
+    "tag-style": "pill",
+    "radius": "soft"
   }
 }

@@ -27,6 +27,11 @@
       "--ink-2": "#888888",
       "--seal": "#61afef",
       "--brass-ink": "#dcddde"
-    }
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft"
   }
 }

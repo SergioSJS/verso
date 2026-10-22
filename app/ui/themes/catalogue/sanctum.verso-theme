@@ -33,6 +33,9 @@
     },
     "surface-mode": "flat",
     "--heading-font": "sans",
-    "--book": "sans"
+    "--book": "sans",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft"
   }
 }
