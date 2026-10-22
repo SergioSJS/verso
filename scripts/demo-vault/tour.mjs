@@ -129,7 +129,7 @@ const STOPS = [
     cards: [["n-busca", "12 - Busca e Navegação.md", 640]],
     tip:
       "Buscar nas notas aceita tag:, path: e file:. Localizar e substituir no cofre (⌘⇧H) mostra cada mudança antes de gravar. " +
-      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→) tem backlinks, tags e favoritos.",
+      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→, ou o botão no canto de cima à direita) tem backlinks, tags e favoritos.",
     extra(b, x, y, f) {
       keys(b, "d-busca", x + 740, y + 160, [[["⌘", "K"], "buscar nas notas"], [["⌘", "P"], "abrir pelo nome"], [["⌘", "⇧", "P"], "todos os comandos"], [["⌘", "⇧", "H"], "trocar em tudo"]], f);
     },
@@ -339,7 +339,7 @@ const STOPS = [
     canvasColor: "5",
     cards: [["n-celular", "22 - Verso no Celular e no Tablet.md", 640]],
     tip:
-      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra um painel por vez. " +
+      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
       "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
   },
   {
