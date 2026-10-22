@@ -516,7 +516,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .palette kbd { margin-left: auto; }
 /* Settings: a page with sections at the left, items as title + line + control. */
 .quick.settings { padding-top: 0; justify-content: center; align-items: center; }
-.settings-box { position: relative; display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); min-width: 32rem; min-height: 22rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
+.settings-box { position: relative; display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); min-width: min(32rem, calc(100vw - 2rem)); min-height: min(22rem, calc(100vh - 2rem)); max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
 .settings-resize-handle { position: absolute; z-index: 20; touch-action: none; user-select: none; }
 .settings-resize-handle.r { right: -3px; top: 10px; bottom: 10px; width: 7px; cursor: ew-resize; }
 .settings-resize-handle.b { bottom: -3px; left: 10px; right: 10px; height: 7px; cursor: ns-resize; }
@@ -602,7 +602,15 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .hotkey kbd { min-width: 3.2rem; text-align: center; }
 .hotkey kbd.custom { color: var(--seal); border-color: var(--seal); }
 .hotkey kbd.recording { color: var(--brass-ink); border-color: var(--brass); }
-:root[data-measure="wide"] .editor, :root[data-measure="wide"] .preview, :root[data-measure="wide"] .props, :root[data-measure="wide"] .title-row, :root[data-measure="wide"] .flags, :root[data-measure="wide"] .links, :root[data-measure="wide"] .template-picker, :root[data-measure="wide"] .toolbar { max-width: none; margin-left: 0; margin-right: 0; }
+:root[data-measure="full"] .editor, :root[data-measure="full"] .preview, :root[data-measure="full"] .props, :root[data-measure="full"] .title-row, :root[data-measure="full"] .flags, :root[data-measure="full"] .links, :root[data-measure="full"] .template-picker, :root[data-measure="full"] .toolbar { max-width: none; margin-left: 0; margin-right: 0; }
+/* The person's own text width (Settings › Appearance › Text width), over the
+   theme's `line-width`. "Theme" writes no data-measure. The rem ones grow
+   with the note text size (--note-scale), so a bigger text keeps its
+   characters per line. */
+:root[data-measure="narrow"] :is(.preview, .editor, .props, .links) { max-width: calc(40rem * var(--note-scale, 1)); }
+:root[data-measure="medium"] :is(.preview, .editor, .props, .links) { max-width: calc(48rem * var(--note-scale, 1)); }
+:root[data-measure="standard"] :is(.preview, .editor, .props, .links) { max-width: 100ch; }
+:root[data-measure="large"] :is(.preview, .editor, .props, .links) { max-width: calc(72rem * var(--note-scale, 1)); }
 
 /* Sidebar toggles in the status bar */
 .bar-toggle { color: var(--ink-3); padding: .15rem; }

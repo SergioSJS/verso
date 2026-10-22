@@ -39,7 +39,8 @@ Experimente: em **Arquivos e links**, desligue **Ignorar pastas de build** e vej
 
 - **Temas**, no alto, juntos: o **Tema** (**Sistema**, **Claro** ou **Escuro**), o **Tom do escuro** e, logo abaixo, a galeria (veja adiante); ao trocar o modo, os cartões mudam na hora.
   - **Tom do escuro**, no tema escuro: **Suave** (o padrão, para ler e escrever por horas), **Profundo** (quase preto, para um quarto escuro ou uma tela OLED) e **Penumbra** (mais claro).
-- **Texto**: o **Tamanho da fonte**, de 12 a 30 pixels, e a **Largura do texto**, confortável (100 caracteres) ou toda a área.
+- **Texto**: o **Tamanho da fonte**, de 12 a 30 pixels, e a **Largura do texto**: **Do tema** (o padrão: segue a largura do tema, ou a do Verso), **Estreita** (40 rem), **Média** (48 rem), **Padrão** (100 caracteres), **Larga** (72 rem) ou **Tela inteira**. O tamanho da fonte muda só o texto das notas — leitura e edição —, nunca a interface nem esta janela; a largura que você escolher vale por cima da do tema, e o efeito aparece na hora.
+- **Zoom da janela** (no aplicativo de mesa): − , o nível e + , com **Redefinir (100%)**, o mesmo zoom dos atalhos; cada mudança de zoom também aparece por um instante num selo no canto da janela.
 - **Mais opções de texto**: a fonte do texto da interface e a cor de destaque dos títulos, de âmbar a ametista.
 - **Botões da faixa lateral**: cada um com o seu interruptor; a engrenagem de Ajustes fica sempre, para que haja volta.
 
@@ -80,7 +81,7 @@ Experimente: **Copiar** o **Papel**, **Editar** a cópia, mude a **Tinta** para 
 
 Em **Atalhos**, cada comando mostra a sua tecla e o botão **Alterar**: clique, e aperte a combinação nova — ela precisa ter `⌘` (ou ser `⌥ Enter`, a do **Abrir link sob o cursor**). Se outro comando já usava aquela combinação, ela sai dele. **Restaurar** volta ao padrão.
 
-**Zoom da janela** (no aplicativo de mesa): `⌘+` aumenta, `⌘-` diminui e `⌘0` volta a 100 % (`Ctrl` no Windows e no Linux), de 50 % a 200 %, de 10 em 10; `Ctrl` com a roda do mouse ou o gesto de pinça no trackpad fazem o mesmo — menos sobre um board, um mapa, um PDF ou o grafo, que dão zoom nele mesmo. Cada computador guarda o seu zoom. É diferente do **Tamanho da fonte**, que só aumenta o texto. No navegador vale o zoom do próprio navegador.
+**Zoom da janela** (no aplicativo de mesa): `⌘+` aumenta, `⌘-` diminui e `⌘0` volta a 100 % (`Ctrl` no Windows e no Linux), de 50 % a 200 %, de 10 em 10; `Ctrl` com a roda do mouse ou o gesto de pinça no trackpad fazem o mesmo — menos sobre um board, um mapa, um PDF ou o grafo, que dão zoom nele mesmo. Cada computador guarda o seu zoom. É diferente do **Tamanho da fonte**, que só aumenta o texto das notas. O nível aparece num selo por um instante e fica em **Ajustes › Aparência › Zoom da janela**. No navegador vale o zoom do próprio navegador.
 
 Os atalhos do dia a dia estão na [[00 - Bem-vindo ao Verso|Página Inicial]]; os do board, em [[10 - Desenhando no Board]].
 

@@ -1,5 +1,5 @@
 /* Reading */
-.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+.preview { font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .preview:empty { display: none; }
 .preview > :first-child { margin-top: 0; }
 .preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
@@ -188,7 +188,7 @@
    lines ran longer than the reading view's in a wide window. Its panels and
    tooltips set their own. Source and code keep theirs. */
 .editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
-.editor.live { font-family: var(--book); font-size: 1.02rem; }
+.editor.live { font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); }
 .editor .cm-editor {
   height: auto;
   background: none;
@@ -197,7 +197,7 @@
 .editor .cm-scroller {
   overflow: visible !important;
   font-family: var(--book);
-  font-size: 1.02rem;
+  font-size: calc(1.02rem * var(--note-scale, 1));
   line-height: 1.7;
   min-height: 50vh;
 }
@@ -316,7 +316,7 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
   background: none !important;
 }
 .editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
-.editor.source .cm-scroller { font-family: var(--mono); font-size: .9rem; line-height: 1.6; }
+.editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
 

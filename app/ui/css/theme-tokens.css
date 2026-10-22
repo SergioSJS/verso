@@ -91,8 +91,8 @@
 
 /* Reading column: standard is 100ch. The person's own "wide" measure
    (data-measure, css/panels.css) still wins. */
-[data-line-width="narrow"] :is(.preview, .editor, .props, .links) { max-width: 40rem; }
-[data-line-width="wide"] :is(.preview, .editor, .props, .links) { max-width: 72rem; }
+[data-line-width="narrow"] :is(.preview, .editor, .props, .links) { max-width: calc(40rem * var(--note-scale, 1)); }
+[data-line-width="wide"] :is(.preview, .editor, .props, .links) { max-width: calc(72rem * var(--note-scale, 1)); }
 
 /* Line height: normal is 1.7 (lists 1.6). */
 [data-line-height="snug"] .preview, [data-line-height="snug"] .editor .cm-scroller { line-height: 1.5; }
