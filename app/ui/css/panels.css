@@ -551,6 +551,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-nav-item:hover { background: var(--paper-3); color: var(--ink); }
 .settings-nav-item[aria-current="true"] { background: var(--seal-wash); color: var(--seal); }
 .settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 2rem 2rem; }
+.settings-back { display: none; }
 .settings-title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0 0 .6rem; }
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
@@ -787,30 +788,33 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .settings-top {
     padding: 0;
   }
+  /* A list first, a page after a tap, with a way back (iOS, Android). */
   .settings-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding: 0 0 .2rem;
-    gap: .25rem;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    gap: .1rem;
   }
-  .settings-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .settings-nav-group-header {
-    display: none;
-  }
+  .settings-box.phone-page .settings-side { flex: none; padding-bottom: .6rem; }
+  .settings-box.phone-page .settings-nav { display: none; }
+  .settings-box.phone-list .settings-body { display: none; }
+  .settings-box.phone-list .settings-side { flex: 1; min-height: 0; border-bottom: 0; }
+  .settings-back { display: inline-flex; align-items: center; gap: .25rem; min-height: 44px; margin: -.4rem 0 .2rem -.5rem; padding: 0 .6rem; border-radius: 8px; color: var(--seal); font-size: 1rem; }
+  .settings-back .icon { width: 18px; height: 18px; }
+  .settings-back:active { background: var(--seal-wash); }
+  .settings-nav-group-header { padding: 1rem .2rem .3rem; }
+  .settings-nav-group-header:first-child { padding-top: .5rem; }
   .settings-resize-handle, .settings-resize-grip {
     display: none !important;
   }
   .settings-nav-item {
-    flex: none;
-    white-space: nowrap;
-    padding: .35rem .65rem;
-    font-size: .85rem;
+    min-height: 48px;
+    padding: .35rem .7rem;
+    font-size: 1rem;
   }
+  .settings-nav-item .icon { width: 18px; height: 18px; }
+  .settings-close { min-width: 44px; min-height: 44px; }
   .settings-body {
     padding: 1rem 1rem 2.5rem;
   }

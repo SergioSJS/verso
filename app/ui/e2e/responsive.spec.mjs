@@ -444,25 +444,38 @@ test("line numbers in Source: a desktop's default, off on a phone unless the per
   await expect(gutter.first()).toBeVisible();
 });
 
-test("the settings' sections on a phone: opened straight to one, its tab is in view, not Geral's @layout", async ({ app, page }) => {
+test("the settings on a phone: a list of the groups, a page after a tap, a way back; opened straight to a section it shows the page @layout", async ({ app, page }) => {
   await app.open();
   // A folder that syncs: its state, wherever the window shows it, opens
-  // the settings straight to Sincronizar — the last of the row.
+  // the settings straight to Sincronizar.
   const off = await page.evaluate(() => window.__harness.core.sync);
   await app.emit("sync-status", { ...off, on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "owner", state: "synced" });
   await page.locator("#sync-state").evaluate((b) => b.click());
-  await expect(page.locator('.settings-nav-item[aria-current="true"]')).toHaveText("Sincronizar");
-  const inView = () =>
-    page.locator(".settings-nav").evaluate((n) => {
-      const tab = n.querySelector('[aria-current="true"]');
-      if (!tab) return false;
-      const row = n.getBoundingClientRect();
-      const box = tab.getBoundingClientRect();
-      return box.left >= row.left - 1 && box.right <= row.right + 1;
-    });
-  await expect.poll(inView).toBe(true);
-  // The page itself never scrolls sideways for it.
-  expect(await page.evaluate(() => document.scrollingElement.scrollLeft)).toBe(0);
+  const back = page.locator(".settings-back");
+  if ((page.viewportSize()?.width ?? 1500) > 760) {
+    await expect(page.locator('.settings-nav-item[aria-current="true"]')).toHaveText("Sincronizar");
+    await expect(back).toBeHidden();
+    return;
+  }
+  // Straight to the page: its title, the way back, no row of tabs.
+  await expect(page.locator(".settings-title")).toHaveText("Sincronizar");
+  await expect(page.locator(".settings-nav")).toBeHidden();
+  await expect(back).toBeVisible();
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await back.click();
+  // The list: every group named, every page a row of 44 px or more, the page not shown.
+  await expect(page.locator(".settings-body")).toBeHidden();
+  await expect(page.locator(".settings-nav-group-header")).not.toHaveCount(0);
+  const rows = page.locator(".settings-nav-item");
+  for (const h of await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(Math.round(h)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= document.scrollingElement.clientWidth)).toBe(true);
+  // A tap opens the page; the search shows its results over the list.
+  await rows.nth(1).click();
+  await expect(page.locator(".settings-title")).toBeVisible();
+  await back.click();
+  await page.locator(".settings-search").fill("idioma");
+  await expect(page.locator(".settings-body")).toBeVisible();
+  await expect(page.locator(".settings-nav")).toBeHidden();
 });
 
 // Android keyboards (Gboard, Samsung) type through composition: the `[[` that
@@ -515,4 +528,25 @@ test("a phone with every drawer closed has no shadow on its edges and no empty t
   }
   if ((await page.locator(".pane .tab").count()) === 0) await expect(page.locator(".pane .tabs")).toBeHidden();
   if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/closed-${process.env.SHOT_TAG ?? "after"}-390.png` });
+});
+
+test("a phone's note row: the place has its own row, the fold button is whole and clear of the bell, tabs are 44 px @layout", async ({ app, page }) => {
+  await app.open();
+  if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
+  await app.quickOpen("01 - Guia");
+  const crumbs = await page.locator(".leaf-head .crumbs").first().boundingBox();
+  const modes = await page.locator(".leaf-head .modes").first().boundingBox();
+  const vw = page.viewportSize().width;
+  // The box includes 2rem of fade at its start (a negative margin): the place itself starts inside the screen.
+  expect(crumbs.x + 32).toBeGreaterThanOrEqual(0);
+  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(vw + 1);
+  expect(crumbs.width).toBeGreaterThan(vw * 0.8);
+  expect(modes.y).toBeGreaterThanOrEqual(crumbs.y + crumbs.height - 1);
+  const fold = await page.locator(".pane-fold").first().boundingBox();
+  const bell = await page.locator(".notify-bell-phone").first().boundingBox();
+  expect(fold.width).toBeGreaterThanOrEqual(44);
+  expect(fold.x + fold.width).toBeLessThanOrEqual(bell.x + 1);
+  expect(bell.height).toBeGreaterThanOrEqual(44);
+  expect((await page.locator(".pane .tabs").first().boundingBox()).height).toBeGreaterThanOrEqual(44);
+  expect(await page.locator(".pane-fold").first().getAttribute("title")).toBeTruthy();
 });
