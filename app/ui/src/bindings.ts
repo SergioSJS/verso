@@ -1129,7 +1129,8 @@ export type CloudCheck = {
 	/**
 	 *  When not accepted, why, for the window to say in its language:
 	 *  `plain_http_unconfirmed`, `plain_http_refused`, `invalid`,
-	 *  `auth`, `unreachable`, `service_refused`, `no_keyring`, `failed`.
+	 *  `auth`, `unreachable`, `service_refused`, `no_conditional_delete`,
+	 *  `no_keyring`, `failed`.
 	 */
 	problem: string | null,
 	/**  The reason in English, for the log and as the window's fallback. */
