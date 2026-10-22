@@ -42,6 +42,14 @@
   [0081](0081-sharing-between-people-on-one-universo.md) item 5 diz "nomes e
   chaves, sem caminho" e não tem linha de revisão para isso. Aceitar o rótulo
   como leitura da regra 4 é decisão dele.
+  2026-10-22 — T.9, opção A, respondendo à linha de 2026-10-21 acima: o
+  mantenedor aceitou o `place` do seletor de pastas como **rótulo de
+  exibição** e pediu que fosse registrado aqui. A letra da regra 4 não muda e
+  esta é a leitura: um rótulo abreviado como `~/Documents` ou
+  `~/…/Dropbox/antigo`, mostrado ao lado de uma pasta recente só para
+  distinguir pastas de mesmo nome, não é um caminho que cruza o contrato.
+  Nunca é um caminho absoluto, nunca contém `..`, não é capacidade e não volta
+  como entrada. A opção B (só o nome da pasta-mãe, sem `~`) não foi escolhida.
 
 ## Contexto
 

@@ -341,6 +341,15 @@ ela é uma linha do roadmap (V.13).
     quebram links; nomes reservados do Windows (`con.txt`) ganham `_`. A
     construir: (a) e (b).
 
+    **Respondido em 2026-10-22** (T.11 e T.12 da lista de decisões da tarde de
+    2026-10-21). T.11, opção A: arrastar um arquivo do Finder usa os eventos
+    de arquivo do próprio Tauri (eles trazem o caminho), então arrastar também
+    vai até o limite de importação configurado em vez de 32 MB. T.12, opção B
+    (não a A recomendada): um arquivo grande é lido e gravado **aos pedaços
+    já**, não inteiro na memória (uma mudança do `verso-fs` na gravação
+    atômica; ver ADR 0044, Revisões). Os dois **em construção**; nada aqui
+    está construído ainda.
+
 11. **Seguir um link a partir do editor** (seção 1, achado 14): um comando
     que abre o link sob o cursor, com ou sem tecla padrão.
     **Resolvido em 2026-10-21** (A11Y.11, opção B, não a A recomendada): o

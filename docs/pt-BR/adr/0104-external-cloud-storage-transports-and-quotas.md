@@ -36,6 +36,14 @@
   C.1 = A, C.6 = A e C.7 = A decidiram em vez de "recomendado". (c) "Como
   construída" ganha as escolhas de construção que a revisão achou faltando
   (I-3, I-4, I-6, I-10 de `verso-revisao-fable-tarde-2026-10-21.md`).
+  2026-10-22 — I-3, opção A (o mantenedor respondeu a lista de decisões da
+  tarde de 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em
+  2026-10-22): um serviço compatível com S3 que aceita gravação condicional
+  mas não exclusão condicional é **recusado**, como a C.3b recusou um serviço
+  que não cumpre a promessa: "sincronizado" nunca esconde uma perda (**em
+  construção**). Isto substitui a escolha da construção registrada em "Como
+  construída" (conectar e avisar). A resposta cita serviços S3; o mesmo
+  parágrafo menciona também o WebDAV, e a resposta nada diz sobre ele.
 - Relacionados: [0079](0079-sync-a-local-folder-with-a-server.md) (a
   sincronização que esta reaproveita),
   [0050](0050-outbound-network-access.md) (revisada aqui),

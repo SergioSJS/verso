@@ -65,6 +65,24 @@
   falls in 3D, each extra die thrown after the die it came from rests,
   within the same maximum and the 20-dice bound (an exploding d100 keeps
   the card alone).
+  2026-10-22 — the maintainer answered the decisions list of the afternoon of
+  2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) on 2026-10-22:
+  (a) T.7, option A plus his question *"não da pra aproveitar do Rolai?"*
+  (can't we reuse Rolai's?): **a short click synthesized by the app itself (no
+  file), behind a switch "Som dos dados" (dice sound), off by default**
+  (**being built**); Rolai's own dice sounds are **being evaluated**, with
+  their licence checked, and nothing is decided about them. (b) T.8, option C,
+  his own words: *"O Dado deveria ficar na tela até o usuario mexer em algo,
+  como no Rolai, ja falei mais de uma vez para copiar os mesmos comportamentos
+  de lá, nao sei pq vc está teimando tanto, de toda forma adiciona
+  configuração do tempo de rolagem"* (the die should stay on screen until the
+  user touches something, as in Rolai; I have said more than once to copy its
+  behaviours; anyway, add a roll-time setting). **The dice stay on screen
+  until the user acts, as Rolai's do, and there is a setting for the roll
+  duration** (**being built**). This revises the night revision above (2.5 s
+  maximum, 0.3 s rest before the card, 1.6x fall), which answered T.8
+  provisionally; the setting's default and bounds, and what counts as
+  "acting", are not decided here.
 
 ## Context
 

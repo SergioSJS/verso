@@ -42,6 +42,20 @@
   construção a partir de termos comuns da comunidade, provisórios (S.3c,
   "traduzir agora, corrigir depois"); (c) "Alternativas descartadas" diz
   "Nenhuma registrada." (regra zero, item 4).
+  2026-10-22 — o mantenedor respondeu a lista de decisões da tarde de
+  2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) em 2026-10-22:
+  (a) T.1, opção A: o crédito do Fractal **fica CC BY 4.0**, como o texto do
+  SRD diz (item 6b). A resposta dos autores continua sem registro, e o selo do
+  SRD continua mostrando BY-SA (`docs/reference/statblock-sources.md` 3.10); a
+  cláusula do item 6b de que muda se a resposta dos autores mudar continua
+  valendo. (b) T.4, opção A: os nomes dos atributos nas fichas de Vampiro e
+  Cyberpunk (`strength`, `INT`) **continuam como chaves de dados da nota, em
+  inglês, por ora**; traduzi-los pede um recurso novo (rótulo por chave) que
+  não foi escolhido (opção B). (c) S.3b-bis, opção A: **manter a linha curta
+  de licença nas fichas de World of Darkness e Cyberpunk RED**, o texto
+  completo e o logo só na página de Créditos — "cumpre os dois acordos". O
+  desvio registrado em S.3b agora é decisão do mantenedor, não escolha de quem
+  construiu.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),

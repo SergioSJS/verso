@@ -1037,6 +1037,13 @@ Raised while writing this spec. All of them need an answer before
   decide otherwise; until then it is a provisional fact like the one at the
   top of this entry.
 
+  *Answered 2026-10-22 (Q5-bis of the decisions list of the afternoon of
+  2026-10-21, option A):* the maintainer accepted the rule as the reading
+  already follows it. **A plain blockquote (`>`) inside a callout is not a
+  nesting level; a callout inside that blockquote is nested.** It is now a
+  decision, not a provisional fact, and the correction above is answered.
+  Fixture `callout/nested` is not touched.
+
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
   view's comments `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
@@ -1644,6 +1651,16 @@ the parser was chosen.
   it sits in the code comment and its test
   (`crates/verso-dialect/src/tags.rs`) and is asked as T.3 of the same list.
 
+  *Answered 2026-10-22 (decisions list of the afternoon of 2026-10-21).*
+  **T.3, option A:** a numeric `tags` value is a tag **only when it is a
+  non-negative integer** (`2024`); a negative integer, a number with a decimal
+  point and `true` are not tags. The maintainer's reason on the list: he spoke
+  of `2024`. The build's choice of (2) is now his decision. **I-8, option A:**
+  he **reconfirms the fixture `frontmatter/tags-number` as it stands now**,
+  with its changed comment and `observed:` text and the same asserted value
+  (`tags: 2024` an integer); this is the explicit approval invariant 14 asks
+  for. No fixture file was edited for this record.
+
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
@@ -1728,3 +1745,4 @@ the parser was chosen.
 | v0.46 | 2026-10-20 | §6: two rows, the fenced block ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) and the `> [!oracle]` callout ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), constructs Verso draws and Obsidian reads as a code block and a callout; the parser does not change. No fixture (nothing here answers a §9 question or changes what the parser returns). No question closed |
 | v0.47 | 2026-10-21 | The maintainer's answers of the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **Q2, Q5 (nesting), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 and Q24 `DECIDED`**, each as the option marked — Q14 with both options, A (ratify) and B (unresolved links as graph nodes). Every decision is recorded; none closes in full, since each that needs a fixture or an observation of Obsidian waits for the PR that adds it (invariant 17); Q5's `callout/nested` is a separate code PR. §5 and §7 brought up to date: §7 now points to [ADR 0093](../adr/0093-periodic-notes.md) for periodic notes, not to §9. No fixture changed |
 | v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved, its expectation changed with the code of DL.2 B and its draft mark removed (`0d576e17`). Q14: clicking an unresolved graph node asks before creating the note. |
+| v0.49 | 2026-10-22 | The maintainer's answers of the afternoon list of 2026-10-21: **Q5-bis A** (a plain blockquote inside a callout is no level; a callout inside it is nested), **T.3 A** (`tags`: only non-negative integers), **I-8 A** (`frontmatter/tags-number` reconfirmed as it stands). No fixture changed |
