@@ -284,7 +284,7 @@ textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono)
 
 /* The embedded page's box: a frame fills it, or, for a site that refuses
    framing, the child web view is overlaid exactly on it. */
-.embed-web { border: 1px solid var(--line, #d8cfc2); border-radius: 8px; background: var(--panel, #f7f1e8); }
+.embed-web { border: 1px solid var(--hair); border-radius: 8px; background: transparent; }
 /* A site that allows it is shown in a real frame: the box's size exactly,
    clipped by the box's corners, scrolling with the note. */
 .embed-web[data-embed-framed] { overflow: hidden; }
