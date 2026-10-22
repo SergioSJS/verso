@@ -577,8 +577,9 @@ test("the dice stay on the table after the card shows, never catch a tap, and a 
       // The stage marks the canvas "resting" in the very turn the card is let show.
       if (document.querySelector('canvas.dice3d-canvas[data-state="resting"]') && t.card === undefined) t.card = performance.now();
       if (t.card !== undefined && !document.querySelector("canvas.dice3d-canvas")) t.gone = performance.now();
+      if (t.gone === undefined) setTimeout(watch, 20);
     };
-    new MutationObserver(watch).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state"] });
+    watch();
   });
   await rollBtn.click();
   await expect(canvas(page)).toHaveCount(0, { timeout: 8000 });

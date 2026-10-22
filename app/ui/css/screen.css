@@ -61,6 +61,8 @@
   /* The ribbon and the status bar leave; a bar of five verbs comes. */
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
   .ribbon, .status-bar { display: none; }
+  /* A lone pane with no tab has nothing for its bar to show but "··": the bar waits for the first tab (the bell floats over the empty pane). */
+  .panes:not(.many) .pane:not(:has(.tab)) > .tabs { display: none; }
   /* Over the drawers, which end above it: the bar stays within reach. */
   .bottom-bar { position: relative; z-index: 9; display: flex; align-items: stretch; justify-content: space-around; padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--paper-2); border-top: 1px solid var(--hair); }
   .bottom-bar-item { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; padding: .3rem .1rem; color: var(--ink-2); }
