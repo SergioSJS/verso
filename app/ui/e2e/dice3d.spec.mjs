@@ -401,7 +401,7 @@ async function openFeatures(app, page) {
   return (title) => page.locator(".setting", { has: page.locator(".setting-title", { hasText: new RegExp(`^${title}$`) }) });
 }
 
-test("settings: slots, presets, colours, contrast warning, texture, material and size are labelled and saved on this device", async ({ app, page }) => {
+test("settings: slots, presets, colours, contrast warning, texture, material and size are labelled and saved on this device @layout", async ({ app, page }) => {
   await app.open();
   const row = await openFeatures(app, page);
   const look = () => page.evaluate(() => JSON.parse(localStorage.getItem("verso.settings")).dice3dLook);
@@ -677,5 +677,7 @@ test("the dice sound: off, no recording is fetched; on, the hits play Rolai's re
   await again.click();
   await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
   expect(seen.length).toBeGreaterThan(0);
-  expect(seen.filter(([f, st]) => !((st === 200 || st === 206) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
+  // The WebKit build Playwright ships has no MP3 decoder: its requests end with no status (0); the app stays silent and the roll is unharmed.
+  const okStatus = (st) => st === 200 || st === 206 || (st === 0 && info.project.name.includes("webkit"));
+  expect(seen.filter(([f, st]) => !(okStatus(st) && /^(dicehit_plastic|surface_felt)\d+\.mp3$/.test(f)))).toEqual([]);
 });
