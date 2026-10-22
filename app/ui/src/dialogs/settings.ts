@@ -74,6 +74,9 @@ export class SettingsDialog {
   readonly body = h("div", "settings-body");
   readonly search = h("input", "settings-search");
   private section = "general";
+  /** On a phone the sections are a list first and a page after a tap
+   *  (CSS shows one of the two by the box's `phone-list` / `phone-page`). */
+  private phoneList = true;
   private readonly frame: { restoreSavedSize: () => void; resetSize: () => void };
   constructor() {
     this.el.hidden = true;
@@ -113,6 +116,7 @@ export class SettingsDialog {
 
 
   show(section?: string): void {
+    this.phoneList = !section;
     if (section) this.section = section;
     this.frame.restoreSavedSize();
     opened(this.el);
@@ -884,11 +888,13 @@ export class SettingsDialog {
       b.type = "button";
       b.append(icon(sec.icon), h("span", "", sec.label));
       b.setAttribute("aria-current", String(sec.id === this.section && !q));
-      b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
+      b.addEventListener("click", () => { this.section = sec.id; this.phoneList = false; this.search.value = ""; this.paint(); });
       navItems.push(b);
     }
     this.nav.replaceChildren(...navItems);
     this.revealCurrent();
+    this.box.classList.toggle("phone-list", this.phoneList && !q);
+    this.box.classList.toggle("phone-page", !this.phoneList || !!q);
     const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";
@@ -910,7 +916,11 @@ export class SettingsDialog {
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
       const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "rpgfeatures" ? fs.rpgLead : this.section === "notify" ? notifyStrings().sectionLead : this.section === "credits" ? cs.lead : "";
-      this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
+      const back = h("button", "settings-back");
+      back.type = "button";
+      back.append(icon("chevronLeft"), h("span", "", t.settings));
+      back.addEventListener("click", () => { this.phoneList = true; this.paint(); this.nav.scrollTop = 0; });
+      this.body.replaceChildren(back, title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }
 }
