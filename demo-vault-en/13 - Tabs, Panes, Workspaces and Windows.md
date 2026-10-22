@@ -34,7 +34,7 @@ Several notes open at the same time: in tabs, side by side, in separate workspac
 
 - `⌘\` splits right and `⌘⇧\` splits down.
 - Or drag a tab to a pane's edge: the edge chooses the side; the middle puts the tab there.
-- The **right panel** (outline, backlinks, tags, bookmarks, focuses and calendar) opens with the **Show right panel** button, always at the top-right corner of the window, or with `⌘⌥→`. On a phone it is the **Panel** button of the bottom bar.
+- The **right panel** (outline, backlinks, tags, bookmarks, focuses and calendar) opens with the **Show right panel** button in the status bar, the button of the same name on the left ribbon, or with `⌘⌥→`. On a phone it is the **Panel** button of the bottom bar.
 - `⌘⇧M` maximizes the pane and `⌘⇧W` closes it.
 - The **All tabs** button, in the corner of the tab bar, lists the pane's tabs and has **Vertical tabs** and **Hide tab bar** — a double click on the empty pane brings the bar back.
 

@@ -32,7 +32,7 @@ win.__TAURI_INTERNALS__ = {
 globalThis.__TAURI_INTERNALS__ = win.__TAURI_INTERNALS__;
 win.localStorage.setItem("verso.settings", "{}");
 
-for (const id of ["open", "folder", "collapse", "ribbon", "search", "search-label", "search-clear", "status", "report-bug", "words", "notes-heading", "notes", "tree-root", "spaces", "panes", "top-progress", "top-progress-fill", "index-progress", "index-progress-bar", "index-progress-label", "toggle-side", "toggle-right", "toggle-right-top", "right-divider", "side-divider", "keys-commands", "right", "right-tabs", "right-body"]) {
+for (const id of ["open", "folder", "collapse", "ribbon", "search", "search-label", "search-clear", "status", "report-bug", "words", "notes-heading", "notes", "tree-root", "spaces", "panes", "top-progress", "top-progress-fill", "index-progress", "index-progress-bar", "index-progress-label", "toggle-side", "toggle-right", "right-divider", "side-divider", "keys-commands", "right", "right-tabs", "right-body"]) {
   const e = document.createElement("div");
   e.id = id;
   document.body.append(e);

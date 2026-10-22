@@ -38,8 +38,8 @@ function band(): number {
 }
 /** The corner each frame keeps: macOS's three buttons with their margins
  *  (measured on macOS 26 at the system's place, x 9–68); Windows' three of
- *  46 px, and the 36 px of the right panel's toggle beside them. */
-const CORNER: Record<Frame, number> = { mac: 78, windows: 138 + 36 };
+ *  46 px. */
+const CORNER: Record<Frame, number> = { mac: 78, windows: 138 };
 
 function which(): Frame | null {
   const asked = new URLSearchParams(location.search).get("frame");
