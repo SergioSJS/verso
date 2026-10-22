@@ -60,21 +60,34 @@ if (existsSync(exceptionsFile)) {
   }
 }
 
-const run = spawnSync("npm", ["audit", "--json", "--package-lock-only"], {
-  cwd: dir,
-  encoding: "utf8",
-  maxBuffer: 64 * 1024 * 1024,
-  shell: process.platform === "win32",
-});
+// The registry's audit endpoint fails now and then with an empty error
+// (seen twice in a night on 2026-10-22): asked up to three times, 20 s
+// apart, before the run is red. A registry that stays down still fails it.
+const ATTEMPTS = 3;
 let report;
-try {
-  report = JSON.parse(run.stdout);
-} catch {
-  console.error(`npm audit gave no report (exit ${run.status}):\n${run.stderr || run.stdout}`);
-  process.exit(1);
+let failure = "";
+for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+  const run = spawnSync("npm", ["audit", "--json", "--package-lock-only"], {
+    cwd: dir,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    shell: process.platform === "win32",
+  });
+  report = undefined;
+  try {
+    report = JSON.parse(run.stdout);
+  } catch {
+    failure = `npm audit gave no report (exit ${run.status}):\n${run.stderr || run.stdout}`;
+  }
+  if (report?.error) failure = `npm audit failed: ${report.error.summary || JSON.stringify(report.error)}`;
+  if (report && !report.error) break;
+  if (attempt < ATTEMPTS) {
+    console.error(`${failure.split("\n")[0]} — asking again in 20 s (${attempt}/${ATTEMPTS})`);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20_000);
+  }
 }
-if (report.error) {
-  console.error(`npm audit failed: ${report.error.summary ?? JSON.stringify(report.error)}`);
+if (!report || report.error) {
+  console.error(failure);
   process.exit(1);
 }
 
