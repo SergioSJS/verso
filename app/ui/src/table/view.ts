@@ -13,11 +13,12 @@ import { icon } from "../icons";
 import { pictureAddress } from "../images";
 import { openNote } from "../layout/spaces";
 import { name } from "../paths";
-import { quick } from "../main";
 import { resolveNoteByName } from "../resolve";
 import type { DiceStyle } from "../dice3d/look";
 import { entryMenu, openImage, panelMenu } from "./actions";
-import { addToNote, announce, clock, saidOf, whoOf } from "./addToNote";
+import { announce, clock, rollBlockFor, saidOf, whoOf } from "./addToNote";
+import { armDrag } from "../layout/drag";
+import { rollable } from "../rollblock/entry";
 import { Compose } from "./compose";
 import { isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
@@ -309,19 +310,20 @@ class TableView {
       if (e.kind === "table" && e.row) body.append(h("span", "table-row", plainRow(e.row)));
     }
     li.append(meta, body);
-    if (server) {
+    // The entry's actions are in its "…" menu (keyboard, screen reader, phone): pin and
+    // delete on the server's table, "Add to note…" on every roll.
+    if (server || rollable(e) || e.kind === "say" || e.kind === "image") {
       const more = button("ghost iconic table-menu", "", "more");
       more.setAttribute("aria-label", tt.entryActions(said));
       more.setAttribute("aria-haspopup", "menu");
       more.title = tt.entryActions(said);
       more.addEventListener("click", () => entryMenu(more, e, server));
       li.append(more);
-    } else {
-      const add = button("ghost iconic table-add", "", "plus");
-      add.setAttribute("aria-label", tt.addToNoteFor(said));
-      add.title = tt.addToNote;
-      add.addEventListener("click", () => void addToNote(e, () => quick.pick()));
-      li.append(add);
+    }
+    // A roll is dragged from the line to a note or a board (pointer drag, as the tree's rows).
+    if (rollable(e)) {
+      li.classList.add("rollable");
+      armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? "" }), () => said);
     }
     return li;
   }

@@ -24,7 +24,8 @@ import { howSaid } from "../dice/card";
 import type { TableEntry } from "./model";
 import { tt } from "./strings";
 import { meName } from "./record";
-import { LOCALE } from "../strings";
+import { LANG, LOCALE } from "../strings";
+import { fencedOfEntry } from "../rollblock/entry";
 
 /** The time of an entry, as the log shows it. */
 export function clock(at: number): string {
@@ -62,6 +63,15 @@ export function lineFor(e: TableEntry, target: string): string {
   return `- **${who}** · ${clock(e.at)}${where} — ${saidOf(e)}`;
 }
 
+/** The roll block of an entry for the note `target` (ADR 0107, "As built"
+ *  2026-10-22): who, when, where as a link, the roll itself; null for a
+ *  message or an image, which keep their line. */
+export function rollBlockFor(e: TableEntry, target: string): string | null {
+  const who = e.mine && meName() ? meName() : e.mine && e.by ? e.by : whoOf(e);
+  const where = e.path ? linkText(target, e.path) : "";
+  return fencedOfEntry(e, who, where, LANG.toLowerCase().startsWith("pt") ? "pt" : "en");
+}
+
 /** What the live region says of another person's entry, with their name. */
 export function announce(e: TableEntry): string {
   if (e.kind === "say") return tt.wrote(whoOf(e), saidOf(e));
@@ -78,7 +88,7 @@ export async function addToNote(e: TableEntry, pick: () => Promise<string | null
     ui.status.textContent = tt.notAdded;
     return;
   }
-  const line = lineFor(e, target);
+  const line = rollBlockFor(e, target) ?? lineFor(e, target);
   if (!(await ask(tt.addAsk(name(target), line), { yes: tt.add, no: tt.cancel }))) return;
   const live = await writeLive(target, liveHolder(target), (was) => appendLines(was, [line]), roomSide);
   if (live === "room" || live === "same") {
