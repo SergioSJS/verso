@@ -543,6 +543,19 @@ Rolai, e os dados 3D o mostram com o desenho comum de reserva; um modificador se
 dados na rolagem não é escrito (regra do Rolai); a rolagem não é esvaziada ao
 rolar; a linha de erro da bandeja, não o registro, diz o que não pôde ser rolado.
 
+**Uma rolagem ouvida diz qual dado foi clicado** (decidido em 23/10/2026,
+"Sim" do mantenedor). Uma nota pode ter o mesmo código `dice:` duas vezes, e uma
+rolagem ouvida de outra pessoa aparecia no primeiro dado com aquele código. Um
+`DiceRoll` agora leva um `occurrence` opcional (`Option<u32>`, a partir de 0):
+qual dos dados da nota com aquele código foi clicado. A janela o envia como o
+argumento `occurrence` de `collab_roll` e `table_roll`; o servidor só o guarda
+se for menor que 1000, senão o descarta, e o repassa na rolagem (o evento da
+sala, as rolagens guardadas para quem entra, a entrada da mesa); a janela que o
+ouve a mostra no dado daquela posição. Sem ele (janela ou servidor mais antigo,
+entrada antiga do registro) o primeiro dado a mostra, como antes. Serve só para
+exibição e não se confia nele para mais nada; um valor que não seja um número
+de 32 bits não negativo é recusado. Os tipos TypeScript são regenerados do Rust.
+
 **Pergunta em aberto.** Rolagens salvas ou nomeadas (um botão "Ataque da Bia"
 que rola `1d20+7`): o Rolai não tem e nada aqui as decide. Se a Mesa deve
 guardá-las, onde (a pasta, os ajustes, a ficha) e se são compartilhadas, é o

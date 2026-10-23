@@ -181,7 +181,7 @@ export class Table {
       const notation = readNotation(String(a["notation"] ?? ""));
       if (!notation) refuse("not a roll Verso reads");
       const source = a["source"] === null || a["source"] === undefined ? null : String(a["source"]);
-      const roll: DiceRoll = { ...rollHere(notation, source), by: this.name, styles: checkStyles(a["styles"]) };
+      const roll: DiceRoll = { ...rollHere(notation, source), by: this.name, styles: checkStyles(a["styles"]), ...(typeof a["occurrence"] === "number" && a["occurrence"] >= 0 && a["occurrence"] < 1000 ? { occurrence: a["occurrence"] } : {}) };
       const path = typeof a["path"] === "string" ? a["path"] : null;
       return this.add({ kind: "roll", by: this.name, by_id: this.account, roll, path, secret: a["secret"] === true });
     };
