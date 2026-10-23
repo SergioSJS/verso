@@ -29,7 +29,7 @@ A game master may have several tables, one folder each.
 
 In the **Table** window, **Invite players › Make link** makes a single-use link, good for 7 days, that gives **reading** of this table and only it: whoever accepts sees the table's folder and nothing above or beside it. **Copy the link** and send it.
 
-Only whoever runs the server invites someone with no account yet; someone who has one comes in through the folder's **Share…** ([[14 - Files and Folders]]).
+Only whoever runs the server invites someone with no account yet; someone who has one comes in through the folder's **Share…** ([[14 - Files and Folders]]). And someone who already has an account on this server, from another table, **accepts the link with the account they have**: on the invitation page, if already signed in, the button is **Join the table as** their name (**That is not me** signs out); if not, **I have an account — sign in and accept** asks for the e-mail and password right there. No second account is made, and an invitation made for an e-mail serves only that account.
 
 **Table open** is the door: off, players cannot open the folder ("the table is closed"; whoever is inside leaves) and you always can.
 

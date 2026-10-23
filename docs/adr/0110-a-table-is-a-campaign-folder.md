@@ -74,7 +74,11 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    Turning a folder into a table offers an invitation link
    ([0081](0081-sharing-between-people-on-one-universo.md) invitations); a
    player who accepts sees that folder only — nothing above or beside it
-   (0081's share re-rooting). `[PROPOSED]` Players join as readers by
+   (0081's share re-rooting). 2026-10-23: a player who already has an
+   account on the server (of another table) accepts the link with that
+   account, signed in or signing in on the invitation's page
+   ([0074](0074-accounts-and-access-on-the-server.md) item 4); no second
+   account. `[PROPOSED]` Players join as readers by
    default; per-note editing is item 5.
 
 3. **Open or closed.** `[DECIDED]` The game master sets the table open or

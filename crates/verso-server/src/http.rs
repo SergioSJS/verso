@@ -279,6 +279,7 @@ pub fn router(server: Arc<Server>) -> Router {
             "/api/invite/{token}",
             get(crate::api::invitation).post(crate::api::accept),
         )
+        .route("/api/invite/{token}/join", post(crate::invite_join::join))
         .route(
             "/api/reset/{token}",
             get(crate::api::reset_link).post(crate::api::reset),

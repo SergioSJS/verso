@@ -29,7 +29,7 @@ Uma mestra pode ter várias mesas, uma pasta cada.
 
 Na janela **Mesa**, **Convidar jogadores › Gerar link** faz um link de uso único, válido por 7 dias, que dá **leitura** desta mesa e só dela: quem aceita vê a pasta da mesa e nada acima nem ao lado. **Copiar o link** e mande.
 
-Só quem administra o servidor convida alguém que ainda não tem conta; quem já tem conta entra pelo **Compartilhar…** da pasta ([[14 - Arquivos e Pastas]]).
+Só quem administra o servidor convida alguém que ainda não tem conta; quem já tem conta entra pelo **Compartilhar…** da pasta ([[14 - Arquivos e Pastas]]). E quem já tem conta neste servidor, de outra mesa, **aceita o link com a conta que tem**: na página do convite, se já está dentro, o botão é **Entrar na mesa como** seu nome (**Não sou eu** sai da conta); se não, **Já tenho conta — entrar e aceitar** pede o e-mail e a senha ali mesmo. Não se cria outra conta, e um convite feito para um e-mail só serve àquela conta.
 
 **Mesa aberta** é a chave de entrada: desligada, as jogadoras não conseguem abrir a pasta ("a mesa está fechada"; quem está dentro sai) e você sempre entra.
 

@@ -38,7 +38,7 @@
   dispositivo, guardado com a sessão dele, pode ser definido pela pessoa
   em Ajustes › Servidores, por padrão o nome do sistema — o *"Sim para
   todos"* do mantenedor naquela noite, registrado no
-  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisões, item 8). 2026-10-21 — o [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): o token do dispositivo passa do `servers.json` para o chaveiro do sistema (a construir).
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisões, item 8). 2026-10-21 — o [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): o token do dispositivo passa do `servers.json` para o chaveiro do sistema (a construir). 2026-10-23 — item 4: uma conta que já existe aceita um convite com a conta que tem (já dentro, um botão; fora, os campos de entrada na página do convite e depois a entrada; um convite feito para um e-mail serve só àquela conta; o que a conta já tem nunca diminui) — o mantenedor: *"recebi um convite para entrar numa mesa nova e fui tentar entrar com a Ana e deu que o usuário já existia com esse e-mail... não tem fluxo de usuário igual aceitar convite de mesa diferente?"*.
 
 ## Contexto
 

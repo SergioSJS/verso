@@ -40,6 +40,7 @@ pub mod hashes;
 pub mod history;
 pub mod http;
 pub mod inflight;
+pub mod invite_join;
 pub mod large;
 pub mod limit;
 pub mod listen;
@@ -447,6 +448,8 @@ mod tests_hashes;
 mod tests_history;
 #[cfg(test)]
 mod tests_http;
+#[cfg(test)]
+mod tests_invite_join;
 #[cfg(test)]
 mod tests_map_tiles;
 #[cfg(test)]
