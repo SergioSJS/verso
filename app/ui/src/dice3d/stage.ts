@@ -13,9 +13,9 @@
 // ends: no canvas, no animation frame, no GPU resource.
 
 import {
-  AmbientLight,
   CanvasTexture,
   DirectionalLight,
+  HemisphereLight,
   BufferGeometry,
   Float32BufferAttribute,
   Mesh,
@@ -278,9 +278,14 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   camera.position.set(0, height, 0);
   camera.up.set(0, 0, -1);
   camera.lookAt(0, 0, 0);
-  scene.add(new AmbientLight(0xffffff, 1.35));
-  const sun = new DirectionalLight(0xffffff, 2.4);
-  sun.position.set(arena.halfX * 0.5, height * 0.9, arena.halfZ * 0.3);
+  // The light of Rolai's table (a hemisphere, not a flat ambient) with a sun
+  // that stands off the camera's axis: the camera looks straight down, so a
+  // sun overhead mirrors itself on the flat top faces, the ones read, and a
+  // light body clips to white (2026-10-23). From the side the highlight
+  // falls on the flanks and the top face keeps its colour and its number.
+  scene.add(new HemisphereLight(0xffffff, 0x8a8794, 1.0));
+  const sun = new DirectionalLight(0xffffff, 1.7);
+  sun.position.set(-arena.halfX * 0.6, height * 0.8, arena.halfZ * 0.9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   const reach = Math.max(arena.halfX, arena.halfZ) * 1.3;
@@ -304,7 +309,9 @@ export function throwDice(dice: readonly Die3[], styles: DiceStyles, size: numbe
   // and would freeze the window: there the dice have no reflections.
   const info = gl.getExtension("WEBGL_debug_renderer_info");
   const software = info ? /swiftshader|llvmpipe|software/i.test(String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL))) : false;
-  if (!software && finishes.some((f) => f.env > 0)) {
+  // A test can ask for the studio on a CPU renderer to see the reflections (nothing else sets this).
+  const forceEnv = (globalThis as { __dice3dEnv?: boolean }).__dice3dEnv === true;
+  if ((!software || forceEnv) && finishes.some((f) => f.env > 0)) {
     // A graphics stack that cannot render it (no float targets) shows the
     // material without reflections instead of no dice at all.
     try {
