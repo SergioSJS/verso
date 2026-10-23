@@ -108,8 +108,10 @@ terceiros iniciado e mantido rodando pelo app.
   passo (*"depois a gente pode ... implementar um modo oficial"*): qual, é o
   item 13.
 
-Todo o resto é `[OPEN]`, cada item com opções e uma recomendação. Nada está
-decidido até o mantenedor dizer. Em todo o texto, a recomendação é a menor
+Cada item abaixo foi escrito como `[OPEN]`, com opções e uma recomendação;
+em 23/10/2026 o mantenedor decidiu o item 1 com as próprias palavras, o
+item 13 como listado e os itens 2 a 12 como recomendado (*"Sim"*, à
+pergunta se aceitava todas as recomendações). Em todo o texto, a recomendação é a menor
 superfície que ainda deixa um grupo de jogadores entrar de suas próprias
 casas. Nada disto muda uma ADR Aceita; onde uma precisa de uma linha, o item
 diz.
@@ -139,7 +141,7 @@ diz.
      opção (a) lida como o UniVerso a lê — "compartilha" inclui qualquer
      pasta compartilhada, não só mesas.
 
-2. **`[OPEN]` Contas e como um jogador entra.**
+2. **`[DECIDED 2026-10-23]` Contas e como um jogador entra.**
    - (a) Contas no banco do servidor local (o diretório de estado da 0096,
      [0075](0075-server-packaging-and-storage.md)); jogadores convidados por
      link ([0110](0110-a-table-is-a-campaign-folder.md) item 2,
@@ -156,7 +158,7 @@ diz.
      e-mail é pergunta para a construção: o convite da 0081 pode precisar de
      um login que funcione sem e-mail. Não decidido aqui.
 
-3. **`[OPEN]` Onde escuta.**
+3. **`[DECIDED 2026-10-23]` Onde escuta.**
    - (a) `127.0.0.1` numa porta aleatória, nunca um endereço de LAN ou
      público; o único caminho de entrada é o túnel. Independente do modo LAN
      da 0096 (duas chaves; uma, as duas ou nenhuma).
@@ -164,7 +166,7 @@ diz.
    - Recomendação: **(a)**, chaves separadas. Isto muda o item 3 da 0096
      (faixas privadas) só para este modo: o loopback é mais estreito.
 
-4. **`[OPEN]` TLS, o proxy e a origem.**
+4. **`[DECIDED 2026-10-23]` TLS, o proxy e a origem.**
    - Fatos: a Cloudflare termina o HTTPS; o trecho do `cloudflared` ao
      servidor é HTTP simples no loopback, o que o item 6 da
      [0073](0073-self-hosted-server-first.md) permite ("exceto em loopback ou
@@ -186,7 +188,7 @@ diz.
      é omissa); a construção deve testar num túnel real antes de escolher, e
      um valor forjado não pode mover um limite.
 
-5. **`[OPEN]` O binário `cloudflared`.**
+5. **`[DECIDED 2026-10-23]` O binário `cloudflared`.**
    - (a) Baixar no primeiro uso uma versão **fixada** para o diretório de
      dados do app, de `github.com/cloudflare/cloudflared/releases`, conferir
      seu SHA-256 (a página da versão lista um para cada arquivo) contra um
@@ -233,7 +235,7 @@ diz.
        configuração, nunca pelo `verso-fs`. O crate exato fica para o leitor
        confirmar.
 
-6. **`[OPEN]` Ciclo de vida e visibilidade.**
+6. **`[DECIDED 2026-10-23]` Ciclo de vida e visibilidade.**
    - Recomendação: desligado por padrão e desligado de novo na próxima
      abertura (como o item 1 (a) da 0096, sem a chave "manter ligado ao
      abrir"); enquanto ligado, sempre visível: uma marca na barra de status,
@@ -250,7 +252,7 @@ diz.
    - Alternativas: sem teto; um limite de ociosidade menor; reiniciar na
      falha.
 
-7. **`[OPEN]` Os limites dos Quick Tunnels** (acima, segundo a Cloudflare):
+7. **`[DECIDED 2026-10-23]` Os limites dos Quick Tunnels** (acima, segundo a Cloudflare):
    só para teste e desenvolvimento, sem garantia de disponibilidade, um nome
    novo a cada execução, 200 requisições em andamento com `429` acima disso,
    sem SSE. Para o Verso: as salas e a sincronização usam WebSockets (a
@@ -266,7 +268,7 @@ diz.
    - Recomendação: construir, rotular "modo de teste" nos Ajustes e registrar
      os números medidos em "Como foi construído".
 
-8. **`[OPEN]` Revisão de segurança para o PR de construção.** Recomendação:
+8. **`[DECIDED 2026-10-23]` Revisão de segurança para o PR de construção.** Recomendação:
    uma lista de checagem, não um desenho. Tudo o que a
    [0083](0083-security-hardening-of-universo.md) lista vale também para este
    servidor (limites, ritmo, fronteiras, o conjunto completo de cabeçalhos, o
@@ -282,25 +284,25 @@ diz.
    multiplataforma lê [o checklist](../reference/cross-platform-checklist.md)
    e a [0069](0069-windows-port.md).
 
-9. **`[OPEN]` Acessibilidade, idiomas e celulares.** Recomendação: a janela
+9. **`[DECIDED 2026-10-23]` Acessibilidade, idiomas e celulares.** Recomendação: a janela
    servida é a janela web existente; a tela do modo online, suas mensagens e
    a página "mesa offline" são escritas em pt-BR e EN
    ([0035](0035-cross-cutting-requirements.md)), alcançáveis por teclado, com
    o link, o QR e o estado legíveis por leitor de tela; jogadores no celular
    a 390x844 alcançam todo painel e todo esconder tem caminho de volta.
 
-10. **`[OPEN]` O tutorial** ([0058](0058-demo-vault-as-tutorial.md)).
+10. **`[DECIDED 2026-10-23]` O tutorial** ([0058](0058-demo-vault-as-tutorial.md)).
     Recomendação: quando construído, uma nota do cofre de demonstração "Mesa
     online" (e seu par em inglês) com os passos reais: ligar, copiar o link,
     convidar, o que os jogadores veem, parar. Seguida no app antes do PR.
 
-11. **`[OPEN]` Convivência com o modo LAN da 0096 e com a sincronização.**
+11. **`[DECIDED 2026-10-23]` Convivência com o modo LAN da 0096 e com a sincronização.**
     Recomendação: chaves separadas (item 3); uma pasta que o notebook também
     sincroniza com um UniVerso mantém as regras do item 11 da 0096 para os
     dois modos; o modo online nunca serve uma pasta feita mesa num UniVerso
     que é de outra pessoa.
 
-12. **`[OPEN]` O que não foi verificado.** Suporte a WebSocket num Quick
+12. **`[DECIDED 2026-10-23]` O que não foi verificado.** Suporte a WebSocket num Quick
     Tunnel (a especificação colada diz que sim, a página da Cloudflare é
     omissa), o cabeçalho do endereço do cliente, o limite de upload, a
     assinatura de código dos binários, o comportamento da quarentena, o
@@ -356,10 +358,13 @@ Só alternativas realmente consideradas na sessão:
 
 ## Status
 
-Proposta (2026-10-23). Escrita pelo Sonnet 5.5 a pedido da sessão; a ser
-lida pelo outro modelo antes de ser aceita. D1, D2 e D3 são palavras do
-mantenedor de 2026-10-23; os itens 1 e 13 foram decididos pelo mantenedor
-no mesmo dia; os itens 2 a 12 são `[OPEN]` e aguardam o mantenedor. Nada está construído.
+**Aceita (2026-10-23).** Proposta no mesmo dia, escrita pelo Sonnet 5.5 a
+pedido da sessão. D1, D2 e D3 são palavras do mantenedor de 2026-10-23; o
+item 1 foi decidido com as palavras do mantenedor, o item 13 como listado
+(*"perfeita a lista para modo oficial"*) e os itens 2 a 12 como
+recomendado (*"Sim"*). A leitura pelo outro modelo ainda é devida e vai
+com o PR da construção. Nada está construído; o primeiro passo é o
+experimento do item 12.
 
 Fontes: Cloudflare, "Quick Tunnels" (link no Contexto); o repositório
 `cloudflared` e sua versão 2026.10.3 no GitHub, lidos em 2026-10-23.

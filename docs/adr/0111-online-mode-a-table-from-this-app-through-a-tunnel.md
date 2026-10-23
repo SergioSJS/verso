@@ -113,8 +113,10 @@ third-party binary launched and kept running by the app.
   step (*"depois a gente pode ... implementar um modo oficial"*): which one is
   item 13.
 
-Everything else is `[OPEN]`, each with options and a recommendation. Nothing
-is decided until the maintainer says so. Throughout, the recommendation is
+Every item below was written as an `[OPEN]` with options and a
+recommendation; on 2026-10-23 the maintainer decided item 1 in their own
+words, item 13 as listed, and items 2 to 12 as recommended (*"Sim"*, asked
+whether all the recommendations were accepted). Throughout, the recommendation is
 the smallest surface that lets a group of players sign in from their own
 homes. None of it changes an Accepted ADR; where one needs a line, the item
 says so.
@@ -142,7 +144,7 @@ says so.
      read as the UniVerso reads it — "shares" includes any folder shared,
      not only tables.
 
-2. **`[OPEN]` Accounts and how a player gets in.**
+2. **`[DECIDED 2026-10-23]` Accounts and how a player gets in.**
    - (a) Accounts in the local server's database (the 0096 state directory,
      [0075](0075-server-packaging-and-storage.md)); players invited by link
      ([0110](0110-a-table-is-a-campaign-folder.md) item 2,
@@ -159,7 +161,7 @@ says so.
      server is a question for the build: the invitation of 0081 may need a
      sign-in that works without mail. Not decided here.
 
-3. **`[OPEN]` Where it listens.**
+3. **`[DECIDED 2026-10-23]` Where it listens.**
    - (a) `127.0.0.1` on a random port, never a LAN or public address; the
      only way in is the tunnel. Independent of 0096's LAN mode (two
      switches; either, both or none).
@@ -167,7 +169,7 @@ says so.
    - Recommendation: **(a)**, separate switches. This changes 0096 item 3
      (private ranges) for this mode only: loopback is narrower.
 
-4. **`[OPEN]` TLS, the proxy and the origin.**
+4. **`[DECIDED 2026-10-23]` TLS, the proxy and the origin.**
    - Facts: Cloudflare ends HTTPS; the hop from `cloudflared` to the server
      is plain HTTP on loopback, which
      [0073](0073-self-hosted-server-first.md) item 6 allows ("except on
@@ -188,7 +190,7 @@ says so.
      (the page above is silent); the build must test it on a real tunnel
      before choosing, and a spoofed value must not move a limit.
 
-5. **`[OPEN]` The `cloudflared` binary.**
+5. **`[DECIDED 2026-10-23]` The `cloudflared` binary.**
    - (a) Download on first use a **pinned** version into the app's data
      directory, from `github.com/cloudflare/cloudflared/releases`, check its
      SHA-256 (the release page lists a checksum for each asset) against a
@@ -234,7 +236,7 @@ says so.
        configuration directory, never `verso-fs`. The exact crate is for the
        reader to confirm.
 
-6. **`[OPEN]` Lifecycle and visibility.**
+6. **`[DECIDED 2026-10-23]` Lifecycle and visibility.**
    - Recommendation: off by default and off again at the next start (like
      0096 item 1 (a), without the "keep on at start" switch); while on, always
      visible: a mark in the status bar, a tray or menu-bar entry with
@@ -250,7 +252,7 @@ says so.
      and offer to retry.
    - Alternatives: no ceiling; a shorter idle limit; restart on failure.
 
-7. **`[OPEN]` The limits of Quick Tunnels** (stated above, from Cloudflare):
+7. **`[DECIDED 2026-10-23]` The limits of Quick Tunnels** (stated above, from Cloudflare):
    testing and development only, no uptime guarantee, a new hostname each
    run, 200 in-flight requests with `429` beyond, no SSE. For Verso: the
    rooms and sync use WebSockets (to confirm that a Quick Tunnel carries
@@ -265,7 +267,7 @@ says so.
    - Recommendation: build it, label it "testing mode" in Settings, and
      record the measured numbers in "As built".
 
-8. **`[OPEN]` Security review for the build PR.** Recommendation: a
+8. **`[DECIDED 2026-10-23]` Security review for the build PR.** Recommendation: a
    checklist, not a design. Everything [0083](0083-security-hardening-of-universo.md)
    lists applies to this server too (limits, pacing, bounds, the full set of
    headers, the audit log, the password list, the token revocation); the
@@ -280,25 +282,25 @@ says so.
    [the checklist](../reference/cross-platform-checklist.md) and
    [0069](0069-windows-port.md).
 
-9. **`[OPEN]` Accessibility, languages and phones.** Recommendation: the
+9. **`[DECIDED 2026-10-23]` Accessibility, languages and phones.** Recommendation: the
    served window is the existing web window; the online mode's screen, its
    messages and the "table offline" page are written in pt-BR and EN
    ([0035](0035-cross-cutting-requirements.md)), keyboard-reachable, with the
    link, the QR and the state readable by a screen reader; players on a phone
    at 390x844 reach every panel and every hide has a way back.
 
-10. **`[OPEN]` The tutorial** ([0058](0058-demo-vault-as-tutorial.md)).
+10. **`[DECIDED 2026-10-23]` The tutorial** ([0058](0058-demo-vault-as-tutorial.md)).
     Recommendation: when built, a demo-vault note "Mesa online" (and its pt-BR
     twin) with the real steps: turn it on, copy the link, invite, what players
     see, stop. Followed in the app before the PR.
 
-11. **`[OPEN]` Coexistence with 0096's LAN mode and with the sync.**
+11. **`[DECIDED 2026-10-23]` Coexistence with 0096's LAN mode and with the sync.**
     Recommendation: separate switches (item 3); a folder the laptop also syncs
     with a UniVerso keeps the rules of 0096 item 11 for both modes; the
     online mode never serves a folder made a table on a UniVerso that is
     someone else's.
 
-12. **`[OPEN]` What is not verified.** WebSocket support through a Quick
+12. **`[DECIDED 2026-10-23]` What is not verified.** WebSocket support through a Quick
     Tunnel (the pasted spec says yes, Cloudflare's page is silent), the
     client-address header, the upload limit, code signing of the binaries,
     the quarantine behaviour, the size of a bundled binary. Recommendation:
@@ -352,11 +354,13 @@ Only alternatives actually considered in the session:
 
 ## Status
 
-Proposed (2026-10-23). Written by Sonnet 5.5 at the request of the session;
-to be read by the other model before it is accepted. D1, D2 and D3 are the
-maintainer's words of 2026-10-23; items 1 and 13 were decided by the
-maintainer the same day; items 2 to 12 are `[OPEN]` and wait for the
-maintainer. Nothing is built.
+**Accepted (2026-10-23).** Proposed the same day, written by Sonnet 5.5 at
+the request of the session. D1, D2 and D3 are the maintainer's words of
+2026-10-23; item 1 was decided in the maintainer's words, item 13 as
+listed (*"perfeita a lista para modo oficial"*), and items 2 to 12 as
+recommended (*"Sim"*). The reading by the other model is still owed and
+goes with the build PR. Nothing is built; the first step is item 12's
+spike.
 
 Sources: Cloudflare, "Quick Tunnels" (link in Context); the `cloudflared`
 repository and its release 2026.10.3 on GitHub, read 2026-10-23.
