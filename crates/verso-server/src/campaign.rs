@@ -278,7 +278,7 @@ pub fn player(
 }
 
 /// Whether what a window reaches of `folder` is closed to it: a table
-/// that holds or lies in it is closed and the window only reads (a
+/// that holds what the window reaches is closed and the window only reads (a
 /// player; the folder's owner and its editors, the game masters, always
 /// enter). `root` is what the window reaches: the share's path, `""` for
 /// the whole folder.
@@ -290,9 +290,7 @@ pub fn closed_for(server: &Server, folder: &str, root: &str, player: bool) -> bo
     let Some(veil) = veil_of(server, folder) else {
         return false;
     };
-    veil.tables
-        .iter()
-        .any(|t| !t.open && (covers(&t.root, root) || covers(root, &t.root)))
+    veil.tables.iter().any(|t| !t.open && covers(&t.root, root))
 }
 
 /// Before a command of a window on a folder: a player of a table that was

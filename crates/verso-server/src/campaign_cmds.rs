@@ -134,6 +134,21 @@ pub async fn command(
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
+    // Who made, opened, closed, released, granted: in the audit log.
+    let (s, actor, f) = (Arc::clone(server), who.account.id.clone(), folder.clone());
+    let action = cmd.to_owned();
+    let _ = blocking(move || {
+        let _ = s.db.audit(&crate::db::Audit {
+            actor: Some(&actor),
+            action: &action,
+            subject: None,
+            folder: Some(&f),
+            address: None,
+            ok: true,
+        });
+        Ok(())
+    })
+    .await;
     changed(server, &folder, &key, touched).await;
     status(server, who, client).await
 }
