@@ -49,6 +49,17 @@ it (Status).
    window of its own belongs to the folder it came from; only the main
    window keeps its layout across launches (a window opened later starts
    with one empty workspace, as before).
+7. **At start every folder window that was open comes back** (amended
+   2026-10-23, `fix/reopen-windows`). The host keeps the keys of the folders
+   the windows show in `open-windows.json` in the configuration directory
+   (keys only, never a path; a server's folder as `server:<url>#<folder>`),
+   updated as a folder opens and as the person closes a window. It is left
+   alone while the app quits (⌘Q, the updater's restart) and by the last
+   window, so a quit brings back all the windows, and closing every window
+   by hand brings back the last one. A local folder that is gone is skipped and
+   logged; a server's folder that cannot be opened (the server down for a
+   moment, as when an update restarts both) keeps its key until the person
+   closes that window. A window's position and size are not kept.
 
 ## Consequences
 

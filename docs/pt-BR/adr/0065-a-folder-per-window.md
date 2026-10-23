@@ -47,6 +47,18 @@ Escrito pelo autor a partir da escolha do mantenedor acima, e aceito por ela
    própria pertence à pasta de onde veio; só a janela principal guarda o seu
    layout entre aberturas (uma janela aberta depois começa com uma área
    vazia, como antes).
+7. **Ao iniciar, toda janela de pasta que estava aberta volta** (emendado em
+   23/10/2026, `fix/reopen-windows`). O host guarda as chaves das pastas que
+   as janelas mostram em `open-windows.json`, na pasta de configuração
+   (só chaves, nunca um caminho; a pasta de um servidor como
+   `server:<url>#<pasta>`), atualizadas quando uma pasta abre e quando a
+   pessoa fecha uma janela. Não muda enquanto o app sai (⌘Q, o reinício da
+   atualização) nem pela última janela; então uma saída traz de volta todas
+   as janelas, e fechar todas à mão traz de volta a última. Uma pasta local que
+   não existe mais é pulada e registrada no log; a pasta de um servidor que
+   não abre (o servidor fora do ar por instantes, como quando uma atualização
+   reinicia os dois) mantém a sua chave até a pessoa fechar aquela janela. A posição e o tamanho de
+   uma janela não são guardados.
 
 ## Consequências
 

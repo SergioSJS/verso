@@ -51,6 +51,7 @@ pub mod clients;
 pub mod focuses;
 pub mod history;
 pub mod servers;
+pub mod session;
 pub mod sync;
 pub mod trash;
 pub mod typed;

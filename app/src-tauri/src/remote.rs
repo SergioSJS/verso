@@ -819,6 +819,8 @@ pub(crate) async fn server_open<R: tauri::Runtime>(
     app.state::<App>().service.release(&label);
     lock(&app.state::<App>().remotes).insert(label, remote);
     let _ = window.set_title(&format!("{} — Verso", info.name));
+    // The next start brings this window back (ADR 0065).
+    crate::session::remember(&app);
     Ok(info)
 }
 
