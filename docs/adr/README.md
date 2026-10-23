@@ -132,6 +132,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Proposed (2026-10-22): decided the same day — hex, rgb() and hsl(); a square beside the code in code, properties and plain text that is not a tag; the builder's picker laid out like VS Code's; being built |
 | [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Proposed (2026-10-22): "More themes…" decided; then the 23 colour tokens and the structural choices, only permissive licences and open palettes with colours re-taken from the source, names kept with credit (all decided 2026-10-22, being built); the Gemini catalogue checked against the sources (licences and colours often wrong) |
 | [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Proposed (2026-10-22): the maintainer's direction and additions; open — what closed means, default visibility, players' boards, links to notes not yet released |
+| [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Proposed (2026-10-23): the maintainer decided to build it on Cloudflare Quick Tunnels, on only when the person wants, with an official mode later; everything else `[OPEN]`; nothing built |
 
 ### Dialect, engineering and roadmap
 
