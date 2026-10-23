@@ -18,6 +18,7 @@
 .table-win-button svg { width: 14px; height: 14px; flex: none; }
 .table-win-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 360px) { .table-win-label { display: none; } }
+.tray-roller { flex: 1 0 100%; justify-content: flex-start; margin-top: .25rem; }
 .table-hide, .table-unhide { font-size: .8rem; color: var(--ink-2); padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 5px; min-height: 1.8rem; }
 .table-unhide { color: var(--seal); text-decoration: underline; border: 0; padding: 0 .2rem; min-height: 0; }
 .table-hide:disabled { opacity: .5; cursor: default; }

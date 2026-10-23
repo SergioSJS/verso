@@ -20,6 +20,7 @@ import { addDieToNotation, adjustModifier, COMPOSER_DICE, dieKind, dieKindLabel,
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { h } from "../dom";
 import { showMenu } from "../menu";
+import { openRoller } from "../dice/roller";
 import { tableSource } from "./record";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
@@ -158,6 +159,14 @@ export class Tray {
     this.savedBox.hidden = true;
 
     this.moreBox.append(this.extras);
+    // The roller's dialog (it was left only in the command palette): one more item of the drawer.
+    const roller = h("button", "tray-tool tray-roller", ts.openRoller);
+    roller.type = "button";
+    roller.addEventListener("click", () => {
+      this.closePops();
+      openRoller();
+    });
+    this.moreBox.append(roller);
     this.scroll.append(this.moreButton, this.mod, this.kh, this.kl);
     this.tools = [this.savedButton, this.mode];
     this.row.append(this.scroll);
