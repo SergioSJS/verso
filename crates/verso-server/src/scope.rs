@@ -906,6 +906,12 @@ impl Scope {
             // A table's state changed (ADR 0110): the window asks its status
             // again; no path of the owner's folder goes with it.
             "campaign-changed" => m["payload"]["paths"] = json!([]),
+            // The table's events (ADR 0107, 0110): a window on a share at a
+            // table hears what a member hears. `table.rs` already wrote the
+            // table as `""` and the paths from the share's root before it
+            // pushed, so nothing of the owner's folder is in them.
+            "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared" => {
+            }
             _ => return None,
         }
         Some(m)

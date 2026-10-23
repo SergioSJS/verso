@@ -183,8 +183,13 @@ fn view_masked(row: &TableRow, viewer: &str, role: Role) -> Option<TableEntry> {
 }
 
 /// The entry `row` as `account` in `role` sees it.
-pub(crate) fn seen(row: &TableRow, account: &str, role: Role) -> Option<TableEntry> {
-    view(row, account, role)
+pub(crate) fn seen(
+    row: &TableRow,
+    account: &str,
+    role: Role,
+    root: Option<&str>,
+) -> Option<TableEntry> {
+    scoped(view(row, account, role), root)
 }
 
 /// A new `image` entry for the file at `path`, kept and told.
@@ -224,6 +229,11 @@ fn scoped(entry: Option<TableEntry>, root: Option<&str>) -> Option<TableEntry> {
     };
     e.table = String::new();
     e.path = e.path.and_then(|p| {
+        crate::db::covers(root, &p).then(|| p[root.len()..].trim_start_matches('/').to_owned())
+    });
+    // An image is a file of the table's folder: written from the share's
+    // root too (none when it is outside).
+    e.image = e.image.and_then(|p| {
         crate::db::covers(root, &p).then(|| p[root.len()..].trim_start_matches('/').to_owned())
     });
     if let Some(roll) = e.roll.as_mut()
@@ -779,15 +789,23 @@ pub async fn command(
             to_value(scoped(view(&row, &who_id, role), scope.as_deref()))
         }
         "table_send_image" => {
-            if scope.is_some() {
-                return Err(refused("an image is not sent from a share"));
-            }
-            if !(folder_role.writes() && who.reaches(&folder).1 && role.writes()) {
+            // As a member: the share only bounds what is seen. The file is
+            // kept inside the share's table folder, where the player reads it.
+            let visible = crate::shares::scope_here(server, client)
+                .map_or_else(|| folder.clone(), |s| s.share);
+            if !(folder_role.writes() && who.reaches(&visible).1 && role.writes()) {
                 return Err(refused("you may only read this folder"));
             }
             let data: String = arg(&args, "base64")?;
             pace(&s, client)?;
-            crate::table_image::send(server, who, client, (&folder, &table, role), &data).await
+            crate::table_image::send(
+                server,
+                who,
+                client,
+                (&folder, &table, role),
+                (&data, scope.as_deref()),
+            )
+            .await
         }
         "table_roll" => {
             let notation: String = arg(&args, "notation")?;
