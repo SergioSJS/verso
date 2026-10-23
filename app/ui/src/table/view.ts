@@ -225,6 +225,8 @@ class TableView {
       b.append(h("span", "table-win-label", ts.openTableWindow));
       b.setAttribute("aria-label", ts.openTableWindow);
       b.addEventListener("click", () => openCampaignDialog(""));
+      // Closed, the game master sees it where the table is (players wait outside).
+      if (tableFor("")?.open === false) this.win.append(h("span", "table-closed-pill", cp.closedTag));
       this.win.append(b);
     } else if (!isServerTable(src) && !mayShare()) {
       line = src.notice?.() ? null : ts.noTableLocal;

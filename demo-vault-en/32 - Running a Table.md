@@ -31,7 +31,11 @@ In the **Table** window, **Invite players › Make link** makes a single-use lin
 
 Only whoever runs the server invites someone with no account yet; someone who has one comes in through the folder's **Share…** ([[14 - Files and Folders]]).
 
-**Table open** is the door: off, players cannot open the folder ("the table is closed"; whoever is inside leaves) and you always can.
+**Table open** is a **switch** at the top of the window, with a **Open** or **Closed** badge, and it takes effect at once: there is no save button. Off, players cannot open the folder and whoever is inside leaves; you always can. **What a player sees:** in the folder's place, "The table is closed by the game master. You get in when it opens.", with **Try now**; the app tries again by itself now and then, and the player gets in as soon as you turn the switch on. For you, the Table button beside the folder's name says **Table (closed)** while it is off, so you never forget anyone outside.
+
+The window is made of cards: **Invite players** (the link in a field, with **Copy** and the day it expires), **Players** (each with what you granted them to edit, as links), **Notes** (how many are released and how many hidden, with **Release everything** and **Hide everything**) and, folded, the limits under **Advanced**. **Undo table** sits at the bottom, red and quiet, and asks first.
+
+**On the folder's page** (the one that opens when you click the folder's name) the same fits in a **Table** card right under the title: the switch, how many players there are and who is at the table now, **Invite**, **Release everything** / **Hide everything** and **Table settings**, which opens the whole window; you can fold the card away, and the app remembers it per folder. On a folder that is not a table yet, the card is just the **Make this folder a table** button. A player sees one line, **Table · player**, with the table open or closed and the notes granted to them, as links.
 
 ---
 
@@ -63,7 +67,7 @@ Nobody but you renames, deletes or creates notes or files; the server checks thi
 
 ## The table's limits
 
-Under **The table's limits**: how many entries the [[31 - The Table|Table]]'s log keeps (1,000 to 200,000; 20,000 at first) and the size of an image on it (1 to 30 MB; 10 at first). Past the log's limit, the oldest that are not pinned go. Each table has its own log and its own limits: setting one does not change the other.
+Under **Advanced: the table's limits** (folded; each field saves when you leave it or press Enter, and says **Saved** beside itself): how many entries the [[31 - The Table|Table]]'s log keeps (1,000 to 200,000; 20,000 at first) and the size of an image on it (1 to 30 MB; 10 at first). Past the log's limit, the oldest that are not pinned go. Each table has its own log and its own limits: setting one does not change the other.
 
 ---
 

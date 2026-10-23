@@ -804,6 +804,11 @@ pub struct FoundServer {
     pub version: String,
 }
 
+/// What a closed table answers a player who tries to open it (ADR 0110 item 3,
+/// MC.1 = A). The server says it and the windows know it by this text: a
+/// closed table is told to the player as a state to wait out, not a fault.
+pub const TABLE_CLOSED: &str = "a mesa está fechada";
+
 /// The window's server, or what it held there, is gone (event
 /// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
 /// on a server's folder.
@@ -814,8 +819,10 @@ pub struct ServerGone {
     /// What ended: `session` (the server ended this device's session, or
     /// refused it on reconnecting), `folder` (this account no longer
     /// reaches the folder or the share: `reason` says why), `connection`
-    /// (the connection dropped; the app tries again) or `unreachable` (a
-    /// try found the server out of reach: `address` names it).
+    /// (the connection dropped; the app tries again), `unreachable` (a
+    /// try found the server out of reach: `address` names it) or `closed`
+    /// (the table is closed by its game master: the app tries again and
+    /// gets in when it opens).
     pub what: String,
     /// With `folder`, when the server says it: `revoked` by its owner,
     /// `deleted` (the shared folder went), `left` by the person.

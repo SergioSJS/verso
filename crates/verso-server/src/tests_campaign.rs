@@ -394,6 +394,36 @@ fn a_closed_table_keeps_its_players_out_and_not_its_owner() {
     });
 }
 
+/// 2026-10-23: the game master pressed "make a table" and saved a limit on
+/// a table that existed; a player found it closed. Neither command closes
+/// a table, and a closed one stays closed through both.
+#[test]
+fn making_a_table_again_and_changing_limits_leave_open_alone() {
+    block_on(async {
+        let mut m = mesa().await;
+        let made = m.owner.call("campaign_make", json!({ "root": "" })).await;
+        assert_eq!(made["ok"]["tables"][0]["open"], true, "{made}");
+        let sets = m
+            .owner
+            .call("campaign_settings", json!({ "root": "", "logMax": 5000 }))
+            .await;
+        assert_eq!(sets["ok"]["tables"][0]["open"], true, "{sets}");
+        m.owner
+            .call("campaign_settings", json!({ "root": "", "open": false }))
+            .await;
+        let made = m.owner.call("campaign_make", json!({ "root": "" })).await;
+        assert_eq!(made["ok"]["tables"][0]["open"], false, "{made}");
+        let sets = m
+            .owner
+            .call(
+                "campaign_settings",
+                json!({ "root": "", "open": null, "imageMax": 2_097_152 }),
+            )
+            .await;
+        assert_eq!(sets["ok"]["tables"][0]["open"], false, "{sets}");
+    });
+}
+
 /// ADR 0110 item 18: every read path of a player, one by one.
 #[test]
 fn a_hidden_note_is_not_in_the_lists_a_player_reads() {
