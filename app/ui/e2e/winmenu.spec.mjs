@@ -16,6 +16,9 @@ const button = (page) => page.getByRole("button", { name: "Menu", exact: true })
 const names = (list) => list.getByRole("menuitem").allTextContents();
 
 test("the button is in the top-left corner, named Menu, and opens the menus as submenus", async ({ app, page }) => {
+  // The keys' labels follow the platform (src/platform.ts): on the Mac host
+  // they would read ⌘, where the Windows app reads Ctrl.
+  await page.addInitScript(() => Object.defineProperty(Navigator.prototype, "platform", { get: () => "Win32" }));
   await app.open("?frame=windows");
   const b = button(page);
   await expect(b).toBeVisible();
