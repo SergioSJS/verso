@@ -58,10 +58,34 @@ In **Settings › Notifications**, the **Table** kind tells you of a message or 
 
 ---
 
+## Taking a roll into a note
+
+**Drag** the line of a roll, a random-table roll or an oracle draw from the Table panel and **drop it on a note's text** (in Edit mode or in Source): a line shows where it will land, and the block goes in with a blank line each side, **in one step** that **⌘Z** undoes. Drop it on a **board** and it becomes a text card. Messages and images are not dragged: use the **⋯** (see below).
+
+In the note it is written as a small `roll` block, text anyone can read, even in Obsidian:
+
+````
+```roll
+who: Ana · when: 2026-10-22 21:40 · where: [[31 - The Table]]
+2d6 + 1d4 + 3 → [4, 3] + [2] + 3 = 12
+```
+````
+
+Verso draws it as a **fixed card** — who, when, where (a link), the dice and the total — and it **never rolls again**: it is the record of what came out, like the game master's notebook.
+
+```roll
+who: Ana · when: 2026-10-22 21:40 · where: [[31 - The Table]]
+2d6 + 1d4 + 3 → [4, 3] + [2] + 3 = 12
+```
+
+In **Source** you see the text; a block with a typo stays the code it is. Each line of the Table also has **⋯ › Add to note…**, the way by keyboard, by screen reader and by phone.
+
+---
+
 ## Hiding and keeping
 
 - **Hide up to here** hides, in this window only, everything on the Table now. **Show it again** undoes it.
-- **Add to note…**, on each line's button, picks a note, **shows what will be written** and, if you confirm, appends to its end a line with who, when, from where and the result. If the note changed meanwhile, nothing is written.
+- **Add to note…**, in each line's **⋯**, picks a note, **shows what will be written** (the `roll` block, or a message's line) and, if you confirm, appends it to its end. If the note changed meanwhile, nothing is written.
 
 ---
 
