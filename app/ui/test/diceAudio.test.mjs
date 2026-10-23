@@ -152,3 +152,24 @@ test("a hit on a stalled audio clock is dropped as late and never queued; on a r
     m.resetAudioForTests(); // stops the keep-awake timer
   }
 });
+
+test("only a dice gesture keeps the output awake; writing notes does not", () => {
+  m.resetAudioForTests();
+  const before = started.length;
+  m.armAudio(() => true);
+  const mk = (hit) => ({ target: { closest: () => hit } });
+  globalThis.document.querySelector = () => null;
+  for (const f of listeners.get("keydown") ?? []) f(mk(null));
+  const afterNotes = started.length;
+  for (const f of listeners.get("click") ?? []) f(mk({}));
+  const afterDice = started.length;
+  globalThis.document.querySelector = () => ({ getClientRects: () => [{}] });
+  m.resetAudioForTests(); // Table open: any gesture counts
+  for (const f of listeners.get("keydown") ?? []) f(mk(null));
+  const afterTable = started.length;
+  globalThis.document.querySelector = undefined;
+  m.resetAudioForTests();
+  assert.equal(afterNotes - before, 0);
+  assert.equal(afterDice - afterNotes, 1);
+  assert.equal(afterTable - afterDice, 1);
+});
