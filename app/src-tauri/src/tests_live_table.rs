@@ -347,3 +347,14 @@ fn the_last_window_to_leave_takes_the_connection_out_of_the_table() {
     let e = cmd(&d, "table_say", json!({ "text": "fora" })).unwrap_err();
     assert!(e["message"].as_str().unwrap().contains("join"), "{e}");
 }
+
+#[test]
+fn a_synced_folders_window_is_told_the_server_its_link_reaches() {
+    let r = serve(&[]);
+    let (d, _l) = linked(&r, &r.owner);
+    // The address the sync's link was made to, not the app's own origin: what
+    // a table's relative link (`/invite/<token>`) is opened at.
+    let at = remote::server_window(&d.s.live.remote().unwrap());
+    assert_eq!(at.url, r.url.trim_end_matches('/'));
+    assert!(!at.folder.is_empty());
+}

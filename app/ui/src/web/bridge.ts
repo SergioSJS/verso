@@ -451,6 +451,9 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     // this computer.
     case "recent_folders":
       return done([]);
+    // Where this window reaches its server: the page's own origin.
+    case "window_server":
+      return done({ url: location.origin, folder: folderId ?? "" });
     case "server_accounts": {
       const me = signedIn();
       return done(me ? [{ url: location.origin, email: me.email, name: me.name }] : []);

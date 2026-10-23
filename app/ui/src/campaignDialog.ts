@@ -9,6 +9,7 @@
 // taken back is asked first, in the dialog.
 
 import { commands, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
+import { serverLink } from "./can";
 import { releaseAll, releaseNotes, setTable, undoTable, campaign, tableFor } from "./campaign";
 import { cp } from "./campaignStrings";
 import { asDialog, closed, opened } from "./dialogs/a11y";
@@ -88,12 +89,12 @@ export function openCampaignDialog(root: string, undo = false): void {
   const made = h("div", "read-link-made");
   made.hidden = true;
   make.addEventListener("click", () => {
-    void proved(() => commands.campaignInvite(root)).then((r) => {
+    void proved(() => commands.campaignInvite(root)).then(async (r) => {
       if (r.status !== "ok") {
         status.textContent = r.error.kind === "prove_first" ? cp.proveFirst : r.error.message;
         return;
       }
-      const link = r.data.link.startsWith("/") ? `${location.origin}${r.data.link}` : r.data.link;
+      const link = await serverLink(r.data.link);
       const field = h("input");
       field.readOnly = true;
       field.value = link;
