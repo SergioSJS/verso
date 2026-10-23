@@ -93,7 +93,7 @@ async function start(): Promise<void> {
   }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
-  if (path.startsWith("/invite/")) return invitePage(token("/invite/"));
+  if (path.startsWith("/invite/")) return invitePage(token("/invite/"), s.account);
   if (path.startsWith("/reset/")) return resetPage(token("/reset/"));
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
