@@ -21,6 +21,8 @@ import { isServerTable, type ServerTable, type TableSource } from "./model";
 import { charsOf, checkImage, COUNTER_FROM, IMAGE_MAX, MESSAGE_MAX, paceWait, readTyped, toBase64 } from "./send";
 import { recordRoll, tableSource } from "./record";
 import { tt } from "./strings";
+import { Tray } from "./tray";
+import { ts } from "./trayStrings";
 
 /** A server's refusal in the person's words (its pace rule says how long to wait). */
 function refusalOf(message: string): string {
@@ -58,6 +60,7 @@ export class Compose {
   private readonly field = h("textarea", "table-input");
   private readonly counter = h("span", "table-counter");
   private readonly error = h("p", "table-compose-error");
+  private readonly tray: Tray;
   private readonly dice = button("ghost iconic table-dice", tt.rollButton, "dice");
   private readonly image = button("ghost iconic table-image-pick", tt.imageButton, "image");
   private readonly secret = button("ghost table-secret-toggle", tt.secretToggle, "lock");
@@ -66,7 +69,8 @@ export class Compose {
 
   constructor() {
     this.el.setAttribute("aria-label", tt.inputLabel);
-    this.field.rows = 1;
+    // Larger than a line, as a chat box is: 3 lines (2 on a phone), growing to 8 (css/table.css); Shift+Enter breaks the line.
+    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 2 : 3;
     this.field.placeholder = tt.placeholder;
     this.field.setAttribute("aria-label", tt.inputLabel);
     this.field.setAttribute("enterkeyhint", "send");
@@ -86,14 +90,16 @@ export class Compose {
     row.append(this.field, this.send);
     const tools = h("div", "table-compose-tools");
     tools.append(this.dice, this.image, this.secret, this.counter);
-    this.el.append(this.error, row, tools);
+    this.tray = new Tray({ input: this.field, submit: () => this.submit(), showError: (text) => (text === null ? this.clearError() : this.fail(text)) });
+    this.el.append(this.error, row, this.tray.el, tools);
 
     this.el.addEventListener("submit", (e) => {
       e.preventDefault();
       void this.submit();
     });
     this.field.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      // Enter sends, Shift+Enter breaks the line; Enter while an IME composes (keyCode 229) only confirms the composition.
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         void this.submit();
       }
@@ -128,25 +134,32 @@ export class Compose {
     return isServerTable(t) ? t : null;
   }
 
-  /** Draw for `src`: shown only for a server's table; images not for a reader; the toggle as it stands. */
+  /** Draw for `src`: the field and the dice row are always there (the local table rolls with `/r` too); messages, images and the Secreta toggle belong to a server's table, images not to a reader. */
   sync(src: TableSource): void {
     const t = isServerTable(src) ? src : null;
-    this.el.hidden = !t;
+    this.tray.sync(src);
+    this.image.hidden = !t || !t.canSendImage();
+    this.secret.hidden = !t;
+    this.field.placeholder = t ? tt.placeholder : tt.placeholderLocal;
     if (!t) return;
-    this.image.hidden = !t.canSendImage();
     const on = t.secret;
     this.secret.setAttribute("aria-pressed", String(on));
     this.secret.classList.toggle("on", on);
+  }
+
+  /** The message field the dice row writes its roll in. */
+  get input(): HTMLTextAreaElement {
+    return this.field;
   }
 
   focus(): void {
     this.field.focus();
   }
 
-  /** Whether the person is writing now (the panel keeps its draft across redraws). */
+  /** The field grows with its text; its minimum and maximum (3 and 8 lines) are the stylesheet's. */
   private grow(): void {
     this.field.style.height = "auto";
-    this.field.style.height = `${Math.min(this.field.scrollHeight, 120)}px`;
+    this.field.style.height = `${this.field.scrollHeight + (this.field.offsetHeight - this.field.clientHeight)}px`;
   }
 
   private count(): void {
@@ -154,6 +167,10 @@ export class Compose {
     this.counter.hidden = n < COUNTER_FROM;
     this.counter.textContent = tt.counter(n, MESSAGE_MAX);
     this.counter.classList.toggle("over", n > MESSAGE_MAX);
+  }
+
+  private clearError(): void {
+    this.error.hidden = true;
   }
 
   private fail(text: string): void {
@@ -168,9 +185,11 @@ export class Compose {
   /** Send what was typed: a message, or `/r` and a notation. */
   async submit(): Promise<void> {
     const t = this.table();
-    if (!t || this.busy) return;
+    if (this.busy) return;
     const typed = readTyped(this.field.value);
     if (typed.kind === "empty") return;
+    // Without a server there is nobody to say it to: only the rolls go.
+    if (!t && typed.kind === "say") return this.fail(ts.localOnlyRolls);
     if (typed.kind === "long") return this.fail(tt.tooLong(typed.length, MESSAGE_MAX));
     if (typed.kind === "badRoll") return this.fail(tt.badRoll(typed.typed));
     this.busy = true;
@@ -178,13 +197,17 @@ export class Compose {
     // accepted, but never over something typed meanwhile.
     const sent = this.field.value;
     const clear = (): void => {
-      if (this.field.value === sent) this.field.value = "";
+      if (this.field.value === sent) {
+        this.field.value = "";
+        this.field.dispatchEvent(new Event("input"));
+      }
       this.error.hidden = true;
       this.grow();
       this.count();
     };
     try {
       if (typed.kind === "say") {
+        if (!t) return;
         const refused = await t.say(typed.text);
         if (refused) return this.fail(this.refusal(refused));
         clear();
