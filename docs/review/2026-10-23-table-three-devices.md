@@ -92,7 +92,14 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    folder, so a reader's window keeps the desktop's answer (it may write) and
    never says "you only read this folder". Asking again made the toolbar go,
    but also took the desktop's own abilities (new window, updates, console).
-   A fix is in progress on `fix/remote-capabilities`.
+   **Fixed after the run** in `2fcd2e96`: the window asks again on every
+   folder it shows, and on a server's folder it gets the server's answer plus
+   the app's own abilities (windows, web views, updates, console, local
+   folders; not reveal, copy path or agents). Re-tested on the Windows app:
+   the board has no tools, the window says "You can only read this folder",
+   and Bruno still writes in his own sheet
+   ([31](/docs/media/test-runs/2026-10-23-mesa/31-depois-bruno-windows-board-so-leitura.png)). Open: whether the terminal and agents (ADR 0054) show in a
+   desktop window on a server's folder.
 7. **IMPORTANT — On the board, the sticky note does not roll.** The toolbar's
    note tool makes a drawn sticky note, where `dice:` stays plain text
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
@@ -118,6 +125,9 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 14. **MINOR — 3D dice are off by default** (as decided), so each player turns
     them on in Settings › Dice and RPG before the table sees them fall on
     their screen.
+16. **MINOR — After an update the Mac app reopened one of its two windows.**
+    The other folder, a synced one, stopped syncing until it was opened
+    again; Bruno's edit waited on the server and arrived 5 s after.
 15. **IMPORTANT — Windows: one test hung.**
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     ran for more than an hour in the full run of `verso-app`'s tests and
