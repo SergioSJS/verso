@@ -293,6 +293,37 @@ pub fn push_sync_changed(
     }
 }
 
+/// A board's room wrote its file: the readers of the folder, who are never
+/// in a board's room (ADR 0090 item 5), hear the board changed as they hear
+/// any change from outside — the watcher does not report what the server
+/// wrote itself — and read it again, as the server serves it them. Told
+/// like any change: not at all when only a secret pin changed.
+pub fn board_saved(server: &Server, key: &str, path: &str) {
+    let clients = server.service.clients_of(key);
+    let (readers, _) = split(server, &clients);
+    if readers.is_empty() {
+        return;
+    }
+    let Some(index) = clients
+        .first()
+        .and_then(|c| server.service.current_folder(c))
+        .map(|f| f.index)
+    else {
+        return;
+    };
+    let changed = verso_contract::FolderChanged {
+        key: key.to_owned(),
+        changed: vec![path.to_owned()],
+        removed: Vec::new(),
+        moved: Vec::new(),
+        listing: false,
+        index,
+    };
+    if let Ok(payload) = serde_json::to_value(&changed) {
+        push_folder_changed(server, key, &readers, &payload);
+    }
+}
+
 /// `changed`, the folder's change as the windows hear it, pushed to the
 /// windows of `clients` on the folder of `key`: whole to those who may
 /// write; to readers, without the notes whose last change only touched a

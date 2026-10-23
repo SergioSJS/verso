@@ -96,6 +96,8 @@ versão de teste.
 
 ### Corrigido
 
+- **O board de quem só lê e os dados de uma nota**: um board que um jogador tinha aberto agora se atualiza quando o mestre o altera (o servidor avisa os leitores quando a sala do board grava, como já fazia com as notas), em vez de só depois de fechar e abrir; quem só lê não vê mais o aviso de *salvo por um Verso mais novo* e recebe o visualizador, sem a barra de desenho, desde o primeiro quadro também no app de desktop; e quando uma nota tem dois dados com a mesma notação, o resultado aparece só ao lado do que foi clicado, na Leitura, na Pré-visualização ao vivo e nos cartões do board.
+
 - **As nove abas do painel direito cabem na sua largura**: com a aba Mesa, a faixa de abas empurrava a última para além da borda da janela; as abas agora estreitam juntas. No Live Preview, ↑ e ↓ não pulam mais uma linha em branco desenhada como intervalo fino: o cursor para nela.
 - **O menu de botão direito do board está arrumado**: o visto de uma opção liga/desliga (*Ligar setas às formas*, *Encaixar no meio das bordas*) não cobre mais a primeira letra do texto — tem a sua própria coluna; um item sem atalho não mostra mais uma tecla cinza vazia; os atalhos se alinham na borda direita e o menu segue o tema. *Atalho de flecha* agora é **Ligar setas às formas** e *Encaixar em pontos intermediários* é **Encaixar no meio das bordas**.
 - **Dados numa nota mostrada no board**: um cartão de arquivo do board que mostra uma nota com códigos `dice:` agora os desenha como dados, que rolam ali mesmo como na nota (botão, resultado, dados 3D e som), sem escrever a nota nem o board.
