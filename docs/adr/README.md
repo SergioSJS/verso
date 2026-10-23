@@ -133,6 +133,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Proposed (2026-10-22): "More themes…" decided; then the 23 colour tokens and the structural choices, only permissive licences and open palettes with colours re-taken from the source, names kept with credit (all decided 2026-10-22, being built); the Gemini catalogue checked against the sources (licences and colours often wrong) |
 | [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Proposed (2026-10-22): the maintainer's direction and additions; open — what closed means, default visibility, players' boards, links to notes not yet released |
 | [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23): built on Cloudflare Quick Tunnels now, on only when the person wants it, serving what is shared as on the UniVerso; an official mode later; not built (a spike first) |
+| [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Proposed (2026-10-23): open — what a device linked by the device flow proves with (OS check plus a per-device key, or the password), the proof's window and routes, the guardrail |
 
 ### Dialect, engineering and roadmap
 
