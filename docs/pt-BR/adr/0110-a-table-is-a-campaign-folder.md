@@ -498,8 +498,7 @@ mesa, 2026-10-23)":
   nota é escrito a partir da raiz do compartilhamento, nunca do caminho-pai do
   dono); nomear qualquer outra mesa é recusado, então um jogador da Cripta não
   alcança nada da Sala. As rolagens dele numa nota do seu compartilhamento caem
-  na mesa. Ele não envia imagens (o arquivo iria para fora do compartilhamento).
-  Um compartilhamento cuja raiz **não** é mesa continua sem canal de mesa. Um
+  na mesa. Um compartilhamento cuja raiz **não** é mesa continua sem canal de mesa. Um
   jogador que lê a pasta toda pode entrar em qualquer mesa dela (a regra da mesa
   fechada vale como antes).
 - **Testado**: `tests_table.rs` (`per_table`: entradas, listas, fixadas e
@@ -509,3 +508,46 @@ mesa, 2026-10-23)":
   do esquema 15, o registro acompanhando as mesas), `tests_live_table.rs` (o
   mesmo pelo enlace da sincronização), `test/tableWhich.test.mjs`,
   `test/tableServer.test.mjs` e `e2e/table-per-table.spec.mjs`.
+
+## Como foi construído (um compartilhamento é a mesma mesa, 2026-10-23)
+
+O mantenedor, 2026-10-23: *"qual que é a diferença de entrar na mesa por compartilhamento ou entrar na mesa como membro… Existe algum motivo plausível pra ter diferença?"* A regra que decorre: **o compartilhamento só
+limita o que o jogador vê; a mesa se comporta igual.** Conversa, rolagens,
+atualizações ao vivo, imagens, o modo de rolagem, a lista de quem está, as cores
+dos dados, o som, apagar as próprias mensagens e o aviso de mesa fechada são
+iguais para o jogador de um compartilhamento com raiz numa mesa e para um membro
+da pasta. A auditoria de cada ramo de `scope` da mesa achou duas diferenças que
+não eram de visibilidade, as duas corrigidas:
+
+- **Os eventos ao vivo eram descartados.** `Scope::push` (`scope.rs`) manda a uma
+  janela de compartilhamento só os eventos que conhece, e os da mesa
+  (`table-entry`, `table-roster`, `table-pinned`, `table-removed`,
+  `table-cleared`) não estavam entre eles; o jogador de um compartilhamento não
+  ouvia nada ao vivo: nem as mensagens e rolagens do mestre, nem a própria
+  rolagem feita numa nota (os dados rolavam pela sala da nota, a linha era
+  guardada, e o painel só a mostrava depois de recarregar, pelo histórico do
+  `table_join`), nem a lista de quem está; e sem som nem 3D para as rolagens dos
+  outros, que vêm do mesmo evento. Agora passam; `table.rs` já escrevia a mesa
+  como `""` e os caminhos a partir da raiz do compartilhamento antes de empurrar,
+  então nenhum caminho da pasta do dono vai junto.
+- **Imagens eram recusadas.** Um editor num compartilhamento agora envia imagem
+  como um membro (um leitor não envia, como um membro leitor). O arquivo fica no
+  lugar de anexos **dentro da pasta da mesa do compartilhamento**
+  (`<raiz>/<lugar>/mesa-…`), o único lugar que esse jogador lê; o `image` da
+  entrada é escrito a partir da raiz do compartilhamento, como o caminho de uma
+  nota (`scoped`).
+
+O que continua diferente, porque é só escopo: os caminhos são escritos a partir
+da raiz do compartilhamento; uma nota fora dele não tem caminho na entrada; a
+mesa é `""`; um compartilhamento cuja raiz não é mesa não tem mesa; o jogador de
+um compartilhamento não conduz a mesa (`campaign_make`, liberar e convidar são do
+dono da pasta). Testado: `tests_table.rs`
+(`a_window_on_a_share_hears_the_table_live_as_a_member_does`: mensagens do dono,
+uma segunda janela da mesma conta, uma saindo, uma rolagem de nota, uma imagem) e
+`e2e-server/table-parity.spec.mjs` (o mesmo cenário como membro e num
+compartilhamento).
+
+Uma terceira diferença, achada pelo e2e: a imagem de uma mesa era procurada a
+partir do pai do compartilhamento (`resolve_attachment` sem nota que diga de
+onde o alvo é escrito), então a miniatura do próprio jogador do compartilhamento
+vinha faltando. Agora o compartilhamento procura esse alvo a partir da sua raiz.

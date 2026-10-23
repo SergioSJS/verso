@@ -480,8 +480,7 @@ per table, 2026-10-23)":
   own root, `""` (the table in the commands, answers and events is `""` for it,
   and a note's path is written from the share's root, never the owner's
   parent path); naming any other table is refused, so a player of Cripta reaches
-  nothing of Sala. Its rolls in a note of its share land in the table. It sends
-  no images (the file would go outside its share). A share whose root is **not**
+  nothing of Sala. Its rolls in a note of its share land in the table. A share whose root is **not**
   a table still has no table channel. A player who reads the whole folder may
   join any table of it (the closed-table rule applies as before).
 - **Tried**: `tests_table.rs` (`per_table`: two tables' entries, rosters, pins
@@ -491,3 +490,43 @@ per table, 2026-10-23)":
   the tables), `tests_live_table.rs` (the same over the sync's link),
   `test/tableWhich.test.mjs`, `test/tableServer.test.mjs` and
   `e2e/table-per-table.spec.mjs`.
+
+## As built (a share is the same table, 2026-10-23)
+
+The maintainer, 2026-10-23: *"qual que é a diferença de entrar na mesa por compartilhamento ou entrar na mesa como membro… Existe algum motivo plausível pra ter diferença?"* The rule that follows: **the share only
+bounds what the player can see; the table behaves the same.** Chat, rolls, live
+updates, images, the roll mode, the roster, dice colours, the chime, deleting
+one's own messages and the closed-table notice are identical for a player on a
+share rooted at a table and for a folder member. The audit of every `scope`
+branch of the table found two differences that were not about visibility, both
+fixed:
+
+- **Live events were dropped.** `Scope::push` (`scope.rs`) sends a share window
+  only the events it knows, and the table's events (`table-entry`,
+  `table-roster`, `table-pinned`, `table-removed`, `table-cleared`) were not
+  among them, so a player on a share heard nothing live: neither the game
+  master's messages and rolls, nor her own roll made in a note (the dice played
+  from the note's room, the row was kept, and the panel showed it only after a
+  reload and the history of `table_join`), nor the roster; and no dice sound or
+  3D for the others' rolls, which come from the same event. They are passed
+  now; `table.rs` already wrote the table as `""` and the paths from the share's
+  root before pushing, so no path of the owner's folder goes with them.
+- **Images were refused.** An editor on a share now sends an image like a member
+  (a reader sends none, as a reader member). The file is kept in the attachments
+  place **inside the share's table folder** (`<root>/<place>/mesa-…`), the only
+  place that player reads; the entry's `image` is written from the share's root
+  as a note's path is (`scoped`).
+
+What stays different, because it is only scope: paths are written from the
+share's root; a note outside the share has no path in the entry; the table is
+`""`; a share whose root is not a table has no table; a share's player does not
+run the table (`campaign_make`, release, invite are the folder owner's).
+Tried: `tests_table.rs` (`a_window_on_a_share_hears_the_table_live_as_a_member_does`:
+the owner's messages, a second window of the same account, one leaving, a roll
+from a note, an image) and `e2e-server/table-parity.spec.mjs` (the same scenario
+as a member and on a share).
+
+A third difference, found by the e2e: a table's picture was looked up from the
+share's parent (`resolve_attachment` with no note to say where the target is
+written from), so a share player's own thumbnail came back missing. The share
+now looks such a target up from the share's root.
