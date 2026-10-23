@@ -66,7 +66,9 @@ test("a roll dragged from the table selects no text, in the panel or in the note
 test("the right bar resizes on every tab, the Mesa's too, and starts wider", async ({ app, page }) => {
   test.skip(phone(page), "the drawers have no divider");
   await app.open();
-  await app.quickOpen("00 - Bem-vindo");
+  await app.writeOutside("Mesa.md", MESA);
+  await app.folderChanged(["Mesa.md"], true);
+  await app.quickOpen("Mesa");
   await page.evaluate(() => document.body.classList.remove("no-right"));
   const right = page.locator("aside.right");
   const widthOf = () => right.evaluate((e) => Math.round(e.getBoundingClientRect().width));
@@ -83,7 +85,7 @@ test("the right bar resizes on every tab, the Mesa's too, and starts wider", asy
     const tab = tabs.nth(i);
     if (!(await tab.isVisible())) continue;
     await tab.click();
-    seenMesa ||= /^Mesa/.test((await tab.textContent()) ?? "");
+    seenMesa ||= (await tab.getAttribute("data-tab")) === "table";
     const before = await widthOf();
     const d = await page.locator("#right-divider").boundingBox();
     const y = d.y + d.height / 2;
@@ -173,10 +175,10 @@ test("the / menu's Dado item inserts `dice: 1d20` with the notation selected to 
   const item = page.locator(".slash .slash-item", { has: page.locator(".slash-title", { hasText: /^Dado$/ }) });
   await expect(item).toBeVisible();
   await page.keyboard.press("Enter");
-  expect(await doc(page)).toMatch(/`dice: 1d20`\n$/);
+  expect(await doc(page)).toMatch(/`dice: 1d20`$/);
   expect(await page.evaluate(() => { const v = document.querySelector(".note-sheet .editor").__cmView; const s = v.state.selection.main; return v.state.sliceDoc(s.from, s.to); })).toBe("1d20");
   await page.keyboard.type("2d6");
-  expect(await doc(page)).toMatch(/`dice: 2d6`\n$/);
+  expect(await doc(page)).toMatch(/`dice: 2d6`$/);
 });
 
 test("the / menu has no Dado item while the Dice feature is off", async ({ app, page }) => {
