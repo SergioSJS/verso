@@ -132,7 +132,9 @@ export function tableBadge(root: string): HTMLElement {
   b.setAttribute("aria-label", label);
   b.title = label;
   if (!owner) b.setAttribute("aria-haspopup", "dialog");
-  b.append(icon("dice"), h("span", "table-badge-text", cp.tableMark));
+  const shut = owner && campaign().tables.find((t) => t.root === root)?.open === false;
+  b.classList.toggle("is-closed", shut);
+  b.append(icon("dice"), h("span", "table-badge-text", shut ? `${cp.tableMark} (${cp.closedTag})` : cp.tableMark));
   // Inside a folder's summary: neither the row's toggle nor its selection takes it.
   b.addEventListener("click", (e) => {
     e.preventDefault();
@@ -169,10 +171,14 @@ function paint(): void {
   let label: string;
   if (ctx) {
     const n = tableName(ctx.root);
-    text = owner ? cp.chipOwnerText(n) : cp.chipPlayer;
+    // A closed table says so on the game master's chip: players are waiting outside.
+    const shut = owner && s.tables.find((t) => t.root === ctx.root)?.open === false;
+    text = owner ? (shut ? cp.chipOwnerClosed(n) : cp.chipOwnerText(n)) : cp.chipPlayer;
     label = owner ? cp.chipOwnerNamed(n) : cp.chipPlayerNamed(n);
+    chip.classList.toggle("is-closed", shut);
   } else {
     text = cp.chipMany(s.tables.length);
+    chip.classList.toggle("is-closed", owner && s.tables.some((t) => !t.open));
     label = cp.chipManyName;
   }
   chip.replaceChildren(icon("dice"), h("span", "table-chip-text", text));

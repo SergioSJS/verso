@@ -2996,8 +2996,10 @@ export type ServerGone = {
 	 *  What ended: `session` (the server ended this device's session, or
 	 *  refused it on reconnecting), `folder` (this account no longer
 	 *  reaches the folder or the share: `reason` says why), `connection`
-	 *  (the connection dropped; the app tries again) or `unreachable` (a
-	 *  try found the server out of reach: `address` names it).
+	 *  (the connection dropped; the app tries again), `unreachable` (a
+	 *  try found the server out of reach: `address` names it) or `closed`
+	 *  (the table is closed by its game master: the app tries again and
+	 *  gets in when it opens).
 	 */
 	what: string,
 	/**
@@ -3189,7 +3191,7 @@ export type SyncStatus = {
 	message: string | null,
 	/**
 	 *  What the last error was, for the window to say in its language:
-	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `failed`;
 	 *  with the state `off`, `revoked`.
 	 */
 	problem: string | null,

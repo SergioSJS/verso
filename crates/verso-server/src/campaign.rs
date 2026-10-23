@@ -29,7 +29,7 @@ use crate::db::{Campaign, Grant, NoteState, Role};
 use crate::state::Server;
 
 /// What a closed table answers a player who tries to open it (MC.1 = A).
-pub const CLOSED: &str = "a mesa está fechada";
+pub const CLOSED: &str = verso_contract::TABLE_CLOSED;
 
 /// The key a path is looked up by: case folded, the separators of any
 /// system made `/`, and `.` and `..` resolved as the path reads (a `..`

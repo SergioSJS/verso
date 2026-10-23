@@ -156,6 +156,24 @@ if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;
   campaign.viewer = tableParam;
 }
+// A player at a closed table (`?closed=1`): no folder is open at the start and
+// every way to open one is refused as the server refuses it, until a test says
+// the game master opened the table (`__harness.shutOut = false`).
+if (params.get("closed") === "1") {
+  const win = window as unknown as { __harness: Record<string, unknown> };
+  let shut = true;
+  Object.defineProperty(win, "__harnessShutOut", { get: () => shut, set: (v: boolean) => (shut = v) });
+  const opens = ["pick_folder", "reopen_folder", "open_initial"];
+  const was = opens.map((c) => core.handlers[c]!);
+  opens.forEach((c, i) => {
+    core.handlers[c] = (a) => {
+      if (shut) throw { kind: "refused", message: "a mesa está fechada" };
+      return was[i]!(a);
+    };
+  });
+  core.handlers["current_folder"] = () => (shut ? null : was[0]!({}));
+  void win;
+}
 // The owner of a server's folder is told so by the shares' list (ADR 0081):
 // the game master's rows of the menu are the owner's.
 if (tableParam === "owner") core.handlers["share_list"] = () => [{ id: null, path: "", people: [], attachments: null, missing: false }];

@@ -339,3 +339,37 @@ fn a_folders_log_follows_its_tables_as_they_are_made_and_unmade() {
     db.campaign_drop(&f.id, "Cripta").unwrap();
     assert_eq!(db.table_count(&f.id, "").unwrap(), 2);
 }
+
+/// 2026-10-23: a player found the table closed that the game master had
+/// not closed. Making a table that already is one, or changing only its
+/// limits, must leave "open" as it was; a new table starts open.
+#[test]
+fn making_a_table_again_or_changing_its_limits_keeps_it_open_or_closed() {
+    let db = db();
+    let owner = db
+        .create_account("o@b.co", "O", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let f = db.create_folder("Ruinas", &owner.id).unwrap();
+    assert!(db.campaign_make(&f.id, "").unwrap());
+    assert!(
+        db.campaigns_of(&f.id).unwrap()[0].open,
+        "a new table is open"
+    );
+    // Made again: nothing new, nothing reset.
+    assert!(!db.campaign_make(&f.id, "").unwrap());
+    assert!(db.campaigns_of(&f.id).unwrap()[0].open);
+    // Closed by the game master, then made again and given limits only.
+    db.campaign_set(&f.id, "", Some(false), None, None).unwrap();
+    assert!(!db.campaign_make(&f.id, "").unwrap());
+    db.campaign_set(&f.id, "", None, Some(5000), Some(2 * 1024 * 1024))
+        .unwrap();
+    let t = &db.campaigns_of(&f.id).unwrap()[0];
+    assert!(
+        !t.open,
+        "limits and making again leave a closed table closed"
+    );
+    assert_eq!((t.log_max, t.image_max), (5000, 2 * 1024 * 1024));
+    db.campaign_set(&f.id, "", Some(true), None, None).unwrap();
+    db.campaign_set(&f.id, "", None, Some(6000), None).unwrap();
+    assert!(db.campaigns_of(&f.id).unwrap()[0].open);
+}
