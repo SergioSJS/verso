@@ -22,6 +22,9 @@ import { resolveNoteByName } from "../resolve";
 import { setHtml } from "../sanitize";
 import { hasCapability } from "../capabilities";
 import { play3d, will3d } from "../dice3d";
+import { settings } from "../settings";
+import { stylesOf } from "../table/model";
+import { recordHeard, recordJoined, recordRoll, tableOnScreen } from "../table/record";
 import { type DiceCode, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
 import { readTable, rowOf, type RandomTable } from "./table";
@@ -312,6 +315,9 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     roll.removeAttribute("aria-busy");
     box.classList.remove("rolling");
     last.set(slot(path, key), s);
+    // The table's log (ADR 0107): the line comes when the dice have rested,
+    // as the card does.
+    if (s.roll) recordRoll(path, s.roll, s.row);
     // The same die drawn elsewhere shows it too — a popover only its own
     // (a card's two "+2" are two dice).
     for (const d of drawn) if (d.el !== box && !d.pop && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
@@ -360,18 +366,22 @@ async function heard(e: CollabRoll): Promise<void> {
   const here = [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key);
   // Another member's roll falls in 3D only for someone whose own switch is
   // on (ADR 0101 item 6): said at once, shown when the dice have rested.
-  const fall = will3d(e.path, e.roll);
+  // With the switch "Show others' rolls in 3D" off they do not fall (ADR 0107 item 11).
+  const fall = settings.others3d !== false && will3d(e.path, e.roll);
   if (fall) {
-    say(said(s, true));
-    await play3d(e.path, e.roll);
+    if (!tableOnScreen()) say(said(s, true));
+    // TODO(ADR 0107 phase 2): the roll carries the roller's dice (`styles`)
+    // once the contract relays them; until then it falls in this device's own.
+    await play3d(e.path, e.roll, stylesOf(e.roll) ?? undefined);
   }
+  recordHeard(e.path, e.roll, s.row);
   // The dice drawn now: a page may have changed while they fell.
   const now = fall ? [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key) : here;
   // Every die in a line shows it; of a card's popovers, the first.
   const pop = now.find((d) => d.pop);
   for (const d of now) if (!d.pop || d === pop) d.show(s);
   if (now.length > 0) {
-    if (!fall) say(said(s, true));
+    if (!fall && !tableOnScreen()) say(said(s, true));
   }
   // Not a notification of ADR 0084 — no kind, no line in the list — but
   // its toast, titled with the note the die is in.
@@ -380,7 +390,8 @@ async function heard(e: CollabRoll): Promise<void> {
 
 /** The room's last rolls, as a window that joins hears them: kept to show
  *  by their dice, not said. */
-function joined(path: string, rolls: DiceRoll[]): void {
+function joined(path: string, rolls: DiceRoll[], user: string): void {
+  recordJoined(path, rolls, user);
   for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation), { roll, row: null, from: null, note: null });
   for (const roll of rolls.filter((r) => r.source)) {
     void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? ""), s));
@@ -389,6 +400,6 @@ function joined(path: string, rolls: DiceRoll[]): void {
 
 addEventListener("verso:collab-roll", (e) => void heard((e as CustomEvent<CollabRoll>).detail));
 addEventListener("verso:room-rolls", (e) => {
-  const d = (e as CustomEvent<{ path: string; rolls: DiceRoll[] }>).detail;
-  joined(d.path, d.rolls);
+  const d = (e as CustomEvent<{ path: string; rolls: DiceRoll[]; user?: string }>).detail;
+  joined(d.path, d.rolls, d.user ?? "");
 });

@@ -471,7 +471,7 @@ export async function joinRoom<S extends RoomSession>(
   if (synced) catching?.();
   const r = await commands.collabJoin(path);
   if (r.status !== "ok" || r.data.read_only) return null;
-  dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [] } }));
+  dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [], user: r.data.user } }));
   const made = make(r.data, synced);
   if (!made) void commands.collabLeave(path);
   return made;

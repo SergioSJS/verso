@@ -35,6 +35,8 @@ export function rightShown(): boolean {
  *  ribbon under the pointer, whose click would be lost. */
 export function paintExpanded(): void {
   refreshFrame();
+  // The table's unread count follows whether the right panel is on screen (ADR 0107 item 13).
+  dispatchEvent(new Event("verso:table-visibility"));
   toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
   const shown = rightShown();
   // Named for what a press does now, with its keys: "Mostrar painel da
