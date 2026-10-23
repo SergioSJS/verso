@@ -38,3 +38,12 @@ export function noticeKey(reach: Reach, unavailable: boolean): "syncOffline" | "
   if (reach === "down" || (reach === "up" && unavailable)) return "syncOffline";
   return null;
 }
+
+/** Whether a new sync state is worth joining the table again. A change of
+ *  reach always is. So is any state while the link reads up and the last
+ *  join was answered unavailable: a session revoked and signed in again,
+ *  or the live link coming up after the files, keep the reach "up" from
+ *  start to end, and only another try finds the table there. */
+export function rejoin(prev: Reach, next: Reach, unavailable: boolean): boolean {
+  return next !== prev || (next === "up" && unavailable);
+}
