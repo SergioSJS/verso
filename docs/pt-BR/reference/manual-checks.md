@@ -1293,6 +1293,41 @@ link não está.
   link (20 por segundo, 100 de uma vez, ADR 0083 item 7) está apertado para
   uma mesa: diga, o número é do mantenedor mudar.
 
+### Uma conversa por mesa (feat/table-per-table, 2026-10-23)
+
+Precisa de um UniVerso de verdade com uma pasta que tenha duas mesas (duas
+subpastas feitas mesas), do app de desktop numa pasta sincronizada com ele e de
+um navegador entrado como jogador. O roteamento, a migração e o confinamento
+estão nos testes de Rust, nos testes unitários da janela e na rodada ponta a
+ponta; o que uma sessão longa em aparelhos de verdade faz, não.
+
+- [ ] **Duas mesas, duas conversas**: abra a pasta toda (duas mesas *Cripta* e
+  *Sala* em subpastas). Abra uma nota na Cripta: o alto do painel da Mesa diz
+  *Mesa: Cripta*. Escreva uma mensagem e role `/r 1d20`. Abra uma nota na Sala:
+  o alto diz *Mesa: Sala* e a mensagem e a rolagem não estão lá. Escreva uma
+  lá; volte à nota da Cripta: só as duas linhas da Cripta. No navegador (entrado
+  como uma segunda pessoa na pasta toda, numa nota da Sala), só chega a linha
+  da Sala; a outra pessoa nunca ouve a da Cripta.
+- [ ] **Quem está em cada mesa**: o ícone de pessoas conta só quem está na mesa
+  em que o painel está. Troque de nota entre as duas mesas algumas vezes: a lista
+  da outra pessoa perde você numa e ganha na outra, sem fantasma.
+- [ ] **Uma nota fora de mesa**: abra uma nota fora das duas mesas. O painel
+  lista as duas mesas (ou fica na última que você escolheu, com *Trocar de mesa*
+  ao lado do nome); escolher uma a lembra para a pasta depois de reiniciar o app.
+- [ ] **Dados de uma nota**: role um código `dice:` dentro de uma nota da Sala
+  e, na nota da Cripta, outro. Cada rolagem cai no registro da própria mesa.
+- [ ] **A pasta sincronizada do desktop**: no desktop com a pasta sincronizada,
+  repita a primeira conferência. Pause a sincronização: o painel diz que a mesa
+  está indisponível; retome: o painel entra na mesa da nota aberta.
+- [ ] **Um jogador de uma mesa**: convide um jogador para a subpasta Cripta e
+  abra-a como esse jogador. O painel da Mesa é a conversa da Cripta: o jogador
+  escreve e rola ali, e o mestre, pela pasta toda, vê as mesmas linhas na
+  Cripta. O jogador nunca vê a conversa da Sala. Um jogador convidado para uma
+  subpasta que não é mesa não tem conversa da Mesa.
+- [ ] **O registro antigo**: num servidor que tinha um registro compartilhado
+  antes da atualização, abra a pasta depois dela: as entradas antigas estão na
+  primeira mesa da pasta (a de nome mais curto) e nenhuma se perdeu.
+
 ## Para reproduzir
 
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se

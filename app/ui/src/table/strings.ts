@@ -94,6 +94,12 @@ type Words = {
   rollKey: string;
   notifyTitle: (folder: string) => string;
   openTable: string;
+  /** The panel's header when the folder has tables (one log per table, ADR 0107 as amended 2026-10-23). */
+  titleTable: (name: string) => string;
+  changeTable: string;
+  chooseHeading: string;
+  chooseHint: string;
+  chooseOption: (name: string) => string;
 };
 
 const pt: Words = {
@@ -182,6 +188,11 @@ const pt: Words = {
   rollKey: "Rolar com /r",
   notifyTitle: (folder) => (folder ? `Mesa · ${folder}` : "Mesa"),
   openTable: "Abrir a mesa",
+  titleTable: (name) => `Mesa: ${name}`,
+  changeTable: "Trocar de mesa",
+  chooseHeading: "Qual mesa?",
+  chooseHint: "Esta pasta tem mais de uma mesa, cada uma com a sua conversa. Abra uma nota de uma mesa, ou escolha aqui.",
+  chooseOption: (name) => `Entrar na mesa ${name}`,
 };
 
 const en: Words = {
@@ -269,6 +280,11 @@ const en: Words = {
   offline: "The table did not answer.",
   rollKey: "Roll with /r",
   notifyTitle: (folder) => (folder ? `Table · ${folder}` : "Table"),
+  titleTable: (name) => `Table: ${name}`,
+  changeTable: "Switch table",
+  chooseHeading: "Which table?",
+  chooseHint: "This folder has more than one table, each with its own chat. Open a note of a table, or choose here.",
+  chooseOption: (name) => `Join the table ${name}`,
   openTable: "Open the table",
 };
 

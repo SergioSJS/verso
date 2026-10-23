@@ -336,8 +336,10 @@ choice is listed last, for the maintainer to confirm or change.
 - **Limits** (answer to MS.1): per table, within 1,000 to 200,000 entries
   (default 20,000) and 1 to 30 MB (default 10), enforced by the server
   (`db/table.rs` trims at the table's ceiling; `table_image.rs` judges the
-  image). The folder's shortest-rooted table gives the folder's log its
-  numbers.
+  image). Per table since 2026-10-23: each table's own numbers rule its own
+  log and its own images (see "As built (one chat per table, 2026-10-23)"
+  below); before that, the folder's shortest-rooted table gave the folder's one
+  log its numbers.
 - **Invitation**: `campaign_invite` makes a single-use reader invitation, seven
   days, for the folder or for the share at the table's folder (made then); only
   the server's admin, with a fresh proof (`prove_first`), as the console's
@@ -431,7 +433,61 @@ note inside any table, while tables exist below, **Mesas (N)**, opening a list
 (owner: each opens its window; player: each its popover). No chip when the
 folder holds no table (`app/ui/src/tableChip.ts`; tried in
 `e2e/table-chip.spec.mjs`). The Mesa panel (the shared log and chat,
-`src/table/*`) is one per open folder and does not follow the active note's
-table. Beside it, a
+`src/table/*`) was then one per open folder and did not follow the active
+note's table; it does now (see "As built (one chat per table, 2026-10-23)"). Beside it, a
 folder one only reads shows the closed lock of ADR 0076's amendment of the same
 day.
+
+## As built (one chat per table, 2026-10-23)
+
+Branch `feat/table-per-table`. Item 1's "A game master may have several table
+folders. The table of 0107 is this folder's table" was built as one log per
+**open folder**: with the whole folder open and two tables in subfolders
+("Cripta", "Sala"), both tables' entries landed in one log, and the log took its
+numbers from the shortest-rooted table. The maintainer, 2026-10-23: *"o chat
+deve ser 1 por mesa, adapte e refaça o que precisar"*. The decision, with the
+rules in [0107](0107-the-table-a-shared-roll-and-chat-log.md) "Decision (one log
+per table, 2026-10-23)":
+
+- **A table's identity** is the pair (server folder, the table's root inside
+  it): `root` is `""` for the folder itself, else the folder's path relative to
+  it, as the row of `campaigns` keeps it. A server folder with no table keeps
+  0107's original single, folder-wide table: its root table, `""`.
+- **What is per table now**: the entries, the pins, who is at it (the roster),
+  the ceiling of the log (`campaigns.log_max` of *that* table), the limit of an
+  image (`image_max` of that table), the clear and the delete rules. A roll or an
+  oracle draw made in a note's room goes to the table that holds the note (the
+  deepest), and a note in no table goes to the folder's default, its
+  shortest-rooted table.
+- **What replaced "the folder's shortest-rooted table gives the folder's log
+  its numbers"**: each table's own `log_max` and `image_max`; the
+  shortest-rooted table is only the **default** for a call that names no table
+  (an old peer's) and for a note in no table.
+- **The migration** (schema 16, `db/table.rs`): `table_log` gets a `tbl`
+  column; the entries kept before it are given to the folder's shortest-rooted
+  table when it has tables (the one whose numbers they always took), else to
+  the folder (`""`). Nothing is deleted. After it: a folder's first table takes
+  the log the folder had; a table renamed or moved takes its log along
+  (`campaign_move`); the last table of a folder unmade gives the logs back to the
+  folder; a table unmade while others stay leaves its log waiting for it.
+- **Players** (item 8 above lifted for a share rooted at a table). The
+  coordinator, relaying the maintainer's goal: each table's players talk and
+  roll in that table. A player invited to a subfolder table (`campaign_invite`
+  at that table's folder makes a share at that folder, item 2) is a window on a
+  share whose root is a table, and **that table's channel is its channel**: the
+  server maps the share's root to (owner folder, table root), so the owner reads
+  the same log from the whole folder. The player knows its table as the share's
+  own root, `""` (the table in the commands, answers and events is `""` for it,
+  and a note's path is written from the share's root, never the owner's
+  parent path); naming any other table is refused, so a player of Cripta reaches
+  nothing of Sala. Its rolls in a note of its share land in the table. It sends
+  no images (the file would go outside its share). A share whose root is **not**
+  a table still has no table channel. A player who reads the whole folder may
+  join any table of it (the closed-table rule applies as before).
+- **Tried**: `tests_table.rs` (`per_table`: two tables' entries, rosters, pins
+  and clears kept apart; a call with no table; a name that is no table, `..`,
+  absolute; a note's roll; the ceilings and image limits; a share refused; a
+  renamed table), `db/tests.rs` (the migration from schema 15, the log following
+  the tables), `tests_live_table.rs` (the same over the sync's link),
+  `test/tableWhich.test.mjs`, `test/tableServer.test.mjs` and
+  `e2e/table-per-table.spec.mjs`.

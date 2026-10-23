@@ -919,6 +919,7 @@ macro_rules! commands_for {
             .typ::<CollabOracle>()
             .typ::<verso_contract::TableEntry>()
             .typ::<verso_contract::TableMember>()
+            .typ::<verso_contract::TableRoster>()
             .typ::<verso_contract::TablePinned>()
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()

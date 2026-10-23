@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! The table (ADR 0107): one log of everyone's rolls, oracle draws,
-//! messages and images for a UniVerso folder, beside the notes' rooms.
+//! messages and images for a table of a UniVerso folder (one log per
+//! table, 2026-10-23; every command names its table, none means the
+//! folder's default), beside the notes' rooms.
 //! What the window asks of it, what the server answers and what the
 //! windows at the table hear. The server stamps the name, the time and
 //! the number; a window sends only what it chose (a text, an image, the
@@ -49,6 +51,9 @@ pub struct DiceStyles {
 /// folder) or `secret` ("<name> rolled in secret": nothing else set).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableEntry {
+    /// The table it belongs to: its folder inside the server's folder,
+    /// `""` for the folder itself.
+    pub table: String,
     /// The server's number for it: decimal digits, growing; the cursor of
     /// `table_history`.
     pub id: String,
@@ -86,6 +91,8 @@ pub struct TableMember {
 /// exist, and who is at the table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableJoin {
+    /// The table joined, as the server names it (`""`: the folder itself).
+    pub table: String,
     pub you: String,
     /// `owner`, `editor` or `reader`.
     pub role: String,
@@ -101,9 +108,17 @@ pub struct TablePage {
     pub more: bool,
 }
 
+/// Who is at a table (event `table-roster`): one per account.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TableRoster {
+    pub table: String,
+    pub members: Vec<TableMember>,
+}
+
 /// An entry pinned or unpinned (event `table-pinned`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TablePinned {
+    pub table: String,
     pub id: String,
     pub pinned: bool,
 }
@@ -111,6 +126,7 @@ pub struct TablePinned {
 /// An entry deleted (event `table-removed`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableRemoved {
+    pub table: String,
     pub id: String,
 }
 
@@ -118,5 +134,6 @@ pub struct TableRemoved {
 /// the pinned entries stayed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableCleared {
+    pub table: String,
     pub keep_pinned: bool,
 }

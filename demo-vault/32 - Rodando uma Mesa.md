@@ -17,7 +17,7 @@ Só a dona da pasta faz isto, numa pasta de um servidor ou numa pasta deste comp
 
 ## Fazer da pasta uma mesa
 
-1. Com a pasta aberta, o painel **Mesa** tem o botão **Tornar esta pasta uma mesa** (só para a dona de uma pasta de servidor que ainda não é mesa); depois dele, **Abrir a janela da Mesa**. Pode haver quantas mesas quiser na mesma pasta aberta, uma por subpasta: cada pasta que é mesa ganha um selo **Mesa** na lista, e para a dona ele abre a janela *daquela* mesa; as jogadoras veem o selo **Mesa · jogador**, que mostra o que podem fazer ali (ler as notas liberadas e editar as que foram entregues a elas naquela mesa, em links) e não tem ajustes. O botão ao lado do nome da pasta acompanha a nota aberta: **Mesa: nome** da mesa que a contém, ou **Mesas (N)** com a lista quando a nota está fora de todas. Também dá pelo botão direito numa pasta › **Tornar esta pasta uma mesa**, ou, para a pasta toda, no fundo da lista › **Tornar a pasta toda uma mesa**. Numa pasta só deste computador o painel diz por que não há mesa.
+1. Com a pasta aberta, o painel **Mesa** tem o botão **Tornar esta pasta uma mesa** (só para a dona de uma pasta de servidor que ainda não é mesa); depois dele, **Abrir a janela da Mesa**. Pode haver quantas mesas quiser na mesma pasta aberta, uma por subpasta, **e cada mesa tem a sua própria conversa** (o painel **Mesa** acompanha a nota aberta e diz *Mesa: nome*, veja [[31 - A Mesa]]): cada pasta que é mesa ganha um selo **Mesa** na lista, e para a dona ele abre a janela *daquela* mesa; as jogadoras veem o selo **Mesa · jogador**, que mostra o que podem fazer ali (ler as notas liberadas e editar as que foram entregues a elas naquela mesa, em links) e não tem ajustes. O botão ao lado do nome da pasta acompanha a nota aberta: **Mesa: nome** da mesa que a contém, ou **Mesas (N)** com a lista quando a nota está fora de todas. Também dá pelo botão direito numa pasta › **Tornar esta pasta uma mesa**, ou, para a pasta toda, no fundo da lista › **Tornar a pasta toda uma mesa**. Numa pasta só deste computador o painel diz por que não há mesa.
 2. A janela **Mesa** abre. Toda nota da pasta, as que já estavam e as que você fizer depois, começa **oculta**, com um cadeado na lista.
 3. Para voltar atrás: **Desfazer mesa** na mesma janela, ou no menu da pasta. Os arquivos nunca mudaram.
 
@@ -63,7 +63,7 @@ Ninguém além de você renomeia, apaga ou cria notas ou arquivos; o servidor co
 
 ## Limites da mesa
 
-Em **Limites da mesa**: quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de uma imagem nela (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas.
+Em **Limites da mesa**: quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de uma imagem nela (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas. Cada mesa tem o seu registro e os seus limites: o ajuste de uma não muda a outra.
 
 ---
 

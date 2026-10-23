@@ -2,8 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! The table's commands (ADR 0107). The table is a server's: one log of
-//! the folder, kept in the server's database. A window on a server's
+//! The table's commands (ADR 0107). The table is a server's: one log per
+//! table (a table of the folder, named by its root; none named is the
+//! folder's default), kept in the server's database. A window on a server's
 //! folder sends these to it (`remote.rs`); a folder of this computer alone
 //! has no table, and the window shows the rolls of this run itself.
 
@@ -20,23 +21,29 @@ fn no_table() -> ContractError {
 pub fn table_join(
     color: Option<String>,
     styles: Option<DiceStyles>,
+    table: Option<String>,
 ) -> Result<TableJoin, ContractError> {
-    let _ = (color, styles);
+    let _ = (color, styles, table);
     Err(no_table())
 }
 
 /// Leave the folder's table.
 #[tauri::command]
 #[specta::specta]
-pub fn table_leave() -> Result<(), ContractError> {
+pub fn table_leave(table: Option<String>) -> Result<(), ContractError> {
+    let _ = table;
     Err(no_table())
 }
 
 /// Change the colour and the dice looks shown in the roster.
 #[tauri::command]
 #[specta::specta]
-pub fn table_look(color: Option<String>, styles: Option<DiceStyles>) -> Result<(), ContractError> {
-    let _ = (color, styles);
+pub fn table_look(
+    color: Option<String>,
+    styles: Option<DiceStyles>,
+    table: Option<String>,
+) -> Result<(), ContractError> {
+    let _ = (color, styles, table);
     Err(no_table())
 }
 
@@ -46,16 +53,17 @@ pub fn table_look(color: Option<String>, styles: Option<DiceStyles>) -> Result<(
 pub fn table_history(
     before: Option<String>,
     limit: Option<u32>,
+    table: Option<String>,
 ) -> Result<TablePage, ContractError> {
-    let _ = (before, limit);
+    let _ = (before, limit, table);
     Err(no_table())
 }
 
 /// A plain-text message, at most 500 characters.
 #[tauri::command]
 #[specta::specta]
-pub fn table_say(text: String) -> Result<TableEntry, ContractError> {
-    let _ = text;
+pub fn table_say(text: String, table: Option<String>) -> Result<TableEntry, ContractError> {
+    let _ = (text, table);
     Err(no_table())
 }
 
@@ -63,8 +71,11 @@ pub fn table_say(text: String) -> Result<TableEntry, ContractError> {
 /// shown at the table: not for a reader of the folder.
 #[tauri::command]
 #[specta::specta]
-pub fn table_send_image(base64: String) -> Result<TableEntry, ContractError> {
-    let _ = base64;
+pub fn table_send_image(
+    base64: String,
+    table: Option<String>,
+) -> Result<TableEntry, ContractError> {
+    let _ = (base64, table);
     Err(no_table())
 }
 
@@ -78,24 +89,25 @@ pub fn table_roll(
     secret: Option<bool>,
     styles: Option<DiceStyles>,
     occurrence: Option<u32>,
+    table: Option<String>,
 ) -> Result<TableEntry, ContractError> {
-    let _ = (notation, source, path, secret, styles, occurrence);
+    let _ = (notation, source, path, secret, styles, occurrence, table);
     Err(no_table())
 }
 
 /// Pin or unpin an entry, for everyone at the table.
 #[tauri::command]
 #[specta::specta]
-pub fn table_pin(id: String, pinned: bool) -> Result<(), ContractError> {
-    let _ = (id, pinned);
+pub fn table_pin(id: String, pinned: bool, table: Option<String>) -> Result<(), ContractError> {
+    let _ = (id, pinned, table);
     Err(no_table())
 }
 
 /// Delete a message or an image: its author, or an owner.
 #[tauri::command]
 #[specta::specta]
-pub fn table_delete(id: String) -> Result<(), ContractError> {
-    let _ = id;
+pub fn table_delete(id: String, table: Option<String>) -> Result<(), ContractError> {
+    let _ = (id, table);
     Err(no_table())
 }
 
@@ -103,7 +115,7 @@ pub fn table_delete(id: String) -> Result<(), ContractError> {
 /// pinned entries.
 #[tauri::command]
 #[specta::specta]
-pub fn table_clear(keep_pinned: Option<bool>) -> Result<(), ContractError> {
-    let _ = keep_pinned;
+pub fn table_clear(keep_pinned: Option<bool>, table: Option<String>) -> Result<(), ContractError> {
+    let _ = (keep_pinned, table);
     Err(no_table())
 }

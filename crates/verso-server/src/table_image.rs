@@ -44,13 +44,13 @@ pub async fn send(
     server: &Arc<Server>,
     who: &Arc<Who>,
     client: &str,
-    (folder, role): (&str, Role),
+    (folder, table, role): (&str, &str, Role),
     data: &str,
 ) -> Result<Value, ContractError> {
     // The table's own limit (ADR 0110, MS.1), its default when the folder
     // is no table. Base64 takes four characters for three bytes: judged
     // before decoding.
-    let limit = crate::campaign::image_limit(server, folder);
+    let limit = crate::campaign::image_limit(server, folder, table);
     if data.len() > limit / 3 * 4 + 8 {
         return Err(refused(&format!(
             "an image is at most {} MB",
@@ -96,13 +96,15 @@ pub async fn send(
     .await?;
     let path = made.as_str().map_or(path, str::to_owned);
     let s = Arc::clone(server);
-    let (f, account, name) = (
+    let (f, t, account, name) = (
         folder.to_owned(),
+        table.to_owned(),
         who.account.id.clone(),
         who.account.name.clone(),
     );
     let p = path.clone();
-    let row = blocking(move || crate::table::image_entry(&s, &f, (&account, &name), &p)).await?;
+    let row =
+        blocking(move || crate::table::image_entry(&s, (&f, &t), (&account, &name), &p)).await?;
     to_value(crate::table::seen(&row, &who.account.id, role))
 }
 

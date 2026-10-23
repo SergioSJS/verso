@@ -276,6 +276,7 @@ fn a_tables_limits_are_its_owners_to_set_within_bounds() {
         // The log keeps the table's own ceiling.
         for i in 0..1010 {
             let row = crate::db::TableRow {
+                table: String::new(),
                 id: 0,
                 kind: "say".into(),
                 account: m.ana_id.clone(),
@@ -289,7 +290,7 @@ fn a_tables_limits_are_its_owners_to_set_within_bounds() {
             };
             m.r.server.db.table_add(&m.id, &row).unwrap();
         }
-        assert_eq!(m.r.server.db.table_count(&m.id).unwrap(), 1000);
+        assert_eq!(m.r.server.db.table_count(&m.id, "").unwrap(), 1000);
         // An image past the table's limit is refused, one under it is not.
         m.owner
             .call("table_join", json!({ "color": null, "styles": null }))

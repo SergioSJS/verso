@@ -1,6 +1,15 @@
 /* The table (ADR 0107): the log of rolls beside the notes. */
 .table-view { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: .35rem; font-family: var(--ui); }
 .right-body:has(> .table-view) { padding-bottom: .5rem; overflow: hidden; }
+.table-title { display: flex; align-items: center; justify-content: space-between; gap: .4rem; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.table-title[hidden], .table-choose[hidden] { display: none; }
+.table-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-choose { display: flex; flex-direction: column; gap: .4rem; }
+.table-choose-head { margin: 0; font-size: .9rem; }
+.table-choose-hint { margin: 0; font-size: .78rem; color: var(--ink-2); }
+.table-choose-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.table-choose-option { display: inline-flex; align-items: center; gap: .4rem; width: 100%; min-height: 2rem; padding: .25rem .6rem; text-align: left; border: 1px solid var(--hair); border-radius: 6px; }
+.table-view.choosing > :not(.table-title):not(.table-choose) { display: none; }
 .table-top { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; container-type: inline-size; }
 .table-top[hidden], .table-win[hidden] { display: none; }
 .table-bar { display: flex; align-items: center; justify-content: flex-end; gap: .4rem; margin-left: auto; }
@@ -9,6 +18,10 @@
 .table-win-button svg { width: 14px; height: 14px; flex: none; }
 .table-win-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 360px) { .table-win-label { display: none; } }
+.tray-roller { flex: 1 0 100%; justify-content: flex-start; margin-top: .25rem; }
+.table-hide { display: inline-flex; align-items: center; gap: .3rem; }
+.table-hide svg { width: 14px; height: 14px; flex: none; }
+@container (max-width: 420px) { .table-hide-label { display: none; } }
 .table-hide, .table-unhide { font-size: .8rem; color: var(--ink-2); padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 5px; min-height: 1.8rem; }
 .table-unhide { color: var(--seal); text-decoration: underline; border: 0; padding: 0 .2rem; min-height: 0; }
 .table-hide:disabled { opacity: .5; cursor: default; }
