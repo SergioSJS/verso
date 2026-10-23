@@ -231,3 +231,47 @@ test("a note granted to a player is its to edit; the others it only reads", asyn
   await app.page.keyboard.type("ZZ");
   await expect(other).not.toContainText("ZZ");
 });
+
+// The folder-to-table step in the Mesa panel (ADR 0110, the maintainer 2026-10-23: "um botãozinho ali que me deixa
+// transformar a pasta em mesa, sem ter que clicar com o botão direito").
+async function showMesa(app) {
+  const page = app.page;
+  const phone = (page.viewportSize()?.width ?? 1500) <= 760;
+  if (phone) await page.locator(".bar-right").click();
+  else await page.evaluate(() => document.body.classList.remove("no-right"));
+  await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  const view = page.locator(".table-view");
+  await expect(view).toBeVisible();
+  return view;
+}
+
+test("the owner makes the open folder a table from the Mesa panel, with no right click; then a way to its window @layout", async ({ app }) => {
+  await furnish(app, "?vault=empty&table=owner");
+  const view = await showMesa(app);
+  const make = view.getByRole("button", { name: "Tornar esta pasta uma mesa" });
+  await expect(make).toBeVisible();
+  await make.click();
+  await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "" }]);
+  const dialog = app.page.getByRole("dialog", { name: /^Mesa da pasta/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Fechar" }).click();
+  await expect(make).toBeHidden();
+  const open = view.getByRole("button", { name: "Abrir a janela da Mesa" });
+  await expect(open).toBeVisible();
+  await open.click();
+  await expect(app.page.getByRole("dialog", { name: /^Mesa da pasta/ })).toBeVisible();
+});
+
+test("a player sees no button to make a table", async ({ app }) => {
+  await furnish(app, "?vault=empty&table=player&side=server&role=reader");
+  const view = await showMesa(app);
+  await expect(view.getByRole("button", { name: "Tornar esta pasta uma mesa" })).toHaveCount(0);
+  await expect(view.getByRole("button", { name: "Abrir a janela da Mesa" })).toHaveCount(0);
+});
+
+test("a folder only on this computer says in one line why there is no table", async ({ app }) => {
+  await furnish(app, "?vault=empty");
+  const view = await showMesa(app);
+  await expect(view.getByRole("button", { name: "Tornar esta pasta uma mesa" })).toHaveCount(0);
+  await expect(view.locator(".table-make")).toContainText("só está neste computador");
+});

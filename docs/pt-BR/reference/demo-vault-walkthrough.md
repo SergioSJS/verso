@@ -1554,6 +1554,20 @@ Abra a nota 31 (*A Mesa*) numa pasta que tem o conteúdo da demonstração
     duas linhas. Na largura de um celular a fila cabe (pode rolar dentro de si,
     nunca a página) e seus botões têm ao menos 40 px de altura. Nível: H; E:
     `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
+11. A caixa de mensagem (nota 31, *A mesa de todos, num UniVerso*): o pé do
+    painel é UMA caixa — sem campo de notação, sem fila de botões de imagem /
+    dado / Secreta. O campo começa com três linhas (duas no celular) e cresce
+    até oito. O clipe escolhe uma imagem; um print ou uma imagem copiada e
+    colada com `Ctrl+V` / `⌘V`, botão direito › *Colar* ou dedo seguro ›
+    *Colar* no celular, ou solta sobre o painel, espera na caixa como miniatura
+    com um ×; `Enter` envia a imagem e depois o texto. Um GIF continua animado
+    no registro; os 10 MB e o tipo são conferidos ao colar. Leitor não tem
+    clipe. O seletor da fila de dados (*Pública* / *Secreta*) torna secreta a
+    próxima rolagem. Como dono de uma pasta de servidor que ainda não é mesa, o
+    painel mostra *Tornar esta pasta uma mesa*; depois, *Abrir a janela da
+    Mesa*; numa pasta só deste computador, uma linha diz por que não há mesa.
+    Nível: H (o menu de colar do app de verdade é só H); E: `table2.spec.mjs`,
+    `campaign.spec.mjs` (`@layout`).
 
 ## 18. Conduzir uma mesa (nota 32)
 

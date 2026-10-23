@@ -46,6 +46,7 @@ type Words = {
   inputLabel: string;
   placeholder: string;
   placeholderLocal: string;
+  placeholderImage: string;
   send: string;
   counter: (n: number, max: number) => string;
   rollButton: string;
@@ -132,6 +133,7 @@ const pt: Words = {
   inputLabel: "Mensagem para a mesa",
   placeholder: "Escreva para a mesa…",
   placeholderLocal: "Role com /r 1d20+3, ou monte a rolagem nos dados abaixo…",
+  placeholderImage: "Escreva para a mesa, ou cole uma imagem…",
   send: "Enviar",
   counter: (n, max) => `${n} de ${max}`,
   rollButton: "Rolar dados…",
@@ -218,6 +220,7 @@ const en: Words = {
   inputLabel: "Message to the table",
   placeholder: "Write to the table…",
   placeholderLocal: "Roll with /r 1d20+3, or put it together with the dice below…",
+  placeholderImage: "Write to the table, or paste an image…",
   send: "Send",
   counter: (n, max) => `${n} of ${max}`,
   rollButton: "Roll dice…",

@@ -19,6 +19,7 @@ import { icon } from "../icons";
 import { addDieToNotation, adjustModifier, COMPOSER_DICE, dieKind, dieKindLabel, EMPTY_COMPOSER, fromNotation, keepOf, MAX_COMPOSER_MODIFIER, parseRollLine, removeDieFromNotation, toggleKeep, toNotation, withFormula, type ComposerState, type DieKind, type Keep } from "./composer";
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { h } from "../dom";
+import { tableSource } from "./record";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
@@ -49,6 +50,7 @@ export class Tray {
   private readonly kl = h("button", "tray-keep");
   private readonly moreButton = h("button", "tray-tool tray-more-button");
   private readonly moreDot = h("span", "tray-dot");
+  private readonly mode = h("select", "tray-mode");
   private readonly savedButton = h("button", "tray-tool tray-saved-button");
   private readonly moreBox = h("div", "tray-pop tray-more");
   private readonly savedBox = h("div", "tray-pop tray-saved");
@@ -114,6 +116,18 @@ export class Tray {
     this.keepButton(this.kh, "kh", ts.keepHigh, ts.keepHighDesc, "KH");
     this.keepButton(this.kl, "kl", ts.keepLow, ts.keepLowDesc, "KL");
 
+    // Foundry's roll-mode selector: who sees the roll (Verso has two modes: public and secret).
+    this.mode.setAttribute("aria-label", ts.modeLabel);
+    this.mode.title = ts.modeLabel;
+    for (const [value, text] of [["public", ts.modePublic], ["secret", ts.modeSecret]] as const) {
+      const o = h("option", "", text);
+      o.value = value;
+      this.mode.append(o);
+    }
+    this.mode.addEventListener("change", () => {
+      const t = tableSource();
+      if (isServerTable(t)) t.secret = this.mode.value === "secret";
+    });
     this.savedButton.type = "button";
     this.savedButton.title = ts.savedButton;
     this.savedButton.setAttribute("aria-label", ts.savedButton);
@@ -134,7 +148,7 @@ export class Tray {
     this.savedBox.append(this.saved.el);
     this.savedBox.hidden = true;
 
-    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl, this.savedButton);
+    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl, this.mode, this.savedButton);
     this.go.type = "button";
     this.go.append(icon("dice", ""));
     this.go.addEventListener("click", () => void this.host.submit());
@@ -325,6 +339,9 @@ export class Tray {
   /** The secret toggle as it stands, for a server's table; the local one has none. */
   sync(src: TableSource): void {
     this.secret = isServerTable(src) && src.secret;
+    this.mode.hidden = !isServerTable(src);
+    this.mode.value = this.secret ? "secret" : "public";
+    this.mode.classList.toggle("secret", this.secret);
     this.saved.sync();
     this.paint();
   }
