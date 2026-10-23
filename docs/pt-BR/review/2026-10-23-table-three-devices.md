@@ -138,6 +138,11 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
 16. **MENOR — Depois de uma atualização o app do Mac reabriu uma das suas duas
     janelas.** A outra pasta, sincronizada, parou de sincronizar até ser aberta
     de novo; a edição do Bruno esperou no servidor e chegou 5 s depois.
+    *Corrigido em `fix/reopen-windows`, a64c71b9.* Causa: a janela guardava
+    uma única chave de "última pasta", escrita só pela janela principal, e
+    uma janela aberta depois nascia vazia; assim só a pasta da principal
+    voltava. Agora o host guarda o conjunto de pastas que as janelas mostram
+    (`open-windows.json`, pasta de configuração) e reabre cada uma ao iniciar.
 
 ## Novo teste depois das correções
 
