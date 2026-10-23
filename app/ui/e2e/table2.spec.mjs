@@ -492,7 +492,7 @@ test("the Mesa notification is off until turned on; then another's message, with
   await expect(toasts).toHaveCount(0);
   await app.key("Mod+,");
   await page.locator(".settings-nav-item", { hasText: "Notificações" }).click();
-  const kind = page.getByRole("combobox", { name: "Mesa" });
+  const kind = page.getByRole("combobox", { name: "Mesa", exact: true });
   await expect(kind).toHaveValue("off");
   await kind.selectOption("toast");
   await page.keyboard.press("Escape");

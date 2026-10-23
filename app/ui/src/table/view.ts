@@ -98,7 +98,10 @@ class TableView {
   private readonly rosterCount = h("span", "table-roster-count");
   private readonly rosterList = h("ul", "table-roster-list");
   private rosterPinned = false;
+  /** ONE row on top (ADR 0107, 2026-10-23): who is here, the owner's way to the Mesa window, then hide and the menu at the right. */
+  private readonly top = h("div", "table-top");
   private readonly bar = h("div", "table-bar");
+  private readonly win = h("div", "table-win");
   private readonly pins = h("div", "table-pins");
   private readonly pinList = h("ul", "table-pin-list");
   private readonly older = button("ghost table-older", tt.older);
@@ -126,7 +129,9 @@ class TableView {
     const pinHead = h("h3", "table-pins-head", tt.pinnedHeading);
     this.pins.append(pinHead, this.pinList);
     this.older.addEventListener("click", () => void this.loadOlder());
-    this.el.append(this.roster, this.bar, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.top.append(this.roster, this.win, this.bar);
+    this.win.hidden = true;
+    this.el.append(this.top, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();
@@ -193,6 +198,7 @@ class TableView {
    *  says why there is no table. Not shown to anyone else. */
   private paintMake(src: TableSource): void {
     this.make.replaceChildren();
+    this.win.replaceChildren();
     let line: string | null = null;
     if (mayShare() && !tableFor("")) {
       const b = button("save table-make-button", cp.makeTable, "user");
@@ -200,14 +206,18 @@ class TableView {
       b.addEventListener("click", () => void makeTable(""));
       this.make.append(b);
     } else if (mayShare() && isTableRoot("")) {
-      const b = button("ghost table-make-button", ts.openTableWindow, "user");
+      // In the top row, beside the roster: the icon always, the words when the panel is wide enough (table.css).
+      const b = button("ghost table-win-button", ts.openTableWindow, "user");
+      b.append(h("span", "table-win-label", ts.openTableWindow));
+      b.setAttribute("aria-label", ts.openTableWindow);
       b.addEventListener("click", () => openCampaignDialog(""));
-      this.make.append(b);
+      this.win.append(b);
     } else if (!isServerTable(src) && !mayShare()) {
       line = src.notice?.() ? null : ts.noTableLocal;
     }
     if (line) this.make.append(h("p", "table-make-note", line));
     this.make.hidden = this.make.childElementCount === 0;
+    this.win.hidden = this.win.childElementCount === 0;
   }
 
   private render(): void {

@@ -216,3 +216,15 @@ export function throwRegion(area: { left: number; top: number; width: number; he
 
 /** The font numbers are drawn with: the bold system sans. */
 export const NUMBER_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+/** The dice styles as they cross the wire (ADR 0107 item 11): a style that follows the app's palette (`app`) is
+ *  turned into the colours this window's theme gives it now, so a viewer with another theme draws the roller's
+ *  dice as the roller sees them (2026-10-23: the game master's violet dice fell red for a player). `seal` and
+ *  `ink` are the theme's kept-die body and number colours as `#rrggbb`; a style without `app` is copied as is. */
+export function resolveApp(styles: DiceStyles, seal: string, ink: string): DiceStyles {
+  const one = (s: DiceStyle): DiceStyle => {
+    if (!s.app) return { ...s };
+    return { body: seal, number: ink, outline: edgeFor(seal), texture: s.texture, material: s.material };
+  };
+  return { "1": one(styles["1"]), "2": one(styles["2"]), "3": one(styles["3"]) };
+}
