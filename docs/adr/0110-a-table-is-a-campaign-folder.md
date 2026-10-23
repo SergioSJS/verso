@@ -415,15 +415,23 @@ estou com a raiz de uma mesa aberta no verso, como que o dono da pasta vai
 conseguir ver as configurações da pasta? E como que os jogadores veem do lado
 deles?"* The owner reached the table's window only by a right click on the
 tree's background or the small button of the Mesa panel. Chosen in the code,
-for the maintainer to confirm: when the open folder is itself a table (a table
-at its root) the side bar's head shows, beside the folder's name, a small chip.
-For the **owner** it is the button **Mesa** (accessible name *Mesa: open the
-folder's settings*) that opens the table's window. For a **player** it is the
-read-only chip **Mesa · jogador** (EN *Table · player*): clicking it opens a
-popover with two lines — they read the notes the game master released, and edit
-the notes granted to them — and those notes listed as links; with none, it says
-so. A player has no settings there and no way to the table's window. A folder
-that is not a table, or a table made of a subfolder only, shows no chip
-(`app/ui/src/tableChip.ts`; tried in `e2e/table-chip.spec.mjs`). Beside it, a
+first as root-only; **the maintainer rejected that: *"ERRADO, posso ter N mesas
+numa mesma pasta"*.** An open folder holds any number of tables, each a folder
+(one table per folder, ADR above). The rule now: **every folder that is a table**
+(a subfolder; the open folder's root has the header chip) shows a small **Mesa**
+badge on its row in the tree, a button named after that table's folder — for the
+**owner** it opens *that* table's window; for a **player** it opens the
+read-only popover of that table: two lines (they read the notes released, edit
+the ones granted to them) and the notes granted *in that table* as links, no
+settings. The **chip beside the folder's name** follows the context: the table
+that holds the active note (the nearest table folder up its path, named after
+that folder: *Mesa: Ruínas de Valdor*), the root's when the root is a table and
+no deeper one holds the note or there is no active note, and with no active
+note inside any table, while tables exist below, **Mesas (N)**, opening a list
+(owner: each opens its window; player: each its popover). No chip when the
+folder holds no table (`app/ui/src/tableChip.ts`; tried in
+`e2e/table-chip.spec.mjs`). The Mesa panel (the shared log and chat,
+`src/table/*`) is one per open folder and does not follow the active note's
+table. Beside it, a
 folder one only reads shows the closed lock of ADR 0076's amendment of the same
 day.
