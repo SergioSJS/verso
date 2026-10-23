@@ -596,6 +596,36 @@ export const commands = {
 	 */
 	tableClear: (keepPinned: boolean | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_clear", { keepPinned })),
 	/**
+	 *  What the folder's tables are, to this window: a folder of this computer
+	 *  alone has none.
+	 */
+	campaignStatus: () => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_status")),
+	/**
+	 *  Make `root`, a folder of this one (`""` is the whole), a table. The
+	 *  folder's owner only.
+	 */
+	campaignMake: (root: string) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_make", { root })),
+	/**  Turn the table at `root` back into a folder. */
+	campaignUnmake: (root: string) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_unmake", { root })),
+	/**
+	 *  A table's settings: open or closed, and its limits (the log's entries
+	 *  and an image's bytes); a value left out stays.
+	 */
+	campaignSettings: (root: string, open: boolean | null, logMax: number | null, imageMax: number | null) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_settings", { root, open, logMax, imageMax })),
+	/**
+	 *  Release notes to the table, or hide them again: a folder stands for the
+	 *  notes under it.
+	 */
+	campaignRelease: (paths: string[], released: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_release", { paths, released })),
+	/**  Release every note of the table at `root`. */
+	campaignReleaseAll: (root: string) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_release_all", { root })),
+	/**  Mark a note's name a secret: every link to it is drawn as blocks. */
+	campaignSecretName: (path: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_secret_name", { path, on })),
+	/**  Who may edit a note: nobody, the group, or one player. */
+	campaignGrant: (path: string, grant: CampaignGrant) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_grant", { path, grant })),
+	/**  An invitation link to the table, for a reader. */
+	campaignInvite: (root: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("campaign_invite", { root })),
+	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
 	 *  opens the server's page (`server_sign_in_page`), where the person
@@ -1119,6 +1149,86 @@ export type Block = {
 
 /**  What a block with an `^id` is, read from its first line. */
 export type BlockKind = "paragraph" | "list" | "table" | "heading" | "quote" | "code";
+
+/**
+ *  Notes released or hidden, told to every window on the folder (event
+ *  `campaign-changed`): the window reads `campaign_status` again, and a
+ *  player's file tree reloads.
+ */
+export type CampaignChanged = {
+	/**  The paths whose state changed (empty when a table changed). */
+	paths: string[],
+};
+
+/**  Who may edit a note besides the game master (ADR 0110 item 5). */
+export type CampaignGrant = 
+/**  Nobody: the players read it. */
+{ kind: "none" } | 
+/**  Every player at the table. */
+{ kind: "group" } | 
+/**  One player, by account. */
+{ kind: "player"; account: string };
+
+/**
+ *  An invitation to a table (`campaign_invite`): a link to copy, single
+ *  use, seven days.
+ */
+export type CampaignInvite = {
+	link: string,
+	/**  Unix seconds. */
+	expires: number,
+};
+
+/**
+ *  What the server keeps about a note of a table (ADR 0110 items 4, 5, 7).
+ *  A note with no entry is hidden, with no grant and an ordinary name.
+ */
+export type CampaignNote = {
+	path: string,
+	released: boolean,
+	/**  Every link to it is drawn as four blocks, whatever was written. */
+	secret_name: boolean,
+	grant: CampaignGrant,
+};
+
+/**  A player of a table: an account that may open the table's folder. */
+export type CampaignPlayer = {
+	id: string,
+	name: string,
+};
+
+/**
+ *  What `campaign_status` answers. To the folder's owner: every table of
+ *  the folder, the state of its notes and its players. To a player: the
+ *  tables it can open, and only the notes it may edit.
+ */
+export type CampaignStatus = {
+	/**  `owner`, `player` or `none` (a folder with no table). */
+	viewer: string,
+	tables: CampaignTable[],
+	notes: CampaignNote[],
+	players: CampaignPlayer[],
+	/**
+	 *  Whether this account may make an invitation link for a person who
+	 *  has no account yet (only the server's admin may: ADR 0081 item 4).
+	 */
+	can_invite: boolean,
+};
+
+/**  A folder made a table (ADR 0110 item 1). */
+export type CampaignTable = {
+	/**
+	 *  The table's folder, relative to the open folder; `""` is the whole
+	 *  folder.
+	 */
+	root: string,
+	/**  Open to sign-in; closed, the players cannot open it (MC.1 = A). */
+	open: boolean,
+	/**  The table log's ceiling (1,000 to 200,000 entries; MS.1). */
+	log_max: number,
+	/**  The image size limit, in bytes (1 to 30 MB; MS.1). */
+	image_max: number,
+};
 
 /**
  *  What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
