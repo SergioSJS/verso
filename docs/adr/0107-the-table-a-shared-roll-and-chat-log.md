@@ -331,3 +331,9 @@ one entry (item 6) — decided the same day as recommended. Items marked
 `[PROPOSED]` stay the author's until accepted. Not built; the
 maintainer asked for it "em algum momento" (at some point). Waits for a
 reading by the other model.
+
+Confirmed 2026-10-22 by the maintainer (MS.2): the pace (5 messages a second,
+a burst of 20) and where images go (the folder's Obsidian attachments folder,
+else `attachments/`, named `mesa-<datetime>-<id>`) stay as built (*"concordo
+com o ritmo"*); the log ceiling and image size become per-table settings
+([0110](0110-a-table-is-a-campaign-folder.md)).
