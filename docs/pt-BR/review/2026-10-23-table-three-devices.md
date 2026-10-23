@@ -92,8 +92,15 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    ao abrir, antes de mostrar a pasta do servidor, então a janela de uma
    leitora fica com a resposta do desktop (pode gravar) e nunca diz "Você só lê
    esta pasta." Perguntar de novo tirou a barra, mas também tirou o que é do
-   próprio desktop (nova janela, atualizações, console). Correção em andamento
-   em `fix/remote-capabilities`.
+   próprio desktop (nova janela, atualizações, console). **Corrigido depois do
+   teste** em `2fcd2e96`: a janela pergunta de novo a cada pasta que mostra, e
+   numa pasta do servidor recebe a resposta do servidor mais o que é do
+   próprio app (janelas, páginas web, atualizações, console, pastas locais;
+   não mostrar no Finder, copiar caminho nem agentes). Testado de novo no app
+   do Windows: o board não tem ferramentas, a janela diz "You can only read
+   this folder" e o Bruno continua escrevendo na própria ficha
+   ([31](/docs/media/test-runs/2026-10-23-mesa/31-depois-bruno-windows-board-so-leitura.png)). Em aberto: se o terminal e os agentes (ADR 0054) aparecem
+   numa janela do desktop sobre uma pasta do servidor.
 7. **IMPORTANTE — No board, o adesivo não rola.** A ferramenta de nota da
    barra faz um adesivo desenhado, onde `dice:` fica texto simples
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); o board não tem como pôr um cartão de texto Markdown, onde as
@@ -119,6 +126,9 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
 14. **MENOR — Os dados 3D começam desligados** (como decidido), então cada
     jogadora liga em Ajustes › Dados e RPG antes de vê-los cair na própria
     tela.
+16. **MENOR — Depois de uma atualização o app do Mac reabriu uma das suas duas
+    janelas.** A outra pasta, sincronizada, parou de sincronizar até ser aberta
+    de novo; a edição do Bruno esperou no servidor e chegou 5 s depois.
 15. **IMPORTANTE — Windows: um teste travou.**
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     rodou por mais de uma hora na execução completa dos testes de `verso-app`
