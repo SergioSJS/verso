@@ -17,6 +17,7 @@ import { addDieToNotation, adjustModifier, clearComposer, COMPOSER_DICE, dieKind
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
+import { dieIcon } from "./dieIcon";
 
 const KEPT = "verso.tableTray";
 
@@ -144,6 +145,8 @@ export class Tray {
     add.setAttribute("aria-label", ts.add(label));
     const count = h("span", "die-button-count");
     count.setAttribute("aria-hidden", "true");
+    const shape = dieIcon(kind, "die-icon");
+    if (shape) add.append(shape);
     add.append(h("span", "die-button-label", label), count);
     add.addEventListener("click", () => this.set(addDieToNotation(this.notation, kind)));
     const take = h("button", "ghost iconic die-remove");
@@ -211,6 +214,8 @@ export class Tray {
       for (const term of base.terms) {
         const kind = dieKind(term);
         const chip = h("span", "pool-chip");
+        const shape = dieIcon(kind, "pool-chip-icon");
+        if (shape) chip.append(shape);
         chip.append(termNotation(term), this.chipRemove(ts.takeAll(dieKindLabel(kind)), () => this.set(toNotation(removeTerm(base, kind)))));
         this.pool.append(chip);
       }

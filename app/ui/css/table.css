@@ -119,6 +119,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .die-slot { position: relative; min-width: 0; }
 .die-button { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 2.4rem; padding: .3rem .2rem; font: 700 .85rem var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
 .die-slot.active .die-button { border-color: var(--seal); background: var(--seal-wash); }
+/* The die's shape above its name, as in Rolai's composer. */
+.die-button { flex-direction: column; gap: .2rem; padding: .45rem .2rem .35rem; }
+.die-icon { width: 26px; height: 26px; color: var(--ink-3); flex: none; }
+.die-slot.active .die-icon { color: var(--seal); }
+.pool-chip-icon { width: 14px; height: 14px; color: var(--seal); flex: none; }
 .die-button-count { position: absolute; top: -.4rem; right: -.35rem; min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; box-sizing: border-box; border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .66rem/1.1rem var(--ui); text-align: center; }
 .die-button-count[hidden], .die-remove[hidden] { display: none; }
 .die-remove { position: absolute; top: -.45rem; left: -.35rem; width: 1.3rem; height: 1.3rem; min-width: 1.3rem; padding: 0; border: 1px solid var(--hair); border-radius: 50%; background: var(--paper); }
