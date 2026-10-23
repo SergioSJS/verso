@@ -57,10 +57,25 @@ test("a server's table: the roster, the others' messages and rolls, and what thi
   await serve(app, page);
   const view = await openTable(page);
   // Who is at the table: the window's own account and the two who joined, in their colours.
+  // ONE small icon with the count; the names (in their colours) show on hover, on a tap or on Enter, Escape closes.
   const members = view.locator(".table-roster .table-member");
+  const rosterButton = view.locator(".table-roster-button");
+  await expect(rosterButton).toHaveText("3");
+  await expect(rosterButton).toHaveAccessibleName("3 pessoas na mesa: Ana, Bia, Cris");
+  await expect(view.locator(".table-roster-list")).toBeHidden();
+  await rosterButton.hover();
   await expect(members).toHaveText(["Ana", "Bia", "Cris"]);
   await expect(members.nth(1).locator(".table-dot")).toHaveCSS("background-color", "rgb(21, 101, 192)");
-  await expect(view.locator(".table-roster")).toHaveAccessibleName("Quem está na mesa");
+  await expect(view.locator(".table-roster-list")).toHaveAccessibleName("Quem está na mesa");
+  await page.mouse.move(5, 5);
+  await expect(view.locator(".table-roster-list")).toBeHidden();
+  await rosterButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(view.locator(".table-roster-list")).toBeVisible();
+  await expect(rosterButton).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
+  await expect(view.locator(".table-roster-list")).toBeHidden();
+  await expect(rosterButton).toBeFocused();
   await expect(view.locator(".table-empty")).toContainText("A mesa está vazia");
   // Others write and roll; the log keeps the server's order.
   await page.evaluate(() => {
@@ -143,10 +158,12 @@ test("a secret roll: the roller and the owners see it, the other members see tha
   await expect(masked.locator(".table-notation, .table-total, .table-die")).toHaveCount(0);
   await expect(page.locator(".table-said")).toHaveText("Bia rolou em segredo");
   // This window rolls in secret with the toggle: it sees its own roll in full, marked.
-  const mode = view.getByRole("combobox", { name: "Quem vê a rolagem" });
-  await expect(mode).toHaveValue("public");
-  await mode.selectOption("secret");
-  await expect(mode).toHaveValue("secret");
+  const mode = view.getByRole("button", { name: /^Quem vê a rolagem/ });
+  await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Pública");
+  await mode.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: /^Secreta/ }).click();
+  await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Secreta");
   await field(view).fill("/r 1d8");
   await field(view).press("Enter");
   const own = log(view).nth(1);
@@ -268,7 +285,7 @@ test("a reader writes and rolls but sends no image, and can neither clear nor de
   expect(await app.calls("table_send_image")).toHaveLength(0);
 });
 
-test("an owner deletes another's message or image, never a roll", async ({ app, page }) => {
+test("an owner deletes another's message, image or roll; a player deletes no roll", async ({ app, page }) => {
   await serve(app, page, "owner");
   const view = await openTable(page);
   await page.evaluate(() => {
@@ -277,14 +294,17 @@ test("an owner deletes another's message or image, never a roll", async ({ app, 
     t.say("Bia", "Apague-me.");
   });
   await expect(log(view)).toHaveCount(2);
-  await log(view).first().getByRole("button", { name: /^Ações da entrada/ }).click();
-  await expect(page.getByRole("menuitem", { name: "Apagar" })).toHaveCount(0);
-  await page.keyboard.press("Escape");
   await log(view).nth(1).getByRole("button", { name: /^Ações da entrada/ }).click();
   await page.getByRole("menuitem", { name: "Apagar" }).click();
   await expect(log(view)).toHaveCount(1);
+  // The game master (an owner) deletes a roll too, after the same question of the menu.
+  await log(view).first().getByRole("button", { name: /^Ações da entrada/ }).click();
+  await page.getByRole("menuitem", { name: "Apagar" }).click();
+  await expect(log(view)).toHaveCount(0);
   await expect(page.locator("#status")).toHaveText("Mesa: entrada apagada para todos.");
   // Another window's delete is heard.
+  await page.evaluate(() => window.__harness.table.roll("Bia", "1d4"));
+  await expect(log(view)).toHaveCount(1);
   await page.evaluate(() => window.__harness.emit("table-removed", { id: window.__harness.table.entries()[0].id }));
   await expect(log(view)).toHaveCount(0);
 });

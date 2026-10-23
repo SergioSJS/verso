@@ -93,7 +93,11 @@ export function plainRow(text: string): string {
 
 class TableView {
   readonly el = h("div", "table-view");
-  private readonly roster = h("ul", "table-roster");
+  private readonly roster = h("div", "table-roster");
+  private readonly rosterButton = h("button", "table-roster-button");
+  private readonly rosterCount = h("span", "table-roster-count");
+  private readonly rosterList = h("ul", "table-roster-list");
+  private rosterPinned = false;
   private readonly bar = h("div", "table-bar");
   private readonly pins = h("div", "table-pins");
   private readonly pinList = h("ul", "table-pin-list");
@@ -117,7 +121,7 @@ class TableView {
     this.said.setAttribute("aria-live", "polite");
     this.toEnd.hidden = true;
     this.toEnd.addEventListener("click", () => this.scrollEnd());
-    this.roster.setAttribute("aria-label", tt.rosterLabel);
+    this.wireRoster();
     this.pinList.setAttribute("aria-label", tt.pinnedLabel);
     const pinHead = h("h3", "table-pins-head", tt.pinnedHeading);
     this.pins.append(pinHead, this.pinList);
@@ -276,13 +280,56 @@ class TableView {
     if (tableOnScreen()) src.markSeen();
   }
 
-  /** Who is at the table now: a dot in their cursor colour, and their name. */
+  /** Who is at the table now, as ONE small icon with the count (ADR 0107, 2026-10-23): hovering it (or focusing it) shows the
+   *  names, each with a dot in their cursor colour; a tap or Enter keeps the list open, Escape or a tap outside closes it. */
+  private wireRoster(): void {
+    const b = this.rosterButton;
+    b.type = "button";
+    b.setAttribute("aria-expanded", "false");
+    b.append(icon("users", ""), this.rosterCount);
+    this.rosterList.hidden = true;
+    this.rosterList.setAttribute("aria-label", tt.rosterLabel);
+    this.roster.append(b, this.rosterList);
+    const show = (open: boolean): void => {
+      this.rosterList.hidden = !open;
+      b.setAttribute("aria-expanded", String(open));
+    };
+    // A mouse hovering shows the list; a tap or Enter (click) keeps it open until Escape or a tap outside.
+    this.roster.addEventListener("pointerenter", (e) => {
+      if (e.pointerType === "mouse") show(true);
+    });
+    this.roster.addEventListener("pointerleave", (e) => {
+      if (e.pointerType === "mouse" && !this.rosterPinned) show(false);
+    });
+    b.addEventListener("click", () => {
+      this.rosterPinned = this.rosterList.hidden ? true : !this.rosterPinned;
+      show(this.rosterPinned);
+    });
+    this.roster.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.rosterList.hidden) {
+        e.stopPropagation();
+        this.rosterPinned = false;
+        show(false);
+        b.focus();
+      }
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (!this.rosterList.hidden && e.target instanceof Node && !this.roster.contains(e.target)) {
+        this.rosterPinned = false;
+        show(false);
+      }
+    });
+  }
+
   private paintRoster(server: ServerTable | null): void {
     this.roster.hidden = !server;
     if (!server) return;
-    this.roster.replaceChildren(
-      h("li", "table-roster-head", tt.roster),
-      ...server.roster().map((m) => {
+    const members = server.roster();
+    this.rosterCount.textContent = String(members.length);
+    const names = members.map((m) => m.name);
+    this.rosterButton.setAttribute("aria-label", tt.rosterSummary(names));
+    this.rosterList.replaceChildren(
+      ...members.map((m) => {
         const li = h("li", "table-member");
         li.dataset["name"] = m.name;
         const dot = h("span", "table-dot");

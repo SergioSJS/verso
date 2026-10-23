@@ -43,6 +43,7 @@ type Words = {
   // The server's table (ADR 0107 phase 2).
   roster: string;
   rosterLabel: string;
+  rosterSummary: (names: string[]) => string;
   inputLabel: string;
   placeholder: string;
   placeholderLocal: string;
@@ -130,6 +131,7 @@ const pt: Words = {
   toEnd: "Ir para o fim",
   roster: "Na mesa agora",
   rosterLabel: "Quem está na mesa",
+  rosterSummary: (names) => `${names.length} ${names.length === 1 ? "pessoa" : "pessoas"} na mesa: ${names.join(", ")}`,
   inputLabel: "Mensagem para a mesa",
   placeholder: "Escreva para a mesa…",
   placeholderLocal: "Role com /r 1d20+3, ou monte a rolagem nos dados abaixo…",
@@ -217,6 +219,7 @@ const en: Words = {
   toEnd: "Jump to the end",
   roster: "At the table now",
   rosterLabel: "Who is at the table",
+  rosterSummary: (names) => `${names.length} ${names.length === 1 ? "person" : "people"} at the table: ${names.join(", ")}`,
   inputLabel: "Message to the table",
   placeholder: "Write to the table…",
   placeholderLocal: "Roll with /r 1d20+3, or put it together with the dice below…",

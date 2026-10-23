@@ -1,9 +1,10 @@
 // The table's dice tray (ADR 0107, "The tray made compact", 2026-10-23): ONE
 // row under the message field, as Foundry's Dice Tray has it. A click on a
 // die writes `/r 1d6` into the field; right click, Shift+Enter, Delete or a
-// long press takes one off; KH / KL write `2d20kh1`; the dice button sends,
-// as Enter does: the same road as `/r`, the local table's and the server's,
-// the "Secreta" toggle respected. The field is several lines tall.
+// long press takes one off; KH / KL write `2d20kh1`; Send sends, as Enter
+// does (the row has no roll button of its own): the same road as `/r`, the
+// local table's and the server's, the "Secreta" mode respected (a button with
+// the app's menu behind it, not a native select). The field is several lines tall.
 // Screenshots for reading by eye go to $HOME/.cache/composer-shots (mounted
 // by the runner), when the folder exists.
 
@@ -40,7 +41,8 @@ async function setup(app, page, { server = false, role = "owner" } = {}) {
 
 const die = (view, d) => view.getByRole("button", { name: `Adicionar um ${d}`, exact: true });
 const field = (view) => view.getByRole("textbox", { name: /^Mensagem para a mesa/ });
-const go = (view) => view.locator(".tray-row").getByRole("button", { name: /^Rolar/ });
+const send = (view) => view.getByRole("button", { name: "Enviar", exact: true });
+const modeButton = (view) => view.getByRole("button", { name: /^Quem vê a rolagem/ });
 const mod = (view) => view.getByRole("spinbutton", { name: "Modificador da rolagem" });
 const kh = (view) => view.getByRole("button", { name: "Manter o maior (KH)" });
 const kl = (view) => view.getByRole("button", { name: "Manter o menor (KL)" });
@@ -57,14 +59,14 @@ test("the row is one line, the toolbar of the box has the paperclip, the bookmar
   expect(box.height).toBeLessThan(48);
   for (const d of ["d4", "d6", "d8", "d10", "d12", "d20"]) await expect(die(view, d)).toBeVisible();
   await expect(view.getByRole("button", { name: "Mais dados", exact: true })).toBeVisible();
-  await expect(go(view)).toBeDisabled();
+  await expect(send(view)).toBeDisabled();
   // The toolbar on the bottom edge of the box (Discord's, Slack's, Foundry's chat), inside the same box as the text.
   const bar = view.locator(".table-box-bar");
-  for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), view.getByRole("combobox", { name: "Quem vê a rolagem" }), view.getByRole("button", { name: "Enviar", exact: true })]) {
+  for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), modeButton(view), view.getByRole("button", { name: "Enviar", exact: true })]) {
     await expect(el).toBeVisible();
     expect(await el.evaluate((e) => Boolean(e.closest(".table-box-bar")))).toBe(true);
   }
-  await expect(view.getByRole("combobox", { name: "Quem vê a rolagem" })).toHaveValue("public");
+  await expect(modeButton(view)).toHaveAccessibleName("Quem vê a rolagem: Pública");
   await expect(view.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
   const barBox = await bar.boundingBox();
   const textBox = await field(view).boundingBox();
@@ -76,7 +78,7 @@ test("the row is one line, the toolbar of the box has the paperclip, the bookmar
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // A phone's targets are 40 px tall at least.
   if (phone(page)) {
-    for (const b of [die(view, "d6"), go(view), view.getByRole("button", { name: "Mais dados", exact: true }), view.getByRole("button", { name: "Enviar", exact: true })]) {
+    for (const b of [die(view, "d6"), view.getByRole("button", { name: "Mais dados", exact: true }), view.getByRole("button", { name: "Enviar", exact: true })]) {
       expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(40);
     }
   }
@@ -111,7 +113,6 @@ for (const [w, h, narrow] of [[1280, 800, null], [1280, 800, 230], [390, 844, nu
     const more = view.getByRole("button", { name: "Mais dados", exact: true });
     await expect(more).toBeVisible();
     expect(inside(await more.boundingBox(), rowBox)).toBe(true);
-    expect(inside(await go(view).boundingBox(), rowBox)).toBe(true);
     const gone = [];
     for (const c of controls) {
       if (await c.isVisible()) expect(inside(await c.boundingBox(), rowBox), "a visible control inside the row's box").toBe(true);
@@ -135,7 +136,7 @@ for (const [w, h, narrow] of [[1280, 800, null], [1280, 800, 230], [390, 844, nu
     expect(clipped).toBe(false);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // Everything of the box's toolbar is inside the window too.
-    for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), view.getByRole("combobox", { name: "Quem vê a rolagem" }), view.getByRole("button", { name: "Enviar", exact: true })]) {
+    for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), modeButton(view), view.getByRole("button", { name: "Enviar", exact: true })]) {
       const b = await el.boundingBox();
       expect(b.x + b.width).toBeLessThanOrEqual(w + 0.5);
       expect(b.x).toBeGreaterThanOrEqual(-0.5);
@@ -159,7 +160,7 @@ test("a click writes the roll into the message field, right click takes one off;
   await expect(field(view)).toHaveValue("/r 1d6");
   await die(view, "d6").click({ button: "right" });
   await expect(field(view)).toHaveValue("");
-  await expect(go(view)).toBeDisabled();
+  await expect(send(view)).toBeDisabled();
 });
 
 test("the modifier is a number field: typing, the arrows and the wheel step it; it joins the first die", async ({ app, page }) => {
@@ -195,12 +196,11 @@ test("typing in the field changes the badges; what the row cannot show is left a
   await field(view).fill("/r 4d6kh3");
   await expect(view.locator(".tray-count:visible")).toHaveCount(0);
   await expect(field(view)).toHaveValue("/r 4d6kh3");
-  await expect(go(view)).toBeEnabled();
-  // A message is not a roll: the row leaves it as it is and its dice button is off.
+  await expect(send(view)).toBeEnabled();
+  // A message is not a roll: the row leaves it as it is.
   await field(view).fill("Olá, mesa");
   await die(view, "d6").click();
   await expect(field(view)).toHaveValue("Olá, mesa");
-  await expect(go(view)).toBeDisabled();
   // Lines after the roll are kept.
   await field(view).fill("/r 1d6\nnota");
   await die(view, "d6").click();
@@ -290,19 +290,19 @@ test("KH / KL as Foundry's: one more die and keep one; again undoes; the other s
   await kh(view).click();
   await mod(view).fill("2");
   await expect(field(view)).toHaveValue("/r 2d20kh1+2");
-  await go(view).click();
+  await send(view).click();
   await expect(log(view)).toHaveCount(1);
   await expect(log(view).first().locator(".table-notation")).toHaveText("2d20kh1+2");
   await expect(log(view).first().locator(".table-die.dropped")).toHaveCount(1);
 });
 
-test("the dice button sends as Enter does, at the local table, and empties the field @layout", async ({ app, page }) => {
+test("Send sends the dice row's roll as Enter does, at the local table, and empties the field @layout", async ({ app, page }) => {
   const view = await setup(app, page);
   await die(view, "d6").click();
   await die(view, "d6").click();
   await die(view, "d20").click();
   await expect(log(view)).toHaveCount(0);
-  await go(view).click();
+  await send(view).click();
   await expect(log(view)).toHaveCount(1);
   const first = log(view).first();
   await expect(first.locator(".table-notation")).toHaveText("2d6+1d20");
@@ -316,7 +316,7 @@ test("the dice button sends as Enter does, at the local table, and empties the f
   await expect(log(view).nth(1).locator(".table-die.dropped")).toHaveCount(1);
   // Something Verso does not read is said in the field's error line, not rolled.
   await field(view).fill("/r 3d6 vs 2");
-  await go(view).click();
+  await send(view).click();
   await expect(view.locator(".table-compose-error")).toContainText("Não entendi");
   await expect(log(view)).toHaveCount(2);
   // Without a server a message has nobody to go to: said, not lost.
@@ -331,14 +331,15 @@ test("at a server's table the roll is the server's, once, with the Secreta toggl
   const view = await setup(app, page, { server: true });
   await die(view, "d8").click();
   await die(view, "d8").click();
-  await go(view).click();
+  await send(view).click();
   await expect(log(view)).toHaveCount(1);
   expect((await app.calls("table_roll"))[0]).toMatchObject({ notation: "2d8" });
   expect((await app.calls("table_roll"))[0].secret ?? false).toBeFalsy();
-  // Secret on: the dice button says so, the roll goes to the owners and its line says so.
-  await view.getByRole("combobox", { name: "Quem vê a rolagem" }).selectOption("secret");
+  // Secret on: the mode button says so, the roll goes to the owners and its line says so.
+  await modeButton(view).click();
+  await page.getByRole("menuitem", { name: /^Secreta/ }).click();
   await die(view, "d6").click();
-  await expect(view.locator(".tray-row").getByRole("button", { name: "Rolar em segredo" })).toBeEnabled();
+  await expect(modeButton(view)).toHaveAccessibleName("Quem vê a rolagem: Secreta");
   await field(view).fill("/r 4d6kh3");
   await field(view).press("Enter");
   await expect(log(view)).toHaveCount(2);
@@ -347,7 +348,7 @@ test("at a server's table the roll is the server's, once, with the Secreta toggl
   // The server's refusal is said beside the field.
   await page.evaluate(() => (window.__harness.table.refuseNext = "too fast: wait 2 s"));
   await die(view, "d4").click();
-  await go(view).click();
+  await send(view).click();
   await expect(view.locator(".table-compose-error")).toHaveText("Devagar: espere 2 s para enviar de novo.");
   await shot(page, `${tag(page)}-server`);
 });
@@ -395,3 +396,61 @@ test("the message field is larger and multi-line: Shift+Enter breaks the line, E
   await input.fill("linha um\nlinha dois");
   await shot(page, `${tag(page)}-multiline`);
 });
+
+for (const [w, h, narrow] of [[1280, 800, 260], [390, 844, null]]) {
+  test(`the Pública / Secreta button at ${narrow ?? w} px: icon and label side by side, nothing clipped, the app's focus ring, the menu by mouse and keyboard; no roll button in the row @layout`, async ({ app, page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    const view = await setup(app, page, { server: true });
+    if (narrow) await page.evaluate((n) => { document.querySelector("aside.right").style.width = `${n}px`; }, narrow);
+    const mode = modeButton(view);
+    await expect(mode).toBeVisible();
+    await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Pública");
+    await expect(mode).toHaveAttribute("aria-haspopup", "menu");
+    // Icon and label side by side, never overlapping; the label whole; the same height as its neighbours.
+    const geo = await mode.evaluate((el) => {
+      const i = el.querySelector("svg").getBoundingClientRect();
+      const l = el.querySelector(".tray-mode-label");
+      const r = l.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      return { iconRight: i.right, labelLeft: r.left, labelRight: r.right, boxRight: b.right, clipped: l.scrollWidth > l.clientWidth + 0.5 || el.scrollWidth > el.clientWidth + 0.5, text: l.textContent, h: b.height };
+    });
+    expect(geo.text).toBe("Pública");
+    expect(geo.iconRight).toBeLessThanOrEqual(geo.labelLeft + 0.5);
+    expect(geo.labelRight).toBeLessThanOrEqual(geo.boxRight + 0.5);
+    expect(geo.clipped).toBe(false);
+    const saved = await view.getByRole("button", { name: "Rolagens salvas", exact: true }).boundingBox();
+    expect(Math.abs(geo.h - saved.height)).toBeLessThanOrEqual(1);
+    const bar = await view.locator(".table-box-bar").boundingBox();
+    const mb = await mode.boundingBox();
+    expect(mb.x + mb.width).toBeLessThanOrEqual(bar.x + bar.width + 0.5);
+    // By the keyboard: the app's own focus ring (2 px solid), never the browser's default; Enter opens the menu, arrows move, Enter chooses.
+    await mode.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(mode).toBeFocused();
+    expect(await mode.evaluate((el) => { const c = getComputedStyle(el); return [c.outlineStyle, c.outlineWidth]; })).toEqual(["solid", "2px"]);
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu", { name: "Quem vê a rolagem" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: /^Pública/ })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(menu.getByRole("menuitem", { name: /^Secreta/ })).toBeFocused();
+    await shot(page, `${tag(page)}-mode-menu-${narrow ?? w}`);
+    await page.keyboard.press("Enter");
+    await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Secreta");
+    await expect(mode).toBeFocused();
+    await expect(mode.locator(".tray-mode-label")).toHaveText("Secreta");
+    // By the mouse, back to Pública; Escape closes without choosing.
+    await mode.click();
+    await menu.getByRole("menuitem", { name: /^Pública/ }).click();
+    await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Pública");
+    await mode.click();
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Pública");
+    // The dice row has no roll button of its own: Send is the one that sends.
+    await expect(view.locator(".tray-row").getByRole("button", { name: /^Rolar/ })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shot(page, `${tag(page)}-mode-${narrow ?? w}`);
+  });
+}
