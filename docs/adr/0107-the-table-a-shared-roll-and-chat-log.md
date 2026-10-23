@@ -641,9 +641,12 @@ several tables). It is now one per **table**.
 - **Limits and rules per table.** The ceiling of the log (`campaigns.log_max`)
   and the image limit (`image_max`) are the table's own; the delete and clear rules
   of the roles apply inside the table.
-- **Players.** A player invited to a subfolder table is a window on a share, which
-  has no table channel (item 9's "as built"); that is unchanged, so a player of
-  one table can neither read nor post to another.
+- **Players.** A player invited to a subfolder table is a window on a share rooted
+  at that table, and gets that table's channel (and only that one): it reads,
+  says and rolls there, and the owner reads the same log from the whole folder;
+  it can neither read nor post to another table. A share that is no table still
+  has none. See [0110](0110-a-table-is-a-campaign-folder.md) "As built (one chat
+  per table, 2026-10-23)".
 - **The synced folder** (item 9): the same per-table channel through the sync's
   link; the host remembers which table each window of the app is at and routes
   the server's events by the table they carry.

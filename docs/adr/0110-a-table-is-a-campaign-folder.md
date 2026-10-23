@@ -470,11 +470,20 @@ per table, 2026-10-23)":
   the log the folder had; a table renamed or moved takes its log along
   (`campaign_move`); the last table of a folder unmade gives the logs back to the
   folder; a table unmade while others stay leaves its log waiting for it.
-- **Players**: a player invited to a subfolder table is a window on a share and
-  has no table channel (as built, item 8 above, unchanged), so no table of the
-  folder — its own or another's — is read or written through it. A player who
-  reads the whole folder may join any table of it (the closed-table rule
-  applies as before).
+- **Players** (item 8 above lifted for a share rooted at a table). The
+  coordinator, relaying the maintainer's goal: each table's players talk and
+  roll in that table. A player invited to a subfolder table (`campaign_invite`
+  at that table's folder makes a share at that folder, item 2) is a window on a
+  share whose root is a table, and **that table's channel is its channel**: the
+  server maps the share's root to (owner folder, table root), so the owner reads
+  the same log from the whole folder. The player knows its table as the share's
+  own root, `""` (the table in the commands, answers and events is `""` for it,
+  and a note's path is written from the share's root, never the owner's
+  parent path); naming any other table is refused, so a player of Cripta reaches
+  nothing of Sala. Its rolls in a note of its share land in the table. It sends
+  no images (the file would go outside its share). A share whose root is **not**
+  a table still has no table channel. A player who reads the whole folder may
+  join any table of it (the closed-table rule applies as before).
 - **Tried**: `tests_table.rs` (`per_table`: two tables' entries, rosters, pins
   and clears kept apart; a call with no table; a name that is no table, `..`,
   absolute; a note's roll; the ceilings and image limits; a share refused; a

@@ -653,8 +653,11 @@ mesas). Agora é um por **mesa**.
   limite de imagem (`image_max`) são da própria mesa; as regras de apagar e de
   limpar dos papéis valem dentro da mesa.
 - **Jogadores.** Um jogador convidado para uma mesa de subpasta é uma janela num
-  compartilhamento, que não tem canal de mesa ("como construído" do item 9); isso
-  não muda, então um jogador de uma mesa não lê nem escreve em outra.
+  compartilhamento com raiz nessa mesa, e recebe o canal dessa mesa (e só dele):
+  lê, escreve e rola ali, e o dono lê o mesmo registro pela pasta toda; ele não
+  lê nem escreve em outra mesa. Um compartilhamento que não é mesa continua sem
+  canal. Veja o [0110](0110-a-table-is-a-campaign-folder.md) "Como foi construído
+  (uma conversa por mesa, 2026-10-23)".
 - **A pasta sincronizada** (item 9): o mesmo canal por mesa pelo enlace da
   sincronização; o host lembra em que mesa está cada janela do app e encaminha os
   eventos do servidor pela mesa que eles carregam.

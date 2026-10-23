@@ -215,12 +215,41 @@ pub(crate) fn image_entry(
     made
 }
 
+/// The entry as a window on a share of the table's folder knows it: the
+/// note's path written from the share's root (none when it is outside).
+fn scoped(entry: Option<TableEntry>, root: Option<&str>) -> Option<TableEntry> {
+    let mut e = entry?;
+    let Some(root) = root else {
+        return Some(e);
+    };
+    e.table = String::new();
+    e.path = e.path.and_then(|p| {
+        crate::db::covers(root, &p).then(|| p[root.len()..].trim_start_matches('/').to_owned())
+    });
+    if let Some(roll) = e.roll.as_mut()
+        && e.path.is_none()
+    {
+        roll.source = None;
+    }
+    Some(e)
+}
+
 /// The account and role of window `client` in `folder` now.
-fn viewer_of(server: &Server, client: &str, folder: &str) -> Option<(String, Role)> {
+fn viewer_of(
+    server: &Server,
+    client: &str,
+    folder: &str,
+) -> Option<(String, Role, Option<String>)> {
     let clients = lock(&server.clients);
     let c = clients.get(client)?;
     let (f, role) = c.folder.as_ref()?;
-    (f == folder).then(|| (c.account.clone(), *role))
+    (f == folder).then(|| {
+        (
+            c.account.clone(),
+            *role,
+            c.scope.as_ref().map(|s| s.root.clone()),
+        )
+    })
 }
 
 fn key_of(folder: &str, table: &str) -> Key {
@@ -243,11 +272,15 @@ fn is_member(server: &Server, folder: &str, table: &str, client: &str) -> bool {
 /// `row`, told to each window at its table as it may see it.
 fn tell_row(server: &Server, folder: &str, row: &TableRow) {
     for client in member_clients(server, folder, &row.table) {
-        let Some((account, role)) = viewer_of(server, &client, folder) else {
+        let Some((account, role, root)) = viewer_of(server, &client, folder) else {
             continue;
         };
         let veil = crate::campaign::veil_of(server, folder);
-        if let Some(entry) = view_in(row, &account, role, veil.as_deref()) {
+        let seen = scoped(
+            view_in(row, &account, role, veil.as_deref()),
+            root.as_deref(),
+        );
+        if let Some(entry) = seen {
             server.push(
                 &[client],
                 &json!({ "event": "table-entry", "payload": entry }),
@@ -258,9 +291,15 @@ fn tell_row(server: &Server, folder: &str, row: &TableRow) {
 
 /// `message` told to each window at the table.
 fn tell_all(server: &Server, (folder, table): (&str, &str), event: &str, payload: &impl Serialize) {
-    let to = member_clients(server, folder, table);
-    if !to.is_empty() {
-        server.push(&to, &json!({ "event": event, "payload": payload }));
+    let base = serde_json::to_value(payload).unwrap_or(Value::Null);
+    for client in member_clients(server, folder, table) {
+        // A window on a share knows its table as the share's own root, `""`.
+        let on_share = viewer_of(server, &client, folder).is_some_and(|v| v.2.is_some());
+        let mut p = base.clone();
+        if on_share && p.get("table").is_some() {
+            p["table"] = json!("");
+        }
+        server.push(&[client], &json!({ "event": event, "payload": p }));
     }
 }
 
@@ -414,6 +453,23 @@ pub(crate) fn table_named(
     }
 }
 
+/// The table of a window on a share: the table the share is rooted at, and
+/// no other. A share whose root is no table has none.
+fn share_table(
+    server: &Server,
+    folder: &str,
+    root: &str,
+    named: Option<&str>,
+) -> Result<String, ContractError> {
+    let own =
+        table_named(server, folder, Some(root)).map_err(|_| refused("a share has no table"))?;
+    // The window names its table as it knows it: the share's own root, `""`.
+    if named.is_some_and(|n| !n.is_empty()) {
+        return Err(refused("a share reaches its own table only"));
+    }
+    Ok(own)
+}
+
 /// The table a note at `path` belongs to: the deepest table that holds it,
 /// else the folder's default.
 fn table_of_path(server: &Server, folder: &str, path: &str) -> String {
@@ -491,13 +547,18 @@ pub fn note_oracle(
 fn note(server: &Server, who: &crate::presence::Sender, key: &str, path: &str, n: New<'_>) {
     // A window on a share is not at the folder's table (ADR 0081): its
     // rolls stay in the share's rooms.
-    if crate::shares::scope_here(server, who.client).is_some() {
-        return;
-    }
     let Some(folder) = folder_of_key(server, key) else {
         return;
     };
     let table = table_of_path(server, &folder, path);
+    // A window on a share: its rolls reach the table the share is rooted at
+    // (and only when the note is in it); a share that is no table keeps them
+    // in the share's rooms.
+    if let Some(scope) = crate::shares::scope_here(server, who.client)
+        && table_named(server, &folder, Some(&scope.root)).as_ref() != Ok(&table)
+    {
+        return;
+    }
     if let Err(e) = append(server, (&folder, &table), n) {
         crate::log::warn(&format!("keeping a roll for the table: {}", e.message));
     }
@@ -567,9 +628,10 @@ pub async fn command(
     cmd: &str,
     args: Value,
 ) -> Result<Value, ContractError> {
-    if crate::shares::scope_here(server, client).is_some() {
-        return Err(refused("a share has no table"));
-    }
+    // A window on a share reaches the table the share is rooted at, and
+    // only that one (ADR 0110 item 8 as amended 2026-10-23); a share that
+    // is no table has none.
+    let scope = crate::shares::scope_here(server, client).map(|s| s.root);
     let (folder, folder_role) = role_here(server, client)?;
     let role = acting(who, folder_role);
     let account = who.account.id.clone();
@@ -580,8 +642,12 @@ pub async fn command(
     // old peer that names none.
     let named: Option<String> = arg(&args, "table")?;
     let table = {
-        let (s, f) = (Arc::clone(&s), folder.clone());
-        blocking(move || table_named(&s, &f, named.as_deref())).await?
+        let (s, f, sc) = (Arc::clone(&s), folder.clone(), scope.clone());
+        blocking(move || match sc {
+            Some(root) => share_table(&s, &f, &root, named.as_deref()),
+            None => table_named(&s, &f, named.as_deref()),
+        })
+        .await?
     };
     // Only a window at the table speaks at it.
     if !matches!(cmd, "table_join" | "table_leave" | "table_history")
@@ -618,7 +684,9 @@ pub async fn command(
             }
             tell_roster(&s, &folder, &table);
             let (f, t) = (folder.clone(), table.clone());
-            let joined = blocking(move || join(&s, (&f, &t), &account, role)).await?;
+            let sc = scope.clone();
+            let joined =
+                blocking(move || join(&s, (&f, &t), &account, role, sc.as_deref())).await?;
             to_value(joined)
         }
         "table_leave" => {
@@ -674,7 +742,12 @@ pub async fn command(
             .await?;
             let mut entries: Vec<TableEntry> = rows
                 .iter()
-                .filter_map(|r| view_in(r, &account, role, veil.as_deref()))
+                .filter_map(|r| {
+                    scoped(
+                        view_in(r, &account, role, veil.as_deref()),
+                        scope.as_deref(),
+                    )
+                })
                 .collect();
             entries.reverse();
             to_value(TablePage { entries, more })
@@ -703,9 +776,12 @@ pub async fn command(
             })
             .await?;
             let who_id = who.account.id.clone();
-            to_value(view(&row, &who_id, role))
+            to_value(scoped(view(&row, &who_id, role), scope.as_deref()))
         }
         "table_send_image" => {
+            if scope.is_some() {
+                return Err(refused("an image is not sent from a share"));
+            }
             if !(folder_role.writes() && who.reaches(&folder).1 && role.writes()) {
                 return Err(refused("you may only read this folder"));
             }
@@ -759,7 +835,7 @@ pub async fn command(
             })
             .await?;
             let who_id = who.account.id.clone();
-            to_value(view(&row, &who_id, role))
+            to_value(scoped(view(&row, &who_id, role), scope.as_deref()))
         }
         "table_pin" => {
             let id = entry_id(&args)?;
@@ -862,6 +938,7 @@ fn join(
     (folder, table): (&str, &str),
     account: &str,
     role: Role,
+    scope: Option<&str>,
 ) -> Result<TableJoin, ContractError> {
     let readers = role == Role::Reader;
     let veil = crate::campaign::veil_of(server, folder);
@@ -877,12 +954,16 @@ fn join(
     rows.sort_by_key(|r| r.id);
     rows.dedup_by_key(|r| r.id);
     Ok(TableJoin {
-        table: table.to_owned(),
+        table: if scope.is_some() {
+            String::new()
+        } else {
+            table.to_owned()
+        },
         you: account.to_owned(),
         role: role.as_str().to_owned(),
         entries: rows
             .iter()
-            .filter_map(|r| view_in(r, account, role, veil.as_deref()))
+            .filter_map(|r| scoped(view_in(r, account, role, veil.as_deref()), scope))
             .collect(),
         more,
         roster: roster(server, folder, table),

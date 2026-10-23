@@ -1282,9 +1282,11 @@ real devices does is not.
 - [ ] **The synced desktop folder**: on the desktop with the folder synced,
   repeat the first check. Pause the sync: the panel says the table is
   unavailable; resume it: the panel joins the table of the open note.
-- [ ] **A player of one table**: a player invited to the Cripta subfolder
-  (a share) has no Table channel, as before; the Table panel does not show
-  Sala's chat, nor the Cripta's.
+- [ ] **A player of one table**: invite a player to the Cripta subfolder
+  and open it as that player. The Table panel is the Cripta's chat: the
+  player writes and rolls there, and the game master, from the whole
+  folder, sees the same lines in Cripta. The player never sees Sala's chat.
+  A player invited to a subfolder that is not a table has no Table chat.
 - [ ] **The old log**: on a server that had a shared log before the
   update, open the folder after it: the old entries are in the folder's
   first (shortest-named) table, and none is lost.

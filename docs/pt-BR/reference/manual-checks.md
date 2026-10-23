@@ -1318,9 +1318,11 @@ ponta; o que uma sessão longa em aparelhos de verdade faz, não.
 - [ ] **A pasta sincronizada do desktop**: no desktop com a pasta sincronizada,
   repita a primeira conferência. Pause a sincronização: o painel diz que a mesa
   está indisponível; retome: o painel entra na mesa da nota aberta.
-- [ ] **Um jogador de uma mesa**: um jogador convidado para a subpasta Cripta
-  (um compartilhamento) não tem canal da Mesa, como antes; o painel da Mesa não
-  mostra a conversa da Sala, nem a da Cripta.
+- [ ] **Um jogador de uma mesa**: convide um jogador para a subpasta Cripta e
+  abra-a como esse jogador. O painel da Mesa é a conversa da Cripta: o jogador
+  escreve e rola ali, e o mestre, pela pasta toda, vê as mesmas linhas na
+  Cripta. O jogador nunca vê a conversa da Sala. Um jogador convidado para uma
+  subpasta que não é mesa não tem conversa da Mesa.
 - [ ] **O registro antigo**: num servidor que tinha um registro compartilhado
   antes da atualização, abra a pasta depois dela: as entradas antigas estão na
   primeira mesa da pasta (a de nome mais curto) e nenhuma se perdeu.

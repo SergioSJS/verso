@@ -486,11 +486,22 @@ mesa, 2026-10-23)":
   registro que a pasta tinha; uma mesa renomeada ou movida leva o registro junto
   (`campaign_move`); a última mesa de uma pasta desfeita devolve os registros à
   pasta; uma mesa desfeita enquanto outras ficam deixa o registro dela esperando.
-- **Jogadores**: um jogador convidado para uma mesa de subpasta é uma janela
-  num compartilhamento e não tem canal de mesa (como construído, item 8 acima,
-  sem mudança), então nenhuma mesa da pasta — a dele ou a de outra — é lida ou
-  escrita por ele. Um jogador que lê a pasta toda pode entrar em qualquer mesa
-  dela (a regra da mesa fechada vale como antes).
+- **Jogadores** (item 8 acima levantado para um compartilhamento com raiz numa
+  mesa). A coordenação, repassando o objetivo do mantenedor: os jogadores de cada
+  mesa conversam e rolam naquela mesa. Um jogador convidado para uma mesa de
+  subpasta (`campaign_invite` na pasta dessa mesa faz um compartilhamento nessa
+  pasta, item 2) é uma janela num compartilhamento cuja raiz é uma mesa, e **o
+  canal dessa mesa é o canal dele**: o servidor mapeia a raiz do compartilhamento
+  para (pasta do dono, raiz da mesa), então o dono lê o mesmo registro pela pasta
+  toda. O jogador conhece a sua mesa como a raiz do próprio compartilhamento, `""`
+  (a mesa nos comandos, respostas e eventos é `""` para ele, e o caminho de uma
+  nota é escrito a partir da raiz do compartilhamento, nunca do caminho-pai do
+  dono); nomear qualquer outra mesa é recusado, então um jogador da Cripta não
+  alcança nada da Sala. As rolagens dele numa nota do seu compartilhamento caem
+  na mesa. Ele não envia imagens (o arquivo iria para fora do compartilhamento).
+  Um compartilhamento cuja raiz **não** é mesa continua sem canal de mesa. Um
+  jogador que lê a pasta toda pode entrar em qualquer mesa dela (a regra da mesa
+  fechada vale como antes).
 - **Testado**: `tests_table.rs` (`per_table`: entradas, listas, fixadas e
   limpezas de duas mesas separadas; uma chamada sem mesa; um nome que não é
   mesa, `..`, absoluto; a rolagem de uma nota; os tetos e os limites de imagem;
