@@ -90,6 +90,11 @@
 .table-chip:hover, .table-chip[aria-expanded="true"] { background: var(--paper-3); color: var(--ink); }
 .table-chip[data-viewer="player"] { color: var(--ink-2); }
 .table-chip .icon { width: 12px; height: 12px; }
+.table-chip { max-width: 11rem; min-width: 0; }
+.table-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-mark.table-badge { gap: .2rem; padding: 0 .4rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--brass-ink); font: inherit; font-size: .68rem; font-weight: 600; line-height: 1.5; cursor: pointer; }
+.campaign-mark.table-badge:hover, .campaign-mark.table-badge:focus-visible { background: var(--paper-3); color: var(--ink); }
+.campaign-mark.table-badge .icon { width: 10px; height: 10px; }
 .table-chip-pop { position: fixed; z-index: 1000; box-sizing: border-box; padding: .7rem .85rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 12px 32px -12px oklch(0% 0 0 / .4); font-size: .85rem; line-height: 1.4; }
 .table-chip-line { margin: 0 0 .35rem; }
 .table-chip-notes { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow: auto; }
