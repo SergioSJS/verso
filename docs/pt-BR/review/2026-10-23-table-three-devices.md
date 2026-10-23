@@ -126,13 +126,13 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
 14. **MENOR — Os dados 3D começam desligados** (como decidido), então cada
     jogadora liga em Ajustes › Dados e RPG antes de vê-los cair na própria
     tela.
-16. **MENOR — Depois de uma atualização o app do Mac reabriu uma das suas duas
-    janelas.** A outra pasta, sincronizada, parou de sincronizar até ser aberta
-    de novo; a edição do Bruno esperou no servidor e chegou 5 s depois.
 15. **IMPORTANTE — Windows: um teste travou.**
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     rodou por mais de uma hora na execução completa dos testes de `verso-app`
     e passa sozinho em 16 s. É de 16/10/2026.
+16. **MENOR — Depois de uma atualização o app do Mac reabriu uma das suas duas
+    janelas.** A outra pasta, sincronizada, parou de sincronizar até ser aberta
+    de novo; a edição do Bruno esperou no servidor e chegou 5 s depois.
 
 ## Novo teste depois das correções
 

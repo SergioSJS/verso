@@ -125,13 +125,13 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 14. **MINOR — 3D dice are off by default** (as decided), so each player turns
     them on in Settings › Dice and RPG before the table sees them fall on
     their screen.
-16. **MINOR — After an update the Mac app reopened one of its two windows.**
-    The other folder, a synced one, stopped syncing until it was opened
-    again; Bruno's edit waited on the server and arrived 5 s after.
 15. **IMPORTANT — Windows: one test hung.**
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     ran for more than an hour in the full run of `verso-app`'s tests and
     passes alone in 16 s. It dates from 2026-10-16.
+16. **MINOR — After an update the Mac app reopened one of its two windows.**
+    The other folder, a synced one, stopped syncing until it was opened
+    again; Bruno's edit waited on the server and arrived 5 s after.
 
 ## Re-test after the fixes
 
