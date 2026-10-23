@@ -222,7 +222,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     },
     canSendImage: () => role !== "reader",
     canClear: () => role === "owner",
-    canDelete: (e) => (e.kind === "say" || e.kind === "image") && (e.mine || role === "owner"),
+    canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image") && e.mine),
     look() {
       if (!closed) void api.look(myColor(), deps.styles());
     },
