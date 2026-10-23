@@ -658,6 +658,8 @@ This **supersedes** the sentences above and in the "As built" sections that make
 the log one per folder, and 0110's "the folder's shortest-rooted table gives the
 folder's log its numbers" (each table has its own numbers now).
 
+**Two small changes of the panel (2026-10-23, the maintainer).** "Roll dice…" (the roller's dialog) is an item of the dice row's "⋯" drawer again, after being left only in the command palette; and at narrow widths (up to 300 px) "Hide from here back" is an icon-only button (its name and tooltip kept) so the roster, the Table window button, hide and the menu fit on one line at 260 px, the label showing when there is room.
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
