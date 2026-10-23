@@ -10,6 +10,7 @@
 // the top of the pane. The layout itself is in `css/screen.css`; here are
 // the controls it shows and what they do.
 
+import { mayEditGranted } from "../campaign";
 import { canWrite, can, loadCan, onCan } from "../can";
 import { narrow, paintExpanded, toggleRight, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
@@ -69,6 +70,9 @@ function buildBar(): void {
   // A folder opened or closed enables the search field: the bar follows.
   new MutationObserver(paintBar).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
   document.addEventListener("verso:nav", paintBar);
+  document.addEventListener("verso:nav", paintReadOnly);
+  addEventListener("verso:campaign-status", paintReadOnly);
+  addEventListener("verso:folder-shown", paintReadOnly);
 }
 
 /** What the bar can do now: a folder open, a step back to take. */
@@ -144,7 +148,11 @@ function buildLock(): void {
   ui.folder.after(folderLock);
 }
 function paintReadOnly(): void {
-  folderLock.hidden = canWrite() || ui.search.disabled;
+  // Follows the note on screen (maintainer, 2026-10-23): a note granted to
+  // the person is theirs to edit, so the lock says nothing there; on a note
+  // they only read, or with none open, it shows.
+  const path = layout().activeLeaf?.path ?? "";
+  folderLock.hidden = canWrite() || ui.search.disabled || (path !== "" && mayEditGranted(path));
 }
 
 function applyCan(): void {

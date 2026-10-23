@@ -273,5 +273,8 @@ Código-fonte, ⌘N e as outras teclas do que escreve, arrastar um arquivo,
 renomear, criar uma pasta), um aviso curto perto de onde agiu diz isso, no
 máximo uma vez a cada poucos segundos, não a cada tecla
 (`app/ui/src/readerNotice.ts`). Uma nota entregue à pessoa (ADR 0110) edita
-normalmente e não diz nada; o cadeado continua sendo da pasta. Testado em
+normalmente e não diz nada, e o cadeado fica oculto enquanto a nota na tela é
+uma que a pessoa pode editar (2026-10-23, mantenedor): aparece numa nota que só
+lê e sem nenhuma nota aberta, redesenhado ao navegar, ao mudar o estado da
+campanha e ao mostrar uma pasta. Testado em
 `e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` e `folder-role.spec.mjs`.

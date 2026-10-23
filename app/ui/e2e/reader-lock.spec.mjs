@@ -85,7 +85,7 @@ test("asking for Edit, a new note by key or a rename says so too", async ({ app,
   await expect(page.locator("#notes input")).toHaveCount(0);
 });
 
-test("a note granted to a player edits normally, with no notice; the folder's lock stays", async ({ app, page }) => {
+test("a note granted to a player edits normally, with no notice; the lock follows the note on screen", async ({ app, page }) => {
   await app.open("?vault=empty&table=player&side=server&role=reader");
   for (const [p, text] of Object.entries({ "Aberta.md": "# Aberta\n", "Livre.md": "# Livre\n" })) await app.writeOutside(p, text);
   await app.folderChanged(["Aberta.md", "Livre.md"], true);
@@ -97,7 +97,12 @@ test("a note granted to a player edits normally, with no notice; the folder's lo
     window.__harness.emit("campaign-changed", { paths: [] });
   });
   await app.folderChanged(["Aberta.md"], true);
+  const lock = page.locator("#open .folder-lock");
+  // No note open: the folder is only read.
+  await expect(lock).toBeVisible();
   await page.locator('#notes li[data-path="Aberta.md"] > button').click();
+  // The granted note is theirs to edit: no lock while it is on screen.
+  await expect(lock).toBeHidden();
   await app.key("Mod+e");
   const editor = page.locator(".cm-content:visible").first();
   await editor.click();
@@ -107,8 +112,15 @@ test("a note granted to a player edits normally, with no notice; the folder's lo
   await expect(notice(page)).toBeHidden();
   // The other note, only read: the notice.
   await page.locator('#notes li[data-path="Livre.md"] > button').click();
+  // A released note they only read: the lock is back.
+  await expect(lock).toBeVisible();
   await app.key("Mod+e");
   await page.locator(".cm-content:visible").first().click();
   await page.keyboard.type("ZZ");
   await expect(notice(page)).toBeVisible();
+  // Back to the granted note, then no note at all.
+  await page.locator('#notes li[data-path="Aberta.md"] > button').click();
+  await expect(lock).toBeHidden();
+  await page.evaluate(() => window.__harness.emit("campaign-changed", { paths: [] }));
+  await expect(lock).toBeHidden();
 });

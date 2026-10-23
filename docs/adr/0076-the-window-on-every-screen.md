@@ -268,5 +268,8 @@ ask for Edit or Source, ⌘N and the other keys of what writes, drag a file,
 rename, make a folder), a short notice near where they acted that says so,
 shown at most once every few seconds, not on every key
 (`app/ui/src/readerNotice.ts`). A note granted to the person (ADR 0110) edits
-normally and says nothing; the lock stays the folder's. Tried in
+normally and says nothing, and the lock is hidden while the note on screen is one
+the person may edit (2026-10-23, maintainer): it shows on a note they only
+read and with no note open, repainted on navigation, on the campaign status
+and when a folder is shown. Tried in
 `e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` and `folder-role.spec.mjs`.
