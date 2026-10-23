@@ -44,43 +44,104 @@ const go = (view) => view.locator(".tray-row").getByRole("button", { name: /^Rol
 const mod = (view) => view.getByRole("spinbutton", { name: "Modificador da rolagem" });
 const kh = (view) => view.getByRole("button", { name: "Manter o maior (KH)" });
 const kl = (view) => view.getByRole("button", { name: "Manter o menor (KL)" });
+/** The dots opened when the modifier or KH / KL did not fit the row (the default desktop panel is narrow). */
+const reveal = async (view) => {
+  if (!(await kh(view).isVisible()) || !(await mod(view).isVisible())) await view.getByRole("button", { name: "Mais dados", exact: true }).click();
+};
 const log = (view) => view.locator(".table-log .table-entry");
 
-test("the row is one line, with the dice, the modifier, KH / KL, the bookmark and the dice button, and nothing passes the edge @layout", async ({ app, page }) => {
+test("the row is one line, the toolbar of the box has the paperclip, the bookmark, who sees the roll and Send; the old controls are gone @layout", async ({ app, page }) => {
   const view = await setup(app, page, { server: true });
   const row = view.locator(".tray-row");
   const box = await row.boundingBox();
   expect(box.height).toBeLessThan(48);
   for (const d of ["d4", "d6", "d8", "d10", "d12", "d20"]) await expect(die(view, d)).toBeVisible();
   await expect(view.getByRole("button", { name: "Mais dados", exact: true })).toBeVisible();
-  await expect(mod(view)).toHaveValue("0");
-  await expect(kh(view)).toHaveAttribute("aria-pressed", "false");
-  await expect(kl(view)).toHaveAttribute("aria-pressed", "false");
-  await expect(view.getByRole("button", { name: "Rolagens salvas", exact: true })).toBeVisible();
   await expect(go(view)).toBeDisabled();
-  // The old block is gone: no toggle, no pool, no notation field.
+  // The toolbar on the bottom edge of the box (Discord's, Slack's, Foundry's chat), inside the same box as the text.
+  const bar = view.locator(".table-box-bar");
+  for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), view.getByRole("combobox", { name: "Quem vê a rolagem" }), view.getByRole("button", { name: "Enviar", exact: true })]) {
+    await expect(el).toBeVisible();
+    expect(await el.evaluate((e) => Boolean(e.closest(".table-box-bar")))).toBe(true);
+  }
+  await expect(view.getByRole("combobox", { name: "Quem vê a rolagem" })).toHaveValue("public");
+  await expect(view.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
+  const barBox = await bar.boundingBox();
+  const textBox = await field(view).boundingBox();
+  expect(barBox.y).toBeGreaterThanOrEqual(textBox.y + textBox.height - 1);
+  // The old block and the old row of buttons are gone.
   await expect(view.getByRole("button", { name: "Compor rolagem" })).toHaveCount(0);
   await expect(view.getByRole("textbox", { name: "Notação", exact: true })).toHaveCount(0);
-  // And so is the old row of buttons under the field: one box, the row, nothing else (Foundry's chat).
   for (const name of ["Rolar dados…", "Enviar imagem", /^Secreta$/]) await expect(view.getByRole("button", { name })).toHaveCount(0);
-  await expect(view.getByRole("combobox", { name: "Quem vê a rolagem" })).toHaveValue("public");
-  await expect(view.getByRole("button", { name: "Anexar imagem" })).toBeVisible();
-  await expect(view.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
-  // The dice button is inside the window, and the page does not scroll sideways (the row may, inside itself).
-  const width = page.viewportSize().width;
-  const send = await go(view).boundingBox();
-  expect(send.x + send.width).toBeLessThanOrEqual(width + 0.5);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // A phone's targets are 40 px tall at least.
   if (phone(page)) {
-    for (const b of [die(view, "d6"), kh(view), go(view), view.getByRole("button", { name: "Mais dados", exact: true })]) {
+    for (const b of [die(view, "d6"), go(view), view.getByRole("button", { name: "Mais dados", exact: true }), view.getByRole("button", { name: "Enviar", exact: true })]) {
       expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(40);
     }
-    expect((await mod(view).boundingBox()).height).toBeGreaterThanOrEqual(40);
   }
+  // The typed text starts on the top line of the box (nothing above it but the images).
+  await field(view).fill("primeira");
+  const pad = await field(view).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return { top: r.top, boxTop: el.closest(".table-box").getBoundingClientRect().top, paddingTop: parseFloat(cs.paddingTop), scrollTop: el.scrollTop };
+  });
+  expect(pad.top - pad.boxTop).toBeLessThan(4);
+  expect(pad.scrollTop).toBe(0);
   await die(view, "d20").click();
   await shot(page, `${tag(page)}-row`);
 });
+
+for (const [w, h, narrow] of [[1280, 800, null], [1280, 800, 230], [390, 844, null], [320, 700, null]]) {
+  test(`at ${narrow ?? w} px nothing of the row is clipped or scrolls sideways: each control is in the row's box or in the dots${narrow ? " (a panel narrowed to it)" : ""}`, async ({ app, page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    const view = await setup(app, page, { server: true });
+    if (narrow) await page.evaluate((n) => { document.querySelector("aside.right").style.width = `${n}px`; }, narrow);
+    await expect.poll(async () => (await view.locator(".tray-row").boundingBox())?.height ?? 0).toBeLessThan(48 + 1);
+    const names = [["Adicionar um d4", "d4"], ["Adicionar um d6", "d6"], ["Adicionar um d8", "d8"], ["Adicionar um d10", "d10"], ["Adicionar um d12", "d12"], ["Adicionar um d20", "d20"]];
+    const rowBox = await view.locator(".tray-row").boundingBox();
+    const inside = (b, r) => b && b.x >= r.x - 0.5 && b.x + b.width <= r.x + r.width + 0.5 && b.y >= r.y - 0.5 && b.y + b.height <= r.y + r.height + 0.5;
+    const controls = [
+      ...names.map(([n]) => view.getByRole("button", { name: n, exact: true })),
+      view.getByRole("spinbutton", { name: "Modificador da rolagem" }),
+      kh(view),
+      kl(view),
+    ];
+    const more = view.getByRole("button", { name: "Mais dados", exact: true });
+    await expect(more).toBeVisible();
+    expect(inside(await more.boundingBox(), rowBox)).toBe(true);
+    expect(inside(await go(view).boundingBox(), rowBox)).toBe(true);
+    const gone = [];
+    for (const c of controls) {
+      if (await c.isVisible()) expect(inside(await c.boundingBox(), rowBox), "a visible control inside the row's box").toBe(true);
+      else gone.push(c);
+    }
+    // What the row had no room for is in the dots: reachable, inside the window.
+    if (gone.length > 0) {
+      await more.click();
+      for (const c of gone) {
+        await expect(c).toBeVisible();
+        const b = await c.boundingBox();
+        expect(b.x).toBeGreaterThanOrEqual(-0.5);
+        expect(b.x + b.width).toBeLessThanOrEqual(w + 0.5);
+      }
+      await page.keyboard.press("Escape");
+    }
+    // The priority: the modifier never leaves before KH / KL.
+    if (!(await mod(view).isVisible())) expect(await kh(view).isVisible()).toBe(false);
+    if (narrow) expect(gone.length).toBeGreaterThan(0);
+    const clipped = await view.locator(".tray-scroll").evaluate((el) => el.scrollWidth > el.clientWidth + 0.5);
+    expect(clipped).toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // Everything of the box's toolbar is inside the window too.
+    for (const el of [view.getByRole("button", { name: "Anexar imagem" }), view.getByRole("button", { name: "Rolagens salvas", exact: true }), view.getByRole("combobox", { name: "Quem vê a rolagem" }), view.getByRole("button", { name: "Enviar", exact: true })]) {
+      const b = await el.boundingBox();
+      expect(b.x + b.width).toBeLessThanOrEqual(w + 0.5);
+      expect(b.x).toBeGreaterThanOrEqual(-0.5);
+    }
+  });
+}
 
 test("a click writes the roll into the message field, right click takes one off; the badges follow", async ({ app, page }) => {
   const view = await setup(app, page);
@@ -103,6 +164,7 @@ test("a click writes the roll into the message field, right click takes one off;
 
 test("the modifier is a number field: typing, the arrows and the wheel step it; it joins the first die", async ({ app, page }) => {
   const view = await setup(app, page);
+  await reveal(view);
   await mod(view).fill("3");
   await expect(field(view)).toHaveValue("");
   await die(view, "d20").click();
@@ -129,7 +191,7 @@ test("typing in the field changes the badges; what the row cannot show is left a
   await field(view).fill("/r 3d8+1d12+2");
   await expect(die(view, "d8").locator(".tray-count")).toHaveText("3");
   await expect(die(view, "d12").locator(".tray-count")).toHaveText("1");
-  await expect(mod(view)).toHaveValue("2");
+  await expect(view.locator(".tray-mod")).toHaveValue("2");
   await field(view).fill("/r 4d6kh3");
   await expect(view.locator(".tray-count:visible")).toHaveCount(0);
   await expect(field(view)).toHaveValue("/r 4d6kh3");
@@ -188,8 +250,6 @@ test("from the keyboard: Enter adds a die, Shift+Enter, Delete and Backspace tak
     await page.keyboard.press("Tab");
     await expect(view.getByRole("button", { name, exact: true })).toBeFocused();
   }
-  await page.keyboard.press("Tab");
-  await expect(mod(view)).toBeFocused();
 });
 
 test("a long press on a die takes one off (touch)", async ({ app, page }) => {
@@ -208,6 +268,7 @@ test("a long press on a die takes one off (touch)", async ({ app, page }) => {
 
 test("KH / KL as Foundry's: one more die and keep one; again undoes; the other switches @layout", async ({ app, page }) => {
   const view = await setup(app, page);
+  await reveal(view);
   // No dice: nothing happens.
   await kh(view).click();
   await expect(field(view)).toHaveValue("");

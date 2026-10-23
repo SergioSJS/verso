@@ -96,14 +96,14 @@ export class Compose {
     this.send.title = tt.send;
     this.attach.setAttribute("aria-label", ts.attach);
     this.attach.title = ts.attach;
-    // One box, as a chat box is: the images waiting above the text, the actions at its right.
-    const actions = h("div", "table-box-actions");
-    actions.append(this.attach, this.send);
-    const inner = h("div", "table-box-row");
-    inner.append(this.field, actions);
-    const box = h("div", "table-box");
-    box.append(this.chips, inner);
+    // One box, as a chat box is: the images waiting above the text, the text, and a small toolbar on the bottom edge
+    // (the paperclip, the saved rolls, who sees the roll, and Send at the right) like Discord's, Slack's and Foundry's chat.
     this.tray = new Tray({ input: this.field, submit: () => this.submit(), showError: (text) => (text === null ? this.clearError() : this.fail(text)) });
+    const bar = h("div", "table-box-bar");
+    const spacer = h("span", "table-box-spacer");
+    bar.append(this.attach, ...this.tray.tools, spacer, this.send);
+    const box = h("div", "table-box");
+    box.append(this.chips, this.field, bar);
     this.el.append(this.error, box, this.tray.el, this.counter);
 
     this.el.addEventListener("submit", (e) => {
