@@ -118,6 +118,11 @@ pub struct App {
     /// close with it are not windows the person closed, and the set the
     /// next start reopens keeps them (`session`).
     quitting: std::sync::atomic::AtomicBool,
+    /// Windows handed a server's folder that could not be opened (the
+    /// server is down for a moment, as when an update restarts both): the
+    /// window label → the folder's key. The key stays in the set the next
+    /// start reopens until the person closes the window (`session`).
+    pub(crate) pending_servers: Mutex<std::collections::HashMap<String, String>>,
     /// Windows told a folder (`folder_handed`) and not done opening it:
     /// one is not handed another while it installs the first.
     opening: Mutex<std::collections::HashSet<String>>,
@@ -179,6 +184,7 @@ impl App {
             initial_folder: Mutex::new(initial.into_iter().collect()),
             initial_server: Mutex::new(std::collections::VecDeque::new()),
             quitting: std::sync::atomic::AtomicBool::new(false),
+            pending_servers: Mutex::new(std::collections::HashMap::new()),
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
@@ -394,9 +400,15 @@ async fn open_initial<R: tauri::Runtime>(
         // A server's folder the last session had open (`session::restore`).
         let server = lock(&app.state::<App>().initial_server).pop_front();
         if let Some((url, folder)) = server {
-            return remote::server_open(app.clone(), window, url, folder)
-                .await
-                .map(Some);
+            let label = window.label().to_owned();
+            let key = session::server_key(&url, &folder);
+            let opened = remote::server_open(app.clone(), window, url, folder).await;
+            if opened.is_err() {
+                // Kept in the set: the server may be back by the next start.
+                lock(&app.state::<App>().pending_servers).insert(label, key);
+                session::remember(&app);
+            }
+            return opened.map(Some);
         }
         // Told, but the folder was taken by another window: not opening.
         lock(&app.state::<App>().opening).remove(window.label());

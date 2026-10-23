@@ -22,7 +22,7 @@ use verso_core::session as kept;
 use crate::{App, Handed, hand_over, log, protocol::is_app_view, remote};
 
 /// The key a window with a server's folder is kept under.
-fn server_key(url: &str, folder: &str) -> String {
+pub(crate) fn server_key(url: &str, folder: &str) -> String {
     format!("server:{url}#{folder}")
 }
 
@@ -55,7 +55,10 @@ fn shown<R: tauri::Runtime>(app: &tauri::AppHandle<R>, except: Option<&str>) -> 
         .iter()
         .filter_map(|label| match remote::of(app, label) {
             Some(r) => Some(server_key(&r.url, &r.folder)),
-            None => state.service.folder_of(label),
+            None => state
+                .service
+                .folder_of(label)
+                .or_else(|| crate::lock(&state.pending_servers).get(label).cloned()),
         })
         .collect()
 }
@@ -65,6 +68,12 @@ fn shown<R: tauri::Runtime>(app: &tauri::AppHandle<R>, except: Option<&str>) -> 
 pub(crate) fn remember<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let state = app.state::<App>();
     state.quitting.store(false, Ordering::SeqCst);
+    // A window that shows a folder now no longer waits for its server's.
+    for label in app.windows().into_keys() {
+        if state.service.folder_of(&label).is_some() || remote::of(app, &label).is_some() {
+            crate::lock(&state.pending_servers).remove(&label);
+        }
+    }
     let config = state.service.config().map(Path::to_path_buf);
     write(config.as_deref(), &shown(app, None));
 }
@@ -81,6 +90,8 @@ pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &
         return;
     }
     let state = app.state::<App>();
+    // The person closed it: its server's folder is not waited for.
+    crate::lock(&state.pending_servers).remove(label);
     let config = state.service.config().map(Path::to_path_buf);
     let others = shown(app, Some(label));
     after_close(
@@ -293,5 +304,44 @@ mod tests {
                 two.path().file_name().unwrap()
             ]
         );
+    }
+
+    /// A server that is down at start does not take its window out of the
+    /// set (an update restarts the app and the server together); a local
+    /// folder that is gone does, and so does a server window the person
+    /// closes.
+    #[test]
+    fn a_server_folder_offline_at_start_keeps_its_key() {
+        use serde_json::json;
+        let here = tempfile::tempdir().unwrap();
+        let _a = crate::tests::note(here.path(), "A.md", "# A\n");
+        let (app, main) = crate::tests::app_with(None);
+        let server = server_key("https://nada.invalid", "casa");
+        let gone = "perdida-0123456789abcdef".to_owned();
+        let config = app.state::<App>().service.config().map(Path::to_path_buf);
+        let config = config.as_deref();
+        kept::keep_open_windows(config, &[server.clone(), gone]).unwrap();
+        restore(app.handle());
+        // The server window cannot open: no sign-in for that address.
+        assert!(crate::tests::call(&main, "open_initial", json!({})).is_err());
+        assert_eq!(kept::open_windows(config), std::slice::from_ref(&server));
+        // Another window opens a local folder: the rewritten set still has
+        // the server's key, and not the gone folder's.
+        crate::folder_handed(app.handle(), here.path().to_path_buf());
+        let other = app
+            .webview_windows()
+            .into_keys()
+            .find(|l| l != "main")
+            .map(|l| app.get_webview_window(&l).unwrap())
+            .unwrap();
+        let key = crate::tests::call(&other, "open_initial", json!({})).unwrap()["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(kept::open_windows(config), [server.clone(), key.clone()]);
+        // The person closes the server's window: it leaves the set.
+        main.destroy().unwrap();
+        window_gone(app.handle(), "main");
+        assert_eq!(kept::open_windows(config), [key]);
     }
 }

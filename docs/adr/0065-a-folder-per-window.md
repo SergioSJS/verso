@@ -56,8 +56,10 @@ it (Status).
    updated as a folder opens and as the person closes a window. It is left
    alone while the app quits (⌘Q, the updater's restart) and by the last
    window, so a quit brings back all the windows, and closing every window
-   by hand brings back the last one. A folder that is gone is skipped and
-   logged. A window's position and size are not kept.
+   by hand brings back the last one. A local folder that is gone is skipped and
+   logged; a server's folder that cannot be opened (the server down for a
+   moment, as when an update restarts both) keeps its key until the person
+   closes that window. A window's position and size are not kept.
 
 ## Consequences
 
