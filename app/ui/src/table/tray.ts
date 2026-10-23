@@ -2,142 +2,190 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The table's dice tray (ADR 0107, the dice composer, 2026-10-23): a click
-// on a die adds it to a roll shown as notation; only "Rolar" rolls. The
-// notation field is the source of truth (composer.ts): the buttons edit it,
-// and a notation the buttons cannot show ("4d6kh3") is rolled as typed. The
-// roll itself goes the way `/r` goes (compose.ts rollNotation). The tray is
-// there for the local table and for a server's, and folds away behind its
-// toggle on a phone, where it starts folded.
+// The table's dice tray (ADR 0107, "The tray made compact", 2026-10-23): ONE
+// row under the message field, as Foundry VTT's Dice Tray module has it
+// (github.com/mclemente/fvtt-dice-tray, MIT): small icon-only dice, a number
+// field for the modifier, KH / KL, a bookmark for the saved rolls and a dice
+// button that sends. The roll is written INTO the message field as `/r 2d6+1d4+3`
+// and the field is the source of truth (composer.ts): a click on a die edits
+// that line, typing in the field changes the badges, a formula the row cannot
+// show ("4d6kh3") is left as typed. Sending is the field's: the same road as
+// Enter (compose.ts), the local table's and the server's.
+//
+// A die: left click or Enter adds one; right click, Shift+Enter, Delete or
+// Backspace, or a long press on touch, takes one off.
 
-import { button, h } from "../dom";
 import { icon } from "../icons";
-import { readNotation } from "../dice/notation";
-import { addDieToNotation, adjustModifier, clearComposer, COMPOSER_DICE, dieKind, dieKindLabel, EMPTY_COMPOSER, fromNotation, removeDieFromNotation, removeTerm, termNotation, toNotation, type ComposerState, type DieKind } from "./composer";
+import { addDieToNotation, adjustModifier, COMPOSER_DICE, dieKind, dieKindLabel, EMPTY_COMPOSER, fromNotation, keepOf, MAX_COMPOSER_MODIFIER, parseRollLine, removeDieFromNotation, toggleKeep, toNotation, withFormula, type ComposerState, type DieKind, type Keep } from "./composer";
 import { keyboardInset, onViewport } from "../screen/viewport";
+import { h } from "../dom";
+import { tableSource } from "./record";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
 import { SavedRolls } from "./savedPanel";
 
-const KEPT = "verso.tableTray";
-
-/** Whether the tray was left open (null: never chosen). Storage may be blocked: then the default. */
-function remembered(): boolean | null {
-  try {
-    const v = localStorage.getItem(KEPT);
-    return v === "1" ? true : v === "0" ? false : null;
-  } catch {
-    return null;
-  }
+/** What the row needs of the message field. */
+export interface TrayHost {
+  readonly input: HTMLTextAreaElement;
+  /** Send what is in the field, as Enter does. */
+  submit(): Promise<void>;
+  /** Say a refusal in the field's error line (null clears it). */
+  showError(text: string | null): void;
 }
 
-function remember(open: boolean): void {
-  try {
-    localStorage.setItem(KEPT, open ? "1" : "0");
-  } catch {
-    /* the choice is only a convenience */
-  }
-}
+/** The dice in the row, and the ones behind "more" (Foundry keeps d100 in a drawer too). */
+const MAIN: readonly DieKind[] = [4, 6, 8, 10, 12, 20];
+const OTHER: readonly DieKind[] = COMPOSER_DICE.filter((k) => !MAIN.includes(k));
+const LONG_PRESS_MS = 500;
 
-const phone = (): boolean => window.matchMedia("(max-width: 760px)").matches;
-
-type Slot = { kind: DieKind; box: HTMLElement; add: HTMLButtonElement; take: HTMLButtonElement; count: HTMLElement };
+type Slot = { kind: DieKind; button: HTMLButtonElement; count: HTMLElement };
 
 export class Tray {
-  readonly el = h("section", "table-tray");
-  private readonly toggle = h("button", "ghost table-tray-toggle");
-  private readonly body = h("div", "table-tray-body");
-  private readonly pool = h("div", "pool-tray");
-  private readonly grid = h("div", "composer-dice");
-  private readonly mod = h("input", "composer-mod-input");
-  private readonly clear = h("button", "ghost composer-clear");
-  private readonly field = h("input", "notation-input");
-  private readonly go = h("button", "save composer-go");
+  readonly el = h("div", "tray-wrap");
+  private readonly row = h("div", "tray-row");
+  private readonly scroll = h("div", "tray-scroll");
+  private readonly mod = h("input", "tray-mod");
+  private readonly kh = h("button", "tray-keep");
+  private readonly kl = h("button", "tray-keep");
+  private readonly moreButton = h("button", "tray-tool tray-more-button");
+  private readonly moreDot = h("span", "tray-dot");
+  private readonly mode = h("select", "tray-mode");
+  private readonly modeWrap = h("span", "tray-mode-wrap");
+  private modeIcon: SVGSVGElement | null = null;
+  private readonly extras = h("div", "tray-extras");
+  private readonly observer: ResizeObserver | null;
+  /** The controls the row could not hold, now in the dots: "keep" (KH, KL) first, then "mod". */
+  private moved: { keep: boolean; mod: boolean } = { keep: false, mod: false };
+  /** The composer's own tools, for the toolbar of its box: the saved rolls and who sees the roll. */
+  readonly tools: HTMLElement[];
+  private readonly savedButton = h("button", "tray-tool tray-saved-button");
+  private readonly moreBox = h("div", "tray-pop tray-more");
+  private readonly savedBox = h("div", "tray-pop tray-saved");
+  private readonly go = h("button", "save tray-go");
   private readonly saved: SavedRolls;
-  private readonly secretNote = h("p", "table-tray-secret");
-  private readonly error = h("p", "table-tray-error");
   private readonly slots: Slot[] = [];
-  private notation = "";
-  private busy = false;
-  private open: boolean;
+  /** The modifier chosen while the field holds no dice: it joins the first die added. */
+  private pendingMod = 0;
+  private secret = false;
+  private longAt = 0;
+  private own = false;
 
-  /** `roll` sends a notation the way `/r` does; it answers the reason it was refused, or null. */
-  constructor(private readonly roll: (notation: string) => Promise<string | null>) {
-    this.open = remembered() ?? !phone();
-    const bodyId = "table-tray-body";
-    this.body.id = bodyId;
-    this.toggle.type = "button";
-    this.toggle.title = ts.toggleDesc;
-    this.toggle.setAttribute("aria-controls", bodyId);
-    this.toggle.append(icon("dice", ""), h("span", "table-tray-toggle-text", ts.toggle), icon("chevronDown", ""));
-    this.toggle.addEventListener("click", () => this.setOpen(!this.open));
+  constructor(private readonly host: TrayHost) {
+    this.row.setAttribute("role", "group");
+    this.row.setAttribute("aria-label", ts.row);
+    for (const kind of MAIN) this.scroll.append(this.dieButton(kind));
 
-    this.pool.setAttribute("aria-label", ts.pool);
-    this.pool.setAttribute("aria-live", "polite");
-    this.grid.setAttribute("role", "group");
-    this.grid.setAttribute("aria-label", ts.dice);
-    for (const kind of COMPOSER_DICE) this.grid.append(this.slot(kind));
+    this.moreButton.type = "button";
+    this.moreButton.title = ts.more;
+    this.moreButton.setAttribute("aria-label", ts.more);
+    this.moreButton.setAttribute("aria-expanded", "false");
+    this.moreDot.hidden = true;
+    this.moreDot.setAttribute("aria-hidden", "true");
+    this.moreButton.append(icon("more", ""), this.moreDot);
+    this.moreButton.addEventListener("click", () => this.togglePop(this.moreBox));
+    this.moreBox.setAttribute("role", "group");
+    this.moreBox.setAttribute("aria-label", ts.moreDice);
+    for (const kind of OTHER) this.moreBox.append(this.dieButton(kind));
+    this.moreBox.hidden = true;
 
     this.mod.type = "number";
+    this.mod.min = String(-MAX_COMPOSER_MODIFIER);
+    this.mod.max = String(MAX_COMPOSER_MODIFIER);
+    this.mod.step = "1";
+    this.mod.value = "0";
     this.mod.setAttribute("aria-label", ts.modLabel);
-    this.mod.addEventListener("change", () => this.setModifier(Number(this.mod.value) || 0));
+    this.mod.title = ts.modLabel;
+    this.mod.setAttribute("inputmode", "numeric");
+    this.mod.addEventListener("input", () => {
+      if (this.mod.value.trim() === "" || !Number.isFinite(Number(this.mod.value))) return;
+      this.setModifier(Math.trunc(Number(this.mod.value)));
+    });
+    this.mod.addEventListener("change", () => this.paint());
+    this.mod.addEventListener("blur", () => this.paint());
+    this.mod.addEventListener("focus", () => this.mod.select());
+    // As Foundry's number field: the wheel steps it (only while it has the focus, so a scroll of the row is not taken).
+    this.mod.addEventListener(
+      "wheel",
+      (e) => {
+        if (document.activeElement !== this.mod) return;
+        e.preventDefault();
+        this.setModifier(this.modifier() + (e.deltaY < 0 ? 1 : -1));
+      },
+      { passive: false },
+    );
     this.mod.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        this.setModifier(Number(this.mod.value) || 0);
+        void this.host.submit();
       }
     });
-    const less = this.step("minus", ts.less, -1);
-    const more = this.step("plus", ts.more, 1);
-    const stepper = h("div", "stepper composer-stepper");
-    stepper.append(less, this.mod, more);
-    this.clear.type = "button";
-    this.clear.append(icon("trash", ""), ts.clear);
-    this.clear.addEventListener("click", () => this.set(toNotation(clearComposer())));
-    const row = h("div", "composer-row");
-    row.append(h("span", "composer-label", ts.mod), stepper, this.clear);
 
-    this.field.type = "text";
-    this.field.placeholder = ts.placeholder;
-    this.field.setAttribute("aria-label", ts.notation);
-    this.field.autocomplete = "off";
-    this.field.spellcheck = false;
-    this.field.setAttribute("autocapitalize", "off");
-    this.field.setAttribute("enterkeyhint", "go");
-    this.field.addEventListener("input", () => {
-      this.notation = this.field.value;
-      this.error.hidden = true;
+    this.keepButton(this.kh, "kh", ts.keepHigh, ts.keepHighDesc, "KH");
+    this.keepButton(this.kl, "kl", ts.keepLow, ts.keepLowDesc, "KL");
+
+    // Foundry's roll-mode selector: who sees the roll (Verso has two modes: public and secret).
+    this.mode.setAttribute("aria-label", ts.modeLabel);
+    this.mode.title = ts.modeLabel;
+    for (const [value, text] of [["public", ts.modePublic], ["secret", ts.modeSecret]] as const) {
+      const o = h("option", "", text);
+      o.value = value;
+      this.mode.append(o);
+    }
+    this.modeWrap.append(this.mode);
+    this.mode.addEventListener("change", () => {
+      const t = tableSource();
+      if (isServerTable(t)) t.secret = this.mode.value === "secret";
+    });
+    this.savedButton.type = "button";
+    this.savedButton.title = ts.savedButton;
+    this.savedButton.setAttribute("aria-label", ts.savedButton);
+    this.savedButton.setAttribute("aria-expanded", "false");
+    this.savedButton.append(icon("bookmark", ""));
+    this.savedButton.addEventListener("click", () => this.togglePop(this.savedBox));
+    this.saved = new SavedRolls(
+      (notation) => {
+        this.write(withFormula("", notation));
+        this.closePops();
+        this.host.input.focus();
+      },
+      () => this.formula(),
+      (text) => this.host.showError(text),
+    );
+    this.savedBox.setAttribute("role", "group");
+    this.savedBox.setAttribute("aria-label", ts.savedHeading);
+    this.savedBox.append(this.saved.el);
+    this.savedBox.hidden = true;
+
+    this.moreBox.append(this.extras);
+    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl);
+    this.tools = [this.savedButton, this.modeWrap];
+    this.go.type = "button";
+    this.go.append(icon("dice", ""));
+    this.go.addEventListener("click", () => void this.host.submit());
+    this.row.append(this.scroll, this.go);
+    this.el.append(this.row, this.moreBox, this.savedBox);
+
+    this.host.input.addEventListener("input", () => {
+      // Emptying the field (or sending, which empties it) clears the modifier too; the row's own edits keep it.
+      if (!this.own && this.host.input.value.trim() === "") this.pendingMod = 0;
       this.paint();
     });
-    this.go.type = "submit";
-    this.go.append(icon("dice", ""), h("span", "composer-go-text", ts.roll));
-    const send = h("form", "composer-send");
-    send.append(this.field, this.go);
-    send.addEventListener("submit", (e) => {
-      e.preventDefault();
-      void this.submit();
+    this.el.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.anyOpen()) {
+        e.stopPropagation();
+        const opener = !this.savedBox.hidden ? this.savedButton : this.moreButton;
+        this.closePops();
+        opener.focus();
+      }
     });
-
-    this.error.hidden = true;
-    this.error.setAttribute("role", "alert");
-    this.saved = new SavedRolls(
-      (notation) => this.set(notation),
-      () => this.notation,
-      (text) => {
-        this.error.hidden = text === null;
-        if (text !== null) this.error.textContent = text;
-      },
-    );
-    this.secretNote.hidden = true;
-    this.secretNote.textContent = ts.secretOn;
-    this.error.hidden = true;
-    this.error.setAttribute("role", "alert");
-    this.body.append(this.pool, this.grid, row, this.saved.el, send, this.secretNote, this.error);
-    this.el.append(this.toggle, this.body);
-    this.setOpen(this.open, false);
+    document.addEventListener("pointerdown", (e) => {
+      if (this.anyOpen() && e.target instanceof Node && !this.el.contains(e.target)) this.closePops();
+    });
+    this.observer = typeof ResizeObserver === "function" ? new ResizeObserver(() => this.fit()) : null;
+    this.observer?.observe(this.scroll);
     this.paint();
-    // A phone: the sheet rises above the keyboard while a field of the tray has it (as the message field's).
+    // A phone: the sheet rises above the keyboard while a field of the row has it (the message field's own does the same).
     const follow = (): void => {
       const a = document.activeElement;
       if (a instanceof HTMLInputElement && this.el.contains(a)) document.body.style.setProperty("--table-kb", `${keyboardInset()}px`);
@@ -148,139 +196,227 @@ export class Tray {
     onViewport(follow);
   }
 
-  private slot(kind: DieKind): HTMLElement {
-    const label = dieKindLabel(kind);
-    const box = h("div", "die-slot");
-    const add = h("button", "die-button");
-    add.type = "button";
-    add.title = ts.add(label);
-    add.setAttribute("aria-label", ts.add(label));
-    const count = h("span", "die-button-count");
-    count.setAttribute("aria-hidden", "true");
-    const shape = dieIcon(kind, "die-icon");
-    if (shape) add.append(shape);
-    add.append(h("span", "die-button-label", label), count);
-    add.addEventListener("click", () => this.set(addDieToNotation(this.notation, kind)));
-    const take = h("button", "ghost iconic die-remove");
-    take.type = "button";
-    take.title = ts.takeOne(label);
-    take.setAttribute("aria-label", ts.takeOne(label));
-    take.append(icon("minus", ""));
-    take.addEventListener("click", () => this.set(removeDieFromNotation(this.notation, kind)));
-    box.append(add, take);
-    this.slots.push({ kind, box, add, take, count });
-    return box;
-  }
+  // The buttons
 
-  private step(name: string, label: string, delta: number): HTMLButtonElement {
-    const b = button("stepper-button", label, name);
-    b.setAttribute("aria-label", label);
-    b.addEventListener("click", () => this.setModifier(this.state().modifier + delta));
+  private dieButton(kind: DieKind): HTMLButtonElement {
+    const label = dieKindLabel(kind);
+    const b = h("button", "tray-die");
+    b.type = "button";
+    b.title = ts.addHint(label);
+    b.setAttribute("aria-label", ts.add(label));
+    b.setAttribute("aria-keyshortcuts", "Delete Shift+Enter");
+    const shape = dieIcon(kind, "tray-die-icon");
+    if (shape) b.append(shape);
+    else b.append(h("span", "tray-die-text", label));
+    const count = h("span", "tray-count");
+    count.setAttribute("aria-hidden", "true");
+    count.hidden = true;
+    b.append(count);
+    // Left click and Enter add one.
+    b.addEventListener("click", () => {
+      if (Date.now() - this.longAt < 700) return; // the click that ends a long press
+      this.addDie(kind);
+    });
+    // Right click takes one off, as Foundry's.
+    b.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      if (Date.now() - this.longAt < 700) return; // the long press already took one
+      this.removeDie(kind);
+    });
+    b.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" && e.shiftKey) || e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        this.removeDie(kind);
+      }
+    });
+    // Touch: a long press takes one off.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = (): void => {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    };
+    b.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      stop();
+      timer = setTimeout(() => {
+        timer = null;
+        this.longAt = Date.now();
+        this.removeDie(kind);
+      }, LONG_PRESS_MS);
+    });
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, stop);
+    this.slots.push({ kind, button: b, count });
     return b;
   }
 
-  /** The state the buttons show: the notation's, or an empty pool when the buttons cannot show it. */
-  private state(): ComposerState {
-    return fromNotation(this.notation) ?? EMPTY_COMPOSER;
+  private keepButton(b: HTMLButtonElement, which: Keep, name: string, desc: string, text: string): void {
+    b.type = "button";
+    b.textContent = text;
+    b.title = desc;
+    b.setAttribute("aria-label", name);
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      const base = this.state();
+      if (!base || base.terms.length === 0) return;
+      this.write(withFormula(this.host.input.value, toNotation(toggleKeep(base, which))));
+    });
   }
 
-  /** The modifier set to `target` (kept within the composer's bounds). */
+  // The field is the source of truth
+
+  /** The formula on the field's roll line ("" when there is none). */
+  private formula(): string {
+    return parseRollLine(this.host.input.value)?.formula ?? "";
+  }
+
+  /** The state the row shows: the roll line's, or null when it holds what the row cannot show. */
+  private state(): ComposerState | null {
+    const line = parseRollLine(this.host.input.value);
+    if (!line) return this.host.input.value.trim() === "" ? { ...EMPTY_COMPOSER } : null;
+    return fromNotation(line.formula);
+  }
+
+  private modifier(): number {
+    const s = this.state();
+    return s && s.terms.length > 0 ? s.modifier : this.pendingMod;
+  }
+
+  private write(value: string): void {
+    this.host.input.value = value;
+    // The field's own listeners (its height, its counter, the error line) hear it too.
+    this.own = true;
+    try {
+      this.host.input.dispatchEvent(new Event("input"));
+    } finally {
+      this.own = false;
+    }
+  }
+
+  private addDie(kind: DieKind): void {
+    const value = this.host.input.value;
+    const line = parseRollLine(value);
+    // A plain message in the field is not touched (as Foundry's tray does not).
+    if (!line && value.trim() !== "") return;
+    const formula = line?.formula ?? "";
+    if (formula === "") {
+      const first = fromNotation(addDieToNotation("", kind)) ?? EMPTY_COMPOSER;
+      this.write(withFormula(value, toNotation(adjustModifier(first, this.pendingMod))));
+      return;
+    }
+    this.write(withFormula(value, addDieToNotation(formula, kind)));
+  }
+
+  private removeDie(kind: DieKind): void {
+    const line = parseRollLine(this.host.input.value);
+    if (!line || line.formula === "") return;
+    const state = fromNotation(line.formula);
+    // The last die goes: its modifier stays in the number field for the next one.
+    if (state && state.terms.length === 1 && state.terms[0]!.count === 1 && dieKind(state.terms[0]!) === kind) this.pendingMod = state.modifier;
+    this.write(withFormula(this.host.input.value, removeDieFromNotation(line.formula, kind)));
+  }
+
   private setModifier(target: number): void {
+    const clamped = Math.max(-MAX_COMPOSER_MODIFIER, Math.min(MAX_COMPOSER_MODIFIER, target));
     const base = this.state();
-    this.set(toNotation(adjustModifier(base, target - base.modifier)));
+    if (base && base.terms.length > 0) {
+      this.write(withFormula(this.host.input.value, toNotation(adjustModifier(base, clamped - base.modifier))));
+    } else {
+      this.pendingMod = clamped;
+      this.paint();
+    }
   }
 
-  private set(notation: string): void {
-    this.notation = notation;
-    this.field.value = notation;
-    this.error.hidden = true;
-    this.paint();
+  // The pop-overs
+
+  private anyOpen(): boolean {
+    return !this.moreBox.hidden || !this.savedBox.hidden;
   }
 
-  private setOpen(open: boolean, keep = true): void {
-    this.open = open;
-    this.body.hidden = !open;
-    this.toggle.setAttribute("aria-expanded", String(open));
-    this.toggle.classList.toggle("open", open);
-    document.body.dataset["tableTray"] = open ? "open" : "closed";
-    if (keep) remember(open);
+  private closePops(): void {
+    this.moreBox.hidden = true;
+    this.savedBox.hidden = true;
+    this.moreButton.setAttribute("aria-expanded", "false");
+    this.savedButton.setAttribute("aria-expanded", "false");
+  }
+
+  private togglePop(box: HTMLElement): void {
+    const open = box.hidden;
+    this.closePops();
+    if (!open) return;
+    box.hidden = false;
+    (box === this.moreBox ? this.moreButton : this.savedButton).setAttribute("aria-expanded", "true");
+    if (box === this.savedBox) this.saved.sync();
+    box.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
   }
 
   /** The secret toggle as it stands, for a server's table; the local one has none. */
   sync(src: TableSource): void {
-    const secret = isServerTable(src) && src.secret;
+    this.secret = isServerTable(src) && src.secret;
+    this.modeWrap.hidden = !isServerTable(src);
+    this.mode.hidden = !isServerTable(src);
+    this.modeIcon?.remove();
+    this.modeIcon = icon(this.secret ? "lock" : "unlock", "");
+    this.modeIcon.classList.add("tray-mode-icon");
+    this.modeWrap.prepend(this.modeIcon);
+    this.mode.value = this.secret ? "secret" : "public";
+    this.mode.classList.toggle("secret", this.secret);
     this.saved.sync();
-    this.secretNote.hidden = !secret;
-    this.go.classList.toggle("secret", secret);
-    const word = secret ? ts.rollSecret : ts.roll;
-    this.go.title = word;
-    this.go.setAttribute("aria-label", word);
+    this.paint();
+  }
+
+  /** The row holds what fits, in a fixed order of what goes first into the dots: the other dice (always there),
+   *  then KH / KL, then the modifier. Nothing is clipped and nothing scrolls. */
+  private fit(): void {
+    const room = this.scroll.clientWidth;
+    if (room === 0) return;
+    const active = document.activeElement;
+    // Everything in the row, measured; then out, in order, until it fits.
+    this.place(false, false);
+    let state = { keep: false, mod: false };
+    if (this.scroll.scrollWidth > room) {
+      state = { keep: true, mod: false };
+      this.place(true, false);
+      if (this.scroll.scrollWidth > room) {
+        state = { keep: true, mod: true };
+        this.place(true, true);
+      }
+    }
+    this.moved = state;
+    if (active instanceof HTMLElement && document.activeElement !== active && this.el.contains(active)) active.focus({ preventScroll: true });
+    this.paint();
+  }
+
+  private place(keep: boolean, mod: boolean): void {
+    const [row, out] = [this.scroll, this.extras];
+    (mod ? out : row).append(this.mod);
+    (keep ? out : row).append(this.kh, this.kl);
   }
 
   private paint(): void {
-    const state = fromNotation(this.notation);
+    const state = this.state();
     const base = state ?? EMPTY_COMPOSER;
-    const empty = base.terms.length === 0 && base.modifier === 0;
-    this.pool.replaceChildren();
-    if (empty) this.pool.append(h("p", "pool-empty", ts.empty));
-    else {
-      for (const term of base.terms) {
-        const kind = dieKind(term);
-        const chip = h("span", "pool-chip");
-        const shape = dieIcon(kind, "pool-chip-icon");
-        if (shape) chip.append(shape);
-        chip.append(termNotation(term), this.chipRemove(ts.takeAll(dieKindLabel(kind)), () => this.set(toNotation(removeTerm(base, kind)))));
-        this.pool.append(chip);
-      }
-      if (base.modifier !== 0) {
-        const chip = h("span", "pool-chip pool-chip-mod");
-        chip.append(base.modifier > 0 ? `+${base.modifier}` : String(base.modifier), this.chipRemove(ts.zeroMod, () => this.set(toNotation({ ...base, modifier: 0 }))));
-        this.pool.append(chip);
-      }
-    }
+    let other = 0;
     for (const s of this.slots) {
       const term = base.terms.find((t) => dieKind(t) === s.kind);
-      s.box.classList.toggle("active", Boolean(term));
+      s.button.classList.toggle("active", Boolean(term));
       s.count.hidden = !term;
       s.count.textContent = term ? String(term.count) : "";
-      s.take.hidden = !term;
+      if (term && OTHER.includes(s.kind)) other += 1;
     }
-    this.mod.value = String(base.modifier);
-    this.clear.disabled = empty && this.notation.trim() === "";
-    this.go.disabled = this.busy || this.notation.trim() === "";
+    // The dots carry a dot while something in them is in force: another die, or a KH / KL or modifier the row had no room for.
+    const hiddenInForce = (this.moved.keep && keepOf(base) !== null) || (this.moved.mod && base.modifier !== 0);
+    this.moreDot.hidden = other === 0 && !hiddenInForce;
+    if (document.activeElement !== this.mod) this.mod.value = String(base.terms.length > 0 ? base.modifier : this.pendingMod);
+    const keep = keepOf(base);
+    this.kh.setAttribute("aria-pressed", String(keep === "kh"));
+    this.kl.setAttribute("aria-pressed", String(keep === "kl"));
+    const line = parseRollLine(this.host.input.value);
+    const word = this.secret ? ts.rollSecret : ts.roll;
+    const ready = Boolean(line && line.formula !== "");
+    this.go.disabled = !ready;
+    this.go.classList.toggle("secret", this.secret);
+    this.go.setAttribute("aria-label", word);
+    this.go.title = !ready ? ts.rollNeedsFormula : this.secret ? `${word}. ${ts.secretOn}` : word;
     this.saved.paintSave();
-  }
-
-  private chipRemove(label: string, run: () => void): HTMLButtonElement {
-    const b = h("button", "ghost iconic pool-chip-remove");
-    b.type = "button";
-    b.title = label;
-    b.setAttribute("aria-label", label);
-    b.append(icon("close", ""));
-    b.addEventListener("click", run);
-    return b;
-  }
-
-  private async submit(): Promise<void> {
-    const typed = this.notation.trim();
-    if (typed === "" || this.busy) return;
-    const notation = readNotation(typed);
-    if (!notation) {
-      this.error.textContent = ts.unread(typed);
-      this.error.hidden = false;
-      this.field.setAttribute("aria-invalid", "true");
-      return;
-    }
-    this.field.removeAttribute("aria-invalid");
-    this.busy = true;
-    this.paint();
-    try {
-      const refused = await this.roll(notation);
-      this.error.hidden = refused === null;
-      if (refused !== null) this.error.textContent = refused;
-    } finally {
-      this.busy = false;
-      this.paint();
-    }
   }
 }

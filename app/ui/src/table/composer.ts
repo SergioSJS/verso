@@ -18,10 +18,14 @@ import { parseNotation } from "../dice/rolai/parser";
 /** A die of the composer: its sides, or "F" for the Fudge die. */
 export type DieKind = number | "F";
 
+/** Keep the highest or the lowest die of the term (Foundry's Dice Tray KH / KL): always one die kept. */
+export type Keep = "kh" | "kl";
+
 export interface ComposerTerm {
   count: number;
   sides: number;
   fudge?: true;
+  keep?: Keep;
 }
 
 export interface ComposerState {
@@ -58,7 +62,8 @@ export function totalDice(state: ComposerState): number {
 }
 
 export function termNotation(term: ComposerTerm): string {
-  return `${term.count}${dieKindLabel(dieKind(term))}`;
+  // Verso's reader wants the count after kh/kl (dice/notation.ts): `2d20kh1`.
+  return `${term.count}${dieKindLabel(dieKind(term))}${term.keep ? `${term.keep}1` : ""}`;
 }
 
 export function toNotation(state: ComposerState): string {
@@ -86,8 +91,13 @@ export function fromNotation(notation: string): ComposerState | null {
   const group = ast.groups[0]!;
   const terms: ComposerTerm[] = [];
   for (const term of group.terms) {
-    if (term.sign !== 1 || term.dice.keepDrop || term.dice.reroll || term.dice.explode || term.dice.card) return null;
-    terms.push(makeTerm(term.dice.fudge ? "F" : term.dice.sides, term.dice.count));
+    if (term.sign !== 1 || term.dice.reroll || term.dice.explode || term.dice.card) return null;
+    const kd = term.dice.keepDrop;
+    // Only "keep one highest / lowest" of a numbered die, which is what KH / KL write.
+    if (kd && (term.dice.fudge || (kd.type !== "kh" && kd.type !== "kl") || kd.count !== 1 || term.dice.count < 2)) return null;
+    const made = makeTerm(term.dice.fudge ? "F" : term.dice.sides, term.dice.count);
+    if (kd) made.keep = kd.type as Keep;
+    terms.push(made);
   }
   return { terms, modifier: group.dice.hasModifier ? group.dice.modifier : 0 };
 }
@@ -101,12 +111,42 @@ export function addDie(state: ComposerState, kind: DieKind): ComposerState {
   return { ...state, terms: [...state.terms, makeTerm(kind, 1)] };
 }
 
-/** One die of the kind off; the term goes when it reaches zero. */
+/** One die of the kind off; the term goes when it reaches zero (a kept term with one die left keeps nothing). */
 export function removeDie(state: ComposerState, kind: DieKind): ComposerState {
+  const fix = (t: ComposerTerm): ComposerTerm => {
+    if (t.keep && t.count < 2) {
+      const { keep: _keep, ...rest } = t;
+      return rest;
+    }
+    return t;
+  };
   return {
     ...state,
-    terms: state.terms.map((t) => (dieKind(t) === kind ? { ...t, count: t.count - 1 } : t)).filter((t) => t.count > 0),
+    terms: state.terms.map((t) => (dieKind(t) === kind ? fix({ ...t, count: t.count - 1 }) : t)).filter((t) => t.count > 0),
   };
+}
+
+/** KH / KL as Foundry's Dice Tray does it (module `updateDiceKeep`), on every
+ *  numbered term: a term with no keep gets one more die and keeps one (never
+ *  more than two dice, "to avoid accidental super advantage"); the same button
+ *  again takes it off (the extra die with it); the other button switches
+ *  between highest and lowest. No dice: nothing happens. */
+export function toggleKeep(state: ComposerState, keep: Keep): ComposerState {
+  const terms = state.terms.map((t): ComposerTerm => {
+    if (t.fudge) return t;
+    if (t.keep === keep) {
+      const { keep: _keep, ...rest } = t;
+      return { ...rest, count: t.count > 2 ? t.count : t.count - 1 };
+    }
+    if (t.keep) return { ...t, keep };
+    return { ...t, count: Math.min(t.count + 1, 2), keep };
+  });
+  return { ...state, terms };
+}
+
+/** Whether a KH or KL is on in any term. */
+export function keepOf(state: ComposerState): Keep | null {
+  return state.terms.find((t) => t.keep)?.keep ?? null;
 }
 
 /** The whole term of the kind off at once (the "×" of its chip). */
@@ -141,4 +181,30 @@ export function removeDieFromNotation(notation: string, kind: DieKind): string {
   if (trimmed === "") return "";
   const state = fromNotation(trimmed);
   return state ? toNotation(removeDie(state, kind)) : trimmed;
+}
+
+/** The first line of the message field as a roll: `/r` (or `/roll`), its formula, and the text after the first line. */
+export interface RollLine {
+  prefix: string;
+  formula: string;
+  rest: string;
+}
+
+/** The field's text read as a roll line (the tray's formula lives there, as in Foundry's Dice Tray); null for a plain message. */
+export function parseRollLine(value: string): RollLine | null {
+  const nl = value.indexOf("\n");
+  const first = nl === -1 ? value : value.slice(0, nl);
+  const rest = nl === -1 ? "" : value.slice(nl);
+  const m = /^(\s*\/(?:r|roll))(?:[ \t]+(.*))?$/i.exec(first);
+  if (!m) return null;
+  return { prefix: m[1]!.trim(), formula: (m[2] ?? "").trim(), rest };
+}
+
+/** The field's text with `formula` on its roll line (`/r` when there is none yet); an empty formula and nothing after it empties the field. */
+export function withFormula(value: string, formula: string): string {
+  const line = parseRollLine(value);
+  const prefix = line?.prefix ?? "/r";
+  const rest = line?.rest ?? "";
+  if (formula === "") return rest === "" ? "" : `${prefix}${rest}`;
+  return `${prefix} ${formula}${rest}`;
 }

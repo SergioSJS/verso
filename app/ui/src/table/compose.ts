@@ -2,25 +2,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The input row at the foot of a server's table (ADR 0107 items 3, 4, 12):
-// a text field (Enter sends, Shift+Enter breaks the line), `/r 1d20+3` to
-// roll, a dice button for the roller, an image button (and paste or drop in
-// the panel) for readers-excluded images, and the "Secreta" toggle for a
-// roll to the folder's owners. Its refusals are said beside the field in the
-// person's words. On a phone the panel is a sheet: while the field has the
-// keyboard, the sheet is lifted above it (`--table-kb`, css/table.css).
+// The composer at the foot of the Table panel (ADR 0107 items 3, 4, 12, and
+// "The whole foot of the panel made one box", 2026-10-23): ONE box, as a VTT's
+// chat is. A multi-line text field (Enter sends, Shift+Enter breaks the line,
+// `/r 1d20+3` rolls), the images waiting above the text as thumbnails (pasted,
+// dropped or picked with the paperclip; Enter sends them first), a small send
+// button, and under it the dice row (tray.ts) with the Public / Secret
+// selector. Its refusals are said above the box in the person's words. On a
+// phone the panel is a sheet: while the field has the keyboard, the sheet is
+// lifted above it (`--table-kb`, css/table.css).
 
 import { pickImages } from "../attach";
 import { button, h, ui } from "../dom";
 import { play3d, will3d } from "../dice3d";
 import { readNotation, rollHere } from "../dice/notation";
-import { openRoller } from "../dice/roller";
-import { icon } from "../icons";
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { isServerTable, type ServerTable, type TableSource } from "./model";
 import { charsOf, checkImage, COUNTER_FROM, IMAGE_MAX, MESSAGE_MAX, paceWait, readTyped, toBase64 } from "./send";
 import { recordRoll, tableSource } from "./record";
 import { tt } from "./strings";
+import { Tray } from "./tray";
+import { ts } from "./trayStrings";
 
 /** A server's refusal in the person's words (its pace rule says how long to wait). */
 function refusalOf(message: string): string {
@@ -53,20 +55,30 @@ export async function rollNotation(notation: string, accepted?: () => void): Pro
   return null;
 }
 
+/** An image waiting in the box to be sent with Enter (pasted, dropped or picked). */
+interface Staged {
+  name: string;
+  bytes: Uint8Array;
+  url: string;
+  chip: HTMLElement;
+}
+
 export class Compose {
   readonly el = h("form", "table-compose");
   private readonly field = h("textarea", "table-input");
   private readonly counter = h("span", "table-counter");
   private readonly error = h("p", "table-compose-error");
-  private readonly dice = button("ghost iconic table-dice", tt.rollButton, "dice");
-  private readonly image = button("ghost iconic table-image-pick", tt.imageButton, "image");
-  private readonly secret = button("ghost table-secret-toggle", tt.secretToggle, "lock");
-  private readonly send = h("button", "save table-send", tt.send);
+  private readonly chips = h("div", "table-chips");
+  private readonly attach = button("ghost iconic table-attach", ts.attach, "paperclip");
+  private readonly send = button("save iconic table-send", tt.send, "send");
+  private readonly tray: Tray;
+  private readonly staged: Staged[] = [];
   private busy = false;
 
   constructor() {
     this.el.setAttribute("aria-label", tt.inputLabel);
-    this.field.rows = 1;
+    // Larger than a line, as a chat box is: 3 lines (2 on a phone), growing to 8 (css/table.css); Shift+Enter breaks the line.
+    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 2 : 3;
     this.field.placeholder = tt.placeholder;
     this.field.setAttribute("aria-label", tt.inputLabel);
     this.field.setAttribute("enterkeyhint", "send");
@@ -76,24 +88,31 @@ export class Compose {
     this.counter.hidden = true;
     this.error.setAttribute("role", "alert");
     this.error.hidden = true;
+    this.chips.setAttribute("role", "group");
+    this.chips.setAttribute("aria-label", ts.chipsLabel);
+    this.chips.hidden = true;
     this.send.type = "submit";
-    this.secret.setAttribute("aria-pressed", "false");
-    this.secret.title = tt.secretDesc;
-    this.secret.textContent = "";
-    this.secret.append(icon("lock", ""), h("span", "table-secret-word", tt.secretToggle));
-    this.secret.setAttribute("aria-label", `${tt.secretToggle}. ${tt.secretDesc}`);
-    const row = h("div", "table-compose-row");
-    row.append(this.field, this.send);
-    const tools = h("div", "table-compose-tools");
-    tools.append(this.dice, this.image, this.secret, this.counter);
-    this.el.append(this.error, row, tools);
+    this.send.setAttribute("aria-label", tt.send);
+    this.send.title = tt.send;
+    this.attach.setAttribute("aria-label", ts.attach);
+    this.attach.title = ts.attach;
+    // One box, as a chat box is: the images waiting above the text, the text, and a small toolbar on the bottom edge
+    // (the paperclip, the saved rolls, who sees the roll, and Send at the right) like Discord's, Slack's and Foundry's chat.
+    this.tray = new Tray({ input: this.field, submit: () => this.submit(), showError: (text) => (text === null ? this.clearError() : this.fail(text)) });
+    const bar = h("div", "table-box-bar");
+    const spacer = h("span", "table-box-spacer");
+    bar.append(this.attach, ...this.tray.tools, spacer, this.send);
+    const box = h("div", "table-box");
+    box.append(this.chips, this.field, bar);
+    this.el.append(this.error, box, this.tray.el, this.counter);
 
     this.el.addEventListener("submit", (e) => {
       e.preventDefault();
       void this.submit();
     });
     this.field.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      // Enter sends, Shift+Enter breaks the line; Enter while an IME composes (keyCode 229) only confirms the composition.
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         void this.submit();
       }
@@ -102,16 +121,12 @@ export class Compose {
       this.grow();
       this.count();
       this.error.hidden = true;
+      this.ready();
     });
-    this.dice.addEventListener("click", () => openRoller());
-    this.image.addEventListener("click", () => {
+    this.attach.addEventListener("click", () => {
       // The system's picker is opened from the click itself, before any await.
       const picking = pickImages(false);
-      void picking.then((files) => this.sendFiles(files));
-    });
-    this.secret.addEventListener("click", () => {
-      const t = this.table();
-      if (t) t.secret = !t.secret;
+      void picking.then((files) => this.stage(files));
     });
     // A phone: the sheet rises above the keyboard while the field has it.
     const follow = (): void => {
@@ -121,6 +136,7 @@ export class Compose {
     this.field.addEventListener("focus", follow);
     this.field.addEventListener("blur", follow);
     onViewport(follow);
+    this.ready();
   }
 
   private table(): ServerTable | null {
@@ -128,25 +144,34 @@ export class Compose {
     return isServerTable(t) ? t : null;
   }
 
-  /** Draw for `src`: shown only for a server's table; images not for a reader; the toggle as it stands. */
+  /** Draw for `src`: the field and the dice row are always there (the local table rolls with `/r` too); messages and images belong to a server's table, images not to a reader. */
   sync(src: TableSource): void {
     const t = isServerTable(src) ? src : null;
-    this.el.hidden = !t;
-    if (!t) return;
-    this.image.hidden = !t.canSendImage();
-    const on = t.secret;
-    this.secret.setAttribute("aria-pressed", String(on));
-    this.secret.classList.toggle("on", on);
+    this.tray.sync(src);
+    this.attach.hidden = !t || !t.canSendImage();
+    this.field.placeholder = t ? (t.canSendImage() ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
+    if (!t || !t.canSendImage()) this.dropStaged();
+    this.ready();
+  }
+
+  /** The message field the dice row writes its roll in. */
+  get input(): HTMLTextAreaElement {
+    return this.field;
   }
 
   focus(): void {
     this.field.focus();
   }
 
-  /** Whether the person is writing now (the panel keeps its draft across redraws). */
+  /** Whether there is anything to send: the send button follows. */
+  private ready(): void {
+    this.send.disabled = this.busy || (this.field.value.trim() === "" && this.staged.length === 0);
+  }
+
+  /** The field grows with its text; its minimum and maximum (3 and 8 lines) are the stylesheet's. */
   private grow(): void {
     this.field.style.height = "auto";
-    this.field.style.height = `${Math.min(this.field.scrollHeight, 120)}px`;
+    this.field.style.height = `${this.field.scrollHeight + (this.field.offsetHeight - this.field.clientHeight)}px`;
   }
 
   private count(): void {
@@ -154,6 +179,10 @@ export class Compose {
     this.counter.hidden = n < COUNTER_FROM;
     this.counter.textContent = tt.counter(n, MESSAGE_MAX);
     this.counter.classList.toggle("over", n > MESSAGE_MAX);
+  }
+
+  private clearError(): void {
+    this.error.hidden = true;
   }
 
   private fail(text: string): void {
@@ -165,26 +194,44 @@ export class Compose {
     return refusalOf(message);
   }
 
-  /** Send what was typed: a message, or `/r` and a notation. */
+  /** Send what is in the box: the images waiting, then the text (a message, or `/r` and a notation). The contract
+   *  sends an image and a message as two commands, so they are two lines of the log, the images first. */
   async submit(): Promise<void> {
     const t = this.table();
-    if (!t || this.busy) return;
+    if (this.busy) return;
     const typed = readTyped(this.field.value);
-    if (typed.kind === "empty") return;
+    if (typed.kind === "empty" && this.staged.length === 0) return;
+    // Without a server there is nobody to say it to: only the rolls go.
+    if (!t && typed.kind === "say") return this.fail(ts.localOnlyRolls);
     if (typed.kind === "long") return this.fail(tt.tooLong(typed.length, MESSAGE_MAX));
     if (typed.kind === "badRoll") return this.fail(tt.badRoll(typed.typed));
     this.busy = true;
+    this.ready();
     // What was typed when the command went out: the field is emptied once it is
     // accepted, but never over something typed meanwhile.
     const sent = this.field.value;
     const clear = (): void => {
-      if (this.field.value === sent) this.field.value = "";
+      if (this.field.value === sent) {
+        this.field.value = "";
+        this.field.dispatchEvent(new Event("input"));
+      }
       this.error.hidden = true;
       this.grow();
       this.count();
     };
     try {
+      // The images first, one by one; one refused stays in the box (with those after it) and nothing else goes.
+      while (t && this.staged.length > 0) {
+        const next = this.staged[0]!;
+        ui.status.textContent = tt.imageSending;
+        const refused = await t.sendImage(toBase64(next.bytes));
+        if (refused) return this.fail(this.refusal(refused));
+        this.unstage(next);
+        ui.status.textContent = tt.imageSent;
+      }
+      if (typed.kind === "empty") return;
       if (typed.kind === "say") {
+        if (!t) return;
         const refused = await t.say(typed.text);
         if (refused) return this.fail(this.refusal(refused));
         clear();
@@ -196,11 +243,12 @@ export class Compose {
       }
     } finally {
       this.busy = false;
+      this.ready();
     }
   }
 
-  /** Images chosen, pasted or dropped: checked here, then sent one by one. */
-  async sendFiles(files: readonly File[]): Promise<void> {
+  /** Images chosen, pasted or dropped: checked here, then kept in the box as small previews until Enter. */
+  async stage(files: readonly File[]): Promise<void> {
     const t = this.table();
     if (!t || !t.canSendImage()) return;
     for (const file of files) {
@@ -214,12 +262,43 @@ export class Compose {
       if (why === "type") return this.fail(tt.imageNotImage);
       if (why === "size") return this.fail(tt.imageTooBig(Math.round(IMAGE_MAX / 1048576)));
       if (why === "empty") return this.fail(tt.imageEmpty);
-      ui.status.textContent = tt.imageSending;
-      const refused = await t.sendImage(toBase64(bytes));
-      if (refused) return this.fail(this.refusal(refused));
       this.error.hidden = true;
-      ui.status.textContent = tt.imageSent;
+      this.addChip(file.name || "imagem", bytes, file.type);
     }
+  }
+
+  private addChip(name: string, bytes: Uint8Array, type: string): void {
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: type.startsWith("image/") ? type : "image/png" }));
+    const chip = h("div", "table-chip");
+    const img = h("img", "table-chip-img");
+    img.src = url;
+    img.alt = "";
+    const remove = button("ghost iconic table-chip-remove", ts.chipRemove(name), "close");
+    remove.type = "button";
+    remove.setAttribute("aria-label", ts.chipRemove(name));
+    chip.append(img, h("span", "table-chip-name", name), remove);
+    const item: Staged = { name, bytes, url, chip };
+    remove.addEventListener("click", () => {
+      this.unstage(item);
+      this.field.focus();
+    });
+    this.staged.push(item);
+    this.chips.append(chip);
+    this.chips.hidden = false;
+    this.ready();
+  }
+
+  private unstage(item: Staged): void {
+    const at = this.staged.indexOf(item);
+    if (at >= 0) this.staged.splice(at, 1);
+    URL.revokeObjectURL(item.url);
+    item.chip.remove();
+    this.chips.hidden = this.staged.length === 0;
+    this.ready();
+  }
+
+  private dropStaged(): void {
+    for (const item of [...this.staged]) this.unstage(item);
   }
 
   /** Paste and drop on the panel: images only, and only where they are taken. */
@@ -228,7 +307,7 @@ export class Compose {
     if (!t || !t.canSendImage() || !data) return false;
     const files = Array.from(data.files).filter((f) => f.type.startsWith("image/") || f.type === "");
     if (files.length === 0) return false;
-    void this.sendFiles(files);
+    void this.stage(files);
     return true;
   }
 }

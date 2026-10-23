@@ -1529,16 +1529,45 @@ Abra a nota 31 (*A Mesa*) numa pasta que tem o conteúdo da demonstração
 8. Na largura de um celular, *Painel* › *Mesa* abre uma folha vinda de baixo,
    apoiada na barra de baixo, que nunca rola a página para o lado; o botão de
    adicionar tem ao menos 32 px. Nível: H; E: `table.spec.mjs` (`@layout`).
-9. Rolagens salvas (nota 31, *Rolagens salvas*): na bandeja de dados,
-   *Escolher nota…*, escolha uma nota com duas linhas como
-   ``- Ataque da Bia: `dice: 1d20+7` ``: dois botões, um chamado *Ataque da
-   Bia* e o outro com o texto da outra linha. Clique num: o campo de notação o
-   traz e nada é rolado; some um modificador e *Rolar*. Digite um nome e aperte
-   *Salvar*: uma linha é acrescentada à nota e um botão aparece. Num servidor,
-   como leitor, não há *Salvar*; como jogador com uma nota concedida só a essa
-   pessoa, a bandeja a nomeia sozinha. Na largura de um celular a fila quebra
-   dentro da bandeja e cada botão tem ao menos 44 px. Nível: H; E:
-   `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
+9. Rolagens salvas (nota 31, *Rolagens salvas*): na fila de dados sob o campo
+   de mensagem, o botão do marcador abre um painel; *Escolher nota…*, escolha
+   uma nota com duas linhas como ``- Ataque da Bia: `dice: 1d20+7` ``: dois
+   botões, um chamado *Ataque da Bia* e o outro com o texto da outra linha.
+   Clique num: o painel fecha, o campo de mensagem traz `/r 1d20+7` e nada é
+   rolado; mude o modificador e aperte o botão do dado. Abra o marcador de novo,
+   digite um nome e aperte *Salvar*: uma linha é acrescentada à nota e um botão
+   aparece. Num servidor, como leitor, não há *Salvar*; como jogador com uma
+   nota concedida só a essa pessoa, o painel a nomeia sozinho. Na largura de um
+   celular o painel fica dentro da janela e cada botão tem ao menos 44 px.
+   Nível: H; E: `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
+10. A fila de dados (nota 31, *Compor uma rolagem*): sob o campo de mensagem há
+    uma fila só, da altura de um botão: d4 d6 d8 d10 d12 d20, os três pontos, um
+    campo numérico com 0, KH, KL, o marcador e o botão do dado. Clique duas
+    vezes no d6 e uma no d20: o campo diz `/r 2d6+1d20`, as bolinhas mostram 2 e
+    1, nada é rolado. Botão direito no d6: `/r 1d6+1d20`. KH: cada termo vira
+    dois dados com `kh1` (`/r 2d6kh1+2d20kh1`) e o KH acende; KH de novo
+    desfaz. Os três pontos abrem d2 d3 d66 d100 dF; Esc fecha. Digite
+    `/r 3d8+2` no campo: a bolinha do d8 diz 3 e o campo numérico 2. Aperte o
+    botão do dado: uma rolagem no registro e o campo vazio; num servidor o
+    botão diz *Rolar em segredo* enquanto *Secreta* está ligada. No campo de
+    mensagem, `Shift+Enter` quebra a linha e `Enter` envia; o registro mostra as
+    duas linhas. Na largura de um celular a fila cabe (pode rolar dentro de si,
+    nunca a página) e seus botões têm ao menos 40 px de altura. Nível: H; E:
+    `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
+11. A caixa de mensagem (nota 31, *A mesa de todos, num UniVerso*): o pé do
+    painel é UMA caixa — sem campo de notação, sem fila de botões de imagem /
+    dado / Secreta. O campo começa com três linhas (duas no celular) e cresce
+    até oito. O clipe escolhe uma imagem; um print ou uma imagem copiada e
+    colada com `Ctrl+V` / `⌘V`, botão direito › *Colar* ou dedo seguro ›
+    *Colar* no celular, ou solta sobre o painel, espera na caixa como miniatura
+    com um ×; `Enter` envia a imagem e depois o texto. Um GIF continua animado
+    no registro; os 10 MB e o tipo são conferidos ao colar. Leitor não tem
+    clipe. O seletor da fila de dados (*Pública* / *Secreta*) torna secreta a
+    próxima rolagem. Como dono de uma pasta de servidor que ainda não é mesa, o
+    painel mostra *Tornar esta pasta uma mesa*; depois, *Abrir a janela da
+    Mesa*; numa pasta só deste computador, uma linha diz por que não há mesa.
+    Nível: H (o menu de colar do app de verdade é só H); E: `table2.spec.mjs`,
+    `campaign.spec.mjs` (`@layout`).
 
 ## 18. Conduzir uma mesa (nota 32)
 

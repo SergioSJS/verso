@@ -24,6 +24,9 @@ test("a line is a message, a roll after /r, or nothing", () => {
   assert.deepEqual(m.readTyped("/r 1d20+3"), { kind: "roll", notation: "1d20+3" });
   assert.deepEqual(m.readTyped("/R 4d6kh3"), { kind: "roll", notation: "4d6kh3" });
   assert.deepEqual(m.readTyped("/roll 2d6 + 1"), { kind: "roll", notation: "2d6+1" });
+  // The field is several lines tall: a roll is its first line; a message keeps its line breaks.
+  assert.deepEqual(m.readTyped("/r 1d20+3\nnota para mim"), { kind: "roll", notation: "1d20+3" });
+  assert.deepEqual(m.readTyped("linha um\nlinha dois"), { kind: "say", text: "linha um\nlinha dois" });
 });
 
 test("/r with nothing readable is a bad roll, said as such; /rant is a message", () => {
