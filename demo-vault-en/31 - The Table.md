@@ -25,6 +25,18 @@ The log scrolls to the newest roll on its own, unless you scrolled up to read ol
 
 ---
 
+## Composing a roll
+
+At the foot of the Table panel is the **dice tray** — the **Compose a roll** button opens and closes it (on a phone it starts closed; the button is always in sight). It puts a roll together without typing, like Foundry's dice tray or Rolai's composer:
+
+1. **Click a die** — d2, d3, d4, d6, d8, d10, d12, d20, d66, d100 or dF — and it is **added to the roll**, shown as notation: two clicks on the d6 and one on the d20 make `2d6+1d20`. Clicking **does not roll**.
+2. The **−** on a die's corner takes one off; the **×** on the roll's chip takes the whole kind off. The **Mod** stepper adds or takes off a modifier (`2d6+1d20+2`). **Clear** empties it all.
+3. Press **Roll** (or Enter in the field): the roll goes to the log as if you had written `/r 2d6+1d20+2` — rolled by the server on a UniVerso, with the 3D dice and the sound, and the **Secret** toggle respected (the button then says *Roll in secret*). With no server, your window rolls it and the log keeps it.
+
+The **notation** field is editable, and it is the one that counts: type `4d6kh3` or `1d20+5` and roll. What the buttons cannot show (keep the highest, re-roll) stays as you typed it; a die clicked afterwards starts the roll again from that die. What Verso does not read is said right there, and nothing is rolled.
+
+---
+
 ## Other people's rolls
 
 In a shared note of a UniVerso, when someone else rolls, the roll arrives with **their name** and enters the Table, and a screen reader hears "Ana rolled: 1d20+3: 17". With the panel closed, the button that opens it (and the **Table** tab) shows **how many new** lines arrived. The rolls the note already held when you came in appear too, without counting as new.

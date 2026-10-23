@@ -489,6 +489,65 @@ janela; "Você" é escrito como autor quando a janela não tem nome próprio (co
 a linha antiga fazia); o cartão no board tem 340 por 110; soltar na Leitura cai
 depois do bloco sob o ponteiro.
 
+## Decisão (o compositor de dados, 23/10/2026)
+
+Pedido pelo mantenedor em 23/10/2026, depois de uma primeira ideia de botões de
+dado que rolam no clique, nestas palavras: *"Não, não é pra rolar com click, é
+pra compor uma rolagem, igual dá pra fazer com dice tray do Foundry ou o que
+temos no Rolai"*. Branch `feat/dice-composer`.
+
+- **O que foi feito.** Uma **bandeja de dados** no painel da Mesa, acima da
+  linha de entrada, atrás de um botão (**Compor rolagem**): um clique num dado
+  **não** rola, soma esse dado a uma rolagem mostrada como notação; só o botão
+  **Rolar** rola. É um port do compositor do Rolai (`apps/web/src/composer.ts`,
+  `ComposerBar.tsx`, `RollPanel.tsx`; só leitura) em
+  `app/ui/src/table/composer.ts` (o modelo, puro) e `tray.ts` (o DOM): a
+  rolagem como fichas removíveis (um `×` tira um tipo inteiro), um botão por
+  dado com a contagem e um `−` que tira um, um passo de modificador (−99 a +99),
+  **Limpar** e um campo de **notação** editável que é a fonte da verdade. Clicar
+  no mesmo dado soma um ao termo (`2d6`); outro dado faz um termo novo
+  (`2d6+1d4`); no máximo 100 dados somados todos os termos. Uma notação que os
+  botões não sabem mostrar (`4d6kh3`, re-rolagem, dado subtraído) fica como foi
+  digitada e rola como digitada; um dado clicado depois recomeça a rolagem a
+  partir dele (regra do Rolai). A rolagem continua depois de rolar. **Rolar**
+  fica desligado com o campo vazio. Enter no campo rola.
+- **Um só caminho para a rolagem.** O botão envia a rolagem como o
+  `/r <notação>` a envia (`rollNotation` em `app/ui/src/table/compose.ts`, que
+  o `/r` agora também usa): na mesa de um servidor o servidor rola, uma vez, para
+  todos, com o botão **Secreta** respeitado (a bandeja avisa e o botão passa a
+  dizer *Rolar em segredo*), depois os dados 3D e o som, e a entrada no registro
+  para todos; na mesa local (sem servidor) esta janela rola com o mesmo leitor e
+  o registro guarda, os dados 3D caindo igual. A bandeja existe nas duas. Nenhum
+  segundo caminho, nenhum comando novo do contrato.
+- **Dados oferecidos.** O `COMPOSER_DICE` do Rolai sem a carta: d2, d3, d4, d6,
+  d8, d10, d12, d20, d66, d100 e dF. A carta (`C`, `2c`) foi omitida porque a
+  notação do Verso não tem cartas (`dice/notation.ts`). Também ficaram fora do
+  port, porque o Verso não os lê, os blocos de slot do Rolai (`1[2d6]`, que são
+  dos perfis dele). Um dado que explode (`1d6!`), que o Verso lê e o compositor
+  do Rolai não conhece, fica fora do compositor: digitado, rola como digitado.
+- **Rolagens personalizadas** são o campo de notação: qualquer coisa que o leitor
+  do Verso aceite (`4d6kh3`, `1d20+5`, `1d6!`). O que ele não lê é dito junto da
+  bandeja e nada é rolado.
+- **O celular.** A bandeja se recolhe atrás do botão (`aria-expanded`), começa
+  recolhida no celular e aberta numa janela maior, lembra a escolha e sempre
+  deixa o botão à vista; os dados têm tamanho de toque, seis por linha em
+  390 px, e a bandeja rola dentro de si em vez de empurrar o registro para fora.
+  O campo de notação ergue a folha acima do teclado como o campo de mensagem. Todo
+  botão tem nome (pt-BR e inglês), aceita Tab e Enter e tem foco visível.
+
+Escolhido no código, para o mantenedor confirmar ou mudar: a bandeja começa
+aberta numa janela de computador e recolhida no celular, e a escolha fica
+guardada no armazenamento do navegador (uma comodidade de quem vê); o campo de
+notação é de uma linha, Enter rola; o `d66` é um dado comum de 66 faces, como no
+Rolai, e os dados 3D o mostram com o desenho comum de reserva; um modificador sem
+dados na rolagem não é escrito (regra do Rolai); a rolagem não é esvaziada ao
+rolar; a linha de erro da bandeja, não o registro, diz o que não pôde ser rolado.
+
+**Pergunta em aberto.** Rolagens salvas ou nomeadas (um botão "Ataque da Bia"
+que rola `1d20+7`): o Rolai não tem e nada aqui as decide. Se a Mesa deve
+guardá-las, onde (a pasta, os ajustes, a ficha) e se são compartilhadas, é o
+mantenedor quem responde.
+
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo
