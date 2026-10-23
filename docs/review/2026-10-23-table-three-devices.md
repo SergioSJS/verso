@@ -85,8 +85,14 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    file from a newer version is shown for any board that cannot be written,
    a reader's included. **Fixed after the run** in `1ee433a1`.
 6. **MINOR — The Windows app shows the drawing toolbar on a reader's board**,
-   where the browser shows none; nothing is written. **Fixed after the run** in
-   `1ee433a1`: a synced reader's board is a viewer from the first frame.
+   where the browser shows none; nothing is written. `1ee433a1` fixed it for a
+   synced folder only; on Bruno's window — a server's folder opened online —
+   the toolbar was still there after the fix. The cause is wider: a desktop
+   window asks what it may do once, at start, before it shows the server's
+   folder, so a reader's window keeps the desktop's answer (it may write) and
+   never says "you only read this folder". Asking again made the toolbar go,
+   but also took the desktop's own abilities (new window, updates, console).
+   A fix is in progress on `fix/remote-capabilities`.
 7. **IMPORTANT — On the board, the sticky note does not roll.** The toolbar's
    note tool makes a drawn sticky note, where `dice:` stays plain text
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
@@ -116,6 +122,14 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     ran for more than an hour in the full run of `verso-app`'s tests and
     passes alone in 16 s. It dates from 2026-10-16.
+
+## Re-test after the fixes
+
+With `a31d5eb0` on the server and the Mac, the game master dropped a note on
+the board while Ana had it open: the card appeared on her screen at once,
+without reopening, and her board no longer said "saved by a newer Verso"
+([29](/docs/media/test-runs/2026-10-23-mesa/29-depois-mestre-mac-poe-sessao-no-board.png), [30](/docs/media/test-runs/2026-10-23-mesa/30-depois-ana-linux-board-ao-vivo.png)). The game master's Table joined at once
+after the app restarted.
 
 ## Not tested
 
