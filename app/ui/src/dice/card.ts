@@ -105,7 +105,7 @@ async function tableOf(code: Extract<DiceCode, { kind: "table" }>, path: string)
  *  nobody else saw it. */
 async function rolled(path: string, notation: string, source: string | null): Promise<Shown> {
   if (!liveRoom(path)) return { roll: rollHere(notation, source), row: null, from: null, note: null };
-  const r = await commands.collabRoll(path, notation, source);
+  const r = await commands.collabRoll(path, notation, source, null, null);
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };

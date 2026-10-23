@@ -253,6 +253,74 @@ their own ADR (item 7); a bar along the bottom or a floating drawer
 server's storage (item 3); the log in a file inside the folder (item 5);
 only the owner deletes, by clearing (item 6).
 
+## As built (the server, 2026-10-22)
+
+Branch `feat/table-server`. The server and the contract are built; the
+window's panel is another branch's (`feat/table-panel`). What is built is
+what items 2, 3, 5, 6, 7, 11 and 12 decided; where the code had to choose,
+the choice is listed last, for the maintainer to confirm or change.
+
+- **Where.** `crates/verso-server/src/table.rs` (the channel, the commands,
+  the roles), `table_look.rs` (the closed form of a dice look),
+  `table_image.rs` (an image into the folder), `db/table.rs` (the log, schema
+  14). `collab_dice.rs` relays a roll or an oracle draw to the note's room as
+  before and appends it to the folder's table, rolled once.
+- **Commands** (the window reaches the table only through them). `table_join(color,
+  styles) -> TableJoin`, `table_leave()`, `table_look(color, styles)`,
+  `table_history(before, limit) -> TablePage`, `table_say(text) ->
+  TableEntry`, `table_send_image(base64) -> TableEntry`, `table_roll(notation,
+  source, path, secret, styles) -> TableEntry`, `table_pin(id, pinned)`,
+  `table_delete(id)`, `table_clear(keepPinned)`. `collab_roll` gains `styles`
+  and `secret`; `DiceRoll` gains `styles` (item 11). Entry numbers are
+  decimal strings and grow; `table_history` pages by them.
+- **Events**, to every window at the table: `table-entry` (a `TableEntry`, to
+  the sender's window too: the window drops a number it has), `table-pinned`,
+  `table-removed`, `table-cleared`, `table-roster` (a list of `TableMember`,
+  one per account). `collab-roll` carries the roller's `styles` inside the
+  roll.
+- **Who hears what** is decided in `table.rs` from the folder's roles at the
+  moment of sending. A secret roll ("to the owner") goes to its roller and
+  the owners in full, to the others as an entry of kind `secret` (name and
+  time, no notation, number or note), in the event and in every page they
+  read later; it is told to neither the note's room nor the readers of the
+  room. A roll or a draw made inside a note with secret blocks, which the
+  folder's readers are not told in the room (0087 item 4), is kept for the
+  table but never told to a reader of the folder, nor paged to one.
+- **Permissions.** A reader joins, rolls, writes and pins; sends no image
+  (refused before the message is parsed, `inflight.rs`, and again in the
+  command). An image is refused unless its first bytes are a PNG, a JPEG, a
+  WebP or a GIF, and unless it is at most 10 MB; it is written by the same
+  path as any file a window creates (`create_file` through `folder_run`: the
+  folder's quota, sync's log, confinement). Its author deletes a message or an
+  image, an owner any; a roll is never deleted one by one; only an owner
+  clears (`keepPinned` defaults to keeping the pinned).
+- **Bounds** (0083). A message: at most 500 characters, plain text (a line
+  break allowed, no other control character), refused unparsed past 4 KiB of
+  message; an image: 10 MB, 14 MB of message; messages, images: 5 a second,
+  20 at once per connection (`Server::table_pace`, `pace.rs` with a pace of
+  its own); rolls and draws, those of a note's room too: the REST pace per
+  connection; 64 windows at a table; a join answers the latest 100 entries
+  and every pinned one, a page at most 200. A fuzz target (`fuzz/fuzz_targets/table.rs`,
+  seeds in `fuzz/seeds-table/`) reads a message, a look, an image's bytes and a
+  command's size.
+- **Where it is not.** A window on a share, or a phone that opened part of a
+  folder, has no table (the answer is refused). The desktop with a folder of
+  its own alone has none: the commands answer that the table is a server's,
+  and the window shows its own rolls. A synced folder's table (item 9) is not
+  built: its windows reach the local stubs, which refuse. A desktop serving its
+  folder (0096) holds the table: the same code, its phones allowed all but
+  clearing.
+- **Chosen in the code, for the maintainer to confirm.** (1) The log keeps at
+  most 20 000 entries per folder: past that the oldest that are not pinned
+  go. Item 5 says no expiry; this ceiling is only so that a member cannot
+  fill the host's disk with messages, and is one constant (`ROWS_MOST`).
+  (2) The attachments place is the folder's attachments folder when its
+  Obsidian settings name one, else `attachments`; the file is
+  `mesa-<date><time>-<id>.<ext>`. (3) Image size 10 MB. (4) The pace: 5 a
+  second, 20 at once. (5) The roster has one entry per account, however many
+  windows. (6) The entry carries the author's opaque account id (`by_id`) so
+  a window knows which messages are its own; `TableJoin.you` is its own.
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the

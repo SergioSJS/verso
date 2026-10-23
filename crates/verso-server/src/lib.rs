@@ -61,6 +61,9 @@ pub mod state;
 mod static_cache;
 pub mod storage;
 pub mod sync;
+pub mod table;
+pub mod table_image;
+pub mod table_look;
 pub mod texts;
 pub mod tls;
 pub mod transfers;
@@ -441,6 +444,8 @@ mod tests_shares;
 mod tests_signin;
 #[cfg(test)]
 mod tests_sync;
+#[cfg(test)]
+mod tests_table;
 #[cfg(test)]
 mod tests_threats;
 #[cfg(test)]

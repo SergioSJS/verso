@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-delete"
+description = "Enables the table_delete command without any pre-configured scope."
+commands.allow = ["table_delete"]
+
+[[permission]]
+identifier = "deny-table-delete"
+description = "Denies the table_delete command without any pre-configured scope."
+commands.deny = ["table_delete"]

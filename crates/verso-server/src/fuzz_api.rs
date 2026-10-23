@@ -241,3 +241,38 @@ impl BoardRoom {
         written
     }
 }
+
+/// A message of the table as `table_say` keeps it (`table::message`).
+pub fn table_message(text: &str) -> Result<String, String> {
+    crate::table::message(text).map_err(|e| e.message)
+}
+
+/// A dice look as the table reads it from a window's JSON — the contract's
+/// types refuse a field beyond the form, `table_look::check` the values —
+/// answered as it would be relayed.
+pub fn table_look(json: &str) -> Result<Value, String> {
+    let styles: verso_contract::DiceStyles =
+        serde_json::from_str(json).map_err(|e| e.to_string())?;
+    let checked = crate::table_look::check(&styles)?;
+    serde_json::to_value(checked).map_err(|e| e.to_string())
+}
+
+/// The kind of image `bytes` are, by their first bytes (`table::image_ext`).
+#[must_use]
+pub fn table_image(bytes: &[u8]) -> Option<&'static str> {
+    crate::table::image_ext(bytes)
+}
+
+/// The most a message of `cmd` may be before it is parsed
+/// (`inflight::most_for`), and whether the table answers `cmd`.
+#[must_use]
+pub fn table_command(cmd: &str) -> (usize, bool) {
+    (
+        crate::inflight::most_for(cmd),
+        crate::table::is_command(cmd),
+    )
+}
+
+/// The textures and the materials a look may name.
+pub const TABLE_TEXTURES: [&str; 20] = crate::table_look::TEXTURES;
+pub const TABLE_MATERIALS: [&str; 6] = crate::table_look::MATERIALS;
