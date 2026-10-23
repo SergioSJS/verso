@@ -409,6 +409,8 @@ mod tests_bounds;
 #[cfg(test)]
 mod tests_campaign;
 #[cfg(test)]
+mod tests_campaign_grants;
+#[cfg(test)]
 mod tests_console;
 #[cfg(test)]
 mod tests_dice;
