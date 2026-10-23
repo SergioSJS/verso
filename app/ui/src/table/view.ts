@@ -202,7 +202,7 @@ class TableView {
     } else if (!isServerTable(src) && !mayShare()) {
       line = src.notice?.() ? null : ts.noTableLocal;
     }
-    if (line) this.make.append(h("p", "table-note", line));
+    if (line) this.make.append(h("p", "table-make-note", line));
     this.make.hidden = this.make.childElementCount === 0;
   }
 
