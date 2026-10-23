@@ -80,6 +80,15 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "table_pin"
                 | "table_delete"
                 | "table_clear"
+                | "campaign_status"
+                | "campaign_make"
+                | "campaign_unmake"
+                | "campaign_settings"
+                | "campaign_release"
+                | "campaign_release_all"
+                | "campaign_secret_name"
+                | "campaign_grant"
+                | "campaign_invite"
         )
 }
 

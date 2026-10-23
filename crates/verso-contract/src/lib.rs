@@ -35,6 +35,11 @@ mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod campaign;
+pub use campaign::{
+    CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote, CampaignPlayer, CampaignStatus,
+    CampaignTable,
+};
 mod table;
 pub use table::{
     DiceStyle, DiceStyles, TableCleared, TableEntry, TableJoin, TableMember, TablePage,
