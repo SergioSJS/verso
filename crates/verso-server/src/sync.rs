@@ -420,6 +420,15 @@ fn record_changes(
                 readers.insert(path.clone(), (hash.clone(), *size));
             }
         }
+        // A file read again with the same bytes keeps what it was told.
+        for path in &recheck {
+            if v.in_table(path)
+                && !readers.contains_key(path)
+                && let Ok(Some(known)) = server.db.known(folder, path)
+            {
+                readers.insert(path.clone(), (known.hash, known.size));
+            }
+        }
     }
     // A file gone and one new of the same bytes: a rename, kept as the
     // deletion then the new file naming the old path.
