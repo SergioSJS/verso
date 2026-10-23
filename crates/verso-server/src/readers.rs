@@ -34,6 +34,10 @@ pub const SERVER_READS: &[(&str, &str)] = &[
     ("current_folder", "the same"),
     ("reindex", "the index's counts"),
     ("capabilities", "what the session may do"),
+    (
+        "campaign_status",
+        "the tables a reader can open, and only the notes it may edit (ADR 0110)",
+    ),
     ("app_info", "the server's version"),
     ("render_markdown", "the window's own text"),
     ("project_secrets", "the window's own text, projected"),
@@ -155,7 +159,18 @@ pub fn reader_of(
     path: &str,
 ) -> Result<Option<(String, i64)>, ContractError> {
     let p = path.to_owned();
+    let veil = crate::campaign::veil_for_key(server, key);
     server.service.with_key(key, move |ws| {
+        // A table's hidden file is not served to a reader at all (ADR 0110
+        // item 4); the note a group edits is served whole.
+        if let Some(veil) = &veil {
+            if crate::campaign_serve::is_hidden_in(ws, veil, &p) {
+                return Ok(Some((String::new(), HIDDEN)));
+            }
+            if veil.group_edits(&p) {
+                return Ok(None);
+            }
+        }
         // A note by its name, or the file it really is (a link to one).
         if !ws.reader_names_note(&p) {
             return Ok(None);
@@ -168,7 +183,15 @@ pub fn reader_of(
         }
         let bytes = ws.read_file(&p)?;
         let text = String::from_utf8_lossy(&bytes);
-        let Some(shown) = ws.reader_view(&p, &text) else {
+        let projected = ws.reader_view(&p, &text);
+        let shown = match &veil {
+            Some(v) => {
+                crate::campaign_serve::device_text(ws, v, &p, projected.as_deref().unwrap_or(&text))
+                    .or(projected)
+            }
+            None => projected,
+        };
+        let Some(shown) = shown else {
             return Ok(None);
         };
         Ok(Some((
@@ -191,6 +214,7 @@ pub fn read(
     offset: u64,
 ) -> Result<(Value, Vec<u8>), ContractError> {
     let p = path.to_owned();
+    let veil = crate::campaign::veil_for_key(server, key);
     let shown = server.service.with_key(key, move |ws| {
         if ws
             .file_len(&p)
@@ -201,7 +225,11 @@ pub fn read(
             )
             .into());
         }
-        Ok(ws.reader_read_file(&p)?)
+        let bytes = ws.reader_read_file(&p)?;
+        match &veil {
+            Some(v) => crate::campaign_serve::device_bytes(ws, v, &p, bytes),
+            None => Ok(bytes),
+        }
     })?;
     let hash = crate::sync::sha256(&shown);
     let place = (client.to_owned(), path.to_owned());
@@ -277,6 +305,10 @@ pub fn push_folder_changed(server: &Server, key: &str, clients: &[String], chang
         return;
     }
     let mut seen = changed.clone();
+    // A table's hidden notes are not told to its players (ADR 0110).
+    if let Some(veil) = crate::campaign::veil_for_key(server, key) {
+        crate::campaign_serve::event_paths(&veil, &mut seen);
+    }
     if let Some(folder) = lock(&server.keys).get(key).cloned()
         && let Some(list) = seen["changed"].as_array()
     {

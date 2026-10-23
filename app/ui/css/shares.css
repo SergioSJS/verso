@@ -72,3 +72,14 @@
 .folder-switcher button.sw-action { color: var(--seal); font-weight: 600; }
 .folder-switcher button.sw-action .icon { color: currentColor; }
 .folder-switcher button.sw-more { color: var(--ink-3); font-size: .82rem; padding-left: 2rem; }
+/* A table is a campaign folder (ADR 0110): the game master's marks in the
+   tree, and the table's dialog. */
+.campaign-mark { display: inline-flex; align-items: center; margin-left: .3rem; flex: none; }
+.campaign-mark .icon { width: 12px; height: 12px; }
+.campaign-mark.hidden-mark { color: var(--ink-3); }
+.campaign-mark.table-mark { color: var(--brass-ink); }
+.campaign-dialog .campaign-open { display: flex; align-items: center; gap: .5rem; margin: .8rem 0 .2rem; font-weight: 600; }
+.campaign-dialog .campaign-sub { font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); margin: 1rem 0 .3rem; font-weight: 600; }
+.campaign-dialog .campaign-invite .btn { margin: .2rem 0; }
+.campaign-dialog .campaign-bulk { margin: .8rem 0; }
+.campaign-dialog .campaign-limits .share-form small { grid-column: 2; margin-top: -.2rem; }

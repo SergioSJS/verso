@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { loadShares } from "./shares";
+import { loadCampaign } from "./campaign";
 import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
@@ -160,6 +161,8 @@ async function showListsAndTabs(info: FolderInfo): Promise<void> {
   // Whether the person owns it on a server, and what of it is shared
   // (ADR 0081 item 7).
   void loadShares();
+  // The folder's tables, and which notes are released (ADR 0110).
+  void loadCampaign();
   let restored = false;
   try {
     const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);

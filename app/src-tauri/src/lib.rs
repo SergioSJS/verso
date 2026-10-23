@@ -42,6 +42,7 @@ use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
+mod campaign;
 mod cli;
 mod cloud;
 mod device;
@@ -786,6 +787,15 @@ macro_rules! commands_for {
                 table::table_pin,
                 table::table_delete,
                 table::table_clear,
+                campaign::campaign_status,
+                campaign::campaign_make,
+                campaign::campaign_unmake,
+                campaign::campaign_settings,
+                campaign::campaign_release,
+                campaign::campaign_release_all,
+                campaign::campaign_secret_name,
+                campaign::campaign_grant,
+                campaign::campaign_invite,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
@@ -876,6 +886,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TablePinned>()
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
+            .typ::<verso_contract::CampaignChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
             .typ::<verso_contract::ServerBack>()

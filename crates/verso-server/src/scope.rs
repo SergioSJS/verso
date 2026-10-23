@@ -903,6 +903,9 @@ impl Scope {
             // know whichever folder this window shows, and nothing of the
             // owner's folder beyond what was given.
             "share-given" => {}
+            // A table's state changed (ADR 0110): the window asks its status
+            // again; no path of the owner's folder goes with it.
+            "campaign-changed" => m["payload"]["paths"] = json!([]),
             _ => return None,
         }
         Some(m)

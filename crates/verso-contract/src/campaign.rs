@@ -1,0 +1,89 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! A table is a campaign folder (ADR 0110): the folder's owner turns a
+//! folder of a server into a table, invites the players, releases notes
+//! to them one by one and says who may edit which note. All of it is the
+//! server's: a desktop folder of this computer alone has no table. What
+//! the window asks and what the server answers.
+
+use serde::{Deserialize, Serialize};
+use specta::Type;
+
+/// A folder made a table (ADR 0110 item 1).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignTable {
+    /// The table's folder, relative to the open folder; `""` is the whole
+    /// folder.
+    pub root: String,
+    /// Open to sign-in; closed, the players cannot open it (MC.1 = A).
+    pub open: bool,
+    /// The table log's ceiling (1,000 to 200,000 entries; MS.1).
+    pub log_max: u32,
+    /// The image size limit, in bytes (1 to 30 MB; MS.1).
+    pub image_max: u32,
+}
+
+/// Who may edit a note besides the game master (ADR 0110 item 5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum CampaignGrant {
+    /// Nobody: the players read it.
+    None,
+    /// Every player at the table.
+    Group,
+    /// One player, by account.
+    Player { account: String },
+}
+
+/// What the server keeps about a note of a table (ADR 0110 items 4, 5, 7).
+/// A note with no entry is hidden, with no grant and an ordinary name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignNote {
+    pub path: String,
+    pub released: bool,
+    /// Every link to it is drawn as four blocks, whatever was written.
+    pub secret_name: bool,
+    pub grant: CampaignGrant,
+}
+
+/// A player of a table: an account that may open the table's folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignPlayer {
+    pub id: String,
+    pub name: String,
+}
+
+/// What `campaign_status` answers. To the folder's owner: every table of
+/// the folder, the state of its notes and its players. To a player: the
+/// tables it can open, and only the notes it may edit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignStatus {
+    /// `owner`, `player` or `none` (a folder with no table).
+    pub viewer: String,
+    pub tables: Vec<CampaignTable>,
+    pub notes: Vec<CampaignNote>,
+    pub players: Vec<CampaignPlayer>,
+    /// Whether this account may make an invitation link for a person who
+    /// has no account yet (only the server's admin may: ADR 0081 item 4).
+    pub can_invite: bool,
+}
+
+/// An invitation to a table (`campaign_invite`): a link to copy, single
+/// use, seven days.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignInvite {
+    pub link: String,
+    /// Unix seconds.
+    pub expires: u32,
+}
+
+/// Notes released or hidden, told to every window on the folder (event
+/// `campaign-changed`): the window reads `campaign_status` again, and a
+/// player's file tree reloads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignChanged {
+    /// The paths whose state changed (empty when a table changed).
+    pub paths: Vec<String>,
+}

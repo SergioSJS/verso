@@ -391,3 +391,10 @@ a burst of 20) and where images go (the folder's Obsidian attachments folder,
 else `attachments/`, named `mesa-<datetime>-<id>`) stay as built (*"concordo
 com o ritmo"*); the log ceiling and image size become per-table settings
 ([0110](0110-a-table-is-a-campaign-folder.md)).
+
+*Revised (2026-10-22, [0110](0110-a-table-is-a-campaign-folder.md)):* the log's
+ceiling (20,000 entries, "Chosen in the code" 1) and the image limit (10 MB)
+are now **per table**, set by the table's game master within 1,000–200,000
+entries and 1–30 MB, with these values as the defaults; the table's rows
+follow the veil of 0110 for a reader (the note a roll was made in is not told
+when hidden, a table image is seen by everyone at the table).

@@ -50,6 +50,19 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
     // One who may only read is sent no note, under any name: a link to
     // one is refused as the note is (ADR 0087 item 4).
     let reads_only = !(role.writes() && who.reaches(&folder).1);
+    // A file a table's game master has not released is not there to a
+    // player: not found, as a file that does not exist (ADR 0110 item 4).
+    if reads_only {
+        let key = crate::access::key(&ctx.server, &found)?;
+        let (s, p) = (Arc::clone(&ctx.server), path.clone());
+        let hidden =
+            tokio::task::spawn_blocking(move || crate::campaign_serve::is_hidden(&s, &key, &p))
+                .await
+                .map_err(|e| e.to_string())?;
+        if hidden {
+            return Err(ApiError::not_found());
+        }
+    }
     send(&ctx.server, &ctx.headers, found, path, reads_only).await
 }
 

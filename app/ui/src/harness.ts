@@ -20,6 +20,7 @@ import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
 import { Table } from "./harness/table";
+import { Campaign } from "./harness/campaign";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
@@ -119,6 +120,18 @@ if (onServer)
     core.handlers[cmd] = () => {
       throw { kind: "refused", message: "the table is not played in this harness" };
     };
+// A table is a campaign folder (ADR 0110): the server's commands, played
+// here when a test says it is up; `?table=owner` and `?table=player` start
+// with it up, for the game master and for a player.
+const campaign = new Campaign(core);
+const tableParam = params.get("table");
+if (tableParam === "owner" || tableParam === "player") {
+  campaign.up = true;
+  campaign.viewer = tableParam;
+}
+// The owner of a server's folder is told so by the shares' list (ADR 0081):
+// the game master's rows of the menu are the owner's.
+if (tableParam === "owner") core.handlers["share_list"] = () => [{ id: null, path: "", people: [], attachments: null, missing: false }];
 // A file's version history (ADR 0091): none for a reader on a server.
 const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
@@ -243,6 +256,8 @@ const harness = {
   rooms,
   /** The folder's table (ADR 0107): the server's commands and events, played in the page. */
   table,
+  /** A table is a campaign folder (ADR 0110): the server's state and commands, played in the page. */
+  campaign,
   /** The files' version histories (ADR 0091). */
   versions,
   /** The window's own sanitizer — the instance main.ts configures, not a

@@ -15,6 +15,7 @@
 import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
 import { mayShare, openShareDialog } from "./shares";
+import { campaignRootItems, hearCampaign } from "./campaign";
 import { sh } from "./shareStrings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -471,6 +472,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
+    ...campaignRootItems(),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
@@ -787,6 +789,7 @@ export function runEditCommand(command: string): void {
 /** The input types text is typed in, which take the web view's Undo. */
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+hearCampaign();
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);

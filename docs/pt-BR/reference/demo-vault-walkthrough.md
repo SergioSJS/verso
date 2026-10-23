@@ -1523,7 +1523,41 @@ Abra a nota 31 (*A Mesa*) numa pasta que tem o conteúdo da demonstração
    apoiada na barra de baixo, que nunca rola a página para o lado; o botão de
    adicionar tem ao menos 32 px. Nível: H; E: `table.spec.mjs` (`@layout`).
 
-## 18. O fim
+## 18. Conduzir uma mesa (nota 32)
+
+Abra a nota 32 (*Rodando uma Mesa*) numa pasta que tem o conteúdo de
+demonstração ([ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md), fase 1).
+A pasta precisa ser de um servidor, e a pessoa a sua dona.
+
+1. Botão direito numa pasta › *Tornar esta pasta uma mesa*: a janela *Mesa*
+   abre, a linha de estado diz que a pasta virou uma mesa, a pasta ganha a marca
+   de mesa, e cada nota dentro dela ganha o cadeado "Oculta da mesa". Numa
+   pasta só deste computador o item não aparece. Nível: H; E:
+   `campaign.spec.mjs`.
+2. Botão direito numa nota oculta › *Liberar para a mesa*: o cadeado some e a
+   linha de estado diz; *Ocultar da mesa* o põe de volta. Com várias notas
+   selecionadas, o menu da seleção faz o mesmo de uma vez. Numa pasta da mesa,
+   *Liberar tudo daqui* e *Ocultar tudo daqui*. Nível: H; E:
+   `campaign.spec.mjs`.
+3. Na janela: *Mesa aberta* desligada e ligada; *Convidar jogadores* › *Gerar
+   link* mostra um link para copiar (uso único, 7 dias); *Liberar tudo* pergunta
+   antes; os limites aceitam de 1.000 a 200.000 entradas e de 1 a 30 MB e
+   recusam o resto; *Desfazer mesa* pergunta antes. Nível: H; E:
+   `campaign.spec.mjs`. O convite em si, com a prova recente, é do servidor: A.
+4. Botão direito numa nota › *Nome secreto*; › *Editável por* › *o grupo* ou um
+   jogador. Nível: H; E: `campaign.spec.mjs`.
+5. Como jogador (uma segunda conta, o link do convite): a árvore só tem as
+   notas liberadas; um link para uma nota oculta lê "texto 🔒", com apelido
+   "apelido 🔒", com nome secreto ▒▒▒▒, um incorporado "🔒 (ainda não
+   revelado)"; o seletor rápido não acha uma nota oculta; uma nota concedida ao
+   jogador aceita digitação, as outras a recusam. Nível: H; E:
+   `campaign.spec.mjs`. Com o servidor de verdade: A, e todo caminho de leitura
+   é testado em `crates/verso-server/src/tests_campaign.rs` (U).
+6. Feche a mesa (*Mesa aberta* desligada) com um jogador dentro: a janela do
+   jogador sai da pasta, e abri-la de novo responde "a mesa está fechada"; a
+   dona entra. Nível: U (`tests_campaign.rs`); A com duas contas.
+
+## 19. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.
