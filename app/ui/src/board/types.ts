@@ -202,6 +202,8 @@ export type BoardPrefs = {
   grid: boolean;
   /** A board opens with all of it in view, or where it was left. */
   open: "fit" | "last";
+  /** What a double click on an empty spot creates: a Markdown text card, or Excalidraw's drawn text. */
+  doubleClick: "card" | "drawn";
 };
 
 export type SavedView = { scrollX: number; scrollY: number; zoom: number };

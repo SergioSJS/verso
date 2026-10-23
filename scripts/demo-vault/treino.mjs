@@ -73,7 +73,7 @@ const LESSONS = [
       "Cada ferramenta da barra de cima tem a sua tecla: 1 seleção, 2 retângulo, 3 losango, 4 elipse, 5 flecha, 6 linha, 7 lápis, 8 texto, 0 borracha. H é a mão.\n" +
       "• ⇧ enquanto desenha faz quadrado e círculo perfeitos.\n" +
       "• O cadeado (Q) mantém a ferramenta depois de desenhar.\n" +
-      "• Duplo clique no vazio escreve um texto.",
+      "• Duplo clique no vazio põe um cartão de texto (Markdown); o texto solto do Excalidraw é a tecla T.",
     challenge: "Desafio: desenhe uma casa no espaço tracejado: paredes, telhado e porta.",
     practice(b, x, y, f) {
       b.write("d-des-w", x + 20, y + 20, "desenhe uma casa aqui ✏️", { size: 32, color: GREY, frame: f });

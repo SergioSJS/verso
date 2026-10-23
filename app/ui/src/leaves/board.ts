@@ -339,7 +339,16 @@ export class BoardLeaf extends TextLeaf {
       },
       sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
-      prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
+      prefs: {
+        stroke: settings.boardStroke,
+        font: settings.boardFont,
+        grid: settings.boardGrid,
+        open: settings.boardOpen,
+        // Read at each double click: changed in Settings, it applies to the board already open.
+        get doubleClick() {
+          return settings.boardDoubleClick;
+        },
+      },
       lastView: () => {
         try {
           const v = JSON.parse(localStorage.getItem(this.viewKey()) ?? "null") as SavedView | null;
