@@ -108,6 +108,43 @@ test("the right bar resizes on every tab, the Mesa's too, and starts wider", asy
   expect(await page.evaluate(() => Number(localStorage.getItem("verso.rightWidth")))).toBeGreaterThanOrEqual(180);
 });
 
+test("dragging the right bar's divider over the Mesa's log selects nothing, and a hovering pointer afterwards does not move it", async ({ app, page }) => {
+  test.skip(phone(page), "the drawers have no divider");
+  await app.open();
+  await app.writeOutside("Mesa.md", MESA);
+  await app.folderChanged(["Mesa.md"], true);
+  await app.quickOpen("Mesa");
+  await page.evaluate(() => document.body.classList.remove("no-right"));
+  await mesaTab(page).click();
+  const view = page.locator(".table-view");
+  await expect(view).toBeVisible();
+  await page.locator(".preview:visible").getByRole("button", { name: "Rolar 1d20+3" }).click();
+  await expect(view.locator(".table-entry")).toHaveCount(1);
+  const right = page.locator("aside.right");
+  const widthOf = () => right.evaluate((e) => Math.round(e.getBoundingClientRect().width));
+  const entry = (await view.locator(".table-entry").first().boundingBox());
+  const d = await page.locator("#right-divider").boundingBox();
+  const y = entry.y + entry.height / 2;
+  await page.mouse.move(d.x + d.width / 2, y);
+  await page.mouse.down();
+  await expect(page.locator("body.resizing")).toHaveCount(1);
+  // Across the log's text and out to the right.
+  await page.mouse.move(d.x + 90, y + 6, { steps: 6 });
+  await page.mouse.move(d.x - 60, y - 6, { steps: 6 });
+  expect(await selected(page)).toBe("");
+  const during = await widthOf();
+  await page.mouse.up();
+  await expect(page.locator("body.resizing")).toHaveCount(0);
+  const after = await widthOf();
+  expect(after).toBeGreaterThan(300);
+  // The pointer over the divider again, no button: the bar stays.
+  const d2 = await page.locator("#right-divider").boundingBox();
+  await page.mouse.move(d2.x + d2.width / 2 + 3, y);
+  await page.mouse.move(d2.x + d2.width / 2 - 20, y);
+  expect(await widthOf()).toBe(after);
+  expect(during).toBeGreaterThanOrEqual(after - 2);
+});
+
 test("a remembered right width wins over the default", async ({ app, page }) => {
   test.skip(phone(page), "the drawers have their own width");
   await page.addInitScript(() => localStorage.setItem("verso.rightWidth", "400"));
