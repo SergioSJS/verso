@@ -37,7 +37,7 @@ test("the game master makes a folder a table, releases and hides notes, and the 
   await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "Mundo" }]);
   await dialog.getByRole("button", { name: "Fechar" }).click();
   // The folder is marked as a table, and its note is hidden, with a mark that a screen reader names.
-  await expect(app.page.locator('summary[data-folder="Mundo"] .table-mark')).toHaveAttribute("aria-label", "Mesa");
+  await expect(app.page.locator('summary[data-folder="Mundo"] .table-mark')).toHaveAttribute("aria-label", "Mesa “Mundo”: abrir as configurações");
   const cripta = row(app, "Mundo/Cripta.md");
   await expect(cripta.locator(".hidden-mark")).toHaveAttribute("aria-label", "Oculta da mesa");
   // A note outside the table has no mark.
