@@ -334,3 +334,9 @@ apagar uma entrada (item 6) — decididas no mesmo dia como recomendado.
 Os itens marcados `[PROPOSED]` continuam do autor até a aceitação. Não
 construída; o mantenedor a pediu "em algum momento". Espera uma leitura
 do outro modelo.
+
+Confirmado em 2026-10-22 pelo mantenedor (MS.2): o ritmo (5 mensagens por
+segundo, rajada de 20) e o destino das imagens (a pasta de anexos do Obsidian,
+senão `attachments/`, com o nome `mesa-<data>-<id>`) ficam como construídos
+(*"concordo com o ritmo"*); o teto do registro e o tamanho de imagem viram
+ajustes de cada mesa ([0110](0110-a-table-is-a-campaign-folder.md)).
