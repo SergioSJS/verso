@@ -260,7 +260,8 @@ test("a synced folder's share revoked, its conflict copies and a live room's con
   await say(app, { ...SYNC, conflicts: [copy] });
   await say(app, { ...SYNC, conflicts: [copy] });
   await expect(toasts(page)).toHaveCount(1);
-  await expect(toasts(page)).toContainText(`Os dois lados mudaram ${copy}; a versão deste computador ficou numa cópia ao lado.`);
+  // The notice names the note both sides changed, not its copy (2026-10-23).
+  await expect(toasts(page)).toContainText("Os dois lados mudaram Sessao.md; a versão deste computador ficou numa cópia ao lado.");
   await toasts(page).getByRole("button", { name: "Ver os conflitos" }).click();
   await expect(page.locator(".settings-title")).toHaveText("Sincronizar");
   await page.keyboard.press("Escape");
