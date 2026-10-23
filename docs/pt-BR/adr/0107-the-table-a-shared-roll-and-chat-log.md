@@ -437,6 +437,58 @@ pasta do servidor. Onde o código teve de escolher, a escolha está listada por
   está ligado tenta entrar, o que o host responde pelo estado do link, e entra
   de novo na primeira mudança de estado.
 
+## Decisão (o bloco de rolagem, 22/10/2026)
+
+Decidido pelo mantenedor em 22/10/2026, a opção A das três oferecidas para o
+que "adicionar à nota" deve escrever (*"o modo A fica maravilhoso"*): uma
+rolagem da Mesa entra numa nota como um **bloco de rolagem**, e entra
+arrastando-a do painel, não por um botão "+". Branch `feat/roll-block-drag`.
+
+- **O bloco.** Um bloco de código cercado com a informação `roll`: uma linha de
+  cabeçalho (quem, quando, onde como link), a linha da rolagem
+  (`1d20+5 → [16] + 5 = 21`) e, para uma tabela sorteada ou um oráculo, uma ou
+  duas linhas a mais. A gramática está em `app/ui/src/rollblock/format.ts` e em
+  `docs/spec/dialect.md` §6 (uma extensão do Verso: o Obsidian mostra um bloco
+  de código; um bloco cercado com uma informação nova não muda o significado de
+  nada). O Verso o desenha como um cartão fixo, na Leitura, na Pré-visualização
+  ao vivo e no cartão de texto de um board, e nunca rola de novo. A Fonte
+  mostra o texto. Um bloco que não lê aparece como código simples; uma linha que
+  a gramática não conhece é mantida.
+- **O que pode ser bloco.** Rolagens de dados (dados mantidos e descartados,
+  modificadores, vários termos, Fudge), rolagens de tabela sorteada (a linha),
+  sorteios de oráculo (pergunta, faísca, tabela; a resposta). Uma rolagem
+  secreta vista por inteiro é uma rolagem; uma mascarada não tem nada e não pode
+  ser arrastada. Uma mensagem mantém a sua linha de citação e uma imagem o seu
+  embed ("Adicionar à nota…" como antes).
+- **Arrastar.** Uma linha de rolagem se arrasta com o ponteiro (o arrastar e
+  soltar do HTML5 não funciona na WKWebView), pelo mesmo mecanismo de uma aba ou
+  de uma linha da árvore (`layout/drag.ts`), com o fantasma. Sobre o texto de
+  uma nota, Ao vivo e Fonte, um cursor mostra onde o bloco vai cair e a soltura
+  é **uma edição comum** (um passo de desfazer), com uma linha em branco de cada
+  lado como um bloco pede ([ADR 0061](0061-blocks-in-edit-mode.md)); uma
+  soltura dentro de uma cerca, tabela, lista, citação ou do frontmatter cai
+  antes ou depois desse bloco. Sobre a Leitura a nota vai para o modo Ao vivo e
+  o bloco cai depois do bloco sob o ponteiro. Sobre um board vira um cartão de
+  texto com o bloco. Quem só lê uma pasta sincronizada não solta.
+- **O menu.** O botão "+" saiu. O menu "…" da entrada (agora também na mesa
+  local) mantém "Adicionar à nota…" para o teclado, o leitor de tela e o
+  celular: mostra o bloco antes e o acrescenta ao fim da nota escolhida, sobre a
+  revisão lida, como antes.
+- **As cores dos dados** são expressas: uma rolagem feita com os dados do
+  próprio rolador leva uma linha `dados: <corpo> <número> <contorno>` (três
+  `#rrggbb`) e as fichas do cartão as usam; o visual do próprio app não escreve
+  linha. Textura e material não são escritos.
+- **As chaves** são escritas no idioma da janela (`quem`, `who`…) e lidas em
+  qualquer um; a hora é a hora local de quem adicionou.
+- **Correção.** Depois de `/r 1d20` a linha de entrada guardava o texto quando a
+  rolagem demorava ou a queda do 3D falhava: agora ela se esvazia assim que o
+  servidor aceita o comando (nunca por cima do que se digitou nesse meio-tempo).
+
+Assumido, para o mantenedor confirmar ou mudar: o idioma das chaves segue a
+janela; "Você" é escrito como autor quando a janela não tem nome próprio (como
+a linha antiga fazia); o cartão no board tem 340 por 110; soltar na Leitura cai
+depois do bloco sob o ponteiro.
+
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo

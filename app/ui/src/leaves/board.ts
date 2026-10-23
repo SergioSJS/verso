@@ -34,6 +34,7 @@ import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
 import { wireDice } from "../dice/card";
+import { wireRollBlocks } from "../rollblock/wire";
 import { openNote } from "../layout/spaces";
 import { listKeymap } from "../listKeymap";
 import { livePreview, redraw, sizeOf } from "../live";
@@ -64,6 +65,9 @@ import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
 
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
+
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
 
@@ -82,6 +86,10 @@ export class BoardLeaf extends TextLeaf {
   /** A file of the folder put on the board, where it was dropped. */
   addPath(path: string, x: number, y: number): void {
     this.board?.addPath(path, x, y);
+  }
+  /** A text card put on the board where something was dropped (a roll block of the table). */
+  addText(text: string, x: number, y: number): void {
+    this.board?.addText(text, x, y);
   }
   /** What each card's editor held when it was left, for as long as this
    *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
@@ -251,6 +259,7 @@ export class BoardLeaf extends TextLeaf {
           // The note's `dice:` codes are dice here as in its own tab; the
           // roll is the board's, the note is not written (ADR 0088).
           wireDice(el, { path: () => listed(path), follow: (target, from) => this.followDice(target, from) });
+          wireRollBlocks(el, listed(path), ROLL_HOST);
         } else el.replaceChildren();
       },
       renderText: async (el, text) => {
@@ -258,6 +267,7 @@ export class BoardLeaf extends TextLeaf {
         // A `dice:` code of a text card is a die, as in a note; its roll is
         // the board's, nothing is written (ADR 0088).
         wireDice(el, { path: () => this.path, follow: (target, from) => this.followDice(target, from) });
+        wireRollBlocks(el, this.path, ROLL_HOST);
       },
       noteText: async (path) => {
         const r = await opening.readNote(listed(path));

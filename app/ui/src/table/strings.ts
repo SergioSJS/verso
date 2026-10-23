@@ -30,7 +30,6 @@ type Words = {
   hiddenStatus: string;
   shownStatus: string;
   addToNote: string;
-  addToNoteFor: (said: string) => string;
   addAsk: (note: string, text: string) => string;
   add: string;
   cancel: string;
@@ -117,7 +116,6 @@ const pt: Words = {
   hiddenStatus: "Mesa: o histórico foi ocultado nesta janela.",
   shownStatus: "Mesa: o histórico voltou.",
   addToNote: "Adicionar à nota…",
-  addToNoteFor: (said) => `Adicionar à nota: ${said}`,
   addAsk: (note, text) => `Isto será acrescentado ao fim de "${note}":\n\n${text}`,
   add: "Adicionar",
   cancel: "Cancelar",
@@ -203,7 +201,6 @@ const en: Words = {
   hiddenStatus: "Table: the history was hidden in this window.",
   shownStatus: "Table: the history is back.",
   addToNote: "Add to note…",
-  addToNoteFor: (said) => `Add to note: ${said}`,
   addAsk: (note, text) => `This will be added to the end of "${note}":\n\n${text}`,
   add: "Add",
   cancel: "Cancel",

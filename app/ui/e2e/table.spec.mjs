@@ -215,7 +215,7 @@ test("hide up to here hides only here, only what was there, and can be undone", 
   await expect(view.locator(".table-hidden")).toBeHidden();
 });
 
-test("add to note shows what will be written, then appends it over the revision read", async ({ app, page }) => {
+test("add to note (the entry's menu) shows the roll block that will be written, then appends it over the revision read", async ({ app, page }) => {
   await app.open();
   await openNote(app);
   const view = await openTable(page);
@@ -223,7 +223,9 @@ test("add to note shows what will be written, then appends it over the revision 
   const line = view.locator(".table-entry").first();
   await expect(line).toBeVisible();
   const total = await line.locator(".table-total").textContent();
-  await line.getByRole("button", { name: /^Adicionar à nota: 1d20\+3/ }).click();
+  await expect(line.locator(".table-add")).toHaveCount(0);
+  await line.getByRole("button", { name: /^Ações da entrada: 1d20\+3/ }).click();
+  await page.getByRole("menuitem", { name: "Adicionar à nota…" }).click();
   const combo = page.getByRole("combobox", { name: "Abrir…" });
   await expect(combo).toBeFocused();
   await combo.fill("Diario");
@@ -232,18 +234,21 @@ test("add to note shows what will be written, then appends it over the revision 
   // What will be added is shown first; a no writes nothing.
   const box = page.locator(".confirm-box");
   await expect(box).toContainText('ao fim de "Diario"');
-  await expect(box).toContainText(`1d20+3: ${total}`);
-  await expect(box).toContainText("[[Mesa]]");
+  await expect(box).toContainText("```roll");
+  await expect(box).toContainText(`1d20+3 → [`);
+  await expect(box).toContainText(`= ${total}`);
+  await expect(box).toContainText("onde: [[Mesa]]");
   await box.getByRole("button", { name: "Cancelar" }).click();
   expect(await app.file("Diario.md")).toBe("# Diário\n\nTexto.\n");
   expect(await app.calls("write_note")).toHaveLength(0);
   // A yes appends one line, the rest of the note as it was.
-  await line.getByRole("button", { name: /^Adicionar à nota: 1d20\+3/ }).click();
+  await line.getByRole("button", { name: /^Ações da entrada: 1d20\+3/ }).click();
+  await page.getByRole("menuitem", { name: "Adicionar à nota…" }).click();
   await combo.fill("Diario");
   await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText("Diario");
   await combo.press("Enter");
   await page.locator(".confirm-box").getByRole("button", { name: "Adicionar" }).click();
-  await expect.poll(async () => await app.file("Diario.md")).toMatch(/^# Diário\n\nTexto\.\n\n- \*\*Você\*\* · \d\d:\d\d:\d\d · \[\[Mesa\]\] — 1d20\+3: \d+ \(.*\)\n$/);
+  await expect.poll(async () => await app.file("Diario.md")).toMatch(/^# Diário\n\nTexto\.\n\n```roll\nquem: Você · quando: \d{4}-\d\d-\d\d \d\d:\d\d · onde: \[\[Mesa\]\]\n1d20\+3 → \[\d+\] \+ 3 = \d+\n```\n$/);
   expect(await app.calls("write_note")).toHaveLength(1);
 });
 
@@ -272,9 +277,9 @@ test("the phone: the table is a sheet from the bottom, reached from the bottom b
   expect(box.y + box.height).toBeGreaterThan(size.height - 100);
   await expect(page.locator(".bar-right")).toBeVisible();
   expect(box.height).toBeLessThan(size.height);
-  // Nothing wider than the screen, the add button within reach.
+  // Nothing wider than the screen, the entry menu within reach.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const add = view.locator(".table-add").first();
+  const add = view.locator(".table-menu").first();
   const ab = await add.boundingBox();
   expect(ab.width).toBeGreaterThanOrEqual(32);
   expect(ab.x + ab.width).toBeLessThanOrEqual(size.width);

@@ -431,6 +431,56 @@ listed last, for the maintainer to confirm or change.
   on tries the join, which the host answers by the link's state, then joins
   again on the first state change.
 
+## Decision (the roll block, 2026-10-22)
+
+Decided by the maintainer on 2026-10-22, option A of the three offered for what
+"add to a note" should write (*"o modo A fica maravilhoso"*): a roll of the
+Table is added to a note as a **roll block**, and it is added by dragging it
+from the panel, not by a "+" button. Branch `feat/roll-block-drag`.
+
+- **The block.** A fenced code block with the info string `roll`: a header line
+  (who, when, where as a link), the roll line (`1d20+5 → [16] + 5 = 21`) and,
+  for a random table or an oracle, a line or two more. The grammar is in
+  `app/ui/src/rollblock/format.ts` and in `docs/spec/dialect.md` §6 (a Verso
+  extension: Obsidian shows a code block; a fenced block with a new info string
+  changes the meaning of nothing). Verso draws it as a fixed card, in Reading
+  and in Live Preview and in a board's text card, and never rolls it again.
+  Source shows the text. A block that does not read is shown as plain code; a
+  line the grammar does not know is kept.
+- **What can be a block.** Dice rolls (kept and dropped dice, modifiers, several
+  terms, Fudge), random-table rolls (the row), oracle draws (question, spark,
+  table; the answer). A secret roll seen in full is a roll; a masked one holds
+  nothing and cannot be dragged. A message keeps its quote line and an image its
+  embed ("Adicionar à nota…" as before).
+- **Dragging.** A roll line is dragged with the pointer (HTML5 drag-and-drop does
+  not work in the WKWebView), by the same mechanism as a tab or a tree row
+  (`layout/drag.ts`), with the ghost. Over a note's text, Live and Source, a
+  caret shows where the block will land and the drop is **one ordinary edit**
+  (one undo step), with a blank line each side as a block needs
+  ([ADR 0061](0061-blocks-in-edit-mode.md)); a drop inside a fence, a
+  table, a list, a quote or the frontmatter lands before or after that block.
+  Over Reading the note goes to Live and the block lands after the block under
+  the pointer. Over a board it becomes a text card holding the block. A reader
+  of a synced folder cannot drop.
+- **The menu.** The "+" button is gone. The entry's "…" menu (now on the local
+  table too) keeps "Adicionar à nota…" for the keyboard, the screen reader and
+  the phone: it shows the block first and appends it at the end of the note
+  chosen, over the revision read, as before.
+- **The dice colours** are expressed: a roll made with the roller's own dice
+  carries a line `dados: <body> <number> <outline>` (three `#rrggbb`) and the
+  card's chips use them; the app's own look writes no line. The texture and the
+  material are not written.
+- **Keys** are written in the window's language (`quem`, `who`…) and read in
+  either; the time is the local time of the person who added it.
+- **Fix.** After `/r 1d20` the input row kept the text when the roll took long
+  or its 3D fall failed: it is now emptied as soon as the server accepts the
+  command (never over something typed meanwhile).
+
+Assumed, for the maintainer to confirm or change: the keys' language follows
+the window; "Você" is written as the author when the window has no name of its
+own (as the old line did); the board card is 340 by 110; Reading drops go
+after the block under the pointer.
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
