@@ -99,6 +99,7 @@ export type Settings = {
   boardStroke: "clean" | "hand";
   boardFont: "hand" | "sans" | "mono";
   boardGrid: boolean;
+  boardDoubleClick: "card" | "drawn";
   /** View › Open console, the window's inspector (ADR 0051, 2026-09-30). */
   devtools: boolean;
   /** A single click in a list opens a preview tab (2026-09-30). */
@@ -194,6 +195,7 @@ export const DEFAULTS: Settings = {
   boardStroke: "hand",
   boardFont: "hand",
   boardGrid: false,
+  boardDoubleClick: "card",
   devtools: true,
   previewTabs: true,
   stickers: true,

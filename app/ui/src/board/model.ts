@@ -594,6 +594,25 @@ export function newNode(kind: "file" | "text" | "link", value: string, at: [numb
   return page && kind === "link" ? withPage(node, true) : node;
 }
 
+/** A Markdown text card the board adds by hand (the toolbar's button, a
+ *  double click on an empty spot): wider than the sticky 250x60 of `newNode`,
+ *  centred on the point. */
+export function textCardAt(text: string, at: [number, number], id: string): CanvasNode {
+  const node = newNode("text", text, at, id);
+  node.width = 340;
+  node.height = 110;
+  node.x = Math.round(at[0] - node.width / 2);
+  node.y = Math.round(at[1] - node.height / 2);
+  return node;
+}
+
+/** Whether a tap follows the one before it closely enough, in time (ms) and
+ *  in place (px), to make a double tap — Excalidraw's own touch count is
+ *  read from its touches, so the board counts the taps it hears first. */
+export function isDoubleTap(prev: { at: number; x: number; y: number } | null, at: number, x: number, y: number): boolean {
+  return prev !== null && at - prev.at >= 0 && at - prev.at < 400 && Math.hypot(x - prev.x, y - prev.y) < 30;
+}
+
 /** The elements of a canvas, partial, bottom first: the edges and their
  *  labels, the nodes in the file's order, then the drawing. An edge runs
  *  between two cards and passes under them, so a card's text stays

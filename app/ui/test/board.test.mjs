@@ -516,3 +516,16 @@ describe("a data file's card (ADR 0057 point 10, ADR 0106)", () => {
     assert.equal(pair.shown.length, b.CARD_TEXT_MAX - 1);
   });
 });
+
+describe("a text card added by hand (ADR 0057, 2026-10-23)", () => {
+  test("is a JSON Canvas text node, 340x110, centred on the point", () => {
+    const n = b.textCardAt("Olá `dice: 1d20`", [1000, 500], "x1");
+    assert.deepEqual(n, { id: "x1", type: "text", x: 830, y: 445, width: 340, height: 110, text: "Olá `dice: 1d20`" });
+  });
+  test("two taps close in time and place are a double tap", () => {
+    assert.equal(b.isDoubleTap(null, 100, 5, 5), false);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 250, 20, 18), true);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 450, 10, 10), false);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 200, 80, 10), false);
+  });
+});

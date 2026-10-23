@@ -275,6 +275,25 @@ de manter as setas no meio de um lado.
     outro cartão. O ponto 14 continua valendo, com mais um caso: uma ponta
     movida no seu cartão ganha o lado que agora encontra.
 
+**Decidido em 2026-10-23 pelo mantenedor**, depois que um teste em três
+aparelhos achou que o adesivo da barra é um elemento desenhado, onde
+`dice: 1d20` fica texto simples, e que o board não tinha como pôr um cartão de
+texto Markdown a não ser arrastando uma rolagem da Mesa: "B e A entao, sendo B
+configurável". Construído em `feat/board-text-card`: (A) um botão **Cartão de
+texto** na barra do board, ao lado de Inserir, põe um nó `text` do JSON Canvas
+(340 × 110, centrado na vista) e pede o texto na hora; cancelado ou vazio, não
+sobra cartão; o item *Cartão de texto* do menu Inserir faz o mesmo; (B) um
+duplo clique — um toque duplo, numa tela de toque — num lugar **vazio** do
+board põe esse cartão ali, no lugar do texto desenhado do Excalidraw. O duplo
+clique num cartão ou num desenho mantém o seu comportamento; num board de
+leitor, com outra ferramenta na mão ou enquanto se digita um texto, não faz
+nada de novo. O B é um ajuste, **Ajustes › Board › "Duplo clique no board
+cria"** (`boardDoubleClick`): *Cartão de texto* ou *Texto desenhado*. O
+padrão, *Cartão de texto*, foi escolhido no código, para o mantenedor
+confirmar. O botão não toma tecla (as teclas das ferramentas do Excalidraw
+ficam como estão). Os códigos `dice:` do cartão novo rolam como em qualquer
+cartão de texto (ADR 0088).
+
 ## Consequências
 
 - O ADR 0040 é decidido pelo ponto 2; a camada semântica do ADR 0024 pelo
