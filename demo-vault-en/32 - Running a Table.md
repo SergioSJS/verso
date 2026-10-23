@@ -11,7 +11,7 @@ status: active
 
 A **table** is a campaign folder on a UniVerso (Verso on a server of your own, [[23 - Verso on a Server]]): you, the game master, invite the players to it alone, and each note stays **hidden** until you release it. None of this is written in the notes: what is released, which names are secret and who may edit is kept in the server's database, so a synced file, or one opened in Obsidian, is an ordinary note.
 
-Only the folder's owner does this, on a folder of a server. On a folder of this computer alone there is no table, and none of this shows.
+Only the folder's owner does this, on a folder of a server or on a folder of this computer **synced** with one ([[23 - Verso on a Server]]): the game master can run the session from the desktop app, with the local folder, while the players use the browser or the Windows app on the server's folder. With no connection (or with sync paused) the table is unavailable and the **Table** panel says so; it comes back by itself when the connection does. On a folder of this computer alone there is no table, and none of this shows.
 
 ---
 

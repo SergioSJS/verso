@@ -381,3 +381,40 @@ que nenhum caminho, título ou id chega a um jogador), os testes unitários de
 `campaign_text.rs` (a mesma propriedade em 500 notas geradas),
 `test/campaign.test.mjs` e `e2e/campaign.spec.mjs` da janela no Chromium e no
 WebKit (Docker).
+
+## Como foi construído (uma pasta sincronizada, 2026-10-23)
+
+Branch `feat/table-in-synced-folder`. Os controles da campanha rodavam só "numa
+janela na própria pasta" (a seção da fase 1 acima), e uma pasta deste computador
+que sincroniza com um UniVerso é a pasta própria de uma janela assim: o mestre no
+desktop com uma pasta sincronizada. Os nove comandos (`campaign_status`,
+`campaign_make`, `campaign_unmake`, `campaign_settings`, `campaign_release`,
+`campaign_release_all`, `campaign_secret_name`, `campaign_grant`,
+`campaign_invite`) agora são respondidos nessa janela pela conexão do sync
+(`app/src-tauri/src/sync/live.rs`, o mesmo encanamento da mesa,
+[0107](0107-the-table-a-shared-roll-and-chat-log.md) "Como foi feito (uma pasta
+sincronizada)"), e o evento `campaign-changed` que o servidor conta a essa
+conexão chega às janelas que pediram o status.
+
+- **O que o servidor faz.** Nada de novo: a conexão da sessão de dispositivo é a
+  do dono da pasta, passa pelas mesmas verificações (`game_master`: o dono, na
+  própria pasta, nunca por um compartilhamento, nunca um celular, uma
+  credencial que escreve) e age na pasta do servidor que o sync abriu, com
+  caminhos relativos a ela e a mesma contenção (`root_arg`: sem `..`, sem
+  caminho absoluto, nada oculto). `tests_live_table.rs` tenta um leitor
+  sincronizado recusado em todos os controles, o dono fazendo, liberando,
+  concedendo, fechando e desfazendo uma mesa, e caminhos que saem da pasta
+  recusados.
+- **O convite** pede a prova antes, como na pasta do próprio servidor (ADR 0083
+  item 6): a sessão do dispositivo é provada por `server_prove`, que marca essa
+  sessão; testado com o token do dispositivo.
+- **Sem conexão.** Os controles da janela existem enquanto o servidor é
+  alcançado: com o link caído ou o sync pausado o status é "nenhum" (não um
+  erro), as linhas do menu do mestre não são oferecidas, e a janela pede os
+  compartilhamentos e o status de novo quando o estado volta.
+- **Escolhido no código, para o mantenedor confirmar.** (1) As linhas são as do
+  dono de uma pasta sincronizada, como `share_list` diz (os compartilhamentos são
+  pedidos ao servidor com o token do dispositivo, como antes). (2) Uma pasta
+  sincronizada de um compartilhamento não tem mesas a fazer, como uma janela num
+  compartilhamento não tem.
+
