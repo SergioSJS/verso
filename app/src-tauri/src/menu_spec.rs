@@ -675,21 +675,25 @@ mod tests {
 
     /// The browser harness has no host: it reads this file. It is the
     /// spec as the host exposes it, so a change of the spec fails here
-    /// until the file is written again (`VERSO_WRITE_MENU_SPEC=1`).
+    /// until the file is written again (`scripts/menu-spec.sh`). The
+    /// file comes in at compile time and the script writes it from what
+    /// this test prints: no `std::fs` in the app's crate (ADR 0029).
     #[test]
     fn the_harness_has_the_spec_the_host_exposes() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../ui/src/harness/menuSpec.json");
+        let have = include_str!("../../ui/src/harness/menuSpec.json");
         let now = serde_json::to_string_pretty(&serde_json::json!({
             "pt": window_menu("pt", &all_on()),
             "en": window_menu("en", &all_on()),
         }))
         .unwrap_or_default()
             + "\n";
-        if std::env::var_os("VERSO_WRITE_MENU_SPEC").is_some() {
-            std::fs::write(&path, &now).unwrap_or_default();
+        if std::env::var_os("VERSO_PRINT_MENU_SPEC").is_some() {
+            println!("<<<menu-spec\n{now}menu-spec>>>");
+            return;
         }
-        let have = std::fs::read_to_string(&path).unwrap_or_default();
-        assert_eq!(have, now, "app/ui/src/harness/menuSpec.json is stale");
+        assert_eq!(
+            have, now,
+            "app/ui/src/harness/menuSpec.json is stale: scripts/menu-spec.sh"
+        );
     }
 }
