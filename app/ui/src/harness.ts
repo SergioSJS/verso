@@ -296,6 +296,19 @@ const harness = {
   /** The system's notifications: its permission, its answer when asked,
    *  what was sent, a click on the last (ADR 0084 item 9). */
   notifications,
+  /** The desktop window shows a server's folder where the person is `as`
+   *  (the host's merge, app/src-tauri/src/remote.rs): the server's answer
+   *  plus the app's own abilities that do not depend on the folder's side.
+   *  Only `verso:folder-shown` is heard, as in the app: the window asks again. */
+  showServerFolder: (as: string) => {
+    role = as;
+    core.handlers["capabilities"] = () => ({
+      host: "server",
+      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders"],
+      latency_ms: null,
+    } as Capabilities);
+    dispatchEvent(new Event("verso:folder-shown"));
+  },
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

@@ -9,9 +9,11 @@
 // And the reader's role on a server: without `write` the window only
 // reads — the editor, the tree, the boards and the bases change nothing.
 //
-// Asked once at the start and kept, so that a menu built on a click asks
-// nothing; asked again when the server says the person's role changed
-// (`verso:role`, web.ts). Until the answer, the desktop's set stands: the
+// Asked at the start and kept, so that a menu built on a click asks
+// nothing; asked again when the window shows another folder
+// (`verso:folder-shown`: a person's role is per folder, and on the desktop
+// the folder may be a server's) and when the server says the person's role
+// changed (`verso:role`, web.ts). Until the answer, the desktop's set stands: the
 // side refuses what it cannot do anyway, and the desktop app answers at
 // once.
 
@@ -26,18 +28,34 @@ const DESKTOP: Capabilities = {
 
 let known: Capabilities = DESKTOP;
 let asked: Promise<Capabilities> | null = null;
+let answered = false;
+let turn = 0;
 
-/** Ask the side, once; the answer is kept and drawn on the page. */
+/** Ask the side; the answer is kept until the window asks again, and drawn on the page. */
 export function loadCan(): Promise<Capabilities> {
-  asked ??= commands.capabilities().then(
+  if (asked) return asked;
+  const mine = ++turn;
+  asked = commands.capabilities().then(
     (r) => {
-      known = r.status === "ok" ? r.data : DESKTOP;
-      paintCan();
+      // An answer to a question asked before the last one is stale.
+      if (mine !== turn) return known;
+      const next = r.status === "ok" ? r.data : DESKTOP;
+      const same = answered && JSON.stringify(next) === JSON.stringify(known);
+      known = next;
+      answered = true;
+      if (!same) paintCan();
       return known;
     },
     () => known,
   );
   return asked;
+}
+
+/** Ask again: the folder or the person's role in it changed. */
+function askAgain(): void {
+  asked = null;
+  forgetCapabilities();
+  void loadCan();
 }
 
 /** Whether the side can do `what`, as last answered. */
@@ -77,11 +95,11 @@ function paintCan(): void {
   for (const c of DESKTOP.can) if (!known.can.includes(c)) root.classList.add(`cannot-${c.replace(/_/g, "-")}`);
   root.classList.toggle("on-server", known.host === "server");
   for (const run of listeners) run();
+  // What draws itself elsewhere (a board, in React) hears the answer changed.
+  dispatchEvent(new Event("verso:can-changed"));
 }
 
-// The person's role in the folder changed (web.ts): asked again.
-addEventListener("verso:role", () => {
-  asked = null;
-  forgetCapabilities();
-  void loadCan();
-});
+// The person's role in the folder changed (web.ts), or another folder is
+// shown: asked again.
+addEventListener("verso:role", askAgain);
+addEventListener("verso:folder-shown", askAgain);
