@@ -98,6 +98,14 @@ mod tests {
         assert_eq!(open_windows(at), [B]);
     }
 
+    /// `open-windows.json` written by hand, through tempfile (the file API stays in sidecar.rs, ADR 0029).
+    fn hand_written(config: &Path, text: &str) {
+        use std::io::Write as _;
+        let mut file = tempfile::NamedTempFile::new_in(config).unwrap();
+        file.write_all(text.as_bytes()).unwrap();
+        file.persist(config.join("open-windows.json")).unwrap();
+    }
+
     #[test]
     fn a_key_this_app_never_issues_is_not_kept_or_read() {
         let config = tempfile::tempdir().unwrap();
@@ -105,18 +113,17 @@ mod tests {
         keep_open_windows(at, &["/etc".into(), "../x".into(), A.into()]).unwrap();
         assert_eq!(open_windows(at), [A]);
         // A file written by hand with a path in it is read the same way.
-        std::fs::write(
-            config.path().join("open-windows.json"),
+        hand_written(
+            config.path(),
             r#"{"windows":["/home/ana/notas","notas-0123456789abcdef"]}"#,
-        )
-        .unwrap();
+        );
         assert_eq!(open_windows(at), [A]);
     }
 
     #[test]
     fn a_damaged_file_is_no_windows() {
         let config = tempfile::tempdir().unwrap();
-        std::fs::write(config.path().join("open-windows.json"), "{ not json").unwrap();
+        hand_written(config.path(), "{ not json");
         assert!(open_windows(Some(config.path())).is_empty());
     }
 
