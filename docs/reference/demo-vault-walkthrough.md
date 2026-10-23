@@ -1481,6 +1481,15 @@ Open note 31 (*The Table*) in a folder that has the demo content
 8. On a phone's width, *Painel* › *Mesa* opens a sheet from the bottom, resting
    on the bottom bar, that never scrolls the page sideways; the add button is
    at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
+9. Saved rolls (note 31, *Saved rolls*): in the dice tray, *Escolher nota…*,
+   pick a note with two lines like ``- Ataque da Bia: `dice: 1d20+7` ``: two
+   buttons, named *Ataque da Bia* and the other line's text. Click one: the
+   notation field holds it and nothing is rolled; add a modifier and *Rolar*.
+   Type a name, press *Salvar*: one line is appended to the note, a button
+   appears. On a server as a reader there is no *Salvar*; as a player with a
+   note granted to that player alone, the tray names it by itself. On a
+   phone's width the row wraps inside the tray and each button is at least
+   44 px. Level: H; E: `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
 
 ## 18. Running a table (note 32)
 

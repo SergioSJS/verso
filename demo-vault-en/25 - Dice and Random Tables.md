@@ -101,6 +101,7 @@ The number is **already drawn** before the dice fall, by the window's cryptograp
 - **The dice stay on the table**, as in Rolai, until you touch something: a click anywhere that is not a button or a dialog, `Esc` or the next roll takes them away. They do not hold the click: the page stays usable underneath. While they fall, `Esc` or a click also skips the fall.
 - **Roll duration:** in *Dice and RPG*, **Fast**, **Normal** or **Slow** changes how fast the dice fall.
 - **Dice sound:** a **Dice sound** switch, off by default, plays the sound of each hit of the dice on the table and on each other, with Rolai's recordings (public domain); the timbre follows the die's material (plastic, wood or metal).
+- **Saved rolls:** in the dice tray of the Table, every line of a note that holds a `dice:` code (e.g. `` - Bia's attack: `dice: 1d20+7` ``) becomes a button that puts the roll in the field; see [[31 - The Table]], under *Saved rolls*.
 - **No animation:** if the system asks for less motion, or the roll has more than 20 dice or an exploding die (`!`), only the card shows.
 - **In a room**, each person sees the dice fall only if *their* 3D dice feature is on; the others see the card.
 - The 3D engine is downloaded only on the first 3D roll and kept for offline use, with the sounds if you turn them on.

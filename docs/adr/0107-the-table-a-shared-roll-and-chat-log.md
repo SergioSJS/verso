@@ -536,10 +536,42 @@ single line, Enter rolls; `d66` is a plain 66-sided die, as in Rolai, and the
 is not written (Rolai's rule); the pool is not emptied by a roll; the tray's
 error line, not the log, says what could not be rolled.
 
-**Open question.** Saved or named rolls (a "Ataque da Bia" button that rolls
-`1d20+7`): Rolai has none and nothing here decides them. Whether the Table
-should keep them, where (the folder, the settings, the character sheet) and
-whether they are shared, is the maintainer's to answer.
+**Saved rolls (decided by the maintainer, 2026-10-23).** Asked whether the
+Table should keep saved or named rolls ("Ataque da Bia"), the maintainer
+answered *"Sim"* and, for where, option B, worded to them as: *"Numa nota da
+pasta (ex.: `Rolagens.md` ou a própria ficha do personagem): cada linha
+`` `dice: 1d20+7` `` com um nome vira um botão na bandeja. Segue a pessoa em
+qualquer aparelho, o mestre pode deixar prontas, o Obsidian lê, e quem vê
+segue a permissão da nota"*, with the recommendation of *the tray reading from
+the sheet the person has access to*. Built: the tray has a **Saved rolls**
+row. A saved roll is a line of the source note holding an inline `dice:` code
+(ADR 0088); its name is the line's text without the code, the list, task,
+quote or heading marker and a trailing colon (``- Ataque da Bia: `dice: 1d20+7` ``
+is *Ataque da Bia*); a line with only the code is named by its notation. A
+click fills the composer's notation field and does not roll ("não é pra rolar
+com click, é pra compor"). **Salvar** appends `` - <name>: `dice: <notation>` ``
+to the note through the ordinary note write: the room when the note is live,
+else the file over the revision that was read (invariant 11), refused without
+write permission (a reader sees no Salvar; a refusal is said in the tray's
+error line). The row reads the note through the contract (`read_note`; reading
+never rewrites it) and reads it again when the folder reports a change.
+
+Chosen in the code, for the maintainer to confirm or change: the source note is,
+by default at a campaign table, the note granted to this player alone; for the
+game master, the local table or a player with no such grant, a note the person
+picks with **Escolher nota…** (the app's quick switcher), remembered per folder
+in this browser's storage; a choice made by the person wins over the grant; a
+player's write goes only where the note's grant lets it. A line with several
+codes gives one button each, named with the words before the first code and the
+notation. A repeat of the same name and notation is listed once; code in a
+fenced block is code; a table row is named by its cells without the code. **Salvar**
+files the line at the end of the note's "Rolagens" / "Rolls" / "Saved rolls"
+section when it has one, else at the end of the note, joining a closing list of
+rolls and after a blank line otherwise; a heading is never created. Table rolls
+(``dice: [[Note^id]]``) are not listed: the tray rolls a notation, and a table
+roll needs the note's table read, which the dice card owns (a later step). The
+log entry carries no name: the roll path has no label field and none was added
+to the contract.
 
 ## Status
 

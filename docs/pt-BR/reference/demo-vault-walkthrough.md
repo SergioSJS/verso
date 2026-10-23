@@ -1522,6 +1522,16 @@ Abra a nota 31 (*A Mesa*) numa pasta que tem o conteúdo da demonstração
 8. Na largura de um celular, *Painel* › *Mesa* abre uma folha vinda de baixo,
    apoiada na barra de baixo, que nunca rola a página para o lado; o botão de
    adicionar tem ao menos 32 px. Nível: H; E: `table.spec.mjs` (`@layout`).
+9. Rolagens salvas (nota 31, *Rolagens salvas*): na bandeja de dados,
+   *Escolher nota…*, escolha uma nota com duas linhas como
+   ``- Ataque da Bia: `dice: 1d20+7` ``: dois botões, um chamado *Ataque da
+   Bia* e o outro com o texto da outra linha. Clique num: o campo de notação o
+   traz e nada é rolado; some um modificador e *Rolar*. Digite um nome e aperte
+   *Salvar*: uma linha é acrescentada à nota e um botão aparece. Num servidor,
+   como leitor, não há *Salvar*; como jogador com uma nota concedida só a essa
+   pessoa, a bandeja a nomeia sozinha. Na largura de um celular a fila quebra
+   dentro da bandeja e cada botão tem ao menos 44 px. Nível: H; E:
+   `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
 
 ## 18. Conduzir uma mesa (nota 32)
 
