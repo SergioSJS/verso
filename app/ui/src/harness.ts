@@ -19,6 +19,7 @@ import type { Capabilities, Mentions, PickedFiles } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { Table } from "./harness/table";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
@@ -108,6 +109,9 @@ core.invoke = (cmd: string, args: unknown): unknown => {
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
+// The folder's table (ADR 0107): a server's, played here when a test says it
+// is up; it wraps the room's rolls, so it comes after the rooms.
+const table = onServer ? null : new Table(core);
 // A file's version history (ADR 0091): none for a reader on a server.
 const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
@@ -230,6 +234,8 @@ const harness = {
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server's room of a synced folder's notes (ADR 0082). */
   rooms,
+  /** The folder's table (ADR 0107): the server's commands and events, played in the page. */
+  table,
   /** The files' version histories (ADR 0091). */
   versions,
   /** The window's own sanitizer — the instance main.ts configures, not a

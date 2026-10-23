@@ -523,6 +523,7 @@ async fn run(
     let s = Arc::clone(&server);
     let _ = tokio::task::spawn_blocking(move || {
         crate::collab::gone(&s, &client);
+        crate::table::gone(&s, &client);
         s.service.release(&client);
     })
     .await;
@@ -840,6 +841,9 @@ pub(crate) async fn command(
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll"
         | "collab_oracle" => collab_command(server, who, client, &r.cmd, &args).await,
+        c if crate::table::is_command(c) => {
+            crate::table::command(server, who, client, c, args).await // ADR 0107
+        }
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
             // Through a share, its part of the bin only (ADR 0081 item 16).
             match crate::shares::scope_here(server, client) {
@@ -942,8 +946,15 @@ async fn collab_command(
                 account: &account,
                 name: &user,
             };
+            let styles: Option<verso_contract::DiceStyles> = arg(&args, "styles")?;
+            let secret: Option<bool> = arg(&args, "secret")?;
+            let opts = crate::collab::RollOpts {
+                source,
+                styles,
+                secret: secret.unwrap_or(false),
+            };
             to_value(crate::collab::roll(
-                &s, &sender, &key, &path, &notation, source,
+                &s, &sender, &key, &path, &notation, opts,
             )?)
         }
         // The oracle's draws (ADR 0102 item 5): the same, drawn by the server.
@@ -1170,7 +1181,7 @@ async fn folder_command(
 }
 
 /// A command of the folder, its paths the folder's own.
-async fn folder_run(
+pub(crate) async fn folder_run(
     server: &Arc<Server>,
     who: &Who,
     client: &str,
@@ -1344,6 +1355,8 @@ pub(crate) async fn open(
         .ok_or_else(|| verso_service::failed("not a folder name"))?;
     // A transfer of the folder shown before goes with it.
     server.transfers.forget(client);
+    // A window is at one folder's table (ADR 0107).
+    crate::table::gone(server, client);
     let service = Arc::clone(&server.service);
     let c = client.to_owned();
     let gate = Arc::clone(

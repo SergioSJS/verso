@@ -78,6 +78,17 @@ pub const READ: &[&str] = &[
     "read_folder_data",
     "collab_join",
     "collab_leave",
+    // The table (ADR 0107): a phone is at the table and writes at it; the
+    // server checks the folder's role again (an image is a file, so an
+    // editor's; clearing is an owner's, which no phone is).
+    "table_join",
+    "table_leave",
+    "table_look",
+    "table_history",
+    "table_say",
+    "table_roll",
+    "table_pin",
+    "table_delete",
     "collab_awareness",
     "collab_present",
     "set_embed_origins",
@@ -115,6 +126,7 @@ pub const EDIT: &[&str] = &[
     "collab_canvas",
     "collab_roll",
     "collab_oracle",
+    "table_send_image",
     "trash_list",
     "trash_restore",
     "trash_delete",
@@ -193,6 +205,7 @@ pub const REFUSED: &[&str] = &[
     "read_link_revoke",
     "read_link_secrets",
     "log_read",
+    "table_clear",
     "set_folder_settings",
     "set_sync_focuses",
     "trash_empty",

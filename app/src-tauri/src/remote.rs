@@ -70,6 +70,16 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "collab_canvas"
                 | "collab_roll"
                 | "collab_oracle"
+                | "table_join"
+                | "table_leave"
+                | "table_look"
+                | "table_history"
+                | "table_say"
+                | "table_send_image"
+                | "table_roll"
+                | "table_pin"
+                | "table_delete"
+                | "table_clear"
         )
 }
 

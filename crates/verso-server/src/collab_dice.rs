@@ -11,25 +11,48 @@
 //! too: a roll writes nothing.
 
 use serde_json::json;
-use verso_contract::{CollabOracle, CollabRoll, ContractError, DiceRoll, OracleAsk, OracleDraw};
+use verso_contract::{
+    CollabOracle, CollabRoll, ContractError, DiceRoll, DiceStyles, OracleAsk, OracleDraw,
+};
 use verso_service::lock;
 
 use super::{ROLLS_KEPT, refused, tell};
 use crate::state::Server;
 
+/// What a window adds to a roll (ADR 0107): the random table rolled, as
+/// the note writes it; its dice's appearance, checked against the closed
+/// form; whether the roll is "to the owner".
+#[derive(Default)]
+pub struct Opts {
+    pub source: Option<String>,
+    pub styles: Option<DiceStyles>,
+    pub secret: bool,
+}
+
 /// `notation` rolled in the room of `path` for `who`, a window in it:
 /// the roll, told to the room's other windows and kept for those who
-/// join. `source` is the random table rolled, as the note writes it.
+/// join, and appended to the folder's table (`table.rs`, ADR 0107 item 2)
+/// — rolled once. A secret roll is told to neither the room nor the
+/// readers: only the table, to its roller and the folder's owners.
 pub fn roll(
     server: &Server,
     who: &crate::presence::Sender,
     key: &str,
     path: &str,
     notation: &str,
-    source: Option<String>,
+    opts: Opts,
 ) -> Result<DiceRoll, ContractError> {
+    let Opts {
+        source,
+        styles,
+        secret,
+    } = opts;
     let read = crate::dice::read(notation).map_err(|e| refused(&e))?;
     let source = crate::dice::source(source).map_err(|e| refused(&e))?;
+    let styles = styles
+        .map(|s| crate::table_look::check(&s).map_err(|e| refused(&e)))
+        .transpose()?;
+    crate::table::pace_roll(server, who.client)?;
     let room = server
         .rooms
         .get(key, path)
@@ -46,23 +69,31 @@ pub fn roll(
         &mut crate::dice::system,
     )
     .map_err(|e| verso_service::failed(e.as_str()))?;
-    if r.rolls.len() >= ROLLS_KEPT {
-        r.rolls.pop_front();
+    let mut rolled = rolled;
+    rolled.styles = styles;
+    let open_to_readers = super::readers::roll_is_open(&r, &rolled);
+    if !secret {
+        if r.rolls.len() >= ROLLS_KEPT {
+            r.rolls.pop_front();
+        }
+        r.rolls.push_back(rolled.clone());
+        let heard = CollabRoll {
+            path: path.to_owned(),
+            roll: rolled.clone(),
+        };
+        tell(
+            server,
+            &r,
+            Some(who.client),
+            &json!({ "event": "collab-roll", "payload": heard }),
+        );
+        // The readers served the note's projection hear a roll that is not a
+        // secret block's (ADR 0087 item 4).
+        super::readers::roll(server, &r, who.client, &heard);
     }
-    r.rolls.push_back(rolled.clone());
-    let heard = CollabRoll {
-        path: path.to_owned(),
-        roll: rolled.clone(),
-    };
-    tell(
-        server,
-        &r,
-        Some(who.client),
-        &json!({ "event": "collab-roll", "payload": heard }),
-    );
-    // The readers served the note's projection hear a roll that is not a
-    // secret block's (ADR 0087 item 4).
-    super::readers::roll(server, &r, who.client, &heard);
+    drop(r);
+    // And the folder's table: the same roll, not rolled again.
+    crate::table::note_roll(server, who, key, path, &rolled, (secret, !open_to_readers));
     Ok(rolled)
 }
 
@@ -186,6 +217,7 @@ pub fn oracle(
     if !r.clients.contains(who.client) {
         return Err(refused("join the note first"));
     }
+    crate::table::pace_roll(server, who.client)?;
     let drawn = draw(
         ask,
         who.name,
@@ -206,6 +238,9 @@ pub fn oracle(
     if drawn.kind == "question" {
         super::readers::oracle(server, &r, who.client, &heard);
     }
+    let open_to_readers = drawn.kind == "question" || super::readers::no_shadow(&r);
+    drop(r);
+    crate::table::note_oracle(server, who, key, path, &drawn, !open_to_readers);
     Ok(drawn)
 }
 

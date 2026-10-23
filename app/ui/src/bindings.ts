@@ -494,8 +494,8 @@ export const commands = {
 	/**
 	 *  The menus of the in-window menu of Windows and Linux, in the window's
 	 *  language (`menu_spec::window_menu`): the same menus as the Mac bar,
-	 *  from the same data. The window turns off the rows whose feature is off,
-	 *  greys those the palette cannot run, and writes the keys as bound.
+	 *  from the same data, the rows whose feature is off already left out. The
+	 *  window greys those the palette cannot run and writes the keys as bound.
 	 */
 	menuSections: (language: string, features: string[]) => __TAURI_INVOKE<MenuSection[]>("menu_sections", { language, features }),
 	/**
@@ -546,13 +546,55 @@ export const commands = {
 	 *  it (ADR 0088 item 4): on a server, or a synced folder's link, only;
 	 *  here the window rolls itself.
 	 */
-	collabRoll: (path: string, notation: string, source: string | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source })),
+	collabRoll: (path: string, notation: string, source: string | null, styles: {
+	"1": DiceStyle,
+	"2": DiceStyle,
+	"3": DiceStyle,
+} | null, secret: boolean | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source, styles, secret })),
 	/**
 	 *  An oracle question, spark or table drawn in the note's room by the
 	 *  server, heard by the others in it (ADR 0102 item 5): on a server, or a
 	 *  synced folder's link, only; here the window draws itself.
 	 */
 	collabOracle: (path: string, ask: OracleAsk) => typedError<OracleDraw, ContractError>(__TAURI_INVOKE("collab_oracle", { path, ask })),
+	/**  Join the folder's table. */
+	tableJoin: (color: string | null, styles: {
+	"1": DiceStyle,
+	"2": DiceStyle,
+	"3": DiceStyle,
+} | null) => typedError<TableJoin, ContractError>(__TAURI_INVOKE("table_join", { color, styles })),
+	/**  Leave the folder's table. */
+	tableLeave: () => typedError<null, ContractError>(__TAURI_INVOKE("table_leave")),
+	/**  Change the colour and the dice looks shown in the roster. */
+	tableLook: (color: string | null, styles: {
+	"1": DiceStyle,
+	"2": DiceStyle,
+	"3": DiceStyle,
+} | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_look", { color, styles })),
+	/**  A page of older entries, before the entry numbered `before`. */
+	tableHistory: (before: string | null, limit: number | null) => typedError<TablePage, ContractError>(__TAURI_INVOKE("table_history", { before, limit })),
+	/**  A plain-text message, at most 500 characters. */
+	tableSay: (text: string) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_say", { text })),
+	/**
+	 *  An image (base64) written into the folder's attachments place and
+	 *  shown at the table: not for a reader of the folder.
+	 */
+	tableSendImage: (base64: string) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_send_image", { base64 })),
+	/**  Dice rolled by the server at the table, from no note's room. */
+	tableRoll: (notation: string, source: string | null, path: string | null, secret: boolean | null, styles: {
+	"1": DiceStyle,
+	"2": DiceStyle,
+	"3": DiceStyle,
+} | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_roll", { notation, source, path, secret, styles })),
+	/**  Pin or unpin an entry, for everyone at the table. */
+	tablePin: (id: string, pinned: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("table_pin", { id, pinned })),
+	/**  Delete a message or an image: its author, or an owner. */
+	tableDelete: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("table_delete", { id })),
+	/**
+	 *  Clear the table: an owner only; `keep_pinned` (default true) keeps the
+	 *  pinned entries.
+	 */
+	tableClear: (keepPinned: boolean | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_clear", { keepPinned })),
 	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
@@ -1362,6 +1404,35 @@ export type DiceRoll = {
 	by: string,
 	/**  When, RFC 3339 in UTC. */
 	at: string,
+	/**
+	 *  The roller's dice appearance, as the window sent it and the server
+	 *  checked it (ADR 0107 item 11); none when the window rolled alone or
+	 *  sent none.
+	 */
+	styles?: DiceStyles | null,
+};
+
+/**
+ *  One of a person's dice looks (ADR 0101, ADR 0107 item 11): colours as
+ *  `#rrggbb`, a texture and a material from the fixed lists, nothing
+ *  else — never a URL or a file. The server checks the closed form and
+ *  refuses the rest; `app` makes the colours follow the viewer's palette
+ *  (the "Do Verso" preset).
+ */
+export type DiceStyle = {
+	body: string,
+	number: string,
+	outline: string,
+	texture: string,
+	material: string,
+	app?: boolean | null,
+};
+
+/**  A person's dice: a style for each of the three colour slots. */
+export type DiceStyles = {
+	"1": DiceStyle,
+	"2": DiceStyle,
+	"3": DiceStyle,
 };
 
 /**
@@ -3009,6 +3080,87 @@ export type SyncVersions = {
 	app_version: string,
 	app_build: string,
 	app_contract: string,
+};
+
+/**
+ *  The table cleared (event `table-cleared`); `keep_pinned` says whether
+ *  the pinned entries stayed.
+ */
+export type TableCleared = {
+	keep_pinned: boolean,
+};
+
+/**
+ *  One entry of the table, as a window may see it. `kind` is `roll`
+ *  (`roll` set, also a random table's: `roll.source`), `oracle` (`draw`
+ *  set), `say` (`text` set), `image` (`image` set: the file's path in the
+ *  folder) or `secret` ("<name> rolled in secret": nothing else set).
+ */
+export type TableEntry = {
+	/**
+	 *  The server's number for it: decimal digits, growing; the cursor of
+	 *  `table_history`.
+	 */
+	id: string,
+	kind: string,
+	/**  The author's name, stamped by the server. */
+	by: string,
+	/**  The author's account, opaque: `TableJoin.you` is the window's own. */
+	by_id: string,
+	/**  When, RFC 3339 in UTC, the server's clock. */
+	at: string,
+	/**  The note it was made from, relative to the folder. */
+	path: string | null,
+	pinned: boolean,
+	/**
+	 *  A roll "to the owner": shown in full to its roller and the folder's
+	 *  owners only.
+	 */
+	secret: boolean,
+	roll: DiceRoll | null,
+	draw: OracleDraw | null,
+	text: string | null,
+	image: string | null,
+};
+
+/**
+ *  What `table_join` answers: who the window is, its role, the latest
+ *  entries with every pinned one (oldest first), whether older ones
+ *  exist, and who is at the table.
+ */
+export type TableJoin = {
+	you: string,
+	/**  `owner`, `editor` or `reader`. */
+	role: string,
+	entries: TableEntry[],
+	more: boolean,
+	roster: TableMember[],
+};
+
+/**  Who is at the table: one per account, however many windows. */
+export type TableMember = {
+	name: string,
+	by_id: string,
+	/**  The presence colour, `#rrggbb`. */
+	color: string,
+	styles: DiceStyles | null,
+};
+
+/**  A page of older entries (`table_history`), oldest first. */
+export type TablePage = {
+	entries: TableEntry[],
+	more: boolean,
+};
+
+/**  An entry pinned or unpinned (event `table-pinned`). */
+export type TablePinned = {
+	id: string,
+	pinned: boolean,
+};
+
+/**  An entry deleted (event `table-removed`). */
+export type TableRemoved = {
+	id: string,
 };
 
 /**  A tag and the notes that carry it. */

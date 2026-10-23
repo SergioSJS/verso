@@ -295,6 +295,7 @@ pub fn roll(
         total,
         by: by.to_owned(),
         at: at.to_owned(),
+        styles: None,
     })
 }
 

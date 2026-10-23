@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-look"
+description = "Enables the table_look command without any pre-configured scope."
+commands.allow = ["table_look"]
+
+[[permission]]
+identifier = "deny-table-look"
+description = "Denies the table_look command without any pre-configured scope."
+commands.deny = ["table_look"]
