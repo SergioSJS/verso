@@ -97,6 +97,8 @@ test release.
 
 ### Fixed
 
+- **A reader's board and a note's dice**: a board a player had open now updates when the game master changes it (the server tells readers when a board's room saves, as it already did for notes), instead of only after closing and opening it; a reader no longer sees the *saved by a newer Verso* notice, and gets the viewer without the drawing toolbar from the first frame in the desktop app too; and when a note has two dice with the same notation, the result appears only next to the one that was clicked, in Reading, Live Preview and board cards.
+
 - **The right panel's nine tabs fit its width**: with the Table tab added, the strip of tabs pushed the last one past the window's edge; the tabs now narrow together. In Live Preview, ↑ and ↓ no longer step over a blank line drawn as a thin gap: the caret lands on it.
 - **The board's right-click menu is tidy**: the check of a toggle (*Arrow binding*, *Midpoint snapping*) no longer sits over the first letter of the label — it has its own column; an item without a shortcut no longer shows an empty grey key; the shortcuts line up at the right edge and the menu follows the theme. In Portuguese, *Atalho de flecha* now reads **Ligar setas às formas** and *Encaixar em pontos intermediários* reads **Encaixar no meio das bordas**.
 - **Dice in a note shown on a board**: a board's file card that shows a note with `dice:` codes now draws them as dice, which roll in place like in the note (button, result, 3D dice and sound), without writing the note or the board.
