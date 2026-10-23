@@ -18,7 +18,8 @@ import { h, ui } from "./dom";
 import { told } from "./errors";
 import { icon } from "./icons";
 import type { MenuItem } from "./menu";
-import { mayShare } from "./shares";
+import { reachOf, type Reach, type SyncDetail } from "./table/reach";
+import { loadShares, mayShare } from "./shares";
 
 const NONE: CampaignStatus = { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
 let status: CampaignStatus = NONE;
@@ -234,3 +235,15 @@ export function campaignRootItems(): MenuItem[] {
 export function hearCampaign(): void {
   void listen<CampaignChanged>("campaign-changed", () => void loadCampaign());
 }
+
+/** A synced folder's link goes up or down, its sync pauses or resumes: the
+ *  owner's rows exist only while the server is reached (ADR 0107 item 9),
+ *  so who the window is, and the tables, are asked again. */
+let reach: Reach = "none";
+addEventListener("verso:sync-state", (e) => {
+  const next = reachOf((e as CustomEvent<SyncDetail>).detail);
+  const before = reach;
+  reach = next;
+  if (before === next) return;
+  void loadShares().then(() => loadCampaign());
+});

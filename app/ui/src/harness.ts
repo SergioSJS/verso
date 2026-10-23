@@ -124,6 +124,28 @@ if (onServer)
 // here when a test says it is up; `?table=owner` and `?table=player` start
 // with it up, for the game master and for a player.
 const campaign = new Campaign(core);
+// A synced folder's table and campaign are the server's while the sync's
+// link is up (ADR 0107 item 9): reached over the link the rooms play, and
+// unavailable with it down, as the host answers; the status says "none".
+const link = (): boolean | null => (core.sync.on && rooms ? rooms.up : null);
+if (table) table.linked = link;
+campaign.linked = link;
+for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite"]) {
+  const own = core.handlers[cmd];
+  if (!own) continue;
+  core.handlers[cmd] = (a) => {
+    if (link() === false) {
+      if (cmd === "campaign_status") return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
+      if (cmd === "table_leave") return null;
+      throw { kind: "unavailable", message: "the folder's sync is not connected: the table is the server's" };
+    }
+    return own(a);
+  };
+}
+// The owner of a synced folder reaches the server's shares while its link is
+// up: the game master's rows of the menu are the owner's (ADR 0081).
+const sharesOwn = core.handlers["share_list"]!;
+core.handlers["share_list"] = (a) => (core.sync.on && core.sync.role === "owner" && rooms?.up ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;

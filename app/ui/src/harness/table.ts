@@ -71,8 +71,12 @@ export class Table {
   /** The folder's table is up: the folder is a server's. Saying so makes the
    *  window try to join, as it does when a folder is shown. */
   get up(): boolean {
-    return this.isUp;
+    return this.linked() ?? this.isUp;
   }
+  /** A synced folder (ADR 0107 item 9): the table is the server's while the
+   *  sync's link is up (`true`), none while it is down (`false`); `null`
+   *  for a folder that does not sync, where `up` says. */
+  linked: () => boolean | null = () => null;
   set up(value: boolean) {
     this.isUp = value;
     dispatchEvent(new Event("verso:table-retry"));

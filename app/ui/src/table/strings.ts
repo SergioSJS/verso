@@ -12,6 +12,9 @@ type Words = {
   empty: string;
   emptyOff: string;
   notShared: string;
+  /** A synced folder whose link is down, or whose sync is paused (ADR 0107 item 9). */
+  syncOffline: string;
+  syncPaused: string;
   you: string;
   log: string;
   entryLabel: (who: string, said: string) => string;
@@ -97,6 +100,8 @@ const pt: Words = {
   empty: "Ninguém rolou nada ainda. Role um dado numa nota, num cartão do quadro ou pelo comando \"Rolar dados…\" e ele aparece aqui.",
   emptyOff: "Nada para mostrar: você ocultou o que havia. Role de novo ou desfaça.",
   notShared: "Só as suas rolagens e as que você ouve nas notas compartilhadas desta sessão. Não é compartilhado nem guardado.",
+  syncOffline: "Mesa indisponível sem conexão. As rolagens feitas agora ficam só aqui, sem compartilhar; a mesa volta quando a conexão voltar.",
+  syncPaused: "Mesa indisponível com a sincronização pausada. As rolagens feitas agora ficam só aqui, sem compartilhar.",
   you: "Você",
   log: "Rolagens da mesa",
   entryLabel: (who, said) => `${who}: ${said}`,
@@ -181,6 +186,8 @@ const en: Words = {
   empty: "Nobody has rolled yet. Roll a die in a note, on a board card or with the \"Roll dice…\" command and it shows up here.",
   emptyOff: "Nothing to show: you hid what was here. Roll again or undo.",
   notShared: "Only your rolls and the ones you hear in shared notes this session. It is not shared and not kept.",
+  syncOffline: "Table unavailable while offline. Rolls made now stay here, not shared; the table comes back when the connection does.",
+  syncPaused: "Table unavailable while sync is paused. Rolls made now stay here, not shared.",
   you: "You",
   log: "Table rolls",
   entryLabel: (who, said) => `${who}: ${said}`,

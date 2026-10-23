@@ -1312,6 +1312,8 @@ mod tests_dns_tls;
 #[cfg(test)]
 mod tests_live;
 #[cfg(test)]
+mod tests_live_table;
+#[cfg(test)]
 mod tests_local;
 #[cfg(test)]
 mod tests_notify;

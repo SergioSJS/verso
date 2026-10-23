@@ -369,3 +369,38 @@ Tried: `tests_campaign.rs` (20 tests, with the generated-notes property that no
 path, heading or id reaches a player), `campaign_text.rs`'s unit tests (the
 same property over 500 generated notes), the window's `test/campaign.test.mjs`
 and `e2e/campaign.spec.mjs` in Chromium and WebKit (Docker).
+
+## As built (a synced folder, 2026-10-23)
+
+Branch `feat/table-in-synced-folder`. The campaign's controls ran only "from a
+window on the folder itself" (the phase 1 section above), and a folder of this
+computer that syncs with a UniVerso is such a window's own folder: the game
+master on the desktop with a synced folder. The nine commands
+(`campaign_status`, `campaign_make`, `campaign_unmake`, `campaign_settings`,
+`campaign_release`, `campaign_release_all`, `campaign_secret_name`,
+`campaign_grant`, `campaign_invite`) are now answered in that window by the
+sync's connection (`app/src-tauri/src/sync/live.rs`, the same plumbing as the
+table's, [0107](0107-the-table-a-shared-roll-and-chat-log.md) "As built (a
+synced folder)"), and the event `campaign-changed` the server tells that
+connection reaches the windows that asked the status.
+
+- **What the server does.** Nothing new: the device session's connection is
+  the folder's owner's, runs the same checks (`game_master`: the owner, on the
+  folder itself, never through a share, never a phone, a credential that
+  writes), and acts on the server folder the sync opened, with paths relative
+  to it and the same confinement (`root_arg`: no `..`, no absolute path, nothing
+  hidden). `tests_live_table.rs` tries a reader synced to the folder refused
+  at every control, the owner making, releasing, granting, closing and undoing
+  a table, and paths that leave the folder refused.
+- **The invitation** asks the proof first as on the server's own folder
+  (ADR 0083 item 6): the device's session is proved by `server_prove`, which
+  stamps that session; tried with the device token.
+- **Offline.** The window's controls exist while the server is reached: with
+  the link down or the sync paused the status is "none" (not an error), the
+  rows of the game master's menu are not offered, and the window asks the shares
+  and the status again when the state changes back.
+- **Chosen in the code, for the maintainer to confirm.** (1) The rows are the
+  owner's of a synced folder, as `share_list` says (the shares are asked of the
+  server with the device's token, as before). (2) A folder synced from a share
+  has no tables to make, as a window on a share has none.
+
