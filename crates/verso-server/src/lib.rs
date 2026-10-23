@@ -13,6 +13,11 @@ pub mod admin;
 pub mod api;
 pub mod audit;
 pub mod auth;
+pub mod campaign;
+pub mod campaign_cmds;
+pub mod campaign_serve;
+pub mod campaign_sync;
+pub mod campaign_text;
 pub mod collab;
 pub mod collab_board;
 pub mod config;
@@ -51,6 +56,7 @@ pub mod quota;
 pub mod readers;
 pub mod readlinks;
 pub mod rpc;
+mod rpc_collab;
 pub mod scope;
 pub mod security_txt;
 pub mod share_links;
@@ -400,6 +406,8 @@ mod tests_board_rooms;
 mod tests_board_stress;
 #[cfg(test)]
 mod tests_bounds;
+#[cfg(test)]
+mod tests_campaign;
 #[cfg(test)]
 mod tests_console;
 #[cfg(test)]

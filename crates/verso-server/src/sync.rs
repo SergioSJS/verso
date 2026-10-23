@@ -403,10 +403,22 @@ fn record_changes(
     // projection's hash and size, when it holds a secret block — the new
     // and changed ones, and those read again whose bytes did not change.
     let mut readers = crate::db::ReaderOf::new();
+    // A table's veil is made again from the folder as it now is (ADR 0110).
+    crate::campaign::forget(server, folder);
     let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
+    let table = crate::campaign::veil_for_key(server, key);
     for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
         if let Some(r) = crate::readers::reader_of(server, key, path)? {
             readers.insert(path.clone(), r);
+        }
+    }
+    // A file of a table that a reader is told of is explicit in the log:
+    // what was told and what was never are then two different things.
+    if let Some(v) = &table {
+        for (path, hash, size, _) in &created {
+            if v.in_table(path) && !readers.contains_key(path) {
+                readers.insert(path.clone(), (hash.clone(), *size));
+            }
         }
     }
     // A file gone and one new of the same bytes: a rename, kept as the
@@ -457,6 +469,15 @@ fn record_changes(
             .flat_map(|((path, _, from), _)| std::iter::once(path.as_str()).chain(from.as_deref()))
             .collect();
         crate::readers::push_sync_changed(server, folder, (head, &paths), &seen);
+        // A note of a table edited may open or close the attachments it
+        // links: a reader is told of those again (ADR 0110 item 4).
+        if crate::campaign::veil_of(server, folder).is_some_and(|v| {
+            paths
+                .iter()
+                .any(|p| crate::campaign::note_like(p) && v.in_table(p))
+        }) {
+            crate::campaign_sync::refresh_readers(server, folder, key, true);
+        }
     }
     Ok(head)
 }
@@ -559,7 +580,12 @@ pub async fn command(
         .as_ref()
         .map_or_else(|| folder.clone(), |s| s.share.clone());
     let writes = role.writes() && who.reaches(&visible).1;
-    if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") && !writes {
+    // A note a table's game master granted to the whole group is put by a
+    // player's device like a writer's (ADR 0110 item 5).
+    let granted = !writes
+        && who.reaches(&visible).1
+        && crate::campaign::group_put(server, who, &folder, scope.as_ref(), cmd, &args);
+    if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") && !writes && !granted {
         return Err(refused("you may only read this folder"));
     }
     // A share synced to a folder of the receiver's computer (ADR 0081
@@ -747,6 +773,12 @@ pub(crate) async fn command_in(
             "sync_read" if reader => {
                 let named: String = arg(&args, "path")?;
                 let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
+                // A table's hidden file is not there for a player (ADR 0110).
+                if crate::campaign_serve::is_hidden(&s, &key, &path)
+                    || crate::campaign_serve::is_hidden(&s, &key, &named)
+                {
+                    return Err(refused("not found"));
+                }
                 let note = crate::readers::is_served(&named)
                     || crate::readers::is_served(&path)
                     || s.service

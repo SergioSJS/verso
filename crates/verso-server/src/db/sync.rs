@@ -23,6 +23,10 @@ pub struct Known {
     pub seq: i64,
 }
 
+/// A manifest row with what a reader is told of it: the file's hash and
+/// size, the reader's hash and size when kept, and the quick key.
+pub type ManifestRow = (String, i64, Option<String>, Option<i64>, String);
+
 /// One change of a folder's log as the console shows it: who made it.
 #[derive(Debug, Clone)]
 pub struct Made {
@@ -170,18 +174,25 @@ impl Db {
                     let reader = readers.get(path);
                     // What a reader held of the path, and holds now: the
                     // same, and not moved, is no change for a reader.
-                    let before: Option<String> = tx
+                    let (before, before_hidden): (Option<String>, bool) = tx
                         .query_row(
-                            "SELECT COALESCE(reader_hash, hash) FROM manifest WHERE folder = ?1 AND path = ?2",
+                            "SELECT COALESCE(reader_hash, hash), COALESCE(reader_size, size) < 0 FROM manifest WHERE folder = ?1 AND path = ?2",
                             params![folder, path],
-                            |r| r.get(0),
+                            |r| Ok((Some(r.get(0)?), r.get(1)?)),
                         )
                         .optional()
-                        .map_err(e)?;
+                        .map_err(e)?
+                        .unwrap_or((None, true));
                     let shown = reader.map_or(hash, |(h, _)| h);
-                    // A note not served to a reader is none of its changes.
+                    // A note not served to a reader is none of its changes:
+                    // unless it was served before — a note a table hides
+                    // again (ADR 0110) — and the device must let it go.
                     let hidden = reader.is_some_and(|(_, s)| *s < 0);
-                    let same = hidden || (renamed_from.is_none() && before.as_ref() == Some(shown));
+                    let same = if hidden {
+                        before_hidden
+                    } else {
+                        renamed_from.is_none() && before.as_ref() == Some(shown)
+                    };
                     same_for_reader.push(same);
                     let (rh, rs) = (reader.map(|r| &r.0), reader.map(|r| r.1));
                     tx.execute(
@@ -197,15 +208,27 @@ impl Db {
                     .map_err(e)?;
                 }
                 None => {
-                    same_for_reader.push(false);
+                    // A file a reader was never told of (a table's hidden
+                    // note, ADR 0110) is gone for it without a word: its
+                    // name is not in the reader's log.
+                    let unseen: bool = tx
+                        .query_row(
+                            "SELECT COALESCE(reader_size, size) < 0 FROM manifest WHERE folder = ?1 AND path = ?2",
+                            params![folder, path],
+                            |r| r.get(0),
+                        )
+                        .optional()
+                        .map_err(e)?
+                        .unwrap_or(false);
+                    same_for_reader.push(unseen);
                     tx.execute(
                         "DELETE FROM manifest WHERE folder = ?1 AND path = ?2",
                         params![folder, path],
                     )
                     .map_err(e)?;
                     tx.execute(
-                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device) VALUES (?1, ?2, ?3, NULL, 0, 1, NULL, ?4, ?5, ?6)",
-                        params![folder, seq, path, actor, at, device],
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device, reader_same) VALUES (?1, ?2, ?3, NULL, 0, 1, NULL, ?4, ?5, ?6, ?7)",
+                        params![folder, seq, path, actor, at, device, unseen],
                     )
                     .map_err(e)?;
                 }
@@ -244,6 +267,50 @@ impl Db {
             .map_err(e)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(e)
+    }
+
+    /// What each path of the folder's manifest holds for a reader besides
+    /// the file's own: its hash and size, when they differ (ADR 0087, ADR
+    /// 0110).
+    pub fn manifest_readers(&self, folder: &str) -> R<HashMap<String, ManifestRow>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT path, hash, size, reader_hash, reader_size, quick FROM manifest WHERE folder = ?1",
+            )
+            .map_err(e)?;
+        let rows = st
+            .query_map([folder], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    (r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?),
+                ))
+            })
+            .map_err(e)?
+            .collect::<rusqlite::Result<HashMap<_, _>>>()
+            .map_err(e)?;
+        Ok(rows)
+    }
+
+    /// `paths` are hidden from readers from now on and were never told to
+    /// the people who read them as a table's (ADR 0110): the manifest says
+    /// so, and no change of the log before this one names them to a reader.
+    pub fn reader_silence(&self, folder: &str, paths: &[String]) -> R<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        for p in paths {
+            tx.execute(
+                "UPDATE manifest SET reader_hash = '', reader_size = -1 WHERE folder = ?1 AND path = ?2",
+                params![folder, p],
+            )
+            .map_err(e)?;
+            tx.execute(
+                "UPDATE changes SET reader_same = 1 WHERE folder = ?1 AND (path = ?2 OR renamed_from = ?2)",
+                params![folder, p],
+            )
+            .map_err(e)?;
+        }
+        tx.commit().map_err(e)
     }
 
     /// The last change a reader sees: one only inside a secret block is
@@ -294,8 +361,10 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT c.seq, c.path, CASE WHEN c.deleted = 1 THEN NULL ELSE COALESCE(c.reader_hash, c.hash) END,
-                        COALESCE(c.reader_size, c.size), c.deleted, c.renamed_from, c.device,
+                "SELECT c.seq, c.path,
+                        CASE WHEN c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0 THEN NULL ELSE COALESCE(c.reader_hash, c.hash) END,
+                        CASE WHEN COALESCE(c.reader_size, 0) < 0 THEN 0 ELSE COALESCE(c.reader_size, c.size) END,
+                        (c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0), c.renamed_from, c.device,
                         COALESCE(NULLIF(a.name, ''), a.email)
                  FROM changes c LEFT JOIN accounts a ON a.id = c.actor
                  WHERE c.folder = ?1 AND c.seq > ?2 AND c.reader_same = 0 ORDER BY c.seq LIMIT ?3",

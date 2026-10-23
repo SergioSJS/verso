@@ -7,7 +7,8 @@
 //! pins beside it. Not a cache: nothing rebuilds it. No file of the
 //! folder is written for it. The one bound is [`ROWS_MOST`] per folder,
 //! the oldest unpinned going first, so that a member's program cannot fill
-//! the host's disk with messages.
+//! the host's disk with messages. A table's owner may set the ceiling
+//! (`campaigns.log_max`, ADR 0110); `ROWS_MOST` is the default.
 
 use rusqlite::{OptionalExtension, params};
 
@@ -100,11 +101,22 @@ impl Db {
                 |r| r.get(0),
             )
             .map_err(e)?;
-        if held > ROWS_MOST {
+        // The ceiling is the table's own when its owner set one
+        // (ADR 0110, MS.1): the folder's shortest-rooted table.
+        let most: i64 = tx
+            .query_row(
+                "SELECT log_max FROM campaigns WHERE folder = ?1 ORDER BY length(root) LIMIT 1",
+                [folder],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)?
+            .unwrap_or(ROWS_MOST);
+        if held > most {
             tx.execute(
                 "DELETE FROM table_log WHERE id IN (
                    SELECT id FROM table_log WHERE folder = ?1 AND pinned = 0 ORDER BY id LIMIT ?2)",
-                params![folder, held - ROWS_MOST],
+                params![folder, held - most],
             )
             .map_err(e)?;
         }
@@ -208,6 +220,25 @@ impl Db {
                 params![folder, i64::from(keep_pinned)],
             )
             .map_err(e)
+    }
+
+    /// The paths of the images the folder's table holds: files the table
+    /// shows to everyone at it (ADR 0110 item 4).
+    pub fn table_images(&self, folder: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT body FROM table_log WHERE folder = ?1 AND kind = 'image'")
+            .map_err(e)?;
+        let bodies = st
+            .query_map([folder], |r| r.get::<_, String>(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)?;
+        Ok(bodies
+            .iter()
+            .filter_map(|b| serde_json::from_str::<serde_json::Value>(b).ok())
+            .filter_map(|v| v["image"].as_str().map(str::to_owned))
+            .collect())
     }
 
     /// How many entries the folder's log holds.
