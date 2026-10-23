@@ -41,6 +41,7 @@ export const NAMES = {
   "28 - Dados Estruturados como Diagrama.md": "28 - Structured Data as a Diagram.md",
   "29 - Sincronizar com uma Nuvem.md": "29 - Syncing with a Cloud.md",
   "30 - Amostras de Cor.md": "30 - Colour Swatches.md",
+  "31 - A Mesa.md": "31 - The Table.md",
   "Tour do Verso.canvas": "Verso Tour.canvas",
   "Treino do Board.canvas": "Board Training.canvas",
   "Board de Demonstração.canvas": "Demo Board.canvas",

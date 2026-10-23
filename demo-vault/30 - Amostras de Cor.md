@@ -48,4 +48,4 @@ Em **Ajustes › Aplicação › Recursos**, a chave **Amostras de cor** tira to
 
 ---
 
-Volte a [[29 - Sincronizar com uma Nuvem]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[31 - A Mesa]], volte a [[29 - Sincronizar com uma Nuvem]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].

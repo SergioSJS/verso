@@ -1482,7 +1482,48 @@ demonstração ([ADR 0108](../adr/0108-colour-swatches-for-colour-codes.md)).
    nenhum quadradinho em lugar nenhum, nenhum arquivo mudou. Ligado: voltam.
    Nível: H; E: `swatches.spec.mjs`.
 
-## 17. O fim
+## 17. A mesa (nota 31)
+
+Abra a nota 31 (*A Mesa*) numa pasta que tem o conteúdo da demonstração
+([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md), fase 1).
+
+1. Abra o painel da direita, aba *Mesa*: vazia, com a linha que diz que é
+   desta janela e não é guardada. Role `dice: 1d20+3` na nota, o `dice:` de
+   uma tabela e o *Rolar dados…* da paleta: três linhas, a mais antiga
+   primeiro, cada uma com *Você*, a hora, a nota (um link que a abre; o
+   rolador não tem), a notação, um quadradinho por dado e o total. A nota em
+   disco está como estava. Nível: H; E: `table.spec.mjs`; U:
+   `test/tableLog.test.mjs`.
+2. Num board, um `dice:` num cartão de texto rola em repouso: uma linha com o
+   nome do board. Nível: H; E: `table.spec.mjs`.
+3. Numa nota compartilhada (um UniVerso), outra pessoa rola: com o painel
+   fechado, a aba *Mesa*, os botões do painel da direita e o *Painel* do
+   celular mostram uma contagem; abra: a contagem some, a linha tem o nome
+   dela, um leitor de tela diz "Bia rolou: …" uma vez (a região do próprio
+   painel; a da nota fica quieta). As rolagens que a sala guardava quando a
+   nota foi aberta estão lá, sem contar. Nível: H (a sala é a do harness); E:
+   `table.spec.mjs`. À mão num servidor de verdade: duas janelas,
+   `manual-checks.md`.
+4. *Ocultar daqui pra trás* esvazia a lista só nesta janela, *Mostrar de
+   volta* a traz de volta; uma rolagem feita depois de ocultar aparece.
+   Nível: H; E: `table.spec.mjs`.
+5. *Adicionar à nota…* numa linha: escolha uma nota, leia a frase que será
+   gravada, *Cancelar* não grava nada, *Adicionar* acrescenta uma linha depois
+   de uma em branco (quem, hora, link da nota, notação e total); uma nota que
+   mudou nesse meio-tempo é recusada. Nível: H; E: `table.spec.mjs`.
+6. Uma rolagem ouvida com os dados de quem rolou (`styles`) desenha os
+   quadradinhos neles; um estilo malformado cai no padrão, campo a campo. Com
+   os dados 3D ligados, uma rolagem da sala cai em 3D; com *Mostrar em 3D as
+   rolagens dos outros* desligado, não cai. Nível: H; E: `table.spec.mjs`.
+   Cair nos dados de quem rolou espera o servidor mandá-los (fase 2).
+7. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* › *Mesa* desligada: sem aba,
+   sem botão, sem contagem; os dados rolam como antes. Ligada: de volta.
+   Nível: H; E: `table.spec.mjs`.
+8. Na largura de um celular, *Painel* › *Mesa* abre uma folha vinda de baixo,
+   apoiada na barra de baixo, que nunca rola a página para o lado; o botão de
+   adicionar tem ao menos 32 px. Nível: H; E: `table.spec.mjs` (`@layout`).
+
+## 18. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

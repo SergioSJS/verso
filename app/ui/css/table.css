@@ -1,0 +1,52 @@
+/* The table (ADR 0107): the log of rolls beside the notes. */
+.table-view { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: .35rem; font-family: var(--ui); }
+.right-body:has(> .table-view) { padding-bottom: .5rem; overflow: hidden; }
+.table-bar { display: flex; align-items: center; justify-content: flex-end; gap: .4rem; }
+.table-hide, .table-unhide { font-size: .8rem; color: var(--ink-2); padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 5px; min-height: 1.8rem; }
+.table-unhide { color: var(--seal); text-decoration: underline; border: 0; padding: 0 .2rem; min-height: 0; }
+.table-hide:disabled { opacity: .5; cursor: default; }
+.table-note, .table-hidden { margin: 0; font-size: .75rem; color: var(--ink-3); line-height: 1.35; }
+.table-log { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+.table-empty { color: var(--ink-3); font-size: .85rem; padding: .6rem .2rem; line-height: 1.4; }
+.table-entry { position: relative; padding: .4rem 2rem .4rem .55rem; border: 1px solid var(--hair); border-radius: 7px; background: var(--paper); font-size: .85rem; }
+.table-entry.mine { background: var(--seal-wash); border-color: color-mix(in oklch, var(--seal) 30%, var(--hair)); }
+.table-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; color: var(--ink-3); font-size: .72rem; }
+.table-who { font-weight: 600; color: var(--ink-2); }
+.table-where { color: var(--seal); text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--seal) 40%, transparent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-size: .72rem; }
+.table-where.plain { color: var(--ink-3); text-decoration: none; }
+.table-body { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .45rem; margin-top: .2rem; }
+.table-notation { font-family: var(--mono); color: var(--ink-2); font-size: .8rem; }
+.table-dice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
+.table-die { display: inline-block; min-width: 1.5em; text-align: center; font: 700 .78rem/1.5 system-ui, sans-serif; border: 1px solid var(--seal); border-radius: 5px; padding: 0 .25em; background: var(--seal); color: var(--paper); }
+.table-die.dropped { opacity: .5; border-style: dashed; background: transparent; color: var(--ink-3); border-color: var(--ink-3); }
+.table-op { color: var(--ink-3); font-size: .8rem; }
+.table-total { font-size: 1.05rem; color: var(--ink); }
+.table-total::before { content: "= "; color: var(--ink-3); font-weight: 400; }
+.table-row, .table-label { color: var(--ink-2); }
+.table-label { font-weight: 600; }
+.table-roll { color: var(--ink-3); font-family: var(--mono); font-size: .75rem; }
+.table-add { position: absolute; top: .25rem; right: .25rem; width: 1.7rem; height: 1.7rem; min-width: 1.7rem; opacity: .55; }
+.table-entry:hover .table-add, .table-add:focus-visible { opacity: 1; }
+.table-to-end { align-self: center; font-size: .75rem; color: var(--seal); padding: .15rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); }
+/* The unread count: on the Mesa tab and on the buttons that open the right panel. */
+body[data-table-unread] .right-tab[data-tab="table"],
+body[data-table-unread] #toggle-right,
+body[data-table-unread] .bar-right,
+body[data-table-unread] .ribbon-item[data-id="right"] { position: relative; }
+body[data-table-unread] .right-tab[data-tab="table"]::after,
+body[data-table-unread] #toggle-right::after,
+body[data-table-unread] .bar-right::after,
+body[data-table-unread] .ribbon-item[data-id="right"]::after {
+  content: var(--table-unread);
+  position: absolute; top: -.1rem; right: -.1rem; min-width: 1.05rem; height: 1.05rem; padding: 0 .25rem; box-sizing: border-box;
+  border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .65rem/1.05rem var(--ui); text-align: center; pointer-events: none;
+}
+/* The phone: the panel's Mesa tab is a sheet from the bottom (ADR 0107 item 10). */
+@media (max-width: 760px) {
+  body[data-right-tab="table"] aside.right { top: auto; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: min(70vh, 600px); transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body.right-open[data-right-tab="table"] aside.right { transform: none; }
+  .table-entry { padding-right: 2.4rem; }
+  .table-add { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
+  .table-hide, .table-unhide { min-height: 2.2rem; }
+  .table-to-end { min-height: 2.2rem; }
+}
