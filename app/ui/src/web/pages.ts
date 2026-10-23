@@ -17,6 +17,7 @@ import { o } from "./offline/strings";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
 import { plainHttpLine } from "./plainHttp";
+import { signInJoin, signedInJoin } from "./inviteJoin";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -136,7 +137,7 @@ export function setupPage(): void {
   email.input.focus();
 }
 
-export async function invitePage(token: string): Promise<void> {
+export async function invitePage(token: string, account: Account | null = null): Promise<void> {
   const s = w();
   let offer: { email: string | null; folder: string | null; role: string | null };
   try {
@@ -165,14 +166,23 @@ export async function invitePage(token: string): Promise<void> {
       });
       location.href = "/";
     },
-    explain,
+    (e) => (e instanceof ApiError && e.code === "exists" ? s.inviteExists : explain(e)),
   );
+  const folderLine = offer.folder && offer.role ? el("p", { class: "web-lead" }, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span");
+  // Signed in: one button as themselves. Not: sign in and accept, or make
+  // an account (the e-mail of an invitation names the account).
+  if (account) {
+    page(s.inviteTitle, lead(s.inviteLead), folderLine, signedInJoin(token, offer, account));
+    return;
+  }
   page(
     s.inviteTitle,
     lead(s.inviteLead),
     plainHttpLine(s.plainHttpSignIn) ?? el("span"),
-    offer.folder && offer.role ? el("p", { class: "web-lead" }, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span"),
-    f.form,
+    folderLine,
+    signInJoin(token, offer),
+    divider(s.orDivider),
+    el("div", { class: "web-block" }, el("h2", { class: "web-subtitle" }, s.inviteCreateTitle), f.form),
   );
 }
 

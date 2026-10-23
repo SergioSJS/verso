@@ -70,7 +70,11 @@ do autor.
    Transformar uma pasta em mesa oferece um link de convite
    ([0081](0081-sharing-between-people-on-one-universo.md), convites); o
    jogador que aceita vê só aquela pasta — nada acima nem ao lado (o
-   reenraizamento do compartilhamento da 0081). `[PROPOSED]` Os jogadores
+   reenraizamento do compartilhamento da 0081). 2026-10-23: o jogador que já
+   tem conta no servidor (de outra mesa) aceita o link com essa conta, já
+   dentro ou entrando na página do convite
+   ([0074](0074-accounts-and-access-on-the-server.md) item 4); sem segunda
+   conta. `[PROPOSED]` Os jogadores
    entram como leitores por padrão; a edição por nota é o item 5.
 
 3. **Aberta ou fechada.** `[DECIDED]` O mestre define a mesa como aberta ou

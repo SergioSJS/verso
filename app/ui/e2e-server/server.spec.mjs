@@ -176,7 +176,7 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const readerErrors = watch(reader);
   await reader.goto(link);
   await expect(reader.getByRole("heading", { name: "Convite" })).toBeVisible();
-  await expect(reader.getByLabel("E-mail")).toHaveValue(email);
+  await expect(reader.locator("form", { hasText: "Senha nova" }).getByLabel("E-mail")).toHaveValue(email);
   await reader.getByLabel("Nome").fill("Leitor");
   await reader.getByLabel("Senha nova").fill("a senha do leitor");
   await reader.getByRole("button", { name: "Criar conta" }).click();

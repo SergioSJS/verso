@@ -344,7 +344,7 @@ pub async fn accept(
             return Err(ApiError::new(
                 StatusCode::CONFLICT,
                 "exists",
-                "an account has this e-mail: sign in",
+                "an account has this e-mail: sign in on this page and accept with it",
             ));
         }
         Err(e) => return Err(e.into()),
