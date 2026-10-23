@@ -62,22 +62,32 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    segunda entrada. Toda rolagem depois disso era recusada com "join the table
    first". Corrigido em `1cac0382`, com teste.
 
-### Abertos
+### Abertos, ou corrigidos depois do teste
 
 3. **IMPORTANTE — O board aberto de uma leitora não atualiza ao vivo.** As
    jogadoras só viram os cartões novos do mestre ao reabrir o board, e o board
-   do mestre dizia "ao vivo, só você" com as duas abertas nele. Correção em
-   andamento em `fix/board-reader-live`.
+   do mestre dizia "ao vivo, só você" com as duas abertas nele. **Corrigido
+   depois do teste** em `1ee433a1`: o servidor avisa as leitoras da pasta
+   quando a sala de um board grava o arquivo, e a janela delas o recarrega. As
+   leitoras ainda não aparecem na presença do board: o servidor as deixa fora
+   da sala de um board de propósito ([ADR 0090](../adr/0090-maps-on-the-board.md)
+   item 5, os pinos secretos); mostrá-las pediria mudar essa decisão.
 4. **IMPORTANTE — O resultado de uma rolagem na linha aparece em todo botão
    com a mesma notação.** O arco e a adaga são `1d20+6`; o resultado de um
    apareceu ao lado dos dois, na nota, na visão do mestre e no cartão do board
-   ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). Em andamento no mesmo ramo.
+   ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). **Corrigido depois do teste** em `1ee433a1`
+   para as próprias rolagens e para as vistas da mesma janela: o resultado fica
+   pelo lugar do botão entre os iguais. Uma rolagem ouvida de outra pessoa
+   ainda cai no primeiro botão com aquela notação, porque a rolagem do contrato
+   não leva o lugar; levá-lo é uma mudança de contrato, deixada em aberto.
 5. **MENOR — O board de uma leitora diz "salvo por um Verso mais novo".** O
    aviso de arquivo de versão mais nova aparece em todo board que não pode ser
-   gravado, o de uma leitora inclusive. Em andamento no mesmo ramo.
+   gravado, o de uma leitora inclusive. **Corrigido depois do teste** em
+   `1ee433a1`.
 6. **MENOR — O app do Windows mostra a barra de desenho no board de uma
-   leitora**, onde o navegador não mostra nenhuma; nada é gravado. Em
-   andamento no mesmo ramo.
+   leitora**, onde o navegador não mostra nenhuma; nada é gravado.
+   **Corrigido depois do teste** em `1ee433a1`: o board de uma leitora
+   sincronizada é só de ver desde o primeiro quadro.
 7. **IMPORTANTE — No board, o adesivo não rola.** A ferramenta de nota da
    barra faz um adesivo desenhado, onde `dice:` fica texto simples
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); o board não tem como pôr um cartão de texto Markdown, onde as

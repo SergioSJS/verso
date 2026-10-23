@@ -62,22 +62,31 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    Every roll after it was refused with "join the table first". Fixed in
    `1cac0382`, with a test.
 
-### Open
+### Open, or fixed after the run
 
 3. **IMPORTANT — A reader's open board does not update live.** The players saw
    the game master's new cards only after reopening the board, and the game
-   master's board said "live, only you" while both had it open. A fix is in
-   progress on `fix/board-reader-live`.
+   master's board said "live, only you" while both had it open. **Fixed after
+   the run** in `1ee433a1`: the server tells the folder's readers when a board's
+   room writes its file, and their window reloads it. Readers still do not show
+   on the board's presence: the server keeps them out of a board's room on
+   purpose ([ADR 0090](../adr/0090-maps-on-the-board.md) item 5, the secret
+   pins); showing them would need that decision changed.
 4. **IMPORTANT — An inline roll's result shows on every chip with the same
    notation.** The bow and the dagger both read `1d20+6`; the result of one
    showed beside both, in the note, in the game master's view and on the
-   board card ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). In progress on the same branch.
+   board card ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). **Fixed after the run** in `1ee433a1`
+   for one's own rolls and for views of the same window: the result is kept
+   by the chip's place among the identical ones. A roll heard from another
+   person still lands on the first chip with that notation, because the
+   contract's roll carries no place; carrying it is a contract change, left
+   open.
 5. **MINOR — A reader's board says "saved by a newer Verso".** The notice for a
    file from a newer version is shown for any board that cannot be written,
-   a reader's included. In progress on the same branch.
+   a reader's included. **Fixed after the run** in `1ee433a1`.
 6. **MINOR — The Windows app shows the drawing toolbar on a reader's board**,
-   where the browser shows none; nothing is written. In progress on the same
-   branch.
+   where the browser shows none; nothing is written. **Fixed after the run** in
+   `1ee433a1`: a synced reader's board is a viewer from the first frame.
 7. **IMPORTANT — On the board, the sticky note does not roll.** The toolbar's
    note tool makes a drawn sticky note, where `dice:` stays plain text
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
