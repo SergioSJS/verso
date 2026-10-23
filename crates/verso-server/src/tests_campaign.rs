@@ -331,10 +331,7 @@ fn only_the_owner_makes_a_folder_a_table_and_it_can_be_undone() {
             ["Sessao.md"]
         );
         // The note's file was never touched.
-        assert_eq!(
-            std::fs::read_to_string(r.campanha().join("Sessao.md")).unwrap(),
-            "# Sessao\n"
-        );
+        assert_eq!(r.campanha_text("Sessao.md"), "# Sessao\n");
     });
 }
 

@@ -81,10 +81,7 @@ fn a_grant_lets_a_player_edit_one_note_and_nothing_else() {
             )
             .await;
         assert!(written.get("ok").is_some(), "{written}");
-        assert_eq!(
-            std::fs::read_to_string(m.r.campanha().join("Livre.md")).unwrap(),
-            "Livre da Ana palavrachave\n"
-        );
+        assert_eq!(m.r.campanha_text("Livre.md"), "Livre da Ana palavrachave\n");
         let w = m.bia.call("read_note", json!({ "path": "Livre.md" })).await;
         let denied = m
             .bia
@@ -226,10 +223,7 @@ fn a_note_granted_to_the_group_is_edited_by_every_player_in_every_way() {
         )
         .await;
         assert!(put.get("ok").is_some(), "{put}");
-        assert_eq!(
-            std::fs::read_to_string(m.r.campanha().join("Barão Zq.md")).unwrap(),
-            "do aparelho\n"
-        );
+        assert_eq!(m.r.campanha_text("Barão Zq.md"), "do aparelho\n");
         // Not another note.
         let put = crate::tests_sync::send(&mut m.bia.ws, 910, "Livre.md", b"x\n", None).await;
         assert!(put.get("err").is_some(), "{put}");
