@@ -137,6 +137,11 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 16. **MINOR — After an update the Mac app reopened one of its two windows.**
     The other folder, a synced one, stopped syncing until it was opened
     again; Bruno's edit waited on the server and arrived 5 s after.
+    *Fixed on `fix/reopen-windows`, a64c71b9.* Cause: the window kept one
+    "last folder" key, written by the main window alone, and a window opened
+    later was made to start empty, so only the main window's folder came
+    back. The host now keeps the set of folders the windows show
+    (`open-windows.json`, configuration directory) and reopens each at start.
 
 ## Re-test after the fixes
 

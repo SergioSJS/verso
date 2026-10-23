@@ -20,6 +20,12 @@ in the real app.
 
 ## Not yet checked
 
+### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
+
+- [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.
+- [ ] **A window closed before quitting stays closed** (A): with the two windows, close one by hand, then ⌘Q and start: only the other one comes back. Closing the last window (which quits on Windows and Linux) brings that one back next time. Repeat on Windows.
+- [ ] **A folder that is gone** (A): rename one of the two folders while the app is closed; the start opens the other window and the log says the first is not reopened; no dialog.
+
 ### Sync with a cloud provider (ADR 0104, accepted 2026-10-21; WebDAV and S3 built)
 
 Written ahead of the code. Since 2026-10-21 the WebDAV (Nextcloud) and S3 (AWS, R2, MinIO) checks can be run; the OAuth ones (Dropbox, OneDrive, Google Drive) still cannot. Each needs the installed desktop app and a real account at that provider; nothing here blocks a commit, a merge or a beta. The OAuth providers also wait for the developer accounts the maintainer creates (C.1); WebDAV and S3 come first (C.16). Repeat the list per provider.
