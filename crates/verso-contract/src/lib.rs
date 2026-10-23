@@ -35,6 +35,11 @@ mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod table;
+pub use table::{
+    DiceStyle, DiceStyles, TableCleared, TableEntry, TableJoin, TableMember, TablePage,
+    TablePinned, TableRemoved,
+};
 mod lists;
 pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};
 mod sync;
@@ -710,6 +715,11 @@ pub struct DiceRoll {
     pub by: String,
     /// When, RFC 3339 in UTC.
     pub at: String,
+    /// The roller's dice appearance, as the window sent it and the server
+    /// checked it (ADR 0107 item 11); none when the window rolled alone or
+    /// sent none.
+    #[serde(default)]
+    pub styles: Option<DiceStyles>,
 }
 
 /// One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a

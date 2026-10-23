@@ -219,6 +219,21 @@ fn visible(shown: &str, roll: &verso_contract::DiceRoll) -> bool {
     }
 }
 
+/// Whether the folder's readers may be told of `roll` made in `r`: always,
+/// unless the note holds secret blocks and the roll is not one the
+/// projection shows (`visible`). The table asks it (ADR 0107).
+pub fn roll_is_open(r: &Room, roll: &verso_contract::DiceRoll) -> bool {
+    r.readers
+        .shadow
+        .as_ref()
+        .is_none_or(|shadow| visible(&text_of(shadow), roll))
+}
+
+/// Whether `r` has no secret blocks to keep from its readers.
+pub fn no_shadow(r: &Room) -> bool {
+    r.readers.shadow.is_none()
+}
+
 /// A roll told to the room: also to the readers in the shadow, when it
 /// is not a secret block's (the others heard it already).
 pub fn roll(server: &Server, r: &Room, sender: &str, heard: &CollabRoll) {

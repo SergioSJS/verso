@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-roll"
+description = "Enables the table_roll command without any pre-configured scope."
+commands.allow = ["table_roll"]
+
+[[permission]]
+identifier = "deny-table-roll"
+description = "Denies the table_roll command without any pre-configured scope."
+commands.deny = ["table_roll"]

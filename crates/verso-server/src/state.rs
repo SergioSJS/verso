@@ -358,6 +358,14 @@ pub struct Server {
     /// (`crate::quota`).
     pub reserved: crate::quota::Reserved,
     pub rooms: crate::collab::Rooms,
+    /// The windows at each folder's table (ADR 0107).
+    pub tables: crate::table::Tables,
+    /// The pace of a connection's table messages, images and rolls (ADR
+    /// 0107 item 12).
+    pub table_pace: crate::pace::Pace,
+    /// The pace of a connection's rolls and draws, those of a note's room
+    /// too, which the table keeps: the REST routes' (ADR 0107 item 12).
+    pub roll_pace: crate::pace::Pace,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
     /// Sign-in links sent by e-mail and not used: their hash → the account
@@ -443,6 +451,8 @@ impl Server {
             untrusted_forward: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
             link_pace: crate::pace::Pace::default(),
+            table_pace: crate::pace::Pace::with(crate::table::RATE, crate::table::BURST),
+            roll_pace: crate::pace::Pace::default(),
             links: crate::readlinks::Open::default(),
             requests: crate::listen::Requests::default(),
             inflight: crate::inflight::Inflight::default(),
@@ -456,6 +466,7 @@ impl Server {
             transfers: crate::sync::Transfers::default(),
             reserved: crate::quota::Reserved::default(),
             rooms: crate::collab::Rooms::default(),
+            tables: crate::table::Tables::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
@@ -661,6 +672,7 @@ impl Server {
         for client in clients {
             self.transfers.forget(client);
             crate::collab::gone_now(self, client);
+            crate::table::gone(self, client);
             self.service.release(client);
         }
     }
