@@ -43,7 +43,11 @@ it (Status).
    Recent — opens in a window with no folder if there is one, else in a new
    window; File › Open Folder… and the app's "Open folder" switch the
    folder of the window they are used in. The menu's items act on the
-   window that has the focus.
+   window that has the focus. A folder handed to the running app never
+   closes or replaces a window that shows a folder (a window on a server's
+   folder, or waiting for it, counts as showing one); a folder some window
+   already shows brings that window forward instead of opening another
+   (clarified 2026-10-23, `fix/handed-folder-closes-main`).
 5. **A window's title is its folder's name.**
 6. **What is not changed:** the contract's types; a note popped out to a
    window of its own belongs to the folder it came from; only the main

@@ -20,6 +20,7 @@ app real.
 
 ## Ainda não conferido
 
+- [ ] **Uma pasta aberta pelo Finder com outra janela aberta: as duas ficam** (A): com uma janela mostrando uma pasta, rode `open -a "Verso Beta" <outra pasta>` (ou solte uma pasta no ícone do app); a pasta abre numa janela própria e a primeira janela continua aberta com a sua pasta. Repita com uma pasta já aberta: aquela janela vem para a frente, sem uma terceira. Repita com a primeira janela numa pasta de servidor.
 ### As duas janelas de pasta voltam (ADR 0065 item 7, fix/reopen-windows, 23/10/2026)
 
 - [ ] **Duas janelas, sair, iniciar: as duas voltam** (A): abra duas pastas, cada uma na sua janela (Arquivo › Nova janela, abrir uma pasta); saia com ⌘Q; inicie o app. As duas janelas voltam, cada uma com a sua pasta (uma sincronizada sincroniza de novo; o log diz "reopening 2 window(s) of the last session"). Repita depois de uma atualização por `scripts/install-beta.sh`.
