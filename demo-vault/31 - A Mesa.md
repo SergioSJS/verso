@@ -58,10 +58,34 @@ Em **Ajustes › Notificações**, o tipo **Mesa** avisa de uma mensagem ou rola
 
 ---
 
+## Levar uma rolagem para uma nota
+
+**Arraste** a linha de uma rolagem, de uma tabela sorteada ou de um oráculo do painel da Mesa e **solte sobre o texto de uma nota** (no modo Editar ou na Fonte): um traço mostra onde ela vai cair, e o bloco entra com uma linha em branco de cada lado, **num único passo** que um **⌘Z** desfaz. Solte sobre um **board** e ela vira um cartão de texto. Mensagens e imagens não se arrastam: use o **⋯** (veja abaixo).
+
+Na nota ela fica escrita como um pequeno bloco `roll`, texto que qualquer um lê, até no Obsidian:
+
+````
+```roll
+quem: Ana · quando: 2026-10-22 21:40 · onde: [[31 - A Mesa]]
+2d6 + 1d4 + 3 → [4, 3] + [2] + 3 = 12
+```
+````
+
+O Verso o desenha como um **cartão fixo** — quem, quando, onde (um link), os dados e o total — e **nunca rola de novo**: é o registro do que saiu, como no caderno do mestre.
+
+```roll
+quem: Ana · quando: 2026-10-22 21:40 · onde: [[31 - A Mesa]]
+2d6 + 1d4 + 3 → [4, 3] + [2] + 3 = 12
+```
+
+Na **Fonte** você vê o texto; um bloco com erro de escrita continua sendo o código que é. Cada linha da Mesa também tem o **⋯ › Adicionar à nota…**, o caminho pelo teclado, pelo leitor de tela e pelo celular.
+
+---
+
 ## Ocultar e guardar
 
 - **Ocultar daqui pra trás** esconde, só nesta janela, tudo que está na Mesa agora. **Mostrar de volta** desfaz.
-- **Adicionar à nota…**, no botão de cada linha, escolhe uma nota, **mostra o que vai ser escrito** e, se você confirmar, acrescenta ao fim dela uma linha com quem, quando, de onde e o resultado. Se a nota mudou enquanto isso, nada é gravado.
+- **Adicionar à nota…**, no **⋯** de cada linha, escolhe uma nota, **mostra o que vai ser escrito** (o bloco `roll`, ou a linha de uma mensagem) e, se você confirmar, acrescenta ao fim dela. Se a nota mudou enquanto isso, nada é gravado.
 
 ---
 
