@@ -48,4 +48,4 @@ In **Settings › Application › Features**, the **Colour swatches** switch rem
 
 ---
 
-Go back to [[29 - Syncing with a Cloud]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go on to [[31 - The Table]], go back to [[29 - Syncing with a Cloud]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

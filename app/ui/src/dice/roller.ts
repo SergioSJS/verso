@@ -13,6 +13,7 @@ import { icon } from "../icons";
 import { play3d, will3d } from "../dice3d";
 import { howSaid, say } from "./card";
 import { readNotation, rollHere } from "./notation";
+import { recordRoll } from "../table/record";
 import { ds } from "./strings";
 
 let shade: HTMLElement | null = null;
@@ -83,6 +84,7 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
       out.setAttribute("aria-live", "off");
       await play3d("", roll);
     }
+    recordRoll("", roll);
     out.append(h("strong", "dice-total", String(roll.total)), h("span", "dice-roller-said", words));
     if (fall) requestAnimationFrame(() => out.setAttribute("aria-live", "polite"));
   };

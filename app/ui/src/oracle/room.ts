@@ -14,6 +14,7 @@ import { flash } from "../notify";
 import { name } from "../paths";
 import { ANSWERS, askOracle, generateSpark, getOddsTable, getSparkWords, oddsRowFor, questionDrawn, sparkDrawn, type Likelihood, type OracleResult, type SparkResult } from "./engine";
 import { os } from "./strings";
+import { recordDraw } from "../table/record";
 import { rollOracleTable, tableDrawn, type OracleTable, type TableRollResult } from "./tables";
 
 /** A draw: who made it. `shared`: the server's, heard by the room. `note`
@@ -37,10 +38,15 @@ export async function drawQuestion(path: string | undefined, likelihood: Likelih
   if ("why" in served) return { ok: false, why: served.why };
   if ("draw" in served) {
     const value = questionDrawn(likelihood, question, served.draw.roll, served.draw.answer ?? -1);
-    if (value) return { ok: true, value, shared: true, note: null };
+    if (value) {
+      recordDraw(path ?? "", { kind: "question", by: served.draw.by, mine: true, at: served.draw.at, roll: value.roll, text: os.answer[value.answer] });
+      return { ok: true, value, shared: true, note: null };
+    }
     return { ok: false, why: os.drawRefused("?") };
   }
-  return { ok: true, value: askOracle(likelihood, question), shared: false, note: served.here };
+  const value = askOracle(likelihood, question);
+  recordDraw(path ?? "", { kind: "question", by: "", mine: true, roll: value.roll, text: os.answer[value.answer] });
+  return { ok: true, value, shared: false, note: served.here };
 }
 
 /** An idea spark, from the words now in use. */
@@ -49,10 +55,15 @@ export async function drawSpark(path: string | undefined, lang: "pt" | "en"): Pr
   if ("why" in served) return { ok: false, why: served.why };
   if ("draw" in served) {
     const value = sparkDrawn(served.draw.words);
-    if (value) return { ok: true, value, shared: true, note: null };
+    if (value) {
+      recordDraw(path ?? "", { kind: "spark", by: served.draw.by, mine: true, at: served.draw.at, roll: null, text: sparkText(served.draw.words) });
+      return { ok: true, value, shared: true, note: null };
+    }
     return { ok: false, why: os.drawRefused("?") };
   }
-  return { ok: true, value: generateSpark(lang), shared: false, note: served.here };
+  const value = generateSpark(lang);
+  recordDraw(path ?? "", { kind: "spark", by: "", mine: true, roll: null, text: sparkText([value.action, value.theme, value.descriptor, value.focus]) });
+  return { ok: true, value, shared: false, note: served.here };
 }
 
 /** An entry of `table`. */
@@ -62,10 +73,20 @@ export async function drawTable(path: string | undefined, table: OracleTable): P
   if ("why" in served) return { ok: false, why: served.why };
   if ("draw" in served) {
     const value = tableDrawn(table, served.draw.roll, served.draw.words[0] ?? "");
-    if (value) return { ok: true, value, shared: true, note: null };
+    if (value) {
+      recordDraw(path ?? "", { kind: "table", by: served.draw.by, mine: true, at: served.draw.at, roll: value.roll, text: value.entry, table: table.name });
+      return { ok: true, value, shared: true, note: null };
+    }
     return { ok: false, why: os.drawRefused("?") };
   }
-  return { ok: true, value: rollOracleTable(table), shared: false, note: served.here };
+  const value = rollOracleTable(table);
+  if (value) recordDraw(path ?? "", { kind: "table", by: "", mine: true, roll: value.roll, text: value.entry, table: table.name });
+  return { ok: true, value, shared: false, note: served.here };
+}
+
+/** A spark's four words as the log writes them: action theme / descriptor focus. */
+function sparkText(w: readonly string[]): string {
+  return `${w[0] ?? ""} ${w[1] ?? ""} / ${w[2] ?? ""} ${w[3] ?? ""}`;
 }
 
 /** What a draw heard from the room says, in a sentence. */
@@ -82,6 +103,13 @@ export function heardSaid(d: OracleDraw): string {
  *  as a roll of dice not on screen is. */
 function heard(e: CollabOracle): void {
   const said = heardSaid(e.draw);
+  const d = e.draw;
+  if (said) {
+    const kind = d.kind === "question" ? "question" : d.kind === "spark" ? "spark" : "table";
+    const answer = d.kind === "question" ? ANSWERS[d.answer ?? -1] : undefined;
+    const text = d.kind === "question" ? (answer ? os.answer[answer] : "") : d.kind === "spark" ? sparkText(d.words) : (d.words[0] ?? "");
+    recordDraw(e.path, { kind, by: d.by, mine: false, at: d.at, roll: d.kind === "spark" ? null : d.roll, text });
+  }
   if (said) flash("info", name(e.path), said);
 }
 

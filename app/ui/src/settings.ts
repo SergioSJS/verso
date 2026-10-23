@@ -149,6 +149,9 @@ export type Settings = {
   /** How the 3D dice look and how big they are (ADR 0101, appearance):
    *  this device only. */
   dice3dLook?: DiceLook;
+  /** Others' rolls fall in 3D on this screen too, in the roller's dice
+   *  when they come with them (ADR 0107 item 11); on unless turned off. */
+  others3d?: boolean;
 };
 export const DEFAULTS: Settings = {
   features: allOn(),
@@ -268,6 +271,7 @@ export function loadSettings(): void {
       settings.features = parsed.features === undefined && oldPreset !== undefined ? migratePreset(oldPreset) : readFeatures(parsed.features);
       delete (settings as { preset?: unknown }).preset;
       settings.dice3dLook = readDiceLook(parsed.dice3dLook);
+      if (typeof settings.others3d !== "boolean") delete settings.others3d;
     }
   } catch {
     settings = { ...DEFAULTS };
