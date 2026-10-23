@@ -483,14 +483,17 @@ test("without a table on the side, the local source stays: no input row, no rost
   await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
   const view = page.locator(".table-view");
   await expect(view.locator(".table-note")).toBeVisible();
-  await expect(view.locator(".table-compose")).toBeHidden();
+  // The field and the dice row stay for the local table's `/r`; messages, images and Secreta are the server's.
+  await expect(view.locator(".table-compose")).toBeVisible();
+  await expect(view.locator(".table-secret-toggle")).toBeHidden();
   await expect(view.locator(".table-roster")).toBeHidden();
   // The table comes up: the server's source replaces the local one; down again, it goes back.
   await page.evaluate(() => (window.__harness.table.up = true));
   await expect(view.locator(".table-compose")).toBeVisible();
   await expect(view.locator(".table-note")).toBeHidden();
+  await expect(view.locator(".table-secret-toggle")).toBeVisible();
   await page.evaluate(() => (window.__harness.table.up = false));
-  await expect(view.locator(".table-compose")).toBeHidden();
+  await expect(view.locator(".table-secret-toggle")).toBeHidden();
   await expect(view.locator(".table-note")).toBeVisible();
 });
 

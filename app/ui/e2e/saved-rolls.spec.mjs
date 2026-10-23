@@ -1,6 +1,6 @@
 // Saved rolls in the table's dice tray (ADR 0107, "saved rolls", 2026-10-23):
 // the lines of a note that hold a dice code are buttons; a click fills the
-// composer's field (it does not roll); "Salvar" files the composed roll in
+// message field as `/r …` (it does not roll); "Salvar" files the composed roll in
 // the note (the note is headed "Rolagens", so the line joins its list); a reader sees no "Salvar"; a player at a campaign table finds
 // the note granted to it alone. Screenshots, when $HOME/.cache/composer-shots
 // exists (mounted by the runner), for reading by eye.
@@ -16,6 +16,14 @@ const phone = (page) => (page.viewportSize()?.width ?? 1500) <= 760;
 
 const ROLLS = "# Rolagens\n\n- Ataque da Bia: `dice: 1d20+7`\n- Dano: `dice: 2d6+4`\n- Uma frase sem dados.\n";
 
+/** The bookmark's pop-over open (it closes when a roll is picked). */
+async function openSaved(view) {
+  const bookmark = view.getByRole("button", { name: "Rolagens salvas", exact: true });
+  await expect(bookmark).toBeVisible();
+  if ((await bookmark.getAttribute("aria-expanded")) !== "true") await bookmark.click();
+  await expect(view.locator(".saved-rolls")).toBeVisible();
+}
+
 async function showTray(app, page, files) {
   await app.writeOutside("Diario.md", "# Diário\n");
   for (const [p, t] of Object.entries(files)) await app.writeOutside(p, t);
@@ -24,9 +32,7 @@ async function showTray(app, page, files) {
   else await page.evaluate(() => document.body.classList.remove("no-right"));
   await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
   const view = page.locator(".table-view");
-  const toggle = view.getByRole("button", { name: "Compor rolagem" });
-  await expect(toggle).toBeVisible();
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await openSaved(view);
   return view;
 }
 
@@ -38,7 +44,8 @@ async function chooseNote(page, name) {
   await box.press("Enter");
 }
 
-const field = (view) => view.getByRole("textbox", { name: "Notação", exact: true });
+const field = (view) => view.getByRole("textbox", { name: /^Mensagem para a mesa/ });
+const mod = (view) => view.getByRole("spinbutton", { name: "Modificador da rolagem" });
 const saved = (view) => view.locator(".saved-rolls");
 const rollsOf = (view) => saved(view).locator("button.saved-roll");
 
@@ -55,10 +62,13 @@ test("a note's named rolls are buttons; a click fills the field and does not rol
   await expect(saved(view).getByRole("button", { name: /^Nota: Rolagens/ })).toBeVisible();
   // A click puts the roll in the field; nothing is rolled.
   await rollsOf(view).nth(0).click();
-  await expect(field(view)).toHaveValue("1d20+7");
+  await expect(field(view)).toHaveValue("/r 1d20+7");
   await expect(view.locator(".table-log .table-entry")).toHaveCount(0);
-  await view.getByRole("button", { name: "aumentar" }).click();
-  await expect(field(view)).toHaveValue("1d20+8");
+  // The pop-over closed on the pick; the modifier steps the line in the field.
+  await expect(saved(view)).toBeHidden();
+  await mod(view).press("ArrowUp");
+  await expect(field(view)).toHaveValue("/r 1d20+8");
+  await openSaved(view);
   await shot(page, `${phone(page) ? "phone" : "desktop"}-saved`);
   // Salvar: a name and the composed roll, filed at the end of the note.
   await saved(view).getByRole("textbox", { name: "Nome da rolagem" }).fill("Ataque forte");
@@ -83,7 +93,7 @@ test("a note with no rolls says so; Salvar needs a readable roll and a name", as
   await expect(save).toBeDisabled();
   await saved(view).getByRole("textbox", { name: "Nome da rolagem" }).fill("Sorte");
   await expect(save).toBeDisabled();
-  await field(view).fill("1d6");
+  await field(view).fill("/r 1d6");
   await expect(save).toBeEnabled();
 });
 

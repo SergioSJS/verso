@@ -72,7 +72,8 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-image-missing { color: var(--ink-3); font-size: .8rem; text-decoration: underline; }
 .table-compose { flex: none; display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; border-top: 1px solid var(--hair); }
 .table-compose-row { display: flex; gap: .4rem; align-items: flex-end; }
-.table-input { flex: 1; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; max-height: 120px; }
+.table-input { flex: 1; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
+@media (max-width: 760px) { .table-input { --table-lines: 2; } }
 .table-input:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
 .table-send { align-self: stretch; padding: 0 .8rem; border-radius: 7px; }
 .table-compose-tools { display: flex; align-items: center; gap: .3rem; }
@@ -100,55 +101,34 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
 }
 
-/* The dice tray (ADR 0107, the dice composer): the dice to put a roll together, the roll as notation, one "Rolar". */
-.table-tray { flex: none; display: flex; flex-direction: column; gap: .35rem; padding-top: .4rem; border-top: 1px solid var(--hair); }
-.table-tray-toggle { display: flex; align-items: center; gap: .4rem; width: 100%; min-height: 2rem; padding: .2rem .5rem; font-size: .82rem; color: var(--ink-2); border: 1px solid var(--hair); border-radius: 7px; text-align: left; }
-.table-tray-toggle-text { flex: 1; }
-.table-tray-toggle svg:last-child { transition: transform .15s; }
-.table-tray-toggle.open svg:last-child { transform: rotate(180deg); }
-.table-tray-toggle:focus-visible, .die-button:focus-visible, .die-remove:focus-visible, .pool-chip-remove:focus-visible, .stepper-button:focus-visible, .composer-clear:focus-visible, .composer-go:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
-.table-tray-body { display: flex; flex-direction: column; gap: .5rem; max-height: min(22rem, 46vh); overflow-y: auto; padding: .45rem .2rem .2rem; }
-.table-tray-body[hidden] { display: none; }
-.pool-tray { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; min-height: 2.1rem; padding: .3rem .45rem; border: 1px dashed var(--hair); border-radius: 8px; background: var(--paper); }
-.pool-empty { margin: 0; font-size: .78rem; color: var(--ink-3); }
-.pool-chip { display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .15rem .1rem .5rem; border-radius: 999px; border: 1px solid var(--seal); background: var(--seal-wash); font: 700 .82rem var(--mono); color: var(--ink); }
-.pool-chip-mod { border-style: dashed; }
-.pool-chip-remove { width: 1.35rem; height: 1.35rem; min-width: 1.35rem; padding: 0; }
-.pool-chip-remove svg { width: .7rem; height: .7rem; }
-/* The × and the − in the middle of their round buttons: `.iconic` is a flex
-   box that does not centre, and these have no padding to lean on. */
-.pool-chip-remove, .die-remove { display: inline-grid; place-items: center; line-height: 0; }
-.pool-chip-remove svg, .die-remove svg { display: block; }
-.composer-dice { display: grid; grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr)); gap: .5rem .4rem; padding: .3rem .35rem 0; }
-.die-slot { position: relative; min-width: 0; }
-.die-button { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 2.4rem; padding: .3rem .2rem; font: 700 .85rem var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
-.die-slot.active .die-button { border-color: var(--seal); background: var(--seal-wash); }
-/* The die's shape above its name, as in Rolai's composer. */
-.die-button { flex-direction: column; gap: .2rem; padding: .45rem .2rem .35rem; }
-.die-icon { width: 26px; height: 26px; color: var(--ink-3); flex: none; }
-.die-slot.active .die-icon { color: var(--seal); }
-.pool-chip-icon { width: 14px; height: 14px; color: var(--seal); flex: none; }
-.die-button-count { position: absolute; top: -.4rem; right: -.35rem; min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; box-sizing: border-box; border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .66rem/1.1rem var(--ui); text-align: center; }
-.die-button-count[hidden], .die-remove[hidden] { display: none; }
-.die-remove { position: absolute; top: -.45rem; left: -.35rem; width: 1.3rem; height: 1.3rem; min-width: 1.3rem; padding: 0; border: 1px solid var(--hair); border-radius: 50%; background: var(--paper); }
-.die-remove svg { width: .7rem; height: .7rem; }
-.composer-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.composer-label { font-size: .78rem; color: var(--ink-3); }
-.composer-stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--hair); border-radius: 7px; overflow: hidden; }
-.composer-stepper .stepper-button { width: 2rem; min-height: 2rem; display: grid; place-items: center; color: var(--ink-2); background: var(--paper); }
-.composer-mod-input { width: 3.2rem; text-align: center; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 0; border-inline: 1px solid var(--hair); -moz-appearance: textfield; appearance: textfield; }
-.composer-mod-input::-webkit-outer-spin-button, .composer-mod-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.composer-clear { display: inline-flex; align-items: center; gap: .3rem; margin-left: auto; min-height: 2rem; padding: .2rem .55rem; font-size: .8rem; color: var(--ink-2); border: 1px solid var(--hair); border-radius: 7px; }
-.composer-clear:disabled, .composer-go:disabled { opacity: .5; cursor: default; }
-.composer-send { display: flex; gap: .4rem; align-items: stretch; }
-.notation-input { flex: 1; min-width: 0; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-family: var(--mono); font-size: .88rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; }
-.notation-input:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
-.composer-go { display: inline-flex; align-items: center; gap: .35rem; padding: 0 .8rem; border-radius: 7px; }
-.composer-go.secret { box-shadow: inset 0 0 0 2px var(--paper); }
-.table-tray-secret, .table-tray-error { margin: 0; font-size: .75rem; line-height: 1.35; color: var(--ink-3); }
-.table-tray-error { color: var(--danger, #b91c1c); font-size: .78rem; }
-.table-tray-secret[hidden], .table-tray-error[hidden] { display: none; }
-/* Saved rolls (ADR 0107, 2026-10-23): buttons that wrap inside the tray; the tray itself scrolls. */
+/* The dice tray (ADR 0107, "The tray made compact", 2026-10-23): ONE row under the message field, as Foundry's Dice Tray has it. */
+.tray-wrap { position: relative; flex: none; }
+.tray-row { display: flex; align-items: center; gap: .3rem; height: 2.25rem; }
+.tray-scroll { flex: 1; min-width: 0; display: flex; align-items: center; gap: .15rem; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tray-scroll::-webkit-scrollbar { display: none; }
+.tray-die, .tray-tool, .tray-keep { position: relative; flex: none; display: inline-grid; place-items: center; height: 2rem; min-width: 1.9rem; padding: 0 .25rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; font: 700 .72rem var(--mono); -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
+.tray-die:hover, .tray-tool:hover, .tray-keep:hover { border-color: var(--hair); background: var(--paper); }
+.tray-die.active { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
+.tray-keep[aria-pressed="true"] { color: var(--paper); background: var(--seal); border-color: var(--seal); }
+.tray-tool[aria-expanded="true"] { border-color: var(--seal); color: var(--seal); }
+.tray-die:focus-visible, .tray-tool:focus-visible, .tray-keep:focus-visible, .tray-mod:focus-visible, .tray-go:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.tray-die-icon { width: 21px; height: 21px; display: block; }
+.tray-die-text { font: 700 .72rem var(--mono); }
+.tray-tool svg { display: block; }
+.tray-count { position: absolute; top: -.1rem; right: -.1rem; min-width: .95rem; height: .95rem; padding: 0 .2rem; box-sizing: border-box; border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .62rem/.95rem var(--ui); text-align: center; pointer-events: none; }
+.tray-dot { position: absolute; top: .3rem; right: .2rem; width: .45rem; height: .45rem; border-radius: 50%; background: var(--seal); pointer-events: none; }
+.tray-count[hidden], .tray-dot[hidden], .tray-pop[hidden] { display: none; }
+.tray-mod { flex: none; width: 2.9rem; height: 1.75rem; box-sizing: border-box; padding: 0 .2rem; text-align: center; font: inherit; font-family: var(--mono); font-size: .82rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; -moz-appearance: textfield; appearance: textfield; margin: 0 .1rem; }
+.tray-mod::-webkit-outer-spin-button, .tray-mod::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tray-go { flex: none; display: inline-grid; place-items: center; width: 2.3rem; height: 2rem; padding: 0; border-radius: 7px; }
+.tray-go:disabled { opacity: .5; cursor: default; }
+.tray-go.secret { box-shadow: inset 0 0 0 2px var(--paper); }
+.tray-go svg { display: block; }
+.tray-pop { position: absolute; bottom: calc(100% + .25rem); z-index: 5; box-sizing: border-box; max-width: 100%; max-height: min(22rem, 50vh); overflow-y: auto; padding: .4rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; box-shadow: 0 6px 18px oklch(0% 0 0 / .18); }
+.tray-more { left: 0; display: flex; gap: .2rem; }
+.tray-more[hidden] { display: none; }
+.tray-saved { right: 0; width: min(21rem, 100%); }
+/* Saved rolls (ADR 0107, 2026-10-23): buttons that wrap inside the pop-over of the bookmark. */
 .saved-rolls { display: flex; flex-direction: column; gap: .35rem; }
 .saved-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .saved-which { min-height: 1.9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; }
@@ -163,21 +143,14 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .saved-save { display: flex; gap: .4rem; align-items: stretch; }
 .saved-name { flex: 1; min-width: 0; box-sizing: border-box; padding: .35rem .5rem; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; }
 @media (max-width: 760px) {
+  /* A phone: the targets are 40 px tall (the icons stay small); the row scrolls sideways inside itself, never the page. */
+  .tray-row { height: 2.75rem; }
+  .tray-die, .tray-tool, .tray-keep { height: 2.5rem; min-width: 1.9rem; }
+  .tray-mod { height: 2.5rem; width: 3rem; font-size: 16px; }
+  .tray-go { height: 2.5rem; width: 2.6rem; }
   .saved-roll { min-height: 2.75rem; }
   .saved-which, .saved-save-go { min-height: 2.6rem; }
   .saved-name { font-size: 16px; min-height: 2.6rem; }
   .saved-list { max-height: 9rem; }
-}
-@media (max-width: 760px) {
-  /* The tray open takes room: the sheet is taller then, so the log keeps some of its own. */
-  body[data-right-tab="table"][data-table-tray="open"] aside.right { height: min(90vh, 740px, calc(100dvh - var(--table-kb, 0px) - 1rem)); }
-  .table-tray-toggle { min-height: 2.4rem; }
-  .die-button { min-height: 2.75rem; }
-  .die-remove, .pool-chip-remove { width: 1.7rem; height: 1.7rem; min-width: 1.7rem; }
-  .composer-stepper .stepper-button { width: 2.6rem; min-height: 2.6rem; }
-  .composer-mod-input { width: 3.6rem; font-size: 16px; }
-  .composer-clear { min-height: 2.6rem; }
-  .notation-input { font-size: 16px; min-height: 2.6rem; }
-  .composer-go { min-height: 2.6rem; }
-  .composer-dice { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tray-saved { left: 0; width: auto; }
 }
