@@ -107,7 +107,7 @@ test("with none of the ten keys nothing is written on the root, and the note is 
   close(f.h3, 1.12);
   expect(f.weight).toBe("600");
   close(f.lineHeight, 1.7);
-  close(f.gap, 1, 0.02);
+  close(f.gap, 0.9, 0.02); // ADR 0061 (revised 2026-10-22): Reading's standard gap is --flow, .9em
   expect(f.quote.style).toBe("italic");
   expect(f.quote.bar).toBe("2px");
   expect(f.link.bottom).toBe("1px");
