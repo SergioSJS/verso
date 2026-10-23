@@ -1071,11 +1071,13 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                 if is_app_view(w.label()) {
                     let _ = app.emit("menu-close-tab", w.label().to_owned());
                 } else {
+                    session::closing(w.label(), "the Close Tab menu item on a page window");
                     let _ = w.close();
                 }
             }
         } else if id == CLOSE_WINDOW {
             if let Some(w) = focused_window(app) {
+                session::closing(w.label(), "the Close Window menu item");
                 let _ = w.close();
             }
         } else if let Some(command) = id.strip_prefix(menu_spec::COMMAND_PREFIX) {
@@ -1205,10 +1207,29 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         } => files::dragged(app, label, drag),
         tauri::RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::CloseRequested { .. },
+            ..
+        } => session::closing(
+            label,
+            "a close request (the frame's button or the system's)",
+        ),
+        tauri::RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::Destroyed,
             ..
         } => {
-            log::write("INFO", "host", &format!("window closed: {label}"));
+            {
+                let state = app.state::<App>();
+                let showed = state.service.folder_of(label).is_some()
+                    || remote::of(app, label).is_some()
+                    || lock(&state.pending_servers).contains_key(label);
+                let quitting = state.quitting.load(std::sync::atomic::Ordering::SeqCst);
+                log::write(
+                    "INFO",
+                    "host",
+                    &session::close_line(label, showed, quitting),
+                );
+            }
             // A window the person closed does not come back at the next
             // start; one that closed with the app does (`session`).
             session::window_gone(app, label);

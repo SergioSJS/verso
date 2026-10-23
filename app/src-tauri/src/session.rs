@@ -83,6 +83,43 @@ pub(crate) fn quitting<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     app.state::<App>().quitting.store(true, Ordering::SeqCst);
 }
 
+/// Why each window is closing, as the side that asked said it, until the
+/// window is gone (`close_line`): label → cause.
+static CAUSES: std::sync::Mutex<Vec<(String, &'static str)>> = std::sync::Mutex::new(Vec::new());
+
+/// A window is about to close, and why. The first cause said stands: a
+/// close request that follows a menu item's is the same close.
+pub(crate) fn closing(label: &str, cause: &'static str) {
+    if let Ok(mut causes) = CAUSES.lock()
+        && !causes.iter().any(|(l, _)| l == label)
+    {
+        causes.push((label.to_owned(), cause));
+    }
+}
+
+/// The log line for a window that is gone: its label, whether it showed a
+/// folder (never which), and the cause. The app quitting outranks any
+/// other; with none said, "destroyed with no request seen".
+pub(crate) fn close_line(label: &str, showed_folder: bool, quitting: bool) -> String {
+    let said = CAUSES.lock().ok().and_then(|mut causes| {
+        causes
+            .iter()
+            .position(|(l, _)| l == label)
+            .map(|i| causes.remove(i).1)
+    });
+    let cause = if quitting {
+        "the app is quitting"
+    } else {
+        said.unwrap_or("destroyed with no request seen")
+    };
+    let shown = if showed_folder {
+        "showed a folder"
+    } else {
+        "showed no folder"
+    };
+    format!("window closed: {label} ({shown}; cause: {cause})")
+}
+
 /// A window closed. Called for every window; only a folder window the
 /// person closed leaves the set.
 pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
@@ -412,5 +449,31 @@ mod tests {
         crate::folder_handed(app.handle(), vault.path().to_path_buf());
         assert_eq!(told.load(Ordering::SeqCst), 0);
         assert_eq!(app.webview_windows().len(), windows + 1);
+    }
+
+    /// Every folder window's close says why in one line, with the label and
+    /// whether it showed a folder, never which: the person's close request,
+    /// the app quitting, a menu item, and a window gone unasked.
+    #[test]
+    fn a_closing_window_says_why_in_the_log() {
+        closing(
+            "window-901",
+            "a close request (the frame's button or the system's)",
+        );
+        closing("window-901", "the Close Window menu item");
+        assert_eq!(
+            close_line("window-901", true, false),
+            "window closed: window-901 (showed a folder; cause: a close request (the frame's button or the system's))"
+        );
+        // The cause is spent: a second close with none said is unexplained.
+        assert_eq!(
+            close_line("window-901", false, false),
+            "window closed: window-901 (showed no folder; cause: destroyed with no request seen)"
+        );
+        closing("window-902", "the Close Window menu item");
+        assert_eq!(
+            close_line("window-902", true, true),
+            "window closed: window-902 (showed a folder; cause: the app is quitting)"
+        );
     }
 }

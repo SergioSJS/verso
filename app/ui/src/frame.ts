@@ -16,6 +16,7 @@
 
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { commands } from "./bindings";
 import { h } from "./dom";
 import { MAC } from "./platform";
 import { t } from "./strings";
@@ -200,7 +201,10 @@ function controls(): HTMLElement {
     max,
     // close() asks the window to close: its tabs are saved first
     // (main.ts, onCloseRequested), as with the system's button.
-    make("frame-close", t.frameClose, "close", () => win.close()),
+    make("frame-close", t.frameClose, "close", () => {
+      void commands.logWrite("INFO", `close ${win.label}: the frame's close button`).catch(() => undefined);
+      void win.close();
+    }),
   );
   return bar;
 }
