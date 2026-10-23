@@ -89,6 +89,15 @@ function sparkText(w: readonly string[]): string {
   return `${w[0] ?? ""} ${w[1] ?? ""} / ${w[2] ?? ""} ${w[3] ?? ""}`;
 }
 
+/** What a draw says as the table's log writes it: the answer, the four words, or the entry. */
+export function drawWords(d: OracleDraw): string {
+  if (d.kind === "question") {
+    const answer = ANSWERS[d.answer ?? -1];
+    return answer ? os.answer[answer] : "";
+  }
+  return d.kind === "spark" ? sparkText(d.words) : (d.words[0] ?? "");
+}
+
 /** What a draw heard from the room says, in a sentence. */
 export function heardSaid(d: OracleDraw): string {
   if (d.kind === "question") {

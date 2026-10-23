@@ -321,6 +321,60 @@ the choice is listed last, for the maintainer to confirm or change.
   windows. (6) The entry carries the author's opaque account id (`by_id`) so
   a window knows which messages are its own; `TableJoin.you` is its own.
 
+## As built (the window, phase 2, 2026-10-22)
+
+Branch `feat/table-wire`. The window reaches the server's table through the
+contract, as the server's "As built" section above describes it; what is
+built is what items 2, 3, 4, 5, 6, 7, 8, 11 and 13 decided or proposed, in
+`app/ui/src/table/` (`server.ts`, the source; `join.ts`, when it is joined;
+`compose.ts`, the input row; `actions.ts`, the menus; `send.ts`, what is
+typed and checked before sending). Where the code had to choose, the choice
+is listed last, for the maintainer to confirm or change.
+
+- **When it is joined.** When a folder is shown, the switch flips, the role
+  changes or a test says the table came up, the window asks `table_join`
+  (with the person's dice and no colour); the answer says whether the side
+  has a table for the folder. If it does, the server's source replaces the
+  phase 1 local one (`setTableSource`), and the local recorders stand down
+  (the server tells the window its own entries too, held once by their
+  number); if it does not, the local source stays and says it is not shared.
+- **What the panel adds** (server table only). The roster at the top (name
+  and cursor colour); the pinned entries in a list of their own above the
+  log; "See earlier" for older pages; the input row (a message with Enter,
+  `/r` and `/roll` for a roll, a dice button for the roller, an image button
+  and paste or drop for an image, the "Secret" toggle); a menu on each entry
+  (Pin or Unpin, Add to note…, Delete) and a table menu for an owner (Clear
+  the table, asking first, with "keep the pinned" ticked); a message as text
+  with `[[links]]` to notes of the folder as links; an image as the file's
+  thumbnail that opens large; a roll "to the owner" masked for the others.
+- **Each roller's dice.** `collab_roll`, `table_roll` and the join carry the
+  person's `DiceStyles`; a roll heard in 3D falls in the roller's look, and
+  its chips in the log are in the roller's colours.
+- **Notifications.** A new kind, "Table", off by default, raised for a
+  message, image or roll by someone else while the panel is not on screen.
+- **Chosen in the code, for the maintainer to confirm.** (1) A pinned entry
+  is shown only in the pinned list, not also in its place in the log.
+  (2) The window holds at most 1000 entries (the constant `HELD`) in
+  memory; "See earlier" asks for 50 at a time. (3) The presence colour is a
+  hash of the account's name, as in notes, learned from the join's roster and
+  sent by `table_look` right after it. (4) Another person's roll falls in 3D
+  from the table's event only when this window is not in that note's room
+  (otherwise the room's event already makes it fall); the same roll never
+  falls twice. (5) The window's own roll appears in the log as soon as the
+  server answers, before its 3D dice have rested. (6) The "Secret" toggle
+  applies to `/r`, the dice button and the palette's roller; a die in a note
+  is never secret. (7) A die in a note that is not in a live room is rolled
+  by `table_roll` with the note's path, so the table has it. (8) An oracle
+  draw outside a live room is still this window's (there is no command for
+  it). (9) Notifications are one per folder, each newer entry replacing the
+  earlier one in the list. (10) An image's address is asked as an attachment
+  with no source note and the path relative to the folder; the real server
+  has to confirm that resolves. (11) A window rejoins when the folder is
+  shown, the role or the switch changes; entries sent while its connection
+  was down are not asked for again until then. (12) "Add to note…" on an
+  image writes `![[attachments/…]]`, the file's path. (13) The key that
+  focuses the input (item 16) is not built.
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the

@@ -66,10 +66,28 @@ function imageKind(b64: string): string | null {
 }
 
 export class Table {
-  /** The folder's table is up: the folder is a server's. */
-  up = false;
-  /** The window's role in the folder, and its name and account. */
-  role: Role = "owner";
+  private isUp = false;
+  private asRole: Role = "owner";
+  /** The folder's table is up: the folder is a server's. Saying so makes the
+   *  window try to join, as it does when a folder is shown. */
+  get up(): boolean {
+    return this.isUp;
+  }
+  set up(value: boolean) {
+    this.isUp = value;
+    dispatchEvent(new Event("verso:table-retry"));
+  }
+  /** The window's role in the folder; changed while up, the window joins again (the server tells it). */
+  get role(): Role {
+    return this.asRole;
+  }
+  set role(value: Role) {
+    this.asRole = value;
+    if (this.isUp) dispatchEvent(new Event("verso:table-retry"));
+  }
+  /** What the next message, image or roll of the window is refused with (the pace, say). */
+  refuseNext: string | null = null;
+  /** The window's name and account. */
   name = "Ana";
   readonly account = "acc-ana";
   private seq = 0;
@@ -87,6 +105,13 @@ export class Table {
     const need = () => {
       if (!this.up) refuse("the table is a server's; a folder of this computer alone has none");
       if (!this.joined) refuse("join the table first");
+    };
+    const paced = () => {
+      if (this.refuseNext) {
+        const message = this.refuseNext;
+        this.refuseNext = null;
+        refuse(message);
+      }
     };
     h["table_join"] = (a) => {
       if (!this.up) refuse("the table is a server's; a folder of this computer alone has none");
@@ -128,6 +153,7 @@ export class Table {
     };
     h["table_say"] = (a) => {
       need();
+      paced();
       const text = String(a["text"] ?? "");
       if ([...text].length > MESSAGE_CHARS) refuse(`a message is at most ${MESSAGE_CHARS} characters`);
       if (/[\u0000-\u0009\u000b-\u001f\u007f]/.test(text)) refuse("a message is plain text");
@@ -137,13 +163,17 @@ export class Table {
     h["table_send_image"] = (a) => {
       need();
       if (this.role === "reader") refuse("you may only read this folder");
+      paced();
       const kind = imageKind(String(a["base64"] ?? ""));
       if (!kind) refuse("a PNG, JPEG, WebP or GIF image");
-      const n = this.seq + 1;
-      return this.add({ kind: "image", by: this.name, by_id: this.account, image: `attachments/mesa-${n}.${kind}` });
+      // An image is a file of the folder, written as any file a window creates.
+      const path = `attachments/mesa-${this.seq + 1}.${kind}`;
+      core.handlers["create_file"]?.({ path, base64: String(a["base64"]) });
+      return this.add({ kind: "image", by: this.name, by_id: this.account, image: path });
     };
     h["table_roll"] = (a) => {
       need();
+      paced();
       const notation = readNotation(String(a["notation"] ?? ""));
       if (!notation) refuse("not a roll Verso reads");
       const source = a["source"] === null || a["source"] === undefined ? null : String(a["source"]);

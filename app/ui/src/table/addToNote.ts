@@ -36,8 +36,14 @@ export function whoOf(e: TableEntry): string {
   return e.mine ? tt.you : e.by || "?";
 }
 
+/** A message on one line, as a bullet of a note needs it. */
+const oneLine = (text: string): string => text.replace(/\s*\n\s*/g, " ").trim();
+
 /** What an entry says, in one plain sentence (for a screen reader and for a note). */
 export function saidOf(e: TableEntry): string {
+  if (e.kind === "say") return oneLine(e.text ?? "");
+  if (e.kind === "image") return tt.sentImage(whoOf(e));
+  if (e.kind === "secret") return tt.secretMasked;
   if (e.kind === "oracle") {
     const label = e.oracle === "question" ? tt.oracleQuestion : e.oracle === "spark" ? tt.oracleSpark : tt.oracleTable(e.notation);
     return `${label}: ${e.row ?? ""}${e.total ? ` (${e.total})` : ""}`;
@@ -49,9 +55,19 @@ export function saidOf(e: TableEntry): string {
 
 /** The line appended to a note: who, when, where and what, written as plain Markdown. */
 export function lineFor(e: TableEntry, target: string): string {
-  const who = e.mine && meName() ? meName() : whoOf(e);
+  const who = e.mine && meName() ? meName() : e.mine && e.by ? e.by : whoOf(e);
   const where = e.path ? ` · [[${linkText(target, e.path)}]]` : "";
+  // An image is an embed of its file (ADR 0107 item 5).
+  if (e.kind === "image" && e.image) return `- **${who}** · ${clock(e.at)}${where} — ![[${linkText(target, e.image)}]]`;
   return `- **${who}** · ${clock(e.at)}${where} — ${saidOf(e)}`;
+}
+
+/** What the live region says of another person's entry, with their name. */
+export function announce(e: TableEntry): string {
+  if (e.kind === "say") return tt.wrote(whoOf(e), saidOf(e));
+  if (e.kind === "image") return tt.sentImage(whoOf(e));
+  if (e.kind === "secret") return tt.secretRolled(whoOf(e));
+  return tt.said(whoOf(e), saidOf(e));
 }
 
 /** Pick a note, show the line, append it. Resolves when it is over. */

@@ -101,7 +101,10 @@ test("in a room the server rolls, and another member's roll shows with their nam
   const attack = preview.getByRole("button", { name: "Rolar 1d20+3" });
   await attack.click();
   await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
-  expect((await app.calls("collab_roll"))[0]).toEqual({ path: NOTE, notation: "1d20+3", source: null });
+  // The roll carries the roller's own dice, closed in form (ADR 0107 item 11), and is not secret.
+  const sent = (await app.calls("collab_roll"))[0];
+  expect({ path: sent.path, notation: sent.notation, source: sent.source, secret: sent.secret }).toEqual({ path: NOTE, notation: "1d20+3", source: null, secret: null });
+  expect(Object.keys(sent.styles).sort()).toEqual(["1", "2", "3"]);
   const card = preview.locator('.dice[data-dice="1d20+3"] .dice-card');
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
   // This window's own roll does not say whose it is.

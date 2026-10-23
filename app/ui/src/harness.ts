@@ -112,6 +112,13 @@ const rooms = onServer ? null : new Rooms(core);
 // The folder's table (ADR 0107): a server's, played here when a test says it
 // is up; it wraps the room's rolls, so it comes after the rooms.
 const table = onServer ? null : new Table(core);
+// A window on a server joins the table when a folder is shown; this harness does
+// not play that table, and answers as a side with none does.
+if (onServer)
+  for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear"])
+    core.handlers[cmd] = () => {
+      throw { kind: "refused", message: "the table is not played in this harness" };
+    };
 // A file's version history (ADR 0091): none for a reader on a server.
 const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
