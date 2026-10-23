@@ -97,6 +97,7 @@ test release.
 
 ### Fixed
 
+- A desktop window that comes to a server's folder where the person only reads (a player at a table) asks what it can do again: the board loses its drawing tools, the editor and the tree read, and "you only read this folder" shows, without a reload; the window keeps the app's own abilities there (new window, updates, console, folders of this computer).
 - **A reader's board and a note's dice**: a board a player had open now updates when the game master changes it (the server tells readers when a board's room saves, as it already did for notes), instead of only after closing and opening it; a reader no longer sees the *saved by a newer Verso* notice, and gets the viewer without the drawing toolbar from the first frame in the desktop app too; and when a note has two dice with the same notation, the result appears only next to the one that was clicked, in Reading, Live Preview and board cards.
 
 - **The right panel's nine tabs fit its width**: with the Table tab added, the strip of tabs pushed the last one past the window's edge; the tabs now narrow together. In Live Preview, ↑ and ↓ no longer step over a blank line drawn as a thin gap: the caret lands on it.
