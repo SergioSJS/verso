@@ -77,8 +77,9 @@ pub fn table_roll(
     path: Option<String>,
     secret: Option<bool>,
     styles: Option<DiceStyles>,
+    occurrence: Option<u32>,
 ) -> Result<TableEntry, ContractError> {
-    let _ = (notation, source, path, secret, styles);
+    let _ = (notation, source, path, secret, styles, occurrence);
     Err(no_table())
 }
 

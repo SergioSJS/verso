@@ -536,6 +536,19 @@ single line, Enter rolls; `d66` is a plain 66-sided die, as in Rolai, and the
 is not written (Rolai's rule); the pool is not emptied by a roll; the tray's
 error line, not the log, says what could not be rolled.
 
+**A roll heard names the die that was clicked** (decided 2026-10-23, "Sim" by
+the maintainer). A note can hold the same `dice:` code twice, and a roll heard
+from another person used to show on the first die with that code. A
+`DiceRoll` now carries an optional `occurrence` (`Option<u32>`, from 0): which
+of the note's dice with that code was clicked. The window sends it as the
+`occurrence` argument of `collab_roll` and `table_roll`; the server keeps it
+only if it is below 1000, otherwise drops it, and relays it in the roll (the
+room's event, the rolls kept for whoever joins, the table's entry); a window
+that hears it shows it on the die with that place. With none (an older window
+or server, an old log entry) the first die shows it, as before. It is for
+display only and trusted for nothing else; a value that is not a non-negative
+32-bit number is refused. The TypeScript types are regenerated from Rust.
+
 **Open question.** Saved or named rolls (a "Ataque da Bia" button that rolls
 `1d20+7`): Rolai has none and nothing here decides them. Whether the Table
 should keep them, where (the folder, the settings, the character sheet) and

@@ -25,7 +25,7 @@ import { diceLook, play3d, will3d } from "../dice3d";
 import { settings } from "../settings";
 import { isServerTable, stylesOf } from "../table/model";
 import { recordHeard, recordJoined, recordRoll, tableOnScreen, tableSource } from "../table/record";
-import { type DiceCode, readCode, rollHere } from "./notation";
+import { type DiceCode, occurrenceOf, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
 import { readTable, rowOf, type RandomTable } from "./table";
 
@@ -108,20 +108,20 @@ async function tableOf(code: Extract<DiceCode, { kind: "table" }>, path: string)
 /** `notation` rolled for the note `path`: by the server in its room, here
  *  otherwise; here too when the room does not answer, and the card says
  *  nobody else saw it. */
-async function rolled(path: string, notation: string, source: string | null): Promise<Shown> {
+async function rolled(path: string, notation: string, source: string | null, occ: number): Promise<Shown> {
   if (!liveRoom(path)) {
     // A folder with a server's table: a note not in a live room is rolled by
     // the table's server, once, for everyone at the table (ADR 0107 item 2).
     const table = tableSource();
     if (isServerTable(table)) {
-      const t = await table.roll(notation, { source, path });
+      const t = await table.roll(notation, { source, path, occurrence: occ });
       if ("entry" in t && t.entry.roll) return { roll: t.entry.roll, row: null, from: null, note: null, mine: true };
       return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
     }
     return { roll: rollHere(notation, source), row: null, from: null, note: null };
   }
   // The roller's own dice go with the roll (ADR 0107 item 11); the others see it in them.
-  const r = await commands.collabRoll(path, notation, source, diceLook().styles, null);
+  const r = await commands.collabRoll(path, notation, source, diceLook().styles, null, occ);
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };
@@ -146,11 +146,11 @@ async function withRow(s: Shown, path: string): Promise<Shown> {
 }
 
 /** Roll the die `code` of the note `path`. */
-async function rollCode(code: DiceCode, path: string): Promise<Shown> {
-  if (code.kind === "roll") return rolled(path, code.notation, null);
+async function rollCode(code: DiceCode, path: string, occ: number): Promise<Shown> {
+  if (code.kind === "roll") return rolled(path, code.notation, null, occ);
   const t = await tableOf(code, path);
   if (typeof t === "string") return { roll: null, row: null, from: null, note: t };
-  return withRow(await rolled(path, t.table.notation, code.source), path);
+  return withRow(await rolled(path, t.table.notation, code.source, occ), path);
 }
 
 /** A face as a chip; a fudge die's as −, blank or +. */
@@ -320,7 +320,7 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     const path = host.path();
     let s: Shown;
     try {
-      s = await rollCode(code, path);
+      s = await rollCode(code, path, occ);
     } catch (e) {
       s = { roll: null, row: null, from: null, note: ds.refused(e instanceof Error ? e.message : String(e)) };
     }
@@ -389,10 +389,12 @@ export function wireDice(root: HTMLElement, host: DiceHost): void {
 async function heard(e: CollabRoll): Promise<void> {
   const key = e.roll.source ?? e.roll.notation;
   const s = await withRow({ roll: e.roll, row: null, from: null, note: null }, e.path);
-  // The roll names no die but its code: it is shown by the first of the
-  // note's dice with that code.
-  last.set(slot(e.path, key, 0), s);
-  const mine = (d: { el: HTMLElement; host: DiceHost; key: string; occ: number; pop: boolean }) => d.el.isConnected && d.host.path() === e.path && d.key === key && (d.pop || d.occ === 0);
+  // The roll names the die that was clicked — its code and which of the
+  // note's dice with that code it is; from a window that does not say, the
+  // first of them.
+  const occ = occurrenceOf(e.roll);
+  last.set(slot(e.path, key, occ), s);
+  const mine = (d: { el: HTMLElement; host: DiceHost; key: string; occ: number; pop: boolean }) => d.el.isConnected && d.host.path() === e.path && d.key === key && (d.pop || d.occ === occ);
   const here = [...drawn].filter(mine);
   // Another member's roll falls in 3D only for someone whose own switch is
   // on (ADR 0101 item 6): said at once, shown when the dice have rested.
@@ -422,9 +424,9 @@ async function heard(e: CollabRoll): Promise<void> {
  *  by their dice, not said. */
 function joined(path: string, rolls: DiceRoll[], user: string): void {
   recordJoined(path, rolls, user);
-  for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation, 0), { roll, row: null, from: null, note: null });
+  for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation, occurrenceOf(roll)), { roll, row: null, from: null, note: null });
   for (const roll of rolls.filter((r) => r.source)) {
-    void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? "", 0), s));
+    void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? "", occurrenceOf(roll)), s));
   }
 }
 

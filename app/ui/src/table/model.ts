@@ -181,7 +181,7 @@ export interface ServerTable extends TableSource {
   more(): boolean;
   loadOlder(): Promise<string | null>;
   say(text: string): Promise<string | null>;
-  roll(notation: string, opts?: { source?: string | null; path?: string | null; secret?: boolean }): Promise<{ entry: Wire } | { error: string }>;
+  roll(notation: string, opts?: { source?: string | null; path?: string | null; secret?: boolean; occurrence?: number }): Promise<{ entry: Wire } | { error: string }>;
   sendImage(base64: string): Promise<string | null>;
   pin(id: string, pinned: boolean): Promise<string | null>;
   remove(id: string): Promise<string | null>;
