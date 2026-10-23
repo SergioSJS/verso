@@ -47,6 +47,17 @@ async function landed(page) {
   const res = await enter(page);
   expect(res.status()).toBe(200);
   await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  await settled(page);
+}
+
+/** The page the person landed on has finished loading: its script has
+ *  asked the server who is signed in (`/api/state`) and fetched its chunks.
+ *  A test that goes elsewhere before that cancels those requests, and WebKit
+ *  logs each cancelled fetch as a console error ("Fetch API cannot load ...
+ *  due to access control checks") — the page is not at fault, a person does
+ *  not leave a page in the middle of the first frame. */
+async function settled(page) {
+  await page.waitForLoadState("networkidle", { timeout: 30_000 });
 }
 
 async function signIn(page, email, password) {
@@ -170,6 +181,7 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await reader.getByLabel("Senha nova").fill("a senha do leitor");
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
+  await settled(reader);
   // No folder yet: the start page says to choose one of the server's
   // folders, not the desktop's keys, and no role is said.
   await expect(reader.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
@@ -369,6 +381,7 @@ test("an admin ends another account's sessions and tokens from its page", async 
   await lost.getByLabel("Senha nova").fill("a senha do perdido");
   await lost.getByRole("button", { name: "Criar conta" }).click();
   await expect(lost).not.toHaveURL(/invite/);
+  await settled(lost);
   // Its page in the console: the session listed, ended with a confirm.
   await page.goto("/admin/accounts");
   await page.locator(".console-table a", { hasText: `Perdido ${project}` }).click();
@@ -478,6 +491,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await ana.getByLabel("Senha nova").fill("a senha da ana");
   await ana.getByRole("button", { name: "Criar conta" }).click();
   await expect(ana).not.toHaveURL(/invite/);
+  await settled(ana);
   // The admin shares the folder "Personagens" of Demo with her, editing,
   // from the folder's menu in the tree.
   await openDemo(page);
@@ -713,6 +727,7 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await reader.getByLabel("Senha nova").fill("a senha da leitora");
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
+  await settled(reader);
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The window knows it only reads before anything is starred.
