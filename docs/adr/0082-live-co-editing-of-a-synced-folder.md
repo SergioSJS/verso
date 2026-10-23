@@ -271,7 +271,19 @@ carried a recommendation; the maintainer decided. Open items answered
    server's under the name — and the tab then joins the room anew over the
    server's version, the copy beside it and said. Unlike the browser's
    "could not be kept", the desktop keeps every version: in the file or in
-   the copy.
+   the copy. *(Clarified on 2026-10-23, after a report of a conflict copy
+   in a note only one device had edited:)* "the server unmoved" includes
+   the server's file being the **tab's own room's save** that the pass had
+   not fetched when the link went — the room writes every settled burst and
+   the pass runs behind it, so on a restart the server's file is often a
+   few seconds older than the tab's text. The room tells every save with
+   the hash of the file it wrote; the host remembers the last ones it
+   heard, and when the server's file has one of those hashes and the local
+   file is a text the tab wrote after hearing it, the server's file is an
+   earlier state of the tab's own text: the pass sends the local text over
+   it, with no copy. A server file the room did not tell this device of —
+   another person's, or a save the link dropped before telling — is still
+   two changes, and a copy.
 10. **Pause and turn off.** Pausing sync, or turning it off, takes every
     note of the folder out of its room by item 8's fallback: the text
     kept, the local file its own again. Resuming is item 9 with another

@@ -15,6 +15,7 @@
 //! sent nor a conflict (items 6 and 9).
 
 use std::collections::BTreeSet;
+use std::sync::atomic::AtomicU64;
 
 use super::*;
 
@@ -44,6 +45,28 @@ pub(crate) struct Live {
     /// The windows that asked the campaign's status over this link (ADR
     /// 0110): told when it changes.
     campaign: Mutex<BTreeSet<String>>,
+    /// What outlives a note's room (a tab leaving it does not end this):
+    /// see [`Kept`].
+    kept: Mutex<HashMap<String, Kept>>,
+    /// A clock for [`Kept`]: which came first.
+    tick: AtomicU64,
+}
+
+/// What a note's tab and its room left, kept past the room made again from
+/// the disk and the tab leaving it, for the pass that follows (ADR 0082
+/// item 9).
+#[derive(Default)]
+struct Kept {
+    /// The hash of the last text a tab wrote here itself, out of the room
+    /// (`Held::own` is lost with the room), with when it was written.
+    last: Option<(String, u64)>,
+    /// The hashes of the last saves the room told this app of, with when:
+    /// the server's file as this tab's own room made it. The tab's text
+    /// holds every one (the room's updates reach it before the save is
+    /// told), so a server file with one of these hashes is an earlier
+    /// state of what the tab wrote since, never a change of someone else's
+    /// the tab has not seen.
+    saved: Vec<(String, u64)>,
 }
 
 /// A note held in a room by windows of this app.
@@ -57,6 +80,9 @@ struct Held {
     /// The hash of the last text a tab wrote here itself, out of the room.
     own: Option<String>,
 }
+
+/// How many of the room's saves are remembered per note.
+const SAVES: usize = 32;
 
 /// What the windows hear: the labels, the event and its payload.
 pub(crate) type Told = Arc<dyn Fn(&[String], &str, &Value) + Send + Sync>;
@@ -289,6 +315,12 @@ async fn leave(s: &Syncer, window: &str, path: &str) {
         }
         let joined = h.joined;
         rooms.remove(path);
+        // The saves heard mean something only beside a text the tab wrote
+        // while out of the room; with none, there is nothing to keep.
+        let mut kept = lock(&s.live.kept);
+        if kept.get(path).is_some_and(|k| k.last.is_none()) {
+            kept.remove(path);
+        }
         joined
     };
     if out && let Some(remote) = s.live.remote() {
@@ -356,8 +388,71 @@ pub(crate) fn wrote(s: &Syncer, window: &str, path: &str, bytes: &[u8]) {
         && !h.joined
         && h.windows.contains(window)
     {
-        h.own = Some(sha256(bytes));
+        let hash = sha256(bytes);
+        let at = s.live.tick.fetch_add(1, Ordering::Relaxed);
+        lock(&s.live.kept).entry(path.to_owned()).or_default().last = Some((hash.clone(), at));
+        h.own = Some(hash);
     }
+}
+
+/// The room of `path` saved the file, and this app heard it: the hash of
+/// what it wrote is the server's file as that room made it.
+fn saved_in(live: &Live, path: &str, hash: &str) {
+    let at = live.tick.fetch_add(1, Ordering::Relaxed);
+    if !lock(&live.rooms).contains_key(path) {
+        return;
+    }
+    let mut kept = lock(&live.kept);
+    let saved = &mut kept.entry(path.to_owned()).or_default().saved;
+    saved.push((hash.to_owned(), at));
+    if saved.len() > SAVES {
+        saved.remove(0);
+    }
+}
+
+/// Notes the pass plans from the server's file: a note whose local text a
+/// tab wrote after the room saved the server's file, which the pass has
+/// not fetched yet (the link went with the saves still on the server,
+/// typically a restart, and the room made again from the disk): the
+/// server's file is an earlier state of the tab's own text, so the local
+/// file is a change of this device only. The base is set to that server
+/// file for the plan, which then sends the local text over it; it makes no
+/// conflict copy (ADR 0082 item 9). A server file the room did not tell
+/// this app of — someone else's, or a save missed — leaves the comparison
+/// as it was: two changes, a copy, never a loss. `None`: nothing to plan
+/// differently.
+pub(crate) fn over_saves(
+    s: &Syncer,
+    local: &Files,
+    there: &Files,
+    base: &BTreeMap<String, String>,
+) -> Option<BTreeMap<String, String>> {
+    let mut out: Option<BTreeMap<String, String>> = None;
+    lock(&s.live.kept).retain(|path, k| {
+        let Some((last, wrote)) = k.last.clone() else {
+            return true;
+        };
+        let here = local.get(path);
+        // The file moved on since the tab wrote it (from outside, item
+        // 11), or both sides hold it as the base says: nothing to keep.
+        if here.is_none_or(|f| f.hash != last) || base.get(path) == Some(&last) {
+            return false;
+        }
+        let (Some(here), Some(server)) = (here, there.get(path)) else {
+            return true;
+        };
+        if base.get(path) != Some(&server.hash)
+            && here.hash != server.hash
+            && k.saved
+                .iter()
+                .any(|(x, at)| *x == server.hash && *at < wrote)
+        {
+            out.get_or_insert_with(|| base.clone())
+                .insert(path.clone(), server.hash.clone());
+        }
+        true
+    });
+    out
 }
 
 /// What the sync's link hears, a room's events taken out as they come —
@@ -388,6 +483,11 @@ pub(crate) fn relay(
                 }
                 remote::Heard::Event(event, payload) if event.starts_with("collab-") => {
                     let path = payload["path"].as_str().unwrap_or_default();
+                    if event == "collab-saved"
+                        && let Some(hash) = payload["hash"].as_str()
+                    {
+                        saved_in(&live, path, hash);
+                    }
                     let to: Vec<String> = lock(&live.rooms)
                         .get(path)
                         .map(|h| h.windows.iter().cloned().collect())

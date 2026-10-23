@@ -881,6 +881,12 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
         u64::try_from(bytes.len()).unwrap_or(u64::MAX),
     )?;
     let revision = r.revision.clone();
+    // What the file holds once written, said with the save (below): a
+    // synced device knows it for its own room's save (ADR 0082 item 9).
+    let hash = {
+        let on_disk: &[u8] = bytes.as_ref();
+        crate::sync::sha256(on_disk)
+    };
     let written = write_file(server, &r, bytes, revision);
     match written {
         Ok(revision) => {
@@ -920,12 +926,9 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             if r.kind == Kind::Board {
                 crate::readers::board_saved(server, &r.key, &path);
             }
-            tell(
-                server,
-                &r,
-                None,
-                &event("collab-saved", &path, "revision", &json!(r.revision)),
-            );
+            let mut saved = event("collab-saved", &path, "revision", &json!(r.revision));
+            saved["payload"]["hash"] = json!(hash);
+            tell(server, &r, None, &saved);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
