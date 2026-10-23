@@ -75,6 +75,8 @@ export type LiveOptions = {
   /** The note being edited: a statblock's image path is read from the
    *  folder as this note names it. */
   notePath?: () => string;
+  /** What a roll block's card needs of the window (ADR 0107's roll block). */
+  roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string) => WidgetType | null;
   /** A statblock card's dice — the note's own dice, which roll in a room

@@ -19,6 +19,7 @@ import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
 import { hasCapability } from "../../capabilities";
+import { wireRollBlocks } from "../../rollblock/wire";
 import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
 import type { DieLook } from "../../statblock/inline";
 import { sameText, writeInReading, type Value, type ValuePath } from "../../statblock/edit";
@@ -44,6 +45,9 @@ import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
 import { diagramLang, openBlockDiagram } from "../../datagraph/block";
 import { dgw } from "../../datagraph/words";
+
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -517,6 +521,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
   this.wireStatblocks(this.preview);
+  wireRollBlocks(this.preview, this.path, ROLL_HOST);
   this.wireCodeBlocks(this.preview);
   wireSwatches(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
@@ -660,6 +665,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
       void this.embedImages(forPath, body, to);
       void noteImages(body, to);
       this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
 
       let activeCard: CardEditing | null = null;
       let destroyed = false;
@@ -686,6 +692,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
           void this.embedImages(forPath, body, to);
           void noteImages(body, to);
           this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
         }
         destroyed = false;
       };

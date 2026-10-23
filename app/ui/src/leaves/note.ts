@@ -42,7 +42,7 @@ import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { hasCapability } from "../capabilities";
 import { PropertiesView } from "../props";
-import { propertySuggestions } from "../resolve";
+import { propertySuggestions, resolveNoteByName } from "../resolve";
 import { st } from "../screen/strings";
 import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
@@ -334,6 +334,7 @@ export class NoteLeaf extends Leaf {
       diagram: { label: dgw.viewAsDiagram, wants: (lang) => diagramLang(lang) !== null, open: (lang, text) => openBlockDiagram(this, lang, text) },
       canEditEmbed: () => settings.inlineEmbedEdit,
       notePath: () => this.path,
+      roll: { resolve: resolveNoteByName, open: (path) => void openNote(path, false) },
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
       statblock: {
         die: (notation, look) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }, { ...look, popover: true }),

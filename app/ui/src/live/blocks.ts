@@ -19,6 +19,8 @@ import { renderMermaid } from "../mermaid";
 import { hasCapability } from "../capabilities";
 import { planValueEdit, sameText, type Refusal, type Value, type ValuePath, type WriteOutcome } from "../statblock/edit";
 import { isStatblockFence, renderStatblock } from "../statblock/render";
+import { isRollFence, parseRoll } from "../rollblock/format";
+import { rollCard } from "../rollblock/card";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
 import { frontmatterEnd } from "./frontmatter";
@@ -28,7 +30,7 @@ import { frontmatterEnd } from "./frontmatter";
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-export type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf" | "statblock"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
+export type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf" | "statblock" | "roll"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
 export const BASE_EMBED = /\.base(#[^|]*)?$/i;
 export const PDF_EXT = /\.pdf([#|].*)?$/i;
 export const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
@@ -66,6 +68,12 @@ export function blocksOf(state: EditorState): Block[] {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "mermaid", text });
+        } else if (isRollFence(infoStr)) {
+          // A roll of the table kept in the note (ADR 0107): a card when it
+          // reads, the plain code when it does not.
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          const at = lines(n.from, n.to);
+          if (at && parseRoll(text)) out.push({ ...at, kind: "roll", text });
         } else if (isStatblockFence(infoStr) && hasCapability("statblocks")) {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
@@ -236,6 +244,20 @@ export class BlockWidget extends WidgetType {
       });
 
       void renderMermaid(b.text, mount);
+      return el;
+    }
+    if (b.kind === "roll") {
+      el.className = "cm-lp-block cm-lp-roll";
+      const parsed = parseRoll(b.text);
+      if (parsed) el.append(rollCard(parsed, this.opts.notePath?.() ?? "", this.opts.roll ?? { resolve: () => null, open: () => undefined }));
+      // A click on the card (not on its link) puts the caret in the block's text.
+      el.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      });
       return el;
     }
     if (b.kind === "statblock") {
