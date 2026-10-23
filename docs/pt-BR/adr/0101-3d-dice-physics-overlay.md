@@ -85,6 +85,21 @@
   revisa a revisão da noite acima (máximo de 2,5 s, 0,3 s parado antes do
   cartão, queda 1,6x), que respondia T.8 provisoriamente; o padrão e os
   limites do ajuste, e o que conta como "agir", não são decididos aqui.
+  2026-10-23, testando nos três aparelhos — a luz do 3D estava forte demais;
+  o mantenedor: *"nossa, a luz ta muito forte. mal da pra ver o que saiu em
+  alguns dados"*, com uma imagem de quatro dados Fudge em violeta no tema
+  claro, com as faces de cima lavadas até quase o branco. Causa, medida num
+  quadro com os reflexos do estúdio forçados: a câmera olha reto para baixo
+  e o sol ficava quase sobre ela, então o brilho de espelho dele (e o
+  ambiente somado ao sol, acima de 1 para um corpo claro) caía nas faces de
+  cima planas, as que se leem. **Luz nova:** uma luz de hemisfério (céu
+  branco, chão cinza `0x8a8794`, 1,0), como a do Rolai, no lugar do ambiente
+  chapado (1,35), e um sol de 1,7 (era 2,4) vindo de lado e da frente, cerca
+  de 35 graus fora do eixo da câmera (era cerca de 15), para o brilho cair
+  nos flancos; acabamento vidro: verniz 0,45 e reflexos 0,45 (eram 1 e 0,9),
+  pela lâmpada do teto do estúdio espelhada na face de cima. A física, os
+  números lidos e as texturas das faces não mudam. Guarda:
+  `app/ui/e2e/dice3d-light.spec.mjs`.
 
 ## Contexto
 

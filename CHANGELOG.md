@@ -100,6 +100,7 @@ test release.
 
 ### Fixed
 
+- **3D dice: the face turned up is readable** ([ADR 0101](docs/adr/0101-3d-dice-physics-overlay.md)): the light was so strong that a light-coloured die (violet, yellow, white) turned up washed out to near white, its number lost. The table now has a hemisphere light like Rolai's and the sun stands to the side, so its highlight falls on the flanks and not on the face you read; glass reflects less. Plastic, metal, wood, glass and plain, on the light and the dark theme.
 - **Two identical dice in a note: another person's roll shows on the right one** ([ADR 0107](docs/adr/0107-the-table-a-shared-roll-and-chat-log.md)): when a note holds the same `dice:` code twice (two `1d20` in a character sheet), a roll heard from someone else showed on the first die; now the roll carries which die was clicked and the others see it on that one. An older window or server says none, and the first die shows it as before.
 
 - A desktop window that comes to a server's folder where the person only reads (a player at a table) asks what it can do again: the board loses its drawing tools, the editor and the tree read, and "you only read this folder" shows, without a reload; the window keeps the app's own abilities there (new window, updates, console, folders of this computer).
