@@ -182,9 +182,21 @@ fn a_reader_synced_to_the_folder_is_at_the_table_with_a_readers_powers() {
 #[test]
 fn the_campaign_controls_act_on_the_synced_server_folder_for_its_owner() {
     let r = serve(&[("Sessao.md", "# Sessao\n")]);
-    let mapa = r._dirs.1.path().join("Campanha/Mapa");
-    std::fs::create_dir_all(&mapa).unwrap();
-    std::fs::write(mapa.join("Cidade.md"), "# Cidade\n").unwrap();
+    // Made as tests_sync.rs makes the folder: no `std::fs` in the app's
+    // crate (ADR 0029).
+    let mapa = tempfile::Builder::new()
+        .prefix("Mapa")
+        .rand_bytes(0)
+        .tempdir_in(r._dirs.1.path().join("Campanha"))
+        .unwrap()
+        .keep();
+    let mut cidade = tempfile::Builder::new()
+        .prefix("Cidade.md")
+        .rand_bytes(0)
+        .tempfile_in(&mapa)
+        .unwrap();
+    std::io::Write::write_all(&mut cidade, b"# Cidade\n").unwrap();
+    cidade.keep().unwrap();
     let (d, _l) = linked(&r, &r.owner);
 
     let none = cmd(&d, "campaign_status", json!({})).unwrap();
