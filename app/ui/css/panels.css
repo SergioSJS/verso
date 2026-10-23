@@ -348,7 +348,11 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 .55rem;
+  /* Nine tabs in a 260 px bar: each is 2.25rem when there is room and shrinks
+     (icon centred) when there is not, so the strip never pushes past the window. */
+  flex: 0 1 2.25rem;
+  min-width: 0;
+  padding: 0;
   color: var(--ink-3);
   background: transparent;
   border: 1px solid transparent;
