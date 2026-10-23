@@ -309,7 +309,7 @@ escolha está listada por último, para o mantenedor confirmar ou mudar.
   abriu parte de uma pasta, não tem mesa (a resposta é recusa). O desktop com
   uma pasta só sua não tem: os comandos respondem que a mesa é de servidor, e a
   janela mostra as próprias rolagens. A mesa de uma pasta sincronizada (item 9)
-  não foi feita: suas janelas chegam aos stubs locais, que recusam. Um desktop
+  não foi feita aqui: suas janelas chegavam aos stubs locais, que recusam (feita depois: ver "Como foi feito (uma pasta sincronizada, 23/10/2026)" abaixo). Um desktop
   servindo a pasta (0096) guarda a mesa: o mesmo código, seus celulares
   liberados em tudo menos limpar.
 - **Escolhido no código, para o mantenedor confirmar.** (1) O registro guarda
@@ -378,6 +378,64 @@ vem por último, para o mantenedor confirmar ou mudar.
   então. (12) "Adicionar à nota…" numa imagem escreve `![[attachments/…]]`, o
   caminho do arquivo. (13) A tecla que foca a linha de entrada (item 16) não foi
   feita.
+
+## Como foi feito (uma pasta sincronizada, 23/10/2026)
+
+Branch `feat/table-in-synced-folder`. O item 9 para uma pasta deste computador
+que sincroniza com um UniVerso ([0079](0079-sync-a-local-folder-with-a-server.md)):
+o cenário de teste do mantenedor, o mestre no desktop com uma pasta local
+sincronizada com um UniVerso, os jogadores no navegador e no app do Windows na
+pasta do servidor. Onde o código teve de escolher, a escolha está listada por
+último, para o mantenedor confirmar ou mudar.
+
+- **O transporte é a conexão do sync** ([0082](0082-live-co-editing-of-a-synced-folder.md)
+  item 2), nunca uma segunda. Os comandos `table_*` da janela (entrar, sair,
+  visual, histórico, mensagem, imagem, rolagem, fixar, apagar, limpar) são
+  respondidos por `sync::live::command` (`app/src-tauri/src/sync/live.rs`),
+  alcançado pelo mesmo `live_forward` que responde aos comandos `collab_*`,
+  só para uma janela cuja pasta sincroniza; vão ao servidor como a janela numa
+  pasta do servidor os envia, e o servidor não precisou de nada novo: a conexão
+  da sessão de dispositivo roda o mesmo `handle` que qualquer outra, com o
+  papel da conta na pasta e as mesmas verificações (`tests_live_table.rs`
+  tenta os poderes de um leitor e os do dono).
+- **Os eventos** (`table-entry`, `-pinned`, `-removed`, `-cleared`, `-roster`)
+  que o servidor conta a essa conexão vão às janelas da pasta que entraram na
+  mesa, como os eventos de uma sala vão às janelas que seguram a nota. A conexão
+  do sync é um membro da mesa, quantas janelas deste app tenham entrado: a
+  lista de presentes a tem uma vez, e ela sai da mesa do servidor quando a
+  última sai, ou quando o sync pausa.
+- **Sem conexão.** Com o link caído ou o sync pausado, um comando `table_*`
+  responde `unavailable`, como o de uma sala. A janela então fica com o registro
+  local da fase 1, diz **"Mesa indisponível sem conexão"** (ou "…com a
+  sincronização pausada") e entra de novo quando o estado do sync diz que o
+  link voltou. As rolagens feitas nesse meio-tempo ficam no registro local,
+  marcadas como não compartilhadas; não são enviadas quando o link volta. Uma
+  conexão nova não está em mesa alguma até suas janelas entrarem de novo; a
+  janela o faz na mudança de estado.
+- **Uma rolagem feita na nota de uma pasta sincronizada** é do servidor: pela
+  sala da nota quando ela está ao vivo, senão `table_roll` com o caminho da
+  nota (item 13 da seção da janela acima), a entrada rolada uma vez pelo
+  servidor.
+- **Qual pasta.** Uma pasta sincronizada é uma pasta local com uma pasta do
+  servidor (0079 item 1); a conexão abre essa pasta no servidor, então a mesa
+  é a dessa pasta. Uma pasta sincronizada de um compartilhamento
+  ([0081](0081-sharing-between-people-on-one-universo.md) item 6) não tem mesa,
+  como uma janela num compartilhamento não tem: o servidor recusa e a janela
+  fica com o próprio registro.
+- **Testado.** `app/src-tauri/src/tests_live_table.rs`, contra um servidor
+  real: uma sessão de dispositivo entra, escreve, rola, fixa, apaga, limpa e
+  ouve outra conexão; um leitor sincronizado com a pasta está na mesa com os
+  poderes de leitor; o link caído, um link novo, a última janela saindo. A
+  janela: `app/ui/test/tableReach.test.mjs` (onde a mesa está, pelo estado do
+  sync) e `app/ui/e2e/synced-table.spec.mjs` (o harness faz a mesa pelo link
+  das salas).
+- **Escolhido no código, para o mantenedor confirmar.** (1) As rolagens feitas
+  sem conexão não são enviadas quando o link volta: a mesa é do servidor e
+  guarda o que foi rolado enquanto a janela estava nela. (2) A conexão do sync
+  é um membro da mesa para todas as janelas daquela pasta neste computador.
+  (3) Uma janela que entrou antes de o estado dizer pela primeira vez que o sync
+  está ligado tenta entrar, o que o host responde pelo estado do link, e entra
+  de novo na primeira mudança de estado.
 
 ## Situação
 
