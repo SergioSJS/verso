@@ -1264,7 +1264,42 @@ pub(crate) enum Handed {
     Server(String, String),
 }
 
+/// The window of a folder (the main one first) that already shows the
+/// folder `key`, on this computer or on a server, or waits for the server
+/// that will show it.
+fn window_showing<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Option<String> {
+    let state = app.state::<App>();
+    let mut labels: Vec<String> = app
+        .windows()
+        .into_keys()
+        .filter(|l| l == "main" || l.starts_with("window-"))
+        .filter(|l| match remote::of(app, l) {
+            Some(r) => session::server_key(&r.url, &r.folder) == key,
+            None => {
+                state.service.folder_of(l).as_deref() == Some(key)
+                    || lock(&state.pending_servers).get(l).map(String::as_str) == Some(key)
+            }
+        })
+        .collect();
+    labels.sort_by_key(|l| (l != "main", l.clone()));
+    labels.into_iter().next()
+}
+
 fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
+    // A folder a window already shows is that window's to bring forward: a
+    // second window on it, or the one that shows another folder swapped
+    // for it, is never what handing a folder to the running app means.
+    let key = match &handed {
+        Handed::Path(folder) => verso_core::folder_key(folder),
+        Handed::Server(url, folder) => session::server_key(url, folder),
+    };
+    if let Some(label) = window_showing(app, &key)
+        && let Some(w) = app.get_window(&label)
+    {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        return;
+    }
     // Folders wait in line: two handed before a window took the first
     // (`verso a; verso b`) are both opened, never one lost.
     let waiting = {
@@ -1308,6 +1343,10 @@ fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
             .filter(|l| {
                 (l == "main" || l.starts_with("window-"))
                     && state.service.folder_of(l).is_none()
+                    // A window on a server's folder, or waiting for the
+                    // server's, shows a folder though the service has none.
+                    && remote::of(app, l).is_none()
+                    && !lock(&state.pending_servers).contains_key(l)
                     && !opening.contains(l)
             })
             .collect();
