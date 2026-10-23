@@ -194,6 +194,14 @@ no mesmo dia; cada um está marcado no lugar (Status).
    - Os valores moram na camada da pessoa
      ([0070](0070-what-travels-with-the-folder.md)): os `Settings` da
      janela, sincronizados com a conta num servidor.
+   - **O som da Mesa (2026-10-23, o mantenedor: "Mensagens no chat
+     deveriam notificar de alguma forma, com som configurável").** Mais
+     duas linhas na seção: "Som da Mesa" (Desligado, Suave, Sino, Estalo;
+     Suave por padrão) e o seu volume. É um som, não um tipo de
+     notificação: toca para a mensagem ou a rolagem de outra pessoa com o
+     painel da Mesa aberto ou não, e o tipo "Mesa" acima (um aviso, a
+     lista, a notificação do sistema) continua como era. Detalhes na
+     [0107](0107-the-table-a-shared-roll-and-chat-log.md).
 
 9. **As notificações do sistema** `[DECIDED 2026-10-14]`: nesta rodada,
    no desktop e no navegador.

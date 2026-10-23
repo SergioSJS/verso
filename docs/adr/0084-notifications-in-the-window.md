@@ -191,6 +191,14 @@ the same day; each is marked in place (Status).
    - The values live in the person's layer
      ([0070](0070-what-travels-with-the-folder.md)): the window's
      `Settings`, synced to the account on a server.
+   - **The Table's sound (2026-10-23, the maintainer: "Mensagens no
+     chat deveriam notificar de alguma forma, com som configurável").**
+     Two more rows in the section: "Som da Mesa" (Desligado, Suave, Sino,
+     Estalo; Suave by default) and its volume. It is a sound, not a kind of
+     notification: it plays for another person's message or roll whether
+     the Table panel is open or not, and the "Mesa" kind above (a toast,
+     the list, the system notification) is unchanged. Details in
+     [0107](0107-the-table-a-shared-roll-and-chat-log.md).
 
 9. **The system's notifications** `[DECIDED 2026-10-14]`: in this
    round, on the desktop and in the browser.
