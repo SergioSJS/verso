@@ -4,7 +4,7 @@ A campaign table ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md
 [ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md)) played end to end on
 three real devices against the test UniVerso, with the build of
 `feat/rpg-tools` at `1cac0382`. The screenshots are in
-[`docs/media/test-runs/2026-10-23-mesa/`](../media/test-runs/2026-10-23-mesa/).
+[`docs/media/test-runs/2026-10-23-mesa/`](/docs/media/test-runs/2026-10-23-mesa/).
 
 ## Setup
 
@@ -25,22 +25,22 @@ keystrokes. Every screenshot is of the real window.
 
 | # | Step | Result |
 |---|---|---|
-| 1 | The game master opens a local folder of notes made outside Verso | Works ([01](../media/test-runs/2026-10-23-mesa/01-mestre-mac-pasta-local.png)) |
-| 2 | Connects the Mac app to the server (device code approved in a browser) and syncs the folder in one click | Works ([02](../media/test-runs/2026-10-23-mesa/02-mestre-mac-pasta-sincronizada.png)) |
-| 3 | Makes the whole folder a table: every note starts hidden, with a lock | Works ([03](../media/test-runs/2026-10-23-mesa/03-mestre-mac-mesa-criada-notas-ocultas.png)) |
-| 4 | Shares the folder with Ana and Bruno (password asked again, ten-minute rule) | Works ([04](../media/test-runs/2026-10-23-mesa/04-mestre-mac-jogadores-convidados.png)) |
-| 5 | Releases four notes, gives a secret name to one, makes each sheet editable by its player and the group's note by the group | Works ([05](../media/test-runs/2026-10-23-mesa/05-mestre-mac-editavel-por.png)) |
-| 6 | Ana sees only what was released; a link to a hidden note shows as text with a lock, a secret name as ▒▒▒▒ | Works ([06](../media/test-runs/2026-10-23-mesa/06-ana-linux-so-o-liberado.png), [07](../media/test-runs/2026-10-23-mesa/07-ana-linux-links-trancados.png)) |
-| 7 | Ana composes a roll with the dice tray (d20, modifier +6) and rolls; 3D dice for her and for the game master | Works ([08](../media/test-runs/2026-10-23-mesa/08-ana-linux-compondo-rolagem.png), [09](../media/test-runs/2026-10-23-mesa/09-ana-linux-dados-3d.png), [10](../media/test-runs/2026-10-23-mesa/10-mestre-mac-ve-dados-da-ana.png)) |
-| 8 | Game master's message with a `[[link]]`, and a secret roll: the players read "rolled in secret" | Works ([11](../media/test-runs/2026-10-23-mesa/11-mestre-mac-mensagem-e-rolagem-secreta.png), [12](../media/test-runs/2026-10-23-mesa/12-ana-linux-ve-so-que-rolou-em-segredo.png)) |
-| 9 | Ana rolls from her sheet and writes in it; the game master sees it live and the file on the Mac changes | Works ([13](../media/test-runs/2026-10-23-mesa/13-ana-linux-edita-a-propria-ficha.png), [14](../media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)) |
-| 10 | Ana tries to write in Bruno's sheet | Refused: nothing is written ([15](../media/test-runs/2026-10-23-mesa/15-ana-linux-ficha-do-bruno-so-leitura.png)) |
-| 11 | Bruno joins from the Windows app; three people at the table; he composes and rolls, 3D on every screen | Works ([16](../media/test-runs/2026-10-23-mesa/16-bruno-windows-app.png), [17](../media/test-runs/2026-10-23-mesa/17-bruno-windows-mesa-tres-pessoas.png), [18](../media/test-runs/2026-10-23-mesa/18-bruno-windows-dados-3d.png), [19](../media/test-runs/2026-10-23-mesa/19-mestre-mac-ve-dados-do-bruno.png)) |
-| 12 | The group's board: the game master drags notes and a roll from the Table onto it | Works for the game master ([20](../media/test-runs/2026-10-23-mesa/20-mestre-mac-board-com-rolagem-arrastada.png)); the players see the changes only after reopening the board ([21](../media/test-runs/2026-10-23-mesa/21-ana-linux-board-depois-de-reabrir.png)) — finding 3 |
-| 13 | The game master and Ana write in the group's note at the same time | Both texts kept, no conflict copy ([22](../media/test-runs/2026-10-23-mesa/22-mestre-mac-edicao-simultanea.png)) |
+| 1 | The game master opens a local folder of notes made outside Verso | Works ([01](/docs/media/test-runs/2026-10-23-mesa/01-mestre-mac-pasta-local.png)) |
+| 2 | Connects the Mac app to the server (device code approved in a browser) and syncs the folder in one click | Works ([02](/docs/media/test-runs/2026-10-23-mesa/02-mestre-mac-pasta-sincronizada.png)) |
+| 3 | Makes the whole folder a table: every note starts hidden, with a lock | Works ([03](/docs/media/test-runs/2026-10-23-mesa/03-mestre-mac-mesa-criada-notas-ocultas.png)) |
+| 4 | Shares the folder with Ana and Bruno (password asked again, ten-minute rule) | Works ([04](/docs/media/test-runs/2026-10-23-mesa/04-mestre-mac-jogadores-convidados.png)) |
+| 5 | Releases four notes, gives a secret name to one, makes each sheet editable by its player and the group's note by the group | Works ([05](/docs/media/test-runs/2026-10-23-mesa/05-mestre-mac-editavel-por.png)) |
+| 6 | Ana sees only what was released; a link to a hidden note shows as text with a lock, a secret name as ▒▒▒▒ | Works ([06](/docs/media/test-runs/2026-10-23-mesa/06-ana-linux-so-o-liberado.png), [07](/docs/media/test-runs/2026-10-23-mesa/07-ana-linux-links-trancados.png)) |
+| 7 | Ana composes a roll with the dice tray (d20, modifier +6) and rolls; 3D dice for her and for the game master | Works ([08](/docs/media/test-runs/2026-10-23-mesa/08-ana-linux-compondo-rolagem.png), [09](/docs/media/test-runs/2026-10-23-mesa/09-ana-linux-dados-3d.png), [10](/docs/media/test-runs/2026-10-23-mesa/10-mestre-mac-ve-dados-da-ana.png)) |
+| 8 | Game master's message with a `[[link]]`, and a secret roll: the players read "rolled in secret" | Works ([11](/docs/media/test-runs/2026-10-23-mesa/11-mestre-mac-mensagem-e-rolagem-secreta.png), [12](/docs/media/test-runs/2026-10-23-mesa/12-ana-linux-ve-so-que-rolou-em-segredo.png)) |
+| 9 | Ana rolls from her sheet and writes in it; the game master sees it live and the file on the Mac changes | Works ([13](/docs/media/test-runs/2026-10-23-mesa/13-ana-linux-edita-a-propria-ficha.png), [14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)) |
+| 10 | Ana tries to write in Bruno's sheet | Refused: nothing is written ([15](/docs/media/test-runs/2026-10-23-mesa/15-ana-linux-ficha-do-bruno-so-leitura.png)) |
+| 11 | Bruno joins from the Windows app; three people at the table; he composes and rolls, 3D on every screen | Works ([16](/docs/media/test-runs/2026-10-23-mesa/16-bruno-windows-app.png), [17](/docs/media/test-runs/2026-10-23-mesa/17-bruno-windows-mesa-tres-pessoas.png), [18](/docs/media/test-runs/2026-10-23-mesa/18-bruno-windows-dados-3d.png), [19](/docs/media/test-runs/2026-10-23-mesa/19-mestre-mac-ve-dados-do-bruno.png)) |
+| 12 | The group's board: the game master drags notes and a roll from the Table onto it | Works for the game master ([20](/docs/media/test-runs/2026-10-23-mesa/20-mestre-mac-board-com-rolagem-arrastada.png)); the players see the changes only after reopening the board ([21](/docs/media/test-runs/2026-10-23-mesa/21-ana-linux-board-depois-de-reabrir.png)) — finding 3 |
+| 13 | The game master and Ana write in the group's note at the same time | Both texts kept, no conflict copy ([22](/docs/media/test-runs/2026-10-23-mesa/22-mestre-mac-edicao-simultanea.png)) |
 | 14 | Bruno writes in his sheet from Windows | Reaches the Mac's file |
-| 15 | The game master closes the table, then opens it again | Both players are kept out and come back ([23](../media/test-runs/2026-10-23-mesa/23-ana-linux-mesa-fechada.png), [24](../media/test-runs/2026-10-23-mesa/24-bruno-windows-mesa-fechada.png)); the messages are wrong — finding 8 |
-| 16 | The game master composes 2d6 + 1d20 + 2 and rolls; Bruno sees it fall | Works ([25](../media/test-runs/2026-10-23-mesa/25-mestre-mac-compoe-rolagem.png), [26](../media/test-runs/2026-10-23-mesa/26-bruno-windows-ve-rolagem-do-mestre.png)) |
+| 15 | The game master closes the table, then opens it again | Both players are kept out and come back ([23](/docs/media/test-runs/2026-10-23-mesa/23-ana-linux-mesa-fechada.png), [24](/docs/media/test-runs/2026-10-23-mesa/24-bruno-windows-mesa-fechada.png)); the messages are wrong — finding 8 |
+| 16 | The game master composes 2d6 + 1d20 + 2 and rolls; Bruno sees it fall | Works ([25](/docs/media/test-runs/2026-10-23-mesa/25-mestre-mac-compoe-rolagem.png), [26](/docs/media/test-runs/2026-10-23-mesa/26-bruno-windows-ve-rolagem-do-mestre.png)) |
 
 The players' boards (a board the players edit, ADR 0110 item 6) are phase 2
 and not built: a board in a table can be released, never made editable by
@@ -71,7 +71,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 4. **IMPORTANT — An inline roll's result shows on every chip with the same
    notation.** The bow and the dagger both read `1d20+6`; the result of one
    showed beside both, in the note, in the game master's view and on the
-   board card ([14](../media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). In progress on the same branch.
+   board card ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). In progress on the same branch.
 5. **MINOR — A reader's board says "saved by a newer Verso".** The notice for a
    file from a newer version is shown for any board that cannot be written,
    a reader's included. In progress on the same branch.
@@ -80,7 +80,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    branch.
 7. **IMPORTANT — On the board, the sticky note does not roll.** The toolbar's
    note tool makes a drawn sticky note, where `dice:` stays plain text
-   ([27](../media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
+   ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
    where rolls work, except dragging a roll from the Table. A decision is
    needed on how a text card is made.
 8. **IMPORTANT — Refusals reach the window wrapped in the wrong sentence.** A
@@ -91,7 +91,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 9. **MINOR — "join the table first"** appeared in English, under a window in
    Portuguese (the server's refusal passed through).
 10. **MINOR — Dragging an entry of the Table selects all the window's text** in
-    the Mac app ([28](../media/test-runs/2026-10-23-mesa/28-bug-arrastar-seleciona-texto.png)).
+    the Mac app ([28](/docs/media/test-runs/2026-10-23-mesa/28-bug-arrastar-seleciona-texto.png)).
 11. **MINOR — A reader is offered the editor.** On a note the player may only
     read, "Edit" opens the formatting bar and a caret; typing does nothing.
     "You only read this folder" also shows twice on a note, and stays on a
