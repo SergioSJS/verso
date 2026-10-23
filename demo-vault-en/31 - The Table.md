@@ -48,4 +48,4 @@ In **Settings › RPG & Solo Play › Dice and RPG**, the **Table** switch remov
 
 ---
 
-Go back to [[30 - Colour Swatches]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go back to [[30 - Colour Swatches]], continue to [[32 - Running a Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

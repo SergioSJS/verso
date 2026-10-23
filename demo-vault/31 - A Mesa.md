@@ -48,4 +48,4 @@ Em **Ajustes › RPG & Mesa Solo › Dados e RPG**, a chave **Mesa** tira a aba 
 
 ---
 
-Volte a [[30 - Amostras de Cor]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Volte a [[30 - Amostras de Cor]], siga para [[32 - Rodando uma Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
