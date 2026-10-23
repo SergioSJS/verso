@@ -236,6 +236,8 @@ export type BoardHandle = {
   /** Put a file of the folder on the board, at a point of the screen (the
    *  middle of the view without one). */
   addPath: (path: string, clientX?: number, clientY?: number) => void;
+  /** Put a text card (Markdown) on the board, at a point of the screen. */
+  addText: (text: string, clientX?: number, clientY?: number) => void;
   /** Save now what the board holds and has not saved: before its tab
    *  closes, the window quits or the folder changes. */
   flush: () => Promise<void>;

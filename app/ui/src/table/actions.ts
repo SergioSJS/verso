@@ -20,12 +20,12 @@ function result(refusal: string | null, done: string): void {
 }
 
 /** The menu of one entry, hanging from its button. */
-export function entryMenu(anchor: HTMLElement, e: TableEntry, table: ServerTable): void {
+export function entryMenu(anchor: HTMLElement, e: TableEntry, table: ServerTable | null): void {
   const items: MenuItem[] = [];
-  items.push([e.pinned ? tt.unpin : tt.pin, () => void table.pin(e.id, !e.pinned).then((r) => result(r, e.pinned ? tt.unpinnedStatus : tt.pinnedStatus)), "pin"]);
+  if (table) items.push([e.pinned ? tt.unpin : tt.pin, () => void table.pin(e.id, !e.pinned).then((r) => result(r, e.pinned ? tt.unpinnedStatus : tt.pinnedStatus)), "pin"]);
   // A roll "to the owner" seen by others holds nothing to add.
   if (e.kind !== "secret") items.push([tt.addToNote, () => void addToNote(e, () => quick.pick()), "plus"]);
-  if (table.canDelete(e)) items.push([tt.remove, () => void table.remove(e.id).then((r) => result(r, tt.removedStatus)), "trash"]);
+  if (table?.canDelete(e)) items.push([tt.remove, () => void table.remove(e.id).then((r) => result(r, tt.removedStatus)), "trash"]);
   const box = anchor.getBoundingClientRect();
   showMenu(box.left, box.bottom, items, tt.entryActions(saidOf(e)));
 }
