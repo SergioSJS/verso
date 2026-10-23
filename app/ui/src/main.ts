@@ -610,6 +610,7 @@ void listen("quit-requested", async () => {
     const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
     if (!(await ask(`${t.closeUnsaved}\n${names}`, { yes: t.closeAnyway, no: t.cancel }))) return;
   }
+  void commands.logWrite("INFO", `close ${getCurrentWindow().label}: quit-requested, the window saved and closes`).catch(() => undefined);
   await getCurrentWindow().destroy();
 });
 
@@ -714,6 +715,7 @@ void listen<string>("menu-devtools", (e) => {
 export function closeWhereNoTab(pane: Pane | null): void {
   if (pane && layout().paneCount() > 1) return layout().remove(pane);
   if (spaces.some((sp) => sp.layout.panes().some((p) => p.leaves.length > 0))) return;
+  void commands.logWrite("INFO", `close ${getCurrentWindow().label}: closeWhereNoTab (⌘W with no tab left)`).catch(() => undefined);
   void getCurrentWindow().close();
 }
 void listen<string>("menu-close-tab", (e) => {
