@@ -65,6 +65,7 @@ mod remote;
 #[cfg(target_os = "linux")]
 mod resolv_conf;
 mod secrets;
+mod session;
 mod shares;
 mod sync;
 mod sync_commands;
@@ -109,6 +110,19 @@ pub struct App {
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
     initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// The folders of servers the windows showed when the app quit, waiting
+    /// for a window to open them (`session::restore`): address and folder.
+    /// `open_initial` takes them after the folders of this computer.
+    initial_server: Mutex<std::collections::VecDeque<(String, String)>>,
+    /// The app is quitting (⌘Q, the updater's restart): the windows that
+    /// close with it are not windows the person closed, and the set the
+    /// next start reopens keeps them (`session`).
+    quitting: std::sync::atomic::AtomicBool,
+    /// Windows handed a server's folder that could not be opened (the
+    /// server is down for a moment, as when an update restarts both): the
+    /// window label → the folder's key. The key stays in the set the next
+    /// start reopens until the person closes the window (`session`).
+    pub(crate) pending_servers: Mutex<std::collections::HashMap<String, String>>,
     /// Windows told a folder (`folder_handed`) and not done opening it:
     /// one is not handed another while it installs the first.
     opening: Mutex<std::collections::HashSet<String>>,
@@ -168,6 +182,9 @@ impl App {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial.into_iter().collect()),
+            initial_server: Mutex::new(std::collections::VecDeque::new()),
+            quitting: std::sync::atomic::AtomicBool::new(false),
+            pending_servers: Mutex::new(std::collections::HashMap::new()),
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
@@ -317,6 +334,8 @@ async fn install<R: tauri::Runtime>(
     // The folder just opened is the freshest recent: the menu learns.
     #[cfg(target_os = "macos")]
     refresh_menu(app);
+    // The next start brings this window back (ADR 0065).
+    session::remember(app);
     Ok(info)
 }
 
@@ -376,7 +395,21 @@ async fn open_initial<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
+    let path = lock(&app.state::<App>().initial_folder).pop_front();
+    let Some(path) = path else {
+        // A server's folder the last session had open (`session::restore`).
+        let server = lock(&app.state::<App>().initial_server).pop_front();
+        if let Some((url, folder)) = server {
+            let label = window.label().to_owned();
+            let key = session::server_key(&url, &folder);
+            let opened = remote::server_open(app.clone(), window, url, folder).await;
+            if opened.is_err() {
+                // Kept in the set: the server may be back by the next start.
+                lock(&app.state::<App>().pending_servers).insert(label, key);
+                session::remember(&app);
+            }
+            return opened.map(Some);
+        }
         // Told, but the folder was taken by another window: not opening.
         lock(&app.state::<App>().opening).remove(window.label());
         return Ok(None);
@@ -406,6 +439,7 @@ fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), Contra
     // exit, and the new process, finding the old one still holding it,
     // would hand itself over and exit — and then the old one exits too.
     tauri_plugin_single_instance::destroy(&app);
+    session::quitting(&app);
     app.restart();
 }
 
@@ -1117,6 +1151,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             app.state::<App>()
                 .started
                 .store(true, std::sync::atomic::Ordering::SeqCst);
+            // The folder windows the last session had open (ADR 0065).
+            session::restore(app.handle());
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -1172,6 +1208,9 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             ..
         } => {
             log::write("INFO", "host", &format!("window closed: {label}"));
+            // A window the person closed does not come back at the next
+            // start; one that closed with the app does (`session`).
+            session::window_gone(app, label);
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
             files::drop_picks(label);
@@ -1214,13 +1253,28 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// command-line argument would. A second launch on any system (the
 /// single-instance plugin, `second_launch`) hands its folder here too.
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
+    hand_over(app, Handed::Path(folder));
+}
+
+/// What is handed to the app to open in a window: a folder of this
+/// computer, a path at the edge, or a folder of a server (address, folder).
+pub(crate) enum Handed {
+    Path(PathBuf),
+    Server(String, String),
+}
+
+fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
     // Folders wait in line: two handed before a window took the first
     // (`verso a; verso b`) are both opened, never one lost.
     let waiting = {
         let state = app.state::<App>();
         let mut queue = lock(&state.initial_folder);
-        let waiting = !queue.is_empty();
-        queue.push_back(folder);
+        let mut servers = lock(&state.initial_server);
+        let waiting = !queue.is_empty() || !servers.is_empty();
+        match handed {
+            Handed::Path(folder) => queue.push_back(folder),
+            Handed::Server(url, folder) => servers.push_back((url, folder)),
+        }
         waiting
     };
     // Handed before the setup made the main window (macOS's open event
@@ -1289,6 +1343,7 @@ fn folder_window_in_focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Strin
 /// save and never answers, so it is closed here: left open, it would keep
 /// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    session::quitting(app);
     let mut ours = false;
     for (label, window) in app.windows() {
         if is_app_view(&label) {

@@ -20,6 +20,12 @@ app real.
 
 ## Ainda não conferido
 
+### As duas janelas de pasta voltam (ADR 0065 item 7, fix/reopen-windows, 23/10/2026)
+
+- [ ] **Duas janelas, sair, iniciar: as duas voltam** (A): abra duas pastas, cada uma na sua janela (Arquivo › Nova janela, abrir uma pasta); saia com ⌘Q; inicie o app. As duas janelas voltam, cada uma com a sua pasta (uma sincronizada sincroniza de novo; o log diz "reopening 2 window(s) of the last session"). Repita depois de uma atualização por `scripts/install-beta.sh`.
+- [ ] **Uma janela fechada antes de sair continua fechada** (A): com as duas janelas, feche uma à mão, depois ⌘Q e inicie: só a outra volta. Fechar a última janela (que sai no Windows e no Linux) traz essa de volta da próxima vez. Repita no Windows.
+- [ ] **Uma pasta que não existe mais** (A): renomeie uma das duas pastas com o app fechado; o início abre a outra janela e o log diz que a primeira não foi reaberta; nenhum diálogo.
+
 ### Sync com um provedor de nuvem (ADR 0104, aceito em 2026-10-21; WebDAV e S3 construídos)
 
 Escrita antes do código. Desde 2026-10-21 as checagens de WebDAV (Nextcloud) e S3 (AWS, R2, MinIO) podem ser feitas; as de OAuth (Dropbox, OneDrive, Google Drive) ainda não. Cada uma precisa do app desktop instalado e de uma conta real no provedor; nada aqui trava um commit, um merge ou uma beta. Os provedores OAuth também esperam as contas de desenvolvedor que o mantenedor cria (C.1); WebDAV e S3 vêm primeiro (C.16). Repita a lista por provedor.
