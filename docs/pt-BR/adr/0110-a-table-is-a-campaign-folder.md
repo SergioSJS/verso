@@ -502,8 +502,7 @@ mesa, 2026-10-23)":
   nota é escrito a partir da raiz do compartilhamento, nunca do caminho-pai do
   dono); nomear qualquer outra mesa é recusado, então um jogador da Cripta não
   alcança nada da Sala. As rolagens dele numa nota do seu compartilhamento caem
-  na mesa. Ele não envia imagens (o arquivo iria para fora do compartilhamento).
-  Um compartilhamento cuja raiz **não** é mesa continua sem canal de mesa. Um
+  na mesa. Um compartilhamento cuja raiz **não** é mesa continua sem canal de mesa. Um
   jogador que lê a pasta toda pode entrar em qualquer mesa dela (a regra da mesa
   fechada vale como antes).
 - **Testado**: `tests_table.rs` (`per_table`: entradas, listas, fixadas e
@@ -516,3 +515,46 @@ mesa, 2026-10-23)":
 
 - **A janela da mesa e a página da pasta (2026-10-23).** O mantenedor, numa captura da janela da campanha (um checkbox nativo, um "Salvo." solto, "Desfazer mesa" como o botão principal roxo): *"essa tela ta feia demais, faz um toggle maneiro pra ativar, passa um UX aí cara pelo amor"*; e na página da pasta: *"nessa tela aqui, da pasta, deveriam ter informações da mesa, na página da pasta, deveria estar ali, ativar ou não a mesa, configurações e tal"*. Feito: **Mesa aberta** é uma chave (`role=switch`, um selo *Aberta*/*Fechada*, uma linha do que significa) que salva na hora e responde ao lado; a janela é feita de cartões (convite com o link num campo, *Copiar* e o vencimento; jogadores com o que foi entregue a cada um, em links, e quem está na mesa agora; notas com as contagens de liberadas/ocultas e as duas ações em massa; os limites recolhidos em *Avançado*, o campo salvando ao sair ou com Enter); **Desfazer mesa** é uma ação vermelha e discreta no pé (uma ação destrutiva é vermelha em toda paleta, `--danger`; pergunta antes e diz que os arquivos nunca mudam), nunca o botão principal. No celular a janela é uma folha. A página da pasta tem um cartão **Mesa** sob o título, feito das mesmas peças (`campaignParts.ts`): para a dona de uma pasta que é mesa, a chave, as jogadoras (e quem está online), *Convidar*, as contagens e *Configurações da mesa* (recolhível, lembrado por pasta); para uma jogadora, uma linha só de leitura; numa pasta que pode virar mesa (servidor ou sincronizada, a dona, fora de uma mesa) um chamado *Tornar esta pasta uma mesa*; nada numa pasta só deste computador. Vale para a página de qualquer pasta, então N mesas por pasta.
 - **Uma mesa fechada é dita à jogadora (2026-10-23).** A janela de uma jogadora "não conectava" a uma mesa fechada (`refused: a mesa está fechada` no log, nada na tela). Agora a janela diz, no lugar da pasta e na língua da interface, *A mesa está fechada pelo mestre. Você entra quando ela abrir.*, com *Tentar agora*, e tenta de novo sozinha (15 s, dobrando até 2 min); o mesmo na janela remota do desktop, numa pasta sincronizada com o servidor (`SyncStatus.problem = table_closed`, nova tentativa a cada 15 s) e no navegador (o aviso do servidor `gone: folder, reason: closed` mantém a pasta lembrada). A dona nunca vê isso, e o botão, o selo e o painel da Mesa dizem *fechada* ao mestre. **Nada fechou a mesa sem a pessoa**: `campaign_make` numa mesa existente é `INSERT OR IGNORE` (não toca em `open`), `campaign_settings` sem `open` o mantém (`COALESCE`), os campos de limite da janela não mandam `open`, nenhuma migração o toca, e uma mesa nova começa aberta (testes `making_a_table_again_…` em `db/tests.rs` e `tests_campaign.rs`); o único que manda `open: false` é a chave. A janela antiga punha o foco do teclado no checkbox, onde um Espaço perdido podia fechar a mesa sem a pessoa querer; a janela redesenhada põe o foco no título, salva na hora com resposta visível e diz *Fechada* em vermelho.
+
+## Como foi construído (um compartilhamento é a mesma mesa, 2026-10-23)
+
+O mantenedor, 2026-10-23: *"qual que é a diferença de entrar na mesa por compartilhamento ou entrar na mesa como membro… Existe algum motivo plausível pra ter diferença?"* A regra que decorre: **o compartilhamento só
+limita o que o jogador vê; a mesa se comporta igual.** Conversa, rolagens,
+atualizações ao vivo, imagens, o modo de rolagem, a lista de quem está, as cores
+dos dados, o som, apagar as próprias mensagens e o aviso de mesa fechada são
+iguais para o jogador de um compartilhamento com raiz numa mesa e para um membro
+da pasta. A auditoria de cada ramo de `scope` da mesa achou duas diferenças que
+não eram de visibilidade, as duas corrigidas:
+
+- **Os eventos ao vivo eram descartados.** `Scope::push` (`scope.rs`) manda a uma
+  janela de compartilhamento só os eventos que conhece, e os da mesa
+  (`table-entry`, `table-roster`, `table-pinned`, `table-removed`,
+  `table-cleared`) não estavam entre eles; o jogador de um compartilhamento não
+  ouvia nada ao vivo: nem as mensagens e rolagens do mestre, nem a própria
+  rolagem feita numa nota (os dados rolavam pela sala da nota, a linha era
+  guardada, e o painel só a mostrava depois de recarregar, pelo histórico do
+  `table_join`), nem a lista de quem está; e sem som nem 3D para as rolagens dos
+  outros, que vêm do mesmo evento. Agora passam; `table.rs` já escrevia a mesa
+  como `""` e os caminhos a partir da raiz do compartilhamento antes de empurrar,
+  então nenhum caminho da pasta do dono vai junto.
+- **Imagens eram recusadas.** Um editor num compartilhamento agora envia imagem
+  como um membro (um leitor não envia, como um membro leitor). O arquivo fica no
+  lugar de anexos **dentro da pasta da mesa do compartilhamento**
+  (`<raiz>/<lugar>/mesa-…`), o único lugar que esse jogador lê; o `image` da
+  entrada é escrito a partir da raiz do compartilhamento, como o caminho de uma
+  nota (`scoped`).
+
+O que continua diferente, porque é só escopo: os caminhos são escritos a partir
+da raiz do compartilhamento; uma nota fora dele não tem caminho na entrada; a
+mesa é `""`; um compartilhamento cuja raiz não é mesa não tem mesa; o jogador de
+um compartilhamento não conduz a mesa (`campaign_make`, liberar e convidar são do
+dono da pasta). Testado: `tests_table.rs`
+(`a_window_on_a_share_hears_the_table_live_as_a_member_does`: mensagens do dono,
+uma segunda janela da mesma conta, uma saindo, uma rolagem de nota, uma imagem) e
+`e2e-server/table-parity.spec.mjs` (o mesmo cenário como membro e num
+compartilhamento).
+
+Uma terceira diferença, achada pelo e2e: a imagem de uma mesa era procurada a
+partir do pai do compartilhamento (`resolve_attachment` sem nota que diga de
+onde o alvo é escrito), então a miniatura do próprio jogador do compartilhamento
+vinha faltando. Agora o compartilhamento procura esse alvo a partir da sua raiz.

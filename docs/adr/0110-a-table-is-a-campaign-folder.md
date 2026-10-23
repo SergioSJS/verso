@@ -484,8 +484,7 @@ per table, 2026-10-23)":
   own root, `""` (the table in the commands, answers and events is `""` for it,
   and a note's path is written from the share's root, never the owner's
   parent path); naming any other table is refused, so a player of Cripta reaches
-  nothing of Sala. Its rolls in a note of its share land in the table. It sends
-  no images (the file would go outside its share). A share whose root is **not**
+  nothing of Sala. Its rolls in a note of its share land in the table. A share whose root is **not**
   a table still has no table channel. A player who reads the whole folder may
   join any table of it (the closed-table rule applies as before).
 - **Tried**: `tests_table.rs` (`per_table`: two tables' entries, rosters, pins
@@ -498,3 +497,43 @@ per table, 2026-10-23)":
 
 - **The table's window and the folder's page (2026-10-23).** The maintainer, on a screenshot of the campaign window (a native checkbox, a loose "Saved.", "Undo table" as the purple primary button): *"essa tela ta feia demais, faz um toggle maneiro pra ativar, passa um UX aí cara pelo amor"*; and on the folder's page: *"nessa tela aqui, da pasta, deveriam ter informações da mesa, na página da pasta, deveria estar ali, ativar ou não a mesa, configurações e tal"*. Built: **Table open** is a switch (`role=switch`, a status pill *Open*/*Closed*, one line of what it means) that saves at once and answers beside itself; the window is cards (invitation with the link in a field, *Copy* and its expiry; players with what is granted to each, as links, and who is at the table now; notes with released/hidden counts and the two bulk actions; the limits folded under *Advanced*, a field saving when left or on Enter); **Undo table** is a red, quiet action at the bottom (a destructive action is red in every palette, `--danger`; it asks first and says the files never change), never the primary. On a phone the window is a sheet. The folder's page has a **Table** card under the title built of the same parts (`campaignParts.ts`): to the owner of a folder that is a table the switch, players (and who is online), *Invite*, the counts and *Table settings* (foldable, remembered per folder); to a player one read-only line; on a folder that can become a table (server or synced, the owner, not inside a table) one *Make this folder a table* call to action; nothing on a folder only on this computer. Any folder's page, so N tables per folder.
 - **A closed table is said to the player (2026-10-23).** A player's window "did not connect" to a closed table (`refused: a mesa está fechada` in its log, nothing on the screen). Now the window says, in the folder's place and in the interface's language, *The table is closed by the game master. You get in when it opens.*, with *Try now*, and tries again by itself (15 s, doubling to 2 min); the same in the desktop's remote window, a folder synced with the server (`SyncStatus.problem = table_closed`, retried every 15 s) and a browser (the server's push `gone: folder, reason: closed` keeps the folder remembered). The owner never sees it, and the Table chip, badge and panel say *closed* to the game master. **Nothing closed the table without the person**: `campaign_make` on an existing table is `INSERT OR IGNORE` (it does not touch `open`), `campaign_settings` with `open` absent keeps it (`COALESCE`), the window's limit fields send no `open`, no migration touches it, and a new table starts open (tests `making_a_table_again_…` in `db/tests.rs` and `tests_campaign.rs`); the only sender of `open: false` is the switch. The old window put keyboard focus on its checkbox, where a stray Space could close the table without the person meaning to; the redesigned window puts it on the title, saves at once with visible feedback and says *Closed* in red.
+
+## As built (a share is the same table, 2026-10-23)
+
+The maintainer, 2026-10-23: *"qual que é a diferença de entrar na mesa por compartilhamento ou entrar na mesa como membro… Existe algum motivo plausível pra ter diferença?"* The rule that follows: **the share only
+bounds what the player can see; the table behaves the same.** Chat, rolls, live
+updates, images, the roll mode, the roster, dice colours, the chime, deleting
+one's own messages and the closed-table notice are identical for a player on a
+share rooted at a table and for a folder member. The audit of every `scope`
+branch of the table found two differences that were not about visibility, both
+fixed:
+
+- **Live events were dropped.** `Scope::push` (`scope.rs`) sends a share window
+  only the events it knows, and the table's events (`table-entry`,
+  `table-roster`, `table-pinned`, `table-removed`, `table-cleared`) were not
+  among them, so a player on a share heard nothing live: neither the game
+  master's messages and rolls, nor her own roll made in a note (the dice played
+  from the note's room, the row was kept, and the panel showed it only after a
+  reload and the history of `table_join`), nor the roster; and no dice sound or
+  3D for the others' rolls, which come from the same event. They are passed
+  now; `table.rs` already wrote the table as `""` and the paths from the share's
+  root before pushing, so no path of the owner's folder goes with them.
+- **Images were refused.** An editor on a share now sends an image like a member
+  (a reader sends none, as a reader member). The file is kept in the attachments
+  place **inside the share's table folder** (`<root>/<place>/mesa-…`), the only
+  place that player reads; the entry's `image` is written from the share's root
+  as a note's path is (`scoped`).
+
+What stays different, because it is only scope: paths are written from the
+share's root; a note outside the share has no path in the entry; the table is
+`""`; a share whose root is not a table has no table; a share's player does not
+run the table (`campaign_make`, release, invite are the folder owner's).
+Tried: `tests_table.rs` (`a_window_on_a_share_hears_the_table_live_as_a_member_does`:
+the owner's messages, a second window of the same account, one leaving, a roll
+from a note, an image) and `e2e-server/table-parity.spec.mjs` (the same scenario
+as a member and on a share).
+
+A third difference, found by the e2e: a table's picture was looked up from the
+share's parent (`resolve_attachment` with no note to say where the target is
+written from), so a share player's own thumbnail came back missing. The share
+now looks such a target up from the share's root.
