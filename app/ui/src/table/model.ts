@@ -221,6 +221,9 @@ export interface TableSource {
   undoHide(): boolean;
   hidden(): boolean;
   onChange(fn: () => void): () => void;
+  /** What the panel says of a source that is not shared, when it has more
+   *  to say than "not shared" (a synced folder out of reach of its server). */
+  notice?(): string | null;
 }
 
 /** The log of one folder. */

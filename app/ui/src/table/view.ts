@@ -195,7 +195,7 @@ class TableView {
       more.addEventListener("click", () => panelMenu(more, server));
       this.bar.append(more);
     }
-    this.note.textContent = src.shared ? "" : tt.notShared;
+    this.note.textContent = src.shared ? "" : (src.notice?.() ?? tt.notShared);
     this.note.hidden = src.shared;
     this.hiddenLine.replaceChildren();
     this.hiddenLine.hidden = !src.hidden();
