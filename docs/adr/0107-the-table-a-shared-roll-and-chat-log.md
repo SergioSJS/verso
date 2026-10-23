@@ -619,3 +619,5 @@ are now **per table**, set by the table's game master within 1,000–200,000
 entries and 1–30 MB, with these values as the defaults; the table's rows
 follow the veil of 0110 for a reader (the note a roll was made in is not told
 when hidden, a table image is seen by everyone at the table).
+
+*Fixed (2026-10-23, real Mac app):* "eu cliquei numa rolagem e arrastei para uma nota, funcionou como deveria, mas ele selecionou o texto no chat e no verso". A pointer drag (item 5, "Levar uma rolagem para uma nota") now holds the selection while it runs: the text selected by the press is cleared, a new selection is refused (`selectstart`, and `user-select: none` on the window) until the drop, and selecting works again after it. The same day: "eu tive que trocar a aba da barra lateral pra conseguir redimensionar. aumenta um pouco a largura inicial dessa barra" — the right bar's width is now kept like the left bar's, and its default grows from 260 px to about 320 px (at most a third of the window); a remembered width wins.

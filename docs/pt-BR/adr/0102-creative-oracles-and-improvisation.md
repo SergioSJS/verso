@@ -237,3 +237,5 @@ decisões de 2026-10-20; nada resta `[PROPOSTO]`.
 Aceita (2026-10-20) para os itens marcados `[DECIDIDO 2026-10-20]`, as
 respostas do mantenedor à revisão do primeiro texto, e (2026-10-21) para os
 detalhes que ele decidiu no questionário.
+
+*Corrigido (2026-10-23):* "Consultar Oráculo não ta rolando dado 3d". Com os dados 3D ligados ([0101](0101-3d-dice-physics-overlay.md)), consultar o oráculo agora joga o dado sorteado — o d100 de uma pergunta, o dado de uma tabela com tantos lados quanto entradas (um tamanho sem sólido, como 7, não tem queda) — pelo mesmo `will3d`/`play3d` de qualquer rolagem, com o som pelas regras existentes, e a resposta aparece quando o dado para. O número é sorteado antes (aqui, ou pelo servidor da sala, item 5), então o dado só o mostra. As faíscas de ideias sorteiam quatro palavras, não um número: sem dado.

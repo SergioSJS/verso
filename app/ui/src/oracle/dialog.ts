@@ -12,6 +12,7 @@ import type { OracleHost, OracleTarget } from "./host";
 import { drawQuestion, drawSpark, drawTable } from "./room";
 import { loadTableRows, scanNoteTables, SCAN_MOST } from "./scan";
 import { isPt, os } from "./strings";
+import { fallOf } from "./fall";
 import { BUILTIN_ORACLE_TABLES, getAllOracleTables, type OracleTable, type TableRollResult } from "./tables";
 import { trackOracle } from "./track";
 import { writeOracle, type Refusal } from "./write";
@@ -413,6 +414,8 @@ function build(): Dialog {
         }
         lastResult = d.value;
         note = d.note;
+        // With the 3D switch on the die falls first; the answer shows when it rests.
+        await fallOf(100, d.value.roll);
         renderProb();
       } else if (currentTab === "sparks") {
         const d = await drawSpark(path, isPt ? "pt" : "en");
@@ -432,6 +435,7 @@ function build(): Dialog {
         }
         lastTableResult = d.value;
         note = d.note;
+        if (lastTableResult) await fallOf(lastTableResult.total, lastTableResult.roll);
         if (!lastTableResult) {
           say(os.emptyTable);
           renderTable();

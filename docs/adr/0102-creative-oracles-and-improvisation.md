@@ -234,3 +234,5 @@ questionnaire of 2026-10-20; nothing is left `[PROPOSED]`.
 Accepted (2026-10-20) for the items marked `[DECIDED 2026-10-20]`, the
 maintainer's answers to the review of the first text, and (2026-10-21) for
 the details he decided in the questionnaire.
+
+*Fixed (2026-10-23):* "Consultar Oráculo não ta rolando dado 3d". With 3D dice on ([0101](0101-3d-dice-physics-overlay.md)), asking the oracle now throws the die it drew — the d100 of a question, the die of a table with as many sides as it has entries (a size with no solid, such as 7, has no fall) — through the same `will3d`/`play3d` as any roll, with the sound by the existing rules, and the answer shows when the die rests. The number is drawn first (here, or by the room's server, item 5), so the die only shows it. Idea sparks draw four words, not a number: no die.

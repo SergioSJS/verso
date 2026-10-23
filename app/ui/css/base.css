@@ -78,8 +78,8 @@
 :hover::-webkit-scrollbar-thumb { background-color: color-mix(in oklch, var(--ink-3) 45%, transparent); }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--ink-3); }
 html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); }
-body { display: grid; grid-template-columns: var(--ribbon-w) var(--side-w) 0 1fr 0 var(--right-w, 260px); overflow: hidden; }
-body.no-side { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 var(--right-w, 260px); }
+body { display: grid; grid-template-columns: var(--ribbon-w) var(--side-w) 0 1fr 0 var(--right-w, min(320px, 34vw)); overflow: hidden; }
+body.no-side { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 var(--right-w, min(320px, 34vw)); }
 body.no-right { grid-template-columns: var(--ribbon-w) var(--side-w) 0 1fr 0 0; }
 body.no-side.no-right { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
 .ribbon { grid-column: 1; } .side { grid-column: 2; } #side-divider { grid-column: 3; } .work { grid-column: 4; } #right-divider { grid-column: 5; } .right { grid-column: 6; }

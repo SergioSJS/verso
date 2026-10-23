@@ -425,10 +425,23 @@ paintToggles();
 installFrame();
 initZoom();
 installStatusLive(ui.status);
+/** The right bar's width, kept for the next start (the left bar's is kept the same way). */
+function rememberRight(w: number): void {
+  try {
+    localStorage.setItem("verso.rightWidth", String(Math.round(w)));
+  } catch {
+    // No storage.
+  }
+}
 rightDivider.addEventListener("pointerdown", (e) => {
   rightDivider.setPointerCapture(e.pointerId);
-  const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);
-  const up = () => { rightDivider.removeEventListener("pointermove", move); rightDivider.removeEventListener("pointerup", up); };
+  const width = (ev: PointerEvent): number => Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5);
+  const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${width(ev)}px`);
+  const up = (ev: PointerEvent) => {
+    rightDivider.removeEventListener("pointermove", move);
+    rightDivider.removeEventListener("pointerup", up);
+    rememberRight(width(ev));
+  };
   rightDivider.addEventListener("pointermove", move);
   rightDivider.addEventListener("pointerup", up);
 });
@@ -549,10 +562,12 @@ arrowResize(sideDivider, "--side-w", () => document.querySelector(".side")?.getB
     // No storage.
   }
 });
-arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 260, -1);
+arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 320, -1, rememberRight);
 try {
   const w = localStorage.getItem("verso.sideWidth");
   if (w) document.body.style.setProperty("--side-w", `${Number(w)}px`);
+  const r = Number(localStorage.getItem("verso.rightWidth"));
+  if (r >= 180) document.body.style.setProperty("--right-w", `${Math.min(r, window.innerWidth * 0.5)}px`);
 } catch {
   // No storage.
 }
