@@ -614,6 +614,7 @@ mostrado ficar óbvio), numa nota longa o bastante para rolar.
 
 ### Dados e tabelas sorteadas (ADR 0088, feat/dice, 2026-10-14)
 
+- [ ] **Cada batida dos dados é ouvida quando o dado bate** (A, o app do Mac, ADR 0101): som ligado, o Mac ocioso por alguns minutos (com fones, Bluetooth também), role 4d6 pela caixa da Mesa com Enter: cada batida soa quando o dado toca o feltro ou outro dado, e nada soa depois de os dados pararem. A linha `dice sound:` do log diz `late=` e `clockRate=` se não foi assim.
 - [ ] **Um dado numa nota rola e não escreve nada** (A): no app
   instalado, a nota 24 do cofre de exemplo na Leitura, depois no Editar:
   cada código `dice:` é um dado; um clique e Enter rolam, o cartão mostra o
