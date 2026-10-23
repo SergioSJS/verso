@@ -514,10 +514,8 @@ async fn invite(
             address: None,
             ok: true,
         });
-        let base = crate::base_url(&s.config);
-        let base = base.trim_end_matches('/');
         Ok(CampaignInvite {
-            link: format!("{base}/invite/{token}"),
+            link: crate::window_link(&s.config, &format!("/invite/{token}")),
             expires: u32::try_from(inv.expires).unwrap_or(u32::MAX),
         })
     })

@@ -143,6 +143,7 @@ fn main() {
         "server_create_folder",
         "server_open",
         "server_retry",
+        "window_server",
         "discover_servers_start",
         "discover_servers_list",
         "discover_servers_stop",

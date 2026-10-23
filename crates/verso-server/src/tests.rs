@@ -82,7 +82,7 @@ impl Running {
 /// `VERSO_UPDATE_CHECK=off` turns it off but through this table rather than
 /// the process's environment: a test server never reaches the network
 /// (dozens of them asking the release feed at once were limited by GitHub).
-fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
+pub(crate) fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
     struct Loopback;
     impl config::Env for Loopback {
         fn var(&self, name: &str) -> Option<String> {

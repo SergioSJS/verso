@@ -19,6 +19,7 @@
 
 import { commands, type Can, type Capabilities, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
+import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
 
 const DESKTOP: Capabilities = {
   host: "desktop",
@@ -35,6 +36,7 @@ let turn = 0;
 export function loadCan(): Promise<Capabilities> {
   if (asked) return asked;
   const mine = ++turn;
+  void askServer();
   asked = commands.capabilities().then(
     (r) => {
       // An answer to a question asked before the last one is stale.
@@ -78,7 +80,24 @@ export function host(): Host {
  *  window reads them back (web/bridge.ts, `popout_target`). */
 export function noteAddress(path: string): string {
   const folder = new URLSearchParams(location.search).get("folder") ?? "";
-  return `${location.origin}/?folder=${encodeURIComponent(folder)}&note=${encodeURIComponent(path)}`;
+  return noteLink(path, folder, windowServer, location.origin);
+}
+
+/** Where this window reaches its server (`window_server`), as last asked; null
+ *  for a folder of this computer. Asked with the capabilities. */
+let windowServer: ServerWindow | null = null;
+function askServer(): Promise<ServerWindow | null> {
+  return commands.windowServer().then(
+    (r) => (windowServer = r.status === "ok" ? r.data : null),
+    () => windowServer,
+  );
+}
+
+/** A link the server made, opened where this window reaches the server:
+ *  a path is put after the server's address, not after the app's own origin. */
+export async function serverLink(link: string): Promise<string> {
+  if (!link.startsWith("/")) return link;
+  return resolveServerLink(link, await askServer(), location.origin);
 }
 
 /** What may draw itself again when the answer changes. */

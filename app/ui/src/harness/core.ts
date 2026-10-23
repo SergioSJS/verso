@@ -1307,6 +1307,8 @@ export class Core {
     server_create_folder: () => refuse("unavailable", "no server in the harness"),
     server_open: () => refuse("unavailable", "no server in the harness"),
     server_retry: () => null,
+    // The harness is a folder of "this computer": no server's address.
+    window_server: () => null,
     // The servers announced on the network (ADR 0097): none, until a test
     // sets `discover_servers_list` to some.
     discover_servers_start: () => null,

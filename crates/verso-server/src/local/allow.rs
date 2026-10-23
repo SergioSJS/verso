@@ -190,6 +190,7 @@ pub const REFUSED: &[&str] = &[
     "server_open",
     "server_prove",
     "server_retry",
+    "window_server",
     "discover_servers_start",
     "discover_servers_list",
     "discover_servers_stop",

@@ -145,6 +145,30 @@ fn base_url(config: &Config) -> String {
     })
 }
 
+/// A link the server hands to a window, which opens it where it reaches
+/// the server. With the configured public address, the whole link; without
+/// one, only the path — the server cannot know the name a window reaches it
+/// by (the listening address may be the wildcard, and `Host` is not trusted,
+/// ADR 0045), so the window puts its own server's address before it. A link
+/// that leaves by mail has no window and uses [`base_url`].
+pub(crate) fn window_link(config: &Config, path: &str) -> String {
+    match config.public_url.as_deref() {
+        Some(base) => format!("{}{path}", base.trim_end_matches('/')),
+        None => path.to_owned(),
+    }
+}
+
+/// Said once at start: with no `VERSO_PUBLIC_URL` and the wildcard bind, the
+/// links that leave by mail (password reset) name `localhost`, which opens
+/// nothing for their reader.
+fn warn_public_url(config: &Config) {
+    if config.public_url.is_none() && config.listen.ip().is_unspecified() {
+        log::warn(
+            "VERSO_PUBLIC_URL is not set and the server listens on every address: links sent by mail (password reset) name localhost and open nothing; set VERSO_PUBLIC_URL to the address people reach the server by (ADR 0073 item 6)",
+        );
+    }
+}
+
 /// The first admin (ADR 0074 item 1): from the environment when the server
 /// has no account yet — the variables ignored, said once in the log, when
 /// it has; without them, a setup link valid for an hour, printed once.
@@ -326,6 +350,7 @@ pub async fn run_on<L: listen::Incoming>(
         server.contract,
         server.config.folders_dir.display()
     ));
+    warn_public_url(&server.config);
     if server.config.tls.is_none() {
         log::info(
             "plain HTTP works; offline, notifications and the like need HTTPS (VERSO_TLS_CERT_FILE, or a proxy in front with VERSO_PUBLIC_URL)",
