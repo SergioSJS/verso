@@ -13,6 +13,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { commands, type CampaignChanged, type CampaignGrant, type CampaignNote, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
 import { openCampaignDialog } from "./campaignDialog";
+import { tableBadge } from "./tableChip";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
 import { told } from "./errors";
@@ -102,15 +103,10 @@ export function hiddenMark(path: string): HTMLElement | null {
   return mark;
 }
 
-/** The mark of a folder that is a table. */
+/** The badge of a folder that is a table: a button, "Mesa" (tableChip.ts). */
 export function tableMark(path: string): HTMLElement | null {
-  if (status.viewer !== "owner" || !isTableRoot(path)) return null;
-  const mark = h("span", "campaign-mark table-mark");
-  mark.setAttribute("role", "img");
-  mark.setAttribute("aria-label", cp.tableMark);
-  mark.title = cp.tableMark;
-  mark.append(icon("user"));
-  return mark;
+  if ((status.viewer !== "owner" && status.viewer !== "player") || !isTableRoot(path) || path === "") return null;
+  return tableBadge(path);
 }
 
 /** The marks of the rows drawn now. */

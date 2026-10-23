@@ -428,15 +428,22 @@ conexão chega às janelas que pediram o status.
 estou com a raiz de uma mesa aberta no verso, como que o dono da pasta vai
 conseguir ver as configurações da pasta? E como que os jogadores veem do lado
 deles?"* O dono só chegava à janela da mesa pelo botão direito no fundo da
-árvore ou pelo botãozinho do painel Mesa. Escolhido no código, para o
-mantenedor confirmar: quando a pasta aberta é ela mesma uma mesa (uma mesa na
-raiz), o alto da barra lateral mostra, ao lado do nome da pasta, um selo
-pequeno. Para o **dono** é o botão **Mesa** (nome acessível *Mesa: abrir as
-configurações da pasta*) que abre a janela da mesa. Para um **jogador** é o selo
-somente leitura **Mesa · jogador**: ao clicar, abre um balão com duas linhas —
-lê as notas que o mestre liberou, edita as notas entregues a ele — e essas
-notas listadas como links; sem nenhuma, ele diz isso. O jogador não tem
-ajustes ali nem caminho para a janela da mesa. Uma pasta que não é mesa, ou uma
-mesa feita só de uma subpasta, não mostra selo (`app/ui/src/tableChip.ts`;
-testado em `e2e/table-chip.spec.mjs`). Ao lado, uma pasta que a pessoa só lê
+árvore ou pelo botãozinho do painel Mesa. Escolhido no código,
+primeiro só para a raiz; **o mantenedor rejeitou: *"ERRADO, posso ter N mesas
+numa mesma pasta"*.** Uma pasta aberta tem quantas mesas quiser, cada uma uma
+pasta (uma mesa por pasta). A regra agora: **toda pasta que é uma mesa** (uma
+subpasta; a raiz tem o selo do cabeçalho) mostra um pequeno selo **Mesa** na
+linha dela na árvore, um botão com o nome da pasta da mesa — para o **dono** abre
+a janela *daquela* mesa; para o **jogador** abre o balão somente leitura dela:
+duas linhas (lê as notas liberadas, edita as entregues a ele) e as notas
+entregues *naquela mesa* como links, sem ajustes. O **selo ao lado do nome da
+pasta** segue o contexto: a mesa que contém a nota ativa (a pasta de mesa mais
+próxima subindo pelo caminho, com o nome dessa pasta: *Mesa: Ruínas de
+Valdor*), a da raiz quando a raiz é mesa e nenhuma mais funda contém a nota ou
+não há nota ativa, e, sem nota ativa dentro de mesa alguma e havendo mesas
+abaixo, **Mesas (N)**, que abre uma lista (dono: cada uma abre a janela; jogador:
+cada uma o balão). Sem selo quando a pasta não tem mesa nenhuma
+(`app/ui/src/tableChip.ts`; testado em `e2e/table-chip.spec.mjs`). O painel
+Mesa (o registro e o chat compartilhados, `src/table/*`) é um por pasta aberta e
+não segue a mesa da nota ativa. Ao lado, uma pasta que a pessoa só lê
 mostra o cadeado fechado da emenda do ADR 0076 do mesmo dia.
