@@ -839,6 +839,7 @@ macro_rules! commands_for {
                 server_create_folder::<$runtime>,
                 server_open::<$runtime>,
                 server_retry::<$runtime>,
+                window_server::<$runtime>,
                 discover_servers_start,
                 discover_servers_list,
                 discover_servers_stop,

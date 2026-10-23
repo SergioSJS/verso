@@ -153,6 +153,7 @@
     "allow-server-create-folder",
     "allow-server-open",
     "allow-server-retry",
+    "allow-window-server",
     "allow-discover-servers-start",
     "allow-discover-servers-list",
     "allow-discover-servers-stop",
