@@ -227,9 +227,12 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
       if (!closed) void api.look(myColor(), deps.styles());
     },
     close() {
-      if (closed) return;
+      if (closed) return Promise.resolve();
       stop();
-      void api.leave();
+      return api.leave().then(
+        () => undefined,
+        () => undefined,
+      );
     },
   };
   return table;
