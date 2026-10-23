@@ -133,7 +133,7 @@ campaign.linked = link;
 for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite"]) {
   const own = core.handlers[cmd];
   if (!own) continue;
-  core.handlers[cmd] = (a) => {
+  const linked = (a: Parameters<typeof own>[0]) => {
     if (link() === false) {
       if (cmd === "campaign_status") return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
       if (cmd === "table_leave") return null;
@@ -141,6 +141,9 @@ for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "
     }
     return own(a);
   };
+  // The handler it wraps, whose source names the arguments it reads
+  // (e2e/harness.spec.mjs).
+  core.handlers[cmd] = Object.assign(linked, { wraps: own });
 }
 // The owner of a synced folder reaches the server's shares while its link is
 // up: the game master's rows of the menu are the owner's (ADR 0081).
