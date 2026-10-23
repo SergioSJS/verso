@@ -4,6 +4,7 @@
 
 import { shareMark } from "../shares";
 import { readLinkMark } from "../readLinks";
+import { hiddenMark, tableMark } from "../campaign";
 import { commands } from "../bindings";
 import { narrow, paintToggles } from "../chrome";
 import { h, ui } from "../dom";
@@ -105,6 +106,9 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
   b.append(leadIcon, nameSpan);
   const readMark = readLinkMark(path, "note");
   if (readMark) b.append(readMark);
+  // A note the table keeps hidden (ADR 0110), for the game master.
+  const hidden = hiddenMark(path);
+  if (hidden) b.append(hidden);
   // Drawn after the open note was marked (a folder opened later): marked here.
   if (current?.layout.activeLeaf?.path === path) b.setAttribute("aria-current", "true");
   if (isSelected(path)) b.classList.add("selected");
@@ -325,6 +329,8 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       if (shareMarkNode) s.append(shareMarkNode);
       const readMark = readLinkMark(full, "folder");
       if (readMark) s.append(readMark);
+      const tableNode = tableMark(full);
+      if (tableNode) s.append(tableNode);
       if (isItemPinned(full, prefix, pinnedList)) {
         s.append(pinBadge());
       }

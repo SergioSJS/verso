@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-campaign-release-all"
+description = "Enables the campaign_release_all command without any pre-configured scope."
+commands.allow = ["campaign_release_all"]
+
+[[permission]]
+identifier = "deny-campaign-release-all"
+description = "Denies the campaign_release_all command without any pre-configured scope."
+commands.deny = ["campaign_release_all"]

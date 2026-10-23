@@ -80,6 +80,7 @@ Explore the modules below to see each feature in detail:
 29. [[29 - Syncing with a Cloud]] — A folder kept the same as a folder in a Nextcloud (WebDAV) or an S3 bucket you already have, with no server: the form, the S3 key limited to one folder, the password in the keychain and what to expect.
 30. [[30 - Colour Swatches]] — A small square of the colour beside `#1d9e75`, `rgb()` and `hsl()`; a click in the editor opens the picker, and the code comes back in the same format.
 31. [[31 - The Table]] — One log of every roll, table roll and oracle question, with who made it and from which note, in the right panel; other people's rolls arrive with their names.
+32. [[32 - Running a Table]] — A campaign folder on a UniVerso: inviting the players, notes hidden until you release them, links to what has not appeared yet drawn with a padlock, who edits what, and the table's limits.
 
 ---
 

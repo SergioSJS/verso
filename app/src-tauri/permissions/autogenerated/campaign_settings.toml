@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-campaign-settings"
+description = "Enables the campaign_settings command without any pre-configured scope."
+commands.allow = ["campaign_settings"]
+
+[[permission]]
+identifier = "deny-campaign-settings"
+description = "Denies the campaign_settings command without any pre-configured scope."
+commands.deny = ["campaign_settings"]

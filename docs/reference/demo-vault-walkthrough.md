@@ -1482,7 +1482,42 @@ Open note 31 (*The Table*) in a folder that has the demo content
    on the bottom bar, that never scrolls the page sideways; the add button is
    at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
 
-## 18. The end
+## 18. Running a table (note 32)
+
+Open note 32 (*Running a Table*) in a folder that has the demo content
+([ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md), phase 1). The folder
+must be a server's, and the person its owner.
+
+1. Right-click a folder › *Tornar esta pasta uma mesa*: the *Mesa* dialog
+   opens, the status line says the folder became a table, the folder has the
+   table mark, and every note under it has the padlock "Oculta da mesa". On a
+   folder of this computer alone the row is not there. Level: H; E:
+   `campaign.spec.mjs`.
+2. Right-click a hidden note › *Liberar para a mesa*: the padlock goes and the
+   status line says it; *Ocultar da mesa* puts it back. With several notes
+   selected, the selection's menu does the same at once. On a folder of the
+   table, *Liberar tudo daqui* and *Ocultar tudo daqui*. Level: H; E:
+   `campaign.spec.mjs`.
+3. In the dialog: *Mesa aberta* off and on; *Convidar jogadores* › *Gerar link*
+   shows a link to copy (single use, 7 days); *Liberar tudo* asks first; the
+   limits take 1,000 to 200,000 entries and 1 to 30 MB and refuse the rest;
+   *Desfazer mesa* asks first. Level: H; E: `campaign.spec.mjs`. The invitation
+   itself, with the fresh proof, is the server's: A.
+4. Right-click a note › *Nome secreto*; › *Editável por* › *o grupo* or a
+   player. Level: H; E: `campaign.spec.mjs`.
+5. As a player (a second account, the invitation's link): the tree has only
+   the released notes; a link to a hidden note reads "texto 🔒", with an alias
+   "apelido 🔒", a secret name ▒▒▒▒, an embed "🔒 (ainda não revelado)"; the
+   quick switcher does not find a hidden note; a note granted to the player can
+   be typed in, the others refuse it. Level: H; E: `campaign.spec.mjs`. With
+   the real server: A, and every read path is tried in
+   `crates/verso-server/src/tests_campaign.rs` (U).
+6. Close the table (*Mesa aberta* off) with a player inside: the player's
+   window leaves the folder, and opening it again answers "a mesa está
+   fechada"; the owner enters. Level: U (`tests_campaign.rs`); A with two
+   accounts.
+
+## 19. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

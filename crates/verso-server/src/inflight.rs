@@ -67,8 +67,10 @@ const TEXTS: [&str; 11] = [
 #[must_use]
 pub fn most_for(cmd: &str) -> usize {
     if cmd == "table_send_image" {
-        // An image of 10 MB as base64, with room (ADR 0107 item 3).
-        crate::table::IMAGE_BYTES / 3 * 4 + 1024
+        // An image of the largest a table may allow (ADR 0110, MS.1: 30 MB
+        // at most; 10 MB by default, ADR 0107 item 3) as base64, with room;
+        // the command judges the table's own limit.
+        usize::try_from(crate::db::IMAGE_MOST).unwrap_or(usize::MAX) / 3 * 4 + 1024
     } else if cmd == "table_say" {
         crate::table::SAY_MESSAGE
     } else if UPLOADS.contains(&cmd) {

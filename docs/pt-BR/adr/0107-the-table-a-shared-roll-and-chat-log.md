@@ -395,3 +395,10 @@ segundo, rajada de 20) e o destino das imagens (a pasta de anexos do Obsidian,
 senão `attachments/`, com o nome `mesa-<data>-<id>`) ficam como construídos
 (*"concordo com o ritmo"*); o teto do registro e o tamanho de imagem viram
 ajustes de cada mesa ([0110](0110-a-table-is-a-campaign-folder.md)).
+
+*Revisado (2026-10-22, [0110](0110-a-table-is-a-campaign-folder.md)):* o teto
+do registro (20.000 entradas, "Escolhido no código" 1) e o limite de imagem
+(10 MB) agora são **por mesa**, definidos pelo mestre da mesa entre
+1.000–200.000 entradas e 1–30 MB, com esses valores como padrão; as linhas da
+mesa seguem o véu da 0110 para um leitor (a nota em que uma rolagem foi feita
+não é dita quando está oculta, uma imagem da mesa é vista por todos nela).
