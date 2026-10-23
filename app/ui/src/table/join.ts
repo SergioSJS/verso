@@ -15,13 +15,14 @@ import { listen } from "@tauri-apps/api/event";
 import { commands, type OracleDraw } from "../bindings";
 import { presenceColor, liveRoom } from "../collab";
 import { rowForRoll } from "../dice/card";
-import { diceLook, play3d, will3d } from "../dice3d";
+import { play3d, wireStyles, will3d } from "../dice3d";
 import { errorSentence } from "../errors";
 import { currentFolder, folderName } from "../folder";
 import { drawWords } from "../oracle/room";
 import { notify } from "../notify";
 import { settings } from "../settings";
 import { announce } from "./addToNote";
+import { armChime, chosen, earnsChime, playChime, typingInTable } from "./chime";
 import { stylesOf, type ServerTable, type TableEntry } from "./model";
 import { local, setTableSource, tableOn, tableOnScreen } from "./record";
 import { noticeKey, reachOf, rejoin, tryServerTable, type Reach, type SyncDetail } from "./reach";
@@ -85,7 +86,7 @@ async function rejoinNow(): Promise<void> {
   unavailable = false;
   const table = await openServerTable({
     api,
-    styles: () => diceLook().styles,
+    styles: () => wireStyles(),
     colorFor: presenceColor,
     oracleWords: (d: OracleDraw) => drawWords(d),
     explain: (e) => {
@@ -114,7 +115,13 @@ function noticeText(key: "syncOffline" | "syncPaused" | null): string | null {
  *  the "Mesa" notification when the panel is not on screen. */
 function news(e: TableEntry, wire: { roll: import("../bindings").DiceRoll | null }): void {
   const roll = wire.roll;
-  if (roll && e.kind !== "secret" && (!e.path || !liveRoom(e.path)) && settings.others3d !== false && will3d(e.path, roll)) void play3d(e.path, roll, stylesOf(roll) ?? undefined);
+  const falls = !!roll && e.kind !== "secret" && (!e.path || !liveRoom(e.path)) && settings.others3d !== false && will3d(e.path, roll);
+  if (roll && falls) void play3d(e.path, roll, stylesOf(roll) ?? undefined);
+  // The chime (2026-10-23): another person's message or roll, unless the dice fall for it (their own sound)
+  // or the person is writing in the table's box; whether the window is in front does not matter (the OS
+  // notification below is the one that waits for it to be behind).
+  const { chime, volume } = chosen();
+  if (chime !== "off" && earnsChime(e, falls, typingInTable())) playChime(chime, volume);
   if (tableOnScreen()) return;
   notify({
     kind: "table",
@@ -130,6 +137,7 @@ function news(e: TableEntry, wire: { roll: import("../bindings").DiceRoll | null
 /** Start following the folder: shown, role changed, switch flipped, the
  *  dice look changed, or a test saying the table came up. */
 export function installServerTable(): void {
+  armChime();
   for (const ev of ["verso:folder-shown", "verso:role", "verso:features-changed", "verso:table-retry"]) addEventListener(ev, () => void retry());
   addEventListener("verso:dice-look", () => current?.look());
   // A synced folder's link up or down, its sync paused or resumed: the
