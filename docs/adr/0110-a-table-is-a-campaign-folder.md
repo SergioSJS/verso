@@ -405,3 +405,23 @@ connection reaches the windows that asked the status.
   has no tables to make, as a window on a share has none.
 
 **The step from folder to table, in the Mesa panel (2026-10-23).** The maintainer: *"deveria ser possível transformar a pasta a partir da pasta aberta dentro do próprio verso... um botãozinho ali que me deixa transformar a pasta em mesa, sem ter que clicar com o botão direito"*. The Mesa panel of the window shows a **Make this folder a table** button when the open folder is a server's folder (or synced with one), the person owns it and it is not yet a table (`mayShare()` and no table at the folder's root, the same condition as the tree background's menu row); it runs the same command as that row, `makeTable("")` (`campaign_make`), and opens the table's window. Once the folder is a table the button becomes **Open the Table window** (`openCampaignDialog("")`). Nobody else sees either, and a folder only on this computer says in one line why there is no table. A table made of a subfolder is still made from the tree's menu. The panel follows the table being made or undone through the `verso:campaign-status` event of `setStatus`.
+
+## As built (chrome feedback, 2026-10-23)
+
+**The table's chip beside the folder's name.** The maintainer asked: *"Como eu
+estou com a raiz de uma mesa aberta no verso, como que o dono da pasta vai
+conseguir ver as configurações da pasta? E como que os jogadores veem do lado
+deles?"* The owner reached the table's window only by a right click on the
+tree's background or the small button of the Mesa panel. Chosen in the code,
+for the maintainer to confirm: when the open folder is itself a table (a table
+at its root) the side bar's head shows, beside the folder's name, a small chip.
+For the **owner** it is the button **Mesa** (accessible name *Mesa: open the
+folder's settings*) that opens the table's window. For a **player** it is the
+read-only chip **Mesa · jogador** (EN *Table · player*): clicking it opens a
+popover with two lines — they read the notes the game master released, and edit
+the notes granted to them — and those notes listed as links; with none, it says
+so. A player has no settings there and no way to the table's window. A folder
+that is not a table, or a table made of a subfolder only, shows no chip
+(`app/ui/src/tableChip.ts`; tried in `e2e/table-chip.spec.mjs`). Beside it, a
+folder one only reads shows the closed lock of ADR 0076's amendment of the same
+day.

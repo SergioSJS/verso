@@ -419,3 +419,22 @@ conexão chega às janelas que pediram o status.
   compartilhamento não tem.
 
 **O passo de pasta a mesa, no painel Mesa (23/10/2026).** O mantenedor: *"deveria ser possível transformar a pasta a partir da pasta aberta dentro do próprio verso... um botãozinho ali que me deixa transformar a pasta em mesa, sem ter que clicar com o botão direito"*. O painel Mesa da janela mostra um botão **Tornar esta pasta uma mesa** quando a pasta aberta é de um servidor (ou sincronizada com um), a pessoa é a dona e ela ainda não é mesa (`mayShare()` e nenhuma mesa na raiz da pasta, a mesma condição da linha do menu do fundo da árvore); ele roda o mesmo comando dessa linha, `makeTable("")` (`campaign_make`), e abre a janela da mesa. Quando a pasta já é uma mesa, o botão vira **Abrir a janela da Mesa** (`openCampaignDialog("")`). Ninguém mais vê nenhum dos dois, e uma pasta só deste computador diz numa linha por que não há mesa. Uma mesa feita de uma subpasta continua sendo feita pelo menu da árvore. O painel acompanha a mesa feita ou desfeita pelo evento `verso:campaign-status` do `setStatus`.
+
+## Como foi construído (feedback do chrome, 2026-10-23)
+
+**O selo da mesa ao lado do nome da pasta.** O mantenedor perguntou: *"Como eu
+estou com a raiz de uma mesa aberta no verso, como que o dono da pasta vai
+conseguir ver as configurações da pasta? E como que os jogadores veem do lado
+deles?"* O dono só chegava à janela da mesa pelo botão direito no fundo da
+árvore ou pelo botãozinho do painel Mesa. Escolhido no código, para o
+mantenedor confirmar: quando a pasta aberta é ela mesma uma mesa (uma mesa na
+raiz), o alto da barra lateral mostra, ao lado do nome da pasta, um selo
+pequeno. Para o **dono** é o botão **Mesa** (nome acessível *Mesa: abrir as
+configurações da pasta*) que abre a janela da mesa. Para um **jogador** é o selo
+somente leitura **Mesa · jogador**: ao clicar, abre um balão com duas linhas —
+lê as notas que o mestre liberou, edita as notas entregues a ele — e essas
+notas listadas como links; sem nenhuma, ele diz isso. O jogador não tem
+ajustes ali nem caminho para a janela da mesa. Uma pasta que não é mesa, ou uma
+mesa feita só de uma subpasta, não mostra selo (`app/ui/src/tableChip.ts`;
+testado em `e2e/table-chip.spec.mjs`). Ao lado, uma pasta que a pessoa só lê
+mostra o cadeado fechado da emenda do ADR 0076 do mesmo dia.

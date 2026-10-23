@@ -34,7 +34,7 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 
 - `⌘\` divide à direita e `⌘⇧\` divide abaixo.
 - Ou arraste uma aba até a borda de um painel: a borda escolhe o lado; o meio põe a aba ali.
-- O **painel da direita** (estrutura, backlinks, tags, favoritos, focos e calendário) abre pelo botão **Mostrar painel da direita** da barra de status, pelo botão do mesmo nome na faixa da esquerda, ou por `⌘⌥→`. No celular, é o botão **Painel** da barra de baixo.
+- O **painel da direita** (estrutura, backlinks, tags, favoritos, focos e calendário) abre pelo botão **Mostrar painel da direita** da barra de status, pelo botão do mesmo nome na faixa da esquerda, ou por `⌘⌥→`. No celular, é o botão **Painel** da barra de baixo. As abas do painel mudam de lugar: arraste uma aba, ou use `Alt+←` e `Alt+→` numa aba com o foco, ou o botão direito › **Mover para a esquerda / direita**; a ordem fica guardada. Quando faltam espaço (e, no Windows e no Linux, o app desenha os próprios botões de janela no canto), as abas que não cabem vão para o botão **⋯** (**Mais abas do painel**).
 - `⌘⇧M` maximiza o painel e `⌘⇧W` o fecha.
 - O botão **Todas as abas**, no canto da barra de abas, lista as abas do painel e tem **Abas na vertical** e **Ocultar barra de abas** — para trazê-la de volta, no celular toque na faixa **Mostrar barra de abas** que aparece no alto do painel; em qualquer tela use a Paleta de comandos (`⌘⇧P`; no celular, o botão **Comandos** da barra de baixo) ou o interruptor em **Ajustes › Editor**; um duplo clique no painel vazio também serve.
 

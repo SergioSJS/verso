@@ -260,3 +260,18 @@ dentro do que a tela mostra. O cursor fica no bloco movido, acima do
 teclado. Um ponteiro fino mantém as alças como o
 [0061](0061-blocks-in-edit-mode.md) as fez. Isto fecha o `[ABERTO]` do
 conteúdo da barra; ele ainda pode mudar depois do uso, por uma nova emenda.
+
+**A marca de quem só lê (item 11), 2026-10-23.** O mantenedor: *"essa mensagem
+'you can only read this folder' é inútil, remova, tem jeito melhor de fazer
+isso: se a pessoa tentar editar, … pode ter um cadeado fechado em algum lugar
+pra indicar isso"*. A linha amarela no alto da janela (e o aviso avulso do
+navegador) saiu. Decidido no código, para confirmar: um cadeado fechado ao lado
+do nome da pasta, no alto da barra lateral (com o nome *Você só lê esta
+pasta*), mostrado enquanto a pasta na tela é uma que a pessoa só lê; e, quando
+tenta mudar algo (digitar, colar, soltar ou recortar numa nota, pedir Editar ou
+Código-fonte, ⌘N e as outras teclas do que escreve, arrastar um arquivo,
+renomear, criar uma pasta), um aviso curto perto de onde agiu diz isso, no
+máximo uma vez a cada poucos segundos, não a cada tecla
+(`app/ui/src/readerNotice.ts`). Uma nota entregue à pessoa (ADR 0110) edita
+normalmente e não diz nada; o cadeado continua sendo da pasta. Testado em
+`e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` e `folder-role.spec.mjs`.

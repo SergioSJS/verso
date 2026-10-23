@@ -32,6 +32,7 @@ import { dataModes, diagramFormat } from "./data";
 import { linkText, textCaret, textTyped } from "../datagraph/link";
 import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
+import { readerWatch } from "../readerNotice";
 import * as textLive from "./textLive";
 
 /* A text file that is not a note: shown in the source editor, read-only. */
@@ -125,7 +126,7 @@ export class TextLeaf extends Leaf {
         ...language,
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
-        this.readOnly ? readOnlyText : [],
+        this.readOnly ? [readOnlyText, readerWatch(() => this.path)] : [],
         // The text box is named after the file.
         EditorView.contentAttributes.of(() => ({ "aria-label": this.path.split("/").pop() ?? this.path })),
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
