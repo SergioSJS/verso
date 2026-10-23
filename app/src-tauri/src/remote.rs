@@ -44,6 +44,35 @@ pub(crate) fn contract_version() -> String {
         .collect()
 }
 
+/// What this app can do whatever folder a window shows, as the contract
+/// names it: its own windows, child web views, updates, console and the
+/// opening of folders of this computer (ADR 0027, ADR 0076 item 11).
+/// "Show in Finder", "Copy full path" and the agents work on a path of this
+/// computer, which a server's folder has not: they stay absent there
+/// (ADR 0076 item 11; the agents are an open question, kept absent).
+const APP_ABILITIES: [&str; 5] = [
+    "windows",
+    "web_views",
+    "updates",
+    "devtools",
+    "local_folders",
+];
+
+/// The server's answer for a folder it holds, plus the abilities of this
+/// app that do not depend on the folder's side. `write`, `collab`,
+/// `account`, `admin` and `host` stay the server's (ADR 0026: the UI does
+/// not assume the side, the host merges).
+pub(crate) fn with_app_abilities(caps: &mut Value) {
+    let Some(can) = caps.get_mut("can").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for ability in APP_ABILITIES {
+        if !can.iter().any(|c| c == ability) {
+            can.push(json!(ability));
+        }
+    }
+}
+
 /// The commands a window on a server's folder sends to the server; every
 /// other one is this app's (its windows, its menus, its updates).
 pub(crate) fn forwards(cmd: &str) -> bool {
@@ -330,6 +359,7 @@ impl Remote {
         match (cmd, answer) {
             ("capabilities", Ok((mut caps, piece))) => {
                 caps["latency_ms"] = json!(ms);
+                with_app_abilities(&mut caps);
                 Ok((caps, piece))
             }
             // A piece from a server of sync 1: base64 in the answer.
