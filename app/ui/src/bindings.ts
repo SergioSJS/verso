@@ -550,7 +550,7 @@ export const commands = {
 	"1": DiceStyle,
 	"2": DiceStyle,
 	"3": DiceStyle,
-} | null, secret: boolean | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source, styles, secret })),
+} | null, secret: boolean | null, occurrence: number | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source, styles, secret, occurrence })),
 	/**
 	 *  An oracle question, spark or table drawn in the note's room by the
 	 *  server, heard by the others in it (ADR 0102 item 5): on a server, or a
@@ -585,7 +585,7 @@ export const commands = {
 	"1": DiceStyle,
 	"2": DiceStyle,
 	"3": DiceStyle,
-} | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_roll", { notation, source, path, secret, styles })),
+} | null, occurrence: number | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_roll", { notation, source, path, secret, styles, occurrence })),
 	/**  Pin or unpin an entry, for everyone at the table. */
 	tablePin: (id: string, pinned: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("table_pin", { id, pinned })),
 	/**  Delete a message or an image: its author, or an owner. */
@@ -1520,6 +1520,14 @@ export type DiceRoll = {
 	 *  sent none.
 	 */
 	styles?: DiceStyles | null,
+	/**
+	 *  Which of the note's dice with this code was clicked, from the first
+	 *  (ADR 0107): a note can hold the same `dice:` code twice, and a
+	 *  window that hears the roll shows it on that one. For display only;
+	 *  none when the roll was not made from a die in a note, or by an older
+	 *  window or server, and then the first such die shows it.
+	 */
+	occurrence?: number | null,
 };
 
 /**

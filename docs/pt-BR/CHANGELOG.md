@@ -96,6 +96,8 @@ versão de teste.
 
 ### Corrigido
 
+- **Dois dados iguais numa nota: a rolagem de outra pessoa aparece no dado certo** ([ADR 0107](adr/0107-the-table-a-shared-roll-and-chat-log.md)): quando uma nota tem o mesmo código `dice:` duas vezes (dois `1d20` numa ficha), a rolagem ouvida de outra pessoa aparecia no primeiro dado; agora a rolagem leva qual dado foi clicado e os outros a veem nele. Uma janela ou servidor mais antigo não diz, e o primeiro dado a mostra como antes.
+
 - Uma janela do desktop que chega à pasta de um servidor onde a pessoa só lê (um jogador numa mesa) pergunta de novo o que pode fazer: o quadro perde as ferramentas de desenho, o editor e a árvore só leem e aparece "você só lê esta pasta", sem recarregar; a janela mantém ali as capacidades do próprio app (nova janela, atualizações, console, pastas deste computador).
 - **O board de quem só lê e os dados de uma nota**: um board que um jogador tinha aberto agora se atualiza quando o mestre o altera (o servidor avisa os leitores quando a sala do board grava, como já fazia com as notas), em vez de só depois de fechar e abrir; quem só lê não vê mais o aviso de *salvo por um Verso mais novo* e recebe o visualizador, sem a barra de desenho, desde o primeiro quadro também no app de desktop; e quando uma nota tem dois dados com a mesma notação, o resultado aparece só ao lado do que foi clicado, na Leitura, na Pré-visualização ao vivo e nos cartões do board.
 

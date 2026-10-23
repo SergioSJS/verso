@@ -27,6 +27,7 @@ pub struct Opts {
     pub source: Option<String>,
     pub styles: Option<DiceStyles>,
     pub secret: bool,
+    pub occurrence: Option<u32>,
 }
 
 /// `notation` rolled in the room of `path` for `who`, a window in it:
@@ -46,6 +47,7 @@ pub fn roll(
         source,
         styles,
         secret,
+        occurrence,
     } = opts;
     let read = crate::dice::read(notation).map_err(|e| refused(&e))?;
     let source = crate::dice::source(source).map_err(|e| refused(&e))?;
@@ -71,6 +73,7 @@ pub fn roll(
     .map_err(|e| verso_service::failed(e.as_str()))?;
     let mut rolled = rolled;
     rolled.styles = styles;
+    rolled.occurrence = crate::dice::occurrence(occurrence);
     let open_to_readers = super::readers::roll_is_open(&r, &rolled);
     if !secret {
         if r.rolls.len() >= ROLLS_KEPT {

@@ -24,7 +24,7 @@ export type Api = {
   history(before: string | null, limit: number): Promise<R<TablePage>>;
   say(text: string): Promise<R<Wire>>;
   sendImage(base64: string): Promise<R<Wire>>;
-  roll(notation: string, source: string | null, path: string | null, secret: boolean | null, styles: WireStyles | null): Promise<R<Wire>>;
+  roll(notation: string, source: string | null, path: string | null, secret: boolean | null, styles: WireStyles | null, occurrence: number | null): Promise<R<Wire>>;
   pin(id: string, pinned: boolean): Promise<R<null>>;
   del(id: string): Promise<R<null>>;
   clear(keepPinned: boolean): Promise<R<null>>;
@@ -186,7 +186,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     say: (text) => said(api.say(text)),
     async roll(notation, opts) {
       const r = await api
-        .roll(notation, opts?.source ?? null, opts?.path ?? null, opts?.secret ? true : null, deps.styles())
+        .roll(notation, opts?.source ?? null, opts?.path ?? null, opts?.secret ? true : null, deps.styles(), opts?.occurrence ?? null)
         .catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return { error: deps.explain(r.error) };
       ingest(r.data, false);

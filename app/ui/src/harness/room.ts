@@ -78,7 +78,8 @@ export class Rooms {
         throw e;
       }
       const source = a["source"] === null || a["source"] === undefined ? null : String(a["source"]);
-      return this.keep(room, { ...rollHere(notation, source), by: "Ana" });
+      const occurrence = typeof a["occurrence"] === "number" && a["occurrence"] >= 0 && a["occurrence"] < 1000 ? a["occurrence"] : null;
+      return this.keep(room, { ...rollHere(notation, source), by: "Ana", ...(occurrence === null ? {} : { occurrence }) });
     };
     // The oracle in the room (ADR 0102 item 5): drawn by the server, named
     // after the window's account, heard by the others; nothing kept.
@@ -210,13 +211,13 @@ export class Rooms {
 
   /** `name` rolls `notation` in the note (a table's `source` with it):
    *  the server's roll, told to the window as the server relays it. */
-  roll(path: string, name: string, notation: string, source: string | null = null, faces: number[] | null = null): DiceRoll {
+  roll(path: string, name: string, notation: string, source: string | null = null, faces: number[] | null = null, occurrence: number | null = null): DiceRoll {
     const read = readNotation(notation);
     if (!read) throw new Error(`not a roll: ${notation}`);
     let i = 0;
     // A test may say what the dice show: face f is the 32-bit draw f - 1.
     const draws = faces ? () => ((faces[i++] ?? 1) - 1) / 2 ** 32 : undefined;
-    const roll = this.keep(this.room(path), { ...rollHere(read, source, draws), by: name });
+    const roll = this.keep(this.room(path), { ...rollHere(read, source, draws), by: name, ...(occurrence === null ? {} : { occurrence }) });
     void emit("collab-roll", { path, roll });
     return roll;
   }

@@ -127,10 +127,12 @@ pub(crate) async fn collab_command(
             };
             let styles: Option<verso_contract::DiceStyles> = arg(&args, "styles")?;
             let secret: Option<bool> = arg(&args, "secret")?;
+            let occurrence: Option<u32> = arg(&args, "occurrence")?;
             let opts = crate::collab::RollOpts {
                 source,
                 styles,
                 secret: secret.unwrap_or(false),
+                occurrence,
             };
             to_value(crate::collab::roll(
                 &s, &sender, &key, &path, &notation, opts,

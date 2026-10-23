@@ -658,8 +658,9 @@ fn collab_roll(
     source: Option<String>,
     styles: Option<verso_contract::DiceStyles>,
     secret: Option<bool>,
+    occurrence: Option<u32>,
 ) -> Result<DiceRoll, ContractError> {
-    let _ = (path, notation, source, styles, secret);
+    let _ = (path, notation, source, styles, secret, occurrence);
     Err(not_here())
 }
 
