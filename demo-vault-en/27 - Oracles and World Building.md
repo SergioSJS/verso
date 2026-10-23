@@ -32,7 +32,7 @@ For solo play, improvisation or a stuck scene. An `[!oracle]` callout is the que
 
 **Try it.** Click **Ask Oracle**, in the header of the callout above. The window opens with the question already filled in:
 
-1. In **Yes or No**, choose the **Odds** — *Nearly impossible*, *Unlikely*, *50 / 50*, *Likely* or *Nearly certain* — and click **Ask Oracle**. Verso rolls a d100 against the row for that chance and reads one of six answers: *Yes, and…*, *Yes*, *Yes, but…*, *No, but…*, *No* or *No, and…*.
+1. In **Yes or No**, choose the **Odds** — *Nearly impossible*, *Unlikely*, *50 / 50*, *Likely* or *Nearly certain* — and click **Ask Oracle**. Verso rolls a d100 against the row for that chance and reads one of six answers (with **3D dice** on, the d100 falls on the screen and the answer shows when it rests): *Yes, and…*, *Yes*, *Yes, but…*, *No, but…*, *No* or *No, and…*.
 2. Click **Save in callout**: an answer line goes into the callout.
 3. Ask **the same question** again: the new answer goes **below** the previous one. Answers **pile up**.
 4. Rewrite the question in the callout and ask: only the lines the **oracle** wrote are replaced. **What you wrote by hand is never erased** — the rookie officer's line, above, stays.

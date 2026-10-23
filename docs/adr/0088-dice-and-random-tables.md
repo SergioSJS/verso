@@ -164,3 +164,5 @@ maintainer, each with a recommendation: the notation (item 1), unequal
 rows (item 3), who rolls in a room (item 4), how Rolai's engine is
 reused (item 5), the roller without a note (item 6), and whether
 primitives satisfy [0036](0036-tabletop-rpg-support.md)'s Consequences.
+
+*Added (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". The editor's `/` menu gets **Dice roll** (keywords dice, dado, roll, rolar, d20), shown only while the Dice feature is on: it inserts an inline `` `dice: 1d20` `` with the notation selected, so the person types over it.

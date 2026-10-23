@@ -32,7 +32,7 @@ Para jogo solo, improviso ou uma cena travada. Um destaque `[!oracle]` é a perg
 
 **Experimente.** Clique em **Consultar Oráculo**, no cabeçalho do destaque acima. A janela abre com a pergunta já preenchida:
 
-1. Em **Sim ou Não**, escolha a **Chance** — *Quase impossível*, *Improvável*, *50 / 50*, *Provável* ou *Quase certo* — e clique em **Consultar**. O Verso rola um d100 contra a linha daquela chance e lê uma de seis respostas: *Sim, e…*, *Sim*, *Sim, mas…*, *Não, mas…*, *Não* ou *Não, e…*.
+1. Em **Sim ou Não**, escolha a **Chance** — *Quase impossível*, *Improvável*, *50 / 50*, *Provável* ou *Quase certo* — e clique em **Consultar**. O Verso rola um d100 contra a linha daquela chance e lê uma de seis respostas (com os **Dados 3D** ligados, o d100 cai na tela e a resposta aparece quando ele para): *Sim, e…*, *Sim*, *Sim, mas…*, *Não, mas…*, *Não* ou *Não, e…*.
 2. Clique em **Gravar no callout**: uma linha de resposta entra no destaque.
 3. Consulte **a mesma pergunta** de novo: a nova resposta entra **abaixo** da anterior. As respostas se **acumulam**.
 4. Reescreva a pergunta no destaque e consulte: só as linhas que o **oráculo** escreveu são trocadas. **O que você escreveu à mão nunca é apagado** — a linha do oficial novato, acima, fica.

@@ -168,3 +168,5 @@ mantenedor, cada um com uma recomendação: a notação (item 1), linhas
 desiguais (item 3), quem rola numa sala (item 4), como o motor do Rolai é
 reaproveitado (item 5), o rolador sem nota (item 6), e se primitivas
 satisfazem as Consequências da [0036](0036-tabletop-rpg-support.md).
+
+*Acrescentado (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". O menu `/` do editor ganha **Dado** (palavras dice, dado, roll, rolar, d20), mostrado só com o recurso Dados ligado: insere um `` `dice: 1d20` `` na linha, com a notação selecionada para a pessoa digitar por cima.

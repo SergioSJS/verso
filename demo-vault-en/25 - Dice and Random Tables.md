@@ -13,6 +13,8 @@ A `dice:` code in a note is a **die**: in **Reading** and in **Edit**, away from
 
 **Nothing is written to the note.** Rolling, rolling again and closing the card leave the file as it was: open the note in **Source** mode and see that the code is still just code.
 
+**Writing a die.** In **Edit**, type `/` and pick **Dice roll** (or type `/dice`): Verso writes `` `dice: 1d20` `` on the line with the notation **selected** — type `2d6+3` over it and you are done. The item shows only while the **Dice** feature is on.
+
 ---
 
 ## Rolling
