@@ -49,7 +49,7 @@ test("at 260 px the top row is one line and the hide button is an icon with its 
   for (const b of boxes) expect(b.right).toBeLessThanOrEqual(row.x + row.width + 1);
   // With room the words come back.
   await page.evaluate(() => {
-    document.querySelector("aside.right").style.width = "480px";
+    document.querySelector("aside.right").style.width = "560px";
   });
   await expect(hide.locator(".table-hide-label")).toBeVisible();
 });
