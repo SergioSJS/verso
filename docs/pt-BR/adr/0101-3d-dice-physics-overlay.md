@@ -255,8 +255,12 @@ pararem, como no Rolai. Uma batida só entra na fila do relógio do áudio
 quando esse relógio foi visto avançando (um contexto pode dizer "running"
 enquanto o dispositivo de saída ainda acorda, com o `currentTime` parado, e
 tudo que está na fila toca de uma vez depois); senão é descartada e contada
-como atrasada. Todo gesto com o som ligado mantém a saída acordada (um buffer
-em laço quase inaudível, parado após três minutos sem gesto nem rolagem). A
+como atrasada. A atividade de dados mantém a saída acordada (um buffer em
+laço quase inaudível): um gesto num controle de dados (a caixa e o envio da
+Mesa, a bandeja, o botão de dado de uma nota, o roller, a rolagem de uma
+ficha, uma rolagem salva), qualquer gesto com o painel da Mesa aberto e
+visível, e cada rolagem tocada, própria ou ouvida. Escrever notas não. Para
+três minutos após a última dessas. A
 linha INFO da rolagem traz `stalled`, o estado em `first`/`end`, `clockRate`
 (segundos de áudio por segundo de relógio durante a queda), a latência
 `base`/`out`, `resumeMs` e `maxAheadMs`, para distinguir a causa pelo log do

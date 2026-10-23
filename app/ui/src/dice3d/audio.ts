@@ -81,14 +81,31 @@ export function unlockAudio(): AudioContext | null {
 
 const GESTURES = ["pointerdown", "keydown", "touchend", "click"];
 
+/** What a gesture on a dice control touches: a note's dice button and card,
+ *  the roller, a statblock's roll, a saved roll, the Table's box, send and tray. */
+export const DICE_CONTROLS = ".dice-button, .dice-again, .dice-roller-go, .dice-roller-title, .dice-notation, .statblock-roll-go, .saved-roll, .table-compose, .table-tray, .table-send, .table-input, .board-dice";
+
+/** Is a gesture about dice: on a dice control, or anywhere while the Table
+ *  panel is open and visible? Anything else (writing notes) leaves the
+ *  audio device alone. */
+export function diceGesture(e: Event | undefined): boolean {
+  try {
+    const t = e?.target as Element | null | undefined;
+    if (t && typeof t.closest === "function" && t.closest(DICE_CONTROLS)) return true;
+    const v = document.querySelector(".table-view") as HTMLElement | null;
+    return !!v && v.getClientRects().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Listen for the gestures and unlock the audio in them (while `wanted()`).
- *  The listeners stay: every gesture (a key in the Table's box, the send
- *  button, a note's dice button) also keeps the output awake (`keepWarm`),
- *  and revives a context the system suspended meanwhile. */
+ *  The listeners stay, to revive a context the system suspended; only a dice
+ *  gesture (`diceGesture`) also keeps the output awake (`keepWarm`). */
 export function armAudio(wanted: () => boolean): void {
-  const go = () => {
+  const go = (e?: Event) => {
     if (!wanted()) return;
-    if (unlockAudio()) keepWarm();
+    if (unlockAudio() && diceGesture(e)) keepWarm();
   };
   for (const t of GESTURES) document.addEventListener(t, go, true);
 }
