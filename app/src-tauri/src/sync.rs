@@ -839,11 +839,19 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // A live note's own text, already in its room, is not a change to
     // send nor a conflict (ADR 0082 items 6 and 9).
     let planned_on = live::masked(s, &local, &known.files, &state.base);
+    // A live note whose server file is its own room's save, not fetched
+    // before the link went: planned from that save, so that the tab's text
+    // is sent over it, not set aside beside it (ADR 0082 item 9).
+    let planned_from = live::over_saves(s, &local, &known.files, &state.base).map(|base| {
+        let mut st = state.clone();
+        st.base = base;
+        st
+    });
     // A yes counts for the deletions the person saw, no more, and once.
     let mut plan = engine::plan(
         planned_on.as_ref().unwrap_or(&local),
         &known.files,
-        &state,
+        planned_from.as_ref().unwrap_or(&state),
         false,
         engine::FOLDS_NAMES,
         &copy_name,

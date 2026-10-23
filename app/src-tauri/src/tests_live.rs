@@ -441,6 +441,40 @@ fn a_return_to_another_room_keeps_the_text_in_the_file_or_in_a_copy() {
 }
 
 #[test]
+fn a_return_to_another_room_after_the_rooms_own_saves_makes_no_copy() {
+    // The maintainer's 2026-10-23 report: a note only this device edited,
+    // the server restarted while the room's last saves had not come down
+    // yet. The server's file moved since the base, but by this tab's own
+    // room: the tab's text holds it, so it is sent, not set aside.
+    let (r, a, _b) = two();
+    let la = kept(&a);
+    let mut ta = Tab::open(&a);
+
+    // Typed in the room; the room writes it and tells the tab it did, but
+    // no pass has carried it down (the link goes before one does).
+    ta.type_live(&a, 99, "digitado ao vivo\n");
+    sleep(SETTLE);
+    drop_link(&a, la);
+    assert_eq!(text(&a, NOTE).as_deref(), Some("# Sessao\n"));
+
+    // The link is gone: the tab goes local and types on.
+    insert(&ta.doc, 99, "digitado depois, sem rede\n");
+    ta.local(&a);
+    sleep(Duration::from_millis(300));
+    // The server's room is made again (a restart's effect on it).
+    let c = browser(&r);
+    c.call("collab_leave", json!({ "path": NOTE })).unwrap();
+
+    let mut la = kept(&a);
+    assert!(!ta.rejoin(&a, &mut la), "another room");
+    assert_eq!(copies(&a), Vec::<String>::new(), "no conflict copy");
+    assert!(ta.text().contains("digitado ao vivo"), "{}", ta.text());
+    assert!(ta.text().contains("sem rede"), "{}", ta.text());
+    assert_eq!(c.file(), ta.text());
+    assert_eq!(text(&a, NOTE).as_deref(), Some(ta.text().as_str()));
+}
+
+#[test]
 fn an_outside_program_on_a_device_with_a_live_note_is_merged_or_kept_as_a_copy() {
     let (r, a, b) = two();
     let (mut la, mut lb) = (kept(&a), kept(&b));
