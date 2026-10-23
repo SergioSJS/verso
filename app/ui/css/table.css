@@ -115,6 +115,10 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .pool-chip-mod { border-style: dashed; }
 .pool-chip-remove { width: 1.35rem; height: 1.35rem; min-width: 1.35rem; padding: 0; }
 .pool-chip-remove svg { width: .7rem; height: .7rem; }
+/* The × and the − in the middle of their round buttons: `.iconic` is a flex
+   box that does not centre, and these have no padding to lean on. */
+.pool-chip-remove, .die-remove { display: inline-grid; place-items: center; line-height: 0; }
+.pool-chip-remove svg, .die-remove svg { display: block; }
 .composer-dice { display: grid; grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr)); gap: .5rem .4rem; padding: .3rem .35rem 0; }
 .die-slot { position: relative; min-width: 0; }
 .die-button { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 2.4rem; padding: .3rem .2rem; font: 700 .85rem var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
