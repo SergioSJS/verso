@@ -287,7 +287,11 @@ class TableView {
     this.compose.sync(src);
     this.paintRoster(server);
     this.bar.replaceChildren();
-    const hide = button("ghost table-hide", tt.hideHere);
+    // Icon first, the words when the row has room (table.css); the name stays for the eye-less and the tooltip.
+    const hide = h("button", "ghost table-hide");
+    hide.type = "button";
+    hide.append(icon("eyeOff", ""), h("span", "table-hide-label", tt.hideHere));
+    hide.setAttribute("aria-label", tt.hideHere);
     hide.title = tt.hideHereDesc;
     hide.disabled = entries.length === 0;
     hide.addEventListener("click", () => {
