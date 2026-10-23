@@ -83,7 +83,7 @@ const GESTURES = ["pointerdown", "keydown", "touchend", "click"];
 
 /** What a gesture on a dice control touches: a note's dice button and card,
  *  the roller, a statblock's roll, a saved roll, the Table's box, send and tray. */
-export const DICE_CONTROLS = ".dice-button, .dice-again, .dice-roller-go, .dice-roller-title, .dice-notation, .statblock-roll-go, .saved-roll, .table-compose, .table-tray, .table-send, .table-input, .board-dice";
+export const DICE_CONTROLS = ".dice-button, .dice-again, .dice-roller-go, .dice-roller-title, .dice-notation, .statblock-roll-go, .saved-roll, .table-compose, .tray-wrap, .tray-pop, .table-send, .table-input, .board-dice";
 
 /** Is a gesture about dice: on a dice control, or anywhere while the Table
  *  panel is open and visible? Anything else (writing notes) leaves the
