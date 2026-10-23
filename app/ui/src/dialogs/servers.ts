@@ -21,6 +21,7 @@ import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
+import { cp as cp2 } from "../campaignStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
 /** A sentence whose names stand out: a name is `[name]`. */
@@ -181,6 +182,12 @@ export function hearServers(): void {
   void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
     const p = e.payload;
+    // The game master closed the table: said as that, in the folder's place
+    // (tableClosed.ts); the host tries again by itself.
+    if (p.what === "closed") {
+      ui.status.textContent = cp2.closedStatus;
+      return;
+    }
     if (p.what === "folder") {
       refusedAt.add(p.url);
       serverState()?.remove();

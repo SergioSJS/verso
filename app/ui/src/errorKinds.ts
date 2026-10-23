@@ -90,3 +90,13 @@ export function toConsole(e: ContractError | unknown): void {
   const { level, text } = consoleLine(e);
   console[level](text);
 }
+
+/** What a closed table answers a player (the contract's `TABLE_CLOSED`,
+ *  ADR 0110 item 3): a state to wait out, said in the folder's place, not a
+ *  fault. The only error known by its text, because the server's refusal
+ *  has no kind of its own. */
+export const TABLE_CLOSED = "a mesa está fechada";
+export function isTableClosed(e: ContractError | unknown): boolean {
+  const { kind, message } = errorParts(e);
+  return (kind === "refused" || kind === "") && message.includes(TABLE_CLOSED);
+}

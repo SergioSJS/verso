@@ -107,44 +107,70 @@ test("a selection of notes is released at once", async ({ app }) => {
   await expect(row(app, "Livre.md").locator(".hidden-mark")).toHaveCount(0);
 });
 
-test("the table's dialog: open or closed, the invitation link, release everything, limits, undo", async ({ app }) => {
+const shot = async (page, name) => {
+  // The switch and its colours settle (150 ms) before the picture.
+  if (process.env.SHOTS) await page.waitForTimeout(400);
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${name}.png` });
+};
+
+test("the table's window: a switch that saves at once, cards, limits under Advanced, a quiet red undo", async ({ app }) => {
   await furnish(app, "?vault=empty&table=owner");
   // The list's background: a menu of the tree itself.
   await app.page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
   await app.page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" }).click();
   const dialog = app.page.getByRole("dialog", { name: /^Mesa da pasta/ });
   await expect(dialog).toBeVisible();
-  // Closed: players cannot open the folder; the toggle says so.
-  const open = dialog.getByRole("checkbox", { name: "Mesa aberta" });
+  // A real switch with its status pill; closing saves at once and the chip says so.
+  const open = dialog.getByRole("switch", { name: "Mesa aberta" });
   await expect(open).toBeChecked();
-  await open.uncheck();
+  await expect(dialog.locator(".cd-pill")).toHaveText("Aberta");
+  await shot(app.page, "74-janela-da-mesa-aberta-claro");
+  await open.uncheck({ force: true });
   await expect.poll(async () => (await app.calls("campaign_settings")).at(-1)).toMatchObject({ root: "", open: false });
-  await open.check();
-  // The invitation: a link of the server, to copy.
+  await expect(dialog.locator(".cd-pill")).toHaveText("Fechada");
+  await expect(open).not.toBeChecked();
+  await expect(open).toHaveAttribute("aria-checked", "false");
+  await expect(dialog.locator(".cd-feedback").first()).toContainText("Mesa fechada");
+  await expect(app.page.locator(".table-chip")).toContainText("(fechada)");
+  await shot(app.page, "75-janela-da-mesa-fechada-claro");
+  await open.check({ force: true });
+  await expect(dialog.locator(".cd-pill")).toHaveText("Aberta");
+  // The invitation: a link of the server, in a field with Copy and its expiry.
   await dialog.getByRole("button", { name: "Gerar link" }).click();
   const link = dialog.getByRole("textbox", { name: "Link do convite" });
   await expect(link).toHaveValue(/\/invite\/harness-1$/);
   await expect(dialog.getByRole("button", { name: "Copiar o link" })).toBeVisible();
-  // The players the server counts.
+  await expect(dialog.getByText(/Uso único, vale até/)).toBeVisible();
+  // The players the server counts, with what is granted to them.
   await expect(dialog.getByRole("list", { name: "Jogadores" })).toContainText("Bia");
+  await expect(dialog.getByRole("list", { name: "Jogadores" })).toContainText("Só lê");
   // Release everything asks first.
   await dialog.getByRole("button", { name: "Liberar tudo" }).click();
   await expect(dialog.getByText(/Liberar todas as notas desta mesa agora\?/)).toBeVisible();
   expect(await app.calls("campaign_release_all")).toHaveLength(0);
   await dialog.getByRole("button", { name: "Sim" }).click();
-  await expect(dialog.getByRole("status")).toHaveText("Todas as notas foram liberadas.");
+  await expect(dialog.getByText("Todas as notas foram liberadas.")).toBeVisible();
   await expect.poll(() => app.calls("campaign_release_all")).toEqual([{ root: "" }]);
-  // The limits, within their bounds.
-  await dialog.getByLabel("Entradas do registro da mesa").fill("5000");
-  await dialog.getByLabel("Tamanho de uma imagem na mesa (MB)").fill("20");
-  await dialog.getByRole("button", { name: "Salvar limites" }).click();
-  await expect(dialog.getByRole("status")).toHaveText("Salvo.");
-  expect((await app.calls("campaign_settings")).at(-1)).toEqual({ root: "", open: null, logMax: 5000, imageMax: 20 * 1024 * 1024 });
-  await dialog.getByLabel("Entradas do registro da mesa").fill("10");
-  await dialog.getByRole("button", { name: "Salvar limites" }).click();
-  await expect(dialog.getByRole("status")).toContainText("Não deu certo");
-  // Undo asks first, and the folder is a folder again.
-  await dialog.getByRole("button", { name: "Desfazer mesa" }).click();
+  // The limits are folded; a field saves when Enter is pressed and says so beside itself.
+  const log = dialog.getByLabel("Entradas do registro da mesa");
+  await expect(log).toBeHidden();
+  await dialog.getByText("Avançado: limites da mesa").click();
+  await log.fill("5000");
+  await log.press("Enter");
+  await expect(dialog.getByText("Salvo")).toBeVisible();
+  expect((await app.calls("campaign_settings")).at(-1)).toEqual({ root: "", open: null, logMax: 5000, imageMax: null });
+  const image = dialog.getByLabel("Tamanho de uma imagem na mesa (MB)");
+  await image.fill("20");
+  await image.press("Tab");
+  await expect.poll(async () => (await app.calls("campaign_settings")).at(-1)).toEqual({ root: "", open: null, logMax: null, imageMax: 20 * 1024 * 1024 });
+  await log.fill("10");
+  await log.press("Enter");
+  await expect(dialog.getByText(/Não deu certo/)).toBeVisible();
+  // Undo is a quiet red action, never the primary; it asks first and says the files never change.
+  const undo = dialog.getByRole("button", { name: "Desfazer mesa" });
+  await expect(undo).not.toHaveClass(/primary|solid/);
+  await expect(dialog.getByText(/os arquivos nunca mudam/).first()).toBeVisible();
+  await undo.click();
   await expect(dialog.getByText(/Desfazer a mesa\?/)).toBeVisible();
   expect(await app.calls("campaign_unmake")).toHaveLength(0);
   await dialog.getByRole("button", { name: "Sim" }).click();
@@ -152,6 +178,128 @@ test("the table's dialog: open or closed, the invitation link, release everythin
   await expect.poll(() => app.calls("campaign_unmake")).toEqual([{ root: "" }]);
   await expect(app.page.locator("#status")).toHaveText("A pasta não é mais uma mesa.");
   app.expectFault(/refused|1000/);
+});
+
+async function made(app) {
+  await furnish(app, "?vault=empty&table=owner");
+  await app.page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await app.page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" }).click();
+  const dialog = app.page.getByRole("dialog", { name: /^Mesa da pasta/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+test("the table's window closes with Escape, and on a phone it is a sheet with everything reachable", async ({ app }) => {
+  const dialog = await made(app);
+  await app.page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await app.page.setViewportSize({ width: 390, height: 844 });
+  // The folder's chip is in the side panel on a phone.
+  await app.page.getByRole("button", { name: "Arquivos" }).click();
+  await app.page.locator(".table-chip").click();
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box.width).toBeLessThanOrEqual(390);
+  expect(box.y + box.height).toBeLessThanOrEqual(844 + 1);
+  await shot(app.page, "76-janela-da-mesa-telefone-claro");
+  // The last control is reachable by scrolling the sheet.
+  await dialog.getByRole("button", { name: "Fechar" }).scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole("button", { name: "Desfazer mesa" })).toBeInViewport();
+  await app.page.emulateMedia({ colorScheme: "dark" });
+  await shot(app.page, "77-janela-da-mesa-telefone-escuro");
+  await dialog.getByRole("button", { name: "Fechar" }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test("the table's window in the dark theme", async ({ app }) => {
+  await app.page.emulateMedia({ colorScheme: "dark" });
+  const dialog = await made(app);
+  await dialog.getByRole("switch", { name: "Mesa aberta" }).uncheck({ force: true });
+  await expect(dialog.locator(".cd-pill")).toHaveText("Fechada");
+  await shot(app.page, "78-janela-da-mesa-fechada-escuro");
+});
+
+test("the folder's page carries the table card: the game master's switch, a player's line, a way to make one", async ({ app }) => {
+  await furnish(app, "?vault=empty&table=owner");
+  const page = app.page;
+  // A folder that is not a table yet: one call to action under the title.
+  await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  const cta = page.locator(".table-card-make");
+  await expect(cta).toBeVisible();
+  await shot(page, "79-pagina-da-pasta-sem-mesa-claro");
+  await cta.getByRole("button", { name: "Tornar esta pasta uma mesa" }).click();
+  await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "Mundo" }]);
+  await page.getByRole("dialog", { name: "Mesa “Mundo”" }).waitFor();
+  await page.keyboard.press("Escape");
+  // It is a table now: the card has the switch, the players, the notes and the settings.
+  const card = page.locator(".table-card-owner");
+  await expect(card).toBeVisible();
+  await expect(cta).toHaveCount(0);
+  await expect(card.locator(".table-card-summary")).toContainText("1 jogador");
+  const open = card.getByRole("switch", { name: "Mesa aberta" });
+  await expect(open).toBeChecked();
+  await open.uncheck({ force: true });
+  await expect.poll(async () => (await app.calls("campaign_settings")).at(-1)).toMatchObject({ root: "Mundo", open: false });
+  await expect(card.locator(".cd-pill")).toHaveText("Fechada");
+  await expect(open).not.toBeChecked();
+  await shot(page, "80-pagina-da-pasta-mesa-fechada-claro");
+  await card.getByText("Convidar").click();
+  await card.getByRole("button", { name: "Gerar link" }).click();
+  await expect(card.getByRole("textbox", { name: "Link do convite" })).toHaveValue(/\/invite\//);
+  await shot(page, "81-pagina-da-pasta-convite-claro");
+  // Folded away, and the fold is remembered for this folder.
+  await card.getByRole("button", { name: "Recolher a mesa" }).click();
+  await expect(card.getByRole("switch")).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem("verso.tableCard.folded"))).toBe('["Mundo"]');
+  await card.getByRole("button", { name: "Mostrar a mesa" }).click();
+  await expect(card.getByRole("switch")).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("verso.tableCard.folded"))).toBe("[]");
+  // The settings button opens the whole window.
+  await card.getByRole("button", { name: "Configurações da mesa" }).click();
+  await expect(page.getByRole("dialog", { name: "Mesa “Mundo”" })).toBeVisible();
+});
+
+test("a local folder shows no table card; a player sees one read-only line", async ({ app }) => {
+  await furnish(app, "?vault=empty");
+  await app.page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  await expect(app.page.locator(".sheet")).toBeVisible();
+  await expect(app.page.locator(".table-card")).toHaveCount(0);
+});
+
+test("a player sees the table card as one line, with the notes granted to them as links", async ({ app }) => {
+  await furnish(app, "?vault=empty&table=player&side=server&role=reader");
+  await app.page.evaluate(() => {
+    const c = window.__harness.campaign;
+    c.tables = [{ root: "Mundo", open: true, log_max: 20000, image_max: 10 * 1024 * 1024 }];
+    c.notes.set("Mundo/Cripta.md", { path: "Mundo/Cripta.md", released: true, secret_name: false, grant: { kind: "group" } });
+    window.__harness.emit("campaign-changed", { paths: [] });
+  });
+  await app.folderChanged(["Mundo/Cripta.md"], true);
+  await app.page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  const card = app.page.locator(".table-card-player");
+  await expect(card).toContainText("Mesa · jogador");
+  await expect(card).toContainText("A mesa está aberta.");
+  await expect(card.getByRole("button", { name: "Cripta" })).toBeVisible();
+  await expect(card.getByRole("switch")).toHaveCount(0);
+  await shot(app.page, "82-pagina-da-pasta-jogador-claro");
+});
+
+test("a player outside a closed table is told so, in the folder's place, and gets in when it opens", async ({ app }) => {
+  await app.page.setViewportSize({ width: 390, height: 844 });
+  await app.open("?vault=empty&table=player&side=server&role=reader&closed=1");
+  const state = app.page.locator(".table-closed-state");
+  await expect(state).toContainText("A mesa está fechada pelo mestre. Você entra quando ela abrir.");
+  await expect(state.getByRole("button", { name: "Tentar agora" })).toBeVisible();
+  await shot(app.page, "83-jogador-mesa-fechada-telefone-claro");
+  // Still closed: it stays.
+  await state.getByRole("button", { name: "Tentar agora" }).click();
+  await expect(state).toBeVisible();
+  // The game master opens the table: the next try gets in.
+  await app.page.evaluate(() => (window.__harnessShutOut = false));
+  await state.getByRole("button", { name: "Tentar agora" }).click();
+  await expect(app.page.locator(".table-closed-state")).toHaveCount(0);
+  await expect(app.page.locator("#folder")).not.toBeEmpty();
+  app.expectFault(/mesa está fechada/);
 });
 
 test("on a folder of this computer alone nothing of the table shows", async ({ app }) => {

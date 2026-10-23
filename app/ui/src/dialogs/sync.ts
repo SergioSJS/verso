@@ -91,6 +91,7 @@ const pt = {
   problems: {
     not_signed_in: "este computador não está conectado ao servidor: conecte em Ajustes › Servidores",
     signed_out: "o servidor encerrou a sessão deste computador: conecte de novo em Ajustes › Servidores",
+    table_closed: "a mesa está fechada pelo mestre: a sincronização volta sozinha quando ela abrir",
     version: "o servidor está numa versão diferente deste app: atualize o que estiver atrás",
     folder_gone: "a pasta do servidor sumiu, ou esta conta não tem mais acesso a ela",
     failed: "algo deu errado; o log do app diz o quê",
@@ -186,6 +187,7 @@ const en: typeof pt = {
   problems: {
     not_signed_in: "this computer is not signed in to the server: connect in Settings › Servers",
     signed_out: "the server ended this computer's session: connect again in Settings › Servers",
+    table_closed: "the table is closed by the game master: sync resumes by itself when it opens",
     version: "the server runs another version than this app: update the one that is behind",
     folder_gone: "the server's folder is gone, or this account no longer reaches it",
     failed: "something went wrong; the app's log says what",
