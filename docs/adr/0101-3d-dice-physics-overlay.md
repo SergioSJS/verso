@@ -90,6 +90,22 @@
   maximum, 0.3 s rest before the card, 1.6x fall), which answered T.8
   provisionally; the setting's default and bounds, and what counts as
   "acting", are not decided here.
+  2026-10-23, testing the three devices — the 3D light was too strong; the
+  maintainer: *"nossa, a luz ta muito forte. mal da pra ver o que saiu em
+  alguns dados"* (the light is far too strong; I can barely see what came
+  up on some dice), with a picture of four Fudge dice in violet on the light
+  theme, faces turned up washed out to near white. Cause, measured on a
+  render with the studio reflections forced on: the camera looks straight
+  down and the sun stood almost over it, so its mirror highlight (and the
+  ambient plus the sun together, above 1 for a light body) landed on the flat
+  top faces, the ones read. **New light:** a hemisphere light (sky white,
+  ground grey `0x8a8794`, 1.0), as Rolai's, in place of the flat ambient
+  (1.35), and a sun of 1.7 (was 2.4) from the side and the front, about 35
+  degrees off the camera's axis (was about 15), so the highlight falls on the
+  flanks; glass finish: clearcoat 0.45 and reflections 0.45 (were 1 and 0.9),
+  for the ceiling lamp of the studio mirrored on its top face. The physics,
+  the numbers read and the face textures do not change. Guard:
+  `app/ui/e2e/dice3d-light.spec.mjs`.
 
 ## Context
 

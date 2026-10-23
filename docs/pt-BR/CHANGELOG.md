@@ -99,6 +99,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Dados 3D: a face de cima se lê** ([ADR 0101](adr/0101-3d-dice-physics-overlay.md)): a luz estava tão forte que um dado de cor clara (violeta, amarelo, branco) caía lavado até quase o branco, perdendo o número. A mesa agora tem uma luz de hemisfério como a do Rolai e o sol fica de lado, então o brilho cai nos flancos e não na face que você lê; o vidro reflete menos. Plástico, metal, madeira, vidro e liso, nos temas claro e escuro.
 - **Dois dados iguais numa nota: a rolagem de outra pessoa aparece no dado certo** ([ADR 0107](adr/0107-the-table-a-shared-roll-and-chat-log.md)): quando uma nota tem o mesmo código `dice:` duas vezes (dois `1d20` numa ficha), a rolagem ouvida de outra pessoa aparecia no primeiro dado; agora a rolagem leva qual dado foi clicado e os outros a veem nele. Uma janela ou servidor mais antigo não diz, e o primeiro dado a mostra como antes.
 
 - Uma janela do desktop que chega à pasta de um servidor onde a pessoa só lê (um jogador numa mesa) pergunta de novo o que pode fazer: o quadro perde as ferramentas de desenho, o editor e a árvore só leem e aparece "você só lê esta pasta", sem recarregar; a janela mantém ali as capacidades do próprio app (nova janela, atualizações, console, pastas deste computador).

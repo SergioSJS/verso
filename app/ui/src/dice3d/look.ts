@@ -181,7 +181,7 @@ export const FINISHES: Record<Material, Finish> = {
   plastic: { roughness: 0.38, metalness: 0.03, opacity: 1, clearcoat: 0.4, env: 0.45 },
   metal: { roughness: 0.5, metalness: 0.6, opacity: 1, clearcoat: 0, env: 1 },
   wood: { roughness: 0.9, metalness: 0, opacity: 1, clearcoat: 0, env: 0.15 },
-  glass: { roughness: 0.1, metalness: 0, opacity: 0.85, clearcoat: 1, env: 0.9 },
+  glass: { roughness: 0.1, metalness: 0, opacity: 0.85, clearcoat: 0.45, env: 0.45 },
   none: { roughness: 0.95, metalness: 0, opacity: 1, clearcoat: 0, env: 0 },
 };
 
