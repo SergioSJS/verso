@@ -105,6 +105,10 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
    where rolls work, except dragging a roll from the Table. A decision is
    needed on how a text card is made.
+   Fixed on branch `feat/board-text-card` (HASH): a toolbar *Text card* button
+   and a double click on an empty spot add a Markdown text card, the latter
+   configurable. The maintainer's decision, 2026-10-23: "B e A entao, sendo B
+   configurável".
 8. **IMPORTANT — Refusals reach the window wrapped in the wrong sentence.** A
    revoked session read "Error: That path cannot name a file of the folder.
    (sign in first)", a closed table the same sentence with "(the table is

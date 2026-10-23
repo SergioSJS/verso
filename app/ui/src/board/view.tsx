@@ -53,7 +53,9 @@ import {
   isNode,
   isSecret,
   MARKER,
+  isDoubleTap,
   newNode,
+  textCardAt,
   nodeData,
   nodeName,
   outlineOf,
@@ -727,9 +729,50 @@ function Board({
     const path = await host.pickFile();
     if (path) add(newNode("file", path, center(), randomId()));
   };
-  const addText = async (): Promise<void> => {
+  // A Markdown text card (a JSON Canvas text node), its text asked for at
+  // once: put at the view's centre, or where the pointer was (a double
+  // click on an empty spot). Cancelled or empty, no card is left behind.
+  const addText = async (clientX?: number, clientY?: number): Promise<void> => {
+    if (readOnly || asReader !== null) return;
     const text = await host.prompt(s.editText, "", true);
-    if (text !== null && text.trim() !== "") add(newNode("text", text, center(), randomId()));
+    if (text === null || text.trim() === "") return;
+    const [x, y] = sceneAt(clientX, clientY);
+    add(textCardAt(text, [x, y], randomId()));
+  };
+  // An empty spot, for a double click or tap: on the canvas itself, the
+  // selection tool in hand, nothing under the pointer (the click that began
+  // the double click selects what it hits), nothing being typed or drawn.
+  const emptySpot = (target: EventTarget | null): boolean => {
+    const a = api.current;
+    if (!a || readOnly || asReader !== null || host.prefs.doubleClick === "drawn") return false;
+    if (!(target instanceof HTMLCanvasElement) || !target.closest(".excalidraw")) return false;
+    const st = a.getAppState();
+    return st.activeTool.type === "selection" && !st.editingTextElement && !st.newElement && !st.multiElement && Object.keys(st.selectedElementIds).length === 0;
+  };
+  const lastTap = useRef<{ at: number; x: number; y: number } | null>(null);
+  // A double tap on a touch screen: Excalidraw counts it itself, from the
+  // touches, so the second one is caught here before it gets there.
+  const onTouchStart = (ev: { touches: ArrayLike<{ clientX: number; clientY: number }>; target: EventTarget | null; stopPropagation: () => void }): void => {
+    if (ev.touches.length !== 1) {
+      lastTap.current = null;
+      return;
+    }
+    const t = ev.touches[0];
+    if (!t) return;
+    const prev = lastTap.current;
+    const now = Date.now();
+    if (isDoubleTap(prev, now, t.clientX, t.clientY)) {
+      lastTap.current = null;
+      if (emptySpot(ev.target)) {
+        ev.stopPropagation();
+        // The click a touch ends in would land on the dialog and close it:
+        // asked once the finger is up.
+        const { clientX, clientY } = t;
+        window.setTimeout(() => void addText(clientX, clientY), 350);
+      }
+      return;
+    }
+    lastTap.current = { at: now, x: t.clientX, y: t.clientY };
   };
   const addLink = async (): Promise<void> => {
     const url = (await host.prompt(s.linkAddress, "https://", false))?.trim();
@@ -893,7 +936,15 @@ function Board({
     const hit = [...(a.getSceneElements() as unknown as El[])]
       .reverse()
       .find((e) => e.type === "embeddable" && isNode(e) && p.x >= e.x && p.x <= e.x + e.width && p.y >= e.y && p.y <= e.y + e.height);
-    if (!hit) return;
+    if (!hit) {
+      // An empty spot: a Markdown text card, unless the setting says Excalidraw's drawn text.
+      if (emptySpot(ev.target)) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        void addText(ev.clientX, ev.clientY);
+      }
+      return;
+    }
     // A note's card is entered, as Excalidraw enters any embeddable on a
     // double click: its text scrolls, selects, and its links open. ⌘ opens
     // the note itself; a text card is edited, a link card opened.
@@ -1227,6 +1278,7 @@ function Board({
           // The board says itself what lies under the pointer (useCardPreview).
           data-preview-surface=""
           onDoubleClickCapture={onDoubleClick}
+          onTouchStartCapture={onTouchStart}
           onPointerDownCapture={(e) => {
             touched.current = true;
             if (!writable(e.target)) focusBoard();

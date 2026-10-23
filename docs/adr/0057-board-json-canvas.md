@@ -262,6 +262,24 @@ keeping arrows at the middle of a side.
     facing the other card. Point 14 stands, with one more case: an end moved
     on its card takes the side it now meets.
 
+**Decided on 2026-10-23 by the maintainer**, after a three-device test found
+that the toolbar's sticky note is a drawn element where `dice: 1d20` stays
+plain text, and that the board had no way to add a Markdown text card except
+dragging a roll from the Table: "B e A entao, sendo B configurável". Built on
+`feat/board-text-card`: (A) a **Text card** button in the board's toolbar,
+beside Insert, adds a JSON Canvas `text` node (340 × 110, centred on the view)
+and asks for its text at once; cancelled or empty, no card is left behind; the
+Insert menu's *Text card* entry does the same; (B) a double click — a double
+tap on a touch screen — on an **empty** spot of the board adds that card
+there, instead of Excalidraw's drawn text. A double click on a card or on a
+drawing keeps its behaviour; on a reader's board, or with another tool in
+hand, or while text is being typed, it does nothing new. B is a setting,
+**Settings › Board › "Double click on the board creates"** (`boardDoubleClick`):
+*Text card* or *Drawn text*. The default, *Text card*, is chosen in the code,
+for the maintainer to confirm. The button takes no key (Excalidraw's tool keys
+are untouched). The new card's `dice:` codes roll as in any text card
+(ADR 0088).
+
 ## Consequences
 
 - ADR 0040 is decided by point 2; ADR 0024's semantic layer by point 4; ADR

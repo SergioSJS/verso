@@ -149,6 +149,7 @@ export function InsertMenu({ s, addFile, addText, addLink, addPage, takeFiles, l
   );
   return (
     <div className="board-insert" ref={box}>
+      <ToolButton label={s.addText} title={s.addTextTitle} onClick={addText} icon={ICO.text} testId="board-tool-textcard" />
       <div className="ToolIcon Shape" title={s.insertTitle}>
         <button
           type="button"

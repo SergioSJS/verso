@@ -768,6 +768,7 @@ export class SettingsDialog {
     add("board", b.prefStroke, b.prefStrokeDesc, () => this.select([["hand", b.prefStrokeHand], ["clean", b.prefStrokeClean]], settings.boardStroke, (v) => { settings.boardStroke = v; saveSettings(); }));
     add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
     add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
+    add("board", b.prefDouble, b.prefDoubleDesc, () => this.select([["card", b.prefDoubleCard], ["drawn", b.prefDoubleDrawn]], settings.boardDoubleClick, (v) => { settings.boardDoubleClick = v; saveSettings(); }));
     add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
     out.push(...offNotice(this.ctx(), "statblocks", "statblocks"), ...statblockItems(this.ctx()), ...creditsItems(this.ctx()), ...offNotice(this.ctx(), "oracles", "oracles"), ...oracleItems(this.ctx()));
     add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
