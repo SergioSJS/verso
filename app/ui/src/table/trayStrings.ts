@@ -15,6 +15,7 @@ type Words = {
   addHint: (die: string) => string;
   more: string;
   moreDice: string;
+  openRoller: string;
   modLabel: string;
   keepHigh: string;
   keepLow: string;
@@ -57,6 +58,7 @@ const pt: Words = {
   addHint: (die) => `Adicionar um ${die}. Botão direito, Shift+Enter ou Delete tira um; segurar o dedo também.`,
   more: "Mais dados",
   moreDice: "Outros dados",
+  openRoller: "Rolar dados…",
   modLabel: "Modificador da rolagem",
   keepHigh: "Manter o maior (KH)",
   keepLow: "Manter o menor (KL)",
@@ -99,6 +101,7 @@ const en: Words = {
   addHint: (die) => `Add a ${die}. Right click, Shift+Enter or Delete takes one off; so does a long press.`,
   more: "More dice",
   moreDice: "Other dice",
+  openRoller: "Roll dice…",
   modLabel: "Roll modifier",
   keepHigh: "Keep highest (KH)",
   keepLow: "Keep lowest (KL)",
