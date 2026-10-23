@@ -143,10 +143,10 @@ test("a secret roll: the roller and the owners see it, the other members see tha
   await expect(masked.locator(".table-notation, .table-total, .table-die")).toHaveCount(0);
   await expect(page.locator(".table-said")).toHaveText("Bia rolou em segredo");
   // This window rolls in secret with the toggle: it sees its own roll in full, marked.
-  const toggle = view.getByRole("button", { name: /^Secreta/ });
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const mode = view.getByRole("combobox", { name: "Quem vê a rolagem" });
+  await expect(mode).toHaveValue("public");
+  await mode.selectOption("secret");
+  await expect(mode).toHaveValue("secret");
   await field(view).fill("/r 1d8");
   await field(view).press("Enter");
   const own = log(view).nth(1);
@@ -242,8 +242,8 @@ test("the owner clears the table, keeping the pinned ones unless told otherwise;
 test("a reader writes and rolls but sends no image, and can neither clear nor delete another's message", async ({ app, page }) => {
   await serve(app, page, "reader");
   const view = await openTable(page);
-  await expect(view.getByRole("button", { name: "Enviar imagem" })).toBeHidden();
-  await expect(view.getByRole("button", { name: "Rolar dados…" })).toBeVisible();
+  await expect(view.getByRole("button", { name: "Anexar imagem" })).toBeHidden();
+  await expect(view.locator(".tray-row")).toBeVisible();
   await expect(view.getByRole("button", { name: "Mais opções da mesa" })).toHaveCount(0);
   await page.evaluate(() => window.__harness.table.say("Bia", "Oi, leitor."));
   await field(view).fill("Oi, Bia.");
@@ -307,54 +307,69 @@ test("images: the file's thumbnail, opened large; sent from the picker, checked 
   await shot(page, `${tag(page)}-image-open`);
   await page.keyboard.press("Escape");
   await expect(big).toHaveCount(0);
-  // Sent from the picker: written to the folder by the server's command, shown at once.
+  // Chosen from the picker: it waits in the box as a small preview, and Enter sends it (the image first, then the text, if any).
   const chooser = page.waitForEvent("filechooser");
-  await view.getByRole("button", { name: "Enviar imagem" }).click();
+  await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await chooser).setFiles({ name: "foto.png", mimeType: "image/png", buffer: PNG });
-  await expect(log(view)).toHaveCount(2);
+  await expect(view.locator(".table-chip")).toHaveCount(1);
+  await expect(view.locator(".table-chip-name")).toHaveText("foto.png");
+  expect(await app.calls("table_send_image")).toHaveLength(0);
+  // The × takes it out of the box without sending.
+  await view.getByRole("button", { name: "Tirar a imagem foto.png" }).click();
+  await expect(view.locator(".table-chip")).toHaveCount(0);
+  expect(await app.calls("table_send_image")).toHaveLength(0);
+  const again0 = page.waitForEvent("filechooser");
+  await view.getByRole("button", { name: "Anexar imagem" }).click();
+  await (await again0).setFiles({ name: "foto.png", mimeType: "image/png", buffer: PNG });
+  await expect(view.locator(".table-chip")).toHaveCount(1);
+  await field(view).fill("Olhem o mapa");
+  await field(view).press("Enter");
+  await expect(log(view)).toHaveCount(3);
   await expect(log(view).nth(1).locator("img.table-thumb")).toHaveAttribute("src", /^\/__vault\/attachments\/mesa-\d+\.png$/);
+  await expect(log(view).nth(2).locator(".table-text")).toHaveText("Olhem o mapa");
+  await expect(view.locator(".table-chip")).toHaveCount(0);
   expect(await app.calls("table_send_image")).toHaveLength(1);
   expect((await app.files()).some((f) => /^attachments\/mesa-\d+\.png$/.test(f))).toBe(true);
-  // Checked before sending: the bytes, not the name.
+  // Checked when it is chosen: the bytes, not the name.
   const refused = page.waitForEvent("filechooser");
-  await view.getByRole("button", { name: "Enviar imagem" }).click();
+  await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await refused).setFiles({ name: "arte.png", mimeType: "image/png", buffer: Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>") });
   await expect(view.locator(".table-compose-error")).toContainText("não é uma imagem que a mesa aceite");
   const huge = page.waitForEvent("filechooser");
-  await view.getByRole("button", { name: "Enviar imagem" }).click();
+  await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await huge).setFiles({ name: "enorme.png", mimeType: "image/png", buffer: Buffer.concat([PNG, Buffer.alloc(10 * 1024 * 1024)]) });
   await expect(view.locator(".table-compose-error")).toContainText("passa de 10 MB");
+  await expect(view.locator(".table-chip")).toHaveCount(0);
   expect(await app.calls("table_send_image")).toHaveLength(1);
-  // Dropped on the panel (a paste takes the same road).
+  // Pasted into the box (Ctrl+V, right click > Paste and the phone's long press all end in this event) or dropped on the panel: the same preview.
+  await field(view).focus();
+  await page.evaluate((b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], "image.png", { type: "image/png" }));
+    document.querySelector(".table-input").dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, PNG.toString("base64"));
+  await expect(view.locator(".table-chip")).toHaveCount(1);
   await page.evaluate((b64) => {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const dt = new DataTransfer();
     dt.items.add(new File([bytes], "solta.png", { type: "image/png" }));
     document.querySelector(".table-view").dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
   }, PNG.toString("base64"));
-  await expect(log(view)).toHaveCount(3);
+  await expect(view.locator(".table-chip")).toHaveCount(2);
+  await view.getByRole("button", { name: "Enviar", exact: true }).click();
+  await expect(log(view)).toHaveCount(5);
+  await expect(view.locator(".table-chip")).toHaveCount(0);
+  await shot(page, `${tag(page)}-image-pasted`);
   // The server's own refusal of an image is shown, not swallowed.
   await page.evaluate(() => (window.__harness.table.refuseNext = "too fast: wait 1 s"));
   const again = page.waitForEvent("filechooser");
-  await view.getByRole("button", { name: "Enviar imagem" }).click();
+  await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await again).setFiles({ name: "outra.png", mimeType: "image/png", buffer: PNG });
+  await field(view).press("Enter");
   await expect(view.locator(".table-compose-error")).toContainText("Devagar");
-});
-
-test("the dice button opens the roller, and a roll made there is the table's, secret when asked", async ({ app, page }) => {
-  await serve(app, page, "owner");
-  const view = await openTable(page);
-  await view.getByRole("button", { name: /^Secreta/ }).click();
-  await view.getByRole("button", { name: "Rolar dados…" }).click();
-  const input = page.getByRole("textbox", { name: "Notação, como 1d20+3" });
-  await input.fill("3d6");
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".dice-roller-out .dice-total")).toHaveText(/^\d+$/);
-  await page.keyboard.press("Escape");
-  await expect(log(view)).toHaveCount(1);
-  await expect(log(view).first().locator(".table-notation")).toHaveText("3d6");
-  await expect(log(view).first().locator(".table-secret")).toBeVisible();
-  expect(await app.calls("table_roll")).toMatchObject([{ notation: "3d6", secret: true }]);
+  // The refused image stays in the box, for another try.
+  await expect(view.locator(".table-chip")).toHaveCount(1);
 });
 
 test("a roll in a note, out of a live room, is the table's server's roll; one in a live room goes with the roller's dice", async ({ app, page }) => {
@@ -485,15 +500,15 @@ test("without a table on the side, the local source stays: no input row, no rost
   await expect(view.locator(".table-note")).toBeVisible();
   // The field and the dice row stay for the local table's `/r`; messages, images and Secreta are the server's.
   await expect(view.locator(".table-compose")).toBeVisible();
-  await expect(view.locator(".table-secret-toggle")).toBeHidden();
+  await expect(view.locator(".tray-mode")).toBeHidden();
   await expect(view.locator(".table-roster")).toBeHidden();
   // The table comes up: the server's source replaces the local one; down again, it goes back.
   await page.evaluate(() => (window.__harness.table.up = true));
   await expect(view.locator(".table-compose")).toBeVisible();
   await expect(view.locator(".table-note")).toBeHidden();
-  await expect(view.locator(".table-secret-toggle")).toBeVisible();
+  await expect(view.locator(".tray-mode")).toBeVisible();
   await page.evaluate(() => (window.__harness.table.up = false));
-  await expect(view.locator(".table-secret-toggle")).toBeHidden();
+  await expect(view.locator(".tray-mode")).toBeHidden();
   await expect(view.locator(".table-note")).toBeVisible();
 });
 
@@ -508,7 +523,7 @@ test("the phone: the input row stays in the sheet, rises above the keyboard, and
   expect(box.y + box.height).toBeLessThanOrEqual(size.height);
   if (phone(page)) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const name of ["Rolar dados…", "Enviar imagem"]) {
+    for (const name of ["Anexar imagem", "Enviar"]) {
       const b = await view.getByRole("button", { name }).boundingBox();
       expect(b.width).toBeGreaterThanOrEqual(32);
       expect(b.height).toBeGreaterThanOrEqual(32);

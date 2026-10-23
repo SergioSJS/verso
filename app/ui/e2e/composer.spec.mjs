@@ -61,6 +61,11 @@ test("the row is one line, with the dice, the modifier, KH / KL, the bookmark an
   // The old block is gone: no toggle, no pool, no notation field.
   await expect(view.getByRole("button", { name: "Compor rolagem" })).toHaveCount(0);
   await expect(view.getByRole("textbox", { name: "Notação", exact: true })).toHaveCount(0);
+  // And so is the old row of buttons under the field: one box, the row, nothing else (Foundry's chat).
+  for (const name of ["Rolar dados…", "Enviar imagem", /^Secreta$/]) await expect(view.getByRole("button", { name })).toHaveCount(0);
+  await expect(view.getByRole("combobox", { name: "Quem vê a rolagem" })).toHaveValue("public");
+  await expect(view.getByRole("button", { name: "Anexar imagem" })).toBeVisible();
+  await expect(view.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
   // The dice button is inside the window, and the page does not scroll sideways (the row may, inside itself).
   const width = page.viewportSize().width;
   const send = await go(view).boundingBox();
@@ -270,7 +275,7 @@ test("at a server's table the roll is the server's, once, with the Secreta toggl
   expect((await app.calls("table_roll"))[0]).toMatchObject({ notation: "2d8" });
   expect((await app.calls("table_roll"))[0].secret ?? false).toBeFalsy();
   // Secret on: the dice button says so, the roll goes to the owners and its line says so.
-  await view.getByRole("button", { name: /^Secreta/ }).click();
+  await view.getByRole("combobox", { name: "Quem vê a rolagem" }).selectOption("secret");
   await die(view, "d6").click();
   await expect(view.locator(".tray-row").getByRole("button", { name: "Rolar em segredo" })).toBeEnabled();
   await field(view).fill("/r 4d6kh3");

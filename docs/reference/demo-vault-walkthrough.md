@@ -1513,6 +1513,20 @@ Open note 31 (*The Table*) in a folder that has the demo content
     lines. On a phone's width the row fits (it may scroll inside itself, never
     the page) and its buttons are at least 40 px tall. Level: H; E:
     `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
+11. The message box (note 31, *Everyone's table, on a UniVerso*): the foot of the panel
+    is ONE box — no notation field, no row of image / dice / Secreta buttons.
+    The field starts three lines tall (two on a phone) and grows to eight.
+    The paperclip picks an image; a screenshot or an image copied and pasted
+    with `Ctrl+V` / `⌘V`, right click › *Colar* or a long press › *Colar* on a
+    phone, or dropped on the panel, waits in the box as a thumbnail with an
+    ×; `Enter` sends the image and then the text. A GIF stays animated in the
+    log; 10 MB and the type are checked when it is pasted. A reader has no
+    paperclip. The selector in the dice row (*Pública* / *Secreta*) makes the
+    next roll secret. As the owner of a server's folder that is not a table,
+    the panel shows *Tornar esta pasta uma mesa*; after it, *Abrir a janela da
+    Mesa*; in a folder only on this computer, one line says why there is no
+    table. Level: H (the real app's paste menu is H only); E:
+    `table2.spec.mjs`, `campaign.spec.mjs` (`@layout`).
 
 ## 18. Running a table (note 32)
 

@@ -23,6 +23,11 @@ import { Compose } from "./compose";
 import { isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tt } from "./strings";
+import { ts } from "./trayStrings";
+import { isTableRoot, makeTable, tableFor } from "../campaign";
+import { openCampaignDialog } from "../campaignDialog";
+import { cp } from "../campaignStrings";
+import { mayShare } from "../shares";
 
 /** A colour as the server checked it (`#rrggbb`), or none: nothing else reaches a style. */
 const safeColour = (c: string): string => (/^#[0-9a-f]{6}$/i.test(c) ? c : "");
@@ -95,6 +100,7 @@ class TableView {
   private readonly older = button("ghost table-older", tt.older);
   private readonly compose = new Compose();
   private readonly note = h("p", "table-note");
+  private readonly make = h("div", "table-make");
   private readonly hiddenLine = h("p", "table-hidden");
   private readonly list = h("ul", "table-log");
   private readonly said = h("div", "sr-only table-said");
@@ -116,7 +122,7 @@ class TableView {
     const pinHead = h("h3", "table-pins-head", tt.pinnedHeading);
     this.pins.append(pinHead, this.pinList);
     this.older.addEventListener("click", () => void this.loadOlder());
-    this.el.append(this.roster, this.bar, this.note, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.el.append(this.roster, this.bar, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();
@@ -130,6 +136,10 @@ class TableView {
     this.list.addEventListener("scroll", () => {
       this.stuck = this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 24;
       this.toEnd.hidden = this.stuck;
+    });
+    // The folder became a table, or stopped being one (campaign.ts setStatus): the button follows.
+    addEventListener("verso:campaign-status", () => {
+      if (this.el.isConnected) this.paintMake(tableSource());
     });
     // A source replaced (the server's table joined, or left): drawn again at once.
     onSourceChange(() => {
@@ -174,6 +184,28 @@ class TableView {
     if (refused) ui.status.textContent = refused;
   }
 
+  /** The folder-to-table step, in the panel (ADR 0110): the owner of a server's folder that is not a table yet
+   *  gets the button the folder's menu has; once it is one, a way to its window; a folder only on this computer
+   *  says why there is no table. Not shown to anyone else. */
+  private paintMake(src: TableSource): void {
+    this.make.replaceChildren();
+    let line: string | null = null;
+    if (mayShare() && !tableFor("")) {
+      const b = button("save table-make-button", cp.makeTable, "user");
+      b.title = ts.makeTableWhy;
+      b.addEventListener("click", () => void makeTable(""));
+      this.make.append(b);
+    } else if (mayShare() && isTableRoot("")) {
+      const b = button("ghost table-make-button", ts.openTableWindow, "user");
+      b.addEventListener("click", () => openCampaignDialog(""));
+      this.make.append(b);
+    } else if (!isServerTable(src) && !mayShare()) {
+      line = src.notice?.() ? null : ts.noTableLocal;
+    }
+    if (line) this.make.append(h("p", "table-note", line));
+    this.make.hidden = this.make.childElementCount === 0;
+  }
+
   private render(): void {
     const src = tableSource();
     const server = isServerTable(src) ? src : null;
@@ -198,6 +230,7 @@ class TableView {
     }
     this.note.textContent = src.shared ? "" : (src.notice?.() ?? tt.notShared);
     this.note.hidden = src.shared;
+    this.paintMake(src);
     this.hiddenLine.replaceChildren();
     this.hiddenLine.hidden = !src.hidden();
     if (src.hidden()) {

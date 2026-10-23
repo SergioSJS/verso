@@ -71,9 +71,9 @@ Quem abriu a mesma pasta de um UniVerso, em qualquer nota, está **na mesma mesa
 No pé do painel há o campo **Escreva para a mesa…**:
 
 - **Mensagens.** Escreva e aperte **Enter** (Shift+Enter quebra a linha). Texto simples, até **500 caracteres**; perto do limite aparece um contador. Um `[[link]]` para uma nota da pasta vira link.
-- **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem. O botão do dado abre o rolador, que também rola na mesa.
-- **Secreta.** Com **Secreta** ligado, a rolagem é só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
-- **Imagens.** O botão de imagem, ou colar ou soltar uma imagem sobre o painel, envia **PNG, JPEG, WebP ou GIF** (até 10 MB). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
+- **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem — ou monte a rolagem na fila de dados logo abaixo, como acima.
+- **Secreta.** Na fila de dados, o seletor **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
+- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
 
 Cada linha tem o botão **⋯**:
 

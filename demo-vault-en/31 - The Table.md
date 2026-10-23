@@ -71,9 +71,9 @@ Everyone who has the same UniVerso folder open, in any note, is **at the same ta
 At the foot of the panel is the **Write to the table…** field:
 
 - **Messages.** Type and press **Enter** (Shift+Enter breaks the line). Plain text, up to **500 characters**; a counter shows near the limit. A `[[link]]` to a note of the folder is a link.
-- **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see. The dice button opens the roller, which also rolls at the table.
-- **Secret.** With **Secret** on, the roll is yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
-- **Images.** The image button, or pasting or dropping an image on the panel, sends a **PNG, JPEG, WebP or GIF** (up to 10 MB). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
+- **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see — or put the roll together in the dice row right below, as above.
+- **Secret.** In the dice row, the **Public / Secret** selector (Foundry's and Roll20's roll mode: who sees the roll) set to **Secret** makes the roll yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
+- **Images.** **Paste** straight into the field: copy an image or take a screenshot and press `Ctrl+V` / `⌘V`, or right click › **Paste**, or, on a phone, hold your finger on the field › **Paste**; dropping an image on the panel works too, and the paperclip in the field picks from the gallery. The image waits in the field as a thumbnail with an **×** to take it out; `Enter` sends it (the image first, then the text, if any). It takes a **PNG, JPEG, WebP or GIF** (up to 10 MB; a GIF stays animated in the log). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
 
 Every line has a **⋯** button:
 

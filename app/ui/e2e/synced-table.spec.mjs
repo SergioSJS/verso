@@ -67,7 +67,7 @@ test("with the link down the table is unavailable, the rolls stay here not share
   await link(app, false);
   await say(app, { ...SYNCED, state: "offline" });
   await expect(view.getByText("Mesa indisponível sem conexão")).toBeVisible();
-  await expect(view.locator(".table-secret-toggle")).toBeHidden();
+  await expect(view.locator(".tray-mode")).toBeHidden();
   await page.locator('summary[data-folder="Mundo"]').click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Tornar esta pasta uma mesa" })).toHaveCount(0);
   await page.keyboard.press("Escape");

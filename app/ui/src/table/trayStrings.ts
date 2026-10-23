@@ -26,6 +26,15 @@ type Words = {
   secretOn: string;
   localOnlyRolls: string;
   savedButton: string;
+  attach: string;
+  chipsLabel: string;
+  chipRemove: (name: string) => string;
+  modeLabel: string;
+  modePublic: string;
+  modeSecret: string;
+  noTableLocal: string;
+  makeTableWhy: string;
+  openTableWindow: string;
   savedHeading: string;
   savedNote: (name: string) => string;
   savedChoose: string;
@@ -63,6 +72,15 @@ const pt: Words = {
   secretOn: "Secreta: só você e os donos da pasta veem o resultado.",
   localOnlyRolls: "Sem servidor, esta mesa só rola dados. Escreva /r 1d20+3.",
   savedButton: "Rolagens salvas",
+  attach: "Anexar imagem",
+  chipsLabel: "Imagens a enviar",
+  chipRemove: (name) => `Tirar a imagem ${name}`,
+  modeLabel: "Quem vê a rolagem",
+  modePublic: "Pública",
+  modeSecret: "Secreta",
+  noTableLocal: "Esta pasta só está neste computador, por isso não há mesa para jogar com outras pessoas.",
+  makeTableWhy: "Transforma esta pasta numa mesa: você é o mestre e convida as pessoas.",
+  openTableWindow: "Abrir a janela da Mesa",
   savedHeading: "Rolagens salvas",
   savedNote: (name) => `Nota: ${name}`,
   savedChoose: "Escolher nota…",
@@ -100,6 +118,15 @@ const en: Words = {
   secretOn: "Secret: only you and the folder's owners see the result.",
   localOnlyRolls: "With no server this table only rolls dice. Write /r 1d20+3.",
   savedButton: "Saved rolls",
+  attach: "Attach an image",
+  chipsLabel: "Images to send",
+  chipRemove: (name) => `Remove the image ${name}`,
+  modeLabel: "Who sees the roll",
+  modePublic: "Public",
+  modeSecret: "Secret",
+  noTableLocal: "This folder is only on this computer, so there is no table to play with other people.",
+  makeTableWhy: "Turns this folder into a table: you are the game master and you invite the people.",
+  openTableWindow: "Open the Table window",
   savedHeading: "Saved rolls",
   savedNote: (name) => `Note: ${name}`,
   savedChoose: "Choose note…",
