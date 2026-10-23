@@ -1232,6 +1232,24 @@ fn a_subfolder_table_is_a_share_and_its_players_see_it_re_rooted() {
                 .get("err")
                 .is_some()
         );
+        // The share's window knows its own paths and the table as its whole.
+        owner
+            .call(
+                "campaign_grant",
+                json!({ "path": "Campanha/Aberta.md", "grant": { "kind": "group" } }),
+            )
+            .await;
+        let heard = ana.hear(300).await;
+        let told = heard.iter().find(|e| e["event"] == "campaign-changed");
+        assert_eq!(
+            told.map(|e| e["payload"]["paths"].clone()),
+            Some(json!([])),
+            "{heard:?}"
+        );
+        let st = ana.call("campaign_status", json!({})).await;
+        assert_eq!(st["ok"]["viewer"], "player", "{st}");
+        assert_eq!(st["ok"]["tables"][0]["root"], "", "{st}");
+        assert_eq!(st["ok"]["notes"][0]["path"], "Aberta.md", "{st}");
         // A closed table keeps the share's players out too.
         owner
             .call(

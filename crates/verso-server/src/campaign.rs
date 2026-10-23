@@ -60,7 +60,7 @@ pub fn note_like(path: &str) -> bool {
 }
 
 /// Whether `root` (a table's folder, `""` the folder) covers `path`.
-fn covers(root: &str, path: &str) -> bool {
+pub(crate) fn covers(root: &str, path: &str) -> bool {
     let (root, path) = (key(root), key(path));
     root.is_empty() || path == root || path.starts_with(&format!("{root}/"))
 }

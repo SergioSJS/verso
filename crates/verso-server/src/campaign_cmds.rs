@@ -405,21 +405,48 @@ async fn status(
                 can_invite: w.account.admin,
             });
         }
-        // A player: the tables, and the notes it may edit — only those.
+        // A player: the tables, and the notes it may edit — only those. A
+        // window on a share knows the share as a folder of its own: the
+        // paths are its own, and a table above the share's folder is the
+        // share's whole.
         let reads = crate::readers::reads_only(&s, &w, &c)?;
+        let scope = crate::shares::scope_here(&s, &c);
+        let own = |path: &str| -> Option<String> {
+            match &scope {
+                Some(sc) => sc.to_rel(path),
+                None => Some(path.to_owned()),
+            }
+        };
+        let tables = veil
+            .tables
+            .iter()
+            .filter_map(|t| {
+                let root = match &scope {
+                    Some(sc) if campaign::covers(&t.root, &sc.root) => Some(String::new()),
+                    Some(sc) => sc.to_rel(&t.root),
+                    None => Some(t.root.clone()),
+                }?;
+                Some(CampaignTable {
+                    root,
+                    ..table_of(t)
+                })
+            })
+            .collect();
         let notes = veil
             .states()
             .filter(|n| veil.may_edit(&n.path, &w.account.id))
-            .map(|n| CampaignNote {
-                path: n.path.clone(),
-                released: true,
-                secret_name: false,
-                grant: grant_of(&n.grant),
+            .filter_map(|n| {
+                Some(CampaignNote {
+                    path: own(&n.path)?,
+                    released: true,
+                    secret_name: false,
+                    grant: grant_of(&n.grant),
+                })
             })
             .collect();
         Ok(CampaignStatus {
             viewer: if reads { "player" } else { "none" }.to_owned(),
-            tables: veil.tables.iter().map(table_of).collect(),
+            tables,
             notes,
             players: Vec::new(),
             can_invite: false,
