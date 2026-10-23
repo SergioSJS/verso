@@ -279,6 +279,20 @@ em 2026-10-10 (Status).
    nome — e a aba então entra na sala de novo sobre a versão do servidor,
    a cópia ao lado e dita. Ao contrário do "não pôde ser mantido" do
    navegador, o desktop guarda toda versão: no arquivo ou na cópia.
+   *(Esclarecido em 2026-10-23, depois de um relato de cópia de conflito
+   numa nota que só um dispositivo editou:)* "o servidor parado" inclui o
+   arquivo do servidor ser o **salvamento da própria sala da aba** que a
+   passada não buscara quando o link caiu — a sala escreve cada rajada
+   assentada e a passada anda atrás dela, então, num reinício, o arquivo
+   do servidor costuma ser alguns segundos mais velho que o texto da aba.
+   A sala diz cada salvamento com o hash do arquivo que escreveu; o host
+   lembra os últimos que ouviu, e quando o arquivo do servidor tem um
+   desses hashes e o arquivo local é um texto que a aba escreveu depois de
+   ouvi-lo, o arquivo do servidor é um estado anterior do texto da própria
+   aba: a passada envia o texto local por cima dele, sem cópia. Um arquivo
+   do servidor que a sala não contou a este dispositivo — de outra pessoa,
+   ou um salvamento que o link perdeu antes de contar — continua sendo
+   duas mudanças, e uma cópia.
 10. **Pausar e desligar.** Pausar o sync, ou desligá-lo, tira toda nota da
     pasta da sala dela pelo recuo do item 8: o texto mantido, o arquivo
     local de novo dela. Retomar é o item 9 com outra epoch no caso comum,

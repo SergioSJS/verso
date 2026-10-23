@@ -5,6 +5,7 @@
 // The notifications' words (ADR 0084), in pt-BR and English (ADR 0035):
 // every string in both, the English typed as the Portuguese's shape.
 
+import { originalOf } from "../dialogs/conflictNames";
 import type { Kind, Level, Mode } from "./core";
 
 const pt = {
@@ -73,7 +74,7 @@ const pt = {
   serveDropped: "Pastas escolhidas ficaram de fora",
   toLocalServer: "Ir para Transformar em servidor",
   conflictCopy: "Conflito na sincronização",
-  conflictCopyWhy: (path: string) => `Os dois lados mudaram ${path}; a versão deste computador ficou numa cópia ao lado.`,
+  conflictCopyWhy: (copy: string) => `Os dois lados mudaram ${originalOf(copy)}; a versão deste computador ficou numa cópia ao lado.`,
   seeConflicts: "Ver os conflitos",
   conflictRoom: "Conflito numa nota",
   conflictRoomWhy: (note: string) => `${note}: uma edição foi recusada como conflito; a nota mostra as duas versões.`,
@@ -160,7 +161,7 @@ const en: typeof pt = {
   serveDropped: "Chosen folders were left out",
   toLocalServer: "Go to Turn into a server",
   conflictCopy: "Sync conflict",
-  conflictCopyWhy: (path) => `Both sides changed ${path}; this computer's version is kept in a copy beside it.`,
+  conflictCopyWhy: (copy) => `Both sides changed ${originalOf(copy)}; this computer's version is kept in a copy beside it.`,
   seeConflicts: "See the conflicts",
   conflictRoom: "Conflict in a note",
   conflictRoomWhy: (note) => `${note}: an edit was refused as a conflict; the note shows both versions.`,
