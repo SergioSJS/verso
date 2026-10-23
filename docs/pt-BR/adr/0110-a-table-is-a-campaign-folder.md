@@ -248,3 +248,136 @@ com cadeado; rasurado quando o nome é spoiler). Sobre o teto do registro da
 talvez faça sentido ser configurável e limite por mesa"* — o teto (20.000
 entradas) e o limite de tamanho de imagem viram ajustes de cada mesa,
 definidos pelo mestre, com os valores construídos como padrão.
+
+*Fase 1 construída (2026-10-22), branch `feat/campaign-table`; veja "Como foi construído" abaixo. A ADR continua Proposta: o outro modelo ainda não a leu, e as perguntas listadas em "Escolhido no código" são do mantenedor.*
+
+## Como foi construído (fase 1, 2026-10-22)
+
+Branch `feat/campaign-table`. A fase 1 do item 17 está construída: fazer uma
+mesa, convite, liberar e ocultar, o véu em todo caminho de leitura, os links
+desenhados como texto, concessões de edição por nota, aberta e fechada, os
+limites da mesa. A fase 2 (o dashboard, mostrar à mesa, sessões, avisos,
+diários, "ver como jogador", a área de boards dos jogadores, pinos de mapa)
+não está. Onde o código teve de escolher, a escolha está listada por último,
+para o mantenedor confirmar ou mudar.
+
+- **Onde.** `crates/verso-server/src/campaign.rs` (o estado das mesas, o véu,
+  quem é jogador), `campaign_serve.rs` (o que um jogador recebe),
+  `campaign_text.rs` (os links desenhados como texto; puro, sem IO),
+  `campaign_cmds.rs` (os comandos do mestre), `campaign_sync.rs` (a
+  sincronização para o aparelho de um jogador segue as liberações),
+  `db/campaign.rs` (esquema 15), `rpc_collab.rs` (os comandos das salas, tirados
+  de `rpc.rs`, que estava em 1499 linhas). O contrato:
+  `crates/verso-contract/src/campaign.rs`. A janela: `app/ui/src/campaign.ts`,
+  `campaignDialog.ts`, `campaignStrings.ts`.
+- **Uma mesa** é uma linha `(pasta, raiz)` do banco do servidor: `raiz` é `""`
+  para a pasta inteira do servidor, ou uma pasta dentro dela (então os jogadores
+  são as pessoas de um compartilhamento dessa pasta, feito pelo convite).
+  Aberta ou fechada, o teto do registro e o limite de imagem ficam na linha.
+  Nada é escrito no arquivo de nota nenhuma; fazer a mesa e desfazê-la são
+  reversíveis. Uma nota sem linha está **oculta** (MC.2 = A), as que estavam
+  quando a pasta virou mesa e as feitas depois; "Liberar tudo" escreve uma linha
+  por nota. As linhas acompanham um renomear ou mover feito pelo servidor e
+  somem com uma exclusão.
+- **Comandos** (a janela só chega à mesa por eles; a janela da dona, na própria
+  pasta, nunca por um compartilhamento, nunca de um celular):
+  `campaign_status`, `campaign_make(root)`, `campaign_unmake(root)`,
+  `campaign_settings(root, open, logMax, imageMax)`,
+  `campaign_release(paths, released)` (uma pasta vale pelas notas dentro dela),
+  `campaign_release_all(root)`, `campaign_secret_name(path, on)`,
+  `campaign_grant(path, grant)`, `campaign_invite(root)`. Cada um responde o novo
+  estado; o evento `campaign-changed` avisa toda janela da pasta, e a janela de
+  um jogador é avisada como uma pasta é (`folder-changed`, com as notas que
+  passou a ter ou perdeu). Tipos gerados (`CampaignStatus`, `CampaignTable`,
+  `CampaignNote`, `CampaignGrant`, `CampaignInvite`, `CampaignPlayer`,
+  `CampaignChanged`); o harness responde a todos
+  (`app/ui/src/harness/campaign.ts`); a lista de comandos dos celulares lê
+  `campaign_status` e recusa o resto.
+- **Quem é jogador.** Uma janela que só pode ler uma pasta que tem mesa (um
+  leitor; um token que só lê). A dona e os editores — os co-mestres — recebem a
+  pasta inteira; o véu é para leitores, como a projeção da ADR 0087. Um convite
+  faz um leitor. O estado que um jogador recebe nomeia as mesas que pode abrir e
+  as notas que pode editar, e nada além.
+- **O véu.** Um caminho dentro de uma mesa está oculto para um jogador a menos
+  que seja uma nota, board ou base liberado (uma concessão libera), um anexo que
+  uma nota ou board liberado liga ou incorpora (decidido no código, item 4: senão
+  uma nota liberada mostraria uma imagem quebrada), ou uma imagem que a mesa
+  mostra. Uma mesa fechada oculta tudo. Uma pasta só aparece com algo visível
+  dentro (a própria pasta da mesa sempre). Um caminho é julgado pelo nome com
+  maiúsculas dobradas e `.`/`..` resolvidos, e pelo nome que a contenção lê.
+- **Os caminhos de leitura** cobertos, um teste cada em `tests_campaign.rs` (o
+  primeiro também varre todo comando das ligações geradas, como `tests_secret.rs`
+  faz para a ADR 0087, então um comando de leitura novo falha ali até dizer como
+  responde a um jogador): listar notas, arquivos, pastas e entradas; ler uma
+  nota, um texto, um arquivo como texto (uma oculta responde como uma que nunca
+  existiu, testada contra um nome ausente); busca (o trecho é cortado de novo do
+  texto com o véu, e um achado cujas palavras estavam num link agora desenhado
+  como texto cai); grafo, backlinks, links, tags, ids de bloco, menções sem
+  link, linhas das bases, abertura rápida (lista e busca); o resumo da pasta e
+  seu tamanho; `resolve_attachment` e os arquivos dos mapas; boards (um cartão de
+  nota oculta é um cartão de texto trancado; os cartões de texto como notas); a
+  sala (a sala de uma nota oculta é recusada; a de uma liberada é o documento
+  próprio do jogador, sobre o texto com o véu; liberar ou ocultar fecha os
+  documentos dos jogadores para entrarem de novo); sincronização para o aparelho
+  (um arquivo oculto fica fora do manifesto e do registro do leitor, uma
+  liberação é uma mudança que o aparelho busca, ocultar de novo é uma exclusão
+  que ele é avisado de fazer, um arquivo oculto é recusado por `sync_read`);
+  os arquivos em `/f/`; os eventos da pasta; as entradas da mesa (a nota em que
+  uma rolagem foi feita não é dita quando oculta).
+- **Links para notas ocultas** (item 7, MC.4 = B): no texto servido a um
+  jogador, um wikilink ou link Markdown para uma nota oculta vira texto simples
+  e um cadeado: o apelido quando há, senão o nome como foi escrito (a última
+  parte), depois " 🔒"; uma nota marcada "nome secreto" é desenhada ▒▒▒▒ seja o
+  que for que se escreveu; um incorporado ou imagem de arquivo oculto vira "🔒
+  (ainda não revelado)" / "🔒 (not revealed yet)" na língua do mestre. Um
+  caminho, um título de seção e um `^id` nunca vão, no corpo, no frontmatter ou
+  em código. O HTML servido, os títulos, as propriedades e o tipo são derivados
+  de novo desse texto.
+- **Concessões** (item 5): `none`, `group` ou um jogador (uma conta da mesa;
+  boards não podem ser concedidos na fase 1). Uma concessão libera a nota.
+  Imposta em `write_note` e `write_text`, na digitação das salas e no
+  `sync_put` de um aparelho (só para uma nota concedida ao grupo); toda outra
+  escrita — criar, renomear, mover, excluir, anexos, boards,
+  `sync_delete`/`sync_rename` — continua do mestre. Quem pode editar uma nota a
+  lê inteira, como um escritor lê (ADR 0087 item 5).
+- **Aberta e fechada** (MC.1 = A): fechada, a tentativa de um jogador de abrir
+  a pasta, ou o compartilhamento, responde "a mesa está fechada" (a rota de
+  arquivos também), as janelas que já estavam dentro são mandadas para fora e um
+  comando de uma delas é recusado. A dona e os editores sempre entram.
+- **Limites** (resposta à MS.1): por mesa, entre 1.000 e 200.000 entradas
+  (padrão 20.000) e 1 a 30 MB (padrão 10), impostos pelo servidor
+  (`db/table.rs` apara no teto da mesa; `table_image.rs` julga a imagem). A mesa
+  de raiz mais curta da pasta dá ao registro da pasta os seus números.
+- **Convite**: `campaign_invite` faz um convite de leitor de uso único, sete
+  dias, para a pasta ou para o compartilhamento da pasta da mesa (feito então);
+  só a administradora do servidor, com uma prova recente (`prove_first`), como o
+  convite do console para uma pasta (ADR 0081 item 4, ADR 0083 item 6). A janela
+  mostra o link para copiar.
+- **Tutorial**: a nota 32 do cofre de demonstração, "Rodando uma Mesa" /
+  "Running a Table", um cartão no tour, uma linha no mapa da nota de boas-vindas.
+- **Escolhido no código, para o mantenedor confirmar ou mudar.** (1) Um link sem
+  apelido mostra o **nome como o mestre escreveu**, com o cadeado ("Barão 🔒");
+  o item 7 diz "o texto com um cadeado", e um caminho nunca vai, mas o nome vai.
+  Se o nome nunca deve atravessar, a resposta é C para todo link: diga. (2)
+  Editores são mestres, não jogadores: uma mesa é para leitores; um editor vê a
+  pasta inteira. (3) Quem recebe a concessão de uma nota, e todo jogador numa
+  nota concedida ao grupo, a lê **inteira** — blocos secretos e links como
+  escritos — pois uma edição de uma projeção escreveria os cadeados na nota; a
+  janela avisa. (4) Uma nota concedida a um jogador é projetada nos aparelhos dos
+  outros jogadores e editada na janela ou na sala, não enviada do aparelho de
+  quem a recebeu. (5) Um anexo está aberto quando uma nota ou board liberado o
+  liga, ou a mesa o mostra como imagem. (6) O limite de imagem para em 30 MB, não
+  50: o teto de mensagem da conexão é 48 MiB e o base64 é um terço maior. (7)
+  Quando uma pasta vira mesa, o aparelho de um leitor que já sincronizou uma nota
+  fica com a cópia; o registro não diz nada de uma nota que nunca disse (uma
+  exclusão a nomearia). (8) Uma mesa dentro de um compartilhamento não tem canal
+  de mesa para as janelas do compartilhamento (0107 como construída); as
+  rolagens de uma mesa de subpasta são da janela da dona. (9) A sala e os
+  arquivos de aparelho são servidos na língua do mestre para os textos de
+  substituição.
+
+Testado: `tests_campaign.rs` (20 testes, com a propriedade, em notas geradas, de
+que nenhum caminho, título ou id chega a um jogador), os testes unitários de
+`campaign_text.rs` (a mesma propriedade em 500 notas geradas),
+`test/campaign.test.mjs` e `e2e/campaign.spec.mjs` da janela no Chromium e no
+WebKit (Docker).
