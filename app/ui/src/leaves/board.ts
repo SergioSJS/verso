@@ -60,7 +60,7 @@ import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
-import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, syncedReader, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
@@ -239,7 +239,7 @@ export class BoardLeaf extends TextLeaf {
       save: (json) => this.saveBoard(json),
       // A reader of a synced folder is present on the board, not drawing
       // (ADR 0082 item 4).
-      readOnly: () => !canWrite() || (this.room !== null && !this.room.writable),
+      readOnly: () => !canWrite() || syncedReader() || (this.room !== null && !this.room.writable),
       room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {

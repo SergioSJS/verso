@@ -54,6 +54,13 @@ export type SyncState = { on: boolean; state: string; role: string; live: boolea
 
 let syncState: SyncState | null = null;
 
+/** Whether this window's folder syncs with a server where the person only
+ *  reads: a board is no room for a reader (ADR 0090 item 5), so the sync's
+ *  own state says it. */
+export function syncedReader(): boolean {
+  return Boolean(syncState?.on) && syncState?.role === "reader";
+}
+
 /** Whether the person lets this folder's notes be live (item 15). */
 function liveAllowed(): boolean {
   return syncState?.live ?? true;
