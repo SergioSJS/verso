@@ -74,11 +74,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 /* One box, as a chat box is (Foundry, Roll20): the images waiting above the text, the actions at its right. */
 .table-box { display: flex; flex-direction: column; box-sizing: border-box; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
 .table-box:focus-within { outline: 2px solid var(--seal); outline-offset: 1px; }
-.table-box-row { display: flex; align-items: flex-end; gap: .2rem; padding-right: .25rem; }
-.table-input { flex: 1; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: transparent; border: 0; outline: 0; border-radius: 8px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
+.table-input { flex: none; width: 100%; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: transparent; border: 0; outline: 0; border-radius: 8px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
 @media (max-width: 760px) { .table-input { --table-lines: 2; } }
-.table-box-actions { display: flex; flex-direction: column; gap: .15rem; padding: .2rem 0; }
-.table-box-actions .iconic { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.table-box-bar { display: flex; align-items: center; gap: .15rem; padding: .1rem .25rem .2rem; }
+.table-box-spacer { flex: 1; }
+.table-box-bar .iconic, .table-box-bar .tray-tool { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
 .table-send:disabled { opacity: .45; cursor: default; }
 .table-attach[hidden] { display: none; }
 .table-chips { display: flex; flex-wrap: wrap; gap: .3rem; padding: .35rem .4rem 0; }
@@ -101,8 +101,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   /* The sheet rises above the on-screen keyboard while the field has it (screen/viewport.ts). */
   body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); height: min(70vh, 600px, calc(100dvh - var(--table-kb, 0px) - 1rem)); }
   .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
-  .table-box-actions .iconic { width: 40px; height: 40px; min-width: 40px; }
-  .table-input { font-size: 16px; }
+    .table-input { font-size: 16px; }
   .table-older { min-height: 2.2rem; }
 }
 @media (max-width: 760px) {
@@ -112,8 +111,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 /* The dice tray (ADR 0107, "The tray made compact", 2026-10-23): ONE row under the message field, as Foundry's Dice Tray has it. */
 .tray-wrap { position: relative; flex: none; }
 .tray-row { display: flex; align-items: center; gap: .3rem; height: 2.25rem; }
-.tray-scroll { flex: 1; min-width: 0; display: flex; align-items: center; gap: .05rem; scroll-padding: 0 1rem; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.tray-scroll::-webkit-scrollbar { display: none; }
+.tray-scroll { flex: 1; min-width: 0; display: flex; align-items: center; gap: .05rem; height: 100%; overflow: hidden; }
 .tray-die, .tray-tool, .tray-keep { position: relative; flex: none; display: inline-grid; place-items: center; height: 2rem; min-width: 1.45rem; padding: 0 .08rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; font: 700 .72rem var(--mono); -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
 .tray-die:hover, .tray-tool:hover, .tray-keep:hover { border-color: var(--hair); background: var(--paper); }
 .tray-die.active { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
@@ -133,11 +131,17 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .tray-go.secret { box-shadow: inset 0 0 0 2px var(--paper); }
 .tray-go svg { display: block; }
 .tray-pop { position: absolute; bottom: calc(100% + .25rem); z-index: 5; box-sizing: border-box; max-width: 100%; max-height: min(22rem, 50vh); overflow-y: auto; padding: .4rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; box-shadow: 0 6px 18px oklch(0% 0 0 / .18); }
-.tray-mode { flex: none; height: 1.75rem; max-width: 4.6rem; padding: 0 .1rem; font: inherit; font-size: .72rem; color: var(--ink-2); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; margin: 0 .1rem; }
-.tray-mode.secret { color: var(--paper); background: var(--seal); border-color: var(--seal); }
+.tray-mode-wrap { position: relative; flex: none; display: inline-flex; align-items: center; }
+.tray-mode-wrap[hidden] { display: none; }
+.tray-mode-icon { position: absolute; left: .4rem; width: 14px; height: 14px; pointer-events: none; color: var(--ink-2); }
+.tray-mode { height: 1.9rem; padding: 0 .3rem 0 1.5rem; font: inherit; font-size: .75rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.tray-mode:hover { border-color: var(--hair); background: var(--paper); }
+.tray-mode-wrap:has(.tray-mode.secret) .tray-mode-icon, .tray-mode.secret { color: var(--seal); }
+.tray-mode.secret { border-color: var(--seal); background: var(--seal-wash); }
 .tray-mode[hidden] { display: none; }
 .tray-mode:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
-.tray-more { left: 0; display: flex; gap: .2rem; }
+.tray-extras { display: flex; align-items: center; gap: .1rem; }
+.tray-more { left: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
 .tray-more[hidden] { display: none; }
 .tray-saved { right: 0; width: min(21rem, 100%); }
 /* Saved rolls (ADR 0107, 2026-10-23): buttons that wrap inside the pop-over of the bookmark. */
@@ -157,9 +161,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 @media (max-width: 760px) {
   /* A phone: the targets are 40 px tall (the icons stay small); the row scrolls sideways inside itself, never the page. */
   .tray-row { height: 44px; }
+  .table-box-bar .iconic, .table-box-bar .tray-tool { width: 40px; height: 40px; min-width: 40px; }
+  .tray-mode { height: 40px; }
   .tray-die, .tray-tool, .tray-keep { height: 40px; min-width: 28px; }
   .tray-mod { height: 40px; width: 44px; font-size: 16px; }
-  .tray-mode { height: 40px; font-size: 16px; max-width: 84px; }
+  .tray-mode { font-size: 16px; padding-left: 1.7rem; }
   .tray-go { height: 40px; width: 42px; }
   .saved-roll { min-height: 2.75rem; }
   .saved-which, .saved-save-go { min-height: 2.6rem; }

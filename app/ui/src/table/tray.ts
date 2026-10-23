@@ -51,6 +51,14 @@ export class Tray {
   private readonly moreButton = h("button", "tray-tool tray-more-button");
   private readonly moreDot = h("span", "tray-dot");
   private readonly mode = h("select", "tray-mode");
+  private readonly modeWrap = h("span", "tray-mode-wrap");
+  private modeIcon: SVGSVGElement | null = null;
+  private readonly extras = h("div", "tray-extras");
+  private readonly observer: ResizeObserver | null;
+  /** The controls the row could not hold, now in the dots: "keep" (KH, KL) first, then "mod". */
+  private moved: { keep: boolean; mod: boolean } = { keep: false, mod: false };
+  /** The composer's own tools, for the toolbar of its box: the saved rolls and who sees the roll. */
+  readonly tools: HTMLElement[];
   private readonly savedButton = h("button", "tray-tool tray-saved-button");
   private readonly moreBox = h("div", "tray-pop tray-more");
   private readonly savedBox = h("div", "tray-pop tray-saved");
@@ -124,6 +132,7 @@ export class Tray {
       o.value = value;
       this.mode.append(o);
     }
+    this.modeWrap.append(this.mode);
     this.mode.addEventListener("change", () => {
       const t = tableSource();
       if (isServerTable(t)) t.secret = this.mode.value === "secret";
@@ -148,7 +157,9 @@ export class Tray {
     this.savedBox.append(this.saved.el);
     this.savedBox.hidden = true;
 
-    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl, this.savedButton, this.mode);
+    this.moreBox.append(this.extras);
+    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl);
+    this.tools = [this.savedButton, this.modeWrap];
     this.go.type = "button";
     this.go.append(icon("dice", ""));
     this.go.addEventListener("click", () => void this.host.submit());
@@ -171,6 +182,8 @@ export class Tray {
     document.addEventListener("pointerdown", (e) => {
       if (this.anyOpen() && e.target instanceof Node && !this.el.contains(e.target)) this.closePops();
     });
+    this.observer = typeof ResizeObserver === "function" ? new ResizeObserver(() => this.fit()) : null;
+    this.observer?.observe(this.scroll);
     this.paint();
     // A phone: the sheet rises above the keyboard while a field of the row has it (the message field's own does the same).
     const follow = (): void => {
@@ -339,11 +352,44 @@ export class Tray {
   /** The secret toggle as it stands, for a server's table; the local one has none. */
   sync(src: TableSource): void {
     this.secret = isServerTable(src) && src.secret;
+    this.modeWrap.hidden = !isServerTable(src);
     this.mode.hidden = !isServerTable(src);
+    this.modeIcon?.remove();
+    this.modeIcon = icon(this.secret ? "lock" : "unlock", "");
+    this.modeIcon.classList.add("tray-mode-icon");
+    this.modeWrap.prepend(this.modeIcon);
     this.mode.value = this.secret ? "secret" : "public";
     this.mode.classList.toggle("secret", this.secret);
     this.saved.sync();
     this.paint();
+  }
+
+  /** The row holds what fits, in a fixed order of what goes first into the dots: the other dice (always there),
+   *  then KH / KL, then the modifier. Nothing is clipped and nothing scrolls. */
+  private fit(): void {
+    const room = this.scroll.clientWidth;
+    if (room === 0) return;
+    const active = document.activeElement;
+    // Everything in the row, measured; then out, in order, until it fits.
+    this.place(false, false);
+    let state = { keep: false, mod: false };
+    if (this.scroll.scrollWidth > room) {
+      state = { keep: true, mod: false };
+      this.place(true, false);
+      if (this.scroll.scrollWidth > room) {
+        state = { keep: true, mod: true };
+        this.place(true, true);
+      }
+    }
+    this.moved = state;
+    if (active instanceof HTMLElement && document.activeElement !== active && this.el.contains(active)) active.focus({ preventScroll: true });
+    this.paint();
+  }
+
+  private place(keep: boolean, mod: boolean): void {
+    const [row, out] = [this.scroll, this.extras];
+    (mod ? out : row).append(this.mod);
+    (keep ? out : row).append(this.kh, this.kl);
   }
 
   private paint(): void {
@@ -357,7 +403,9 @@ export class Tray {
       s.count.textContent = term ? String(term.count) : "";
       if (term && OTHER.includes(s.kind)) other += 1;
     }
-    this.moreDot.hidden = other === 0;
+    // The dots carry a dot while something in them is in force: another die, or a KH / KL or modifier the row had no room for.
+    const hiddenInForce = (this.moved.keep && keepOf(base) !== null) || (this.moved.mod && base.modifier !== 0);
+    this.moreDot.hidden = other === 0 && !hiddenInForce;
     if (document.activeElement !== this.mod) this.mod.value = String(base.terms.length > 0 ? base.modifier : this.pendingMod);
     const keep = keepOf(base);
     this.kh.setAttribute("aria-pressed", String(keep === "kh"));

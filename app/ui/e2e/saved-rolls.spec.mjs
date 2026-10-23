@@ -66,7 +66,9 @@ test("a note's named rolls are buttons; a click fills the field and does not rol
   await expect(view.locator(".table-log .table-entry")).toHaveCount(0);
   // The pop-over closed on the pick; the modifier steps the line in the field.
   await expect(saved(view)).toBeHidden();
+  if (!(await mod(view).isVisible())) await view.getByRole("button", { name: "Mais dados", exact: true }).click();
   await mod(view).press("ArrowUp");
+  await page.keyboard.press("Escape");
   await expect(field(view)).toHaveValue("/r 1d20+8");
   await openSaved(view);
   await shot(page, `${phone(page) ? "phone" : "desktop"}-saved`);
