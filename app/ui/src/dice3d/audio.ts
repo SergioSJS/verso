@@ -81,18 +81,103 @@ export function unlockAudio(): AudioContext | null {
 
 const GESTURES = ["pointerdown", "keydown", "touchend", "click"];
 
-/** Listen for the gestures and unlock the audio in them (while `wanted()`). */
+/** Listen for the gestures and unlock the audio in them (while `wanted()`).
+ *  The listeners stay: every gesture (a key in the Table's box, the send
+ *  button, a note's dice button) also keeps the output awake (`keepWarm`),
+ *  and revives a context the system suspended meanwhile. */
 export function armAudio(wanted: () => boolean): void {
   const go = () => {
     if (!wanted()) return;
-    unlockAudio();
-    if (ctx && ctx.state === "running") for (const t of GESTURES) document.removeEventListener(t, go, true);
+    if (unlockAudio()) keepWarm();
   };
   for (const t of GESTURES) document.addEventListener(t, go, true);
 }
 
+/** How long the output is kept awake after the last gesture or roll. */
+export const WARM_MS = 3 * 60 * 1000;
+/** The amplitude of the keep-awake noise: about -90 dB, below what any
+ *  speaker makes audible, above the all-zero buffer an output may treat as
+ *  silence and power down for. */
+const WARM_LEVEL = 3e-5;
+let warm: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let warmTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Keep the audio output awake for `WARM_MS` more: a laptop's audio device
+ *  (a Bluetooth headset above all) sleeps when idle and takes a while to wake,
+ *  during which the context's clock stands still and every hit queued on it
+ *  plays at once afterwards. A looping near-silent buffer holds the device
+ *  open. Stops itself when nothing asks again. Never throws. */
+export function keepWarm(): void {
+  const c = ctx;
+  if (!c || c.state !== "running") return;
+  try {
+    if (!warm) {
+      const buf = c.createBuffer(1, Math.max(1, Math.round(c.sampleRate)), c.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * WARM_LEVEL;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const gain = c.createGain();
+      gain.gain.value = 1;
+      src.connect(gain).connect(c.destination);
+      src.start();
+      warm = { src, gain };
+    }
+    if (warmTimer) clearTimeout(warmTimer);
+    warmTimer = setTimeout(stopWarm, WARM_MS);
+    // Under node (the unit tests) a pending timer must not keep the process alive.
+    (warmTimer as unknown as { unref?: () => void }).unref?.();
+  } catch {
+    // Warmth is a courtesy.
+  }
+}
+
+function stopWarm(): void {
+  if (warmTimer) clearTimeout(warmTimer);
+  warmTimer = null;
+  if (!warm) return;
+  try {
+    warm.src.stop();
+    warm.src.disconnect();
+    warm.gain.disconnect();
+  } catch {
+    // Already gone.
+  }
+  warm = null;
+}
+
+/** Is the audio clock really running? A context can say "running" while its
+ *  output device is still waking (or, in a webview, held back): `currentTime`
+ *  then stands still, and a hit queued on it sounds only when the clock
+ *  moves, long after its impact. A hit may be queued only when the clock has
+ *  been seen to advance, and not to have stood still for `CLOCK_STALL_MS`. */
+export const CLOCK_STALL_MS = 80;
+export function clockWatch(): { sample: (audioSeconds: number, wallMs: number) => boolean } {
+  let lastA = Number.NaN;
+  let lastW = 0;
+  let moved = false;
+  return {
+    sample(a, w) {
+      if (Number.isNaN(lastA)) {
+        lastA = a;
+        lastW = w;
+        return false;
+      }
+      if (a > lastA) {
+        lastA = a;
+        lastW = w;
+        moved = true;
+        return true;
+      }
+      return moved && w - lastW < CLOCK_STALL_MS;
+    },
+  };
+}
+
 /** For tests: forget the context. */
 export function resetAudioForTests(): void {
+  stopWarm();
   ctx = null;
   warned.clear();
   waiting.length = 0;

@@ -99,6 +99,8 @@ versão de teste.
 
 ### Corrigido
 
+- **O som dos dados sai com cada batida, ou não sai** ([ADR 0101](adr/0101-3d-dice-physics-overlay.md)): no Mac, as batidas podiam soar só depois de todos os dados pararem, porque a saída de áudio ainda estava acordando e os sons ficavam na fila de um relógio parado. Uma batida agora só entra na fila quando o relógio do áudio está andando, e é descartada se não; cada clique ou tecla com o som ligado mantém a saída acordada (um sinal quase inaudível, desligado após três minutos ocioso). A linha da rolagem no log agora também diz o ritmo do relógio do áudio, as latências e o tempo de despertar.
+
 - **Dois dados iguais numa nota: a rolagem de outra pessoa aparece no dado certo** ([ADR 0107](adr/0107-the-table-a-shared-roll-and-chat-log.md)): quando uma nota tem o mesmo código `dice:` duas vezes (dois `1d20` numa ficha), a rolagem ouvida de outra pessoa aparecia no primeiro dado; agora a rolagem leva qual dado foi clicado e os outros a veem nele. Uma janela ou servidor mais antigo não diz, e o primeiro dado a mostra como antes.
 
 - Uma janela do desktop que chega à pasta de um servidor onde a pessoa só lê (um jogador numa mesa) pergunta de novo o que pode fazer: o quadro perde as ferramentas de desenho, o editor e a árvore só leem e aparece "você só lê esta pasta", sem recarregar; a janela mantém ali as capacidades do próprio app (nova janela, atualizações, console, pastas deste computador).
