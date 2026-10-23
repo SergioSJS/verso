@@ -106,7 +106,7 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); o board não tem como pôr um cartão de texto Markdown, onde as
    rolagens funcionam, a não ser arrastando uma rolagem da Mesa. Falta decidir
    como se faz um cartão de texto.
-   Corrigido na branch `feat/board-text-card` (HASH): um botão *Cartão de
+   Corrigido na branch `feat/board-text-card` (15778e7f): um botão *Cartão de
    texto* na barra e um duplo clique num lugar vazio põem um cartão de texto
    Markdown, este último configurável. A decisão do mantenedor, 2026-10-23:
    "B e A entao, sendo B configurável".
