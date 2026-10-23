@@ -48,7 +48,21 @@ class FakeCtx {
   decodeAudioData() {
     return Promise.resolve({ fake: true });
   }
+  createBufferSource() {
+    const n = { start: (t) => started.push(t), stop() {}, connect: (x) => x, disconnect() {} };
+    return n;
+  }
+  createGain() {
+    return { gain: { value: 1 }, connect: (x) => x, disconnect() {} };
+  }
+  createBuffer() {
+    return { getChannelData: () => new Float32Array(4) };
+  }
+  get destination() {
+    return {};
+  }
 }
+const started = [];
 globalThis.window = { AudioContext: FakeCtx };
 globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
 const gesture = (type) => {
@@ -91,5 +105,50 @@ test("a roll writes one INFO diagnostic line with the state and the tally", asyn
   kit.diagnose({ played: 3, lost: 1, silent: 2, late: 4 });
   const info = globalThis.__logs.filter(([l]) => l === "INFO");
   assert.equal(info.length, 1);
-  assert.match(info[0][1], /^dice sound: ctx=running buffers=\d+ played=3 lost=1 silent=2 late=4$/);
+  assert.match(info[0][1], /^dice sound: ctx=running buffers=\d+ played=3 lost=1 silent=2 late=4 stalled=0 first=none end=running clockRate=n\/a base=n\/a out=n\/a resumeMs=\d+ maxAheadMs=0$/);
+});
+
+test("clockWatch: a clock never seen to move, or standing still, is not live", () => {
+  const w = m.clockWatch();
+  assert.equal(w.sample(1, 0), false);
+  assert.equal(w.sample(1, 20), false);
+  assert.equal(w.sample(1.02, 40), true);
+  assert.equal(w.sample(1.02, 60), true);
+  assert.equal(w.sample(1.02, 40 + m.CLOCK_STALL_MS + 1), false);
+  assert.equal(w.sample(1.5, 400), true);
+});
+
+test("a hit on a stalled audio clock is dropped as late and never queued; on a running clock it is queued", async () => {
+  m.resetAudioForTests();
+  const ctx = m.unlockAudio();
+  const kit = await m.loadSounds(["plastic"], 50);
+  // Warm-up (keep-awake noise) may have started one source: count only hits.
+  started.length = 0;
+  const realNow = performance.now.bind(performance);
+  let wall = 1000;
+  performance.now = () => wall;
+  try {
+    ctx.currentTime = 0;
+    // First samples: the clock has never been seen to move.
+    assert.equal(kit.hit("dice", "plastic", 10, 5.01), "late");
+    wall += 16;
+    assert.equal(kit.hit("dice", "plastic", 10, 5.01), "late");
+    assert.equal(started.length, 0);
+    // The clock moves: queued.
+    ctx.currentTime = 5.016;
+    wall += 16;
+    assert.equal(kit.hit("dice", "plastic", 10, 5.03), "played");
+    assert.equal(started.length, 1);
+    // The device stalls for longer than the bound: dropped, nothing queued.
+    wall += m.CLOCK_STALL_MS + 20;
+    assert.equal(kit.hit("dice", "plastic", 10, 5.2), "late");
+    assert.equal(started.length, 1);
+    // It wakes: queued again.
+    ctx.currentTime = 5.5;
+    assert.equal(kit.hit("dice", "plastic", 10, 5.52), "played");
+    assert.equal(started.length, 2);
+  } finally {
+    performance.now = realNow;
+    m.resetAudioForTests(); // stops the keep-awake timer
+  }
 });

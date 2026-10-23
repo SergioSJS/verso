@@ -598,6 +598,7 @@ in a note long enough to scroll.
 
 ### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
 
+- [ ] **Each dice hit is heard as the die hits** (A, the Mac app, ADR 0101): sound on, the Mac idle for a few minutes (headphones on, Bluetooth too), roll 4d6 from the Table's box with Enter: each hit sounds as its die touches the felt or another die, and nothing sounds after the dice rest. The log's `dice sound:` line says `late=` and `clockRate=` if it did not.
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed
   app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
   code is a die; a click and Enter roll it, the card shows the total and

@@ -100,6 +100,8 @@ test release.
 
 ### Fixed
 
+- **The dice's sound is heard with each impact, or not at all** ([ADR 0101](docs/adr/0101-3d-dice-physics-overlay.md)): on the Mac the hits could sound only after every die had stopped, because the audio output was still waking and the sounds queued on its standing clock. A hit is now queued only when the audio clock is seen running, and dropped otherwise; every click or key press while the sound is on keeps the output awake (a near-silent signal, stopped after three minutes idle). The roll's line in the log now also tells the audio clock's pace, latencies and wake-up time.
+
 - **Two identical dice in a note: another person's roll shows on the right one** ([ADR 0107](docs/adr/0107-the-table-a-shared-roll-and-chat-log.md)): when a note holds the same `dice:` code twice (two `1d20` in a character sheet), a roll heard from someone else showed on the first die; now the roll carries which die was clicked and the others see it on that one. An older window or server says none, and the first die shows it as before.
 
 - A desktop window that comes to a server's folder where the person only reads (a player at a table) asks what it can do again: the board loses its drawing tools, the editor and the tree read, and "you only read this folder" shows, without a reload; the window keeps the app's own abilities there (new window, updates, console, folders of this computer).
