@@ -119,7 +119,7 @@ the smallest surface that lets a group of players sign in from their own
 homes. None of it changes an Accepted ADR; where one needs a line, the item
 says so.
 
-1. **`[OPEN]` What the online mode serves.**
+1. **`[DECIDED 2026-10-23]` What the online mode serves.**
    - (a) Only the folders the owner explicitly turns into tables
      ([0110](0110-a-table-is-a-campaign-folder.md)) or shares; nothing by
      default.
@@ -129,6 +129,18 @@ says so.
    - Recommendation: **(a)**. It is the smallest surface; the tunnel is for a
      table, not for the laptop's notes. Folders not made tables are not
      reachable by any id (the two locks of 0096 item 2's amendment apply).
+   - **Decided by the maintainer on 2026-10-23, as on the UniVerso:** *"eu
+     acho que a pasta servida seria o mesmo funcionamento do universo. É o
+     que a pessoa compartilhar. Ele não vai compartilhar tudo, exceto se a
+     pessoa quiser compartilhar tudo. É o que ela compartilhar que é o que
+     vai ser servido."* The online mode serves what the person shares, by
+     the UniVerso's own rules ([0074](0074-accounts-and-access-on-the-server.md),
+     [0110](0110-a-table-is-a-campaign-folder.md)): a folder shared with an
+     account, or made a table and joined by invitation, is reachable by
+     that account at its role; nothing is shared by default; sharing every
+     folder is the person's choice, never the app's. This is option (a)
+     read as the UniVerso reads it — "shares" includes any folder shared,
+     not only tables.
 
 2. **`[OPEN]` Accounts and how a player gets in.**
    - (a) Accounts in the local server's database (the 0096 state directory,
@@ -293,7 +305,7 @@ says so.
     a short spike (a script, no product code) before the build PR, with its
     results written in "As built".
 
-13. **`[OPEN]` The later official mode** (for a future ADR; no
+13. **`[DECIDED 2026-10-23]` The later official mode** (for a future ADR; no
     recommendation beyond the order in which they look cheapest):
     - (a) A named Cloudflare Tunnel with the person's own Cloudflare account
       and domain (stable link, the person's terms).
@@ -302,6 +314,9 @@ says so.
     - Order of effort, as the assistant sees it: (c) exists, (a) and (b) are
       mostly configuration and documentation. Not decided which, or whether
       more than one.
+    - **Decided by the maintainer on 2026-10-23** (*"perfeita a lista para
+      modo oficial"*): these three are the candidates for the official mode;
+      which one, or more than one, is for its own ADR.
 
 ## Consequences
 
@@ -339,7 +354,8 @@ Only alternatives actually considered in the session:
 
 Proposed (2026-10-23). Written by Sonnet 5.5 at the request of the session;
 to be read by the other model before it is accepted. D1, D2 and D3 are the
-maintainer's words of 2026-10-23; items 1 to 13 are `[OPEN]` and wait for the
+maintainer's words of 2026-10-23; items 1 and 13 were decided by the
+maintainer the same day; items 2 to 12 are `[OPEN]` and wait for the
 maintainer. Nothing is built.
 
 Sources: Cloudflare, "Quick Tunnels" (link in Context); the `cloudflared`
