@@ -68,7 +68,15 @@ In a folder that is **not** a UniVerso's (only on your computer), the Table show
 
 ## Everyone's table, on a UniVerso
 
-Everyone who has the same UniVerso folder open, in any note, is **at the same table**. The top of the panel shows **who is there now**, each person in their cursor's colour. Everyone's rolls enter here, rolled **once**, by the server, with its name and its time, and the log is **kept** on the server with no expiry: whoever joins later sees what happened.
+Everyone who has the same UniVerso folder open and works at the same table is **in the same conversation**. The top of the panel shows **who is there now**, each person in their cursor's colour. Everyone's rolls enter here, rolled **once**, by the server, with its name and its time, and the log is **kept** on the server with no expiry: whoever joins later sees what happened.
+
+### One conversation per table
+
+A folder can have **several tables** (one per subfolder, see [[32 - Running a Table]]), and **each table has its own conversation**: the log, the messages, the images, the pinned ones and who is there. The panel follows the **open note**: its top says **Table: Cripta** when you are in a note of the Cripta table, and you see only that table's conversation. Open a note of the Sala table and the panel moves to **Table: Sala** (you leave one and join the other). A roll made in a note goes to the log of **that note's** table.
+
+With a note outside every table (or none open) the panel lists the tables for you to choose from, and remembers the last one chosen in this folder; the button beside the table's name (**Switch table**) picks another at any time. A folder with no table keeps the one conversation it always had.
+
+### At the foot of the panel
 
 At the foot of the panel is the **Write to the table…** field:
 

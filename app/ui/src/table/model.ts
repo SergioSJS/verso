@@ -172,6 +172,8 @@ export type Role = "owner" | "editor" | "reader";
  *  with the server's refusal in words, or null when it went through. */
 export interface ServerTable extends TableSource {
   readonly server: true;
+  /** The table this log is of, as the server named it: its folder inside the open folder, `""` for the folder itself. */
+  readonly table: string;
   role(): Role;
   /** Who is at the table now, in the server's order. */
   roster(): readonly Member[];

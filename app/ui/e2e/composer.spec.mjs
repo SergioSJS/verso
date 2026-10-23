@@ -32,7 +32,11 @@ async function setup(app, page, { server = false, role = "owner" } = {}) {
   }
   if (phone(page)) await page.locator(".bar-right").click();
   else await page.evaluate(() => document.body.classList.remove("no-right"));
-  await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  // At 320 px the tab strip keeps the first tabs and puts the rest behind "Mais abas do painel".
+  if ((page.viewportSize()?.width ?? 1500) <= 330) {
+    await page.getByRole("button", { name: "Mais abas do painel" }).click();
+    await page.getByRole("menuitem", { name: /^Mesa/ }).click();
+  } else await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
   const view = page.locator(".table-view");
   await expect(view).toBeVisible();
   await expect(view.locator(".tray-row")).toBeVisible();
@@ -373,7 +377,7 @@ test("the message field is larger and multi-line: Shift+Enter breaks the line, E
   expect(await app.calls("table_say")).toHaveLength(0);
   await input.press("Enter");
   await expect(log(view)).toHaveCount(1);
-  expect(await app.calls("table_say")).toEqual([{ text: "primeira linha\nsegunda linha" }]);
+  expect(await app.calls("table_say")).toEqual([{ text: "primeira linha\nsegunda linha", table: "" }]);
   const text = log(view).first().locator(".table-text");
   await expect(text).toContainText("primeira linha");
   await expect(text).toContainText("segunda linha");

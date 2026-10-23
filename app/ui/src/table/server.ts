@@ -10,29 +10,33 @@
 // commands and events are handed in (`Api`), so the page's module and the
 // unit tests drive the same code.
 
-import type { ContractError, DiceStyles as WireStyles, TableCleared, TableEntry as Wire, TableJoin, TableMember, TablePage, TablePinned, TableRemoved } from "../bindings";
+import type { ContractError, DiceStyles as WireStyles, TableCleared, TableEntry as Wire, TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster } from "../bindings";
 import { readDiceStyles } from "../dice3d/look";
 import { entryOfServer, TableLog, type Member, type OracleWords, type Role, type ServerTable, type TableEntry } from "./model";
 
 type R<T> = { status: "ok"; data: T } | { status: "error"; error: ContractError };
 
-/** The table's commands and events, as the contract has them. */
+/** The table's commands and events, as the contract has them. Every command
+ *  names its table (`table`: the table's folder inside the open folder, `""`
+ *  for the folder itself; null: the folder's default, as an old window asks). */
 export type Api = {
-  join(color: string | null, styles: WireStyles | null): Promise<R<TableJoin>>;
-  leave(): Promise<unknown>;
-  look(color: string | null, styles: WireStyles | null): Promise<R<null>>;
-  history(before: string | null, limit: number): Promise<R<TablePage>>;
-  say(text: string): Promise<R<Wire>>;
-  sendImage(base64: string): Promise<R<Wire>>;
-  roll(notation: string, source: string | null, path: string | null, secret: boolean | null, styles: WireStyles | null, occurrence: number | null): Promise<R<Wire>>;
-  pin(id: string, pinned: boolean): Promise<R<null>>;
-  del(id: string): Promise<R<null>>;
-  clear(keepPinned: boolean): Promise<R<null>>;
+  join(color: string | null, styles: WireStyles | null, table: string | null): Promise<R<TableJoin>>;
+  leave(table: string | null): Promise<unknown>;
+  look(color: string | null, styles: WireStyles | null, table: string | null): Promise<R<null>>;
+  history(before: string | null, limit: number, table: string | null): Promise<R<TablePage>>;
+  say(text: string, table: string | null): Promise<R<Wire>>;
+  sendImage(base64: string, table: string | null): Promise<R<Wire>>;
+  roll(notation: string, source: string | null, path: string | null, secret: boolean | null, styles: WireStyles | null, occurrence: number | null, table: string | null): Promise<R<Wire>>;
+  pin(id: string, pinned: boolean, table: string | null): Promise<R<null>>;
+  del(id: string, table: string | null): Promise<R<null>>;
+  clear(keepPinned: boolean, table: string | null): Promise<R<null>>;
   listen<T>(event: string, fn: (payload: T) => void): Promise<() => void>;
 };
 
 export type Deps = {
   api: Api;
+  /** The table to join: its folder inside the open folder; null when the folder has no table to name. */
+  table: string | null;
   /** The person's dice, closed form, sent with every roll and the join. */
   styles(): WireStyles | null;
   /** The presence colour of the person named, `#rrggbb`; null: the server's. */
@@ -77,6 +81,9 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   let closed = false;
   let secret = false;
   const offs: (() => void)[] = [];
+  // The table the events are for: the one asked until the join names it.
+  let at: string | null = deps.table;
+  const mine = (t: string | undefined): boolean => at === null || t === undefined || t === at;
 
   const ingest = (wire: Wire, live: boolean): void => {
     if (closed) return;
@@ -94,20 +101,24 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   // Listening first: an entry sent while the join is on its way is held
   // once, by its number, whichever way it arrives.
   const listening = [
-    api.listen<Wire>("table-entry", (w) => ingest(w, true)),
+    api.listen<Wire>("table-entry", (w) => {
+      if (mine(w.table)) ingest(w, true);
+    }),
     api.listen<TablePinned>("table-pinned", (p) => {
-      if (log.patch(p.id, { pinned: p.pinned })) tell();
+      if (mine(p.table) && log.patch(p.id, { pinned: p.pinned })) tell();
     }),
     api.listen<TableRemoved>("table-removed", (p) => {
-      if (log.remove(p.id)) tell();
+      if (mine(p.table) && log.remove(p.id)) tell();
     }),
     api.listen<TableCleared>("table-cleared", (p) => {
+      if (!mine(p.table)) return;
       log.clear(p.keep_pinned);
       if (!p.keep_pinned) hasMore = false;
       tell();
     }),
-    api.listen<TableMember[]>("table-roster", (list) => {
-      members = list.map(memberOf);
+    api.listen<TableRoster>("table-roster", (r) => {
+      if (!mine(r.table)) return;
+      members = r.members.map(memberOf);
       tell();
     }),
   ];
@@ -117,11 +128,13 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     for (const off of offs.splice(0)) off();
   };
 
-  const joined = await api.join(null, deps.styles()).catch((): null => null);
+  const joined = await api.join(null, deps.styles(), deps.table).catch((): null => null);
   if (!joined || joined.status !== "ok") {
     stop();
     return null;
   }
+  const where = joined.data.table;
+  at = where;
   you = joined.data.you;
   role = joined.data.role === "owner" || joined.data.role === "reader" ? joined.data.role : "editor";
   members = joined.data.roster.map(memberOf);
@@ -135,7 +148,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   // The presence colour is a hash of the name, which only the join tells.
   const first = members.find((m) => m.byId === you);
   const color = myColor();
-  if (first && color && color !== first.color) void api.look(color, deps.styles());
+  if (first && color && color !== first.color) void api.look(color, deps.styles(), where);
 
   const said = async (call: Promise<R<Wire | null>>): Promise<string | null> => {
     const r = await call.catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
@@ -146,6 +159,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
 
   const table: ServerTable = {
     server: true,
+    table: where,
     shared: true,
     receivesOwn: true,
     role: () => role,
@@ -176,37 +190,37 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     async loadOlder() {
       const held = log.all().filter((e) => !e.pinned);
       const oldest = held.reduce<bigint | null>((m, e) => (m === null || num(e.id) < m ? num(e.id) : m), null);
-      const r = await api.history(oldest === null ? null : String(oldest), PAGE).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
+      const r = await api.history(oldest === null ? null : String(oldest), PAGE, where).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return deps.explain(r.error);
       for (const w of r.data.entries) ingest(w, false);
       hasMore = r.data.more;
       tell();
       return null;
     },
-    say: (text) => said(api.say(text)),
+    say: (text) => said(api.say(text, where)),
     async roll(notation, opts) {
       const r = await api
-        .roll(notation, opts?.source ?? null, opts?.path ?? null, opts?.secret ? true : null, deps.styles(), opts?.occurrence ?? null)
+        .roll(notation, opts?.source ?? null, opts?.path ?? null, opts?.secret ? true : null, deps.styles(), opts?.occurrence ?? null, where)
         .catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return { error: deps.explain(r.error) };
       ingest(r.data, false);
       return { entry: r.data };
     },
-    sendImage: (b64) => said(api.sendImage(b64)),
+    sendImage: (b64) => said(api.sendImage(b64, where)),
     async pin(id, pinned) {
-      const r = await api.pin(id, pinned).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
+      const r = await api.pin(id, pinned, where).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return deps.explain(r.error);
       if (log.patch(id, { pinned })) tell();
       return null;
     },
     async remove(id) {
-      const r = await api.del(id).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
+      const r = await api.del(id, where).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return deps.explain(r.error);
       if (log.remove(id)) tell();
       return null;
     },
     async clear(keepPinned) {
-      const r = await api.clear(keepPinned).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
+      const r = await api.clear(keepPinned, where).catch((e: unknown): R<never> => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
       if (r.status !== "ok") return deps.explain(r.error);
       log.clear(keepPinned);
       if (!keepPinned) hasMore = false;
@@ -224,12 +238,12 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     canClear: () => role === "owner",
     canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image") && e.mine),
     look() {
-      if (!closed) void api.look(myColor(), deps.styles());
+      if (!closed) void api.look(myColor(), deps.styles(), where);
     },
     close() {
       if (closed) return Promise.resolve();
       stop();
-      return api.leave().then(
+      return api.leave(where).then(
         () => undefined,
         () => undefined,
       );

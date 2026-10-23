@@ -607,6 +607,73 @@ Escolhido no código, para o mantenedor confirmar ou mudar. (1) KH e KL são doi
 
 **O pé testado no app de verdade (2026-10-23).** O mantenedor testou o painel da Mesa no app do Mac e disse quatro coisas. (1) Com uma captura do seletor Pública / Secreta na barra da caixa, um anel de foco roxo grosso e o ícone do cadeado em cima do texto: *"na barra aqui do chat isso ta meio estranho."* O modo agora é um botão pequeno (ícone e rótulo lado a lado, sem sobrepor nem cortar, o anel de foco do próprio app, a altura dos outros controles da barra) que abre o menu do app com os dois modos, com setas, Enter e Escape; um select nativo é desenhado diferente em cada webview. (2) *"a lista de pessoas online nao fica legal assim, coloca apenas um icone com numero de pessoas online, ai se parar o mouse em cima, dar pra ver"*: a linha de quem está na mesa vira um ícone de pessoas com a contagem; passar o mouse mostra os nomes com as cores dos cursores, um toque ou Enter no toque e no teclado abre a mesma lista, Escape fecha; o leitor de tela lê "N pessoas na mesa: Ana, Bruno". (3) *"pra que tem icone de dado no canto inferior direito ja tem botão pra enviar mensagem que faz o msm? talvez dê até pra usar esse botão pra outra coisa, mas nao isso"*: o botão de rolar da fila de dados foi retirado (Enviar já envia a linha `/r`); nenhum uso novo foi inventado para ele. (4) *"o mestre deveria ter poder de deletar uma rolagem."* Isto **substitui** o "uma rolagem não é apagada uma a uma" do item 6 e a linha acima, "uma rolagem nunca é apagada uma a uma", **para os donos da pasta**: um dono (o mestre) pode apagar uma rolagem, com a mesma confirmação que o menu já tem; um jogador continua sem poder apagar uma rolagem (o jogador apaga as próprias mensagens e imagens, como antes). O servidor impõe (`table_delete` recusa uma rolagem se o papel não for dono); a janela oferece **Apagar** numa rolagem só ao dono.
 
+## Decisão (um registro por mesa, 2026-10-23)
+
+O mantenedor, 2026-10-23: *"o chat deve ser 1 por mesa, adapte e refaça o que
+precisar"*. Como construído até então, o registro da Mesa (rolagens, mensagens,
+imagens, fixadas, quem está nela, os limites) era um por **pasta aberta do
+servidor**: com a pasta toda aberta e duas mesas em subpastas, as entradas das
+duas mesas caíam em um registro só (o item 1 do
+[0110](0110-a-table-is-a-campaign-folder.md) diz que uma pasta pode ter várias
+mesas). Agora é um por **mesa**.
+
+- **A identidade de uma mesa** é (pasta do servidor, a raiz da mesa dentro
+  dela); a raiz é `""` para a própria pasta. Uma pasta do servidor sem mesa de
+  campanha mantém a mesa única, da pasta toda, da primeira forma deste ADR: quem
+  abriu a pasta divide um registro só; é a mesa da raiz daquela pasta.
+- **O contrato.** Todo comando `table_*` recebe um `table` opcional (a raiz da
+  mesa, relativa à pasta). Sem nome vale a mesa padrão da pasta — a de raiz
+  mais curta, senão a pasta — então uma janela antiga continua funcionando. O nome
+  é conferido: relativo, sem `..`, sem barra invertida, e uma mesa de verdade da
+  pasta (maiúsculas ignoradas, como as mesas são procuradas), ou `""` numa pasta
+  sem mesa; o resto é recusado ("no such table"). Entradas, fixadas, apagados e
+  limpezas são procurados **na mesa nomeada**, então uma entrada de uma mesa não
+  é entrada de outra. As respostas e os eventos levam a mesa (`TableEntry.table`,
+  `TableJoin.table`, `TablePinned`, `TableRemoved`, `TableCleared` e o novo
+  `TableRoster { table, members }` do `table-roster`); a janela só ouve as mesas
+  em que entrou e descarta o que se diz de outra.
+- **Presença.** Uma janela pode estar em várias mesas de uma pasta ao mesmo tempo
+  (a conexão de sincronização de um desktop é uma janela só para todas as janelas
+  daquele app); o painel da Mesa está em uma: sai de uma mesa e entra na outra
+  quando a nota ativa passa para outra mesa. A lista de cada mesa é a dela.
+- **Para qual mesa vai uma rolagem.** Uma rolagem ou um sorteio de oráculo feito
+  na sala de uma nota vai para a mesa que contém a nota (a mais funda); uma nota
+  fora de toda mesa vai para a mesa padrão da pasta. Uma rolagem feita no painel
+  vai para a do painel.
+- **A janela.** O painel segue a mesa da nota ativa (a regra do selo,
+  `tableChip.ts`: a mesa mais próxima subindo pelo caminho da nota), dá o nome
+  dela no alto (*Mesa: Cripta*) e, sem nota que diga qual, mostra a última mesa
+  escolhida na pasta ou — a pasta tem várias e nenhuma foi escolhida — uma lista
+  das mesas. Um botão pequeno ao lado do nome troca de mesa a qualquer momento.
+  Uma pasta sem mesa é o painel de sempre. O painel está em uma mesa por vez,
+  então o contador de novidades é o daquela mesa: o que outra mesa diz não é
+  ouvido até o painel estar nela (escolhido no código, para o mantenedor
+  confirmar ou mudar).
+- **Limites e regras por mesa.** O teto do registro (`campaigns.log_max`) e o
+  limite de imagem (`image_max`) são da própria mesa; as regras de apagar e de
+  limpar dos papéis valem dentro da mesa.
+- **Jogadores.** Um jogador convidado para uma mesa de subpasta é uma janela num
+  compartilhamento com raiz nessa mesa, e recebe o canal dessa mesa (e só dele):
+  lê, escreve e rola ali, e o dono lê o mesmo registro pela pasta toda; ele não
+  lê nem escreve em outra mesa. Um compartilhamento que não é mesa continua sem
+  canal. Veja o [0110](0110-a-table-is-a-campaign-folder.md) "Como foi construído
+  (uma conversa por mesa, 2026-10-23)".
+- **A pasta sincronizada** (item 9): o mesmo canal por mesa pelo enlace da
+  sincronização; o host lembra em que mesa está cada janela do app e encaminha os
+  eventos do servidor pela mesa que eles carregam.
+- **Migração.** O esquema 16 acrescenta a mesa a cada entrada: as entradas
+  guardadas antes pertencem à mesa de raiz mais curta da pasta quando ela tem
+  mesas (a de cujos números sempre dependeram), senão à pasta. Nada é apagado; o
+  resto das regras (uma mesa feita, desfeita, renomeada) está no
+  [0110](0110-a-table-is-a-campaign-folder.md) "Como foi construído (uma conversa
+  por mesa, 2026-10-23)".
+
+Isto **substitui** as frases acima e nas seções "Como foi feito" que tornam o
+registro um por pasta, e o "a mesa de raiz mais curta da pasta dá ao registro da
+pasta os seus números" do 0110 (cada mesa tem os seus números agora).
+
+**Duas mudanças pequenas do painel (2026-10-23, o mantenedor).** "Rolar dados…" (o diálogo do rolador) volta a ser um item da gaveta "⋯" da fila de dados, depois de ficar só na paleta de comandos; e em larguras estreitas (uma linha de topo de até 420 px) "Ocultar daqui pra trás" é um botão só de ícone (nome e dica mantidos) para que a lista de pessoas, o botão da janela da Mesa, ocultar e o menu caibam em uma linha a 260 px, com o rótulo aparecendo quando há espaço.
+
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo
