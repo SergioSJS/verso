@@ -33,7 +33,7 @@ Logo abaixo do campo de mensagem fica a **bandeja de dados**: uma fila só, de b
 2. **Botão direito** num dado tira um (no teclado: `Shift+Enter`, `Delete` ou `Backspace` no dado; no celular, segure o dedo nele). `Enter` num dado soma um.
 3. O pequeno campo **numérico** (o `0`) é o modificador: digite, use as setas `↑` `↓` ou a roda do mouse, de −99 a +99 (`/r 2d6+1d20+2`).
 4. **KH** e **KL** são vantagem e desvantagem, como no Foundry: sobre `/r 1d20`, **KH** dá `/r 2d20kh1` (dois dados, fica o maior) e **KL** dá `/r 2d20kl1` (fica o menor). Clicar no mesmo de novo desfaz; clicar no outro troca. O botão aceso é o que está valendo.
-5. Aperte o botão do **dado** no fim da fila (ou `Enter` no campo): a rolagem vai para o registro — rolada pelo servidor num UniVerso, os dados 3D e o som, o botão **Secreta** respeitado (o botão passa a dizer *Rolar em segredo*). Sem servidor, a sua janela rola e o registro guarda.
+5. Aperte **Enviar** (ou `Enter` no campo): a rolagem vai para o registro — rolada pelo servidor num UniVerso, os dados 3D e o som, o modo **Secreta** respeitado. Sem servidor, a sua janela rola e o registro guarda.
 
 O **campo de mensagem** é editável, e é ele que vale: digite `/r 4d6kh3` e as bolinhas acompanham o que os botões sabem mostrar; o que não sabem (manter 3 de 4, re-rolagem) continua como você digitou, e um dado clicado depois recomeça a rolagem a partir dele. O que o Verso não lê é dito logo abaixo do campo, e nada é rolado. Esvaziar o campo limpa a rolagem.
 
@@ -72,13 +72,13 @@ No pé do painel há o campo **Escreva para a mesa…**:
 
 - **Mensagens.** Escreva e aperte **Enter** (Shift+Enter quebra a linha). Texto simples, até **500 caracteres**; perto do limite aparece um contador. Um `[[link]]` para uma nota da pasta vira link.
 - **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem — ou monte a rolagem na fila de dados logo abaixo, como acima.
-- **Secreta.** Na fila de dados, o seletor **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
+- **Secreta.** Na barra da caixa, o menu **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
 - **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
 
 Cada linha tem o botão **⋯**:
 
 - **Fixar** põe a linha numa lista **Fixadas** no alto, para todos, até alguém **Desafixar**.
-- **Apagar** tira uma mensagem ou imagem: quem a enviou apaga a sua, um dono apaga qualquer uma. Uma **rolagem nunca** é apagada, para ninguém rolar de novo e esconder a primeira.
+- **Apagar** tira uma mensagem ou imagem: quem a enviou apaga a sua, um dono apaga qualquer uma. Uma **rolagem** só o **mestre** (um dono da pasta) apaga; um jogador não, para ninguém rolar de novo e esconder a primeira.
 - **Adicionar à nota…** vale também para mensagens e imagens (a imagem entra como incorporação do arquivo).
 
 Um dono ainda tem **⋯ › Limpar a mesa**: pergunta antes, com **Manter as entradas fixadas** marcado, e esvazia a mesa para todos. E **Ver anteriores** traz as linhas mais antigas, aos poucos.

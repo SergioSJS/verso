@@ -693,10 +693,11 @@ pub async fn command(
                 if row.readers_hidden && role == Role::Reader {
                     return Err(not_found());
                 }
-                // A roll is not deleted one by one: nobody re-rolls and
-                // hides the first (item 6).
-                if !matches!(row.kind.as_str(), "say" | "image") {
-                    return Err(refused("a roll is not deleted one by one"));
+                // A player does not delete a roll: nobody re-rolls and
+                // hides the first (item 6). The game master (an owner) may
+                // (ADR 0107, 2026-10-23).
+                if !matches!(row.kind.as_str(), "say" | "image") && role != Role::Owner {
+                    return Err(refused("only an owner deletes a roll"));
                 }
                 if row.account != account && role != Role::Owner {
                     return Err(refused("only its author or an owner deletes an entry"));

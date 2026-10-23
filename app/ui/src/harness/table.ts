@@ -5,7 +5,7 @@
 // The table of ADR 0107, played in the page: the commands of
 // `crates/verso-server/src/table.rs` with the same rules — who hears what
 // by role, a message of 500 characters, an image by its bytes, only an
-// owner clears, a roll is never deleted one by one — so a test of the
+// owner clears, only an owner deletes a roll — so a test of the
 // window's panel runs against what the server answers. The folder's table
 // is a server's: a test says it is up (`up`), who the window is (`role`,
 // `name`), and plays the others (`say`, `roll`, `oracle`, `image`, `join`,
@@ -195,7 +195,7 @@ export class Table {
     h["table_delete"] = (a) => {
       need();
       const row = this.find(String(a["id"]));
-      if (row.kind !== "say" && row.kind !== "image") refuse("a roll is not deleted one by one");
+      if (row.kind !== "say" && row.kind !== "image" && this.role !== "owner") refuse("only an owner deletes a roll");
       if (row.by_id !== this.account && this.role !== "owner") refuse("only its author or an owner deletes an entry");
       this.log = this.log.filter((r) => r.id !== row.id);
       void emit("table-removed", { id: row.id });

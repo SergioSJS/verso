@@ -19,6 +19,7 @@ import { icon } from "../icons";
 import { addDieToNotation, adjustModifier, COMPOSER_DICE, dieKind, dieKindLabel, EMPTY_COMPOSER, fromNotation, keepOf, MAX_COMPOSER_MODIFIER, parseRollLine, removeDieFromNotation, toggleKeep, toNotation, withFormula, type ComposerState, type DieKind, type Keep } from "./composer";
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { h } from "../dom";
+import { showMenu } from "../menu";
 import { tableSource } from "./record";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
@@ -50,8 +51,8 @@ export class Tray {
   private readonly kl = h("button", "tray-keep");
   private readonly moreButton = h("button", "tray-tool tray-more-button");
   private readonly moreDot = h("span", "tray-dot");
-  private readonly mode = h("select", "tray-mode");
-  private readonly modeWrap = h("span", "tray-mode-wrap");
+  private readonly mode = h("button", "tray-mode");
+  private readonly modeLabel = h("span", "tray-mode-label");
   private modeIcon: SVGSVGElement | null = null;
   private readonly extras = h("div", "tray-extras");
   private readonly observer: ResizeObserver | null;
@@ -62,7 +63,6 @@ export class Tray {
   private readonly savedButton = h("button", "tray-tool tray-saved-button");
   private readonly moreBox = h("div", "tray-pop tray-more");
   private readonly savedBox = h("div", "tray-pop tray-saved");
-  private readonly go = h("button", "save tray-go");
   private readonly saved: SavedRolls;
   private readonly slots: Slot[] = [];
   /** The modifier chosen while the field holds no dice: it joins the first die added. */
@@ -124,18 +124,18 @@ export class Tray {
     this.keepButton(this.kh, "kh", ts.keepHigh, ts.keepHighDesc, "KH");
     this.keepButton(this.kl, "kl", ts.keepLow, ts.keepLowDesc, "KL");
 
-    // Foundry's roll-mode selector: who sees the roll (Verso has two modes: public and secret).
-    this.mode.setAttribute("aria-label", ts.modeLabel);
+    // Foundry's roll-mode selector: who sees the roll (Verso has two modes: public and secret). A small button that opens the
+    // app's own menu with the two modes (a native select draws differently in every webview).
+    this.mode.type = "button";
     this.mode.title = ts.modeLabel;
-    for (const [value, text] of [["public", ts.modePublic], ["secret", ts.modeSecret]] as const) {
-      const o = h("option", "", text);
-      o.value = value;
-      this.mode.append(o);
-    }
-    this.modeWrap.append(this.mode);
-    this.mode.addEventListener("change", () => {
-      const t = tableSource();
-      if (isServerTable(t)) t.secret = this.mode.value === "secret";
+    this.mode.setAttribute("aria-haspopup", "menu");
+    this.mode.append(this.modeLabel);
+    this.mode.addEventListener("click", () => this.openModeMenu());
+    this.mode.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        this.openModeMenu();
+      }
     });
     this.savedButton.type = "button";
     this.savedButton.title = ts.savedButton;
@@ -159,11 +159,8 @@ export class Tray {
 
     this.moreBox.append(this.extras);
     this.scroll.append(this.moreButton, this.mod, this.kh, this.kl);
-    this.tools = [this.savedButton, this.modeWrap];
-    this.go.type = "button";
-    this.go.append(icon("dice", ""));
-    this.go.addEventListener("click", () => void this.host.submit());
-    this.row.append(this.scroll, this.go);
+    this.tools = [this.savedButton, this.mode];
+    this.row.append(this.scroll);
     this.el.append(this.row, this.moreBox, this.savedBox);
 
     this.host.input.addEventListener("input", () => {
@@ -349,16 +346,36 @@ export class Tray {
     box.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
   }
 
+  /** The menu of the two modes, hanging from the button (the app's own menu: arrows, Enter, Escape). */
+  private openModeMenu(): void {
+    const choose = (secret: boolean) => (): void => {
+      const t = tableSource();
+      if (isServerTable(t)) t.secret = secret;
+      this.mode.focus();
+    };
+    const box = this.mode.getBoundingClientRect();
+    showMenu(
+      box.left,
+      box.bottom,
+      [
+        [this.secret ? ts.modePublic : `${ts.modePublic} ✓`, choose(false), "unlock"],
+        [this.secret ? `${ts.modeSecret} ✓` : ts.modeSecret, choose(true), "lock"],
+      ],
+      ts.modeLabel,
+    );
+  }
+
   /** The secret toggle as it stands, for a server's table; the local one has none. */
   sync(src: TableSource): void {
     this.secret = isServerTable(src) && src.secret;
-    this.modeWrap.hidden = !isServerTable(src);
     this.mode.hidden = !isServerTable(src);
     this.modeIcon?.remove();
     this.modeIcon = icon(this.secret ? "lock" : "unlock", "");
     this.modeIcon.classList.add("tray-mode-icon");
-    this.modeWrap.prepend(this.modeIcon);
-    this.mode.value = this.secret ? "secret" : "public";
+    this.mode.prepend(this.modeIcon);
+    const word = this.secret ? ts.modeSecret : ts.modePublic;
+    this.modeLabel.textContent = word;
+    this.mode.setAttribute("aria-label", `${ts.modeLabel}: ${word}`);
     this.mode.classList.toggle("secret", this.secret);
     this.saved.sync();
     this.paint();
@@ -410,13 +427,6 @@ export class Tray {
     const keep = keepOf(base);
     this.kh.setAttribute("aria-pressed", String(keep === "kh"));
     this.kl.setAttribute("aria-pressed", String(keep === "kl"));
-    const line = parseRollLine(this.host.input.value);
-    const word = this.secret ? ts.rollSecret : ts.roll;
-    const ready = Boolean(line && line.formula !== "");
-    this.go.disabled = !ready;
-    this.go.classList.toggle("secret", this.secret);
-    this.go.setAttribute("aria-label", word);
-    this.go.title = !ready ? ts.rollNeedsFormula : this.secret ? `${word}. ${ts.secretOn}` : word;
     this.saved.paintSave();
   }
 }
