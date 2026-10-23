@@ -26,7 +26,7 @@ import { commands, type FolderChanged, type IndexProgress } from "./bindings";
 import { CARD_COMMAND } from "./board/command";
 import "./statblock/bestiaryHost";
 import { changedOutside, flushed, remoteContentChanged, whenNotRenaming } from "./changes";
-import { arrowResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
+import { arrowResize, dragResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
 import { ask } from "./dialog";
 import { dialogUp } from "./dialogs/a11y";
 import { BugDialog } from "./dialogs/bug";
@@ -425,13 +425,15 @@ paintToggles();
 installFrame();
 initZoom();
 installStatusLive(ui.status);
-rightDivider.addEventListener("pointerdown", (e) => {
-  rightDivider.setPointerCapture(e.pointerId);
-  const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);
-  const up = () => { rightDivider.removeEventListener("pointermove", move); rightDivider.removeEventListener("pointerup", up); };
-  rightDivider.addEventListener("pointermove", move);
-  rightDivider.addEventListener("pointerup", up);
-});
+/** The right bar's width, kept for the next start (the left bar's is kept the same way). */
+function rememberRight(w: number): void {
+  try {
+    localStorage.setItem("verso.rightWidth", String(Math.round(w)));
+  } catch {
+    // No storage.
+  }
+}
+dragResize(rightDivider, "--right-w", (x) => Math.min(Math.max(window.innerWidth - x, 180), window.innerWidth * 0.5), rememberRight);
 ribbon = new Ribbon(ui.ribbon);
 keyHint(ui.open, t.open, "open-folder");
 keyHint(newSpaceButton, t.newSpace, "new-space");
@@ -549,30 +551,21 @@ arrowResize(sideDivider, "--side-w", () => document.querySelector(".side")?.getB
     // No storage.
   }
 });
-arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 260, -1);
+arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 320, -1, rememberRight);
 try {
   const w = localStorage.getItem("verso.sideWidth");
   if (w) document.body.style.setProperty("--side-w", `${Number(w)}px`);
+  const r = Number(localStorage.getItem("verso.rightWidth"));
+  if (r >= 180) document.body.style.setProperty("--right-w", `${Math.min(r, window.innerWidth * 0.5)}px`);
 } catch {
   // No storage.
 }
-sideDivider.addEventListener("pointerdown", (e) => {
-  sideDivider.setPointerCapture(e.pointerId);
-  const move = (ev: PointerEvent) => {
-    const w = Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5);
-    document.body.style.setProperty("--side-w", `${w}px`);
-  };
-  const up = (ev: PointerEvent) => {
-    sideDivider.removeEventListener("pointermove", move);
-    sideDivider.removeEventListener("pointerup", up);
-    try {
-      localStorage.setItem("verso.sideWidth", String(Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5)));
-    } catch {
-      // No storage.
-    }
-  };
-  sideDivider.addEventListener("pointermove", move);
-  sideDivider.addEventListener("pointerup", up);
+dragResize(sideDivider, "--side-w", (x) => Math.min(Math.max(x, 180), window.innerWidth * 0.5), (w) => {
+  try {
+    localStorage.setItem("verso.sideWidth", String(w));
+  } catch {
+    // No storage.
+  }
 });
 
 function flushAll(): void {

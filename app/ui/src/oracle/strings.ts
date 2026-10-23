@@ -97,6 +97,8 @@ const pt = {
   slashOracleDesc: "Callout [!oracle] com pergunta e resposta",
   slashAsk: "Consultar Oráculo…",
   slashAskDesc: "Janela do oráculo com chances graduadas e faíscas de ideias",
+  slashDice: "Dado",
+  slashDiceDesc: "Rolagem na linha: `dice: 1d20`, com a notação selecionada para você digitar por cima",
 };
 
 const en: typeof pt = {
@@ -187,6 +189,8 @@ const en: typeof pt = {
   slashOracleDesc: "[!oracle] callout with a question and an answer",
   slashAsk: "Ask Oracle…",
   slashAskDesc: "Oracle dialog with graduated odds and idea sparks",
+  slashDice: "Dice roll",
+  slashDiceDesc: "An inline roll: `dice: 1d20`, the notation selected to type over",
 };
 
 export const isPt = LOCALE === "pt-BR";

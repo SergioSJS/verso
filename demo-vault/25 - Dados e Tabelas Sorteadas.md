@@ -13,6 +13,8 @@ Um código `dice:` numa nota é um **dado**: na **Leitura** e no **Editar**, for
 
 **Nada é escrito na nota.** Rolar, rolar de novo e fechar o cartão deixam o arquivo como estava: abra a nota no modo **Fonte** e veja que o código continua só código.
 
+**Escrever um dado.** No **Editar**, digite `/` e escolha **Dado** (ou digite `/dado`): o Verso escreve `` `dice: 1d20` `` na linha com a notação **selecionada** — digite `2d6+3` por cima e pronto. O item só aparece com o recurso **Dados** ligado.
+
 ---
 
 ## Rolar
