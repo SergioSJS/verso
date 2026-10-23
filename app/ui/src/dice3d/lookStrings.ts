@@ -19,6 +19,8 @@ type Words = {
   times: Record<RollTime, string>;
   sound: string;
   soundDesc: string;
+  others: string;
+  othersDesc: string;
   slots: string;
   slotsDesc: string;
   slotNames: Record<SlotId, string>;
@@ -60,6 +62,8 @@ const pt: Words = {
   times: { fast: "Rápida", normal: "Normal", slow: "Lenta" },
   sound: "Som dos dados",
   soundDesc: "Toca o barulho dos dados batendo na mesa e uns nos outros enquanto caem, com as gravações do Rolai (domínio público). Desligado por padrão.",
+  others: "Mostrar em 3D as rolagens dos outros",
+  othersDesc: "Numa nota compartilhada, a rolagem de outra pessoa também cai em 3D na sua tela quando os dados 3D estão ligados (nos dados dela, quando o servidor os envia). Desligado, só as suas rolagens caem.",
   slots: "Dados 3D: cores",
   slotsDesc: "Três conjuntos de cor. Uma rolagem usa o conjunto 1; um perfil de dados pode dar a um grupo de dados o 2 ou o 3 (como a Fome do Vampiro). Escolha o conjunto e mude o estilo abaixo.",
   slotNames: { "1": "1 · Primário", "2": "2 · Secundário", "3": "3 · Terciário" },
@@ -101,6 +105,8 @@ const en: Words = {
   times: { fast: "Fast", normal: "Normal", slow: "Slow" },
   sound: "Dice sound",
   soundDesc: "Plays the sound of the dice hitting the table and each other as they fall, with Rolai's recordings (public domain). Off by default.",
+  others: "Show others' rolls in 3D",
+  othersDesc: "In a shared note, another person's roll also falls in 3D on your screen when 3D dice are on (in their dice, when the server sends them). Off, only your own rolls fall.",
   slots: "3D dice: colours",
   slotsDesc: "Three colour sets. A roll uses set 1; a dice profile can give a group of dice set 2 or 3 (like Vampire's Hunger dice). Pick a set and change its style below.",
   slotNames: { "1": "1 · Primary", "2": "2 · Secondary", "3": "3 · Tertiary" },

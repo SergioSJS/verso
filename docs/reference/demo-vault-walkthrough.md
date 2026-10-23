@@ -1443,7 +1443,46 @@ Open note 30 (*Colour Swatches*) in a folder that has the demo content
 5. *Ajustes* › *Aplicação* › *Recursos* › *Amostras de cor* off: no square
    anywhere, no file changed. On: back. Level: H; E: `swatches.spec.mjs`.
 
-## 17. The end
+## 17. The table (note 31)
+
+Open note 31 (*The Table*) in a folder that has the demo content
+([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md), phase 1).
+
+1. Open the right panel, tab *Mesa* (the *Table*): empty, with the line that
+   says it is this window's and not kept. Roll `dice: 1d20+3` in the note,
+   a table's `dice:` and the palette's *Rolar dados…*: three lines, oldest
+   first, each with *Você*, the time, the note (a link that opens it; the
+   roller has none), the notation, a chip per die and the total. The note on
+   disk is as it was. Level: H; E: `table.spec.mjs`; U: `test/tableLog.test.mjs`.
+2. On a board, a `dice:` in a text card rolls at rest: a line with the board's
+   name. Level: H; E: `table.spec.mjs`.
+3. In a shared note (a UniVerso), another person rolls: with the panel
+   closed, the *Mesa* tab, the right panel's buttons and the phone's *Painel*
+   show a count; open it: the count is gone, the line has their name, a screen
+   reader says "Bia rolou: …" once (the panel's own region; the note's is
+   quiet). The rolls the room held when the note was opened are there, not
+   counted. Level: H (the room is the harness's); E: `table.spec.mjs`. By hand
+   on a real server: two windows, `manual-checks.md`.
+4. *Ocultar daqui pra trás* empties the list in this window only, *Mostrar de
+   volta* brings it back; a roll made after the hiding is shown. Level: H; E:
+   `table.spec.mjs`.
+5. *Adicionar à nota…* on a line: pick a note, read the sentence that will be
+   written, *Cancelar* writes nothing, *Adicionar* appends one line after a
+   blank one (who, time, link to the note, notation and total); a note that
+   changed meanwhile is refused. Level: H; E: `table.spec.mjs`.
+6. A roll heard with the roller's dice (`styles`) draws its chips in them; a
+   malformed style falls back field by field. With the 3D dice on, a room
+   roll falls in 3D; *Mostrar em 3D as rolagens dos outros* off, it does not.
+   Level: H; E: `table.spec.mjs`. Falling in the roller's dice waits for the
+   server to send them (phase 2).
+7. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* › *Mesa* off: no tab, no
+   button, no count; the dice roll as before. On: back. Level: H; E:
+   `table.spec.mjs`.
+8. On a phone's width, *Painel* › *Mesa* opens a sheet from the bottom, resting
+   on the bottom bar, that never scrolls the page sideways; the add button is
+   at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
+
+## 18. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

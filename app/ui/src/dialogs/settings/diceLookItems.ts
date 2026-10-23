@@ -256,6 +256,14 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
       }
       return sw;
     }),
+    item(ls.others, ls.othersDesc, () => {
+      const sw = ctx.toggle(settings.others3d !== false, (v) => {
+        settings.others3d = v;
+        saveSettings();
+      });
+      sw.querySelector("input")?.setAttribute("aria-label", ls.others);
+      return sw;
+    }),
     item(ls.slots, ls.slotsDesc, slotsBox),
     item(ls.style, ls.styleDesc, () =>
       select(styleOptions(), styleId, (v) => {
