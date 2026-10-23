@@ -78,7 +78,8 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    default; per-note editing is item 5.
 
 3. **Open or closed.** `[DECIDED]` The game master sets the table open or
-   closed to sign-in. `[OPEN]` What closed means:
+   closed to sign-in. What closed means `[DECIDED 2026-10-22]`: option A
+   (MC.1, the maintainer: *"sim"*):
    - **A — Closed: players cannot open the folder at all** (their link
      answers "a mesa está fechada"); the game master works alone.
      _(recommended)_
@@ -96,7 +97,8 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    of a released note. Where the state is kept: `[PROPOSED]` in the server's
    database, beside the share's grants (like 0081's grants) — never in the
    note's file, so a synced copy or Obsidian sees an ordinary note.
-   `[OPEN]` The default for a note in a table folder:
+   The default for a note in a table folder `[DECIDED 2026-10-22]`: option A,
+   hidden (MC.2, the maintainer: *"oculta"*):
    - **A — Hidden until released** (new notes and the notes already there
      when the folder becomes a table); a "Liberar tudo" exists.
      _(recommended)_ — nothing leaks by forgetting.
@@ -119,14 +121,15 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    "Players", writable by the group) holds boards and notes the players
    make; on a board they drag the notes they can see as cards and draw
    their links. A hidden note cannot be dragged, searched or embedded; once
-   released it becomes available. `[OPEN]` One shared players' board, or
-   one board per player plus a shared one:
+   released it becomes available. `[DECIDED 2026-10-22]` option A (MC.3,
+   *"concordo"*):
    - **A — Both: a shared "Board do grupo" and each player may make their
      own** _(recommended)_
    - **B — Only the shared one.**
 
-7. **Links to notes the player cannot see yet.** `[OPEN]` the maintainer's
-   question (*"só não sei como faríamos com links entre docs ainda sem
+7. **Links to notes the player cannot see yet.** `[DECIDED 2026-10-22]`
+   option B with the redaction as proposed (MC.4, *"concordo"*); the
+   maintainer's question (*"só não sei como faríamos com links entre docs ainda sem
    acesso"*). The server rewrites such a link for a player (as 0105 does for
    a link out of a read link); options:
    - **A — Plain text, no link** (0105's rule today).
@@ -230,3 +233,10 @@ and items 1–6, 8–14 in substance; open: what "closed" means (item 3), the
 default visibility (item 4), the players' boards (item 6), the link rendering
 (item 7). Not built. Waits for those answers and a reading by the other
 model.
+
+Answered 2026-10-22 (`~/Projects/person/apps/verso-decisoes-0110-mesa-campanha-2026-10-22.md`):
+MC.1 = A, MC.2 = A (hidden until released), MC.3 = A, MC.4 = B. On the table
+log's ceiling of [0107](0107-the-table-a-shared-roll-and-chat-log.md) (MS.1):
+*"pode ser, mas talvez faça sentido ser configurável e limite por mesa"* — the
+ceiling (20,000 entries) and the image size limit become settings of each
+table, set by its game master, the built values as defaults.

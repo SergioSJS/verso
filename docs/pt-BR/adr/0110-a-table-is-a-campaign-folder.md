@@ -239,3 +239,12 @@ em substância, os itens 1–6 e 8–14; em aberto: o que significa "fechada"
 (item 3), a visibilidade padrão (item 4), os boards dos jogadores (item 6),
 o desenho dos links (item 7). Não construída. Espera essas respostas e uma
 leitura pelo outro modelo.
+
+Respondido em 2026-10-22 (`~/Projects/person/apps/verso-decisoes-0110-mesa-campanha-2026-10-22.md`):
+MC.1 = A (fechada: os jogadores não abrem a pasta), MC.2 = A (oculta até ser
+liberada), MC.3 = A (board do grupo e boards de cada jogador), MC.4 = B (texto
+com cadeado; rasurado quando o nome é spoiler). Sobre o teto do registro da
+[0107](0107-the-table-a-shared-roll-and-chat-log.md) (MS.1): *"pode ser, mas
+talvez faça sentido ser configurável e limite por mesa"* — o teto (20.000
+entradas) e o limite de tamanho de imagem viram ajustes de cada mesa,
+definidos pelo mestre, com os valores construídos como padrão.
