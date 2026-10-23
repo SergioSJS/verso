@@ -114,7 +114,7 @@ superfície que ainda deixa um grupo de jogadores entrar de suas próprias
 casas. Nada disto muda uma ADR Aceita; onde uma precisa de uma linha, o item
 diz.
 
-1. **`[OPEN]` O que o modo online serve.**
+1. **`[DECIDED 2026-10-23]` O que o modo online serve.**
    - (a) Só as pastas que o dono transforma explicitamente em mesas
      ([0110](0110-a-table-is-a-campaign-folder.md)) ou compartilha; nada por
      padrão.
@@ -125,6 +125,19 @@ diz.
      não para as notas do notebook. Pastas que não são mesas não são
      alcançáveis por nenhum id (valem as duas trancas da emenda do item 2 da
      0096).
+   - **Decidido pelo mantenedor em 23/10/2026, como no UniVerso:** *"eu
+     acho que a pasta servida seria o mesmo funcionamento do universo. É o
+     que a pessoa compartilhar. Ele não vai compartilhar tudo, exceto se a
+     pessoa quiser compartilhar tudo. É o que ela compartilhar que é o que
+     vai ser servido."* O modo online serve o que a pessoa compartilha,
+     pelas regras do próprio UniVerso
+     ([0074](0074-accounts-and-access-on-the-server.md),
+     [0110](0110-a-table-is-a-campaign-folder.md)): uma pasta compartilhada
+     com uma conta, ou feita mesa e com entrada por convite, é alcançável
+     por essa conta no seu papel; nada é compartilhado por padrão;
+     compartilhar todas as pastas é escolha da pessoa, nunca do app. É a
+     opção (a) lida como o UniVerso a lê — "compartilha" inclui qualquer
+     pasta compartilhada, não só mesas.
 
 2. **`[OPEN]` Contas e como um jogador entra.**
    - (a) Contas no banco do servidor local (o diretório de estado da 0096,
@@ -295,7 +308,7 @@ diz.
     sem código de produto) antes do PR de construção, com os resultados
     escritos em "Como foi construído".
 
-13. **`[OPEN]` O modo oficial de depois** (para uma ADR futura; sem
+13. **`[DECIDED 2026-10-23]` O modo oficial de depois** (para uma ADR futura; sem
     recomendação além da ordem em que parecem mais baratos):
     - (a) Um Cloudflare Tunnel nomeado com a conta e o domínio Cloudflare da
       própria pessoa (link estável, os termos da pessoa).
@@ -304,6 +317,9 @@ diz.
     - Ordem de esforço, como o assistente vê: a (c) existe, a (a) e a (b) são
       em grande parte configuração e documentação. Não decidido qual, nem se
       mais de um.
+    - **Decidido pelo mantenedor em 23/10/2026** (*"perfeita a lista para
+      modo oficial"*): estes três são os candidatos ao modo oficial; qual
+      deles, ou mais de um, fica para a sua própria ADR.
 
 ## Consequências
 
@@ -342,8 +358,8 @@ Só alternativas realmente consideradas na sessão:
 
 Proposta (2026-10-23). Escrita pelo Sonnet 5.5 a pedido da sessão; a ser
 lida pelo outro modelo antes de ser aceita. D1, D2 e D3 são palavras do
-mantenedor de 2026-10-23; os itens 1 a 13 são `[OPEN]` e aguardam o
-mantenedor. Nada está construído.
+mantenedor de 2026-10-23; os itens 1 e 13 foram decididos pelo mantenedor
+no mesmo dia; os itens 2 a 12 são `[OPEN]` e aguardam o mantenedor. Nada está construído.
 
 Fontes: Cloudflare, "Quick Tunnels" (link no Contexto); o repositório
 `cloudflared` e sua versão 2026.10.3 no GitHub, lidos em 2026-10-23.
