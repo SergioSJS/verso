@@ -30,6 +30,8 @@ import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
 
 /** The slash item's block: `dnd5e` is a built-in layout's id, so the card finds its template. */
+/** An inline roll with its notation ready to be typed over (the slash menu's "Dice roll"). */
+export const DICE_SNIPPET = "`dice: 1d20`";
 const STATBLOCK_SNIPPET = "```statblock\nname: \nlayout: dnd5e\nhp: 10\nac: 10\n```\n";
 
 export const headingsCache = new Map<string, { level: number; text: string }[]>();
@@ -213,6 +215,7 @@ export function slashSections(): SlashSection[] {
       { icon: "calendar", title: t.today, description: date, keywords: "data date hoje", insert: date },
       { icon: "calendar", title: t.now, description: time, keywords: "hora time agora", insert: time },
       { icon: "template", title: t.insertTemplate, description: s.template, keywords: "template modelo", insert: "", run: () => insertTemplate() },
+      ...(hasCapability("diceRolling") ? [{ icon: "dice", title: oracleText.slashDice, description: oracleText.slashDiceDesc, keywords: "dice dado roll rolar d20 `dice:`", insert: DICE_SNIPPET, select: [DICE_SNIPPET.indexOf("1d20"), DICE_SNIPPET.length - 1] as [number, number] }] : []),
       ...(hasCapability("oracles") ? [{ icon: "sparkles", title: oracleText.slashAsk, description: oracleText.slashAskDesc, keywords: "oracle oraculo spark solo rpg dados", insert: "", run: () => askOracleInActiveNote() }] : []),
       ...(hasCapability("statblocks") ? [{ icon: "note", title: oracleText.slashStatblock, description: oracleText.slashStatblockDesc, keywords: "statblock ficha monstro npc atributos", insert: STATBLOCK_SNIPPET, cursor: STATBLOCK_SNIPPET.indexOf("name: ") + "name: ".length }] : []),
       { icon: "tag", title: t.addProperty, description: oracleText.slashAddPropertyDesc, keywords: "propriedade property frontmatter meta tag", insert: "", run: () => {

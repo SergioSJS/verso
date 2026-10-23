@@ -37,6 +37,27 @@ export function clearDropHints(): void {
   }
   hideDropCaret();
 }
+/** While a pointer drag runs no text is selected anywhere (the log's lines,
+ *  the page, the editor): the press that began the drag also began a
+ *  selection, and the WKWebView grows it under the moving pointer.
+ *  Clears what is selected, refuses a new selection, and answers how to
+ *  clear again and how to let selecting back in. */
+function holdSelection(): { clear: () => void; end: () => void } {
+  const clear = (): void => {
+    const s = getSelection();
+    if (s && !s.isCollapsed) s.removeAllRanges();
+  };
+  const refuse = (e: Event): void => e.preventDefault();
+  document.addEventListener("selectstart", refuse, true);
+  clear();
+  return {
+    clear,
+    end: () => {
+      document.removeEventListener("selectstart", refuse, true);
+      clear();
+    },
+  };
+}
 export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   // The browser chooses at the touch's start whether it may scroll without
   // asking the page: a listener that can stop the scroll is there from the
@@ -49,6 +70,7 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
+    let selection: ReturnType<typeof holdSelection> | null = null;
     // A finger drags only after a long press (touch.ts): moved at once, it
     // scrolls the list. Once held, the page stops scrolling under it, or
     // the browser would take the move for a scroll and cancel the drag.
@@ -69,7 +91,9 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
         ghost.textContent = label();
         ghost.hidden = false;
         document.body.classList.add("dragging");
+        selection = holdSelection();
       }
+      selection?.clear();
       ghost.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 12}px)`;
       clearDropHints();
       const target = dropTargetAt(e.clientX, e.clientY);
@@ -79,6 +103,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       if (e.pointerId !== down.pointerId) return;
       release();
       if (!started) return;
+      selection?.end();
+      selection = null;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
       drag = null;
@@ -102,6 +128,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     const cancel = (): void => {
       release();
       if (started) {
+        selection?.end();
+        selection = null;
         drag = null;
         ghost.hidden = true;
         document.body.classList.remove("dragging");
