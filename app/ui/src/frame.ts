@@ -203,7 +203,7 @@ function controls(): HTMLElement {
     // (main.ts, onCloseRequested), as with the system's button.
     make("frame-close", t.frameClose, "close", () => {
       void commands.logWrite("INFO", `close ${win.label}: the frame's close button`).catch(() => undefined);
-      void win.close();
+      return win.close();
     }),
   );
   return bar;
