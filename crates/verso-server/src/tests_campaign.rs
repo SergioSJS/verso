@@ -942,6 +942,21 @@ fn what_a_players_device_syncs_follows_the_releases() {
             .call("sync_read", json!({ "path": "Barão Zq.md", "offset": 0 }))
             .await;
         assert!(got.get("ok").is_some(), "{got}");
+        // The file written again with the same bytes (its time moves, its
+        // hash does not) keeps what the device was told of it.
+        let w = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        let text = w["ok"]["text"].as_str().unwrap().to_owned();
+        let same = m
+            .owner
+            .call(
+                "write_note",
+                json!({ "path": "Barão Zq.md", "text": text, "revision": w["ok"]["revision"] }),
+            )
+            .await;
+        assert!(same.get("ok").is_some(), "{same}");
         // Hidden again: the device is told to let it go.
         let head = after["ok"]["head"].as_i64().unwrap();
         m.owner
