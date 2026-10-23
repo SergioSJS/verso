@@ -50,3 +50,52 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   .table-hide, .table-unhide { min-height: 2.2rem; }
   .table-to-end { min-height: 2.2rem; }
 }
+
+/* Phase 2: the server's table (ADR 0107): the roster, the pinned entries, messages, images and the input row. */
+.table-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .6rem; font-size: .78rem; color: var(--ink-2); }
+.table-roster[hidden], .table-pins[hidden], .table-older[hidden], .table-compose[hidden] { display: none; }
+.table-roster-head { color: var(--ink-3); font-size: .72rem; }
+.table-member { display: inline-flex; align-items: center; gap: .3rem; }
+.table-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--ink-3); flex: none; }
+.table-pins { border: 1px solid color-mix(in oklch, var(--seal) 28%, var(--hair)); border-radius: 8px; padding: .3rem .4rem .4rem; background: var(--seal-wash); max-height: 34%; overflow-y: auto; flex: none; }
+.table-pins-head { margin: 0 0 .25rem; font: 600 .72rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.table-pin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.table-older { align-self: center; font-size: .78rem; color: var(--seal); padding: .15rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); flex: none; }
+.table-menu { position: absolute; top: .25rem; right: .25rem; width: 1.7rem; height: 1.7rem; min-width: 1.7rem; opacity: .6; }
+.table-entry:hover .table-menu, .table-menu:focus-visible { opacity: 1; }
+.table-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; color: var(--ink); }
+.table-link { padding: 0; border: 0; background: none; font: inherit; color: var(--seal); text-decoration: underline; cursor: pointer; }
+.table-masked { color: var(--ink-3); font-style: italic; }
+.table-entry[data-kind="secret"] { background: var(--paper-2); border-style: dashed; }
+.table-secret { font-size: .68rem; padding: 0 .35rem; border: 1px solid var(--hair); border-radius: 999px; color: var(--ink-2); }
+.table-pinned { display: inline-flex; color: var(--seal); }
+.table-pinned svg { width: .8rem; height: .8rem; }
+.table-image { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; max-width: 100%; }
+.table-thumb { display: block; max-width: 100%; max-height: 11rem; border-radius: 6px; border: 1px solid var(--hair); object-fit: contain; background: var(--paper-2); }
+.table-image-missing { color: var(--ink-3); font-size: .8rem; text-decoration: underline; }
+.table-compose { flex: none; display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; border-top: 1px solid var(--hair); }
+.table-compose-row { display: flex; gap: .4rem; align-items: flex-end; }
+.table-input { flex: 1; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; max-height: 120px; }
+.table-input:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.table-send { align-self: stretch; padding: 0 .8rem; border-radius: 7px; }
+.table-compose-tools { display: flex; align-items: center; gap: .3rem; }
+.table-compose-tools .iconic { width: 2rem; height: 2rem; min-width: 2rem; }
+.table-secret-toggle { display: inline-flex; align-items: center; gap: .3rem; font-size: .8rem; padding: .2rem .55rem; border: 1px solid var(--hair); border-radius: 999px; color: var(--ink-2); min-height: 2rem; }
+.table-compose .table-secret-toggle.on { background: var(--seal); color: var(--paper); border-color: var(--seal); }
+.table-counter { margin-left: auto; font-size: .75rem; color: var(--ink-3); }
+.table-counter.over { color: var(--danger, #b91c1c); font-weight: 600; }
+.table-compose-error { margin: 0; font-size: .78rem; color: var(--danger, #b91c1c); line-height: 1.35; }
+.table-clear-keep { display: block; margin: -.3rem 0 1rem; font-size: .88rem; }
+.table-lightbox { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; gap: .6rem; align-content: center; background: oklch(0% 0 0 / .78); padding: 1rem; }
+.table-lightbox img { max-width: 94vw; max-height: 82vh; object-fit: contain; border-radius: 6px; background: var(--paper); }
+.table-lightbox-close { color: #fff; border: 1px solid #fff6; border-radius: 7px; padding: .35rem .9rem; }
+@media (max-width: 760px) {
+  /* The sheet rises above the on-screen keyboard while the field has it (screen/viewport.ts). */
+  body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); height: min(70vh, 600px, calc(100dvh - var(--table-kb, 0px) - 1rem)); }
+  .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
+  .table-compose-tools .iconic, .table-secret-toggle { min-height: 2.2rem; height: 2.2rem; }
+  .table-compose-tools .iconic { width: 2.2rem; min-width: 2.2rem; }
+  .table-send { min-height: 2.4rem; }
+  .table-input { font-size: 16px; }
+  .table-older { min-height: 2.2rem; }
+}

@@ -21,10 +21,10 @@ import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import { setHtml } from "../sanitize";
 import { hasCapability } from "../capabilities";
-import { play3d, will3d } from "../dice3d";
+import { diceLook, play3d, will3d } from "../dice3d";
 import { settings } from "../settings";
-import { stylesOf } from "../table/model";
-import { recordHeard, recordJoined, recordRoll, tableOnScreen } from "../table/record";
+import { isServerTable, stylesOf } from "../table/model";
+import { recordHeard, recordJoined, recordRoll, tableOnScreen, tableSource } from "../table/record";
 import { type DiceCode, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
 import { readTable, rowOf, type RandomTable } from "./table";
@@ -107,11 +107,28 @@ async function tableOf(code: Extract<DiceCode, { kind: "table" }>, path: string)
  *  otherwise; here too when the room does not answer, and the card says
  *  nobody else saw it. */
 async function rolled(path: string, notation: string, source: string | null): Promise<Shown> {
-  if (!liveRoom(path)) return { roll: rollHere(notation, source), row: null, from: null, note: null };
-  const r = await commands.collabRoll(path, notation, source, null, null);
+  if (!liveRoom(path)) {
+    // A folder with a server's table: a note not in a live room is rolled by
+    // the table's server, once, for everyone at the table (ADR 0107 item 2).
+    const table = tableSource();
+    if (isServerTable(table)) {
+      const t = await table.roll(notation, { source, path });
+      if ("entry" in t && t.entry.roll) return { roll: t.entry.roll, row: null, from: null, note: null, mine: true };
+      return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
+    }
+    return { roll: rollHere(notation, source), row: null, from: null, note: null };
+  }
+  // The roller's own dice go with the roll (ADR 0107 item 11); the others see it in them.
+  const r = await commands.collabRoll(path, notation, source, diceLook().styles, null);
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };
+}
+
+/** The row a random table's roll chose, read from the table itself in the
+ *  note `path` (the table's log shows it); null when it cannot be read. */
+export async function rowForRoll(path: string, roll: DiceRoll): Promise<string | null> {
+  return (await withRow({ roll, row: null, from: null, note: null }, path)).row;
 }
 
 /** A roll's table row filled in, from the table itself. */
@@ -370,8 +387,8 @@ async function heard(e: CollabRoll): Promise<void> {
   const fall = settings.others3d !== false && will3d(e.path, e.roll);
   if (fall) {
     if (!tableOnScreen()) say(said(s, true));
-    // TODO(ADR 0107 phase 2): the roll carries the roller's dice (`styles`)
-    // once the contract relays them; until then it falls in this device's own.
+    // It falls in the roller's dice (`styles`, ADR 0107 item 11); a roll that
+    // carries none falls in this device's own.
     await play3d(e.path, e.roll, stylesOf(e.roll) ?? undefined);
   }
   recordHeard(e.path, e.roll, s.row);

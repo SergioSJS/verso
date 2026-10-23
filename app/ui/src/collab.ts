@@ -104,6 +104,14 @@ export const REMOTE = "remote";
 /** A colour for each person, from their name. */
 const COLORS = ["#b5651d", "#2e7d32", "#1565c0", "#6a1b9a", "#ad1457", "#00838f", "#9e9d24", "#5d4037"];
 
+/** The colour of a person's cursor in a note, from their name: the table's
+ *  roster shows the same one (ADR 0107 item 8). */
+export function presenceColor(user: string): string {
+  let hash = 0;
+  for (const c of user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return COLORS[hash % COLORS.length] ?? "#b5651d";
+}
+
 /** Every holder's handlers as one: each event told to each holder of the
  *  session — a note's tab and a board's card on the same note, in one
  *  window, share the window's one place in the room. An event no holder
@@ -178,9 +186,7 @@ export abstract class RoomSession {
     this.revision = joined.revision;
     this.epoch = joined.epoch;
     this.awareness = new Awareness(this.doc);
-    let hash = 0;
-    for (const c of joined.user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-    const color = COLORS[hash % COLORS.length] ?? "#b5651d";
+    const color = presenceColor(joined.user);
     this.awareness.setLocalStateField("user", { name: joined.user, color, colorLight: `${color}33` });
     this.outbox = new UpdateQueue(
       async (update) => {

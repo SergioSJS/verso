@@ -21,6 +21,7 @@ import { settings } from "../settings";
 import { t } from "../strings";
 import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
+import { showTable } from "../table/show";
 import { notify, onAct, settle, stateOf } from "./index";
 import { notifyStrings } from "./strings";
 
@@ -219,6 +220,7 @@ export function installSources(): void {
   const s = notifyStrings();
   onAct("settings", (section) => settingsDialog.show(section));
   onAct("note", (path) => path && void openNote(path, false));
+  onAct("table", () => showTable());
   onAct("update-settings", () => settingsDialog.show("general"));
   onAct("update-download", () => {
     settingsDialog.show("general");
