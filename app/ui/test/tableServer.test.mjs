@@ -231,11 +231,13 @@ test("what each role may do", async () => {
   assert.equal(owner.canClear() && !editor.canClear() && !reader.canClear(), true);
   assert.equal(owner.canSendImage() && editor.canSendImage() && !reader.canSendImage(), true);
   const by = (t, id) => t.entries().find((e) => e.id === id);
-  // Mine: deleted by me; another's: only by an owner; a roll: by nobody.
+  // Mine: deleted by me; another's: only by an owner; a roll: only by an owner (the game master, ADR 0107 2026-10-23).
   assert.equal(editor.canDelete(by(editor, "1")), true);
   assert.equal(editor.canDelete(by(editor, "2")), false);
   assert.equal(owner.canDelete(by(owner, "2")), true);
-  assert.equal(owner.canDelete(by(owner, "3")), false);
+  assert.equal(owner.canDelete(by(owner, "3")), true);
+  assert.equal(editor.canDelete(by(editor, "3")), false);
+  assert.equal(reader.canDelete(by(reader, "3")), false);
 });
 
 test("older entries are asked from the oldest unpinned one held, and added in their place", async () => {

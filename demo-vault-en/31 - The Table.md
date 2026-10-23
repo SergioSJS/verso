@@ -33,7 +33,7 @@ Right under the message field is the **dice tray**: a single row of small button
 2. **Right click** a die to take one off (from the keyboard: `Shift+Enter`, `Delete` or `Backspace` on the die; on a phone, hold your finger on it). `Enter` on a die adds one.
 3. The small **number** field (the `0`) is the modifier: type, use the `↑` `↓` arrows or the mouse wheel, from −99 to +99 (`/r 2d6+1d20+2`).
 4. **KH** and **KL** are advantage and disadvantage, as in Foundry: over `/r 1d20`, **KH** gives `/r 2d20kh1` (two dice, keep the highest) and **KL** gives `/r 2d20kl1` (keep the lowest). The same button again undoes it; the other switches. The lit button is the one in force.
-5. Press the **dice** button at the end of the row (or `Enter` in the field): the roll goes to the log — rolled by the server in a UniVerso, with the 3D dice and the sound, the **Secret** button respected (the button then says *Roll in secret*). With no server your window rolls and the log keeps it.
+5. Press **Send** (or `Enter` in the field): the roll goes to the log — rolled by the server in a UniVerso, with the 3D dice and the sound, the **Secret** mode respected. With no server your window rolls and the log keeps it.
 
 The **message field** is editable, and it is what counts: type `/r 4d6kh3` and the badges follow what the buttons know how to show; what they do not (keep 3 of 4, re-roll) stays as you typed it, and a die clicked afterwards starts the roll again from it. What Verso cannot read is said right under the field, and nothing is rolled. Emptying the field clears the roll.
 
@@ -72,13 +72,13 @@ At the foot of the panel is the **Write to the table…** field:
 
 - **Messages.** Type and press **Enter** (Shift+Enter breaks the line). Plain text, up to **500 characters**; a counter shows near the limit. A `[[link]]` to a note of the folder is a link.
 - **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see — or put the roll together in the dice row right below, as above.
-- **Secret.** In the dice row, the **Public / Secret** selector (Foundry's and Roll20's roll mode: who sees the roll) set to **Secret** makes the roll yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
+- **Secret.** In the box's toolbar, the **Public / Secret** menu (Foundry's and Roll20's roll mode: who sees the roll) set to **Secret** makes the roll yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
 - **Images.** **Paste** straight into the field: copy an image or take a screenshot and press `Ctrl+V` / `⌘V`, or right click › **Paste**, or, on a phone, hold your finger on the field › **Paste**; dropping an image on the panel works too, and the paperclip in the field picks from the gallery. The image waits in the field as a thumbnail with an **×** to take it out; `Enter` sends it (the image first, then the text, if any). It takes a **PNG, JPEG, WebP or GIF** (up to 10 MB; a GIF stays animated in the log). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
 
 Every line has a **⋯** button:
 
 - **Pin** puts the line in a **Pinned** list at the top, for everyone, until someone chooses **Unpin**.
-- **Delete** removes a message or an image: its author deletes their own, an owner any. A **roll never** is, so nobody re-rolls and hides the first one.
+- **Delete** removes a message or an image: its author deletes their own, an owner any. A **roll** is deleted only by the **game master** (an owner of the folder); a player cannot, so nobody re-rolls and hides the first one.
 - **Add to note…** works for messages and images too (an image goes in as an embed of its file).
 
 An owner also has **⋯ › Clear the table**: it asks first, with **Keep the pinned entries** ticked, and empties the table for everyone. And **See earlier** brings older lines, a page at a time.

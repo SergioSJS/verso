@@ -20,10 +20,6 @@ type Words = {
   keepLow: string;
   keepHighDesc: string;
   keepLowDesc: string;
-  roll: string;
-  rollSecret: string;
-  rollNeedsFormula: string;
-  secretOn: string;
   localOnlyRolls: string;
   savedButton: string;
   attach: string;
@@ -66,10 +62,6 @@ const pt: Words = {
   keepLow: "Manter o menor (KL)",
   keepHighDesc: "Vantagem: soma um dado e mantém o maior. Clicar de novo desfaz.",
   keepLowDesc: "Desvantagem: soma um dado e mantém o menor. Clicar de novo desfaz.",
-  roll: "Rolar",
-  rollSecret: "Rolar em segredo",
-  rollNeedsFormula: "Monte uma rolagem (/r 1d20+3) para poder rolar.",
-  secretOn: "Secreta: só você e os donos da pasta veem o resultado.",
   localOnlyRolls: "Sem servidor, esta mesa só rola dados. Escreva /r 1d20+3.",
   savedButton: "Rolagens salvas",
   attach: "Anexar imagem",
@@ -112,10 +104,6 @@ const en: Words = {
   keepLow: "Keep lowest (KL)",
   keepHighDesc: "Advantage: adds a die and keeps the highest. Click again to undo.",
   keepLowDesc: "Disadvantage: adds a die and keeps the lowest. Click again to undo.",
-  roll: "Roll",
-  rollSecret: "Roll in secret",
-  rollNeedsFormula: "Put a roll together (/r 1d20+3) to roll.",
-  secretOn: "Secret: only you and the folder's owners see the result.",
   localOnlyRolls: "With no server this table only rolls dice. Write /r 1d20+3.",
   savedButton: "Saved rolls",
   attach: "Attach an image",

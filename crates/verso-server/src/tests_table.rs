@@ -320,10 +320,10 @@ fn pin_delete_and_clear_follow_the_roles() {
         assert_eq!(no["err"]["kind"], "refused", "{no}");
         let no = call(&mut c.reader, 15, "table_delete", json!({ "id": bia_id })).await;
         assert_eq!(no["err"]["kind"], "refused", "{no}");
-        let no = call(&mut c.owner, 16, "table_delete", json!({ "id": roll_id })).await;
-        assert!(err_of(&no).contains("one by one"), "{no}");
+        let no = call(&mut c.reader, 16, "table_delete", json!({ "id": roll_id })).await;
+        assert!(err_of(&no).contains("owner deletes a roll"), "{no}");
         let no = call(&mut c.editor, 17, "table_delete", json!({ "id": roll_id })).await;
-        assert!(err_of(&no).contains("one by one"), "{no}");
+        assert!(err_of(&no).contains("owner deletes a roll"), "{no}");
         // Its author: their own.
         let own = call(&mut c.reader, 18, "table_delete", json!({ "id": ana_id })).await;
         assert!(own.get("ok").is_some(), "{own}");
@@ -340,6 +340,32 @@ fn pin_delete_and_clear_follow_the_roles() {
             let no = call(ws, 21, "table_clear", json!({ "keepPinned": true })).await;
             assert_eq!(no["err"]["kind"], "refused", "{no}");
         }
+        assert_eq!(r.server.db.table_count(&c.folder).unwrap(), 1);
+        // The game master (an owner) deletes a roll; a player could not (ADR 0107, 2026-10-23).
+        let roll2 = call(
+            &mut c.editor,
+            25,
+            "table_roll",
+            json!({ "notation": "d6", "source": null, "path": null, "secret": null, "styles": null }),
+        )
+        .await["ok"]
+            .clone();
+        let no = call(
+            &mut c.editor,
+            26,
+            "table_delete",
+            json!({ "id": roll2["id"] }),
+        )
+        .await;
+        assert!(err_of(&no).contains("owner deletes a roll"), "{no}");
+        let del = call(
+            &mut c.owner,
+            27,
+            "table_delete",
+            json!({ "id": roll2["id"] }),
+        )
+        .await;
+        assert!(del.get("ok").is_some(), "{del}");
         assert_eq!(r.server.db.table_count(&c.folder).unwrap(), 1);
         let say = call(&mut c.editor, 22, "table_say", json!({ "text": "outra" })).await;
         assert!(say.get("ok").is_some());
