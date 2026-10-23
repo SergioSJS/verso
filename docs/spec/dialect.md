@@ -642,6 +642,7 @@ decided the typed note, its schemas and their labels per language
 | Folder item defaults | `items_sticker:`, `items_color:`, and `items_template:` in the folder note's frontmatter, inherited by newly created items in that folder | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Statblock card | a fenced code block, ```` ```statblock ````, holding YAML with Fantasy Statblocks' key names; with the Statblocks feature on ([ADR 0103](../adr/0103-feature-presets-and-capability-flags.md)) Verso draws a card; Obsidian shows a code block, or the Fantasy Statblocks plugin's card when it is installed | `DECIDED` on 2026-10-20 ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md) item 1; `monster:` and `extends:` are `[PROPOSED]`) |
 | Oracle callout | a callout of kind `oracle` (`> [!oracle] Question`), the answer lines in its body; with the Oracles feature on Verso adds the oracle's buttons to it; Obsidian draws a callout | `DECIDED` on 2026-10-20 ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md) item 4) |
+| Roll block | a fenced code block, ```` ```roll ````, holding a roll of the Table ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md)): an optional header line (`quem: Ana · quando: 2026-10-22 21:40 · onde: [[Sessão 12]]`), the roll (`1d20+5 → [16] + 5 = 21`), and for a random table or an oracle the lines `tabela:` / `linha:` or `oráculo:` / `resposta:`; Verso draws a fixed result card and never rolls it again; Obsidian shows a code block | `DECIDED` on 2026-10-22 (the maintainer's option A, [ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block) |
 
 Example of a typed note:
 
@@ -698,6 +699,41 @@ items_color: "#1971c2"
 items_template: "Templates/Nota de Reunião.md"
 ---
 ```
+
+Example of a roll block, and its grammar. Everything between the fences is
+plain text a person can write by hand; the keys are written in the language of
+the window and read in either (`quem`/`who`, `quando`/`when`, `onde`/`where`,
+`tabela`/`table`, `linha`/`row`, `oráculo`/`oracle`, `resposta`/`answer`,
+`rolagem`/`draw`, `dados`/`dice`):
+
+````markdown
+```roll
+quem: Ana · quando: 2026-10-22 21:40 · onde: [[Sessão 12]]
+4d6dl1 → [6, 5, 3, ~2] + 2 = 16
+dados: #1d9e75 #f4f7f5 #0c3527
+```
+````
+
+- Header: `key: value` pairs separated by ` · `, each optional; `onde` is a
+  wikilink to the note where the roll was made. The time is the local time of
+  the person who wrote it, as written.
+- The roll line: the notation, an arrow (`→`, or `->`), the dice and the
+  total (`= 16`). A group `[...]` is one term of the notation; a face with `~`
+  was dropped (kept/drop and keep/drop modifiers); a group is joined to the
+  next by ` + ` or ` - `, a leading `-` makes a term negative; a bare number is
+  the modifier. Fudge faces are written `+`, `-` and `0`.
+- A random table's roll adds `tabela: [[Note#^id]]` and `linha: <the row on
+  one line>`. An oracle draw has no roll line: `oráculo: pergunta`
+  (`faísca`, `tabela`), `tabela: <name>` for an oracle table, `resposta: <text>`
+  and, except for a spark, `rolagem: <the d100 face or place>`.
+- `dados: <body> <number> <outline>`: three `#rrggbb` colours, the roller's
+  dice; omitted when the roller uses the app's own look. A texture or a
+  material is not written.
+- Reading is tolerant: a line that is none of these is kept and written back
+  last; a block with no roll line and no oracle line is not a roll block and is
+  shown as the plain code it is. Opening a note never rewrites a block
+  ([ADR 0012](../adr/0012-files-are-source-of-truth.md)); the card is drawn in
+  Reading and Live Preview, the text is what Source shows.
 
 Constraints that any extension has to respect:
 
@@ -1746,3 +1782,4 @@ the parser was chosen.
 | v0.47 | 2026-10-21 | The maintainer's answers of the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **Q2, Q5 (nesting), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 and Q24 `DECIDED`**, each as the option marked — Q14 with both options, A (ratify) and B (unresolved links as graph nodes). Every decision is recorded; none closes in full, since each that needs a fixture or an observation of Obsidian waits for the PR that adds it (invariant 17); Q5's `callout/nested` is a separate code PR. §5 and §7 brought up to date: §7 now points to [ADR 0093](../adr/0093-periodic-notes.md) for periodic notes, not to §9. No fixture changed |
 | v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved, its expectation changed with the code of DL.2 B and its draft mark removed (`0d576e17`). Q14: clicking an unresolved graph node asks before creating the note. |
 | v0.49 | 2026-10-22 | The maintainer's answers of the afternoon list of 2026-10-21: **Q5-bis A** (a plain blockquote inside a callout is no level; a callout inside it is nested), **T.3 A** (`tags`: only non-negative integers), **I-8 A** (`frontmatter/tags-number` reconfirmed as it stands). No fixture changed |
+| v0.50 | 2026-10-22 | §6: one row and an example, the fenced block ```` ```roll ```` — a roll of the Table kept in a note ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block; the maintainer's option A of 2026-10-22). Verso draws a fixed card; Obsidian reads a code block; the parser does not change. No fixture. No question closed. (The header above still reads v0.48 while the history reaches v0.49: a contradiction already in the document, left for the maintainer.) |

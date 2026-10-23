@@ -25,8 +25,6 @@
 .table-row, .table-label { color: var(--ink-2); }
 .table-label { font-weight: 600; }
 .table-roll { color: var(--ink-3); font-family: var(--mono); font-size: .75rem; }
-.table-add { position: absolute; top: .25rem; right: .25rem; width: 1.7rem; height: 1.7rem; min-width: 1.7rem; opacity: .55; }
-.table-entry:hover .table-add, .table-add:focus-visible { opacity: 1; }
 .table-to-end { align-self: center; font-size: .75rem; color: var(--seal); padding: .15rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); }
 /* The unread count: on the Mesa tab and on the buttons that open the right panel. */
 body[data-table-unread] .right-tab[data-tab="table"],
@@ -46,7 +44,6 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   body[data-right-tab="table"] aside.right { top: auto; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: min(70vh, 600px); transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
   body.right-open[data-right-tab="table"] aside.right { transform: none; }
   .table-entry { padding-right: 2.4rem; }
-  .table-add { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
   .table-hide, .table-unhide { min-height: 2.2rem; }
   .table-to-end { min-height: 2.2rem; }
 }
@@ -98,4 +95,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   .table-send { min-height: 2.4rem; }
   .table-input { font-size: 16px; }
   .table-older { min-height: 2.2rem; }
+}
+@media (max-width: 760px) {
+  .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
 }

@@ -143,20 +143,29 @@ export class Compose {
     if (typed.kind === "long") return this.fail(tt.tooLong(typed.length, MESSAGE_MAX));
     if (typed.kind === "badRoll") return this.fail(tt.badRoll(typed.typed));
     this.busy = true;
+    // What was typed when the command went out: the field is emptied once it is
+    // accepted, but never over something typed meanwhile.
+    const sent = this.field.value;
+    const clear = (): void => {
+      if (this.field.value === sent) this.field.value = "";
+      this.error.hidden = true;
+      this.grow();
+      this.count();
+    };
     try {
       if (typed.kind === "say") {
         const refused = await t.say(typed.text);
         if (refused) return this.fail(this.refusal(refused));
+        clear();
       } else {
         const r = await t.roll(typed.notation, { secret: t.secret });
         if ("error" in r) return this.fail(this.refusal(r.error));
+        // Accepted: the field is emptied now, not after the dice have fallen
+        // (a roll that took time, or a fall that failed, used to leave `/r 1d20`).
+        clear();
         if (t.secret) ui.status.textContent = tt.secretRollStatus;
-        if (r.entry.roll && will3d("", r.entry.roll)) await play3d("", r.entry.roll);
+        if (r.entry.roll && will3d("", r.entry.roll)) await play3d("", r.entry.roll).catch(() => undefined);
       }
-      this.field.value = "";
-      this.error.hidden = true;
-      this.grow();
-      this.count();
     } finally {
       this.busy = false;
     }

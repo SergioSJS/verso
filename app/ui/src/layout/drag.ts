@@ -13,6 +13,7 @@ import { pinItemToFolder, reorderInFolder } from "../organize/order";
 import { dirOf } from "../paths";
 import { settings } from "../settings";
 import { HOLD_MS, STILL_PX } from "../touch";
+import { dropRoll, hideDropCaret, showDropCaret } from "../rollblock/insert";
 import { allFolders, markCurrent, showOutline } from "../tree/tree";
 import { landIn, Pane } from "./pane";
 import { current, layout, openIn, Space, spaces } from "./spaces";
@@ -27,13 +28,14 @@ export function overlayOpen(): boolean {
 /** A tab, or a row of the tree — with the other rows selected with it,
  *  when it is dragged as part of a selection (ADR 0048, revised
  *  2026-10-07). */
-export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[] };
+export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[] } | { kind: "roll"; make: (target: string) => string };
 export let drag: Drag | null = null;
 export const ghost = h("div", "drag-ghost");
 export function clearDropHints(): void {
   for (const e of document.querySelectorAll(".drop-hint, .drop, .drop-before, .drop-after, .drop-pin")) {
     e.classList.remove("drop-hint", "drop", "drop-before", "drop-after", "drop-pin", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
   }
+  hideDropCaret();
 }
 export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   // The browser chooses at the touch's start whether it may scroll without
@@ -154,6 +156,14 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
     if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
     return null;
   }
+  if (drag?.kind === "roll") {
+    // A roll of the table: on a note's text, or on a board's canvas (a card that holds it).
+    const leafEl = at.closest<HTMLElement>(".leaf");
+    const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+    if (leaf instanceof BoardLeaf && at.closest(".board-canvas") && !at.closest(".board-card-slot.is-active")) return { board: leaf };
+    if (leaf instanceof NoteLeaf && at.closest(".cm-content, .preview, .editor")) return { insert: leaf };
+    return null;
+  }
   if (drag?.kind === "file") {
     const treeRow = at.closest<HTMLElement>(".tree li[data-path], .tree summary[data-folder]");
     if (treeRow) {
@@ -221,7 +231,10 @@ export function hint(target: DropTarget, x: number, y: number, shiftKey = false)
     const zone = zoneOf(target.body, x, y);
     target.body.classList.add("drop-hint", zone, "drop-" + zone);
   }
-  else if ("insert" in target) target.insert.el.classList.add("drop");
+  else if ("insert" in target) {
+    target.insert.el.classList.add("drop");
+    if (drag?.kind === "roll") showDropCaret(target.insert, drag.make(target.insert.path), x, y);
+  }
   else if ("board" in target) target.board.el.classList.add("drop");
   else if ("treeItem" in target) {
     if (shiftKey) {
@@ -269,8 +282,14 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     return;
   }
   // A row of the tree moves a file: not for a reader on a server (ADR 0076
-  // item 11).
+  // item 11). A roll of the table is written into a note or a board, which
+  // the same permission governs.
   if (!canWrite()) return;
+  if (d.kind === "roll") {
+    if ("insert" in target) dropRoll(target.insert, d.make(target.insert.path), x, y);
+    else if ("board" in target) target.board.addText(d.make(target.board.path), x, y);
+    return;
+  }
   // A file from the tree — or several, a selection: into a folder they
   // move together, with one plan of link rewrites; anywhere else, each
   // goes where one would.

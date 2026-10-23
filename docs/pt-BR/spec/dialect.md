@@ -650,6 +650,7 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Padrões de itens da pasta | `items_sticker:`, `items_color:` e `items_template:` no frontmatter da nota de pasta, herdados por novos itens criados na pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Cartão de statblock | um bloco de código cercado, ```` ```statblock ````, com YAML nos nomes de chave do Fantasy Statblocks; com a funcionalidade Statblocks ligada ([ADR 0103](../adr/0103-feature-presets-and-capability-flags.md)) o Verso desenha um cartão; o Obsidian mostra um bloco de código, ou o cartão do plugin Fantasy Statblocks quando instalado | `DECIDIDO` em 2026-10-20 ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md) item 1; `monster:` e `extends:` são `[PROPOSTO]`) |
 | Callout de oráculo | um callout do tipo `oracle` (`> [!oracle] Pergunta`), as linhas de resposta no corpo dele; com a funcionalidade Oráculos ligada o Verso acrescenta os botões do oráculo a ele; o Obsidian desenha um callout | `DECIDIDO` em 2026-10-20 ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md) item 4) |
+| Bloco de rolagem | um bloco de código cercado, ```` ```roll ````, com uma rolagem da Mesa ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md)): uma linha de cabeçalho opcional (`quem: Ana · quando: 2026-10-22 21:40 · onde: [[Sessão 12]]`), a rolagem (`1d20+5 → [16] + 5 = 21`) e, para uma tabela sorteada ou um oráculo, as linhas `tabela:` / `linha:` ou `oráculo:` / `resposta:`; o Verso desenha um cartão fixo de resultado e nunca rola de novo; o Obsidian mostra um bloco de código | `DECIDIDO` em 2026-10-22 (a opção A do mantenedor, [ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "Como foi feito", bloco de rolagem) |
 
 Exemplo de nota tipada:
 
@@ -705,6 +706,43 @@ items_color: "#1971c2"
 items_template: "Templates/Nota de Reunião.md"
 ---
 ```
+
+Exemplo de um bloco de rolagem, e a sua gramática. Tudo entre as cercas é
+texto simples que uma pessoa pode escrever à mão; as chaves são escritas no
+idioma da janela e lidas em qualquer um (`quem`/`who`, `quando`/`when`,
+`onde`/`where`, `tabela`/`table`, `linha`/`row`, `oráculo`/`oracle`,
+`resposta`/`answer`, `rolagem`/`draw`, `dados`/`dice`):
+
+````markdown
+```roll
+quem: Ana · quando: 2026-10-22 21:40 · onde: [[Sessão 12]]
+4d6dl1 → [6, 5, 3, ~2] + 2 = 16
+dados: #1d9e75 #f4f7f5 #0c3527
+```
+````
+
+- Cabeçalho: pares `chave: valor` separados por ` · `, cada um opcional;
+  `onde` é um wikilink para a nota em que a rolagem foi feita. A hora é a hora
+  local de quem escreveu, como escrita.
+- A linha da rolagem: a notação, uma seta (`→`, ou `->`), os dados e o total
+  (`= 16`). Um grupo `[...]` é um termo da notação; uma face com `~` foi
+  descartada (modificadores de manter/descartar); um grupo se junta ao seguinte
+  por ` + ` ou ` - `, um `-` na frente torna o termo negativo; um número solto é
+  o modificador. As faces de Fudge se escrevem `+`, `-` e `0`.
+- A rolagem de uma tabela sorteada acrescenta `tabela: [[Nota#^id]]` e
+  `linha: <a linha da tabela numa linha só>`. Um sorteio de oráculo não tem
+  linha de rolagem: `oráculo: pergunta` (`faísca`, `tabela`), `tabela: <nome>`
+  para uma tabela de oráculo, `resposta: <texto>` e, exceto na faísca,
+  `rolagem: <a face do d100 ou a posição>`.
+- `dados: <corpo> <número> <contorno>`: três cores `#rrggbb`, os dados de quem
+  rolou; omitida quando a pessoa usa o visual do próprio app. Textura e
+  material não são escritos.
+- A leitura é tolerante: uma linha que não é nenhuma destas é mantida e
+  escrita de volta por último; um bloco sem linha de rolagem e sem linha de
+  oráculo não é um bloco de rolagem e aparece como o código simples que é.
+  Abrir uma nota nunca reescreve um bloco
+  ([ADR 0012](../adr/0012-files-are-source-of-truth.md)); o cartão é desenhado
+  na Leitura e na Pré-visualização ao vivo, o texto é o que a Fonte mostra.
 
 Restrições que qualquer extensão precisa respeitar:
 
@@ -1775,3 +1813,4 @@ ser escolhido.
 | v0.47 | 2026-10-21 | As respostas do mantenedor ao questionário de decisões de 2026-10-20 (respondido em 2026-10-21): **Q2, Q5 (aninhamento), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 e Q24 `DECIDIDAS`**, cada uma como a opção marcada — a Q14 com as duas opções, A (ratificar) e B (links não resolvidos como nós do grafo). Cada decisão está registrada; nenhuma fecha por inteiro, pois as que precisam de fixture ou de observação do Obsidian esperam o PR que as acrescenta (invariante 17); a `callout/nested` da Q5 é um PR de código separado. §5 e §7 atualizadas: a §7 agora aponta para o [ADR 0093](../adr/0093-periodic-notes.md) para as notas periódicas, não para a §9. Nenhuma fixture mudou |
 | v0.48 | 2026-10-21 | As respostas do mantenedor à lista de decisões de 2026-10-21: **Q5, Q22 e Q24 fechadas por inteiro**, seis das sete fixtures rascunhadas em 2026-10-21 **aprovadas** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; marcas de rascunho removidas). Q24: `...` não fecha o frontmatter (como o Obsidian); `tags: 2024` **é** a tag "2024", escolha explícita do mantenedor, sabidamente diferente do Obsidian, o que fica registrado; `frontmatter/tags-number` está aprovada, a expectativa mudou com o código do DL.2 B e a marca de rascunho saiu (`0d576e17`). Q14: clicar num nó não resolvido do grafo pergunta antes de criar a nota. |
 | v0.49 | 2026-10-22 | As respostas do mantenedor à lista da tarde de 2026-10-21: **Q5-bis A** (uma citação comum dentro de um callout não é nível; um callout dentro dela é aninhado), **T.3 A** (`tags`: só inteiros não negativos), **I-8 A** (`frontmatter/tags-number` reconfirmada como está). Nenhuma fixture mudou |
+| v0.50 | 2026-10-22 | §6: uma linha e um exemplo, o bloco cercado ```` ```roll ```` — uma rolagem da Mesa guardada numa nota ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "Como foi feito", bloco de rolagem; a opção A do mantenedor, 2026-10-22). O Verso desenha um cartão fixo; o Obsidian lê um bloco de código; o parser não muda. Nenhuma fixture. Nenhuma pergunta fechada. (O cabeçalho acima ainda diz v0.48 enquanto o histórico chega à v0.49: uma contradição que já estava no documento, deixada ao mantenedor.) |

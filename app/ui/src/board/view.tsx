@@ -119,7 +119,7 @@ function Board({
   initial: CanvasDoc;
   /** In a room: the room's elements, drawn as they are (ADR 0082 item 12). */
   roomElements?: readonly El[];
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void, addText: (text: string, clientX?: number, clientY?: number) => void) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
@@ -381,6 +381,7 @@ function Board({
         return flushRef.current();
       },
       (path, x, y) => addPathRef.current(path, x, y),
+      (text, x, y) => addTextRef.current(text, x, y),
     );
     // In a room: the others' changes come in as the room's, merged over
     // what this window is changing right now (roomModel.ts), and never
@@ -511,6 +512,7 @@ function Board({
   const flushRef = useRef(flush);
   flushRef.current = flush;
   const addPathRef = useRef<(path: string, x?: number, y?: number) => void>(() => undefined);
+  const addTextRef = useRef<(text: string, x?: number, y?: number) => void>(() => undefined);
   useEffect(() => {
     if (readOnly) host.status(s.newerBoard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -944,6 +946,16 @@ function Board({
     add(node);
   };
   addPathRef.current = (path, clientX, clientY) => void addPath(path, clientX, clientY);
+  // A text card put where something was dropped (a roll block from the table).
+  addTextRef.current = (text, clientX, clientY) => {
+    const [x, y] = sceneAt(clientX, clientY);
+    const node = newNode("text", text, [x, y], randomId());
+    node.width = 340;
+    node.height = 110;
+    node.x = Math.round(x - node.width / 2);
+    node.y = Math.round(y - node.height / 2);
+    add(node);
+  };
   // Several files go in a staircase, also when two drops overlap: the step
   // counts on until the last of them is in.
   const stair = useRef({ busy: 0, next: 0 });
@@ -1428,14 +1440,16 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
   let find: () => void = () => undefined;
   let flush: () => Promise<void> = () => Promise.resolve();
   let addPath: (path: string, x?: number, y?: number) => void = () => undefined;
+  let addText: (text: string, x?: number, y?: number) => void = () => undefined;
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
       roomElements={roomElements}
-      bind={(l, f, r, fd, fl, ap) => {
+      bind={(l, f, r, fd, fl, ap, at) => {
         addPath = ap;
+        addText = at;
         load = l;
         focus = f;
         refresh = r;
@@ -1455,6 +1469,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
     find: () => find(),
     focus: () => focus(),
     addPath: (path, x, y) => addPath(path, x, y),
+    addText: (text, x, y) => addText(text, x, y),
     flush: () => flush(),
     destroy: () => root.unmount(),
   };

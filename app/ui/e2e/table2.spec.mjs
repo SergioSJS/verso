@@ -94,6 +94,7 @@ test("a server's table: the roster, the others' messages and rolls, and what thi
   const calls = await app.calls("table_roll");
   expect(calls).toHaveLength(1);
   expect(calls[0]).toMatchObject({ notation: "2d6+1", secret: null });
+  await expect(field(view)).toHaveValue("");
   // The roller's own dice travel with the roll, closed in form.
   expect(Object.keys(calls[0].styles).sort()).toEqual(["1", "2", "3"]);
   // A line that is no roll is told so and nothing is sent.
@@ -550,3 +551,20 @@ for (const [name, others, falls] of [
     // A roll made in secret and masked for this editor never falls.
   });
 }
+
+test("`/r 1d20` empties the field as soon as the server takes it, not after the 3D dice have fallen", async ({ app, page }) => {
+  await page.addInitScript(() => {
+    const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
+    localStorage.setItem("verso.settings", JSON.stringify({ ...s, features: { ...(s.features ?? {}), dice3d: true } }));
+  });
+  await serve(app, page);
+  const view = await openTable(page);
+  await field(view).fill("/r 1d20");
+  await field(view).press("Enter");
+  await expect(log(view)).toHaveCount(1);
+  // Emptied while the dice are still falling (the fall takes seconds).
+  await expect(field(view)).toHaveValue("", { timeout: 1500 });
+  // What is typed meanwhile is kept for the next message.
+  await field(view).fill("e outra");
+  await expect(field(view)).toHaveValue("e outra");
+});
