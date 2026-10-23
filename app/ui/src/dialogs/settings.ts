@@ -48,6 +48,7 @@ import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
 import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
 import { notifyStrings } from "../notify/strings";
+import { CHIMES, type Chime, previewChime, readChime, readVolume } from "../table/chime";
 import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
 import { ls } from "../editor/suggestStrings";
@@ -512,6 +513,22 @@ export class SettingsDialog {
         }),
       );
     }
+    // The table's chime (ADR 0107, 2026-10-23): which sound (off included) and how loud; choosing plays it once.
+    add("notify", ns.chime, ns.chimeDesc, () =>
+      this.select(CHIMES.map((c) => [c, ns.chimes[c]] as [Chime, string]), readChime(settings.tableChime), (v) => {
+        settings.tableChime = v;
+        saveSettings();
+        previewChime(v, readVolume(settings.tableVolume));
+      }),
+    );
+    add("notify", ns.chimeVolume, ns.chimeVolumeDesc, () => {
+      const r = h("input");
+      r.type = "range"; r.min = "0"; r.max = "100"; r.step = "5"; r.value = String(readVolume(settings.tableVolume));
+      r.setAttribute("aria-valuetext", `${r.value}%`);
+      r.addEventListener("input", () => { settings.tableVolume = Number(r.value); r.setAttribute("aria-valuetext", `${r.value}%`); saveSettings(); });
+      r.addEventListener("change", () => previewChime(readChime(settings.tableChime), readVolume(settings.tableVolume)));
+      return r;
+    });
     add("notify", ns.system, ns.systemDesc, () => systemControl());
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.embedAllowed, t.embedAllowedDesc, () => {

@@ -176,3 +176,17 @@ test("the sound's rules are Rolai's: slow hits are silent, the volume follows th
     for (let i = 1; i <= n; i++) assert.ok(existsSync(`dice-sounds/${prefix}${i}.mp3`), `${prefix}${i}`);
   }
 });
+
+test("dice styles for the wire: a style that follows the app carries the sender's theme colours, never the flag", () => {
+  const styles = m.defaultLook().styles;
+  assert.equal(styles["1"].app, true);
+  const out = m.resolveApp(styles, "#6a3fb5", "#ffffff");
+  assert.equal(out["1"].app, undefined);
+  assert.equal(out["1"].body, "#6a3fb5");
+  assert.equal(out["1"].number, "#ffffff");
+  assert.equal(out["1"].outline, m.edgeFor("#6a3fb5"));
+  // A style with its own colours is copied as it is.
+  const own = { ...styles, "2": { body: "#aa0000", number: "#ffffff", outline: "#330000", texture: "marble", material: "glass" } };
+  assert.deepEqual(m.resolveApp(own, "#6a3fb5", "#fff")["2"], own["2"]);
+  assert.notEqual(m.resolveApp(own, "#6a3fb5", "#fff")["2"], own["2"]);
+});

@@ -12,7 +12,7 @@ import type { DiceRoll } from "../bindings";
 import { hasCapability } from "../capabilities";
 import { settings } from "../settings";
 import type { Die3 } from "./force";
-import { type DiceLook, type DiceStyles, materialOf, readDiceLook, type SlotId } from "./look";
+import { type DiceLook, type DiceStyles, materialOf, readDiceLook, resolveApp, type SlotId } from "./look";
 import { armAudio } from "./audio";
 import type { SoundKit } from "./sound";
 import { dice3dActive, planRoll, rollId, seenIds } from "./plan";
@@ -23,6 +23,25 @@ let running: { skip: () => void } | null = null;
 /** The dice's look on this device. */
 export function diceLook(): DiceLook {
   return readDiceLook(settings.dice3dLook);
+}
+
+/** A theme token as `#rrggbb` (a probe element resolves `light-dark()` and the theme); null when it cannot be read. */
+function tokenHex(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const probe = document.createElement("span");
+  probe.style.cssText = `position:absolute;visibility:hidden;color:var(${name})`;
+  document.body.append(probe);
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(getComputedStyle(probe).color);
+  probe.remove();
+  return m ? "#" + [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("") : null;
+}
+
+/** This device's dice styles for the wire (a roll sent to a note's room or a table): the "follows the app" ones
+ *  carry the colours of this window's theme, not the flag, because the flag resolves in the viewer's theme. */
+export function wireStyles(): DiceStyles {
+  const styles = diceLook().styles;
+  if (!Object.values(styles).some((s) => s.app)) return styles;
+  return resolveApp(styles, tokenHex("--seal") ?? "#8c2f2a", tokenHex("--seal-ink") ?? "#ffffff");
 }
 
 // The sound's audio context is unlocked by the first press or touch, while the

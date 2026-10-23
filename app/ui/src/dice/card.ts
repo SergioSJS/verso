@@ -21,7 +21,7 @@ import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import { setHtml } from "../sanitize";
 import { hasCapability } from "../capabilities";
-import { diceLook, play3d, will3d } from "../dice3d";
+import { play3d, wireStyles, will3d } from "../dice3d";
 import { settings } from "../settings";
 import { isServerTable, stylesOf } from "../table/model";
 import { recordHeard, recordJoined, recordRoll, tableOnScreen, tableSource } from "../table/record";
@@ -121,7 +121,7 @@ async function rolled(path: string, notation: string, source: string | null, occ
     return { roll: rollHere(notation, source), row: null, from: null, note: null };
   }
   // The roller's own dice go with the roll (ADR 0107 item 11); the others see it in them.
-  const r = await commands.collabRoll(path, notation, source, diceLook().styles, null, occ);
+  const r = await commands.collabRoll(path, notation, source, wireStyles(), null, occ);
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };
