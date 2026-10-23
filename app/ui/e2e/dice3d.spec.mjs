@@ -641,6 +641,12 @@ test("the roll duration setting: Slow takes longer to rest than Fast", async ({ 
     await expect(canvas(page)).toHaveCount(0);
     return ms;
   };
+  // The first roll of a fresh page pays for compiling the shaders and
+  // uploading the textures, seconds on a software renderer (the replay clock
+  // is capped per frame, FRAME_MAX_MS, so a slow draw stretches the roll).
+  // Fast, rolled first, carried that cost and could rest later than Slow. A
+  // discarded warm-up roll takes it out; the rule measured is unchanged.
+  await timeTo("normal");
   const fast = await timeTo("fast");
   const slow = await timeTo("slow");
   info.annotations.push({ type: "fast / slow to rest (ms)", description: `${fast} / ${slow}` });
