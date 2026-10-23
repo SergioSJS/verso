@@ -43,7 +43,7 @@ pub use campaign::{
 mod table;
 pub use table::{
     DiceStyle, DiceStyles, TableCleared, TableEntry, TableJoin, TableMember, TablePage,
-    TablePinned, TableRemoved,
+    TablePinned, TableRemoved, TableRoster,
 };
 mod lists;
 pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};

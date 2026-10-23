@@ -14,7 +14,7 @@
 //! return knows that text for the tab's own, already in the room: neither
 //! sent nor a conflict (items 6 and 9).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::AtomicU64;
 
 use super::*;
@@ -39,9 +39,11 @@ pub(crate) struct Live {
     /// tab's next join is answered as another room, so that it reads the
     /// note again instead of sending its text a second time.
     left: Mutex<HashSet<String>>,
-    /// The windows at the server's table over this link (ADR 0107 item 9):
-    /// the server knows the connection, not them.
-    table: Mutex<BTreeSet<String>>,
+    /// The windows at the server's tables over this link (ADR 0107 item 9),
+    /// each with the table it is at (the table's root in the folder, `""`
+    /// for the folder: one table per window, 2026-10-23): the server knows
+    /// the connection, not them.
+    table: Mutex<BTreeMap<String, String>>,
     /// The windows that asked the campaign's status over this link (ADR
     /// 0110): told when it changes.
     campaign: Mutex<BTreeSet<String>>,
@@ -148,7 +150,7 @@ pub(crate) async fn command(
         return Ok(Value::Null);
     }
     if cmd == "table_leave" {
-        table_leave(ctx, s, window).await;
+        table_leave(ctx, s, window, args["table"].as_str()).await;
         return Ok(Value::Null);
     }
     let Some(remote) = up(s).and_then(|_| s.live.remote()) else {
@@ -179,7 +181,13 @@ pub(crate) async fn command(
         // the server's, answered for the sync's connection like a room's.
         "table_join" => {
             let answer = remote.call(cmd, args).await?;
-            table_joined(ctx, s, window);
+            let table = answer["table"].as_str().unwrap_or_default();
+            if let Some(old) = table_joined(ctx, s, window, table) {
+                // The window moved to another table without leaving the
+                // first: the connection leaves it when none of this app's
+                // windows is left there.
+                let _ = remote.call("table_leave", json!({ "table": old })).await;
+            }
             Ok(answer)
         }
         "campaign_status" => {
@@ -328,27 +336,35 @@ async fn leave(s: &Syncer, window: &str, path: &str) {
     }
 }
 
-/// A window is at the server's table over the link (ADR 0107 item 9):
-/// the windows that closed are forgotten with it.
-fn table_joined(ctx: &Ctx, s: &Syncer, window: &str) {
+/// A window is at the table rooted at `table` over the link (ADR 0107
+/// item 9): the windows that closed are forgotten with it. The table the
+/// window was at before, when it moved and no other window is left there.
+fn table_joined(ctx: &Ctx, s: &Syncer, window: &str, table: &str) -> Option<String> {
     let shown = ctx.service.clients_of(&s.key);
     let mut at = lock(&s.live.table);
-    at.retain(|w| shown.contains(w));
-    at.insert(window.to_owned());
+    at.retain(|w, _| shown.contains(w));
+    let before = at.insert(window.to_owned(), table.to_owned())?;
+    (before != table && !at.values().any(|t| *t == before)).then_some(before)
 }
 
-/// A window leaves the table; the connection leaves it when no window of
-/// this app is left at it.
-async fn table_leave(ctx: &Ctx, s: &Syncer, window: &str) {
-    let last = {
+/// A window leaves the table it is at (the one named, when it names
+/// one); the connection leaves that table when no window of this app is
+/// left at it.
+async fn table_leave(ctx: &Ctx, s: &Syncer, window: &str, named: Option<&str>) {
+    let left = {
         let shown = ctx.service.clients_of(&s.key);
         let mut at = lock(&s.live.table);
-        let was = at.remove(window);
-        at.retain(|w| shown.contains(w));
-        was && at.is_empty()
+        let was = match (at.get(window), named) {
+            (Some(t), Some(n)) if t != n => None,
+            _ => at.remove(window),
+        };
+        at.retain(|w, _| shown.contains(w));
+        was.filter(|t| !at.values().any(|x| x == t))
     };
-    if last && let Some(remote) = s.live.remote() {
-        let _ = remote.call("table_leave", json!({})).await;
+    if let Some(table) = left
+        && let Some(remote) = s.live.remote()
+    {
+        let _ = remote.call("table_leave", json!({ "table": table })).await;
     }
 }
 
@@ -363,16 +379,18 @@ pub(crate) fn out(s: &Syncer) {
             p.clone()
         })
         .collect();
-    let at_table = !std::mem::take(&mut *lock(&s.live.table)).is_empty();
+    let tables: BTreeSet<String> = std::mem::take(&mut *lock(&s.live.table))
+        .into_values()
+        .collect();
     let Some(remote) = s.live.remote() else {
         return;
     };
-    if paths.is_empty() && !at_table {
+    if paths.is_empty() && tables.is_empty() {
         return;
     }
     tauri::async_runtime::spawn(async move {
-        if at_table {
-            let _ = remote.call("table_leave", json!({})).await;
+        for table in tables {
+            let _ = remote.call("table_leave", json!({ "table": table })).await;
         }
         for path in paths {
             let _ = remote.call("collab_leave", json!({ "path": path })).await;
@@ -475,7 +493,13 @@ pub(crate) fn relay(
                     let to: Vec<String> = if event == "campaign-changed" {
                         lock(&live.campaign).iter().cloned().collect()
                     } else {
-                        lock(&live.table).iter().cloned().collect()
+                        // The windows at the table the event is for.
+                        let table = payload["table"].as_str().unwrap_or_default();
+                        lock(&live.table)
+                            .iter()
+                            .filter(|(_, t)| t.as_str() == table)
+                            .map(|(w, _)| w.clone())
+                            .collect()
                     };
                     if !to.is_empty() {
                         told(&to, &event, &payload);

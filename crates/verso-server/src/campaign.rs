@@ -325,12 +325,17 @@ pub fn closed_error() -> ContractError {
     verso_service::refused(CLOSED)
 }
 
-/// The table's limit for the image size, in bytes: the folder's
-/// shortest-rooted table's, else the default.
+/// The table's limit for the image size, in bytes: the limit of the table
+/// rooted at `table` (its own, since 2026-10-23), else the default.
 #[must_use]
-pub fn image_limit(server: &Server, folder: &str) -> usize {
+pub fn image_limit(server: &Server, folder: &str, table: &str) -> usize {
     let bytes = veil_of(server, folder)
-        .and_then(|v| v.tables.first().map(|t| t.image_max))
+        .and_then(|v| {
+            v.tables
+                .iter()
+                .find(|t| t.root == table)
+                .map(|t| t.image_max)
+        })
         .unwrap_or(crate::db::IMAGE_DEFAULT);
     usize::try_from(bytes).unwrap_or(crate::table::IMAGE_BYTES)
 }
