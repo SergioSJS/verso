@@ -49,7 +49,7 @@ test("a synced folder is at the server's table while the link is up, and the fol
   await view.getByRole("textbox", { name: "Mensagem para a mesa" }).fill("Boa noite, mesa");
   await page.keyboard.press("Enter");
   await expect(view.locator(".table-log .table-entry")).toContainText("Boa noite, mesa");
-  await expect.poll(() => app.calls("table_say")).toEqual([{ text: "Boa noite, mesa" }]);
+  await expect.poll(() => app.calls("table_say")).toEqual([{ text: "Boa noite, mesa", table: "" }]);
 
   // The campaign's controls are the owner's, in the synced folder's window.
   await page.locator('summary[data-folder="Mundo"]').click({ button: "right" });

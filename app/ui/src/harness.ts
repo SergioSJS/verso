@@ -129,6 +129,8 @@ const campaign = new Campaign(core);
 // unavailable with it down, as the host answers; the status says "none".
 const link = (): boolean | null => (core.sync.on && rooms ? rooms.up : null);
 if (table) table.linked = link;
+// The folder's tables are the campaign's (one log per table, ADR 0107 as amended 2026-10-23).
+if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
 campaign.linked = link;
 for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite"]) {
   const own = core.handlers[cmd];

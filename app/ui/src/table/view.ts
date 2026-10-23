@@ -12,6 +12,8 @@ import { button, h, ui } from "../dom";
 import { icon } from "../icons";
 import { pictureAddress } from "../images";
 import { openNote } from "../layout/spaces";
+import { folderName } from "../folder";
+import { showMenu, type MenuItem } from "../menu";
 import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import type { DiceStyle } from "../dice3d/look";
@@ -21,7 +23,9 @@ import { armDrag } from "../layout/drag";
 import { rollable } from "../rollblock/entry";
 import { Compose } from "./compose";
 import { isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
+import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
+import { tableLabel } from "./which";
 import { tt } from "./strings";
 import { ts } from "./trayStrings";
 import { isTableRoot, makeTable, tableFor } from "../campaign";
@@ -100,6 +104,10 @@ class TableView {
   private rosterPinned = false;
   /** ONE row on top (ADR 0107, 2026-10-23): who is here, the owner's way to the Mesa window, then hide and the menu at the right. */
   private readonly top = h("div", "table-top");
+  /** The table's name when the folder has tables (one log per table, 2026-10-23), with the way to another table. */
+  private readonly title = h("div", "table-title");
+  /** The list of tables, when no note says which one the panel is at. */
+  private readonly choose = h("div", "table-choose");
   private readonly bar = h("div", "table-bar");
   private readonly win = h("div", "table-win");
   private readonly pins = h("div", "table-pins");
@@ -131,7 +139,9 @@ class TableView {
     this.older.addEventListener("click", () => void this.loadOlder());
     this.top.append(this.roster, this.win, this.bar);
     this.win.hidden = true;
-    this.el.append(this.top, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.title.hidden = true;
+    this.choose.hidden = true;
+    this.el.append(this.title, this.choose, this.top, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();
@@ -149,6 +159,10 @@ class TableView {
     // The folder became a table, or stopped being one (campaign.ts setStatus): the button follows.
     addEventListener("verso:campaign-status", () => {
       if (this.el.isConnected) this.paintMake(tableSource());
+    });
+    // The panel is at another table, or the folder's tables changed.
+    addEventListener("verso:table-pick", () => {
+      if (this.el.isConnected) this.render();
     });
     // A source replaced (the server's table joined, or left): drawn again at once.
     onSourceChange(() => {
@@ -220,7 +234,52 @@ class TableView {
     this.win.hidden = this.win.childElementCount === 0;
   }
 
+  /** The table's name in the header (with the way to another table), or the list to choose from. */
+  private paintTitle(): void {
+    const p = pick();
+    this.el.classList.toggle("choosing", p.choosing);
+    this.title.hidden = p.roots.length === 0 || p.choosing;
+    this.choose.hidden = !p.choosing;
+    this.title.replaceChildren();
+    this.choose.replaceChildren();
+    const optionsOf = (): MenuItem[] => p.roots.map((r) => [tableLabel(r, folderName), () => chooseTable(r), r === p.current ? "check" : "dice"] as MenuItem);
+    if (p.choosing) {
+      this.choose.append(h("h3", "table-choose-head", tt.chooseHeading), h("p", "table-choose-hint", tt.chooseHint));
+      const list = h("ul", "table-choose-list");
+      for (const r of p.roots) {
+        const label = tableLabel(r, folderName);
+        const b = h("button", "ghost table-choose-option");
+        b.type = "button";
+        b.append(icon("dice", ""), h("span", "table-choose-name", label));
+        b.dataset["table"] = r;
+        b.setAttribute("aria-label", tt.chooseOption(label));
+        b.title = r === "" ? "/" : r;
+        b.addEventListener("click", () => chooseTable(r));
+        const li = h("li");
+        li.append(b);
+        list.append(li);
+      }
+      this.choose.append(list);
+      return;
+    }
+    if (this.title.hidden || p.current === null) return;
+    this.title.dataset["table"] = p.current;
+    this.title.append(h("span", "table-title-name", tt.titleTable(tableLabel(p.current, folderName))));
+    if (p.roots.length > 1) {
+      const more = button("ghost iconic table-title-switch", "", "chevronDown");
+      more.setAttribute("aria-label", tt.changeTable);
+      more.title = tt.changeTable;
+      more.setAttribute("aria-haspopup", "menu");
+      more.addEventListener("click", () => {
+        const box = more.getBoundingClientRect();
+        showMenu(box.left, box.bottom, optionsOf(), tt.changeTable);
+      });
+      this.title.append(more);
+    }
+  }
+
   private render(): void {
+    this.paintTitle();
     const src = tableSource();
     const server = isServerTable(src) ? src : null;
     const entries = src.entries();
