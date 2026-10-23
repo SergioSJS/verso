@@ -1052,7 +1052,7 @@ rest below and in `manual-checks.md`.
    `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
    in another browser creates the account, opens the folder, and the window
-   says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the
+   shows a closed lock beside the folder's name (*Você só lê esta pasta*); the invitation shows *usado* and by whom; the
    link a second time is gone (e2e-server, "an invited reader").
 4. One note in two windows: what one types appears in the other, and a
    third window reads it from the disk (e2e-server, "two windows edit one

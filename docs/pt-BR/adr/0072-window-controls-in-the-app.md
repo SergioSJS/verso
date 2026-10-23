@@ -187,3 +187,21 @@ paleta. Alt sozinho o abre; Alt e a letra sublinhada abre um menu (pt: A E V I
 R J U; en: F E V G R W H, escolhidas para nenhuma letra se repetir e nenhuma
 ser uma tecla que a janela usa com Alt sozinho). Não construído: um menu na
 janela do navegador ou no celular. Registrado, não decidido.
+
+**A barra de abas do painel da direita, no Windows e no Linux (2026-10-23).**
+O mantenedor, do app no Windows: *"no windows os botões no topo tão bem ruim
+e encavalado. deveria ter opção de reordenar com drag and drop como noutras
+partes do sistema"*. A barra das abas do painel da direita chegava ao canto
+dos botões próprios do app e as abas se espremiam umas nas outras. Decidido no
+código, para confirmar: uma aba mantém o tamanho (2,25rem) e o espaço entre
+elas; o espaço da barra é o que sobra da linha depois do canto (o `frame.ts`
+empurra a barra para o lado, e a barra da direita nunca desce por falta de
+espaço); as abas que não cabem saem da barra para um botão **⋯** ("Mais abas do
+painel") que as lista, e a aba escolhida fica sempre na barra. A pessoa
+reordena as abas arrastando-as pela barra (arraste com o ponteiro, como na
+faixa lateral: o arrastar HTML5 não funciona no WKWebView), com **Alt+←/→**
+numa aba com o foco, ou pelo menu da aba (**Mover para a esquerda / direita**);
+a ordem fica guardada no armazenamento da janela (`verso.rightTabOrder`) e uma
+aba mais nova que a ordem guardada vai para onde está entre as padrão
+(`app/ui/src/panel/tabStrip.ts`; testado em `e2e/right-tabs.spec.mjs` com o
+quadro e a plataforma do Windows emulados).

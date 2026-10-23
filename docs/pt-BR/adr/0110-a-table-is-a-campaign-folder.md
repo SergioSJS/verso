@@ -421,3 +421,22 @@ conexão chega às janelas que pediram o status.
 **O passo de pasta a mesa, no painel Mesa (23/10/2026).** O mantenedor: *"deveria ser possível transformar a pasta a partir da pasta aberta dentro do próprio verso... um botãozinho ali que me deixa transformar a pasta em mesa, sem ter que clicar com o botão direito"*. O painel Mesa da janela mostra um botão **Tornar esta pasta uma mesa** quando a pasta aberta é de um servidor (ou sincronizada com um), a pessoa é a dona e ela ainda não é mesa (`mayShare()` e nenhuma mesa na raiz da pasta, a mesma condição da linha do menu do fundo da árvore); ele roda o mesmo comando dessa linha, `makeTable("")` (`campaign_make`), e abre a janela da mesa. Quando a pasta já é uma mesa, o botão vira **Abrir a janela da Mesa** (`openCampaignDialog("")`). Ninguém mais vê nenhum dos dois, e uma pasta só deste computador diz numa linha por que não há mesa. Uma mesa feita de uma subpasta continua sendo feita pelo menu da árvore. O painel acompanha a mesa feita ou desfeita pelo evento `verso:campaign-status` do `setStatus`.
 
 **O link de convite abre onde a janela alcança o servidor (2026-10-23).** O mantenedor, testando uma pasta sincronizada com um servidor em `http://192.168.3.150:7340` sem `VERSO_PUBLIC_URL`: *Convidar jogadores › Gerar link* deu `http://localhost:7340/invite/<token>`, que não abre nada. O servidor escuta em todos os endereços e não sabe o nome pelo qual a janela o alcança, e não o tira do `Host` da requisição (ADR 0045). Então `campaign_invite` responde o link inteiro só quando `VERSO_PUBLIC_URL` está definido e, senão, **só o caminho**, `/invite/<token>`; a janela põe o endereço do seu servidor antes dele: a origem da página no navegador e, no app de desktop, o endereço para o qual a conexão da janela foi feita (o comando do host `window_server`, para uma pasta de servidor e para uma pasta deste computador sincronizada com um), nunca a origem do próprio app. O mesmo endereço dá o "Copiar link" de uma nota no desktop. Links que saem por e-mail (redefinição de senha) ainda precisam do endereço inteiro: sem `VERSO_PUBLIC_URL` e com bind em todos os endereços, o servidor avisa uma vez no log ao iniciar.
+
+## Como foi construído (feedback do chrome, 2026-10-23)
+
+**O selo da mesa ao lado do nome da pasta.** O mantenedor perguntou: *"Como eu
+estou com a raiz de uma mesa aberta no verso, como que o dono da pasta vai
+conseguir ver as configurações da pasta? E como que os jogadores veem do lado
+deles?"* O dono só chegava à janela da mesa pelo botão direito no fundo da
+árvore ou pelo botãozinho do painel Mesa. Escolhido no código, para o
+mantenedor confirmar: quando a pasta aberta é ela mesma uma mesa (uma mesa na
+raiz), o alto da barra lateral mostra, ao lado do nome da pasta, um selo
+pequeno. Para o **dono** é o botão **Mesa** (nome acessível *Mesa: abrir as
+configurações da pasta*) que abre a janela da mesa. Para um **jogador** é o selo
+somente leitura **Mesa · jogador**: ao clicar, abre um balão com duas linhas —
+lê as notas que o mestre liberou, edita as notas entregues a ele — e essas
+notas listadas como links; sem nenhuma, ele diz isso. O jogador não tem
+ajustes ali nem caminho para a janela da mesa. Uma pasta que não é mesa, ou uma
+mesa feita só de uma subpasta, não mostra selo (`app/ui/src/tableChip.ts`;
+testado em `e2e/table-chip.spec.mjs`). Ao lado, uma pasta que a pessoa só lê
+mostra o cadeado fechado da emenda do ADR 0076 do mesmo dia.

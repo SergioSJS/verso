@@ -150,25 +150,11 @@ async function start(): Promise<void> {
   startBridge(chooseFolder);
   plainHttpNotice();
   plainHttpMark();
-  // "You only read this folder" is said of a folder on screen: when one
-  // is shown with the reader's role, or the role of the one shown becomes
-  // the reader's — never over the start page, before a folder is there.
-  let role: string | null = null;
-  let shown = false;
-  const sayReader = () => {
-    if (shown && role === "reader" && currentFolderId()) notice(w().readOnlyBanner);
-  };
+  // The reader's role is shown by the closed lock beside the folder's name
+  // (screen/frame.ts), not by a line at the top (maintainer, 2026-10-23).
   addEventListener("verso:role", (e) => {
     const next = currentFolderId() ? (e as CustomEvent<string | null>).detail : null;
-    const changed = next !== role;
-    role = next;
-    if (!next) shown = false;
-    document.documentElement.dataset.role = role ?? "";
-    if (changed) sayReader();
-  });
-  addEventListener("verso:folder-shown", () => {
-    shown = true;
-    sayReader();
+    document.documentElement.dataset.role = next ?? "";
   });
   const window_ = await import("./main");
   openHeld();

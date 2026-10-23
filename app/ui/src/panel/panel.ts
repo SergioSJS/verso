@@ -24,6 +24,7 @@ import { searchNotes } from "../search";
 import { baseStrings, LOCALE, t } from "../strings";
 import { allFolders, listAll } from "../tree/tree";
 import { mentionsSection } from "./mentions";
+import { TabStrip } from "./tabStrip";
 import { historyButton } from "../dialogs/history";
 import { rightShown } from "../chrome";
 import { tableOn } from "../table/record";
@@ -38,6 +39,7 @@ export class Panel {
   readonly tabs = el<HTMLDivElement>("right-tabs");
   readonly body = el<HTMLDivElement>("right-body");
   current: PanelTab = "outline";
+  private strip: TabStrip;
   leaf: Leaf | null = null;
   tagsCache: { name: string; notes: string[] }[] = [];
   constructor() {
@@ -67,6 +69,7 @@ export class Panel {
       b.id = `verso-right-${id}`;
       b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
+      b.dataset["icon"] = ic;
       b.addEventListener("click", () => {
         this.current = id;
         if (id === "focuses") void loadFocuses().then(() => this.paint());
@@ -74,8 +77,15 @@ export class Panel {
       });
       this.tabs.append(b);
     }
+    // The saved order, the drag, Alt+←/→ and the room (tabStrip.ts).
+    this.strip = new TabStrip(this.tabs, () => this.current, (id) => {
+      this.current = id as PanelTab;
+      if (id === "focuses") void loadFocuses().then(() => this.paint());
+      this.refresh();
+    });
+    this.tabs.title = t.tabsHint;
     this.tabs.addEventListener("keydown", (e) => {
-      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden);
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow"));
       const i = all.indexOf(e.target as HTMLButtonElement);
       if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
       const n = all.length;
@@ -142,6 +152,7 @@ export class Panel {
       // No storage.
     }
     this.markTabs();
+    this.strip.chosen();
     this.paint();
     dispatchEvent(new Event("verso:table-visibility"));
   }

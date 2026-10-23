@@ -73,6 +73,7 @@ const PATHS: Record<string, string> = {
   command: "M5 3.5a1.5 1.5 0 1 0-1.5 1.5H5zM11 3.5A1.5 1.5 0 1 1 12.5 5H11zM5 12.5A1.5 1.5 0 1 1 3.5 11H5zM11 12.5a1.5 1.5 0 1 0 1.5-1.5H11zM5 5h6v6H5z",
   panelRight: "M2.5 3.5h11v9h-11zM10 3.5v9",
   chevronLeft: "M10 3.5 5.5 8l4.5 4.5",
+  chevronRight: "M6 3.5 10.5 8 6 12.5",
   zoomIn: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14M7 5v4M5 7h4",
   zoomOut: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14M5 7h4",
   fitWidth: "M2.5 8h11M2.5 8l2.5-2.5M2.5 8l2.5 2.5M13.5 8 11 5.5M13.5 8 11 10.5",
