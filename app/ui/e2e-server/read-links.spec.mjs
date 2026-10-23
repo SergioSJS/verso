@@ -41,6 +41,8 @@ async function signedIn(page) {
     await page.waitForTimeout((body.retry ?? 1) * 1000);
   }
   await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  // The page landed on asks the server before it is left (see `settled` in server.spec.mjs).
+  await page.waitForLoadState("networkidle", { timeout: 30_000 });
 }
 
 /** The demo folder registered once, owned by the admin. */
