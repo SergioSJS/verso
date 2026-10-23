@@ -30,7 +30,9 @@ export type Typed =
 export function readTyped(raw: string): Typed {
   const text = raw.trim();
   if (text === "") return { kind: "empty" };
-  const roll = /^\/(?:r|roll)(?:\s+(.*))?$/i.exec(text);
+  // A roll is the first line (`/r 2d6+1d4`): the field is several lines tall, and what follows is not read.
+  const first = text.split("\n", 1)[0]!.trim();
+  const roll = /^\/(?:r|roll)(?:[ \t]+(.*))?$/i.exec(first);
   if (roll) {
     const typed = (roll[1] ?? "").trim();
     const notation = readNotation(typed);

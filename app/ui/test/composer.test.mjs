@@ -41,7 +41,7 @@ test("fromNotation: simple, mixed, empty", () => {
 });
 
 test("fromNotation is null for what the composer does not show", () => {
-  for (const text of ["4d6kh3", "2d6!r<2", "{1d6} vs {2d10}", "1d20-1d4", "banana", "1d6!", "1d20 adv", "2c"]) {
+  for (const text of ["4d6kh3", "2d6!r<2", "{1d6} vs {2d10}", "1d20-1d4", "banana", "1d6!", "4d6kh2", "3d6dl1", "1dFkh1", "2c"]) {
     assert.equal(m.fromNotation(text), null, text);
   }
 });
@@ -137,4 +137,47 @@ test("the example of the brief: d6, d6, d20, then a modifier", () => {
   assert.equal(n, "2d6+1d20");
   const s = m.adjustModifier(m.fromNotation(n), 2);
   assert.equal(m.toNotation(s), "2d6+1d20+2");
+});
+
+test("KH / KL as Foundry's Dice Tray does it: one more die and keep one; again undoes; the other switches", () => {
+  const d20 = { terms: [{ count: 1, sides: 20 }], modifier: 3 };
+  const kh = m.toggleKeep(d20, "kh");
+  assert.equal(m.toNotation(kh), "2d20kh1+3");
+  assert.equal(m.keepOf(kh), "kh");
+  const kl = m.toggleKeep(kh, "kl");
+  assert.equal(m.toNotation(kl), "2d20kl1+3");
+  assert.equal(m.keepOf(kl), "kl");
+  assert.equal(m.toNotation(m.toggleKeep(kl, "kl")), "1d20+3");
+  assert.equal(m.keepOf(m.toggleKeep(kl, "kl")), null);
+  // Never more than two dice when adding: 3d20 becomes 2d20kh1; and 3d20kh1 undone keeps its three.
+  assert.equal(m.toNotation(m.toggleKeep({ terms: [{ count: 3, sides: 20 }], modifier: 0 }, "kh")), "2d20kh1");
+  assert.equal(m.toNotation(m.toggleKeep({ terms: [{ count: 3, sides: 20, keep: "kh" }], modifier: 0 }, "kh")), "3d20");
+  // No dice: nothing; the Fudge die is left alone.
+  assert.deepEqual(m.toggleKeep(m.EMPTY_COMPOSER, "kh"), m.EMPTY_COMPOSER);
+  assert.equal(m.toNotation(m.toggleKeep({ terms: [{ count: 2, sides: 3, fudge: true }], modifier: 0 }, "kh")), "2dF");
+});
+
+test("what KH / KL write is what Verso reads, and the model reads it back", () => {
+  for (const text of ["2d20kh1", "2d20kl1+3", "3d20kh1", "2d6kh1+1d4"]) {
+    assert.equal(m.readNotation(text), text, text);
+    assert.equal(m.toNotation(m.fromNotation(text)), text, text);
+  }
+  assert.equal(m.readNotation("2d20kh"), null);
+});
+
+test("removing a die from a kept term drops the keep at one die", () => {
+  const s = m.removeDie(m.fromNotation("2d20kh1+3"), 20);
+  assert.equal(m.toNotation(s), "1d20+3");
+});
+
+test("the roll line of the message field: /r and its formula; the lines after it are kept", () => {
+  assert.deepEqual(m.parseRollLine("/r 2d6+3"), { prefix: "/r", formula: "2d6+3", rest: "" });
+  assert.deepEqual(m.parseRollLine("/roll 1d20\nolá"), { prefix: "/roll", formula: "1d20", rest: "\nolá" });
+  assert.deepEqual(m.parseRollLine("/r"), { prefix: "/r", formula: "", rest: "" });
+  assert.equal(m.parseRollLine("olá /r 1d6"), null);
+  assert.equal(m.parseRollLine("/rolar 1d6"), null);
+  assert.equal(m.withFormula("", "1d6"), "/r 1d6");
+  assert.equal(m.withFormula("/roll 1d6\nolá", "2d6"), "/roll 2d6\nolá");
+  assert.equal(m.withFormula("/r 1d6", ""), "");
+  assert.equal(m.withFormula("/r 1d6\nolá", ""), "/r\nolá");
 });

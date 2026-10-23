@@ -88,6 +88,7 @@ export function setStatus(next: CampaignStatus): void {
   states.clear();
   for (const n of next.notes) states.set(n.path, n);
   markCampaign();
+  dispatchEvent(new Event("verso:campaign-status"));
 }
 
 /** The game master's mark on a note a table keeps hidden. */

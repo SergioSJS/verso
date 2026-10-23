@@ -27,24 +27,28 @@ O registro rola sozinho para a rolagem mais nova, a menos que você tenha subido
 
 ## Compor uma rolagem
 
-Embaixo do painel da Mesa fica a **bandeja de dados** — o botão **Compor rolagem** a abre e fecha (no celular ela começa fechada; o botão está sempre à vista). Ela serve para montar uma rolagem sem digitar, como a bandeja de dados do Foundry ou o compositor do Rolai:
+Logo abaixo do campo de mensagem fica a **bandeja de dados**: uma fila só, de botões pequenos, como a do módulo Dice Tray do Foundry. Ela monta uma rolagem sem digitar — e a escreve **no próprio campo de mensagem**:
 
-1. **Clique num dado** — d2, d3, d4, d6, d8, d10, d12, d20, d66, d100 ou dF — e ele é **somado à rolagem**, que aparece como notação: dois cliques no d6 e um no d20 dão `2d6+1d20`. Clicar **não rola**.
-2. O **−** no canto de um dado tira um; o **×** da ficha da rolagem tira o tipo inteiro. O passo **Mod** soma ou tira um modificador (`2d6+1d20+2`). **Limpar** esvazia tudo.
-3. Aperte **Rolar** (ou Enter no campo): a rolagem vai para o registro como se você tivesse escrito `/r 2d6+1d20+2` — rolada pelo servidor num UniVerso, os dados 3D e o som, o botão **Secreta** respeitado (o botão passa a dizer *Rolar em segredo*). Sem servidor, a sua janela rola e o registro guarda.
+1. **Clique num dado** — d4, d6, d8, d10, d12 ou d20 — e o campo passa a ter `/r 1d6`; mais um clique no d6 e um no d20 dão `/r 2d6+1d20`. Uma bolinha no dado mostra quantos dele estão na rolagem. Clicar **não rola**. Os outros dados (d2, d3, d66, d100 e dF) ficam atrás do botão **⋯**.
+2. **Botão direito** num dado tira um (no teclado: `Shift+Enter`, `Delete` ou `Backspace` no dado; no celular, segure o dedo nele). `Enter` num dado soma um.
+3. O pequeno campo **numérico** (o `0`) é o modificador: digite, use as setas `↑` `↓` ou a roda do mouse, de −99 a +99 (`/r 2d6+1d20+2`).
+4. **KH** e **KL** são vantagem e desvantagem, como no Foundry: sobre `/r 1d20`, **KH** dá `/r 2d20kh1` (dois dados, fica o maior) e **KL** dá `/r 2d20kl1` (fica o menor). Clicar no mesmo de novo desfaz; clicar no outro troca. O botão aceso é o que está valendo.
+5. Aperte o botão do **dado** no fim da fila (ou `Enter` no campo): a rolagem vai para o registro — rolada pelo servidor num UniVerso, os dados 3D e o som, o botão **Secreta** respeitado (o botão passa a dizer *Rolar em segredo*). Sem servidor, a sua janela rola e o registro guarda.
 
-O campo de **notação** é editável, e é ele que vale: digite `4d6kh3` ou `1d20+5` e role. O que os botões não sabem mostrar (manter o maior, re-rolagem) continua como você digitou; um dado clicado depois recomeça a rolagem a partir dele. O que o Verso não lê é dito ali mesmo, e nada é rolado.
+O **campo de mensagem** é editável, e é ele que vale: digite `/r 4d6kh3` e as bolinhas acompanham o que os botões sabem mostrar; o que não sabem (manter 3 de 4, re-rolagem) continua como você digitou, e um dado clicado depois recomeça a rolagem a partir dele. O que o Verso não lê é dito logo abaixo do campo, e nada é rolado. Esvaziar o campo limpa a rolagem.
+
+O campo é grande e de várias linhas: `Shift+Enter` quebra a linha, `Enter` envia, e as quebras aparecem no registro para todos. Uma rolagem `/r` vale pela primeira linha.
 
 ### Rolagens salvas
 
-Dentro da bandeja fica a linha **Rolagens salvas**: cada linha de uma nota que tenha um código `dice:` vira um botão. A nota é uma nota comum da pasta — a sua ficha, ou uma `Rolagens.md` — e segue você em qualquer aparelho. Uma lista de exemplo (escolha **esta nota** em **Escolher nota…** e os três aparecem como botões):
+O **marcador** da fila abre as **Rolagens salvas**: cada linha de uma nota que tenha um código `dice:` vira um botão. A nota é uma nota comum da pasta — a sua ficha, ou uma `Rolagens.md` — e segue você em qualquer aparelho. Uma lista de exemplo (escolha **esta nota** em **Escolher nota…** e os três aparecem como botões):
 
 - Ataque da Bia: `dice: 1d20+7`
 - Dano da espada: `dice: 1d8+4`
 - Iniciativa: `dice: 1d20+2`
 
 1. O nome do botão é o texto da linha sem o marcador de lista e sem os dois-pontos do fim; uma linha só com o código leva a notação por nome.
-2. **Clicar num botão não rola:** ele põe a notação no campo, e você soma um modificador (o passo **Mod**) e aperta **Rolar**.
+2. **Clicar num botão não rola:** ele escreve `/r` e a notação no campo, e você soma um modificador (o campo numérico) e aperta o botão do dado.
 3. Num UniVerso, quem joga encontra sozinho a nota **concedida só a essa pessoa** (a ficha); o mestre pode deixar rolagens prontas nela. Em outros casos, **Escolher nota…** (ou **Nota: …**, para trocar) abre o seletor de notas; a escolha fica guardada neste navegador, por pasta.
 4. **Salvar**: monte a rolagem, dê um nome e aperte **Salvar** — a linha `` - Nome: `dice: …` `` é acrescentada à nota (no fim da seção *Rolagens*, se ela tiver uma). Quem só lê a nota não vê o botão. A lista acompanha a nota quando ela muda.
 
@@ -67,9 +71,9 @@ Quem abriu a mesma pasta de um UniVerso, em qualquer nota, está **na mesma mesa
 No pé do painel há o campo **Escreva para a mesa…**:
 
 - **Mensagens.** Escreva e aperte **Enter** (Shift+Enter quebra a linha). Texto simples, até **500 caracteres**; perto do limite aparece um contador. Um `[[link]]` para uma nota da pasta vira link.
-- **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem. O botão do dado abre o rolador, que também rola na mesa.
-- **Secreta.** Com **Secreta** ligado, a rolagem é só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
-- **Imagens.** O botão de imagem, ou colar ou soltar uma imagem sobre o painel, envia **PNG, JPEG, WebP ou GIF** (até 10 MB). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
+- **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem — ou monte a rolagem na fila de dados logo abaixo, como acima.
+- **Secreta.** Na fila de dados, o seletor **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
+- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
 
 Cada linha tem o botão **⋯**:
 

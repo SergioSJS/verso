@@ -27,26 +27,30 @@ The log scrolls to the newest roll on its own, unless you scrolled up to read ol
 
 ## Composing a roll
 
-At the foot of the Table panel is the **dice tray** — the **Compose a roll** button opens and closes it (on a phone it starts closed; the button is always in sight). It puts a roll together without typing, like Foundry's dice tray or Rolai's composer:
+Right under the message field is the **dice tray**: a single row of small buttons, like the Dice Tray module of Foundry. It puts a roll together without typing — and writes it **into the message field itself**:
 
-1. **Click a die** — d2, d3, d4, d6, d8, d10, d12, d20, d66, d100 or dF — and it is **added to the roll**, shown as notation: two clicks on the d6 and one on the d20 make `2d6+1d20`. Clicking **does not roll**.
-2. The **−** on a die's corner takes one off; the **×** on the roll's chip takes the whole kind off. The **Mod** stepper adds or takes off a modifier (`2d6+1d20+2`). **Clear** empties it all.
-3. Press **Roll** (or Enter in the field): the roll goes to the log as if you had written `/r 2d6+1d20+2` — rolled by the server on a UniVerso, with the 3D dice and the sound, and the **Secret** toggle respected (the button then says *Roll in secret*). With no server, your window rolls it and the log keeps it.
+1. **Click a die** — d4, d6, d8, d10, d12 or d20 — and the field holds `/r 1d6`; one more click on the d6 and one on the d20 give `/r 2d6+1d20`. A small badge on the die says how many of it are in the roll. Clicking **does not roll**. The other dice (d2, d3, d66, d100 and dF) are behind the **⋯** button.
+2. **Right click** a die to take one off (from the keyboard: `Shift+Enter`, `Delete` or `Backspace` on the die; on a phone, hold your finger on it). `Enter` on a die adds one.
+3. The small **number** field (the `0`) is the modifier: type, use the `↑` `↓` arrows or the mouse wheel, from −99 to +99 (`/r 2d6+1d20+2`).
+4. **KH** and **KL** are advantage and disadvantage, as in Foundry: over `/r 1d20`, **KH** gives `/r 2d20kh1` (two dice, keep the highest) and **KL** gives `/r 2d20kl1` (keep the lowest). The same button again undoes it; the other switches. The lit button is the one in force.
+5. Press the **dice** button at the end of the row (or `Enter` in the field): the roll goes to the log — rolled by the server in a UniVerso, with the 3D dice and the sound, the **Secret** button respected (the button then says *Roll in secret*). With no server your window rolls and the log keeps it.
 
-The **notation** field is editable, and it is the one that counts: type `4d6kh3` or `1d20+5` and roll. What the buttons cannot show (keep the highest, re-roll) stays as you typed it; a die clicked afterwards starts the roll again from that die. What Verso does not read is said right there, and nothing is rolled.
+The **message field** is editable, and it is what counts: type `/r 4d6kh3` and the badges follow what the buttons know how to show; what they do not (keep 3 of 4, re-roll) stays as you typed it, and a die clicked afterwards starts the roll again from it. What Verso cannot read is said right under the field, and nothing is rolled. Emptying the field clears the roll.
+
+The field is big and has several lines: `Shift+Enter` breaks the line, `Enter` sends, and the breaks show in the log for everyone. A `/r` roll is its first line.
 
 ### Saved rolls
 
-Inside the tray is the **Saved rolls** row: every line of a note that holds a `dice:` code becomes a button. The note is an ordinary note of the folder — your sheet, or a `Rolls.md` — and it follows you to any device. An example list (pick **this note** with **Choose note…** and the three show up as buttons):
+The row's **bookmark** opens the **Saved rolls**: every line of a note that holds a `dice:` code becomes a button. The note is an ordinary note of the folder — your sheet, or a `Rolls.md` — and it follows you to any device. An example list (pick **this note** with **Choose note…** and the three show up as buttons):
 
 - Bia's attack: `dice: 1d20+7`
 - Sword damage: `dice: 1d8+4`
 - Initiative: `dice: 1d20+2`
 
-1. A button's name is the line's text without the list marker and the trailing colon; a line with only the code is named by its notation.
-2. **Clicking a button does not roll:** it puts the notation in the field, and you add a modifier (the **Mod** stepper) and press **Roll**.
-3. On a UniVerso, a player finds the note **granted to that person alone** (their sheet) by itself; the game master can leave rolls ready in it. Otherwise, **Choose note…** (or **Note: …**, to change it) opens the note picker; the choice is kept in this browser, per folder.
-4. **Save**: put a roll together, give it a name and press **Save** — the line `` - Name: `dice: …` `` is appended to the note (at the end of its *Rolagens* or *Rolls* section, if it has one). Someone who only reads the note does not see the button. The list follows the note when it changes.
+1. The button's name is the line's text without the list marker and the trailing colon; a line with only the code carries the notation as its name.
+2. **Clicking a button does not roll:** it writes `/r` and the notation in the field, and you add a modifier (the number field) and press the dice button.
+3. In a UniVerso, a player finds by itself the note **granted to that person alone** (the sheet); the game master can leave ready rolls in it. Otherwise, **Choose note…** (or **Note: …**, to change it) opens the note picker; the choice is kept in this browser, per folder.
+4. **Save**: put a roll together, give it a name and press **Save** — the line `` - Name: `dice: …` `` is added to the note (at the end of the *Rolls* section, if it has one). Someone who only reads the note does not see the button. The list follows the note when it changes.
 
 ---
 
@@ -67,9 +71,9 @@ Everyone who has the same UniVerso folder open, in any note, is **at the same ta
 At the foot of the panel is the **Write to the table…** field:
 
 - **Messages.** Type and press **Enter** (Shift+Enter breaks the line). Plain text, up to **500 characters**; a counter shows near the limit. A `[[link]]` to a note of the folder is a link.
-- **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see. The dice button opens the roller, which also rolls at the table.
-- **Secret.** With **Secret** on, the roll is yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
-- **Images.** The image button, or pasting or dropping an image on the panel, sends a **PNG, JPEG, WebP or GIF** (up to 10 MB). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
+- **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see — or put the roll together in the dice row right below, as above.
+- **Secret.** In the dice row, the **Public / Secret** selector (Foundry's and Roll20's roll mode: who sees the roll) set to **Secret** makes the roll yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
+- **Images.** **Paste** straight into the field: copy an image or take a screenshot and press `Ctrl+V` / `⌘V`, or right click › **Paste**, or, on a phone, hold your finger on the field › **Paste**; dropping an image on the panel works too, and the paperclip in the field picks from the gallery. The image waits in the field as a thumbnail with an **×** to take it out; `Enter` sends it (the image first, then the text, if any). It takes a **PNG, JPEG, WebP or GIF** (up to 10 MB; a GIF stays animated in the log). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
 
 Every line has a **⋯** button:
 
