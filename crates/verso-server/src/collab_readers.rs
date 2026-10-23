@@ -66,15 +66,35 @@ impl Readers {
     }
 }
 
-/// Whether `text` holds a secret block.
-fn secret_in(text: &str) -> bool {
-    !verso_core::secret::Secrets::of(text).is_empty()
+/// The text the readers of `r` are served for `text`: its projection
+/// (ADR 0087), and, in a table, with the links to notes not released
+/// drawn as text (ADR 0110 item 7). Fails closed: a table's text that
+/// cannot be veiled is served empty.
+fn shown_to_readers(server: &Server, r: &Room, text: &str) -> String {
+    let projected = verso_core::secret::project(text).into_owned();
+    let Some(veil) = crate::campaign::veil_for_key(server, &r.key) else {
+        return projected;
+    };
+    let path = r.path.clone();
+    let basis = projected.clone();
+    server
+        .service
+        .with_key(&r.key, move |ws| {
+            Ok(crate::campaign_serve::device_text(ws, &veil, &path, &basis))
+        })
+        .map_or_else(|_| String::new(), |v| v.unwrap_or(projected))
+}
+
+/// Whether the readers of `r` are served something other than `text`: it
+/// holds a secret block, or a link a table's veil draws as text.
+fn secret_in(server: &Server, r: &Room, text: &str) -> bool {
+    !verso_core::secret::Secrets::of(text).is_empty() || shown_to_readers(server, r, text) != text
 }
 
 /// Split `r` over `text`, its text now: the shadow made of the projection.
-fn split(r: &mut Room, text: &str) -> Result<(), ContractError> {
+fn split(server: &Server, r: &mut Room, text: &str) -> Result<(), ContractError> {
     r.readers.split = true;
-    let shown = verso_core::secret::project(text);
+    let shown = shown_to_readers(server, r, text);
     r.readers.shadow = Some(holding(new_doc(), &shown));
     r.readers.epoch = crate::crypto::id().map_err(verso_service::failed)?;
     Ok(())
@@ -90,10 +110,10 @@ pub fn guard(server: &Server, r: &mut Room) {
         return;
     }
     let text = text_of(&r.doc);
-    if !secret_in(&text) {
+    if !secret_in(server, r, &text) {
         return;
     }
-    if let Err(e) = split(r, &text) {
+    if let Err(e) = split(server, r, &text) {
         // No shadow: the readers still leave the document (fails closed).
         crate::log::warn(&format!("a room's readers' document: {}", e.message));
     }
@@ -123,10 +143,10 @@ pub fn join(
     }
     if !r.readers.split {
         let text = text_of(&r.doc);
-        if !secret_in(&text) {
+        if !secret_in(server, r, &text) {
             return Ok(None);
         }
-        split(r, &text)?;
+        split(server, r, &text)?;
     }
     let Some(shadow) = r.readers.shadow.as_ref() else {
         return Err(verso_service::failed(
@@ -167,7 +187,7 @@ pub fn written(server: &Server, r: &mut Room) {
     if to.is_empty() {
         return;
     }
-    let shown = verso_core::secret::project(&r.saved).into_owned();
+    let shown = shown_to_readers(server, r, &r.saved);
     let Some(shadow) = r.readers.shadow.as_ref() else {
         return;
     };
@@ -288,6 +308,44 @@ pub fn demoted(server: &Server, client: &str) {
     for path in paths {
         server.push(
             &to,
+            &event("collab-closed", &path, "revision", &json!(null)),
+        );
+    }
+}
+
+/// A table's state changed (a release, a hide, a table made or undone):
+/// the readers of every room of `key` leave the document they hold, told
+/// each closed, so that they read the note again and join anew over the
+/// text the veil now leaves (ADR 0110 item 4). A room that was split
+/// stays split (a document that once held a secret may hold it in its
+/// history), its shadow made again from the text now.
+pub fn veil_changed(server: &Server, key: &str) {
+    let rooms: Vec<_> = lock(&server.rooms.map)
+        .iter()
+        .filter(|((k, _), _)| k == key)
+        .map(|(_, room)| std::sync::Arc::clone(room))
+        .collect();
+    for room in rooms {
+        let mut r = lock(&room);
+        if r.kind != Kind::Note {
+            continue;
+        }
+        if r.readers.split {
+            let text = text_of(&r.doc);
+            if let Err(e) = split(server, &mut r, &text) {
+                crate::log::warn(&format!("a room's readers' document: {}", e.message));
+            }
+        }
+        if r.readers.clients.is_empty() {
+            continue;
+        }
+        let out: Vec<String> = r.readers.clients.drain().collect();
+        for c in &out {
+            r.clients.remove(c);
+        }
+        let path = r.path.clone();
+        server.push(
+            &out,
             &event("collab-closed", &path, "revision", &json!(null)),
         );
     }

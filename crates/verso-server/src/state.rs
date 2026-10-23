@@ -358,6 +358,8 @@ pub struct Server {
     /// (`crate::quota`).
     pub reserved: crate::quota::Reserved,
     pub rooms: crate::collab::Rooms,
+    /// The tables of the folders, as players are served them (ADR 0110).
+    pub campaigns: crate::campaign::Cache,
     /// The windows at each folder's table (ADR 0107).
     pub tables: crate::table::Tables,
     /// The pace of a connection's table messages, images and rolls (ADR
@@ -466,6 +468,7 @@ impl Server {
             transfers: crate::sync::Transfers::default(),
             reserved: crate::quota::Reserved::default(),
             rooms: crate::collab::Rooms::default(),
+            campaigns: crate::campaign::Cache::default(),
             tables: crate::table::Tables::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),

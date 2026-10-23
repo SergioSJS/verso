@@ -10,7 +10,7 @@
 //! who may only read the folder writes no file, so sends no image; the
 //! message is refused before it is parsed (`inflight.rs`) and again here.
 //! The bytes are judged by their first bytes, not a name: PNG, JPEG, WebP
-//! or GIF, at most [`IMAGE_BYTES`](crate::table::IMAGE_BYTES), never an
+//! or GIF, at most the table's limit ([`IMAGE_BYTES`](crate::table::IMAGE_BYTES) by default), never an
 //! SVG. The file is served by the folder's file route with its own type
 //! and `nosniff` (ADR 0083 items 8 and 9).
 
@@ -25,7 +25,7 @@ use crate::auth::Who;
 use crate::db::Role;
 use crate::rpc::{blocking, to_value};
 use crate::state::Server;
-use crate::table::{IMAGE_BYTES, image_ext};
+use crate::table::image_ext;
 
 /// The folder's attachments place when the folder names none.
 const PLACE: &str = "attachments";
@@ -47,20 +47,23 @@ pub async fn send(
     (folder, role): (&str, Role),
     data: &str,
 ) -> Result<Value, ContractError> {
-    // Base64 takes four characters for three bytes: judged before decoding.
-    if data.len() > IMAGE_BYTES / 3 * 4 + 8 {
+    // The table's own limit (ADR 0110, MS.1), its default when the folder
+    // is no table. Base64 takes four characters for three bytes: judged
+    // before decoding.
+    let limit = crate::campaign::image_limit(server, folder);
+    if data.len() > limit / 3 * 4 + 8 {
         return Err(refused(&format!(
             "an image is at most {} MB",
-            IMAGE_BYTES / (1024 * 1024)
+            limit / (1024 * 1024)
         )));
     }
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data)
         .map_err(|_| refused("the bytes are not base64"))?;
-    if bytes.len() > IMAGE_BYTES {
+    if bytes.len() > limit {
         return Err(refused(&format!(
             "an image is at most {} MB",
-            IMAGE_BYTES / (1024 * 1024)
+            limit / (1024 * 1024)
         )));
     }
     let ext = image_ext(&bytes).ok_or_else(|| refused("a PNG, JPEG, WebP or GIF image"))?;

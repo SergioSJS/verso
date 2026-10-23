@@ -123,6 +123,30 @@ fn failed(e: impl std::fmt::Display) -> ContractError {
 /// what the viewer is not told, a secret roll without its content for those
 /// it was not rolled to.
 fn view(row: &TableRow, viewer: &str, role: Role) -> Option<TableEntry> {
+    view_in(row, viewer, role, None)
+}
+
+/// [`view`] in a folder with a table (ADR 0110 item 4): a reader is not
+/// told the note a roll was made from when the table has not released it.
+fn view_in(
+    row: &TableRow,
+    viewer: &str,
+    role: Role,
+    veil: Option<&crate::campaign::Veil>,
+) -> Option<TableEntry> {
+    let mut entry = view_masked(row, viewer, role)?;
+    if let (Some(veil), Role::Reader) = (veil, role)
+        && entry.path.as_deref().is_some_and(|p| veil.hides_note(p))
+    {
+        entry.path = None;
+        if let Some(roll) = entry.roll.as_mut() {
+            roll.source = None;
+        }
+    }
+    Some(entry)
+}
+
+fn view_masked(row: &TableRow, viewer: &str, role: Role) -> Option<TableEntry> {
     if row.readers_hidden && role == Role::Reader {
         return None;
     }
@@ -160,7 +184,8 @@ pub(crate) fn image_entry(
     (account, name): (&str, &str),
     path: &str,
 ) -> Result<TableRow, ContractError> {
-    append(
+    // The image is a file the table shows: its veil is made again.
+    let made = append(
         server,
         folder,
         New {
@@ -175,7 +200,9 @@ pub(crate) fn image_entry(
                 ..Body::default()
             },
         },
-    )
+    );
+    crate::campaign::forget(server, folder);
+    made
 }
 
 /// The account and role of window `client` in `folder` now.
@@ -205,7 +232,8 @@ fn tell_row(server: &Server, folder: &str, row: &TableRow) {
         let Some((account, role)) = viewer_of(server, &client, folder) else {
             continue;
         };
-        if let Some(entry) = view(row, &account, role) {
+        let veil = crate::campaign::veil_of(server, folder);
+        if let Some(entry) = view_in(row, &account, role, veil.as_deref()) {
             server.push(
                 &[client],
                 &json!({ "event": "table-entry", "payload": entry }),
@@ -536,6 +564,7 @@ pub async fn command(
                 })
                 .transpose()?;
             let limit = i64::from(limit.unwrap_or(50)).clamp(1, PAGE_MOST);
+            let veil = crate::campaign::veil_of(&s, &folder);
             let (rows, more) = blocking(move || {
                 s.db.table_page(&folder, before, limit, role == Role::Reader)
                     .map_err(failed)
@@ -543,7 +572,7 @@ pub async fn command(
             .await?;
             let mut entries: Vec<TableEntry> = rows
                 .iter()
-                .filter_map(|r| view(r, &account, role))
+                .filter_map(|r| view_in(r, &account, role, veil.as_deref()))
                 .collect();
             entries.reverse();
             to_value(TablePage { entries, more })
@@ -722,6 +751,7 @@ fn join(
     role: Role,
 ) -> Result<TableJoin, ContractError> {
     let readers = role == Role::Reader;
+    let veil = crate::campaign::veil_of(server, folder);
     let (latest, more) = server
         .db
         .table_page(folder, None, JOIN_ENTRIES, readers)
@@ -733,7 +763,10 @@ fn join(
     Ok(TableJoin {
         you: account.to_owned(),
         role: role.as_str().to_owned(),
-        entries: rows.iter().filter_map(|r| view(r, account, role)).collect(),
+        entries: rows
+            .iter()
+            .filter_map(|r| view_in(r, account, role, veil.as_deref()))
+            .collect(),
         more,
         roster: roster(server, folder),
     })
