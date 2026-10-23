@@ -24,7 +24,7 @@ import { settings } from "../settings";
 import { announce } from "./addToNote";
 import { stylesOf, type ServerTable, type TableEntry } from "./model";
 import { local, setTableSource, tableOn, tableOnScreen } from "./record";
-import { noticeKey, reachOf, tryServerTable, type Reach, type SyncDetail } from "./reach";
+import { noticeKey, reachOf, rejoin, tryServerTable, type Reach, type SyncDetail } from "./reach";
 import { paceWait } from "./send";
 import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
@@ -124,9 +124,17 @@ export function installServerTable(): void {
   addEventListener("verso:dice-look", () => current?.look());
   // A synced folder's link up or down, its sync paused or resumed: the
   // table is joined, or left for the window's own log (ADR 0107 item 9).
+  // The same reach again, after a join answered unavailable, is tried once
+  // the states settle: a status that ticks while sending asks once.
+  let settle: ReturnType<typeof setTimeout> | undefined;
   addEventListener("verso:sync-state", (e) => {
     const next = reachOf((e as CustomEvent<SyncDetail>).detail);
-    if (next === reach) return;
+    if (!rejoin(reach, next, unavailable)) return;
+    clearTimeout(settle);
+    if (next === reach) {
+      settle = setTimeout(() => void retry(), 1500);
+      return;
+    }
     reach = next;
     void retry();
   });

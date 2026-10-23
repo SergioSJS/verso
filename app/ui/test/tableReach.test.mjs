@@ -64,3 +64,17 @@ test("coming back: down then up is a change the window joins on, the same state 
   }
   assert.deepEqual(joins, ["up", "down", "up"]);
 });
+
+test("signed in again: the reach stays up, and a join answered unavailable is tried again on the next state", () => {
+  // The session revoked: the status reads an error ("up"), the join says
+  // unavailable; signed in again, the status reads synced, still "up".
+  assert.equal(m.rejoin("up", "up", true), true);
+  // Joined: the same state again asks nothing.
+  assert.equal(m.rejoin("up", "up", false), false);
+  // Out of reach: nothing to try while it stays so.
+  assert.equal(m.rejoin("down", "down", true), false);
+  assert.equal(m.rejoin("paused", "paused", true), false);
+  // A change always is.
+  assert.equal(m.rejoin("down", "up", false), true);
+  assert.equal(m.rejoin("none", "up", false), true);
+});
