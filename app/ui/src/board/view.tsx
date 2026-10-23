@@ -28,13 +28,15 @@ import {
 } from "@excalidraw/excalidraw";
 import type { ExcalidrawElement, ExcalidrawEmbeddableElement, NonDeleted } from "@excalidraw/excalidraw/element/types";
 import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
-import { hasSecret, keptIds, mapAt, mapsOf, pinsOf } from "./maps";
+import { hasSecret, keptIds, mapsOf, pinsOf } from "./maps";
 import { mapActions, readerActions } from "./mapsActions";
 import { pageActions } from "./pageActions";
+import { dropActions } from "./dropActions";
+import { textCardActions } from "./textCard";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
 import { mapStrings } from "./mapStrings";
@@ -53,9 +55,7 @@ import {
   isNode,
   isSecret,
   MARKER,
-  isDoubleTap,
   newNode,
-  textCardAt,
   nodeData,
   nodeName,
   outlineOf,
@@ -75,7 +75,7 @@ import { type BoardState, remeasureTargets, remoteScene, stateOver } from "./roo
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost, type BoardPane } from "./types";
-import { ext, IMAGE } from "../paths";
+import { ext } from "../paths";
 import { MAC } from "../platform";
 import { fold } from "../text";
 import { fit, margined, randomId } from "./util";
@@ -729,51 +729,12 @@ function Board({
     const path = await host.pickFile();
     if (path) add(newNode("file", path, center(), randomId()));
   };
-  // A Markdown text card (a JSON Canvas text node), its text asked for at
-  // once: put at the view's centre, or where the pointer was (a double
-  // click on an empty spot). Cancelled or empty, no card is left behind.
-  const addText = async (clientX?: number, clientY?: number): Promise<void> => {
-    if (readOnly || asReader !== null) return;
-    const text = await host.prompt(s.editText, "", true);
-    if (text === null || text.trim() === "") return;
-    const [x, y] = sceneAt(clientX, clientY);
-    add(textCardAt(text, [x, y], randomId()));
-  };
-  // An empty spot, for a double click or tap: on the canvas itself, the
-  // selection tool in hand, nothing under the pointer (the click that began
-  // the double click selects what it hits), nothing being typed or drawn.
-  const emptySpot = (target: EventTarget | null): boolean => {
-    const a = api.current;
-    if (!a || readOnly || asReader !== null || host.prefs.doubleClick === "drawn") return false;
-    if (!(target instanceof HTMLCanvasElement) || !target.closest(".excalidraw")) return false;
-    const st = a.getAppState();
-    return st.activeTool.type === "selection" && !st.editingTextElement && !st.newElement && !st.multiElement && Object.keys(st.selectedElementIds).length === 0;
-  };
+  const stair = useRef({ busy: 0, next: 0 });
+  const drop = dropActions({ api, host, center, add, byId: (id) => byId(id), pin: (...a) => mapAct.pin(...a), stair, touched });
+  const { sceneAt, addPath, takeFiles, onFiles } = drop;
   const lastTap = useRef<{ at: number; x: number; y: number } | null>(null);
-  // A double tap on a touch screen: Excalidraw counts it itself, from the
-  // touches, so the second one is caught here before it gets there.
-  const onTouchStart = (ev: { touches: ArrayLike<{ clientX: number; clientY: number }>; target: EventTarget | null; stopPropagation: () => void }): void => {
-    if (ev.touches.length !== 1) {
-      lastTap.current = null;
-      return;
-    }
-    const t = ev.touches[0];
-    if (!t) return;
-    const prev = lastTap.current;
-    const now = Date.now();
-    if (isDoubleTap(prev, now, t.clientX, t.clientY)) {
-      lastTap.current = null;
-      if (emptySpot(ev.target)) {
-        ev.stopPropagation();
-        // The click a touch ends in would land on the dialog and close it:
-        // asked once the finger is up.
-        const { clientX, clientY } = t;
-        window.setTimeout(() => void addText(clientX, clientY), 350);
-      }
-      return;
-    }
-    lastTap.current = { at: now, x: t.clientX, y: t.clientY };
-  };
+  const textCard = textCardActions({ api, host, locked: () => readOnly || asReader !== null, add, sceneAt, lastTap, touched });
+  const { addText, emptySpot, onTouchStart, editText } = textCard;
   const addLink = async (): Promise<void> => {
     const url = (await host.prompt(s.linkAddress, "https://", false))?.trim();
     if (url && /^https?:\/\/\S+$/.test(url)) add(newNode("link", url, center(), randomId()));
@@ -824,18 +785,6 @@ function Board({
     if (e && n && n.type === "file") void relinkRef.current(e, n);
   }, []);
 
-  const editText = async (e: El, n: CanvasNode): Promise<void> => {
-    const a = api.current;
-    if (!a) return;
-    const next = await host.prompt(s.editText, typeof n.text === "string" ? n.text : "", true);
-    if (next === null) return;
-    touched.current = true;
-    const now = a.getSceneElementsIncludingDeleted();
-    a.updateScene({
-      elements: now.map((x) => (x.id === e.id ? newElementWith(x, { customData: { ...(x.customData ?? {}), canvas: { ...n, text: next } } }) : x)),
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-  };
 
   const selectedArrow = selected.length === 1 ? byId(selected[0] ?? "") : undefined;
   const ends = selectedArrow ? relationEnds(selectedArrow, (api.current?.getSceneElements() ?? []) as unknown as El[]) : null;
@@ -967,98 +916,9 @@ function Board({
     }
   };
 
-  // A picture or PDF dropped or pasted from outside is copied into the
-  // folder (beside the board, in the attachments folder) and shown by a
-  // file card, never kept inside the drawing (ADR 0057 point 2, ADR 0063).
-  const sceneAt = (clientX?: number, clientY?: number): [number, number] => {
-    const a = api.current;
-    if (!a || clientX === undefined || clientY === undefined) return center();
-    const p = viewportCoordsToSceneCoords({ clientX, clientY }, a.getAppState());
-    return [p.x, p.y];
-  };
-  // A picture comes in at its own proportions, its longer side as long as
-  // a new card's: a box of another shape would show the paper round it.
-  const pictureSize = async (path: string): Promise<[number, number] | null> => {
-    if (!IMAGE.test(ext(path))) return null;
-    const boxed = (w: number, h: number): [number, number] => {
-      const k = 400 / Math.max(w, h);
-      return [Math.max(40, Math.round(w * k)), Math.max(40, Math.round(h * k))];
-    };
-    // A large picture is never loaded whole to be measured: the core reads
-    // its size from the file (ADR 0090 item 4).
-    const told = host.maps ? await host.maps.open(path).catch(() => null) : null;
-    if (told && told.width > 0 && told.height > 0) return boxed(told.width, told.height);
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => (img.naturalWidth && img.naturalHeight ? resolve(boxed(img.naturalWidth, img.naturalHeight)) : resolve(null));
-      img.onerror = () => resolve(null);
-      img.src = host.fileSrc(path);
-    });
-  };
-  const addPath = async (path: string, clientX?: number, clientY?: number, nth = 0): Promise<void> => {
-    const [x, y] = sceneAt(clientX, clientY);
-    // A note dropped on a map is pinned there (ADR 0090 item 3).
-    const onMap = ext(path) === "md" ? mapAt((api.current?.getSceneElements() ?? []) as unknown as El[], x, y) : undefined;
-    const target = onMap ? byId(onMap.id) : undefined;
-    if (target) {
-      mapAct.pin(path, [x + nth * 32, y + nth * 32], target as never);
-      return;
-    }
-    const size = await pictureSize(path);
-    const node = newNode("file", path, [x + nth * 32, y + nth * 32], randomId());
-    if (size) {
-      node.x = Math.round(x + nth * 32 - size[0] / 2);
-      node.y = Math.round(y + nth * 32 - size[1] / 2);
-      [node.width, node.height] = size;
-    }
-    add(node);
-  };
   addPathRef.current = (path, clientX, clientY) => void addPath(path, clientX, clientY);
   // A text card put where something was dropped (a roll block from the table).
-  addTextRef.current = (text, clientX, clientY) => {
-    const [x, y] = sceneAt(clientX, clientY);
-    const node = newNode("text", text, [x, y], randomId());
-    node.width = 340;
-    node.height = 110;
-    node.x = Math.round(x - node.width / 2);
-    node.y = Math.round(y - node.height / 2);
-    add(node);
-  };
-  // Several files go in a staircase, also when two drops overlap: the step
-  // counts on until the last of them is in.
-  const stair = useRef({ busy: 0, next: 0 });
-  const takeFiles = async (files: File[], clientX?: number, clientY?: number): Promise<void> => {
-    const st = stair.current;
-    st.busy++;
-    try {
-      for (const f of files) {
-        if (!IMAGE.test(ext(f.name)) && ext(f.name) !== "pdf") {
-          host.status(s.imagesAsFiles);
-          continue;
-        }
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-          r.onerror = () => reject(r.error);
-          r.readAsDataURL(f);
-        });
-        const path = await host.saveImage(f.name.includes(".") ? f.name : `${f.name}.png`, base64);
-        if (path) await addPath(path, clientX, clientY, st.next++);
-      }
-    } finally {
-      if (--st.busy === 0) st.next = 0;
-    }
-  };
-  const onFiles = (ev: DragEvent | ClipboardEvent): void => {
-    touched.current = true;
-    const list = "dataTransfer" in ev ? ev.dataTransfer?.files : ev.clipboardData?.files;
-    // A card being edited takes a file as its note's text does.
-    if (!list || list.length === 0 || (ev.target as Element | null)?.closest?.(".board-card-slot.is-active")) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    const at = "dataTransfer" in ev ? ev : null;
-    void takeFiles(Array.from(list), at?.clientX, at?.clientY);
-  };
+  addTextRef.current = drop.addTextAt;
 
   // Maps (ADR 0090): the commands, the pointer on the pins, and the
   // writer's "view as a reader".
