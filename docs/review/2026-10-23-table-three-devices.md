@@ -117,7 +117,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    state is kept right; only the words are wrong.
 9. **MINOR — "join the table first"** appeared in English, under a window in
    Portuguese (the server's refusal passed through).
-10. **MINOR — Dragging an entry of the Table selects all the window's text** in
+10. **MINOR — FIXED (`ee9242e2`, branch `fix/ui-feedback`, 2026-10-23) — Dragging an entry of the Table selects all the window's text** in
     the Mac app ([28](/docs/media/test-runs/2026-10-23-mesa/28-bug-arrastar-seleciona-texto.png)).
 11. **MINOR — A reader is offered the editor.** On a note the player may only
     read, "Edit" opens the formatting bar and a caret; typing does nothing.
