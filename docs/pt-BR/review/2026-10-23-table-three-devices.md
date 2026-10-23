@@ -86,8 +86,14 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    `1ee433a1`.
 6. **MENOR — O app do Windows mostra a barra de desenho no board de uma
    leitora**, onde o navegador não mostra nenhuma; nada é gravado.
-   **Corrigido depois do teste** em `1ee433a1`: o board de uma leitora
-   sincronizada é só de ver desde o primeiro quadro.
+   `1ee433a1` corrigiu só numa pasta sincronizada; na janela do Bruno — uma
+   pasta do servidor aberta online — a barra continuou depois da correção. A
+   causa é mais ampla: uma janela do desktop pergunta o que pode fazer uma vez,
+   ao abrir, antes de mostrar a pasta do servidor, então a janela de uma
+   leitora fica com a resposta do desktop (pode gravar) e nunca diz "Você só lê
+   esta pasta." Perguntar de novo tirou a barra, mas também tirou o que é do
+   próprio desktop (nova janela, atualizações, console). Correção em andamento
+   em `fix/remote-capabilities`.
 7. **IMPORTANTE — No board, o adesivo não rola.** A ferramenta de nota da
    barra faz um adesivo desenhado, onde `dice:` fica texto simples
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); o board não tem como pôr um cartão de texto Markdown, onde as
@@ -117,6 +123,14 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
     `tests_dns_tls::the_certificate_is_checked_for_the_urls_name_not_for_the_address`
     rodou por mais de uma hora na execução completa dos testes de `verso-app`
     e passa sozinho em 16 s. É de 16/10/2026.
+
+## Novo teste depois das correções
+
+Com `a31d5eb0` no servidor e no Mac, o mestre soltou uma nota no board com a
+Ana com ele aberto: o cartão apareceu na tela dela na hora, sem reabrir, e o
+board dela não dizia mais "salvo por um Verso mais novo"
+([29](/docs/media/test-runs/2026-10-23-mesa/29-depois-mestre-mac-poe-sessao-no-board.png), [30](/docs/media/test-runs/2026-10-23-mesa/30-depois-ana-linux-board-ao-vivo.png)). A Mesa do mestre entrou na hora depois
+de o app reiniciar.
 
 ## Não testado
 
