@@ -9,7 +9,7 @@ status: active
 
 # The Table
 
-In a game nobody rolls inside a single note: the game master rolls from a monster's statblock, a player from their character, someone asks the oracle from the session note. The **Table** puts it all in one place: **one log** of every roll, random-table roll and oracle question, with who made it, when and from which note. It lives in the **right panel**, beside Outline and Links, and nothing is written to any file because of it.
+In a game nobody rolls inside a single note: the game master rolls from a monster's statblock, a player from their character, someone asks the oracle from the session note. The **Table** puts it all in one place: **one log** of every roll, random-table roll and oracle question, with who made it, when and from which note. It lives in the **right panel**, beside Outline and Links, and nothing is written to any file because of it, except an image you send yourself.
 
 ---
 
@@ -31,7 +31,30 @@ In a shared note of a UniVerso, when someone else rolls, the roll arrives with *
 
 With **3D dice** on, other people's rolls also fall in 3D on your screen. To keep only your own, turn off **Show others' rolls in 3D** in **Settings › RPG & Solo Play › Dice and RPG**.
 
-> In this version the Table shows your rolls and the ones you hear in shared notes **this session**; it is not kept. One Table for everyone in the folder, kept on the server, comes later.
+In a folder that is **not** a UniVerso's (only on your computer), the Table shows your rolls and the ones you hear in shared notes **this session**, and says it is neither shared nor kept. In a UniVerso folder it is **everyone's table**: see below.
+
+---
+
+## Everyone's table, on a UniVerso
+
+Everyone who has the same UniVerso folder open, in any note, is **at the same table**. The top of the panel shows **who is there now**, each person in their cursor's colour. Everyone's rolls enter here, rolled **once**, by the server, with its name and its time, and the log is **kept** on the server with no expiry: whoever joins later sees what happened.
+
+At the foot of the panel is the **Write to the table…** field:
+
+- **Messages.** Type and press **Enter** (Shift+Enter breaks the line). Plain text, up to **500 characters**; a counter shows near the limit. A `[[link]]` to a note of the folder is a link.
+- **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see. The dice button opens the roller, which also rolls at the table.
+- **Secret.** With **Secret** on, the roll is yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
+- **Images.** The image button, or pasting or dropping an image on the panel, sends a **PNG, JPEG, WebP or GIF** (up to 10 MB). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone who only reads the folder sends no images.
+
+Every line has a **⋯** button:
+
+- **Pin** puts the line in a **Pinned** list at the top, for everyone, until someone chooses **Unpin**.
+- **Delete** removes a message or an image: its author deletes their own, an owner any. A **roll never** is, so nobody re-rolls and hides the first one.
+- **Add to note…** works for messages and images too (an image goes in as an embed of its file).
+
+An owner also has **⋯ › Clear the table**: it asks first, with **Keep the pinned entries** ticked, and empties the table for everyone. And **See earlier** brings older lines, a page at a time.
+
+In **Settings › Notifications**, the **Table** kind tells you of a message or a roll by someone else while the panel is closed; it starts **off**.
 
 ---
 
