@@ -543,10 +543,44 @@ Rolai, e os dados 3D o mostram com o desenho comum de reserva; um modificador se
 dados na rolagem não é escrito (regra do Rolai); a rolagem não é esvaziada ao
 rolar; a linha de erro da bandeja, não o registro, diz o que não pôde ser rolado.
 
-**Pergunta em aberto.** Rolagens salvas ou nomeadas (um botão "Ataque da Bia"
-que rola `1d20+7`): o Rolai não tem e nada aqui as decide. Se a Mesa deve
-guardá-las, onde (a pasta, os ajustes, a ficha) e se são compartilhadas, é o
-mantenedor quem responde.
+**Rolagens salvas (decidido pelo mantenedor, 2026-10-23).** Perguntado se a
+Mesa deve guardar rolagens salvas ou nomeadas ("Ataque da Bia"), o mantenedor
+respondeu *"Sim"* e, para onde, a opção B, escrita para ele assim: *"Numa nota da
+pasta (ex.: `Rolagens.md` ou a própria ficha do personagem): cada linha
+`` `dice: 1d20+7` `` com um nome vira um botão na bandeja. Segue a pessoa em
+qualquer aparelho, o mestre pode deixar prontas, o Obsidian lê, e quem vê
+segue a permissão da nota"*, com a recomendação de *a bandeja lendo da ficha que
+a pessoa tem acesso*. Construído: a bandeja tem a linha **Rolagens salvas**.
+Uma rolagem salva é uma linha da nota de origem com um código `dice:` em linha
+(ADR 0088); o nome é o texto da linha sem o código, sem o marcador de lista,
+tarefa, citação ou título e sem os dois-pontos do fim
+(``- Ataque da Bia: `dice: 1d20+7` `` é *Ataque da Bia*); uma linha só com o
+código leva a notação por nome. Um clique preenche o campo de notação do
+compositor e não rola ("não é pra rolar com click, é pra compor"). **Salvar**
+acrescenta `` - <nome>: `dice: <notação>` `` à nota pela escrita comum: a sala
+quando a nota está ao vivo, senão o arquivo sobre a revisão que foi lida
+(invariante 11), recusada sem permissão de escrita (quem só lê não vê o Salvar;
+uma recusa é dita na linha de erro da bandeja). A linha lê a nota pelo contrato
+(`read_note`; ler nunca a reescreve) e a lê de novo quando a pasta avisa de uma
+mudança.
+
+Escolhido no código, para o mantenedor confirmar ou mudar: a nota de origem é,
+por padrão numa mesa de campanha, a nota concedida só a esse jogador; para o
+mestre, a mesa local ou um jogador sem essa concessão, uma nota que a pessoa
+escolhe em **Escolher nota…** (o seletor rápido do app), lembrada por pasta no
+armazenamento deste navegador; a escolha da pessoa vale mais que a concessão; a
+escrita de um jogador só vai aonde a concessão da nota deixa. Uma linha com
+vários códigos dá um botão para cada, nomeado com as palavras antes do primeiro
+código e a notação. Uma repetição do mesmo nome e notação é listada uma vez;
+código num bloco cercado é código; uma linha de tabela é nomeada pelas células
+sem o código. **Salvar** põe a linha no fim da seção "Rolagens" / "Rolls" /
+"Saved rolls" da nota, se ela tiver uma, senão no fim da nota, juntando-se a uma
+lista final de rolagens e depois de uma linha em branco nos outros casos; um
+título nunca é criado. Rolagens de tabela (``dice: [[Nota^id]]``) não são
+listadas: a bandeja rola uma notação, e uma rolagem de tabela precisa da tabela
+da nota lida, que o cartão de dados guarda (um passo futuro). A entrada do
+registro não leva o nome: o caminho da rolagem não tem campo de rótulo e
+nenhum foi acrescentado ao contrato.
 
 ## Situação
 

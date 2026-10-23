@@ -18,6 +18,7 @@ import { keyboardInset, onViewport } from "../screen/viewport";
 import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
+import { SavedRolls } from "./savedPanel";
 
 const KEPT = "verso.tableTray";
 
@@ -53,6 +54,7 @@ export class Tray {
   private readonly clear = h("button", "ghost composer-clear");
   private readonly field = h("input", "notation-input");
   private readonly go = h("button", "save composer-go");
+  private readonly saved: SavedRolls;
   private readonly secretNote = h("p", "table-tray-secret");
   private readonly error = h("p", "table-tray-error");
   private readonly slots: Slot[] = [];
@@ -117,11 +119,21 @@ export class Tray {
       void this.submit();
     });
 
+    this.error.hidden = true;
+    this.error.setAttribute("role", "alert");
+    this.saved = new SavedRolls(
+      (notation) => this.set(notation),
+      () => this.notation,
+      (text) => {
+        this.error.hidden = text === null;
+        if (text !== null) this.error.textContent = text;
+      },
+    );
     this.secretNote.hidden = true;
     this.secretNote.textContent = ts.secretOn;
     this.error.hidden = true;
     this.error.setAttribute("role", "alert");
-    this.body.append(this.pool, this.grid, row, send, this.secretNote, this.error);
+    this.body.append(this.pool, this.grid, row, this.saved.el, send, this.secretNote, this.error);
     this.el.append(this.toggle, this.body);
     this.setOpen(this.open, false);
     this.paint();
@@ -197,6 +209,7 @@ export class Tray {
   /** The secret toggle as it stands, for a server's table; the local one has none. */
   sync(src: TableSource): void {
     const secret = isServerTable(src) && src.secret;
+    this.saved.sync();
     this.secretNote.hidden = !secret;
     this.go.classList.toggle("secret", secret);
     const word = secret ? ts.rollSecret : ts.roll;
@@ -235,6 +248,7 @@ export class Tray {
     this.mod.value = String(base.modifier);
     this.clear.disabled = empty && this.notation.trim() === "";
     this.go.disabled = this.busy || this.notation.trim() === "";
+    this.saved.paintSave();
   }
 
   private chipRemove(label: string, run: () => void): HTMLButtonElement {
