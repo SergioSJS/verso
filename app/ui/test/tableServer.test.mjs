@@ -80,39 +80,43 @@ test("the server's pace refusal gives the seconds to wait", () => {
 /* ---------- the source ---------- */
 
 const styles = { 1: { body: "#112233", number: "#ffffff", outline: "#000000", texture: "none", material: "plastic" }, 2: { body: "#112233", number: "#ffffff", outline: "#000000", texture: "none", material: "plastic" }, 3: { body: "#112233", number: "#ffffff", outline: "#000000", texture: "none", material: "plastic" } };
-const wire = (id, over = {}) => ({ id: String(id), kind: "say", by: "Bia", by_id: "acc-bia", at: `2026-10-22T12:00:${String(id % 60).padStart(2, "0")}Z`, path: null, pinned: false, secret: false, roll: null, draw: null, text: `msg ${id}`, image: null, ...over });
+const wire = (id, over = {}) => ({ table: "", id: String(id), kind: "say", by: "Bia", by_id: "acc-bia", at: `2026-10-22T12:00:${String(id % 60).padStart(2, "0")}Z`, path: null, pinned: false, secret: false, roll: null, draw: null, text: `msg ${id}`, image: null, ...over });
 const rollWire = (id, over = {}) => wire(id, { kind: "roll", text: null, roll: { notation: "1d20+3", source: null, terms: [{ sign: 1, sides: 20, fudge: false, kept: [14], dropped: [] }], modifier: 3, total: 17, by: "Bia", at: "2026-10-22T12:00:00Z", styles }, ...over });
 
-function fake({ role = "editor", entries = [], more = false, roster, joinFails = false } = {}) {
+function fake({ role = "editor", entries = [], more = false, roster, joinFails = false, table = "" } = {}) {
   const calls = [];
+  /** The table each command named, in order. */
+  const named = [];
   const handlers = new Map();
   const unlistened = [];
   const ok = (data) => Promise.resolve({ status: "ok", data });
   const api = {
-    join: (color, st) => {
+    join: (color, st, tb) => {
       calls.push(["join", color, st]);
+      named.push(tb);
       if (joinFails) return ok(null).then(() => ({ status: "error", error: { kind: "refused", message: "the table is a server's" } }));
-      return ok({ you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }] });
+      return ok({ table, you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }] });
     },
-    leave: () => (calls.push(["leave"]), ok(null)),
-    look: (color, st) => (calls.push(["look", color, st]), ok(null)),
-    history: (before, limit) => {
+    leave: (tb) => (calls.push(["leave"]), named.push(tb), ok(null)),
+    look: (color, st, tb) => (calls.push(["look", color, st]), named.push(tb), ok(null)),
+    history: (before, limit, tb) => {
       calls.push(["history", before, limit]);
+      named.push(tb);
       return ok({ entries: [wire(1), wire(2)], more: false });
     },
-    say: (text) => (calls.push(["say", text]), ok(wire(90, { by: "Ana", by_id: "acc-ana", text }))),
+    say: (text, tb) => (calls.push(["say", text]), named.push(tb), ok(wire(90, { by: "Ana", by_id: "acc-ana", text }))),
     sendImage: () => ok(wire(91, { kind: "image", text: null, image: "attachments/x.png", by: "Ana", by_id: "acc-ana" })),
-    roll: (n, s, p, secret, st) => (calls.push(["roll", n, s, p, secret, st]), ok(rollWire(92, { by: "Ana", by_id: "acc-ana", secret: secret === true }))),
-    pin: (id, pinned) => (calls.push(["pin", id, pinned]), ok(null)),
-    del: (id) => (calls.push(["del", id]), ok(null)),
-    clear: (keep) => (calls.push(["clear", keep]), ok(null)),
+    roll: (n, s, p, secret, st, occ, tb) => (calls.push(["roll", n, s, p, secret, st]), named.push(tb), ok(rollWire(92, { by: "Ana", by_id: "acc-ana", secret: secret === true }))),
+    pin: (id, pinned, tb) => (calls.push(["pin", id, pinned]), named.push(tb), ok(null)),
+    del: (id, tb) => (calls.push(["del", id]), named.push(tb), ok(null)),
+    clear: (keep, tb) => (calls.push(["clear", keep]), named.push(tb), ok(null)),
     listen: (event, fn) => {
       handlers.set(event, fn);
       return Promise.resolve(() => unlistened.push(event));
     },
   };
-  const deps = { api, styles: () => styles, colorFor: (name) => (name === "Ana" ? "#2e7d32" : null), oracleWords: (d) => d.words.join(" "), explain: (e) => `E:${e.message}` };
-  return { api, deps, calls, handlers, unlistened, fire: (event, payload) => handlers.get(event)(payload) };
+  const deps = { api, table, styles: () => styles, colorFor: (name) => (name === "Ana" ? "#2e7d32" : null), oracleWords: (d) => d.words.join(" "), explain: (e) => `E:${e.message}` };
+  return { api, deps, calls, named, handlers, unlistened, fire: (event, payload) => handlers.get(event)(payload) };
 }
 
 test("joining holds the latest entries and the pinned ones, in order, and the roster", async () => {
@@ -183,22 +187,22 @@ test("pinning moves an entry to the pinned list for everyone; unpinning brings i
   assert.deepEqual(t.pinnedEntries().map((e) => e.id), ["1"]);
   assert.deepEqual(t.entries().map((e) => e.id), ["2"]);
   // Someone else pins the other: the event does the same.
-  f.fire("table-pinned", { id: "2", pinned: true });
+  f.fire("table-pinned", { table: "", id: "2", pinned: true });
   assert.deepEqual(t.pinnedEntries().map((e) => e.id), ["1", "2"]);
-  f.fire("table-pinned", { id: "1", pinned: false });
+  f.fire("table-pinned", { table: "", id: "1", pinned: false });
   assert.deepEqual(t.entries().map((e) => e.id), ["1"]);
 });
 
 test("removal and clear: the pinned stay when asked, everything goes when not; hiding does not touch the pinned", async () => {
   const f = fake({ role: "owner", entries: [wire(1), wire(2, { pinned: true }), wire(3)] });
   const t = await m.openServerTable(f.deps);
-  f.fire("table-removed", { id: "3" });
+  f.fire("table-removed", { table: "", id: "3" });
   assert.deepEqual(t.entries().map((e) => e.id), ["1"]);
   t.hideUpToHere();
   assert.deepEqual(t.entries().map((e) => e.id), []);
   assert.deepEqual(t.pinnedEntries().map((e) => e.id), ["2"]);
   assert.equal(t.undoHide(), true);
-  f.fire("table-cleared", { keep_pinned: true });
+  f.fire("table-cleared", { table: "", keep_pinned: true });
   assert.deepEqual(t.entries(), []);
   assert.deepEqual(t.pinnedEntries().map((e) => e.id), ["2"]);
   assert.equal(await t.clear(false), null);
@@ -256,7 +260,7 @@ test("the roster follows the server's list, with each person's colour and dice",
   const t = await m.openServerTable(f.deps);
   let told = 0;
   t.onChange(() => told++);
-  f.fire("table-roster", [{ name: "Ana", by_id: "acc-ana", color: "#2e7d32", styles: null }, { name: "Bia", by_id: "acc-bia", color: "#1565c0", styles }]);
+  f.fire("table-roster", { table: "", members: [{ name: "Ana", by_id: "acc-ana", color: "#2e7d32", styles: null }, { name: "Bia", by_id: "acc-bia", color: "#1565c0", styles }] });
   assert.deepEqual(t.roster().map((x) => [x.name, x.color]), [["Ana", "#2e7d32"], ["Bia", "#1565c0"]]);
   assert.equal(t.roster()[1].styles["1"].body, "#112233");
   assert.ok(told > 0);
@@ -302,4 +306,50 @@ test("a table roll's row is read from its note and drawn when it arrives", async
   f.fire("table-entry", rollWire(50, { roll: { ...rollWire(50).roll, source: "[[Mesa#^e]]" } }));
   await new Promise((r) => setTimeout(r, 5));
   assert.equal(t.entries()[0].row, "Lobos");
+});
+
+/* ---------- one log per table (ADR 0107, 2026-10-23) ---------- */
+
+test("every command names the table the window joined, and the join says which it is", async () => {
+  const f = fake({ table: "Cripta" });
+  const t = await m.openServerTable({ ...f.deps, table: "Cripta" });
+  assert.equal(t.table, "Cripta");
+  await t.say("oi");
+  await t.roll("1d6", { path: "Cripta/N.md" });
+  await t.loadOlder();
+  await t.pin("1", true);
+  await t.remove("1");
+  await t.clear(true);
+  t.look();
+  await t.close();
+  assert.ok(f.named.length >= 9, String(f.named.length));
+  assert.ok(f.named.every((x) => x === "Cripta"), JSON.stringify(f.named));
+});
+
+test("a window that asks for no table is at the one the server names", async () => {
+  const f = fake({ table: "Sala" });
+  const t = await m.openServerTable({ ...f.deps, table: null });
+  assert.equal(f.named[0], null);
+  assert.equal(t.table, "Sala");
+  await t.say("oi");
+  assert.equal(f.named.at(-1), "Sala");
+});
+
+test("what is told of another table is not this table's: no entry, pin, removal, clear or roster", async () => {
+  const f = fake({ table: "Cripta", entries: [wire(1, { table: "Cripta" }), wire(2, { table: "Cripta", pinned: true })] });
+  const t = await m.openServerTable({ ...f.deps, table: "Cripta" });
+  f.fire("table-entry", wire(3, { table: "Sala" }));
+  f.fire("table-pinned", { table: "Sala", id: "1", pinned: true });
+  f.fire("table-removed", { table: "Sala", id: "1" });
+  f.fire("table-cleared", { table: "Sala", keep_pinned: false });
+  f.fire("table-roster", { table: "Sala", members: [] });
+  assert.deepEqual(t.entries().map((e) => e.id), ["1"]);
+  assert.deepEqual(t.pinnedEntries().map((e) => e.id), ["2"]);
+  assert.equal(t.roster().length, 1);
+  assert.equal(t.unread(), 0);
+  // The same events for its own table are heard.
+  f.fire("table-entry", wire(4, { table: "Cripta" }));
+  f.fire("table-roster", { table: "Cripta", members: [] });
+  assert.deepEqual(t.entries().map((e) => e.id), ["1", "4"]);
+  assert.equal(t.roster().length, 0);
 });

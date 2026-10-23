@@ -373,7 +373,7 @@ test("the message field is larger and multi-line: Shift+Enter breaks the line, E
   expect(await app.calls("table_say")).toHaveLength(0);
   await input.press("Enter");
   await expect(log(view)).toHaveCount(1);
-  expect(await app.calls("table_say")).toEqual([{ text: "primeira linha\nsegunda linha" }]);
+  expect(await app.calls("table_say")).toEqual([{ text: "primeira linha\nsegunda linha", table: "" }]);
   const text = log(view).first().locator(".table-text");
   await expect(text).toContainText("primeira linha");
   await expect(text).toContainText("segunda linha");

@@ -98,7 +98,7 @@ test("a server's table: the roster, the others' messages and rolls, and what thi
   await expect(mine).toHaveClass(/mine/);
   // A link to a note of the folder is a link; everything else is text.
   await expect(mine.locator(".table-text .table-link")).toHaveText("Lobos");
-  expect(await app.calls("table_say")).toEqual([{ text: "Eu abro. [[Lobos]] está lá fora." }]);
+  expect(await app.calls("table_say")).toEqual([{ text: "Eu abro. [[Lobos]] está lá fora.", table: "" }]);
   // `/r` rolls through the table's command; the server's roll comes back once.
   await field(view).fill("/r 2d6+1");
   await field(view).press("Enter");
@@ -242,7 +242,7 @@ test("the owner clears the table, keeping the pinned ones unless told otherwise;
   await page.getByRole("alertdialog").getByRole("button", { name: "Limpar" }).click();
   await expect(log(view)).toHaveCount(0);
   await expect(view.locator(".table-pins .table-entry")).toHaveCount(1);
-  expect(await app.calls("table_clear")).toEqual([{ keepPinned: true }]);
+  expect(await app.calls("table_clear")).toEqual([{ keepPinned: true, table: "" }]);
   // And again, unticked: everything goes.
   await view.getByRole("button", { name: "Mais opções da mesa" }).click();
   await page.getByRole("menuitem", { name: "Limpar a mesa" }).click();
@@ -250,7 +250,7 @@ test("the owner clears the table, keeping the pinned ones unless told otherwise;
   await second.getByRole("checkbox").uncheck();
   await second.getByRole("button", { name: "Limpar" }).click();
   await expect(view.locator(".table-pins")).toBeHidden();
-  expect((await app.calls("table_clear")).at(-1)).toEqual({ keepPinned: false });
+  expect((await app.calls("table_clear")).at(-1)).toEqual({ keepPinned: false, table: "" });
   // An editor has no menu to clear with, and the server would refuse.
   await page.evaluate(() => (window.__harness.table.role = "editor"));
   await expect(view.getByRole("button", { name: "Mais opções da mesa" })).toHaveCount(0);

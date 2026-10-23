@@ -562,39 +562,39 @@ export const commands = {
 	"1": DiceStyle,
 	"2": DiceStyle,
 	"3": DiceStyle,
-} | null) => typedError<TableJoin, ContractError>(__TAURI_INVOKE("table_join", { color, styles })),
+} | null, table: string | null) => typedError<TableJoin, ContractError>(__TAURI_INVOKE("table_join", { color, styles, table })),
 	/**  Leave the folder's table. */
-	tableLeave: () => typedError<null, ContractError>(__TAURI_INVOKE("table_leave")),
+	tableLeave: (table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_leave", { table })),
 	/**  Change the colour and the dice looks shown in the roster. */
 	tableLook: (color: string | null, styles: {
 	"1": DiceStyle,
 	"2": DiceStyle,
 	"3": DiceStyle,
-} | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_look", { color, styles })),
+} | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_look", { color, styles, table })),
 	/**  A page of older entries, before the entry numbered `before`. */
-	tableHistory: (before: string | null, limit: number | null) => typedError<TablePage, ContractError>(__TAURI_INVOKE("table_history", { before, limit })),
+	tableHistory: (before: string | null, limit: number | null, table: string | null) => typedError<TablePage, ContractError>(__TAURI_INVOKE("table_history", { before, limit, table })),
 	/**  A plain-text message, at most 500 characters. */
-	tableSay: (text: string) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_say", { text })),
+	tableSay: (text: string, table: string | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_say", { text, table })),
 	/**
 	 *  An image (base64) written into the folder's attachments place and
 	 *  shown at the table: not for a reader of the folder.
 	 */
-	tableSendImage: (base64: string) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_send_image", { base64 })),
+	tableSendImage: (base64: string, table: string | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_send_image", { base64, table })),
 	/**  Dice rolled by the server at the table, from no note's room. */
 	tableRoll: (notation: string, source: string | null, path: string | null, secret: boolean | null, styles: {
 	"1": DiceStyle,
 	"2": DiceStyle,
 	"3": DiceStyle,
-} | null, occurrence: number | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_roll", { notation, source, path, secret, styles, occurrence })),
+} | null, occurrence: number | null, table: string | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_roll", { notation, source, path, secret, styles, occurrence, table })),
 	/**  Pin or unpin an entry, for everyone at the table. */
-	tablePin: (id: string, pinned: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("table_pin", { id, pinned })),
+	tablePin: (id: string, pinned: boolean, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_pin", { id, pinned, table })),
 	/**  Delete a message or an image: its author, or an owner. */
-	tableDelete: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("table_delete", { id })),
+	tableDelete: (id: string, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_delete", { id, table })),
 	/**
 	 *  Clear the table: an owner only; `keep_pinned` (default true) keeps the
 	 *  pinned entries.
 	 */
-	tableClear: (keepPinned: boolean | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_clear", { keepPinned })),
+	tableClear: (keepPinned: boolean | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_clear", { keepPinned, table })),
 	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
@@ -3229,6 +3229,7 @@ export type SyncVersions = {
  *  the pinned entries stayed.
  */
 export type TableCleared = {
+	table: string,
 	keep_pinned: boolean,
 };
 
@@ -3239,6 +3240,11 @@ export type TableCleared = {
  *  folder) or `secret` ("<name> rolled in secret": nothing else set).
  */
 export type TableEntry = {
+	/**
+	 *  The table it belongs to: its folder inside the server's folder,
+	 *  `""` for the folder itself.
+	 */
+	table: string,
 	/**
 	 *  The server's number for it: decimal digits, growing; the cursor of
 	 *  `table_history`.
@@ -3271,6 +3277,8 @@ export type TableEntry = {
  *  exist, and who is at the table.
  */
 export type TableJoin = {
+	/**  The table joined, as the server names it (`""`: the folder itself). */
+	table: string,
 	you: string,
 	/**  `owner`, `editor` or `reader`. */
 	role: string,
@@ -3296,13 +3304,21 @@ export type TablePage = {
 
 /**  An entry pinned or unpinned (event `table-pinned`). */
 export type TablePinned = {
+	table: string,
 	id: string,
 	pinned: boolean,
 };
 
 /**  An entry deleted (event `table-removed`). */
 export type TableRemoved = {
+	table: string,
 	id: string,
+};
+
+/**  Who is at a table (event `table-roster`): one per account. */
+export type TableRoster = {
+	table: string,
+	members: TableMember[],
 };
 
 /**  A tag and the notes that carry it. */
