@@ -669,7 +669,7 @@ Isto **substitui** as frases acima e nas seções "Como foi feito" que tornam o
 registro um por pasta, e o "a mesa de raiz mais curta da pasta dá ao registro da
 pasta os seus números" do 0110 (cada mesa tem os seus números agora).
 
-**Duas mudanças pequenas do painel (2026-10-23, o mantenedor).** "Rolar dados…" (o diálogo do rolador) volta a ser um item da gaveta "⋯" da fila de dados, depois de ficar só na paleta de comandos; e em larguras estreitas (até 300 px) "Ocultar daqui pra trás" é um botão só de ícone (nome e dica mantidos) para que a lista de pessoas, o botão da janela da Mesa, ocultar e o menu caibam em uma linha a 260 px, com o rótulo aparecendo quando há espaço.
+**Duas mudanças pequenas do painel (2026-10-23, o mantenedor).** "Rolar dados…" (o diálogo do rolador) volta a ser um item da gaveta "⋯" da fila de dados, depois de ficar só na paleta de comandos; e em larguras estreitas (uma linha de topo de até 420 px) "Ocultar daqui pra trás" é um botão só de ícone (nome e dica mantidos) para que a lista de pessoas, o botão da janela da Mesa, ocultar e o menu caibam em uma linha a 260 px, com o rótulo aparecendo quando há espaço.
 
 ## Situação
 
