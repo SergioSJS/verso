@@ -68,7 +68,15 @@ Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra
 
 ## A mesa de todos, num UniVerso
 
-Quem abriu a mesma pasta de um UniVerso, em qualquer nota, está **na mesma mesa**. O alto do painel mostra **quem está lá agora**, cada pessoa com a cor do seu cursor. As rolagens de todos entram aqui, rolagem feita **uma vez**, pelo servidor, com o nome e a hora dele, e o registro fica **guardado** no servidor, sem prazo de validade: quem entra depois vê o que houve.
+Quem abriu a mesma pasta de um UniVerso e trabalha na mesma mesa está **na mesma conversa**. O alto do painel mostra **quem está lá agora**, cada pessoa com a cor do seu cursor. As rolagens de todos entram aqui, rolagem feita **uma vez**, pelo servidor, com o nome e a hora dele, e o registro fica **guardado** no servidor, sem prazo de validade: quem entra depois vê o que houve.
+
+### Uma conversa por mesa
+
+Uma pasta pode ter **várias mesas** (uma por subpasta, veja [[32 - Rodando uma Mesa]]), e **cada mesa tem a sua própria conversa**: o registro, as mensagens, as imagens, as fixadas e quem está lá. O painel acompanha a **nota aberta**: o alto dele diz **Mesa: Cripta** quando você está numa nota da mesa Cripta, e é só a conversa dela que você vê. Abra uma nota da mesa Sala e o painel passa para **Mesa: Sala** (você sai de uma e entra na outra). Uma rolagem feita numa nota vai para o registro da mesa **daquela nota**.
+
+Com uma nota fora de qualquer mesa (ou nenhuma aberta) o painel lista as mesas para você escolher, e guarda a última escolhida nesta pasta; o botão ao lado do nome da mesa (**Trocar de mesa**) escolhe outra a qualquer momento. Uma pasta sem nenhuma mesa continua com a conversa única de sempre.
+
+### No pé do painel
 
 No pé do painel há o campo **Escreva para a mesa…**:
 

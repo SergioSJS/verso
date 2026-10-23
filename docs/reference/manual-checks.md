@@ -1253,6 +1253,42 @@ proxy, a mail server, fail2ban and a thumb do with a link is not.
   (20 a second, 100 at once, ADR 0083 item 7) is too tight for a table:
   say so, the number is the maintainer's to change.
 
+### One chat per table (feat/table-per-table, 2026-10-23)
+
+Needs a real UniVerso with a folder that has two tables (two subfolders made
+tables), the desktop app on a folder synced with it, and a browser signed in
+as a player. The routing, the migration and the confinement are in the Rust
+tests, the window's unit tests and the end-to-end run; what a long session on
+real devices does is not.
+
+- [ ] **Two tables, two chats**: open the whole folder (two tables
+  *Cripta* and *Sala* in subfolders). Open a note in Cripta: the Table
+  panel's top says *Table: Cripta*. Write a message and roll `/r 1d20`.
+  Open a note in Sala: the top says *Table: Sala* and the message and the
+  roll are not there. Write one there; go back to the Cripta note: only
+  the Cripta's two lines. On the browser (signed in as a second person at
+  the whole folder, in a Sala note), only Sala's line arrives; the other
+  person never hears the Cripta's.
+- [ ] **Who is at each table**: the people icon counts only the people
+  at the table the panel is at. Switch notes between the two tables a few
+  times: the other person's list loses you at one and gains you at the
+  other, with no ghost left behind.
+- [ ] **A note in no table**: open a note outside both tables. The panel
+  lists the two tables (or stays at the last one you chose, with
+  *Switch table* beside the name); choosing one remembers it for the
+  folder after a restart of the app.
+- [ ] **Dice from a note**: roll a `dice:` code inside a Sala note and, in
+  the Cripta note, one more. Each roll lands in its own table's log.
+- [ ] **The synced desktop folder**: on the desktop with the folder synced,
+  repeat the first check. Pause the sync: the panel says the table is
+  unavailable; resume it: the panel joins the table of the open note.
+- [ ] **A player of one table**: a player invited to the Cripta subfolder
+  (a share) has no Table channel, as before; the Table panel does not show
+  Sala's chat, nor the Cripta's.
+- [ ] **The old log**: on a server that had a shared log before the
+  update, open the folder after it: the old entries are in the folder's
+  first (shortest-named) table, and none is lost.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers

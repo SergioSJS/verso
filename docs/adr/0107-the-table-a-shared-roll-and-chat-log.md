@@ -598,6 +598,66 @@ Chosen in the code, for the maintainer to confirm or change. (1) KH and KL are t
 
 **The foot tested in the real app (2026-10-23).** The maintainer tested the Table panel in the Mac app and said, four things. (1) With a screenshot of the Public / Secret select in the box's toolbar, a thick purple focus ring and the lock icon over the text: *"na barra aqui do chat isso ta meio estranho."* The mode is now a small button (icon and label side by side, never overlapping or clipped, the app's own focus ring, the height of the other controls of the bar) that opens the app's menu with the two modes, with arrows, Enter and Escape; a native select is drawn differently by each webview. (2) *"a lista de pessoas online nao fica legal assim, coloca apenas um icone com numero de pessoas online, ai se parar o mouse em cima, dar pra ver"*: the roster line is one people icon with the count; hovering shows the names with their cursor colours, a tap or Enter on touch and keyboard opens the same list, Escape closes; a screen reader reads "N pessoas na mesa: Ana, Bruno". (3) *"pra que tem icone de dado no canto inferior direito ja tem botão pra enviar mensagem que faz o msm? talvez dê até pra usar esse botão pra outra coisa, mas nao isso"*: the dice row's own roll button is removed (Send already sends the `/r` line); no new use was invented for it. (4) *"o mestre deveria ter poder de deletar uma rolagem."* This **supersedes** item 6's "a roll is not deleted one by one" and the line above, "a roll is never deleted one by one", **for the folder's owners**: an owner (the game master) may delete a roll, with the same confirmation the menu already has; a player still cannot delete a roll (a player deletes their own messages and images, as before). The server enforces it (`table_delete` refuses a roll unless the role is owner); the window offers **Delete** on a roll to an owner only.
 
+## Decision (one log per table, 2026-10-23)
+
+The maintainer, 2026-10-23: *"o chat deve ser 1 por mesa, adapte e refaça o que
+precisar"*. As built until then, the Table's log (rolls, messages, images, pins,
+who is at it, the limits) was one per **open server folder**: with the whole
+folder open and two tables in subfolders, both tables' entries landed in one log
+([0110](0110-a-table-is-a-campaign-folder.md) item 1 says a folder may have
+several tables). It is now one per **table**.
+
+- **A table's identity** is (server folder, the table's root inside it); the
+  root is `""` for the folder itself. A server folder with no campaign table
+  keeps the single, folder-wide table of this ADR's first form: everyone with the
+  folder open shares one log; it is that folder's root table.
+- **The contract.** Every `table_*` command takes an optional `table` (the
+  table's root, relative to the folder). None named means the folder's default
+  table — its shortest-rooted table, else the folder — so an old window keeps
+  working. A name is checked: relative, no `..`, no backslash, and a real table of
+  the folder (case folded, as the tables are looked up), or `""` in a folder with
+  no table; anything else is refused ("no such table"). Entries, pins, deletes and
+  clears are looked up **in the table named**, so an entry of one table is no
+  entry of another. The answers and the events carry the table (`TableEntry.table`,
+  `TableJoin.table`, `TablePinned`, `TableRemoved`, `TableCleared`, and the new
+  `TableRoster { table, members }` of `table-roster`); a window hears only the
+  tables it joined, and drops what is told of another.
+- **Presence.** A window may be at several tables of a folder at once (the sync
+  connection of a desktop is one window for all of that app's windows); the Mesa
+  panel is at one: it leaves a table and joins the other when the active note
+  moves to another table. A table's roster is its own.
+- **Which table a roll goes to.** A roll or an oracle draw made in a note's room
+  goes to the table that holds the note (the deepest); a note in no table goes to
+  the folder's default table. A roll made from the panel goes to the panel's.
+- **The window.** The panel follows the table of the active note (the chip's
+  rule, `tableChip.ts`: the nearest table up the note's path), names it in its
+  header (*Mesa: Cripta*), and with no note that says which, shows the last table
+  chosen in the folder, or — the folder has several and none was chosen — a list
+  of the tables. A small button beside the name switches to another table at any
+  time. A folder with no table is the panel it always was. The panel is at one
+  table at a time, so the unread count is that table's: what another table says
+  is not heard until the panel is at it (chosen in the code, for the maintainer
+  to confirm or change).
+- **Limits and rules per table.** The ceiling of the log (`campaigns.log_max`)
+  and the image limit (`image_max`) are the table's own; the delete and clear rules
+  of the roles apply inside the table.
+- **Players.** A player invited to a subfolder table is a window on a share, which
+  has no table channel (item 9's "as built"); that is unchanged, so a player of
+  one table can neither read nor post to another.
+- **The synced folder** (item 9): the same per-table channel through the sync's
+  link; the host remembers which table each window of the app is at and routes
+  the server's events by the table they carry.
+- **Migration.** Schema 16 adds the table to each entry: entries kept before it
+  belong to the folder's shortest-rooted table when it has tables (the one whose
+  numbers they always took), else to the folder. Nothing is deleted; the rest of
+  the rules (a table made, unmade, renamed) are in
+  [0110](0110-a-table-is-a-campaign-folder.md) "As built (one chat per table,
+  2026-10-23)".
+
+This **supersedes** the sentences above and in the "As built" sections that make
+the log one per folder, and 0110's "the folder's shortest-rooted table gives the
+folder's log its numbers" (each table has its own numbers now).
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the

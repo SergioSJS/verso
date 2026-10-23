@@ -347,7 +347,11 @@ para o mantenedor confirmar ou mudar.
 - **Limites** (resposta à MS.1): por mesa, entre 1.000 e 200.000 entradas
   (padrão 20.000) e 1 a 30 MB (padrão 10), impostos pelo servidor
   (`db/table.rs` apara no teto da mesa; `table_image.rs` julga a imagem). A mesa
-  de raiz mais curta da pasta dá ao registro da pasta os seus números.
+  de raiz mais curta da pasta dá ao registro da pasta os seus números. Por mesa
+  desde 2026-10-23: os números de cada mesa regem o seu próprio registro e as
+  suas próprias imagens (veja "Como foi construído (uma conversa por mesa,
+  2026-10-23)" abaixo); antes, a mesa de raiz mais curta da pasta dava os
+  números ao registro único da pasta.
 - **Convite**: `campaign_invite` faz um convite de leitor de uso único, sete
   dias, para a pasta ou para o compartilhamento da pasta da mesa (feito então);
   só a administradora do servidor, com uma prova recente (`prove_first`), como o
@@ -444,6 +448,53 @@ não há nota ativa, e, sem nota ativa dentro de mesa alguma e havendo mesas
 abaixo, **Mesas (N)**, que abre uma lista (dono: cada uma abre a janela; jogador:
 cada uma o balão). Sem selo quando a pasta não tem mesa nenhuma
 (`app/ui/src/tableChip.ts`; testado em `e2e/table-chip.spec.mjs`). O painel
-Mesa (o registro e o chat compartilhados, `src/table/*`) é um por pasta aberta e
-não segue a mesa da nota ativa. Ao lado, uma pasta que a pessoa só lê
+Mesa (o registro e o chat compartilhados, `src/table/*`) era então um por pasta
+aberta e não seguia a mesa da nota ativa; agora segue (veja "Como foi construído
+(uma conversa por mesa, 2026-10-23)"). Ao lado, uma pasta que a pessoa só lê
 mostra o cadeado fechado da emenda do ADR 0076 do mesmo dia.
+
+## Como foi construído (uma conversa por mesa, 2026-10-23)
+
+Branch `feat/table-per-table`. O "Uma mestra pode ter várias pastas de mesa. A
+mesa do 0107 é a mesa desta pasta" do item 1 foi construído como um registro por
+**pasta aberta**: com a pasta toda aberta e duas mesas em subpastas ("Cripta",
+"Sala"), as entradas das duas mesas caíam em um registro só, que tirava os seus
+números da mesa de raiz mais curta. O mantenedor, 2026-10-23: *"o chat deve ser
+1 por mesa, adapte e refaça o que precisar"*. A decisão, com as regras em
+[0107](0107-the-table-a-shared-roll-and-chat-log.md) "Decisão (um registro por
+mesa, 2026-10-23)":
+
+- **A identidade de uma mesa** é o par (pasta do servidor, a raiz da mesa dentro
+  dela): `root` é `""` para a própria pasta, ou o caminho da pasta relativo a
+  ela, como a linha de `campaigns` o guarda. Uma pasta do servidor sem mesa
+  nenhuma mantém a mesa única, da pasta toda, do 0107 original: a sua mesa da
+  raiz, `""`.
+- **O que é por mesa agora**: as entradas, as fixadas, quem está nela (a lista),
+  o teto do registro (`campaigns.log_max` *daquela* mesa), o limite de imagem
+  (`image_max` daquela mesa), as regras de limpar e de apagar. Uma rolagem ou um
+  sorteio de oráculo feito na sala de uma nota vai para a mesa que contém a nota
+  (a mais funda), e uma nota fora de toda mesa vai para a mesa padrão da pasta,
+  a de raiz mais curta.
+- **O que substituiu "a mesa de raiz mais curta da pasta dá ao registro da pasta
+  os seus números"**: o `log_max` e o `image_max` de cada mesa; a mesa de raiz
+  mais curta é só a **padrão** para uma chamada que não nomeia mesa (a de um
+  par antigo) e para uma nota fora de mesa.
+- **A migração** (esquema 16, `db/table.rs`): `table_log` ganha uma coluna
+  `tbl`; as entradas guardadas antes dela vão para a mesa de raiz mais curta da
+  pasta quando ela tem mesas (a de cujos números sempre dependeram), senão para a
+  pasta (`""`). Nada é apagado. Depois: a primeira mesa de uma pasta fica com o
+  registro que a pasta tinha; uma mesa renomeada ou movida leva o registro junto
+  (`campaign_move`); a última mesa de uma pasta desfeita devolve os registros à
+  pasta; uma mesa desfeita enquanto outras ficam deixa o registro dela esperando.
+- **Jogadores**: um jogador convidado para uma mesa de subpasta é uma janela
+  num compartilhamento e não tem canal de mesa (como construído, item 8 acima,
+  sem mudança), então nenhuma mesa da pasta — a dele ou a de outra — é lida ou
+  escrita por ele. Um jogador que lê a pasta toda pode entrar em qualquer mesa
+  dela (a regra da mesa fechada vale como antes).
+- **Testado**: `tests_table.rs` (`per_table`: entradas, listas, fixadas e
+  limpezas de duas mesas separadas; uma chamada sem mesa; um nome que não é
+  mesa, `..`, absoluto; a rolagem de uma nota; os tetos e os limites de imagem;
+  um compartilhamento recusado; uma mesa renomeada), `db/tests.rs` (a migração
+  do esquema 15, o registro acompanhando as mesas), `tests_live_table.rs` (o
+  mesmo pelo enlace da sincronização), `test/tableWhich.test.mjs`,
+  `test/tableServer.test.mjs` e `e2e/table-per-table.spec.mjs`.
