@@ -249,3 +249,93 @@ fn no_folder_invitation_pending_at_the_upgrade_to_schema_10_grants_a_folder() {
         "a link naming no folder was ended"
     );
 }
+
+/// The database as schema 15 left it: one log per folder.
+fn schema_15() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(&format!(
+        "PRAGMA foreign_keys = ON; {CREATE}{PASSKEYS}{SETTINGS}{CONSOLE}{SYNC}{DEVICES}{}{SHARES}{}{INVITATION_SCOPE}{SECRETS}{}{}{}{} PRAGMA user_version = 15;",
+        trash::TRASH,
+        proof::PROOF,
+        local::PHONES,
+        readlinks::READ_LINKS,
+        table::TABLE,
+        campaign::CAMPAIGN,
+    ))
+    .unwrap();
+    conn
+}
+
+/// Schema 16 (one log per table, 2026-10-23) deletes nothing: the entries
+/// of a folder with tables go to its shortest-rooted table — the one whose
+/// numbers they always took — and a folder with none keeps them as its own.
+#[test]
+fn schema_16_gives_the_old_entries_to_the_shortest_rooted_table_or_the_folder() {
+    let conn = schema_15();
+    let at = now();
+    conn.execute_batch(&format!(
+        "INSERT INTO folders (id, dir, created) VALUES ('com', 'com', {at}), ('sem', 'sem', {at});
+         INSERT INTO campaigns (folder, root, created) VALUES ('com', 'Cripta', {at}), ('com', 'Sala', {at}), ('com', 'Mundo/Longa', {at});"
+    ))
+    .unwrap();
+    for (folder, n) in [("com", 3), ("sem", 2)] {
+        for i in 0..n {
+            conn.execute(
+                "INSERT INTO table_log (folder, kind, account, by_name, at, pinned, secret, readers_hidden, body)
+                 VALUES (?1, 'say', 'x', 'X', '2026-10-22T00:00:00Z', ?2, 0, 0, ?3)",
+                params![folder, i64::from(i == 0), format!("{{\"text\":\"m{i}\"}}")],
+            )
+            .unwrap();
+        }
+    }
+    let db = Db::from(conn).unwrap();
+    // "Sala" is the shortest root (4 characters against 6 and 11).
+    assert_eq!(db.table_count("com", "Sala").unwrap(), 3);
+    assert_eq!(db.table_count("com", "Cripta").unwrap(), 0);
+    assert_eq!(db.table_count("com", "").unwrap(), 0);
+    assert_eq!(db.table_count("sem", "").unwrap(), 2);
+    // The pinned entry kept its pin, and the whole log reads as before.
+    assert_eq!(db.table_pinned("com", "Sala", false).unwrap().len(), 1);
+    let (rows, more) = db.table_page("com", "Sala", None, 10, false).unwrap();
+    assert_eq!((rows.len(), more), (3, false));
+    assert_eq!(rows[0].table, "Sala");
+}
+
+/// A folder's first table takes the log the folder had; its last one
+/// unmade gives it back; a table renamed keeps its own.
+#[test]
+fn a_folders_log_follows_its_tables_as_they_are_made_and_unmade() {
+    let db = db();
+    let owner = db
+        .create_account("o@b.co", "O", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let f = db.create_folder("Campanha", &owner.id).unwrap();
+    let row = |table: &str| TableRow {
+        table: table.to_owned(),
+        id: 0,
+        kind: "say".into(),
+        account: "x".into(),
+        by_name: "X".into(),
+        at: "2026-10-23T00:00:00Z".into(),
+        path: None,
+        pinned: false,
+        secret: false,
+        readers_hidden: false,
+        body: "{\"text\":\"oi\"}".into(),
+    };
+    db.table_add(&f.id, &row("")).unwrap();
+    db.campaign_make(&f.id, "Cripta").unwrap();
+    assert_eq!(db.table_count(&f.id, "Cripta").unwrap(), 1);
+    assert_eq!(db.table_count(&f.id, "").unwrap(), 0);
+    db.campaign_make(&f.id, "Sala").unwrap();
+    db.table_add(&f.id, &row("Sala")).unwrap();
+    // One of two unmade: its log waits for it.
+    db.campaign_drop(&f.id, "Sala").unwrap();
+    assert_eq!(db.table_count(&f.id, "Sala").unwrap(), 1);
+    db.campaign_make(&f.id, "Sala").unwrap();
+    assert_eq!(db.table_count(&f.id, "Sala").unwrap(), 1);
+    // All unmade: the folder has its logs back, nothing lost.
+    db.campaign_drop(&f.id, "Sala").unwrap();
+    db.campaign_drop(&f.id, "Cripta").unwrap();
+    assert_eq!(db.table_count(&f.id, "").unwrap(), 2);
+}

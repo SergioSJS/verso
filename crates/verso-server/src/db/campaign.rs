@@ -144,6 +144,17 @@ impl Db {
                 params![folder, root, now()],
             )
             .map_err(e)?;
+        // The folder's first table takes the log the folder had so far
+        // (the same rule as schema 16): nothing is left behind.
+        if n > 0 {
+            let conn = self.conn();
+            conn.execute(
+                "UPDATE table_log SET tbl = ?2 WHERE folder = ?1 AND tbl = ''
+                   AND (SELECT COUNT(*) FROM campaigns WHERE folder = ?1) = 1",
+                params![folder, root],
+            )
+            .map_err(e)?;
+        }
         Ok(n > 0)
     }
 
@@ -165,6 +176,7 @@ impl Db {
                 params![folder, root, under],
             )
             .map_err(e)?;
+            rehome_log(&tx, folder)?;
         }
         tx.commit().map_err(e)?;
         Ok(n > 0)
@@ -259,7 +271,11 @@ impl Db {
         let tx = conn.transaction().map_err(e)?;
         let under = under_sql(from);
         let mut touched = 0;
-        for (table, column) in [("campaign_notes", "path"), ("campaigns", "root")] {
+        for (table, column) in [
+            ("campaign_notes", "path"),
+            ("campaigns", "root"),
+            ("table_log", "tbl"),
+        ] {
             touched += tx
                 .execute(
                     &format!(
@@ -294,6 +310,7 @@ impl Db {
                 )
                 .map_err(e)?;
         }
+        rehome_log(&tx, folder)?;
         tx.commit().map_err(e)?;
         Ok(touched)
     }
@@ -309,6 +326,19 @@ impl Db {
             )
             .map_err(e)
     }
+}
+
+/// A folder with no table left keeps its log as the folder's own
+/// (`tbl = ''`): the entries of a table that went are not lost, and come
+/// back to it if it is made again only while another table stays.
+fn rehome_log(conn: &rusqlite::Connection, folder: &str) -> R<()> {
+    conn.execute(
+        "UPDATE table_log SET tbl = '' WHERE folder = ?1
+           AND NOT EXISTS (SELECT 1 FROM campaigns WHERE folder = ?1)",
+        [folder],
+    )
+    .map_err(e)?;
+    Ok(())
 }
 
 /// `path` followed by `/`: the prefix of what lies under it.

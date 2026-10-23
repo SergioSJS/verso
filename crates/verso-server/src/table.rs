@@ -2,11 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! The table (ADR 0107, decided 2026-10-21): one channel per folder,
-//! beside the rooms of its notes. Every window that has the folder open
-//! joins it; a roll or an oracle draw made in any note's room is relayed
-//! to that room as before **and** appended to the folder's table, rolled
-//! once, by the server. Typed messages and images join the rolls in the
+//! The table (ADR 0107, decided 2026-10-21): one channel per table,
+//! beside the rooms of its notes. A table is a server folder and the
+//! table's root inside it (`""` for the folder itself; a folder with no
+//! campaign table has just that one, the folder-wide table of 0107's
+//! first form), decided 2026-10-23: "o chat deve ser 1 por mesa". Every
+//! window that has the folder open joins the table it works in; a roll or
+//! an oracle draw made in a note's room is relayed to that room as before
+//! **and** appended to the table that holds the note, rolled once, by the
+//! server. Typed messages and images join the rolls in the
 //! same log, which is kept in the server's database (`db/table.rs`) with
 //! no expiry.
 //!
@@ -24,7 +28,7 @@
 //! and at most [`IMAGE_BYTES`]; every message, image and roll a connection
 //! sends is paced (`Server::table_pace`); a table holds [`MEMBERS_MOST`]
 //! windows; a join answers [`JOIN_ENTRIES`] entries and a page at most
-//! [`PAGE_MOST`]; a folder's log keeps [`crate::db::ROWS_MOST`] entries.
+//! [`PAGE_MOST`]; a table's log keeps [`crate::db::ROWS_MOST`] entries.
 //! Text is never written to the server's log.
 
 use std::collections::HashMap;
@@ -34,7 +38,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use verso_contract::{
     ContractError, DiceRoll, DiceStyles, ErrorKind, OracleDraw, TableCleared, TableEntry,
-    TableJoin, TableMember, TablePage, TablePinned, TableRemoved,
+    TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster,
 };
 use verso_service::lock;
 
@@ -89,10 +93,15 @@ struct Member {
     styles: Option<DiceStyles>,
 }
 
-/// The windows at each folder's table, by folder id.
+/// A table: the folder's id and the table's root in it (`""`: the folder).
+type Key = (String, String);
+
+/// The windows at each table, by folder id and table root. A window may be
+/// at several tables of a folder (the sync's connection of a desktop is one
+/// window for all the windows of that app).
 #[derive(Default)]
 pub struct Tables {
-    map: Mutex<HashMap<String, HashMap<String, Member>>>,
+    map: Mutex<HashMap<Key, HashMap<String, Member>>>,
 }
 
 /// What an entry holds besides its columns, as kept.
@@ -158,6 +167,7 @@ fn view_masked(row: &TableRow, viewer: &str, role: Role) -> Option<TableEntry> {
     };
     Some(TableEntry {
         id: row.id.to_string(),
+        table: row.table.clone(),
         kind: if masked { "secret" } else { row.kind.as_str() }.to_owned(),
         by: row.by_name.clone(),
         by_id: row.account.clone(),
@@ -180,14 +190,14 @@ pub(crate) fn seen(row: &TableRow, account: &str, role: Role) -> Option<TableEnt
 /// A new `image` entry for the file at `path`, kept and told.
 pub(crate) fn image_entry(
     server: &Server,
-    folder: &str,
+    (folder, table): (&str, &str),
     (account, name): (&str, &str),
     path: &str,
 ) -> Result<TableRow, ContractError> {
     // The image is a file the table shows: its veil is made again.
     let made = append(
         server,
-        folder,
+        (folder, table),
         New {
             kind: "image",
             account,
@@ -213,22 +223,26 @@ fn viewer_of(server: &Server, client: &str, folder: &str) -> Option<(String, Rol
     (f == folder).then(|| (c.account.clone(), *role))
 }
 
-fn member_clients(server: &Server, folder: &str) -> Vec<String> {
+fn key_of(folder: &str, table: &str) -> Key {
+    (folder.to_owned(), table.to_owned())
+}
+
+fn member_clients(server: &Server, folder: &str, table: &str) -> Vec<String> {
     lock(&server.tables.map)
-        .get(folder)
+        .get(&key_of(folder, table))
         .map(|m| m.keys().cloned().collect())
         .unwrap_or_default()
 }
 
-fn is_member(server: &Server, folder: &str, client: &str) -> bool {
+fn is_member(server: &Server, folder: &str, table: &str, client: &str) -> bool {
     lock(&server.tables.map)
-        .get(folder)
+        .get(&key_of(folder, table))
         .is_some_and(|m| m.contains_key(client))
 }
 
-/// `row`, told to each window at the table as it may see it.
+/// `row`, told to each window at its table as it may see it.
 fn tell_row(server: &Server, folder: &str, row: &TableRow) {
-    for client in member_clients(server, folder) {
+    for client in member_clients(server, folder, &row.table) {
         let Some((account, role)) = viewer_of(server, &client, folder) else {
             continue;
         };
@@ -243,17 +257,17 @@ fn tell_row(server: &Server, folder: &str, row: &TableRow) {
 }
 
 /// `message` told to each window at the table.
-fn tell_all(server: &Server, folder: &str, event: &str, payload: &impl Serialize) {
-    let to = member_clients(server, folder);
+fn tell_all(server: &Server, (folder, table): (&str, &str), event: &str, payload: &impl Serialize) {
+    let to = member_clients(server, folder, table);
     if !to.is_empty() {
         server.push(&to, &json!({ "event": event, "payload": payload }));
     }
 }
 
 /// Who is at the table: one per account, in the order they came.
-fn roster(server: &Server, folder: &str) -> Vec<TableMember> {
+fn roster(server: &Server, folder: &str, table: &str) -> Vec<TableMember> {
     let map = lock(&server.tables.map);
-    let Some(members) = map.get(folder) else {
+    let Some(members) = map.get(&key_of(folder, table)) else {
         return Vec::new();
     };
     let mut all: Vec<(&String, &Member)> = members.iter().collect();
@@ -270,25 +284,37 @@ fn roster(server: &Server, folder: &str) -> Vec<TableMember> {
         .collect()
 }
 
-fn tell_roster(server: &Server, folder: &str) {
-    let roster = roster(server, folder);
-    tell_all(server, folder, "table-roster", &roster);
+fn tell_roster(server: &Server, folder: &str, table: &str) {
+    let members = roster(server, folder, table);
+    let payload = TableRoster {
+        table: table.to_owned(),
+        members,
+    };
+    tell_all(server, (folder, table), "table-roster", &payload);
 }
 
-/// The window `client` left: out of every table it was at.
+/// The window `client` left: out of every table it was at, or of the
+/// tables of `folder` only when one is named.
 pub fn gone(server: &Server, client: &str) {
+    leave(server, client, None);
+}
+
+/// The window `client` left `table` of `folder`, or every table it was at
+/// when none is named.
+fn leave(server: &Server, client: &str, only: Option<(&str, &str)>) {
     let mut left = Vec::new();
     {
         let mut map = lock(&server.tables.map);
-        map.retain(|folder, members| {
-            if members.remove(client).is_some() {
-                left.push(folder.clone());
+        map.retain(|key, members| {
+            let named = only.is_none_or(|(f, t)| key.0 == f && key.1 == t);
+            if named && members.remove(client).is_some() {
+                left.push(key.clone());
             }
             !members.is_empty()
         });
     }
-    for folder in left {
-        tell_roster(server, &folder);
+    for (folder, table) in left {
+        tell_roster(server, &folder, &table);
     }
 }
 
@@ -322,10 +348,16 @@ struct New<'a> {
     body: Body,
 }
 
-/// Keep `n` in `folder`'s log and tell the table: the row as kept.
-fn append(server: &Server, folder: &str, n: New<'_>) -> Result<TableRow, ContractError> {
+/// Keep `n` in the log of `table` of `folder` and tell the table: the row
+/// as kept.
+fn append(
+    server: &Server,
+    (folder, table): (&str, &str),
+    n: New<'_>,
+) -> Result<TableRow, ContractError> {
     let mut row = TableRow {
         id: 0,
+        table: table.to_owned(),
         kind: n.kind.to_owned(),
         account: n.account.to_owned(),
         by_name: n.name.to_owned(),
@@ -339,6 +371,55 @@ fn append(server: &Server, folder: &str, n: New<'_>) -> Result<TableRow, Contrac
     row.id = server.db.table_add(folder, &row).map_err(failed)?;
     tell_row(server, folder, &row);
     Ok(row)
+}
+
+/// The root of the table a folder's calls with no table named (an old
+/// peer's) go to: the folder's shortest-rooted table, else the folder.
+fn default_root(server: &Server, folder: &str) -> String {
+    crate::campaign::veil_of(server, folder)
+        .and_then(|v| v.tables.first().map(|t| t.root.clone()))
+        .unwrap_or_default()
+}
+
+/// The table `requested` names in `folder`, as the server keeps its root:
+/// none named is the default table; a name must be a path inside the
+/// folder (relative, no `..`, ADR 0026 rule 4) that is a table of it, or
+/// `""` in a folder with no table.
+pub(crate) fn table_named(
+    server: &Server,
+    folder: &str,
+    requested: Option<&str>,
+) -> Result<String, ContractError> {
+    let Some(asked) = requested else {
+        return Ok(default_root(server, folder));
+    };
+    let ok = asked.chars().count() <= 512
+        && !asked.starts_with('/')
+        && !asked.contains('\\')
+        && !asked.chars().any(char::is_control)
+        && asked.split('/').all(|p| p != ".." && p != ".");
+    if !ok {
+        return Err(refused("a table's folder within the folder"));
+    }
+    let asked = asked.trim_end_matches('/');
+    match crate::campaign::veil_of(server, folder) {
+        None if asked.is_empty() => Ok(String::new()),
+        Some(veil) => veil
+            .tables
+            .iter()
+            .find(|t| crate::campaign::key(&t.root) == crate::campaign::key(asked))
+            .map(|t| t.root.clone())
+            .ok_or_else(|| refused("no such table")),
+        None => Err(refused("no such table")),
+    }
+}
+
+/// The table a note at `path` belongs to: the deepest table that holds it,
+/// else the folder's default.
+fn table_of_path(server: &Server, folder: &str, path: &str) -> String {
+    crate::campaign::veil_of(server, folder)
+        .and_then(|v| v.table(path).map(|t| t.root.clone()))
+        .unwrap_or_else(|| default_root(server, folder))
 }
 
 /// The folder id behind folder key `key`.
@@ -362,6 +443,7 @@ pub fn note_roll(
         server,
         who,
         key,
+        path,
         New {
             kind: "roll",
             account: who.account,
@@ -390,6 +472,7 @@ pub fn note_oracle(
         server,
         who,
         key,
+        path,
         New {
             kind: "oracle",
             account: who.account,
@@ -405,7 +488,7 @@ pub fn note_oracle(
     );
 }
 
-fn note(server: &Server, who: &crate::presence::Sender, key: &str, n: New<'_>) {
+fn note(server: &Server, who: &crate::presence::Sender, key: &str, path: &str, n: New<'_>) {
     // A window on a share is not at the folder's table (ADR 0081): its
     // rolls stay in the share's rooms.
     if crate::shares::scope_here(server, who.client).is_some() {
@@ -414,7 +497,8 @@ fn note(server: &Server, who: &crate::presence::Sender, key: &str, n: New<'_>) {
     let Some(folder) = folder_of_key(server, key) else {
         return;
     };
-    if let Err(e) = append(server, &folder, n) {
+    let table = table_of_path(server, &folder, path);
+    if let Err(e) = append(server, (&folder, &table), n) {
         crate::log::warn(&format!("keeping a roll for the table: {}", e.message));
     }
 }
@@ -491,9 +575,17 @@ pub async fn command(
     let account = who.account.id.clone();
     let name = who.account.name.clone();
     let s = Arc::clone(server);
+    // The table the call is for: the one it names (a real table of the
+    // folder, ADR 0107 as amended 2026-10-23), the folder's default for an
+    // old peer that names none.
+    let named: Option<String> = arg(&args, "table")?;
+    let table = {
+        let (s, f) = (Arc::clone(&s), folder.clone());
+        blocking(move || table_named(&s, &f, named.as_deref())).await?
+    };
     // Only a window at the table speaks at it.
     if !matches!(cmd, "table_join" | "table_leave" | "table_history")
-        && !is_member(&s, &folder, client)
+        && !is_member(&s, &folder, &table, client)
     {
         return Err(refused("join the table first"));
     }
@@ -510,7 +602,7 @@ pub async fn command(
                 .transpose()?;
             {
                 let mut map = lock(&s.tables.map);
-                let members = map.entry(folder.clone()).or_default();
+                let members = map.entry(key_of(&folder, &table)).or_default();
                 if members.len() >= MEMBERS_MOST && !members.contains_key(client) {
                     return Err(refused("the table is full"));
                 }
@@ -524,13 +616,20 @@ pub async fn command(
                     },
                 );
             }
-            tell_roster(&s, &folder);
-            let f = folder.clone();
-            let joined = blocking(move || join(&s, &f, &account, role)).await?;
+            tell_roster(&s, &folder, &table);
+            let (f, t) = (folder.clone(), table.clone());
+            let joined = blocking(move || join(&s, (&f, &t), &account, role)).await?;
             to_value(joined)
         }
         "table_leave" => {
-            gone(&s, client);
+            // A table named leaves that one; none named, every table of
+            // the window's (an old peer's leave, or a closing window).
+            let only: Option<String> = arg(&args, "table")?;
+            if only.is_some() {
+                leave(&s, client, Some((&folder, &table)));
+            } else {
+                gone(&s, client);
+            }
             Ok(Value::Null)
         }
         "table_look" => {
@@ -544,14 +643,17 @@ pub async fn command(
                 .transpose()?;
             {
                 let mut map = lock(&s.tables.map);
-                if let Some(m) = map.get_mut(&folder).and_then(|m| m.get_mut(client)) {
+                if let Some(m) = map
+                    .get_mut(&key_of(&folder, &table))
+                    .and_then(|m| m.get_mut(client))
+                {
                     if let Some(c) = color {
                         m.color = c;
                     }
                     m.styles = styles;
                 }
             }
-            tell_roster(&s, &folder);
+            tell_roster(&s, &folder, &table);
             Ok(Value::Null)
         }
         "table_history" => {
@@ -566,7 +668,7 @@ pub async fn command(
             let limit = i64::from(limit.unwrap_or(50)).clamp(1, PAGE_MOST);
             let veil = crate::campaign::veil_of(&s, &folder);
             let (rows, more) = blocking(move || {
-                s.db.table_page(&folder, before, limit, role == Role::Reader)
+                s.db.table_page(&folder, &table, before, limit, role == Role::Reader)
                     .map_err(failed)
             })
             .await?;
@@ -584,7 +686,7 @@ pub async fn command(
             let row = blocking(move || {
                 append(
                     &s,
-                    &folder,
+                    (&folder, &table),
                     New {
                         kind: "say",
                         account: &account,
@@ -609,7 +711,7 @@ pub async fn command(
             }
             let data: String = arg(&args, "base64")?;
             pace(&s, client)?;
-            crate::table_image::send(server, who, client, (&folder, role), &data).await
+            crate::table_image::send(server, who, client, (&folder, &table, role), &data).await
         }
         "table_roll" => {
             let notation: String = arg(&args, "notation")?;
@@ -640,7 +742,7 @@ pub async fn command(
                 rolled.occurrence = occurrence;
                 append(
                     &s,
-                    &folder,
+                    (&folder, &table),
                     New {
                         kind: "roll",
                         account: &account,
@@ -662,32 +764,33 @@ pub async fn command(
         "table_pin" => {
             let id = entry_id(&args)?;
             let pinned: bool = arg(&args, "pinned")?;
-            let f = folder.clone();
+            let (f, t) = (folder.clone(), table.clone());
             let found = blocking(move || {
-                let Some(row) = s.db.table_get(&f, id).map_err(failed)? else {
+                let Some(row) = s.db.table_get(&f, &t, id).map_err(failed)? else {
                     return Ok(false);
                 };
                 if row.readers_hidden && role == Role::Reader {
                     return Ok(false);
                 }
-                s.db.table_set_pinned(&f, id, pinned).map_err(failed)
+                s.db.table_set_pinned(&f, &t, id, pinned).map_err(failed)
             })
             .await?;
             if !found {
                 return Err(not_found());
             }
             let payload = TablePinned {
+                table: table.clone(),
                 id: id.to_string(),
                 pinned,
             };
-            tell_all(server, &folder, "table-pinned", &payload);
+            tell_all(server, (&folder, &table), "table-pinned", &payload);
             Ok(Value::Null)
         }
         "table_delete" => {
             let id = entry_id(&args)?;
-            let f = folder.clone();
+            let (f, t) = (folder.clone(), table.clone());
             blocking(move || {
-                let Some(row) = s.db.table_get(&f, id).map_err(failed)? else {
+                let Some(row) = s.db.table_get(&f, &t, id).map_err(failed)? else {
                     return Err(not_found());
                 };
                 if row.readers_hidden && role == Role::Reader {
@@ -702,15 +805,18 @@ pub async fn command(
                 if row.account != account && role != Role::Owner {
                     return Err(refused("only its author or an owner deletes an entry"));
                 }
-                s.db.table_delete(&f, id).map_err(failed)?;
+                s.db.table_delete(&f, &t, id).map_err(failed)?;
                 Ok(())
             })
             .await?;
             tell_all(
                 server,
-                &folder,
+                (&folder, &table),
                 "table-removed",
-                &TableRemoved { id: id.to_string() },
+                &TableRemoved {
+                    table: table.clone(),
+                    id: id.to_string(),
+                },
             );
             Ok(Value::Null)
         }
@@ -720,13 +826,16 @@ pub async fn command(
             }
             let keep: Option<bool> = arg(&args, "keepPinned")?;
             let keep_pinned = keep.unwrap_or(true);
-            let f = folder.clone();
-            blocking(move || s.db.table_clear(&f, keep_pinned).map_err(failed)).await?;
+            let (f, t) = (folder.clone(), table.clone());
+            blocking(move || s.db.table_clear(&f, &t, keep_pinned).map_err(failed)).await?;
             tell_all(
                 server,
-                &folder,
+                (&folder, &table),
                 "table-cleared",
-                &TableCleared { keep_pinned },
+                &TableCleared {
+                    table: table.clone(),
+                    keep_pinned,
+                },
             );
             Ok(Value::Null)
         }
@@ -747,10 +856,10 @@ fn entry_id(args: &Value) -> Result<i64, ContractError> {
         .map_err(|_| refused("not an entry's number"))
 }
 
-/// The latest entries and every pinned one, and the roster.
+/// The latest entries of the table and every pinned one, and the roster.
 fn join(
     server: &Server,
-    folder: &str,
+    (folder, table): (&str, &str),
     account: &str,
     role: Role,
 ) -> Result<TableJoin, ContractError> {
@@ -758,13 +867,17 @@ fn join(
     let veil = crate::campaign::veil_of(server, folder);
     let (latest, more) = server
         .db
-        .table_page(folder, None, JOIN_ENTRIES, readers)
+        .table_page(folder, table, None, JOIN_ENTRIES, readers)
         .map_err(failed)?;
-    let mut rows = server.db.table_pinned(folder, readers).map_err(failed)?;
+    let mut rows = server
+        .db
+        .table_pinned(folder, table, readers)
+        .map_err(failed)?;
     rows.extend(latest);
     rows.sort_by_key(|r| r.id);
     rows.dedup_by_key(|r| r.id);
     Ok(TableJoin {
+        table: table.to_owned(),
         you: account.to_owned(),
         role: role.as_str().to_owned(),
         entries: rows
@@ -772,6 +885,6 @@ fn join(
             .filter_map(|r| view_in(r, account, role, veil.as_deref()))
             .collect(),
         more,
-        roster: roster(server, folder),
+        roster: roster(server, folder, table),
     })
 }

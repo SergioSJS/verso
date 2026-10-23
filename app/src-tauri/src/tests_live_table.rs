@@ -82,7 +82,8 @@ impl Browser {
     /// The roster, once it is told with `n` at the table.
     fn roster(&mut self, n: usize) -> Value {
         loop {
-            let list = self.event("table-roster");
+            let told = self.event("table-roster");
+            let list = told["members"].clone();
             if list.as_array().is_some_and(|l| l.len() == n) {
                 return list;
             }
@@ -357,4 +358,64 @@ fn a_synced_folders_window_is_told_the_server_its_link_reaches() {
     let at = remote::server_window(&d.s.live.remote().unwrap());
     assert_eq!(at.url, r.url.trim_end_matches('/'));
     assert!(!at.folder.is_empty());
+}
+
+/// One chat per table, over the sync's link too (ADR 0107 as amended
+/// 2026-10-23): the window at one table is told that table's entries, a
+/// browser at the other one is told the other's, and neither hears across.
+#[test]
+fn two_tables_keep_their_chats_apart_over_the_sync_link() {
+    let r = serve(&[("Sessao.md", "# Sessao\n")]);
+    for name in ["Mapa", "Cripta"] {
+        let _kept = tempfile::Builder::new()
+            .prefix(name)
+            .rand_bytes(0)
+            .tempdir_in(r._dirs.1.path().join("Campanha"))
+            .unwrap()
+            .keep();
+    }
+    let (d, _l) = linked(&r, &r.owner);
+    for root in ["Mapa", "Cripta"] {
+        let made = cmd(&d, "campaign_make", json!({ "root": root })).unwrap();
+        assert_eq!(made["viewer"], "owner", "{made}");
+    }
+    let mut web = browser(&r, &r.reader);
+    let there = web
+        .call("table_join", json!({ "table": "Cripta" }))
+        .unwrap();
+    assert_eq!(there["table"], "Cripta", "{there}");
+    let here = cmd(&d, "table_join", json!({ "table": "Mapa" })).unwrap();
+    assert_eq!(here["table"], "Mapa", "{here}");
+
+    // Said at one table, heard at that one only.
+    cmd(
+        &d,
+        "table_say",
+        json!({ "text": "no mapa", "table": "Mapa" }),
+    )
+    .unwrap();
+    assert_eq!(heard(&d, "table-entry", 1)[0]["table"], "Mapa");
+    web.call(
+        "table_say",
+        json!({ "text": "na cripta", "table": "Cripta" }),
+    )
+    .unwrap();
+    assert_eq!(web.event("table-entry")["text"], "na cripta");
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(
+        told(&d, "table-entry").len(),
+        1,
+        "the other table was heard"
+    );
+    // The roster of each is its own.
+    assert_eq!(here["roster"].as_array().unwrap().len(), 1);
+
+    // The window goes to the other table: the connection leaves the first
+    // when no window of this app is left at it, and hears the second.
+    cmd(&d, "table_leave", json!({ "table": "Mapa" })).unwrap();
+    cmd(&d, "table_join", json!({ "table": "Cripta" })).unwrap();
+    web.roster(2);
+    web.call("table_say", json!({ "text": "de novo", "table": "Cripta" }))
+        .unwrap();
+    assert_eq!(heard(&d, "table-entry", 2)[1]["text"], "de novo");
 }
