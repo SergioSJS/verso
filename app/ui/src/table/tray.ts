@@ -148,7 +148,7 @@ export class Tray {
     this.savedBox.append(this.saved.el);
     this.savedBox.hidden = true;
 
-    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl, this.mode, this.savedButton);
+    this.scroll.append(this.moreButton, this.mod, this.kh, this.kl, this.savedButton, this.mode);
     this.go.type = "button";
     this.go.append(icon("dice", ""));
     this.go.addEventListener("click", () => void this.host.submit());
