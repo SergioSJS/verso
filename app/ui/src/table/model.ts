@@ -194,8 +194,9 @@ export interface ServerTable extends TableSource {
   canDelete(e: TableEntry): boolean;
   /** The roller's dice or colour changed: tell the table. */
   look(): void;
-  /** Leave the table (the folder closed). */
-  close(): void;
+  /** Leave the table (the folder closed); settles once the leave is
+   *  answered, so a join after it is not undone by it. */
+  close(): Promise<void>;
 }
 
 export function isServerTable(s: TableSource): s is ServerTable {

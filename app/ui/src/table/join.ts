@@ -56,10 +56,20 @@ let current: ServerTable | null = null;
 let attempt = 0;
 
 /** Join the table of the folder now shown, or go back to the local one. */
-async function retry(): Promise<void> {
+/** One rejoin at a time, each after the last: a leave sent while another
+ *  join is on its way could reach the server after that join and leave the
+ *  window off the table ("join the table first"). */
+let queue: Promise<void> = Promise.resolve();
+function retry(): Promise<void> {
+  queue = queue.then(rejoinNow, rejoinNow);
+  return queue;
+}
+
+async function rejoinNow(): Promise<void> {
   const mine = ++attempt;
-  current?.close();
+  const leaving = current;
   current = null;
+  await leaving?.close();
   local.setNotice(null);
   if (!tableOn() || !currentFolder) {
     setTableSource(local);
@@ -87,7 +97,7 @@ async function retry(): Promise<void> {
     onNews: news,
   }).catch((): null => null);
   if (mine !== attempt) {
-    table?.close();
+    await table?.close();
     return;
   }
   current = table;
