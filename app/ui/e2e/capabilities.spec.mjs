@@ -66,7 +66,9 @@ test("on a server: a web note shows its page in a frame without hint line when f
 
 test("a reader only reads: the editor, the tree's menus, the ribbon and the palette change nothing", async ({ app, page }) => {
   await app.open("?side=server&role=reader");
-  await expect(page.locator(".read-only-line")).toHaveText("Você só lê esta pasta.");
+  // No banner: the closed lock beside the folder's name says it (2026-10-23).
+  await expect(page.locator(".read-only-line")).toHaveCount(0);
+  await expect(page.locator("#open .folder-lock")).toHaveAttribute("aria-label", "Você só lê esta pasta");
   await app.quickOpen("03 - Propriedades");
   const before = await app.file(NOTE);
   await app.key("Mod+e");
@@ -96,22 +98,22 @@ test("a reader only reads: the editor, the tree's menus, the ribbon and the pale
 
 test("the role changes while the window is open: the window reads only, then writes again", async ({ app, page }) => {
   await app.open("?side=server");
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   await app.quickOpen("03 - Propriedades");
   await app.key("Mod+e");
   const editor = page.locator(".pane.focused .cm-content").first();
   await expect(editor).not.toHaveAttribute("aria-readonly", "true");
   await page.evaluate(() => window.__harness.setRole("reader"));
-  await expect(page.locator(".read-only-line")).toBeVisible();
+  await expect(page.locator("#open .folder-lock")).toBeVisible();
   await expect(page.locator(".pane.focused .cm-content").first()).toHaveAttribute("aria-readonly", "true");
   await page.evaluate(() => window.__harness.setRole("editor"));
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   await expect(page.locator(".pane.focused .cm-content").first()).not.toHaveAttribute("aria-readonly", "true");
 });
 
-test("the read-only line fits a phone, in Portuguese @layout", async ({ app, page }) => {
+test("the reader's lock fits a phone, in Portuguese @layout", async ({ app, page }) => {
   await app.open("?side=server&role=reader");
-  const line = page.locator(".read-only-line");
+  const line = page.locator("#open .folder-lock");
   await expect(line).toBeVisible();
   const box = await line.boundingBox();
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);

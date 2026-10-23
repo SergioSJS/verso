@@ -64,7 +64,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 
 O que é o servidor e como instalá-lo: [[23 - Verso num Servidor]].
 
-- **Quem só lê** a pasta vê a linha *Você só lê esta pasta*, e nada que muda a pasta aparece.
+- **Quem só lê** a pasta vê um cadeado fechado ao lado do nome dela (*Você só lê esta pasta*), e nada que muda a pasta aparece; se tentar escrever, mover ou renomear algo, um aviso curto diz que só lê, perto de onde tentou.
 - **Copiar link** dá o endereço da nota no servidor, e **Abrir numa nova aba do navegador** faz o papel da nova janela.
 - **Uma página web** de uma nota aparece dentro da nota, com um link para abri-la numa aba quando o site não deixa ser mostrado dentro de outro.
 

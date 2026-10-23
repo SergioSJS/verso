@@ -177,3 +177,21 @@ Items run the palette's command. Alt alone opens it; Alt and the underlined
 letter opens one (pt: A E V I R J U; en: F E V G R W H, chosen so that no
 letter repeats and none is a key the window binds with Alt alone). Not built:
 a menu in the browser window or on a phone. Recorded, not decided.
+
+**The right panel's tab bar, on Windows and Linux (2026-10-23).** The
+maintainer, from the Windows app: *"no windows os botões no topo tão bem ruim
+e encavalado. deveria ter opção de reordenar com drag and drop como noutras
+partes do sistema"*. The bar of the right panel's tabs reached the corner of
+the app's own buttons and its tabs shrank one against the other. Decided in
+the code, to confirm: a tab keeps its size (2.25rem) and its gap; the room
+the bar has is what is left of the row after the corner (`frame.ts` pushes
+the bar clear of it sideways, and the right bar is never sent down for want
+of room); the tabs that do not fit leave the bar for a **⋯** button ("More
+panel tabs") that lists them, and the chosen tab always stays in the bar. The
+person reorders the tabs by dragging them along the bar (a pointer drag, as
+the ribbon's: HTML5 drag and drop is dead in the WKWebView), by **Alt+←/→**
+on a focused tab, or from the tab's menu (**Move left / Move right**); the
+order is kept in the window's storage (`verso.rightTabOrder`) and a tab newer
+than the saved order goes where it stands among the defaults
+(`app/ui/src/panel/tabStrip.ts`; tried in `e2e/right-tabs.spec.mjs` with the
+Windows frame and platform emulated).

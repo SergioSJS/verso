@@ -1134,8 +1134,8 @@ seen only here. Before the server is announced (ADR 0073 item 6).
   then its "…" ("Mais ações: …"); a double-tap-and-hold on a row opens its
   menu; in Editar, a double tap on a link and the card after the text
   ("Link: …") with Abrir and Editar link; the keyboard's bar named
-  "Ferramentas de escrita"; on a reader's folder, "Você só lê esta pasta"
-  read out.
+  "Ferramentas de escrita"; on a reader's folder, the lock beside the name read out as
+  "Você só lê esta pasta".
 - [ ] **VoiceOver on the iPad**, portrait and landscape: the same; over
   760 px the ribbon and the split panes stay; the graph's controls beside
   it in landscape, behind "Ajustes do grafo" in a pane under 520 px.

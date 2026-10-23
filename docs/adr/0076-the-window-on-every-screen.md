@@ -255,3 +255,18 @@ in the moved block, above the keyboard. A fine pointer keeps the handles as
 [0061](0061-blocks-in-edit-mode.md) made them. This closes the `[OPEN]` on
 the toolbar's contents; they can still change after use, by a new
 amendment.
+
+**The reader's mark (item 11), 2026-10-23.** The maintainer: *"essa mensagem
+'you can only read this folder' é inútil, remova, tem jeito melhor de fazer
+isso: se a pessoa tentar editar, … pode ter um cadeado fechado em algum lugar
+pra indicar isso"*. The yellow line at the top of the window (and the
+browser's one-off notice) is gone. Decided in the code, to confirm: a closed
+lock beside the folder's name in the side bar's head (named *You only read
+this folder*), shown while the folder on screen is one the person only reads;
+and, when they try to change something (type, paste, drop or cut in a note,
+ask for Edit or Source, ⌘N and the other keys of what writes, drag a file,
+rename, make a folder), a short notice near where they acted that says so,
+shown at most once every few seconds, not on every key
+(`app/ui/src/readerNotice.ts`). A note granted to the person (ADR 0110) edits
+normally and says nothing; the lock stays the folder's. Tried in
+`e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` and `folder-role.spec.mjs`.

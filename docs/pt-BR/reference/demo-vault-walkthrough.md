@@ -1079,8 +1079,8 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    `tests_console.rs`,
    `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em
-   outro navegador cria a conta, abre a pasta, e a janela diz *Você só lê
-   esta pasta*; o convite aparece *usado* e por quem; o link uma segunda vez
+   outro navegador cria a conta, abre a pasta, e a janela mostra um cadeado fechado
+   ao lado do nome da pasta (*Você só lê esta pasta*); o convite aparece *usado* e por quem; o link uma segunda vez
    não vale mais (e2e-server, "an invited reader").
 4. Uma nota em duas janelas: o que uma digita aparece na outra, e uma
    terceira janela a lê do disco (e2e-server, "two windows edit one note").

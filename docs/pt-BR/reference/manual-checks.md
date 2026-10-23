@@ -1169,8 +1169,8 @@ se vê aqui. Antes de o servidor ser anunciado (ADR 0073 item 6).
   ao "…" dela ("Mais ações: …"); tocar duas vezes e segurar numa linha
   abre o menu; no Editar, um toque duplo num link e o cartão depois do
   texto ("Link: …") com Abrir e Editar link; a barra do teclado chamada
-  "Ferramentas de escrita"; numa pasta de quem só lê, "Você só lê esta
-  pasta" lido em voz alta.
+  "Ferramentas de escrita"; numa pasta de quem só lê, o cadeado ao lado do nome lido como
+  "Você só lê esta pasta".
 - [ ] **VoiceOver no iPad**, em pé e deitado: o mesmo; acima de 760 px a
   fita e as áreas divididas ficam; os controles do grafo ao lado dele
   deitado, atrás de "Ajustes do grafo" numa área abaixo de 520 px.

@@ -351,9 +351,10 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Nine tabs in a 260 px bar: each is 2.25rem when there is room and shrinks
-     (icon centred) when there is not, so the strip never pushes past the window. */
-  flex: 0 1 2.25rem;
+  /* A tab keeps its size: those that do not fit leave the bar for a "⋯"
+     (panel/tabStrip.ts), never squeezed one against the other. */
+  flex: none;
+  width: 2.25rem;
   min-width: 0;
   padding: 0;
   color: var(--ink-3);
@@ -382,6 +383,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
   z-index: 1;
 }
 .right-tab .icon { width: 15px; height: 15px; }
+.right-tab[data-overflow] { display: none; }
+.right-tab.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
 
 /* Code copy button */
 pre { position: relative; }

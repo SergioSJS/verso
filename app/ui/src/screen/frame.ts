@@ -25,6 +25,7 @@ import { signedIn } from "../web/api";
 import { installSelectBar } from "../tree/selectBar";
 import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
+import { installTableChip } from "../tableChip";
 import { st } from "./strings";
 
 /* ---------- The bottom bar (item 6) ---------- */
@@ -79,21 +80,20 @@ function paintBar(): void {
 
 /* ---------- The top of the pane (items 6 and 11) ---------- */
 const notices = h("div", "work-notices");
-const readOnlyLine = h("p", "read-only-line", st.readOnly);
 const failedLine = h("div", "failed-line");
 const failedText = h("span", "failed-text");
 
 function buildNotices(): void {
-  readOnlyLine.setAttribute("role", "note");
-  readOnlyLine.hidden = true;
   failedLine.setAttribute("role", "alert");
   failedLine.hidden = true;
   const dismiss = button("ghost iconic", st.dismiss, "close");
   dismiss.addEventListener("click", () => (failedLine.hidden = true));
   failedLine.append(failedText, dismiss);
-  notices.append(readOnlyLine, failedLine);
+  notices.append(failedLine);
+  buildLock();
+  installTableChip();
   document.querySelector("main.work")?.prepend(notices);
-  // A folder opened or closed enables the search field: the reader's line
+  // A folder opened or closed enables the search field: the reader's lock
   // follows, as the bar does.
   new MutationObserver(paintReadOnly).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
   addEventListener("verso:failed", (e) => {
@@ -129,11 +129,22 @@ function buildSideFoot(): void {
   document.querySelector("aside.side")?.append(sideFoot);
 }
 
-/** "You only read this folder" of a folder on screen: with none open, a
- *  server answers no write — not a reader's role, and not a line to show
- *  over the start page. */
+/** The closed lock beside the folder's name: "You only read this folder"
+ *  (maintainer, 2026-10-23: no banner at the top of the window; a lock
+ *  somewhere, and a word when the person tries to edit — readerNotice.ts).
+ *  Said of a folder on screen: with none open, a server answers no write —
+ *  not a reader's role, and not a mark to show over the start page. */
+const folderLock = h("span", "folder-lock");
+function buildLock(): void {
+  folderLock.setAttribute("role", "img");
+  folderLock.setAttribute("aria-label", st.lockName);
+  folderLock.title = st.lockName;
+  folderLock.append(icon("lock"));
+  folderLock.hidden = true;
+  ui.folder.after(folderLock);
+}
 function paintReadOnly(): void {
-  readOnlyLine.hidden = canWrite() || ui.search.disabled;
+  folderLock.hidden = canWrite() || ui.search.disabled;
 }
 
 function applyCan(): void {

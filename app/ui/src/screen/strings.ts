@@ -69,6 +69,8 @@ export type ScreenStrings = {
   rowMore: (name: string) => string;
   /** What the side cannot do (item 11). */
   readOnly: string;
+  /** The closed lock beside the folder's name. */
+  lockName: string;
   copyLink: string;
   linkCopied: string;
   openInBrowserTab: string;
@@ -123,6 +125,7 @@ const pt: ScreenStrings = {
   open: "Abrir",
   rowMore: (name) => `Mais ações: ${name}`,
   readOnly: "Você só lê esta pasta.",
+  lockName: "Você só lê esta pasta",
   copyLink: "Copiar link",
   linkCopied: "Link copiado.",
   openInBrowserTab: "Abrir numa nova aba do navegador",
@@ -176,6 +179,7 @@ const en: ScreenStrings = {
   open: "Open",
   rowMore: (name) => `More actions: ${name}`,
   readOnly: "You can only read this folder.",
+  lockName: "You only read this folder",
   copyLink: "Copy link",
   linkCopied: "Link copied.",
   openInBrowserTab: "Open in a new browser tab",

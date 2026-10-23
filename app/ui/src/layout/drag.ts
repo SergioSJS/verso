@@ -11,6 +11,7 @@ import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
 import { pinItemToFolder, reorderInFolder } from "../organize/order";
 import { dirOf } from "../paths";
+import { readerAttempt } from "../readerNotice";
 import { settings } from "../settings";
 import { HOLD_MS, STILL_PX } from "../touch";
 import { dropRoll, hideDropCaret, showDropCaret } from "../rollblock/insert";
@@ -312,7 +313,10 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
   // A row of the tree moves a file: not for a reader on a server (ADR 0076
   // item 11). A roll of the table is written into a note or a board, which
   // the same permission governs.
-  if (!canWrite()) return;
+  if (!canWrite()) {
+    readerAttempt({ x, y });
+    return;
+  }
   if (d.kind === "roll") {
     if ("insert" in target) dropRoll(target.insert, d.make(target.insert.path), x, y);
     else if ("board" in target) target.board.addText(d.make(target.board.path), x, y);

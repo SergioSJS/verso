@@ -138,8 +138,8 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   await demoRegistered(page);
   await openDemo(page);
   await expect(page.locator("#folder")).toHaveText("Demo");
-  // The owner writes: no reader's line.
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  // The owner writes: no reader's lock.
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   // A reload comes back to the same folder.
   await page.reload();
   await expect(page.locator("#folder")).toHaveText("Demo");
@@ -188,13 +188,14 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await expect(reader.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
   await expect(reader.locator(".lesson .keys")).toHaveCount(0);
   await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
-  await expect(reader.locator(".read-only-line")).toBeHidden();
+  await expect(reader.locator("#open .folder-lock")).toBeHidden();
   await expect(reader.locator("html")).not.toHaveAttribute("data-role", "reader");
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
-  // With the folder on screen, the reader is told once.
-  await expect(reader.locator(".web-notice")).toHaveText("Você só lê esta pasta.");
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  // With the folder on screen, the reader has the closed lock beside its name (no banner, no notice).
+  await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
+  await expect(reader.locator("#open .folder-lock")).toHaveAttribute("aria-label", "Você só lê esta pasta");
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   // The invitation is used, by whom.
   await page.goto("/admin/invitations");
   await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
@@ -731,7 +732,7 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The window knows it only reads before anything is starred.
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   const NOTE = "14 - Arquivos e Pastas.md";
   const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^14 - Arquivos e Pastas$/ }) }).locator("button.star");
   await showTree(reader);
@@ -752,7 +753,7 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   // A reload: the star is still there, kept by this browser.
   await reader.reload();
   await expect(reader.locator("#folder")).toHaveText("Demo");
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   await showTree(reader);
   await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
   await expect(star).toBeVisible();

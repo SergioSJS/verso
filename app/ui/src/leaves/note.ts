@@ -14,6 +14,7 @@ import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
 import { mayEditGranted } from "../campaign";
+import { guard } from "../readerNotice";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { blockBar } from "../screen/blockbar";
@@ -579,6 +580,9 @@ export class NoteLeaf extends Leaf {
     this.editorHost.classList.toggle("source", m === "source");
   }
   toggleMode(): void {
+    // The person asked for Edit on a note they may not change: the mode
+    // still switches (the source is there to read), and the word is said.
+    if (this.mode === "preview") guard(this.path, this.editor.dom);
     this.setMode(this.mode === "preview" ? "live" : "preview");
   }
   declare selectedBlocks: typeof editing.selectedBlocks;
