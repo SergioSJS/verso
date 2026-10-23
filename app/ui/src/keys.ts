@@ -29,6 +29,7 @@ import { deleteNote, movePrompt, newUntitled } from "./files";
 import { allFiles, allNotes, currentFolder, popout } from "./folder";
 import { closedTabs } from "./history";
 import { moveTab, moveTabToPane } from "./layout/drag";
+import { guard, readerAttempt } from "./readerNotice";
 import { Pane } from "./layout/pane";
 import { layout, newSpace, openNote, paneToOpenIn, showSpace, spaces } from "./layout/spaces";
 import { BaseLeaf } from "./leaves/base";
@@ -216,7 +217,17 @@ export function runHotkey(e: KeyboardEvent): boolean {
   const all = allCommands();
   // ⌘+ is ⌘⇧= on most keyboards: the same key as ⌘=.
   const cmd = all.find((c) => keyOf(c.id) === combo) ?? (combo === "Mod-Shift-=" ? all.find((c) => keyOf(c.id) === "Mod-=") : undefined);
-  if (!cmd) return false;
+  if (!cmd) {
+    // A key of a command that changes the folder, in a folder one only
+    // reads: the command is absent; the word says why (readerNotice.ts).
+    const gone = allCommands(true).find((c) => WRITES.has(c.id) && keyOf(c.id) === combo);
+    if (gone && !canWrite() && !ui.search.disabled) {
+      e.preventDefault();
+      readerAttempt(e.target instanceof Element ? e.target : null);
+      return true;
+    }
+    return false;
+  }
   if (cmd.editorOnly) {
     const leaf = layout().activeLeaf;
     if (!(leaf instanceof NoteLeaf) || !(e.target instanceof Node) || !leaf.editor.contentDOM.contains(e.target)) return false;
@@ -324,7 +335,7 @@ export function allCommands(all = false): Command[] {
     { id: "settings", label: t.settings.split(" (")[0] ?? t.settings, run: () => settingsDialog.show() },
     { id: "check-updates", label: t.checkNow, run: () => { settingsDialog.show("general"); void updateController.check(false); } },
     { id: "toggle-mode", label: `${t.reading} / ${t.edit}`, need: Boolean(note), run: () => note?.toggleMode() },
-    { id: "source", label: t.source, need: Boolean(note), run: () => note?.setMode("source") },
+    { id: "source", label: t.source, need: Boolean(note), run: () => { if (note) { guard(note.path, note.editor.dom); note.setMode("source"); } } },
     { id: "save", label: t.save, need: Boolean(note), run: () => void note?.save() },
     { id: "bookmark", label: note && bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, need: Boolean(note), run: () => note && toggleBookmark(note.path) },
     { id: "graph-note", label: t.graph, need: Boolean(note), run: () => note && pane?.openGraph(note.path) },

@@ -64,7 +64,7 @@ On the tablet (760 to 1180 px) the side bars stay, and the tree's rows are talle
 
 What the server is and how to install it: [[23 - Verso on a Server]].
 
-- **Someone who only reads** the folder sees the line *You can only read this folder.*, and nothing that changes the folder shows up.
+- **Someone who only reads** the folder sees a closed lock beside its name (*You only read this folder*), and nothing that changes the folder shows up; if they try to write, move or rename something, a short notice says they only read it, near where they tried.
 - **Copy link** gives the note's address on the server, and **Open in a new browser tab** does the job of the new window.
 - **A web page** in a note shows up inside the note, with a link to open it in a tab when the site does not allow being shown inside another.
 

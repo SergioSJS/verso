@@ -159,7 +159,7 @@ test("someone with no account reads the note: no secret, a link out of it as tex
   // note (the server's tests refuse every write).
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   await expect(reader.locator("html")).toHaveClass(/cannot-write/);
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   // A die rolls in the browser.
   await preview.getByRole("button", { name: "Rolar 1d20+5" }).click();
   await expect(preview.locator('.dice[data-dice="1d20+5"] .dice-total')).toHaveText(/^\d+$/);

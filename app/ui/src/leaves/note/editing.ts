@@ -45,6 +45,7 @@ import { formatUnderCaret, tableKeymap, template as tableTemplate } from "../../
 import { focusedAlign, focusTableCell, tableAction, tableHasFocus } from "../../tableEditor";
 import { Mode, NoteLeaf } from "../note";
 import { fromDisk, readOnlyText } from "../text";
+import { readerWatch } from "../../readerNotice";
 
 export function modeButton(this: NoteLeaf, mode: Mode, ic: string, label: string): HTMLButtonElement {
   const b = h("button");
@@ -102,7 +103,7 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       keymap.of([...markdownKeymap, indentWithTab]),
       EditorView.lineWrapping,
       this.liveCompartment.of(this.mode === "live" ? [this.live, this.blockExt] : []),
-      this.readOnly ? readOnlyText : [],
+      this.readOnly ? [readOnlyText, readerWatch(() => this.path)] : [],
       // Several people in the note (ADR 0073 item 7): the room's binding.
       shared,
       // Above basicSetup's defaults, which bind ⌘I (select the parent

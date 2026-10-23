@@ -16,12 +16,12 @@ test("a window that comes to a folder where it only reads becomes read-only, wit
   await app.quickOpen("Grupo");
   await app.boardReady();
   await expect(page.locator(".App-toolbar")).toHaveCount(1);
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
 
   await page.evaluate(() => window.__harness.showServerFolder("reader"));
 
   await expect(page.locator(".App-toolbar")).toHaveCount(0);
-  await expect(page.locator(".read-only-line")).toBeVisible();
+  await expect(page.locator("#open .folder-lock")).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/cannot-reveal/);
   // The app's own abilities are not the server's to take away.
   await expect(page.locator("html")).not.toHaveClass(/cannot-windows/);
@@ -34,6 +34,6 @@ test("a window that comes to a folder where it only reads becomes read-only, wit
 
   // And back to a folder where the person writes.
   await page.evaluate(() => window.__harness.showServerFolder("owner"));
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   await expect(page.locator(".cm-content").first()).not.toHaveAttribute("aria-readonly", "true");
 });

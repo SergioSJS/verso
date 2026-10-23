@@ -90,7 +90,9 @@ function clearCorner(bars: HTMLElement[], side: "l" | "r", corner: number, ROW: 
       // A pixel more: a button's hover may reach past its box.
       bar.style.setProperty(`--frame-${side}`, `${Math.ceil(push) + 1}px`);
       bar.classList.add(`frame-push-${side}`);
-      if (bar.scrollWidth - bar.clientWidth <= overflow + 1) continue;
+      // A bar that keeps its own tabs whole, the rest in a "⋯" menu, is
+      // never sent down for want of room (panel/tabStrip.ts).
+      if (bar.classList.contains("right-tabs") || bar.scrollWidth - bar.clientWidth <= overflow + 1) continue;
       bar.classList.remove(`frame-push-${side}`);
       bar.style.removeProperty(`--frame-${side}`);
     }
@@ -126,6 +128,9 @@ function avoid(): void {
     clearCorner(bars, "l", menuButton?.getBoundingClientRect().right ?? 0, ROW, width);
   }
   observeBars(bars);
+  // A bar that fits its own tabs in the room it is left (the right
+  // panel's) measures again now that the corner is cleared.
+  dispatchEvent(new Event("verso:frame-avoided"));
 }
 
 function soon(): void {

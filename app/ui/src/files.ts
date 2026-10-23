@@ -32,6 +32,7 @@ import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
 import { st } from "./screen/strings";
+import { readerAttempt } from "./readerNotice";
 import { getHiddenFromTree, setHiddenFromTree } from "./settings";
 import { keyboardIn, returnFromSide, showSide } from "./side";
 import { fillTemplate } from "./templateFill";
@@ -50,6 +51,7 @@ import { offerTemplates } from "./templatePicker";
 export function readable(): boolean {
   if (canWrite()) return true;
   ui.status.textContent = st.readOnly;
+  readerAttempt();
   return false;
 }
 export function fileBase64(f: File): Promise<string> {
