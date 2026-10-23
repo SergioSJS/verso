@@ -328,5 +328,9 @@ pub(crate) fn return_to_main<R: tauri::Runtime>(
         let _ = w.set_focus();
     }
     lock(&state.popouts).remove(window.label());
+    session::closing(
+        window.label(),
+        "return_to_main (a note back to its folder's window)",
+    );
     window.close().map_err(|e| failed(e.to_string()))
 }

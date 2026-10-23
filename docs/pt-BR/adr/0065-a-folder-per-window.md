@@ -41,7 +41,11 @@ Escrito pelo autor a partir da escolha do mantenedor acima, e aceito por ela
    Abrir recente — abre numa janela sem pasta se houver uma, senão numa
    janela nova; Arquivo › Abrir pasta… e o "Abrir pasta" do app trocam a
    pasta da janela em que são usados. Os itens do menu agem na janela que
-   tem o foco.
+   tem o foco. Uma pasta entregue ao app em execução nunca fecha nem
+   substitui uma janela que mostra uma pasta (uma janela na pasta de um
+   servidor, ou à espera dela, conta como mostrando uma); uma pasta que
+   alguma janela já mostra traz aquela janela para a frente em vez de abrir
+   outra (esclarecido em 23/10/2026, `fix/handed-folder-closes-main`).
 5. **O título de uma janela é o nome da sua pasta.**
 6. **O que não muda:** os tipos do contrato; uma nota aberta numa janela
    própria pertence à pasta de onde veio; só a janela principal guarda o seu

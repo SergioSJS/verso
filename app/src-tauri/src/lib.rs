@@ -1071,11 +1071,13 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                 if is_app_view(w.label()) {
                     let _ = app.emit("menu-close-tab", w.label().to_owned());
                 } else {
+                    session::closing(w.label(), "the Close Tab menu item on a page window");
                     let _ = w.close();
                 }
             }
         } else if id == CLOSE_WINDOW {
             if let Some(w) = focused_window(app) {
+                session::closing(w.label(), "the Close Window menu item");
                 let _ = w.close();
             }
         } else if let Some(command) = id.strip_prefix(menu_spec::COMMAND_PREFIX) {
@@ -1205,10 +1207,29 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         } => files::dragged(app, label, drag),
         tauri::RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::CloseRequested { .. },
+            ..
+        } => session::closing(
+            label,
+            "a close request (the frame's button or the system's)",
+        ),
+        tauri::RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::Destroyed,
             ..
         } => {
-            log::write("INFO", "host", &format!("window closed: {label}"));
+            {
+                let state = app.state::<App>();
+                let showed = state.service.folder_of(label).is_some()
+                    || remote::of(app, label).is_some()
+                    || lock(&state.pending_servers).contains_key(label);
+                let quitting = state.quitting.load(std::sync::atomic::Ordering::SeqCst);
+                log::write(
+                    "INFO",
+                    "host",
+                    &session::close_line(label, showed, quitting),
+                );
+            }
             // A window the person closed does not come back at the next
             // start; one that closed with the app does (`session`).
             session::window_gone(app, label);
@@ -1264,7 +1285,42 @@ pub(crate) enum Handed {
     Server(String, String),
 }
 
+/// The window of a folder (the main one first) that already shows the
+/// folder `key`, on this computer or on a server, or waits for the server
+/// that will show it.
+fn window_showing<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Option<String> {
+    let state = app.state::<App>();
+    let mut labels: Vec<String> = app
+        .windows()
+        .into_keys()
+        .filter(|l| l == "main" || l.starts_with("window-"))
+        .filter(|l| match remote::of(app, l) {
+            Some(r) => session::server_key(&r.url, &r.folder) == key,
+            None => {
+                state.service.folder_of(l).as_deref() == Some(key)
+                    || lock(&state.pending_servers).get(l).map(String::as_str) == Some(key)
+            }
+        })
+        .collect();
+    labels.sort_by_key(|l| (l != "main", l.clone()));
+    labels.into_iter().next()
+}
+
 fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
+    // A folder a window already shows is that window's to bring forward: a
+    // second window on it, or the one that shows another folder swapped
+    // for it, is never what handing a folder to the running app means.
+    let key = match &handed {
+        Handed::Path(folder) => verso_core::folder_key(folder),
+        Handed::Server(url, folder) => session::server_key(url, folder),
+    };
+    if let Some(label) = window_showing(app, &key)
+        && let Some(w) = app.get_window(&label)
+    {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        return;
+    }
     // Folders wait in line: two handed before a window took the first
     // (`verso a; verso b`) are both opened, never one lost.
     let waiting = {
@@ -1308,6 +1364,10 @@ fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
             .filter(|l| {
                 (l == "main" || l.starts_with("window-"))
                     && state.service.folder_of(l).is_none()
+                    // A window on a server's folder, or waiting for the
+                    // server's, shows a folder though the service has none.
+                    && remote::of(app, l).is_none()
+                    && !lock(&state.pending_servers).contains_key(l)
                     && !opening.contains(l)
             })
             .collect();

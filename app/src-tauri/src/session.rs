@@ -83,6 +83,43 @@ pub(crate) fn quitting<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     app.state::<App>().quitting.store(true, Ordering::SeqCst);
 }
 
+/// Why each window is closing, as the side that asked said it, until the
+/// window is gone (`close_line`): label → cause.
+static CAUSES: std::sync::Mutex<Vec<(String, &'static str)>> = std::sync::Mutex::new(Vec::new());
+
+/// A window is about to close, and why. The first cause said stands: a
+/// close request that follows a menu item's is the same close.
+pub(crate) fn closing(label: &str, cause: &'static str) {
+    if let Ok(mut causes) = CAUSES.lock()
+        && !causes.iter().any(|(l, _)| l == label)
+    {
+        causes.push((label.to_owned(), cause));
+    }
+}
+
+/// The log line for a window that is gone: its label, whether it showed a
+/// folder (never which), and the cause. The app quitting outranks any
+/// other; with none said, "destroyed with no request seen".
+pub(crate) fn close_line(label: &str, showed_folder: bool, quitting: bool) -> String {
+    let said = CAUSES.lock().ok().and_then(|mut causes| {
+        causes
+            .iter()
+            .position(|(l, _)| l == label)
+            .map(|i| causes.remove(i).1)
+    });
+    let cause = if quitting {
+        "the app is quitting"
+    } else {
+        said.unwrap_or("destroyed with no request seen")
+    };
+    let shown = if showed_folder {
+        "showed a folder"
+    } else {
+        "showed no folder"
+    };
+    format!("window closed: {label} ({shown}; cause: {cause})")
+}
+
 /// A window closed. Called for every window; only a folder window the
 /// person closed leaves the set.
 pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
@@ -292,6 +329,10 @@ mod tests {
         )
         .unwrap();
         crate::lock(&app.state::<App>().initial_folder).clear();
+        // The windows are gone, as at a start: their folders are released
+        // (what the host's event handler does).
+        app.state::<App>().service.release("main");
+        app.state::<App>().service.release(&again_label);
         restore(app.handle());
         let waiting: Vec<_> = crate::lock(&app.state::<App>().initial_folder)
             .iter()
@@ -343,5 +384,96 @@ mod tests {
         main.destroy().unwrap();
         window_gone(app.handle(), "main");
         assert_eq!(kept::open_windows(config), [key]);
+    }
+
+    /// A running app handed a folder while a window shows another: that
+    /// window keeps its folder and stays open, the handed one gets a window
+    /// of its own; handed again, the window that shows it comes forward and
+    /// no third is made.
+    #[test]
+    fn a_folder_handed_to_a_running_app_leaves_the_windows_that_show_folders() {
+        let one = tempfile::tempdir().unwrap();
+        let two = tempfile::tempdir().unwrap();
+        let _a = crate::tests::note(one.path(), "A.md", "# A\n");
+        let _b = crate::tests::note(two.path(), "B.md", "# B\n");
+        let (app, main) = crate::tests::app_with(Some(one.path().to_path_buf()));
+        let first =
+            crate::tests::call(&main, "open_initial", serde_json::json!({})).unwrap()["key"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let other = a_window_for(&app, two.path());
+        assert_ne!(other.label(), "main", "main was told the folder");
+        assert_eq!(
+            app.state::<App>().service.folder_of("main").as_deref(),
+            Some(first.as_str())
+        );
+        assert!(app.get_webview_window("main").is_some());
+        let second =
+            crate::tests::call(&other, "open_initial", serde_json::json!({})).unwrap()["key"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+        // Handed again: both windows stay, and none is added.
+        let windows = app.webview_windows().len();
+        crate::folder_handed(app.handle(), one.path().to_path_buf());
+        crate::folder_handed(app.handle(), two.path().to_path_buf());
+        assert_eq!(app.webview_windows().len(), windows);
+        assert!(crate::lock(&app.state::<App>().initial_folder).is_empty());
+        assert_eq!(
+            app.state::<App>()
+                .service
+                .folder_of(other.label())
+                .as_deref(),
+            Some(second.as_str())
+        );
+    }
+
+    /// A window that waits for its server's folder (the server is down)
+    /// shows a folder though the service has none: a folder handed to the
+    /// app is not given to it.
+    #[test]
+    fn a_window_waiting_for_its_server_is_not_handed_a_folder() {
+        use tauri::Listener;
+        let vault = tempfile::tempdir().unwrap();
+        let _a = crate::tests::note(vault.path(), "A.md", "# A\n");
+        let (app, _main) = crate::tests::app_with(None);
+        crate::lock(&app.state::<App>().pending_servers)
+            .insert("main".to_owned(), server_key("http://s:1", "f"));
+        let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = told.clone();
+        app.listen_any("folder-handed", move |_| {
+            seen.fetch_add(1, Ordering::SeqCst);
+        });
+        let windows = app.webview_windows().len();
+        crate::folder_handed(app.handle(), vault.path().to_path_buf());
+        assert_eq!(told.load(Ordering::SeqCst), 0);
+        assert_eq!(app.webview_windows().len(), windows + 1);
+    }
+
+    /// Every folder window's close says why in one line, with the label and
+    /// whether it showed a folder, never which: the person's close request,
+    /// the app quitting, a menu item, and a window gone unasked.
+    #[test]
+    fn a_closing_window_says_why_in_the_log() {
+        closing(
+            "window-901",
+            "a close request (the frame's button or the system's)",
+        );
+        closing("window-901", "the Close Window menu item");
+        assert_eq!(
+            close_line("window-901", true, false),
+            "window closed: window-901 (showed a folder; cause: a close request (the frame's button or the system's))"
+        );
+        // The cause is spent: a second close with none said is unexplained.
+        assert_eq!(
+            close_line("window-901", false, false),
+            "window closed: window-901 (showed no folder; cause: destroyed with no request seen)"
+        );
+        closing("window-902", "the Close Window menu item");
+        assert_eq!(
+            close_line("window-902", true, true),
+            "window closed: window-902 (showed a folder; cause: the app is quitting)"
+        );
     }
 }
