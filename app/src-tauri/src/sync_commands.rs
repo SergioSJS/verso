@@ -307,7 +307,10 @@ pub(crate) fn note_made_from_template<R: tauri::Runtime>(
 /* ---------- A synced folder's live notes (ADR 0082) ---------- */
 
 /// The running sync of the folder a window of this computer shows.
-fn synced_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Option<Arc<Syncer>> {
+pub(crate) fn synced_of<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Option<Arc<Syncer>> {
     if remote::of(app, label).is_some() {
         return None;
     }

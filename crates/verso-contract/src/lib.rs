@@ -826,6 +826,17 @@ pub struct ServerGone {
     pub address: Option<String>,
 }
 
+/// Where a window reaches the server whose folder it shows (`window_server`):
+/// its address as the app is signed in to it, and the folder's id there. What
+/// turns a link the server made without knowing its own public name (a path
+/// like `/invite/<token>`) into one that opens, and gives a note's address
+/// in the server's window. In a browser it is the page's own origin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerWindow {
+    pub url: String,
+    pub folder: String,
+}
+
 /// The window's server is back after it was gone (event `server-back`,
 /// ADR 0084 item 10): the folder was opened again.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

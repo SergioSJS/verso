@@ -350,7 +350,9 @@ fn the_admin_invites_a_player_to_the_table_with_a_fresh_proof() {
         );
         let made = m.owner.call("campaign_invite", json!({ "root": "" })).await;
         let link = made["ok"]["link"].as_str().unwrap_or_default().to_owned();
-        assert!(link.contains("/invite/"), "{made}");
+        // No public address configured: the link is the path alone, the
+        // window resolves it against the server it talks to.
+        assert!(link.starts_with("/invite/"), "{made}");
         // The link is a reader's invitation to this folder.
         let token = link.rsplit('/').next().unwrap().to_owned();
         let (status, offer) = get(&m.r, &format!("/api/invite/{token}"), None).await;
@@ -395,4 +397,19 @@ fn a_table_of_a_second_owner_is_not_ours_to_run() {
         assert_eq!(r["err"]["kind"], "refused", "{r}");
         let _ = (&mut m, Grant::None);
     });
+}
+
+#[test]
+fn a_window_link_is_relative_without_a_public_address_and_whole_with_one() {
+    let (data, folders) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let mut c = crate::tests::config(data.path(), folders.path());
+    c.listen = "0.0.0.0:7340".parse().unwrap();
+    c.public_url = None;
+    // Never `localhost`: the wildcard bind does not say how a window reaches it.
+    assert_eq!(crate::window_link(&c, "/invite/abc"), "/invite/abc");
+    c.public_url = Some("https://mesa.casa/".into());
+    assert_eq!(
+        crate::window_link(&c, "/invite/abc"),
+        "https://mesa.casa/invite/abc"
+    );
 }

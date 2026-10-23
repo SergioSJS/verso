@@ -668,6 +668,18 @@ export const commands = {
 	 *  Nothing when the window is not reconnecting.
 	 */
 	serverRetry: () => typedError<null, ContractError>(__TAURI_INVOKE("server_retry")),
+	/**
+	 *  Where this window reaches its server: the address the app is signed in
+	 *  to and the folder's id there, or nothing for a folder of this computer
+	 *  that is not synced (or whose sync link is down).
+	 *  A link the server hands over without its public name is a path, and the
+	 *  window puts this before it; its own origin (`tauri://localhost`) is the
+	 *  app's, never the server's.
+	 */
+	windowServer: () => typedError<{
+	url: string,
+	folder: string,
+} | null, ContractError>(__TAURI_INVOKE("window_server")),
 	/**  Begin browsing (once; asking again keeps the browse that runs). */
 	discoverServersStart: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_start")),
 	/**
@@ -3008,6 +3020,18 @@ export type ServerGone = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  Where a window reaches the server whose folder it shows (`window_server`):
+ *  its address as the app is signed in to it, and the folder's id there. What
+ *  turns a link the server made without knowing its own public name (a path
+ *  like `/invite/<token>`) into one that opens, and gives a note's address
+ *  in the server's window. In a browser it is the page's own origin.
+ */
+export type ServerWindow = {
+	url: string,
+	folder: string,
 };
 
 /**

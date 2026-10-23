@@ -1391,6 +1391,34 @@ pub(crate) fn server_retry<R: tauri::Runtime>(
     Ok(())
 }
 
+/// A connection's server, as a window is told it.
+pub(crate) fn server_window(r: &Remote) -> verso_contract::ServerWindow {
+    verso_contract::ServerWindow {
+        url: r.url.trim_end_matches('/').to_owned(),
+        folder: r.folder.clone(),
+    }
+}
+
+/// Where this window reaches its server: the address the app is signed in
+/// to and the folder's id there, or nothing for a folder of this computer
+/// that is not synced (or whose sync link is down).
+/// A link the server hands over without its public name is a path, and the
+/// window puts this before it; its own origin (`tauri://localhost`) is the
+/// app's, never the server's.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn window_server<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+) -> Result<Option<verso_contract::ServerWindow>, ContractError> {
+    // A server's folder, or a folder of this computer synced with one over
+    // its live link (ADR 0082, ADR 0110 as built): a table's links go to the
+    // server of that link.
+    let app = window.app_handle();
+    let remote = of(app, window.label())
+        .or_else(|| synced_of(app, window.label()).and_then(|s| s.live.remote()));
+    Ok(remote.map(|r| server_window(&r)))
+}
+
 /// Before the app's own handler: a window on a server's folder sends the
 /// folder's commands there, and its answer — or its error, a
 /// `ContractError` — goes back as the app's own would.
