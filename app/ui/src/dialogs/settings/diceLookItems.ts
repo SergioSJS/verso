@@ -69,6 +69,8 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
   const save = (next: DiceLook): void => {
     settings.dice3dLook = next;
     saveSettings();
+    // The table tells the others the new dice (ADR 0107 item 11).
+    dispatchEvent(new Event("verso:dice-look"));
     sync();
   };
   const setStyle = (style: DiceStyle): void => {

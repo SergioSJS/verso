@@ -38,6 +38,57 @@ type Words = {
   dropped: string;
   total: string;
   toEnd: string;
+  // The server's table (ADR 0107 phase 2).
+  roster: string;
+  rosterLabel: string;
+  inputLabel: string;
+  placeholder: string;
+  send: string;
+  counter: (n: number, max: number) => string;
+  rollButton: string;
+  imageButton: string;
+  secretToggle: string;
+  secretDesc: string;
+  secretRolled: (who: string) => string;
+  secretMasked: string;
+  pinnedHeading: string;
+  pinnedLabel: string;
+  pin: string;
+  unpin: string;
+  pinnedStatus: string;
+  unpinnedStatus: string;
+  remove: string;
+  removedStatus: string;
+  entryActions: (said: string) => string;
+  clearTable: string;
+  clearAsk: string;
+  clearKeep: string;
+  clearYes: string;
+  clearedStatus: string;
+  older: string;
+  olderLoading: string;
+  tableMenu: string;
+  wrote: (who: string, text: string) => string;
+  sentImage: (who: string) => string;
+  imageAlt: (who: string) => string;
+  imageOpen: string;
+  imageClose: string;
+  imageSending: string;
+  imageSent: string;
+  imageNotImage: string;
+  imageTooBig: (mb: number) => string;
+  imageEmpty: string;
+  imageUnreadable: string;
+  tooLong: (n: number, max: number) => string;
+  badRoll: (typed: string) => string;
+  slowDown: (s: number) => string;
+  secretRollStatus: string;
+  emptyServer: string;
+  addImageAsk: string;
+  offline: string;
+  rollKey: string;
+  notifyTitle: (folder: string) => string;
+  openTable: string;
 };
 
 const pt: Words = {
@@ -72,6 +123,56 @@ const pt: Words = {
   dropped: "descartado",
   total: "total",
   toEnd: "Ir para o fim",
+  roster: "Na mesa agora",
+  rosterLabel: "Quem está na mesa",
+  inputLabel: "Mensagem para a mesa",
+  placeholder: "Escreva para a mesa…",
+  send: "Enviar",
+  counter: (n, max) => `${n} de ${max}`,
+  rollButton: "Rolar dados…",
+  imageButton: "Enviar imagem",
+  secretToggle: "Secreta",
+  secretDesc: "Rolagem secreta: só você e os donos da pasta veem o resultado; os outros veem que você rolou.",
+  secretRolled: (who) => `${who} rolou em segredo`,
+  secretMasked: "rolou em segredo",
+  pinnedHeading: "Fixadas",
+  pinnedLabel: "Entradas fixadas da mesa",
+  pin: "Fixar",
+  unpin: "Desafixar",
+  pinnedStatus: "Mesa: entrada fixada para todos.",
+  unpinnedStatus: "Mesa: entrada desafixada.",
+  remove: "Apagar",
+  removedStatus: "Mesa: entrada apagada para todos.",
+  entryActions: (said) => `Ações da entrada: ${said}`,
+  clearTable: "Limpar a mesa",
+  clearAsk: "Limpar a mesa para todos? Mensagens, imagens e rolagens somem para quem está na mesa e para quem entrar depois. Não dá para desfazer.",
+  clearKeep: "Manter as entradas fixadas",
+  clearYes: "Limpar",
+  clearedStatus: "Mesa: limpa para todos.",
+  older: "Ver anteriores",
+  olderLoading: "Buscando…",
+  tableMenu: "Mais opções da mesa",
+  wrote: (who, text) => `${who} escreveu: ${text}`,
+  sentImage: (who) => `${who} enviou uma imagem`,
+  imageAlt: (who) => `Imagem enviada por ${who}`,
+  imageOpen: "Abrir imagem",
+  imageClose: "Fechar imagem",
+  imageSending: "Enviando a imagem…",
+  imageSent: "Imagem enviada à mesa.",
+  imageNotImage: "Isso não é uma imagem que a mesa aceite (PNG, JPEG, WebP ou GIF); nada foi enviado.",
+  imageTooBig: (mb) => `A imagem passa de ${mb} MB, o máximo da mesa; nada foi enviado.`,
+  imageEmpty: "O arquivo está vazio; nada foi enviado.",
+  imageUnreadable: "Não foi possível ler a imagem; nada foi enviado.",
+  tooLong: (n, max) => `A mensagem tem ${n} caracteres; o máximo é ${max}.`,
+  badRoll: (typed) => (typed ? `Não entendi “${typed}” como rolagem. Exemplo: /r 1d20+3` : "Diga o que rolar. Exemplo: /r 1d20+3"),
+  slowDown: (s) => `Devagar: espere ${s} s para enviar de novo.`,
+  secretRollStatus: "Rolagem secreta: só você e os donos da pasta veem o resultado.",
+  emptyServer: "A mesa está vazia. Escreva algo, role dados com /r 1d20+3 ou envie uma imagem.",
+  addImageAsk: "Será incorporada a imagem",
+  offline: "A mesa não respondeu.",
+  rollKey: "Rolar com /r",
+  notifyTitle: (folder) => (folder ? `Mesa · ${folder}` : "Mesa"),
+  openTable: "Abrir a mesa",
 };
 
 const en: Words = {
@@ -106,6 +207,56 @@ const en: Words = {
   dropped: "dropped",
   total: "total",
   toEnd: "Jump to the end",
+  roster: "At the table now",
+  rosterLabel: "Who is at the table",
+  inputLabel: "Message to the table",
+  placeholder: "Write to the table…",
+  send: "Send",
+  counter: (n, max) => `${n} of ${max}`,
+  rollButton: "Roll dice…",
+  imageButton: "Send image",
+  secretToggle: "Secret",
+  secretDesc: "Secret roll: only you and the folder's owners see the result; the others see that you rolled.",
+  secretRolled: (who) => `${who} rolled in secret`,
+  secretMasked: "rolled in secret",
+  pinnedHeading: "Pinned",
+  pinnedLabel: "Pinned entries of the table",
+  pin: "Pin",
+  unpin: "Unpin",
+  pinnedStatus: "Table: entry pinned for everyone.",
+  unpinnedStatus: "Table: entry unpinned.",
+  remove: "Delete",
+  removedStatus: "Table: entry deleted for everyone.",
+  entryActions: (said) => `Entry actions: ${said}`,
+  clearTable: "Clear the table",
+  clearAsk: "Clear the table for everyone? Messages, images and rolls go for those at the table and for anyone who joins later. This cannot be undone.",
+  clearKeep: "Keep the pinned entries",
+  clearYes: "Clear",
+  clearedStatus: "Table: cleared for everyone.",
+  older: "See earlier",
+  olderLoading: "Fetching…",
+  tableMenu: "More table options",
+  wrote: (who, text) => `${who} wrote: ${text}`,
+  sentImage: (who) => `${who} sent an image`,
+  imageAlt: (who) => `Image sent by ${who}`,
+  imageOpen: "Open image",
+  imageClose: "Close image",
+  imageSending: "Sending the image…",
+  imageSent: "Image sent to the table.",
+  imageNotImage: "That is not an image the table takes (PNG, JPEG, WebP or GIF); nothing was sent.",
+  imageTooBig: (mb) => `The image is over ${mb} MB, the table's most; nothing was sent.`,
+  imageEmpty: "The file is empty; nothing was sent.",
+  imageUnreadable: "The image could not be read; nothing was sent.",
+  tooLong: (n, max) => `The message is ${n} characters; the most is ${max}.`,
+  badRoll: (typed) => (typed ? `I could not read “${typed}” as a roll. Example: /r 1d20+3` : "Say what to roll. Example: /r 1d20+3"),
+  slowDown: (s) => `Slow down: wait ${s} s to send again.`,
+  secretRollStatus: "Secret roll: only you and the folder's owners see the result.",
+  emptyServer: "The table is empty. Write something, roll dice with /r 1d20+3 or send an image.",
+  addImageAsk: "The image will be embedded",
+  offline: "The table did not answer.",
+  rollKey: "Roll with /r",
+  notifyTitle: (folder) => (folder ? `Table · ${folder}` : "Table"),
+  openTable: "Open the table",
 };
 
 export const tt: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;

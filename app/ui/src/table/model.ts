@@ -9,10 +9,12 @@
 // it hears in shared notes), phase 2 plugs the server's per-folder channel
 // in behind the same interface.
 
-import type { DiceRoll, DiceTermRoll } from "../bindings";
+import type { DiceRoll, DiceTermRoll, OracleDraw, TableEntry as Wire } from "../bindings";
 import { readDiceStyles, type DiceStyles } from "../dice3d/look";
 
-export type EntryKind = "roll" | "table" | "oracle";
+/** `say` and `image` are the server table's (ADR 0107 item 3); `secret` is
+ *  what a roll "to the owner" is to everyone but its roller and the owners. */
+export type EntryKind = "roll" | "table" | "oracle" | "say" | "image" | "secret";
 export type OracleKind = "question" | "spark" | "table";
 
 /** One line of the log. `by` is the roller's name as the server stamped it
@@ -39,17 +41,28 @@ export type TableEntry = {
   oracle: OracleKind | null;
   /** The roller's dice, when known (ADR 0107 item 11); null: the default look. */
   styles: DiceStyles | null;
+  /** The author's account, opaque (the server's); empty for a local entry. */
+  byId: string;
+  /** A message's text (plain). */
+  text: string | null;
+  /** An image's path in the folder. */
+  image: string | null;
+  pinned: boolean;
+  /** A roll "to the owner", seen in full. */
+  secret: boolean;
 };
 
 /** The most entries kept per folder (the oldest are dropped). */
 export const MOST_KEPT = 500;
 
-/** The roller's dice carried by a roll, when it carries them (ADR 0107
- *  item 11: the server relays them with the roll). Phase 1: a roll heard
- *  today has none, so this is null; the day the contract adds them it is
- *  read here, field by field, against a closed form. */
+/** The fields only the server's entries fill. */
+const PLAIN = { byId: "", text: null, image: null, pinned: false, secret: false } as const;
+
+/** The roller's dice carried by a roll (ADR 0107 item 11: the server relays
+ *  them with the roll), read field by field against the closed form; null
+ *  when the roll carries none. */
 export function stylesOf(roll: DiceRoll): DiceStyles | null {
-  const raw = (roll as DiceRoll & { styles?: unknown }).styles;
+  const raw = roll.styles;
   return raw && typeof raw === "object" ? readDiceStyles(raw) : null;
 }
 
@@ -81,6 +94,7 @@ export function entryOfRoll(path: string, roll: DiceRoll, o: { mine: boolean; ro
     row: o.row ?? null,
     oracle: null,
     styles: o.styles ?? stylesOf(roll),
+    ...PLAIN,
   };
 }
 
@@ -101,7 +115,91 @@ export function entryOfDraw(path: string, d: { kind: OracleKind; by: string; min
     row: d.text,
     oracle: d.kind,
     styles: null,
+    ...PLAIN,
   };
+}
+
+/** What the server's entry says of the oracle, in the words of the log: given by the
+ *  caller (the oracle's strings are the window's, not the model's). */
+export type OracleWords = (d: OracleDraw) => string;
+
+/** One entry of the server's table as a line of the log; null for a kind
+ *  this window does not know (a newer server's). `you` is `TableJoin.you`. */
+export function entryOfServer(s: Wire, you: string, oracleWords: OracleWords): TableEntry | null {
+  const at = Date.parse(s.at);
+  const base = {
+    id: s.id,
+    by: s.by,
+    mine: s.by_id !== "" && s.by_id === you,
+    at: Number.isFinite(at) ? at : Date.now(),
+    path: s.path ?? "",
+    notation: "",
+    source: null,
+    terms: [] as DiceTermRoll[],
+    modifier: 0,
+    total: null,
+    row: null,
+    oracle: null,
+    styles: null,
+    byId: s.by_id,
+    text: null,
+    image: null,
+    pinned: s.pinned,
+    secret: s.secret,
+  };
+  if (s.kind === "roll" && s.roll) {
+    const r = s.roll;
+    return { ...base, kind: r.source ? "table" : "roll", notation: r.notation, source: r.source, terms: r.terms, modifier: r.modifier, total: r.total, styles: stylesOf(r) };
+  }
+  if (s.kind === "oracle" && s.draw) {
+    const d = s.draw;
+    const kind: OracleKind = d.kind === "question" ? "question" : d.kind === "spark" ? "spark" : "table";
+    return { ...base, kind: "oracle", oracle: kind, total: kind === "spark" ? null : d.roll, row: oracleWords(d) };
+  }
+  if (s.kind === "say") return { ...base, kind: "say", text: s.text ?? "" };
+  if (s.kind === "image" && s.image) return { ...base, kind: "image", image: s.image };
+  if (s.kind === "secret") return { ...base, kind: "secret", secret: true, path: "" };
+  return null;
+}
+
+/** Who is at the table. */
+export type Member = { name: string; byId: string; color: string; styles: DiceStyles | null };
+
+export type Role = "owner" | "editor" | "reader";
+
+/** The server table's panel needs, beyond what any source gives: its own
+ *  people, pins, writing, and the actions on an entry. Every action answers
+ *  with the server's refusal in words, or null when it went through. */
+export interface ServerTable extends TableSource {
+  readonly server: true;
+  role(): Role;
+  /** Who is at the table now, in the server's order. */
+  roster(): readonly Member[];
+  /** Pinned entries, oldest first; always shown, whatever was hidden. */
+  pinnedEntries(): readonly TableEntry[];
+  /** Whether older entries than the ones held exist. */
+  more(): boolean;
+  loadOlder(): Promise<string | null>;
+  say(text: string): Promise<string | null>;
+  roll(notation: string, opts?: { source?: string | null; path?: string | null; secret?: boolean }): Promise<{ entry: Wire } | { error: string }>;
+  sendImage(base64: string): Promise<string | null>;
+  pin(id: string, pinned: boolean): Promise<string | null>;
+  remove(id: string): Promise<string | null>;
+  clear(keepPinned: boolean): Promise<string | null>;
+  /** The next typed `/r` and the dice button roll "to the owner" (a note's die never does). */
+  secret: boolean;
+  canSendImage(): boolean;
+  canClear(): boolean;
+  /** Whether this window may delete `e` (its author, or an owner; never a roll). */
+  canDelete(e: TableEntry): boolean;
+  /** The roller's dice or colour changed: tell the table. */
+  look(): void;
+  /** Leave the table (the folder closed). */
+  close(): void;
+}
+
+export function isServerTable(s: TableSource): s is ServerTable {
+  return (s as Partial<ServerTable>).server === true;
 }
 
 /** What a panel reads. Phase 2's server source implements it too, with
@@ -127,6 +225,7 @@ export interface TableSource {
 
 /** The log of one folder. */
 export class TableLog {
+  constructor(private readonly most = MOST_KEPT) {}
   private list: TableEntry[] = [];
   private ids = new Set<string>();
   private cut: number | null = null;
@@ -141,12 +240,42 @@ export class TableLog {
     let i = this.list.length;
     while (i > 0 && (this.list[i - 1] as TableEntry).at > e.at) i--;
     this.list.splice(i, 0, e);
-    while (this.list.length > MOST_KEPT) {
-      const gone = this.list.shift() as TableEntry;
+    // Past the ceiling the oldest go; a pinned entry never does.
+    while (this.list.length > this.most) {
+      const at = this.list.findIndex((x) => !x.pinned);
+      if (at < 0) break;
+      const [gone] = this.list.splice(at, 1) as [TableEntry];
       this.ids.delete(gone.id);
     }
     if (!e.mine && countUnread && !this.isHidden(e)) this.unseen++;
     return true;
+  }
+  /** Change the entry `id` in place; false when it is not held. */
+  patch(id: string, change: Partial<TableEntry>): boolean {
+    const i = this.list.findIndex((x) => x.id === id);
+    if (i < 0) return false;
+    this.list[i] = { ...(this.list[i] as TableEntry), ...change };
+    return true;
+  }
+  /** Drop the entry `id`; false when it is not held. */
+  remove(id: string): boolean {
+    const i = this.list.findIndex((x) => x.id === id);
+    if (i < 0) return false;
+    this.list.splice(i, 1);
+    this.ids.delete(id);
+    return true;
+  }
+  /** The table cleared for everyone: all go, the pinned stay when asked. */
+  clear(keepPinned: boolean): void {
+    this.list = keepPinned ? this.list.filter((x) => x.pinned) : [];
+    this.ids = new Set(this.list.map((x) => x.id));
+    this.unseen = 0;
+    this.cut = null;
+    this.before = null;
+  }
+  /** The pinned entries, whatever was hidden. */
+  pinned(): readonly TableEntry[] {
+    return this.list.filter((x) => x.pinned);
   }
   private isHidden(e: TableEntry): boolean {
     return this.cut !== null && e.at <= this.cut;

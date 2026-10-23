@@ -30,6 +30,7 @@ const pt = {
     quota: "Cota",
     trash: "Lixeira",
     presence: "Presença",
+    table: "Mesa",
   } as Record<Kind, string>,
   kindsDesc: {
     sync: "A sincronização de uma pasta que falha e volta; a conexão com o servidor que cai e volta.",
@@ -39,6 +40,7 @@ const pt = {
     quota: "Uma pasta que passa de 90 % da cota do servidor.",
     trash: "Itens desta pasta que saem da lixeira em até 3 dias.",
     presence: "Alguém que entra na nota que você está editando.",
+    table: "Uma mensagem, imagem ou rolagem de outra pessoa na mesa da pasta, com o painel Mesa fechado. Desligado até você ligar.",
   } as Record<Kind, string>,
   modes: { toast: "Aviso e lista", list: "Só na lista", off: "Desligado" } as Record<Mode, string>,
   sectionLead: "O que muda sem você ter pedido — a sincronização que caiu, uma pasta compartilhada, uma versão nova — aparece num aviso no canto e fica na lista do sino. Desligar um tipo não esconde o estado: a barra de status e as notas continuam dizendo.",
@@ -117,6 +119,7 @@ const en: typeof pt = {
     quota: "Quota",
     trash: "Trash",
     presence: "Presence",
+    table: "Table",
   },
   kindsDesc: {
     sync: "A folder's sync failing and coming back; the connection to the server dropping and coming back.",
@@ -126,6 +129,7 @@ const en: typeof pt = {
     quota: "A folder passing 90 % of its quota on the server.",
     trash: "Items of this folder that leave the trash within 3 days.",
     presence: "Someone joining the note you are editing.",
+    table: "A message, image or roll by someone else at the folder's table, while the Table panel is closed. Off until you turn it on.",
   },
   modes: { toast: "Notice and list", list: "List only", off: "Off" },
   sectionLead: "What changes without your asking — a sync that dropped, a folder shared, a new version — shows in a notice in the corner and stays in the bell's list. Turning a kind off does not hide the state: the status bar and the notes still say it.",

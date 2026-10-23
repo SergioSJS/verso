@@ -13,7 +13,9 @@ import { icon } from "../icons";
 import { play3d, will3d } from "../dice3d";
 import { howSaid, say } from "./card";
 import { readNotation, rollHere } from "./notation";
-import { recordRoll } from "../table/record";
+import type { DiceRoll } from "../bindings";
+import { isServerTable } from "../table/model";
+import { recordRoll, tableSource } from "../table/record";
 import { ds } from "./strings";
 
 let shade: HTMLElement | null = null;
@@ -72,7 +74,20 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
     }
     out.classList.remove("failed");
     input.removeAttribute("aria-invalid");
-    const roll = rollHere(notation);
+    // With a server's table the server rolls it, once, for everyone at the
+    // table; "Secreta" in the table's field makes it a roll to the owners.
+    let roll: DiceRoll;
+    const table = tableSource();
+    if (isServerTable(table)) {
+      const r = await table.roll(notation, { secret: table.secret });
+      if ("error" in r || !r.entry.roll) {
+        out.classList.add("failed");
+        out.textContent = "error" in r ? r.error : ds.unread(typed);
+        input.focus();
+        return;
+      }
+      roll = r.entry.roll;
+    } else roll = rollHere(notation);
     const how = howSaid(roll);
     const words = ds.said(null, notation, String(roll.total), how);
     // With the 3D switch on (ADR 0101) the result is said at once and shown
