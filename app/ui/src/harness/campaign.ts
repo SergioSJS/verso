@@ -72,21 +72,21 @@ export class Campaign {
     const h = core.handlers;
     h["campaign_status"] = () => this.status();
     h["campaign_make"] = (a) => {
-      const root = this.root(a);
+      const root = this.rootOf(a["root"]);
       this.owner();
       if (root !== "" && !core.folders.has(root)) refuse("no folder there");
       if (!this.tables.some((t) => t.root === root)) this.tables.push({ root, open: true, log_max: 20000, image_max: 10 * 1024 * 1024 });
       return this.changed([]);
     };
     h["campaign_unmake"] = (a) => {
-      const root = this.root(a);
+      const root = this.rootOf(a["root"]);
       this.owner();
       this.tables = this.tables.filter((t) => t.root !== root);
       for (const p of [...this.notes.keys()]) if (covers(root, p) && !this.tables.some((t) => covers(t.root, p))) this.notes.delete(p);
       return this.changed([]);
     };
     h["campaign_settings"] = (a) => {
-      const root = this.root(a);
+      const root = this.rootOf(a["root"]);
       this.owner();
       const t = this.tables.find((x) => x.root === root);
       if (!t) refuse("that folder is not a table");
@@ -112,7 +112,7 @@ export class Campaign {
     };
     h["campaign_release_all"] = (a) => {
       this.owner();
-      const notes = this.expand([this.root(a)]);
+      const notes = this.expand([this.rootOf(a["root"])]);
       for (const p of notes) this.state(p).released = true;
       return this.changed(notes);
     };
@@ -135,7 +135,7 @@ export class Campaign {
     };
     h["campaign_invite"] = (a) => {
       this.owner();
-      const root = this.root(a);
+      const root = this.rootOf(a["root"]);
       if (!this.admin) refuse("only the server's admin invites a person who has no account");
       if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
       const link = `/invite/harness-${this.invites.length + 1}`;
@@ -145,8 +145,8 @@ export class Campaign {
     this.wrapReads();
   }
 
-  private root(a: Record<string, unknown>): string {
-    const root = String(a["root"] ?? "");
+  private rootOf(given: unknown): string {
+    const root = String(given ?? "");
     if (root.startsWith("/") || root.split("/").some((p) => p === ".." || p.startsWith("."))) refuse("not a folder inside this folder");
     return root;
   }
@@ -236,10 +236,12 @@ export class Campaign {
       return this.notes.get(to)?.secret_name ? "secret" : "locked";
     };
     const keepPaths = (list: unknown): unknown => (Array.isArray(list) ? list.filter((p) => typeof p !== "string" || !this.hidden(p)) : list);
-    for (const cmd of ["list_notes", "list_files", "notes_of_type"]) {
+    for (const cmd of ["list_notes", "list_files"]) {
       const was = h[cmd]!;
       h[cmd] = (a) => (player() ? keepPaths(was(a)) : was(a));
     }
+    const ofType = h["notes_of_type"]!;
+    h["notes_of_type"] = (a) => (player() ? keepPaths(ofType({ name: a["name"] })) : ofType({ name: a["name"] }));
     const folders = h["list_folders"]!;
     h["list_folders"] = (a) => {
       const all = folders(a);
@@ -274,7 +276,7 @@ export class Campaign {
     }
     const search = h["search"]!;
     h["search"] = (a) => {
-      const hits = search(a);
+      const hits = search({ words: a["words"], limit: a["limit"] });
       return player() && Array.isArray(hits) ? hits.filter((x: { path: string }) => !this.hidden(x.path)) : hits;
     };
     const backlinks = h["backlinks"]!;
