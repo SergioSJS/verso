@@ -369,6 +369,8 @@ pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
+        // The game master closed the table: sync waits for it to open.
+        ErrorKind::Refused if e.message.contains(verso_contract::TABLE_CLOSED) => "table_closed",
         // A cloud (ADR 0104): the sign-in, the keyring, the service that
         // cannot keep a write safe.
         ErrorKind::Refused if e.message.starts_with("cloud sign-in refused") => "cloud_auth",
@@ -1198,7 +1200,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     };
                     st.problem = Some(problem.to_owned());
                 });
-                let pause = if offline { wait.next() } else { SCAN };
+                // A closed table is tried again gently (15 s), not every five minutes.
+                let closed = e.message.contains(verso_contract::TABLE_CLOSED);
+                let pause = if offline {
+                    wait.next()
+                } else if closed {
+                    Duration::from_secs(15)
+                } else {
+                    SCAN
+                };
                 tokio::select! {
                     () = s.wake.notified() => {}
                     () = tokio::time::sleep(pause) => {}

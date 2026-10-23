@@ -239,13 +239,18 @@ function onMessage(data: string): void {
     return;
   }
   if (m.gone === "folder") {
-    notice(w().folderGone, "error");
-    folderId = null;
-    remember(null);
+    const reason = typeof m.reason === "string" ? m.reason : null;
+    // The game master closed the table: the folder is remembered, and the
+    // window that follows says the table is closed and waits for it to open.
+    const shut = reason === "closed";
+    if (!shut) {
+      notice(w().folderGone, "error");
+      folderId = null;
+      remember(null);
+    }
     // No folder, no role in it.
     setRole(null);
-    const reason = typeof m.reason === "string" ? m.reason : null;
-    void emit("server-gone", { url: location.origin, what: "folder", address: null, reason }).finally(() => location.reload());
+    void emit("server-gone", { url: location.origin, what: shut ? "closed" : "folder", address: null, reason: shut ? null : reason }).finally(() => location.reload());
   }
 }
 

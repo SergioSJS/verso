@@ -1255,10 +1255,12 @@ async fn connect<R: tauri::Runtime>(
 /// What a window on a server's folder hears when the server, or what it
 /// held there, is gone (ADR 0084 item 10).
 fn gone(url: &str, what: &str, reason: Option<String>, address: Option<String>) -> ServerGone {
+    // The game master closed the table: said as that, not as a share revoked.
+    let shut = what == "folder" && reason.as_deref() == Some("closed");
     ServerGone {
         url: url.to_owned(),
-        what: what.to_owned(),
-        reason,
+        what: if shut { "closed" } else { what }.to_owned(),
+        reason: reason.filter(|_| !shut),
         address,
     }
 }
@@ -1354,10 +1356,14 @@ async fn redial_once<R: tauri::Runtime>(
     };
     // The folder's key, from the answer: the window hears a change of its
     // own folder only.
-    let Ok(info) = remote
+    let opened = remote
         .call("open_server_folder", json!({ "id": folder }))
-        .await
-    else {
+        .await;
+    let Ok(info) = opened else {
+        // A closed table: said, and tried again until the game master opens it.
+        if opened.is_err_and(|e| e.to_string().contains(verso_contract::TABLE_CLOSED)) {
+            let _ = app.emit_to(label, "server-gone", gone(url, "closed", None, None));
+        }
         return Step::Again;
     };
     let key = info.get("key").cloned().unwrap_or(json!(""));

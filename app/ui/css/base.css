@@ -44,6 +44,12 @@
   --seal: light-dark(oklch(46% 0.15 28), oklch(calc(72% + var(--dk-up)) 0.13 32));
   --seal-ink: light-dark(oklch(98% 0.01 80), oklch(calc(19% + var(--dk-lift)) 0.012 62));
   --seal-wash: light-dark(oklch(93% 0.035 30), oklch(calc(28% + var(--dk-lift)) 0.045 30));
+  /* A destructive action is red in every palette (the seal takes the palette's hue: purple on slate). */
+  --danger: light-dark(oklch(48% 0.19 27), oklch(calc(72% + var(--dk-up)) 0.16 25));
+  --danger-wash: light-dark(oklch(95% 0.03 25), oklch(calc(28% + var(--dk-lift)) 0.06 25));
+  --danger-ink: light-dark(oklch(98% 0.01 25), oklch(19% 0.02 25));
+  --good: light-dark(oklch(42% 0.12 150), oklch(78% 0.12 150));
+  --good-wash: light-dark(oklch(94% 0.04 150), oklch(calc(28% + var(--dk-lift)) 0.05 150));
   --brass: light-dark(oklch(62% 0.11 78), oklch(76% 0.11 82));
   /* Brass as text (flags, the recording key cap): darker in light, 4.5:1. */
   --brass-ink: light-dark(oklch(49% 0.11 78), oklch(calc(76% + var(--dk-up)) 0.11 82));

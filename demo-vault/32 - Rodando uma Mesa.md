@@ -31,7 +31,11 @@ Na janela **Mesa**, **Convidar jogadores › Gerar link** faz um link de uso ún
 
 Só quem administra o servidor convida alguém que ainda não tem conta; quem já tem conta entra pelo **Compartilhar…** da pasta ([[14 - Arquivos e Pastas]]).
 
-**Mesa aberta** é a chave de entrada: desligada, as jogadoras não conseguem abrir a pasta ("a mesa está fechada"; quem está dentro sai) e você sempre entra.
+**Mesa aberta** é uma **chave** no topo da janela, com um selo **Aberta** ou **Fechada**, e vale na hora: não há botão de salvar. Desligada, as jogadoras não conseguem abrir a pasta e quem está dentro sai; e você sempre entra. **O que a jogadora vê:** no lugar da pasta, "A mesa está fechada pelo mestre. Você entra quando ela abrir.", com **Tentar agora**; o app tenta de novo sozinho, de vez em quando, e ela entra assim que você ligar a chave. Para você, o botão da Mesa ao lado do nome da pasta diz **Mesa (fechada)** enquanto estiver desligada, para você não esquecer ninguém do lado de fora.
+
+A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **Copiar** e o dia em que vence), **Jogadores** (cada uma com o que você entregou a ela para editar, em links), **Notas** (quantas liberadas e quantas ocultas, com **Liberar tudo** e **Ocultar tudo**) e, recolhidos, os limites em **Avançado**. **Desfazer mesa** fica no pé, em vermelho e discreto, e pergunta antes.
+
+**Na página da pasta** (a que abre ao clicar no nome da pasta) a mesma coisa cabe num cartão **Mesa** logo abaixo do título: a chave, quantas jogadoras há e quem está na mesa agora, **Convidar**, **Liberar tudo** / **Ocultar tudo** e **Configurações da mesa**, que abre a janela inteira; você pode recolher o cartão, e o app lembra por pasta. Numa pasta que ainda não é mesa, o cartão é só o botão **Tornar esta pasta uma mesa**. A jogadora vê uma linha, **Mesa · jogador**, com a mesa aberta ou fechada e as notas entregues a ela, em links.
 
 ---
 
@@ -63,7 +67,7 @@ Ninguém além de você renomeia, apaga ou cria notas ou arquivos; o servidor co
 
 ## Limites da mesa
 
-Em **Limites da mesa**: quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de uma imagem nela (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas. Cada mesa tem o seu registro e os seus limites: o ajuste de uma não muda a outra.
+Em **Avançado: limites da mesa** (recolhido; cada campo salva ao sair dele ou com Enter e diz **Salvo** ao lado): quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de uma imagem nela (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas. Cada mesa tem o seu registro e os seus limites: o ajuste de uma não muda a outra.
 
 ---
 
