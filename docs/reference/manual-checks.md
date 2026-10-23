@@ -20,6 +20,7 @@ in the real app.
 
 ## Not yet checked
 
+- [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
 ### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
 
 - [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.
