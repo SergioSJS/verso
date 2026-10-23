@@ -253,6 +253,77 @@ flutuante (item 10); só as suas rolagens em 3D (item 11); a imagem no
 armazenamento do servidor (item 3); o registro num arquivo dentro da
 pasta (item 5); só o dono apaga, limpando (item 6).
 
+## Como foi feito (o servidor, 22/10/2026)
+
+Branch `feat/table-server`. O servidor e o contrato estão feitos; o painel da
+janela é de outra branch (`feat/table-panel`). O que está feito é o que os
+itens 2, 3, 5, 6, 7, 11 e 12 decidiram; onde o código precisou escolher, a
+escolha está listada por último, para o mantenedor confirmar ou mudar.
+
+- **Onde.** `crates/verso-server/src/table.rs` (o canal, os comandos, os
+  papéis), `table_look.rs` (a forma fechada de um visual de dados),
+  `table_image.rs` (uma imagem para dentro da pasta), `db/table.rs` (o registro,
+  esquema 14). `collab_dice.rs` repassa uma rolagem ou um sorteio do oráculo à
+  sala da nota como antes e o acrescenta à mesa da pasta, rolado uma vez.
+- **Comandos** (a janela só chega à mesa por eles). `table_join(color,
+  styles) -> TableJoin`, `table_leave()`, `table_look(color, styles)`,
+  `table_history(before, limit) -> TablePage`, `table_say(text) ->
+  TableEntry`, `table_send_image(base64) -> TableEntry`, `table_roll(notation,
+  source, path, secret, styles) -> TableEntry`, `table_pin(id, pinned)`,
+  `table_delete(id)`, `table_clear(keepPinned)`. `collab_roll` ganha `styles`
+  e `secret`; `DiceRoll` ganha `styles` (item 11). Os números das entradas são
+  strings decimais crescentes; `table_history` pagina por eles.
+- **Eventos**, para toda janela na mesa: `table-entry` (um `TableEntry`,
+  também para a janela de quem enviou: a janela descarta um número que já
+  tem), `table-pinned`, `table-removed`, `table-cleared`, `table-roster` (uma
+  lista de `TableMember`, um por conta). `collab-roll` leva o `styles` de quem
+  rolou dentro da rolagem.
+- **Quem ouve o quê** é decidido em `table.rs` pelos papéis da pasta no
+  momento do envio. Uma rolagem secreta ("para o dono") vai inteira a quem
+  rolou e aos donos, e aos outros como uma entrada do tipo `secret` (nome e
+  hora, sem notação, número nem nota), no evento e em toda página que
+  leiam depois; não é dita à sala da nota nem aos leitores da sala. Uma
+  rolagem ou sorteio feito dentro de uma nota com blocos secretos, que os
+  leitores da pasta não ouvem na sala (0087 item 4), fica guardado na mesa mas
+  nunca é dito a um leitor da pasta, nem paginado para ele.
+- **Permissões.** Um leitor entra, rola, escreve e fixa; não envia imagem
+  (recusado antes de a mensagem ser lida, `inflight.rs`, e de novo no
+  comando). Uma imagem é recusada a não ser que seus primeiros bytes sejam de
+  PNG, JPEG, WebP ou GIF, e que tenha no máximo 10 MB; é escrita pelo mesmo
+  caminho de qualquer arquivo que uma janela cria (`create_file` por
+  `folder_run`: a cota da pasta, o registro do sync, o confinamento). Quem
+  escreveu apaga a própria mensagem ou imagem, um dono apaga qualquer; uma
+  rolagem nunca é apagada uma a uma; só um dono limpa (`keepPinned` mantém os
+  fixados por padrão).
+- **Limites** (0083). Uma mensagem: no máximo 500 caracteres, texto simples
+  (quebra de linha pode, nenhum outro caractere de controle), recusada sem ser
+  lida acima de 4 KiB de mensagem; uma imagem: 10 MB, 14 MB de mensagem;
+  mensagens e imagens: 5 por segundo, 20 de uma vez por conexão
+  (`Server::table_pace`, `pace.rs` com ritmo próprio); rolagens e sorteios,
+  também os da sala de uma nota: o ritmo das rotas REST por conexão; 64 janelas
+  numa mesa; um `join` responde as últimas 100 entradas e todas as fixadas,
+  uma página no máximo 200. Um alvo de fuzz (`fuzz/fuzz_targets/table.rs`,
+  sementes em `fuzz/seeds-table/`) lê uma mensagem, um visual, os bytes de uma
+  imagem e o tamanho de um comando.
+- **Onde não existe.** Uma janela num compartilhamento, ou um celular que
+  abriu parte de uma pasta, não tem mesa (a resposta é recusa). O desktop com
+  uma pasta só sua não tem: os comandos respondem que a mesa é de servidor, e a
+  janela mostra as próprias rolagens. A mesa de uma pasta sincronizada (item 9)
+  não foi feita: suas janelas chegam aos stubs locais, que recusam. Um desktop
+  servindo a pasta (0096) guarda a mesa: o mesmo código, seus celulares
+  liberados em tudo menos limpar.
+- **Escolhido no código, para o mantenedor confirmar.** (1) O registro guarda
+  no máximo 20 000 entradas por pasta: passando disso, as mais antigas que não
+  estão fixadas saem. O item 5 diz sem prazo; este teto existe só para que um
+  membro não encha o disco do host com mensagens, e é uma constante
+  (`ROWS_MOST`). (2) O lugar dos anexos é a pasta de anexos da pasta quando as
+  configurações do Obsidian a nomeiam, senão `attachments`; o arquivo é
+  `mesa-<data><hora>-<id>.<ext>`. (3) Imagem de 10 MB. (4) O ritmo: 5 por
+  segundo, 20 de uma vez. (5) O roster tem uma entrada por conta, em quantas
+  janelas estiver. (6) A entrada leva o id opaco da conta de quem a escreveu
+  (`by_id`) para a janela saber quais mensagens são suas; `TableJoin.you` é o
+  seu.
+
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo
