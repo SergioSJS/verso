@@ -100,6 +100,19 @@ impl Win {
         }
     }
 
+    /// What the window hears for `ms` milliseconds, unchecked: after a
+    /// release the note is the player's.
+    async fn hear(&mut self, ms: u64) -> Vec<Value> {
+        let mut out = Vec::new();
+        let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
+        while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, self.ws.next()).await {
+            if let Message::Text(t) = m {
+                out.push(serde_json::from_str(&t).unwrap_or(Value::Null));
+            }
+        }
+        out
+    }
+
     /// What the window hears for `ms` milliseconds, each message checked.
     async fn listen(&mut self, ms: u64) -> Vec<Value> {
         let mut out = Vec::new();
@@ -905,9 +918,15 @@ fn what_a_players_device_syncs_follows_the_releases() {
                 json!({ "paths": ["Barão Zq.md"], "released": true }),
             )
             .await;
-        let events = m.ana.listen(300).await;
+        let events = m.ana.hear(300).await;
         assert!(
             events.iter().any(|e| e["event"] == "sync-changed"),
+            "{events:?}"
+        );
+        // And it is told as a folder is told, of the note it now has.
+        assert!(
+            events.iter().any(|e| e["event"] == "folder-changed"
+                && e["payload"]["changed"] == json!(["Barão Zq.md"])),
             "{events:?}"
         );
         let after = m.ana.call("sync_changes", json!({ "since": head })).await;
@@ -1004,7 +1023,7 @@ fn a_hidden_note_never_comes_up_in_a_room_or_an_event_of_a_player() {
                 json!({ "paths": ["Barão Zq.md"], "released": true }),
             )
             .await;
-        let heard = m.ana.listen(300).await;
+        let heard = m.ana.hear(300).await;
         assert!(
             heard.iter().any(|e| e["event"] == "collab-closed"),
             "{heard:?}"
@@ -1207,6 +1226,23 @@ fn a_subfolder_table_is_a_share_and_its_players_see_it_re_rooted() {
             .await;
         let (_, o) = Win::open(&r, &b, &share.id).await;
         assert_eq!(o["err"]["message"], "a mesa está fechada", "{o}");
+        // A reader of the whole folder is not locked out by a closed table
+        // inside it: it reads the rest, and none of the table.
+        let bia = r
+            .server
+            .db
+            .create_account("bia@casa.lan", "Bia", "pt", Some("a senha da bia"), false)
+            .unwrap();
+        r.server.db.grant(&id, &bia.id, Role::Reader).unwrap();
+        let bb = sign_in(&r, "bia@casa.lan", "a senha da bia").await;
+        let (mut bia, o) = Win::open(&r, &bb, &id).await;
+        assert!(o.get("ok").is_some(), "{o}");
+        let names = strings(&bia.call("list_notes", json!({})).await["ok"]);
+        assert!(names.contains(&"Fora.md".to_owned()), "{names:?}");
+        assert!(
+            !names.iter().any(|n| n.starts_with("Campanha/")),
+            "{names:?}"
+        );
     });
 }
 
