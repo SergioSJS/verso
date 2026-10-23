@@ -24,12 +24,22 @@ import { settings } from "../settings";
 import { announce } from "./addToNote";
 import { stylesOf, type ServerTable, type TableEntry } from "./model";
 import { local, setTableSource, tableOn, tableOnScreen } from "./record";
+import { noticeKey, reachOf, tryServerTable, type Reach, type SyncDetail } from "./reach";
 import { paceWait } from "./send";
 import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
 
+/** The last join was answered "unavailable": a synced folder out of its server's reach. */
+let unavailable = false;
+/** The folder's sync, as the status says it (ADR 0107 item 9). */
+let reach: Reach = "none";
+
 const api: Api = {
-  join: (color, styles) => commands.tableJoin(color, styles),
+  join: async (color, styles) => {
+    const r = await commands.tableJoin(color, styles);
+    unavailable = r.status === "error" && r.error.kind === "unavailable";
+    return r;
+  },
   leave: () => commands.tableLeave(),
   look: (color, styles) => commands.tableLook(color, styles),
   history: (before, limit) => commands.tableHistory(before, limit),
@@ -50,10 +60,19 @@ async function retry(): Promise<void> {
   const mine = ++attempt;
   current?.close();
   current = null;
+  local.setNotice(null);
   if (!tableOn() || !currentFolder) {
     setTableSource(local);
     return;
   }
+  // A synced folder out of its server's reach has no table: its own rolls
+  // stay here, said so, and the table is joined when the link returns.
+  if (!tryServerTable(reach)) {
+    local.setNotice(noticeText(noticeKey(reach, false)));
+    setTableSource(local);
+    return;
+  }
+  unavailable = false;
   const table = await openServerTable({
     api,
     styles: () => diceLook().styles,
@@ -72,7 +91,12 @@ async function retry(): Promise<void> {
     return;
   }
   current = table;
+  if (!table) local.setNotice(noticeText(noticeKey(reach, unavailable)));
   setTableSource(table ?? local);
+}
+
+function noticeText(key: "syncOffline" | "syncPaused" | null): string | null {
+  return key ? tt[key] : null;
 }
 
 /** Another person's entry heard live: their dice fall (in their own look,
@@ -98,5 +122,13 @@ function news(e: TableEntry, wire: { roll: import("../bindings").DiceRoll | null
 export function installServerTable(): void {
   for (const ev of ["verso:folder-shown", "verso:role", "verso:features-changed", "verso:table-retry"]) addEventListener(ev, () => void retry());
   addEventListener("verso:dice-look", () => current?.look());
+  // A synced folder's link up or down, its sync paused or resumed: the
+  // table is joined, or left for the window's own log (ADR 0107 item 9).
+  addEventListener("verso:sync-state", (e) => {
+    const next = reachOf((e as CustomEvent<SyncDetail>).detail);
+    if (next === reach) return;
+    reach = next;
+    void retry();
+  });
   void retry();
 }
