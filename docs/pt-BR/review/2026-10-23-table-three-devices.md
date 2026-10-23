@@ -118,7 +118,7 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    está certo; só as palavras estão erradas.
 9. **MENOR — "join the table first"** apareceu em inglês, numa janela em
    português (a recusa do servidor passou direto).
-10. **MENOR — Arrastar uma entrada da Mesa seleciona todo o texto da janela**
+10. **MENOR — CORRIGIDO (`ee9242e2`, branch `fix/ui-feedback`, 2026-10-23) — Arrastar uma entrada da Mesa seleciona todo o texto da janela**
     no app do Mac ([28](/docs/media/test-runs/2026-10-23-mesa/28-bug-arrastar-seleciona-texto.png)).
 11. **MENOR — A leitora ganha o editor.** Numa nota que a jogadora só pode ler,
     "Editar" abre a barra de formatação e um cursor; digitar não faz nada.
