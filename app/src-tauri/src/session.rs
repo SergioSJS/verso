@@ -1,0 +1,297 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The folder windows that come back at the next start (ADR 0065). The
+//! set of folders the windows show is kept in the configuration directory
+//! (`verso_core::session`) as they open and close, and read once at start,
+//! where each folder opens in a window of its own again.
+//!
+//! A window the person closes leaves the set; the windows that close
+//! because the app quits — ⌘Q, the updater's restart — do not, and neither
+//! does the last window of all, whose closing is the quit on Windows and
+//! Linux (and Tauri's on macOS too). Keys only: a path never leaves this
+//! side (ADR 0026 rule 4).
+
+use std::path::Path;
+use std::sync::atomic::Ordering;
+
+use tauri::Manager;
+use verso_core::session as kept;
+
+use crate::{App, Handed, hand_over, log, protocol::is_app_view, remote};
+
+/// The key a window with a server's folder is kept under.
+fn server_key(url: &str, folder: &str) -> String {
+    format!("server:{url}#{folder}")
+}
+
+/// The address and folder a key names, if it is a server's.
+fn parse_server_key(key: &str) -> Option<(String, String)> {
+    let rest = key.strip_prefix("server:")?;
+    let (url, folder) = rest.split_once('#')?;
+    (!url.is_empty() && !folder.is_empty()).then(|| (url.to_owned(), folder.to_owned()))
+}
+
+/// The windows' order: the main window first, then the others as opened.
+fn order(label: &str) -> (bool, usize, String) {
+    let n = label
+        .strip_prefix("window-")
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0);
+    (label != "main", n, label.to_owned())
+}
+
+/// The folders the windows show now, except the window `except`'s.
+fn shown<R: tauri::Runtime>(app: &tauri::AppHandle<R>, except: Option<&str>) -> Vec<String> {
+    let state = app.state::<App>();
+    let mut labels: Vec<String> = app
+        .windows()
+        .into_keys()
+        .filter(|l| (l == "main" || l.starts_with("window-")) && Some(l.as_str()) != except)
+        .collect();
+    labels.sort_by_key(|l| order(l));
+    labels
+        .iter()
+        .filter_map(|label| match remote::of(app, label) {
+            Some(r) => Some(server_key(&r.url, &r.folder)),
+            None => state.service.folder_of(label),
+        })
+        .collect()
+}
+
+/// A window shows a folder: the set is what the windows show now, and an
+/// app that was quitting is not (a quit the person cancelled).
+pub(crate) fn remember<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let state = app.state::<App>();
+    state.quitting.store(false, Ordering::SeqCst);
+    let config = state.service.config().map(Path::to_path_buf);
+    write(config.as_deref(), &shown(app, None));
+}
+
+/// The app is quitting: the windows that close from here on stay in the set.
+pub(crate) fn quitting<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    app.state::<App>().quitting.store(true, Ordering::SeqCst);
+}
+
+/// A window closed. Called for every window; only a folder window the
+/// person closed leaves the set.
+pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
+    if !is_app_view(label) || label.starts_with("note-") {
+        return;
+    }
+    let state = app.state::<App>();
+    let config = state.service.config().map(Path::to_path_buf);
+    let others = shown(app, Some(label));
+    after_close(
+        config.as_deref(),
+        state.quitting.load(Ordering::SeqCst),
+        &others,
+    );
+}
+
+/// What a closing window does to the set: nothing while the app quits, and
+/// nothing when it is the last (the one the next start brings back);
+/// otherwise the set becomes the folders the other windows show.
+fn after_close(config: Option<&Path>, quitting: bool, others: &[String]) {
+    if quitting || others.is_empty() {
+        return;
+    }
+    write(config, others);
+}
+
+fn write(config: Option<&Path>, keys: &[String]) {
+    if let Err(e) = kept::keep_open_windows(config, keys) {
+        log::write(
+            "WARN",
+            "host",
+            &format!("the open windows were not kept: {e}"),
+        );
+    }
+}
+
+/// At start: open again in a window each folder the last session had open.
+/// A folder that is gone or unreachable is skipped and logged. The folders
+/// wait for windows as a folder handed by a second launch does: the main
+/// window takes the first.
+pub(crate) fn restore<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    let keys = kept::open_windows(config.as_deref());
+    if keys.is_empty() {
+        return;
+    }
+    log::write(
+        "INFO",
+        "host",
+        &format!("reopening {} window(s) of the last session", keys.len()),
+    );
+    for key in keys {
+        if let Some((url, folder)) = parse_server_key(&key) {
+            hand_over(app, Handed::Server(url, folder));
+        } else if let Some(path) = kept::folder_for_key(&key, config.as_deref()) {
+            // The folder named on the command line is already waiting.
+            let waiting = crate::lock(&app.state::<App>().initial_folder).contains(&path);
+            if !waiting {
+                hand_over(app, Handed::Path(path));
+            }
+        } else {
+            log::write(
+                "WARN",
+                "host",
+                &format!("a window of the last session is not reopened: folder {key} is gone"),
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const A: &str = "notas-0123456789abcdef";
+    const B: &str = "diario-fedcba9876543210";
+
+    fn kept_in(config: &Path) -> Vec<String> {
+        kept::open_windows(Some(config))
+    }
+
+    #[test]
+    fn two_windows_open_and_the_app_quits_both_come_back() {
+        let config = tempfile::tempdir().unwrap();
+        write(Some(config.path()), &[A.into(), B.into()]);
+        // ⌘Q: the windows close one after the other, the app quitting.
+        after_close(Some(config.path()), true, &[B.into()]);
+        after_close(Some(config.path()), true, &[]);
+        assert_eq!(kept_in(config.path()), [A, B]);
+    }
+
+    #[test]
+    fn a_window_closed_before_the_quit_does_not_come_back() {
+        let config = tempfile::tempdir().unwrap();
+        write(Some(config.path()), &[A.into(), B.into()]);
+        // The person closes the second window...
+        after_close(Some(config.path()), false, &[A.into()]);
+        // ... then quits: the last window goes with the app.
+        after_close(Some(config.path()), true, &[]);
+        assert_eq!(kept_in(config.path()), [A]);
+    }
+
+    #[test]
+    fn the_last_window_closed_by_hand_is_the_one_that_comes_back() {
+        let config = tempfile::tempdir().unwrap();
+        write(Some(config.path()), &[A.into(), B.into()]);
+        after_close(Some(config.path()), false, &[A.into()]);
+        // Closing it is the quit on Windows and Linux: it stays.
+        after_close(Some(config.path()), false, &[]);
+        assert_eq!(kept_in(config.path()), [A]);
+    }
+
+    #[test]
+    fn a_server_folder_keeps_its_address() {
+        let key = server_key("https://notas.casa", "casa");
+        assert_eq!(
+            parse_server_key(&key),
+            Some(("https://notas.casa".into(), "casa".into()))
+        );
+        assert_eq!(parse_server_key("server:#x"), None);
+        assert_eq!(parse_server_key(A), None);
+    }
+
+    #[test]
+    fn windows_are_ordered_main_first_then_as_opened() {
+        let mut labels = vec!["window-10", "window-2", "main"];
+        labels.sort_by_key(|l| order(l));
+        assert_eq!(labels, ["main", "window-2", "window-10"]);
+    }
+
+    /// Hand `folder` to the app and take the window made for it.
+    fn a_window_for(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        folder: &Path,
+    ) -> tauri::WebviewWindow<tauri::test::MockRuntime> {
+        let before: Vec<String> = app.webview_windows().into_keys().collect();
+        crate::folder_handed(app.handle(), folder.to_path_buf());
+        let label = app
+            .webview_windows()
+            .into_keys()
+            .find(|l| !before.contains(l))
+            // Or an empty one it was handed to (a mock window that was
+            // destroyed lingers in the manager).
+            .or_else(|| {
+                crate::lock(&app.state::<App>().opening)
+                    .iter()
+                    .next()
+                    .cloned()
+            })
+            .expect("a window took it");
+        app.get_webview_window(&label).unwrap()
+    }
+
+    /// The host's side whole, on the mock runtime: two windows with a
+    /// folder each are the set; the one the person closes leaves it; the
+    /// app quitting keeps the rest; and a start reads the set and hands
+    /// each folder that is still there to a window, skipping the gone.
+    #[test]
+    fn the_windows_of_a_session_come_back_at_the_next_start() {
+        use serde_json::json;
+        let one = tempfile::tempdir().unwrap();
+        let two = tempfile::tempdir().unwrap();
+        let _a = crate::tests::note(one.path(), "A.md", "# A\n");
+        let _b = crate::tests::note(two.path(), "B.md", "# B\n");
+        let (app, main) = crate::tests::app_with(Some(one.path().to_path_buf()));
+        let key_a = crate::tests::call(&main, "open_initial", json!({})).unwrap()["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        // Main shows a folder, so the handed one gets a window of its own.
+        let second = a_window_for(&app, two.path());
+        let second_label = second.label().to_owned();
+        let key_b = crate::tests::call(&second, "open_initial", json!({})).unwrap()["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let config = app.state::<App>().service.config().map(Path::to_path_buf);
+        let config = config.as_deref();
+        assert_eq!(kept::open_windows(config), [key_a.clone(), key_b.clone()]);
+
+        // The person closes the second window: only the first stays.
+        second.destroy().unwrap();
+        // What the host's event handler does, in this order (lib.rs).
+        app.state::<App>().service.release(&second_label);
+        window_gone(app.handle(), &second_label);
+        assert_eq!(kept::open_windows(config), std::slice::from_ref(&key_a));
+
+        // A second window again, then the app quits: both stay.
+        let again = a_window_for(&app, two.path());
+        let again_label = again.label().to_owned();
+        crate::tests::call(&again, "open_initial", json!({})).unwrap();
+        assert_eq!(kept::open_windows(config), [key_a.clone(), key_b.clone()]);
+        quitting(app.handle());
+        again.destroy().unwrap();
+        window_gone(app.handle(), &again_label);
+        main.destroy().unwrap();
+        window_gone(app.handle(), "main");
+        assert_eq!(kept::open_windows(config), [key_a.clone(), key_b.clone()]);
+
+        // The next start: a folder that is gone is skipped, the others wait
+        // for a window each.
+        kept::keep_open_windows(
+            config,
+            &["perdida-0123456789abcdef".to_owned(), key_a, key_b],
+        )
+        .unwrap();
+        crate::lock(&app.state::<App>().initial_folder).clear();
+        restore(app.handle());
+        let waiting: Vec<_> = crate::lock(&app.state::<App>().initial_folder)
+            .iter()
+            .map(|p| p.file_name().unwrap().to_owned())
+            .collect();
+        assert_eq!(
+            waiting,
+            [
+                one.path().file_name().unwrap(),
+                two.path().file_name().unwrap()
+            ]
+        );
+    }
+}
