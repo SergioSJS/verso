@@ -578,6 +578,13 @@ point 13).
    a drag writes nothing. Level: H; E: `board-file.spec.mjs`.
 8. A card moved and the move undone (⌘Z) before the save: the tab closes
    clean, nothing written. Level: H; E: `board-file.spec.mjs`.
+9. A Markdown text card (ADR 0057, 2026-10-23): the toolbar's *Text card*
+   button, and a double click (a double tap on a phone) on an empty spot of
+   the board, ask for a text and add a card there; a `dice:` code in it is a
+   die. A double click on a card still edits that card; with *Settings ›
+   Board › Double click on the board creates* on *Drawn text* an empty spot
+   writes Excalidraw's drawn text; a reader's double click does nothing.
+   Level: H; E: `board-text-card.spec.mjs`.
 
 ## 9. The practice board
 

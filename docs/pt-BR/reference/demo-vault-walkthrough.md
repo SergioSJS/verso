@@ -594,6 +594,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    ver: um arrasto não grava nada. Nível: H; E: `board-file.spec.mjs`.
 8. Um cartão movido e o movimento desfeito (⌘Z) antes do salvamento: a aba
    fecha limpa, nada gravado. Nível: H; E: `board-file.spec.mjs`.
+9. Um cartão de texto Markdown (ADR 0057, 2026-10-23): o botão *Cartão de
+   texto* da barra, e um duplo clique (um toque duplo, no celular) num lugar
+   vazio do board, pedem um texto e põem um cartão ali; um código `dice:`
+   nele é um dado. Um duplo clique num cartão continua editando esse cartão;
+   com *Ajustes › Board › Duplo clique no board cria* em *Texto desenhado*,
+   um lugar vazio escreve o texto desenhado do Excalidraw; o duplo clique de
+   um leitor não faz nada. Nível: H; E: `board-text-card.spec.mjs`.
 
 ## 9. O treino do board
 

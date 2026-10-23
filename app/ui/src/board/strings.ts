@@ -167,6 +167,10 @@ const pt = {
   prefFontMono: "Código",
   prefGrid: "Grade",
   prefGridDesc: "Mostra a grade e encaixa nela ao abrir um board.",
+  prefDouble: "Duplo clique no board cria",
+  prefDoubleDesc: "O que um duplo clique (ou toque duplo) num lugar vazio do board põe ali.",
+  prefDoubleCard: "Cartão de texto",
+  prefDoubleDrawn: "Texto desenhado",
 };
 
 type BoardStrings = typeof pt;
@@ -333,6 +337,10 @@ const en: BoardStrings = {
   prefFontMono: "Code",
   prefGrid: "Grid",
   prefGridDesc: "Shows the grid, and snaps to it, when a board opens.",
+  prefDouble: "Double click on the board creates",
+  prefDoubleDesc: "What a double click (or double tap) on an empty spot of the board puts there.",
+  prefDoubleCard: "Text card",
+  prefDoubleDrawn: "Drawn text",
 };
 
 export type { BoardStrings };

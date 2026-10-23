@@ -37,7 +37,7 @@ Each tool in the top bar has its own key, shown beside the icon.
 | `K` | Laser pointer |
 | `Q` | Keep the tool active after drawing |
 
-Hold `⇧` while drawing to make perfect squares and circles. A double click on the empty space writes a text.
+Hold `⇧` while drawing to make perfect squares and circles. A double click on the empty space puts a **text card** (Markdown, where a `dice:` code becomes a die) — the **Text card** button in the toolbar does the same; in **Settings › Board › Double click on the board creates** you can switch to **Drawn text**, Excalidraw's loose text. For drawn text, use the Text tool (`T`).
 
 Under **More tools** (the `⋮` of the bar) there are also **Draw to shape** (`⇧ X`: a scribble becomes a rectangle, circle, diamond, line or arrow) and **Bucket fill** (`B`: paints a closed region).
 
