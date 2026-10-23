@@ -113,7 +113,9 @@ describe("the list's bounds", () => {
 describe("each kind as the person chose it", () => {
   test("every kind starts as \"Aviso e lista\"", () => {
     assert.equal(DEFAULT_MODE, "toast");
-    for (const k of KINDS) assert.equal(modeOf({}, k), "toast");
+    // Every kind is "Aviso e lista" until chosen, but the table's news, which is off (ADR 0107 item 13).
+    for (const k of KINDS) assert.equal(modeOf({}, k), k === "table" ? "off" : "toast");
+    assert.equal(modeOf({ table: "toast" }, "table"), "toast");
     assert.equal(modeOf(undefined, "sync"), "toast");
     assert.equal(modeOf({ sync: "nonsense" }, "sync"), "toast");
   });
