@@ -29,6 +29,7 @@ import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
+import { campaignEntryItems, campaignSelectionItems } from "./campaign";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -149,6 +150,9 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
       // folder or for one note.
       ...(folder && mayShare() ? [[rl.menuFolder, () => openReadLinkDialog("folder", path), "link"] as MenuItem] : []),
       ...(!folder && (kind === "note" || kind === "board") && mayShare() ? [[rl.menuNote, () => openReadLinkDialog("note", path), "link"] as MenuItem] : []),
+      // The table (ADR 0110): the game master makes a folder a table and
+      // releases its notes.
+      ...campaignEntryItems(path, kind),
       [t.rename, rename, "edit"],
       [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
       ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
@@ -170,6 +174,7 @@ export function selectionMenu(x: number, y: number, paths: string[]): void {
   const write = canWrite();
   showMenu(x, y, [
     ...(write ? [[`${t.moveTo}…`, () => movePrompt(paths), "sidebar"] as MenuItem] : []),
+    ...campaignSelectionItems(paths),
     [t.selection.copyPaths, () => void navigator.clipboard.writeText(paths.join("\n")).then(() => (ui.status.textContent = t.copied)), "link"],
     ["—", () => {}],
     [t.selection.clear, () => clearSelection(), "close"],
