@@ -190,6 +190,26 @@ fn a_reader_rolls_and_writes_and_the_log_is_kept_and_paged() {
         assert_eq!(heard["text"], "oi, mesa");
         let heard = event_named(&mut c.owner, "table-entry").await;
         assert_eq!(heard["roll"]["total"], rolled["ok"]["roll"]["total"]);
+        // The clicked die's place (ADR 0107) rides on the roll, bounded.
+        let placed = call(
+            &mut c.reader,
+            13,
+            "table_roll",
+            json!({ "notation": "1d20", "source": null, "path": "Sessao.md", "secret": null, "styles": null, "occurrence": 2 }),
+        )
+        .await;
+        assert_eq!(placed["ok"]["roll"]["occurrence"], 2, "{placed}");
+        let heard = event_named(&mut c.owner, "table-entry").await;
+        assert_eq!(heard["roll"]["occurrence"], 2, "{heard}");
+        let absurd = call(
+            &mut c.reader,
+            14,
+            "table_roll",
+            json!({ "notation": "1d20", "source": null, "path": "Sessao.md", "secret": null, "styles": null, "occurrence": 99999 }),
+        )
+        .await;
+        assert!(absurd["ok"]["roll"]["occurrence"].is_null(), "{absurd}");
+        event_named(&mut c.owner, "table-entry").await;
         // A hundred and thirty more, straight into the log.
         for i in 0..130 {
             let row = TableRow {

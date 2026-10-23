@@ -725,6 +725,13 @@ pub struct DiceRoll {
     /// sent none.
     #[serde(default)]
     pub styles: Option<DiceStyles>,
+    /// Which of the note's dice with this code was clicked, from the first
+    /// (ADR 0107): a note can hold the same `dice:` code twice, and a
+    /// window that hears the roll shows it on that one. For display only;
+    /// none when the roll was not made from a die in a note, or by an older
+    /// window or server, and then the first such die shows it.
+    #[serde(default)]
+    pub occurrence: Option<u32>,
 }
 
 /// One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a

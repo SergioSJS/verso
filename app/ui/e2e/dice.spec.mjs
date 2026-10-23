@@ -123,6 +123,37 @@ test("in a room the server rolls, and another member's roll shows with their nam
   expect(await app.file(NOTE)).toBe(TEXT);
 });
 
+test("a roll heard from the room shows on the die that was clicked, not the first with its code (ADR 0107)", async ({ app, page }) => {
+  await app.open();
+  await page.evaluate(() => (window.__harness.rooms.up = true));
+  await page.evaluate((st) => {
+    window.__harness.core.handlers.folder_sync = () => st;
+  }, SYNCED);
+  await app.emit("sync-status", SYNCED);
+  const twice = "# Ficha\n\nForca: `dice: 1d20` e destreza: `dice: 1d20`.\n";
+  await app.writeOutside("Ficha.md", twice);
+  await app.folderChanged(["Ficha.md"], true);
+  await app.quickOpen("Ficha");
+  const dice = page.locator('.preview:visible .dice[data-dice="1d20"]');
+  await expect(dice).toHaveCount(2);
+  // Clicking the second die sends its place; this window shows it there.
+  await dice.nth(1).getByRole("button", { name: "Rolar 1d20" }).click();
+  await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
+  expect((await app.calls("collab_roll"))[0].occurrence).toBe(1);
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText(/^\d+$/);
+  await expect(dice.nth(0).locator(".dice-card")).toBeHidden();
+  // Bia clicks the first and then the second: each shows on its own die.
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [7], 0));
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("7");
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [19], 1));
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText("19");
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("7");
+  // An older peer's roll names none: the first die.
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [3]));
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("3");
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText("19");
+});
+
 test("the palette's roller rolls a typed notation and says what it does not read", async ({ app, page }) => {
   await app.open();
   await app.command("Rolar dados");

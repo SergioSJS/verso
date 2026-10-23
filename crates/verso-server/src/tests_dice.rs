@@ -107,6 +107,67 @@ fn a_roll_in_a_room_is_the_servers_and_the_room_hears_it() {
     });
 }
 
+/// Which of the note's dice with the same code was clicked (ADR 0107)
+/// travels with the roll: relayed to the room, kept for whoever joins,
+/// answered back; an absurd place is dropped, none is none, and a roll
+/// written without the field (an older server or log) still reads.
+#[test]
+fn the_clicked_dies_place_travels_with_the_roll_and_a_hostile_one_is_dropped() {
+    block_on(async {
+        let r = start().await;
+        let (mut seen, mut roller) = two_in_the_room(&r).await;
+        let second = call(
+            &mut roller,
+            3,
+            "collab_roll",
+            json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": 1 }),
+        )
+        .await;
+        assert_eq!(second["ok"]["occurrence"], 1, "{second}");
+        let heard = event_named(&mut seen, "collab-roll").await;
+        assert_eq!(heard["roll"]["occurrence"], 1, "{heard}");
+        for (id, bad) in [(4, json!(5000)), (5, json!(u32::MAX)), (6, Value::Null)] {
+            let answer = call(
+                &mut roller,
+                id,
+                "collab_roll",
+                json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": bad }),
+            )
+            .await;
+            assert!(answer["ok"]["occurrence"].is_null(), "{bad}: {answer}");
+            event_named(&mut seen, "collab-roll").await;
+        }
+        // Not a number a place can be: refused, nothing relayed.
+        for (id, bad) in [
+            (7, json!(-1)),
+            (8, json!("1")),
+            (9, json!(1.5)),
+            (10, json!(1u64 << 40)),
+        ] {
+            let answer = call(
+                &mut roller,
+                id,
+                "collab_roll",
+                json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": bad }),
+            )
+            .await;
+            assert_eq!(answer["err"]["kind"], "refused", "{bad}: {answer}");
+        }
+        let rejoined = call(&mut seen, 11, "collab_join", json!({ "path": NOTE })).await;
+        let rolls = rejoined["ok"]["rolls"].as_array().unwrap();
+        assert_eq!(rolls.len(), 4, "{rejoined}");
+        assert_eq!(rolls[0]["occurrence"], 1);
+        assert!(rolls[1]["occurrence"].is_null());
+        // A roll without the field reads.
+        let old = json!({
+            "notation": "1d20", "source": null, "terms": [], "modifier": 0,
+            "total": 5, "by": "Ana", "at": "2026-10-14T21:30:00Z"
+        });
+        let roll: verso_contract::DiceRoll = serde_json::from_value(old).unwrap();
+        assert_eq!(roll.occurrence, None);
+    });
+}
+
 /// A notation the server does not read, a table that is not a link, a
 /// window not in the room: refused, nothing relayed, nothing kept.
 #[test]

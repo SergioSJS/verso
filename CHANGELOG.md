@@ -97,6 +97,8 @@ test release.
 
 ### Fixed
 
+- **Two identical dice in a note: another person's roll shows on the right one** ([ADR 0107](docs/adr/0107-the-table-a-shared-roll-and-chat-log.md)): when a note holds the same `dice:` code twice (two `1d20` in a character sheet), a roll heard from someone else showed on the first die; now the roll carries which die was clicked and the others see it on that one. An older window or server says none, and the first die shows it as before.
+
 - A desktop window that comes to a server's folder where the person only reads (a player at a table) asks what it can do again: the board loses its drawing tools, the editor and the tree read, and "you only read this folder" shows, without a reload; the window keeps the app's own abilities there (new window, updates, console, folders of this computer).
 - **A reader's board and a note's dice**: a board a player had open now updates when the game master changes it (the server tells readers when a board's room saves, as it already did for notes), instead of only after closing and opening it; a reader no longer sees the *saved by a newer Verso* notice, and gets the viewer without the drawing toolbar from the first frame in the desktop app too; and when a note has two dice with the same notation, the result appears only next to the one that was clicked, in Reading, Live Preview and board cards.
 

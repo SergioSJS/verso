@@ -617,6 +617,8 @@ pub async fn command(
             let path: Option<String> = arg(&args, "path")?;
             let secret: Option<bool> = arg(&args, "secret")?;
             let styles: Option<DiceStyles> = arg(&args, "styles")?;
+            let occurrence: Option<u32> = arg(&args, "occurrence")?;
+            let occurrence = crate::dice::occurrence(occurrence);
             let path = path.map(|p| note_path(&p)).transpose()?;
             let styles = styles
                 .map(|v| crate::table_look::check(&v).map_err(|e| refused(&e)))
@@ -635,6 +637,7 @@ pub async fn command(
                 )
                 .map_err(failed)?;
                 rolled.styles = styles;
+                rolled.occurrence = occurrence;
                 append(
                     &s,
                     &folder,
