@@ -45,7 +45,7 @@ pub async fn send(
     who: &Arc<Who>,
     client: &str,
     (folder, table, role): (&str, &str, Role),
-    data: &str,
+    (data, inside): (&str, Option<&str>),
 ) -> Result<Value, ContractError> {
     // The table's own limit (ADR 0110, MS.1), its default when the folder
     // is no table. Base64 takes four characters for three bytes: judged
@@ -74,6 +74,12 @@ pub async fn send(
     let s = Arc::clone(server);
     let f = folder.to_owned();
     let place = blocking(move || Ok(place_of(&s, &f))).await?;
+    // From a window on a share the file is kept inside the share's table
+    // folder: the only place that player reads.
+    let place = match inside {
+        Some(root) if !root.is_empty() => format!("{root}/{place}"),
+        _ => place,
+    };
     let id: String = crate::crypto::id()
         .map_err(verso_service::failed)?
         .chars()
@@ -105,7 +111,7 @@ pub async fn send(
     let p = path.clone();
     let row =
         blocking(move || crate::table::image_entry(&s, (&f, &t), (&account, &name), &p)).await?;
-    to_value(crate::table::seen(&row, &who.account.id, role))
+    to_value(crate::table::seen(&row, &who.account.id, role, inside))
 }
 
 /// The folder's attachments place: Obsidian's setting for it when the
