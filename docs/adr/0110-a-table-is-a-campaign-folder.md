@@ -240,3 +240,132 @@ log's ceiling of [0107](0107-the-table-a-shared-roll-and-chat-log.md) (MS.1):
 *"pode ser, mas talvez faça sentido ser configurável e limite por mesa"* — the
 ceiling (20,000 entries) and the image size limit become settings of each
 table, set by its game master, the built values as defaults.
+
+*Phase 1 built (2026-10-22), branch `feat/campaign-table`; see "As built" below. The ADR stays Proposed: the other model has not read it, and the questions listed under "Chosen in the code" are the maintainer's.*
+
+## As built (phase 1, 2026-10-22)
+
+Branch `feat/campaign-table`. Phase 1 of item 17 is built: make a table,
+invitation, release and hide, the veil on every read path, the links drawn as
+text, per-note grants, open and closed, the table's limits. Phase 2 (the
+dashboard, show to the table, sessions, notices, journals, "see as player",
+the players' boards area, map pins) is not. Where the code had to choose, the
+choice is listed last, for the maintainer to confirm or change.
+
+- **Where.** `crates/verso-server/src/campaign.rs` (the tables' state, the
+  veil, who is a player), `campaign_serve.rs` (what a player is served),
+  `campaign_text.rs` (the links drawn as text; pure, no IO),
+  `campaign_cmds.rs` (the game master's commands), `campaign_sync.rs` (sync to
+  a player's device follows the releases), `db/campaign.rs` (schema 15),
+  `rpc_collab.rs` (the rooms' commands, moved out of `rpc.rs`, which was at
+  1499 lines). The contract: `crates/verso-contract/src/campaign.rs`. The
+  window: `app/ui/src/campaign.ts`, `campaignDialog.ts`, `campaignStrings.ts`.
+- **A table** is a row `(folder, root)` of the server's database: `root` is
+  `""` for the whole server folder, or a folder inside it (then the players are
+  the people of a share at that folder, made by the invitation). Open or
+  closed, the log's ceiling and the image limit are on the row. Nothing is
+  written in any note's file; making a table and undoing it are reversible.
+  A note with no row is **hidden** (MC.2 = A), the ones there when the folder
+  becomes a table and the ones made later; "Release all" writes a row per note.
+  The rows follow a rename or a move made through the server and go with a
+  deletion.
+- **Commands** (the window reaches the table only through them; the owner's
+  window on the folder itself, never through a share, never from a phone):
+  `campaign_status`, `campaign_make(root)`, `campaign_unmake(root)`,
+  `campaign_settings(root, open, logMax, imageMax)`,
+  `campaign_release(paths, released)` (a folder stands for the notes under
+  it), `campaign_release_all(root)`, `campaign_secret_name(path, on)`,
+  `campaign_grant(path, grant)`, `campaign_invite(root)`. Each answers the new
+  status; the event `campaign-changed` tells every window on the folder, and a
+  player's window is told as a folder is (`folder-changed`, with the notes it
+  now has or has lost). Types generated (`CampaignStatus`, `CampaignTable`,
+  `CampaignNote`, `CampaignGrant`, `CampaignInvite`, `CampaignPlayer`,
+  `CampaignChanged`); the harness answers all of them
+  (`app/ui/src/harness/campaign.ts`); the phones' allowlist reads
+  `campaign_status` and refuses the rest.
+- **Who is a player.** A window that may only read a folder with a table in it
+  (a reader; a token that only reads). The owner and the editors — the
+  co-game-masters — are served the folder whole; the veil is for readers, as
+  ADR 0087's projection is. An invitation makes a reader. The status a player
+  gets names the tables it can open and the notes it may edit, and nothing
+  else.
+- **The veil.** A path inside a table is hidden to a player unless it is a
+  released note, board or base (a grant releases), an attachment a released
+  note or board links or embeds (decided in the code, item 4: otherwise a
+  released note would show a broken picture), or an image the table shows. A
+  closed table hides everything. A folder shows only with something visible
+  under it (the table's own always). A path is judged by its name with case
+  folded and `.`/`..` resolved, and by the name confinement reads.
+- **The read paths** covered, a test each in `tests_campaign.rs` (the first
+  also sweeps every command of the generated bindings, as
+  `tests_secret.rs` does for ADR 0087, so a new read command fails there until
+  it says how it answers a player): list notes, files, folders and entries;
+  read a note, a text, a file as text (a hidden one answers as one that never
+  was, tried against a missing name); search (the excerpt is cut again from the
+  veiled text, and a hit whose words were inside a link now drawn as text is
+  dropped); graph, backlinks, links, tags, block ids, unlinked mentions, bases'
+  rows, quick open (list and search); the folder's summary and its size;
+  `resolve_attachment` and the maps' files; boards (a card of a hidden note is a
+  locked text card; the text cards as notes); the room (a hidden note's room is
+  refused; a released note's is the player's own document, over the veiled
+  text; a release or a hide closes the players' documents so they join again);
+  sync to a device (a hidden file is out of the reader's manifest and log, a
+  release is a change the device fetches, a hide is a deletion it is told, a
+  hidden file is refused by `sync_read`); the files under `/f/`; the folder's
+  events; the table's entries (the note a roll was made in is not told when
+  hidden).
+- **Links to hidden notes** (item 7, MC.4 = B): in the text served to a player,
+  a wikilink or a Markdown link to a hidden note becomes plain text and a lock:
+  the alias when there is one, else the name as written (its last part), then
+  " 🔒"; a note marked "secret name" is drawn ▒▒▒▒ whatever was written; an
+  embed or an image of a hidden file becomes "🔒 (ainda não revelado)" / "🔒
+  (not revealed yet)" in the game master's language. A path, a heading and a
+  `^id` are never sent, in the body, the frontmatter or code. The served HTML,
+  headings, properties and type are derived again from that text.
+- **Grants** (item 5): `none`, `group` or one player (an account of the table;
+  boards cannot be granted in phase 1). A grant releases the note. Enforced on
+  `write_note` and `write_text`, the rooms' typing, and a device's `sync_put`
+  (only for a note granted to the group); every other write — create, rename,
+  move, delete, attachments, boards, `sync_delete`/`sync_rename` — stays the
+  game master's. The one who may edit a note reads it whole, as a writer reads
+  (ADR 0087 item 5).
+- **Open and closed** (MC.1 = A): closed, a player's attempt to open the
+  folder, or the share, answers "a mesa está fechada" (the files route too),
+  windows already inside are sent out, and a command from one is refused. The
+  owner and the editors always enter.
+- **Limits** (answer to MS.1): per table, within 1,000 to 200,000 entries
+  (default 20,000) and 1 to 30 MB (default 10), enforced by the server
+  (`db/table.rs` trims at the table's ceiling; `table_image.rs` judges the
+  image). The folder's shortest-rooted table gives the folder's log its
+  numbers.
+- **Invitation**: `campaign_invite` makes a single-use reader invitation, seven
+  days, for the folder or for the share at the table's folder (made then); only
+  the server's admin, with a fresh proof (`prove_first`), as the console's
+  invitation to a folder is (ADR 0081 item 4, ADR 0083 item 6). The window shows
+  the link to copy.
+- **Tutorial**: note 32 of the demo vault, "Rodando uma Mesa" / "Running a
+  Table", a card on the tour, a line in the welcome note's map.
+- **Chosen in the code, for the maintainer to confirm or change.** (1) A link
+  with no alias shows the **name as the game master wrote it**, with the lock
+  ("Barão 🔒"); item 7 says "the text with a lock", and a path is never sent,
+  but the name is. If the name should never cross, the answer is C for every
+  link: say so. (2) Editors are game masters, not players: a table is for
+  readers; an editor sees the folder whole. (3) The grantee of a note, and every
+  player for a note granted to the group, reads it **whole** — its secret
+  blocks and its links as written — since an edit of a projection would write
+  the locks into the note; the dialog says so. (4) A note granted to one
+  player is projected on the other players' devices and edited in the window
+  or the room, not synced up from the grantee's device. (5) An attachment is
+  open when a released note or board links it, or the table shows it as an
+  image. (6) The image limit stops at 30 MB, not 50: the connection's message
+  cap is 48 MiB and base64 is a third larger. (7) When a folder becomes a table,
+  a reader's device that already synced a note keeps its copy; the log says
+  nothing of a note it never told (a deletion would name it). (8) A table inside
+  a share has no table channel for the share's windows (0107 as built); the
+  rolls of a subfolder table are the owner's window's. (9) The room and the
+  device files are served in the game master's language for the placeholders.
+
+Tried: `tests_campaign.rs` (20 tests, with the generated-notes property that no
+path, heading or id reaches a player), `campaign_text.rs`'s unit tests (the
+same property over 500 generated notes), the window's `test/campaign.test.mjs`
+and `e2e/campaign.spec.mjs` in Chromium and WebKit (Docker).

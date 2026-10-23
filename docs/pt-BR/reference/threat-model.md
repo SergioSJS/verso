@@ -472,6 +472,28 @@ Aceito em 2026-10-21. **WebDAV e S3 estão construídos (2026-10-21, merge `a816
 | HEAD e depois DELETE em serviços S3 que ignoram um DELETE condicional (construído) | Onde um serviço ignora `If-Match` no DELETE, a exclusão é um HEAD seguido de um DELETE e um escritor pode entrar no intervalo; a janela diz isso ao conectar. |
 | Um redirecionamento levando as credenciais para outro lugar (construído) | O adaptador WebDAV nunca segue um redirecionamento, então um servidor não pode mandar as credenciais Basic para outro host. |
 
+### Notas ocultas de uma mesa (ADR 0110)
+
+Construído em 2026-10-22 (fase 1). Uma pasta de um UniVerso feita mesa guarda a maioria das notas longe dos jogadores convidados (leitores) até o mestre liberá-las. O estado fica no banco do servidor, nunca num arquivo. É uma proteção contra leitores num servidor, como a da ADR 0087: quem tem o arquivo, um mestre ou um editor, o vê.
+
+| Ameaça | Resposta construída, e onde é testada (`tests_campaign.rs`) |
+|---|---|
+| Uma nota oculta numa lista | Notas, arquivos, pastas e entradas são filtrados pelo véu (`campaign_serve.rs`) no único lugar por onde passa todo comando da pasta (`rpc::folder_run`); uma pasta só aparece com algo visível dentro. |
+| Uma nota oculta pedida pelo nome | Responde como uma nota que não existe, testada contra um nome ausente, em toda grafia do caminho (`./`, maiúsculas, `..`); um nome oculto não se distingue de um ausente. |
+| As palavras de uma nota oculta na busca, no grafo, nos backlinks, nas tags, nas menções, nas bases | Respondidas pela projeção do leitor e depois filtradas; um trecho de busca é cortado de novo do texto com o véu, e um achado cujas palavras estavam num link agora desenhado como texto cai. |
+| O nome de uma nota oculta num link | O texto servido não tem link para ela: o apelido ou o nome como escrito, com um cadeado, ou quatro blocos para um nome secreto; um caminho, um título e um id nunca vão, no corpo, no frontmatter ou em código. O teste de propriedade roda 500 notas geradas. O nome como escrito, sem apelido, vai (decisão registrada para o mantenedor). |
+| Uma nota oculta num board | Um cartão de nota oculta é um cartão de texto trancado; os cartões de texto são servidos como notas. Um board não pode ser concedido para edição, então os cadeados nunca são gravados de volta. |
+| Uma nota oculta numa sala | A sala de uma nota oculta é recusada; a de uma liberada é um documento próprio dos jogadores, refeito quando uma liberação muda. |
+| Um arquivo oculto num aparelho | O arquivo fica fora do manifesto e do registro do leitor, `sync_read` o recusa, uma liberação é uma mudança nova e ocultar é uma exclusão; ao criar a mesa o registro não diz nada do que nunca disse. Um aparelho que tinha uma nota antes da mesa fica com a cópia: não dá para recolhê-la. |
+| Um anexo de uma nota oculta | Servido só quando uma nota ou board liberado o liga ou incorpora, ou a mesa o mostra como imagem; `/f/` responde 404 como para um arquivo ausente. |
+| Os eventos da pasta | A mudança numa nota oculta não é dita a um jogador; o jogador é avisado do que uma liberação dá ou tira. |
+| As entradas da mesa | A nota em que uma rolagem foi feita não é dita a um jogador quando está oculta. |
+| As contagens da pasta | O resumo de um jogador conta as notas que ele vê e não nomeia problema algum. |
+| Um jogador escrevendo | Só uma nota concedida a ele ou ao grupo, por `write_note`, `write_text`, a sala ou (a do grupo) um aparelho; criar, renomear, mover, excluir, anexos e boards continuam do mestre. Uma concessão é ato do mestre e fica no banco. |
+| Uma mesa fechada | O abrir de um jogador é recusado ("a mesa está fechada"), a rota de arquivos também; as janelas de dentro são mandadas para fora; um comando de uma delas é recusado. |
+| Uma concessão ampliando o alcance | Uma concessão libera só aquela nota, e nunca além do compartilhamento da pasta. |
+| O convite | Uso único, sete dias, de leitor; só a administradora, com prova recente. |
+
 ## Lacunas encontradas em 2026-10-11
 
 Encontradas lendo o código no HEAD 7729940; achados, não correções.

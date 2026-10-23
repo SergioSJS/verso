@@ -458,6 +458,28 @@ Accepted 2026-10-21. **WebDAV and S3 are built (2026-10-21, merge `a816d15b`)**;
 | HEAD then DELETE on S3 services that ignore a conditional DELETE (built) | Where a service ignores `If-Match` on DELETE, the delete is a HEAD followed by a DELETE and a writer can slip in between; the window says so at connect. |
 | A redirect leading the credentials elsewhere (built) | The WebDAV adapter never follows a redirect, so a server cannot send the Basic credentials to another host. |
 
+### A table's hidden notes (ADR 0110)
+
+Built 2026-10-22 (phase 1). A folder of a UniVerso made a table keeps most of its notes from the players invited to it (readers) until the game master releases them. The state is in the server's database, never in a file. It is a guard against readers on a server, like ADR 0087's: whoever holds the file, a game master or an editor sees it.
+
+| Threat | Answer built, and where it is tried (`tests_campaign.rs`) |
+|---|---|
+| A hidden note in a list | Notes, files, folders and entries are filtered by the veil (`campaign_serve.rs`) in the one place every command of the folder passes (`rpc::folder_run`); a folder shows only with something visible under it. |
+| A hidden note asked for by name | It answers as a note that does not exist, tested against a missing name, for every spelling of the path (`./`, case, `..`); a hidden name cannot be told from a missing one. |
+| A hidden note's words in search, the graph, backlinks, tags, mentions, bases | Answered from the reader's projection, then filtered; a search excerpt is cut again from the veiled text, and a hit whose words were inside a link now drawn as text is dropped. |
+| The name of a hidden note in a link | The text served has no link to it: the alias or the name as written, with a lock, or four blocks for a secret name; a path, a heading and an id are never sent, in the body, the frontmatter or code. The property test runs 500 generated notes. The name as written, without an alias, is sent (a decision recorded for the maintainer). |
+| A hidden note in a board | A card of a hidden note is a locked text card; the text cards are served as notes. A board cannot be granted for editing, so the locks are never written back. |
+| A hidden note in a room | The room of a hidden note is refused; a released note's is a document of its own for the players, remade when a release changes. |
+| A hidden file on a device | The file is out of the reader's manifest and log, `sync_read` refuses it, a release is a new change and a hide a deletion; at table creation the log says nothing of what it never told. A device that had a note before the table keeps its copy: it cannot be recalled. |
+| An attachment of a hidden note | Served only when a released note or board links or embeds it, or the table shows it as an image; `/f/` answers 404 as for a missing file. |
+| The folder's events | A hidden note's change is not told to a player; a player is told what a release gives or takes. |
+| The table's entries | The note a roll was made in is not told to a player when it is hidden. |
+| The folder's counts | A player's summary counts the notes it sees and names no problem. |
+| A player writing | Only a note granted to it or to the group, by `write_note`, `write_text`, the room or (the group's) a device; create, rename, move, delete, attachments and boards stay the game master's. A grant is the game master's act and is kept in the database. |
+| A closed table | A player's open is refused ("a mesa está fechada"), the files route too; windows inside are sent out; a command from one is refused. |
+| A grant widening reach | A grant releases only the one note, and never beyond the folder's share. |
+| The invitation | Single use, seven days, a reader's; only the admin, with a fresh proof. |
+
 ## Gaps found on 2026-10-11
 
 Found by reading the code at HEAD 7729940; findings, not fixes. Classified

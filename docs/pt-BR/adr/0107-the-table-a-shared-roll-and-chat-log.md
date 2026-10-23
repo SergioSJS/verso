@@ -334,3 +334,10 @@ apagar uma entrada (item 6) — decididas no mesmo dia como recomendado.
 Os itens marcados `[PROPOSED]` continuam do autor até a aceitação. Não
 construída; o mantenedor a pediu "em algum momento". Espera uma leitura
 do outro modelo.
+
+*Revisado (2026-10-22, [0110](0110-a-table-is-a-campaign-folder.md)):* o teto
+do registro (20.000 entradas, "Escolhido no código" 1) e o limite de imagem
+(10 MB) agora são **por mesa**, definidos pelo mestre da mesa entre
+1.000–200.000 entradas e 1–30 MB, com esses valores como padrão; as linhas da
+mesa seguem o véu da 0110 para um leitor (a nota em que uma rolagem foi feita
+não é dita quando está oculta, uma imagem da mesa é vista por todos nela).
