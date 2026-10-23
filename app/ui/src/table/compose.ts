@@ -13,13 +13,45 @@
 import { pickImages } from "../attach";
 import { button, h, ui } from "../dom";
 import { play3d, will3d } from "../dice3d";
+import { readNotation, rollHere } from "../dice/notation";
 import { openRoller } from "../dice/roller";
 import { icon } from "../icons";
 import { keyboardInset, onViewport } from "../screen/viewport";
 import { isServerTable, type ServerTable, type TableSource } from "./model";
 import { charsOf, checkImage, COUNTER_FROM, IMAGE_MAX, MESSAGE_MAX, paceWait, readTyped, toBase64 } from "./send";
-import { tableSource } from "./record";
+import { recordRoll, tableSource } from "./record";
 import { tt } from "./strings";
+
+/** A server's refusal in the person's words (its pace rule says how long to wait). */
+function refusalOf(message: string): string {
+  const wait = paceWait(message);
+  return wait !== null ? tt.slowDown(wait) : message;
+}
+
+/** Roll `notation` (read by `readNotation`) at the table: the one way a roll goes
+ *  out, for `/r` and for the dice tray. A server's table rolls it, once, for
+ *  everyone (the "Secreta" toggle respected); without a server this window rolls
+ *  it and the log keeps it. The 3D dice fall after it. `accepted` runs when the
+ *  roll is taken, before the fall. Answers the reason it was refused, or null. */
+export async function rollNotation(notation: string, accepted?: () => void): Promise<string | null> {
+  const t = tableSource();
+  if (isServerTable(t)) {
+    const r = await t.roll(notation, { secret: t.secret });
+    if ("error" in r) return refusalOf(r.error);
+    accepted?.();
+    if (t.secret) ui.status.textContent = tt.secretRollStatus;
+    if (r.entry.roll && will3d("", r.entry.roll)) await play3d("", r.entry.roll).catch(() => undefined);
+    return null;
+  }
+  const read = readNotation(notation);
+  if (!read) return tt.badRoll(notation);
+  const roll = rollHere(read);
+  accepted?.();
+  const fall = will3d("", roll);
+  if (fall) await play3d("", roll).catch(() => undefined);
+  recordRoll("", roll);
+  return null;
+}
 
 export class Compose {
   readonly el = h("form", "table-compose");
@@ -130,8 +162,7 @@ export class Compose {
   }
 
   private refusal(message: string): string {
-    const wait = paceWait(message);
-    return wait !== null ? tt.slowDown(wait) : message;
+    return refusalOf(message);
   }
 
   /** Send what was typed: a message, or `/r` and a notation. */
@@ -158,13 +189,10 @@ export class Compose {
         if (refused) return this.fail(this.refusal(refused));
         clear();
       } else {
-        const r = await t.roll(typed.notation, { secret: t.secret });
-        if ("error" in r) return this.fail(this.refusal(r.error));
         // Accepted: the field is emptied now, not after the dice have fallen
         // (a roll that took time, or a fall that failed, used to leave `/r 1d20`).
-        clear();
-        if (t.secret) ui.status.textContent = tt.secretRollStatus;
-        if (r.entry.roll && will3d("", r.entry.roll)) await play3d("", r.entry.roll).catch(() => undefined);
+        const refused = await rollNotation(typed.notation, clear);
+        if (refused) return this.fail(refused);
       }
     } finally {
       this.busy = false;

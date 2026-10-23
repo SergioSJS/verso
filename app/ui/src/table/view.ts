@@ -19,7 +19,8 @@ import { entryMenu, openImage, panelMenu } from "./actions";
 import { announce, clock, rollBlockFor, saidOf, whoOf } from "./addToNote";
 import { armDrag } from "../layout/drag";
 import { rollable } from "../rollblock/entry";
-import { Compose } from "./compose";
+import { Compose, rollNotation } from "./compose";
+import { Tray } from "./tray";
 import { isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tt } from "./strings";
@@ -93,6 +94,7 @@ class TableView {
   private readonly pins = h("div", "table-pins");
   private readonly pinList = h("ul", "table-pin-list");
   private readonly older = button("ghost table-older", tt.older);
+  private readonly tray = new Tray((notation) => rollNotation(notation));
   private readonly compose = new Compose();
   private readonly note = h("p", "table-note");
   private readonly hiddenLine = h("p", "table-hidden");
@@ -116,7 +118,7 @@ class TableView {
     const pinHead = h("h3", "table-pins-head", tt.pinnedHeading);
     this.pins.append(pinHead, this.pinList);
     this.older.addEventListener("click", () => void this.loadOlder());
-    this.el.append(this.roster, this.bar, this.note, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.el.append(this.roster, this.bar, this.note, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.tray.el, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();
@@ -180,6 +182,7 @@ class TableView {
     const entries = src.entries();
     const pinned = server ? server.pinnedEntries() : [];
     this.compose.sync(src);
+    this.tray.sync(src);
     this.paintRoster(server);
     this.bar.replaceChildren();
     const hide = button("ghost table-hide", tt.hideHere);
