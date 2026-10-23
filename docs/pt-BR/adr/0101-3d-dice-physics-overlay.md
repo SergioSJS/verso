@@ -245,3 +245,23 @@ Só o que o mantenedor recusou ao marcar estas respostas:
 Aceita em 2026-10-21. Reescrita nesse dia com as respostas do mantenedor, e
 aceita quando o item 3 (a biblioteca) foi avaliado e decidido (0101.1c,
 opção A; 0101.7, opção B). Em construção; roadmap V.29.
+
+### Emenda 2026-10-23: o som de uma batida sai com o impacto ou não sai
+
+O mantenedor, no app real do Mac: "eu mando rolar, depois que todos dados
+param aí o som sai, já pedi pra arrumar isso!" (já pedido antes). Regra: o
+som de uma batida sai com o impacto ou não sai, nunca depois de os dados
+pararem, como no Rolai. Uma batida só entra na fila do relógio do áudio
+quando esse relógio foi visto avançando (um contexto pode dizer "running"
+enquanto o dispositivo de saída ainda acorda, com o `currentTime` parado, e
+tudo que está na fila toca de uma vez depois); senão é descartada e contada
+como atrasada. A atividade de dados mantém a saída acordada (um buffer em
+laço quase inaudível): um gesto num controle de dados (a caixa e o envio da
+Mesa, a bandeja, o botão de dado de uma nota, o roller, a rolagem de uma
+ficha, uma rolagem salva), qualquer gesto com o painel da Mesa aberto e
+visível, e cada rolagem tocada, própria ou ouvida. Escrever notas não. Para
+três minutos após a última dessas. A
+linha INFO da rolagem traz `stalled`, o estado em `first`/`end`, `clockRate`
+(segundos de áudio por segundo de relógio durante a queda), a latência
+`base`/`out`, `resumeMs` e `maxAheadMs`, para distinguir a causa pelo log do
+mantenedor.

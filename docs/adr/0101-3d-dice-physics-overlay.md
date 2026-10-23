@@ -251,3 +251,21 @@ Only what the maintainer refused when he marked these answers:
 Accepted on 2026-10-21. Rewritten that day with the maintainer's answers,
 and accepted once item 3 (the library) was evaluated and decided (0101.1c,
 option A; 0101.7, option B). Being built; roadmap V.29.
+
+### Amendment 2026-10-23: a hit's sound is heard with its impact or not at all
+
+The maintainer, in the real Mac app: "eu mando rolar, depois que todos dados
+param aí o som sai, já pedi pra arrumar isso!" (asked before). Rule: a hit's
+sound is heard with its impact or not at all, never after the dice rest, as
+in Rolai. A hit is queued on the audio clock only when that clock has been
+seen to advance (a context can say "running" while its output device is still
+waking, its `currentTime` standing still, and everything queued on it plays
+at once afterwards); otherwise it is dropped and counted as late. Dice
+activity keeps the output awake (a near-silent looping buffer): a gesture
+on a dice control (the Table's box and send, the tray, a note's dice button,
+the roller, a statblock's roll, a saved roll), any gesture while the Table
+panel is open and visible, and each roll played, own or heard. Writing notes
+does not. It stops three minutes after the last of these. The roll's
+INFO line carries `stalled`, `first`/`end` state, `clockRate` (audio seconds
+per wall second over the fall), `base`/`out` latency, `resumeMs` and
+`maxAheadMs`, to tell the cause from the maintainer's log.

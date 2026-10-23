@@ -12,7 +12,7 @@
 // `dice-sounds/` (docs/reference/dice-sounds.md). On by default (as in Rolai), behind
 // Settings › Dice and RPG › "Dice sound". Web Audio (audio.ts). Loaded only when the switch is on.
 
-import { audioContext, logLine, warnOnce, whenContext } from "./audio";
+import { audioContext, clockWatch, keepWarm, logLine, warnOnce, whenContext } from "./audio";
 
 /** The die materials that have their own recordings; the rest are plastic. */
 export type SoundMaterial = "plastic" | "wood" | "metal";
@@ -53,8 +53,9 @@ export type SoundKit = {
    *  recording not yet decoded stays silent (never queued, so never late).
    *  Says what became of it: "played" (scheduled), "silent" (too slow to be
    *  a hit) or "lost" (should have sounded: no recording yet, the context not
-   *  running, or the browser refused). */
-  hit: (kind: HitKind, material: SoundMaterial, speed: number, at?: number) => "played" | "silent" | "lost";
+   *  running, or the browser refused) or "late" (the audio clock is standing
+   *  still, so the hit would sound after its impact: dropped, never queued). */
+  hit: (kind: HitKind, material: SoundMaterial, speed: number, at?: number) => "played" | "silent" | "lost" | "late";
 };
 
 const base = (): string => new URL("dice-sounds/", document.baseURI).href;
@@ -138,17 +139,43 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
   // A context still starting (the first gesture of the session may be this
   // very roll) takes a moment to run, and a hit before it runs is lost: the
   // throw waits for it, a moment at most, once.
-  if (ctx.state !== "running") await Promise.race([ctx.resume().catch(() => undefined), new Promise((r) => setTimeout(r, RESUME_WAIT_MS))]);
+  let resumeMs = 0;
+  if (ctx.state !== "running") {
+    const t0 = performance.now();
+    await Promise.race([ctx.resume().catch(() => undefined), new Promise((r) => setTimeout(r, RESUME_WAIT_MS))]);
+    resumeMs = Math.round(performance.now() - t0);
+  }
+  keepWarm();
+  const watch = clockWatch();
+  type Snap = { state: string; a: number; w: number };
+  const snap = (): Snap => ({ state: ctx.state, a: ctx.currentTime, w: performance.now() });
+  watch.sample(ctx.currentTime, performance.now());
+  let first: Snap | null = null;
+  let stalled = 0;
+  let maxAheadMs = 0;
+  const num = (v: unknown): string => (typeof v === "number" && Number.isFinite(v) ? v.toFixed(3) : "n/a");
   const pick = (name: string): AudioBuffer | undefined => {
     const list = ready.get(name);
     return list && list.length > 0 ? list[Math.floor(Math.random() * list.length)] : undefined;
   };
   return {
-    clock: () => ctx.currentTime,
+    clock: () => {
+      watch.sample(ctx.currentTime, performance.now());
+      return ctx.currentTime;
+    },
     diagnose(t) {
       let n = 0;
       for (const l of ready.values()) n += l.length;
-      logLine("INFO", `ctx=${ctx.state} buffers=${n} played=${t.played} lost=${t.lost} silent=${t.silent} late=${t.late}`);
+      // Does the audio clock keep the wall clock's pace over the fall? (1.000
+      // is yes; far from it is an output device waking or held back.)
+      const end = snap();
+      const rate = first && end.w > first.w ? (end.a - first.a) / ((end.w - first.w) / 1000) : Number.NaN;
+      const lat = ctx as unknown as { baseLatency?: number; outputLatency?: number };
+      logLine(
+        "INFO",
+        `ctx=${ctx.state} buffers=${n} played=${t.played} lost=${t.lost} silent=${t.silent} late=${t.late} stalled=${stalled} ` +
+          `first=${first ? first.state : "none"} end=${end.state} clockRate=${num(rate)} base=${num(lat.baseLatency)} out=${num(lat.outputLatency)} resumeMs=${resumeMs} maxAheadMs=${Math.round(maxAheadMs)}`,
+      );
       if (t.lost > 0 && ctx.state !== "running") warnOnce(`the audio context is ${ctx.state} while hits were due`);
     },
     hit(kind, material, speed, at) {
@@ -156,9 +183,16 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
       if (volume === null || document.hidden) return "silent";
       const buffer = pick(kind === "dice" ? material : "felt");
       if (!buffer) return "lost";
+      first ??= snap();
       if (ctx.state !== "running") {
         void ctx.resume().catch(() => undefined);
         return "lost";
+      }
+      // A hit is queued only on a clock seen to run: a standing clock plays
+      // it after the fall, and a hit's sound is heard with its impact or not at all.
+      if (!watch.sample(ctx.currentTime, performance.now())) {
+        stalled++;
+        return "late";
       }
       try {
         const src = ctx.createBufferSource();
@@ -166,7 +200,9 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
         const gain = ctx.createGain();
         gain.gain.value = volume;
         src.connect(gain).connect(ctx.destination);
-        src.start(Math.max(at ?? 0, ctx.currentTime));
+        const when = Math.max(at ?? 0, ctx.currentTime);
+        maxAheadMs = Math.max(maxAheadMs, (when - ctx.currentTime) * 1000);
+        src.start(when);
         return "played";
       } catch {
         // A hit that cannot play is silence.
