@@ -521,9 +521,11 @@ function Board({
     const again = (): void => setTick((n) => n + 1);
     addEventListener("verso:sync-state", again);
     addEventListener("verso:role", again);
+    addEventListener("verso:can-changed", again);
     return () => {
       removeEventListener("verso:sync-state", again);
       removeEventListener("verso:role", again);
+      removeEventListener("verso:can-changed", again);
     };
   }, []);
   useEffect(() => {
