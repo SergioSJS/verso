@@ -324,6 +324,61 @@ escolha está listada por último, para o mantenedor confirmar ou mudar.
   (`by_id`) para a janela saber quais mensagens são suas; `TableJoin.you` é o
   seu.
 
+## Como foi feito (a janela, fase 2, 22/10/2026)
+
+Branch `feat/table-wire`. A janela chega à mesa do servidor pelo contrato,
+como a seção "Como foi feito (o servidor)" acima descreve; está feito o que
+os itens 2, 3, 4, 5, 6, 7, 8, 11 e 13 decidiram ou propuseram, em
+`app/ui/src/table/` (`server.ts`, a fonte; `join.ts`, quando ela entra;
+`compose.ts`, a linha de entrada; `actions.ts`, os menus; `send.ts`, o que se
+digita e se confere antes de enviar). Onde o código teve de escolher, a escolha
+vem por último, para o mantenedor confirmar ou mudar.
+
+- **Quando entra.** Quando uma pasta é mostrada, a chave muda, o papel muda ou
+  um teste diz que a mesa subiu, a janela pede `table_join` (com os dados da
+  pessoa e sem cor); a resposta diz se o lado tem mesa para a pasta. Se tem, a
+  fonte do servidor substitui a local da fase 1 (`setTableSource`) e os
+  registradores locais saem de cena (o servidor conta à janela também as suas
+  entradas, guardadas uma vez, pelo número); se não tem, a fonte local fica e
+  diz que não é compartilhada.
+- **O que o painel ganha** (só na mesa do servidor). Quem está na mesa no alto
+  (nome e cor do cursor); as entradas fixadas numa lista própria acima do
+  registro; "Ver anteriores" para páginas mais antigas; a linha de entrada
+  (mensagem com Enter, `/r` e `/roll` para rolar, um botão de dado para o
+  rolador, um botão de imagem e colar ou soltar para imagem, a chave
+  "Secreta"); um menu em cada entrada (Fixar ou Desafixar, Adicionar à nota…,
+  Apagar) e um menu da mesa para o dono (Limpar a mesa, perguntando antes, com
+  "manter as fixadas" marcado); a mensagem como texto, com `[[links]]` para
+  notas da pasta como links; a imagem como miniatura do arquivo que abre
+  grande; a rolagem "para o dono" mascarada para os outros.
+- **Os dados de cada um.** `collab_roll`, `table_roll` e a entrada levam os
+  `DiceStyles` da pessoa; a rolagem ouvida cai em 3D no visual de quem rolou e
+  os quadradinhos do registro vêm nas cores dele.
+- **Notificações.** Um tipo novo, "Mesa", desligado por padrão, levantado por
+  mensagem, imagem ou rolagem de outra pessoa enquanto o painel não está na tela.
+- **Escolhido no código, para o mantenedor confirmar.** (1) Uma entrada fixada
+  aparece só na lista de fixadas, não também no seu lugar no registro. (2) A
+  janela guarda no máximo 1000 entradas (a constante `HELD`) na memória;
+  "Ver anteriores" pede 50 por vez. (3) A cor de presença é um hash do nome da
+  conta, como nas notas, aprendido do elenco da entrada e enviado por
+  `table_look` logo depois. (4) A rolagem de outra pessoa cai em 3D pelo evento
+  da mesa só quando esta janela não está na sala daquela nota (senão o evento
+  da sala já faz cair); a mesma rolagem nunca cai duas vezes. (5) A rolagem da
+  própria janela aparece no registro assim que o servidor responde, antes de os
+  dados 3D pararem. (6) A chave "Secreta" vale para `/r`, o botão de dado e o
+  rolador da paleta; um dado numa nota nunca é secreto. (7) Um dado numa nota
+  fora de uma sala ao vivo é rolado por `table_roll` com o caminho da nota, para
+  a mesa tê-lo. (8) Um sorteio do oráculo fora de uma sala ao vivo continua só
+  da janela (não há comando para isso). (9) As notificações são uma por pasta,
+  cada entrada mais nova substituindo a anterior na lista. (10) O endereço de
+  uma imagem é pedido como anexo, sem nota de origem e com o caminho relativo à
+  pasta; o servidor de verdade tem de confirmar que isso resolve. (11) A janela
+  entra de novo quando a pasta é mostrada ou o papel ou a chave muda; entradas
+  enviadas enquanto a conexão estava fora do ar não são pedidas de novo até
+  então. (12) "Adicionar à nota…" numa imagem escreve `![[attachments/…]]`, o
+  caminho do arquivo. (13) A tecla que foca a linha de entrada (item 16) não foi
+  feita.
+
 ## Situação
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo

@@ -44,6 +44,7 @@ import { installPreview } from "./preview/install";
 import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
+import { installServerTable } from "./table/join";
 import { can, canWrite, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
@@ -395,7 +396,10 @@ document.addEventListener("mousedown", (e) => {
   // A menu a row of the drawer opened, and the phone's own toggle (ADR
   // 0076 item 6), leave it open.
   if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side, .bar-files, .menu")) document.body.classList.remove("side-open");
-  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right, .bar-right")) document.body.classList.remove("right-open");
+  // The table's sheet stays open under what it opens itself: an entry's menu,
+  // the question that clears the table, an image opened large, the note picker
+  // and the roller (ADR 0107).
+  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right, .bar-right, .menu, .confirm, .table-lightbox, .quick")) document.body.classList.remove("right-open");
   paintExpanded();
 });
 toggleSideButton.addEventListener("click", toggleSide);
@@ -442,6 +446,7 @@ installScreen();
 installNotify(() => settingsDialog.show("notify"));
 installDropHost();
 installSources();
+installServerTable();
 window.addEventListener("verso:open-statblock-settings", () => {
   settingsDialog.show("statblocks");
 });
