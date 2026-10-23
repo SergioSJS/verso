@@ -21,6 +21,7 @@ import { hasCapability } from "./capabilities";
 import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
 import { blankGaps } from "./live/gaps";
+import { gapArrowsKeymap } from "./live/gapNav";
 import { blocksOf, foldBlocks, type Block } from "./live/blocks";
 import { frontmatterEnd, outOfFrontmatter, keepFrontmatter } from "./live/frontmatter";
 import { liveListNavKeymap, snapOutOfListPrefix } from "./live/lists";
@@ -614,6 +615,7 @@ export function livePreview(opts: LiveOptions) {
     keepFrontmatter,
     headingGutter,
     liveListNavKeymap,
+    gapArrowsKeymap,
     snapOutOfListPrefix,
     oracleTracker,
   ];
