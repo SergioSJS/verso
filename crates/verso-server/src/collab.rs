@@ -917,6 +917,9 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             // next question finds.
             let authors = std::mem::take(&mut r.authors);
             crate::sync::reconcile_saved(server, &r.key, &path, &authors);
+            if r.kind == Kind::Board {
+                crate::readers::board_saved(server, &r.key, &path);
+            }
             tell(
                 server,
                 &r,

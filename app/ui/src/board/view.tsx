@@ -149,7 +149,8 @@ function Board({
    *  writes) is shown and never written (review `board.md`, reading 2,
    *  finding 8). */
   // Nor by a reader on a server (ADR 0076 item 11).
-  const readOnly = (typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION) || Boolean(host.readOnly?.());
+  const newer = typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION;
+  const readOnly = newer || Boolean(host.readOnly?.());
   /** The board opened where it was left (the setting): the pane's size no
    *  longer brings the whole board back into view. */
   const restoredView = useRef(false);
@@ -513,8 +514,22 @@ function Board({
   flushRef.current = flush;
   const addPathRef = useRef<(path: string, x?: number, y?: number) => void>(() => undefined);
   const addTextRef = useRef<(text: string, x?: number, y?: number) => void>(() => undefined);
+  // The person's part in the folder may be known after the board is up (the
+  // sync's state on the desktop, the capabilities on a server): the board
+  // draws again, as a viewer where it only reads.
   useEffect(() => {
-    if (readOnly) host.status(s.newerBoard);
+    const again = (): void => setTick((n) => n + 1);
+    addEventListener("verso:sync-state", again);
+    addEventListener("verso:role", again);
+    return () => {
+      removeEventListener("verso:sync-state", again);
+      removeEventListener("verso:role", again);
+    };
+  }, []);
+  useEffect(() => {
+    // Only a board of a later Verso says so: a reader's window already
+    // says that the folder is read-only.
+    if (newer) host.status(s.newerBoard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

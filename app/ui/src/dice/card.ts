@@ -40,15 +40,17 @@ export type DiceHost = {
  *  is only this window's, or why it failed. */
 type Shown = { roll: DiceRoll | null; row: string | null; from: string | null; note: string | null; mine?: boolean };
 
-/** The last roll of each die of each note, by `path\nkey`: a die drawn
- *  again — the reading view redrawn, a Live Preview line — shows it. */
+/** The last roll of each die of each note, by `path\nkey\noccurrence`: a die
+ *  drawn again — the reading view redrawn, a Live Preview line — shows it.
+ *  Two dice with the same notation in a note are two dice: the result stays
+ *  with the one that was rolled. */
 const last = new Map<string, Shown>();
 /** The dice drawn now, to show a roll heard from the room. */
-const drawn = new Set<{ el: HTMLElement; host: DiceHost; key: string; show: (s: Shown) => void; pop: boolean }>();
+const drawn = new Set<{ el: HTMLElement; host: DiceHost; key: string; occ: number; show: (s: Shown) => void; pop: boolean }>();
 
 /** What a die is known by: its table, or its notation. */
 const keyOf = (code: DiceCode) => (code.kind === "table" ? code.source : code.notation);
-const slot = (path: string, key: string) => `${path}\n${key}`;
+const slot = (path: string, key: string, occ: number) => `${path}\n${key}\n${occ}`;
 
 let region: HTMLElement | null = null;
 /** Said to a screen reader, politely (item 8). */
@@ -213,7 +215,7 @@ function fill(card: HTMLElement, s: Shown, host: DiceHost): void {
  *  `text` in place of the icon and notation (an ability's "(+2)"), `label`
  *  its name, and `popover` for a result shown over the card, anchored to
  *  the die and kept inside the card, instead of in the line. */
-export type DiceLook = { text?: string; label?: string; popover?: boolean };
+export type DiceLook = { text?: string; label?: string; popover?: boolean; occ?: number };
 
 /** The result card of a popover die placed under it (over it when there
  *  is no room below), moved sideways to stay inside the statblock card, or
@@ -244,6 +246,8 @@ function place(box: HTMLElement, card: HTMLElement): void {
 /** The die `code` drawn for a note, its last roll shown when it has one. */
 export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HTMLElement {
   const key = keyOf(code);
+  /** Which of the note's dice with this code it is, from the first. */
+  const occ = look.occ ?? 0;
   const box = h("span", look.popover ? "dice dice-pop" : "dice");
   box.dataset["dice"] = key;
   const label = look.label ?? (code.kind === "table" ? ds.rollTable(code.source) : ds.roll(code.notation));
@@ -288,7 +292,7 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     if (look.popover) roll.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", outside, true);
     document.removeEventListener("keydown", escape, true);
-    last.delete(slot(host.path(), key));
+    last.delete(slot(host.path(), key, occ));
     if (refocus) roll.focus();
   };
   const show = (s: Shown) => {
@@ -331,13 +335,14 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
     busy = false;
     roll.removeAttribute("aria-busy");
     box.classList.remove("rolling");
-    last.set(slot(path, key), s);
+    last.set(slot(path, key, occ), s);
     // The table's log (ADR 0107): the line comes when the dice have rested,
     // as the card does.
     if (s.roll) recordRoll(path, s.roll, s.row);
     // The same die drawn elsewhere shows it too — a popover only its own
-    // (a card's two "+2" are two dice).
-    for (const d of drawn) if (d.el !== box && !d.pop && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
+    // (a card's two "+2" are two dice), and a note's two dice of the same
+    // code are two dice: only the one at the same place.
+    for (const d of drawn) if (d.el !== box && !d.pop && d.el.isConnected && d.host.path() === path && d.key === key && d.occ === occ) d.show(s);
     show(s);
     if (!fall) say(said(s, false));
   };
@@ -356,10 +361,10 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
   });
   // A redrawn die shows its last roll in the line; a popover opens only
   // when asked, or for a roll of the room.
-  const known = look.popover ? undefined : last.get(slot(host.path(), key));
+  const known = look.popover ? undefined : last.get(slot(host.path(), key, occ));
   if (known) show(known);
   for (const d of [...drawn]) if (!d.el.isConnected) drawn.delete(d);
-  drawn.add({ el: box, host, key, show, pop: look.popover === true });
+  drawn.add({ el: box, host, key, occ, show, pop: look.popover === true });
   return box;
 }
 
@@ -367,10 +372,15 @@ export function diceBox(code: DiceCode, host: DiceHost, look: DiceLook = {}): HT
  *  never a code block. */
 export function wireDice(root: HTMLElement, host: DiceHost): void {
   if (!hasCapability("diceRolling") && !hasCapability("randomTables")) return;
+  const seen = new Map<string, number>();
   for (const code of root.querySelectorAll<HTMLElement>("code")) {
     if (code.closest("pre, .dice")) continue;
     const read = readCode(code.textContent ?? "");
-    if (read && hasCapability(read.kind === "table" ? "randomTables" : "diceRolling")) code.replaceWith(diceBox(read, host));
+    if (read && hasCapability(read.kind === "table" ? "randomTables" : "diceRolling")) {
+      const n = seen.get(keyOf(read)) ?? 0;
+      seen.set(keyOf(read), n + 1);
+      code.replaceWith(diceBox(read, host, { occ: n }));
+    }
   }
 }
 
@@ -379,8 +389,11 @@ export function wireDice(root: HTMLElement, host: DiceHost): void {
 async function heard(e: CollabRoll): Promise<void> {
   const key = e.roll.source ?? e.roll.notation;
   const s = await withRow({ roll: e.roll, row: null, from: null, note: null }, e.path);
-  last.set(slot(e.path, key), s);
-  const here = [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key);
+  // The roll names no die but its code: it is shown by the first of the
+  // note's dice with that code.
+  last.set(slot(e.path, key, 0), s);
+  const mine = (d: { el: HTMLElement; host: DiceHost; key: string; occ: number; pop: boolean }) => d.el.isConnected && d.host.path() === e.path && d.key === key && (d.pop || d.occ === 0);
+  const here = [...drawn].filter(mine);
   // Another member's roll falls in 3D only for someone whose own switch is
   // on (ADR 0101 item 6): said at once, shown when the dice have rested.
   // With the switch "Show others' rolls in 3D" off they do not fall (ADR 0107 item 11).
@@ -393,7 +406,7 @@ async function heard(e: CollabRoll): Promise<void> {
   }
   recordHeard(e.path, e.roll, s.row);
   // The dice drawn now: a page may have changed while they fell.
-  const now = fall ? [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key) : here;
+  const now = fall ? [...drawn].filter(mine) : here;
   // Every die in a line shows it; of a card's popovers, the first.
   const pop = now.find((d) => d.pop);
   for (const d of now) if (!d.pop || d === pop) d.show(s);
@@ -409,9 +422,9 @@ async function heard(e: CollabRoll): Promise<void> {
  *  by their dice, not said. */
 function joined(path: string, rolls: DiceRoll[], user: string): void {
   recordJoined(path, rolls, user);
-  for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation), { roll, row: null, from: null, note: null });
+  for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation, 0), { roll, row: null, from: null, note: null });
   for (const roll of rolls.filter((r) => r.source)) {
-    void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? ""), s));
+    void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? "", 0), s));
   }
 }
 

@@ -79,7 +79,7 @@ export type LiveOptions = {
   /** What a roll block's card needs of the window (ADR 0107's roll block). */
   roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
-  dice?: (code: string) => WidgetType | null;
+  dice?: (code: string, occ?: number) => WidgetType | null;
   /** A statblock card's dice — the note's own dice, which roll in a room
    *  through the server — and why its trackers cannot write now (ADR 0099
    *  items 4 and 5). */
@@ -226,7 +226,15 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             for (const m of node.node.getChildren(name === "Strikethrough" ? "StrikethroughMark" : "EmphasisMark")) hide(m.from, m.to);
           }
         } else if (name === "InlineCode") {
-          const die = shown ? null : (opts.dice?.(doc.sliceString(node.from, node.to)) ?? null);
+          const text = doc.sliceString(node.from, node.to);
+          // Which of the note's identical codes this is: two dice of the
+          // same notation are two dice (dice/card.ts).
+          let occ = 0;
+          if (!shown && opts.dice) {
+            const before = doc.sliceString(0, node.from);
+            for (let at = before.indexOf(text); at >= 0; at = before.indexOf(text, at + text.length)) occ++;
+          }
+          const die = shown ? null : (opts.dice?.(text, occ) ?? null);
           if (die) out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: die }) });
           else out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-code" }) });
           if (!shown && !die) for (const m of node.node.getChildren("CodeMark")) hide(m.from, m.to);
