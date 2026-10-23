@@ -35,6 +35,19 @@ At the foot of the Table panel is the **dice tray** — the **Compose a roll** b
 
 The **notation** field is editable, and it is the one that counts: type `4d6kh3` or `1d20+5` and roll. What the buttons cannot show (keep the highest, re-roll) stays as you typed it; a die clicked afterwards starts the roll again from that die. What Verso does not read is said right there, and nothing is rolled.
 
+### Saved rolls
+
+Inside the tray is the **Saved rolls** row: every line of a note that holds a `dice:` code becomes a button. The note is an ordinary note of the folder — your sheet, or a `Rolls.md` — and it follows you to any device. An example list (pick **this note** with **Choose note…** and the three show up as buttons):
+
+- Bia's attack: `dice: 1d20+7`
+- Sword damage: `dice: 1d8+4`
+- Initiative: `dice: 1d20+2`
+
+1. A button's name is the line's text without the list marker and the trailing colon; a line with only the code is named by its notation.
+2. **Clicking a button does not roll:** it puts the notation in the field, and you add a modifier (the **Mod** stepper) and press **Roll**.
+3. On a UniVerso, a player finds the note **granted to that person alone** (their sheet) by itself; the game master can leave rolls ready in it. Otherwise, **Choose note…** (or **Note: …**, to change it) opens the note picker; the choice is kept in this browser, per folder.
+4. **Save**: put a roll together, give it a name and press **Save** — the line `` - Name: `dice: …` `` is appended to the note (at the end of its *Rolagens* or *Rolls* section, if it has one). Someone who only reads the note does not see the button. The list follows the note when it changes.
+
 ---
 
 ## Other people's rolls

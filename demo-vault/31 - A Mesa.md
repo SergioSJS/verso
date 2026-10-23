@@ -35,6 +35,19 @@ Embaixo do painel da Mesa fica a **bandeja de dados** — o botão **Compor rola
 
 O campo de **notação** é editável, e é ele que vale: digite `4d6kh3` ou `1d20+5` e role. O que os botões não sabem mostrar (manter o maior, re-rolagem) continua como você digitou; um dado clicado depois recomeça a rolagem a partir dele. O que o Verso não lê é dito ali mesmo, e nada é rolado.
 
+### Rolagens salvas
+
+Dentro da bandeja fica a linha **Rolagens salvas**: cada linha de uma nota que tenha um código `dice:` vira um botão. A nota é uma nota comum da pasta — a sua ficha, ou uma `Rolagens.md` — e segue você em qualquer aparelho. Uma lista de exemplo (escolha **esta nota** em **Escolher nota…** e os três aparecem como botões):
+
+- Ataque da Bia: `dice: 1d20+7`
+- Dano da espada: `dice: 1d8+4`
+- Iniciativa: `dice: 1d20+2`
+
+1. O nome do botão é o texto da linha sem o marcador de lista e sem os dois-pontos do fim; uma linha só com o código leva a notação por nome.
+2. **Clicar num botão não rola:** ele põe a notação no campo, e você soma um modificador (o passo **Mod**) e aperta **Rolar**.
+3. Num UniVerso, quem joga encontra sozinho a nota **concedida só a essa pessoa** (a ficha); o mestre pode deixar rolagens prontas nela. Em outros casos, **Escolher nota…** (ou **Nota: …**, para trocar) abre o seletor de notas; a escolha fica guardada neste navegador, por pasta.
+4. **Salvar**: monte a rolagem, dê um nome e aperte **Salvar** — a linha `` - Nome: `dice: …` `` é acrescentada à nota (no fim da seção *Rolagens*, se ela tiver uma). Quem só lê a nota não vê o botão. A lista acompanha a nota quando ela muda.
+
 ---
 
 ## Rolagens de outras pessoas

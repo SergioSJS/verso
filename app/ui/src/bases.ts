@@ -41,6 +41,8 @@ export function refreshBases(): void {
   basesTimer = window.setTimeout(() => {
     // The notes a statblock inherits from, read again (ADR 0099 item 1).
     refreshBestiary();
+    // The table's saved rolls read their note again.
+    dispatchEvent(new Event("verso:notes-changed"));
     for (const v of liveBases) void v.refresh();
     for (const b of liveBoards) b.refresh();
     // A daily note made or gone shows on the month too.
