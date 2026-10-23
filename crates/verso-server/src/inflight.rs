@@ -45,7 +45,7 @@ pub const TEXT: usize = 32 * 1024 * 1024;
 pub const BUDGET: usize = 128 * 1024 * 1024;
 
 /// The commands that carry a file's bytes.
-const UPLOADS: [&str; 2] = ["create_file", "sync_put"];
+const UPLOADS: [&str; 3] = ["create_file", "sync_put", "table_send_image"];
 
 /// The commands that carry a text, a board or a room's edit.
 const TEXTS: [&str; 11] = [
@@ -66,7 +66,12 @@ const TEXTS: [&str; 11] = [
 /// The most a message of `cmd` may be.
 #[must_use]
 pub fn most_for(cmd: &str) -> usize {
-    if UPLOADS.contains(&cmd) {
+    if cmd == "table_send_image" {
+        // An image of 10 MB as base64, with room (ADR 0107 item 3).
+        crate::table::IMAGE_BYTES / 3 * 4 + 1024
+    } else if cmd == "table_say" {
+        crate::table::SAY_MESSAGE
+    } else if UPLOADS.contains(&cmd) {
         crate::rpc::MAX_MESSAGE
     } else if TEXTS.contains(&cmd) {
         TEXT
@@ -154,7 +159,9 @@ pub fn admit_text(
     client: &str,
     text: &str,
 ) -> Result<Option<OwnedSemaphorePermit>, Refusal> {
-    if text.len() <= SMALL {
+    // A message of the table is judged from the first bytes it can be: 500
+    // characters never need more than `SAY_MESSAGE`.
+    if text.len() <= crate::table::SAY_MESSAGE {
         return Ok(None);
     }
     let Ok(head) = serde_json::from_str::<Head>(text) else {
@@ -210,6 +217,18 @@ mod tests {
         assert_eq!(most_for("write_folder_data"), TEXT);
         assert_eq!(most_for("list_notes"), SMALL);
         assert_eq!(most_for("nonsense"), SMALL);
+    }
+
+    /// The table's messages are bounded by their command (ADR 0107 item
+    /// 12): a message is read from its name before it is parsed, an image
+    /// is an upload (a reader's refused before it is parsed).
+    #[test]
+    fn the_tables_messages_are_bounded_by_their_command() {
+        assert_eq!(most_for("table_say"), crate::table::SAY_MESSAGE);
+        assert!(most_for("table_send_image") > crate::table::IMAGE_BYTES);
+        assert!(most_for("table_send_image") < crate::rpc::MAX_MESSAGE);
+        assert!(UPLOADS.contains(&"table_send_image"));
+        assert_eq!(most_for("table_roll"), SMALL);
     }
 
     /// Large messages take from the budget until it is spent, then are

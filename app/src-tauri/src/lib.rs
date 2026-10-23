@@ -67,6 +67,7 @@ mod secrets;
 mod shares;
 mod sync;
 mod sync_commands;
+mod table;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
@@ -654,8 +655,10 @@ fn collab_roll(
     path: String,
     notation: String,
     source: Option<String>,
+    styles: Option<verso_contract::DiceStyles>,
+    secret: Option<bool>,
 ) -> Result<DiceRoll, ContractError> {
-    let _ = (path, notation, source);
+    let _ = (path, notation, source, styles, secret);
     Err(not_here())
 }
 
@@ -773,6 +776,16 @@ macro_rules! commands_for {
                 collab_canvas,
                 collab_roll,
                 collab_oracle,
+                table::table_join,
+                table::table_leave,
+                table::table_look,
+                table::table_history,
+                table::table_say,
+                table::table_send_image,
+                table::table_roll,
+                table::table_pin,
+                table::table_delete,
+                table::table_clear,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
@@ -858,6 +871,11 @@ macro_rules! commands_for {
             .typ::<CollabState>()
             .typ::<CollabRoll>()
             .typ::<CollabOracle>()
+            .typ::<verso_contract::TableEntry>()
+            .typ::<verso_contract::TableMember>()
+            .typ::<verso_contract::TablePinned>()
+            .typ::<verso_contract::TableRemoved>()
+            .typ::<verso_contract::TableCleared>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
             .typ::<verso_contract::ServerBack>()

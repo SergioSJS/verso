@@ -100,6 +100,15 @@ test = false
 doc = false
 bench = false
 
+# What a member may send the table: a message, a dice look, an image's
+# bytes, and their request's size (table.rs, table_look.rs; ADR 0107).
+[[bin]]
+name = "table"
+path = "fuzz_targets/table.rs"
+test = false
+doc = false
+bench = false
+
 # The seeds' writer (examples/seeds.rs), never a target.
 [[example]]
 name = "seeds"

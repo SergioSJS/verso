@@ -70,6 +70,23 @@ pub const SERVER_READS: &[(&str, &str)] = &[
         "collab_oracle",
         "a draw whose words the asker sent; a reader hears a question only, never a word",
     ),
+    (
+        "table_join",
+        "the table's entries a reader is told: a roll made inside a secret block is left out",
+    ),
+    ("table_leave", "nothing"),
+    ("table_look", "the window's own colour and dice"),
+    (
+        "table_history",
+        "the same entries, a page at a time, a hidden roll left out",
+    ),
+    ("table_say", "the window's own message"),
+    (
+        "table_roll",
+        "a roll the server makes at the table, from no note",
+    ),
+    ("table_pin", "an entry the reader is told, pinned"),
+    ("table_delete", "the reader's own message, deleted"),
     ("sync_state", "the projections' hashes and sizes"),
     (
         "sync_changes",
