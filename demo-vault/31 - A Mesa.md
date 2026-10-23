@@ -25,6 +25,18 @@ O registro rola sozinho para a rolagem mais nova, a menos que você tenha subido
 
 ---
 
+## Compor uma rolagem
+
+Embaixo do painel da Mesa fica a **bandeja de dados** — o botão **Compor rolagem** a abre e fecha (no celular ela começa fechada; o botão está sempre à vista). Ela serve para montar uma rolagem sem digitar, como a bandeja de dados do Foundry ou o compositor do Rolai:
+
+1. **Clique num dado** — d2, d3, d4, d6, d8, d10, d12, d20, d66, d100 ou dF — e ele é **somado à rolagem**, que aparece como notação: dois cliques no d6 e um no d20 dão `2d6+1d20`. Clicar **não rola**.
+2. O **−** no canto de um dado tira um; o **×** da ficha da rolagem tira o tipo inteiro. O passo **Mod** soma ou tira um modificador (`2d6+1d20+2`). **Limpar** esvazia tudo.
+3. Aperte **Rolar** (ou Enter no campo): a rolagem vai para o registro como se você tivesse escrito `/r 2d6+1d20+2` — rolada pelo servidor num UniVerso, os dados 3D e o som, o botão **Secreta** respeitado (o botão passa a dizer *Rolar em segredo*). Sem servidor, a sua janela rola e o registro guarda.
+
+O campo de **notação** é editável, e é ele que vale: digite `4d6kh3` ou `1d20+5` e role. O que os botões não sabem mostrar (manter o maior, re-rolagem) continua como você digitou; um dado clicado depois recomeça a rolagem a partir dele. O que o Verso não lê é dito ali mesmo, e nada é rolado.
+
+---
+
 ## Rolagens de outras pessoas
 
 Numa nota compartilhada de um UniVerso, quando outra pessoa rola, a rolagem chega com o **nome dela** e entra na Mesa, e um leitor de tela ouve "Ana rolou: 1d20+3: 17". Com o painel fechado, o botão que o abre (e a aba **Mesa**) mostra **quantas novidades** chegaram. As rolagens que a nota já guardava quando você entrou aparecem também, sem contar como novidade.

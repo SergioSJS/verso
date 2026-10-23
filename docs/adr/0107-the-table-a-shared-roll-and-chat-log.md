@@ -481,6 +481,66 @@ the window; "Você" is written as the author when the window has no name of its
 own (as the old line did); the board card is 340 by 110; Reading drops go
 after the block under the pointer.
 
+## Decision (the dice composer, 2026-10-23)
+
+Asked by the maintainer on 2026-10-23, after a first idea of dice buttons that
+roll on a click, in these words: *"Não, não é pra rolar com click, é pra compor
+uma rolagem, igual dá pra fazer com dice tray do Foundry ou o que temos no
+Rolai"*. Branch `feat/dice-composer`.
+
+- **What was built.** A **dice tray** in the Table panel, above the input row,
+  behind a toggle (**Compor rolagem** / *Compose a roll*): a click on a die does
+  **not** roll, it adds that die to a roll shown as notation; only the **Rolar**
+  button rolls. It is a port of Rolai's composer (`apps/web/src/composer.ts`,
+  `ComposerBar.tsx`, `RollPanel.tsx`; read-only reference) in
+  `app/ui/src/table/composer.ts` (the model, pure) and `tray.ts` (the DOM): the
+  pool as removable chips (a `×` takes a whole kind off), a button per die with
+  a count badge and a `−` that takes one off, a modifier stepper (−99 to +99),
+  **Limpar** (Clear), and an editable **notation** field that is the source of
+  truth. Clicking the same die again adds one to its term (`2d6`); another die
+  makes a new term (`2d6+1d4`); at most 100 dice over all the terms. A notation
+  the buttons cannot show (`4d6kh3`, a re-roll, a subtracted die) stays as
+  typed and rolls as typed; a die clicked then starts the pool again from that
+  die (Rolai's rule). The pool is kept after a roll. **Rolar** is off while the
+  field is empty. Enter in the field rolls.
+- **One road for the roll.** The button sends the roll the way `/r <notation>`
+  sends it (`rollNotation` in `app/ui/src/table/compose.ts`, which `/r` now
+  uses too): at a server's table the server rolls it, once, for everyone, with
+  the **Secreta** toggle respected (the tray says so and the button reads
+  *Rolar em segredo*), then the 3D dice and their sound, and the entry in the
+  log for everyone; at the local table (no server) this window rolls it with
+  the same reader and the log keeps it, the 3D dice falling the same. The tray
+  is there for both. No second pipeline, no new command of the contract.
+- **Dice offered.** Rolai's `COMPOSER_DICE` less the card: d2, d3, d4, d6, d8,
+  d10, d12, d20, d66, d100 and dF. The card (`C`, `2c`) is omitted because
+  Verso's notation has no cards (`dice/notation.ts`). Also left out of the port,
+  because Verso does not read them: Rolai's slot blocks (`1[2d6]`, which belong
+  to its profiles). A die that explodes (`1d6!`), which Verso reads and Rolai's
+  composer does not know, is outside the composer: typed, it rolls as typed.
+- **Custom rolls** are the notation field: anything Verso's reader accepts
+  (`4d6kh3`, `1d20+5`, `1d6!`). What it does not read is said beside the tray
+  and nothing is rolled.
+- **The phone.** The tray folds behind its toggle (`aria-expanded`), starts
+  folded on a phone and open on a larger window, remembers the choice, and
+  always leaves the toggle in sight; the dice are touch-sized, six to a row at
+  390 px, and the tray scrolls inside itself instead of pushing the log out.
+  The notation field lifts the sheet above the keyboard as the message field
+  does. Every button has a name (pt-BR and English), takes Tab and Enter, and
+  has a visible focus.
+
+Chosen in the code, for the maintainer to confirm or change: the tray starts
+open on a desktop window and folded on a phone, and the choice is remembered in
+the browser's storage (a per-viewer convenience); the notation field is a
+single line, Enter rolls; `d66` is a plain 66-sided die, as in Rolai, and the
+3D dice show it as their plain fallback; a modifier with no dice in the pool
+is not written (Rolai's rule); the pool is not emptied by a roll; the tray's
+error line, not the log, says what could not be rolled.
+
+**Open question.** Saved or named rolls (a "Ataque da Bia" button that rolls
+`1d20+7`): Rolai has none and nothing here decides them. Whether the Table
+should keep them, where (the folder, the settings, the character sheet) and
+whether they are shared, is the maintainer's to answer.
+
 ## Status
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
