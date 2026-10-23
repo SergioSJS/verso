@@ -53,7 +53,17 @@ export function veilText(text: string, fate: (target: string) => "open" | "locke
 
 export class Campaign {
   /** The tables are a server's: the folder is on one. */
-  up = false;
+  private isUp = false;
+  get up(): boolean {
+    return this.linked() ?? this.isUp;
+  }
+  set up(value: boolean) {
+    this.isUp = value;
+  }
+  /** A synced folder (ADR 0107 item 9): the tables are the server's while the
+   *  sync's link is up (`true`), none while it is down (`false`); `null` for a
+   *  folder that does not sync, where `up` says. */
+  linked: () => boolean | null = () => null;
   /** Who the window is. */
   viewer: "owner" | "player" = "owner";
   /** The window's account; the others at the table are `players`. */

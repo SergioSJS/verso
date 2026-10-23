@@ -345,7 +345,7 @@ pub(crate) fn live_forward<R: tauri::Runtime>(
     invoke: tauri::ipc::Invoke<R>,
 ) -> Option<tauri::ipc::Invoke<R>> {
     let cmd = invoke.message.command().to_owned();
-    if !cmd.starts_with("collab_") {
+    if !(cmd.starts_with("collab_") || cmd.starts_with("table_") || cmd.starts_with("campaign_")) {
         return Some(invoke);
     }
     let webview = invoke.message.webview();

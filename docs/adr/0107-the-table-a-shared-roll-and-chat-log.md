@@ -306,8 +306,8 @@ the choice is listed last, for the maintainer to confirm or change.
 - **Where it is not.** A window on a share, or a phone that opened part of a
   folder, has no table (the answer is refused). The desktop with a folder of
   its own alone has none: the commands answer that the table is a server's,
-  and the window shows its own rolls. A synced folder's table (item 9) is not
-  built: its windows reach the local stubs, which refuse. A desktop serving its
+  and the window shows its own rolls. A synced folder's table (item 9) was not
+  built here: its windows reached the local stubs, which refuse (built since: see "As built (a synced folder, 2026-10-23)" below). A desktop serving its
   folder (0096) holds the table: the same code, its phones allowed all but
   clearing.
 - **Chosen in the code, for the maintainer to confirm.** (1) The log keeps at
@@ -374,6 +374,62 @@ is listed last, for the maintainer to confirm or change.
   was down are not asked for again until then. (12) "Add to note…" on an
   image writes `![[attachments/…]]`, the file's path. (13) The key that
   focuses the input (item 16) is not built.
+
+## As built (a synced folder, 2026-10-23)
+
+Branch `feat/table-in-synced-folder`. Item 9 for a folder of this computer
+that syncs with a UniVerso ([0079](0079-sync-a-local-folder-with-a-server.md)):
+the maintainer's test scenario, the game master on the desktop with a local
+folder synced to a UniVerso, the players in the browser and on the Windows
+app on the server's folder. Where the code had to choose, the choice is
+listed last, for the maintainer to confirm or change.
+
+- **The transport is the sync's connection** ([0082](0082-live-co-editing-of-a-synced-folder.md)
+  item 2), never a second one. The window's `table_*` commands (join, leave,
+  look, history, say, image, roll, pin, delete, clear) are answered by
+  `sync::live::command` (`app/src-tauri/src/sync/live.rs`), reached from the
+  same `live_forward` that answers the `collab_*` commands, only for a window
+  whose folder syncs; they go to the server as the window on the server's folder
+  sends them, and the server needed nothing new: the device session's
+  connection runs the same `handle` as any other, with the folder's role of the
+  account and the same checks (`tests_live_table.rs` tries a reader's powers and
+  the owner's).
+- **The events** (`table-entry`, `-pinned`, `-removed`, `-cleared`,
+  `-roster`) the server tells that connection go to the windows of the folder
+  that joined the table, as a room's events go to the windows that hold the
+  note. The sync's connection is one member of the table however many windows
+  of this app joined: the roster has it once, and it leaves the server's
+  table when the last of them leaves, or when the sync pauses.
+- **Offline.** With the link down or the sync paused a `table_*` command
+  answers `unavailable`, as a room's does. The window then keeps the phase 1
+  local log, says **"Mesa indisponível sem conexão"** ("Table unavailable
+  while offline", or "…while sync is paused"), and joins again when the
+  sync's state says the link is back. The rolls made meanwhile stay in the
+  local log, marked not shared; they are not sent when the link returns. A
+  new connection is at no table until its windows join again; the window does
+  it on the state change.
+- **A roll made in a synced folder's note** is the server's: through the note's
+  room when the note is live, else `table_roll` with the note's path (item 13
+  of the window's section above), the entry rolled once by the server.
+- **Which folder.** A synced folder is one local folder with one server folder
+  (0079 item 1); the connection opens that folder on the server, so the table is
+  that folder's. A folder synced from a share ([0081](0081-sharing-between-people-on-one-universo.md)
+  item 6) has no table, as a window on a share has none: the server refuses and
+  the window keeps its own log.
+- **Tried.** `app/src-tauri/src/tests_live_table.rs`, against a real server: a
+  device session joins, says, rolls, pins, deletes, clears and hears another
+  connection; a reader synced to the folder is at the table with a reader's powers;
+  the link down, a new link, the last window leaving. The window:
+  `app/ui/test/tableReach.test.mjs` (where the table is, from the sync's state)
+  and `app/ui/e2e/synced-table.spec.mjs` (the harness plays the table over the
+  rooms' link).
+- **Chosen in the code, for the maintainer to confirm.** (1) The rolls made
+  offline are not sent when the link returns: the table is the server's and
+  holds what was rolled while the window was at it. (2) The sync's connection
+  is one member of the table for all the windows of that folder on this
+  computer. (3) A window that joined before the status first said the sync is
+  on tries the join, which the host answers by the link's state, then joins
+  again on the first state change.
 
 ## Status
 

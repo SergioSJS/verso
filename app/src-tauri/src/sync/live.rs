@@ -38,6 +38,12 @@ pub(crate) struct Live {
     /// tab's next join is answered as another room, so that it reads the
     /// note again instead of sending its text a second time.
     left: Mutex<HashSet<String>>,
+    /// The windows at the server's table over this link (ADR 0107 item 9):
+    /// the server knows the connection, not them.
+    table: Mutex<BTreeSet<String>>,
+    /// The windows that asked the campaign's status over this link (ADR
+    /// 0110): told when it changes.
+    campaign: Mutex<BTreeSet<String>>,
 }
 
 /// A note held in a room by windows of this app.
@@ -63,6 +69,9 @@ impl Live {
     /// The sync's link is up: every held note comes back into its room.
     pub(crate) fn connected(&self, remote: Arc<remote::Remote>) {
         *lock(&self.link) = Some(remote);
+        // The table is a connection's: a new one is at no table until its
+        // windows join again.
+        lock(&self.table).clear();
         for h in lock(&self.rooms).values_mut() {
             h.joined = false;
         }
@@ -72,6 +81,7 @@ impl Live {
     /// local (item 8).
     pub(crate) fn lost(&self) {
         *lock(&self.link) = None;
+        lock(&self.table).clear();
         for h in lock(&self.rooms).values_mut() {
             h.joined = false;
         }
@@ -111,10 +121,23 @@ pub(crate) async fn command(
         leave(s, window, &path).await;
         return Ok(Value::Null);
     }
+    if cmd == "table_leave" {
+        table_leave(ctx, s, window).await;
+        return Ok(Value::Null);
+    }
     let Some(remote) = up(s).and_then(|_| s.live.remote()) else {
-        return Err(unavailable(
-            "the folder's sync is not connected: the note is edited on this computer",
-        ));
+        // A folder with no connection has no table, and says so (ADR
+        // 0107 item 9): the status is "none", as a folder alone's.
+        if cmd == "campaign_status" {
+            return Ok(json!({
+                "viewer": "none", "tables": [], "notes": [], "players": [], "can_invite": false
+            }));
+        }
+        return Err(unavailable(if cmd.starts_with("collab_") {
+            "the folder's sync is not connected: the note is edited on this computer"
+        } else {
+            "the folder's sync is not connected: the table is the server's"
+        }));
     };
     // The server tells the other connections; another window of this app
     // in the same room hears it here.
@@ -126,6 +149,18 @@ pub(crate) async fn command(
     };
     match cmd {
         "collab_join" => join(ctx, s, &remote, window, &path).await,
+        // The table and the campaign's controls (ADR 0107 item 9, ADR 0110):
+        // the server's, answered for the sync's connection like a room's.
+        "table_join" => {
+            let answer = remote.call(cmd, args).await?;
+            table_joined(ctx, s, window);
+            Ok(answer)
+        }
+        "campaign_status" => {
+            let answer = remote.call(cmd, args).await?;
+            lock(&s.live.campaign).insert(window.to_owned());
+            Ok(answer)
+        }
         "collab_update" => {
             let answer = remote.call(cmd, args.clone()).await?;
             let others = others();
@@ -261,6 +296,30 @@ async fn leave(s: &Syncer, window: &str, path: &str) {
     }
 }
 
+/// A window is at the server's table over the link (ADR 0107 item 9):
+/// the windows that closed are forgotten with it.
+fn table_joined(ctx: &Ctx, s: &Syncer, window: &str) {
+    let shown = ctx.service.clients_of(&s.key);
+    let mut at = lock(&s.live.table);
+    at.retain(|w| shown.contains(w));
+    at.insert(window.to_owned());
+}
+
+/// A window leaves the table; the connection leaves it when no window of
+/// this app is left at it.
+async fn table_leave(ctx: &Ctx, s: &Syncer, window: &str) {
+    let last = {
+        let shown = ctx.service.clients_of(&s.key);
+        let mut at = lock(&s.live.table);
+        let was = at.remove(window);
+        at.retain(|w| shown.contains(w));
+        was && at.is_empty()
+    };
+    if last && let Some(remote) = s.live.remote() {
+        let _ = remote.call("table_leave", json!({})).await;
+    }
+}
+
 /// Sync paused or turned off (item 10): every note leaves its room on the
 /// server; the tabs go local on the status they hear.
 pub(crate) fn out(s: &Syncer) {
@@ -272,13 +331,17 @@ pub(crate) fn out(s: &Syncer) {
             p.clone()
         })
         .collect();
+    let at_table = !std::mem::take(&mut *lock(&s.live.table)).is_empty();
     let Some(remote) = s.live.remote() else {
         return;
     };
-    if paths.is_empty() {
+    if paths.is_empty() && !at_table {
         return;
     }
     tauri::async_runtime::spawn(async move {
+        if at_table {
+            let _ = remote.call("table_leave", json!({})).await;
+        }
         for path in paths {
             let _ = remote.call("collab_leave", json!({ "path": path })).await;
         }
@@ -309,6 +372,20 @@ pub(crate) fn relay(
     tauri::async_runtime::spawn(async move {
         while let Some(h) = heard.recv().await {
             match h {
+                // The table's events and the campaign's go to the windows
+                // that asked for them (ADR 0107 item 9, ADR 0110).
+                remote::Heard::Event(event, payload)
+                    if event.starts_with("table-") || event == "campaign-changed" =>
+                {
+                    let to: Vec<String> = if event == "campaign-changed" {
+                        lock(&live.campaign).iter().cloned().collect()
+                    } else {
+                        lock(&live.table).iter().cloned().collect()
+                    };
+                    if !to.is_empty() {
+                        told(&to, &event, &payload);
+                    }
+                }
                 remote::Heard::Event(event, payload) if event.starts_with("collab-") => {
                     let path = payload["path"].as_str().unwrap_or_default();
                     let to: Vec<String> = lock(&live.rooms)

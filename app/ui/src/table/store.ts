@@ -15,6 +15,8 @@ export function makeStore(folder: () => string): TableSource & {
   add(e: TableEntry, fresh?: boolean): boolean;
   /** The ids already in the open folder's log. */
   has(id: string): boolean;
+  /** Why the log is not the server's table, when it is more than "not shared". */
+  setNotice(text: string | null): void;
 } {
   const logs = new Map<string, TableLog>();
   const subs = new Set<() => void>();
@@ -27,7 +29,14 @@ export function makeStore(folder: () => string): TableSource & {
   const tell = (): void => {
     for (const fn of [...subs]) fn();
   };
+  let notice: string | null = null;
   return {
+    notice: () => notice,
+    setNotice(text) {
+      if (text === notice) return;
+      notice = text;
+      tell();
+    },
     shared: false,
     receivesOwn: false,
     entries: () => log().visible(),
