@@ -460,7 +460,18 @@ impl Scope {
             | "board_preview" | "unlinked_mentions" | "map_open" | "map_tile" => {
                 set(&mut args, "path", Use::Read)?;
             }
-            "resolve_attachment" => set(&mut args, "source", Use::Read)?,
+            "resolve_attachment" => {
+                let bare = args["source"].as_str() == Some("");
+                set(&mut args, "source", Use::Read)?;
+                // No note says where the target is written from (the table's
+                // pictures): the share's root, a folder. A file's target is
+                // looked up from the source's folder, so the folder's own
+                // path (not its parent) is what the source must name.
+                if bare && !self.root.is_empty() {
+                    let at = args["source"].as_str().unwrap_or_default().to_owned();
+                    args["source"] = json!(format!("{at}/"));
+                }
+            }
             "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
                 set(&mut args, "path", Use::Below)?;
             }
@@ -906,6 +917,12 @@ impl Scope {
             // A table's state changed (ADR 0110): the window asks its status
             // again; no path of the owner's folder goes with it.
             "campaign-changed" => m["payload"]["paths"] = json!([]),
+            // The table's events (ADR 0107, 0110): a window on a share at a
+            // table hears what a member hears. `table.rs` already wrote the
+            // table as `""` and the paths from the share's root before it
+            // pushed, so nothing of the owner's folder is in them.
+            "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared" => {
+            }
             _ => return None,
         }
         Some(m)
@@ -949,6 +966,21 @@ mod tests {
         }
         // The share's root and the attachments are not written.
         assert!(s.to_full_write("").is_err());
+        // A target written from the share's root, with no note to say it: looked up from there.
+        let asked = s
+            .args_in(
+                "resolve_attachment",
+                json!({ "source": "", "target": "a/p.png" }),
+            )
+            .unwrap();
+        assert_eq!(asked["source"], "Mesa/Campanha/", "{asked}");
+        let from_note = s
+            .args_in(
+                "resolve_attachment",
+                json!({ "source": "n.md", "target": "p.png" }),
+            )
+            .unwrap();
+        assert_eq!(from_note["source"], "Mesa/Campanha/n.md", "{from_note}");
         assert!(s.to_full_write("Anexos/p.png").is_err());
         assert!(s.args_in("delete_entry", json!({ "path": "" })).is_err());
         assert!(

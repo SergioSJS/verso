@@ -711,22 +711,28 @@ fn what_the_readers_are_not_told_stays_off_their_table() {
         body: json!({ "roll": null }).to_string(),
     };
     use crate::table::seen;
-    assert!(seen(&row(true, false), "ana", Role::Reader).is_none());
-    assert!(seen(&row(true, false), "bia", Role::Editor).is_some());
-    assert!(seen(&row(false, false), "ana", Role::Reader).is_some());
+    assert!(seen(&row(true, false), "ana", Role::Reader, None).is_none());
+    assert!(seen(&row(true, false), "bia", Role::Editor, None).is_some());
+    assert!(seen(&row(false, false), "ana", Role::Reader, None).is_some());
     // A secret roll: its roller and the owners, nobody else.
-    let masked = seen(&row(false, true), "ana", Role::Reader).unwrap();
+    let masked = seen(&row(false, true), "ana", Role::Reader, None).unwrap();
     assert_eq!((masked.kind.as_str(), masked.path), ("secret", None));
     assert_eq!(
-        seen(&row(false, true), "bia", Role::Editor).unwrap().kind,
+        seen(&row(false, true), "bia", Role::Editor, None)
+            .unwrap()
+            .kind,
         "roll"
     );
     assert_eq!(
-        seen(&row(false, true), "dono", Role::Owner).unwrap().kind,
+        seen(&row(false, true), "dono", Role::Owner, None)
+            .unwrap()
+            .kind,
         "roll"
     );
     assert_eq!(
-        seen(&row(false, true), "cid", Role::Editor).unwrap().kind,
+        seen(&row(false, true), "cid", Role::Editor, None)
+            .unwrap()
+            .kind,
         "secret"
     );
     // And the database pages them out for a reader.
@@ -1112,9 +1118,10 @@ mod per_table {
             assert_eq!(rolled["ok"]["path"], "Ata.md", "{rolled}");
             assert_eq!(r.server.db.table_count(&c.folder, CRIPTA).unwrap(), 2);
             assert_eq!(r.server.db.table_count(&c.folder, SALA).unwrap(), 0);
-            // An image is not sent from a share.
+            // A reader sends no image, from a share or as a member alike.
             let img = call(&mut win, 9, "table_send_image", json!({ "base64": png() })).await;
             assert_eq!(img["err"]["kind"], "refused", "{img}");
+            assert!(err_of(&img).contains("read"), "{img}");
             // A share that is no table has no table channel.
             let plain = r.server.db.make_share(&c.folder, "Livre").unwrap();
             r.server
@@ -1133,6 +1140,107 @@ mod per_table {
                 assert_eq!(no["err"]["kind"], "refused", "{no}");
                 assert!(err_of(&no).contains("share"), "{no}");
             }
+        });
+    }
+
+    /// A window on a share at a table behaves as a member at it (ADR 0110,
+    /// 2026-10-23): it hears the table live — others' entries, its own roll
+    /// from a note, the roster — through a second window of the account and
+    /// after that one is gone, and an editor sends an image, kept inside the
+    /// table's folder. Only the paths are the share's own.
+    #[test]
+    fn a_window_on_a_share_hears_the_table_live_as_a_member_does() {
+        block_on(async {
+            let r = start().await;
+            let mut c = cast(&r).await;
+            two_tables(&r, &c.folder);
+            let bia = r
+                .server
+                .db
+                .account_by_email("bia@casa.lan")
+                .unwrap()
+                .unwrap();
+            let share = r.server.db.make_share(&c.folder, CRIPTA).unwrap();
+            r.server
+                .db
+                .grant_share(&share.id, &bia.id, Role::Editor)
+                .unwrap();
+            let made = call(
+                &mut c.owner,
+                9,
+                "create_note",
+                json!({ "name": "Cripta/Ata", "text": "x\n" }),
+            )
+            .await;
+            assert!(made.get("ok").is_some(), "{made}");
+            let mut first = open(&r, "bia@casa.lan", "a senha da bia", &share.id).await;
+            join_at(&mut first, 2, None).await;
+            join_at(&mut c.owner, 2, Some(CRIPTA)).await;
+            // The owner speaks: the share's window hears it, the table as `""`.
+            say_at(&mut c.owner, 3, Some(CRIPTA), "da mesa").await;
+            let heard = event_named(&mut first, "table-entry").await;
+            assert_eq!(
+                (heard["text"].as_str(), heard["table"].as_str()),
+                (Some("da mesa"), Some(""))
+            );
+            // A second window of the same account joins, and goes.
+            let mut second = open(&r, "bia@casa.lan", "a senha da bia", &share.id).await;
+            join_at(&mut second, 2, None).await;
+            say_at(&mut c.owner, 4, Some(CRIPTA), "de novo").await;
+            assert_eq!(
+                event_named(&mut first, "table-entry").await["text"],
+                "de novo"
+            );
+            assert_eq!(
+                event_named(&mut second, "table-entry").await["text"],
+                "de novo"
+            );
+            call(&mut second, 3, "table_leave", json!({ "table": "" })).await;
+            drop(second);
+            say_at(&mut c.owner, 5, Some(CRIPTA), "so a primeira").await;
+            assert_eq!(
+                event_named(&mut first, "table-entry").await["text"],
+                "so a primeira"
+            );
+            // Its own roll from the note's room comes back to it, live.
+            let joined = call(&mut first, 4, "collab_join", json!({ "path": "Ata.md" })).await;
+            assert!(joined.get("ok").is_some(), "{joined}");
+            {
+                use futures_util::SinkExt;
+                // Sent, not awaited: the table's entry comes before the answer.
+                first
+                    .send(Message::Text(
+                        json!({ "id": 5, "cmd": "collab_roll", "args": { "path": "Ata.md", "notation": "1d6", "source": null, "styles": null, "secret": null } })
+                            .to_string()
+                            .into(),
+                    ))
+                    .await
+                    .unwrap();
+            }
+            let mut own = event_named(&mut first, "table-entry").await;
+            while own["kind"] != "roll" {
+                own = event_named(&mut first, "table-entry").await;
+            }
+            assert_eq!(
+                (own["path"].as_str(), own["table"].as_str()),
+                (Some("Ata.md"), Some(""))
+            );
+            // An editor on a share sends an image: kept inside the table's folder.
+            let sent = call(
+                &mut first,
+                6,
+                "table_send_image",
+                json!({ "base64": png() }),
+            )
+            .await;
+            assert!(sent.get("ok").is_some(), "{sent}");
+            let image = sent["ok"]["image"].as_str().unwrap();
+            assert!(image.starts_with("attachments/mesa-"), "{sent}");
+            let mut told = event_named(&mut c.owner, "table-entry").await;
+            while told["kind"] != "image" {
+                told = event_named(&mut c.owner, "table-entry").await;
+            }
+            assert_eq!(told["image"], format!("{CRIPTA}/{image}"), "{told}");
         });
     }
 
