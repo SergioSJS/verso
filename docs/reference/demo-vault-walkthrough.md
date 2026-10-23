@@ -1488,15 +1488,31 @@ Open note 31 (*The Table*) in a folder that has the demo content
 8. On a phone's width, *Painel* › *Mesa* opens a sheet from the bottom, resting
    on the bottom bar, that never scrolls the page sideways; the add button is
    at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
-9. Saved rolls (note 31, *Saved rolls*): in the dice tray, *Escolher nota…*,
-   pick a note with two lines like ``- Ataque da Bia: `dice: 1d20+7` ``: two
-   buttons, named *Ataque da Bia* and the other line's text. Click one: the
-   notation field holds it and nothing is rolled; add a modifier and *Rolar*.
-   Type a name, press *Salvar*: one line is appended to the note, a button
-   appears. On a server as a reader there is no *Salvar*; as a player with a
-   note granted to that player alone, the tray names it by itself. On a
-   phone's width the row wraps inside the tray and each button is at least
-   44 px. Level: H; E: `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
+9. Saved rolls (note 31, *Saved rolls*): in the dice row under the message
+   field, the bookmark button opens a pop-over; *Escolher nota…*, pick a note
+   with two lines like ``- Ataque da Bia: `dice: 1d20+7` ``: two buttons, named
+   *Ataque da Bia* and the other line's text. Click one: the pop-over closes,
+   the message field holds `/r 1d20+7` and nothing is rolled; step the modifier
+   and press the dice button. Open the bookmark again, type a name, press
+   *Salvar*: one line is appended to the note, a button appears. On a server as
+   a reader there is no *Salvar*; as a player with a note granted to that player
+   alone, the pop-over names it by itself. On a phone's width the pop-over stays
+   inside the window and each button is at least 44 px. Level: H; E:
+   `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
+10. The dice row (note 31, *Composing a roll*): under the message field there is
+    one row, about one button tall: d4 d6 d8 d10 d12 d20, the dots, a number
+    field showing 0, KH, KL, the bookmark and the dice button. Click the d6
+    twice and the d20 once: the field reads `/r 2d6+1d20`, badges show 2 and 1,
+    nothing is rolled. Right click the d6: `/r 1d6+1d20`. KH: `/r 1d6+1d20`
+    becomes two dice each with `kh1` (`/r 2d6kh1+2d20kh1`), KH lights; KH again
+    undoes it. The dots open d2 d3 d66 d100 dF; Escape closes them. Type
+    `/r 3d8+2` in the field: the d8 badge says 3 and the number field 2. Press
+    the dice button: one roll in the log and the field empty; at a server the
+    button reads *Rolar em segredo* while *Secreta* is on. In the message
+    field, `Shift+Enter` breaks the line and `Enter` sends; the log shows both
+    lines. On a phone's width the row fits (it may scroll inside itself, never
+    the page) and its buttons are at least 40 px tall. Level: H; E:
+    `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
 
 ## 18. Running a table (note 32)
 
