@@ -1038,45 +1038,101 @@ mod per_table {
         });
     }
 
-    /// A player invited to a table of a subfolder is a window on a share:
-    /// it has no table channel at all (0107 as built), so no table of the
-    /// folder — its own or another's — is read or written through it.
+    /// A player invited to a table of a subfolder is a window on a share
+    /// rooted at that table (ADR 0110 item 2): it is at that table, the
+    /// owner sees the same log from the whole folder, and no other table of
+    /// the folder is reached through it. A share that is no table has none.
     #[test]
-    fn a_window_on_a_share_reaches_no_table() {
+    fn a_player_of_a_table_is_at_that_table_only_and_a_plain_share_has_none() {
         block_on(async {
             let r = start().await;
-            let c = cast(&r).await;
+            let mut c = cast(&r).await;
             two_tables(&r, &c.folder);
-            let share = r.server.db.make_share(&c.folder, CRIPTA).unwrap();
             let ana = r
                 .server
                 .db
                 .account_by_email("ana@casa.lan")
                 .unwrap()
                 .unwrap();
+            let share = r.server.db.make_share(&c.folder, CRIPTA).unwrap();
             r.server
                 .db
                 .grant_share(&share.id, &ana.id, Role::Reader)
                 .unwrap();
             let mut win = open(&r, "ana@casa.lan", "a senha da ana", &share.id).await;
-            for table in [Some(CRIPTA), Some(SALA), None] {
-                for (cmd, args) in [
-                    (
-                        "table_join",
-                        json!({ "color": null, "styles": null, "table": table }),
-                    ),
-                    ("table_say", json!({ "text": "oi", "table": table })),
-                    (
-                        "table_history",
-                        json!({ "before": null, "limit": null, "table": table }),
-                    ),
-                ] {
-                    let no = call(&mut win, 3, cmd, args).await;
-                    assert_eq!(no["err"]["kind"], "refused", "{cmd} {table:?}: {no}");
-                    assert!(err_of(&no).contains("share"), "{no}");
-                }
+            join_at(&mut c.owner, 2, Some(CRIPTA)).await;
+            // Named or not, the player is at Cripta; Sala is refused.
+            // The player knows its table as the share's own root, `""`.
+            let mine = join_at(&mut win, 3, None).await;
+            assert_eq!(mine["table"], "");
+            let again = join_at(&mut win, 4, Some("")).await;
+            assert_eq!(again["table"], "");
+            let named = call(
+                &mut win,
+                4,
+                "table_join",
+                json!({ "color": null, "styles": null, "table": CRIPTA }),
+            )
+            .await;
+            assert_eq!(named["err"]["kind"], "refused", "{named}");
+            let no = call(
+                &mut win,
+                5,
+                "table_join",
+                json!({ "color": null, "styles": null, "table": SALA }),
+            )
+            .await;
+            assert_eq!(no["err"]["kind"], "refused", "{no}");
+            for (cmd, args) in [
+                ("table_say", json!({ "text": "oi", "table": SALA })),
+                (
+                    "table_history",
+                    json!({ "before": null, "limit": null, "table": SALA }),
+                ),
+            ] {
+                let no = call(&mut win, 6, cmd, args).await;
+                assert_eq!(no["err"]["kind"], "refused", "{cmd}: {no}");
             }
-            assert_eq!(r.server.db.table_count(&c.folder, CRIPTA).unwrap(), 0);
+            // The player says and rolls at Cripta; the owner reads the same log.
+            say_at(&mut win, 7, None, "da cripta").await;
+            let heard = event_named(&mut c.owner, "table-entry").await;
+            assert_eq!(
+                (heard["text"].as_str(), heard["table"].as_str()),
+                (Some("da cripta"), Some(CRIPTA))
+            );
+            let rolled = call(
+                &mut win,
+                8,
+                "table_roll",
+                json!({ "notation": "1d6", "source": null, "path": "Cripta/Ata.md", "secret": null, "styles": null, "table": null }),
+            )
+            .await;
+            assert!(rolled.get("ok").is_some(), "{rolled}");
+            // The note is written from the share's root, as the player knows it.
+            assert_eq!(rolled["ok"]["path"], "Ata.md", "{rolled}");
+            assert_eq!(r.server.db.table_count(&c.folder, CRIPTA).unwrap(), 2);
+            assert_eq!(r.server.db.table_count(&c.folder, SALA).unwrap(), 0);
+            // An image is not sent from a share.
+            let img = call(&mut win, 9, "table_send_image", json!({ "base64": png() })).await;
+            assert_eq!(img["err"]["kind"], "refused", "{img}");
+            // A share that is no table has no table channel.
+            let plain = r.server.db.make_share(&c.folder, "Livre").unwrap();
+            r.server
+                .db
+                .grant_share(&plain.id, &ana.id, Role::Reader)
+                .unwrap();
+            let mut other = open(&r, "ana@casa.lan", "a senha da ana", &plain.id).await;
+            for table in [Some(CRIPTA), None] {
+                let no = call(
+                    &mut other,
+                    3,
+                    "table_join",
+                    json!({ "color": null, "styles": null, "table": table }),
+                )
+                .await;
+                assert_eq!(no["err"]["kind"], "refused", "{no}");
+                assert!(err_of(&no).contains("share"), "{no}");
+            }
         });
     }
 
