@@ -100,7 +100,8 @@ Classificados como na [ADR 0033](../adr/0033-pr-workflow.md).
    do Windows: o board não tem ferramentas, a janela diz "You can only read
    this folder" e o Bruno continua escrevendo na própria ficha
    ([31](/docs/media/test-runs/2026-10-23-mesa/31-depois-bruno-windows-board-so-leitura.png)). Em aberto: se o terminal e os agentes (ADR 0054) aparecem
-   numa janela do desktop sobre uma pasta do servidor.
+   numa janela do desktop sobre uma pasta do servidor — adiado pelo mantenedor
+   em 2026-10-23 (*"Isso fica pra depois"*); hoje ficam escondidos ali.
 7. **IMPORTANTE — No board, o adesivo não rola.** A ferramenta de nota da
    barra faz um adesivo desenhado, onde `dice:` fica texto simples
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); o board não tem como pôr um cartão de texto Markdown, onde as

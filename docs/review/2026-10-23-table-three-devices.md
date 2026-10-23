@@ -99,7 +99,8 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    the board has no tools, the window says "You can only read this folder",
    and Bruno still writes in his own sheet
    ([31](/docs/media/test-runs/2026-10-23-mesa/31-depois-bruno-windows-board-so-leitura.png)). Open: whether the terminal and agents (ADR 0054) show in a
-   desktop window on a server's folder.
+   desktop window on a server's folder — deferred by the maintainer on
+   2026-10-23 (*"Isso fica pra depois"*); today they stay hidden there.
 7. **IMPORTANT — On the board, the sticky note does not roll.** The toolbar's
    note tool makes a drawn sticky note, where `dice:` stays plain text
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
