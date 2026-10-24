@@ -308,6 +308,7 @@ impl Db {
             forget_players_logs(&tx, folder)?;
         }
         tx.commit().map_err(e)?;
+        self.refresh_images(&conn);
         Ok(n > 0)
     }
 
@@ -332,6 +333,30 @@ impl Db {
                 |r| r.get(0),
             )
             .map_err(e)
+    }
+
+    /// Whether `account` was let send images at some table of `folder`,
+    /// from the set kept in memory beside the table (no query): what the
+    /// size check before a message is parsed asks.
+    pub fn image_granted(&self, folder: &str, account: &str) -> bool {
+        verso_service::lock(&self.images).contains(&(folder.to_owned(), account.to_owned()))
+    }
+
+    /// The set in memory made again from the table, under the writer's own
+    /// lock (`conn` is held by the caller), after every change of it —
+    /// including the cascades of a deleted table, folder or account. A
+    /// failed read empties the set: nobody is admitted on a guess.
+    pub(super) fn refresh_images(&self, conn: &rusqlite::Connection) {
+        let read = || -> rusqlite::Result<std::collections::HashSet<(String, String)>> {
+            conn.prepare("SELECT DISTINCT folder, account FROM campaign_images")?
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect()
+        };
+        let set = read().unwrap_or_else(|err| {
+            crate::log::warn(&format!("the image permissions could not be read: {err}"));
+            std::collections::HashSet::new()
+        });
+        *verso_service::lock(&self.images) = set;
     }
 
     /// Whether `account` was let send images at any table of `folder`.
@@ -370,7 +395,9 @@ impl Db {
             }
             .map_err(e)?;
         }
-        tx.commit().map_err(e)
+        tx.commit().map_err(e)?;
+        self.refresh_images(&conn);
+        Ok(())
     }
 
     /// Change a table's settings; a value left `None` stays. The caller
@@ -807,6 +834,7 @@ impl Db {
         rehome_log(&tx, folder)?;
         forget_players_logs(&tx, folder)?;
         tx.commit().map_err(e)?;
+        self.refresh_images(&conn);
         Ok(touched)
     }
 
@@ -828,7 +856,23 @@ impl Db {
                 |r| r.get(0),
             )
             .map_err(e)?;
+        // A permission to send images is a player's at one table: it goes
+        // when the account stops being a player of THAT table, so that being
+        // seated again never grants it silently.
+        tx.execute(
+            "DELETE FROM campaign_images WHERE folder = ?1 AND account = ?2 AND NOT (
+               EXISTS (SELECT 1 FROM grants WHERE folder = ?1 AND account = ?2 AND role = 'reader')
+               OR EXISTS (SELECT 1 FROM share_grants g JOIN shares s ON s.id = g.share
+                          WHERE s.folder = ?1 AND g.account = ?2 AND g.role = 'reader'
+                            AND (s.path = '' OR root = '' OR lower(root) = lower(s.path)
+                                 OR substr(lower(root), 1, length(s.path) + 1) = lower(s.path) || '/'
+                                 OR substr(lower(s.path), 1, length(root) + 1) = lower(root) || '/')))",
+            params![folder, account],
+        )
+        .map_err(e)?;
         if reads {
+            tx.commit().map_err(e)?;
+            self.refresh_images(&conn);
             return Ok(());
         }
         for table in [
@@ -851,7 +895,9 @@ impl Db {
             params![folder, account],
         )
         .map_err(e)?;
-        tx.commit().map_err(e)
+        tx.commit().map_err(e)?;
+        self.refresh_images(&conn);
+        Ok(())
     }
 }
 

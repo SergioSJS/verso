@@ -216,6 +216,8 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
   .cd-table .cd-player > .cd-images { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; white-space: normal; }
   .cd-table .cd-player > .cd-images::before { margin: 0 .3rem 0 0; }
   .cd-count-btn { min-height: 44px; min-width: 44px; }
+  /* The switch is the big one, and its touch target reaches 44 px tall. */
+  .cd-images .switch.big input { inset: -6px -4px; width: calc(100% + 8px); height: calc(100% + 12px); }
   .cd-all { width: 22px; height: 22px; }
   .cd-table .cd-detail { display: block; margin: -.3rem 0 .5rem; border: 1px solid var(--hair); border-radius: 10px; }
   .cd-table .cd-detail[hidden] { display: none; }
