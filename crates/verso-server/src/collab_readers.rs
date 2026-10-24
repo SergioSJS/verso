@@ -390,20 +390,22 @@ fn still_admitted(server: &Server, client: &str, key: &str, path: &str, edits: b
 
 /// `client` joins the room of `path` of folder `key`: a player must still
 /// see the note, asked under the room's lock — the check of the command
-/// ran before it, and the table may have changed between the two. A player
-/// who is not granted the note joins as a reader.
+/// ran before it, and the table may have changed between the two. Returns
+/// whether the window joins as a reader: one that asked to edit by a grant
+/// the table has since taken back joins as a reader, as it would have been
+/// told to.
 pub fn admitted(
     server: &Server,
     (client, reader): (&str, bool),
     key: &str,
     path: &str,
-) -> Result<(), ContractError> {
-    if still_admitted(server, client, key, path, !reader) {
-        return Ok(());
-    }
+) -> Result<bool, ContractError> {
     // Not there for it, as a hidden note is for every door.
-    Err(ContractError {
-        kind: verso_contract::ErrorKind::NotFound,
-        message: "not found".to_owned(),
-    })
+    if !still_admitted(server, client, key, path, false) {
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::NotFound,
+            message: "not found".to_owned(),
+        });
+    }
+    Ok(reader || !still_admitted(server, client, key, path, true))
 }

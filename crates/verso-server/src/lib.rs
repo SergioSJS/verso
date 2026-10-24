@@ -431,6 +431,8 @@ mod tests_audience;
 #[cfg(test)]
 mod tests_audience_review;
 #[cfg(test)]
+mod tests_audience_second;
+#[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]
 mod tests_board_stress;

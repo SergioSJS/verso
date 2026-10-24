@@ -433,6 +433,31 @@ impl Db {
         tx.commit().map_err(e)
     }
 
+    /// What was remembered for `path` and the files under it is dropped: a
+    /// deletion, a rename or a move that did not run.
+    pub fn campaign_gone_clear(&self, folder: &str, path: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "DELETE FROM campaign_gone WHERE folder = ?1
+                   AND (path = ?2 OR substr(path, 1, length(?3)) = ?3)",
+                params![folder, path, under_sql(path)],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    /// Who is remembered for the deleted note at `path`, left in place.
+    pub fn campaign_gone_peek(&self, folder: &str, path: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT account FROM campaign_gone WHERE folder = ?1 AND path = ?2")
+            .map_err(e)?;
+        st.query_map(params![folder, path], |r| r.get::<_, String>(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
     /// Who saw the deleted note at `path`, taken: asked once, as the
     /// deletion is recorded.
     pub fn campaign_gone_take(&self, folder: &str, path: &str) -> R<Vec<String>> {

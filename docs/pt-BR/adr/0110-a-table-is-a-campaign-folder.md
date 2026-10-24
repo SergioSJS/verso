@@ -641,6 +641,22 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   Desfazer a última mesa em pasta esquece tudo isso (época, pontos assentados,
   perdidos, deixados de fora), e uma mesa feita de novo recomeça na numeração do
   log compartilhado.
+  Segunda revisão (2026-10-24): os jogadores que **não** veem um caminho quando
+  uma mudança dele é registrada recebem sua linha de omissão na mesma transação
+  (assim o que um jogador ficou de fora nunca é decidido depois por uma mesa que
+  seguiu em frente, e nunca é contado quando ele entra); o primeiro pedido de um
+  jogador, que não tem esse registro do passado, pergunta à mesa como ela está, e
+  uma decisão tomada enquanto os véus eram esquecidos é refeita. Os jogadores
+  lembrados de uma exclusão são tomados na transação que a registra, limitados
+  aos que ainda são jogadores, e esquecidos quando a escrita que os lembrou
+  falhou. Ocultar o passado de um caminho nunca reescreve linhas onde os
+  jogadores têm logs próprios. `sync_state` conta o topo primeiro e monta os
+  arquivos depois; a página e o topo de um compartilhamento são recortados do log
+  guardado em SQL (suas raízes), não lidos inteiros; os arquivos ditos a um
+  jogador ficam guardados por arquivo enquanto a mesa e os nomes estiverem como
+  estavam, e as travas e arquivos guardados são limitados. Um jogador recebe
+  `sync-changed` só se a mudança lhe diz algo: ganhou ou perdeu uma nota, ou o
+  seu próprio texto de uma se moveu.
 - **O que uma janela ouve é o que ganhou ou perdeu.** `campaign-changed` e o
   `folder-changed` de uma liberação são feitos por jogador a partir da mesa
   antes e depois da mudança: uma nota que ele não via antes nem vê agora não é
@@ -657,7 +673,10 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   não entra depois dela.
 - **Uma mesa que não pode ser lida é fechada**, não ausente: uma leitura que
   falha das mesas é uma mesa fechada que contém a pasta, nunca guardada, e um véu
-  lido antes de a mesa ser esquecida não é posto de volta.
+  lido antes de a mesa ser esquecida não é posto de volta. Esse véu é marcado como ilegível: fecha toda
+  porta, mas nada registra, assenta, diz nem manda ninguém para fora a partir
+  dele (um aviso diz que o passo espera), e o status do dono é um erro, não uma
+  mesa inventada.
 - **Comandos.** `campaign_audience(paths, audience)` (do mestre;
   `{kind: "hidden" | "table" | "players", accounts}`, as contas precisam ser
   jogadores da mesa da nota) e `campaign_access(path)` (quem tem acesso: ao
@@ -670,9 +689,11 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   folha de baixo num celular) lista ao mestre cada jogador com *vê* / *edita* /
   *não vê* e um atalho para mudar, e a um jogador que vê a nota ("Você, Bruno e o
   mestre" / "A mesa toda"; o servidor diz qual pessoa é a que pergunta, `you`, e
-  a janela a escreve "Você", primeiro), nunca os controles do mestre. "Liberar
+  a janela a escreve "Você", primeiro; as contas dos outros não são enviadas a
+  um jogador), nunca os controles do mestre. "Liberar
   para…" é uma lista de caixas de marcar (a mesa toda, cada jogador, ninguém) que
-  fica aberta enquanto vários jogadores são marcados; no celular a folha dá o foco
+  fica aberta enquanto vários jogadores são marcados (uma marca por vez: as
+  linhas esperam enquanto uma é aplicada); no celular a folha dá o foco
   ao botão de fechar, e o botão não carrega dica nativa ao lado do balão.
 - **Testado.** `tests_audience.rs` (um jogador fora do público não consegue
   listar, ler, buscar, ver backlinks, tags, abrir sala, sincronizar, buscar o

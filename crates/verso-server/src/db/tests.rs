@@ -465,3 +465,44 @@ fn making_a_table_again_or_changing_its_limits_keeps_it_open_or_closed() {
     db.campaign_set(&f.id, "", None, Some(6000), None).unwrap();
     assert!(db.campaigns_of(&f.id).unwrap()[0].open);
 }
+
+/// Hiding what readers were never told of must not take rows out of the
+/// readers' count where each player's numbers were counted by a device: the
+/// past stays, only what comes after is silent.
+#[test]
+fn hiding_the_past_of_a_path_is_left_undone_where_players_have_logs_of_their_own() {
+    let db = db();
+    let owner = db
+        .create_account("o@b.co", "O", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let f = db.create_folder("Campanha", &owner.id).unwrap();
+    let rec = |hash: &str| {
+        db.record(
+            &f.id,
+            (None, None),
+            &[(
+                "x.md".to_owned(),
+                Some((hash.to_owned(), 3, "3:1".to_owned())),
+                None,
+            )],
+            &[],
+            (&ReaderOf::new(), &[]),
+        )
+        .unwrap();
+    };
+    rec("a");
+    rec("b");
+    rec("c");
+    assert_eq!(db.reader_count(&f.id, i64::MAX).unwrap(), 3);
+    db.reader_silence(&f.id, &["x.md".to_owned()], false)
+        .unwrap();
+    assert_eq!(
+        db.reader_count(&f.id, i64::MAX).unwrap(),
+        3,
+        "a row left the count after it was counted"
+    );
+    // Where the readers share one log, the past is hidden as it always was.
+    db.reader_silence(&f.id, &["x.md".to_owned()], true)
+        .unwrap();
+    assert_eq!(db.reader_count(&f.id, i64::MAX).unwrap(), 0);
+}

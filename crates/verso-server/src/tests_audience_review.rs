@@ -317,13 +317,14 @@ fn a_player_outside_an_audience_does_not_count_the_audience_changes_of_notes_tha
         // Aberta links the note: its text is the same for Bia before and
         // after, so her log holds nothing of it.
         release_to(&mut m, BARAO, &[&ana_id]).await;
-        let log = m.bia.call("sync_changes", json!({ "since": 0 })).await;
-        assert_eq!(head(&log), before, "her count moved: {log}");
+        // Heard before anything is asked: a call drains what it was sent.
         let heard = m.bia.hear(500).await;
         assert!(
             !heard.iter().any(|e| e["event"] == "sync-changed"),
             "Bia's device is told the log moved: {heard:?}"
         );
+        let log = m.bia.call("sync_changes", json!({ "since": 0 })).await;
+        assert_eq!(head(&log), before, "her count moved: {log}");
         // An edit of the note: the same.
         let r = m.owner.call("read_note", json!({ "path": BARAO })).await;
         m.owner

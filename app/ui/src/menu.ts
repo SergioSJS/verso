@@ -356,8 +356,12 @@ export function menuKeydown(e: KeyboardEvent): void {
 }
 
 function buildList(ul: HTMLElement, items: MenuItem[]): void {
-  // The check rows of this list, drawn again when one has acted.
+  // The check rows of this list, drawn again when one has acted; while one
+  // is acting the others wait (a second tick would be made against the
+  // state the first has not yet changed).
   const checks: Array<() => void> = [];
+  const checkRows: HTMLElement[] = [];
+  let busy = false;
   ul.replaceChildren(
     ...items.map(([label, run, iconName, sub, check]) => {
       // The list items are layout only: the menu's items are its buttons.
@@ -389,6 +393,7 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
         };
         paint();
         checks.push(paint);
+        checkRows.push(b);
       }
       if (sub) {
         b.classList.add("has-sub");
@@ -412,9 +417,16 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
       } else if (check) {
         // Used, it leaves the menu open: another can be ticked.
         b.addEventListener("click", () => {
+          if (busy) return;
+          busy = true;
+          ul.setAttribute("aria-busy", "true");
+          for (const r of checkRows) r.setAttribute("aria-disabled", "true");
           void Promise.resolve(run())
             .catch(() => undefined)
             .finally(() => {
+              busy = false;
+              ul.removeAttribute("aria-busy");
+              for (const r of checkRows) r.removeAttribute("aria-disabled");
               for (const paint of checks) paint();
             });
         });
