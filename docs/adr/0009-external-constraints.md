@@ -10,6 +10,10 @@
   licence — `obsidianmd/obsidian-maps`, MIT, for instance — is an
   admissible source, as `obsidian.d.ts` is. Inspecting, decompiling or
   unminifying the app itself stays forbidden.
+  2026-10-20 — OAuth verification requirements (Google drive.file vs
+  restricted drive, demo video, domain verification on `versomd.com`) and
+  per-user vs per-application quota models across Dropbox, OneDrive and
+  Google Drive detailed in [0104](0104-external-cloud-storage-transports-and-quotas.md).
 
 ## Context
 
@@ -33,7 +37,7 @@ them.
 | No Node on mobile | iOS and Android | A plugin that depends on Node is desktop-only |
 | No resident process on mobile | iOS and Android | MCP on mobile is remote or in-process |
 | A client secret cannot be kept in an open source app | OAuth | Google Drive and OneDrive require PKCE or the user's own client ID |
-| App verification, per-application quota, weak rename semantics and conflicts | Google Drive and OneDrive | They serve better as a backup destination than as continuous sync |
+| App verification, per-application quota, weak rename semantics and conflicts | Google Drive and OneDrive | They serve better as a backup destination than as continuous sync; quota models and OAuth verification detailed in [0104](0104-external-cloud-storage-transports-and-quotas.md) |
 | tldraw cannot be used | Source-available license: license key in production, mandatory watermark, prohibition on relicensing | The board uses Excalidraw (MIT) |
 
 ## Consequences
