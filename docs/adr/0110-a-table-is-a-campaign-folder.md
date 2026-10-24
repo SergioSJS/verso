@@ -614,6 +614,21 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   only when a path it sees moved or it lost one. Turning the last table back into
   a folder forgets all of it (epoch, settled points, lost, skipped), so a table
   made again begins anew in the shared log's numbering.
+  Second review (2026-10-24): the players who do **not** see a path when a
+  change of it is recorded get their skip row in the same transaction (so what
+  a player was outside of is never decided later by a table that has moved on,
+  and never counted once it is let in); a player's first ask, which has no such
+  record for the past, asks the table as it is, and a decision made while the
+  veils were forgotten is made again. A deletion's remembered players are taken
+  in the recording transaction, kept to those still players, and dropped when
+  the write that remembered them failed. Hiding the past of a path never
+  rewrites rows where players have logs of their own. `sync_state` counts the
+  head first and builds the files after; a share's page and head are cut from
+  the stored log in SQL (its roots), not read whole; a player's told files are
+  kept per file while the table and the names are as they were, and the kept
+  locks and files are bounded. A player is pinged (`sync-changed`) only if the
+  change tells it something: it gained or lost a note, or its own text of one
+  moved.
 - **What a window is told is what it gained or lost.** `campaign-changed` and the
   `folder-changed` of a release are made per player from the table before and
   after the change: a note it saw neither before nor after is not named, not
@@ -629,7 +644,10 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   window admitted before a release cannot enter after it.
 - **A table that cannot be read is closed**, not absent: a failed read of the
   tables is a closed table that holds the folder, never kept, and a veil read
-  before the table was forgotten is not put back.
+  before the table was forgotten is not put back. That veil is marked unreadable: it fails every
+  door closed, but nothing records, settles, tells or sends anyone out from it
+  (a WARN says the step waits), and the owner's status is an error, not a
+  made-up table.
 - **Commands.** `campaign_audience(paths, audience)` (the game master's;
   `{kind: "hidden" | "table" | "players", accounts}`, accounts must be players
   of the note's table) and `campaign_access(path)` (who has access: to the game
@@ -642,9 +660,11 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   lists to the game master every player with *sees* / *edits* / *does not see*
   and a shortcut to change it, and to a player who sees the note ("You, Bruno
   and the game master" / "The whole table"; the server says which person is the
-  one asking, `you`, and the window words it as "You", first), never the game
+  one asking, `you`, and the window words it as "You", first; the accounts of the others are not
+  sent to a player), never the game
   master's controls. "Release to…" is a list of check boxes (the whole table, each
-  player, nobody) that stays open while several players are ticked; on a phone the
+  player, nobody) that stays open while several players are ticked (one tick at
+  a time: the rows wait while one is being applied); on a phone the
   sheet gives its close button the focus, and the button carries no native tooltip
   beside the popover.
 - **Tried.** `tests_audience.rs` (a player outside the audience cannot list,

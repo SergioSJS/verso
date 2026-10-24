@@ -1129,6 +1129,7 @@ pub(crate) async fn folder_run(
         name,
         "rename_note" | "rename_entry" | "move_entries" | "delete_note" | "delete_entry"
     );
+    let moved_args = args.clone();
     let service = Arc::clone(&server.service);
     let s = Arc::clone(server);
     let c = client.to_owned();
@@ -1176,6 +1177,9 @@ pub(crate) async fn folder_run(
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);
+        }
+        if moves && answer.is_err() {
+            crate::campaign_cmds::write_failed(&s, &folder_id, &n, &moved_args);
         }
         answer
     })

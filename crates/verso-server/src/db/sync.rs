@@ -64,6 +64,11 @@ pub struct Notice {
     pub lost: Vec<String>,
     /// The players whose own log leaves the change out.
     pub skip: Vec<String>,
+    /// A deletion: also the players remembered for the path
+    /// (`campaign_gone`), taken in the transaction that records it and
+    /// kept to `only` — the accounts that are still players.
+    pub remember: bool,
+    pub only: Option<Vec<String>>,
 }
 
 /// The notices of the changes being recorded, by path.
@@ -132,6 +137,41 @@ fn change_of(r: &rusqlite::Row<'_>) -> rusqlite::Result<Change> {
 /// Whether a change is one every reader's log holds.
 fn forces(n: &Notice) -> bool {
     n.force || !n.lost.is_empty()
+}
+
+/// The notice of a deletion with the players remembered for its path.
+fn merged_notice(
+    tx: &rusqlite::Transaction<'_>,
+    folder: &str,
+    path: &str,
+    notice: Option<&Notice>,
+) -> R<Option<Notice>> {
+    let Some(n) = notice else {
+        return Ok(None);
+    };
+    let mut out = n.clone();
+    if n.remember {
+        let taken: Vec<String> = {
+            let mut st = tx
+                .prepare("SELECT account FROM campaign_gone WHERE folder = ?1 AND path = ?2")
+                .map_err(e)?;
+            st.query_map(params![folder, path], |r| r.get::<_, String>(0))
+                .map_err(e)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(e)?
+        };
+        tx.execute(
+            "DELETE FROM campaign_gone WHERE folder = ?1 AND path = ?2",
+            params![folder, path],
+        )
+        .map_err(e)?;
+        for a in taken {
+            if n.only.as_ref().is_none_or(|o| o.contains(&a)) && !out.lost.contains(&a) {
+                out.lost.push(a);
+            }
+        }
+    }
+    Ok(Some(out))
 }
 
 /// What the change at `seq` carries of its table's audience: the players
@@ -312,7 +352,10 @@ impl Db {
                         .optional()
                         .map_err(e)?
                         .unwrap_or(false);
-                    let unseen = unseen && !notices.get(path).is_some_and(forces);
+                    // Remembered in the step that records the deletion: no
+                    // other step can take them first or leave them behind.
+                    let merged = merged_notice(&tx, folder, path, notices.get(path))?;
+                    let unseen = unseen && !merged.as_ref().is_some_and(forces);
                     same_for_reader.push(unseen);
                     tx.execute(
                         "DELETE FROM manifest WHERE folder = ?1 AND path = ?2",
@@ -324,7 +367,7 @@ impl Db {
                         params![folder, seq, path, actor, at, device, unseen],
                     )
                     .map_err(e)?;
-                    audience_of_change(&tx, folder, seq, notices.get(path))?;
+                    audience_of_change(&tx, folder, seq, merged.as_ref())?;
                 }
             }
         }
@@ -389,7 +432,12 @@ impl Db {
     /// `paths` are hidden from readers from now on and were never told to
     /// the people who read them as a table's (ADR 0110): the manifest says
     /// so, and no change of the log before this one names them to a reader.
-    pub fn reader_silence(&self, folder: &str, paths: &[String]) -> R<()> {
+    ///
+    /// `history`: the changes before this one are made no change for a
+    /// reader. Never where the readers have numbers of their own that a
+    /// device counted: a row that leaves the count shifts every cursor
+    /// after it.
+    pub fn reader_silence(&self, folder: &str, paths: &[String], history: bool) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         for p in paths {
@@ -398,6 +446,9 @@ impl Db {
                 params![folder, p],
             )
             .map_err(e)?;
+            if !history {
+                continue;
+            }
             tx.execute(
                 "UPDATE changes SET reader_same = 1 WHERE folder = ?1 AND (path = ?2 OR renamed_from = ?2)",
                 params![folder, p],
@@ -485,6 +536,58 @@ impl Db {
         st.query_map(params![folder, upto, account, limit, offset], change_of)
             .map_err(e)?
             .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
+    /// The changes of `account`'s own log that a share sees (its path, or
+    /// its path before a rename, is inside one of `roots`): the same rows
+    /// [`Db::campaign_member_changes`] holds, cut to the share.
+    pub fn campaign_share_changes(
+        &self,
+        (folder, account): (&str, &str),
+        (upto, roots): (i64, &[&str]),
+        (offset, limit): (i64, i64),
+    ) -> R<Vec<Change>> {
+        let (a, b) = two_roots(roots);
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(&format!(
+                "{READER_CHANGE} WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0 AND {}
+                   AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                   WHERE s.folder = c.folder AND s.account = ?5 AND s.seq = c.seq)
+                 ORDER BY c.seq LIMIT ?6 OFFSET ?7",
+                SEEN.replace("path", "c.path")
+                    .replace("renamed_from", "c.renamed_from"),
+            ))
+            .map_err(e)?;
+        st.query_map(
+            params![folder, upto, a, b, account, limit, offset],
+            change_of,
+        )
+        .map_err(e)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(e)
+    }
+
+    /// How many changes of `account`'s own log a share sees up to `upto`.
+    pub fn campaign_share_count(
+        &self,
+        (folder, account): (&str, &str),
+        (upto, roots): (i64, &[&str]),
+    ) -> R<i64> {
+        let (a, b) = two_roots(roots);
+        self.reader()
+            .query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM changes c
+                     WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0 AND {}
+                       AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                       WHERE s.folder = c.folder AND s.account = ?5 AND s.seq = c.seq)",
+                    SEEN.replace("path", "c.path").replace("renamed_from", "c.renamed_from"),
+                ),
+                params![folder, upto, a, b, account],
+                |r| r.get(0),
+            )
             .map_err(e)
     }
 

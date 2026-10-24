@@ -514,6 +514,11 @@ async fn status(
                 can_invite: false,
             });
         };
+        // A table that cannot be read is not a table of the folder: the
+        // window asks again, and is told nothing made up.
+        if veil.is_unreadable() {
+            return Err(failed("the table's state cannot be read now"));
+        }
         if owner {
             let mut players: Vec<CampaignPlayer> = Vec::new();
             for t in &veil.tables {
@@ -665,9 +670,16 @@ async fn access(
             if viewer == "player" && access == "none" {
                 continue;
             }
+            let you = viewer == "player" && p.id == w.account.id;
             people.push(CampaignPerson {
-                you: viewer == "player" && p.id == w.account.id,
-                id: p.id,
+                you,
+                // A player is told who else has access by name; the accounts
+                // of the others are the game master's to know.
+                id: if viewer == "player" && !you {
+                    String::new()
+                } else {
+                    p.id
+                },
                 name: p.name,
                 access: access.to_owned(),
             });
@@ -780,6 +792,11 @@ pub fn refresh(
     before: Option<&campaign::Veil>,
 ) {
     campaign::forget(server, folder);
+    // A table that cannot be read now tells no one anything and sends no
+    // one out; the change is told by the next one.
+    if campaign::veil_to_write(server, folder, "what players are told").is_err() {
+        return;
+    }
     // A closed table keeps its players out at once.
     close_out(server, folder);
     crate::campaign_sync::refresh_readers(server, folder, key, false);
@@ -939,6 +956,17 @@ pub fn before_write(server: &Server, folder: &str, key: &str, cmd: &str, args: &
     for (path, accounts) in crate::campaign_sync::seers_under(server, folder, key, &named) {
         if let Err(e) = server.db.campaign_gone_add(folder, &path, &accounts) {
             crate::log::warn(&format!("remembering who saw a note that goes: {e}"));
+        }
+    }
+}
+
+/// The write `before_write` ran for did not happen: what it remembered of
+/// who saw the paths is dropped, so that a later deletion is not told to a
+/// player from a time the table had since left.
+pub fn write_failed(server: &Server, folder: &str, cmd: &str, args: &Value) {
+    for path in losing(cmd, args) {
+        if let Err(e) = server.db.campaign_gone_clear(folder, &path) {
+            crate::log::warn(&format!("dropping who saw a path that stayed: {e}"));
         }
     }
 }

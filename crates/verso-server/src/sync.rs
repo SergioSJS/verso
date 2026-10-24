@@ -407,6 +407,13 @@ fn record_changes(
     let mut readers = crate::db::ReaderOf::new();
     // A table's veil is made again from the folder as it now is (ADR 0110).
     crate::campaign::forget(server, folder);
+    // A table that cannot be read now: nothing is recorded; the next
+    // reconciliation finds the files as they are.
+    if crate::campaign::veil_to_write(server, folder, "the folder's log").is_err() {
+        return Err(verso_service::failed(
+            "the table's state cannot be read now",
+        ));
+    }
     let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
     let table = crate::campaign::veil_for_key(server, key);
     for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
@@ -455,7 +462,10 @@ fn record_changes(
     // A note a player saw that was deleted, or renamed: the players' devices
     // are told it went — decided in the step that records it, from what was
     // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).
-    let (notices, lost) = crate::campaign_sync::deletion_notices(server, (folder, key), &changes);
+    let (mut notices, lost) =
+        crate::campaign_sync::deletion_notices(server, (folder, key), &changes);
+    // And who does not see what was written, as it is written.
+    crate::campaign_sync::unseen_notices(server, (folder, key), &changes, &mut notices);
     let (head, same) = server
         .db
         .record_with(
@@ -824,7 +834,19 @@ pub(crate) async fn command_in(
                         // No empty folder left behind on the server either.
                         ws.prune_empty_parents(&p);
                         Ok(gone)
-                    })?;
+                    });
+                    let gone = match gone {
+                        Ok(g) => g,
+                        Err(e) => {
+                            crate::campaign_cmds::write_failed(
+                                &s,
+                                &folder,
+                                "sync_delete",
+                                &json!({ "path": path }),
+                            );
+                            return Err(e);
+                        }
+                    };
                     // What the table keeps of the note goes with it.
                     crate::campaign_cmds::after_write(
                         &s,
@@ -905,7 +927,19 @@ pub(crate) async fn command_in(
                         })
                         .collect();
                     Ok(Some((done.path, outside)))
-                })?;
+                });
+                let landed = match landed {
+                    Ok(l) => l,
+                    Err(e) => {
+                        crate::campaign_cmds::write_failed(
+                            &s,
+                            &folder,
+                            "sync_rename",
+                            &json!({ "from": from }),
+                        );
+                        return Err(e);
+                    }
+                };
                 let Some((landed, outside)) = landed else {
                     drop(only);
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;

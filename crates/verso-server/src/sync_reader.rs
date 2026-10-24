@@ -55,8 +55,12 @@ pub(super) async fn command(
                 let page = crate::campaign_sync::viewer_page(&s, (&f, &k), &a, (asked, 1000))?;
                 return Ok((page, None));
             }
-            let files = crate::campaign_sync::viewer_files(&s, &f, &k, &a)?;
+            // The head first, then the files: a change that lands between
+            // is in the files and not in the head, so the device reads it
+            // again from its cursor; the other way round it would be counted
+            // in the head and missing from the files, and skipped.
             let head = crate::campaign_sync::viewer_head(&s, &f, &k, &a)?;
+            let files = crate::campaign_sync::viewer_files(&s, &f, &k, &a)?;
             Ok((json!({ "head": head, "files": files }), None))
         })
         .await;

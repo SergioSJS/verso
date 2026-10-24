@@ -97,6 +97,9 @@ pub struct Veil {
     /// Whether the players of the folder each have a sync log of their
     /// own (`campaign_epoch`).
     restricted: bool,
+    /// The tables could not be read: this veil serves nothing and is never
+    /// written from ([`Veil::is_unreadable`]).
+    unreadable: bool,
     /// The veil as each player sees it, made on first need.
     views: Mutex<HashMap<String, Arc<Veil>>>,
     union: OnceLock<Arc<Veil>>,
@@ -168,6 +171,7 @@ impl Veil {
             files: OnceLock::new(),
             viewer,
             restricted: self.restricted,
+            unreadable: self.unreadable,
             views: Mutex::new(HashMap::new()),
             union: OnceLock::new(),
         }
@@ -178,6 +182,13 @@ impl Veil {
     #[must_use]
     pub fn restricted(&self) -> bool {
         self.restricted
+    }
+
+    /// Whether the tables could not be read ([`unreadable`]): every door
+    /// fails closed, and nothing is recorded, settled or sent from it.
+    #[must_use]
+    pub fn is_unreadable(&self) -> bool {
+        self.unreadable
     }
 
     /// Whether the note at `path` is hidden from `account`, a player:
@@ -283,12 +294,28 @@ impl Veil {
     }
 }
 
+/// How many players' locks and told files the server keeps at most (a
+/// 1 GB host, ADR 0083): past it the unused are let go, the told files
+/// all.
+const VIEWERS_MOST: usize = 2048;
+
 /// A player of a folder: the folder's id and the account's.
 type Account = (String, String);
 
-/// The files a player was told of: the log head and the generation of the
-/// veils they were told at, and the files.
-type Told = (i64, u64, Arc<Vec<serde_json::Value>>);
+/// The files a player was told of, kept between its asks: where the log was
+/// and which generation of the veils they were told at, the files' names
+/// (as a digest) and, per file, what the manifest held and what the player
+/// was told — a file whose manifest row and neighbours are as they were is
+/// not told again.
+#[derive(Default)]
+pub(crate) struct FilesTold {
+    pub head: i64,
+    pub generation: u64,
+    pub digest: u64,
+    pub per_file: HashMap<String, ((String, i64), Option<serde_json::Value>)>,
+    pub files: Arc<Vec<serde_json::Value>>,
+}
+type Told = FilesTold;
 
 /// The veils of the folders, by folder id; `None` is a folder with no
 /// table.
@@ -309,8 +336,13 @@ pub struct Cache {
 impl Cache {
     /// The lock of one player's log of `folder`.
     pub(crate) fn viewer_lock(&self, folder: &str, account: &str) -> Arc<Mutex<()>> {
+        let mut viewers = lock(&self.viewers);
+        // Bounded: the locks nobody holds are let go past a few thousand.
+        if viewers.len() > VIEWERS_MOST {
+            viewers.retain(|_, l| Arc::strong_count(l) > 1);
+        }
         Arc::clone(
-            lock(&self.viewers)
+            viewers
                 .entry((folder.to_owned(), account.to_owned()))
                 .or_default(),
         )
@@ -345,7 +377,38 @@ pub fn veil_of(server: &Server, folder: &str) -> Option<Arc<Veil>> {
     made
 }
 
+/// The folders whose tables a test makes unreadable.
+#[cfg(test)]
+pub(crate) static FAIL_READS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// The tables of a folder could not be read.
+#[derive(Debug, Clone, Copy)]
+pub struct Unreadable;
+
+/// The veil of `folder` for a step that writes (records, settles, tells):
+/// `None` when it has no table, and a warning, `Err`, when its tables
+/// cannot be read — such a step leaves everything as it was.
+pub fn veil_to_write(
+    server: &Server,
+    folder: &str,
+    step: &str,
+) -> Result<Option<Arc<Veil>>, Unreadable> {
+    match veil_of(server, folder) {
+        Some(v) if v.is_unreadable() => {
+            crate::log::warn(&format!(
+                "a table's state cannot be read: {step} waits for the next change"
+            ));
+            Err(Unreadable)
+        }
+        other => Ok(other),
+    }
+}
+
 fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
+    #[cfg(test)]
+    if lock(&FAIL_READS).iter().any(|f| f == folder) {
+        return Err("a read made to fail".to_owned());
+    }
     let tables = server.db.campaigns_of(folder)?;
     if tables.is_empty() {
         return Ok(None);
@@ -386,6 +449,7 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
         files: OnceLock::new(),
         viewer: Viewer::Public,
         restricted,
+        unreadable: false,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
     })))
@@ -413,6 +477,7 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
         files: OnceLock::new(),
         viewer: Viewer::Public,
         restricted: true,
+        unreadable: true,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
     })

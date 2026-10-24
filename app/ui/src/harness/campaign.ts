@@ -147,7 +147,7 @@ export class Campaign {
       if (this.viewer === "player" && this.hidden(path) && !this.mayEdit(path)) refuse("not found", "not_found");
       const all = this.seated();
       const s = this.notes.get(path);
-      const people = all.map((p) => ({ id: p.id, name: p.name, access: this.accessOf(path, p.id), you: this.viewer === "player" && p.id === this.account }));
+      const people = all.map((p) => ({ id: this.viewer === "player" && p.id !== this.account ? "" : p.id, name: p.name, access: this.accessOf(path, p.id), you: this.viewer === "player" && p.id === this.account }));
       const out: CampaignAccess = {
         path,
         viewer: this.viewer,

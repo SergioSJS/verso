@@ -324,7 +324,7 @@ pub fn push_sync_changed(
     // a log of their own: no head is told, each asks.
     if crate::campaign::veil_of(server, folder).is_some_and(|v| v.restricted()) {
         let heard = who_sees(server, key, &readers, seen, also);
-        server.push_sync_changed(folder, -1, seen, &heard);
+        server.push_sync_changed(folder, -1, paths, &heard);
         return;
     }
     match server.db.reader_count(folder, i64::MAX) {
