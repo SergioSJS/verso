@@ -221,6 +221,9 @@ jobs:
         with:
           name: release-macos-arm64
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: |
             ./*-macos-arm64.zip
             ./*-macos-arm64.zip.sig
@@ -347,6 +350,9 @@ jobs:
         with:
           name: release-windows-x64
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: |
             ./*-windows-x64-setup.exe
             ./*-windows-x64-setup.exe.sig
@@ -484,6 +490,9 @@ jobs:
         with:
           name: release-linux-${{ matrix.arch }}
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: |
             ./*-linux-*.deb
             ./*-linux-*.deb.sig
@@ -678,6 +687,9 @@ jobs:
         with:
           name: release-server
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: |
             ./universo-*.tar.gz
             ./universo-*.tar.gz.sig
@@ -691,6 +703,9 @@ jobs:
         with:
           name: server-image-context
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: target/server-image/
 
   # The signed checksums list (ADR 0055, revised 2026-10-14, the
@@ -768,6 +783,9 @@ jobs:
         with:
           name: release-checksums
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: |
             ./verso-*-SHA256SUMS
             ./verso-*-SHA256SUMS.sig
