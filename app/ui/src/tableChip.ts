@@ -13,7 +13,8 @@
 // can do — and lists the notes granted to them, as links. No settings for a
 // player.
 
-import { campaign, mayEditGranted, tableFor } from "./campaign";
+import { may } from "./access";
+import { campaign, tableFor } from "./campaign";
 import { openCampaignDialog } from "./campaignDialog";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
@@ -46,7 +47,7 @@ function closePop(): void {
 function granted(root: string): string[] {
   return campaign()
     .notes.map((n) => n.path)
-    .filter((p) => under(root, p) && mayEditGranted(p))
+    .filter((p) => under(root, p) && may(p, "edit"))
     .sort((a, b) => a.localeCompare(b));
 }
 

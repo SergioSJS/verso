@@ -13,7 +13,6 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
-import { canWrite } from "../can";
 import { boardPathFor, readDrawing, toBoard } from "../board/convert";
 import { listedPath } from "../board/model";
 import { linkTo, withRelation } from "../board/relation";
@@ -60,7 +59,8 @@ import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
-import { type CollabHandlers, type CollabSession, joinCollab, syncedReader, ySyncAnnotation } from "../collab";
+import { may } from "../access";
+import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
@@ -239,7 +239,7 @@ export class BoardLeaf extends TextLeaf {
       save: (json) => this.saveBoard(json),
       // A reader of a synced folder is present on the board, not drawing
       // (ADR 0082 item 4).
-      readOnly: () => !canWrite() || syncedReader() || (this.room !== null && !this.room.writable),
+      readOnly: () => !may(this.path, "edit") || (this.room !== null && !this.room.writable),
       room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {
@@ -668,7 +668,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const sep = lineSeparator(note.text);
     eol = room ? (room.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    readOnly = sep === null || !canWrite() || (room?.reader ?? false);
+    readOnly = sep === null || !may(note.path, "edit") || (room?.reader ?? false);
     const st = room ? EditorState.create({ doc: room.initial(), extensions: [extensions(), room.extension()] }) : EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });

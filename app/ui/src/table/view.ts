@@ -18,7 +18,7 @@ import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import type { DiceStyle } from "../dice3d/look";
 import { entryMenu, openImage, panelMenu } from "./actions";
-import { announce, clock, rollBlockFor, saidOf, whoOf } from "./addToNote";
+import { announce, clock, lineFor, rollBlockFor, saidOf, whoOf } from "./addToNote";
 import { armDrag } from "../layout/drag";
 import { rollable } from "../rollblock/entry";
 import { Compose } from "./compose";
@@ -485,10 +485,18 @@ class TableView {
       more.addEventListener("click", () => entryMenu(more, e, server));
       li.append(more);
     }
-    // A roll is dragged from the line to a note or a board (pointer drag, as the tree's rows).
-    if (rollable(e)) {
+    // Every entry is dragged from the line to a note or a board (pointer
+    // drag, as the tree's rows), whoever wrote it: a roll or a draw as its
+    // block, a message as its line, an image as the file that is already in
+    // the folder — linked, nothing uploaded. Dropping needs *Edit* on the
+    // target and nothing of the entry's author (ADR 0113 D).
+    if (rollable(e) || e.kind === "say") {
       li.classList.add("rollable");
-      armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? "" }), () => said);
+      armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? lineFor(e, target) }), () => said);
+    } else if (e.kind === "image" && e.image) {
+      const file = e.image;
+      li.classList.add("rollable");
+      armDrag(li, () => ({ kind: "file", path: file, linkOnly: true }), () => said);
     }
     return li;
   }
@@ -500,6 +508,8 @@ class TableView {
     open.setAttribute("aria-label", `${tt.imageOpen}: ${tt.imageAlt(whoOf(e))}`);
     const img = h("img", "table-thumb");
     img.alt = tt.imageAlt(whoOf(e));
+    // Dragged as the entry is (armDrag), not as a native picture.
+    img.draggable = false;
     img.decoding = "async";
     img.loading = "lazy";
     const path = e.image ?? "";

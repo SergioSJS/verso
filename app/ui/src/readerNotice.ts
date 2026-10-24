@@ -13,8 +13,7 @@
 
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { canChange } from "./can";
-import { mayEditGranted } from "./campaign";
+import { fileAccess, may } from "./access";
 import { h } from "./dom";
 import { st } from "./screen/strings";
 
@@ -31,9 +30,9 @@ let lastShown = -Infinity;
 export type Attempt = { x: number; y: number } | Element | null | undefined;
 
 /** Whether a change to `path` (a note, or none: the folder) is refused to
- *  this person. A note granted to them (ADR 0110) is theirs to edit. */
+ *  this person (ADR 0113: the server said what they may do with it). */
 export function refused(path?: string | null): boolean {
-  return !canChange() && !(path ? mayEditGranted(path) : false);
+  return !may(path ?? "", "edit");
 }
 
 function place(el: HTMLElement, at: Attempt): void {
@@ -58,7 +57,7 @@ function place(el: HTMLElement, at: Attempt): void {
 /** The person tried to change something this folder does not let them.
  *  Says so near `at`, unless it said so a moment ago (or `force`: the lock
  *  was clicked, which asks for the words). Answers whether it spoke. */
-export function readerAttempt(at?: Attempt, force = false): boolean {
+export function readerAttempt(at?: Attempt, force = false, path?: string | null): boolean {
   const now = performance.now();
   if (!force && now - lastShown < QUIET_MS) return false;
   lastShown = now;
@@ -68,7 +67,10 @@ export function readerAttempt(at?: Attempt, force = false): boolean {
     box.setAttribute("aria-live", "polite");
     document.body.append(box);
   }
-  box.replaceChildren(h("span", "reader-notice-text", st.readOnly));
+  // A file the person sees and may not change is named for what it is: a
+  // note, not the folder ("Você só lê esta nota").
+  const seen = path ? fileAccess(path)?.level === "see" : false;
+  box.replaceChildren(h("span", "reader-notice-text", seen ? st.readOnlyNote : st.readOnly));
   place(box, at);
   box.hidden = false;
   clearTimeout(hideTimer);
@@ -81,7 +83,7 @@ export function readerAttempt(at?: Attempt, force = false): boolean {
 /** `readerAttempt` when the change to `path` is refused; answers whether it is. */
 export function guard(path?: string | null, at?: Attempt): boolean {
   if (!refused(path)) return false;
-  readerAttempt(at);
+  readerAttempt(at, false, path);
   return true;
 }
 
@@ -100,7 +102,7 @@ export function readerWatch(path: () => string | null): Extension {
   const attempt = (view: EditorView): boolean => {
     if (!refused(path())) return false;
     const c = view.coordsAtPos(view.state.selection.main.head);
-    readerAttempt(c ? { x: c.left, y: c.bottom } : view.dom);
+    readerAttempt(c ? { x: c.left, y: c.bottom } : view.dom, false, path());
     return false;
   };
   return EditorView.domEventHandlers({

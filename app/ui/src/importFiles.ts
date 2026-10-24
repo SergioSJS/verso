@@ -35,7 +35,7 @@ function maker(f: PickedFile): (path: string) => ReturnType<typeof commands.crea
  *  status line says how many came, which were renamed and which were left
  *  out. Cancelling the picker changes nothing and says nothing. */
 export async function importFiles(folder: string): Promise<void> {
-  if (!readable()) return;
+  if (!readable(folder)) return;
   const limitMb = importLimitMb(settings.importMaxMb, host() === "server");
   const picked = await commands.pickFiles(limitMb);
   if (picked.status !== "ok") return fail(picked.error);
@@ -47,7 +47,7 @@ export async function importFiles(folder: string): Promise<void> {
  *  drop goes up to the limit the person set, like the picker; the window
  *  asks for them and copies each by its token. */
 export async function importDropped(folder: string): Promise<void> {
-  if (!readable()) return;
+  if (!readable(folder)) return;
   const limitMb = importLimitMb(settings.importMaxMb, host() === "server");
   const taken = await commands.takeDropped(limitMb, false);
   if (taken.status !== "ok") return fail(taken.error);

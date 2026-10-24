@@ -13,7 +13,7 @@
 
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
-import { canWrite } from "../can";
+import { may } from "../access";
 import { type CollabHandlers, canCollab, type LocalWhy } from "../collab";
 import { localSaid } from "../coeditWords";
 import { BOARD_VERSION, parseCanvas, type CanvasDoc } from "../board/model";
@@ -81,7 +81,7 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string)
   const later = typeof doc?.verso?.version === "number" && doc.verso.version > BOARD_VERSION;
   const room =
     lineSeparator(text) !== null && this.layoutIsKept() && doc !== null && !later
-      ? await joinBoard(path, this.roomHandlers, canWrite(), () => {
+      ? await joinBoard(path, this.roomHandlers, may(path, "edit"), () => {
           this.catching = true;
           this.paintLive();
         })

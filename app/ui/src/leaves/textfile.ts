@@ -9,7 +9,7 @@ import { keymap, lineNumbers } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
-import { canWrite } from "../can";
+import { may } from "../access";
 import { type CollabHandlers, type CollabSession, joinCollab, type RoomSession, ySyncAnnotation } from "../collab";
 import { type What } from "../coeditWords";
 import { methods } from "../methods";
@@ -200,7 +200,7 @@ export class TextLeaf extends Leaf {
     this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11), or a
     // reader of a synced folder, present and not typing (ADR 0082 item 4).
-    this.readOnly = sep === null || !canWrite() || (shared?.reader ?? false);
+    this.readOnly = sep === null || !may(path, "edit") || (shared?.reader ?? false);
     this.editor.setState(this.state(shared ? shared.initial() : r.data.text, support ? [support] : [], shared ? shared.extension() : []));
     this.paintLive();
     this.conflict.hide();

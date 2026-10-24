@@ -69,6 +69,8 @@ export type ScreenStrings = {
   rowMore: (name: string) => string;
   /** What the side cannot do (item 11). */
   readOnly: string;
+  /** Said near an attempt on a note or file the person sees and may not change. */
+  readOnlyNote: string;
   /** The closed lock beside the folder's name. */
   lockName: string;
   copyLink: string;
@@ -125,6 +127,7 @@ const pt: ScreenStrings = {
   open: "Abrir",
   rowMore: (name) => `Mais ações: ${name}`,
   readOnly: "Você só lê esta pasta.",
+  readOnlyNote: "Você só lê esta nota. O mestre libera a edição.",
   lockName: "Você só lê esta pasta",
   copyLink: "Copiar link",
   linkCopied: "Link copiado.",
@@ -179,6 +182,7 @@ const en: ScreenStrings = {
   open: "Open",
   rowMore: (name) => `More actions: ${name}`,
   readOnly: "You can only read this folder.",
+  readOnlyNote: "You only read this note. The game master gives editing.",
   lockName: "You only read this folder",
   copyLink: "Copy link",
   linkCopied: "Link copied.",

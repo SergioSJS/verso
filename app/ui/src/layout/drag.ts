@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { canChange } from "../can";
+import { may } from "../access";
 import { narrow } from "../chrome";
 import { h, ui } from "../dom";
 import { moveFile, moveEntries } from "../files";
@@ -29,7 +29,7 @@ export function overlayOpen(): boolean {
 /** A tab, or a row of the tree — with the other rows selected with it,
  *  when it is dragged as part of a selection (ADR 0048, revised
  *  2026-10-07). */
-export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[] } | { kind: "roll"; make: (target: string) => string };
+export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[]; linkOnly?: boolean } | { kind: "roll"; make: (target: string) => string };
 export let drag: Drag | null = null;
 export const ghost = h("div", "drag-ghost");
 export function clearDropHints(): void {
@@ -262,7 +262,7 @@ export function hint(target: DropTarget, x: number, y: number, shiftKey = false)
   }
   else if ("insert" in target) {
     target.insert.el.classList.add("drop");
-    if (drag?.kind === "roll") showDropCaret(target.insert, drag.make(target.insert.path), x, y);
+    if (drag?.kind === "roll" && may(target.insert.path, "edit")) showDropCaret(target.insert, drag.make(target.insert.path), x, y);
   }
   else if ("board" in target) target.board.el.classList.add("drop");
   else if ("treeItem" in target) {
@@ -310,29 +310,42 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     }
     return;
   }
-  // A row of the tree moves a file: not for a reader on a server (ADR 0076
-  // item 11). A roll of the table is written into a note or a board, which
-  // the same permission governs.
-  if (!canChange()) {
-    readerAttempt({ x, y });
-    return;
-  }
+  // What the person may do is asked of the target, never of the folder as a
+  // whole (ADR 0113 D): a roll, a message or a file dropped into a note or a
+  // board needs *Edit* on that file; a row of the tree dropped on a pane
+  // always opens; moving a row needs the move and the arrival.
+  const refuse = (path: string | null): void => void readerAttempt({ x, y }, false, path);
   if (d.kind === "roll") {
-    if ("insert" in target) dropRoll(target.insert, d.make(target.insert.path), x, y);
-    else if ("board" in target) target.board.addText(d.make(target.board.path), x, y);
+    if ("insert" in target) {
+      if (!may(target.insert.path, "edit")) return refuse(target.insert.path);
+      dropRoll(target.insert, d.make(target.insert.path), x, y);
+    } else if ("board" in target) {
+      if (!may(target.board.path, "edit")) return refuse(target.board.path);
+      target.board.addText(d.make(target.board.path), x, y);
+    }
     return;
   }
+  // A file of the table's chat can be linked, opened, never moved.
+  if (d.linkOnly && ("treeItem" in target || "folder" in target)) return;
   // A file from the tree — or several, a selection: into a folder they
   // move together, with one plan of link rewrites; anywhere else, each
   // goes where one would.
   const many = d.paths && d.paths.length > 1 ? d.paths : null;
   if (many && !shiftKey && ("treeItem" in target || "folder" in target)) {
+    if (!many.every((p) => may(p, "move")) || !may(target.folder, "create")) return refuse(many[0] ?? null);
     void moveEntries(many, target.folder);
     return;
   }
   if (many) {
     for (const path of many) drop({ kind: "file", path }, target, x, y, shiftKey);
     return;
+  }
+  if ("treeItem" in target || "folder" in target) {
+    const same = dirOf(d.path) === target.folder;
+    // Reordering inside a folder asks the folder; moving out of one and into
+    // another asks the move and the arrival.
+    const allowed = shiftKey ? may("", "create") : same ? may(target.folder, "create") : may(d.path, "move") && may(target.folder, "create");
+    if (!allowed) return refuse(d.path);
   }
   if ("treeItem" in target) {
     const draggedFolder = dirOf(d.path);
@@ -354,8 +367,11 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
       void moveFile(d.path, target.folder);
     }
   } else if ("insert" in target) {
+    // Linking a file the person sees: nothing is uploaded or copied.
+    if (!may(target.insert.path, "edit")) return refuse(target.insert.path);
     target.insert.insertReference(d.path, x, y);
   } else if ("board" in target) {
+    if (!may(target.board.path, "edit")) return refuse(target.board.path);
     target.board.addPath(d.path, x, y);
   } else if ("body" in target || "tabs" in target) {
     const pane = paneOf("body" in target ? target.body : target.tabs);
