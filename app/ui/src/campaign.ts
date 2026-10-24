@@ -11,10 +11,12 @@
 // server drew.
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type CampaignChanged, type CampaignGrant, type CampaignNote, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
+import { audienceIds, gained, HIDDEN, ofPlayers, TABLE, togglePlayer } from "./audience";
+import { commands, type CampaignAudience, type CampaignChanged, type CampaignGrant, type CampaignNote, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
 import { openCampaignDialog } from "./campaignDialog";
 import { tableBadge } from "./tableChip";
 import { cp } from "./campaignStrings";
+import { LANG } from "./strings";
 import { h, ui } from "./dom";
 import { told } from "./errors";
 import { icon } from "./icons";
@@ -57,9 +59,31 @@ export function noteState(path: string): CampaignNote | undefined {
  *  view — a player's lists lack it. */
 export function hiddenFromTable(path: string): boolean {
   if (status.viewer !== "owner" || !noteLike(path) || !tableFor(path)) return false;
-  const s = states.get(path);
-  return !(s && (s.released || s.grant.kind !== "none"));
+  return noteAudience(path).kind === "hidden";
 }
+
+/** Who sees the note at `path`: the game master's view of the table's
+ *  state (a note the server keeps no entry of is hidden). */
+export function noteAudience(path: string): CampaignAudience {
+  const s = states.get(path);
+  if (!s) return HIDDEN;
+  if (s.audience) return s.audience;
+  return s.released || s.grant.kind !== "none" ? TABLE : HIDDEN;
+}
+
+/** The table's players, as the game master knows them. */
+export function tablePlayers(): { id: string; name: string }[] {
+  return status.players.map((p) => ({ id: p.id, name: p.name }));
+}
+
+const names = (ids: string[]): string => {
+  const list = ids.map((id) => status.players.find((p) => p.id === id)?.name ?? "").filter((n) => n !== "");
+  try {
+    return new Intl.ListFormat(LANG, { style: "long", type: "conjunction" }).format(list);
+  } catch {
+    return list.join(", ");
+  }
+};
 
 /** Whether the player may edit the note at `path` (a grant): the note is
  *  its to write, though the folder is its to read. */
@@ -160,10 +184,36 @@ export async function setTable(root: string, change: { open?: boolean; logMax?: 
   return run(() => commands.campaignSettings(root, change.open ?? null, change.logMax ?? null, change.imageMax ?? null), done);
 }
 
-/** Who may edit a note. */
+/** Who may edit a note. An edit grant to a player who could not see the
+ *  note lets them see it (the server adds them to its audience): said. */
 export async function grantNote(path: string, grant: CampaignGrant): Promise<boolean> {
+  const before = noteAudience(path);
   const word = grant.kind === "none" ? cp.grantedNone : grant.kind === "group" ? cp.grantedGroup : cp.grantedPlayer(status.players.find((p) => p.id === grant.account)?.name ?? "");
-  return run(() => commands.campaignGrant(path, grant), word);
+  if (!(await run(() => commands.campaignGrant(path, grant), word))) return false;
+  const all = status.players.map((p) => p.id);
+  const added = gained(before, noteAudience(path), all);
+  if (grant.kind === "player" && added.length > 0) say(`${word} ${cp.alsoSees(names(added))}`);
+  return true;
+}
+
+/** Release a note to nobody, the whole table or some of its players. */
+export async function setAudience(path: string, audience: CampaignAudience): Promise<boolean> {
+  const done = audience.kind === "table" ? cp.audienceTableDone : audience.kind === "hidden" ? cp.hidden(1) : cp.audiencePlayersDone(names(audience.accounts));
+  return run(() => commands.campaignAudience([path], audience), done);
+}
+
+/** The rows of "Release to…": the whole table, each player (several
+ *  allowed, each one checked while it sees the note), nobody. */
+export function audienceItems(path: string): MenuItem[] {
+  const now = noteAudience(path);
+  const all = status.players.map((p) => p.id);
+  const seen = audienceIds(now, all);
+  const mark = (on: boolean, label: string): string => (on ? `✓ ${label}` : label);
+  return [
+    [mark(now.kind === "table", cp.audienceTable), () => void setAudience(path, TABLE), "users"],
+    ...status.players.map((p): MenuItem => [mark(seen.includes(p.id), p.name), () => void setAudience(path, togglePlayer(now, p.id, all)), "user"]),
+    [mark(now.kind === "hidden", cp.audienceNobody), () => void setAudience(path, ofPlayers([])), "lock"],
+  ];
 }
 
 /** A note's name a secret, or not. */
@@ -195,7 +245,7 @@ export function campaignEntryItems(path: string, kind: Kind): MenuItem[] {
   }
   if (!table || !noteLike(path)) return [];
   const here = states.get(path);
-  const items: MenuItem[] = [hiddenFromTable(path) ? [cp.release, () => void releaseNotes([path], true), "unlock"] : [cp.hide, () => void releaseNotes([path], false), "lock"]];
+  const items: MenuItem[] = [[cp.releaseTo, () => {}, hiddenFromTable(path) ? "lock" : "unlock", audienceItems(path)]];
   if (/\.md$/i.test(path)) {
     items.push([`${here?.secret_name ? "✓ " : ""}${cp.secretName}`, () => void secretName(path, !here?.secret_name), "lock"]);
     const grant = here?.grant ?? { kind: "none" as const };
