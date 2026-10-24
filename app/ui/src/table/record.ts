@@ -70,7 +70,7 @@ export function recordRoll(path: string, roll: DiceRoll, row: string | null = nu
 
 /** A roll of another person, heard from a note's room. */
 export function recordHeard(path: string, roll: DiceRoll, row: string | null = null): void {
-  take(entryOfRoll(path, roll, { mine: roll.by !== "" && roll.by === me, row }), true);
+  take({ ...entryOfRoll(path, roll, { mine: roll.by !== "" && roll.by === me, row }), elsewhere: true }, true);
 }
 
 /** The rolls a room already held when this window joined it: history, not news. */

@@ -9,7 +9,7 @@
 // it hears in shared notes), phase 2 plugs the server's per-folder channel
 // in behind the same interface.
 
-import type { DiceRoll, DiceTermRoll, OracleDraw, TableEntry as Wire } from "../bindings";
+import type { ContractError, DiceRoll, DiceTermRoll, OracleDraw, TableEntry as Wire } from "../bindings";
 import { readDiceStyles, type DiceStyles } from "../dice3d/look";
 
 /** `say` and `image` are the server table's (ADR 0107 item 3); `secret` is
@@ -26,6 +26,8 @@ export type TableEntry = {
   kind: EntryKind;
   by: string;
   mine: boolean;
+  /** Heard live from the same account on ANOTHER device or window (ADR 0107): still "Você" (`mine`), but news here: its dice fall, it sounds, it counts unread. */
+  elsewhere?: boolean;
   at: number;
   /** The note or board it was rolled from; empty for the palette's roller. */
   path: string;
@@ -194,6 +196,10 @@ export interface ServerTable extends TableSource {
   canClear(): boolean;
   /** Whether this window may delete `e` (its author, or an owner; never a roll). */
   canDelete(e: TableEntry): boolean;
+  /** Run a command of THIS window that the server also appends to the table (a note's room roll or oracle draw,
+   *  which answer with no table id): `claim` names, from the answer, the entry the table will tell, so that
+   *  entry is this window's own and not news (ADR 0107). Resolves with the command's answer. */
+  making<T>(call: Promise<{ status: "ok"; data: T } | { status: "error"; error: ContractError }>, claim: (r: { status: "ok"; data: T } | { status: "error"; error: ContractError }) => ((e: TableEntry) => boolean) | null): Promise<{ status: "ok"; data: T } | { status: "error"; error: ContractError }>;
   /** The roller's dice or colour changed: tell the table. */
   look(): void;
   /** Leave the table (the folder closed); settles once the leave is
@@ -229,6 +235,13 @@ export interface TableSource {
   notice?(): string | null;
 }
 
+/** Whether a roll's or draw's entry is the one a command of this window made: the room's answer has no table id. */
+export const claimRoll = (roll: { notation: string; total: number }) => (e: TableEntry): boolean => (e.kind === "roll" || e.kind === "table") && e.notation === roll.notation && e.total === roll.total;
+export const claimDraw = (d: { kind: string; roll: number }) => (e: TableEntry): boolean => e.kind === "oracle" && e.oracle === (d.kind === "question" ? "question" : d.kind === "spark" ? "spark" : "table") && (d.kind === "spark" || e.total === d.roll);
+
+/** Whether `e` is news in this window: another person's, or the same account's from another device. */
+export const isNews = (e: TableEntry): boolean => !e.mine || e.elsewhere === true;
+
 /** The log of one folder. */
 export class TableLog {
   constructor(private readonly most = MOST_KEPT) {}
@@ -253,8 +266,12 @@ export class TableLog {
       const [gone] = this.list.splice(at, 1) as [TableEntry];
       this.ids.delete(gone.id);
     }
-    if (!e.mine && countUnread && !this.isHidden(e)) this.unseen++;
+    if (isNews(e) && countUnread && !this.isHidden(e)) this.unseen++;
     return true;
+  }
+  /** Count `e`, held already, as unread (it turned out to come from another device). */
+  countUnread(e: TableEntry): void {
+    if (!this.isHidden(e)) this.unseen++;
   }
   /** Change the entry `id` in place; false when it is not held. */
   patch(id: string, change: Partial<TableEntry>): boolean {
