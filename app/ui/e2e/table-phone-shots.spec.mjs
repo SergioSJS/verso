@@ -13,13 +13,16 @@ for (const theme of ["light", "dark"]) {
       const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
       localStorage.setItem("verso.settings", JSON.stringify({ ...s, theme: th }));
     }, theme);
-    await app.open();
+    await app.open("?vault=empty&table=owner");
     await app.writeOutside("Diario.md", "# Diário\n");
     await app.folderChanged(["Diario.md"], true);
     await page.evaluate(() => {
       const t = window.__harness.table;
       t.role = "owner";
       t.up = true;
+      const hh = window.__harness;
+      hh.campaign.tables = [{ root: "", open: true, log_max: 20000, image_max: 10 * 1024 * 1024 }];
+      hh.emit("campaign-changed", { paths: [] });
       t.join("Bia", "#1565c0", "editor");
       t.join("Cris", "#ad1457", "reader");
       t.say("Bia", "Chegamos à taverna. Quem abre a porta?");

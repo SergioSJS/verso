@@ -60,7 +60,16 @@ test("the Mesa log shows at least 7 entries on a phone, the header is one row, n
     return Math.max(...tops) - Math.min(...tops);
   });
   expect(rows).toBeLessThan(10);
-  await expect(view.getByRole("button", { name: "Abrir a janela da Mesa" })).toBeVisible();
+  // The table's name (truncated, never dropped) and, for the owner, the icon button to the Mesa window, named.
+  await expect(view.locator(".table-title-name")).toBeVisible();
+  await expect(view.locator(".table-title-name")).toContainText("Mesa:");
+  const win = view.getByRole("button", { name: "Abrir a janela da Mesa" });
+  await expect(win).toBeVisible();
+  const wb = await win.boundingBox();
+  expect(wb.width).toBeGreaterThanOrEqual(40);
+  expect(wb.x + wb.width).toBeLessThanOrEqual(page.viewportSize().width);
+  const tb = await view.locator(".table-title-name").boundingBox();
+  expect(tb.width).toBeGreaterThan(40);
   await expect(view.locator(".table-win-label")).toBeHidden();
   // Every control of the box named and finger-sized, in the field's row.
   const field = view.getByRole("textbox", { name: "Mensagem para a mesa" });

@@ -19,6 +19,7 @@ import { campaign, noteAudience, setImages } from "./campaign";
 import { feedback, follow, hueOf, noteLink, onlineIds, tableAt, under } from "./campaignParts";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
+import { icon } from "./icons";
 import { LOCALE } from "./strings";
 import { tableSource } from "./table/record";
 
@@ -75,8 +76,16 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
   head.setAttribute("role", "rowgroup");
   const hr = h("tr");
   hr.setAttribute("role", "row");
-  const th = (text: string, cls = ""): HTMLTableCellElement => {
-    const c = h("th", cls, text);
+  const th = (text: string, cls = "", glyph = ""): HTMLTableCellElement => {
+    const c = h("th", cls);
+    c.append(h("span", "cd-col-text", text));
+    // On a phone the column's hint is its icon alone; the name stays for readers.
+    if (glyph) {
+      const g = icon(glyph, "");
+      g.classList.add("cd-col-icon");
+      c.append(g);
+    }
+    c.setAttribute("aria-label", text);
     c.scope = "col";
     c.setAttribute("role", "columnheader");
     return c;
@@ -95,7 +104,7 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
   const allFb = feedback();
   imagesHead.append(imagesLabel, h("span", "cd-all-box"));
   imagesHead.querySelector(".cd-all-box")?.append(all, allText, allFb.el);
-  hr.append(th(cp.colPlayer, "cd-col-player"), th(cp.colSees), th(cp.colEdits), imagesHead);
+  hr.append(th(cp.colPlayer, "cd-col-player"), th(cp.colSees, "cd-col-sees", "eye"), th(cp.colEdits, "cd-col-edits", "edit"), imagesHead);
   head.append(hr);
   const body = h("tbody");
   body.setAttribute("role", "rowgroup");
@@ -154,6 +163,10 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
       const btn = h("button", "cd-count-btn");
       btn.type = "button";
       btn.dataset["key"] = `${kind}:${p.id}`;
+      // The icon is for a phone's narrow row; the number is the count.
+      const g = icon(kind === "sees" ? "eye" : "edit", "");
+      g.classList.add("cd-count-icon");
+      btn.append(g, h("span", "cd-count-n"));
       btn.setAttribute("aria-controls", detailId);
       td.append(btn);
       return { td, btn };
@@ -219,7 +232,7 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     const paintCounts = (): void => {
       for (const [kind, c] of [["sees", sees], ["edits", edits]] as [Kind, typeof sees][]) {
         const n = listFor(kind).length;
-        c.btn.textContent = String(n);
+        c.btn.querySelector(".cd-count-n")!.textContent = String(n);
         const shown = open.has(`${kind}:${p.id}`);
         c.btn.setAttribute("aria-expanded", String(shown));
         c.btn.setAttribute("aria-label", kind === "sees" ? cp.seesToggle(p.name, n) : cp.editsToggle(p.name, n));
