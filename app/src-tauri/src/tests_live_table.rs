@@ -419,3 +419,65 @@ fn two_tables_keep_their_chats_apart_over_the_sync_link() {
         .unwrap();
     assert_eq!(heard(&d, "table-entry", 2)[1]["text"], "de novo");
 }
+
+/// The same account on two devices (2026-10-24, the game master on the phone
+/// and on the Mac): what one rolls or says, the other hears live, at the
+/// folder's own table and at a table in a subfolder. The entry names the one
+/// account both times, so the window can tell "mine" (the account's) from
+/// "made here" only by its own commands' answers.
+fn same_account_hears_the_other_device(table: &str) {
+    let r = serve(&[("Sessao.md", "# Sessao\n")]);
+    if !table.is_empty() {
+        let _kept = tempfile::Builder::new()
+            .prefix(table)
+            .rand_bytes(0)
+            .tempdir_in(r._dirs.1.path().join("Campanha"))
+            .unwrap()
+            .keep();
+    }
+    let (d, _l) = linked(&r, &r.owner);
+    if !table.is_empty() {
+        let made = cmd(&d, "campaign_make", json!({ "root": table })).unwrap();
+        assert_eq!(made["viewer"], "owner", "{made}");
+    }
+    // The phone: another connection of the SAME account.
+    let mut web = browser(&r, &r.owner);
+    let there = web.call("table_join", json!({ "table": table })).unwrap();
+    let here = cmd(&d, "table_join", json!({ "table": table })).unwrap();
+    assert_eq!(there["you"], here["you"], "one account on both devices");
+
+    // The phone rolls: the Mac's window is told, the entry the account's own.
+    let rolled = web
+        .call(
+            "table_roll",
+            json!({ "notation": "1d20", "source": null, "path": null, "secret": false, "styles": null, "table": table }),
+        )
+        .unwrap();
+    let got = heard(&d, "table-entry", 1);
+    assert_eq!(got[0]["id"], rolled["id"], "{got:?}");
+    assert_eq!(got[0]["by_id"], here["you"]);
+    assert_eq!(got[0]["table"], table);
+
+    // The Mac rolls: the phone is told.
+    let mine = cmd(
+        &d,
+        "table_roll",
+        json!({ "notation": "1d6", "source": null, "path": null, "secret": false, "styles": null, "table": table }),
+    )
+    .unwrap();
+    let mut on_phone = web.event("table-entry");
+    while on_phone["id"] != mine["id"] {
+        on_phone = web.event("table-entry");
+    }
+    assert_eq!(on_phone["by_id"], here["you"]);
+}
+
+#[test]
+fn the_same_account_on_two_devices_hears_each_others_rolls_at_the_folders_table() {
+    same_account_hears_the_other_device("");
+}
+
+#[test]
+fn the_same_account_on_two_devices_hears_each_others_rolls_at_a_subfolders_table() {
+    same_account_hears_the_other_device("Mapa");
+}

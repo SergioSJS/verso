@@ -23,7 +23,7 @@ import { setHtml } from "../sanitize";
 import { hasCapability } from "../capabilities";
 import { play3d, wireStyles, will3d } from "../dice3d";
 import { settings } from "../settings";
-import { isServerTable, stylesOf } from "../table/model";
+import { claimRoll, isServerTable, stylesOf } from "../table/model";
 import { recordHeard, recordJoined, recordRoll, tableOnScreen, tableSource } from "../table/record";
 import { type DiceCode, occurrenceOf, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
@@ -121,7 +121,10 @@ async function rolled(path: string, notation: string, source: string | null, occ
     return { roll: rollHere(notation, source), row: null, from: null, note: null };
   }
   // The roller's own dice go with the roll (ADR 0107 item 11); the others see it in them.
-  const r = await commands.collabRoll(path, notation, source, wireStyles(), null, occ);
+  // Room first: the server also appends this roll to the table and tells this window, which is not news (ADR 0107).
+  const call = commands.collabRoll(path, notation, source, wireStyles(), null, occ);
+  const table = tableSource();
+  const r = isServerTable(table) ? await table.making(call, (a) => (a.status === "ok" ? claimRoll(path, a.data) : a.error.kind === "unavailable" ? (e) => (e.kind === "roll" || e.kind === "table") && e.path === path && e.notation === notation : null)) : await call;
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };
