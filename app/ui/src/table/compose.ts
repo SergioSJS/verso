@@ -149,7 +149,9 @@ export class Compose {
     const t = isServerTable(src) ? src : null;
     this.tray.sync(src);
     this.attach.hidden = !t || !t.canSendImage();
-    this.field.placeholder = t ? (t.canSendImage() ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
+    // A phone's field is one line wide: the short hint (the paperclip says images).
+    const narrow = window.matchMedia("(max-width: 760px)").matches;
+    this.field.placeholder = t ? (t.canSendImage() && !narrow ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
     if (!t || !t.canSendImage()) this.dropStaged();
     this.ready();
   }
