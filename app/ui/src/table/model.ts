@@ -236,8 +236,8 @@ export interface TableSource {
 }
 
 /** Whether a roll's or draw's entry is the one a command of this window made: the room's answer has no table id. */
-export const claimRoll = (roll: { notation: string; total: number }) => (e: TableEntry): boolean => (e.kind === "roll" || e.kind === "table") && e.notation === roll.notation && e.total === roll.total;
-export const claimDraw = (d: { kind: string; roll: number }) => (e: TableEntry): boolean => e.kind === "oracle" && e.oracle === (d.kind === "question" ? "question" : d.kind === "spark" ? "spark" : "table") && (d.kind === "spark" || e.total === d.roll);
+export const claimRoll = (path: string, roll: { notation: string; total: number }) => (e: TableEntry): boolean => (e.kind === "roll" || e.kind === "table") && e.path === path && e.notation === roll.notation && e.total === roll.total;
+export const claimDraw = (path: string, d: { kind: string; roll: number }) => (e: TableEntry): boolean => e.kind === "oracle" && e.path === path && e.oracle === (d.kind === "question" ? "question" : d.kind === "spark" ? "spark" : "table") && (d.kind === "spark" || e.total === d.roll);
 
 /** Whether `e` is news in this window: another person's, or the same account's from another device. */
 export const isNews = (e: TableEntry): boolean => !e.mine || e.elsewhere === true;

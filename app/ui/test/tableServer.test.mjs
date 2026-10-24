@@ -215,7 +215,7 @@ test("a note room's roll made here: the table's push, before OR after the room's
     const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
     const answer = deferred();
     const roll = rollWire(40, { by: "Ana", by_id: "acc-ana" }).roll;
-    const call = t.making(answer.promise, (r) => (r.status === "ok" ? m.claimRoll(r.data) : null));
+    const call = t.making(answer.promise, (r) => (r.status === "ok" ? m.claimRoll("", r.data) : null));
     if (order === "before") f.fire("table-entry", rollWire(40, { by: "Ana", by_id: "acc-ana" }));
     answer.done({ status: "ok", data: roll });
     await call;
@@ -226,6 +226,20 @@ test("a note room's roll made here: the table's push, before OR after the room's
     f.fire("table-entry", rollWire(41, { by: "Ana", by_id: "acc-ana" }));
     assert.deepEqual(news, ["41"], order);
   }
+});
+
+test("a claim needs the same note: another device's identical roll elsewhere is news", async () => {
+  const news = [];
+  const f = fake();
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  const answer = deferred();
+  const call = t.making(answer.promise, (r) => (r.status === "ok" ? m.claimRoll("Ata.md", r.data) : null));
+  answer.done({ status: "ok", data: rollWire(90, { by: "Ana", by_id: "acc-ana" }).roll });
+  await call;
+  f.fire("table-entry", rollWire(91, { by: "Ana", by_id: "acc-ana", path: "Outra.md" }));
+  assert.deepEqual(news, ["91"]);
+  f.fire("table-entry", rollWire(92, { by: "Ana", by_id: "acc-ana", path: "Ata.md" }));
+  assert.deepEqual(news, ["91"]);
 });
 
 test("a command that fails as unavailable may still have been appended: its entry is not released as another device's", async () => {
@@ -246,7 +260,7 @@ test("two commands at once: each claims its own entry, and a third that nobody c
   const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
   const one = deferred();
   const two = deferred();
-  const claim = (r) => (r.status === "ok" ? m.claimRoll(r.data) : null);
+  const claim = (r) => (r.status === "ok" ? m.claimRoll("", r.data) : null);
   const a = t.making(one.promise, claim);
   const b = t.making(two.promise, claim);
   const mk = (id, total) => rollWire(id, { by: "Ana", by_id: "acc-ana", roll: { ...rollWire(id).roll, total } });
@@ -272,6 +286,8 @@ test("an entry held for a command that never answers is released as news after a
     f.fire("table-entry", rollWire(70, { by: "Ana", by_id: "acc-ana" }));
     assert.deepEqual(news, []);
     mock.timers.tick(3100);
+    assert.deepEqual(news, [], "still tied to a command in flight");
+    mock.timers.tick(30000);
     assert.deepEqual(news, ["70"]);
   } finally {
     mock.timers.reset();

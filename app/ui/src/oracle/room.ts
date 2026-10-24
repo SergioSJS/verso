@@ -30,7 +30,7 @@ async function inRoom(path: string | undefined, ask: OracleAsk): Promise<{ draw:
   const call = commands.collabOracle(path, ask).catch((e: unknown): { status: "error"; error: ContractError } => ({ status: "error", error: { kind: "unavailable", message: String(e) } as ContractError }));
   // The server also appends this draw to the table and tells this window, which is not news (ADR 0107).
   const table = tableSource();
-  const r = isServerTable(table) ? await table.making(call, (a) => (a.status === "ok" ? claimDraw(a.data) : null)) : await call;
+  const r = isServerTable(table) ? await table.making(call, (a) => (a.status === "ok" ? claimDraw(path, a.data) : null)) : await call;
   if (r.status === "ok") return { draw: r.data };
   if (r.error.kind === "unavailable") return { here: os.drawnHere };
   return { why: os.drawRefused(r.error.message) };
