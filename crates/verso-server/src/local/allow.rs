@@ -128,6 +128,7 @@ pub const EDIT: &[&str] = &[
     "collab_roll",
     "collab_oracle",
     "table_send_image",
+    "table_attach",
     "trash_list",
     "trash_restore",
     "trash_delete",

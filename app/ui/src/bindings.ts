@@ -580,6 +580,12 @@ export const commands = {
 	 *  shown at the table: not for a reader of the folder.
 	 */
 	tableSendImage: (base64: string, table: string | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_send_image", { base64, table })),
+	/**
+	 *  An image (base64) written into the table's attachments place for a note
+	 *  or board the person edits, with no entry in the chat (ADR 0113 D); the
+	 *  file's path.
+	 */
+	tableAttach: (base64: string, into: string) => typedError<string, ContractError>(__TAURI_INVOKE("table_attach", { base64, into })),
 	/**  Dice rolled by the server at the table, from no note's room. */
 	tableRoll: (notation: string, source: string | null, path: string | null, secret: boolean | null, styles: {
 	"1": DiceStyle,

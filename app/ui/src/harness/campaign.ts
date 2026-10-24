@@ -14,7 +14,8 @@
 // and `?table=player` start with it up.
 
 import { emit } from "@tauri-apps/api/event";
-import type { CampaignAccess, CampaignAudience, CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError } from "../bindings";
+import type { AccessChange, AccessInfo, AccessLevel, AccessSetView, AccessWhy, CampaignAccess, CampaignAudience, CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError, FileAccess } from "../bindings";
+import { allowed, kindOf, type Setting, type Who } from "./accessRules";
 import type { Core } from "./core";
 
 const LOG_LEAST = 1_000;
@@ -78,6 +79,11 @@ export class Campaign {
   linked: () => boolean | null = () => null;
   /** Who the window is. */
   viewer: "owner" | "player" = "owner";
+  /** A player's role in the folder: an editor is a player who edits what they see (ADR 0113 K.1). */
+  role: "reader" | "editor" = "reader";
+  /** The sets given with `access_set`, by path (a file's or a folder's): ADR 0113's own state.
+   *  A note with none follows its folder's, else what `notes` says (the older commands). */
+  sets = new Map<string, { whole: AccessLevel; rows: Map<string, AccessLevel> }>();
   /** The window's account; the others at the table are `players`. */
   readonly account = "acc-ana";
   admin = true;
@@ -102,6 +108,8 @@ export class Campaign {
     else this.imageGrants.delete(key);
     if (this.viewer === "player" && account === this.account) void emit("table-images", { table: root, images: on });
   }
+  /** How many files `table_attach` made. */
+  private attached = 0;
   /** The links made by `campaign_invite`, for a test to read. */
   invites: string[] = [];
   /** The game master's name, as a player is told it. */
@@ -219,7 +227,187 @@ export class Campaign {
       this.invites.push(link);
       return { link, expires: 1_900_000_000 };
     };
+    h["table_attach"] = (a) => {
+      // Into a note or board the person edits: the vectors' `attach` (ADR 0113 D).
+      const into = String(a["into"] ?? "");
+      if (!this.up || !this.fileAccess(into).attach) refuse("you may only read this folder");
+      this.attached += 1;
+      const path = `attachments/mesa-attach-${this.attached}.png`;
+      core.handlers["create_file"]?.({ path, base64: String(a["base64"] ?? "") });
+      return path;
+    };
+    h["access_get"] = (a) => this.accessGet(a["paths"] as string[]);
+    h["access_set"] = (a) => this.accessSet(a["paths"] as string[], a["change"] as AccessChange);
+    h["table_rights_set"] = (a) => {
+      if (a["right"] !== "files") refuse("no such right");
+      return h["campaign_permission"]!({ root: a["root"], accounts: a["accounts"], images: a["on"] });
+    };
+    const caps = h["capabilities"];
+    if (caps)
+      h["capabilities"] = (a) => {
+        const base = caps(a) as Record<string, unknown>;
+        if (!this.up || this.tables.length === 0) return base;
+        return { ...base, access: { seat: this.viewer === "owner" ? "master" : "player", role: this.viewer === "owner" ? "owner" : this.role, cap: "write", table: true } };
+      };
     this.wrapReads();
+  }
+
+  // ---- ADR 0113: the one model. The state is the sets; what may be done is the vectors'.
+
+  private who(): Who {
+    return this.viewer === "owner" ? "owner/write" : this.role === "editor" ? "editor/write" : "reader/write";
+  }
+
+  /** A note's set as the older commands left it. */
+  private setOfNote(n: CampaignNote | undefined): { whole: AccessLevel; rows: Map<string, AccessLevel> } | null {
+    if (!n) return null;
+    const a = audOf(n);
+    const rows = new Map<string, AccessLevel>();
+    let whole: AccessLevel = "none";
+    if (a.kind === "table") whole = "see";
+    else if (a.kind === "players") for (const x of a.accounts) rows.set(x, "see");
+    if (n.grant.kind === "group") whole = "edit";
+    else if (n.grant.kind === "player") rows.set(n.grant.account, "edit");
+    return { whole, rows };
+  }
+
+  /** The set a path has of its own: given with `access_set`, else its note's. */
+  private ownSet(path: string): { whole: AccessLevel; rows: Map<string, AccessLevel> } | null {
+    return this.sets.get(path) ?? this.setOfNote(this.notes.get(path));
+  }
+
+  /** The nearest set up to the table's root, and whether it is the path's own. */
+  private nearest(path: string): { set: { whole: AccessLevel; rows: Map<string, AccessLevel> }; own: boolean; at: string } | null {
+    const root = this.tableOf(path)?.root ?? "";
+    let at = path;
+    for (;;) {
+      const set = this.ownSet(at);
+      if (set) return { set, own: at === path, at };
+      if (at === "" || at === root) return null;
+      const i = at.lastIndexOf("/");
+      at = i < 0 ? "" : at.slice(0, i);
+      if (!covers(root, at)) return null;
+    }
+  }
+
+  private levelIn(set: { whole: AccessLevel; rows: Map<string, AccessLevel> }, id: string): AccessLevel {
+    return set.rows.get(id) ?? set.whole;
+  }
+
+  /** What a path is to the window's person, in the words of the vectors. */
+  private settingFor(path: string, folder = false): Setting {
+    const t = this.tableOf(path);
+    const kind = path === "" && folder ? "folder" : kindOf(path, folder);
+    if (!t) return { table: "none", source: "nothing", level: "none", kind, right: false, derived: false };
+    const found = this.nearest(path);
+    return {
+      table: t.open ? "open" : "closed",
+      source: !found ? "nothing" : found.own ? "file" : "folder",
+      level: found ? this.levelIn(found.set, this.account) : "none",
+      kind,
+      right: this.imagesFor(t.root),
+      derived: !noteLike(path),
+    };
+  }
+
+  /** What the window's person may do with `path`, answered with every read. */
+  fileAccess(path: string, folder = false): FileAccess {
+    const s = this.settingFor(path, folder);
+    const who = this.who();
+    const level: AccessLevel = allowed(who, "edit", s) ? "edit" : allowed(who, "see", s) ? "see" : "none";
+    const found = this.nearest(path);
+    const why: AccessWhy = this.viewer === "owner" ? { kind: "master" } : s.table === "none" ? { kind: "role" } : s.table === "closed" ? { kind: "closed" } : !found ? (s.derived && level !== "none" ? { kind: "derived" } : { kind: "default" }) : found.own ? { kind: "own" } : { kind: "folder", path: found.at };
+    return { level, attach: allowed(who, "attach", s), why };
+  }
+
+  private view(set: { whole: AccessLevel; rows: Map<string, AccessLevel> }): AccessSetView {
+    return { whole: set.whole, rows: [...set.rows].sort((a, b) => a[0].localeCompare(b[0])).map(([account, level]) => ({ account, level })) };
+  }
+
+  private accessGet(paths: string[]): AccessInfo[] {
+    if (!this.up) refuse("a table is a server's; a folder of this computer alone has none");
+    if (!Array.isArray(paths) || paths.length === 0 || paths.length > 500) refuse("name between 1 and 500 paths");
+    return paths.map((path) => {
+      const t = this.tableOf(path);
+      if (!t) refuse("not inside a table");
+      const owner = this.viewer === "owner";
+      if (!owner && this.hidden(path)) refuse("not found", "not_found");
+      const folder = path === "" || this.core.folders.has(path);
+      const found = this.nearest(path);
+      const set = found?.set ?? { whole: "none" as AccessLevel, rows: new Map<string, AccessLevel>() };
+      const under = folder ? [...this.core.files.keys()].filter((f) => covers(path, f) && f !== path && this.tableOf(f)) : [];
+      const exceptions = owner && folder
+        ? [...new Set([...this.sets.keys(), ...this.notes.keys()])].filter((p) => p !== path && covers(path, p) && this.ownSet(p)).sort().map((p) => ({ path: p, folder: this.core.folders.has(p), set: this.view(this.ownSet(p)!) }))
+        : [];
+      const own = this.ownSet(path);
+      const players = this.players
+        .filter((p) => owner ? p.id !== this.account : true)
+        .filter((p) => owner || p.id === this.account || this.levelIn(set, p.id) !== "none")
+        .map((p) => ({ id: owner || p.id === this.account ? p.id : "", name: p.name, editor: p.id === this.account && this.role === "editor", you: !owner && p.id === this.account }));
+      const text = this.core.files.get(path);
+      const blocks = text && /\.md$/i.test(path) ? (new TextDecoder().decode(text.bytes).match(/^(?:\s*>)*\s*\[!secret/gim) ?? []).length : 0;
+      return {
+        path,
+        folder,
+        table: t.root,
+        own: owner && own ? this.view(own) : null,
+        set: owner ? this.view(set) : { whole: set.whole, rows: [...set.rows].filter(([a]) => a === this.account).map(([account, level]) => ({ account, level })) },
+        why: found ? (found.own ? { kind: "own" } : { kind: "folder", path: found.at }) : { kind: "default" },
+        files: under.length,
+        exceptions,
+        secret_name: owner && this.notes.get(path)?.secret_name === true,
+        secret_blocks: blocks,
+        players,
+        manage: owner,
+      } satisfies AccessInfo;
+    });
+  }
+
+  private accessSet(paths: string[], change: AccessChange): { changed: number } {
+    this.owner();
+    if (!Array.isArray(paths) || paths.length === 0 || paths.length > 500) refuse("name between 1 and 500 paths");
+    let changed = 0;
+    const touched: string[] = [];
+    for (const path of paths) {
+      this.tableOrRefuse(path);
+      const folder = path === "" || this.core.folders.has(path);
+      if (change.kind === "follow") {
+        if (this.sets.delete(path) || this.notes.delete(path)) changed += 1;
+        touched.push(path);
+        continue;
+      }
+      const ids = this.seated().map((p) => p.id);
+      if (change.set.rows.some((r) => !ids.includes(r.account))) refuse("not a player of this table");
+      const set = { whole: change.set.whole, rows: new Map(change.set.rows.map((r) => [r.account, r.level] as const)) };
+      if (folder) {
+        const under = [...this.core.files.keys()].filter((f) => covers(path, f) && f !== path && this.tableOf(f));
+        changed += under.length;
+        for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k)) { this.sets.delete(k); this.notes.delete(k); }
+        touched.push(...under);
+      } else changed += 1;
+      this.sets.set(path, set);
+      touched.push(path);
+      if (typeof change.secret_name === "boolean") this.state(path).secret_name = change.secret_name;
+      this.mirror(path, set);
+    }
+    this.changed(touched);
+    return { changed };
+  }
+
+  /** The older shapes of a note's state follow its set, for what still reads them. */
+  private mirror(path: string, set: { whole: AccessLevel; rows: Map<string, AccessLevel> }): void {
+    if (!noteLike(path)) return;
+    const s = this.state(path);
+    const seers = [...set.rows].filter(([, l]) => l !== "none" && (set.whole === "none" || l !== set.whole)).map(([a]) => a);
+    const edits = [...set.rows].filter(([, l]) => l === "edit").map(([a]) => a);
+    s.audience = set.whole !== "none" ? { kind: "table" } : seers.length > 0 ? { kind: "players", accounts: seers } : { kind: "hidden" };
+    s.released = s.audience.kind !== "hidden";
+    s.grant = set.whole === "edit" ? { kind: "group" } : edits[0] ? { kind: "player", account: edits[0] } : { kind: "none" };
+  }
+
+  private tableOrRefuse(path: string): void {
+    if (path.startsWith("/") || path.split("/").includes("..")) refuse("not a path of this folder");
+    if (!this.tableOf(path)) refuse("not inside a table");
   }
 
   private rootOf(given: unknown): string {
@@ -296,13 +484,11 @@ export class Campaign {
     return [...out];
   }
 
-  /** Whether a player is kept from `path`. */
+  /** Whether a player is kept from `path`: the vectors' `see`. */
   hidden(path: string): boolean {
     const t = this.tableOf(path);
     if (!t) return false;
-    if (!t.open) return true;
-    if (!noteLike(path)) return false;
-    return !this.seenBy(this.notes.get(path), this.account) && !this.mayEdit(path);
+    return !allowed(this.who(), "see", this.settingFor(path, this.core.folders.has(path)));
   }
 
   /** A folder of a table is there for a player when a file under it is (the table's own folder always). */
@@ -312,8 +498,7 @@ export class Campaign {
   }
 
   private mayEdit(path: string): boolean {
-    const g = this.notes.get(path)?.grant;
-    return g?.kind === "group" || (g?.kind === "player" && g.account === this.account);
+    return this.viewer === "player" && allowed(this.who(), "edit", this.settingFor(path));
   }
 
   status(): CampaignStatus {
@@ -328,6 +513,7 @@ export class Campaign {
 
   private changed(paths: string[]): CampaignStatus {
     void emit("campaign-changed", { paths: this.viewer === "owner" ? paths : [] });
+    void emit("access-changed", { paths: this.viewer === "owner" ? paths : [] });
     return this.status();
   }
 
@@ -404,6 +590,20 @@ export class Campaign {
             return { ...l, target: shown, resolved: null, heading: null, block: null, alias: null };
           })
         : list;
+    };
+    // Every read says what the person may do with the file (ADR 0113 section C).
+    const up = (): boolean => this.up && this.tables.length > 0;
+    for (const cmd of ["read_note", "read_text", "create_note", "write_text"]) {
+      const was = h[cmd]!;
+      h[cmd] = (a) => {
+        const got = was(a);
+        return up() && got && typeof got === "object" ? { ...(got as object), access: this.fileAccess((got as { path: string }).path) } : got;
+      };
+    }
+    const listed = h["list_entries"]!;
+    h["list_entries"] = (a) => {
+      const all = listed(a);
+      return up() && Array.isArray(all) ? all.map((e: { path: string; kind: string }) => ({ ...e, access: this.fileAccess(e.path, e.kind === "folder") })) : all;
     };
     const graph = h["graph"]!;
     h["graph"] = (a) => {

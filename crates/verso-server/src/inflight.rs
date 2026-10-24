@@ -45,7 +45,12 @@ pub const TEXT: usize = 32 * 1024 * 1024;
 pub const BUDGET: usize = 128 * 1024 * 1024;
 
 /// The commands that carry a file's bytes.
-const UPLOADS: [&str; 3] = ["create_file", "sync_put", "table_send_image"];
+const UPLOADS: [&str; 4] = [
+    "create_file",
+    "sync_put",
+    "table_send_image",
+    "table_attach",
+];
 
 /// The commands that carry a text, a board or a room's edit.
 const TEXTS: [&str; 11] = [
@@ -66,7 +71,7 @@ const TEXTS: [&str; 11] = [
 /// The most a message of `cmd` may be.
 #[must_use]
 pub fn most_for(cmd: &str) -> usize {
-    if cmd == "table_send_image" {
+    if cmd == "table_send_image" || cmd == "table_attach" {
         // An image of the largest a table may allow (ADR 0110, MS.1: 30 MB
         // at most; 10 MB by default, ADR 0107 item 3) as base64, with room;
         // the command judges the table's own limit.
@@ -231,7 +236,7 @@ fn may_write(server: &Server, client: &str, cmd: &str) -> bool {
 /// images at some table of its folder (ADR 0107 item 3 as amended
 /// 2026-10-24): the command judges the table itself, after the parse.
 fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
-    if cmd != "table_send_image" {
+    if cmd != "table_send_image" && cmd != "table_attach" {
         return false;
     }
     // In memory: no database is read on the connection's receive task. A

@@ -253,3 +253,68 @@ fn the_right_to_send_files_is_given_by_the_one_command() {
         );
     });
 }
+
+/// A new file into a note the person edits (ADR 0113 item 5, D): the rules'
+/// Attach — the level *edits* on that note and the right to send files — and
+/// the file is the server's, written into the table's attachments place with
+/// no entry in the chat.
+#[test]
+fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        let png = crate::tests_campaign::PNG;
+        let edit = |rows: Value| json!({ "kind": "set", "set": { "whole": "none", "rows": rows }, "secret_name": null });
+        // Sees it only: nothing is attached.
+        let seen = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Livre.md"], "change": { "kind": "set",
+                    "set": { "whole": "see", "rows": [] }, "secret_name": null } }),
+            )
+            .await;
+        assert!(seen.get("ok").is_some(), "{seen}");
+        let no = m
+            .ana
+            .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
+            .await;
+        assert!(refused(&no), "{no}");
+        // Edits it, but has no right to send files.
+        let g = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Livre.md"], "change": edit(json!([{ "account": ana, "level": "edit" }])) }),
+            )
+            .await;
+        assert!(g.get("ok").is_some(), "{g}");
+        let no = m
+            .ana
+            .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
+            .await;
+        assert!(refused(&no), "{no}");
+        // Both: the file is written, and the chat has no entry of it.
+        let r = m
+            .owner
+            .call(
+                "table_rights_set",
+                json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
+            )
+            .await;
+        assert!(r.get("ok").is_some(), "{r}");
+        let made = m
+            .ana
+            .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
+            .await;
+        let path = made["ok"].as_str().unwrap_or_default().to_owned();
+        assert!(path.starts_with("attachments/mesa-"), "{made}");
+        let files = m.owner.call("list_files", json!({})).await;
+        assert!(files.to_string().contains(&path), "{files}");
+        assert_eq!(
+            m.r.server.db.table_count(&m.id, "").unwrap(),
+            0,
+            "an attached file is not a message"
+        );
+    });
+}
