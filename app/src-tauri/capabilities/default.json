@@ -140,6 +140,8 @@
     "allow-campaign-settings",
     "allow-campaign-release",
     "allow-campaign-release-all",
+    "allow-campaign-audience",
+    "allow-campaign-access",
     "allow-campaign-secret-name",
     "allow-campaign-grant",
     "allow-campaign-invite",
