@@ -15,9 +15,9 @@ use serde_json::{Value, json};
 use crate::tests::{block_on, get, sign_in};
 use crate::tests_campaign::{Mesa, Win, mesa, strings};
 
-const BARAO: &str = "Barão Zq.md";
+pub(crate) const BARAO: &str = "Barão Zq.md";
 
-async fn release_to(m: &mut Mesa, path: &str, accounts: &[&str]) -> Value {
+pub(crate) async fn release_to(m: &mut Mesa, path: &str, accounts: &[&str]) -> Value {
     let r = m
         .owner
         .call(
@@ -29,7 +29,7 @@ async fn release_to(m: &mut Mesa, path: &str, accounts: &[&str]) -> Value {
     r
 }
 
-fn synced(state: &Value) -> Vec<String> {
+pub(crate) fn synced(state: &Value) -> Vec<String> {
     state["ok"]["files"]
         .as_array()
         .unwrap()
@@ -38,7 +38,7 @@ fn synced(state: &Value) -> Vec<String> {
         .collect()
 }
 
-fn told(log: &Value) -> Vec<(String, bool)> {
+pub(crate) fn told(log: &Value) -> Vec<(String, bool)> {
     log["ok"]["changes"]
         .as_array()
         .unwrap()
@@ -53,7 +53,7 @@ fn told(log: &Value) -> Vec<(String, bool)> {
 }
 
 /// Everything a window can ask that names the note, answered.
-async fn sees(w: &mut Win, path: &str) -> bool {
+pub(crate) async fn sees(w: &mut Win, path: &str) -> bool {
     let read = w.call("read_note", json!({ "path": path })).await;
     read.get("ok").is_some()
 }
@@ -265,8 +265,15 @@ fn adding_and_removing_a_player_tells_their_window_and_their_device_live() {
         let bia_head = log["ok"]["head"].as_i64().unwrap();
         let log = m.ana.call("sync_changes", json!({ "since": 0 })).await;
         let ana_head = log["ok"]["head"].as_i64().unwrap();
+        // What the release said to each window: Bia, who is not in the
+        // audience, was told nothing of the note, nor that anything moved.
         m.ana.hear(200).await;
-        m.bia.hear(200).await;
+        let first = m.bia.hear(300).await;
+        assert!(
+            !format!("{first:?}").contains("Bar")
+                && !first.iter().any(|e| e["event"] == "folder-changed"),
+            "Bia is told of a release she is not in: {first:?}"
+        );
         // The owner edits it: Bia hears nothing of it.
         let r = m.owner.call("read_note", json!({ "path": BARAO })).await;
         let w = m

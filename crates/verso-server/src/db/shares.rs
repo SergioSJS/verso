@@ -167,12 +167,25 @@ impl Db {
                 params![share, account, role.as_str()],
             )
             .map_err(e)?;
+        // A role that writes makes it a game master, not a player.
+        if let Some(s) = self.share(share)? {
+            self.campaign_account_left(&s.folder, account)?;
+        }
         Ok(())
     }
 
     /// Take `account` out of a share; false when it was not in it. A share
     /// with nobody left goes with its last person.
     pub fn revoke_share(&self, share: &str, account: &str) -> R<bool> {
+        let folder = self.share(share)?.map(|s| s.folder);
+        let gone = self.revoke_share_row(share, account)?;
+        if let Some(f) = folder {
+            self.campaign_account_left(&f, account)?;
+        }
+        Ok(gone)
+    }
+
+    fn revoke_share_row(&self, share: &str, account: &str) -> R<bool> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         let gone = tx

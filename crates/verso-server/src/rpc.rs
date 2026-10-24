@@ -1129,6 +1129,7 @@ pub(crate) async fn folder_run(
         name,
         "rename_note" | "rename_entry" | "move_entries" | "delete_note" | "delete_entry"
     );
+    let moved_args = args.clone();
     let service = Arc::clone(&server.service);
     let s = Arc::clone(server);
     let c = client.to_owned();
@@ -1139,6 +1140,8 @@ pub(crate) async fn folder_run(
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
+            // The players who see what goes, remembered while it is there.
+            crate::campaign_cmds::before_write(&s, &folder_id, &key, &n, &args);
         }
         // A deletion is recorded with who made it (ADR 0080 item 2).
         let answer = if matches!(
@@ -1174,6 +1177,9 @@ pub(crate) async fn folder_run(
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);
+        }
+        if moves && answer.is_err() {
+            crate::campaign_cmds::write_failed(&s, &folder_id, &n, &moved_args);
         }
         answer
     })

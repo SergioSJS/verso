@@ -203,16 +203,18 @@ export async function setAudience(path: string, audience: CampaignAudience): Pro
 }
 
 /** The rows of "Release to…": the whole table, each player (several
- *  allowed, each one checked while it sees the note), nobody. */
+ *  allowed: the menu stays open while they are ticked, each one checked while
+ *  it sees the note), nobody. Each row reads the note's audience when it is
+ *  used and when it is drawn again. */
 export function audienceItems(path: string): MenuItem[] {
-  const now = noteAudience(path);
-  const all = status.players.map((p) => p.id);
-  const seen = audienceIds(now, all);
-  const mark = (on: boolean, label: string): string => (on ? `✓ ${label}` : label);
+  const now = (): CampaignAudience => noteAudience(path);
+  const all = (): string[] => status.players.map((p) => p.id);
   return [
-    [mark(now.kind === "table", cp.audienceTable), () => void setAudience(path, TABLE), "users"],
-    ...status.players.map((p): MenuItem => [mark(seen.includes(p.id), p.name), () => void setAudience(path, togglePlayer(now, p.id, all)), "user"]),
-    [mark(now.kind === "hidden", cp.audienceNobody), () => void setAudience(path, ofPlayers([])), "lock"],
+    [cp.audienceTable, () => setAudience(path, TABLE), "users", undefined, () => now().kind === "table"],
+    ...status.players.map(
+      (p): MenuItem => [p.name, () => setAudience(path, togglePlayer(now(), p.id, all())), "user", undefined, () => audienceIds(now(), all()).includes(p.id)],
+    ),
+    [cp.audienceNobody, () => setAudience(path, ofPlayers([])), "lock", undefined, () => now().kind === "hidden"],
   ];
 }
 

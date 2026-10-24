@@ -28,13 +28,15 @@ pub(super) async fn command(
     mut args: Value,
 ) -> Result<Reply, ContractError> {
     let (folder, _) = role_here(server, client)?;
+    let cmd_is_changes = cmd == "sync_changes";
     let asked: i64 = if cmd == "sync_changes" {
         arg(&args, "since")?
     } else {
         0
     };
     // A table with notes released to some players: this player's own log,
-    // in its own count.
+    // in its own count. Decided once for the whole question: the folder is
+    // not asked again between the log and the files.
     let key = server
         .service
         .folder_of(client)
@@ -47,29 +49,21 @@ pub(super) async fn command(
             who.account.id.clone(),
             client.to_owned(),
         );
-        if cmd == "sync_changes" {
-            return blocking(move || {
-                head_for_question(&s, &f, &k, &c)?;
-                let items = crate::campaign_sync::viewer_changes(&s, &f, &k, &a)?;
-                Ok((crate::campaign_sync::page(&items, asked, 1000), None))
-            })
-            .await;
-        }
-        let (mut answer, piece) = command_in(
-            server,
-            who,
-            client,
-            cmd,
-            (args, None),
-            Arc::new(|_: &str| true),
-        )
-        .await?;
-        let (s, f, k, a) = (Arc::clone(server), folder, key, who.account.id.clone());
-        let n = blocking(move || crate::campaign_sync::viewer_changes(&s, &f, &k, &a))
-            .await?
-            .len();
-        answer["head"] = json!(n);
-        return Ok((answer, piece));
+        return blocking(move || {
+            head_for_question(&s, &f, &k, &c)?;
+            if cmd_is_changes {
+                let page = crate::campaign_sync::viewer_page(&s, (&f, &k), &a, (asked, 1000))?;
+                return Ok((page, None));
+            }
+            // The head first, then the files: a change that lands between
+            // is in the files and not in the head, so the device reads it
+            // again from its cursor; the other way round it would be counted
+            // in the head and missing from the files, and skipped.
+            let head = crate::campaign_sync::viewer_head(&s, &f, &k, &a)?;
+            let files = crate::campaign_sync::viewer_files(&s, &f, &k, &a)?;
+            Ok((json!({ "head": head, "files": files }), None))
+        })
+        .await;
     }
     let at = {
         let (s, f) = (Arc::clone(server), folder.clone());

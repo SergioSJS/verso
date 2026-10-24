@@ -56,7 +56,7 @@ export function accessOf(a: CampaignAudience, g: CampaignGrant, id: string, all:
 /** Every player of the table with what each can do: the game master's list. */
 export function peopleOf(a: CampaignAudience, g: CampaignGrant, players: readonly Who[]): CampaignPerson[] {
   const all = players.map((p) => p.id);
-  return players.map((p) => ({ id: p.id, name: p.name, access: accessOf(a, g, p.id, all) }));
+  return players.map((p) => ({ id: p.id, name: p.name, access: accessOf(a, g, p.id, all), you: false }));
 }
 
 /** The players who see the note after a change and did not before. */
@@ -78,6 +78,8 @@ export type Words = {
   playerTable: string;
   playerOnlyYou: string;
   playerNames: (list: string) => string;
+  /** The word for the person asking, in a list of names. */
+  you: string;
 };
 
 function listOf(names: readonly string[], lang: string): string {
@@ -98,8 +100,13 @@ export function ownerLabel(t: Tally, w: Words): string {
  *  (the server sends none). `master` is the game master's name. */
 export function playerLabel(a: CampaignAudience, people: readonly CampaignPerson[], master: string, w: Words, lang: string): string {
   if (a.kind === "table") return w.playerTable;
-  if (a.kind === "players" && people.length === 1) return w.playerOnlyYou;
-  return w.playerNames(listOf([...people.map((p) => p.name), master].filter((x) => x !== ""), lang));
+  if (a.kind === "players" && people.length === 1 && people[0]?.you) return w.playerOnlyYou;
+  return w.playerNames(listOf([...yourFirst(people).map((p) => (p.you ? w.you : p.name)), master].filter((x) => x !== ""), lang));
+}
+
+/** The people, the one asking first: "You, Bruno and the game master". */
+export function yourFirst(people: readonly CampaignPerson[]): CampaignPerson[] {
+  return [...people].sort((x, y) => Number(y.you) - Number(x.you));
 }
 
 /** The count drawn beside the icon: "2/3" for the game master; for a

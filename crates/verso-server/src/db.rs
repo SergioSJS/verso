@@ -982,7 +982,8 @@ impl Db {
                 params![folder, account, role.as_str()],
             )
             .map_err(e)?;
-        Ok(())
+        // A role that writes makes it a game master, not a player.
+        self.campaign_account_left(folder, account)
     }
 
     pub fn revoke(&self, folder: &str, account: &str) -> R<()> {
@@ -992,7 +993,7 @@ impl Db {
                 params![folder, account],
             )
             .map_err(e)?;
-        Ok(())
+        self.campaign_account_left(folder, account)
     }
 
     /// The folders `account` may enter, with its role in each.
@@ -1421,7 +1422,7 @@ pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
 pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};
-pub use sync::{Change, Known, Made, ReaderOf, Recorded};
+pub use sync::{Change, Known, Made, Notice, Notices, ReaderOf, Recorded};
 pub use trash::FolderBook;
 
 #[cfg(test)]
