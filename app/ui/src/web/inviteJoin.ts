@@ -16,7 +16,13 @@ function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
 }
 
-const join = (token: string) => api("POST", `/api/invite/${encodeURIComponent(token)}/join`, {});
+const join = (token: string) => api<{ open?: string | null }>("POST", `/api/invite/${encodeURIComponent(token)}/join`, {});
+
+/** Where the page goes once the invitation is taken: the folder or share
+ *  just joined, open (the table the person came for), else the home. */
+export function landing(open: unknown): string {
+  return typeof open === "string" && open !== "" ? `/?folder=${encodeURIComponent(open)}` : "/";
+}
 
 /** "I am not them": the session ends and the page opens again, signed out. */
 function notMe(label: string): HTMLButtonElement {
@@ -37,8 +43,7 @@ export function signedInJoin(token: string, offer: Offer, account: Account): HTM
     return el("div", { class: "web-block" }, el("p", { class: "web-lead" }, s.inviteOtherAccount(offer.email ?? "", account.email)), notMe(s.inviteNotMe));
   }
   const f = form([], s.inviteJoinAs(account.name), async () => {
-    await join(token);
-    location.href = "/";
+    location.href = landing((await join(token)).open);
   }, explain);
   return el("div", { class: "web-block" }, f.form, notMe(s.inviteNotMe));
 }
@@ -55,8 +60,7 @@ export function signInJoin(token: string, offer: Offer): HTMLElement {
   const f = form([email, password], s.inviteHaveAccount, async () => {
     const r = await api<{ csrf: string }>("POST", "/api/signin", { email: email.input.value, password: password.input.value });
     setCsrf(r.csrf);
-    await join(token);
-    location.href = "/";
+    location.href = landing((await join(token)).open);
   }, explain);
   return el("div", { class: "web-block" }, el("h2", { class: "web-subtitle" }, s.inviteHaveAccountTitle), f.form);
 }

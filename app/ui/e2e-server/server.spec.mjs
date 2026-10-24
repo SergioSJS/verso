@@ -182,15 +182,9 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
   await settled(reader);
-  // No folder yet: the start page says to choose one of the server's
-  // folders, not the desktop's keys, and no role is said.
-  await expect(reader.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
-  await expect(reader.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
-  await expect(reader.locator(".lesson .keys")).toHaveCount(0);
-  await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
-  await expect(reader.locator("#open .folder-lock")).toBeHidden();
-  await expect(reader.locator("html")).not.toHaveAttribute("data-role", "reader");
-  await openDemo(reader);
+  // The invitation carried a folder: the new account lands in it (2026-10-23),
+  // not on the empty start page.
+  await expect(reader.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // With the folder on screen, the reader has the closed lock beside its name (no banner, no notice).
   await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);

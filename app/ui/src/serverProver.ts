@@ -13,7 +13,7 @@ import { commands, type ContractError } from "./bindings";
 import { failureText, unreachableAt } from "./reach";
 import { LANG } from "./strings";
 import { ApiError } from "./web/api";
-import type { Prover } from "./web/proof";
+import { pageProver, type Prover } from "./web/proof";
 import { proofDialog } from "./web/proveDialog";
 import { setLang } from "./web/strings";
 
@@ -36,3 +36,13 @@ export const askServerProof: Prover = () => {
     passkey: null,
   });
 };
+
+/** Who asks the person for a fresh proof where the window is: in a
+ *  browser, the page's own prover (`web/proof.ts`, set at start); in the
+ *  desktop app, the dialog that sends the password through the host. The
+ *  commands that go through `api` (shares, read links) are asked by the
+ *  page already; the ones that go over the WebSocket (the table's
+ *  invitation) are not, so they are given this. */
+export function proverHere(): Prover {
+  return document.documentElement.dataset["host"] === "server" ? (pageProver() ?? askServerProof) : askServerProof;
+}
