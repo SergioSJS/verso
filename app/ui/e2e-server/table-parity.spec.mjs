@@ -192,6 +192,17 @@ for (const format of ["member", "share"]) {
         await api(gm, "PUT", `/api/folders/${folder.id}/shares`, { path: "Mesa", email: player.email, role: "editor" });
         await api(gm, "PUT", `/api/folders/${folder.id}/shares`, { path: "Mesa", email: other.email, role: "reader" });
       }
+      // Ana writes: an editor, at a table, is a player who edits what she sees
+      // (ADR 0113 item 3, K.1). The game master releases the notes to the
+      // table, and lets her send files (K.4).
+      const released = await invoke(gm, "campaign_release", {
+        paths: [`${root}Fichas/Ata.md`, `${root}Fichas/Diario.md`],
+        released: true,
+      });
+      expect(released.viewer, JSON.stringify(released)).toBe("owner");
+      const anaId = released.players.find((x) => x.name === "Ana")?.id;
+      expect(anaId, JSON.stringify(released.players)).toBeTruthy();
+      await invoke(gm, "campaign_permission", { root: root.replace(/\/$/, ""), accounts: [anaId], images: true });
       await withDice(ana.context);
       const shareName = members ? null : /Mesa \(admin\)/;
       await openFolder(ana.page, folder.id, shareName);
