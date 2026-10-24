@@ -9,7 +9,7 @@ import { insertBase, newBase } from "./bases";
 import { importFiles } from "./importFiles";
 import { imp } from "./importStrings";
 import { commands } from "./bindings";
-import { can, canWrite } from "./can";
+import { can, canChange } from "./can";
 import { trashStrings } from "./dialogs/trash";
 import { showWorldWizard } from "./dialogs/worldWizard";
 import { historyFor, openHistory } from "./dialogs/history";
@@ -221,7 +221,7 @@ export function runHotkey(e: KeyboardEvent): boolean {
     // A key of a command that changes the folder, in a folder one only
     // reads: the command is absent; the word says why (readerNotice.ts).
     const gone = allCommands(true).find((c) => WRITES.has(c.id) && keyOf(c.id) === combo);
-    if (gone && !canWrite() && !ui.search.disabled) {
+    if (gone && !canChange() && !ui.search.disabled) {
       e.preventDefault();
       readerAttempt(e.target instanceof Element ? e.target : null);
       return true;
@@ -297,7 +297,7 @@ export function allCommands(all = false): Command[] {
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
-    { id: "open-trash", label: trashStrings().open, need: hasFolder && canWrite(), run: () => settingsDialog.show("trash") },
+    { id: "open-trash", label: trashStrings().open, need: hasFolder && canChange(), run: () => settingsDialog.show("trash") },
     // A file's version history (ADR 0091 item 5): for whoever may write it.
     { id: "version-history", label: historyStrings().command, need: historyFor(leaf?.path), run: () => leaf?.path && void openHistory(leaf.path) },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
@@ -368,7 +368,7 @@ const WRITES = new Set([
 /** Whether a command means something here (ADR 0076 items 2 and 11): the
  *  side can do it, and a phone shows more than one pane at a time. */
 function possible(id: string): boolean {
-  if (WRITES.has(id)) return canWrite();
+  if (WRITES.has(id)) return canChange();
   if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
   if (id === "new-window" || id === "new-window-here") return can("windows");
   if (id === "open-console") return can("devtools") && !narrow.matches;

@@ -159,6 +159,25 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+/** A new account made from an invitation that names no folder. */
+async function bareAccount(admin, browser, email) {
+  await admin.goto("/admin/invitations");
+  const invite = admin.locator(".console-content");
+  await invite.getByLabel("E-mail (opcional)").fill(email);
+  await invite.getByRole("button", { name: "Convidar" }).click();
+  const link = (await invite.locator(".web-snippet .setting-code").first().textContent()) ?? "";
+  expect(link).toContain("/invite/");
+  const ctx = await browser.newContext({ locale: "pt-BR" });
+  const p = await ctx.newPage();
+  await p.goto(link);
+  await p.getByLabel("Nome").fill("Sem pasta");
+  await p.getByLabel("Senha nova").fill("a senha sem pasta");
+  await p.getByRole("button", { name: "Criar conta" }).click();
+  await expect(p).not.toHaveURL(/invite/);
+  await settled(p);
+  return p;
+}
+
 test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
@@ -186,6 +205,17 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   // not on the empty start page.
   await expect(reader.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
+  // An account whose invitation carries no folder lands on the start page: it
+  // says to choose one of the server's folders, not the desktop's keys, and no
+  // role is said.
+  const bare = await bareAccount(page, browser, `sem-pasta-${test.info().project.name}@verso.test`);
+  await expect(bare.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
+  await expect(bare.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
+  await expect(bare.locator(".lesson .keys")).toHaveCount(0);
+  await expect(bare.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
+  await expect(bare.locator("#open .folder-lock")).toBeHidden();
+  await expect(bare.locator("html")).not.toHaveAttribute("data-role", "reader");
+  await bare.context().close();
   // With the folder on screen, the reader has the closed lock beside its name (no banner, no notice).
   await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
   await expect(reader.locator("#open .folder-lock")).toHaveAttribute("aria-label", "Você só lê esta pasta");

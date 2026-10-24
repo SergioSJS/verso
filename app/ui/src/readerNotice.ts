@@ -13,7 +13,7 @@
 
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { canWrite } from "./can";
+import { canChange } from "./can";
 import { mayEditGranted } from "./campaign";
 import { h } from "./dom";
 import { st } from "./screen/strings";
@@ -33,7 +33,7 @@ export type Attempt = { x: number; y: number } | Element | null | undefined;
 /** Whether a change to `path` (a note, or none: the folder) is refused to
  *  this person. A note granted to them (ADR 0110) is theirs to edit. */
 export function refused(path?: string | null): boolean {
-  return !canWrite() && !(path ? mayEditGranted(path) : false);
+  return !canChange() && !(path ? mayEditGranted(path) : false);
 }
 
 function place(el: HTMLElement, at: Attempt): void {

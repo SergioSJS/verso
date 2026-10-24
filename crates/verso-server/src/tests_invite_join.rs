@@ -170,6 +170,8 @@ fn an_existing_account_joins_a_share_and_keeps_the_higher_role() {
         let token = link(&r, &admin, json!({ "share": share, "role": "editor" })).await;
         let (status, joined) = post(&r, &join_path(&token), json!({}), Some(&a)).await;
         assert_eq!(status, 200, "{joined}");
+        // The window is told what to open: the share just joined.
+        assert_eq!(joined["open"], share.as_str(), "{joined}");
         assert_eq!(
             r.server.db.share_role(&share, &ana_id).unwrap(),
             Some(Role::Editor)
@@ -183,6 +185,14 @@ fn an_existing_account_joins_a_share_and_keeps_the_higher_role() {
             r.server.db.share_role(&share, &ana_id).unwrap(),
             Some(Role::Editor)
         );
+        // Someone who holds the whole folder lands on the folder, where the
+        // share is not listed beside it.
+        r.server.db.grant(&id, &bia.id, Role::Reader).unwrap();
+        let bia_browser = sign_in(&r, "bia@casa.lan", "a senha da bia").await;
+        let again = link(&r, &admin, json!({ "share": share, "role": "editor" })).await;
+        let (status, joined) = post(&r, &join_path(&again), json!({}), Some(&bia_browser)).await;
+        assert_eq!(status, 200, "{joined}");
+        assert_eq!(joined["open"], id.as_str(), "{joined}");
     });
 }
 
