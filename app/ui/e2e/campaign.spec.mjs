@@ -298,7 +298,8 @@ test("a player outside a closed table is told so, in the folder's place, and get
   await expect(state).toBeVisible();
   // The game master opens the table: the next try gets in.
   await app.page.evaluate(() => (window.__harnessShutOut = false));
-  await state.getByRole("button", { name: "Tentar agora" }).click();
+  // The window also tries by itself: that try may get in before the click.
+  await state.getByRole("button", { name: "Tentar agora" }).click({ timeout: 2000 }).catch(() => {});
   await expect(app.page.locator(".table-closed-state")).toHaveCount(0);
   await expect(app.page.locator("#folder")).not.toBeEmpty();
   app.expectFault(/mesa está fechada/);
