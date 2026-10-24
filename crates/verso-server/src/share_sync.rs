@@ -80,7 +80,13 @@ async fn run(
             // the folder's head are the share's (3.18).
             let upto = v["head"].as_i64().unwrap_or(0);
             let reader = crate::readers::reads_only(server, who, client)?;
-            v["head"] = json!(share_count(server, client, scope, (upto, reader)).await?);
+            // A table with notes released to some players: the player's
+            // own log, which the share's cut of it is the head of.
+            if reader && let Some(items) = own_log(server, who, client, scope).await? {
+                v["head"] = json!(items.len());
+            } else {
+                v["head"] = json!(share_count(server, client, scope, (upto, reader)).await?);
+            }
             (v, None)
         }
         "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
@@ -139,6 +145,39 @@ fn roots(scope: &Scope) -> Vec<String> {
     let mut out = vec![scope.root.clone()];
     out.extend(scope.mount.as_ref().map(|(_, path)| path.clone()));
     out
+}
+
+/// The player's own log as the share sees it, when the folder has notes
+/// released to some players (`campaign_sync`); `None` otherwise.
+async fn own_log(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    scope: &Scope,
+) -> Result<Option<Vec<crate::campaign_sync::Told>>, ContractError> {
+    let (folder, _) = crate::rpc::role_here(server, client)?;
+    let key = server
+        .service
+        .folder_of(client)
+        .ok_or_else(verso_service::no_folder)?;
+    let (s, account, scope) = (Arc::clone(server), who.account.id.clone(), scope.clone());
+    let c = client.to_owned();
+    crate::rpc::blocking(move || {
+        if !crate::campaign_sync::restricted(&s, &key) {
+            return Ok(None);
+        }
+        crate::sync::head_for_question(&s, &folder, &key, &c)?;
+        Ok(Some(
+            crate::campaign_sync::viewer_changes(&s, &folder, &key, &account)?
+                .into_iter()
+                .filter_map(|t| {
+                    change(&scope, t.change)
+                        .map(|change| crate::campaign_sync::Told { change, ..t })
+                })
+                .collect(),
+        ))
+    })
+    .await
 }
 
 /// How many of the folder's changes up to its number `upto` the share sees
@@ -206,6 +245,11 @@ async fn changes(
     scope: &Scope,
 ) -> Result<Value, ContractError> {
     let asked: i64 = arg(args, "since")?;
+    if crate::readers::reads_only(server, who, client)?
+        && let Some(items) = own_log(server, who, client, scope).await?
+    {
+        return Ok(crate::campaign_sync::page(&items, asked, PAGE));
+    }
     // A reader's count of the share's changes leaves out those only inside
     // secret blocks, as its pages of the log do (ADR 0087).
     let reader = crate::readers::reads_only(server, who, client)?;

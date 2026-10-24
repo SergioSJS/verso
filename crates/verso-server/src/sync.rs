@@ -73,7 +73,7 @@ fn walk_if_due(server: &Server, folder: &str, client: &str) -> bool {
 /// question after the server started), else the log as every write path
 /// keeps it — each change through the server reconciles its own paths,
 /// and the watcher's batches the rest.
-fn head_for_question(
+pub(crate) fn head_for_question(
     server: &Server,
     folder: &str,
     key: &str,
@@ -460,6 +460,21 @@ fn record_changes(
             (&readers, &recheck),
         )
         .map_err(verso_service::failed)?;
+    // A note released to some players that was deleted: their devices are
+    // told it went (ADR 0110 item 4, amended 2026-10-23).
+    let first = head - i64::try_from(changes.len()).unwrap_or(0) + 1;
+    for (i, (path, now_is, _)) in changes.iter().enumerate() {
+        if now_is.is_none()
+            && let Ok(accounts) = server.db.campaign_gone_take(folder, path)
+            && !accounts.is_empty()
+        {
+            let seq = first + i64::try_from(i).unwrap_or(0);
+            let _ = server.db.campaign_epoch_set(folder, first - 1);
+            let _ = server.db.campaign_lost_add(folder, seq, &accounts);
+            let _ = server.db.reader_force(folder, &[seq]);
+            crate::campaign::forget(server, folder);
+        }
+    }
     // Each text file's new bytes a version, a rename followed, a deletion
     // kept reachable (ADR 0091 items 1, 4 and 9).
     // The log's first look at the folder finds its files as they are: the
@@ -637,6 +652,44 @@ async fn reader_command(
     } else {
         0
     };
+    // A table with notes released to some players: this player's own log,
+    // in its own count.
+    let key = server
+        .service
+        .folder_of(client)
+        .ok_or_else(verso_service::no_folder)?;
+    if crate::campaign_sync::restricted(server, &key) {
+        let (s, f, k, a, c) = (
+            Arc::clone(server),
+            folder.clone(),
+            key.clone(),
+            who.account.id.clone(),
+            client.to_owned(),
+        );
+        if cmd == "sync_changes" {
+            return blocking(move || {
+                head_for_question(&s, &f, &k, &c)?;
+                let items = crate::campaign_sync::viewer_changes(&s, &f, &k, &a)?;
+                Ok((crate::campaign_sync::page(&items, asked, 1000), None))
+            })
+            .await;
+        }
+        let (mut answer, piece) = command_in(
+            server,
+            who,
+            client,
+            cmd,
+            (args, None),
+            Arc::new(|_: &str| true),
+        )
+        .await?;
+        let (s, f, k, a) = (Arc::clone(server), folder, key, who.account.id.clone());
+        let n = blocking(move || crate::campaign_sync::viewer_changes(&s, &f, &k, &a))
+            .await?
+            .len();
+        answer["head"] = json!(n);
+        return Ok((answer, piece));
+    }
     let at = {
         let (s, f) = (Arc::clone(server), folder.clone());
         blocking(move || {
@@ -705,6 +758,8 @@ pub(crate) async fn command_in(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let actor = who.account.id.clone();
+    // Whose eyes a table's veil is for this command.
+    let viewer = who.account.id.clone();
     // The device's name, as its session keeps it: two devices of one
     // account told apart in the log and in the folder's change log.
     let device = match &who.via {
@@ -759,6 +814,12 @@ pub(crate) async fn command_in(
             "sync_state" if reader => {
                 head_for_question(&s, &folder, &key, &c)?;
                 let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                // A table with notes released to some players: this
+                // player's files, not the players' together.
+                if crate::campaign_sync::restricted(&s, &key) {
+                    let files = crate::campaign_sync::viewer_files(&s, &folder, &key, &viewer)?;
+                    return Ok(json!({ "head": head, "files": files }));
+                }
                 let files: Vec<Value> = s
                     .db
                     .reader_manifest(&folder)
@@ -772,6 +833,20 @@ pub(crate) async fn command_in(
                 let since: i64 = arg(&args, "since")?;
                 head_for_question(&s, &folder, &key, &c)?;
                 let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                if crate::campaign_sync::restricted(&s, &key) {
+                    let changes: Vec<Value> =
+                        crate::campaign_sync::viewer_changes(&s, &folder, &key, &viewer)?
+                            .into_iter()
+                            .filter(|t| t.seq > since && t.tell)
+                            .map(|t| t.change)
+                            .take(1000)
+                            .collect();
+                    let more = changes
+                        .last()
+                        .and_then(|l| l["seq"].as_i64())
+                        .is_some_and(|last| last < head);
+                    return Ok(json!({ "head": head, "changes": changes, "more": more }));
+                }
                 let changes =
                     s.db.reader_changes_since(&folder, since, 1000)
                         .map_err(verso_service::failed)?;
@@ -783,8 +858,8 @@ pub(crate) async fn command_in(
                 let named: String = arg(&args, "path")?;
                 let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
                 // A table's hidden file is not there for a player (ADR 0110).
-                if crate::campaign_serve::is_hidden(&s, &key, &path)
-                    || crate::campaign_serve::is_hidden(&s, &key, &named)
+                if crate::campaign_serve::is_hidden(&s, &key, Some(&viewer), &path)
+                    || crate::campaign_serve::is_hidden(&s, &key, Some(&viewer), &named)
                 {
                     return Err(refused("not found"));
                 }
