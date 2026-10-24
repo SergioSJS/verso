@@ -217,7 +217,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
 .title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
-.note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
+.note-title { flex: 1; min-width: 0; overflow-wrap: anywhere; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
 /* A synced folder's note, live in the server's room or local (ADR 0082

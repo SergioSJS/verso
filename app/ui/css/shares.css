@@ -143,6 +143,7 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .cd-player-who { display: flex; flex-direction: column; min-width: 0; }
 .cd-player-name { font-weight: 600; font-size: .9rem; }
 .cd-player-grants { font-size: .8rem; color: var(--ink-3); }
+.cd-player-line { display: block; }
 .cd-online { color: var(--good); font-size: .7rem; }
 .cd-note-link { padding: 0; border: 0; background: none; color: var(--seal); text-decoration: underline; cursor: pointer; font: inherit; }
 .cd-field { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; }
@@ -181,4 +182,35 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
   .switch.big { width: 54px; height: 32px; }
   .switch.big .switch-track::after { width: 26px; height: 26px; }
   .switch.big input:checked + .switch-track::after { transform: translateX(22px); }
+}
+
+/* ---------- Who sees this note (ADR 0110, 2026-10-23): the title row's button and its popover ---------- */
+.note-access { flex: none; display: inline-flex; }
+.note-access[hidden] { display: none; }
+.note-access-btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; min-width: 36px; min-height: 36px; padding: 0 .5rem; border-radius: 8px; color: var(--ink-3); font: inherit; font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+.note-access-btn .icon { width: 16px; height: 16px; flex: none; }
+.note-access-btn:hover, .note-access-btn[aria-expanded="true"] { color: var(--ink); background: var(--paper-3); }
+.note-access.is-tight .note-access-count { display: none; }
+.note-access-pop { position: fixed; z-index: 18; box-sizing: border-box; width: 300px; max-width: calc(100vw - 24px); max-height: min(70dvh, 28rem); overflow: auto; overscroll-behavior: contain; padding: .7rem .85rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 12px 32px -12px oklch(0% 0 0 / .4); font-size: .85rem; line-height: 1.4; }
+.note-access-pop[hidden] { display: none; }
+.na-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
+.na-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin: -.4rem -.5rem -.4rem 0; border-radius: 8px; color: var(--ink-3); cursor: pointer; }
+.na-close:hover { color: var(--ink); background: var(--paper-3); }
+.note-access-pop:not(.is-sheet) .na-close { display: none; }
+.na-line { margin: 0 0 .45rem; color: var(--ink-2); }
+.na-master { margin: .45rem 0 0; color: var(--ink-3); font-size: .8rem; }
+.na-list { list-style: none; margin: 0 0 .65rem; padding: 0; }
+.na-row { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; padding: .3rem 0; border-bottom: 1px solid var(--hair); }
+.na-row:last-child { border-bottom: 0; }
+.na-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.na-state { display: inline-flex; align-items: baseline; gap: .3rem; flex: none; white-space: nowrap; }
+.na-row.is-sees .na-state, .na-row.is-edits .na-state { color: var(--good); }
+.na-row.is-none .na-state { color: var(--ink-3); }
+.na-change { width: 100%; }
+.note-access-pop.is-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-width: none; border-width: 1px 0 0; border-radius: 16px 16px 0 0; padding: .85rem 1rem max(1rem, env(safe-area-inset-bottom)); max-height: 72dvh; }
+@media (pointer: coarse), (max-width: 760px) {
+  .note-access-btn { min-width: 44px; min-height: 44px; }
+  .na-change, .na-close { min-height: 44px; }
+  .na-close { min-width: 44px; }
+  .na-row { padding: .45rem 0; }
 }

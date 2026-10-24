@@ -14,6 +14,7 @@ import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
 import { mayEditGranted } from "../campaign";
+import { NoteAccess } from "../noteAccess";
 import { guard } from "../readerNotice";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
@@ -169,6 +170,8 @@ export class NoteLeaf extends Leaf {
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
   readonly star = h("button", "star");
+  /** Who sees this note, when it is a table's (ADR 0110). */
+  readonly access = new NoteAccess(() => this.path);
   readonly coverBox = h("div", "note-cover-box");
   readonly addCoverBtn = h("button", "note-add-cover-btn");
   readonly stickerBtn = h("button", "note-sticker-btn");
@@ -312,7 +315,8 @@ export class NoteLeaf extends Leaf {
 
     const titleRow = h("div", "title-row");
     this.liveMark.hidden = true;
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.access.el, this.liveMark);
+    this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;
     sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
@@ -994,6 +998,7 @@ export class NoteLeaf extends Leaf {
     this.refresh(note);
     this.setDirty(false);
     this.paintStar();
+    this.access.update();
     this.applyMode();
     markCurrent();
     if (this.pane.active === this) panel.show(this);
@@ -1034,6 +1039,7 @@ export class NoteLeaf extends Leaf {
     this.setTitle(name(path));
     this.title.textContent = name(path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    this.access.update();
     markCurrent();
     persistSoon();
   }
@@ -1265,6 +1271,7 @@ export class NoteLeaf extends Leaf {
   }
   override destroy(): void {
     this.destroyed = true;
+    this.access.destroy();
     this.unpreview();
     this.unmountDrawing();
     this.cancelReposition?.();
