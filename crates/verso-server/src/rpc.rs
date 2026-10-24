@@ -931,7 +931,7 @@ async fn folder_command(
     let reads_only = door.projects() && access != Access::Write;
     let veiled = door.veiled();
     let Some(scope) = scope else {
-        return folder_run(
+        let mut answer = folder_run(
             server,
             who,
             client,
@@ -939,7 +939,9 @@ async fn folder_command(
             (&folder, &key),
             args,
         )
-        .await;
+        .await?;
+        door.inject(name, &mut answer);
+        return Ok(answer);
     };
     let limit = args["limit"]
         .as_u64()
@@ -1029,6 +1031,7 @@ async fn folder_command(
     )
     .await
     .map_err(|e| scope.error(e))?;
+    door.inject(name, &mut answer);
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -1417,11 +1420,12 @@ async fn record_space(server: &Arc<Server>, client: &str) {
 
 fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
     let mut can = vec![Can::Account, Can::Collab];
-    let visible = crate::shares::scope_here(server, client).map(|s| s.share);
-    if let Ok((folder, role)) = role_here(server, client)
-        && role.writes()
-        && who.reaches(visible.as_deref().unwrap_or(&folder)).1
-    {
+    // Who the person is here, and what the ceiling of the credential is:
+    // the rules' answer (ADR 0113), the window's one source.
+    let door = crate::access::Door::of(server, who, client).ok();
+    // `Can::Write` is the folder-wide "may change the folder" the hosts
+    // without a server also give; the person's place is `access`.
+    if door.as_ref().is_some_and(crate::access::Door::writes_here) {
         can.push(Can::Write);
     }
     if who.account.admin && !matches!(who.via, Via::Token { .. }) {
@@ -1431,5 +1435,6 @@ fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
         host: Host::Server,
         can,
         latency_ms: None,
+        access: door.map(|d| d.folder_access()),
     }
 }

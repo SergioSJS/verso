@@ -10,7 +10,8 @@
 
 use super::*;
 use verso_contract::{
-    CampaignAccess, CampaignAudience, CampaignGrant, CampaignInvite, CampaignStatus,
+    AccessChange, AccessInfo, AccessSetResult, CampaignAccess, CampaignAudience, CampaignGrant,
+    CampaignInvite, CampaignStatus,
 };
 
 fn no_table() -> ContractError {
@@ -128,6 +129,42 @@ pub fn campaign_permission(
     images: bool,
 ) -> Result<CampaignStatus, ContractError> {
     let _ = (root, accounts, images);
+    Err(no_table())
+}
+
+/// The access of each path named: its own set, what applies, where it comes
+/// from and, for a folder, how many files lie under it and which have a set
+/// of their own (ADR 0113 section C).
+#[tauri::command]
+#[specta::specta]
+pub fn access_get(paths: Vec<String>) -> Result<Vec<AccessInfo>, ContractError> {
+    let _ = paths;
+    Err(no_table())
+}
+
+/// Write the whole access of each path named, or delete it (*Follow the
+/// folder*); on a folder it replaces everything inside (ADR 0113 item 2).
+#[tauri::command]
+#[specta::specta]
+pub fn access_set(
+    paths: Vec<String>,
+    change: AccessChange,
+) -> Result<AccessSetResult, ContractError> {
+    let _ = (paths, change);
+    Err(no_table())
+}
+
+/// Give players, or take from them, a right at a table: today `files`,
+/// *Send files* (ADR 0113 K.4).
+#[tauri::command]
+#[specta::specta]
+pub fn table_rights_set(
+    root: String,
+    accounts: Vec<String>,
+    right: String,
+    on: bool,
+) -> Result<CampaignStatus, ContractError> {
+    let _ = (root, accounts, right, on);
     Err(no_table())
 }
 

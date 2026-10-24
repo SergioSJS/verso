@@ -426,3 +426,100 @@ fn facts_for(server: &Server, folder: &str, veil: Option<&Veil>, account: &str) 
     }
     facts
 }
+
+fn why_out(w: &super::Why) -> verso_contract::AccessWhy {
+    use verso_contract::AccessWhy as W;
+    match w {
+        super::Why::Master => W::Master,
+        super::Why::Role => W::Role,
+        super::Why::Own => W::Own,
+        super::Why::Folder(p) => W::Folder { path: p.clone() },
+        super::Why::Default => W::Default,
+        super::Why::Derived => W::Derived,
+        super::Why::Closed => W::Closed,
+    }
+}
+
+fn level_out(l: super::Level) -> verso_contract::AccessLevel {
+    match l {
+        super::Level::None => verso_contract::AccessLevel::None,
+        super::Level::See => verso_contract::AccessLevel::See,
+        super::Level::Edit => verso_contract::AccessLevel::Edit,
+    }
+}
+
+impl Door {
+    /// What the asker may do with `path`, as every read answer says it
+    /// (ADR 0113 section C). `derived`: the file is shown by one the person
+    /// sees (it is in a list they were given).
+    #[must_use]
+    pub fn file_access(&self, path: &str, kind: Kind, derived: bool) -> verso_contract::FileAccess {
+        let t = Target::new(path, kind).derived(derived);
+        let (level, why) = self.facts.level(&self.asker, &t);
+        verso_contract::FileAccess {
+            level: level_out(level),
+            attach: may(&self.facts, &self.asker, Action::Attach, &t).allowed(),
+            why: why_out(&why),
+        }
+    }
+
+    /// Who the asker is at the folder (the capabilities').
+    #[must_use]
+    pub fn folder_access(&self) -> verso_contract::FolderAccess {
+        use verso_contract::{AccessCap, AccessSeat};
+        verso_contract::FolderAccess {
+            seat: match self.seat() {
+                Seat::Master => AccessSeat::Master,
+                Seat::Player => AccessSeat::Player,
+                Seat::Visitor => AccessSeat::Visitor,
+                Seat::Stranger => AccessSeat::None,
+            },
+            role: if self.asker.link {
+                String::new()
+            } else {
+                self.asker
+                    .role
+                    .map_or_else(String::new, |r| r.as_str().to_owned())
+            },
+            cap: if self.asker.cap == Cap::Write {
+                AccessCap::Write
+            } else {
+                AccessCap::Read
+            },
+            table: self.has_table(),
+        }
+    }
+
+    /// Put `access` on what `answer` (of the command `name`, in the
+    /// folder's own paths) says of a file: a read of a note or a text, a
+    /// write's, each entry of a listing.
+    pub fn inject(&self, name: &str, answer: &mut Value) {
+        let put = |door: &Self, v: &mut Value, kind: Option<Kind>, derived: bool| {
+            let Some(path) = v["path"].as_str().map(str::to_owned) else {
+                return;
+            };
+            let kind = kind.unwrap_or_else(|| Kind::of_path(&path));
+            if let Ok(a) = serde_json::to_value(door.file_access(&path, kind, derived)) {
+                v["access"] = a;
+            }
+        };
+        match name {
+            "read_note" | "read_text" | "create_note" | "write_text" | "write_board" => {
+                put(self, answer, None, false);
+            }
+            "write_note" => put(self, &mut answer["note"], None, false),
+            "list_entries" => {
+                for e in answer.as_array_mut().into_iter().flatten() {
+                    let kind = match e["kind"].as_str() {
+                        Some("folder") => Some(Kind::Folder),
+                        _ => None,
+                    };
+                    // What is listed is seen: an attachment or a folder is
+                    // shown by a file the person sees.
+                    put(self, e, kind, true);
+                }
+            }
+            _ => {}
+        }
+    }
+}
