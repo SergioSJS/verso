@@ -94,6 +94,28 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    type and `nosniff` ([0083](0083-security-hardening-of-universo.md)
    items 8 and 9), and never an SVG.
 
+   `[DECIDED 2026-10-24]` **Amendment: the game master lets a player send
+   images.** Asked whether the players should be able to send an image to the
+   chat, since every invited player is a reader and "a reader, who writes no
+   file, sends no image", the maintainer: *"Deveria ser possível dar ou não
+   permissão de subir imagem, melhore a tela de acesso, adicione colunas de
+   permissão."* So the game master grants or withholds, **per player and per
+   table**, the permission to send images to the table. With it, the
+   **server** writes the image into the table's attachments place on the
+   player's behalf (the same place and the same checks as an editor's: PNG,
+   JPEG, WebP or GIF by the bytes, never an SVG, the table's size limit, the
+   folder's quota, `nosniff`, the pace); the player still writes no file of
+   their own and reaches nothing else. Without it, nothing changes: a reader
+   sends no image. The owner and an editor always may. A player who comes in
+   through a share and one who is a member of the folder behave the same
+   (0110: a share only bounds what is seen). **Off by default** for a player
+   (chosen in the code; the game master turns it on, one player or all of
+   them). Taken back, it stops at once: the player's window is told, and its
+   attach button, paste and drop go away. Built: schema 19
+   (`campaign_images`), the command `campaign_permission`, the event
+   `table-images`; see [0110](0110-a-table-is-a-campaign-folder.md) "As
+   built (who may send images, 2026-10-24)".
+
 4. **Rolling from the table.** `[PROPOSED]` The table's input rolls when
    the text is a dice notation after `/r` (`/r 1d20+3`), or from a dice
    button beside it, through the same command as a note's roll, so the

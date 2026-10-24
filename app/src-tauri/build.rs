@@ -134,6 +134,7 @@ fn main() {
         "campaign_access",
         "campaign_secret_name",
         "campaign_grant",
+        "campaign_permission",
         "campaign_invite",
         "server_sign_in",
         "server_sign_in_page",

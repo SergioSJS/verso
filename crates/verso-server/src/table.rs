@@ -38,7 +38,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use verso_contract::{
     ContractError, DiceRoll, DiceStyles, ErrorKind, OracleDraw, TableCleared, TableEntry,
-    TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster,
+    TableImages, TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster,
 };
 use verso_service::lock;
 
@@ -796,7 +796,14 @@ pub async fn command(
             // kept inside the share's table folder, where the player reads it.
             let visible = crate::shares::scope_here(server, client)
                 .map_or_else(|| folder.clone(), |s| s.share);
-            if !(folder_role.writes() && who.reaches(&visible).1 && role.writes()) {
+            // ADR 0107 item 3 as amended 2026-10-24: an owner or an editor
+            // always; a player when the game master gave it the
+            // permission, with a credential that writes (a phone paired
+            // as a reader, or a read-only token, still sends none).
+            let may = who.reaches(&visible).1
+                && ((folder_role.writes() && role.writes())
+                    || images_allowed(server, &folder, &table, &account));
+            if !may {
                 return Err(refused("you may only read this folder"));
             }
             let data: String = arg(&args, "base64")?;
@@ -988,5 +995,47 @@ fn join(
             .collect(),
         more,
         roster: roster(server, folder, table),
+        images: role.writes() || images_allowed(server, folder, table, account),
     })
+}
+
+/// Whether the game master let `account` send images at `table`
+/// (ADR 0107 item 3 as amended 2026-10-24); a failed read says no.
+pub(crate) fn images_allowed(server: &Server, folder: &str, table: &str, account: &str) -> bool {
+    server
+        .db
+        .campaign_images_has(folder, table, account)
+        .unwrap_or(false)
+}
+
+/// The permission to send images changed for `accounts` at `table`: their
+/// windows at the table are told at once, so the attach button, the paste
+/// and the drop appear or go away as they are.
+pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accounts: &[String]) {
+    let clients: Vec<(String, String)> = {
+        let map = lock(&server.tables.map);
+        map.get(&key_of(folder, table))
+            .map(|m| {
+                m.iter()
+                    .filter(|(_, m)| accounts.contains(&m.account))
+                    .map(|(c, m)| (c.clone(), m.account.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    for (client, account) in clients {
+        let on_share = viewer_of(server, &client, folder).is_some_and(|v| v.2.is_some());
+        let payload = TableImages {
+            table: if on_share {
+                String::new()
+            } else {
+                table.to_owned()
+            },
+            images: images_allowed(server, folder, table, &account),
+        };
+        server.push(
+            &[client],
+            &json!({ "event": "table-images", "payload": payload }),
+        );
+    }
 }

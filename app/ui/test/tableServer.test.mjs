@@ -83,7 +83,7 @@ const styles = { 1: { body: "#112233", number: "#ffffff", outline: "#000000", te
 const wire = (id, over = {}) => ({ table: "", id: String(id), kind: "say", by: "Bia", by_id: "acc-bia", at: `2026-10-22T12:00:${String(id % 60).padStart(2, "0")}Z`, path: null, pinned: false, secret: false, roll: null, draw: null, text: `msg ${id}`, image: null, ...over });
 const rollWire = (id, over = {}) => wire(id, { kind: "roll", text: null, roll: { notation: "1d20+3", source: null, terms: [{ sign: 1, sides: 20, fudge: false, kept: [14], dropped: [] }], modifier: 3, total: 17, by: "Bia", at: "2026-10-22T12:00:00Z", styles }, ...over });
 
-function fake({ role = "editor", entries = [], more = false, roster, joinFails = false, table = "" } = {}) {
+function fake({ role = "editor", entries = [], more = false, roster, joinFails = false, table = "", images } = {}) {
   const calls = [];
   /** The table each command named, in order. */
   const named = [];
@@ -95,7 +95,7 @@ function fake({ role = "editor", entries = [], more = false, roster, joinFails =
       calls.push(["join", color, st]);
       named.push(tb);
       if (joinFails) return ok(null).then(() => ({ status: "error", error: { kind: "refused", message: "the table is a server's" } }));
-      return ok({ table, you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }] });
+      return ok({ table, you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }], ...(images === undefined ? {} : { images }) });
     },
     leave: (tb) => (calls.push(["leave"]), named.push(tb), ok(null)),
     look: (color, st, tb) => (calls.push(["look", color, st]), named.push(tb), ok(null)),
@@ -280,14 +280,14 @@ test("a refusal is returned in the person's words and holds nothing", async () =
 test("a table the side does not have: the join is refused and nothing stays listening", async () => {
   const f = fake({ joinFails: true });
   assert.equal(await m.openServerTable(f.deps), null);
-  assert.equal(f.unlistened.length, 5);
+  assert.equal(f.unlistened.length, 6);
 });
 
 test("closing leaves the table and stops hearing it; what arrives after is dropped", async () => {
   const f = fake();
   const t = await m.openServerTable(f.deps);
   t.close();
-  assert.equal(f.unlistened.length, 5);
+  assert.equal(f.unlistened.length, 6);
   assert.deepEqual(f.calls.at(-1), ["leave"]);
   f.fire("table-entry", wire(40));
   assert.deepEqual(t.entries(), []);
@@ -352,4 +352,29 @@ test("what is told of another table is not this table's: no entry, pin, removal,
   f.fire("table-roster", { table: "Cripta", members: [] });
   assert.deepEqual(t.entries().map((e) => e.id), ["1", "4"]);
   assert.equal(t.roster().length, 0);
+});
+
+test("a player sends images when the game master lets it, told live; an older server's reader never does", async () => {
+  // The join says it; the permission can change under the window and it is told at once.
+  const f = fake({ role: "reader", images: false });
+  const t = await m.openServerTable(f.deps);
+  let heard = 0;
+  t.onChange(() => heard++);
+  assert.equal(t.canSendImage(), false);
+  f.fire("table-images", { table: "", images: true });
+  assert.equal(t.canSendImage(), true);
+  assert.equal(heard, 1);
+  f.fire("table-images", { table: "", images: true });
+  assert.equal(heard, 1, "the same news is no change");
+  f.fire("table-images", { table: "Outra", images: false });
+  assert.equal(t.canSendImage(), true, "another table's news is not this one's");
+  f.fire("table-images", { table: "", images: false });
+  assert.equal(t.canSendImage(), false);
+  assert.equal(heard, 2);
+  // Granted at the join.
+  const g = await m.openServerTable(fake({ role: "reader", images: true }).deps);
+  assert.equal(g.canSendImage(), true);
+  // A server that does not say: a reader does not, an editor does.
+  assert.equal((await m.openServerTable(fake({ role: "reader" }).deps)).canSendImage(), false);
+  assert.equal((await m.openServerTable(fake({ role: "editor" }).deps)).canSendImage(), true);
 });

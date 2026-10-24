@@ -10,7 +10,7 @@
 // commands and events are handed in (`Api`), so the page's module and the
 // unit tests drive the same code.
 
-import type { ContractError, DiceStyles as WireStyles, TableCleared, TableEntry as Wire, TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster } from "../bindings";
+import type { ContractError, DiceStyles as WireStyles, TableCleared, TableEntry as Wire, TableImages, TableJoin, TableMember, TablePage, TablePinned, TableRemoved, TableRoster } from "../bindings";
 import { readDiceStyles } from "../dice3d/look";
 import { entryOfServer, TableLog, type Member, type OracleWords, type Role, type ServerTable, type TableEntry } from "./model";
 
@@ -80,6 +80,8 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   let hasMore = false;
   let closed = false;
   let secret = false;
+  // The game master's permission to send images, for a player (ADR 0107 item 3 as amended 2026-10-24).
+  let images = false;
   const offs: (() => void)[] = [];
   // The table the events are for: the one asked until the join names it.
   let at: string | null = deps.table;
@@ -116,6 +118,11 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
       if (!p.keep_pinned) hasMore = false;
       tell();
     }),
+    api.listen<TableImages>("table-images", (p) => {
+      if (!mine(p.table) || images === p.images) return;
+      images = p.images;
+      tell();
+    }),
     api.listen<TableRoster>("table-roster", (r) => {
       if (!mine(r.table)) return;
       members = r.members.map(memberOf);
@@ -137,6 +144,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   at = where;
   you = joined.data.you;
   role = joined.data.role === "owner" || joined.data.role === "reader" ? joined.data.role : "editor";
+  images = joined.data.images ?? role !== "reader";
   members = joined.data.roster.map(memberOf);
   hasMore = joined.data.more;
   for (const w of joined.data.entries) ingest(w, false);
@@ -234,7 +242,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
       secret = v;
       tell();
     },
-    canSendImage: () => role !== "reader",
+    canSendImage: () => role !== "reader" || images,
     canClear: () => role === "owner",
     canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image") && e.mine),
     look() {

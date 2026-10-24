@@ -144,8 +144,9 @@ test("the table's window: a switch that saves at once, cards, limits under Advan
   await expect(dialog.getByRole("button", { name: "Copiar o link" })).toBeVisible();
   await expect(dialog.getByText(/Uso único, vale até/)).toBeVisible();
   // The players the server counts, with what is granted to them.
-  await expect(dialog.getByRole("list", { name: "Jogadores" })).toContainText("Bia");
-  await expect(dialog.getByRole("list", { name: "Jogadores" })).toContainText("Só lê");
+  const grid = dialog.getByRole("table", { name: "Jogadores da mesa e o que cada um pode fazer" });
+  await expect(grid).toContainText("Bia");
+  await expect(grid.getByRole("switch", { name: "Bia pode enviar imagens" })).not.toBeChecked();
   // Release everything asks first.
   await dialog.getByRole("button", { name: "Liberar tudo" }).click();
   await expect(dialog.getByText(/Liberar todas as notas desta mesa agora\?/)).toBeVisible();

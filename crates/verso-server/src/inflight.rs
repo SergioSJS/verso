@@ -192,7 +192,8 @@ pub fn admit(
             most / (1024 * 1024)
         ))));
     }
-    if UPLOADS.contains(&cmd) && !may_write(server, client) {
+    if UPLOADS.contains(&cmd) && !may_write(server, client) && !may_send_image(server, client, cmd)
+    {
         return Err(refuse(refused("you may only read this folder".to_owned())));
     }
     server.inflight.take(len).map_err(refuse)
@@ -205,6 +206,29 @@ fn may_write(server: &Server, client: &str) -> bool {
     verso_service::lock(&server.clients)
         .get(client)
         .is_some_and(|c| c.token_write && c.folder.as_ref().is_some_and(|(_, r)| r.writes()))
+}
+
+/// Whether `cmd` is a table's image and the window's account was let send
+/// images at some table of its folder (ADR 0107 item 3 as amended
+/// 2026-10-24): the command judges the table itself, after the parse.
+fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
+    if cmd != "table_send_image" {
+        return false;
+    }
+    let found = verso_service::lock(&server.clients)
+        .get(client)
+        .filter(|c| c.token_write)
+        .and_then(|c| {
+            c.folder
+                .as_ref()
+                .map(|(f, _)| (f.clone(), c.account.clone()))
+        });
+    found.is_some_and(|(folder, account)| {
+        server
+            .db
+            .campaign_images_any(&folder, &account)
+            .unwrap_or(false)
+    })
 }
 
 #[cfg(test)]

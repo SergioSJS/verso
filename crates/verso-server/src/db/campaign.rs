@@ -102,6 +102,19 @@ INSERT OR IGNORE INTO campaign_epoch (folder, seq)
   FROM campaigns GROUP BY folder;
 ";
 
+/// Schema 19: the players of a table the game master let send images to its
+/// chat (ADR 0107 item 3 as amended 2026-10-24). A row is a permission
+/// given; no row, none (the default). It goes with the table, and with the
+/// account when it no longer reads the folder.
+pub(super) const IMAGES: &str = r"
+CREATE TABLE campaign_images (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  root TEXT NOT NULL,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  PRIMARY KEY (folder, root, account)
+);
+";
+
 /// The table log's ceiling a table gets, and the bounds its owner may set
 /// it within (ADR 0110, MS.1).
 pub const LOG_DEFAULT: i64 = 20_000;
@@ -286,11 +299,78 @@ impl Db {
                 )
                 .map_err(e)?;
             }
+            tx.execute(
+                "DELETE FROM campaign_images WHERE folder = ?1 AND root = ?2",
+                params![folder, root],
+            )
+            .map_err(e)?;
             rehome_log(&tx, folder)?;
             forget_players_logs(&tx, folder)?;
         }
         tx.commit().map_err(e)?;
         Ok(n > 0)
+    }
+
+    /// The accounts the table at `root` lets send images.
+    pub fn campaign_images_of(&self, folder: &str, root: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT account FROM campaign_images WHERE folder = ?1 AND root = ?2 ORDER BY account")
+            .map_err(e)?;
+        st.query_map(params![folder, root], |r| r.get(0))
+            .map_err(e)?
+            .collect::<Result<_, _>>()
+            .map_err(e)
+    }
+
+    /// Whether `account` was let send images at the table at `root`.
+    pub fn campaign_images_has(&self, folder: &str, root: &str, account: &str) -> R<bool> {
+        self.reader()
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM campaign_images WHERE folder = ?1 AND root = ?2 AND account = ?3)",
+                params![folder, root, account],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// Whether `account` was let send images at any table of `folder`.
+    pub fn campaign_images_any(&self, folder: &str, account: &str) -> R<bool> {
+        self.reader()
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM campaign_images WHERE folder = ?1 AND account = ?2)",
+                params![folder, account],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// Give `accounts` the permission to send images at the table at
+    /// `root`, or take it from them.
+    pub fn campaign_images_set(
+        &self,
+        folder: &str,
+        root: &str,
+        accounts: &[String],
+        on: bool,
+    ) -> R<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        for a in accounts {
+            if on {
+                tx.execute(
+                    "INSERT OR IGNORE INTO campaign_images (folder, root, account) VALUES (?1, ?2, ?3)",
+                    params![folder, root, a],
+                )
+            } else {
+                tx.execute(
+                    "DELETE FROM campaign_images WHERE folder = ?1 AND root = ?2 AND account = ?3",
+                    params![folder, root, a],
+                )
+            }
+            .map_err(e)?;
+        }
+        tx.commit().map_err(e)
     }
 
     /// Change a table's settings; a value left `None` stays. The caller
@@ -685,6 +765,13 @@ impl Db {
                 )
                 .map_err(e)?;
         }
+        tx.execute(
+            "UPDATE campaign_images SET root = CASE WHEN root = ?2 THEN ?4
+               ELSE ?4 || substr(root, length(?2) + 1) END
+             WHERE folder = ?1 AND ?2 <> '' AND (root = ?2 OR substr(root, 1, length(?3)) = ?3)",
+            params![folder, from, under, to],
+        )
+        .map_err(e)?;
         tx.commit().map_err(e)?;
         Ok(touched)
     }
@@ -711,6 +798,12 @@ impl Db {
                 )
                 .map_err(e)?;
         }
+        tx.execute(
+            "DELETE FROM campaign_images WHERE folder = ?1 AND ?2 <> ''
+               AND (root = ?2 OR substr(root, 1, length(?3)) = ?3)",
+            params![folder, path, under],
+        )
+        .map_err(e)?;
         rehome_log(&tx, folder)?;
         forget_players_logs(&tx, folder)?;
         tx.commit().map_err(e)?;
@@ -744,6 +837,7 @@ impl Db {
             "campaign_skip",
             "campaign_lost",
             "campaign_gone",
+            "campaign_images",
         ] {
             tx.execute(
                 &format!("DELETE FROM {table} WHERE folder = ?1 AND account = ?2"),

@@ -42,8 +42,8 @@ pub use campaign::{
 };
 mod table;
 pub use table::{
-    DiceStyle, DiceStyles, TableCleared, TableEntry, TableJoin, TableMember, TablePage,
-    TablePinned, TableRemoved, TableRoster,
+    DiceStyle, DiceStyles, TableCleared, TableEntry, TableImages, TableJoin, TableMember,
+    TablePage, TablePinned, TableRemoved, TableRoster,
 };
 mod lists;
 pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};
