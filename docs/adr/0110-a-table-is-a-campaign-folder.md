@@ -585,13 +585,14 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   shadow for readers is cut with the public eyes: a link to a note only some
   players see is a lock in it, for everyone, until they reload (no name of
   such a note ever crosses a shared document).
-- **A player's device log is its own** once a folder has a note released to some
-  players (`campaign_epoch`, written in the same transaction as the first such
-  audience or grant, so that a failed step leaves neither; a folder whose epoch
-  row cannot be read but holds such a note is treated as having one — it fails
-  closed). A plain hide of a note the whole table saw does not switch the folder:
-  everyone saw it, the shared log tells everyone. The log the server stores is
-  told for the players together; each player is told its cut of it, numbered in
+- **A player's device log is its own** wherever there is a table
+  (`campaign_epoch`, written in the transaction that makes the folder's first
+  table: the log the readers had counted up to there is everyone's, from there on
+  each player's is its own; a folder whose epoch row cannot be read is treated as
+  having one — it fails closed). A shared log cannot be cut afterwards without
+  moving the numbers a device counted, and a note a table keeps from its players
+  has a name, a history and a count no shared log may carry. The log the server
+  stores is told for the players together; each player is told its cut of it, numbered in
   its own count, and only the changes after the point it was settled to are
   decided at an ask (one ask at a time per folder and player; the head is a
   count, not a walk; the files it is told are kept while the log and the table
@@ -641,7 +642,8 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   and the audiences' log entries — is told once it can be read, and the rooms
   close at once (an unreadable table hides every note). Hiding a path that
   readers had as a plain folder's file never takes a row out of the readers'
-  count: they are told it went, as a change. The forgetting counters are per
+  count and is told to no player by name (it may never have had it): the rows
+  stay, counted, and are told by what the path is now. The forgetting counters are per
   folder and a file written is not a change of the table's state; a decision
   that keeps meeting a moving state is refused for the asker to repeat, never
   written. A share's `sync_state` counts its head before the files are made.

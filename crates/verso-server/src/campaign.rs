@@ -471,15 +471,11 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
         .into_iter()
         .find(|(_, r)| *r == Role::Owner)
         .map_or_else(|| "en".to_owned(), |(a, _)| a.lang);
-    // The players' logs are each their own once a note is released to some
-    // players — or one is granted to a player who is not the whole table's —
-    // whatever the epoch row says: a state that cannot be told otherwise
-    // fails closed.
-    let restricted = server.db.campaign_epoch(folder)?.is_some()
-        || notes.values().any(|n: &NoteState| {
-            n.audience.is_players()
-                || (matches!(n.grant, Grant::Player(_)) && n.audience != Audience::Table)
-        });
+    // The players' logs are each their own wherever there is a table: a
+    // note a table keeps from its players has a name, a history and a count
+    // that no shared log may carry, and a log that is the same for everyone
+    // cannot be cut afterwards without moving the numbers a device counted.
+    let restricted = true;
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,

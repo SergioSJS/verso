@@ -11,7 +11,7 @@
 use base64::Engine;
 use serde_json::{Value, json};
 
-use crate::db::{Audience, Role};
+use crate::db::Role;
 use crate::tests::{block_on, sign_in};
 use crate::tests_audience::{BARAO, release_to, told};
 use crate::tests_campaign::{Mesa, Win, mesa};
@@ -477,42 +477,6 @@ fn an_attachment_deleted_is_told_to_the_players_whose_notes_opened_it() {
 // ------------------------------------------------------------- state
 
 #[test]
-fn a_note_released_to_players_switches_the_folder_to_per_player_logs_in_the_same_step() {
-    block_on(async {
-        let mut m = mesa().await;
-        assert_eq!(m.r.server.db.campaign_epoch(&m.id).unwrap(), None);
-        // A plain hide does not.
-        m.owner
-            .call(
-                "campaign_release",
-                json!({ "paths": ["Livre.md"], "released": false }),
-            )
-            .await;
-        assert_eq!(
-            m.r.server.db.campaign_epoch(&m.id).unwrap(),
-            None,
-            "a plain hide switched the folder to per-player logs"
-        );
-        let ana_id = m.ana_id.clone();
-        let set: std::collections::BTreeSet<String> = [ana_id].into_iter().collect();
-        m.r.server
-            .db
-            .campaign_audience(&m.id, &["Livre.md".to_owned()], &Audience::Players(set))
-            .unwrap();
-        assert!(
-            m.r.server.db.campaign_epoch(&m.id).unwrap().is_some(),
-            "the audience was set without the folder's logs becoming the players' own"
-        );
-        crate::campaign::forget(&m.r.server, &m.id);
-        assert!(
-            crate::campaign::veil_of(&m.r.server, &m.id)
-                .unwrap()
-                .restricted()
-        );
-    });
-}
-
-#[test]
 fn a_table_that_cannot_be_read_is_closed_to_players_not_open() {
     block_on(async {
         let m = mesa().await;
@@ -717,14 +681,14 @@ fn unmaking_the_last_table_forgets_the_players_logs_so_a_new_one_begins_anew() {
             m.r.server.db.campaign_viewer(&m.id, &m.ana_id).unwrap(),
             None
         );
-        // Made again: the folder's players share one log until a note is
-        // released to some of them.
+        // Made again: the players' logs begin anew, from the head it is made at.
+        let head = m.r.server.db.head(&m.id).unwrap();
         let made = m.owner.call("campaign_make", json!({ "root": "" })).await;
         assert!(made.get("ok").is_some(), "{made}");
-        assert!(
-            !crate::campaign::veil_of(&m.r.server, &m.id)
-                .unwrap()
-                .restricted()
+        assert_eq!(m.r.server.db.campaign_epoch(&m.id).unwrap(), Some(head));
+        assert_eq!(
+            m.r.server.db.campaign_viewer(&m.id, &m.ana_id).unwrap(),
+            None
         );
     });
 }

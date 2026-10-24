@@ -609,13 +609,14 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   com os olhos do público: um link para uma nota que só alguns jogadores veem
   vira cadeado nela, para todos, até recarregarem (nenhum nome de uma nota assim
   cruza um documento compartilhado).
-- **O log do dispositivo de um jogador é só dele** quando a pasta tem uma nota
-  liberada para alguns jogadores (`campaign_epoch`, escrito na mesma transação
-  do primeiro público ou permissão assim, de modo que um passo que falha não
-  deixa nenhum dos dois; uma pasta cuja linha de época não pode ser lida mas tem
-  uma nota assim é tratada como se tivesse — falha fechado). Ocultar sem mais uma
-  nota que a mesa toda via não troca a pasta: todos a viam, o log compartilhado
-  diz a todos. O log que o servidor guarda é dito para os jogadores juntos; cada
+- **O log do dispositivo de um jogador é só dele** onde houver uma mesa
+  (`campaign_epoch`, escrito na transação que faz a primeira mesa da pasta: o log
+  que os leitores tinham contado até ali é de todos, dali em diante o de cada
+  jogador é só dele; uma pasta cuja linha de época não pode ser lida é tratada
+  como se tivesse — falha fechado). Um log compartilhado não pode ser recortado
+  depois sem mover os números que um dispositivo contou, e uma nota que uma mesa
+  esconde de seus jogadores tem nome, histórico e contagem que nenhum log
+  compartilhado pode carregar. O log que o servidor guarda é dito para os jogadores juntos; cada
   jogador recebe o seu recorte, numerado na sua própria contagem, e só as
   mudanças depois do ponto até onde ele foi assentado são decididas num pedido
   (um pedido por vez por pasta e jogador; o topo é uma contagem, não uma
@@ -670,8 +671,9 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   eventos das janelas e as entradas de log dos públicos — é dito quando ela pode
   ser lida, e as salas se fecham na hora (uma mesa ilegível oculta toda nota).
   Ocultar um caminho que os leitores tinham como arquivo de uma pasta comum
-  nunca tira uma linha da contagem dos leitores: eles são avisados de que sumiu,
-  como uma mudança. Os contadores de esquecimento são por pasta e um arquivo
+  nunca tira uma linha da contagem dos leitores e não é dito a nenhum jogador
+  pelo nome (pode nunca tê-lo tido): as linhas ficam, contadas, e são ditas pelo
+  que o caminho é agora. Os contadores de esquecimento são por pasta e um arquivo
   escrito não é uma mudança do estado da mesa; uma decisão que continua
   encontrando um estado que se move é recusada para quem pergunta repetir, nunca
   escrita. O `sync_state` de um compartilhamento conta o topo antes de montar os
