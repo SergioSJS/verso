@@ -158,7 +158,13 @@ pub fn audience_events(
     events: &[Event],
     before: Option<Arc<Veil>>,
 ) {
-    let from_here = server.db.campaign_epoch(folder).ok().flatten().is_some();
+    // A folder whose epoch cannot be read is taken to have one: a player
+    // who lost a note is told, never left holding it.
+    let from_here = server
+        .db
+        .campaign_epoch(folder)
+        .map(|e| e.is_some())
+        .unwrap_or(true);
     let relevant: Vec<&Event> = events
         .iter()
         .filter(|e| e.restricted || (from_here && !e.lost.is_empty()))

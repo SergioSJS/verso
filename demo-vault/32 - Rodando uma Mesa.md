@@ -41,7 +41,7 @@ A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **C
 
 ## Liberar aos poucos
 
-- Botão direito numa nota › **Liberar para…**: **Toda a mesa**, ou uma ou mais jogadoras (marque quantas quiser, uma de cada vez), ou **Ninguém (oculta)**. A nota aparece na lista de quem você escolheu, nas buscas, no grafo, nos links e nos quadros; sincroniza para o aparelho delas. Quem não foi escolhida não a vê: é como se não existisse.
+- Botão direito numa nota › **Liberar para…**: **Toda a mesa**, ou uma ou mais jogadoras (marque quantas quiser: o menu continua aberto), ou **Ninguém (oculta)**. A nota aparece na lista de quem você escolheu, nas buscas, no grafo, nos links e nos quadros; sincroniza para o aparelho delas. Quem não foi escolhida não a vê: é como se não existisse.
 - **Ninguém (oculta)** a tira de novo (o aparelho recebe a ordem de largá-la). Ao tirar uma jogadora de uma nota que já via, o aparelho dela também recebe a ordem de largá-la, e o das outras não ouve nada.
 - Numa pasta da mesa: **Liberar tudo daqui** e **Ocultar tudo daqui** (sempre a mesa toda). Selecionando várias notas, o mesmo no menu da seleção. Na janela **Mesa**: **Liberar tudo**.
 
