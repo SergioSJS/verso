@@ -124,6 +124,12 @@ impl Live {
     pub(crate) fn holds(&self, path: &str) -> bool {
         lock(&self.rooms).get(path).is_some_and(|h| h.joined)
     }
+
+    /// How many saves of `path`'s room this app has heard and kept.
+    #[cfg(test)]
+    pub(crate) fn saves_heard(&self, path: &str) -> usize {
+        lock(&self.kept).get(path).map_or(0, |k| k.saved.len())
+    }
 }
 
 /// Whether the folder's notes may be live now, and how far the server is
