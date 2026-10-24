@@ -307,8 +307,14 @@ pub(crate) enum Pending {
         key: String,
         events: Vec<crate::campaign_cmds::Event>,
         before: Option<Arc<Veil>>,
+        /// Where the table's state was (`state_generation`) when it waited:
+        /// what moved since is derived again, not replayed.
+        at: u64,
     },
 }
+
+/// How much waits for one folder's table at most: the oldest goes.
+const PENDING_MOST: usize = 64;
 
 /// How many players' locks and told files the server keeps at most (a
 /// 1 GB host, ADR 0083): past it the unused are let go, the told files
@@ -358,10 +364,19 @@ pub struct Cache {
 impl Cache {
     /// Keep `what` for `folder` until its table can be read.
     pub(crate) fn defer(&self, folder: &str, what: Pending) {
-        lock(&self.pending)
-            .entry(folder.to_owned())
-            .or_default()
-            .push(what);
+        let mut all = lock(&self.pending);
+        let list = all.entry(folder.to_owned()).or_default();
+        list.push(what);
+        if list.len() > PENDING_MOST {
+            list.remove(0);
+            crate::log::warn("a table's changes wait too long to be told: the oldest is dropped");
+        }
+    }
+
+    /// How much waits for `folder`.
+    #[cfg(test)]
+    pub(crate) fn pending_len(&self, folder: &str) -> usize {
+        lock(&self.pending).get(folder).map_or(0, Vec::len)
     }
 
     /// What waits for `folder`, taken.

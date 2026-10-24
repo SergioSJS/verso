@@ -92,7 +92,7 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
     let mut readers: ReaderOf = HashMap::new();
     let mut changes: Vec<crate::db::Recorded> = Vec::new();
     let mut explicit: Vec<String> = Vec::new();
-    let mut silent: Vec<String> = Vec::new();
+    let mut went: Vec<String> = Vec::new();
     for (path, (hash, size, rhash, rsize, quick)) in &stored {
         // After an edit, only the attachments can have moved (the notes
         // changed are recorded with their own hash).
@@ -125,14 +125,14 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             }
             continue;
         }
-        // Hidden and never told as the table's: silent — what was said of it
-        // before the table stays said and counted (a row that left the log
-        // would shift every cursor counted past it), and no player is told
-        // its name now, who may never have had it. Only the manifest says it
-        // is hidden from here on.
+        // Hidden and never told as the table's: the readers had the file as
+        // a plain folder's, and a hidden note does not exist for a player
+        // (ADR 0110 item 4): a forced deletion, after the epoch, to the
+        // readers there are at this moment — who had it, or may have. Nothing
+        // before it is taken back (a row that left the log would shift every
+        // cursor counted past it); a player who comes later is never told.
         if rsize.is_none() && will.1 < 0 {
-            silent.push(path.clone());
-            continue;
+            went.push(path.clone());
         }
         if let Some(r) = now {
             readers.insert(path.clone(), r);
@@ -143,15 +143,25 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             None,
         ));
     }
-    if !silent.is_empty()
-        && let Err(e) = server.db.reader_hide(folder, &silent)
-    {
-        crate::log::warn(&format!("hiding a table's notes from sync: {e}"));
-    }
     if changes.is_empty() && explicit.is_empty() {
         return;
     }
     let mut notices = Notices::new();
+    let mut told: Vec<String> = Vec::new();
+    for path in &went {
+        let players: Vec<String> = crate::campaign_cmds::players_of(server, folder, path)
+            .map(|p| p.into_iter().map(|p| p.id).collect())
+            .unwrap_or_default();
+        told.extend(players.iter().cloned());
+        notices.insert(
+            path.clone(),
+            Notice {
+                force: true,
+                lost: players,
+                ..Notice::default()
+            },
+        );
+    }
     if let Err(e) = unseen_notices(server, (folder, key), &changes, &mut notices) {
         crate::log::warn(&format!("who sees a table's release: {}", e.message));
         return;
@@ -172,26 +182,42 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
                 .filter(|(_, same)| !**same)
                 .map(|((p, _, _), _)| p.as_str())
                 .collect();
-            crate::readers::push_sync_changed(server, (folder, key), (head, &paths), &seen, &[]);
+            crate::readers::push_sync_changed(server, (folder, key), (head, &paths), &seen, &told);
         }
         Err(e) => crate::log::warn(&format!("recording a table's release for sync: {e}")),
     }
 }
 
 /// What waited for the table of `folder` to be readable is told now, if it
-/// is: the audiences' log entries, then what the windows are told.
+/// is: the audiences' log entries, then what the windows are told. Nothing,
+/// and what waited is dropped, if the table is gone. An audience that waited
+/// while the table moved on is not replayed as it was — "Bia lost it" may be
+/// false by now — but derived again: each player it named is told what it has
+/// now against what it had.
 pub fn replay_pending(server: &Server, folder: &str) {
-    if crate::campaign::veil_of(server, folder).is_some_and(|v| v.is_unreadable()) {
-        return;
+    match crate::campaign::veil_of(server, folder) {
+        Some(v) if v.is_unreadable() => return,
+        Some(_) => {}
+        None => {
+            server.campaigns.take_pending(folder);
+            return;
+        }
     }
+    let now = server.campaigns.state_generation(folder);
     for p in server.campaigns.take_pending(folder) {
         match p {
             crate::campaign::Pending::Audience {
                 key,
                 events,
                 before,
+                at,
             } => {
-                audience_events(server, folder, &key, &events, before);
+                if at == now {
+                    audience_events(server, folder, &key, &events, before);
+                } else {
+                    let derived = derive_again(server, folder, &events);
+                    audience_events(server, folder, &key, &derived, None);
+                }
             }
             crate::campaign::Pending::Refresh {
                 key,
@@ -202,6 +228,36 @@ pub fn replay_pending(server: &Server, folder: &str) {
             }
         }
     }
+}
+
+/// The audience events of `events` as the table is now: the players each
+/// named, those who see the note now gained it and those who do not lost it.
+fn derive_again(server: &Server, folder: &str, events: &[Event]) -> Vec<Event> {
+    let Some(veil) = crate::campaign::veil_of(server, folder) else {
+        return Vec::new();
+    };
+    events
+        .iter()
+        .map(|e| {
+            let sees = |a: &&String| !veil.hides_note_from(&e.path, a);
+            // Who lost it and sees it now has it again; who lost it and does
+            // not is told it went; who was to gain it and does not was told
+            // nothing and has nothing to lose (a name is not told to one who
+            // never had it).
+            Event {
+                path: e.path.clone(),
+                lost: e.lost.iter().filter(|a| !sees(a)).cloned().collect(),
+                gained: e
+                    .lost
+                    .iter()
+                    .chain(&e.gained)
+                    .filter(sees)
+                    .cloned()
+                    .collect(),
+                restricted: true,
+            }
+        })
+        .collect()
 }
 
 /// The audience of notes changed: the players who gained or lost a note
@@ -243,6 +299,7 @@ pub fn audience_events(
                 key: key.to_owned(),
                 events: events.to_vec(),
                 before,
+                at: server.campaigns.state_generation(folder),
             },
         );
         return;
@@ -375,8 +432,10 @@ fn text_changed(
     (before, after): (Option<Arc<Veil>>, Option<Arc<Veil>>),
     players: &[String],
 ) -> Vec<String> {
+    // Without the table as it was there is no knowing whose text moved:
+    // none is told, rather than all.
     let (Some(before), Some(after)) = (before, after) else {
-        return players.to_vec();
+        return Vec::new();
     };
     let p = path.to_owned();
     let accounts = players.to_vec();
