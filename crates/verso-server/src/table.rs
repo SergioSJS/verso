@@ -698,8 +698,9 @@ pub async fn command(
             tell_roster(&s, &folder, &table);
             let (f, t) = (folder.clone(), table.clone());
             let sc = scope.clone();
-            let joined =
+            let mut joined =
                 blocking(move || join(&s, (&f, &t), &account, role, sc.as_deref())).await?;
+            joined.images = may_send_images(server, who, client, &folder, &table, folder_role);
             to_value(joined)
         }
         "table_leave" => {
@@ -793,17 +794,9 @@ pub async fn command(
         }
         "table_send_image" => {
             // As a member: the share only bounds what is seen. The file is
-            // kept inside the share's table folder, where the player reads it.
-            let visible = crate::shares::scope_here(server, client)
-                .map_or_else(|| folder.clone(), |s| s.share);
-            // ADR 0107 item 3 as amended 2026-10-24: an owner or an editor
-            // always; a player when the game master gave it the
-            // permission, with a credential that writes (a phone paired
-            // as a reader, or a read-only token, still sends none).
-            let may = who.reaches(&visible).1
-                && ((folder_role.writes() && role.writes())
-                    || images_allowed(server, &folder, &table, &account));
-            if !may {
+            // kept inside the table's own folder, whoever sends it.
+            // ADR 0107 item 3 as amended 2026-10-24 (`may_send_images`).
+            if !may_send_images(server, who, client, &folder, &table, folder_role) {
                 return Err(refused("you may only read this folder"));
             }
             let data: String = arg(&args, "base64")?;
@@ -995,8 +988,31 @@ fn join(
             .collect(),
         more,
         roster: roster(server, folder, table),
-        images: role.writes() || images_allowed(server, folder, table, account),
+        images: false,
     })
+}
+
+/// Whether this window may send an image to `table` (ADR 0107 item 3 as
+/// amended 2026-10-24), the one rule the send, the join and the status share:
+/// an owner or an editor, and a player the game master let, each only with a
+/// credential that writes (not a read-only token, not a phone paired as a
+/// reader). The table is the one the window is at: a share only bounds what
+/// is seen.
+pub(crate) fn may_send_images(
+    server: &Server,
+    who: &Who,
+    client: &str,
+    folder: &str,
+    table: &str,
+    folder_role: Role,
+) -> bool {
+    let visible =
+        crate::shares::scope_here(server, client).map_or_else(|| folder.to_owned(), |s| s.share);
+    if !who.reaches(&visible).1 {
+        return false;
+    }
+    (folder_role.writes() && acting(who, folder_role).writes())
+        || images_allowed(server, folder, table, &who.account.id)
 }
 
 /// Whether the game master let `account` send images at `table`
@@ -1031,7 +1047,10 @@ pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accoun
             } else {
                 table.to_owned()
             },
-            images: images_allowed(server, folder, table, &account),
+            images: images_allowed(server, folder, table, &account)
+                && lock(&server.clients)
+                    .get(&client)
+                    .is_some_and(|c| c.token_write),
         };
         server.push(
             &[client],

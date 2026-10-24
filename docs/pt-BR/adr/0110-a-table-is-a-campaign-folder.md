@@ -822,6 +822,29 @@ jogador pode fazer).
   de linha são de verdade; no celular cada linha vira um cartão com os mesmos
   controles. Nada foi acrescentado para remover um jogador (hoje nada remove
   um jogador da mesa).
+- **Para onde vai o arquivo (corrigido no mesmo dia).** Quem quer que envie
+  — o dono, um editor, um jogador membro, um jogador num compartilhamento —,
+  uma imagem numa mesa cuja raiz é uma subpasta é gravada em `<raiz da
+  mesa>/<pasta de anexos>`, nunca no `attachments/` da pasta: dentro da mesa o
+  véu a mostra aos jogadores da mesa (um compartilhamento com raiz ali a lê) e
+  a esconde de quem está fora, mesa fechada inclusive. As imagens enviadas
+  antes desta correção por um dono ou editor numa mesa de subpasta continuam
+  no `attachments/mesa-*` da raiz da pasta; nada as move (nenhuma reescrita
+  silenciosa): as entradas do registro continuam resolvendo como antes, para
+  os membros que podiam buscá-las, e um jogador de compartilhamento continua
+  sem vê-las (o caminho está fora do compartilhamento). O mestre pode mover os
+  arquivos para a pasta da mesa à mão.
+- **Uma regra só.** "Pode enviar imagens" é um predicado só para o envio, a
+  entrada e o status: um dono ou editor, e um jogador permitido, cada um só com
+  uma credencial que grava (não um token só de leitura, nem um celular
+  pareado como leitor). Ele é julgado de novo logo antes de gravar o arquivo,
+  então uma permissão retirada enquanto os bytes viajavam é respeitada. A
+  conferência de tamanho antes de ler uma mensagem consulta um conjunto em
+  memória, não o banco.
+- **A permissão vai com a cadeira naquela mesa**, não só com a pasta: quando
+  uma conta deixa de ser jogadora de uma mesa (o compartilhamento dela ali
+  acaba, ou ela vira mestra) a permissão vai embora, mesmo que ela ainda leia
+  a pasta por outro caminho; sentada de novo, começa desligada.
 - **Não feito.** Uma permissão por tipo de arquivo, ou para rolagens: o direito
   é só o de enviar imagens.
 
