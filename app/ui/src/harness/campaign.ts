@@ -14,7 +14,7 @@
 // and `?table=player` start with it up.
 
 import { emit } from "@tauri-apps/api/event";
-import type { CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError } from "../bindings";
+import type { CampaignAccess, CampaignAudience, CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError } from "../bindings";
 import type { Core } from "./core";
 
 const LOG_LEAST = 1_000;
@@ -51,6 +51,18 @@ export function veilText(text: string, fate: (target: string) => "open" | "locke
   });
 }
 
+/** A note's audience: a test may set `released` alone, as before the
+ *  audience existed (true is the whole table). */
+function audOf(n: CampaignNote | undefined): CampaignAudience {
+  if (!n) return { kind: "hidden" };
+  return n.audience ?? (n.released ? { kind: "table" } : { kind: "hidden" });
+}
+
+/** An audience of no players is nobody's: hidden. */
+function normal(a: CampaignAudience): CampaignAudience {
+  return a.kind === "players" && a.accounts.length === 0 ? { kind: "hidden" } : a;
+}
+
 export class Campaign {
   /** The tables are a server's: the folder is on one. */
   private isUp = false;
@@ -77,6 +89,8 @@ export class Campaign {
   ];
   /** The links made by `campaign_invite`, for a test to read. */
   invites: string[] = [];
+  /** The game master's name, as a player is told it. */
+  master = "Mestre Ravena";
 
   constructor(private readonly core: Core) {
     const h = core.handlers;
@@ -113,17 +127,40 @@ export class Campaign {
       this.owner();
       const released = a["released"] === true;
       const notes = this.expand(a["paths"] as string[]);
-      for (const p of notes) {
-        const s = this.state(p);
-        s.released = released;
-        if (!released) s.grant = { kind: "none" };
-      }
+      for (const p of notes) this.audit(p, released ? { kind: "table" } : { kind: "hidden" });
       return this.changed(notes);
+    };
+    h["campaign_audience"] = (a) => {
+      this.owner();
+      const audience = normal(a["audience"] as CampaignAudience);
+      if (audience.kind === "players") {
+        const ids = this.seated().map((p) => p.id);
+        if (audience.accounts.some((x) => !ids.includes(x))) refuse("not a player of this table");
+      }
+      const notes = this.expand(a["paths"] as string[]);
+      for (const p of notes) this.audit(p, audience);
+      return this.changed(notes);
+    };
+    h["campaign_access"] = (a) => {
+      if (!this.up) refuse("a table is a server's; a folder of this computer alone has none");
+      const path = this.note(String(a["path"]));
+      if (this.viewer === "player" && this.hidden(path) && !this.mayEdit(path)) refuse("not found", "not_found");
+      const all = this.seated();
+      const s = this.notes.get(path);
+      const people = all.map((p) => ({ id: p.id, name: p.name, access: this.accessOf(path, p.id) }));
+      const out: CampaignAccess = {
+        path,
+        viewer: this.viewer,
+        audience: audOf(s),
+        people: this.viewer === "owner" ? people : people.filter((p) => p.access !== "none"),
+        master: this.master,
+      };
+      return out;
     };
     h["campaign_release_all"] = (a) => {
       this.owner();
       const notes = this.expand([this.rootOf(a["root"])]);
-      for (const p of notes) this.state(p).released = true;
+      for (const p of notes) this.audit(p, { kind: "table" });
       return this.changed(notes);
     };
     h["campaign_secret_name"] = (a) => {
@@ -140,7 +177,12 @@ export class Campaign {
       if (grant.kind === "player" && !this.players.some((p) => p.id === grant.account && p.id !== this.account)) refuse("not a player of this table");
       const s = this.state(path);
       s.grant = grant;
-      if (grant.kind !== "none") s.released = true;
+      // An edit grant lets the player see the note: the server adds them to its audience.
+      const aud = audOf(s);
+      if (grant.kind === "group") this.setAud(s, { kind: "table" });
+      else if (grant.kind === "player" && aud.kind !== "table" && !(aud.kind === "players" && aud.accounts.includes(grant.account))) {
+        this.setAud(s, { kind: "players", accounts: [...(aud.kind === "players" ? aud.accounts : []), grant.account] });
+      }
       return this.changed([path]);
     };
     h["campaign_invite"] = (a) => {
@@ -179,10 +221,40 @@ export class Campaign {
   private state(path: string): CampaignNote {
     let s = this.notes.get(path);
     if (!s) {
-      s = { path, released: false, secret_name: false, grant: { kind: "none" } };
+      s = { path, released: false, audience: { kind: "hidden" }, secret_name: false, grant: { kind: "none" } };
       this.notes.set(path, s);
     }
     return s;
+  }
+
+  private setAud(s: CampaignNote, a: CampaignAudience): void {
+    s.audience = normal(a);
+    s.released = s.audience.kind !== "hidden";
+  }
+
+  /** A narrower audience drops a group grant and a grant to a player who left. */
+  private audit(path: string, a: CampaignAudience): void {
+    const s = this.state(path);
+    this.setAud(s, a);
+    const g = s.grant;
+    if (s.audience.kind === "hidden" || (g.kind === "group" && s.audience.kind !== "table") || (g.kind === "player" && !this.seenBy(s, g.account))) s.grant = { kind: "none" };
+  }
+
+  /** The players of the table: those the owner invited, never the owner. */
+  private seated(): CampaignPlayer[] {
+    return this.viewer === "owner" ? this.players.filter((p) => p.id !== this.account) : [...this.players];
+  }
+
+  private seenBy(s: CampaignNote | undefined, id: string): boolean {
+    const a = audOf(s);
+    return a.kind === "table" ? this.seated().some((p) => p.id === id) : a.kind === "players" && a.accounts.includes(id);
+  }
+
+  private accessOf(path: string, id: string): "edits" | "sees" | "none" {
+    const s = this.notes.get(path);
+    const g = s?.grant;
+    if (g?.kind === "group" || (g?.kind === "player" && g.account === id)) return "edits";
+    return this.seenBy(s, id) ? "sees" : "none";
   }
 
   /** The notes a list of paths stands for: a folder, the notes under it. */
@@ -205,8 +277,7 @@ export class Campaign {
     if (!t) return false;
     if (!t.open) return true;
     if (!noteLike(path)) return false;
-    const s = this.notes.get(path);
-    return !(s && (s.released || s.grant.kind !== "none"));
+    return !this.seenBy(this.notes.get(path), this.account) && !this.mayEdit(path);
   }
 
   /** A folder of a table is there for a player when a file under it is (the table's own folder always). */
@@ -223,10 +294,10 @@ export class Campaign {
   status(): CampaignStatus {
     if (!this.up || this.tables.length === 0) return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
     if (this.viewer === "owner") {
-      const notes = [...this.notes.values()].map((n) => ({ ...n, released: n.released || n.grant.kind !== "none" })).sort((a, b) => a.path.localeCompare(b.path));
+      const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden" })).sort((a, b) => a.path.localeCompare(b.path));
       return { viewer: "owner", tables: this.tables.map((t) => ({ ...t })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
     }
-    const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, released: true, secret_name: false }));
+    const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, audience: (audOf(n).kind === "table" ? { kind: "table" } : { kind: "players", accounts: [this.account] }) as CampaignAudience, released: true, secret_name: false }));
     return { viewer: "player", tables: this.tables.map((t) => ({ ...t })), notes, players: [], can_invite: false };
   }
 
