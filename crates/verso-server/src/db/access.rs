@@ -147,9 +147,12 @@ pub(super) fn facts_in(conn: &Connection, folder: &str) -> R<AccessFacts> {
         .map_err(e)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(e)?;
-    for (path, set) in sets_of(&rows_of(conn, folder)?) {
-        facts.sets.insert(crate::campaign::key(&path), set);
-    }
+    facts.sets = std::sync::Arc::new(
+        sets_of(&rows_of(conn, folder)?)
+            .into_iter()
+            .map(|(path, set)| (crate::campaign::key(&path), set))
+            .collect(),
+    );
     let mut st = conn
         .prepare(
             "SELECT root, account FROM campaign_rights WHERE folder = ?1 AND \"right\" = 'files'",
@@ -170,13 +173,6 @@ pub(super) fn facts_in(conn: &Connection, folder: &str) -> R<AccessFacts> {
     Ok(facts)
 }
 
-/// A set without the rows that say what the whole table's row says.
-fn normal(mut set: NodeSet) -> NodeSet {
-    let whole = set.whole;
-    set.rows.retain(|_, l| *l != whole);
-    set
-}
-
 /// The set a path has now: its own, else the nearest above it, else none
 /// (hidden). What a change starts from.
 fn current(facts: &AccessFacts, path: &str) -> NodeSet {
@@ -195,7 +191,7 @@ fn current(facts: &AccessFacts, path: &str) -> NodeSet {
 /// explicit `none`: a note the table has taken a decision about, which a
 /// folder above does not decide for.
 fn put_set(conn: &Connection, folder: &str, path: &str, set: NodeSet) -> R<()> {
-    let set = normal(set);
+    let set = set.normalized();
     conn.execute(
         "DELETE FROM campaign_access WHERE folder = ?1 AND path = ?2",
         params![folder, path],
@@ -372,10 +368,11 @@ impl Db {
         let rows = rows_of(&conn, folder)?;
         let mut facts = facts_in(&conn, folder)?;
         let sets = sets_of(&rows);
-        facts.sets = sets
-            .iter()
-            .map(|(p, s)| (crate::campaign::key(p), s.clone()))
-            .collect();
+        facts.sets = std::sync::Arc::new(
+            sets.iter()
+                .map(|(p, s)| (crate::campaign::key(p), s.clone()))
+                .collect(),
+        );
         let mut st = conn
             .prepare("SELECT path, secret_name FROM campaign_files WHERE folder = ?1")
             .map_err(e)?;
@@ -493,6 +490,22 @@ impl Db {
                 params![folder, root, account],
                 |r| r.get(0),
             )
+            .map_err(e)
+    }
+
+    /// The roots of the tables of `folder` where `account` may send files
+    /// (K.4), read now: the rules ask it fresh at every door.
+    pub fn campaign_files_roots(&self, folder: &str, account: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT root FROM campaign_rights
+                 WHERE folder = ?1 AND account = ?2 AND \"right\" = 'files'",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, account], |r| r.get(0))
+            .map_err(e)?
+            .collect::<Result<_, _>>()
             .map_err(e)
     }
 

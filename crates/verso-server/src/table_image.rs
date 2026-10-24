@@ -96,15 +96,14 @@ pub async fn send(
     let path = format!("{place}/mesa-{stamp}-{id}.{ext}");
     // The permission may have been taken back while the bytes were on their
     // way: judged again right before the file is written.
-    let (_, folder_role) = crate::rpc::role_here(server, client)?;
-    if !crate::table::may_send_images(server, who, client, folder, table, folder_role) {
+    if !crate::table::may_send_images(server, who, client, table) {
         return Err(refused("you may only read this folder"));
     }
     let made = crate::rpc::folder_run(
         server,
         who,
         client,
-        ("create_file", Access::Write, false),
+        ("create_file", Access::Write, false, false),
         (folder, &key),
         json!({ "path": path, "base64": data }),
     )

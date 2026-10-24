@@ -274,10 +274,12 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
     for given in named {
         for path in [given.clone(), ws.confined(&given).unwrap_or(given)] {
             if !p.veil.in_table(&path) {
+                // Outside a table an editor reads whole, as a writer does.
+                edits |= p.editor;
                 continue;
             }
             if note_like(&path) {
-                if p.veil.may_edit(&path, &p.account) {
+                if p.edits(&path) {
                     edits = true;
                 } else if p.veil.hides_note(&path) {
                     return Verdict::Hidden;
@@ -827,14 +829,15 @@ pub fn tell_summary(server: &crate::state::Server, client: &str, info: &mut Valu
         let Some(c) = table.get(client) else {
             return;
         };
-        let Some((folder, role)) = c.folder.clone() else {
+        let Some((folder, _)) = c.folder.clone() else {
             return;
         };
-        (!(role.writes() && c.token_write)).then(|| (folder, c.account.clone()))
+        (folder, c.account.clone(), crate::access::asker_of(c))
     };
-    let Some((folder, account)) = reads else {
+    let (folder, account, asker) = reads;
+    if !crate::access::filtered(&asker, crate::access::has_table(server, &folder)) {
         return;
-    };
+    }
     let Some(veil) = crate::campaign::veil_of(server, &folder).map(|v| v.view(&account)) else {
         return;
     };

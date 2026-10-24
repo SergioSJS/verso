@@ -651,3 +651,43 @@ code's choice to confirm. Sections A–J are the approved proposal adjusted to
 those answers; the details marked `[PROPOSED]` are the author's. Nothing is
 `[OPEN]`. To be read by the other model before S1 starts
 ([0032](0032-author-and-reviewer-roles.md)).
+
+### As built, S1–S3 (2026-10-24, `feat/one-access-model`)
+
+Server side only; the contract and the window are S4–S6.
+
+- **S1.** `access::may(facts, asker, action, target)` in `verso-server`
+  (`access/rules.rs`, no IO), `AccessFacts` (the tables, the sets by path,
+  the rights), the seat from the role alone, `level` with folder
+  inheritance and exceptions, the credential ceiling. The exhaustive matrix
+  test (`access/vectors.rs`) compares it with a second statement of
+  section B written by hand and writes `app/ui/test/access-vectors.json`
+  (895 cases, checked in, checked to be up to date; seen failing on a wrong
+  rule).
+- **S2.** Schema 20: `campaign_access`, `campaign_files`, `campaign_rights`,
+  the old rows carried over (a hidden note stays a note the table knows, as
+  an explicit `none`); the old tables stay, never written. The veil is built
+  from the sets. The equivalence test (`db/tests_access.rs`) generates every
+  old state and checks the veil answers as the old one did for every player
+  and path, and drives the new `campaign_audience` / `campaign_grant`
+  against a model of the old writes; both were seen failing on a wrong
+  mapping.
+- **S3.** `access::Door` (the asker of a request and the facts) is what
+  every door asks: `folder_command` (`check_write`), `rpc_collab`, the
+  device's `sync_put` / `sync_delete` / `sync_rename` (`check_sync`), the
+  table's log (`log_role`, `DeleteEntry`, `Clear`, `SendFile`), `game_master`
+  (`ManageTable`, `ManageAccess`), the status, `files` over HTTP, history and
+  the bin, the closed-table guard, the pushes (`readers::split`). Deleted:
+  `granted_write`, `group_put`, `acting`, `images_allowed` and the repeated
+  `role.writes() && token_writes`.
+- **Read as the ADR is silent, to confirm.** (1) `Attachment` and `OtherFile`
+  follow the same rules. (2) An editor outside a table keeps the folder's
+  role (everything is theirs); inside, *Sees* already means editing (K.1)
+  and a folder they see is one they create and rename in (K.5). (3) A board
+  is never written whole by a player nor typed in by one until S7 (H): a
+  folder editor loses the board's room at a table meanwhile. (4) A device's
+  `sync_put` by a player still needs the note to be served whole (the whole
+  group edits it), S8 lifts it. (5) The game master's read-only credential
+  joins a room as a reader; it reads the notes whole, over the commands. (6)
+  Making a file's set empty keeps an explicit `none` (the row an old hidden
+  note had), so a later folder set does not decide for it.

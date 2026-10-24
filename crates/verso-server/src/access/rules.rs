@@ -77,6 +77,15 @@ impl NodeSet {
         self.rows.get(account).copied().unwrap_or(self.whole)
     }
 
+    /// The set without the rows that say what the whole table's row says:
+    /// two sets that give every player the same are equal.
+    #[must_use]
+    pub fn normalized(mut self) -> Self {
+        let whole = self.whole;
+        self.rows.retain(|_, l| *l != whole);
+        self
+    }
+
     /// The most any player has here: what the sync log keeps for the
     /// players together.
     #[must_use]
@@ -112,7 +121,7 @@ pub struct TableFact {
 pub struct AccessFacts {
     pub tables: Vec<TableFact>,
     /// The sets, by [`crate::campaign::key`] of the path they are on.
-    pub sets: HashMap<String, NodeSet>,
+    pub sets: std::sync::Arc<HashMap<String, NodeSet>>,
     /// Asker may send files, by the table's root (as a key) and the account
     /// (K.4).
     pub files_right: HashSet<(String, String)>,
@@ -586,22 +595,31 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
                 Allow
             }
         }
-        SeeSecretRolls | Clear => {
+        SeeSecretRolls => {
             if master {
                 Allow
             } else {
                 Deny(NotMaster)
             }
         }
+        Clear => {
+            if master {
+                needs_write()
+            } else {
+                Deny(NotMaster)
+            }
+        }
+        // A message or a file of one's own, anyone deletes; a roll, and
+        // another's entry, the game master (with a credential that writes).
         DeleteEntry { own, roll } => {
             if seat == Seat::Visitor {
                 Deny(Visitor)
-            } else if master {
-                Allow
-            } else if closed_for_player(f, who, t) {
+            } else if !master && closed_for_player(f, who, t) {
                 Deny(TableClosed)
             } else if own && !roll {
                 Allow
+            } else if master {
+                needs_write()
             } else {
                 Deny(NotMaster)
             }
@@ -677,10 +695,11 @@ mod tests {
                 root: root.to_owned(),
                 open: true,
             }],
-            sets: sets
-                .iter()
-                .map(|(k, s)| ((*k).to_owned(), s.clone()))
-                .collect(),
+            sets: std::sync::Arc::new(
+                sets.iter()
+                    .map(|(k, s)| ((*k).to_owned(), s.clone()))
+                    .collect(),
+            ),
             files_right: HashSet::new(),
         }
     }

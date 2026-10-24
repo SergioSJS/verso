@@ -374,8 +374,9 @@ fn the_admin_invites_a_player_to_the_table_with_a_fresh_proof() {
 fn a_table_of_a_second_owner_is_not_ours_to_run() {
     block_on(async {
         let mut m = mesa().await;
-        // An editor is a co-game-master: the veil does not apply to it and
-        // the owner's commands are not its own.
+        // An editor is a player who edits every file they see, not a
+        // co-game-master (ADR 0113 item 3): the veil applies to it and the
+        // owner's commands are not its own.
         let c =
             m.r.server
                 .db
@@ -385,10 +386,9 @@ fn a_table_of_a_second_owner_is_not_ours_to_run() {
         let b = sign_in(&m.r, "cid@casa.lan", "a senha do cid").await;
         let (mut cid, o) = Win::open(&m.r, &b, &m.id).await;
         assert!(o.get("ok").is_some(), "{o}");
-        assert_eq!(
-            strings(&cid.call("list_notes", json!({})).await["ok"]).len(),
-            6
-        );
+        let mut seen = strings(&cid.call("list_notes", json!({})).await["ok"]);
+        seen.sort();
+        assert_eq!(seen, ["Aberta.md", "Livre.md"]);
         let r = cid
             .call(
                 "campaign_release",

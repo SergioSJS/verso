@@ -112,7 +112,9 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
         assert_eq!(joined["images"], false, "{joined}");
         join(&mut c.owner, 2).await;
         join(&mut c.bia, 2).await;
-        assert_eq!(join(&mut c.bia, 3).await["images"], true);
+        // An editor of the folder is a player at its table (ADR 0113 item 3):
+        // like any player, no files until the game master lets it (K.4).
+        assert_eq!(join(&mut c.bia, 3).await["images"], false);
         // The default is off.
         let no = call(&mut ana, 3, "table_send_image", json!({ "base64": png() })).await;
         assert_eq!(no["err"]["kind"], "refused", "{no}");
@@ -129,7 +131,7 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
                 .unwrap()
         );
         // Only a player of the table can be given it.
-        let no = grant(&mut c.owner, 5, "", &c.bia_id, true).await;
+        let no = grant(&mut c.owner, 5, "", "nobody", true).await;
         assert_eq!(no["err"]["kind"], "refused", "{no}");
         let no = grant(&mut c.owner, 5, "Outra", &c.ana_id, true).await;
         assert_eq!(no["err"]["kind"], "refused", "{no}");

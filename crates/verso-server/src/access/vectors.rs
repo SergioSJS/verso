@@ -367,21 +367,23 @@ impl Setting {
         match self.source {
             Source::Nothing => {}
             Source::FileSet => {
-                f.sets.insert(at(self.kind).to_owned(), whole(self.level));
+                std::sync::Arc::make_mut(&mut f.sets)
+                    .insert(at(self.kind).to_owned(), whole(self.level));
             }
             Source::FolderSet => {
                 let folder = if self.kind == Kind::Table { "t" } else { "t/d" };
-                f.sets.insert(folder.to_owned(), whole(self.level));
+                std::sync::Arc::make_mut(&mut f.sets).insert(folder.to_owned(), whole(self.level));
             }
             Source::Exception => {
                 let folder = if self.kind == Kind::Table { "t" } else { "t/d" };
-                f.sets.insert(folder.to_owned(), whole(other));
-                f.sets.insert(at(self.kind).to_owned(), whole(self.level));
+                std::sync::Arc::make_mut(&mut f.sets).insert(folder.to_owned(), whole(other));
+                std::sync::Arc::make_mut(&mut f.sets)
+                    .insert(at(self.kind).to_owned(), whole(self.level));
             }
             Source::PerPlayerBelow => {
                 let mut rows = BTreeMap::new();
                 rows.insert(ANA.to_owned(), self.level);
-                f.sets.insert(
+                std::sync::Arc::make_mut(&mut f.sets).insert(
                     at(self.kind).to_owned(),
                     NodeSet {
                         whole: Level::Edit,
@@ -390,8 +392,9 @@ impl Setting {
                 );
             }
             Source::MovedIn => {
-                f.sets.insert("t".to_owned(), whole(other));
-                f.sets.insert(at(self.kind).to_owned(), whole(self.level));
+                std::sync::Arc::make_mut(&mut f.sets).insert("t".to_owned(), whole(other));
+                std::sync::Arc::make_mut(&mut f.sets)
+                    .insert(at(self.kind).to_owned(), whole(self.level));
             }
         }
         if self.right {
@@ -520,9 +523,12 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
         Action::Say | Action::Roll | Action::RollSecret => {
             p.has_role() && !p.link && !closed_to_player
         }
-        Action::SeeSecretRolls | Action::Clear => p.master(),
+        Action::SeeSecretRolls => p.master(),
+        Action::Clear => p.master() && w,
+        // A message of one's own anyone deletes, a roll or another's the
+        // game master, with a credential that writes.
         Action::DeleteEntry { own, roll } => {
-            p.has_role() && !p.link && (p.master() || (!closed_to_player && own && !roll))
+            p.has_role() && !p.link && ((!closed_to_player && own && !roll) || (p.master() && w))
         }
         Action::SendFile => p.has_role() && !p.link && !closed_to_player && w && sends,
         // Whoever edits sees the secret blocks; the game master of a table

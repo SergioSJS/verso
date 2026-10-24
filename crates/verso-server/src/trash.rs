@@ -27,7 +27,7 @@ use verso_service::{OpError, lock};
 
 use crate::auth::Who;
 use crate::db::{Audit, FolderBook, Role};
-use crate::rpc::{arg, blocking, role_here, to_value};
+use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// How long after a deletion its folder's bin is swept: deletions in a
@@ -321,11 +321,26 @@ pub async fn command(
     cmd: &str,
     args: Value,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    // A reader deletes nothing and sees no bin (item 7).
-    if !(role.writes() && who.reaches(&folder).1) {
+    let door = crate::access::Door::of(server, who, client)?;
+    let folder = door.folder.clone();
+    // A reader deletes nothing and sees no bin (item 7); nor does a player
+    // of a table, who never deletes (ADR 0113 K.5) and would be shown the
+    // names of files they do not see.
+    if !door
+        .may(
+            crate::access::Action::Delete,
+            "",
+            crate::access::Kind::Folder,
+        )
+        .allowed()
+    {
         return Err(refused("the trash is for those who may change this folder"));
     }
+    let role = if door.asker.role == Some(Role::Owner) && !door.asker.phone {
+        Role::Owner
+    } else {
+        Role::Editor
+    };
     let purges = matches!(cmd, "trash_delete" | "trash_empty" | "trash_set_days");
     if purges && role != Role::Owner {
         return Err(refused(
