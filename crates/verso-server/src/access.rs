@@ -59,3 +59,12 @@ pub fn key(server: &Server, folder: &Folder) -> ApiResult<String> {
         .ok_or_else(|| ApiError::from(format!("not a folder name: {}", folder.dir)))?;
     Ok(verso_core::folder_key(&path))
 }
+
+mod rules;
+pub use rules::{
+    AccessFacts, Action, Asker, Cap, Kind, Level, NodeSet, Reason, Seat, TableFact, Target,
+    Verdict, Why, may,
+};
+
+#[cfg(test)]
+mod vectors;
