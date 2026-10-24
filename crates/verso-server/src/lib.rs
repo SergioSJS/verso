@@ -9,6 +9,7 @@
 //! desktop host calls (ADR 0026 rules 1 and 5).
 
 pub mod access;
+pub mod access_cmds;
 pub mod admin;
 pub mod api;
 pub mod audit;
@@ -424,6 +425,8 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_access_cmds;
 #[cfg(test)]
 mod tests_access_doors;
 #[cfg(test)]

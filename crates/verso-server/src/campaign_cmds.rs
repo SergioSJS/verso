@@ -32,7 +32,7 @@ use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// What the commands of a table's game master are.
-pub const COMMANDS: [&str; 12] = [
+pub const COMMANDS: [&str; 15] = [
     "campaign_status",
     "campaign_make",
     "campaign_unmake",
@@ -45,6 +45,10 @@ pub const COMMANDS: [&str; 12] = [
     "campaign_grant",
     "campaign_permission",
     "campaign_invite",
+    // ADR 0113: the one model's commands.
+    "access_get",
+    "access_set",
+    "table_rights_set",
 ];
 
 #[must_use]
@@ -102,6 +106,12 @@ pub async fn command(
     }
     if cmd == "campaign_access" {
         return access(server, who, client, &args).await;
+    }
+    if cmd == "access_get" {
+        return crate::access_cmds::get(server, who, client, &args).await;
+    }
+    if cmd == "access_set" {
+        return crate::access_cmds::set(server, who, client, &args).await;
     }
     // Who changes who sees and edits (the access of a path) and who runs the
     // table (open, close, limits, rights) is one: the folder's owner.
@@ -198,6 +208,18 @@ pub async fn command(
             events = lost;
         }
         "campaign_permission" => subject = Some(permission(server, &folder, &args).await?),
+        "table_rights_set" => {
+            // `files` is the one right so far (ADR 0113 K.4): the permission
+            // to send files, as `campaign_permission` gives it.
+            let right: String = arg(&args, "right")?;
+            if right != "files" {
+                return Err(refused("no such right"));
+            }
+            let given = json!({
+                "root": args["root"], "accounts": args["accounts"], "images": args["on"],
+            });
+            subject = Some(permission(server, &folder, &given).await?);
+        }
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
@@ -378,7 +400,7 @@ async fn permission(
 
 /// The notes (paths of the folder) `paths` name: a folder stands for the
 /// notes under it. Only those inside a table.
-fn expand(
+pub(crate) fn expand(
     server: &Server,
     key: &str,
     folder: &str,
@@ -571,7 +593,7 @@ pub(crate) fn players_in(
 
 /// The players of the table rooted at `root`, each with whether the folder
 /// or a share gives them the role of an editor.
-fn seats_in(
+pub(crate) fn seats_in(
     server: &Server,
     folder: &str,
     root: &str,
@@ -980,11 +1002,25 @@ pub fn refresh(
     // The windows that may only read are players; the others — the owner
     // and any editor, the game masters — see the folder whole.
     let (players, masters) = crate::readers::split(server, &ids);
-    let event =
-        |paths: Value| json!({ "event": "campaign-changed", "payload": { "paths": paths } });
-    server.push(&masters, &event(json!(touched)));
+    // `access-changed` (ADR 0113 section C) is told beside `campaign-changed`
+    // until the window has moved off the latter: the same windows, the same
+    // paths.
+    let event = |paths: Value| {
+        json!([
+            { "event": "campaign-changed", "payload": { "paths": paths } },
+            { "event": "access-changed", "payload": { "paths": paths } },
+        ])
+    };
+    let push = |to: &[String], paths: Value| {
+        if let Some(both) = event(paths).as_array() {
+            for e in both {
+                server.push(to, e);
+            }
+        }
+    };
+    push(&masters, json!(touched));
     let Some(after) = campaign::veil_of(server, folder) else {
-        server.push(&players, &event(json!([])));
+        push(&players, json!([]));
         return;
     };
     // Each player is told of the notes it now has or has lost: what one
@@ -1021,7 +1057,7 @@ pub fn refresh(
             moved |= a || b || edits(was.as_ref(), p) != edits(Some(&is), p);
         }
         if moved {
-            server.push(std::slice::from_ref(player), &event(json!([])));
+            push(std::slice::from_ref(player), json!([]));
         }
         if now.is_empty() && gone.is_empty() {
             continue;

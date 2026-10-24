@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-rights-set"
+description = "Enables the table_rights_set command without any pre-configured scope."
+commands.allow = ["table_rights_set"]
+
+[[permission]]
+identifier = "deny-table-rights-set"
+description = "Denies the table_rights_set command without any pre-configured scope."
+commands.deny = ["table_rights_set"]

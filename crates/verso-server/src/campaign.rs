@@ -375,6 +375,13 @@ impl Veil {
             .unwrap_or_default()
     }
 
+    /// Whether `path` is told apart by player: its set has a row of a
+    /// player's own.
+    #[must_use]
+    pub fn has_player_rows(&self, path: &str) -> bool {
+        self.set_of(path).is_some_and(|s| !s.rows.is_empty())
+    }
+
     /// The paths of notes with a state: for the owner's listing.
     pub fn states(&self) -> impl Iterator<Item = &NoteState> {
         self.notes.iter()

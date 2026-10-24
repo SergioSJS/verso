@@ -121,6 +121,9 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "campaign_grant"
                 | "campaign_permission"
                 | "campaign_invite"
+                | "access_get"
+                | "access_set"
+                | "table_rights_set"
         )
 }
 

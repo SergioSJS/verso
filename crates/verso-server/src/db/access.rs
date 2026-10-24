@@ -579,6 +579,43 @@ impl Db {
         Ok(())
     }
 
+    /// `set` is the whole access of the folder `path` from now on, and of
+    /// everything inside it: the rows of what lies below go, earlier
+    /// exceptions included (ADR 0113 item 2, *Apply*).
+    pub fn access_replace_under(&self, folder: &str, path: &str, set: NodeSet) -> R<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        if !set.rows.is_empty() {
+            players_logs_begin(&tx, folder)?;
+        }
+        tx.execute(
+            "DELETE FROM campaign_access WHERE folder = ?1 AND ?2 <> ''
+               AND substr(path, 1, length(?3)) = ?3",
+            params![folder, path, format!("{path}/")],
+        )
+        .map_err(e)?;
+        if path.is_empty() {
+            tx.execute(
+                "DELETE FROM campaign_access WHERE folder = ?1 AND path <> ''",
+                [folder],
+            )
+            .map_err(e)?;
+        }
+        put_set(&tx, folder, path, set)?;
+        tx.commit().map_err(e)
+    }
+
+    /// *Follow the folder*: the set of `path` is deleted.
+    pub fn access_follow(&self, folder: &str, path: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "DELETE FROM campaign_access WHERE folder = ?1 AND path = ?2",
+                params![folder, path],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
     /// Whether the file at `path` has a set of its own (not one it follows).
     pub fn access_has_own(&self, folder: &str, path: &str) -> R<bool> {
         self.reader()

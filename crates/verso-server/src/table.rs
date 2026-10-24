@@ -1040,8 +1040,13 @@ pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accoun
             }),
         };
         server.push(
-            &[client],
+            std::slice::from_ref(&client),
             &json!({ "event": "table-images", "payload": payload }),
+        );
+        // The right is access too: the window asks again what it shows.
+        server.push(
+            &[client],
+            &json!({ "event": "access-changed", "payload": { "paths": [] } }),
         );
     }
 }

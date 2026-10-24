@@ -537,6 +537,12 @@ async fn handle(
             host: verso_contract::Host::Server,
             can: Vec::new(),
             latency_ms: None,
+            access: Some(verso_contract::FolderAccess {
+                seat: verso_contract::AccessSeat::Visitor,
+                role: String::new(),
+                cap: verso_contract::AccessCap::Read,
+                table: false,
+            }),
         }),
         // A visitor walks nothing: a run takes the session's lock and
         // tells every window on the folder, the owner's too. It is
