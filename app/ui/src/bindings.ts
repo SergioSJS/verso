@@ -630,6 +630,11 @@ export const commands = {
 	campaignSecretName: (path: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_secret_name", { path, on })),
 	/**  Who may edit a note: nobody, the group, or one player. */
 	campaignGrant: (path: string, grant: CampaignGrant) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_grant", { path, grant })),
+	/**
+	 *  Give players, or take from them, the permission to send images to the
+	 *  table's chat (ADR 0107 item 3 as amended 2026-10-24).
+	 */
+	campaignPermission: (root: string, accounts: string[], images: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_permission", { root, accounts, images })),
 	/**  An invitation link to the table, for a reader. */
 	campaignInvite: (root: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("campaign_invite", { root })),
 	/**
@@ -1259,6 +1264,11 @@ export type CampaignPerson = {
 export type CampaignPlayer = {
 	id: string,
 	name: string,
+	/**
+	 *  The tables (their `root`) this account plays at; to the game master
+	 *  only, empty when the server did not say (an older one).
+	 */
+	roots?: string[],
 };
 
 /**
@@ -1292,6 +1302,16 @@ export type CampaignTable = {
 	log_max: number,
 	/**  The image size limit, in bytes (1 to 30 MB; MS.1). */
 	image_max: number,
+	/**
+	 *  To the game master: the players this table lets send images to its
+	 *  chat (ADR 0107 item 3 as amended 2026-10-24). Empty to a player.
+	 */
+	image_players?: string[],
+	/**
+	 *  Whether this account may send images at the table: always the
+	 *  game master, a player only when it was given the permission.
+	 */
+	images?: boolean,
 };
 
 /**
@@ -3326,6 +3346,15 @@ export type TableEntry = {
 };
 
 /**
+ *  The permission to send images changed for this account (event
+ *  `table-images`): told to its windows at the table at once.
+ */
+export type TableImages = {
+	table: string,
+	images: boolean,
+};
+
+/**
  *  What `table_join` answers: who the window is, its role, the latest
  *  entries with every pinned one (oldest first), whether older ones
  *  exist, and who is at the table.
@@ -3339,6 +3368,12 @@ export type TableJoin = {
 	entries: TableEntry[],
 	more: boolean,
 	roster: TableMember[],
+	/**
+	 *  Whether this account may send an image to the table: an owner or an
+	 *  editor always, a player when the game master gave it the permission
+	 *  (ADR 0107 item 3 as amended 2026-10-24).
+	 */
+	images?: boolean,
 };
 
 /**  Who is at the table: one per account, however many windows. */

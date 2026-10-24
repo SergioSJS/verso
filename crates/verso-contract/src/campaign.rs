@@ -23,6 +23,14 @@ pub struct CampaignTable {
     pub log_max: u32,
     /// The image size limit, in bytes (1 to 30 MB; MS.1).
     pub image_max: u32,
+    /// To the game master: the players this table lets send images to its
+    /// chat (ADR 0107 item 3 as amended 2026-10-24). Empty to a player.
+    #[serde(default)]
+    pub image_players: Vec<String>,
+    /// Whether this account may send images at the table: always the
+    /// game master, a player only when it was given the permission.
+    #[serde(default)]
+    pub images: bool,
 }
 
 /// Who may edit a note besides the game master (ADR 0110 item 5).
@@ -69,6 +77,10 @@ pub struct CampaignNote {
 pub struct CampaignPlayer {
     pub id: String,
     pub name: String,
+    /// The tables (their `root`) this account plays at; to the game master
+    /// only, empty when the server did not say (an older one).
+    #[serde(default)]
+    pub roots: Vec<String>,
 }
 
 /// What `campaign_status` answers. To the folder's owner: every table of

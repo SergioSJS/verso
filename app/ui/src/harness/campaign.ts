@@ -87,6 +87,21 @@ export class Campaign {
     { id: "acc-ana", name: "Ana" },
     { id: "acc-bia", name: "Bia" },
   ];
+  /** The players let send images, as `root` + NUL + account. */
+  private readonly imageGrants = new Set<string>();
+  /** Whether the window's account may send images at the table at `root`
+   *  (the game master always may). */
+  imagesFor(root: string, account = this.account): boolean {
+    return this.viewer === "owner" || this.imageGrants.has(`${root}\0${account}`);
+  }
+  /** Give `account` the permission to send images at `root`, or take it away:
+   *  a window that is that player is told at once, as the server tells it. */
+  grantImages(root: string, account: string, on: boolean): void {
+    const key = `${root}\0${account}`;
+    if (on) this.imageGrants.add(key);
+    else this.imageGrants.delete(key);
+    if (this.viewer === "player" && account === this.account) void emit("table-images", { table: root, images: on });
+  }
   /** The links made by `campaign_invite`, for a test to read. */
   invites: string[] = [];
   /** The game master's name, as a player is told it. */
@@ -99,7 +114,7 @@ export class Campaign {
       const root = this.rootOf(a["root"]);
       this.owner();
       if (root !== "" && !core.folders.has(root)) refuse("no folder there");
-      if (!this.tables.some((t) => t.root === root)) this.tables.push({ root, open: true, log_max: 20000, image_max: 10 * 1024 * 1024 });
+      if (!this.tables.some((t) => t.root === root)) this.tables.push({ root, open: true, log_max: 20000, image_max: 10 * 1024 * 1024, image_players: [], images: true });
       return this.changed([]);
     };
     h["campaign_unmake"] = (a) => {
@@ -184,6 +199,16 @@ export class Campaign {
         this.setAud(s, { kind: "players", accounts: [...(aud.kind === "players" ? aud.accounts : []), grant.account] });
       }
       return this.changed([path]);
+    };
+    h["campaign_permission"] = (a) => {
+      this.owner();
+      const root = this.rootOf(a["root"]);
+      if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
+      const accounts = a["accounts"] as string[];
+      if (!Array.isArray(accounts) || accounts.length === 0 || accounts.length > 500) refuse("name between 1 and 500 players");
+      if (!accounts.every((id) => this.seated().some((p) => p.id === id && (!p.roots || p.roots.length === 0 || p.roots.includes(root))))) refuse("not a player of this table");
+      for (const id of accounts) this.grantImages(root, id, a["images"] === true);
+      return this.changed([]);
     };
     h["campaign_invite"] = (a) => {
       this.owner();
@@ -295,10 +320,10 @@ export class Campaign {
     if (!this.up || this.tables.length === 0) return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
     if (this.viewer === "owner") {
       const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden" })).sort((a, b) => a.path.localeCompare(b.path));
-      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
+      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, image_players: this.seated().filter((p) => this.imageGrants.has(`${t.root}\0${p.id}`)).map((p) => p.id) })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
     }
     const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, audience: (audOf(n).kind === "table" ? { kind: "table" } : { kind: "players", accounts: [this.account] }) as CampaignAudience, released: true, secret_name: false }));
-    return { viewer: "player", tables: this.tables.map((t) => ({ ...t })), notes, players: [], can_invite: false };
+    return { viewer: "player", tables: this.tables.map((t) => ({ ...t, images: this.imagesFor(t.root), image_players: [] })), notes, players: [], can_invite: false };
   }
 
   private changed(paths: string[]): CampaignStatus {

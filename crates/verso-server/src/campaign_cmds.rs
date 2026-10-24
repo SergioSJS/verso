@@ -31,7 +31,7 @@ use crate::rpc::{arg, blocking, role_here, to_value};
 use crate::state::Server;
 
 /// What the commands of a table's game master are.
-pub const COMMANDS: [&str; 11] = [
+pub const COMMANDS: [&str; 12] = [
     "campaign_status",
     "campaign_make",
     "campaign_unmake",
@@ -42,6 +42,7 @@ pub const COMMANDS: [&str; 11] = [
     "campaign_access",
     "campaign_secret_name",
     "campaign_grant",
+    "campaign_permission",
     "campaign_invite",
 ];
 
@@ -123,6 +124,8 @@ pub async fn command(
     // who lost which (what their devices are told).
     let mut touched: Vec<String> = Vec::new();
     let mut events: Vec<Event> = Vec::new();
+    // Whom the command was about, for the audit log.
+    let mut subject: Option<String> = None;
     match cmd {
         "campaign_make" => {
             let root = root_arg(&args)?;
@@ -181,6 +184,7 @@ pub async fn command(
             touched = vec![path];
             events = lost;
         }
+        "campaign_permission" => subject = Some(permission(server, &folder, &args).await?),
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
@@ -191,7 +195,7 @@ pub async fn command(
         let _ = s.db.audit(&crate::db::Audit {
             actor: Some(&actor),
             action: &action,
-            subject: None,
+            subject: subject.as_deref(),
             folder: Some(&f),
             address: None,
             ok: true,
@@ -312,6 +316,51 @@ async fn settings(server: &Arc<Server>, folder: &str, args: &Value) -> Result<()
         return Err(refused("that folder is not a table"));
     }
     Ok(())
+}
+
+/// The permission to send images to the table's chat, given to some of its
+/// players or taken from them (ADR 0107 item 3 as amended 2026-10-24). Only
+/// the table's players: the game masters always may. Told at once to the
+/// windows concerned. Answers whom it was about, for the audit log:
+/// `images:on:<accounts>` or `images:off:<accounts>`.
+async fn permission(
+    server: &Arc<Server>,
+    folder: &str,
+    args: &Value,
+) -> Result<String, ContractError> {
+    let root = root_arg(args)?;
+    let accounts: Vec<String> = arg(args, "accounts")?;
+    let images: bool = arg(args, "images")?;
+    if accounts.is_empty() || accounts.len() > 500 {
+        return Err(refused("name between 1 and 500 players"));
+    }
+    let (s, f) = (Arc::clone(server), folder.to_owned());
+    let (r, a) = (root.clone(), accounts.clone());
+    blocking(move || {
+        if !s
+            .db
+            .campaigns_of(&f)
+            .map_err(failed)?
+            .iter()
+            .any(|t| t.root == r)
+        {
+            return Err(refused("that folder is not a table"));
+        }
+        let players = players_of(&s, &f, &format!("{r}/x"))?;
+        if !a.iter().all(|x| players.iter().any(|p| &p.id == x)) {
+            return Err(refused("not a player of this table"));
+        }
+        s.db.campaign_images_set(&f, &r, &a, images)
+            .map_err(failed)?;
+        crate::table::tell_images(&s, (&f, &r), &a);
+        Ok(())
+    })
+    .await?;
+    Ok(format!(
+        "images:{}:{}",
+        if images { "on" } else { "off" },
+        accounts.join(",")
+    ))
 }
 
 /// The notes (paths of the folder) `paths` name: a folder stands for the
@@ -500,6 +549,7 @@ pub(crate) fn players_of(
             players.push(CampaignPlayer {
                 id: a.id,
                 name: a.name,
+                roots: Vec::new(),
             });
         }
     };
@@ -524,6 +574,8 @@ fn table_of(t: &crate::db::Campaign) -> CampaignTable {
         open: t.open,
         log_max: u32::try_from(t.log_max).unwrap_or(u32::MAX),
         image_max: u32::try_from(t.image_max).unwrap_or(u32::MAX),
+        image_players: Vec::new(),
+        images: true,
     }
 }
 
@@ -575,8 +627,12 @@ async fn status(
             let mut players: Vec<CampaignPlayer> = Vec::new();
             for t in &veil.tables {
                 for p in players_of(&s, &folder, &format!("{}/x", t.root))? {
-                    if !players.iter().any(|q| q.id == p.id) {
-                        players.push(p);
+                    match players.iter_mut().find(|q| q.id == p.id) {
+                        Some(q) => q.roots.push(t.root.clone()),
+                        None => players.push(CampaignPlayer {
+                            roots: vec![t.root.clone()],
+                            ..p
+                        }),
                     }
                 }
             }
@@ -593,7 +649,17 @@ async fn status(
             notes.sort_by(|a, b| a.path.cmp(&b.path));
             return Ok(CampaignStatus {
                 viewer: "owner".to_owned(),
-                tables: veil.tables.iter().map(table_of).collect(),
+                tables: veil
+                    .tables
+                    .iter()
+                    .map(|t| CampaignTable {
+                        image_players: s
+                            .db
+                            .campaign_images_of(&folder, &t.root)
+                            .unwrap_or_default(),
+                        ..table_of(t)
+                    })
+                    .collect(),
                 notes,
                 players,
                 can_invite: w.account.admin,
@@ -622,6 +688,7 @@ async fn status(
                 }?;
                 Some(CampaignTable {
                     root,
+                    images: crate::table::images_allowed(&s, &folder, &t.root, &w.account.id),
                     ..table_of(t)
                 })
             })

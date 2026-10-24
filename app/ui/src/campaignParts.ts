@@ -52,7 +52,7 @@ export function follow(el: HTMLElement, paint: () => void): void {
   paint();
 }
 
-const under = (root: string, path: string): boolean => root === "" || path === root || path.startsWith(`${root}/`);
+export const under = (root: string, path: string): boolean => root === "" || path === root || path.startsWith(`${root}/`);
 
 /** The notes of the table at `root` and how many the players can read. */
 export function noteCounts(root: string): { released: number; hidden: number } {
@@ -240,24 +240,6 @@ export function notesBlock(root: string): HTMLElement {
   return box;
 }
 
-/** The notes of the table at `root` granted to `account` to edit. */
-function grantedTo(root: string, account: string): string[] {
-  return campaign()
-    .notes.filter((n) => under(root, n.path) && n.grant.kind === "player" && n.grant.account === account)
-    .map((n) => n.path)
-    .sort((a, b) => a.localeCompare(b, LOCALE));
-}
-
-/** The notes of the table at `root` released to a set of players that
- *  holds `account` and that it does not edit: what only some of the table
- *  sees (a private journal, a clue one character got). */
-function privateTo(root: string, account: string): string[] {
-  return campaign()
-    .notes.filter((n) => under(root, n.path) && n.audience.kind === "players" && n.audience.accounts.includes(account) && !(n.grant.kind === "group" || (n.grant.kind === "player" && n.grant.account === account)))
-    .map((n) => n.path)
-    .sort((a, b) => a.localeCompare(b, LOCALE));
-}
-
 /** A note named as a link that opens it. */
 export function noteLink(path: string, after?: () => void): HTMLElement {
   const a = h("button", "cd-note-link", name(path).replace(/\.(md|canvas|base)$/i, ""));
@@ -278,63 +260,8 @@ export function onlineIds(root: string): Set<string> {
 }
 
 /** A colour from a name, so the same person is the same colour everywhere. */
-function hueOf(text: string): number {
+export function hueOf(text: string): number {
   let n = 0;
   for (const c of text) n = (n * 31 + c.codePointAt(0)!) % 360;
   return n;
-}
-
-function playerRow(p: CampaignPlayer, root: string, online: boolean, after?: () => void): HTMLElement {
-  const li = h("li", "cd-player");
-  const dot = h("span", "cd-avatar", [...p.name][0]?.toUpperCase() ?? "?");
-  dot.style.setProperty("--hue", String(hueOf(p.id)));
-  dot.setAttribute("aria-hidden", "true");
-  const who = h("div", "cd-player-who");
-  const nameLine = h("span", "cd-player-name", p.name);
-  if (online) {
-    const on = h("span", "cd-online", "●");
-    on.title = cp.online;
-    on.setAttribute("aria-label", cp.online);
-    nameLine.append(" ", on);
-  }
-  const given = grantedTo(root, p.id);
-  const grants = h("span", "cd-player-grants");
-  const lines: [string, string[]][] = [
-    [cp.playerEdits, given],
-    [cp.playerSeesPrivately, privateTo(root, p.id)],
-  ];
-  const shown = lines.filter(([, list]) => list.length > 0);
-  if (shown.length === 0) grants.textContent = cp.playerReads;
-  shown.forEach(([label, list], n) => {
-    const line = h("span", "cd-player-line");
-    line.append(`${label} `);
-    list.forEach((g, i) => {
-      if (i > 0) line.append(", ");
-      line.append(noteLink(g, after));
-    });
-    if (n > 0) grants.append(" ");
-    grants.append(line);
-  });
-  who.append(nameLine, grants);
-  li.append(dot, who);
-  return li;
-}
-
-/** The players of the table, each with what is granted to them. */
-export function playersBlock(root: string, after?: () => void): HTMLElement {
-  const list = h("ul", "cd-players");
-  list.setAttribute("aria-label", cp.players);
-  const paint = () => {
-    const on = onlineIds(root);
-    const players = campaign().players;
-    list.replaceChildren(...(players.length === 0 ? [h("li", "share-empty", cp.noPlayers)] : players.map((p) => playerRow(p, root, on.has(p.id), after))));
-  };
-  follow(list, paint);
-  let off: (() => void) | null = null;
-  const src = tableSource();
-  off = src.onChange(() => {
-    if (list.isConnected) paint();
-    else if (off) off();
-  });
-  return list;
 }

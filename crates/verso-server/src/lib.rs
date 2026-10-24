@@ -491,6 +491,8 @@ mod tests_sync;
 #[cfg(test)]
 mod tests_table;
 #[cfg(test)]
+mod tests_table_images;
+#[cfg(test)]
 mod tests_threats;
 #[cfg(test)]
 mod tests_trash;

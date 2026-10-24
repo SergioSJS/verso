@@ -921,8 +921,8 @@ impl Scope {
             // table hears what a member hears. `table.rs` already wrote the
             // table as `""` and the paths from the share's root before it
             // pushed, so nothing of the owner's folder is in them.
-            "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared" => {
-            }
+            "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared"
+            | "table-images" => {}
             _ => return None,
         }
         Some(m)
