@@ -970,3 +970,46 @@ pub fn write_failed(server: &Server, folder: &str, cmd: &str, args: &Value) {
         }
     }
 }
+
+/// `result`, the write `before_write` ran for: when it failed, what was
+/// remembered is dropped ([`write_failed`]).
+pub fn drop_if_failed<T>(
+    server: &Server,
+    folder: &str,
+    (cmd, args): (&str, &Value),
+    result: Result<T, ContractError>,
+) -> Result<T, ContractError> {
+    if result.is_err() {
+        write_failed(server, folder, cmd, args);
+    }
+    result
+}
+
+/// A device is about to delete or rename `path` (`field` of the command
+/// `cmd`): [`before_write`].
+pub fn device_will(
+    server: &Server,
+    (folder, key): (&str, &str),
+    cmd: &str,
+    field: &str,
+    path: &str,
+) {
+    before_write(server, folder, key, cmd, &json!({ field: path }));
+}
+
+/// A device did: what the table keeps of the path follows ([`after_write`]).
+/// `cmd` is the window's command that does the same, `field` its argument
+/// naming the path, `to` where it went (empty for a deletion).
+pub fn device_did(
+    server: &Server,
+    folder: &str,
+    (cmd, field): (&str, &str),
+    (path, to): (&str, &str),
+) {
+    let answer = if to.is_empty() {
+        Value::Null
+    } else {
+        json!({ "path": to })
+    };
+    after_write(server, folder, cmd, &json!({ field: path }), &answer);
+}
