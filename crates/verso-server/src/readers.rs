@@ -38,6 +38,10 @@ pub const SERVER_READS: &[(&str, &str)] = &[
         "campaign_status",
         "the tables a reader can open, and only the notes it may edit (ADR 0110)",
     ),
+    (
+        "campaign_access",
+        "who has access to a note the reader sees: names of the table's players, never a note's text (ADR 0110)",
+    ),
     ("app_info", "the server's version"),
     ("render_markdown", "the window's own text"),
     ("project_secrets", "the window's own text, projected"),
@@ -158,47 +162,69 @@ pub fn reader_of(
     key: &str,
     path: &str,
 ) -> Result<Option<(String, i64)>, ContractError> {
+    // What the log keeps is told for the players together: a note is
+    // served when any player sees it. Each player's own answer is cut from
+    // it (`campaign_sync::viewer_*`).
+    let veil = crate::campaign::veil_for_key(server, key).map(|v| v.union());
+    reader_of_as(server, key, path, veil)
+}
+
+/// [`reader_of`] as the folder looks through `veil`.
+pub fn reader_of_as(
+    server: &Server,
+    key: &str,
+    path: &str,
+    veil: Option<std::sync::Arc<crate::campaign::Veil>>,
+) -> Result<Option<(String, i64)>, ContractError> {
     let p = path.to_owned();
-    let veil = crate::campaign::veil_for_key(server, key);
-    server.service.with_key(key, move |ws| {
-        // A table's hidden file is not served to a reader at all (ADR 0110
-        // item 4); the note a group edits is served whole.
-        if let Some(veil) = &veil {
-            if crate::campaign_serve::is_hidden_in(ws, veil, &p) {
-                return Ok(Some((String::new(), HIDDEN)));
-            }
-            if veil.group_edits(&p) {
-                return Ok(None);
-            }
-        }
-        // A note by its name, or the file it really is (a link to one).
-        if !ws.reader_names_note(&p) {
-            return Ok(None);
-        }
-        if ws
-            .file_len(&p)
-            .is_some_and(|len| len > crate::texts::TEXT_MOST)
-        {
+    server
+        .service
+        .with_key(key, move |ws| reader_view_in(ws, veil.as_deref(), &p))
+}
+
+/// [`reader_of`] with the folder open, through `veil`.
+pub fn reader_view_in(
+    ws: &mut verso_core::Workspace,
+    veil: Option<&crate::campaign::Veil>,
+    p: &str,
+) -> Result<Option<(String, i64)>, verso_service::OpError> {
+    // A table's hidden file is not served to a reader at all (ADR 0110
+    // item 4); the note a group edits is served whole.
+    if let Some(veil) = veil {
+        if crate::campaign_serve::is_hidden_in(ws, veil, p) {
             return Ok(Some((String::new(), HIDDEN)));
         }
-        let bytes = ws.read_file(&p)?;
-        let text = String::from_utf8_lossy(&bytes);
-        let projected = ws.reader_view(&p, &text);
-        let shown = match &veil {
-            Some(v) => {
-                crate::campaign_serve::device_text(ws, v, &p, projected.as_deref().unwrap_or(&text))
-                    .or(projected)
-            }
-            None => projected,
-        };
-        let Some(shown) = shown else {
+        if veil.group_edits(p) {
             return Ok(None);
-        };
-        Ok(Some((
-            crate::sync::sha256(shown.as_bytes()),
-            i64::try_from(shown.len()).unwrap_or(i64::MAX),
-        )))
-    })
+        }
+    }
+    // A note by its name, or the file it really is (a link to one).
+    if !ws.reader_names_note(p) {
+        return Ok(None);
+    }
+    if ws
+        .file_len(p)
+        .is_some_and(|len| len > crate::texts::TEXT_MOST)
+    {
+        return Ok(Some((String::new(), HIDDEN)));
+    }
+    let bytes = ws.read_file(p)?;
+    let text = String::from_utf8_lossy(&bytes);
+    let projected = ws.reader_view(p, &text);
+    let shown = match veil {
+        Some(v) => {
+            crate::campaign_serve::device_text(ws, v, p, projected.as_deref().unwrap_or(&text))
+                .or(projected)
+        }
+        None => projected,
+    };
+    let Some(shown) = shown else {
+        return Ok(None);
+    };
+    Ok(Some((
+        crate::sync::sha256(shown.as_bytes()),
+        i64::try_from(shown.len()).unwrap_or(i64::MAX),
+    )))
 }
 
 /// A piece of the note at `path` as a reader's device reads it: of its
@@ -214,7 +240,8 @@ pub fn read(
     offset: u64,
 ) -> Result<(Value, Vec<u8>), ContractError> {
     let p = path.to_owned();
-    let veil = crate::campaign::veil_for_key(server, key);
+    // The note as this window's account sees it.
+    let veil = crate::campaign::veil_for_client(server, key, client);
     let shown = server.service.with_key(key, move |ws| {
         if ws
             .file_len(&p)
@@ -286,6 +313,12 @@ pub fn push_sync_changed(
     }
     server.push_sync_changed(folder, head, paths, &writers);
     if !seen.is_empty() && !readers.is_empty() {
+        // Players of a table with notes released to some of them each have
+        // a log of their own: no head is told, each asks.
+        if crate::campaign::veil_of(server, folder).is_some_and(|v| v.restricted()) {
+            server.push_sync_changed(folder, -1, seen, &readers);
+            return;
+        }
         match server.db.reader_count(folder, i64::MAX) {
             Ok(reader_head) => server.push_sync_changed(folder, reader_head, seen, &readers),
             Err(e) => crate::log::warn(&format!("a reader's head: {e}")),
@@ -335,34 +368,45 @@ pub fn push_folder_changed(server: &Server, key: &str, clients: &[String], chang
     if readers.is_empty() {
         return;
     }
-    let mut seen = changed.clone();
-    // A table's hidden notes are not told to its players (ADR 0110).
-    if let Some(veil) = crate::campaign::veil_for_key(server, key) {
-        crate::campaign_serve::event_paths(&veil, &mut seen);
+    // What the reader's log tells as unchanged for a reader (a change only
+    // inside a secret block): the same for every reader.
+    let quiet: Vec<String> = match lock(&server.keys).get(key).cloned() {
+        Some(folder) => {
+            let paths: Vec<String> = changed["changed"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .filter(|p| is_served(p))
+                .map(str::to_owned)
+                .collect();
+            server
+                .db
+                .reader_unchanged(&folder, &paths)
+                .unwrap_or_default()
+        }
+        None => Vec::new(),
+    };
+    // Each reader is told what it may know: a table's hidden notes are not
+    // told to its players (ADR 0110), and a note released to some players
+    // is hidden from the others (amended 2026-10-23).
+    for client in &readers {
+        let mut seen = changed.clone();
+        if let Some(veil) = crate::campaign::veil_for_client(server, key, client) {
+            crate::campaign_serve::event_paths(&veil, &mut seen);
+        }
+        if let Some(list) = seen["changed"].as_array() {
+            let kept: Vec<Value> = list
+                .iter()
+                .filter(|p| !p.as_str().is_some_and(|p| quiet.iter().any(|q| q == p)))
+                .cloned()
+                .collect();
+            seen["changed"] = json!(kept);
+        }
+        let empty = |field: &str| seen[field].as_array().is_none_or(Vec::is_empty);
+        if empty("changed") && empty("removed") && empty("moved") {
+            continue;
+        }
+        server.push(std::slice::from_ref(client), &event(&seen));
     }
-    if let Some(folder) = lock(&server.keys).get(key).cloned()
-        && let Some(list) = seen["changed"].as_array()
-    {
-        let paths: Vec<String> = list
-            .iter()
-            .filter_map(Value::as_str)
-            .filter(|p| is_served(p))
-            .map(str::to_owned)
-            .collect();
-        let quiet = server
-            .db
-            .reader_unchanged(&folder, &paths)
-            .unwrap_or_default();
-        let kept: Vec<Value> = list
-            .iter()
-            .filter(|p| !p.as_str().is_some_and(|p| quiet.iter().any(|q| q == p)))
-            .cloned()
-            .collect();
-        seen["changed"] = json!(kept);
-    }
-    let empty = |field: &str| seen[field].as_array().is_none_or(Vec::is_empty);
-    if empty("changed") && empty("removed") && empty("moved") {
-        return;
-    }
-    server.push(&readers, &event(&seen));
 }

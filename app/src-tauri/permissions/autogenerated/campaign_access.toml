@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-campaign-access"
+description = "Enables the campaign_access command without any pre-configured scope."
+commands.allow = ["campaign_access"]
+
+[[permission]]
+identifier = "deny-campaign-access"
+description = "Denies the campaign_access command without any pre-configured scope."
+commands.deny = ["campaign_access"]

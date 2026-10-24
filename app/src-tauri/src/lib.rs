@@ -828,6 +828,8 @@ macro_rules! commands_for {
                 campaign::campaign_settings,
                 campaign::campaign_release,
                 campaign::campaign_release_all,
+                campaign::campaign_audience,
+                campaign::campaign_access,
                 campaign::campaign_secret_name,
                 campaign::campaign_grant,
                 campaign::campaign_invite,

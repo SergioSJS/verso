@@ -18,25 +18,27 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use verso_contract::{
-    CampaignGrant, CampaignInvite, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable,
-    ContractError,
+    CampaignAccess, CampaignAudience, CampaignGrant, CampaignInvite, CampaignNote, CampaignPerson,
+    CampaignPlayer, CampaignStatus, CampaignTable, ContractError,
 };
 use verso_service::lock;
 
 use crate::auth::Who;
 use crate::campaign;
-use crate::db::{Grant, Role};
+use crate::db::{Audience, Grant, Role};
 use crate::rpc::{arg, blocking, role_here, to_value};
 use crate::state::Server;
 
 /// What the commands of a table's game master are.
-pub const COMMANDS: [&str; 9] = [
+pub const COMMANDS: [&str; 11] = [
     "campaign_status",
     "campaign_make",
     "campaign_unmake",
     "campaign_settings",
     "campaign_release",
     "campaign_release_all",
+    "campaign_audience",
+    "campaign_access",
     "campaign_secret_name",
     "campaign_grant",
     "campaign_invite",
@@ -97,9 +99,14 @@ pub async fn command(
     if cmd == "campaign_status" {
         return status(server, who, client).await;
     }
+    if cmd == "campaign_access" {
+        return access(server, who, client, &args).await;
+    }
     let (folder, key) = game_master(server, who, client)?;
-    // The notes whose state changed, for what the players are told.
+    // The notes whose state changed, for what the players are told, and
+    // who lost which (what their devices are told).
     let mut touched: Vec<String> = Vec::new();
+    let mut events: Vec<Event> = Vec::new();
     match cmd {
         "campaign_make" => {
             let root = root_arg(&args)?;
@@ -121,7 +128,30 @@ pub async fn command(
         }
         "campaign_settings" => settings(server, &folder, &args).await?,
         "campaign_release" | "campaign_release_all" => {
-            touched = release(server, &folder, &key, cmd, &args).await?;
+            let (paths, released): (Vec<String>, bool) = if cmd == "campaign_release_all" {
+                (vec![root_arg(&args)?], true)
+            } else {
+                (arg(&args, "paths")?, arg(&args, "released")?)
+            };
+            let audience = if released {
+                Audience::Table
+            } else {
+                Audience::Hidden
+            };
+            (touched, events) = release(server, &folder, &key, paths, audience).await?;
+        }
+        "campaign_audience" => {
+            let paths: Vec<String> = arg(&args, "paths")?;
+            let given: CampaignAudience = arg(&args, "audience")?;
+            let audience = match given {
+                CampaignAudience::Hidden => Audience::Hidden,
+                CampaignAudience::Table => Audience::Table,
+                CampaignAudience::Players { accounts } if accounts.is_empty() => Audience::Hidden,
+                CampaignAudience::Players { accounts } => {
+                    Audience::Players(accounts.into_iter().collect())
+                }
+            };
+            (touched, events) = release(server, &folder, &key, paths, audience).await?;
         }
         "campaign_secret_name" => {
             let path = note_arg(server, &folder, &args)?;
@@ -130,7 +160,11 @@ pub async fn command(
             blocking(move || s.db.campaign_secret_name(&f, &p, on).map_err(failed)).await?;
             touched.push(path);
         }
-        "campaign_grant" => touched = vec![grant(server, &folder, &key, &args).await?],
+        "campaign_grant" => {
+            let (path, lost) = grant(server, &folder, &key, &args).await?;
+            touched = vec![path];
+            events = lost;
+        }
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
@@ -149,8 +183,29 @@ pub async fn command(
         Ok(())
     })
     .await;
+    // A note released to some players: their devices are told of what they
+    // gained and lost, each its own (`campaign_sync`).
+    if !events.is_empty() {
+        campaign::forget(server, &folder);
+        let (s, f, k) = (Arc::clone(server), folder.clone(), key.clone());
+        let _ = blocking(move || {
+            crate::campaign_sync::audience_events(&s, &f, &k, &events);
+            Ok(())
+        })
+        .await;
+    }
     changed(server, &folder, &key, touched).await;
     status(server, who, client).await
+}
+
+/// A note whose audience changed, for what the players' devices are told:
+/// the players who lost it, and whether a set of players is involved
+/// (before or after), which makes each player's log its own.
+#[derive(Debug, Clone)]
+pub struct Event {
+    pub path: String,
+    pub lost: Vec<String>,
+    pub restricted: bool,
 }
 
 /// A note of a table named by the window: confined, and inside a table.
@@ -236,31 +291,75 @@ async fn release(
     server: &Arc<Server>,
     folder: &str,
     key: &str,
-    cmd: &str,
-    args: &Value,
-) -> Result<Vec<String>, ContractError> {
-    let (paths, released): (Vec<String>, bool) = if cmd == "campaign_release_all" {
-        (vec![root_arg(args)?], true)
-    } else {
-        (arg(args, "paths")?, arg(args, "released")?)
-    };
+    paths: Vec<String>,
+    audience: Audience,
+) -> Result<(Vec<String>, Vec<Event>), ContractError> {
     if paths.len() > 5000 {
         return Err(refused("too many at once"));
     }
     let (s, f, k) = (Arc::clone(server), folder.to_owned(), key.to_owned());
     blocking(move || {
         let notes = expand(&s, &k, &f, &paths)?;
-        s.db.campaign_release(&f, &notes, released)
-            .map_err(failed)?;
-        // Hidden again: nobody edits what the table cannot see.
-        if !released {
+        // Only players of the table: an audience of someone who is not
+        // one would be a name no window can have.
+        if let Audience::Players(set) = &audience {
             for n in &notes {
-                s.db.campaign_grant(&f, n, &Grant::None).map_err(failed)?;
+                let players = players_of(&s, &f, n)?;
+                if set.iter().any(|a| !players.iter().any(|p| p.id == *a)) {
+                    return Err(refused("not a player of this table"));
+                }
             }
         }
-        Ok(notes)
+        let before = snapshot(&s, &f, &notes);
+        s.db.campaign_audience(&f, &notes, &audience)
+            .map_err(failed)?;
+        let events = events_of(&s, &f, before, &notes)?;
+        Ok((notes, events))
     })
     .await
+}
+
+/// The audience of each of `paths` now.
+fn snapshot(server: &Server, folder: &str, paths: &[String]) -> Vec<(String, Audience)> {
+    let veil = campaign::veil_of(server, folder);
+    paths
+        .iter()
+        .map(|p| {
+            (
+                p.clone(),
+                veil.as_ref().map(|v| v.audience_of(p)).unwrap_or_default(),
+            )
+        })
+        .collect()
+}
+
+/// What changed of `before`, after the database was changed: who lost
+/// what. Only the notes whose audience moved are named.
+fn events_of(
+    server: &Server,
+    folder: &str,
+    before: Vec<(String, Audience)>,
+    notes: &[String],
+) -> Result<Vec<Event>, ContractError> {
+    campaign::forget(server, folder);
+    let after = snapshot(server, folder, notes);
+    let mut out = Vec::new();
+    for ((path, was), (_, is)) in before.into_iter().zip(after) {
+        if was == is {
+            continue;
+        }
+        let lost: Vec<String> = players_of(server, folder, &path)?
+            .into_iter()
+            .map(|p| p.id)
+            .filter(|a| was.includes(a) && !is.includes(a))
+            .collect();
+        out.push(Event {
+            restricted: was.is_players() || is.is_players(),
+            path,
+            lost,
+        });
+    }
+    Ok(out)
 }
 
 async fn grant(
@@ -268,7 +367,7 @@ async fn grant(
     folder: &str,
     key: &str,
     args: &Value,
-) -> Result<String, ContractError> {
+) -> Result<(String, Vec<Event>), ContractError> {
     let path = note_arg(server, folder, args)?;
     let given: CampaignGrant = arg(args, "grant")?;
     // A board holds cards of hidden notes the player is shown locked: a
@@ -300,13 +399,17 @@ async fn grant(
         if grant != Grant::None && !s.service.with_key(&k, |ws| Ok(ws.confined(&p).is_ok()))? {
             return Err(refused("no such note"));
         }
-        // A note someone may edit is released: the one who edits it reads it.
-        if grant != Grant::None {
+        let before = snapshot(&s, &f, std::slice::from_ref(&p));
+        // A note the whole group edits is the whole table's; one a player
+        // edits is seen by that player (their edit grant adds them to its
+        // audience, whatever it was).
+        if grant == Grant::Group {
             s.db.campaign_release(&f, std::slice::from_ref(&p), true)
                 .map_err(failed)?;
         }
         s.db.campaign_grant(&f, &p, &grant).map_err(failed)?;
-        Ok(p)
+        let events = events_of(&s, &f, before, std::slice::from_ref(&p))?;
+        Ok((p, events))
     })
     .await
 }
@@ -346,6 +449,16 @@ fn table_of(t: &crate::db::Campaign) -> CampaignTable {
         open: t.open,
         log_max: u32::try_from(t.log_max).unwrap_or(u32::MAX),
         image_max: u32::try_from(t.image_max).unwrap_or(u32::MAX),
+    }
+}
+
+fn audience_of(a: &Audience) -> CampaignAudience {
+    match a {
+        Audience::Hidden => CampaignAudience::Hidden,
+        Audience::Table => CampaignAudience::Table,
+        Audience::Players(set) => CampaignAudience::Players {
+            accounts: set.iter().cloned().collect(),
+        },
     }
 }
 
@@ -391,7 +504,8 @@ async fn status(
                 .states()
                 .map(|n| CampaignNote {
                     path: n.path.clone(),
-                    released: n.released || n.grant != Grant::None,
+                    released: n.audience.any() || n.grant != Grant::None,
+                    audience: audience_of(&n.audience),
                     secret_name: n.secret_name,
                     grant: grant_of(&n.grant),
                 })
@@ -439,6 +553,13 @@ async fn status(
                 Some(CampaignNote {
                     path: own(&n.path)?,
                     released: true,
+                    audience: if n.audience == Audience::Table {
+                        CampaignAudience::Table
+                    } else {
+                        CampaignAudience::Players {
+                            accounts: vec![w.account.id.clone()],
+                        }
+                    },
                     secret_name: false,
                     grant: grant_of(&n.grant),
                 })
@@ -454,6 +575,89 @@ async fn status(
     })
     .await?;
     to_value(status)
+}
+
+/// Who has access to a note (`campaign_access`): to the game master every
+/// player of the note's table with what they can do; to a player, the
+/// people who have access, nobody else.
+async fn access(
+    server: &Arc<Server>,
+    who: &Arc<Who>,
+    client: &str,
+    args: &Value,
+) -> Result<Value, ContractError> {
+    let (folder, role) = role_here(server, client)?;
+    let owner = role == Role::Owner
+        && crate::shares::scope_here(server, client).is_none()
+        && who.phone.is_none();
+    let given: String = arg(args, "path")?;
+    let (s, w, c) = (Arc::clone(server), Arc::clone(who), client.to_owned());
+    let found = blocking(move || {
+        let scope = crate::shares::scope_here(&s, &c);
+        let path = match &scope {
+            Some(sc) => sc.to_full(&given)?,
+            None => given.clone(),
+        };
+        let veil = campaign::veil_of(&s, &folder).ok_or_else(|| refused("not inside a table"))?;
+        if crate::scope::checked(&path).is_err() || !veil.in_table(&path) {
+            return Err(refused("not inside a table"));
+        }
+        let viewer = if owner {
+            "owner"
+        } else {
+            // A player sees who has access to a note it has access to.
+            if !crate::readers::reads_only(&s, &w, &c)?
+                || veil.hides_note_from(&path, &w.account.id)
+            {
+                return Err(ContractError {
+                    kind: verso_contract::ErrorKind::NotFound,
+                    message: "not found".to_owned(),
+                });
+            }
+            "player"
+        };
+        let audience = veil.audience_of(&path);
+        let grant = veil.grant(&path);
+        let master =
+            s.db.members(&folder)
+                .map_err(failed)?
+                .into_iter()
+                .find(|(_, r)| *r == Role::Owner)
+                .map(|(a, _)| if a.name.is_empty() { a.email } else { a.name })
+                .unwrap_or_default();
+        let mut people: Vec<CampaignPerson> = Vec::new();
+        for p in players_of(&s, &folder, &path)? {
+            let edits = match &grant {
+                Grant::None => false,
+                Grant::Group => true,
+                Grant::Player(a) => *a == p.id,
+            };
+            let access = if edits {
+                "edits"
+            } else if audience.includes(&p.id) {
+                "sees"
+            } else {
+                "none"
+            };
+            if viewer == "player" && access == "none" {
+                continue;
+            }
+            people.push(CampaignPerson {
+                id: p.id,
+                name: p.name,
+                access: access.to_owned(),
+            });
+        }
+        Ok(CampaignAccess {
+            path: given,
+            viewer: viewer.to_owned(),
+            audience: audience_of(&audience),
+            people,
+            master,
+        })
+    })
+    .await?;
+    to_value(found)
 }
 
 /// An invitation to the table: a reader's, for the folder itself or for
@@ -561,21 +765,25 @@ pub fn refresh(server: &Server, folder: &str, key: &str, touched: &[String]) {
     // A player is told no path in that event: it reads its list again, and
     // is told as a folder is, of the notes it now has or has lost.
     server.push(&players, &event(json!([])));
-    let veil = campaign::veil_for_key(server, key);
-    let (mut now, mut gone): (Vec<&String>, Vec<&String>) = (Vec::new(), Vec::new());
-    for p in touched {
-        match &veil {
-            Some(v) if v.hides_note(p) => gone.push(p),
-            _ => now.push(p),
+    // Each player is told of the notes it now has or has lost: what one
+    // player sees is not what another does.
+    for player in &players {
+        let veil = campaign::veil_for_client(server, key, player);
+        let (mut now, mut gone): (Vec<&String>, Vec<&String>) = (Vec::new(), Vec::new());
+        for p in touched {
+            match &veil {
+                Some(v) if v.hides_note(p) => gone.push(p),
+                _ => now.push(p),
+            }
         }
+        server.push(
+            std::slice::from_ref(player),
+            &json!({ "event": "folder-changed", "payload": {
+                "key": key, "changed": now, "removed": gone, "moved": [], "listing": true,
+                "index": { "indexed": 0, "unchanged": 0, "removed": 0, "placeholders": 0,
+                           "problems": [], "unwatched": null, "unindexed": null } } }),
+        );
     }
-    server.push(
-        &players,
-        &json!({ "event": "folder-changed", "payload": {
-            "key": key, "changed": now, "removed": gone, "moved": [], "listing": true,
-            "index": { "indexed": 0, "unchanged": 0, "removed": 0, "placeholders": 0,
-                       "problems": [], "unwatched": null, "unindexed": null } } }),
-    );
 }
 
 /// The windows of non-owners of a folder that holds a closed table the
@@ -628,6 +836,7 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         "delete_entry" | "delete_note" => {
             if let Some(path) = args["path"].as_str() {
+                remember_gone(server, folder, path);
                 touched = server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
         }
@@ -638,5 +847,23 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
     }
     if touched {
         campaign::forget(server, folder);
+    }
+}
+
+/// The notes under `path` (or it) are about to be deleted: the players who
+/// see them are remembered, so that the sync log tells their devices.
+fn remember_gone(server: &Server, folder: &str, path: &str) {
+    let Some(veil) = campaign::veil_of(server, folder) else {
+        return;
+    };
+    let (root, under) = (campaign::key(path), format!("{}/", campaign::key(path)));
+    for n in veil.states() {
+        let k = campaign::key(&n.path);
+        if let Audience::Players(set) = &n.audience
+            && (k == root || k.starts_with(&under))
+        {
+            let accounts: Vec<String> = set.iter().cloned().collect();
+            let _ = server.db.campaign_gone_add(folder, &n.path, &accounts);
+        }
     }
 }

@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 16;
+const SCHEMA: i64 = 17;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -547,6 +547,7 @@ impl Db {
             (14, table::TABLE),
             (15, campaign::CAMPAIGN),
             (16, table::TABLE_PER_TABLE),
+            (17, campaign::AUDIENCE),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -1403,8 +1404,8 @@ impl Db {
 mod audit;
 mod campaign;
 pub use campaign::{
-    Campaign, Grant, IMAGE_DEFAULT, IMAGE_LEAST, IMAGE_MOST, LOG_DEFAULT, LOG_LEAST, LOG_MOST,
-    NoteState,
+    Audience, Campaign, Grant, IMAGE_DEFAULT, IMAGE_LEAST, IMAGE_MOST, LOG_DEFAULT, LOG_LEAST,
+    LOG_MOST, NoteState,
 };
 mod console;
 mod local;

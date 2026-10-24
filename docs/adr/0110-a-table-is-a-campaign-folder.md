@@ -108,6 +108,21 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
      _(recommended)_ — nothing leaks by forgetting.
    - **B — Released unless hidden.**
 
+   **Amended 2026-10-23 — released to whom (the maintainer's decision).** A
+   released note is released *to someone*: to the whole table, or to one or
+   more chosen players; hidden stays "to nobody". The maintainer, on the
+   proposal of "Liberar para…": *"gosto da sua sugestão, e tem que ficar
+   visivel em algum lugar quem tem acesso, as vezes um icone de usuários que
+   no hover, mostra quem tem acesso e quem não, isso dentro da nota, so tem
+   que ficar esperto, usando skills de ux para posicionar sem quebrar nada na
+   responsividade."* So a note's **audience** is hidden, the whole table, or
+   a set of the table's players; the server keeps it beside the rest of the
+   note's state and asks it of each player every time it asked "hidden"
+   before (see "As built (a note's audience, 2026-10-23)"). A note nobody
+   but its game master and the chosen players see does not exist for the
+   others, by the rule above. An edit grant to one player (item 5) implies
+   that player is in the audience. Who has access is shown inside the note.
+
 5. **Some notes editable by players.** `[DECIDED]` (*"nota do grupo, nota
    da ficha"*). `[PROPOSED]` Per-note write grants, kept on the server like
    item 4: **the group** (every player at the table edits — the group's
@@ -176,6 +191,12 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
 12. **A player's private journal.** `[DECIDED]` (addition, accepted)
     `[PROPOSED]` Each player has a note only they and the game master see
     and edit (in the players' area), for notes and character secrets.
+
+    **Amended 2026-10-23 (the maintainer's decision).** The journal is not a
+    feature of its own: it is **a note released to one player** (item 4,
+    amended) and granted to that player to edit (item 5). The same holds for
+    a clue only one character got, and for each player's sheet released only
+    to its owner. Nothing separate is built for it.
 
 13. **"See as player".** `[DECIDED]` (addition, accepted) `[PROPOSED]` The
     game master previews the table exactly as one chosen player sees it
@@ -537,3 +558,60 @@ A third difference, found by the e2e: a table's picture was looked up from the
 share's parent (`resolve_attachment` with no note to say where the target is
 written from), so a share player's own thumbnail came back missing. The share
 now looks such a target up from the share's root.
+
+## As built (a note's audience, 2026-10-23)
+
+The maintainer's decision recorded in items 4 and 12. What was built:
+
+- **State.** `campaign_notes.released = 1` is still the whole table's, so every
+  note released before stays the table's (schema 17 adds tables, changes no row);
+  with `released = 0` the rows of `campaign_audience (folder, path, account)` are
+  the players who see the note, and none is hidden. An edit grant to a player
+  puts that player in the audience of a note that was not the table's; the whole
+  group's edit grant makes the note the table's; narrowing an audience takes
+  back a grant that no longer holds; hiding takes back any. The audience follows
+  the note when it is renamed or moved and goes with it when it is deleted.
+- **One question, asked of someone.** The veil answers "hidden" for a given
+  viewer: a player's own (`Veil::view(account)`), the public one — what the
+  whole table sees, which is what a call that does not say who asks gets, so
+  it fails closed — and the union (what any player sees), which is what the
+  sync log stores for readers. The doors that said "hidden" before ask the
+  player's own: the lists, reads, search, backlinks, graph, tags, quick open,
+  boards and embeds, the table's links drawn as locks, the served text, the
+  files under `/f/` (an attachment opens only through a note that player
+  sees), rooms and their admission, the events each window hears, a device's
+  sync, and the table's log (a roll or oracle entry made in a note a viewer
+  cannot see loses its path and source for that viewer). A room's shared
+  shadow for readers is cut with the public eyes: a link to a note only some
+  players see is a lock in it, for everyone, until they reload (no name of
+  such a note ever crosses a shared document).
+- **A player's device log is its own** once a folder has a note released to some
+  players (`campaign_epoch`). The log the server stores is told for the players
+  together; each player is told its cut of it, numbered in its own count: the
+  changes of a note the player did not see when they came are not its changes
+  (decided the first time its log is asked for, kept in `campaign_skip`, so the
+  numbers a device has counted never move), a note it lost is told as a deletion
+  (`campaign_lost`, also for a note deleted while it saw it, `campaign_gone`),
+  and each note's hash is the one of that player's own text. A change that only
+  changes who sees a note, and the notes that link it, are recorded so every
+  player's log holds them. A player who cannot see a note is told neither its
+  name, its changes nor how many there were.
+- **Commands.** `campaign_audience(paths, audience)` (the game master's;
+  `{kind: "hidden" | "table" | "players", accounts}`, accounts must be players
+  of the note's table) and `campaign_access(path)` (who has access: to the game
+  master every player with what each can do, to a player only the people who
+  have access; a note the player cannot see answers as an absent one). The
+  status says each note's audience.
+- **Shown inside the note.** A users icon with a count in the note's title row,
+  beside the star; its popover (hover on a pointer device, tap or click, Enter
+  and Space; Escape closes and returns the focus; a bottom sheet on a phone)
+  lists to the game master every player with *sees* / *edits* / *does not see*
+  and a shortcut to change it, and to a player who sees the note ("You, Bruno
+  and the game master" / "The whole table"), never the game master's controls.
+- **Tried.** `tests_audience.rs` (a player outside the audience cannot list,
+  read, search, backlink, tag, open a room, sync, fetch the attachment or see
+  the note in the table's log; one inside can; adding and removing a player
+  live; deletion; grants), `db/tests.rs` (schema 17 and the audience's rules),
+  `app/ui/e2e/audience.spec.mjs` and `e2e-server/audience.spec.mjs`.
+- **Not done.** A board's audience is the same rule where a board is releasable
+  (it is a note-like file of the table); no separate control was added for it.

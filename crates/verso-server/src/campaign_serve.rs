@@ -736,10 +736,17 @@ fn cell(veil: &Veil, files: &HashSet<String>, c: &mut Value) {
 /// Whether the player is kept from `path`, asked of the folder behind
 /// `key_of_folder` (for the routes that are not commands). Fails closed:
 /// a folder that cannot be asked hides the path.
-pub fn is_hidden(server: &crate::state::Server, key_of_folder: &str, path: &str) -> bool {
+pub fn is_hidden(
+    server: &crate::state::Server,
+    key_of_folder: &str,
+    account: Option<&str>,
+    path: &str,
+) -> bool {
     let Some(veil) = crate::campaign::veil_for_key(server, key_of_folder) else {
         return false;
     };
+    // Whose eyes: the account's, else the public's (fails closed).
+    let veil = account.map_or(veil.clone(), |a| veil.view(a));
     let p = path.to_owned();
     server
         .service
@@ -823,12 +830,12 @@ pub fn tell_summary(server: &crate::state::Server, client: &str, info: &mut Valu
         let Some((folder, role)) = c.folder.clone() else {
             return;
         };
-        (!(role.writes() && c.token_write)).then_some(folder)
+        (!(role.writes() && c.token_write)).then(|| (folder, c.account.clone()))
     };
-    let Some(folder) = reads else {
+    let Some((folder, account)) = reads else {
         return;
     };
-    let Some(veil) = crate::campaign::veil_of(server, &folder) else {
+    let Some(veil) = crate::campaign::veil_of(server, &folder).map(|v| v.view(&account)) else {
         return;
     };
     let scope = crate::shares::scope_here(server, client);

@@ -145,7 +145,10 @@ fn view_in(
 ) -> Option<TableEntry> {
     let mut entry = view_masked(row, viewer, role)?;
     if let (Some(veil), Role::Reader) = (veil, role)
-        && entry.path.as_deref().is_some_and(|p| veil.hides_note(p))
+        && entry
+            .path
+            .as_deref()
+            .is_some_and(|p| veil.hides_note_from(p, viewer))
     {
         entry.path = None;
         if let Some(roll) = entry.roll.as_mut() {

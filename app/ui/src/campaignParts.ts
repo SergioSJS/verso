@@ -13,7 +13,7 @@
 
 import { commands, type CampaignPlayer, type CampaignTable, type ContractError } from "./bindings";
 import { serverLink } from "./can";
-import { campaign, noteState, releaseAll, releaseNotes, setTable, tableFor } from "./campaign";
+import { campaign, noteAudience, releaseAll, releaseNotes, setTable, tableFor } from "./campaign";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
 import { allNotes } from "./folder";
@@ -54,10 +54,7 @@ const under = (root: string, path: string): boolean => root === "" || path === r
 /** The notes of the table at `root` and how many the players can read. */
 export function noteCounts(root: string): { released: number; hidden: number } {
   const mine = allNotes.filter((p) => under(root, p));
-  const released = mine.filter((p) => {
-    const s = noteState(p);
-    return !!s && (s.released || s.grant.kind !== "none");
-  }).length;
+  const released = mine.filter((p) => noteAudience(p).kind !== "hidden").length;
   return { released, hidden: mine.length - released };
 }
 
@@ -248,6 +245,16 @@ function grantedTo(root: string, account: string): string[] {
     .sort((a, b) => a.localeCompare(b, LOCALE));
 }
 
+/** The notes of the table at `root` released to a set of players that
+ *  holds `account` and that it does not edit: what only some of the table
+ *  sees (a private journal, a clue one character got). */
+function privateTo(root: string, account: string): string[] {
+  return campaign()
+    .notes.filter((n) => under(root, n.path) && n.audience.kind === "players" && n.audience.accounts.includes(account) && !(n.grant.kind === "group" || (n.grant.kind === "player" && n.grant.account === account)))
+    .map((n) => n.path)
+    .sort((a, b) => a.localeCompare(b, LOCALE));
+}
+
 /** A note named as a link that opens it. */
 export function noteLink(path: string, after?: () => void): HTMLElement {
   const a = h("button", "cd-note-link", name(path).replace(/\.(md|canvas|base)$/i, ""));
@@ -289,14 +296,22 @@ function playerRow(p: CampaignPlayer, root: string, online: boolean, after?: () 
   }
   const given = grantedTo(root, p.id);
   const grants = h("span", "cd-player-grants");
-  if (given.length === 0) grants.textContent = cp.playerReads;
-  else {
-    grants.append(`${cp.playerEdits} `);
-    given.forEach((g, i) => {
-      if (i > 0) grants.append(", ");
-      grants.append(noteLink(g, after));
+  const lines: [string, string[]][] = [
+    [cp.playerEdits, given],
+    [cp.playerSeesPrivately, privateTo(root, p.id)],
+  ];
+  const shown = lines.filter(([, list]) => list.length > 0);
+  if (shown.length === 0) grants.textContent = cp.playerReads;
+  shown.forEach(([label, list], n) => {
+    const line = h("span", "cd-player-line");
+    line.append(`${label} `);
+    list.forEach((g, i) => {
+      if (i > 0) line.append(", ");
+      line.append(noteLink(g, after));
     });
-  }
+    if (n > 0) grants.append(" ");
+    grants.append(line);
+  });
   who.append(nameLine, grants);
   li.append(dot, who);
   return li;
