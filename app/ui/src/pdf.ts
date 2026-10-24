@@ -10,6 +10,7 @@
 
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
+import { clampPage } from "./pdfSpec";
 import { icon } from "./icons";
 import { note } from "./report";
 import { asset } from "./version";
@@ -184,6 +185,7 @@ export class PdfView {
     });
     this.linkService.setViewer(this.viewer);
     this.eventBus.on("pagesinit", () => {
+      this.pagesReady = true;
       this.laidOut = false;
       this.fitWidth = -1;
       this.layOut();
@@ -207,6 +209,9 @@ export class PdfView {
   }
 
   private laidOut = false;
+  /** pdf.js has the document's pages (`pagesinit`): before that it has
+   *  none, and any page number is "not a valid page" (console error). */
+  private pagesReady = false;
   private fitWidth = -1;
   private fitFrame = 0;
   /** Whether the reader is on screen: pdf.js scrolls to a page when it
@@ -218,13 +223,14 @@ export class PdfView {
   /** The first fit and page once shown, and a fit again when the width
    *  changed. */
   private layOut(): void {
-    if (!this.doc || !this.shown()) return;
+    if (!this.doc || !this.pagesReady || !this.shown()) return;
     const width = this.container.clientWidth;
     if (!this.laidOut) {
       this.laidOut = true;
       this.fitWidth = width;
       this.viewer.currentScaleValue = this.fitMode ?? "page-width";
-      if (this.pendingPage > 1) this.viewer.currentPageNumber = this.pendingPage;
+      const page = clampPage(this.pendingPage, this.viewer.pagesCount || this.doc.numPages);
+      if (page > 1) this.viewer.currentPageNumber = page;
       this.setCurrent(this.viewer.currentPageNumber);
       return;
     }
@@ -272,7 +278,7 @@ export class PdfView {
   }
 
   get page(): number {
-    return this.viewer.currentPageNumber || 1;
+    return this.pagesReady ? this.viewer.currentPageNumber || 1 : 1;
   }
 
   private setCurrent(n: number): void {
@@ -284,7 +290,7 @@ export class PdfView {
     if (!this.doc) return;
     const page = Math.max(1, Math.min(this.doc.numPages, Math.round(n)));
     // Not shown yet: the page is where it opens once it is.
-    if (!this.laidOut) this.pendingPage = page;
+    if (!this.laidOut || !this.pagesReady) this.pendingPage = page;
     else this.viewer.currentPageNumber = page;
   }
 
@@ -426,6 +432,8 @@ export class PdfView {
     void this.task?.destroy();
     this.task = null;
     this.doc = null;
+    this.pagesReady = false;
+    this.laidOut = false;
     const highlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights;
     if (highlights) for (const k of Array.from(highlights.keys())) if (k.startsWith("verso-quote-")) highlights.delete(k);
   }
