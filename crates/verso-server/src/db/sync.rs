@@ -313,6 +313,21 @@ impl Db {
         tx.commit().map_err(e)
     }
 
+    /// The changes `seqs` are changes every reader sees, even if the file
+    /// is told to a reader as it was: a note released to some players
+    /// changed who sees it, not what it holds.
+    pub fn reader_force(&self, folder: &str, seqs: &[i64]) -> R<()> {
+        let conn = self.conn();
+        for q in seqs {
+            conn.execute(
+                "UPDATE changes SET reader_same = 0 WHERE folder = ?1 AND seq = ?2",
+                params![folder, q],
+            )
+            .map_err(e)?;
+        }
+        Ok(())
+    }
+
     /// The last change a reader sees: one only inside a secret block is
     /// none (ADR 0087). 0 for none.
     pub fn reader_head(&self, folder: &str) -> R<i64> {

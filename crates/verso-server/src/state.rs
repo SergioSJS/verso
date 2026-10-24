@@ -538,10 +538,18 @@ impl Server {
     /// its own.
     /// Only the windows of `to` hear it: who may write, and who may only
     /// read, hear their own heads (`crate::readers::push_sync_changed`).
+    ///
+    /// A `head` below zero is none: each window then asks for itself (a
+    /// player of a table with notes released to some players has a log
+    /// numbered in its own count).
     pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str], to: &[String]) {
-        let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
-        let frame = Frame::of(&whole);
         let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
+        let whole = if head < 0 {
+            bare.clone()
+        } else {
+            serde_json::json!({ "event": "sync-changed", "payload": { "head": head } })
+        };
+        let frame = Frame::of(&whole);
         let table = lock(&self.clients);
         for (id, c) in table.iter() {
             if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) || !to.contains(id) {

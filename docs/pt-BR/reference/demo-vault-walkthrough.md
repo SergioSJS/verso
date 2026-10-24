@@ -1580,11 +1580,16 @@ A pasta precisa ser de um servidor, e a pessoa a sua dona.
    de mesa, e cada nota dentro dela ganha o cadeado "Oculta da mesa". Numa
    pasta só deste computador o item não aparece. Nível: H; E:
    `campaign.spec.mjs`.
-2. Botão direito numa nota oculta › *Liberar para a mesa*: o cadeado some e a
-   linha de estado diz; *Ocultar da mesa* o põe de volta. Com várias notas
-   selecionadas, o menu da seleção faz o mesmo de uma vez. Numa pasta da mesa,
-   *Liberar tudo daqui* e *Ocultar tudo daqui*. Nível: H; E:
-   `campaign.spec.mjs`.
+2. Botão direito numa nota oculta › *Liberar para…* › *Toda a mesa*: o cadeado
+   some e a linha de estado diz; › *Ninguém (oculta)* a põe de volta; marcar um
+   ou dois jogadores a libera só para eles (os outros nunca a veem; um jogador a
+   quem o mestre dá a edição entra entre quem a vê e a linha de estado diz).
+   Com várias notas selecionadas, o menu da seleção as libera ou oculta de uma
+   vez para a mesa toda. Numa pasta da mesa, *Liberar tudo daqui* e *Ocultar tudo
+   daqui*. Nível: H; E: `campaign.spec.mjs`, `audience.spec.mjs`. Dentro de uma
+   nota da mesa, o ícone de usuários ao lado da estrela lista quem a vê: passar o
+   mouse, tocar, ou Tab + Enter; Esc fecha; no celular é uma folha de baixo.
+   Nível: H; E: `audience.spec.mjs`.
 3. Na janela: *Mesa aberta* desligada e ligada; *Convidar jogadores* › *Gerar
    link* mostra um link para copiar (uso único, 7 dias); *Liberar tudo* pergunta
    antes; os limites aceitam de 1.000 a 200.000 entradas e de 1 a 30 MB e

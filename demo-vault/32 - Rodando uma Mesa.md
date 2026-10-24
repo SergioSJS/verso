@@ -41,11 +41,19 @@ A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **C
 
 ## Liberar aos poucos
 
-- Botão direito numa nota › **Liberar para a mesa**. Ela aparece na lista das jogadoras, nas buscas, no grafo, nos links e nos quadros; sincroniza para o aparelho delas.
-- **Ocultar da mesa** a tira de novo (o aparelho recebe a ordem de largá-la).
-- Numa pasta da mesa: **Liberar tudo daqui** e **Ocultar tudo daqui**. Selecionando várias notas, o mesmo no menu da seleção. Na janela **Mesa**: **Liberar tudo**.
+- Botão direito numa nota › **Liberar para…**: **Toda a mesa**, ou uma ou mais jogadoras (marque quantas quiser, uma de cada vez), ou **Ninguém (oculta)**. A nota aparece na lista de quem você escolheu, nas buscas, no grafo, nos links e nos quadros; sincroniza para o aparelho delas. Quem não foi escolhida não a vê: é como se não existisse.
+- **Ninguém (oculta)** a tira de novo (o aparelho recebe a ordem de largá-la). Ao tirar uma jogadora de uma nota que já via, o aparelho dela também recebe a ordem de largá-la, e o das outras não ouve nada.
+- Numa pasta da mesa: **Liberar tudo daqui** e **Ocultar tudo daqui** (sempre a mesa toda). Selecionando várias notas, o mesmo no menu da seleção. Na janela **Mesa**: **Liberar tudo**.
+
+Assim o **diário** de uma jogadora, uma **pista que só um personagem recebeu** ou a **ficha** de cada jogadora são só uma nota liberada para uma jogadora (e, se for dela para escrever, entregue a ela em **Editável por**): não há recurso à parte. Entregar a edição a uma jogadora que ainda não via a nota a **inclui** entre quem a vê, e a linha de status diz isso.
 
 Uma nota oculta não existe para a jogadora: não está em lista nenhuma, e pedir por ela responde como pedir por uma que nunca houve. As imagens e arquivos só aparecem se uma nota **liberada** os mostra. Os blocos `> [!secret]` ([[25 - Dados e Tabelas Sorteadas]]) continuam escondendo um pedaço de uma nota liberada.
+
+---
+
+## Quem vê esta nota
+
+Dentro da nota, ao lado da estrela, há um ícone de **usuários com um número**: quantas jogadoras veem esta nota. Passe o mouse (ou toque, ou dê foco com Tab e aperte Enter) para abrir a lista: para você, **cada jogadora da mesa**, com **vê**, **edita** ou **não vê** (o ícone e a palavra, não só a cor) e um atalho **Alterar quem vê…** que abre o mesmo menu **Liberar para…**; para a jogadora, só **quem vê a nota** ("Você, Bruno e o mestre" ou "A mesa toda"), nunca os seus controles. **Esc** fecha e o foco volta ao botão; no celular a lista abre como uma folha de baixo, com um botão para fechar. O ícone só aparece em notas de uma mesa que já tem jogadoras.
 
 ---
 
@@ -59,7 +67,7 @@ Quando o nome já é um spoiler: botão direito na nota oculta › **Nome secret
 
 ## Quem edita
 
-Por padrão as jogadoras só leem. Botão direito numa nota › **Editável por** escolhe **ninguém**, **o grupo** (todas as jogadoras editam: a nota do grupo) ou **uma jogadora** (a ficha dela). A nota fica liberada com a permissão, e quem edita a lê **inteira**, com os blocos secretos e os links como você os escreveu: se há segredo nela, não a dê para ninguém.
+Por padrão as jogadoras só leem. Botão direito numa nota › **Editável por** escolhe **ninguém**, **o grupo** (todas as jogadoras editam: a nota do grupo) ou **uma jogadora** (a ficha dela). A jogadora que edita a nota passa a vê-la (entra entre quem a vê; **o grupo** faz dela uma nota da mesa toda), e quem edita a lê **inteira**, com os blocos secretos e os links como você os escreveu: se há segredo nela, não a dê para ninguém.
 
 Ninguém além de você renomeia, apaga ou cria notas ou arquivos; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
 

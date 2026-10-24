@@ -427,6 +427,8 @@ mod tests;
 #[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
+mod tests_audience;
+#[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]
 mod tests_board_stress;

@@ -130,6 +130,8 @@ fn main() {
         "campaign_settings",
         "campaign_release",
         "campaign_release_all",
+        "campaign_audience",
+        "campaign_access",
         "campaign_secret_name",
         "campaign_grant",
         "campaign_invite",

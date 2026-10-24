@@ -37,12 +37,28 @@ pub enum CampaignGrant {
     Player { account: String },
 }
 
+/// Who a note is released to (ADR 0110 item 4, amended 2026-10-23): nobody,
+/// the whole table, or a set of the table's players.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum CampaignAudience {
+    /// Nobody but the game master.
+    Hidden,
+    /// Every player at the table, and those who join later.
+    Table,
+    /// These players, by account.
+    Players { accounts: Vec<String> },
+}
+
 /// What the server keeps about a note of a table (ADR 0110 items 4, 5, 7).
 /// A note with no entry is hidden, with no grant and an ordinary name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct CampaignNote {
     pub path: String,
+    /// Whether any player sees it: the audience is not `hidden`.
     pub released: bool,
+    /// Who sees it.
+    pub audience: CampaignAudience,
     /// Every link to it is drawn as four blocks, whatever was written.
     pub secret_name: bool,
     pub grant: CampaignGrant,
@@ -86,4 +102,29 @@ pub struct CampaignInvite {
 pub struct CampaignChanged {
     /// The paths whose state changed (empty when a table changed).
     pub paths: Vec<String>,
+}
+
+/// What one person at a table can do with a note (`campaign_access`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignPerson {
+    pub id: String,
+    pub name: String,
+    /// `edits`, `sees` or `none`.
+    pub access: String,
+}
+
+/// Who has access to a note of a table (`campaign_access`, ADR 0110
+/// item 4 as amended 2026-10-23): the note's audience and, per player, what
+/// they can do. To the game master every player is listed, those without
+/// access too; to a player only the ones who have it, and never the
+/// game master's controls.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CampaignAccess {
+    pub path: String,
+    /// `owner` or `player`.
+    pub viewer: String,
+    pub audience: CampaignAudience,
+    pub people: Vec<CampaignPerson>,
+    /// The game master's name: the one who always has access.
+    pub master: String,
 }

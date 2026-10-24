@@ -301,6 +301,98 @@ fn schema_16_gives_the_old_entries_to_the_shortest_rooted_table_or_the_folder() 
     assert_eq!(rows[0].table, "Sala");
 }
 
+/// The database as schema 16 left it: the notes of a table are released
+/// or not, to the whole table or to nobody.
+fn schema_16() -> Connection {
+    let conn = schema_15();
+    conn.execute_batch(&format!(
+        "{} PRAGMA user_version = 16;",
+        table::TABLE_PER_TABLE
+    ))
+    .unwrap();
+    conn
+}
+
+/// Schema 17 (a note released to some players, 2026-10-23) keeps every
+/// note as it was: a released one is the whole table's, the others stay
+/// hidden, and no one is in an audience of a note nobody chose.
+#[test]
+fn schema_17_keeps_a_released_note_the_whole_tables_and_a_hidden_one_hidden() {
+    let conn = schema_16();
+    let at = now();
+    conn.execute_batch(&format!(
+        "INSERT INTO folders (id, dir, created) VALUES ('f', 'f', {at});
+         INSERT INTO campaigns (folder, root, created) VALUES ('f', '', {at});
+         INSERT INTO campaign_notes (folder, path, released) VALUES ('f', 'Aberta.md', 1), ('f', 'Fechada.md', 0);"
+    ))
+    .unwrap();
+    let db = Db::from(conn).unwrap();
+    let notes = db.campaign_notes("f").unwrap();
+    let audience = |p: &str| {
+        notes
+            .iter()
+            .find(|n| n.path == p)
+            .map(|n| n.audience.clone())
+            .unwrap()
+    };
+    assert_eq!(audience("Aberta.md"), Audience::Table);
+    assert_eq!(audience("Fechada.md"), Audience::Hidden);
+    assert_eq!(db.campaign_epoch("f").unwrap(), None);
+    let version: i64 = db
+        .conn()
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, 17);
+}
+
+/// An audience is the table's, a set of its players or nobody; a grant
+/// that does not hold with a narrower audience goes, and a grant to a
+/// player puts the player in the audience of a note that was not the
+/// table's.
+#[test]
+fn an_audience_is_kept_and_its_grants_follow_it() {
+    let db = db();
+    let owner = db
+        .create_account("o@b.co", "O", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let ana = db
+        .create_account("a@b.co", "Ana", "pt", Some("uma senha longa"), false)
+        .unwrap();
+    let bia = db
+        .create_account("b@b.co", "Bia", "pt", Some("uma senha longa"), false)
+        .unwrap();
+    let f = db.create_folder("Campanha", &owner.id).unwrap();
+    let one = vec!["N.md".to_owned()];
+    let players = |ids: &[&str]| Audience::Players(ids.iter().map(|s| (*s).to_owned()).collect());
+    let now_of = |db: &Db| db.campaign_notes(&f.id).unwrap().remove(0);
+    db.campaign_audience(&f.id, &one, &players(&[&ana.id]))
+        .unwrap();
+    assert_eq!(now_of(&db).audience, players(&[&ana.id]));
+    assert!(now_of(&db).audience.includes(&ana.id) && !now_of(&db).audience.includes(&bia.id));
+    // Bia edits it: Bia sees it.
+    db.campaign_grant(&f.id, "N.md", &Grant::Player(bia.id.clone()))
+        .unwrap();
+    assert_eq!(now_of(&db).audience, players(&[&ana.id, &bia.id]));
+    // Narrowed to Ana: Bia's grant goes with her place.
+    db.campaign_audience(&f.id, &one, &players(&[&ana.id]))
+        .unwrap();
+    assert_eq!(now_of(&db).grant, Grant::None);
+    // The table's, then nobody's: no rows of players are left.
+    db.campaign_audience(&f.id, &one, &Audience::Table).unwrap();
+    assert_eq!(now_of(&db).audience, Audience::Table);
+    db.campaign_audience(&f.id, &one, &Audience::Hidden)
+        .unwrap();
+    assert_eq!(now_of(&db).audience, Audience::Hidden);
+    // The audience moves with the note, and goes with it.
+    db.campaign_audience(&f.id, &one, &players(&[&ana.id]))
+        .unwrap();
+    db.campaign_move(&f.id, "N.md", "M.md").unwrap();
+    assert_eq!(now_of(&db).path, "M.md");
+    assert_eq!(now_of(&db).audience, players(&[&ana.id]));
+    db.campaign_deleted(&f.id, "M.md").unwrap();
+    assert!(db.campaign_notes(&f.id).unwrap().is_empty());
+}
+
 /// A folder's first table takes the log the folder had; its last one
 /// unmade gives it back; a table renamed keeps its own.
 #[test]
