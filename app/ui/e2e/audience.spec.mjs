@@ -277,13 +277,15 @@ test("a player's indicator says who sees the note, never a game-master control o
   await open(app);
   const b = button(app);
   await expect(b).toBeVisible();
-  await expect(b).toHaveAccessibleName("Quem vê esta nota: Ana, Bia e o mestre");
+  // The one asking is "Você", first.
+  await expect(b).toHaveAccessibleName("Quem vê esta nota: Você, Bia e o mestre");
   await expect(b.locator(".note-access-count")).toHaveText("3");
   await shot(app.page, info, "95-depois-nota-jogador-fechado-desktop-claro");
   await b.click();
   const p = pop(app);
   await expect(p).toBeVisible();
-  await expect(p).toContainText("Ana");
+  await expect(p).toContainText("Você");
+  await expect(p).not.toContainText("Ana");
   await expect(p).toContainText("Bia");
   await expect(p).toContainText("Mestre Ravena");
   await expect(p).not.toContainText("Caio");
