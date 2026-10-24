@@ -6,7 +6,7 @@
 // admin comes from the environment, as an image's would.
 
 import { spawn } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,8 @@ const repo = join(ui, "..", "..");
 const base = mkdtempSync(join(tmpdir(), "verso-e2e-server-"));
 const folders = join(base, "folders");
 cpSync(join(repo, "demo-vault"), join(folders, "Demo"), { recursive: true });
+// The tests that age a session's proof reach the server's database through this path.
+writeFileSync(join(tmpdir(), "verso-e2e-server-base"), base);
 const port = process.env.PORT ?? "4174";
 const bin = join(process.env.CARGO_TARGET_DIR ?? join(repo, "target"), "debug", process.platform === "win32" ? "verso.exe" : "verso");
 const server = spawn(bin, ["serve", "--web"], {

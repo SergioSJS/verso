@@ -8,7 +8,7 @@
 // key. A note granted to the person edits normally.
 
 import { test, expect } from "./fixtures.mjs";
-import { shot } from "./shots.mjs";
+import { shot, phase } from "./shots.mjs";
 
 const NOTE = "03 - Propriedades";
 const notice = (page) => page.locator(".reader-notice");
@@ -33,6 +33,15 @@ test("a reader has a closed lock beside the folder's name and no banner; an owne
   await page.evaluate(() => window.__harness.setRole("editor"));
   await expect(lock).toBeHidden();
   await expect(page.locator(".read-only-line")).toHaveCount(0);
+});
+
+test("a note one only reads has no \"you only read this folder\" line under its title", async ({ app, page }) => {
+  await app.open("?side=server&role=reader");
+  await app.quickOpen(NOTE);
+  await expect(page.locator(".pane.focused .note-title, .pane.focused h1").first()).toBeVisible();
+  await page.screenshot({ path: shot(`100-${phase}-nota-leitor-sem-linha-desktop-claro`) });
+  await expect(page.locator(".pane.focused .flags")).not.toContainText("só lê");
+  await expect(page.locator(".pane.focused .flags")).toHaveText("");
 });
 
 test("trying to type in a note one only reads says so near the caret, once, not on every key", async ({ app, page }) => {

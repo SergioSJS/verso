@@ -15,7 +15,6 @@ import { renderSticker, resolveColor, showStickerPicker } from "../../labels";
 import { bannerFraction, bannerPercent, pickerStrings } from "../../organize/cover";
 import { setFrontmatterProp } from "../../organize/frontmatter";
 import { host } from "../../can";
-import { st } from "../../screen/strings";
 import { heldImage } from "../../sanitize";
 import { settings } from "../../settings";
 import { LOCALE, t, typedText } from "../../strings";
@@ -251,8 +250,9 @@ export function paintFlags(this: NoteLeaf): void {
   const flags: string[] = [];
   if (note?.stale) flags.push(t.stale);
   if (note?.unverified) flags.push(t.unverified);
+  // A folder one only reads says so by the lock beside its name (ADR 0076
+  // item 11), not by a line under every title.
   if (this.mixedEol) flags.push(t.mixedEol);
-  else if (this.readOnly) flags.push(st.readOnly);
   // On a server a note also goes on another device that syncs the folder.
   // A save that found it gone says so above the text, with what to do.
   if (this.gone && !this.goneBanner.up) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);

@@ -390,6 +390,17 @@ fn a_closed_table_keeps_its_players_out_and_not_its_owner() {
             .call("campaign_settings", json!({ "root": "", "open": true }))
             .await;
         assert_eq!(open["ok"]["tables"][0]["open"], true);
+        // The player shut out hears it at once (not at the next try), the
+        // owner's own window does not get the news of its own act.
+        let heard = m.ana.listen(300).await;
+        assert!(
+            heard
+                .iter()
+                .any(|e| e["event"] == "table-opened" && e["payload"]["folder"] == m.id.as_str()),
+            "{heard:?}"
+        );
+        let own = m.owner.listen(100).await;
+        assert!(own.iter().all(|e| e["event"] != "table-opened"), "{own:?}");
         let (mut ana, o) = Win::open(&m.r, &b, &m.id).await;
         assert!(o.get("ok").is_some(), "{o}");
         assert!(ana.call("list_notes", json!({})).await.get("ok").is_some());

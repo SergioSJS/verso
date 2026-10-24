@@ -17,7 +17,7 @@ import { o } from "./offline/strings";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
 import { plainHttpLine } from "./plainHttp";
-import { signInJoin, signedInJoin } from "./inviteJoin";
+import { landing, signInJoin, signedInJoin } from "./inviteJoin";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -158,13 +158,13 @@ export async function invitePage(token: string, account: Account | null = null):
     [email, name, password, lang],
     s.createAccount,
     async () => {
-      await api("POST", `/api/invite/${encodeURIComponent(token)}`, {
+      const made = await api<{ done?: { open?: string | null } | null }>("POST", `/api/invite/${encodeURIComponent(token)}`, {
         email: email.input.value,
         name: name.input.value || email.input.value.split("@")[0],
         password: password.input.value,
         lang: lang.input.value,
       });
-      location.href = "/";
+      location.href = landing(made.done?.open);
     },
     (e) => (e instanceof ApiError && e.code === "exists" ? s.inviteExists : explain(e)),
   );
