@@ -336,6 +336,7 @@ jobs:
             crates/verso-dialect/fuzz/artifacts
             crates/verso-server/fuzz/artifacts
           if-no-files-found: ignore
+          retention-days: 14
 
   bench:
     name: benchmark on main (ADR 0029, feature 5)
