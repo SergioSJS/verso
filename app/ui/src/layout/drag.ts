@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { canWrite } from "../can";
+import { canChange } from "../can";
 import { narrow } from "../chrome";
 import { h, ui } from "../dom";
 import { moveFile, moveEntries } from "../files";
@@ -313,7 +313,7 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
   // A row of the tree moves a file: not for a reader on a server (ADR 0076
   // item 11). A roll of the table is written into a note or a board, which
   // the same permission governs.
-  if (!canWrite()) {
+  if (!canChange()) {
     readerAttempt({ x, y });
     return;
   }
