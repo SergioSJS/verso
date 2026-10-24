@@ -640,13 +640,25 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   step or the change is not recorded (the next walk records it; a device's write
   stands meanwhile). What waited for an unreadable table — the windows' events
   and the audiences' log entries — is told once it can be read, and the rooms
-  close at once (an unreadable table hides every note). Hiding a path that
-  readers had as a plain folder's file never takes a row out of the readers'
-  count and is told to no player by name (it may never have had it): the rows
-  stay, counted, and are told by what the path is now. The forgetting counters are per
+  close at once (an unreadable table hides every note). Making the first table over
+  files readers already had takes no row out of the readers' count; the notes it
+  hides are told gone — a forced deletion after the epoch — to the readers there
+  are at that moment, and to no one who comes later (chosen in the code: a hidden
+  note does not exist for a player, item 4; the pre-table rows of now-hidden notes
+  stay counted, told by what the path is now, because a device's cursor counts
+  them). The forgetting counters are per
   folder and a file written is not a change of the table's state; a decision
   that keeps meeting a moving state is refused for the asker to repeat, never
   written. A share's `sync_state` counts its head before the files are made.
+  Fourth review (2026-10-24): schema 18 gives a table made before an epoch the
+  one its folder's log stood at, so the numbers readers' devices hold go on with
+  no gap and nothing sent twice; making a table, its log and its epoch are one
+  transaction. What waits for an unreadable table is never replayed from a write
+  (a room saving holds its lock): a command and a player's ask replay it; one
+  that waited while the table moved on is derived again (who lost it and sees it
+  now has it again; who was to gain it and does not is told nothing), and what
+  waited for a table that was undone is dropped; at most 64 wait. Taking a share
+  away forgets its people who read the folder by no other way.
 - **What a window is told is what it gained or lost.** `campaign-changed` and the
   `folder-changed` of a release are made per player from the table before and
   after the change: a note it saw neither before nor after is not named, not

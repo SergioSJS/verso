@@ -104,6 +104,13 @@ pub async fn command(
         return access(server, who, client, &args).await;
     }
     let (folder, key) = game_master(server, who, client)?;
+    // What waited for the table to be readable is told before anything new.
+    let (s, f) = (Arc::clone(server), folder.clone());
+    blocking(move || {
+        crate::campaign_sync::replay_pending(&s, &f);
+        Ok(())
+    })
+    .await?;
     // The table as it was before this command: what each player saw then,
     // against what it sees after, is what the player is told.
     let before = campaign::veil_of(server, &folder);

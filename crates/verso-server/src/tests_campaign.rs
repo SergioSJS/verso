@@ -193,19 +193,6 @@ pub(crate) async fn mesa() -> Mesa {
     // The walk sees the files the commands made.
     let walked = owner.call("reindex", json!({})).await;
     assert!(walked.get("ok").is_some(), "{walked}");
-    let mut people = Vec::new();
-    for (email, name, password) in [
-        ("ana@casa.lan", "Ana", "a senha da ana"),
-        ("bia@casa.lan", "Bia", "a senha da bia"),
-    ] {
-        let a = r
-            .server
-            .db
-            .create_account(email, name, "pt", Some(password), false)
-            .unwrap();
-        r.server.db.grant(&id, &a.id, Role::Reader).unwrap();
-        people.push((email, password, a.id));
-    }
     let made = owner.call("campaign_make", json!({ "root": "" })).await;
     assert_eq!(made["ok"]["viewer"], "owner", "{made}");
     let released = owner
@@ -222,6 +209,21 @@ pub(crate) async fn mesa() -> Mesa {
         )
         .await;
     assert!(secret.get("ok").is_some(), "{secret}");
+    // The players come after the table is made: what it keeps from them was
+    // never theirs (a reader who had a file before the table is told it went).
+    let mut people = Vec::new();
+    for (email, name, password) in [
+        ("ana@casa.lan", "Ana", "a senha da ana"),
+        ("bia@casa.lan", "Bia", "a senha da bia"),
+    ] {
+        let a = r
+            .server
+            .db
+            .create_account(email, name, "pt", Some(password), false)
+            .unwrap();
+        r.server.db.grant(&id, &a.id, Role::Reader).unwrap();
+        people.push((email, password, a.id));
+    }
     let (e, p, ana_id) = &people[0];
     let b = sign_in(&r, e, p).await;
     let (ana, o) = Win::open(&r, &b, &id).await;

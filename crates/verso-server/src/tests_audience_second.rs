@@ -441,7 +441,8 @@ async fn since(w: &mut Win, head: i64) -> serde_json::Value {
 }
 
 #[test]
-fn making_the_first_table_over_existing_files_takes_no_row_out_of_the_readers_count() {
+fn making_the_first_table_over_existing_files_tells_the_readers_there_were_they_went_and_takes_no_row_back()
+ {
     block_on(async {
         let r = start().await;
         let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
@@ -461,14 +462,35 @@ fn making_the_first_table_over_existing_files_takes_no_row_out_of_the_readers_co
         assert!(head > 0, "{first}");
         let made = owner.call("campaign_make", json!({ "root": "" })).await;
         assert!(made.get("ok").is_some(), "{made}");
-        // Nothing left her count, and no name of a note the table now keeps
-        // from her is told her, who may never have had it.
+        // Nothing left her count, and she is told the notes the table hides
+        // are gone: a hidden note does not exist for a player.
         let again = ana.call("sync_changes", json!({ "since": 0 })).await;
         assert!(
             again["ok"]["head"].as_i64().unwrap() >= head,
             "a row left the readers' count: {first} then {again}"
         );
-        assert!(!again.to_string().contains("Sessao"), "{again}");
+        let after = ana.call("sync_changes", json!({ "since": head })).await;
+        assert!(
+            told(&after).contains(&("Sessao.md".to_owned(), true)),
+            "a reader who had the file is not told it went: {after}"
+        );
+        // A reader who comes after is told nothing of what was never hers.
+        let c = r
+            .server
+            .db
+            .create_account(
+                "cleo@casa.lan",
+                "Cleo",
+                "pt",
+                Some("a senha da cleo"),
+                false,
+            )
+            .unwrap();
+        r.server.db.grant(&id, &c.id, Role::Reader).unwrap();
+        let b = sign_in(&r, "cleo@casa.lan", "a senha da cleo").await;
+        let (mut cleo, _) = Win::open(&r, &b, &id).await;
+        let log = cleo.call("sync_changes", json!({ "since": 0 })).await;
+        assert!(!log.to_string().contains("Sessao"), "{log}");
     });
 }
 
@@ -565,6 +587,184 @@ fn a_change_whose_skip_rows_cannot_be_made_is_not_recorded() {
         assert!(
             r.is_err(),
             "no skip rows were made and the change would be recorded"
+        );
+    });
+}
+
+#[test]
+fn a_room_saving_while_something_waits_for_the_table_does_not_hang() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        let mine = m.owner.call("collab_join", json!({ "path": BARAO })).await;
+        let doc = crate::tests_audience_review::doc_of(&mine["ok"]);
+        let update = crate::tests_audience_review::typed(&doc, "mais\n");
+        m.owner
+            .call("collab_update", json!({ "path": BARAO, "update": update }))
+            .await;
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        // A refresh waits for the table.
+        fail_reads(&folder, true);
+        crate::campaign::forget(&server, &folder);
+        let (s, f, k) = (std::sync::Arc::clone(&server), folder.clone(), key.clone());
+        tokio::task::spawn_blocking(move || {
+            crate::campaign_cmds::refresh(&s, &f, &k, &[BARAO.to_owned()], None);
+        })
+        .await
+        .unwrap();
+        fail_reads(&folder, false);
+        crate::campaign::forget(&server, &folder);
+        // The room saves, holding its lock: recording the change must not
+        // take the rooms' locks.
+        let (s, k) = (std::sync::Arc::clone(&server), key);
+        let (tx, rx) = std::sync::mpsc::channel();
+        // A thread of its own: a save that hangs fails the test, it does not
+        // hold the runtime.
+        std::thread::spawn(move || {
+            let _ = tx.send(crate::collab::save(&s, &k, BARAO).is_ok());
+        });
+        let saved = rx.recv_timeout(std::time::Duration::from_secs(20));
+        assert_eq!(
+            saved,
+            Ok(true),
+            "the room's save hangs on what waits for the table"
+        );
+    });
+}
+
+#[test]
+fn an_audience_that_waited_while_the_table_moved_on_is_told_as_it_is_now() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        release_to(&mut m, BARAO, &[&ana_id]).await;
+        let ana_head = since(&mut m.ana, 0).await["ok"]["head"].as_i64().unwrap();
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        let before = crate::campaign::veil_of(&server, &folder);
+        let players = |who: &str| -> crate::db::Audience {
+            crate::db::Audience::Players([who.to_owned()].into_iter().collect())
+        };
+        // Ana loses the note to Bia, and the telling waits for the table.
+        server
+            .db
+            .campaign_audience(&folder, &[BARAO.to_owned()], &players(&bia_id))
+            .unwrap();
+        let ev = crate::campaign_cmds::Event {
+            path: BARAO.to_owned(),
+            lost: vec![ana_id.clone()],
+            gained: vec![bia_id.clone()],
+            restricted: true,
+        };
+        fail_reads(&folder, true);
+        crate::campaign::forget(&server, &folder);
+        let (s, f, k) = (std::sync::Arc::clone(&server), folder.clone(), key.clone());
+        tokio::task::spawn_blocking(move || {
+            crate::campaign_sync::audience_events(&s, &f, &k, &[ev], before);
+        })
+        .await
+        .unwrap();
+        // Meanwhile it is Ana's again.
+        server
+            .db
+            .campaign_audience(&folder, &[BARAO.to_owned()], &players(&ana_id))
+            .unwrap();
+        fail_reads(&folder, false);
+        crate::campaign::forget(&server, &folder);
+        let (s, f) = (std::sync::Arc::clone(&server), folder.clone());
+        tokio::task::spawn_blocking(move || crate::campaign_sync::replay_pending(&s, &f))
+            .await
+            .unwrap();
+        let log = since(&mut m.ana, ana_head).await;
+        assert!(
+            !told(&log).contains(&(BARAO.to_owned(), true)),
+            "Ana, who has the note, is told it went: {log}"
+        );
+        let bia = since(&mut m.bia, 0).await;
+        assert!(
+            !bia.to_string().contains("Bar"),
+            "Bia, who never had it: {bia}"
+        );
+    });
+}
+
+#[test]
+fn what_waited_for_a_table_that_was_undone_is_dropped() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        release_to(&mut m, BARAO, &[&ana_id]).await;
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        let ev = crate::campaign_cmds::Event {
+            path: BARAO.to_owned(),
+            lost: vec![ana_id],
+            gained: vec![bia_id],
+            restricted: true,
+        };
+        fail_reads(&folder, true);
+        crate::campaign::forget(&server, &folder);
+        let (s, f, k) = (std::sync::Arc::clone(&server), folder.clone(), key);
+        tokio::task::spawn_blocking(move || {
+            crate::campaign_sync::audience_events(&s, &f, &k, &[ev], None);
+        })
+        .await
+        .unwrap();
+        fail_reads(&folder, false);
+        server.db.campaign_drop(&folder, "").unwrap();
+        crate::campaign::forget(&server, &folder);
+        let head = server.db.head(&folder).unwrap();
+        let (s, f) = (std::sync::Arc::clone(&server), folder.clone());
+        tokio::task::spawn_blocking(move || crate::campaign_sync::replay_pending(&s, &f))
+            .await
+            .unwrap();
+        assert_eq!(
+            server.db.head(&folder).unwrap(),
+            head,
+            "recorded in a folder with no table"
+        );
+        assert_eq!(server.campaigns.pending_len(&folder), 0);
+    });
+}
+
+#[test]
+fn a_share_taken_away_forgets_its_people_who_read_the_folder_by_no_other_way() {
+    block_on(async {
+        let m = mesa().await;
+        let dora =
+            m.r.server
+                .db
+                .create_account(
+                    "dora@casa.lan",
+                    "Dora",
+                    "pt",
+                    Some("a senha da dora"),
+                    false,
+                )
+                .unwrap();
+        let share = m.r.server.db.make_share(&m.id, "Mundo Zq").unwrap();
+        m.r.server
+            .db
+            .grant_share(&share.id, &dora.id, Role::Reader)
+            .unwrap();
+        m.r.server
+            .db
+            .campaign_settle(&m.id, &dora.id, 5, &[])
+            .unwrap();
+        // Ana reads the folder by its grant and keeps hers.
+        m.r.server
+            .db
+            .campaign_settle(&m.id, &m.ana_id, 5, &[])
+            .unwrap();
+        m.r.server.db.delete_share(&share.id).unwrap();
+        assert_eq!(
+            m.r.server.db.campaign_viewer(&m.id, &dora.id).unwrap(),
+            None
+        );
+        assert_eq!(
+            m.r.server.db.campaign_viewer(&m.id, &m.ana_id).unwrap(),
+            Some(5)
         );
     });
 }
