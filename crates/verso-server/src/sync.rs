@@ -407,14 +407,16 @@ fn record_changes(
     // and changed ones, and those read again whose bytes did not change.
     let mut readers = crate::db::ReaderOf::new();
     // A table's veil is made again from the folder as it now is (ADR 0110).
-    crate::campaign::forget(server, folder);
+    crate::campaign::forget_files(server, folder);
     // A table that cannot be read now: nothing is recorded; the next
     // reconciliation finds the files as they are.
     if crate::campaign::veil_to_write(server, folder, "the folder's log").is_err() {
-        return Err(verso_service::failed(
-            "the table's state cannot be read now",
-        ));
+        // What the write left on the disk is recorded by the next
+        // reconciliation, which finds the files as they are; the write
+        // itself succeeded, and says so.
+        return server.db.head(folder).map_err(verso_service::failed);
     }
+    crate::campaign_sync::replay_pending(server, folder);
     let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
     let table = crate::campaign::veil_for_key(server, key);
     for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
@@ -466,7 +468,13 @@ fn record_changes(
     let (mut notices, lost) =
         crate::campaign_sync::deletion_notices(server, (folder, key), &changes);
     // And who does not see what was written, as it is written.
-    crate::campaign_sync::unseen_notices(server, (folder, key), &changes, &mut notices);
+    if let Err(e) =
+        crate::campaign_sync::unseen_notices(server, (folder, key), &changes, &mut notices)
+    {
+        // Not recorded without them: the write stands, the next walk records it.
+        crate::log::warn(&format!("a change waits to be recorded: {}", e.message));
+        return server.db.head(folder).map_err(verso_service::failed);
+    }
     let (head, same) = server
         .db
         .record_with(
@@ -479,7 +487,7 @@ fn record_changes(
         )
         .map_err(verso_service::failed)?;
     if !notices.is_empty() {
-        crate::campaign::forget(server, folder);
+        crate::campaign::forget_files(server, folder);
     }
     // Each text file's new bytes a version, a rename followed, a deletion
     // kept reachable (ADR 0091 items 1, 4 and 9).
@@ -734,19 +742,14 @@ pub(crate) async fn command_in(
                 let since: i64 = arg(&args, "since")?;
                 head_for_question(&s, &folder, &key, &c)?;
                 let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                // The players of a table with logs of their own are asked by
+                // their own page (`sync_reader`, `share_sync`); the table
+                // changing between that choice and this is the one place the
+                // shared log could be told to one of them: refused, asked again.
                 if crate::campaign_sync::restricted(&s, &key) {
-                    let changes: Vec<Value> =
-                        crate::campaign_sync::viewer_changes(&s, &folder, &key, &viewer)?
-                            .into_iter()
-                            .filter(|t| t.seq > since && t.tell)
-                            .map(|t| t.change)
-                            .take(1000)
-                            .collect();
-                    let more = changes
-                        .last()
-                        .and_then(|l| l["seq"].as_i64())
-                        .is_some_and(|last| last < head);
-                    return Ok(json!({ "head": head, "changes": changes, "more": more }));
+                    return Err(verso_service::failed(
+                        "the table changed: ask again in a moment",
+                    ));
                 }
                 let changes =
                     s.db.reader_changes_since(&folder, since, 1000)

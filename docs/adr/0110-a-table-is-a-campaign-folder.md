@@ -629,6 +629,22 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   locks and files are bounded. A player is pinged (`sync-changed`) only if the
   change tells it something: it gained or lost a note, or its own text of one
   moved.
+  Third review (2026-10-24): a player's log **begins** at its first ask, at the
+  readers' head, with the last change of each path it sees then — never the
+  history of those notes before (drafts made while hidden, or while the
+  account was out). An account that can no longer read the folder (revoked,
+  taken out of its share, or given a role that writes) loses its viewer, skip,
+  lost and remembered rows, its audiences and its grants, so that letting it in
+  again is a first ask. The skip rows of a recorded change are made in the same
+  step or the change is not recorded (the next walk records it; a device's write
+  stands meanwhile). What waited for an unreadable table — the windows' events
+  and the audiences' log entries — is told once it can be read, and the rooms
+  close at once (an unreadable table hides every note). Hiding a path that
+  readers had as a plain folder's file never takes a row out of the readers'
+  count: they are told it went, as a change. The forgetting counters are per
+  folder and a file written is not a change of the table's state; a decision
+  that keeps meeting a moving state is refused for the asker to repeat, never
+  written. A share's `sync_state` counts its head before the files are made.
 - **What a window is told is what it gained or lost.** `campaign-changed` and the
   `folder-changed` of a release are made per player from the table before and
   after the change: a note it saw neither before nor after is not named, not

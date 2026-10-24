@@ -294,6 +294,22 @@ impl Veil {
     }
 }
 
+/// A change of a table whose telling waits for its state to be readable.
+pub(crate) enum Pending {
+    /// What players and windows are told (`campaign_cmds::refresh`).
+    Refresh {
+        key: String,
+        touched: Vec<String>,
+        before: Option<Arc<Veil>>,
+    },
+    /// What the sync log says of audiences (`campaign_sync::audience_events`).
+    Audience {
+        key: String,
+        events: Vec<crate::campaign_cmds::Event>,
+        before: Option<Arc<Veil>>,
+    },
+}
+
 /// How many players' locks and told files the server keeps at most (a
 /// 1 GB host, ADR 0083): past it the unused are let go, the told files
 /// all.
@@ -322,9 +338,15 @@ type Told = FilesTold;
 #[derive(Default)]
 pub struct Cache {
     map: Mutex<HashMap<String, Option<Arc<Veil>>>>,
-    /// How many times any folder's veil was forgotten: a veil read before a
-    /// forgetting is not kept after it (it may be of the state before).
-    generation: std::sync::atomic::AtomicU64,
+    /// How many times each folder's veil was forgotten, and how many of
+    /// those were of its tables' state (not only of its files): a veil read
+    /// before a forgetting is not kept after it (it may be of the state
+    /// before), and what was decided from the state is decided again when
+    /// that moved.
+    generations: Mutex<HashMap<String, (u64, u64)>>,
+    /// What was to be told of a table's change when its state could not be
+    /// read, by folder: told once it can ([`crate::campaign_sync::replay_pending`]).
+    pending: Mutex<HashMap<String, Vec<Pending>>>,
     /// One at a time, per folder and account, the decision of what a
     /// player's log holds (`campaign_sync::viewer_*`).
     viewers: Mutex<HashMap<Account, Arc<Mutex<()>>>>,
@@ -334,6 +356,19 @@ pub struct Cache {
 }
 
 impl Cache {
+    /// Keep `what` for `folder` until its table can be read.
+    pub(crate) fn defer(&self, folder: &str, what: Pending) {
+        lock(&self.pending)
+            .entry(folder.to_owned())
+            .or_default()
+            .push(what);
+    }
+
+    /// What waits for `folder`, taken.
+    pub(crate) fn take_pending(&self, folder: &str) -> Vec<Pending> {
+        lock(&self.pending).remove(folder).unwrap_or_default()
+    }
+
     /// The lock of one player's log of `folder`.
     pub(crate) fn viewer_lock(&self, folder: &str, account: &str) -> Arc<Mutex<()>> {
         let mut viewers = lock(&self.viewers);
@@ -348,9 +383,14 @@ impl Cache {
         )
     }
 
-    /// Where the forgettings are.
-    pub(crate) fn generation(&self) -> u64 {
-        self.generation.load(std::sync::atomic::Ordering::SeqCst)
+    /// Where the forgettings of `folder`'s veil are.
+    pub(crate) fn generation(&self, folder: &str) -> u64 {
+        lock(&self.generations).get(folder).map_or(0, |g| g.0)
+    }
+
+    /// Where the changes of `folder`'s tables are (a file written is none).
+    pub(crate) fn state_generation(&self, folder: &str) -> u64 {
+        lock(&self.generations).get(folder).map_or(0, |g| g.1)
     }
 }
 
@@ -361,7 +401,7 @@ pub fn veil_of(server: &Server, folder: &str) -> Option<Arc<Veil>> {
     if let Some(found) = lock(&server.campaigns.map).get(folder) {
         return found.clone();
     }
-    let generation = server.campaigns.generation();
+    let generation = server.campaigns.generation(folder);
     let made = match make(server, folder) {
         Ok(made) => made,
         Err(e) => {
@@ -371,7 +411,7 @@ pub fn veil_of(server: &Server, folder: &str) -> Option<Arc<Veil>> {
     };
     let mut map = lock(&server.campaigns.map);
     // Forgotten while it was read: the next ask reads again.
-    if server.campaigns.generation() == generation {
+    if server.campaigns.generation(folder) == generation {
         map.insert(folder.to_owned(), made.clone());
     }
     made
@@ -483,14 +523,27 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
     })
 }
 
-/// The folder's files or its tables changed: the veil is made again at
-/// the next ask.
+/// The folder's tables changed: the veil is made again at the next ask,
+/// and what was decided from the state before is decided again.
 pub fn forget(server: &Server, folder: &str) {
+    forgetting(server, folder, true);
+}
+
+/// The folder's files changed: the veil is made again at the next ask (the
+/// attachments a note opens are read from them), the tables' state is as it
+/// was.
+pub fn forget_files(server: &Server, folder: &str) {
+    forgetting(server, folder, false);
+}
+
+fn forgetting(server: &Server, folder: &str, state: bool) {
     let mut map = lock(&server.campaigns.map);
-    server
-        .campaigns
-        .generation
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    {
+        let mut g = lock(&server.campaigns.generations);
+        let e = g.entry(folder.to_owned()).or_default();
+        e.0 += 1;
+        e.1 += u64::from(state);
+    }
     map.remove(folder);
 }
 

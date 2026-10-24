@@ -429,35 +429,6 @@ impl Db {
         Ok(rows)
     }
 
-    /// `paths` are hidden from readers from now on and were never told to
-    /// the people who read them as a table's (ADR 0110): the manifest says
-    /// so, and no change of the log before this one names them to a reader.
-    ///
-    /// `history`: the changes before this one are made no change for a
-    /// reader. Never where the readers have numbers of their own that a
-    /// device counted: a row that leaves the count shifts every cursor
-    /// after it.
-    pub fn reader_silence(&self, folder: &str, paths: &[String], history: bool) -> R<()> {
-        let mut conn = self.conn();
-        let tx = conn.transaction().map_err(e)?;
-        for p in paths {
-            tx.execute(
-                "UPDATE manifest SET reader_hash = '', reader_size = -1 WHERE folder = ?1 AND path = ?2",
-                params![folder, p],
-            )
-            .map_err(e)?;
-            if !history {
-                continue;
-            }
-            tx.execute(
-                "UPDATE changes SET reader_same = 1 WHERE folder = ?1 AND (path = ?2 OR renamed_from = ?2)",
-                params![folder, p],
-            )
-            .map_err(e)?;
-        }
-        tx.commit().map_err(e)
-    }
-
     /// The last change a reader sees: one only inside a secret block is
     /// none (ADR 0087). 0 for none.
     pub fn reader_head(&self, folder: &str) -> R<i64> {
@@ -588,6 +559,23 @@ impl Db {
                 params![folder, upto, a, b, account],
                 |r| r.get(0),
             )
+            .map_err(e)
+    }
+
+    /// The last change of each path among the readers' changes after
+    /// `after`: where a player's log begins when it is asked for the first
+    /// time.
+    pub fn reader_last_changes(&self, folder: &str, after: i64) -> R<HashMap<String, i64>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT path, MAX(seq) FROM changes
+                 WHERE folder = ?1 AND seq > ?2 AND reader_same = 0 GROUP BY path",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, after], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map_err(e)?
+            .collect::<rusqlite::Result<HashMap<_, _>>>()
             .map_err(e)
     }
 

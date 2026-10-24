@@ -107,6 +107,11 @@ pub async fn command(
     // The table as it was before this command: what each player saw then,
     // against what it sees after, is what the player is told.
     let before = campaign::veil_of(server, &folder);
+    // What a command changes is told from the table as it was: a table that
+    // cannot be read now is not changed by a command.
+    if before.as_ref().is_some_and(|v| v.is_unreadable()) {
+        return Err(failed("the table's state cannot be read now"));
+    }
     // The notes whose state changed, for what the players are told, and
     // who lost which (what their devices are told).
     let mut touched: Vec<String> = Vec::new();
@@ -777,7 +782,7 @@ pub async fn changed(
     campaign::forget(server, folder);
     let (s, f, k) = (Arc::clone(server), folder.to_owned(), key.to_owned());
     let _ = blocking(move || {
-        refresh(&s, &f, &k, &touched, before.as_deref());
+        refresh(&s, &f, &k, &touched, before);
         Ok(())
     })
     .await;
@@ -789,12 +794,24 @@ pub fn refresh(
     folder: &str,
     key: &str,
     touched: &[String],
-    before: Option<&campaign::Veil>,
+    before: Option<Arc<campaign::Veil>>,
 ) {
     campaign::forget(server, folder);
     // A table that cannot be read now tells no one anything and sends no
     // one out; the change is told by the next one.
     if campaign::veil_to_write(server, folder, "what players are told").is_err() {
+        // The rooms close all the same: an unreadable table hides every note,
+        // so no player stays in a document it may no longer be in. The rest
+        // is told when the table can be read.
+        crate::collab::readers::veil_changed(server, key);
+        server.campaigns.defer(
+            folder,
+            campaign::Pending::Refresh {
+                key: key.to_owned(),
+                touched: touched.to_vec(),
+                before,
+            },
+        );
         return;
     }
     // A closed table keeps its players out at once.
@@ -824,7 +841,10 @@ pub fn refresh(
         let Some(account) = lock(&server.clients).get(player).map(|c| c.account.clone()) else {
             continue;
         };
-        let (was, is) = (before.map(|v| v.view(&account)), after.view(&account));
+        let (was, is) = (
+            before.as_ref().map(|v| v.view(&account)),
+            after.view(&account),
+        );
         let seen = |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_none_or(|v| !v.hides_note(p));
         let edits =
             |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_some_and(|v| v.may_edit(p, &account));
