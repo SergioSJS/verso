@@ -1,7 +1,5 @@
 # The sync lab
 
-[Português (Brasil)](../pt-BR/reference/sync-lab.md)
-
 A UniVerso on this machine, a test vault and the tools to exercise sync
 ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)) with real
 apps and many devices, kept between runs so that every campaign starts from

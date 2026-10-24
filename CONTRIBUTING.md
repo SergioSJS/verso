@@ -5,7 +5,8 @@
 Verso is an open Markdown notes application: plain files on disk, compatible
 with Obsidian vaults. Contributions are welcome once the repository is public.
 The maintainer is the final authority — the models write, the maintainer
-decides. Repository documents are written in English, and each one has a
+decides. Repository documents are written in English, and the public-facing
+documents (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`) have a
 first-class pt-BR twin under `docs/pt-BR/`
 ([ADR 0008](docs/adr/0008-documentation-language.md)).
 
@@ -41,9 +42,8 @@ off.
 2. If the decision you need is `PROPOSED` or `[OPEN]`, open an issue and ask.
    Do not choose for the project.
 3. Check that the work fits the current phase in
-   [the roadmap](docs/roadmap.md). Out of scope until the end of Phase 2: sync,
-   mobile, plugins, board and the compatibility shim — not even "since it is
-   cheap".
+   [the roadmap](docs/roadmap.md). Out of scope until after V1: third-party
+   plugins and the compatibility shim — not even "since it is cheap".
 
 ## Pull requests
 
@@ -83,10 +83,12 @@ off.
 
 ## Documentation
 
-English is the source. Every document has a pt-BR twin with the same path and
-file name under `docs/pt-BR/` — written, not machine-translated. A pull request
-that changes one side changes the other, or it does not merge.
-`scripts/check-docs-mirror.sh` checks presence, heading structure and links.
+English is the source. Public-facing documents (`README.md`, `CONTRIBUTING.md`,
+`CHANGELOG.md`, `SECURITY.md`) have a pt-BR twin under `docs/pt-BR/` — written,
+not machine-translated; internal engineering documentation (`CLAUDE.md`,
+`docs/adr/`, `docs/spec/`, `docs/reference/`, `docs/review/`, `docs/roadmap.md`)
+is maintained in English only. `scripts/check-docs-mirror.sh` checks presence,
+heading structure and links.
 
 ## What you must not do
 
