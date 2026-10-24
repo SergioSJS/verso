@@ -685,3 +685,39 @@ Só o lado do servidor; o contrato e a janela são S4–S6.
   conjunto de um arquivo guarda um `none` explícito (a linha que uma nota
   oculta antiga tinha), para que um conjunto de pasta depois não decida por
   ele.
+
+### Revisão de S1–S3 (2026-10-24): o que um jogador vê do que não pode ver
+
+Qualquer coisa de um arquivo mostrada, nomeada ou respondida a quem está fora
+do seu acesso é BLOQUEANTE (regra do mantenedor). A revisão achou cinco
+caminhos e o mantenedor decidiu dois comportamentos; todos estão testados
+(`tests_access_review.rs`).
+
+- **A resposta de um renomear** (o mantenedor, 2026-10-24, *"Servidor corrige
+  sem contar"*): o servidor ainda reescreve os links nas notas que o jogador não
+  pode editar, como `share_links::apply` faz num compartilhamento; a resposta ao
+  jogador guarda só as reescritas das notas que ele pode *Editar*, os pulados e
+  movidos do que ele pode *Ver*, e nada do que está oculto.
+- **Um nome ocupado por algo oculto** (o mantenedor, 2026-10-24, *"Sufixo
+  automático"*): criar ou renomear para um nome que algo que o jogador não vê
+  ocupa nunca é respondido "já existe"; o servidor usa o próximo nome livre
+  (`Cripta 2.md`), como um duplicar faz, e responde com o nome usado. Um nome
+  ocupado por algo que o jogador vê é recusado como sempre.
+- Um arquivo movido ou renomeado para dentro de uma mesa por quem não é o mestre
+  é recusado (K.5), e sempre exige *Criar* na pasta nova; uma pasta não é de um
+  não mestre para renomear quando guarda uma mesa, ou algo que a pessoa não vê;
+  a lixeira é recusada a um jogador em qualquer mesa da pasta; um arquivo novo
+  que não é nota, board nem base feito por um jogador numa mesa é um arquivo
+  enviado (o direito, os bytes pelos primeiros bytes, o limite — nunca SVG,
+  página ou script) e o `sync_put` de um dispositivo é recusado até o S8.
+- Uma só afirmação de "vê os blocos secretos": `Player::sees_secrets` pergunta
+  `may(SeeSecretBlocks)`; uma sala entra inteira para quem ela permite, a
+  credencial só de leitura do mestre inclusive (digitar continua dos que
+  escrevem). `history_copy` pergunta *Criar* na pasta; os comandos sem caminho da
+  raiz de uma mesa são do mestre; a migração lê só linhas de audiência de notas
+  que as tabelas antigas tinham; o teto de um celular pareado segue o pareamento
+  ao vivo.
+- Como construído: *Dizer* e *Rolar* com credencial só de leitura continuam
+  permitidos (o chat não é escrita de arquivo). O `none` que a migração escreveu
+  para uma nota que a mesa mantinha oculta é marcado (`migrated`) e não é
+  exceção na lista de uma pasta.

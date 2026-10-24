@@ -417,3 +417,38 @@ fn the_audience_and_grant_adapters_answer_as_the_old_writes_did() {
         check(&db, &model, step, what);
     }
 }
+
+/// An audience row of a path with no note row was never read by the old
+/// veil (it was made of the note rows): the migration carries none over. A
+/// note the table kept hidden becomes a `none` that is marked as migrated,
+/// so that it is no exception anyone made.
+#[test]
+fn schema_20_ignores_an_audience_with_no_note_and_marks_the_hidden_it_wrote() {
+    let conn = schema_19();
+    seed(&conn);
+    conn.execute_batch(
+        "INSERT INTO campaign_notes (folder, path, released) VALUES ('f', 'Fechada.md', 0);
+         INSERT INTO campaign_audience (folder, path, account) VALUES ('f', 'Solta.md', 'a');",
+    )
+    .unwrap();
+    let db = Db::from(conn).unwrap();
+    let facts = db.access_facts("f").unwrap();
+    assert!(
+        facts.sets.get("solta.md").is_none(),
+        "an orphan row was carried over"
+    );
+    assert!(
+        facts.migrated.contains("fechada.md"),
+        "{:?}",
+        facts.migrated
+    );
+    // A path set on purpose is no longer a migrated one.
+    db.campaign_audience("f", &["Fechada.md".to_owned()], &Audience::Table)
+        .unwrap();
+    assert!(
+        !db.access_facts("f")
+            .unwrap()
+            .migrated
+            .contains("fechada.md")
+    );
+}

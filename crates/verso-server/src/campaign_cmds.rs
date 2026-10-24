@@ -800,7 +800,9 @@ async fn access(
 ) -> Result<Value, ContractError> {
     let door = Door::of(server, who, client)?;
     let folder = door.folder.clone();
-    let owner = door.seat() == crate::access::Seat::Master && !door.asker.phone;
+    // The game master's own phone is the game master, and may read who has
+    // access (ADR 0113 item 6); changing it is `game_master`'s.
+    let owner = door.seat() == crate::access::Seat::Master;
     let given: String = arg(args, "path")?;
     let (s, w) = (Arc::clone(server), Arc::clone(who));
     let found = blocking(move || {

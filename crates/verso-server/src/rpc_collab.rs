@@ -64,6 +64,15 @@ pub(crate) async fn collab_command(
     let board_of_a_player =
         door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
     let writes = !board_of_a_player && door.may_path(crate::access::Action::Edit, &path).allowed();
+    // The document a window joins is the whole one for whoever the rules let
+    // see the secret blocks — the game master's read-only credential too
+    // (ADR 0113 item 6) — and the projection's for the rest; typing is the
+    // writers' alone.
+    let whole = writes
+        || (!board_of_a_player
+            && door
+                .may_path(crate::access::Action::SeeSecretBlocks, &path)
+                .allowed());
     if typing && !writes {
         return Err(refused("you may only read this folder"));
     }
@@ -95,7 +104,7 @@ pub(crate) async fn collab_command(
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" => to_value(crate::collab::join(&s, (&c, !writes), &key, &path, &user)?),
+        "collab_join" => to_value(crate::collab::join(&s, (&c, !whole), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
             crate::collab::update(&s, (&c, &account), &key, &path, &update)?;

@@ -658,6 +658,7 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ("table_history", r#"{"before":null,"limit":null}"#, false),
     ("table_say", r#"{"text":"oi"}"#, false),
     ("table_send_image", r#"{"base64":""}"#, false),
+    ("table_attach", r#"{"base64":"","into":"a.md"}"#, false),
     (
         "table_roll",
         r#"{"notation":"1d6","source":null,"path":null,"secret":null,"styles":null}"#,
@@ -1093,6 +1094,7 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "table_history",
         "table_say",
         "table_send_image",
+        "table_attach",
         "table_roll",
         "table_pin",
         "table_delete",

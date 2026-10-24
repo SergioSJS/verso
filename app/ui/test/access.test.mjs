@@ -25,7 +25,7 @@ function told(w, c) {
   const seat = w.link ? "visitor" : w.role === "owner" ? "master" : w.role ? "player" : "none";
   const folder = { seat, role: w.link ? "" : (w.role ?? ""), cap: w.cap, table: c.table !== "none" };
   // The level does not depend on the credential: the same person with a credential that writes.
-  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin) ?? w;
+  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin && x.other === w.other) ?? w;
   const level = allow(c.edit ?? c.self, writer.name) ? "edit" : allow(c.see ?? c.self, writer.name) ? "see" : "none";
   return { folder, level };
 }

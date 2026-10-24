@@ -421,6 +421,23 @@ pub async fn command(
     if door.veiled() && !door.may_path(crate::access::Action::Edit, &path).allowed() {
         return Err(not_found("no such version of this file"));
     }
+    // A copy of a version is a new file beside the file: the folder is one
+    // the person makes files in.
+    if cmd == "history_copy" {
+        let beside = path.rsplit_once('/').map_or("", |(d, _)| d);
+        if !door
+            .may(
+                crate::access::Action::Create,
+                beside,
+                crate::access::Kind::Folder,
+            )
+            .allowed()
+        {
+            return Err(refused(
+                "the history is for those who may change this folder",
+            ));
+        }
+    }
     let policy = Policy {
         days: days(server, &folder),
         can_delete: (owner && scope.is_none()) || who.account.admin,

@@ -72,6 +72,9 @@ struct Person {
     link: bool,
     cred: Cred,
     admin: bool,
+    /// Not Ana, whose rows the sets name, but another player: she falls to
+    /// the whole table's row.
+    other: bool,
 }
 
 impl Person {
@@ -79,6 +82,8 @@ impl Person {
         Asker {
             account: if self.link {
                 "link:1".to_owned()
+            } else if self.other {
+                "bia".to_owned()
             } else {
                 ANA.to_owned()
             },
@@ -100,7 +105,8 @@ impl Person {
             self.role.map_or("stranger", Role::as_str)
         };
         format!(
-            "{role}/{}{}",
+            "{role}{}/{}{}",
+            if self.other { "-other" } else { "" },
             if self.link {
                 "read-link"
             } else {
@@ -120,6 +126,7 @@ impl Person {
                         link: false,
                         cred,
                         admin,
+                        other: false,
                     });
                 }
             }
@@ -128,12 +135,21 @@ impl Person {
                 link: false,
                 cred: Cred::Write,
                 admin,
+                other: false,
             });
             out.push(Self {
                 role: None,
                 link: true,
                 cred: Cred::ReadToken,
                 admin,
+                other: false,
+            });
+            out.push(Self {
+                role: Some(Role::Reader),
+                link: false,
+                cred: Cred::Write,
+                admin,
+                other: true,
             });
         }
         out
@@ -478,7 +494,7 @@ fn level_of(p: Person, s: Setting) -> Level {
     if s.table == TableState::Closed {
         return Level::None;
     }
-    let level = set_level(s, p.link);
+    let level = set_level(s, p.link || p.other);
     if p.link {
         // A visitor never edits.
         return level.min(Level::See);
@@ -499,7 +515,9 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
     let level = level_of(p, s);
     let w = p.writes();
     // The right to send files holds at the table, for a player.
-    let sends = p.master() || (!in_table && p.editor_or_more()) || s.right;
+    // The right is Ana's: another player has none.
+    let right = s.right && !p.other;
+    let sends = p.master() || (!in_table && p.editor_or_more()) || right;
     match action {
         // See a file or folder: the table open and the level at least see.
         Action::See => {
@@ -512,7 +530,7 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
         Action::Edit => w && level == Level::Edit,
         // A new file into a file the person edits: and, for a player, the
         // right.
-        Action::Attach => w && level == Level::Edit && (!in_table || p.master() || s.right),
+        Action::Attach => w && level == Level::Edit && (!in_table || p.master() || right),
         // Create and rename inside a folder one edits (K.5).
         Action::Create | Action::Rename => w && level == Level::Edit,
         // Move and delete: the game master, or the folder's editor outside
@@ -633,21 +651,22 @@ fn vectors() -> String {
         "own set (whole table = level); folder = the folder's set only; exception = the file's own set under a ",
         "folder's set that says something else; below-whole = the file's set with the whole table at edit and the ",
         "player's own row at level; moved-in = the file's own set under a set on the table that says something ",
-        "else (K.2). The player is ana; the visitor of a read link has only the whole table's row.\",\n"
+        "else (K.2). The player is ana; a reader-other is another player, who falls to the whole table's row; the visitor of a read link has only the whole table's row.\",\n"
     ));
     out.push_str("  \"who\": [\n");
     let names: Vec<String> = people
         .iter()
         .map(|p| {
             format!(
-                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}}}",
+                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}, \"other\": {}}}",
                 p.name(),
                 p.role
                     .map_or_else(|| "null".to_owned(), |r| format!("\"{}\"", r.as_str())),
                 p.link,
                 if p.writes() { "write" } else { "read" },
                 p.phone(),
-                p.admin
+                p.admin,
+                p.other
             )
         })
         .collect();

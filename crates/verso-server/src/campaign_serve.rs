@@ -274,8 +274,8 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
     for given in named {
         for path in [given.clone(), ws.confined(&given).unwrap_or(given)] {
             if !p.veil.in_table(&path) {
-                // Outside a table an editor reads whole, as a writer does.
-                edits |= p.editor;
+                // Outside a table whoever edits reads whole, as a writer does.
+                edits |= p.sees_secrets(&path);
                 continue;
             }
             if note_like(&path) {

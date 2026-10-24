@@ -47,7 +47,8 @@ CREATE TABLE campaign_access (
   folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
   path TEXT NOT NULL,
   account TEXT REFERENCES accounts(id) ON DELETE CASCADE,
-  level TEXT NOT NULL CHECK (level IN ('none', 'see', 'edit'))
+  level TEXT NOT NULL CHECK (level IN ('none', 'see', 'edit')),
+  migrated INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX campaign_access_row ON campaign_access (folder, path, COALESCE(account, ''));
 CREATE TABLE campaign_files (
@@ -76,10 +77,10 @@ INSERT INTO campaign_access (folder, path, account, level)
         WHERE grant_kind = 'player' AND grant_account IS NOT NULL
     ) GROUP BY folder, path, account
   ) c
-  LEFT JOIN campaign_notes n ON n.folder = c.folder AND n.path = c.path
+  JOIN campaign_notes n ON n.folder = c.folder AND n.path = c.path
   WHERE c.rank > CASE WHEN n.grant_kind = 'group' THEN 2 WHEN n.released = 1 THEN 1 ELSE 0 END;
-INSERT INTO campaign_access (folder, path, account, level)
-  SELECT n.folder, n.path, NULL, 'none' FROM campaign_notes n
+INSERT INTO campaign_access (folder, path, account, level, migrated)
+  SELECT n.folder, n.path, NULL, 'none', 1 FROM campaign_notes n
   WHERE NOT EXISTS (SELECT 1 FROM campaign_access a WHERE a.folder = n.folder AND a.path = n.path);
 INSERT INTO campaign_files (folder, path, secret_name)
   SELECT folder, path, 1 FROM campaign_notes WHERE secret_name = 1;
@@ -151,6 +152,23 @@ pub(super) fn facts_in(conn: &Connection, folder: &str) -> R<AccessFacts> {
         sets_of(&rows_of(conn, folder)?)
             .into_iter()
             .map(|(path, set)| (crate::campaign::key(&path), set))
+            .collect(),
+    );
+    // A path whose only rows are the `none` the migration wrote for a note
+    // the table had hidden is no exception anyone made.
+    let mut st = conn
+        .prepare(
+            "SELECT path FROM campaign_access WHERE folder = ?1
+             GROUP BY path HAVING MIN(migrated) = 1",
+        )
+        .map_err(e)?;
+    facts.migrated = std::sync::Arc::new(
+        st.query_map([folder], |r| r.get::<_, String>(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)?
+            .into_iter()
+            .map(|p| crate::campaign::key(&p))
             .collect(),
     );
     let mut st = conn

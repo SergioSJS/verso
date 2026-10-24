@@ -125,6 +125,9 @@ pub struct AccessFacts {
     /// Asker may send files, by the table's root (as a key) and the account
     /// (K.4).
     pub files_right: HashSet<(String, String)>,
+    /// Paths whose only set is the `none` the migration to schema 20 wrote
+    /// for a note the table had hidden: not an exception anyone made.
+    pub migrated: std::sync::Arc<HashSet<String>>,
 }
 
 /// What kind of thing a target is.
@@ -701,6 +704,7 @@ mod tests {
                     .collect(),
             ),
             files_right: HashSet::new(),
+            migrated: std::sync::Arc::default(),
         }
     }
 

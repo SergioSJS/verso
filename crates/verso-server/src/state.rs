@@ -631,6 +631,9 @@ impl Server {
                 if let Some((folder, _)) = c.folder.take() {
                     c.folder = Some((folder, role));
                 }
+                // The credential's ceiling follows the pairing's: one source
+                // (ADR 0113), not a flag kept from the connection's start.
+                c.token_write = role.writes();
                 c.tx.send(&serde_json::json!({ "role": role }));
                 if !role.writes() {
                     demoted.push(id.clone());
