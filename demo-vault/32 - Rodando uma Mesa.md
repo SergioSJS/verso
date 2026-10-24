@@ -33,7 +33,7 @@ Só quem administra o servidor convida alguém que ainda não tem conta; quem j�
 
 **Mesa aberta** é uma **chave** no topo da janela, com um selo **Aberta** ou **Fechada**, e vale na hora: não há botão de salvar. Desligada, as jogadoras não conseguem abrir a pasta e quem está dentro sai; e você sempre entra. **O que a jogadora vê:** no lugar da pasta, "A mesa está fechada pelo mestre. Você entra quando ela abrir.", com **Tentar agora**; o app tenta de novo sozinho, de vez em quando, e ela entra assim que você ligar a chave. Para você, o botão da Mesa ao lado do nome da pasta diz **Mesa (fechada)** enquanto estiver desligada, para você não esquecer ninguém do lado de fora.
 
-A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **Copiar** e o dia em que vence), **Jogadores** (cada uma com o que você entregou a ela para editar, em links), **Notas** (quantas liberadas e quantas ocultas, com **Liberar tudo** e **Ocultar tudo**) e, recolhidos, os limites em **Avançado**. **Desfazer mesa** fica no pé, em vermelho e discreto, e pergunta antes.
+A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **Copiar** e o dia em que vence), **Jogadores** (uma tabela, veja [[#Quem pode o quê: a tabela de jogadoras]]), **Notas** (quantas liberadas e quantas ocultas, com **Liberar tudo** e **Ocultar tudo**) e, recolhidos, os limites em **Avançado**. **Desfazer mesa** fica no pé, em vermelho e discreto, e pergunta antes.
 
 **Na página da pasta** (a que abre ao clicar no nome da pasta) a mesma coisa cabe num cartão **Mesa** logo abaixo do título: a chave, quantas jogadoras há e quem está na mesa agora, **Convidar**, **Liberar tudo** / **Ocultar tudo** e **Configurações da mesa**, que abre a janela inteira; você pode recolher o cartão, e o app lembra por pasta. Numa pasta que ainda não é mesa, o cartão é só o botão **Tornar esta pasta uma mesa**. A jogadora vê uma linha, **Mesa · jogador**, com a mesa aberta ou fechada e as notas entregues a ela, em links.
 
@@ -70,6 +70,21 @@ Quando o nome já é um spoiler: botão direito na nota oculta › **Nome secret
 Por padrão as jogadoras só leem. Botão direito numa nota › **Editável por** escolhe **ninguém**, **o grupo** (todas as jogadoras editam: a nota do grupo) ou **uma jogadora** (a ficha dela). A jogadora que edita a nota passa a vê-la (entra entre quem a vê; **o grupo** faz dela uma nota da mesa toda), e quem edita a lê **inteira**, com os blocos secretos e os links como você os escreveu: se há segredo nela, não a dê para ninguém.
 
 Ninguém além de você renomeia, apaga ou cria notas ou arquivos; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
+
+---
+
+## Quem pode o quê: a tabela de jogadoras
+
+O cartão **Jogadores** é uma **tabela**, uma linha por jogadora, com colunas para o que cada uma pode fazer:
+
+| Coluna | O que mostra |
+|---|---|
+| **Jogador** | o avatar, o nome e um ponto verde enquanto ela está na mesa |
+| **Vê** | quantas notas estão liberadas para ela; clique no número para abrir a lista, com cada nota como link |
+| **Edita** | quantas notas ela pode editar (entregues em **Editável por**); clique para ver quais |
+| **Imagens** | uma **chave**: liga, e ela passa a poder colar ou anexar imagens no chat da [[31 - A Mesa|Mesa]] |
+
+Por padrão a jogadora só lê e escreve texto no chat: a chave **Imagens** começa **desligada** e é você quem liga, uma jogadora de cada vez, ou a caixa **Todos** no cabeçalho da coluna, que fica "mista" quando as jogadoras diferem. A chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode enviar imagens". Ligada ou desligada, a janela da jogadora fica sabendo **na hora**: o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar. Quem envia a imagem é o servidor, na pasta de anexos da mesa, com as mesmas conferências de sempre (PNG, JPEG, WebP ou GIF pelos bytes, nunca SVG, o limite de tamanho da mesa, a cota da pasta); tanto faz a jogadora ter entrado por um compartilhamento ou ser membro da pasta. Você, dona da pasta, e quem edita sempre podem. No celular cada jogadora vira um cartão com os mesmos controles, sem rolar para o lado. Tudo pelo teclado: Tab, Espaço na chave, Enter no número.
 
 ---
 

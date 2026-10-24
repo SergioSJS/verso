@@ -33,7 +33,7 @@ Only whoever runs the server invites someone with no account yet; someone who ha
 
 **Table open** is a **switch** at the top of the window, with a **Open** or **Closed** badge, and it takes effect at once: there is no save button. Off, players cannot open the folder and whoever is inside leaves; you always can. **What a player sees:** in the folder's place, "The table is closed by the game master. You get in when it opens.", with **Try now**; the app tries again by itself now and then, and the player gets in as soon as you turn the switch on. For you, the Table button beside the folder's name says **Table (closed)** while it is off, so you never forget anyone outside.
 
-The window is made of cards: **Invite players** (the link in a field, with **Copy** and the day it expires), **Players** (each with what you granted them to edit, as links), **Notes** (how many are released and how many hidden, with **Release everything** and **Hide everything**) and, folded, the limits under **Advanced**. **Undo table** sits at the bottom, red and quiet, and asks first.
+The window is made of cards: **Invite players** (the link in a field, with **Copy** and the day it expires), **Players** (a table, see [[#Who can do what: the players table]]), **Notes** (how many are released and how many hidden, with **Release everything** and **Hide everything**) and, folded, the limits under **Advanced**. **Undo table** sits at the bottom, red and quiet, and asks first.
 
 **On the folder's page** (the one that opens when you click the folder's name) the same fits in a **Table** card right under the title: the switch, how many players there are and who is at the table now, **Invite**, **Release everything** / **Hide everything** and **Table settings**, which opens the whole window; you can fold the card away, and the app remembers it per folder. On a folder that is not a table yet, the card is just the **Make this folder a table** button. A player sees one line, **Table · player**, with the table open or closed and the notes granted to them, as links.
 
@@ -70,6 +70,21 @@ When the name is already a spoiler: right-click the hidden note › **Secret nam
 By default players only read. Right-click a note › **Editable by** picks **nobody**, **the group** (every player edits: the group's note) or **one player** (their sheet). The player who edits the note sees it too (they join those who see it; **the group** makes it a note of the whole table), and whoever edits it reads it **whole**, with its secret blocks and links as you wrote them: if there is a secret in it, do not give it to anyone.
 
 Nobody but you renames, deletes or creates notes or files; the server checks this at every door (the window, the editing room, the synced device).
+
+---
+
+## Who can do what: the players table
+
+The **Players** card is a **table**, one row per player, with columns for what each can do:
+
+| Column | What it shows |
+|---|---|
+| **Player** | the avatar, the name and a green dot while they are at the table |
+| **Sees** | how many notes are released to them; click the number to open the list, each note a link |
+| **Edits** | how many notes they may edit (given in **Editable by**); click to see which |
+| **Images** | a **switch**: turn it on and they can paste or attach images in the [[31 - The Table|Table]]'s chat |
+
+By default a player only reads and types text in the chat: the **Images** switch starts **off** and you turn it on, one player at a time, or with the **Everyone** box in the column's header, which shows "mixed" when the players differ. The switch saves at once and says **Saved** beside itself; a screen reader reads "Ana can send images". On or off, the player's window learns it **at once**: the attach button, paste and drop appear or go, with no reload. The server writes the image, into the table's attachments folder, with the usual checks (PNG, JPEG, WebP or GIF by the bytes, never SVG, the table's size limit, the folder's quota); it makes no difference whether the player came in through a share or is a member of the folder. You, the folder's owner, and editors always can. On a phone each player becomes a card with the same controls, no sideways scroll. All of it by keyboard: Tab, Space on the switch, Enter on a number.
 
 ---
 

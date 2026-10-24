@@ -99,6 +99,19 @@ pub struct TableJoin {
     pub entries: Vec<TableEntry>,
     pub more: bool,
     pub roster: Vec<TableMember>,
+    /// Whether this account may send an image to the table: an owner or an
+    /// editor always, a player when the game master gave it the permission
+    /// (ADR 0107 item 3 as amended 2026-10-24).
+    #[serde(default)]
+    pub images: bool,
+}
+
+/// The permission to send images changed for this account (event
+/// `table-images`): told to its windows at the table at once.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TableImages {
+    pub table: String,
+    pub images: bool,
 }
 
 /// A page of older entries (`table_history`), oldest first.

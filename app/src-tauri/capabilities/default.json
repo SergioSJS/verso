@@ -144,6 +144,7 @@
     "allow-campaign-access",
     "allow-campaign-secret-name",
     "allow-campaign-grant",
+    "allow-campaign-permission",
     "allow-campaign-invite",
     "allow-server-sign-in",
     "allow-server-sign-in-page",

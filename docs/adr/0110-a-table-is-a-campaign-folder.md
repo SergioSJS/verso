@@ -739,3 +739,52 @@ and is recorded so it is not mistaken for one.
   only read this folder" is gone for everyone (the lock says it).
 - **Joining by an invitation** opens what was joined (the folder, or the
   share; a person who holds the whole folder gets the folder).
+
+## As built (who may send images, 2026-10-24)
+
+The maintainer, asked whether players should be able to send an image to the
+table's chat: *"Deveria ser possível dar ou não permissão de subir imagem,
+melhore a tela de acesso, adicione colunas de permissão."* This amends
+[0107](0107-the-table-a-shared-roll-and-chat-log.md) item 3 (an image is a file
+of the folder, so a reader sent none).
+
+- **The permission.** The game master gives or withholds, per player and per
+  table, the right to send images to its chat. With it, the **server** writes
+  the image into the table's attachments place on the player's behalf, through
+  the same path and the same checks as an editor's image (`table_image::send`:
+  PNG, JPEG, WebP or GIF by the bytes, never SVG, the table's `image_max`, the
+  folder's quota, the sync log, `nosniff`, the pace). Without it, a reader is
+  refused as before ("you may only read this folder"), and the upload is
+  refused before it is parsed unless the account holds the permission at some
+  table of the folder (`inflight.rs`). The owner and an editor always may. A
+  phone paired as a reader, or a read-only token, still sends none. A player
+  on a share at the table and a member of the folder behave the same: a share
+  only bounds what is seen.
+- **Off by default** for a player (chosen in the code). It is a row in the
+  server's database, never in a note's file: schema 19, `campaign_images
+  (folder, root, account)`, kept with the table (it follows a renamed table
+  folder, goes with an unmade or deleted one) and with the account while it
+  reads the folder (it goes when the account leaves, so that a player let in
+  again begins anew).
+- **The command** `campaign_permission(root, accounts, images)`: the folder's
+  owner only, on the folder itself (never through a share, never from a phone,
+  as the other commands of the table); the accounts must be players of that
+  table; one audit row, `campaign_permission`, with the subject
+  `images:on|off:<accounts>`. It answers the status. The status carries, per
+  table, `image_players` (the game master's list) and `images` (a player's own
+  right), and per player the tables he plays at (`roots`).
+- **Told at once.** `TableJoin.images` says it at the join, and a change is
+  pushed to the player's windows at that table as `table-images { table,
+  images }` (the share's own root `""` on a share): the attach button, the
+  paste and the drop appear or go, with no reload.
+- **The screen.** The table window's **Players** card is now a real table:
+  *Player* (avatar, name, a dot while at the table), *Sees* (how many notes are
+  released to the player, opening the list), *Edits* (how many the player may
+  edit, the same) and *Images*, a switch per player that saves at once and
+  answers beside itself, with an *everyone* box in the header that is mixed when
+  the players differ. Row headers and column headers are real; on a phone each
+  row is a card with the same controls. Nothing was added for removing a player
+  (nothing removes one from the table today).
+- **Not done.** A permission per kind of file, or for rolls: the right is only
+  to send images.
+
