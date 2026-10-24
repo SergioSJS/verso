@@ -495,6 +495,7 @@ fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
                 .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
                 .unwrap()
         );
+        assert!(!r.server.db.image_granted(&c.folder, &c.ana_id));
         // Seated again: off, as at the first seat.
         r.server
             .db
@@ -506,5 +507,81 @@ fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
                 .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
                 .unwrap()
         );
+    });
+}
+
+/// The set the size check before a parse reads follows every writer of the
+/// permission — an unmade table, a deleted folder inside it, a revoked
+/// account, a deleted account, a deleted folder — so that nobody who lost the
+/// right is admitted until a restart.
+#[test]
+fn the_admission_set_follows_every_way_a_permission_goes() {
+    block_on(async {
+        let r = start().await;
+        let c = seat(&r, "").await;
+        for root in ["A", "B"] {
+            r.server.db.campaign_make(&c.folder, root).unwrap();
+        }
+        crate::campaign::forget(&r.server, &c.folder);
+        let mut people = Vec::new();
+        for (email, name) in [
+            ("ana2@casa.lan", "Ana2"),
+            ("caio@casa.lan", "Caio"),
+            ("dora@casa.lan", "Dora"),
+            ("eva@casa.lan", "Eva"),
+        ] {
+            let a = r
+                .server
+                .db
+                .create_account(email, name, "pt", Some("uma senha longa"), false)
+                .unwrap();
+            r.server.db.grant(&c.folder, &a.id, Role::Reader).unwrap();
+            people.push((email, a.id));
+        }
+        let roots = ["A", "B", "", ""];
+        let mut windows = Vec::new();
+        for ((email, id), root) in people.iter().zip(roots) {
+            r.server
+                .db
+                .campaign_images_set(&c.folder, root, std::slice::from_ref(id), true)
+                .unwrap();
+            windows.push(open(&r, email, "uma senha longa", &c.folder).await);
+        }
+        let len = big_png(64).len();
+        let admit = |id: &str| {
+            crate::inflight::admit(
+                &r.server,
+                &client_of(&r, id),
+                Some(1),
+                "table_send_image",
+                len,
+            )
+        };
+        for (_, id) in &people {
+            assert!(r.server.db.image_granted(&c.folder, id));
+            assert!(admit(id).is_ok());
+        }
+        // An unmade table, and a folder deleted that held one.
+        r.server.db.campaign_drop(&c.folder, "A").unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[0].1));
+        assert!(admit(&people[0].1).is_err());
+        r.server.db.campaign_deleted(&c.folder, "B").unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[1].1));
+        assert!(admit(&people[1].1).is_err());
+        // An account that stops reading the folder.
+        r.server.db.revoke(&c.folder, &people[2].1).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[2].1));
+        // An account deleted.
+        r.server.db.delete_account(&people[3].1).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[3].1));
+        // The folder deleted: nothing is left.
+        r.server
+            .db
+            .campaign_images_set(&c.folder, "", std::slice::from_ref(&c.ana_id), true)
+            .unwrap();
+        assert!(r.server.db.image_granted(&c.folder, &c.ana_id));
+        r.server.db.forget_folder(&c.folder).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &c.ana_id));
+        drop(windows);
     });
 }

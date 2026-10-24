@@ -365,10 +365,6 @@ pub struct Server {
     /// The pace of a connection's table messages, images and rolls (ADR
     /// 0107 item 12).
     pub table_pace: crate::pace::Pace,
-    /// The (folder, account) pairs the game master let send images at some
-    /// table, kept in memory so that the size check before a message is
-    /// parsed asks no database (`inflight.rs`); the command judges the table.
-    pub image_grants: Mutex<std::collections::HashSet<(String, String)>>,
     /// The pace of a connection's rolls and draws, those of a note's room
     /// too, which the table keeps: the REST routes' (ADR 0107 item 12).
     pub roll_pace: crate::pace::Pace,
@@ -442,13 +438,7 @@ impl Server {
     ) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
         let history = crate::history::Book::open(&config.data_dir);
-        let image_grants = db
-            .campaign_images_all()
-            .unwrap_or_default()
-            .into_iter()
-            .collect();
         let server = Arc::new(Self {
-            image_grants: Mutex::new(image_grants),
             config,
             unwritable: std::sync::OnceLock::new(),
             db,

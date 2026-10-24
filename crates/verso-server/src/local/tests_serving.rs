@@ -343,6 +343,29 @@ fn a_reader_phone_cannot_write() {
             json!(["Sessao.md"]),
             "nothing was made or deleted"
         );
+        // The server counts it among the readers — it is told what a reader
+        // is told — and a large upload from it is refused before it is parsed,
+        // table image included (ADR 0107 item 3 as amended 2026-10-24).
+        let server = std::sync::Arc::clone(
+            &verso_service::lock(&lab.local.shared.inner)
+                .as_ref()
+                .unwrap()
+                .server,
+        );
+        let ids: Vec<String> = verso_service::lock(&server.clients)
+            .iter()
+            .filter(|(_, c)| c.folder.is_some())
+            .map(|(id, _)| id.clone())
+            .collect();
+        assert_eq!(ids.len(), 1);
+        let (readers, others) = crate::readers::split(&server, &ids);
+        assert_eq!((readers.len(), others.len()), (1, 0));
+        for cmd in ["table_send_image", "create_file"] {
+            assert!(
+                crate::inflight::admit(&server, &ids[0], Some(1), cmd, 90_000).is_err(),
+                "{cmd}"
+            );
+        }
     });
 }
 

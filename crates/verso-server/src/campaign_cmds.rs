@@ -352,16 +352,6 @@ async fn permission(
         }
         s.db.campaign_images_set(&f, &r, &a, images)
             .map_err(failed)?;
-        {
-            let mut held = lock(&s.image_grants);
-            for x in &a {
-                if s.db.campaign_images_any(&f, x).map_err(failed)? {
-                    held.insert((f.clone(), x.clone()));
-                } else {
-                    held.remove(&(f.clone(), x.clone()));
-                }
-            }
-        }
         crate::table::tell_images(&s, (&f, &r), &a);
         Ok(())
     })
