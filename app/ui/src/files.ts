@@ -7,7 +7,7 @@ import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { changeBookmarks } from "./bookmarks";
-import { canWrite, host } from "./can";
+import { canChange, host } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText } from "./daily";
 import { ask } from "./dialog";
@@ -49,7 +49,7 @@ import { offerTemplates } from "./templatePicker";
  *  or bin a file stop here, whatever reached them — a menu, a key, a drop
  *  (ADR 0076 item 11). Says why, once. */
 export function readable(): boolean {
-  if (canWrite()) return true;
+  if (canChange()) return true;
   ui.status.textContent = st.readOnly;
   readerAttempt();
   return false;

@@ -48,6 +48,12 @@ export class Pane {
   readonly tools = h("div", "pane-tools");
   readonly body = h("div", "pane-body");
   readonly empty = h("div", "pane-empty");
+  /** Stops the empty hint following the pointer kind; set when the pane is built. */
+  private stopEmptyHint: () => void = () => {};
+  /** The pane left the layout: what it listens to on the page goes. */
+  dispose(): void {
+    this.stopEmptyHint();
+  }
   readonly leaves: Leaf[] = [];
   readonly tabsDivider = h("div", "tabs-divider");
   /** With the tab bar hidden, a phone has nothing to open its menu from: a
@@ -162,10 +168,11 @@ export class Pane {
     });
     // Dragging a tab here is for a mouse: a phone or a finger on the screen is told only to pick a file.
     const hint = h("p", "", t.emptyPane);
-    const touch = window.matchMedia("(pointer: coarse), (max-width: 760px)");
+    const touch = window.matchMedia("(pointer: coarse)");
     const say = () => void (hint.textContent = touch.matches ? t.emptyPaneTouch : t.emptyPane);
     say();
     touch.addEventListener("change", say);
+    this.stopEmptyHint = () => touch.removeEventListener("change", say);
     this.empty.append(icon("outline"), hint);
     this.body.append(this.empty);
     const restore = h("button", "ghost tabs-restore-button");

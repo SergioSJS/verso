@@ -28,6 +28,8 @@ test("the Mesa panel of a folder whose table is a subfolder offers no 'make this
   await page.waitForTimeout(300);
   await page.screenshot({ path: shot(`106-${phase}-painel-mesa-subpasta-${page.viewportSize().width <= 760 ? "telefone" : "desktop"}-claro`) });
   await expect(view.locator(".table-make-button")).toHaveCount(0);
+  // The panel is at the subfolder's table: its window is one press away, named even when only the icon shows.
+  await expect(view.getByRole("button", { name: "Abrir a janela da Mesa" })).toBeVisible();
   await expect(view.locator(".table-make")).toBeHidden();
   // No button of the panel is without a name.
   for (const b of await view.locator("button:visible").all()) {
@@ -92,7 +94,7 @@ test("a player waiting on a closed table gets in the moment the server says it o
 // D: dragging a tab is for a mouse.
 test("the empty pane tells a phone to pick a file, and a mouse also to drag a tab @layout", async ({ app, page }) => {
   await app.open("?vault=empty");
-  const touch = await page.evaluate(() => window.matchMedia("(pointer: coarse), (max-width: 760px)").matches);
+  const touch = await page.evaluate(() => window.matchMedia("(pointer: coarse)").matches);
   const hint = page.locator(".pane-empty:visible p").first();
   await expect(hint).toBeVisible();
   await page.screenshot({ path: shot(`108-${phase}-painel-vazio-${touch ? "telefone" : "desktop"}-claro`) });
@@ -142,4 +144,54 @@ test("the plain-HTTP notice does not cover an open dialog @layout", async ({ app
   await expect(page.locator(".campaign-overlay")).toBeVisible();
   await page.screenshot({ path: shot(`110-${phase}-aviso-http-sob-janela-da-mesa-${page.viewportSize().width <= 760 ? "telefone" : "desktop"}-claro`) });
   expect(await covered(".campaign-overlay")).toBeNull();
+});
+
+// A reader of a folder synced on the desktop: the window can write (the server refuses), so the lock and the notice follow the sync's role.
+test("a reader of a synced folder gets the closed lock and the notice on an attempt", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const lock = page.locator("#open .folder-lock");
+  await expect(lock).toBeHidden();
+  await page.evaluate(() => dispatchEvent(new CustomEvent("verso:sync-state", { detail: { on: true, role: "reader", status: "synced" } })));
+  await expect(lock).toBeVisible();
+  await page.screenshot({ path: shot(`111-${phase}-leitor-pasta-sincronizada-cadeado-desktop-claro`) });
+  await app.key("Mod+n");
+  await expect(page.locator(".reader-notice")).toBeVisible();
+  await expect(page.locator(".reader-notice")).toHaveText("Você só lê esta pasta.");
+  await page.evaluate(() => dispatchEvent(new CustomEvent("verso:sync-state", { detail: { on: true, role: "editor", status: "synced" } })));
+  await expect(lock).toBeHidden();
+});
+
+// F (minor): the news of another folder's table is not this one's.
+test("the news that another folder's table opened does not retry this one", async ({ app, page }) => {
+  await app.open("?vault=empty&table=player&side=server&role=reader&closed=1&folder=mine");
+  const state = page.locator(".table-closed-state");
+  await expect(state).toBeVisible();
+  await page.evaluate(() => (window.__harnessShutOut = false));
+  await page.evaluate(() => window.__harness.emit("table-opened", { folder: "other" }));
+  await page.waitForTimeout(800);
+  await expect(state).toBeVisible();
+  await page.evaluate(() => window.__harness.emit("table-opened", { folder: "mine" }));
+  await expect(page.locator(".table-closed-state")).toHaveCount(0, { timeout: 3000 });
+  app.expectFault(/mesa está fechada/);
+});
+
+// C (minor): a phone's drawers are above the notice too.
+test("the plain-HTTP notice is under the phone's drawer @layout", async ({ app, page }) => {
+  await app.open("?vault=empty&table=owner&side=server");
+  test.skip((page.viewportSize()?.width ?? 1500) > 760, "the drawers are a phone's");
+  await page.evaluate(() => {
+    const bar = document.createElement("div");
+    bar.className = "plain-http-bar";
+    bar.append("Conexão sem HTTPS: a senha e as notas passam abertas na rede.");
+    document.body.append(bar);
+    document.body.classList.add("side-open");
+  });
+  await page.waitForTimeout(500);
+  const under = await page.evaluate(() => {
+    const r = document.querySelector(".plain-http-bar").getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + 20, r.top + r.height / 2);
+    return top?.closest("aside.side") !== null;
+  });
+  expect(under).toBe(true);
+  await page.screenshot({ path: shot(`112-${phase}-aviso-http-sob-gaveta-telefone-claro`) });
 });

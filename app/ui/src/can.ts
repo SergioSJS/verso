@@ -70,6 +70,27 @@ export function canWrite(): boolean {
   return can("write");
 }
 
+/** The open folder is synced here and the person only reads it on its
+ *  server (`verso:sync-state`): the window's own `canWrite` stays true, the
+ *  server refuses the writes, so the lock and the notice must still say so. */
+let syncedRead = false;
+export function readsSynced(): boolean {
+  return syncedRead;
+}
+addEventListener("verso:sync-state", (e) => {
+  const d = (e as CustomEvent<{ on?: boolean; role?: string }>).detail;
+  const now = Boolean(d?.on) && d?.role === "reader";
+  if (now === syncedRead) return;
+  syncedRead = now;
+  for (const run of listeners) run();
+});
+
+/** The person may change the folder from this window: it writes, and the
+ *  folder is not one they only read through a sync. */
+export function canChange(): boolean {
+  return canWrite() && !syncedRead;
+}
+
 /** Which side the window talks to: the desktop app or a server. */
 export function host(): Host {
   return known.host;
