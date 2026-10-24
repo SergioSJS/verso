@@ -9,6 +9,10 @@
   connected together show up in the chat, and so on). Asked for as a
   direction, not for now. Written by Opus 5.5; to be read by the other
   model before it is accepted ([0032](0032-author-and-reviewer-roles.md)).
+- Superseded in part by [0113](0113-one-access-model-for-a-table.md) (2026-10-24): item 3's amendment of 2026-10-24,
+  the right to send images, became the per-player right *Send files* (images
+  and other files, in the chat and into files the player edits). Kept here as
+  history.
 - Related: [0088](0088-dice-and-random-tables.md) (item 4, the server
   rolls in a room and keeps the last rolls in memory, nothing stored;
   item 8, a member's roll announced with their name),
@@ -686,6 +690,9 @@ folder's log its numbers" (each table has its own numbers now).
 **Two small changes of the panel (2026-10-23, the maintainer).** "Roll dice…" (the roller's dialog) is an item of the dice row's "⋯" drawer again, after being left only in the command palette; and at narrow widths (a top row up to 420 px wide) "Hide from here back" is an icon-only button (its name and tooltip kept) so the roster, the Table window button, hide and the menu fit on one line at 260 px, the label showing when there is room.
 
 ## Status
+
+*Superseded in part (2026-10-24) by [0113](0113-one-access-model-for-a-table.md):* the images right of item 3's
+amendment is now *Send files*.
 
 Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
 maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
