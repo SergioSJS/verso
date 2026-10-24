@@ -70,7 +70,7 @@ impl Win {
 
     /// The same, every message heard on the way checked for what a player
     /// must not hear.
-    async fn ask(&mut self, cmd: &str, args: Value) -> Value {
+    pub(crate) async fn ask(&mut self, cmd: &str, args: Value) -> Value {
         self.n += 1;
         let id = self.n;
         self.ws
@@ -102,7 +102,7 @@ impl Win {
 
     /// What the window hears for `ms` milliseconds, unchecked: after a
     /// release the note is the player's.
-    async fn hear(&mut self, ms: u64) -> Vec<Value> {
+    pub(crate) async fn hear(&mut self, ms: u64) -> Vec<Value> {
         let mut out = Vec::new();
         let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
         while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, self.ws.next()).await {
@@ -114,7 +114,7 @@ impl Win {
     }
 
     /// What the window hears for `ms` milliseconds, each message checked.
-    async fn listen(&mut self, ms: u64) -> Vec<Value> {
+    pub(crate) async fn listen(&mut self, ms: u64) -> Vec<Value> {
         let mut out = Vec::new();
         let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
         while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, self.ws.next()).await {
@@ -155,6 +155,7 @@ pub(crate) struct Mesa {
     pub(crate) ana: Win,
     pub(crate) ana_id: String,
     pub(crate) bia: Win,
+    pub(crate) bia_id: String,
 }
 
 /// A folder with the notes above, made a table; Aberta and Livre released,
@@ -225,7 +226,7 @@ pub(crate) async fn mesa() -> Mesa {
     let b = sign_in(&r, e, p).await;
     let (ana, o) = Win::open(&r, &b, &id).await;
     assert!(o.get("ok").is_some(), "{o}");
-    let (e, p, _) = &people[1];
+    let (e, p, bia_id) = &people[1];
     let b = sign_in(&r, e, p).await;
     let (bia, o) = Win::open(&r, &b, &id).await;
     assert!(o.get("ok").is_some(), "{o}");
@@ -237,6 +238,7 @@ pub(crate) async fn mesa() -> Mesa {
         ana,
         ana_id: ana_id.clone(),
         bia,
+        bia_id: bia_id.clone(),
     }
 }
 

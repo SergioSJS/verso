@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use verso_contract::ContractError;
 use verso_service::lock;
 
-use crate::db::{Campaign, Grant, NoteState, Role};
+use crate::db::{Audience, Campaign, Grant, NoteState, Role};
 use crate::state::Server;
 
 /// What a closed table answers a player who tries to open it (MC.1 = A).
@@ -65,18 +65,41 @@ pub(crate) fn covers(root: &str, path: &str) -> bool {
     root.is_empty() || path == root || path.starts_with(&format!("{root}/"))
 }
 
+/// Whose eyes a [`Veil`] is. A note's audience (ADR 0110 item 4, amended
+/// 2026-10-23) is a question asked of someone: what the veil of a folder
+/// answers without being told who asks is the **public** one, which sees
+/// only what the whole table sees — it fails closed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Viewer {
+    /// Anyone at the table: only what is released to the whole table.
+    Public,
+    /// Any player at all: what at least one player sees. What sync keeps
+    /// of a file for its readers is told for this one; each player's own
+    /// answer is cut from it ([`Veil::view`]).
+    Union,
+    /// This account.
+    Account(String),
+}
+
 /// The state of the tables of one folder, as a player is concerned.
 pub struct Veil {
     pub folder: String,
     pub tables: Vec<Campaign>,
-    notes: HashMap<String, NoteState>,
+    notes: Arc<HashMap<String, NoteState>>,
     /// The table's language: its game master's.
     pub lang: String,
     /// The images the table shows: open to everyone at it.
-    images: HashSet<String>,
+    images: Arc<HashSet<String>>,
     /// The attachments a released note opens; made on first need, from
     /// the folder itself (`campaign_serve::opened`).
     files: OnceLock<HashSet<String>>,
+    viewer: Viewer,
+    /// Whether the players of the folder each have a sync log of their
+    /// own (`campaign_epoch`).
+    restricted: bool,
+    /// The veil as each player sees it, made on first need.
+    views: Mutex<HashMap<String, Arc<Veil>>>,
+    union: OnceLock<Arc<Veil>>,
 }
 
 impl Veil {
@@ -98,12 +121,91 @@ impl Veil {
         self.notes.get(&key(path))
     }
 
-    /// Whether a note is released: by its row, or because someone may edit
-    /// it (a grant implies the grantee sees it).
+    /// Whether the viewer sees the note at `path`: it is released to the
+    /// viewer, or the viewer may edit it (a grant implies the grantee sees
+    /// it).
     #[must_use]
     pub fn released(&self, path: &str) -> bool {
+        self.state(path).is_some_and(|n| match &self.viewer {
+            Viewer::Public => n.audience == Audience::Table || n.grant == Grant::Group,
+            Viewer::Union => n.audience.any() || n.grant != Grant::None,
+            Viewer::Account(a) => {
+                n.audience.includes(a)
+                    || n.grant == Grant::Group
+                    || n.grant == Grant::Player(a.clone())
+            }
+        })
+    }
+
+    /// This veil as `account` sees the folder.
+    #[must_use]
+    pub fn view(&self, account: &str) -> Arc<Veil> {
+        let mut views = lock(&self.views);
+        Arc::clone(
+            views
+                .entry(account.to_owned())
+                .or_insert_with(|| Arc::new(self.derive(Viewer::Account(account.to_owned())))),
+        )
+    }
+
+    /// This veil as the folder's players together see it: a note is seen
+    /// when any player sees it (what sync keeps for readers).
+    #[must_use]
+    pub fn union(&self) -> Arc<Veil> {
+        Arc::clone(
+            self.union
+                .get_or_init(|| Arc::new(self.derive(Viewer::Union))),
+        )
+    }
+
+    fn derive(&self, viewer: Viewer) -> Veil {
+        Veil {
+            folder: self.folder.clone(),
+            tables: self.tables.clone(),
+            notes: Arc::clone(&self.notes),
+            lang: self.lang.clone(),
+            images: Arc::clone(&self.images),
+            files: OnceLock::new(),
+            viewer,
+            restricted: self.restricted,
+            views: Mutex::new(HashMap::new()),
+            union: OnceLock::new(),
+        }
+    }
+
+    /// Whether the folder has notes released to some players, or ever had:
+    /// what its players are told of the sync log is then each its own.
+    #[must_use]
+    pub fn restricted(&self) -> bool {
+        self.restricted
+    }
+
+    /// Whether the note at `path` is hidden from `account`, a player:
+    /// the question of a place that has no [`Veil::view`] at hand.
+    #[must_use]
+    pub fn hides_note_from(&self, path: &str, account: &str) -> bool {
+        let Some(table) = self.table_of(path) else {
+            return false;
+        };
+        if !table.open {
+            return true;
+        }
+        if !note_like(path) {
+            return !self.images.contains(&key(path));
+        }
+        !self.state(path).is_some_and(|n| {
+            n.audience.includes(account)
+                || n.grant == Grant::Group
+                || n.grant == Grant::Player(account.to_owned())
+        })
+    }
+
+    /// Who the note at `path` is released to (hidden when it has no row).
+    #[must_use]
+    pub fn audience_of(&self, path: &str) -> Audience {
         self.state(path)
-            .is_some_and(|n| n.released || n.grant != Grant::None)
+            .map(|n| n.audience.clone())
+            .unwrap_or_default()
     }
 
     /// Whether the name of the note at `path` is a secret.
@@ -227,10 +329,14 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,
-        notes,
+        notes: Arc::new(notes),
         lang,
-        images,
+        images: Arc::new(images),
         files: OnceLock::new(),
+        viewer: Viewer::Public,
+        restricted: server.db.campaign_epoch(folder)?.is_some(),
+        views: Mutex::new(HashMap::new()),
+        union: OnceLock::new(),
     })))
 }
 
@@ -245,14 +351,28 @@ pub fn folder_of_key(server: &Server, key: &str) -> Option<String> {
     lock(&server.keys).get(key).cloned()
 }
 
-/// The veil for the folder behind a service key.
+/// The veil for the folder behind a service key, as its **public** sees
+/// it (see [`Viewer`]); ask [`veil_for_client`] for a window's own.
 pub fn veil_for_key(server: &Server, key: &str) -> Option<Arc<Veil>> {
     veil_of(server, &folder_of_key(server, key)?)
+}
+
+/// The veil of the folder behind `key` as the account behind the window
+/// `client` sees it; the public one when the window is not known (fails
+/// closed).
+pub fn veil_for_client(server: &Server, key: &str, client: &str) -> Option<Arc<Veil>> {
+    let veil = veil_for_key(server, key)?;
+    let account = lock(&server.clients).get(client).map(|c| c.account.clone());
+    Some(match account {
+        Some(a) => veil.view(&a),
+        None => veil,
+    })
 }
 
 /// What a player is, to the commands: the veil, the account, the grants
 /// it holds.
 pub struct Player {
+    /// The folder as this player sees it.
     pub veil: Arc<Veil>,
     pub account: String,
 }
@@ -271,9 +391,10 @@ pub fn player(
     if !crate::readers::reads_only(server, who, client)? {
         return Ok(None);
     }
+    let account = who.account.id.clone();
     Ok(Some(Player {
-        veil,
-        account: who.account.id.clone(),
+        veil: veil.view(&account),
+        account,
     }))
 }
 

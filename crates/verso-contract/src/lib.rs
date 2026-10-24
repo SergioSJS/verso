@@ -37,8 +37,8 @@ mod maps;
 pub use maps::{MapInfo, MapState};
 mod campaign;
 pub use campaign::{
-    CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote, CampaignPlayer, CampaignStatus,
-    CampaignTable,
+    CampaignAccess, CampaignAudience, CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote,
+    CampaignPerson, CampaignPlayer, CampaignStatus, CampaignTable,
 };
 mod table;
 pub use table::{
