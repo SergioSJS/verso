@@ -25,6 +25,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use verso_contract::ContractError;
 use verso_service::lock;
 
+use crate::access::{AccessFacts, Level, NodeSet, TableFact};
 use crate::db::{Audience, Campaign, Grant, NoteState, Role};
 use crate::state::Server;
 
@@ -81,11 +82,18 @@ enum Viewer {
     Account(String),
 }
 
-/// The state of the tables of one folder, as a player is concerned.
+/// The state of the tables of one folder, as a player is concerned: the
+/// access sets of its files ([`AccessFacts`], ADR 0113), and what the
+/// tables keep besides.
 pub struct Veil {
     pub folder: String,
     pub tables: Vec<Campaign>,
-    notes: Arc<HashMap<String, NoteState>>,
+    /// The rules' facts: the tables, the sets, the rights.
+    facts: Arc<AccessFacts>,
+    /// The paths the table keeps a state for, as kept: the owner's listing.
+    notes: Arc<Vec<NoteState>>,
+    /// The paths whose name is a secret, by key.
+    secrets: Arc<HashSet<String>>,
     /// The table's language: its game master's.
     pub lang: String,
     /// The images the table shows: open to everyone at it.
@@ -120,24 +128,38 @@ impl Veil {
         self.table_of(path).is_some()
     }
 
-    fn state(&self, path: &str) -> Option<&NoteState> {
-        self.notes.get(&key(path))
+    /// The rules' facts (ADR 0113 section A): what `access::may` reads.
+    #[must_use]
+    pub fn facts(&self) -> &Arc<AccessFacts> {
+        &self.facts
     }
 
-    /// Whether the viewer sees the note at `path`: it is released to the
-    /// viewer, or the viewer may edit it (a grant implies the grantee sees
-    /// it).
+    /// The nearest set of `path` inside its table: its own, else its
+    /// folder's (ADR 0113 item 2).
+    fn set_of(&self, path: &str) -> Option<&NodeSet> {
+        let table = self.table_of(path)?;
+        self.facts.nearest_set(path, &table.root).map(|(_, s)| s)
+    }
+
+    /// What this veil's viewer has of the set at `path`: the whole
+    /// table's row for the public, the most any player has for the union,
+    /// the account's own row else the whole table's.
+    fn level(&self, path: &str) -> Level {
+        let Some(set) = self.set_of(path) else {
+            return Level::None;
+        };
+        match &self.viewer {
+            Viewer::Public => set.whole,
+            Viewer::Union => set.most(),
+            Viewer::Account(a) => set.of(a),
+        }
+    }
+
+    /// Whether the viewer sees the note at `path`: its set gives the viewer
+    /// at least *sees* (a player who edits a note sees it).
     #[must_use]
     pub fn released(&self, path: &str) -> bool {
-        self.state(path).is_some_and(|n| match &self.viewer {
-            Viewer::Public => n.audience == Audience::Table || n.grant == Grant::Group,
-            Viewer::Union => n.audience.any() || n.grant != Grant::None,
-            Viewer::Account(a) => {
-                n.audience.includes(a)
-                    || n.grant == Grant::Group
-                    || n.grant == Grant::Player(a.clone())
-            }
-        })
+        self.in_table(path) && self.level(path) >= Level::See
     }
 
     /// This veil as `account` sees the folder.
@@ -165,7 +187,9 @@ impl Veil {
         Veil {
             folder: self.folder.clone(),
             tables: self.tables.clone(),
+            facts: Arc::clone(&self.facts),
             notes: Arc::clone(&self.notes),
+            secrets: Arc::clone(&self.secrets),
             lang: self.lang.clone(),
             images: Arc::clone(&self.images),
             files: OnceLock::new(),
@@ -201,54 +225,51 @@ impl Veil {
         if !table.open {
             return true;
         }
-        if !note_like(path) {
-            return !self.images.contains(&key(path));
+        match self.set_of(path) {
+            Some(set) => set.of(account) < Level::See,
+            None if note_like(path) => true,
+            // An attachment no set covers is hidden, unless the table
+            // shows it.
+            None => !self.images.contains(&key(path)),
         }
-        !self.state(path).is_some_and(|n| {
-            n.audience.includes(account)
-                || n.grant == Grant::Group
-                || n.grant == Grant::Player(account.to_owned())
-        })
     }
 
-    /// Who the note at `path` is released to (hidden when it has no row).
+    /// Who the note at `path` is released to (hidden when it has no set).
     #[must_use]
     pub fn audience_of(&self, path: &str) -> Audience {
-        self.state(path)
-            .map(|n| n.audience.clone())
+        self.set_of(path)
+            .map(|s| crate::db::words_of(s).0)
             .unwrap_or_default()
     }
 
     /// Whether the name of the note at `path` is a secret.
     #[must_use]
     pub fn secret_name(&self, path: &str) -> bool {
-        self.state(path).is_some_and(|n| n.secret_name)
+        self.secrets.contains(&key(path))
     }
 
     /// Who may edit the note at `path`.
     #[must_use]
     pub fn grant(&self, path: &str) -> Grant {
-        self.state(path)
-            .map(|n| n.grant.clone())
+        self.set_of(path)
+            .map(|s| crate::db::words_of(s).1)
             .unwrap_or_default()
     }
 
-    /// Whether `account` may edit the note at `path`: the owner's grant to
-    /// the group, or to this account.
+    /// Whether `account` may edit the note at `path` by its set: the
+    /// whole table's row or its own says *edits*.
     #[must_use]
     pub fn may_edit(&self, path: &str, account: &str) -> bool {
-        match self.grant(path) {
-            Grant::None => false,
-            Grant::Group => true,
-            Grant::Player(a) => a == account,
-        }
+        self.set_of(path)
+            .is_some_and(|s| s.of(account) == Level::Edit)
     }
 
     /// Whether the note at `path` is edited by the whole group: served to
     /// everyone as it is, since all who read it may edit it.
     #[must_use]
     pub fn group_edits(&self, path: &str) -> bool {
-        self.grant(path) == Grant::Group
+        self.set_of(path)
+            .is_some_and(|s| s.whole == Level::Edit && s.rows.is_empty())
     }
 
     /// The attachments released notes link or embed, built by `make` the
@@ -270,9 +291,13 @@ impl Veil {
         if note_like(path) {
             return !self.released(path);
         }
-        // An attachment is a file of the table too: served only through a
-        // released note, or as an image the table shows. A folder's own
-        // path is none (see `folder_shown` in the serving).
+        // An attachment is a file of the table too: an access of its own
+        // (or its folder's) wins (ADR 0113 K.3); with none, it is served
+        // only through a released note, or as an image the table shows. A
+        // folder's own path is none (see `folder_shown` in the serving).
+        if self.set_of(path).is_some() {
+            return self.level(path) < Level::See;
+        }
         !(files() || self.images.contains(&key(path)))
     }
 
@@ -282,9 +307,9 @@ impl Veil {
         self.hides(path, &|| false)
     }
 
-    /// The paths of notes with a row: for the owner's listing.
+    /// The paths of notes with a state: for the owner's listing.
     pub fn states(&self) -> impl Iterator<Item = &NoteState> {
-        self.notes.values()
+        self.notes.iter()
     }
 
     /// The table that holds `path`, for the limits.
@@ -536,24 +561,31 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
     if lock(&FAIL_READS).iter().any(|f| f == folder) {
         return Err("a read made to fail".to_owned());
     }
-    let tables = server.db.campaigns_of(folder)?;
+    build(&server.db, folder)
+}
+
+/// The veil of `folder` as the database has it now, if it has a table.
+pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>>, String> {
+    let tables = db.campaigns_of(folder)?;
     if tables.is_empty() {
         return Ok(None);
     }
-    let notes: HashMap<String, NoteState> = server
-        .db
-        .campaign_notes(folder)?
-        .into_iter()
-        .map(|n| (key(&n.path), n))
-        .collect();
-    let images = server
-        .db
-        .table_images(folder)?
+    let (mut facts, notes) = db.campaign_snapshot(folder)?;
+    // The tables are the veil's own, read once: the rules see the same.
+    facts.tables = tables
         .iter()
-        .map(|p| key(p))
+        .map(|t| TableFact {
+            root: t.root.clone(),
+            open: t.open,
+        })
         .collect();
-    let lang = server
-        .db
+    let secrets: HashSet<String> = notes
+        .iter()
+        .filter(|n| n.secret_name)
+        .map(|n| key(&n.path))
+        .collect();
+    let images = db.table_images(folder)?.iter().map(|p| key(p)).collect();
+    let lang = db
         .members(folder)?
         .into_iter()
         .find(|(_, r)| *r == Role::Owner)
@@ -566,7 +598,9 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,
+        facts: Arc::new(facts),
         notes: Arc::new(notes),
+        secrets: Arc::new(secrets),
         lang,
         images: Arc::new(images),
         files: OnceLock::new(),
@@ -587,6 +621,15 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
 pub fn unreadable(folder: &str) -> Arc<Veil> {
     Arc::new(Veil {
         folder: folder.to_owned(),
+        facts: Arc::new(AccessFacts {
+            tables: vec![TableFact {
+                root: String::new(),
+                open: false,
+            }],
+            ..AccessFacts::default()
+        }),
+        secrets: Arc::new(HashSet::new()),
+        notes: Arc::new(Vec::new()),
         tables: vec![Campaign {
             folder: folder.to_owned(),
             root: String::new(),
@@ -594,7 +637,6 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
             log_max: crate::db::LOG_DEFAULT,
             image_max: crate::db::IMAGE_DEFAULT,
         }],
-        notes: Arc::new(HashMap::new()),
         lang: "en".to_owned(),
         images: Arc::new(HashSet::new()),
         files: OnceLock::new(),

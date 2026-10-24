@@ -3,19 +3,21 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! A table is a campaign folder (ADR 0110): which folders of a server
-//! folder are tables, open or closed, the table's own limits, and, per
-//! note, whether it is released to the players, whether its name is a
-//! secret and who may edit it. All of it lives in the server's database,
-//! never in a note's file (ADR 0110 item 4): a synced copy, or Obsidian,
-//! sees ordinary notes.
+//! folder are tables, open or closed, the table's own limits, and the
+//! bookkeeping of the players' sync logs. The **access** of its files, the
+//! secret names and the rights of its players are `access.rs` (ADR 0113,
+//! schema 20): the tables `campaign_notes`, `campaign_audience` and
+//! `campaign_images` below are schema 15, 17 and 19 as they were, kept one
+//! version, read-only, and the migration carried them over.
 //!
 //! A note's **audience** (ADR 0110 item 4, amended 2026-10-23) is nobody, the
 //! whole table (`released`) or a set of the table's players
-//! (`campaign_audience`, schema 17).
+//! (`campaign_audience`, schema 17): since schema 20, the *Whole table* row
+//! and the players' rows of the note's access set.
 //!
-//! A note with no row is **hidden**: a note in a table folder starts hidden
+//! A note with no set is **hidden**: a note in a table folder starts hidden
 //! (MC.2 = A), the ones already there when the folder becomes a table and
-//! the ones made later alike. "Release all" writes a row per note.
+//! the ones made later alike.
 
 use rusqlite::{OptionalExtension, params};
 
@@ -201,25 +203,6 @@ fn campaign(r: &rusqlite::Row<'_>) -> rusqlite::Result<Campaign> {
     })
 }
 
-fn note(r: &rusqlite::Row<'_>) -> rusqlite::Result<NoteState> {
-    let kind: String = r.get(3)?;
-    let account: Option<String> = r.get(4)?;
-    Ok(NoteState {
-        path: r.get(0)?,
-        audience: if r.get::<_, i64>(1)? != 0 {
-            Audience::Table
-        } else {
-            Audience::Hidden
-        },
-        secret_name: r.get::<_, i64>(2)? != 0,
-        grant: match (kind.as_str(), account) {
-            ("group", _) => Grant::Group,
-            ("player", Some(a)) => Grant::Player(a),
-            _ => Grant::None,
-        },
-    })
-}
-
 impl Db {
     /// The tables of `folder`, the shortest root first.
     pub fn campaigns_of(&self, folder: &str) -> R<Vec<Campaign>> {
@@ -292,7 +275,7 @@ impl Db {
             .map_err(e)?;
         if n > 0 {
             let under = under_sql(root);
-            for table in ["campaign_notes", "campaign_audience"] {
+            for table in ["campaign_access", "campaign_files"] {
                 tx.execute(
                     &format!("DELETE FROM {table} WHERE folder = ?1 AND (?2 = '' OR path = ?2 OR substr(path, 1, length(?3)) = ?3)"),
                     params![folder, root, under],
@@ -300,7 +283,7 @@ impl Db {
                 .map_err(e)?;
             }
             tx.execute(
-                "DELETE FROM campaign_images WHERE folder = ?1 AND root = ?2",
+                "DELETE FROM campaign_rights WHERE folder = ?1 AND root = ?2",
                 params![folder, root],
             )
             .map_err(e)?;
@@ -310,94 +293,6 @@ impl Db {
         tx.commit().map_err(e)?;
         self.refresh_images(&conn);
         Ok(n > 0)
-    }
-
-    /// The accounts the table at `root` lets send images.
-    pub fn campaign_images_of(&self, folder: &str, root: &str) -> R<Vec<String>> {
-        let conn = self.reader();
-        let mut st = conn
-            .prepare("SELECT account FROM campaign_images WHERE folder = ?1 AND root = ?2 ORDER BY account")
-            .map_err(e)?;
-        st.query_map(params![folder, root], |r| r.get(0))
-            .map_err(e)?
-            .collect::<Result<_, _>>()
-            .map_err(e)
-    }
-
-    /// Whether `account` was let send images at the table at `root`.
-    pub fn campaign_images_has(&self, folder: &str, root: &str, account: &str) -> R<bool> {
-        self.reader()
-            .query_row(
-                "SELECT EXISTS (SELECT 1 FROM campaign_images WHERE folder = ?1 AND root = ?2 AND account = ?3)",
-                params![folder, root, account],
-                |r| r.get(0),
-            )
-            .map_err(e)
-    }
-
-    /// Whether `account` was let send images at some table of `folder`,
-    /// from the set kept in memory beside the table (no query): what the
-    /// size check before a message is parsed asks.
-    pub fn image_granted(&self, folder: &str, account: &str) -> bool {
-        verso_service::lock(&self.images).contains(&(folder.to_owned(), account.to_owned()))
-    }
-
-    /// The set in memory made again from the table, under the writer's own
-    /// lock (`conn` is held by the caller), after every change of it —
-    /// including the cascades of a deleted table, folder or account. A
-    /// failed read empties the set: nobody is admitted on a guess.
-    pub(super) fn refresh_images(&self, conn: &rusqlite::Connection) {
-        let read = || -> rusqlite::Result<std::collections::HashSet<(String, String)>> {
-            conn.prepare("SELECT DISTINCT folder, account FROM campaign_images")?
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .collect()
-        };
-        let set = read().unwrap_or_else(|err| {
-            crate::log::warn(&format!("the image permissions could not be read: {err}"));
-            std::collections::HashSet::new()
-        });
-        *verso_service::lock(&self.images) = set;
-    }
-
-    /// Whether `account` was let send images at any table of `folder`.
-    pub fn campaign_images_any(&self, folder: &str, account: &str) -> R<bool> {
-        self.reader()
-            .query_row(
-                "SELECT EXISTS (SELECT 1 FROM campaign_images WHERE folder = ?1 AND account = ?2)",
-                params![folder, account],
-                |r| r.get(0),
-            )
-            .map_err(e)
-    }
-
-    /// Give `accounts` the permission to send images at the table at
-    /// `root`, or take it from them.
-    pub fn campaign_images_set(
-        &self,
-        folder: &str,
-        root: &str,
-        accounts: &[String],
-        on: bool,
-    ) -> R<()> {
-        let mut conn = self.conn();
-        let tx = conn.transaction().map_err(e)?;
-        for a in accounts {
-            if on {
-                tx.execute(
-                    "INSERT OR IGNORE INTO campaign_images (folder, root, account) VALUES (?1, ?2, ?3)",
-                    params![folder, root, a],
-                )
-            } else {
-                tx.execute(
-                    "DELETE FROM campaign_images WHERE folder = ?1 AND root = ?2 AND account = ?3",
-                    params![folder, root, a],
-                )
-            }
-            .map_err(e)?;
-        }
-        tx.commit().map_err(e)?;
-        self.refresh_images(&conn);
-        Ok(())
     }
 
     /// Change a table's settings; a value left `None` stays. The caller
@@ -419,120 +314,6 @@ impl Db {
             )
             .map_err(e)?;
         Ok(n > 0)
-    }
-
-    /// Every note of `folder` the server keeps a state for.
-    pub fn campaign_notes(&self, folder: &str) -> R<Vec<NoteState>> {
-        let conn = self.reader();
-        let mut st = conn
-            .prepare(
-                "SELECT path, released, secret_name, grant_kind, grant_account
-                 FROM campaign_notes WHERE folder = ?1 ORDER BY path",
-            )
-            .map_err(e)?;
-        let mut notes = st
-            .query_map([folder], note)
-            .map_err(e)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(e)?;
-        let mut st = conn
-            .prepare("SELECT path, account FROM campaign_audience WHERE folder = ?1 ORDER BY path")
-            .map_err(e)?;
-        let rows = st
-            .query_map([folder], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-            })
-            .map_err(e)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(e)?;
-        for n in &mut notes {
-            if n.audience == Audience::Table {
-                continue;
-            }
-            let set: std::collections::BTreeSet<String> = rows
-                .iter()
-                .filter(|(p, _)| *p == n.path)
-                .map(|(_, a)| a.clone())
-                .collect();
-            if !set.is_empty() {
-                n.audience = Audience::Players(set);
-            }
-        }
-        Ok(notes)
-    }
-
-    /// Release (or hide again) `paths`: to the whole table, or to nobody.
-    pub fn campaign_release(&self, folder: &str, paths: &[String], released: bool) -> R<()> {
-        let audience = if released {
-            Audience::Table
-        } else {
-            Audience::Hidden
-        };
-        self.campaign_audience(folder, paths, &audience)
-    }
-
-    /// Release `paths` to `audience`. A grant that no longer holds with the
-    /// new audience goes: the whole group edits only a note the whole table
-    /// sees, and a player edits only one it sees; a note nobody sees is
-    /// edited by nobody.
-    pub fn campaign_audience(&self, folder: &str, paths: &[String], audience: &Audience) -> R<()> {
-        let mut conn = self.conn();
-        let tx = conn.transaction().map_err(e)?;
-        // From the moment a note is released to some players, in the same
-        // step: the players' logs are each their own. A failed step leaves
-        // neither the audience nor the epoch.
-        if audience.is_players() {
-            players_logs_begin(&tx, folder)?;
-        }
-        for p in paths {
-            tx.execute(
-                "INSERT INTO campaign_notes (folder, path, released) VALUES (?1, ?2, ?3)
-                 ON CONFLICT (folder, path) DO UPDATE SET released = excluded.released",
-                params![folder, p, i64::from(*audience == Audience::Table)],
-            )
-            .map_err(e)?;
-            tx.execute(
-                "DELETE FROM campaign_audience WHERE folder = ?1 AND path = ?2",
-                params![folder, p],
-            )
-            .map_err(e)?;
-            if let Audience::Players(set) = audience {
-                for a in set {
-                    tx.execute(
-                        "INSERT INTO campaign_audience (folder, path, account) VALUES (?1, ?2, ?3)",
-                        params![folder, p, a],
-                    )
-                    .map_err(e)?;
-                }
-            }
-            match audience {
-                Audience::Table => {}
-                Audience::Hidden => {
-                    tx.execute(
-                        "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
-                         WHERE folder = ?1 AND path = ?2",
-                        params![folder, p],
-                    )
-                    .map_err(e)?;
-                }
-                Audience::Players(set) => {
-                    tx.execute(
-                        "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
-                         WHERE folder = ?1 AND path = ?2
-                           AND (grant_kind = 'group'
-                                OR (grant_kind = 'player' AND grant_account NOT IN (SELECT value FROM json_each(?3))))",
-                        params![
-                            folder,
-                            p,
-                            serde_json::to_string(&set.iter().collect::<Vec<_>>())
-                                .map_err(|x| x.to_string())?
-                        ],
-                    )
-                    .map_err(e)?;
-                }
-            }
-        }
-        tx.commit().map_err(e)
     }
 
     /// The note at `path` is about to be deleted or renamed and `accounts`
@@ -716,57 +497,6 @@ impl Db {
         tx.commit().map_err(e)
     }
 
-    /// A note's name is a secret, or not.
-    pub fn campaign_secret_name(&self, folder: &str, path: &str, on: bool) -> R<()> {
-        self.conn()
-            .execute(
-                "INSERT INTO campaign_notes (folder, path, secret_name) VALUES (?1, ?2, ?3)
-                 ON CONFLICT (folder, path) DO UPDATE SET secret_name = excluded.secret_name",
-                params![folder, path, i64::from(on)],
-            )
-            .map_err(e)?;
-        Ok(())
-    }
-
-    /// Who may edit a note. A player who edits a note sees it: when the note
-    /// is not the table's, the player joins its audience. The grant and the
-    /// audience are one step.
-    pub fn campaign_grant(&self, folder: &str, path: &str, grant: &Grant) -> R<()> {
-        let (kind, account) = match grant {
-            Grant::None => ("none", None),
-            Grant::Group => ("group", None),
-            Grant::Player(a) => ("player", Some(a.as_str())),
-        };
-        let mut conn = self.conn();
-        let tx = conn.transaction().map_err(e)?;
-        tx.execute(
-            "INSERT INTO campaign_notes (folder, path, grant_kind, grant_account)
-             VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT (folder, path) DO UPDATE SET
-               grant_kind = excluded.grant_kind, grant_account = excluded.grant_account",
-            params![folder, path, kind, account],
-        )
-        .map_err(e)?;
-        if let Grant::Player(a) = grant {
-            let whole: bool = tx
-                .query_row(
-                    "SELECT released FROM campaign_notes WHERE folder = ?1 AND path = ?2",
-                    params![folder, path],
-                    |r| Ok(r.get::<_, i64>(0)? != 0),
-                )
-                .map_err(e)?;
-            if !whole {
-                players_logs_begin(&tx, folder)?;
-                tx.execute(
-                    "INSERT OR IGNORE INTO campaign_audience (folder, path, account) VALUES (?1, ?2, ?3)",
-                    params![folder, path, a],
-                )
-                .map_err(e)?;
-            }
-        }
-        tx.commit().map_err(e)
-    }
-
     /// `from` (a note or a folder) was renamed or moved to `to`: the state
     /// of what it holds, and the tables rooted in it, follow.
     pub fn campaign_move(&self, folder: &str, from: &str, to: &str) -> R<usize> {
@@ -775,8 +505,8 @@ impl Db {
         let under = under_sql(from);
         let mut touched = 0;
         for (table, column) in [
-            ("campaign_notes", "path"),
-            ("campaign_audience", "path"),
+            ("campaign_access", "path"),
+            ("campaign_files", "path"),
             ("campaigns", "root"),
             ("table_log", "tbl"),
         ] {
@@ -793,7 +523,7 @@ impl Db {
                 .map_err(e)?;
         }
         tx.execute(
-            "UPDATE campaign_images SET root = CASE WHEN root = ?2 THEN ?4
+            "UPDATE campaign_rights SET root = CASE WHEN root = ?2 THEN ?4
                ELSE ?4 || substr(root, length(?2) + 1) END
              WHERE folder = ?1 AND ?2 <> '' AND (root = ?2 OR substr(root, 1, length(?3)) = ?3)",
             params![folder, from, under, to],
@@ -811,8 +541,8 @@ impl Db {
         let under = under_sql(path);
         let mut touched = 0;
         for (table, column) in [
-            ("campaign_notes", "path"),
-            ("campaign_audience", "path"),
+            ("campaign_access", "path"),
+            ("campaign_files", "path"),
             ("campaigns", "root"),
         ] {
             touched += tx
@@ -826,7 +556,7 @@ impl Db {
                 .map_err(e)?;
         }
         tx.execute(
-            "DELETE FROM campaign_images WHERE folder = ?1 AND ?2 <> ''
+            "DELETE FROM campaign_rights WHERE folder = ?1 AND ?2 <> ''
                AND (root = ?2 OR substr(root, 1, length(?3)) = ?3)",
             params![folder, path, under],
         )
@@ -860,7 +590,7 @@ impl Db {
         // when the account stops being a player of THAT table, so that being
         // seated again never grants it silently.
         tx.execute(
-            "DELETE FROM campaign_images WHERE folder = ?1 AND account = ?2 AND NOT (
+            "DELETE FROM campaign_rights WHERE folder = ?1 AND account = ?2 AND NOT (
                EXISTS (SELECT 1 FROM grants WHERE folder = ?1 AND account = ?2 AND role = 'reader')
                OR EXISTS (SELECT 1 FROM share_grants g JOIN shares s ON s.id = g.share
                           WHERE s.folder = ?1 AND g.account = ?2 AND g.role = 'reader'
@@ -876,12 +606,12 @@ impl Db {
             return Ok(());
         }
         for table in [
-            "campaign_audience",
+            "campaign_access",
             "campaign_viewer",
             "campaign_skip",
             "campaign_lost",
             "campaign_gone",
-            "campaign_images",
+            "campaign_rights",
         ] {
             tx.execute(
                 &format!("DELETE FROM {table} WHERE folder = ?1 AND account = ?2"),
@@ -889,12 +619,6 @@ impl Db {
             )
             .map_err(e)?;
         }
-        tx.execute(
-            "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
-             WHERE folder = ?1 AND grant_kind = 'player' AND grant_account = ?2",
-            params![folder, account],
-        )
-        .map_err(e)?;
         tx.commit().map_err(e)?;
         self.refresh_images(&conn);
         Ok(())
@@ -904,7 +628,7 @@ impl Db {
 /// The players' logs of `folder` begin after its last change, once: from
 /// here on a note is released to some players. The change before it is
 /// every player's.
-fn players_logs_begin(conn: &rusqlite::Connection, folder: &str) -> R<()> {
+pub(super) fn players_logs_begin(conn: &rusqlite::Connection, folder: &str) -> R<()> {
     conn.execute(
         "INSERT OR IGNORE INTO campaign_epoch (folder, seq)
          SELECT ?1, COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1",
@@ -935,11 +659,17 @@ fn forget_players_logs(conn: &rusqlite::Connection, folder: &str) -> R<()> {
         "campaign_skip",
         "campaign_lost",
         "campaign_gone",
-        "campaign_audience",
     ] {
         conn.execute(&format!("DELETE FROM {table} WHERE folder = ?1"), [folder])
             .map_err(e)?;
     }
+    // What a player was given of a file goes; the whole table's row stays
+    // with the file.
+    conn.execute(
+        "DELETE FROM campaign_access WHERE folder = ?1 AND account IS NOT NULL",
+        [folder],
+    )
+    .map_err(e)?;
     Ok(())
 }
 
