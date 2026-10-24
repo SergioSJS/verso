@@ -29,6 +29,8 @@ The log scrolls to the newest roll on its own, unless you scrolled up to read ol
 
 Right under the message field is the **dice tray**: a single row of small buttons, like the Dice Tray module of Foundry. It puts a roll together without typing — and writes it **into the message field itself**:
 
+On a phone the Table opens as a sheet that fills almost the whole screen, and the dice row sits behind the **Dice** button in the message field's row: tap it to open or close the row, and the device remembers your choice.
+
 1. **Click a die** — d4, d6, d8, d10, d12 or d20 — and the field holds `/r 1d6`; one more click on the d6 and one on the d20 give `/r 2d6+1d20`. A small badge on the die says how many of it are in the roll. Clicking **does not roll**. The other dice (d2, d3, d66, d100 and dF) are behind the **⋯** button.
 2. **Right click** a die to take one off (from the keyboard: `Shift+Enter`, `Delete` or `Backspace` on the die; on a phone, hold your finger on it). `Enter` on a die adds one.
 3. The small **number** field (the `0`) is the modifier: type, use the `↑` `↓` arrows or the mouse wheel, from −99 to +99 (`/r 2d6+1d20+2`).
