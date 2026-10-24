@@ -645,3 +645,43 @@ respostas; K.1, K.2, K.4 e K.5 são respostas dele do mesmo dia, K.3 a escolha
 do código a confirmar; os detalhes marcados `[PROPOSED]` são do autor. Nada está
 `[OPEN]`. A ser lida pelo outro modelo antes de o S1 começar
 ([0032](0032-author-and-reviewer-roles.md)).
+
+### Como construído, S1–S3 (2026-10-24, `feat/one-access-model`)
+
+Só o lado do servidor; o contrato e a janela são S4–S6.
+
+- **S1.** `access::may(facts, asker, action, target)` no `verso-server`
+  (`access/rules.rs`, sem IO), `AccessFacts` (as mesas, os conjuntos por
+  caminho, os direitos), o assento só pelo papel, `level` com herança da
+  pasta e exceções, o teto da credencial. O teste exaustivo da matriz
+  (`access/vectors.rs`) a compara com um segundo enunciado da seção B
+  escrito à mão e escreve `app/ui/test/access-vectors.json` (895 casos,
+  versionado, conferido como em dia; visto falhar com uma regra errada).
+- **S2.** Esquema 20: `campaign_access`, `campaign_files`, `campaign_rights`,
+  as linhas antigas levadas (uma nota oculta continua uma nota que a mesa
+  conhece, como um `none` explícito); as tabelas antigas ficam, nunca mais
+  escritas. O véu é feito dos conjuntos. O teste de equivalência
+  (`db/tests_access.rs`) gera todo estado antigo e confere que o véu responde
+  como o antigo para todo jogador e caminho, e conduz o novo
+  `campaign_audience` / `campaign_grant` contra um modelo das escritas
+  antigas; os dois foram vistos falhar com um mapeamento errado.
+- **S3.** `access::Door` (quem pergunta numa requisição e os fatos) é o que
+  toda porta consulta: `folder_command` (`check_write`), `rpc_collab`, o
+  `sync_put` / `sync_delete` / `sync_rename` do dispositivo (`check_sync`),
+  o registro da mesa (`log_role`, `DeleteEntry`, `Clear`, `SendFile`),
+  `game_master` (`ManageTable`, `ManageAccess`), o status, `files` por HTTP,
+  o histórico e a lixeira, o guarda da mesa fechada, os avisos
+  (`readers::split`). Apagados: `granted_write`, `group_put`, `acting`,
+  `images_allowed` e o `role.writes() && token_writes` repetido.
+- **Lido onde o ADR cala, a confirmar.** (1) `Attachment` e `OtherFile`
+  seguem as mesmas regras. (2) Quem edita fora de uma mesa mantém o papel da
+  pasta (tudo é dele); dentro, *Vê* já significa editar (K.1) e uma pasta que
+  ele vê é uma em que cria e renomeia (K.5). (3) Um board nunca é escrito
+  inteiro por um jogador nem digitado por um até o S7 (H): um editor da pasta
+  perde a sala do board numa mesa nesse meio-tempo. (4) O `sync_put` do
+  dispositivo de um jogador ainda exige a nota servida inteira (o grupo todo
+  a edita); o S8 tira isso. (5) A credencial só de leitura do mestre entra
+  numa sala como leitor; lê as notas inteiras pelos comandos. (6) Esvaziar o
+  conjunto de um arquivo guarda um `none` explícito (a linha que uma nota
+  oculta antiga tinha), para que um conjunto de pasta depois não decida por
+  ele.

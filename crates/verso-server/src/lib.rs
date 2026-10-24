@@ -425,6 +425,8 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_access_doors;
+#[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
 mod tests_audience;

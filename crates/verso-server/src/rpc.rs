@@ -318,6 +318,8 @@ async fn run(
             scope: None,
             token_write: !matches!(who.via, Via::Token { write: false, .. })
                 && who.phone.is_none_or(Role::writes),
+            owner: false,
+            phone: who.phone.is_some(),
             tx: tx.clone(),
         },
     );
@@ -619,7 +621,7 @@ async fn handle(
     // item 8).
     crate::shares::check(server, who, client)?;
     // A closed table keeps its players out (ADR 0110 item 3).
-    crate::campaign::guard(server, client)?;
+    crate::campaign::guard(server, who, client)?;
     match r.cmd.as_str() {
         "sync_state" | "sync_changes" | "sync_read" => {
             return crate::sync::command(server, who, client, &r.cmd, r.args, None).await;
@@ -898,19 +900,13 @@ async fn folder_command(
     args: Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
-    let scope = crate::shares::scope_here(server, client);
-    let visible = scope
-        .as_ref()
-        .map_or_else(|| folder.clone(), |s| s.share.clone());
-    let (_, token_writes) = who.reaches(&visible);
-    // A note granted to this player (ADR 0110 item 5): the one write a
-    // reader of a table makes.
-    let granted = access == Access::Write
-        && !role.writes()
-        && token_writes
-        && crate::campaign::granted_write(server, who, &folder, scope.as_ref(), name, &args);
-    if access == Access::Write && !(role.writes() && token_writes) && !granted {
-        return Err(refused("you may only read this folder"));
+    // One question, one answer (ADR 0113): the rules say whether this
+    // window may run a write, by the file's level and the credential's
+    // ceiling, never by a role and a flag read here.
+    let door = crate::access::Door::of(server, who, client)?;
+    let scope = door.scope.clone();
+    if access == Access::Write {
+        door.check_write(name, &args)?;
     }
     // The walk's rules and the folder note's name are the owner's, as
     // `set_walk_rules` and `set_folder_note_name` keep them (ADR 0070): an
@@ -930,13 +926,16 @@ async fn folder_command(
     // filtered to the share and re-rooted at it.
     // One who may only read is answered from the notes' projections (ADR
     // 0087): `folder_run` dispatches by the reader's list of commands.
-    let reads_only = !(role.writes() && token_writes) && !granted;
+    // A write the rules allowed is a writer's, whoever asks; the projection
+    // is for what is read.
+    let reads_only = door.projects() && access != Access::Write;
+    let veiled = door.veiled();
     let Some(scope) = scope else {
         return folder_run(
             server,
             who,
             client,
-            (name, access, reads_only),
+            (name, access, reads_only, veiled),
             (&folder, &key),
             args,
         )
@@ -1024,7 +1023,7 @@ async fn folder_command(
         server,
         who,
         client,
-        (name, access, reads_only),
+        (name, access, reads_only, veiled),
         (&folder, &key),
         args,
     )
@@ -1073,15 +1072,16 @@ pub(crate) async fn folder_run(
     server: &Arc<Server>,
     who: &Who,
     client: &str,
-    (name, access, reader): (&str, Access, bool),
+    (name, access, reader, veiled): (&str, Access, bool, bool),
     (folder, key): (&str, &str),
     args: Value,
 ) -> Result<Value, ContractError> {
     let key = key.to_owned();
     let key_for_log = key.clone();
     let args_for_log = args.clone();
-    // A player of a table is answered through its veil (ADR 0110).
-    let player = if reader {
+    // A player of a table is answered through its veil (ADR 0110): what it
+    // reads. A write the rules allowed it is a writer's.
+    let player = if veiled && access != Access::Write {
         crate::campaign::player(server, who, client).ok().flatten()
     } else {
         None
@@ -1304,8 +1304,22 @@ pub(crate) async fn open(
         }
         None => json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }),
     };
+    // The game master of the table: the folder's owner on the folder
+    // itself, whatever the credential (ADR 0113 item 6).
+    let account = lock(&server.clients)
+        .get(client)
+        .map(|c| c.account.clone())
+        .unwrap_or_default();
+    let owner = scope.is_none()
+        && server
+            .db
+            .role(&folder.id, &account)
+            .ok()
+            .flatten()
+            .is_some_and(|r| r == Role::Owner);
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
+        c.owner = owner;
         c.scope.clone_from(&scope);
         let _ = c.tx.send(&said);
     }

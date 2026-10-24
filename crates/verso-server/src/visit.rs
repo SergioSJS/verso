@@ -355,6 +355,8 @@ async fn run(server: Arc<Server>, token: String, live: Live, scope: Scope, mut s
             folder: None,
             scope: None,
             token_write: false,
+            owner: false,
+            phone: false,
             tx: tx.clone(),
         },
     );

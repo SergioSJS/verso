@@ -60,6 +60,10 @@ pub fn key(server: &Server, folder: &Folder) -> ApiResult<String> {
     Ok(verso_core::folder_key(&path))
 }
 
+mod door;
+pub use door::{
+    Door, asker_of, filtered, has_table, has_table_cached, log_role, may_client, projects, veiled,
+};
 mod rules;
 pub use rules::{
     AccessFacts, Action, Asker, Cap, Kind, Level, NodeSet, Reason, Seat, TableFact, Target,

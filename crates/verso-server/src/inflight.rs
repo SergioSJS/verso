@@ -192,20 +192,39 @@ pub fn admit(
             most / (1024 * 1024)
         ))));
     }
-    if UPLOADS.contains(&cmd) && !may_write(server, client) && !may_send_image(server, client, cmd)
+    if UPLOADS.contains(&cmd)
+        && !may_write(server, client, cmd)
+        && !may_send_image(server, client, cmd)
     {
         return Err(refuse(refused("you may only read this folder".to_owned())));
     }
     server.inflight.take(len).map_err(refuse)
 }
 
-/// Whether the window `client` shows a folder it may write, by its role
-/// and its credential, as `crate::rpc` checks before the core acts; that
-/// check stays, this one only spares the parse.
-fn may_write(server: &Server, client: &str) -> bool {
-    verso_service::lock(&server.clients)
-        .get(client)
-        .is_some_and(|c| c.token_write && c.folder.as_ref().is_some_and(|(_, r)| r.writes()))
+/// Whether the window `client` may possibly upload, by its role and its
+/// credential, as `crate::rpc` checks before the core acts (ADR 0113: the
+/// rules, per file); that check stays, this one only spares the parse. A
+/// player of a table may create files in a folder it edits (K.5), so in a
+/// folder that has — or may have — a table it is left to the rules; in one
+/// that has none, a reader's upload is refused unparsed.
+fn may_write(server: &Server, client: &str, cmd: &str) -> bool {
+    let found = {
+        let table = verso_service::lock(&server.clients);
+        table.get(client).and_then(|c| {
+            c.folder
+                .as_ref()
+                .map(|(f, r)| (f.clone(), c.token_write, r.writes()))
+        })
+    };
+    let Some((folder, cap, writes)) = found else {
+        return false;
+    };
+    // A file sent to the chat is judged by the right to send it
+    // (`may_send_image`); only the files a player makes in a folder it edits
+    // are left to the rules.
+    cap && (writes
+        || (cmd != "table_send_image"
+            && crate::access::has_table_cached(server, &folder).unwrap_or(false)))
 }
 
 /// Whether `cmd` is a table's image and the window's account was let send

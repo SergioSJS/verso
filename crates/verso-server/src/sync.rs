@@ -611,19 +611,12 @@ pub async fn command(
     args: Value,
     data: Option<Bytes>,
 ) -> Result<Reply, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    let scope = crate::shares::scope_here(server, client);
-    let visible = scope
-        .as_ref()
-        .map_or_else(|| folder.clone(), |s| s.share.clone());
-    let writes = role.writes() && who.reaches(&visible).1;
-    // A note a table's game master granted to the whole group is put by a
-    // player's device like a writer's (ADR 0110 item 5).
-    let granted = !writes
-        && who.reaches(&visible).1
-        && crate::campaign::group_put(server, who, &folder, scope.as_ref(), cmd, &args);
-    if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") && !writes && !granted {
-        return Err(refused("you may only read this folder"));
+    let door = crate::access::Door::of(server, who, client)?;
+    let scope = door.scope.clone();
+    // A device's change goes through the same rules as the window's: the
+    // file's level and the credential's ceiling (ADR 0113 section A).
+    if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") {
+        door.check_sync(cmd, &args)?;
     }
     // A share synced to a folder of the receiver's computer (ADR 0081
     // item 6): its paths joined to the shared folder's, its answers

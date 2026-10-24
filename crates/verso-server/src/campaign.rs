@@ -25,7 +25,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use verso_contract::ContractError;
 use verso_service::lock;
 
-use crate::access::{AccessFacts, Level, NodeSet, TableFact};
+use crate::access::{
+    AccessFacts, Action, Asker, Cap, Kind, Level, NodeSet, TableFact, Target, may,
+};
 use crate::db::{Audience, Campaign, Grant, NoteState, Role};
 use crate::state::Server;
 
@@ -215,23 +217,55 @@ impl Veil {
         self.unreadable
     }
 
+    /// The rules' asker for a player who is `account`: a reader of the
+    /// folder, whatever else it is (the veil judges what a player is told,
+    /// never what a role may do).
+    fn player_asker(account: &str) -> Asker {
+        Asker {
+            account: account.to_owned(),
+            role: Some(Role::Reader),
+            cap: Cap::Write,
+            phone: false,
+            link: false,
+            admin: false,
+        }
+    }
+
+    /// The visitor of a read link, a player with no name: only the *Whole
+    /// table* rows.
+    fn visitor_asker() -> Asker {
+        Asker {
+            account: String::new(),
+            role: None,
+            cap: Cap::Read,
+            phone: false,
+            link: true,
+            admin: false,
+        }
+    }
+
+    /// `may(See)` for `asker` on `path`, `derived` told by the caller.
+    fn sees_as(&self, asker: &Asker, path: &str, derived: bool) -> bool {
+        may(
+            &self.facts,
+            asker,
+            Action::See,
+            &Target::new(path, Kind::of_path(path)).derived(derived),
+        )
+        .allowed()
+    }
+
     /// Whether the note at `path` is hidden from `account`, a player:
     /// the question of a place that has no [`Veil::view`] at hand.
     #[must_use]
     pub fn hides_note_from(&self, path: &str, account: &str) -> bool {
-        let Some(table) = self.table_of(path) else {
+        if !self.in_table(path) {
             return false;
-        };
-        if !table.open {
-            return true;
         }
-        match self.set_of(path) {
-            Some(set) => set.of(account) < Level::See,
-            None if note_like(path) => true,
-            // An attachment no set covers is hidden, unless the table
-            // shows it.
-            None => !self.images.contains(&key(path)),
-        }
+        // An attachment no set covers is hidden, unless the table shows it.
+        let derived =
+            !note_like(path) && self.set_of(path).is_none() && self.images.contains(&key(path));
+        !self.sees_as(&Self::player_asker(account), path, derived)
     }
 
     /// Who the note at `path` is released to (hidden when it has no set).
@@ -279,32 +313,66 @@ impl Veil {
     }
 
     /// Whether a player is kept from `path`. `files` is the attachments a
-    /// released note opens ([`Veil::files_with`]).
+    /// released note opens ([`Veil::files_with`]). One decision: the rules'
+    /// `may(See)` (ADR 0113), for the veil's viewer.
     #[must_use]
     pub fn hides(&self, path: &str, files: &dyn Fn() -> bool) -> bool {
-        let Some(table) = self.table_of(path) else {
+        if !self.in_table(path) {
             return false;
-        };
-        if !table.open {
-            return true;
-        }
-        if note_like(path) {
-            return !self.released(path);
         }
         // An attachment is a file of the table too: an access of its own
         // (or its folder's) wins (ADR 0113 K.3); with none, it is served
         // only through a released note, or as an image the table shows. A
         // folder's own path is none (see `folder_shown` in the serving).
-        if self.set_of(path).is_some() {
-            return self.level(path) < Level::See;
+        let derived = !note_like(path)
+            && self.set_of(path).is_none()
+            && (files() || self.images.contains(&key(path)));
+        match &self.viewer {
+            Viewer::Public => !self.sees_as(&Self::visitor_asker(), path, derived),
+            Viewer::Account(a) => !self.sees_as(&Self::player_asker(a), path, derived),
+            // The players together: seen when any player sees it.
+            Viewer::Union => {
+                let table_open = self.table_of(path).is_some_and(|t| t.open);
+                !(table_open
+                    && match self.set_of(path) {
+                        Some(set) => set.most() >= Level::See,
+                        None => derived,
+                    })
+            }
         }
-        !(files() || self.images.contains(&key(path)))
     }
 
     /// Whether a note (by its name, not an attachment) is hidden.
     #[must_use]
     pub fn hides_note(&self, path: &str) -> bool {
         self.hides(path, &|| false)
+    }
+
+    /// The access `path` has through its folder, when it has none of its
+    /// own — what a move carries along (ADR 0113 K.2): the nearest set above
+    /// it, else hidden. `None` when `path` has a set of its own (it travels
+    /// with the move) or lies in no table.
+    #[must_use]
+    pub fn inherited_set(&self, path: &str) -> Option<NodeSet> {
+        let table = self.table_of(path)?;
+        if self.facts.sets.contains_key(&key(path)) {
+            return None;
+        }
+        Some(
+            self.facts
+                .nearest_set(path, &table.root)
+                .map(|(_, s)| s.clone())
+                .unwrap_or_default()
+                .normalized(),
+        )
+    }
+
+    /// The set `path` follows now: its own, else its folder's, else hidden.
+    #[must_use]
+    pub fn effective_set(&self, path: &str) -> NodeSet {
+        self.set_of(path)
+            .map(|s| s.clone().normalized())
+            .unwrap_or_default()
     }
 
     /// The paths of notes with a state: for the owner's listing.
@@ -506,6 +574,12 @@ impl Cache {
     }
 }
 
+/// What is known of `folder`'s table without reading the database: `None`
+/// when the folder has not been asked about yet.
+pub(crate) fn cached(server: &Server, folder: &str) -> Option<Option<Arc<Veil>>> {
+    lock(&server.campaigns.map).get(folder).cloned()
+}
+
 /// The veil of `folder`, if it has a table. A folder whose tables cannot
 /// be read is a closed table, not a folder with none ([`unreadable`]):
 /// every door fails closed, and the failure is not kept.
@@ -701,34 +775,50 @@ pub struct Player {
     /// The folder as this player sees it.
     pub veil: Arc<Veil>,
     pub account: String,
+    /// A folder's editor is a player who edits every file they see
+    /// (ADR 0113 K.1).
+    pub editor: bool,
 }
 
-/// The player behind `client`, when it is one: a window that may only
-/// read a folder with a table.
+impl Player {
+    /// Whether the player edits the note at `path`: its set says so, or
+    /// they are an editor of the folder and see it.
+    #[must_use]
+    pub fn edits(&self, path: &str) -> bool {
+        // Outside a table an editor edits, and reads whole, as always.
+        if !self.veil.in_table(path) {
+            return self.editor;
+        }
+        self.veil.may_edit(path, &self.account) || (self.editor && !self.veil.hides_note(path))
+    }
+}
+
+/// The player behind `client`, when it is one: a window that is not the
+/// game master of a folder with a table (ADR 0113 item 3).
 pub fn player(
     server: &Server,
     who: &crate::auth::Who,
     client: &str,
 ) -> Result<Option<Player>, ContractError> {
-    let (folder, _) = crate::rpc::role_here(server, client)?;
-    let Some(veil) = veil_of(server, &folder) else {
+    let door = crate::access::Door::of(server, who, client)?;
+    let Some(veil) = door.veil.clone() else {
         return Ok(None);
     };
-    if !crate::readers::reads_only(server, who, client)? {
+    if !door.veiled() {
         return Ok(None);
     }
     let account = who.account.id.clone();
     Ok(Some(Player {
         veil: veil.view(&account),
         account,
+        editor: door.asker.role == Some(Role::Editor),
     }))
 }
 
 /// Whether what a window reaches of `folder` is closed to it: a table
-/// that holds what the window reaches is closed and the window only reads (a
-/// player; the folder's owner and its editors, the game masters, always
-/// enter). `root` is what the window reaches: the share's path, `""` for
-/// the whole folder.
+/// that holds what the window reaches is closed and the window is a player
+/// (the folder's owner, the game master, always enters). `root` is what
+/// the window reaches: the share's path, `""` for the whole folder.
 #[must_use]
 pub fn closed_for(server: &Server, folder: &str, root: &str, player: bool) -> bool {
     if !player {
@@ -740,27 +830,34 @@ pub fn closed_for(server: &Server, folder: &str, root: &str, player: bool) -> bo
     veil.tables.iter().any(|t| !t.open && covers(&t.root, root))
 }
 
+/// Whether `account` is the owner of `folder` itself: its game master.
+#[must_use]
+pub fn is_master(server: &Server, folder: &str, account: &str) -> bool {
+    server
+        .db
+        .role(folder, account)
+        .ok()
+        .flatten()
+        .is_some_and(|r| r == Role::Owner)
+}
+
 /// Before a command of a window on a folder: a player of a table that was
 /// closed meanwhile is refused (MC.1 = A).
-pub fn guard(server: &Server, client: &str) -> Result<(), ContractError> {
-    let (folder, role, root, token_write) = {
-        let table = lock(&server.clients);
-        let Some(c) = table.get(client) else {
-            return Ok(());
-        };
-        let Some((folder, role)) = c.folder.clone() else {
-            return Ok(());
-        };
-        (
-            folder,
-            role,
-            c.scope
-                .as_ref()
-                .map_or_else(String::new, |s| s.root.clone()),
-            c.token_write,
-        )
+pub fn guard(server: &Server, who: &crate::auth::Who, client: &str) -> Result<(), ContractError> {
+    // A window with no folder yet is shut out of nothing.
+    let Ok(door) = crate::access::Door::of(server, who, client) else {
+        return Ok(());
     };
-    if closed_for(server, &folder, &root, !(role.writes() && token_write)) {
+    let root = door
+        .scope
+        .as_ref()
+        .map_or_else(String::new, |s| s.root.clone());
+    if closed_for(
+        server,
+        &door.folder,
+        &root,
+        door.seat() != crate::access::Seat::Master,
+    ) {
         return Err(closed_error());
     }
     Ok(())
@@ -785,65 +882,4 @@ pub fn image_limit(server: &Server, folder: &str, table: &str) -> usize {
         })
         .unwrap_or(crate::db::IMAGE_DEFAULT);
     usize::try_from(bytes).unwrap_or(crate::table::IMAGE_BYTES)
-}
-
-/// Whether the command `name` is a write of a note the account may edit by
-/// a grant (ADR 0110 item 5): `write_note` or `write_text` of a note of a
-/// table granted to the group or to it. The one write a reader makes.
-#[must_use]
-pub fn granted_write(
-    server: &Server,
-    who: &crate::auth::Who,
-    folder: &str,
-    scope: Option<&crate::scope::Scope>,
-    name: &str,
-    args: &serde_json::Value,
-) -> bool {
-    if !matches!(name, "write_note" | "write_text") {
-        return false;
-    }
-    let Some(given) = args["path"].as_str() else {
-        return false;
-    };
-    let full = match scope {
-        Some(s) => match s.to_full_write(given) {
-            Ok(f) => f,
-            Err(_) => return false,
-        },
-        None => given.to_owned(),
-    };
-    crate::readers::is_note(&full)
-        && veil_of(server, folder)
-            .is_some_and(|v| v.in_table(&full) && v.may_edit(&full, &who.account.id))
-}
-
-/// Whether a device of a player puts a note granted to the whole group
-/// (`sync_put`): a note granted to one player is edited in the window,
-/// since the device holds the projection every other reader holds
-/// (ADR 0110 item 5).
-#[must_use]
-pub fn group_put(
-    server: &Server,
-    who: &crate::auth::Who,
-    folder: &str,
-    scope: Option<&crate::scope::Scope>,
-    cmd: &str,
-    args: &serde_json::Value,
-) -> bool {
-    let _ = who;
-    if cmd != "sync_put" {
-        return false;
-    }
-    let Some(given) = args["path"].as_str() else {
-        return false;
-    };
-    let full = match scope {
-        Some(s) => match s.to_full_write(given) {
-            Ok(f) => f,
-            Err(_) => return false,
-        },
-        None => given.to_owned(),
-    };
-    crate::readers::is_note(&full)
-        && veil_of(server, folder).is_some_and(|v| v.in_table(&full) && v.group_edits(&full))
 }
