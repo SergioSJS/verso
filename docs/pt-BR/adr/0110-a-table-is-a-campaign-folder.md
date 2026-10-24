@@ -657,6 +657,25 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   estavam, e as travas e arquivos guardados são limitados. Um jogador recebe
   `sync-changed` só se a mudança lhe diz algo: ganhou ou perdeu uma nota, ou o
   seu próprio texto de uma se moveu.
+  Terceira revisão (2026-10-24): o log de um jogador **começa** no seu primeiro
+  pedido, no topo dos leitores, com a última mudança de cada caminho que ele vê
+  então — nunca o histórico dessas notas antes (rascunhos feitos enquanto
+  ocultas, ou enquanto a conta estava fora). Uma conta que não pode mais ler a
+  pasta (revogada, tirada do compartilhamento, ou com um papel que escreve)
+  perde suas linhas de visão, omissão, perda e lembrança, seus públicos e suas
+  permissões, de modo que deixá-la entrar de novo é um primeiro pedido. As
+  linhas de omissão de uma mudança registrada são feitas no mesmo passo, ou a
+  mudança não é registrada (a próxima varredura a registra; a escrita de um
+  dispositivo vale enquanto isso). O que esperou por uma mesa ilegível — os
+  eventos das janelas e as entradas de log dos públicos — é dito quando ela pode
+  ser lida, e as salas se fecham na hora (uma mesa ilegível oculta toda nota).
+  Ocultar um caminho que os leitores tinham como arquivo de uma pasta comum
+  nunca tira uma linha da contagem dos leitores: eles são avisados de que sumiu,
+  como uma mudança. Os contadores de esquecimento são por pasta e um arquivo
+  escrito não é uma mudança do estado da mesa; uma decisão que continua
+  encontrando um estado que se move é recusada para quem pergunta repetir, nunca
+  escrita. O `sync_state` de um compartilhamento conta o topo antes de montar os
+  arquivos.
 - **O que uma janela ouve é o que ganhou ou perdeu.** `campaign-changed` e o
   `folder-changed` de uma liberação são feitos por jogador a partir da mesa
   antes e depois da mudança: uma nota que ele não via antes nem vê agora não é

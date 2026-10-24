@@ -185,7 +185,7 @@ fn typed(doc: &yrs::Doc, what: &str) -> String {
 }
 
 /// Ana edits the note by a grant; the owner is in its room.
-async fn room_with_a_writer(m: &mut Mesa) -> yrs::Doc {
+pub(crate) async fn room_with_a_writer(m: &mut Mesa) -> yrs::Doc {
     let ana_id = m.ana_id.clone();
     let granted = m
         .owner
@@ -592,6 +592,8 @@ fn an_ask_of_a_long_log_does_not_tell_again_what_an_earlier_ask_settled() {
     block_on(async {
         let mut m = mesa().await;
         restricted(&mut m).await;
+        // Her log is begun before the edits: a first ask begins at the head.
+        since(&mut m.ana, 0).await;
         for i in 0..40 {
             edit(&mut m, "Livre.md", &format!("Livre {i}\n")).await;
         }
@@ -622,6 +624,15 @@ fn an_ask_of_a_long_log_does_not_tell_again_what_an_earlier_ask_settled() {
         assert_eq!(told(&more), vec![("Livre.md".to_owned(), false)], "{more}");
         let asked = crate::campaign_sync::projections_taken(&folder);
         assert!(asked <= 2, "a page of one change told {asked} files");
+        // Her files after a write: the notes whose rows did not move are not
+        // told again (a file written is no change of the table).
+        let state = m.ana.call("sync_state", json!({})).await;
+        assert!(state.get("ok").is_some(), "{state}");
+        let asked = crate::campaign_sync::projections_taken(&folder);
+        assert!(
+            asked <= 4,
+            "her files were all told again after one write: {asked}"
+        );
     });
 }
 

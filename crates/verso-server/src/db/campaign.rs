@@ -701,25 +701,47 @@ impl Db {
         Ok(touched)
     }
 
-    /// An account left the folder (or the share): the notes granted to it
-    /// are granted to no one.
-    pub fn campaign_ungrant_account(&self, folder: &str, account: &str) -> R<usize> {
+    /// An account may no longer read the folder (it left it or its share, or
+    /// its role writes): the notes granted to it are granted to no one, it is
+    /// in no audience, and what its log kept goes — so that if it is let in
+    /// again it begins anew, and never inherits the audiences it had or counts
+    /// what happened while it was out. Nothing, if it still reads the folder
+    /// by another way.
+    pub fn campaign_account_left(&self, folder: &str, account: &str) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
-        tx.execute(
-            "DELETE FROM campaign_audience WHERE folder = ?1 AND account = ?2",
-            params![folder, account],
-        )
-        .map_err(e)?;
-        let n = tx
-            .execute(
-                "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
-                 WHERE folder = ?1 AND grant_kind = 'player' AND grant_account = ?2",
+        let reads: bool = tx
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM grants WHERE folder = ?1 AND account = ?2 AND role = 'reader')
+                     OR EXISTS (SELECT 1 FROM share_grants g JOIN shares s ON s.id = g.share
+                                WHERE s.folder = ?1 AND g.account = ?2 AND g.role = 'reader')",
+                params![folder, account],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        if reads {
+            return Ok(());
+        }
+        for table in [
+            "campaign_audience",
+            "campaign_viewer",
+            "campaign_skip",
+            "campaign_lost",
+            "campaign_gone",
+        ] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE folder = ?1 AND account = ?2"),
                 params![folder, account],
             )
             .map_err(e)?;
-        tx.commit().map_err(e)?;
-        Ok(n)
+        }
+        tx.execute(
+            "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
+             WHERE folder = ?1 AND grant_kind = 'player' AND grant_account = ?2",
+            params![folder, account],
+        )
+        .map_err(e)?;
+        tx.commit().map_err(e)
     }
 }
 

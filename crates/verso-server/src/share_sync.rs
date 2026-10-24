@@ -71,6 +71,34 @@ async fn run(
 ) -> Result<Reply, ContractError> {
     Ok(match cmd {
         "sync_state" => {
+            let reader = crate::readers::reads_only(server, who, client)?;
+            let key = server
+                .service
+                .folder_of(client)
+                .ok_or_else(verso_service::no_folder)?;
+            // A table with notes released to some players: the player's own
+            // log, which the share's cut of it is the head of — counted
+            // first, so that a change landing while the files are made is in
+            // them and not in the head: the device reads it again, never
+            // skips it.
+            let own_head = if reader && own_log(server, &key).await? {
+                let (s, k, f, a, rs) = (
+                    Arc::clone(server),
+                    key,
+                    crate::rpc::role_here(server, client)?.0,
+                    who.account.id.clone(),
+                    roots(scope),
+                );
+                Some(
+                    crate::rpc::blocking(move || {
+                        let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
+                        crate::campaign_sync::viewer_share_head(&s, (&f, &k), &a, &rs)
+                    })
+                    .await?,
+                )
+            } else {
+                None
+            };
             let (mut v, _) =
                 command_in(server, who, client, cmd, (args, None), Arc::clone(&reads)).await?;
             if let Some(files) = v["files"].as_array_mut() {
@@ -79,31 +107,10 @@ async fn run(
             // The share's own head: how many of the folder's changes up to
             // the folder's head are the share's (3.18).
             let upto = v["head"].as_i64().unwrap_or(0);
-            let reader = crate::readers::reads_only(server, who, client)?;
-            // A table with notes released to some players: the player's
-            // own log, which the share's cut of it is the head of.
-            let key = server
-                .service
-                .folder_of(client)
-                .ok_or_else(verso_service::no_folder)?;
-            if reader && own_log(server, &key).await? {
-                let (s, k, f, a, rs) = (
-                    Arc::clone(server),
-                    key,
-                    crate::rpc::role_here(server, client)?.0,
-                    who.account.id.clone(),
-                    roots(scope),
-                );
-                v["head"] = json!(
-                    crate::rpc::blocking(move || {
-                        let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
-                        crate::campaign_sync::viewer_share_head(&s, (&f, &k), &a, &rs)
-                    })
-                    .await?
-                );
-            } else {
-                v["head"] = json!(share_count(server, client, scope, (upto, reader)).await?);
-            }
+            v["head"] = match own_head {
+                Some(h) => json!(h),
+                None => json!(share_count(server, client, scope, (upto, reader)).await?),
+            };
             (v, None)
         }
         "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),

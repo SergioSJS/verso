@@ -982,7 +982,8 @@ impl Db {
                 params![folder, account, role.as_str()],
             )
             .map_err(e)?;
-        Ok(())
+        // A role that writes makes it a game master, not a player.
+        self.campaign_account_left(folder, account)
     }
 
     pub fn revoke(&self, folder: &str, account: &str) -> R<()> {
@@ -992,7 +993,7 @@ impl Db {
                 params![folder, account],
             )
             .map_err(e)?;
-        Ok(())
+        self.campaign_account_left(folder, account)
     }
 
     /// The folders `account` may enter, with its role in each.

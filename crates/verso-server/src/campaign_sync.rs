@@ -34,6 +34,27 @@ use crate::state::Server;
 pub(crate) static PROJECTIONS: std::sync::Mutex<Option<HashMap<String, usize>>> =
     std::sync::Mutex::new(None);
 
+/// What a test does the moment a player's files are made (a change landing
+/// then), by folder.
+#[cfg(test)]
+type Between = Box<dyn FnOnce() + Send>;
+#[cfg(test)]
+pub(crate) static BETWEEN: std::sync::Mutex<Vec<(String, Between)>> =
+    std::sync::Mutex::new(Vec::new());
+
+#[cfg(test)]
+fn after_files(folder: &str) {
+    let hook = {
+        let mut all = lock(&BETWEEN);
+        all.iter()
+            .position(|(f, _)| f == folder)
+            .map(|i| all.remove(i).1)
+    };
+    if let Some(h) = hook {
+        h();
+    }
+}
+
 /// The count so far for `folder`, and back to zero.
 #[cfg(test)]
 pub(crate) fn projections_taken(folder: &str) -> usize {
@@ -70,7 +91,6 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
     };
     let mut readers: ReaderOf = HashMap::new();
     let mut changes: Vec<crate::db::Recorded> = Vec::new();
-    let mut silent: Vec<String> = Vec::new();
     let mut explicit: Vec<String> = Vec::new();
     for (path, (hash, size, rhash, rsize, quick)) in &stored {
         // After an edit, only the attachments can have moved (the notes
@@ -104,12 +124,10 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             }
             continue;
         }
-        // Hidden and never told to a reader of this table: silent, not a
-        // deletion (its name is not in the reader's log).
-        if rsize.is_none() && will.1 < 0 {
-            silent.push(path.clone());
-            continue;
-        }
+        // Hidden and never told as the table's: the readers had the file as
+        // a plain folder's, so they are told it went — a change, after the
+        // others. Nothing before it is taken back: a row that leaves the
+        // log shifts every cursor counted past it.
         if let Some(r) = now {
             readers.insert(path.clone(), r);
         }
@@ -119,19 +137,14 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             None,
         ));
     }
-    // The readers' numbers of a folder with logs of their own are not
-    // moved by hiding the past: only what comes after is silent.
-    let own_logs = crate::campaign::veil_of(server, folder).is_some_and(|v| v.restricted());
-    if !silent.is_empty()
-        && let Err(e) = server.db.reader_silence(folder, &silent, !own_logs)
-    {
-        crate::log::warn(&format!("hiding a table's notes from sync: {e}"));
-    }
     if changes.is_empty() && explicit.is_empty() {
         return;
     }
     let mut notices = Notices::new();
-    unseen_notices(server, (folder, key), &changes, &mut notices);
+    if let Err(e) = unseen_notices(server, (folder, key), &changes, &mut notices) {
+        crate::log::warn(&format!("who sees a table's release: {}", e.message));
+        return;
+    }
     match server.db.record_with(
         folder,
         (None, None),
@@ -151,6 +164,32 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             crate::readers::push_sync_changed(server, (folder, key), (head, &paths), &seen, &[]);
         }
         Err(e) => crate::log::warn(&format!("recording a table's release for sync: {e}")),
+    }
+}
+
+/// What waited for the table of `folder` to be readable is told now, if it
+/// is: the audiences' log entries, then what the windows are told.
+pub fn replay_pending(server: &Server, folder: &str) {
+    if crate::campaign::veil_of(server, folder).is_some_and(|v| v.is_unreadable()) {
+        return;
+    }
+    for p in server.campaigns.take_pending(folder) {
+        match p {
+            crate::campaign::Pending::Audience {
+                key,
+                events,
+                before,
+            } => {
+                audience_events(server, folder, &key, &events, before);
+            }
+            crate::campaign::Pending::Refresh {
+                key,
+                touched,
+                before,
+            } => {
+                crate::campaign_cmds::refresh(server, folder, &key, &touched, before);
+            }
+        }
     }
 }
 
@@ -186,6 +225,15 @@ pub fn audience_events(
     }
     crate::campaign::forget(server, folder);
     if crate::campaign::veil_to_write(server, folder, "a note's audience for sync").is_err() {
+        // The audience is changed for good; its telling waits.
+        server.campaigns.defer(
+            folder,
+            crate::campaign::Pending::Audience {
+                key: key.to_owned(),
+                events: events.to_vec(),
+                before,
+            },
+        );
         return;
     }
     let stored = match server.db.manifest_readers(folder) {
@@ -397,15 +445,18 @@ const BATCH: i64 = 500;
 /// deletion inside a table is told only to those who lost the path with
 /// it — the state of the table at that moment, not the one at the ask. A
 /// change in a table is the player's unless the record said it was not (its
-/// skip row): `trusted` — the player's log was begun before — takes the
-/// record's word; a first ask, which has no record of its own for the past,
-/// asks the table as it is.
+/// skip row): a player whose log was begun before (`first` is `None`) takes
+/// the record's word. A player's first ask has no record of its own for the
+/// past: its log begins there, at the readers' head, with the last change
+/// of each path it sees now (`first`), nothing of what happened to those
+/// notes before — drafts made while they were hidden from everyone, or while
+/// the player was out — and it asks the table as it is.
 fn member(
     ws: &mut verso_core::Workspace,
     veil: &Veil,
     c: &crate::db::Change,
     lost: bool,
-    trusted: bool,
+    first: Option<&HashMap<String, i64>>,
 ) -> bool {
     if lost || !veil.in_table(&c.path) {
         return true;
@@ -413,7 +464,13 @@ fn member(
     if c.deleted {
         return false;
     }
-    trusted || !crate::campaign_serve::is_hidden_in(ws, veil, &c.path)
+    match first {
+        None => true,
+        Some(last) => {
+            last.get(&c.path) == Some(&c.seq)
+                && !crate::campaign_serve::is_hidden_in(ws, veil, &c.path)
+        }
+    }
 }
 
 /// How many times a batch is decided again because the table was forgotten
@@ -429,13 +486,19 @@ fn settle(server: &Server, folder: &str, key: &str, account: &str) -> Result<i64
     let fail = verso_service::failed;
     let epoch = server.db.campaign_epoch(folder).map_err(fail)?.unwrap_or(0);
     let begun = server.db.campaign_viewer(folder, account).map_err(fail)?;
-    let trusted = begun.is_some();
+    // Where a first ask starts, and the last change of each path from there.
+    let first: Option<HashMap<String, i64>> = if begun.is_some() {
+        None
+    } else {
+        Some(server.db.reader_last_changes(folder, epoch).map_err(fail)?)
+    };
     let mut settled = begun.unwrap_or(epoch);
     if crate::campaign::veil_to_write(server, folder, "a player's log").is_err() {
         return Err(verso_service::failed(
             "the table's state cannot be read now",
         ));
     }
+    replay_pending(server, folder);
     'batches: loop {
         let batch = server
             .db
@@ -454,25 +517,31 @@ fn settle(server: &Server, folder: &str, key: &str, account: &str) -> Result<i64
             .map_err(fail)?;
         let mut tries = 0;
         let skips = loop {
-            let generation = server.campaigns.generation();
+            let generation = server.campaigns.state_generation(folder);
             let Some(veil) = crate::campaign::veil_for_key(server, key).map(|v| v.view(account))
             else {
                 break 'batches;
             };
-            let (b, l, pre) = (&batch, &lost, &before);
+            let (b, l, pre, f) = (&batch, &lost, &before, first.as_ref());
             let skips: Vec<i64> = server.service.with_key(key, move |ws| {
                 Ok(b.iter()
                     .filter(|c| {
-                        !pre.contains(&c.seq) && !member(ws, &veil, c, l.contains(&c.seq), trusted)
+                        !pre.contains(&c.seq) && !member(ws, &veil, c, l.contains(&c.seq), f)
                     })
                     .map(|c| c.seq)
                     .collect())
             })?;
-            // The table forgotten while this was decided: it may be of the
-            // state before, and a skip is for good.
-            tries += 1;
-            if server.campaigns.generation() == generation || tries >= SETTLE_TRIES {
+            // The table's state moved while this was decided: it may be of
+            // the state before, and a skip is for good. Decided again; and if
+            // it keeps moving, not decided at all — the asker asks again.
+            if server.campaigns.state_generation(folder) == generation {
                 break skips;
+            }
+            tries += 1;
+            if tries >= SETTLE_TRIES {
+                return Err(verso_service::failed(
+                    "the table is changing: ask again in a moment",
+                ));
             }
         };
         server
@@ -740,7 +809,7 @@ pub fn viewer_files(
 ) -> Result<Arc<Vec<Value>>, ContractError> {
     let fail = verso_service::failed;
     let head = server.db.head(folder).map_err(fail)?;
-    let generation = server.campaigns.generation();
+    let generation = server.campaigns.state_generation(folder);
     let place = (folder.to_owned(), account.to_owned());
     if let Some(kept) = lock(&server.campaigns.told_files).get(&place)
         && kept.head == head
@@ -798,6 +867,8 @@ pub fn viewer_files(
         Ok((out, kept))
     })?;
     let files = Arc::new(files);
+    #[cfg(test)]
+    after_files(folder);
     let mut cache = lock(&server.campaigns.told_files);
     // Bounded: a few dozen players' files at a time.
     if cache.len() > 64 {
@@ -814,29 +885,6 @@ pub fn viewer_files(
         },
     );
     Ok(files)
-}
-
-/// A page of a player's own log: `items` (see [`viewer_changes`]) after
-/// the player's cursor `asked`, numbered in the player's own count. The
-/// head is where the reading stopped, so a change that lands meanwhile is
-/// the next question's.
-#[must_use]
-pub fn page(items: &[Told], asked: i64, size: usize) -> Value {
-    let start = usize::try_from(asked.max(0))
-        .unwrap_or(usize::MAX)
-        .min(items.len());
-    let end = start.saturating_add(size).min(items.len());
-    let changes: Vec<Value> = items[start..end]
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| t.tell)
-        .map(|(i, t)| {
-            let mut c = t.change.clone();
-            c["seq"] = json!(start + i + 1);
-            c
-        })
-        .collect();
-    json!({ "head": end, "changes": changes, "more": end < items.len() })
 }
 
 /// The players of the table who see the files and folders `roots` name —
@@ -1000,13 +1048,15 @@ pub fn unseen_notices(
     (folder, key): (&str, &str),
     changes: &[crate::db::Recorded],
     notices: &mut Notices,
-) {
-    let Ok(Some(veil)) = crate::campaign::veil_to_write(server, folder, "who sees a change") else {
-        return;
+) -> Result<(), ContractError> {
+    // Fails closed: a change recorded without its skip rows would be
+    // counted by players who do not see it, so none is recorded — the next
+    // walk finds it again.
+    let veil = crate::campaign::veil_to_write(server, folder, "who sees a change")
+        .map_err(|_| verso_service::failed("the table's state cannot be read now"))?;
+    let Some(veil) = veil.filter(|v| v.restricted()) else {
+        return Ok(());
     };
-    if !veil.restricted() {
-        return;
-    }
     let mut by_table: HashMap<String, Vec<String>> = HashMap::new();
     let mut asked: Vec<(String, String)> = Vec::new();
     for (path, now, _) in changes {
@@ -1014,9 +1064,8 @@ pub fn unseen_notices(
             continue;
         }
         let root = veil.table(path).map(|t| t.root.clone()).unwrap_or_default();
-        if !by_table.contains_key(&root)
-            && let Ok(players) = crate::campaign_cmds::players_of(server, folder, path)
-        {
+        if !by_table.contains_key(&root) {
+            let players = crate::campaign_cmds::players_of(server, folder, path)?;
             by_table.insert(root.clone(), players.into_iter().map(|p| p.id).collect());
         }
         asked.push((root, path.clone()));
@@ -1035,8 +1084,9 @@ pub fn unseen_notices(
             out.push((path, hidden));
         }
         Ok(out)
-    });
-    for (path, hidden) in skips.unwrap_or_default() {
+    })?;
+    for (path, hidden) in skips {
         notices.entry(path).or_default().skip.extend(hidden);
     }
+    Ok(())
 }

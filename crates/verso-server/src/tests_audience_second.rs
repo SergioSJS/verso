@@ -327,3 +327,248 @@ fn a_share_counts_only_its_own_part_of_the_players_log() {
         );
     });
 }
+
+#[test]
+fn a_new_player_begins_at_the_head_with_the_last_change_of_what_it_sees() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        release_to(&mut m, BARAO, &[&ana_id]).await;
+        // Drafts, while the note is Ana's alone.
+        for i in 0..3 {
+            edit(&mut m, BARAO, &format!("zqbody {i}\n")).await;
+        }
+        // Caio's account is made after them, and the note becomes his too.
+        let caio =
+            m.r.server
+                .db
+                .create_account(
+                    "caio@casa.lan",
+                    "Caio",
+                    "pt",
+                    Some("a senha do caio"),
+                    false,
+                )
+                .unwrap();
+        m.r.server.db.grant(&m.id, &caio.id, Role::Reader).unwrap();
+        let b = sign_in(&m.r, "caio@casa.lan", "a senha do caio").await;
+        let (mut cw, o) = Win::open(&m.r, &b, &m.id).await;
+        assert!(o.get("ok").is_some(), "{o}");
+        release_to(&mut m, BARAO, &[&ana_id, &caio.id]).await;
+        let log = cw.call("sync_changes", json!({ "since": 0 })).await;
+        let barao = told(&log).into_iter().filter(|(p, _)| p == BARAO).count();
+        // The note's row from before the table (everyone's), and its last
+        // change; not the drafts between.
+        assert!(
+            barao <= 2,
+            "a player first asking is told every draft made before it saw the note: {log}"
+        );
+    });
+}
+
+#[test]
+fn a_player_let_in_again_does_not_count_what_happened_while_it_was_out() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        release_to(&mut m, BARAO, &[&ana_id]).await;
+        let before = m.bia.call("sync_changes", json!({ "since": 0 })).await["ok"]["head"]
+            .as_i64()
+            .unwrap();
+        // Bia is taken out of the table.
+        m.r.server.db.revoke(&m.id, &bia_id).unwrap();
+        for i in 0..3 {
+            edit(&mut m, BARAO, &format!("zqbody {i}\n")).await;
+            edit(&mut m, "Aberta.md", &format!("Aberta {i}\n")).await;
+        }
+        // And let in again.
+        m.r.server.db.grant(&m.id, &bia_id, Role::Reader).unwrap();
+        let log = m.bia.call("sync_changes", json!({ "since": 0 })).await;
+        let after = log["ok"]["head"].as_i64().unwrap();
+        assert!(
+            after <= before + 1,
+            "her count learns {} changes made while she was out: {log}",
+            after - before
+        );
+        assert!(!log.to_string().contains("Bar"), "{log}");
+    });
+}
+
+#[test]
+fn a_change_that_lands_while_a_players_files_are_made_is_not_skipped_by_its_device() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        release_to(&mut m, "Mapa Zq.md", &[&ana_id]).await;
+        // Her log is begun.
+        since(&mut m.ana, 0).await;
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        // A change is recorded the moment her files have been made.
+        let f = folder.clone();
+        verso_service::lock(&crate::campaign_sync::BETWEEN).push((
+            folder.clone(),
+            Box::new(move || {
+                server
+                    .db
+                    .record(
+                        &f,
+                        (None, None),
+                        &[(
+                            "Livre.md".to_owned(),
+                            Some(("ffff".to_owned(), 3, "3:99".to_owned())),
+                            None,
+                        )],
+                        &[],
+                        (&crate::db::ReaderOf::new(), &[]),
+                    )
+                    .unwrap();
+            }),
+        ));
+        // `viewer_files` caches by head, so make the head move first.
+        edit(&mut m, "Livre.md", "uma edicao\n").await;
+        let state = m.ana.call("sync_state", json!({})).await;
+        let head = state["ok"]["head"].as_i64().unwrap();
+        let log = m.ana.call("sync_changes", json!({ "since": head })).await;
+        assert!(
+            told(&log).contains(&("Livre.md".to_owned(), false)),
+            "the change recorded while the files were made is counted in the head and skipped: {state} {log}"
+        );
+    });
+}
+
+async fn since(w: &mut Win, head: i64) -> serde_json::Value {
+    w.call("sync_changes", json!({ "since": head })).await
+}
+
+#[test]
+fn making_the_first_table_over_existing_files_tells_plain_readers_they_went_and_takes_nothing_back()
+{
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let (mut owner, _) = Win::open(&r, &admin, &id).await;
+        let a = r
+            .server
+            .db
+            .create_account("ana@casa.lan", "Ana", "pt", Some("a senha da ana"), false)
+            .unwrap();
+        r.server.db.grant(&id, &a.id, Role::Reader).unwrap();
+        let b = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
+        let (mut ana, _) = Win::open(&r, &b, &id).await;
+        // Her device has synced the folder as it is.
+        let first = ana.call("sync_changes", json!({ "since": 0 })).await;
+        let head = first["ok"]["head"].as_i64().unwrap();
+        assert!(head > 0, "{first}");
+        let made = owner.call("campaign_make", json!({ "root": "" })).await;
+        assert!(made.get("ok").is_some(), "{made}");
+        // Nothing left her count, and the notes she had are told gone.
+        let again = ana.call("sync_changes", json!({ "since": 0 })).await;
+        assert!(
+            again["ok"]["head"].as_i64().unwrap() >= head,
+            "a row left the readers' count: {first} then {again}"
+        );
+        let after = ana.call("sync_changes", json!({ "since": head })).await;
+        assert!(
+            told(&after).contains(&("Sessao.md".to_owned(), true)),
+            "the readers who had the file are not told it went: {after}"
+        );
+    });
+}
+
+#[test]
+fn an_audience_changed_while_the_table_cannot_be_read_closes_the_rooms_and_is_told_once_it_can() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        let _doc = crate::tests_audience_review::room_with_a_writer(&mut m).await;
+        let ana_head = since(&mut m.ana, 0).await["ok"]["head"].as_i64().unwrap();
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        let before = crate::campaign::veil_of(&server, &folder);
+        let head = server.db.head(&folder).unwrap();
+        m.ana.hear(200).await;
+        // The game master's write is committed; then the table cannot be read.
+        let set: std::collections::BTreeSet<String> = [bia_id.clone()].into_iter().collect();
+        server
+            .db
+            .campaign_audience(
+                &folder,
+                &[BARAO.to_owned()],
+                &crate::db::Audience::Players(set),
+            )
+            .unwrap();
+        let ev = crate::campaign_cmds::Event {
+            path: BARAO.to_owned(),
+            lost: vec![ana_id.clone()],
+            gained: vec![bia_id.clone()],
+            restricted: true,
+        };
+        fail_reads(&folder, true);
+        crate::campaign::forget(&server, &folder);
+        let (s, f, k, b) = (std::sync::Arc::clone(&server), folder.clone(), key, before);
+        tokio::task::spawn_blocking(move || {
+            crate::campaign_cmds::refresh(&s, &f, &k, &[BARAO.to_owned()], b.clone());
+            crate::campaign_sync::audience_events(&s, &f, &k, &[ev], b);
+        })
+        .await
+        .unwrap();
+        let heard = m.ana.hear(400).await;
+        assert!(
+            heard.iter().any(|e| e["event"] == "collab-closed"),
+            "a writer by a grant that is gone stays in the room: {heard:?}"
+        );
+        assert_eq!(
+            server.db.head(&folder).unwrap(),
+            head,
+            "recorded from a table it could not read"
+        );
+        // Readable again: the audience's log entries are made.
+        fail_reads(&folder, false);
+        crate::campaign::forget(&server, &folder);
+        let s = std::sync::Arc::clone(&server);
+        let f = folder.clone();
+        tokio::task::spawn_blocking(move || crate::campaign_sync::replay_pending(&s, &f))
+            .await
+            .unwrap();
+        assert!(
+            server.db.head(&folder).unwrap() > head,
+            "the audience change was dropped"
+        );
+        let log = since(&mut m.ana, ana_head).await;
+        assert!(
+            told(&log).contains(&(BARAO.to_owned(), true)),
+            "the player who lost the note is not told it went: {log}"
+        );
+    });
+}
+
+#[test]
+fn a_change_whose_skip_rows_cannot_be_made_is_not_recorded() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        release_to(&mut m, "Mapa Zq.md", &[&ana_id]).await;
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        fail_reads(&folder, true);
+        crate::campaign::forget(&server, &folder);
+        let (s, f) = (std::sync::Arc::clone(&server), folder.clone());
+        let changes = vec![(
+            "Aberta.md".to_owned(),
+            Some(("aa".to_owned(), 1, "1:1".to_owned())),
+            None,
+        )];
+        let mut notices = crate::db::Notices::new();
+        let r = tokio::task::spawn_blocking(move || {
+            crate::campaign_sync::unseen_notices(&s, (&f, &key), &changes, &mut notices)
+        })
+        .await
+        .unwrap();
+        fail_reads(&folder, false);
+        assert!(
+            r.is_err(),
+            "no skip rows were made and the change would be recorded"
+        );
+    });
+}
