@@ -41,11 +41,19 @@ The window is made of cards: **Invite players** (the link in a field, with **Cop
 
 ## Release bit by bit
 
-- Right-click a note › **Release to the table**. It shows in the players' list, in searches, in the graph, in links and in boards; it syncs to their device.
-- **Hide from the table** takes it back (the device is told to let it go).
-- On a folder of the table: **Release everything here** and **Hide everything here**. With several notes selected, the same in the selection's menu. In the **Table** window: **Release everything**.
+- Right-click a note › **Release to…**: **The whole table**, or one or more players (tick as many as you like, one at a time), or **Nobody (hidden)**. The note shows in the list of those you chose, in searches, in the graph, in links and in boards; it syncs to their device. Whoever was not chosen does not see it: it is as if it did not exist.
+- **Nobody (hidden)** takes it back (the device is told to let it go). Taking a player off a note they already saw tells their device to let it go too, and the others' hear nothing.
+- On a folder of the table: **Release everything here** and **Hide everything here** (always the whole table). With several notes selected, the same in the selection's menu. In the **Table** window: **Release everything**.
+
+So a player's **journal**, a **clue only one character got** or each player's **sheet** are just a note released to one player (and, if it is theirs to write, handed to them in **Editable by**): there is no separate feature. Handing editing to a player who did not see the note **adds** them to those who do, and the status line says so.
 
 A hidden note does not exist for a player: it is in no list, and asking for it answers as asking for a note that never was. Images and files only show if a **released** note shows them. The `> [!secret]` blocks ([[25 - Dice and Random Tables]]) still hide a piece of a released note.
+
+---
+
+## Who sees this note
+
+Inside the note, beside the star, there is a **users icon with a number**: how many players see this note. Hover it (or tap it, or focus it with Tab and press Enter) to open the list: for you, **every player at the table**, with **sees**, **edits** or **does not see** (the icon and the word, not only the colour) and a **Change who sees…** shortcut that opens the same **Release to…** menu; for a player, only **who sees the note** ("You, Bruno and the game master" or "The whole table"), never your controls. **Esc** closes it and the focus goes back to the button; on a phone the list opens as a bottom sheet with a button to close it. The icon only shows on notes of a table that already has players.
 
 ---
 
@@ -59,7 +67,7 @@ When the name is already a spoiler: right-click the hidden note › **Secret nam
 
 ## Who edits
 
-By default players only read. Right-click a note › **Editable by** picks **nobody**, **the group** (every player edits: the group's note) or **one player** (their sheet). The note is released with the permission, and whoever edits it reads it **whole**, with its secret blocks and links as you wrote them: if there is a secret in it, do not give it to anyone.
+By default players only read. Right-click a note › **Editable by** picks **nobody**, **the group** (every player edits: the group's note) or **one player** (their sheet). The player who edits the note sees it too (they join those who see it; **the group** makes it a note of the whole table), and whoever edits it reads it **whole**, with its secret blocks and links as you wrote them: if there is a secret in it, do not give it to anyone.
 
 Nobody but you renames, deletes or creates notes or files; the server checks this at every door (the window, the editing room, the synced device).
 
