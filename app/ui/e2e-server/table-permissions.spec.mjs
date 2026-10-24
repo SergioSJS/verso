@@ -174,7 +174,7 @@ for (const format of ["member", "share"]) {
 
       await item(2, "the game master turns it on -> the attach button appears in the player's window, live", async () => {
         await sw.check({ force: true });
-        await expect(dialog.locator(".cd-feedback").first()).toContainText("Salvo");
+        await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
         await expect(attach).toBeVisible({ timeout: 15_000 });
       });
 
@@ -201,7 +201,7 @@ for (const format of ["member", "share"]) {
 
       await item(4, "the game master turns it off -> the button goes at once and a send is refused", async () => {
         await sw.uncheck({ force: true });
-        await expect(dialog.locator(".cd-feedback").first()).toContainText("Salvo");
+        await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
         await expect(attach).toBeHidden({ timeout: 15_000 });
         const refused = await ana.page.evaluate(async () => {
           try {
