@@ -19,6 +19,7 @@ import { blocksOf } from "../../blocks/view";
 import { startCompletion } from "@codemirror/autocomplete";
 import { a, pickImages, touchScreen } from "../../attach";
 import { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } from "../../attachName";
+import { atTable, may, seat } from "../../access";
 import { host } from "../../can";
 import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
@@ -283,7 +284,7 @@ export function insertTable(this: NoteLeaf): void {
 
 /** The toolbar's "insert image": a small menu under the button. */
 export function insertImageMenu(this: NoteLeaf, anchor: HTMLElement): void {
-  if (!readable()) return;
+  if (!readable(this.path, "edit")) return;
   if (this.readOnly) {
     ui.status.textContent = t.readOnly;
     return;
@@ -349,7 +350,20 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
     ui.status.textContent = a.notImage(said);
     return null;
   }
-  if (!readable()) return null;
+  // A player at a table puts a new file into a note it edits through the
+  // server, which writes it into the table's place (ADR 0113 item 5, D):
+  // the right to send files, on a note it edits.
+  const player = seat() === "player" && atTable();
+  if (player) {
+    if (!may(this.path, "edit")) {
+      readable(this.path, "edit");
+      return null;
+    }
+    if (!may(this.path, "attach")) {
+      ui.status.textContent = a.noSend;
+      return null;
+    }
+  } else if (!readable(this.path, "edit")) return null;
   if (host() === "server" && f.size > MAX_IMAGE_BYTES) {
     const words = a.tooBig(said, Math.floor(MAX_IMAGE_BYTES / (1024 * 1024)));
     ui.status.textContent = words;
@@ -369,6 +383,7 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   }
   const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
   const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
+  if (player) return this.attachThroughServer(b64, shown, sub);
   // Another window or device may take the name between the choosing and the
   // writing: the core refuses to overwrite (`exists`), and the next free
   // name is tried.
@@ -395,6 +410,27 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   ui.status.textContent = a.done(name(r.data), sub);
   await afterFileChange();
   this.sheet.scrollTop = top;
+  return r.data;
+}
+
+/** The server writes the file of a player (`table_attach`) and the embed
+ *  that names it is written at the caret. */
+export async function attachThroughServer(this: NoteLeaf, b64: string, shown: string, sub: string): Promise<string | null> {
+  const r = await commands.tableAttach(b64, this.path);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return null;
+  }
+  allFiles.push(r.data);
+  const target = linkText(this.path, r.data);
+  const pos = this.editor.state.selection.main.to;
+  this.editor.dispatch({
+    changes: { from: pos, insert: `![[${target}]]` },
+    selection: { anchor: pos + target.length + 5 },
+    annotations: Transaction.userEvent.of("input"),
+  });
+  ui.status.textContent = a.done(shown, sub);
+  await afterFileChange();
   return r.data;
 }
 

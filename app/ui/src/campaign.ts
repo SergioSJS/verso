@@ -11,6 +11,7 @@
 // server drew.
 
 import { listen } from "@tauri-apps/api/event";
+import { forgetAccess, may } from "./access";
 import { audienceIds, gained, HIDDEN, ofPlayers, TABLE, togglePlayer } from "./audience";
 import { commands, type CampaignAudience, type CampaignChanged, type CampaignGrant, type CampaignNote, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
 import { openCampaignDialog } from "./campaignDialog";
@@ -23,6 +24,7 @@ import { icon } from "./icons";
 import type { MenuItem } from "./menu";
 import { reachOf, type Reach, type SyncDetail } from "./table/reach";
 import { loadShares, mayShare } from "./shares";
+import { listAll } from "./tree/tree";
 
 const NONE: CampaignStatus = { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
 let status: CampaignStatus = NONE;
@@ -85,12 +87,6 @@ const names = (ids: string[]): string => {
   }
 };
 
-/** Whether the player may edit the note at `path` (a grant): the note is
- *  its to write, though the folder is its to read. */
-export function mayEditGranted(path: string): boolean {
-  return status.viewer === "player" && states.get(path)?.grant.kind !== undefined && states.get(path)?.grant.kind !== "none";
-}
-
 function said(e: ContractError): string {
   told(e.kind, e.message, e);
   return `${cp.failed}: ${e.message}`;
@@ -127,6 +123,18 @@ export function hiddenMark(path: string): HTMLElement | null {
   return mark;
 }
 
+/** A pencil on a file a player edits (ADR 0113 section F); none on the ones
+ *  it only reads, and none for the game master, who edits all. */
+export function editMark(path: string): HTMLElement | null {
+  if (status.viewer !== "player" || !noteLike(path) || !tableFor(path) || !may(path, "edit")) return null;
+  const mark = h("span", "campaign-mark edit-mark");
+  mark.setAttribute("role", "img");
+  mark.setAttribute("aria-label", cp.youEdit);
+  mark.title = cp.youEdit;
+  mark.append(icon("edit"));
+  return mark;
+}
+
 /** The badge of a folder that is a table: a button, "Mesa" (tableChip.ts). */
 export function tableMark(path: string): HTMLElement | null {
   if ((status.viewer !== "owner" && status.viewer !== "player") || !isTableRoot(path) || path === "") return null;
@@ -141,7 +149,8 @@ export function markCampaign(): void {
     if (mark) s.querySelector(".share-mark, .folder-label")?.after(mark);
   }
   for (const li of ui.treeRoot.querySelectorAll<HTMLElement>("li[data-path]")) {
-    const mark = hiddenMark(li.dataset["path"] ?? "");
+    const path = li.dataset["path"] ?? "";
+    const mark = hiddenMark(path) ?? editMark(path);
     if (mark) li.querySelector(".row-name")?.after(mark);
   }
 }
@@ -289,6 +298,14 @@ export function campaignRootItems(): MenuItem[] {
  *  folder's own `folder-changed`). */
 export function hearCampaign(): void {
   void listen<CampaignChanged>("campaign-changed", () => void loadCampaign());
+  // What the person may do changed (ADR 0113): what was said of the files is
+  // stale, the tree is read again with the new answers, and the open files
+  // follow (access.ts).
+  void listen("access-changed", () => {
+    forgetAccess();
+    void listAll();
+    void loadCampaign();
+  });
 }
 
 /** A synced folder's link goes up or down, its sync pauses or resumes: the

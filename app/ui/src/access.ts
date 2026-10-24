@@ -1,0 +1,129 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// One question for the whole window: "may I do this here?" (ADR 0113
+// section C). The server answers it once — who the person is at the folder
+// (`FolderAccess`, in the capabilities) and what they may do with each file
+// (`FileAccess`, on every read and every entry of a listing) — and this
+// module keeps the last answers and asks `accessCore.decide`. Every guard of
+// the window — the editor, the board, a base, the tree's menus, a drop, a
+// paste, the lock, the notice — asks `may(path, action)`; none derives a
+// permission from a role, a flag or an error. The server decides every write
+// regardless of what the window showed.
+
+import { type Action, decide } from "./accessCore";
+import { commands, type FileAccess, type FolderAccess } from "./bindings";
+import { canWrite, folderAccessNow, onCan } from "./can";
+
+export type { Action };
+
+const told = new Map<string, FileAccess>();
+const listeners = new Set<() => void>();
+
+/** The folder is synced here and the person only reads it on its server
+ *  (`verso:sync-state`): the writes are refused there, so the lock and the
+ *  notice must still say so. The one copy of that fact. */
+let syncedRead = false;
+addEventListener("verso:sync-state", (e) => {
+  const d = (e as CustomEvent<{ on?: boolean; role?: string }>).detail;
+  const now = Boolean(d?.on) && d?.role === "reader";
+  if (now === syncedRead) return;
+  syncedRead = now;
+  changed();
+});
+
+function changed(): void {
+  for (const run of listeners) run();
+  dispatchEvent(new Event("verso:access-changed"));
+}
+
+/** Draw again when what the person may do changed. */
+export function onAccess(run: () => void): void {
+  listeners.add(run);
+}
+
+/** The path as the server names files: no leading slash. */
+const norm = (p: string): string => p.replace(/^\/+/, "");
+
+/** Keep what the server said of a file. */
+export function remember(path: string, access: FileAccess | null | undefined): void {
+  if (!access) return;
+  told.set(norm(path), access);
+}
+
+/** What the server last said of `path`, if it did. */
+export function fileAccess(path: string): FileAccess | null {
+  return told.get(norm(path)) ?? null;
+}
+
+/** Forget what was said: the folder, the person's role or a file's access
+ *  changed, and the answers to come say it again. */
+export function forgetAccess(): void {
+  told.clear();
+  changed();
+}
+
+/** Who the person is at the folder; none for a folder of this computer. */
+export function folderAccess(): FolderAccess | null {
+  return folderAccessNow();
+}
+
+/** The person's place at the folder's table: the game master, a player, a
+ *  read link's visitor — or `own`, a folder with no server's model. */
+export function seat(): "master" | "player" | "visitor" | "own" {
+  const a = folderAccessNow();
+  if (!a || a.seat === "none") return "own";
+  return a.seat;
+}
+
+/** Whether the folder has a table the person sits at. */
+export function atTable(): boolean {
+  return folderAccessNow()?.table === true;
+}
+
+/** Whether the person may `action` on `path` (a file, a folder, `""` the
+ *  folder itself). `see` is true for a path the server did not describe. */
+export function may(path: string, action: Action): boolean {
+  return decide({ folder: folderAccessNow(), canWrite: canWrite(), syncedReader: syncedRead }, fileAccess(path), action);
+}
+
+/** Whether the person may change anything in the folder at all — the
+ *  folder-wide question of a command that makes a file wherever the person
+ *  is (new note, import): the folder's own. */
+export function mayHere(): boolean {
+  return may("", "create");
+}
+
+/** Whether the folder is synced here and the person only reads it there. */
+export function syncedReader(): boolean {
+  return syncedRead;
+}
+
+/** Hear what the server says of files: every read of a note or a text, every
+ *  listing, every write's answer carries `access`; the window keeps it. The
+ *  commands are wrapped once, at the start. */
+export function hearAccess(): void {
+  const c = commands as unknown as Record<string, (...a: unknown[]) => Promise<{ status: string; data?: unknown }>>;
+  const wrap = (name: string, take: (data: unknown, args: unknown[]) => void): void => {
+    const was = c[name];
+    if (!was) return;
+    c[name] = async (...a: unknown[]) => {
+      const r = await was.apply(commands, a);
+      if (r.status === "ok") take(r.data, a);
+      return r;
+    };
+  };
+  const one = (d: unknown): void => {
+    const x = d as { path?: string; access?: FileAccess } | null;
+    if (x?.path) remember(x.path, x.access);
+  };
+  for (const name of ["readNote", "readText", "createNote", "writeText", "writeBoard"]) wrap(name, one);
+  wrap("writeNote", (d) => one((d as { note?: unknown } | null)?.note));
+  wrap("listEntries", (d) => {
+    for (const e of (d as { path: string; access?: FileAccess }[]) ?? []) remember(e.path, e.access);
+  });
+  // The person's role or the folder changed: what was said is stale.
+  onCan(forgetAccess);
+  addEventListener("verso:folder-shown", () => told.clear());
+}

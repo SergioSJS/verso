@@ -10,8 +10,8 @@
 // the top of the pane. The layout itself is in `css/screen.css`; here are
 // the controls it shows and what they do.
 
-import { mayEditGranted } from "../campaign";
-import { canWrite, can, loadCan, onCan, readsSynced } from "../can";
+import { atTable, may, onAccess, seat } from "../access";
+import { canWrite, can, loadCan, onCan } from "../can";
 import { narrow, paintExpanded, toggleRight, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { newUntitled } from "../files";
@@ -152,7 +152,10 @@ function paintReadOnly(): void {
   // the person is theirs to edit, so the lock says nothing there; on a note
   // they only read, or with none open, it shows.
   const path = layout().activeLeaf?.path ?? "";
-  folderLock.hidden = (canWrite() && !readsSynced()) || ui.search.disabled || (path !== "" && mayEditGranted(path));
+  // The lock says "you only read": not where the person edits what is on
+  // screen, and not inside a table, where they edit some files and the lock
+  // would lie (ADR 0113 section F); the notice names the note.
+  folderLock.hidden = ui.search.disabled || may(path, "edit") || (atTable() && seat() === "player");
 }
 
 function applyCan(): void {
@@ -186,6 +189,16 @@ export function installScreen(): void {
   installSelectBar();
   installKeyboard();
   onCan(applyCan);
+  // What the person may do with files changed: the lock, and the open files
+  // not being typed in are read again with the answers (ADR 0113).
+  onAccess(() => {
+    paintReadOnly();
+    for (const s of spaces) {
+      for (const p of s.layout.panes()) {
+        for (const l of p.leaves) if ((l instanceof NoteLeaf || l instanceof TextLeaf) && !l.dirty && l.path) void l.load(l.path, true);
+      }
+    }
+  });
   void loadCan();
   narrow.addEventListener("change", lineNumbersFollow);
 }

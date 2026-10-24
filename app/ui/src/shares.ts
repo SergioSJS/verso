@@ -17,6 +17,7 @@ import { h, ui } from "./dom";
 import { told } from "./errors";
 import { failureText, unreachableAt } from "./reach";
 import { allNotes, folderName } from "./folder";
+import { folderAccess } from "./access";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
 import { withServerProof } from "./serverProof";
@@ -31,7 +32,11 @@ let owner = false;
 
 /** Whether the person may share here: the owner of a server's folder. */
 export function mayShare(): boolean {
-  return owner;
+  // The server says who the person is (ADR 0113): the game master of a
+  // folder's table is its owner. A host with no such answer (a folder of
+  // this computer synced to a server, until S8) keeps the share list's own.
+  const a = folderAccess();
+  return a ? a.seat === "master" : owner;
 }
 
 /** The shares of the window's folder, asked again: the tree's marks follow. */

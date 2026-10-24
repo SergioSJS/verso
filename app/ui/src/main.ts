@@ -46,7 +46,8 @@ import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
 import { installServerTable } from "./table/join";
-import { can, canWrite, loadCan } from "./can";
+import { hearAccess, mayHere, may } from "./access";
+import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -470,7 +471,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
   const rootNote = folderNoteOf("");
   const items: MenuItem[] = [
     ...createMenuItems(""),
-    ...(canWrite() ? [sep, [t.importDemoVault, () => void importDemoVault(), "template"] as MenuItem] : []),
+    ...(mayHere() ? [sep, [t.importDemoVault, () => void importDemoVault(), "template"] as MenuItem] : []),
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
@@ -478,7 +479,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
-    ...(can("write") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
+    ...(may("", "delete") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });
@@ -784,6 +785,7 @@ export function runEditCommand(command: string): void {
 /** The input types text is typed in, which take the web view's Undo. */
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+hearAccess();
 hearCampaign();
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
