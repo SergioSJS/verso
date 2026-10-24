@@ -326,13 +326,16 @@ pub async fn command(
     // A reader deletes nothing and sees no bin (item 7); nor does a player
     // of a table, who never deletes (ADR 0113 K.5) and would be shown the
     // names of files they do not see.
-    if !door
-        .may(
-            crate::access::Action::Delete,
-            "",
-            crate::access::Kind::Folder,
-        )
-        .allowed()
+    // And a window that is a player at some table of the folder has none:
+    // the bin would name what the table hides from it, and give it back.
+    if door.veiled()
+        || !door
+            .may(
+                crate::access::Action::Delete,
+                "",
+                crate::access::Kind::Folder,
+            )
+            .allowed()
     {
         return Err(refused("the trash is for those who may change this folder"));
     }

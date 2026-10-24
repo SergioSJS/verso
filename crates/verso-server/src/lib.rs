@@ -430,6 +430,8 @@ mod tests_access_cmds;
 #[cfg(test)]
 mod tests_access_doors;
 #[cfg(test)]
+mod tests_access_review;
+#[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
 mod tests_audience;

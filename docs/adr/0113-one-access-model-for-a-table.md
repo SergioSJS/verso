@@ -691,3 +691,36 @@ Server side only; the contract and the window are S4–S6.
   joins a room as a reader; it reads the notes whole, over the commands. (6)
   Making a file's set empty keeps an explicit `none` (the row an old hidden
   note had), so a later folder set does not decide for it.
+
+### Review of S1–S3 (2026-10-24): what a player is shown of what it does not see
+
+Anything of a file shown, named or answered to someone outside its access is
+BLOCKING (the maintainer's rule). The review found five ways and the
+maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
+
+- **A rename's answer** (the maintainer, 2026-10-24, *"Servidor corrige sem
+  contar"*): the server still rewrites the links in the notes a player may not
+  edit, as `share_links::apply` does for a share; the answer to a player keeps
+  only the rewrites of notes it may *Edit*, the skipped and the moved of what
+  it may *See*, and nothing of what is hidden.
+- **A name taken by something hidden** (the maintainer, 2026-10-24, *"Sufixo
+  automático"*): creating or renaming onto a name that something the player
+  cannot see holds is never answered "exists"; the server uses the next free
+  name (`Cripta 2.md`), as a duplicate does, and answers with the name used.
+  A name taken by something the player sees is refused as ever.
+- A file moved or renamed into a table by anyone but the game master is
+  refused (K.5), and always needs *Create* on the new folder; a folder is not a
+  non-master's to rename when it holds a table, or anything the person does not
+  see; the bin is refused to a player at any table of the folder; a new file
+  that is no note, board or base made by a player at a table is a file sent
+  (the right, the bytes by their first bytes, the limit — never SVG, a page or a
+  script) and a device's `sync_put` of one is refused until S8.
+- One statement of "sees the secret blocks": `Player::sees_secrets` asks
+  `may(SeeSecretBlocks)`; a room joins whole for whoever it allows, the game
+  master's read-only credential included (typing stays the writers').
+  `history_copy` asks *Create* on the folder; the pathless commands of a table's
+  root are the game master's; the migration reads audience rows only of notes
+  the old tables had; a paired phone's ceiling follows its pairing live.
+- Left as built: *Say* and *Roll* with a read-only credential stay allowed
+  (the chat is not a file write). The `none` the migration wrote for a note the
+  table had hidden is marked (`migrated`) and is no exception in a folder's list.

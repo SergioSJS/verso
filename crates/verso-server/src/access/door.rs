@@ -28,6 +28,7 @@ use crate::state::Server;
 const READS: &str = "you may only read this folder";
 
 /// The window behind a request, as the rules need it.
+#[derive(Clone)]
 pub struct Door {
     /// The folder's id.
     pub folder: String,
@@ -213,8 +214,15 @@ impl Door {
                 Some(n) => self.create_in(&Self::note_path(&self.full(n))),
                 None => return Err(crate::rpc::refused(READS)),
             },
-            "create_file" | "create_folder" => match path_of("path") {
+            "create_folder" => match path_of("path") {
                 Some(p) => self.create_in(&p),
+                None => return Err(crate::rpc::refused(READS)),
+            },
+            // A new file that is not a note, a board or a base is a file
+            // sent (ADR 0113 K.4): at a table, by a player, it needs the
+            // right to send files (its bytes are judged by `check_bytes`).
+            "create_file" => match path_of("path") {
+                Some(p) => and(self.create_in(&p), self.may_send_new(&p)),
                 None => return Err(crate::rpc::refused(READS)),
             },
             "rename_note" | "rename_entry" => match (path_of("from"), path_of("to")) {
@@ -228,7 +236,10 @@ impl Door {
                             self.may(Action::Rename, &a, Kind::Folder),
                         )
                     } else {
-                        self.may_path(Action::Move, &from)
+                        // Out of one folder into another: a move. Into a table
+                        // it is the game master's (K.5), and always the new
+                        // folder must be one the person makes files in.
+                        and(self.may_path(Action::Move, &from), self.arrives(&to))
                     }
                 }
                 _ => return Err(crate::rpc::refused(READS)),
@@ -237,7 +248,8 @@ impl Door {
                 let Some(paths) = args["paths"].as_array().filter(|p| !p.is_empty()) else {
                     return Err(crate::rpc::refused(READS));
                 };
-                let mut all = Verdict::Allow;
+                let into = self.full(args["folder"].as_str().unwrap_or_default());
+                let mut all = self.arrives(&format!("{into}/x"));
                 for p in paths {
                     all = and(
                         all,
@@ -253,8 +265,11 @@ impl Door {
                 Some(p) => self.may_path(Action::Delete, &p),
                 None => return Err(crate::rpc::refused(READS)),
             },
-            // The folder's own: its settings, its focuses, its data.
-            _ => self.may(Action::Edit, "", Kind::Folder),
+            // The folder's own: its settings, its focuses, its data. Where the
+            // folder is a table's, they are the game master's: a folder set
+            // that gives a player *Edits* gives them files, not the folder.
+            "remove_folder_data" => self.folder_own(Action::Delete),
+            _ => self.folder_own(Action::Edit),
         };
         if verdict.allowed() {
             Ok(())
@@ -277,6 +292,15 @@ impl Door {
                     return Err(crate::rpc::refused(READS));
                 };
                 let mut verdict = self.may_path(Action::Edit, &path);
+                // A file that is no note, board or base is a file sent: a
+                // player's device sends none this way (S8).
+                if verdict.allowed()
+                    && self.veiled()
+                    && self.seat() != Seat::Master
+                    && !Kind::of_path(&path).is_note_like()
+                {
+                    verdict = Verdict::Deny(super::Reason::NoRight);
+                }
                 if verdict.allowed() && self.veiled() {
                     // Notes and boards are what a device holds projected.
                     let whole = match Kind::of_path(&path) {
@@ -297,6 +321,202 @@ impl Door {
             "sync_delete" => self.check_write("delete_entry", args),
             _ => self.check_write("rename_entry", args),
         }
+    }
+
+    /// The folder's own, as a command with no path asks it.
+    fn folder_own(&self, action: Action) -> Verdict {
+        if self.seat() != Seat::Master && self.facts.table_of("").is_some() {
+            return Verdict::Deny(super::Reason::NotMaster);
+        }
+        self.may(action, "", Kind::Folder)
+    }
+
+    /// A file or folder arrives at `path` by a move or a rename out of
+    /// another folder: into a table only the game master brings anything
+    /// (K.5), and into any folder only the person who makes files there.
+    fn arrives(&self, path: &str) -> Verdict {
+        if self.seat() != Seat::Master && self.facts.table_of(path).is_some() {
+            return Verdict::Deny(super::Reason::NotMaster);
+        }
+        self.create_in(path)
+    }
+
+    /// A new file at `path` that is no note, board or base, made by a
+    /// player at a table: the right to send files (K.4).
+    fn may_send_new(&self, path: &str) -> Verdict {
+        let Some(table) = self.facts.table_of(path) else {
+            return Verdict::Allow;
+        };
+        if self.seat() == Seat::Master || Kind::of_path(path).is_note_like() {
+            return Verdict::Allow;
+        }
+        if self.facts.may_send_files(&table.root, &self.asker.account) {
+            Verdict::Allow
+        } else {
+            Verdict::Deny(super::Reason::NoRight)
+        }
+    }
+
+    /// The bytes of a new file a player makes at a table are judged as
+    /// those sent to the chat are (K.4): a PNG, JPEG, WebP or GIF by its
+    /// first bytes, at most the table's limit — never an SVG, a page or a
+    /// script.
+    pub fn check_bytes(&self, server: &Server, args: &Value) -> Result<(), ContractError> {
+        let Some(path) = args["path"].as_str().map(|p| self.full(p)) else {
+            return Ok(());
+        };
+        let Some(table) = self.facts.table_of(&path) else {
+            return Ok(());
+        };
+        if self.seat() == Seat::Master || Kind::of_path(&path).is_note_like() {
+            return Ok(());
+        }
+        let limit = campaign::image_limit(server, &self.folder, &table.root);
+        let data = args["base64"].as_str().unwrap_or_default();
+        let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
+            .map_err(|_| crate::rpc::refused("the bytes are not base64"))?;
+        if bytes.len() > limit || crate::table::image_ext(&bytes).is_none() {
+            return Err(crate::rpc::refused("a PNG, JPEG, WebP or GIF image"));
+        }
+        Ok(())
+    }
+
+    /// What a player is not told of a name (ADR 0113, the maintainer on
+    /// 2026-10-24, "sufixo automático"): a name taken by something the
+    /// player cannot see is never answered as taken — the next free one is
+    /// used, as a duplicate gets its own — and a folder that holds what they
+    /// cannot see, or a table, is not theirs to rename. Runs for a window
+    /// that is not the game master of a folder with a table; `args` are
+    /// changed to the name used.
+    pub fn guard_names(
+        &self,
+        ws: &mut verso_core::Workspace,
+        name: &str,
+        args: &mut Value,
+    ) -> Result<(), ContractError> {
+        let Some(veil) = self.veil.clone() else {
+            return Ok(());
+        };
+        let view = veil.view(&self.asker.account);
+        let to_rel = |full: &str| -> String {
+            self.scope
+                .as_ref()
+                .and_then(|s| s.to_rel(full))
+                .unwrap_or_else(|| full.to_owned())
+        };
+        if matches!(name, "rename_note" | "rename_entry")
+            && let Some(from) = args["from"].as_str().map(|f| self.full(f))
+            && ws.is_folder(&from)
+        {
+            // A table's root, or a folder holding one, is the game master's.
+            if veil.tables.iter().any(|t| campaign::covers(&from, &t.root)) {
+                return Err(crate::rpc::refused(READS));
+            }
+            // And a folder moves everything in it: all must be the person's to see.
+            for f in crate::campaign_serve::all_files(ws) {
+                if campaign::covers(&from, &f)
+                    && veil.in_table(&f)
+                    && crate::campaign_serve::is_hidden_in(ws, &view, &f)
+                {
+                    return Err(crate::rpc::refused(READS));
+                }
+            }
+        }
+        let (field, wanted, is_note) = match name {
+            "create_note" => (
+                "name",
+                args["name"]
+                    .as_str()
+                    .map(|n| Self::note_path(&self.full(n))),
+                true,
+            ),
+            "create_file" | "create_folder" => {
+                ("path", args["path"].as_str().map(|p| self.full(p)), false)
+            }
+            "rename_note" | "rename_entry" => {
+                ("to", args["to"].as_str().map(|p| self.full(p)), false)
+            }
+            _ => return Ok(()),
+        };
+        let Some(wanted) = wanted else {
+            return Ok(());
+        };
+        let _ = is_note;
+        let mut taken: std::collections::HashSet<String> = crate::campaign_serve::all_files(ws)
+            .iter()
+            .map(|f| campaign::key(f))
+            .collect();
+        taken.extend(ws.folders().iter().map(|f| campaign::key(f)));
+        let key = campaign::key(&wanted);
+        if !taken.contains(&key) {
+            return Ok(());
+        }
+        // Taken by something the person sees: refused as taken, as ever.
+        let folder = ws.is_folder(&wanted);
+        let seen = if folder {
+            crate::campaign_serve::all_files(ws).iter().any(|f| {
+                campaign::covers(&wanted, f) && !crate::campaign_serve::is_hidden_in(ws, &view, f)
+            }) || veil.tables.iter().any(|t| campaign::key(&t.root) == key)
+        } else {
+            !crate::campaign_serve::is_hidden_in(ws, &view, &wanted)
+        };
+        if seen || !veil.in_table(&wanted) {
+            return Ok(());
+        }
+        let (stem, ext) = match wanted.rsplit_once('.') {
+            Some((s, e)) if !folder && !e.contains('/') => (s.to_owned(), format!(".{e}")),
+            _ => (wanted.clone(), String::new()),
+        };
+        for n in 2..10_000 {
+            let candidate = format!("{stem} {n}{ext}");
+            if !taken.contains(&campaign::key(&candidate)) {
+                args[field] = Value::String(to_rel(&candidate));
+                return Ok(());
+            }
+        }
+        Err(crate::rpc::refused(READS))
+    }
+
+    /// What a rename or a move tells a player of notes it may not edit
+    /// (ADR 0113, the maintainer on 2026-10-24, "o servidor corrige sem
+    /// contar"): the rewrites of those notes are taken out of the answer —
+    /// the server writes them itself — and what is left names only what the
+    /// person sees. The rewrites to write, still in the folder's own paths.
+    pub fn take_unowned(&self, answer: &mut Value) -> Vec<crate::share_links::Outside> {
+        let mut out = Vec::new();
+        if let Some(list) = answer["rewrites"].as_array_mut() {
+            list.retain(|w| {
+                let path = w["path"].as_str().unwrap_or_default();
+                if self.may_path(Action::Edit, path).allowed() {
+                    return true;
+                }
+                if let (Some(revision), Some(after)) = (w["revision"].as_str(), w["after"].as_str())
+                {
+                    out.push(crate::share_links::Outside {
+                        path: path.to_owned(),
+                        revision: revision.to_owned(),
+                        after: after.to_owned(),
+                    });
+                }
+                false
+            });
+        }
+        let sees = |door: &Self, p: &Value| {
+            door.may_path(Action::See, p.as_str().unwrap_or_default())
+                .allowed()
+        };
+        if let Some(list) = answer["skipped"].as_array_mut() {
+            list.retain(|k| sees(self, &k["path"]));
+        }
+        for field in ["also"] {
+            if let Some(list) = answer[field].as_array_mut() {
+                list.retain(|m| sees(self, &m["from"]) || sees(self, &m["to"]));
+            }
+        }
+        if let Some(list) = answer["refused"].as_array_mut() {
+            list.retain(|k| sees(self, &k["path"]));
+        }
+        out
     }
 
     fn create_in(&self, path: &str) -> Verdict {

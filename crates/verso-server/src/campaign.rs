@@ -785,18 +785,30 @@ pub struct Player {
     /// A folder's editor is a player who edits every file they see
     /// (ADR 0113 K.1).
     pub editor: bool,
+    /// Who asks, for the rules (role, credential's ceiling).
+    pub asker: Asker,
 }
 
 impl Player {
-    /// Whether the player edits the note at `path`: its set says so, or
-    /// they are an editor of the folder and see it.
+    /// Whether the player is served the text of `path` whole, secret blocks
+    /// and all: the rules' one statement of it (`SeeSecretBlocks`, ADR 0087
+    /// item 5) — whoever edits a file sees them, with a credential that
+    /// writes.
+    #[must_use]
+    pub fn sees_secrets(&self, path: &str) -> bool {
+        may(
+            self.veil.facts(),
+            &self.asker,
+            Action::SeeSecretBlocks,
+            &Target::new(path, Kind::of_path(path)),
+        )
+        .allowed()
+    }
+
+    /// Whether the player edits the note at `path` (served whole).
     #[must_use]
     pub fn edits(&self, path: &str) -> bool {
-        // Outside a table an editor edits, and reads whole, as always.
-        if !self.veil.in_table(path) {
-            return self.editor;
-        }
-        self.veil.may_edit(path, &self.account) || (self.editor && !self.veil.hides_note(path))
+        self.sees_secrets(path)
     }
 }
 
@@ -819,6 +831,7 @@ pub fn player(
         veil: veil.view(&account),
         account,
         editor: door.asker.role == Some(Role::Editor),
+        asker: door.asker.clone(),
     }))
 }
 

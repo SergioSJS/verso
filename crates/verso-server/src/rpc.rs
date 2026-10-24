@@ -921,6 +921,37 @@ async fn folder_command(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    // What a player is not told of a name (ADR 0113): a name taken by
+    // something it cannot see is not answered as taken, a folder holding
+    // what it cannot see is not its to rename, and what a new file is made
+    // of is judged as a file sent to the chat is.
+    let args = if access == Access::Write && door.veiled() {
+        if name == "create_file" {
+            door.check_bytes(server, &args)?;
+        }
+        if matches!(
+            name,
+            "create_note" | "create_file" | "create_folder" | "rename_note" | "rename_entry"
+        ) {
+            let (s, d, k, n) = (
+                Arc::clone(server),
+                door.clone(),
+                key.clone(),
+                name.to_owned(),
+            );
+            blocking(move || {
+                let mut a = args;
+                s.service
+                    .with_key(&k, |ws| d.guard_names(ws, &n, &mut a).map_err(Into::into))?;
+                Ok(a)
+            })
+            .await?
+        } else {
+            args
+        }
+    } else {
+        args
+    };
     // A window on a share (ADR 0081 item 2): its paths joined to the
     // shared folder's and confined there before the core acts; the answer
     // filtered to the share and re-rooted at it.
@@ -940,6 +971,7 @@ async fn folder_command(
             args,
         )
         .await?;
+        tell_less(server, who, &door, &key, name, &mut answer).await;
         door.inject(name, &mut answer);
         return Ok(answer);
     };
@@ -1031,6 +1063,7 @@ async fn folder_command(
     )
     .await
     .map_err(|e| scope.error(e))?;
+    tell_less(server, who, &door, &key, name, &mut answer).await;
     door.inject(name, &mut answer);
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
@@ -1068,6 +1101,38 @@ async fn folder_command(
         }
     }
     Ok(scope.answer_out(name, answer, limit))
+}
+
+/// A rename or a move by a player of a table answers it only what it may
+/// edit or see; the links of the notes it may not are corrected by the
+/// server, without telling (ADR 0113, the maintainer on 2026-10-24,
+/// "Servidor corrige sem contar"), as a rename through a share corrects the
+/// owner's (`share_links`).
+async fn tell_less(
+    server: &Arc<Server>,
+    who: &Who,
+    door: &crate::access::Door,
+    key: &str,
+    name: &str,
+    answer: &mut Value,
+) {
+    if !matches!(name, "rename_note" | "rename_entry" | "move_entries")
+        || !door.veiled()
+        || door.seat() == crate::access::Seat::Master
+    {
+        return;
+    }
+    let hidden = door.take_unowned(answer);
+    if hidden.is_empty() {
+        return;
+    }
+    let (s, k, folder) = (Arc::clone(server), key.to_owned(), door.folder.clone());
+    let (actor, by) = (who.account.id.clone(), who.account.email.clone());
+    let _ = blocking(move || {
+        crate::share_links::apply(&s, &k, (&actor, &by), &folder, hidden);
+        Ok(())
+    })
+    .await;
 }
 
 /// A command of the folder, its paths the folder's own.

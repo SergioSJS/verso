@@ -215,6 +215,7 @@ fn info(
             let pk = campaign::key(p);
             if pk != campaign::key(&full)
                 && campaign::covers(&full, p)
+                && !facts.migrated.contains(&pk)
                 && let Some(s) = facts.sets.get(&pk)
             {
                 let is_folder = server
