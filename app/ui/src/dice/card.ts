@@ -124,7 +124,7 @@ async function rolled(path: string, notation: string, source: string | null, occ
   // Room first: the server also appends this roll to the table and tells this window, which is not news (ADR 0107).
   const call = commands.collabRoll(path, notation, source, wireStyles(), null, occ);
   const table = tableSource();
-  const r = isServerTable(table) ? await table.making(call, (a) => (a.status === "ok" ? claimRoll(a.data) : a.error.kind === "unavailable" ? (e) => (e.kind === "roll" || e.kind === "table") && e.notation === notation : null)) : await call;
+  const r = isServerTable(table) ? await table.making(call, (a) => (a.status === "ok" ? claimRoll(path, a.data) : a.error.kind === "unavailable" ? (e) => (e.kind === "roll" || e.kind === "table") && e.path === path && e.notation === notation : null)) : await call;
   if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
   if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
   return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };

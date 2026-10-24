@@ -56,6 +56,8 @@ export const PAGE = 50;
 export const HELD = 1000;
 /** How long an entry of this account waits for the answer of a command of this window (ms). */
 const HOLD = 3000;
+/** The longest an entry waits for a command that never answers (ms). */
+const HARD = 30000;
 /** How long a command's claim on its entry lasts after the answer, for an entry told after it (ms). */
 const CLAIM = 5000;
 
@@ -123,9 +125,17 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   };
 
   // What was held and no command claimed was another device's.
+  let heldSince: number | null = null;
+  // The cap: past HOLD an entry still tied to a command in flight keeps waiting for its answer (up to HARD).
+  const expire = (): void => {
+    timer = null;
+    if (inflight > 0 && heldSince !== null && Date.now() - heldSince < HARD) timer = setTimeout(expire, HOLD);
+    else release();
+  };
   const release = (): void => {
     if (timer) clearTimeout(timer);
     timer = null;
+    heldSince = null;
     const all = held;
     held = [];
     if (closed) return;
@@ -158,7 +168,8 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     else if (live && e.mine && !claimed(e)) {
       if (inflight > 0) {
         held.push({ e, wire });
-        timer ??= setTimeout(release, HOLD);
+        heldSince ??= Date.now();
+        timer ??= setTimeout(expire, HOLD);
       } else news(e, wire);
     }
     tell();

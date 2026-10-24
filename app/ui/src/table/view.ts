@@ -348,11 +348,11 @@ class TableView {
     } else this.list.replaceChildren(...items);
     // Others' news is said once, with their name; the first paint and a
     // hidden or restored log say nothing.
-    if (!this.first) {
+    {
       // Said once: another's news when it arrives, and a same-account entry of another device when it BECOMES news (it may be painted held, before).
       const others = [...entries, ...pinned].filter((e) => !this.told.has(e.id) && ((fresh.includes(e) && isNews(e)) || e.elsewhere === true));
       for (const e of others) this.told.add(e.id);
-      const last = others[others.length - 1];
+      const last = this.first ? undefined : others[others.length - 1];
       if (last) {
         this.said.textContent = "";
         const text = announce(last);
