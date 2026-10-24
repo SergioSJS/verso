@@ -785,6 +785,32 @@ of the folder, so a reader sent none).
   the players differ. Row headers and column headers are real; on a phone each
   row is a card with the same controls. Nothing was added for removing a player
   (nothing removes one from the table today).
+- **Where the file goes (fixed the same day).** Whoever sends — the owner,
+  an editor, a member player, a player on a share — an image at a table whose
+  root is a subfolder is written to `<table root>/<attachments place>`, never
+  to the folder's own `attachments/`: inside the table the veil shows it to the
+  table's players (a share rooted there reads it) and hides it from everyone
+  outside, a closed table included. Images sent before this fix by an owner or
+  an editor at a subfolder table are still at the folder's root
+  `attachments/mesa-*`; nothing moves them (no silent rewrite): their log
+  entries still resolve as they did, for the members who could fetch them, and
+  a share's player still gets none of them (the path is outside the share).
+  The game master may move the files into the table's folder by hand.
+- **One rule.** "May send images" is one predicate for the send, the join and
+  the status: an owner or an editor, and a permitted player, each only with a
+  credential that writes (not a read-only token, not a phone paired as a
+  reader). It is judged again right before the file is written, so a permission
+  taken back while the bytes were on their way is honoured. The size check
+  before a message is parsed reads an in-memory set, not the database.
+- **A phone paired as a reader is a reader to the server.** Its connection
+  now counts as read-only (`Client.token_write` folds the phone's role in), so
+  it gets what a reader is told (the reader's pushes, not the game master's)
+  and a large upload from it, a table image included, is refused before it is
+  parsed.
+- **The permission goes with the seat at that table**, not only with the
+  folder: when an account stops being a player of a table (its share there
+  ends, or it becomes a game master) the permission goes, though it still
+  reads the folder another way; being seated again begins off.
 - **Not done.** A permission per kind of file, or for rolls: the right is only
   to send images.
 

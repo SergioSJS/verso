@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 
 use crate::db::Role;
 use crate::tests::{
-    Running, Socket, block_on, call, connect, event_named, folder_id, next, sign_in, start,
+    Running, Socket, block_on, call, connect, event_named, folder_id, get, next, sign_in, start,
 };
 
 fn png() -> String {
@@ -249,5 +249,339 @@ fn a_player_on_a_share_sends_images_as_a_member_does() {
                 .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
                 .unwrap()
         );
+    });
+}
+
+/// A PNG of about `kib` KiB: past the size under which a message is never
+/// judged before it is parsed.
+fn big_png(kib: usize) -> String {
+    let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
+    bytes.extend_from_slice(&[0, 0, 0, 13, b'I', b'H', b'D', b'R', 0, 0, 0, 1, 0, 0, 0, 1]);
+    bytes.resize(kib * 1024, 0);
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+async fn join_at(ws: &mut Socket, id: u64, table: &str) -> Value {
+    let joined = call(
+        ws,
+        id,
+        "table_join",
+        json!({ "color": "#3b82f6", "styles": null, "table": table }),
+    )
+    .await;
+    assert!(joined.get("ok").is_some(), "{joined}");
+    joined["ok"].clone()
+}
+
+fn client_of(r: &Running, account: &str) -> String {
+    verso_service::lock(&r.server.clients)
+        .iter()
+        .find(|(_, c)| c.account == account)
+        .map(|(id, _)| id.clone())
+        .expect("a window of the account")
+}
+
+/// A table that is a subfolder keeps every image inside its own folder, whoever
+/// sends it — the game master, a member player, a player on a share — so that
+/// the share's players see the thumbnail, and nobody outside the table, or at
+/// a closed table, fetches it.
+#[test]
+fn an_image_at_a_subfolder_table_is_kept_inside_the_table_for_every_sender() {
+    block_on(async {
+        let r = start().await;
+        let mut c = seat(&r, "Cripta").await;
+        let caio = r
+            .server
+            .db
+            .create_account(
+                "caio@casa.lan",
+                "Caio",
+                "pt",
+                Some("a senha do caio"),
+                false,
+            )
+            .unwrap();
+        r.server
+            .db
+            .grant(&c.folder, &caio.id, Role::Reader)
+            .unwrap();
+        let share = r.server.db.make_share(&c.folder, "Cripta").unwrap();
+        r.server
+            .db
+            .grant_share(&share.id, &c.ana_id, Role::Reader)
+            .unwrap();
+        let mut ana = open(&r, "ana@casa.lan", "a senha da ana", &share.id).await;
+        let mut caio_ws = open(&r, "caio@casa.lan", "a senha do caio", &c.folder).await;
+        for who in [&c.ana_id, &caio.id] {
+            let g = grant(&mut c.owner, 3, "Cripta", who, true).await;
+            assert!(g.get("ok").is_some(), "{g}");
+        }
+        join_at(&mut c.owner, 4, "Cripta").await;
+        join_at(&mut caio_ws, 4, "Cripta").await;
+        join(&mut ana, 4).await;
+        // The game master and a member player send; the share's player hears both.
+        let by_gm = call(
+            &mut c.owner,
+            5,
+            "table_send_image",
+            json!({ "base64": png(), "table": "Cripta" }),
+        )
+        .await;
+        let by_caio = call(
+            &mut caio_ws,
+            5,
+            "table_send_image",
+            json!({ "base64": png(), "table": "Cripta" }),
+        )
+        .await;
+        let mut heard = Vec::new();
+        while heard.len() < 2 {
+            let e = event_named(&mut ana, "table-entry").await;
+            if e["kind"] == "image" {
+                heard.push(e);
+            }
+        }
+        for (sent, told) in [(&by_gm, &heard[0]), (&by_caio, &heard[1])] {
+            let full = sent["ok"]["image"].as_str().unwrap();
+            assert!(full.starts_with("Cripta/attachments/mesa-"), "{sent}");
+            // The share's player is told it from its own root, never dropped.
+            let own = told["image"].as_str().expect("an image the share can show");
+            assert_eq!(format!("Cripta/{own}"), full, "{told}");
+        }
+        let share_player = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
+        let own = heard[0]["image"].as_str().unwrap();
+        let (status, _) = get(&r, &format!("/f/{}/{own}", share.id), Some(&share_player)).await;
+        assert_eq!(status, 200, "{own}");
+        let member = sign_in(&r, "caio@casa.lan", "a senha do caio").await;
+        let full = by_gm["ok"]["image"].as_str().unwrap();
+        let (status, _) = get(&r, &format!("/f/{}/{full}", c.folder), Some(&member)).await;
+        assert_eq!(status, 200, "{full}");
+        // Nothing at the folder's root outside the table.
+        let listed = call(&mut c.owner, 6, "list_files", json!({}))
+            .await
+            .to_string();
+        assert!(!listed.contains("\"attachments/mesa-"), "{listed}");
+        // The table closed keeps the member out of the file as it keeps it out of the notes.
+        let closed = call(
+            &mut c.owner,
+            7,
+            "campaign_settings",
+            json!({ "root": "Cripta", "open": false }),
+        )
+        .await;
+        assert!(closed.get("ok").is_some(), "{closed}");
+        let (status, _) = get(&r, &format!("/f/{}/{full}", c.folder), Some(&member)).await;
+        assert_ne!(status, 200, "a closed table's image is not served");
+    });
+}
+
+/// The size check before a message is parsed asks about the account at any
+/// table of the folder; the command then judges the table named.
+#[test]
+fn a_large_image_is_admitted_before_the_parse_only_for_a_player_let_in() {
+    block_on(async {
+        let r = start().await;
+        let mut c = seat(&r, "").await;
+        r.server.db.campaign_make(&c.folder, "Sala").unwrap();
+        crate::campaign::forget(&r.server, &c.folder);
+        let caio = r
+            .server
+            .db
+            .create_account(
+                "caio@casa.lan",
+                "Caio",
+                "pt",
+                Some("a senha do caio"),
+                false,
+            )
+            .unwrap();
+        r.server
+            .db
+            .grant(&c.folder, &caio.id, Role::Reader)
+            .unwrap();
+        let mut ana = open(&r, "ana@casa.lan", "a senha da ana", &c.folder).await;
+        let mut caio_ws = open(&r, "caio@casa.lan", "a senha do caio", &c.folder).await;
+        let (ana_c, caio_c) = (client_of(&r, &c.ana_id), client_of(&r, &caio.id));
+        let len = big_png(64).len();
+        assert!(len > crate::table::SAY_MESSAGE);
+        let admit = |client: &str| {
+            crate::inflight::admit(&r.server, client, Some(1), "table_send_image", len)
+        };
+        // Nobody was let: both refused before the parse.
+        assert!(admit(&ana_c).is_err() && admit(&caio_c).is_err());
+        // Ana is let at the table "" only.
+        let g = grant(&mut c.owner, 3, "", &c.ana_id, true).await;
+        assert!(g.get("ok").is_some(), "{g}");
+        assert!(
+            admit(&ana_c).is_ok(),
+            "a permitted reader is admitted: {:?}",
+            admit(&ana_c).err().map(|e| e.error.message)
+        );
+        assert!(admit(&caio_c).is_err(), "the other still is not");
+        for (ws, id) in [(&mut ana, 4), (&mut caio_ws, 4)] {
+            for table in ["", "Sala"] {
+                join_at(ws, id, table).await;
+            }
+        }
+        // Parsed, a body at the table she is let at passes, and at the other it does not.
+        let ok = call(
+            &mut ana,
+            5,
+            "table_send_image",
+            json!({ "base64": big_png(64), "table": "" }),
+        )
+        .await;
+        assert_eq!(ok["ok"]["kind"], "image", "{ok}");
+        let no = call(
+            &mut ana,
+            6,
+            "table_send_image",
+            json!({ "base64": big_png(64), "table": "Sala" }),
+        )
+        .await;
+        assert!(err_of(&no).contains("only read"), "{no}");
+        // The one who was not let is refused at once, over the wire.
+        let no = call(
+            &mut caio_ws,
+            5,
+            "table_send_image",
+            json!({ "base64": big_png(64), "table": "" }),
+        )
+        .await;
+        assert!(err_of(&no).contains("only read"), "{no}");
+        // Taken back, it is refused before the parse again.
+        let g = grant(&mut c.owner, 7, "", &c.ana_id, false).await;
+        assert!(g.get("ok").is_some(), "{g}");
+        assert!(admit(&ana_c).is_err());
+    });
+}
+
+/// A permission is a player's at one table: it goes when the account stops
+/// being a player of THAT table though it still reads the folder by another
+/// way, so that being seated again never grants it silently.
+#[test]
+fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
+    block_on(async {
+        let r = start().await;
+        let mut c = seat(&r, "Cripta").await;
+        r.server.db.campaign_make(&c.folder, "Sala").unwrap();
+        crate::campaign::forget(&r.server, &c.folder);
+        let cripta = r.server.db.make_share(&c.folder, "Cripta").unwrap();
+        let sala = r.server.db.make_share(&c.folder, "Sala").unwrap();
+        for s in [&cripta, &sala] {
+            r.server
+                .db
+                .grant_share(&s.id, &c.ana_id, Role::Reader)
+                .unwrap();
+        }
+        let g = grant(&mut c.owner, 3, "Cripta", &c.ana_id, true).await;
+        assert!(g.get("ok").is_some(), "{g}");
+        assert!(
+            r.server
+                .db
+                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .unwrap()
+        );
+        // Someone else stays on the share, so that it outlives her seat.
+        r.server
+            .db
+            .grant_share(&cripta.id, &c.bia_id, Role::Reader)
+            .unwrap();
+        // Out of Cripta's share, still in Sala's: the permission at Cripta is gone.
+        r.server.db.revoke_share(&cripta.id, &c.ana_id).unwrap();
+        assert!(
+            !r.server
+                .db
+                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .unwrap()
+        );
+        assert!(!r.server.db.image_granted(&c.folder, &c.ana_id));
+        // Seated again: off, as at the first seat.
+        r.server
+            .db
+            .grant_share(&cripta.id, &c.ana_id, Role::Reader)
+            .unwrap();
+        assert!(
+            !r.server
+                .db
+                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .unwrap()
+        );
+    });
+}
+
+/// The set the size check before a parse reads follows every writer of the
+/// permission — an unmade table, a deleted folder inside it, a revoked
+/// account, a deleted account, a deleted folder — so that nobody who lost the
+/// right is admitted until a restart.
+#[test]
+fn the_admission_set_follows_every_way_a_permission_goes() {
+    block_on(async {
+        let r = start().await;
+        let c = seat(&r, "").await;
+        for root in ["A", "B"] {
+            r.server.db.campaign_make(&c.folder, root).unwrap();
+        }
+        crate::campaign::forget(&r.server, &c.folder);
+        let mut people = Vec::new();
+        for (email, name) in [
+            ("ana2@casa.lan", "Ana2"),
+            ("caio@casa.lan", "Caio"),
+            ("dora@casa.lan", "Dora"),
+            ("eva@casa.lan", "Eva"),
+        ] {
+            let a = r
+                .server
+                .db
+                .create_account(email, name, "pt", Some("uma senha longa"), false)
+                .unwrap();
+            r.server.db.grant(&c.folder, &a.id, Role::Reader).unwrap();
+            people.push((email, a.id));
+        }
+        let roots = ["A", "B", "", ""];
+        let mut windows = Vec::new();
+        for ((email, id), root) in people.iter().zip(roots) {
+            r.server
+                .db
+                .campaign_images_set(&c.folder, root, std::slice::from_ref(id), true)
+                .unwrap();
+            windows.push(open(&r, email, "uma senha longa", &c.folder).await);
+        }
+        let len = big_png(64).len();
+        let admit = |id: &str| {
+            crate::inflight::admit(
+                &r.server,
+                &client_of(&r, id),
+                Some(1),
+                "table_send_image",
+                len,
+            )
+        };
+        for (_, id) in &people {
+            assert!(r.server.db.image_granted(&c.folder, id));
+            assert!(admit(id).is_ok());
+        }
+        // An unmade table, and a folder deleted that held one.
+        r.server.db.campaign_drop(&c.folder, "A").unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[0].1));
+        assert!(admit(&people[0].1).is_err());
+        r.server.db.campaign_deleted(&c.folder, "B").unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[1].1));
+        assert!(admit(&people[1].1).is_err());
+        // An account that stops reading the folder.
+        r.server.db.revoke(&c.folder, &people[2].1).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[2].1));
+        // An account deleted.
+        r.server.db.delete_account(&people[3].1).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &people[3].1));
+        // The folder deleted: nothing is left.
+        r.server
+            .db
+            .campaign_images_set(&c.folder, "", std::slice::from_ref(&c.ana_id), true)
+            .unwrap();
+        assert!(r.server.db.image_granted(&c.folder, &c.ana_id));
+        r.server.db.forget_folder(&c.folder).unwrap();
+        assert!(!r.server.db.image_granted(&c.folder, &c.ana_id));
+        drop(windows);
     });
 }

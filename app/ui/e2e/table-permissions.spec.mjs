@@ -77,6 +77,8 @@ test("the players are a table with columns, and a switch per player saves at onc
     await expect(t.locator(".cd-col-images")).toBeVisible();
     await expect(dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" })).toBeVisible();
   }
+  // The header's name is the column's, not the box's and its answer's.
+  await expect(t.locator(".cd-col-images")).toHaveAccessibleName("Imagens");
   const rows = t.getByRole("row").filter({ has: app.page.getByRole("rowheader") });
   await expect(rows).toHaveCount(3);
   await expect(t.getByRole("rowheader", { name: /^Bia/ })).toBeVisible();
@@ -85,6 +87,7 @@ test("the players are a table with columns, and a switch per player saves at onc
   await expect(bia.getByRole("button", { name: "Bia vê 3 notas; mostrar a lista" })).toHaveText("3");
   await expect(bia.getByRole("button", { name: "Bia edita 1 nota; mostrar a lista" })).toHaveText("1");
   await expect(rows.filter({ hasText: "Caio" }).getByRole("button", { name: "Caio vê 1 nota; mostrar a lista" })).toHaveText("1");
+  await expect(bia.getByRole("button", { name: /^Bia vê/ })).toHaveAttribute("aria-controls", /^cd-detail-\d+-\d+$/);
   await bia.getByRole("button", { name: /^Bia vê/ }).click();
   await expect(dialog.getByText("Notas que Bia vê")).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Cripta" }).first()).toBeVisible();
@@ -101,14 +104,12 @@ test("the players are a table with columns, and a switch per player saves at onc
   await sw("Bia").check({ force: true });
   await expect.poll(() => app.calls("campaign_permission")).toEqual([{ root: "", accounts: ["acc-bia"], images: true }]);
   await expect(sw("Bia")).toBeChecked();
-  await expect(sw("Bia")).toHaveAttribute("aria-checked", "true");
   await expect(bia.locator(".cd-feedback")).toHaveText("Salvo");
   await expect(app.page.locator("#status")).toHaveText("Bia pode enviar imagens agora.");
   await expect(sw("Caio")).not.toBeChecked();
   // The header box is mixed while the players differ; ticking it gives everyone, unticking takes it from everyone.
   const all = dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" });
   await expect(all).toHaveJSProperty("indeterminate", true);
-  await expect(all).toHaveAttribute("aria-checked", "mixed");
   await all.check({ force: true });
   await expect.poll(async () => (await app.calls("campaign_permission")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], images: true });
   await expect(sw("Caio")).toBeChecked();

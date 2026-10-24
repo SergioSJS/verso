@@ -215,6 +215,8 @@ fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
     if cmd != "table_send_image" {
         return false;
     }
+    // In memory: no database is read on the connection's receive task. A
+    // reader paired by a phone, or with a token that only reads, never is.
     let found = verso_service::lock(&server.clients)
         .get(client)
         .filter(|c| c.token_write)
@@ -223,12 +225,7 @@ fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
                 .as_ref()
                 .map(|(f, _)| (f.clone(), c.account.clone()))
         });
-    found.is_some_and(|(folder, account)| {
-        server
-            .db
-            .campaign_images_any(&folder, &account)
-            .unwrap_or(false)
-    })
+    found.is_some_and(|(folder, account)| server.db.image_granted(&folder, &account))
 }
 
 #[cfg(test)]
