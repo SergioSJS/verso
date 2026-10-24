@@ -26,6 +26,7 @@ use verso_service::OpError;
 use verso_service::lock;
 
 use crate::auth::{Via, Who};
+use crate::campaign_cmds as cc;
 use crate::rpc::{arg, blocking, role_here};
 use crate::state::Server;
 
@@ -821,13 +822,7 @@ pub(crate) async fn command_in(
                     let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
                     let p = path.clone();
                     // The players who see it, remembered while it is there.
-                    crate::campaign_cmds::before_write(
-                        &s,
-                        &folder,
-                        &key,
-                        "sync_delete",
-                        &json!({ "path": path }),
-                    );
+                    cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
                     let gone = s.service.with_key(&key, move |ws| {
                         is_now(ws, &p, Some(&base))?;
                         let gone = ws.delete_entry(&p)?;
@@ -835,26 +830,14 @@ pub(crate) async fn command_in(
                         ws.prune_empty_parents(&p);
                         Ok(gone)
                     });
-                    let gone = match gone {
-                        Ok(g) => g,
-                        Err(e) => {
-                            crate::campaign_cmds::write_failed(
-                                &s,
-                                &folder,
-                                "sync_delete",
-                                &json!({ "path": path }),
-                            );
-                            return Err(e);
-                        }
-                    };
-                    // What the table keeps of the note goes with it.
-                    crate::campaign_cmds::after_write(
+                    let gone = cc::drop_if_failed(
                         &s,
                         &folder,
-                        "delete_entry",
-                        &json!({ "path": path }),
-                        &Value::Null,
-                    );
+                        ("sync_delete", &json!({ "path": path })),
+                        gone,
+                    )?;
+                    // What the table keeps of the note goes with it.
+                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, ""));
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,
@@ -886,13 +869,7 @@ pub(crate) async fn command_in(
                     verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
                 let (to, other) = as_kept(&s, &folder, &to, &*inside)?;
                 if !same {
-                    crate::campaign_cmds::before_write(
-                        &s,
-                        &folder,
-                        &key,
-                        "sync_rename",
-                        &json!({ "from": from }),
-                    );
+                    cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
                 }
                 let (f, t) = (from.clone(), to.clone());
                 let reach = Arc::clone(&inside);
@@ -928,31 +905,19 @@ pub(crate) async fn command_in(
                         .collect();
                     Ok(Some((done.path, outside)))
                 });
-                let landed = match landed {
-                    Ok(l) => l,
-                    Err(e) => {
-                        crate::campaign_cmds::write_failed(
-                            &s,
-                            &folder,
-                            "sync_rename",
-                            &json!({ "from": from }),
-                        );
-                        return Err(e);
-                    }
-                };
+                let landed = cc::drop_if_failed(
+                    &s,
+                    &folder,
+                    ("sync_rename", &json!({ "from": from })),
+                    landed,
+                )?;
                 let Some((landed, outside)) = landed else {
                     drop(only);
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
                 };
                 // What the table keeps of the note follows it.
-                crate::campaign_cmds::after_write(
-                    &s,
-                    &folder,
-                    "rename_entry",
-                    &json!({ "from": from }),
-                    &json!({ "path": landed }),
-                );
+                cc::device_did(&s, &folder, ("rename_entry", "from"), (&from, &landed));
                 let head = reconcile_paths(
                     &s,
                     &folder,
