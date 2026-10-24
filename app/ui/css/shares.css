@@ -137,14 +137,37 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .cd-link input { flex: 1; min-width: 0; min-height: 32px; font-family: var(--mono); font-size: .82rem; }
 .cd-made { display: flex; flex-direction: column; gap: .3rem; }
 .cd-invite, .cd-notes { display: flex; flex-direction: column; gap: .5rem; }
-.cd-players { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
-.cd-player { display: flex; align-items: center; gap: .6rem; }
-.cd-avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font: 600 .8rem var(--ui); color: oklch(98% 0.01 80); background: oklch(52% 0.11 var(--hue, 250)); }
-.cd-player-who { display: flex; flex-direction: column; min-width: 0; }
-.cd-player-name { font-weight: 600; font-size: .9rem; }
-.cd-player-grants { font-size: .8rem; color: var(--ink-3); }
-.cd-player-line { display: block; }
+/* The players' access table (2026-10-24): a real table, a card per player on a phone. */
+.cd-access { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.cd-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.cd-table[hidden], .cd-access .share-empty[hidden] { display: none; }
+.cd-table th, .cd-table td { padding: .4rem .5rem; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hair); }
+.cd-table thead th { font: 600 .74rem var(--ui); letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.cd-table .cd-num, .cd-table thead th:nth-child(2), .cd-table thead th:nth-child(3) { width: 4.6rem; text-align: center; }
+.cd-table .cd-images, .cd-table .cd-col-images { width: 11rem; }
+.cd-who { font-weight: 600; min-width: 0; }
+.cd-who-box { display: flex; align-items: center; gap: .6rem; }
+.cd-who-text { display: inline-flex; align-items: center; gap: .3rem; min-width: 0; }
+.cd-player-name { font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
 .cd-online { color: var(--good); font-size: .7rem; }
+.cd-count-btn { min-width: 2.2rem; min-height: 32px; padding: 0 .5rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); color: var(--ink); font: 600 .85rem var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cd-count-btn:hover { background: var(--paper-3); }
+.cd-count-btn[aria-expanded="true"] { border-color: var(--seal); color: var(--seal); }
+.cd-count-btn:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.cd-images { white-space: nowrap; }
+.cd-images .switch { vertical-align: middle; margin-right: .4rem; }
+.cd-images .cd-feedback { display: inline-block; vertical-align: middle; }
+.cd-images .cd-feedback:empty { display: none; }
+.cd-col-images .cd-all-box { display: inline-flex; align-items: center; gap: .35rem; margin-left: .6rem; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.cd-all { width: 16px; height: 16px; margin: 0; accent-color: var(--seal); cursor: pointer; }
+.cd-all:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.cd-all-text { cursor: pointer; font-size: .78rem; }
+.cd-detail td { padding: .3rem .5rem .6rem 2.6rem; background: var(--paper-2, var(--paper)); }
+.cd-detail[hidden] { display: none; }
+.cd-detail-list { font-size: .85rem; }
+.cd-note-list { list-style: none; margin: .2rem 0 .3rem; padding: 0; display: flex; flex-wrap: wrap; gap: .2rem .9rem; }
+.cd-images-hint { margin: 0; }
+.cd-avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font: 600 .8rem var(--ui); color: oklch(98% 0.01 80); background: oklch(52% 0.11 var(--hue, 250)); }
 .cd-note-link { padding: 0; border: 0; background: none; color: var(--seal); text-decoration: underline; cursor: pointer; font: inherit; }
 .cd-field { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; }
 .cd-field label { font-size: .86rem; font-weight: 600; }
@@ -178,6 +201,25 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
   .quick.campaign-overlay .campaign-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; box-sizing: border-box; border-radius: 16px 16px 0 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
   .cd-open { grid-template-columns: 1fr auto; }
   .cd-field input { width: 100%; }
+  /* The players' table becomes a card per player: same controls, no sideways scroll. */
+  .cd-table, .cd-table tbody { display: block; }
+  .cd-table thead { display: block; }
+  .cd-table thead tr { display: flex; justify-content: flex-end; }
+  .cd-table thead th { display: none; border: 0; }
+  .cd-table thead th.cd-col-images { display: block; width: auto; padding-right: 0; }
+  .cd-table thead th.cd-col-images .cd-col-label { display: none; }
+  .cd-table thead th.cd-col-images .cd-all-box { margin-left: 0; }
+  .cd-table .cd-player { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .6rem; padding: .6rem .7rem; margin-bottom: .5rem; border: 1px solid var(--hair); border-radius: 10px; }
+  .cd-table .cd-player > th, .cd-table .cd-player > td { display: block; width: auto; padding: 0; border: 0; text-align: left; }
+  .cd-table .cd-player > .cd-who { grid-column: 1 / -1; }
+  .cd-table .cd-player > td::before { content: attr(data-label); display: block; font: 600 .7rem var(--ui); letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .15rem; }
+  .cd-table .cd-player > .cd-images { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; white-space: normal; }
+  .cd-table .cd-player > .cd-images::before { margin: 0 .3rem 0 0; }
+  .cd-count-btn { min-height: 44px; min-width: 44px; }
+  .cd-all { width: 22px; height: 22px; }
+  .cd-table .cd-detail { display: block; margin: -.3rem 0 .5rem; border: 1px solid var(--hair); border-radius: 10px; }
+  .cd-table .cd-detail[hidden] { display: none; }
+  .cd-table .cd-detail > td { display: block; padding: .5rem .7rem; border: 0; background: transparent; }
   .cd-footer .btn, .cd-row .btn { min-height: 44px; }
   .switch.big { width: 54px; height: 32px; }
   .switch.big .switch-track::after { width: 26px; height: 26px; }

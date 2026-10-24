@@ -114,6 +114,8 @@ export class Table {
   private styles: DiceStyles | null = null;
   /** The roots of the folder's tables (the campaign's); none: the folder alone. */
   roots: () => string[] = () => [];
+  /** Whether the game master let this window send images at the table at `root` (the campaign's). */
+  mayImage: (root: string) => boolean = () => false;
 
   /** The table a call without one goes to: the shortest-rooted. */
   defaultRoot(): string {
@@ -176,7 +178,7 @@ export class Table {
       const latest = unpinned.slice(-JOIN_ENTRIES);
       const keep = new Set([...pinned, ...latest].map((r) => r.id));
       const entries = rows.filter((r) => keep.has(r.id));
-      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root) };
+      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root), images: this.role !== "reader" || this.mayImage(root) };
     };
     h["table_leave"] = (a) => {
       // A table named leaves that one; none named, every table.
@@ -215,7 +217,7 @@ export class Table {
     };
     h["table_send_image"] = (a) => {
       const root = need(a["table"]);
-      if (this.role === "reader") refuse("you may only read this folder");
+      if (this.role === "reader" && !this.mayImage(root)) refuse("you may only read this folder");
       paced();
       const kind = imageKind(String(a["base64"] ?? ""));
       if (!kind) refuse("a PNG, JPEG, WebP or GIF image");

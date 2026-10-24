@@ -774,3 +774,54 @@ corrigir, e fica registrado para não ser confundido com uma.
   por nota saiu para todos (o cadeado diz).
 - **Entrar por um convite** abre o que foi acolhido (a pasta ou o
   compartilhamento; quem tem a pasta inteira vai para a pasta).
+
+## As built (who may send images, 2026-10-24)
+
+O mantenedor, perguntado se os jogadores deveriam poder enviar imagem ao chat
+da mesa: *"Deveria ser possível dar ou não permissão de subir imagem, melhore
+a tela de acesso, adicione colunas de permissão."* Isto emenda o item 3 do
+[0107](0107-the-table-a-shared-roll-and-chat-log.md) (uma imagem é um arquivo
+da pasta, então um leitor não enviava nenhuma) e o item 4 deste ADR (o que um
+jogador pode fazer).
+
+- **A permissão.** O mestre dá ou nega, por jogador e por mesa, o direito de
+  enviar imagens ao chat. Com ela, o **servidor** grava a imagem na pasta de
+  anexos da mesa em nome do jogador, pelo mesmo caminho e as mesmas
+  conferências da imagem de um editor (`table_image::send`: PNG, JPEG, WebP ou
+  GIF pelos bytes, nunca SVG, o `image_max` da mesa, a cota da pasta, o log de
+  sincronização, `nosniff`, o ritmo). Sem ela, um leitor é recusado como antes
+  ("you may only read this folder"), e o envio é recusado antes de ser lido a
+  menos que a conta tenha a permissão em alguma mesa da pasta (`inflight.rs`).
+  O dono e um editor sempre podem. Um celular pareado como leitor, ou um token
+  só de leitura, continua sem enviar. Um jogador num compartilhamento na mesa e
+  um membro da pasta se comportam igual: o compartilhamento só limita o que se
+  vê.
+- **Desligada por padrão** para um jogador (escolhido no código). É uma linha
+  no banco do servidor, nunca no arquivo de uma nota: esquema 19,
+  `campaign_images (folder, root, account)`, guardada com a mesa (acompanha a
+  pasta da mesa renomeada, some com a mesa desfeita ou apagada) e com a conta
+  enquanto ela lê a pasta (some quando a conta sai, para que um jogador
+  readmitido recomece do zero).
+- **O comando** `campaign_permission(root, accounts, images)`: só o dono da
+  pasta, na própria pasta (nunca por um compartilhamento, nunca de um
+  celular, como os outros comandos da mesa); as contas precisam ser jogadores
+  daquela mesa; uma linha de auditoria, `campaign_permission`, com o assunto
+  `images:on|off:<contas>`. Responde com o status. O status traz, por mesa,
+  `image_players` (a lista do mestre) e `images` (o direito do próprio
+  jogador), e, por jogador, as mesas em que joga (`roots`).
+- **Avisado na hora.** `TableJoin.images` diz isso na entrada, e uma mudança é
+  empurrada às janelas do jogador naquela mesa como `table-images { table,
+  images }` (a raiz própria do compartilhamento, `""`, num compartilhamento):
+  o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar.
+- **A tela.** O cartão **Jogadores** da janela da mesa agora é uma tabela de
+  verdade: *Jogador* (avatar, nome, um ponto enquanto está na mesa), *Vê*
+  (quantas notas estão liberadas ao jogador, abrindo a lista), *Edita*
+  (quantas o jogador pode editar, idem) e *Imagens*, um interruptor por
+  jogador que salva na hora e responde ao lado, com uma caixa *todos* no
+  cabeçalho que fica mista quando os jogadores diferem. Cabeçalhos de coluna e
+  de linha são de verdade; no celular cada linha vira um cartão com os mesmos
+  controles. Nada foi acrescentado para remover um jogador (hoje nada remove
+  um jogador da mesa).
+- **Não feito.** Uma permissão por tipo de arquivo, ou para rolagens: o direito
+  é só o de enviar imagens.
+

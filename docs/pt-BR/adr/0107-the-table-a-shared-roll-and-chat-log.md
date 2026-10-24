@@ -94,6 +94,28 @@ marcados `[PROPOSED]` são a recomendação do autor, não decididos.
    o seu tipo e `nosniff` ([0083](0083-security-hardening-of-universo.md)
    itens 8 e 9), e nunca um SVG.
 
+   `[DECIDED 2026-10-24]` **Emenda: o mestre deixa um jogador enviar
+   imagens.** Perguntado se os jogadores deveriam poder enviar imagem ao
+   chat, já que todo jogador convidado é leitor e "um leitor, que não grava
+   arquivo, não envia imagem", o mantenedor: *"Deveria ser possível dar ou
+   não permissão de subir imagem, melhore a tela de acesso, adicione colunas
+   de permissão."* Então o mestre dá ou nega, **por jogador e por mesa**, a
+   permissão de enviar imagens à mesa. Com ela, o **servidor** grava a
+   imagem na pasta de anexos da mesa em nome do jogador (o mesmo lugar e as
+   mesmas conferências de um editor: PNG, JPEG, WebP ou GIF pelos bytes,
+   nunca SVG, o limite de tamanho da mesa, a cota da pasta, `nosniff`, o
+   ritmo); o jogador continua sem gravar arquivo próprio e sem alcançar mais
+   nada. Sem ela, nada muda: um leitor não envia imagem. O dono e um editor
+   sempre podem. Um jogador que entra por um compartilhamento e um que é
+   membro da pasta se comportam igual (0110: um compartilhamento só limita o
+   que se vê). **Desligada por padrão** para um jogador (escolhido no código;
+   o mestre liga, um jogador ou todos). Retirada, ela vale na hora: a janela
+   do jogador é avisada, e o botão de anexar, o colar e o soltar somem.
+   Construído: esquema 19 (`campaign_images`), o comando
+   `campaign_permission`, o evento `table-images`; veja
+   [0110](0110-a-table-is-a-campaign-folder.md) "As built (who may send
+   images, 2026-10-24)".
+
 4. **Rolar pela mesa.** `[PROPOSED]` O campo da mesa rola quando o texto
    é uma notação de dados depois de `/r` (`/r 1d20+3`), ou por um botão de
    dados ao lado, pelo mesmo comando da rolagem de uma nota, de modo que o

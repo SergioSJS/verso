@@ -343,7 +343,7 @@ fn schema_17_keeps_a_released_note_the_whole_tables_and_a_hidden_one_hidden() {
         .conn()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 18);
+    assert_eq!(version, 19);
 }
 
 /// An audience is the table's, a set of its players or nobody; a grant
@@ -465,6 +465,49 @@ fn making_a_table_again_or_changing_its_limits_keeps_it_open_or_closed() {
     db.campaign_set(&f.id, "", Some(true), None, None).unwrap();
     db.campaign_set(&f.id, "", None, Some(6000), None).unwrap();
     assert!(db.campaigns_of(&f.id).unwrap()[0].open);
+}
+
+/// Schema 19: the permission to send images (ADR 0107 item 3 as amended
+/// 2026-10-24) is off for every player of a table made before it, given and
+/// taken per table, kept with a renamed table and dropped with an unmade one
+/// and with an account that no longer reads the folder.
+#[test]
+fn schema_19_keeps_the_image_permission_off_until_given_and_follows_the_table() {
+    let conn = schema_16();
+    conn.execute_batch(&format!(
+        "{}{} PRAGMA user_version = 18;",
+        campaign::AUDIENCE,
+        campaign::EPOCHS
+    ))
+    .unwrap();
+    let at = now();
+    conn.execute_batch(&format!(
+        "INSERT INTO folders (id, dir, created) VALUES ('f', 'f', {at});
+         INSERT INTO accounts (id, email, email_fold, name, lang, admin, may_create, created) VALUES ('a', 'a@x', 'a@x', 'A', 'pt', 0, 0, {at});
+         INSERT INTO campaigns (folder, root, created) VALUES ('f', 'Mesa', {at});"
+    ))
+    .unwrap();
+    let db = Db::from(conn).unwrap();
+    assert!(!db.campaign_images_has("f", "Mesa", "a").unwrap());
+    let a = ["a".to_owned()];
+    db.campaign_images_set("f", "Mesa", &a, true).unwrap();
+    db.campaign_images_set("f", "Mesa", &a, true).unwrap();
+    assert_eq!(db.campaign_images_of("f", "Mesa").unwrap(), ["a"]);
+    assert!(db.campaign_images_any("f", "a").unwrap());
+    // The table's folder renamed: the permission goes with it.
+    db.campaign_move("f", "Mesa", "Sala").unwrap();
+    assert!(db.campaign_images_has("f", "Sala", "a").unwrap());
+    assert!(!db.campaign_images_has("f", "Mesa", "a").unwrap());
+    db.campaign_images_set("f", "Sala", &a, false).unwrap();
+    assert!(!db.campaign_images_any("f", "a").unwrap());
+    // Unmade, or deleted, it is gone.
+    db.campaign_images_set("f", "Sala", &a, true).unwrap();
+    db.campaign_drop("f", "Sala").unwrap();
+    assert!(db.campaign_images_of("f", "Sala").unwrap().is_empty());
+    db.campaign_make("f", "Outra").unwrap();
+    db.campaign_images_set("f", "Outra", &a, true).unwrap();
+    db.campaign_deleted("f", "Outra").unwrap();
+    assert!(db.campaign_images_of("f", "Outra").unwrap().is_empty());
 }
 
 /// Schema 18: a table made before the players' logs were their own has no

@@ -832,6 +832,7 @@ macro_rules! commands_for {
                 campaign::campaign_access,
                 campaign::campaign_secret_name,
                 campaign::campaign_grant,
+                campaign::campaign_permission,
                 campaign::campaign_invite,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
@@ -922,6 +923,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TableEntry>()
             .typ::<verso_contract::TableMember>()
             .typ::<verso_contract::TableRoster>()
+            .typ::<verso_contract::TableImages>()
             .typ::<verso_contract::TablePinned>()
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()

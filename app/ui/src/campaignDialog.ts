@@ -11,7 +11,8 @@
 
 import { campaign, setTable, undoTable } from "./campaign";
 import { cp } from "./campaignStrings";
-import { askFirst, feedback, follow, inviteBlock, notesBlock, openSwitch, playersBlock, tableAt } from "./campaignParts";
+import { askFirst, feedback, follow, inviteBlock, notesBlock, openSwitch, tableAt } from "./campaignParts";
+import { playersBlock } from "./campaignPlayers";
 import { asDialog, closed, opened } from "./dialogs/a11y";
 import { h, ui } from "./dom";
 import { folderName } from "./folder";

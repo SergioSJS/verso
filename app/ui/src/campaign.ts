@@ -184,6 +184,12 @@ export async function setTable(root: string, change: { open?: boolean; logMax?: 
   return run(() => commands.campaignSettings(root, change.open ?? null, change.logMax ?? null, change.imageMax ?? null), done);
 }
 
+/** Let some players of the table at `root` send images to its chat, or take
+ *  it from them (ADR 0107 item 3 as amended 2026-10-24). */
+export async function setImages(root: string, accounts: string[], on: boolean, done: string): Promise<boolean> {
+  return run(() => commands.campaignPermission(root, accounts, on), done);
+}
+
 /** Who may edit a note. An edit grant to a player who could not see the
  *  note lets them see it (the server adds them to its audience): said. */
 export async function grantNote(path: string, grant: CampaignGrant): Promise<boolean> {

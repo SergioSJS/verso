@@ -119,6 +119,7 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "campaign_access"
                 | "campaign_secret_name"
                 | "campaign_grant"
+                | "campaign_permission"
                 | "campaign_invite"
         )
 }
