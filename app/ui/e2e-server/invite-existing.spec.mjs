@@ -58,6 +58,8 @@ test("an account joins a second invitation, signed in or signing in on the page"
   await page.getByLabel("Senha nova").fill(PASSWORD);
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).not.toHaveURL(/invite/);
+  // A new account lands in the folder the link carried, not on the empty home.
+  await expect(page.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
 
   // Signed in as Ana, a second table's invitation is one button.
   const second = await makeLink(admin, "", "editor");
@@ -66,6 +68,7 @@ test("an account joins a second invitation, signed in or signing in on the page"
   await expect(page.getByRole("button", { name: "Não sou eu" })).toBeVisible();
   await page.getByRole("button", { name: "Entrar na mesa como Ana" }).click();
   await expect(page).not.toHaveURL(/invite/);
+  await expect(page.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
   // (A used link answers as gone; the unit tests hold that — a visit here would count against this address's link allowance.)
 
   // Not signed in: sign in on the invitation's own page, then join.
@@ -78,6 +81,7 @@ test("an account joins a second invitation, signed in or signing in on the page"
   await block.getByLabel("Senha").fill(PASSWORD);
   await block.getByRole("button", { name: "Já tenho conta — entrar e aceitar" }).click();
   await expect(g).not.toHaveURL(/invite/, { timeout: 30_000 });
+  await expect(g.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
 
   // The administration says who used them.
   await admin.goto("/admin/invitations");

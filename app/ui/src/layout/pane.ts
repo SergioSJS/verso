@@ -160,7 +160,13 @@ export class Pane {
         [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
       ]);
     });
-    this.empty.append(icon("outline"), h("p", "", t.emptyPane));
+    // Dragging a tab here is for a mouse: a phone or a finger on the screen is told only to pick a file.
+    const hint = h("p", "", t.emptyPane);
+    const touch = window.matchMedia("(pointer: coarse), (max-width: 760px)");
+    const say = () => void (hint.textContent = touch.matches ? t.emptyPaneTouch : t.emptyPane);
+    say();
+    touch.addEventListener("change", say);
+    this.empty.append(icon("outline"), hint);
     this.body.append(this.empty);
     const restore = h("button", "ghost tabs-restore-button");
     restore.type = "button";
