@@ -453,7 +453,20 @@ fn a_return_to_another_room_after_the_rooms_own_saves_makes_no_copy() {
     // Typed in the room; the room writes it and tells the tab it did, but
     // no pass has carried it down (the link goes before one does).
     ta.type_live(&a, 99, "digitado ao vivo\n");
-    sleep(SETTLE);
+    // Until this app has heard the save, not for a fixed time: the room
+    // writes after its quiet moment (900 ms) and the write and the event
+    // take as long as the machine is busy. A link dropped first never
+    // hears the save, and the pass then finds two changes and makes a
+    // copy, as it should (seen on Windows under load, 2026-10-24: the
+    // save landed 4 ms after the hang-up).
+    let waited = std::time::Instant::now();
+    while a.s.live.saves_heard(NOTE) == 0 {
+        assert!(
+            waited.elapsed() < Duration::from_secs(30),
+            "the room's save was never heard"
+        );
+        sleep(Duration::from_millis(20));
+    }
     drop_link(&a, la);
     assert_eq!(text(&a, NOTE).as_deref(), Some("# Sessao\n"));
 
