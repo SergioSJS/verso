@@ -49,3 +49,46 @@ test("closing a note that embeds a multi-page PDF while its pages are still bein
   await expect(page.locator('.page[data-page-number="1"]')).toHaveCount(0, { timeout: 15_000 });
   await page.waitForTimeout(1500);
 });
+
+test("a note embedding a PDF at page 2 is fitted before the pages exist and asks for no invalid page", async ({ app, page }) => {
+  // pdf.js has the document but not its pages until the first one is read.
+  // The first page's answer is held back, and in that gap the observers of
+  // the window's size are told the width changed (what a layout on a busy
+  // machine does): the viewer must not be asked for page 2 meanwhile
+  // ("currentPageNumber: "2" is not a valid page", which the fixture fails on).
+  await page.addInitScript(() => {
+    const callbacks = [];
+    const RO = window.ResizeObserver;
+    window.ResizeObserver = class extends RO {
+      constructor(cb) {
+        super(cb);
+        callbacks.push(() => cb([], this));
+      }
+    };
+    const post = Worker.prototype.postMessage;
+    let held = false;
+    Worker.prototype.postMessage = function (msg, ...rest) {
+      if (!held && msg && msg.action === "GetPage" && msg.data?.pageIndex === 0) {
+        held = true;
+        window.__fitted = 0;
+        const run = () => post.call(this, msg, ...rest);
+        // Fitted three times while the page is held, then released.
+        const tick = () => {
+          callbacks.forEach((f) => f());
+          if (++window.__fitted < 3) window.setTimeout(tick, 150);
+          else window.setTimeout(run, 150);
+        };
+        window.setTimeout(tick, 100);
+        return;
+      }
+      return post.call(this, msg, ...rest);
+    };
+  });
+  await app.open();
+  await app.writeOutside("Embed do manual.md", "# Embed\n\n![[manual-verso.pdf#page=2]]\n");
+  await app.folderChanged(["Embed do manual.md"], true);
+  await app.quickOpen("Embed do manual");
+  await expect.poll(() => page.evaluate(() => window.__fitted ?? 0), { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+  await expect(page.locator('.page[data-page-number="1"]').first()).toBeVisible({ timeout: 15_000 });
+  await page.waitForTimeout(1000);
+});

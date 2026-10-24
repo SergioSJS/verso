@@ -22,8 +22,8 @@ const TEXT = [
   "",
 ].join("\n");
 
-async function openScene(app) {
-  await app.writeOutside(NOTE, TEXT);
+async function openScene(app, text = TEXT) {
+  await app.writeOutside(NOTE, text);
   await app.folderChanged([NOTE], true);
   await app.quickOpen("Cena");
 }
@@ -100,13 +100,17 @@ test("the same question twice piles answers up, and the line the person wrote st
 
 test("a rewritten question replaces the lines the oracle wrote and keeps the person's", async ({ app, page }) => {
   await app.open();
-  await openScene(app);
+  // The old answer rolled 0, which a d100 never does: a new roll of 41 would
+  // write the very same line (1 run in 100) and the old one could not be
+  // told from it.
+  const old = `> **Sim, mas…** _(d100: 0, ${ODDS})_ `;
+  await openScene(app, TEXT.replace(`> **Sim, mas…** _(d100: 41, ${ODDS})_ `, old));
 
   await askAndWrite(page, "Há alguém atrás da porta?");
   await expect.poll(async () => (await lines(app))[2]).toBe("> [!oracle] Há alguém atrás da porta?");
   const ls = await lines(app);
   // The old answer went with the old question; the person's line did not.
-  expect(ls).not.toContain(`> **Sim, mas…** _(d100: 41, ${ODDS})_ `);
+  expect(ls).not.toContain(old);
   expect(ls).toContain("> A chave sumiu do gancho; foi o Ruy.");
   expect(answers(ls)).toHaveLength(1);
   expect(ls).toContain("Depois, a cena segue.");
