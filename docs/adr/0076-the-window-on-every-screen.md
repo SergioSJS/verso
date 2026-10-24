@@ -273,3 +273,8 @@ the person may edit (2026-10-23, maintainer): it shows on a note they only
 read and with no note open, repainted on navigation, on the campaign status
 and when a folder is shown. Tried in
 `e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` and `folder-role.spec.mjs`.
+
+*Revised inside a table (2026-10-24) by [0113](0113-one-access-model-for-a-table.md), section F:* a player at a
+table is not shown the folder's lock (they edit some files), and the notice on
+an attempt names the note (*You only read this note*), not the folder. Outside
+a table this paragraph holds.
