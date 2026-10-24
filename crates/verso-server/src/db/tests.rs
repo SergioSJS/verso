@@ -337,12 +337,13 @@ fn schema_17_keeps_a_released_note_the_whole_tables_and_a_hidden_one_hidden() {
     };
     assert_eq!(audience("Aberta.md"), Audience::Table);
     assert_eq!(audience("Fechada.md"), Audience::Hidden);
-    assert_eq!(db.campaign_epoch("f").unwrap(), None);
+    // A table made before has the epoch its folder's log stood at (schema 18).
+    assert_eq!(db.campaign_epoch("f").unwrap(), Some(0));
     let version: i64 = db
         .conn()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 17);
+    assert_eq!(version, 18);
 }
 
 /// An audience is the table's, a set of its players or nobody; a grant
@@ -464,4 +465,51 @@ fn making_a_table_again_or_changing_its_limits_keeps_it_open_or_closed() {
     db.campaign_set(&f.id, "", Some(true), None, None).unwrap();
     db.campaign_set(&f.id, "", None, Some(6000), None).unwrap();
     assert!(db.campaigns_of(&f.id).unwrap()[0].open);
+}
+
+/// Schema 18: a table made before the players' logs were their own has no
+/// epoch; its folder's log, as the readers' devices counted it, goes on
+/// from where it stood — no gap, nothing sent twice.
+#[test]
+fn schema_18_continues_the_readers_numbers_of_a_table_made_before() {
+    let conn = schema_16();
+    conn.execute_batch(&format!("{} PRAGMA user_version = 17;", campaign::AUDIENCE))
+        .unwrap();
+    let at = now();
+    conn.execute_batch(&format!(
+        "INSERT INTO folders (id, dir, created) VALUES ('f', 'f', {at});
+         INSERT INTO campaigns (folder, root, created) VALUES ('f', '', {at});"
+    ))
+    .unwrap();
+    for seq in 1..=5 {
+        conn.execute(
+            "INSERT INTO changes (folder, seq, path, hash, size, deleted, at, reader_same)
+             VALUES ('f', ?1, 'a.md', 'h', 1, 0, ?2, 0)",
+            params![seq, at],
+        )
+        .unwrap();
+    }
+    let db = Db::from(conn).unwrap();
+    let epoch = db.campaign_epoch("f").unwrap().unwrap();
+    assert_eq!(epoch, 5);
+    // A device holds cursor 5 of the shared log. The player's log counts
+    // those five, and the next change is its sixth.
+    assert_eq!(db.campaign_member_count("f", "ana", epoch).unwrap(), 5);
+    db.record(
+        "f",
+        (None, None),
+        &[(
+            "a.md".to_owned(),
+            Some(("h2".to_owned(), 2, "2:1".to_owned())),
+            None,
+        )],
+        &[],
+        (&ReaderOf::new(), &[]),
+    )
+    .unwrap();
+    assert_eq!(db.campaign_member_count("f", "ana", i64::MAX).unwrap(), 6);
+    let next = db
+        .campaign_member_changes(("f", "ana"), i64::MAX, (5, 10))
+        .unwrap();
+    assert_eq!(next.len(), 1);
 }

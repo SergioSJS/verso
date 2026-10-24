@@ -159,7 +159,7 @@ fn a_game_master_is_never_told_a_note_was_removed_that_it_still_sees() {
 
 // ------------------------------------------------------------- rooms
 
-fn doc_of(joined: &Value) -> yrs::Doc {
+pub(crate) fn doc_of(joined: &Value) -> yrs::Doc {
     use yrs::Transact;
     use yrs::updates::decoder::Decode;
     let doc = yrs::Doc::with_options(yrs::Options {
@@ -175,7 +175,7 @@ fn doc_of(joined: &Value) -> yrs::Doc {
     doc
 }
 
-fn typed(doc: &yrs::Doc, what: &str) -> String {
+pub(crate) fn typed(doc: &yrs::Doc, what: &str) -> String {
     use yrs::{GetString, Text, Transact};
     let text = doc.get_or_insert_text(crate::collab::TEXT);
     let mut txn = doc.transact_mut();
