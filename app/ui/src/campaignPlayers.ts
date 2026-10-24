@@ -53,6 +53,9 @@ export function playersAt(root: string): CampaignPlayer[] {
 
 type Kind = "sees" | "edits";
 
+/** One number per block, for the ids that tie a count to its list: a root may hold spaces, which an IDREF cannot. */
+let blocks = 0;
+
 type Row = {
   tr: HTMLTableRowElement;
   detail: HTMLTableRowElement;
@@ -63,6 +66,8 @@ type Row = {
 /** The game master's players table for the table at `root`. */
 export function playersBlock(root: string, after?: () => void): HTMLElement {
   const wrap = h("div", "cd-access");
+  const uid = ++blocks;
+  let seats = 0;
   const table = h("table", "cd-table");
   table.setAttribute("role", "table");
   table.setAttribute("aria-label", cp.accessCaption);
@@ -77,10 +82,12 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     return c;
   };
   const imagesHead = th("", "cd-col-images");
+  // The header's name is the column's, not the box's and its answer's.
+  imagesHead.setAttribute("aria-label", cp.colImages);
   const imagesLabel = h("span", "cd-col-label", cp.colImages);
   const all = h("input", "cd-all");
   all.type = "checkbox";
-  all.id = `cd-all-${root || "root"}`;
+  all.id = `cd-all-${uid}`;
   all.setAttribute("aria-label", cp.imagesAll);
   all.title = cp.imagesAll;
   const allText = h("label", "cd-all-text", cp.imagesAllShort);
@@ -111,6 +118,7 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
   };
 
   const make = (p: CampaignPlayer): Row => {
+    const detailId = `cd-detail-${uid}-${++seats}`;
     const tr = h("tr", "cd-player");
     tr.setAttribute("role", "row");
     const who = h("th", "cd-who");
@@ -146,18 +154,18 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
       const btn = h("button", "cd-count-btn");
       btn.type = "button";
       btn.dataset["key"] = `${kind}:${p.id}`;
-      btn.setAttribute("aria-controls", `cd-detail-${root || "root"}-${p.id}`);
+      btn.setAttribute("aria-controls", detailId);
       td.append(btn);
       return { td, btn };
     };
-    detail.id = `cd-detail-${root || "root"}-${p.id}`;
+    detail.id = detailId;
     const sees = counter("sees");
     const edits = counter("edits");
 
     const imagesTd = h("td", "cd-images");
     imagesTd.setAttribute("role", "cell");
     imagesTd.dataset["label"] = cp.colImages;
-    const sw = h("label", "switch");
+    const sw = h("label", "switch big");
     const box = h("input");
     box.type = "checkbox";
     box.setAttribute("role", "switch");
@@ -170,11 +178,9 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     });
     box.addEventListener("change", () => {
       const want = box.checked;
-      box.setAttribute("aria-checked", String(want));
       box.disabled = true;
       void save([p.id], want, want ? cp.imagesOn(p.name) : cp.imagesOff(p.name), fb, () => {
         box.checked = !want;
-        box.setAttribute("aria-checked", String(!want));
       }).then(() => {
         box.disabled = false;
         box.focus();
@@ -233,7 +239,6 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
         box.setAttribute("aria-label", cp.imagesOne(player.name));
         if (!box.disabled) {
           box.checked = granted;
-          box.setAttribute("aria-checked", String(granted));
         }
         paintCounts();
       },
@@ -271,7 +276,6 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     if (!all.disabled) {
       all.checked = players.length > 0 && n === players.length;
       all.indeterminate = n > 0 && n < players.length;
-      all.setAttribute("aria-checked", all.indeterminate ? "mixed" : String(all.checked));
     }
     if (keep) wrap.querySelector<HTMLElement>(`[data-key="${keep}"]`)?.focus();
   };

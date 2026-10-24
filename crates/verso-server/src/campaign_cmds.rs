@@ -346,12 +346,22 @@ async fn permission(
         {
             return Err(refused("that folder is not a table"));
         }
-        let players = players_of(&s, &f, &format!("{r}/x"))?;
+        let players = players_in(&s, &f, &r)?;
         if !a.iter().all(|x| players.iter().any(|p| &p.id == x)) {
             return Err(refused("not a player of this table"));
         }
         s.db.campaign_images_set(&f, &r, &a, images)
             .map_err(failed)?;
+        {
+            let mut held = lock(&s.image_grants);
+            for x in &a {
+                if s.db.campaign_images_any(&f, x).map_err(failed)? {
+                    held.insert((f.clone(), x.clone()));
+                } else {
+                    held.remove(&(f.clone(), x.clone()));
+                }
+            }
+        }
         crate::table::tell_images(&s, (&f, &r), &a);
         Ok(())
     })
@@ -540,6 +550,15 @@ pub(crate) fn players_of(
 ) -> Result<Vec<CampaignPlayer>, ContractError> {
     let veil = campaign::veil_of(server, folder).ok_or_else(|| refused("not inside a table"))?;
     let root = veil.table(path).map(|t| t.root.clone()).unwrap_or_default();
+    players_in(server, folder, &root)
+}
+
+/// The players of the table rooted at `root` (see [`players_of`]).
+pub(crate) fn players_in(
+    server: &Server,
+    folder: &str,
+    root: &str,
+) -> Result<Vec<CampaignPlayer>, ContractError> {
     let mut masters: HashSet<String> = HashSet::new();
     let mut players: Vec<CampaignPlayer> = Vec::new();
     let mut take = |a: crate::db::Account, r: Role| {
@@ -557,7 +576,7 @@ pub(crate) fn players_of(
         take(a, r);
     }
     for share in server.db.shares_of(folder).map_err(failed)? {
-        if campaign::covers(&share.path, &root) || campaign::covers(&root, &share.path) {
+        if campaign::covers(&share.path, root) || campaign::covers(root, &share.path) {
             for (a, r) in server.db.share_people(&share.id).map_err(failed)? {
                 take(a, r);
             }
@@ -626,7 +645,7 @@ async fn status(
         if owner {
             let mut players: Vec<CampaignPlayer> = Vec::new();
             for t in &veil.tables {
-                for p in players_of(&s, &folder, &format!("{}/x", t.root))? {
+                for p in players_in(&s, &folder, &t.root)? {
                     match players.iter_mut().find(|q| q.id == p.id) {
                         Some(q) => q.roots.push(t.root.clone()),
                         None => players.push(CampaignPlayer {
@@ -688,7 +707,7 @@ async fn status(
                 }?;
                 Some(CampaignTable {
                     root,
-                    images: crate::table::images_allowed(&s, &folder, &t.root, &w.account.id),
+                    images: crate::table::may_send_images(&s, &w, &c, &folder, &t.root, role),
                     ..table_of(t)
                 })
             })

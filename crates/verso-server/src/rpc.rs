@@ -316,7 +316,8 @@ async fn run(
             session: who.session().map(str::to_owned),
             folder: None,
             scope: None,
-            token_write: !matches!(who.via, Via::Token { write: false, .. }),
+            token_write: !matches!(who.via, Via::Token { write: false, .. })
+                && who.phone.is_none_or(Role::writes),
             tx: tx.clone(),
         },
     );

@@ -334,6 +334,18 @@ impl Db {
             .map_err(e)
     }
 
+    /// Every (folder, account) let send images at some table.
+    pub fn campaign_images_all(&self) -> R<Vec<(String, String)>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT DISTINCT folder, account FROM campaign_images")
+            .map_err(e)?;
+        st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map_err(e)?
+            .collect::<Result<_, _>>()
+            .map_err(e)
+    }
+
     /// Whether `account` was let send images at any table of `folder`.
     pub fn campaign_images_any(&self, folder: &str, account: &str) -> R<bool> {
         self.reader()
@@ -828,8 +840,22 @@ impl Db {
                 |r| r.get(0),
             )
             .map_err(e)?;
+        // A permission to send images is a player's at one table: it goes
+        // when the account stops being a player of THAT table, so that being
+        // seated again never grants it silently.
+        tx.execute(
+            "DELETE FROM campaign_images WHERE folder = ?1 AND account = ?2 AND NOT (
+               EXISTS (SELECT 1 FROM grants WHERE folder = ?1 AND account = ?2 AND role = 'reader')
+               OR EXISTS (SELECT 1 FROM share_grants g JOIN shares s ON s.id = g.share
+                          WHERE s.folder = ?1 AND g.account = ?2 AND g.role = 'reader'
+                            AND (s.path = '' OR root = '' OR root = s.path
+                                 OR substr(root, 1, length(s.path) + 1) = s.path || '/'
+                                 OR substr(s.path, 1, length(root) + 1) = root || '/')))",
+            params![folder, account],
+        )
+        .map_err(e)?;
         if reads {
-            return Ok(());
+            return tx.commit().map_err(e);
         }
         for table in [
             "campaign_audience",

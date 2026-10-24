@@ -74,11 +74,14 @@ pub async fn send(
     let s = Arc::clone(server);
     let f = folder.to_owned();
     let place = blocking(move || Ok(place_of(&s, &f))).await?;
-    // From a window on a share the file is kept inside the share's table
-    // folder: the only place that player reads.
-    let place = match inside {
-        Some(root) if !root.is_empty() => format!("{root}/{place}"),
-        _ => place,
+    // Whoever sends it, a table that is a subfolder keeps its images inside
+    // its own folder: where its veil shows them to its players and hides them
+    // from everyone outside it, a closed table included (and where a share
+    // rooted at the table reads them).
+    let place = if table.is_empty() {
+        place
+    } else {
+        format!("{table}/{place}")
     };
     let id: String = crate::crypto::id()
         .map_err(verso_service::failed)?
@@ -91,6 +94,12 @@ pub async fn send(
         .filter(char::is_ascii_digit)
         .collect();
     let path = format!("{place}/mesa-{stamp}-{id}.{ext}");
+    // The permission may have been taken back while the bytes were on their
+    // way: judged again right before the file is written.
+    let (_, folder_role) = crate::rpc::role_here(server, client)?;
+    if !crate::table::may_send_images(server, who, client, folder, table, folder_role) {
+        return Err(refused("you may only read this folder"));
+    }
     let made = crate::rpc::folder_run(
         server,
         who,
