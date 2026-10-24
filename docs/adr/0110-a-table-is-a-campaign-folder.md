@@ -29,6 +29,10 @@
   offered in the same conversation and the maintainer answered *"gostei das
   adições"*. Written by Opus 5.5; to be read by the other model before it is
   accepted ([0032](0032-author-and-reviewer-roles.md)).
+- Superseded in part by [0113](0113-one-access-model-for-a-table.md) (2026-10-24): items 4, 5 and 12 as amended
+  (a note's audience, per-note edit grants, the journal), "Chosen in the code"
+  (2) (editors are game masters), and the as-built sections on grants, the
+  audience and who may send images. Kept here as history.
 - Related: [0107](0107-the-table-a-shared-roll-and-chat-log.md) (the table:
   rolls, messages, images, pins, secret rolls, roster — scoped to a folder),
   [0081](0081-sharing-between-people-on-one-universo.md) (shares of a folder
@@ -252,6 +256,10 @@ tables inside one folder by subfolder — he chose one context (*"uma mesa,
 uma campanha e uma pasta seria o mesmo contexto"*).
 
 ## Status
+
+*Superseded in part (2026-10-24) by [0113](0113-one-access-model-for-a-table.md):* one access model for a table — a
+seat, access per path (any file and folder), rights per player. Items 4, 5 and
+12 as amended and the permission parts below are read through it.
 
 Proposed (2026-10-22). The maintainer's words above decide the direction
 and items 1–6, 8–14 in substance; open: what "closed" means (item 3), the

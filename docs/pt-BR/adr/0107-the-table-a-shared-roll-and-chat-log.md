@@ -7,6 +7,10 @@
   conectados juntos aparecem no chat e tal"*. Pedido como direção, não
   para agora. Escrita pelo Opus 5.5; a ser lida pelo outro modelo antes
   de aceita ([0032](0032-author-and-reviewer-roles.md)).
+- Substituída em parte pela [0113](0113-one-access-model-for-a-table.md) (2026-10-24): a emenda de 2026-10-24 do
+  item 3, o direito de enviar imagens, virou o direito por jogador *Enviar
+  arquivos* (imagens e outros arquivos, no chat e em arquivos que o jogador
+  edita). Mantida aqui como história.
 - Relacionadas: [0088](0088-dice-and-random-tables.md) (item 4, o
   servidor rola numa sala e guarda as últimas rolagens em memória, nada
   gravado; item 8, a rolagem de um membro anunciada com o nome dele),
@@ -697,6 +701,9 @@ pasta os seus números" do 0110 (cada mesa tem os seus números agora).
 **Duas mudanças pequenas do painel (2026-10-23, o mantenedor).** "Rolar dados…" (o diálogo do rolador) volta a ser um item da gaveta "⋯" da fila de dados, depois de ficar só na paleta de comandos; e em larguras estreitas (uma linha de topo de até 420 px) "Ocultar daqui pra trás" é um botão só de ícone (nome e dica mantidos) para que a lista de pessoas, o botão da janela da Mesa, ocultar e o menu caibam em uma linha a 260 px, com o rótulo aparecendo quando há espaço.
 
 ## Situação
+
+*Substituída em parte (2026-10-24) pela [0113](0113-one-access-model-for-a-table.md):* o direito de imagens da emenda
+do item 3 agora é *Enviar arquivos*.
 
 Proposta (2026-10-21). Itens 2, 3, 5, 7, 10 e 11 decididos pelo
 mantenedor em 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,

@@ -22,6 +22,11 @@
   conversa e o mantenedor respondeu *"gostei das adições"*. Escrita pelo
   Opus 5.5; a ser lida pelo outro modelo antes de aceita
   ([0032](0032-author-and-reviewer-roles.md)).
+- Substituída em parte pela [0113](0113-one-access-model-for-a-table.md) (2026-10-24): os itens 4, 5 e 12 como
+  emendados (o público de uma nota, a permissão de edição por nota, o diário), o
+  "Escolhido no código" (2) (editores são mestres) e as seções "Como foi
+  construído" sobre permissões, o público e quem pode enviar imagens. Mantidos
+  aqui como história.
 - Relacionadas: [0107](0107-the-table-a-shared-roll-and-chat-log.md) (a mesa:
   rolagens, mensagens, imagens, fixados, rolagens secretas, lista de
   presentes — com escopo de uma pasta),
@@ -259,6 +264,11 @@ dentro de uma pasta por subpasta — ele escolheu um só contexto (*"uma mesa,
 uma campanha e uma pasta seria o mesmo contexto"*).
 
 ## Situação
+
+*Substituída em parte (2026-10-24) pela [0113](0113-one-access-model-for-a-table.md):* um modelo de acesso para uma
+mesa — um assento, acesso por caminho (qualquer arquivo e pasta), direitos por
+jogador. Os itens 4, 5 e 12 como emendados e as partes de permissão abaixo se
+leem por ela.
 
 Proposta (2026-10-22). As palavras do mantenedor acima decidem a direção e,
 em substância, os itens 1–6 e 8–14; em aberto: o que significa "fechada"

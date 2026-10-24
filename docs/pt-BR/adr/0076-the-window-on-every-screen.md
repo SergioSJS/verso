@@ -278,3 +278,8 @@ uma que a pessoa pode editar (2026-10-23, mantenedor): aparece numa nota que só
 lê e sem nenhuma nota aberta, redesenhado ao navegar, ao mudar o estado da
 campanha e ao mostrar uma pasta. Testado em
 `e2e/reader-lock.spec.mjs`, `capabilities.spec.mjs` e `folder-role.spec.mjs`.
+
+*Revisado dentro de uma mesa (2026-10-24) pela [0113](0113-one-access-model-for-a-table.md), seção F:* um jogador
+numa mesa não vê o cadeado da pasta (ele edita alguns arquivos), e o aviso numa
+tentativa nomeia a nota (*Você só lê esta nota*), não a pasta. Fora de uma mesa
+este parágrafo vale.
