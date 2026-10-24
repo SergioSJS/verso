@@ -585,17 +585,87 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   shadow for readers is cut with the public eyes: a link to a note only some
   players see is a lock in it, for everyone, until they reload (no name of
   such a note ever crosses a shared document).
-- **A player's device log is its own** once a folder has a note released to some
-  players (`campaign_epoch`). The log the server stores is told for the players
-  together; each player is told its cut of it, numbered in its own count: the
-  changes of a note the player did not see when they came are not its changes
-  (decided the first time its log is asked for, kept in `campaign_skip`, so the
-  numbers a device has counted never move), a note it lost is told as a deletion
-  (`campaign_lost`, also for a note deleted while it saw it, `campaign_gone`),
-  and each note's hash is the one of that player's own text. A change that only
-  changes who sees a note, and the notes that link it, are recorded so every
-  player's log holds them. A player who cannot see a note is told neither its
-  name, its changes nor how many there were.
+- **A player's device log is its own** wherever there is a table
+  (`campaign_epoch`, written in the transaction that makes the folder's first
+  table: the log the readers had counted up to there is everyone's, from there on
+  each player's is its own; a folder whose epoch row cannot be read is treated as
+  having one — it fails closed). A shared log cannot be cut afterwards without
+  moving the numbers a device counted, and a note a table keeps from its players
+  has a name, a history and a count no shared log may carry. The log the server
+  stores is told for the players together; each player is told its cut of it, numbered in
+  its own count, and only the changes after the point it was settled to are
+  decided at an ask (one ask at a time per folder and player; the head is a
+  count, not a walk; the files it is told are kept while the log and the table
+  stay as they were). What is decided is decided from the table **at the moment
+  a change is recorded**, in the transaction that records it: a note a player
+  lost, or saw deleted or renamed, and an attachment that a note it saw opened
+  and was deleted, are told to that player as a deletion (`campaign_lost`; who
+  saw a path is remembered in `campaign_gone` before a deletion, a rename or a
+  move runs — by a window or by a device — while the files and the table's state
+  are still there, and asked of the table as it is for a change the server did
+  not make); a change a player has nothing to learn from is left out of its log
+  at once (`campaign_skip`), and the others are decided the first time its log is
+  asked for and kept there, so the numbers a device has counted never move. A
+  rename is told with the old name only to a player who was told the old path
+  went. Each note's hash is the one of that player's own text. A change that only
+  changes who sees a note is in the log of the players who gained or lost it; the
+  notes that link it are in the log of the players whose own text of them
+  changed, no one else's. A player who cannot see a note is told neither its name,
+  its changes nor how many there were, and the device is pushed `sync-changed`
+  only when a path it sees moved or it lost one. Turning the last table back into
+  a folder forgets all of it (epoch, settled points, lost, skipped), so a table
+  made again begins anew in the shared log's numbering.
+  Second review (2026-10-24): the players who do **not** see a path when a
+  change of it is recorded get their skip row in the same transaction (so what
+  a player was outside of is never decided later by a table that has moved on,
+  and never counted once it is let in); a player's first ask, which has no such
+  record for the past, asks the table as it is, and a decision made while the
+  veils were forgotten is made again. A deletion's remembered players are taken
+  in the recording transaction, kept to those still players, and dropped when
+  the write that remembered them failed. Hiding the past of a path never
+  rewrites rows where players have logs of their own. `sync_state` counts the
+  head first and builds the files after; a share's page and head are cut from
+  the stored log in SQL (its roots), not read whole; a player's told files are
+  kept per file while the table and the names are as they were, and the kept
+  locks and files are bounded. A player is pinged (`sync-changed`) only if the
+  change tells it something: it gained or lost a note, or its own text of one
+  moved.
+  Third review (2026-10-24): a player's log **begins** at its first ask, at the
+  readers' head, with the last change of each path it sees then — never the
+  history of those notes before (drafts made while hidden, or while the
+  account was out). An account that can no longer read the folder (revoked,
+  taken out of its share, or given a role that writes) loses its viewer, skip,
+  lost and remembered rows, its audiences and its grants, so that letting it in
+  again is a first ask. The skip rows of a recorded change are made in the same
+  step or the change is not recorded (the next walk records it; a device's write
+  stands meanwhile). What waited for an unreadable table — the windows' events
+  and the audiences' log entries — is told once it can be read, and the rooms
+  close at once (an unreadable table hides every note). Hiding a path that
+  readers had as a plain folder's file never takes a row out of the readers'
+  count and is told to no player by name (it may never have had it): the rows
+  stay, counted, and are told by what the path is now. The forgetting counters are per
+  folder and a file written is not a change of the table's state; a decision
+  that keeps meeting a moving state is refused for the asker to repeat, never
+  written. A share's `sync_state` counts its head before the files are made.
+- **What a window is told is what it gained or lost.** `campaign-changed` and the
+  `folder-changed` of a release are made per player from the table before and
+  after the change: a note it saw neither before nor after is not named, not
+  even as removed, and a player none of whose notes moved hears nothing. The
+  game masters (the owner and any editor) are not players and are told what the
+  command touched. The players of a table are every account that reaches it and
+  only reads — the readers of the folder, and the readers of a share at the
+  table's folder, above it or inside it; never an owner or an editor.
+- **Rooms.** A player who edits a note by a grant is in the room's document; when
+  the table changes, it is asked again with the readers: it leaves, told the room
+  closed, when the note is no longer one it sees or one it may edit, and it joins
+  again as what it now is. A join is asked once more under the room's lock, so a
+  window admitted before a release cannot enter after it.
+- **A table that cannot be read is closed**, not absent: a failed read of the
+  tables is a closed table that holds the folder, never kept, and a veil read
+  before the table was forgotten is not put back. That veil is marked unreadable: it fails every
+  door closed, but nothing records, settles, tells or sends anyone out from it
+  (a WARN says the step waits), and the owner's status is an error, not a
+  made-up table.
 - **Commands.** `campaign_audience(paths, audience)` (the game master's;
   `{kind: "hidden" | "table" | "players", accounts}`, accounts must be players
   of the note's table) and `campaign_access(path)` (who has access: to the game
@@ -607,11 +677,23 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   and Space; Escape closes and returns the focus; a bottom sheet on a phone)
   lists to the game master every player with *sees* / *edits* / *does not see*
   and a shortcut to change it, and to a player who sees the note ("You, Bruno
-  and the game master" / "The whole table"), never the game master's controls.
+  and the game master" / "The whole table"; the server says which person is the
+  one asking, `you`, and the window words it as "You", first; the accounts of the others are not
+  sent to a player), never the game
+  master's controls. "Release to…" is a list of check boxes (the whole table, each
+  player, nobody) that stays open while several players are ticked (one tick at
+  a time: the rows wait while one is being applied); on a phone the
+  sheet gives its close button the focus, and the button carries no native tooltip
+  beside the popover.
 - **Tried.** `tests_audience.rs` (a player outside the audience cannot list,
   read, search, backlink, tag, open a room, sync, fetch the attachment or see
   the note in the table's log; one inside can; adding and removing a player
-  live; deletion; grants), `db/tests.rs` (schema 17 and the audience's rules),
+  live; deletion; grants), `tests_audience_review.rs` (what a player outside an
+  audience hears by every channel; a game master's events; a grant's writer
+  leaving the room and a late join refused; deletions, renames and attachments
+  told to the players who saw them; the work of an ask; players of a table;
+  the epoch and a table that cannot be read), `db/tests.rs` (schema 17 and the
+  audience's rules),
   `app/ui/e2e/audience.spec.mjs` and `e2e-server/audience.spec.mjs`.
 - **Not done.** A board's audience is the same rule where a board is releasable
   (it is a note-like file of the table); no separate control was added for it.

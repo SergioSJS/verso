@@ -111,6 +111,9 @@ pub struct CampaignPerson {
     pub name: String,
     /// `edits`, `sees` or `none`.
     pub access: String,
+    /// Whether this person is the one asking: a player's own row, which the
+    /// window words as "you". Always false for the game master's list.
+    pub you: bool,
 }
 
 /// Who has access to a note of a table (`campaign_access`, ADR 0110

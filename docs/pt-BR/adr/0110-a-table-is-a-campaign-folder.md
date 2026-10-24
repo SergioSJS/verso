@@ -609,18 +609,95 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   com os olhos do público: um link para uma nota que só alguns jogadores veem
   vira cadeado nela, para todos, até recarregarem (nenhum nome de uma nota assim
   cruza um documento compartilhado).
-- **O log do dispositivo de um jogador é só dele** quando a pasta tem uma nota
-  liberada para alguns jogadores (`campaign_epoch`). O log que o servidor guarda
-  é dito para os jogadores juntos; cada jogador recebe o seu recorte, numerado
-  na sua própria contagem: as mudanças de uma nota que o jogador não via quando
-  vieram não são mudanças dele (decidido na primeira vez que o log dele é
-  pedido, guardado em `campaign_skip`, de modo que os números que um dispositivo
-  já contou nunca se movem), uma nota que ele perdeu é dita como exclusão
-  (`campaign_lost`, também para uma nota apagada enquanto ele a via,
-  `campaign_gone`), e o hash de cada nota é o do texto próprio daquele jogador.
-  Uma mudança que só muda quem vê uma nota, e as notas que apontam para ela, são
-  registradas para que o log de todo jogador as tenha. Um jogador que não vê uma
-  nota não ouve seu nome, suas mudanças, nem quantas houve.
+- **O log do dispositivo de um jogador é só dele** onde houver uma mesa
+  (`campaign_epoch`, escrito na transação que faz a primeira mesa da pasta: o log
+  que os leitores tinham contado até ali é de todos, dali em diante o de cada
+  jogador é só dele; uma pasta cuja linha de época não pode ser lida é tratada
+  como se tivesse — falha fechado). Um log compartilhado não pode ser recortado
+  depois sem mover os números que um dispositivo contou, e uma nota que uma mesa
+  esconde de seus jogadores tem nome, histórico e contagem que nenhum log
+  compartilhado pode carregar. O log que o servidor guarda é dito para os jogadores juntos; cada
+  jogador recebe o seu recorte, numerado na sua própria contagem, e só as
+  mudanças depois do ponto até onde ele foi assentado são decididas num pedido
+  (um pedido por vez por pasta e jogador; o topo é uma contagem, não uma
+  varredura; os arquivos que ele ouve ficam guardados enquanto o log e a mesa
+  ficarem como estavam). O que se decide, decide-se pela mesa **no instante em
+  que uma mudança é registrada**, na transação que a registra: uma nota que um
+  jogador perdeu, ou viu ser apagada ou renomeada, e um anexo que uma nota que
+  ele via abria e foi apagado, são ditos a esse jogador como exclusão
+  (`campaign_lost`; quem via um caminho fica lembrado em `campaign_gone` antes
+  de uma exclusão, um renomear ou um mover rodar — por uma janela ou por um
+  dispositivo —, enquanto os arquivos e o estado da mesa ainda estão lá, e é
+  perguntado à mesa como ela está para uma mudança que o servidor não fez); uma
+  mudança de que um jogador nada tem a aprender fica fora do log dele na hora
+  (`campaign_skip`), e as outras são decididas na primeira vez que o log dele é
+  pedido e ficam guardadas ali, de modo que os números que um dispositivo já
+  contou nunca se movem. Um renomear é dito com o nome antigo só a um jogador a
+  quem se disse que o caminho antigo sumiu. O hash de cada nota é o do texto
+  próprio daquele jogador. Uma mudança que só muda quem vê uma nota está no log
+  de quem a ganhou ou perdeu; as notas que apontam para ela estão no log dos
+  jogadores cujo texto delas mudou, de mais ninguém. Um jogador que não vê uma
+  nota não ouve seu nome, suas mudanças, nem quantas houve, e o dispositivo só
+  recebe `sync-changed` quando um caminho que ele vê se moveu ou ele perdeu um.
+  Desfazer a última mesa em pasta esquece tudo isso (época, pontos assentados,
+  perdidos, deixados de fora), e uma mesa feita de novo recomeça na numeração do
+  log compartilhado.
+  Segunda revisão (2026-10-24): os jogadores que **não** veem um caminho quando
+  uma mudança dele é registrada recebem sua linha de omissão na mesma transação
+  (assim o que um jogador ficou de fora nunca é decidido depois por uma mesa que
+  seguiu em frente, e nunca é contado quando ele entra); o primeiro pedido de um
+  jogador, que não tem esse registro do passado, pergunta à mesa como ela está, e
+  uma decisão tomada enquanto os véus eram esquecidos é refeita. Os jogadores
+  lembrados de uma exclusão são tomados na transação que a registra, limitados
+  aos que ainda são jogadores, e esquecidos quando a escrita que os lembrou
+  falhou. Ocultar o passado de um caminho nunca reescreve linhas onde os
+  jogadores têm logs próprios. `sync_state` conta o topo primeiro e monta os
+  arquivos depois; a página e o topo de um compartilhamento são recortados do log
+  guardado em SQL (suas raízes), não lidos inteiros; os arquivos ditos a um
+  jogador ficam guardados por arquivo enquanto a mesa e os nomes estiverem como
+  estavam, e as travas e arquivos guardados são limitados. Um jogador recebe
+  `sync-changed` só se a mudança lhe diz algo: ganhou ou perdeu uma nota, ou o
+  seu próprio texto de uma se moveu.
+  Terceira revisão (2026-10-24): o log de um jogador **começa** no seu primeiro
+  pedido, no topo dos leitores, com a última mudança de cada caminho que ele vê
+  então — nunca o histórico dessas notas antes (rascunhos feitos enquanto
+  ocultas, ou enquanto a conta estava fora). Uma conta que não pode mais ler a
+  pasta (revogada, tirada do compartilhamento, ou com um papel que escreve)
+  perde suas linhas de visão, omissão, perda e lembrança, seus públicos e suas
+  permissões, de modo que deixá-la entrar de novo é um primeiro pedido. As
+  linhas de omissão de uma mudança registrada são feitas no mesmo passo, ou a
+  mudança não é registrada (a próxima varredura a registra; a escrita de um
+  dispositivo vale enquanto isso). O que esperou por uma mesa ilegível — os
+  eventos das janelas e as entradas de log dos públicos — é dito quando ela pode
+  ser lida, e as salas se fecham na hora (uma mesa ilegível oculta toda nota).
+  Ocultar um caminho que os leitores tinham como arquivo de uma pasta comum
+  nunca tira uma linha da contagem dos leitores e não é dito a nenhum jogador
+  pelo nome (pode nunca tê-lo tido): as linhas ficam, contadas, e são ditas pelo
+  que o caminho é agora. Os contadores de esquecimento são por pasta e um arquivo
+  escrito não é uma mudança do estado da mesa; uma decisão que continua
+  encontrando um estado que se move é recusada para quem pergunta repetir, nunca
+  escrita. O `sync_state` de um compartilhamento conta o topo antes de montar os
+  arquivos.
+- **O que uma janela ouve é o que ganhou ou perdeu.** `campaign-changed` e o
+  `folder-changed` de uma liberação são feitos por jogador a partir da mesa
+  antes e depois da mudança: uma nota que ele não via antes nem vê agora não é
+  nomeada, nem como removida, e um jogador cujas notas não se moveram nada ouve.
+  Os mestres (o dono e qualquer editor) não são jogadores e ouvem o que o comando
+  tocou. Os jogadores de uma mesa são toda conta que a alcança e só lê — os
+  leitores da pasta e os leitores de um compartilhamento na pasta da mesa, acima
+  dela ou dentro dela; nunca um dono ou um editor.
+- **Salas.** Um jogador que edita uma nota por uma permissão está no documento da
+  sala; quando a mesa muda, ele é perguntado de novo junto com os leitores: sai,
+  avisado de que a sala fechou, quando a nota deixa de ser uma que ele vê ou que
+  pode editar, e entra de novo como o que agora é. Uma entrada é perguntada mais
+  uma vez sob a trava da sala, então uma janela admitida antes de uma liberação
+  não entra depois dela.
+- **Uma mesa que não pode ser lida é fechada**, não ausente: uma leitura que
+  falha das mesas é uma mesa fechada que contém a pasta, nunca guardada, e um véu
+  lido antes de a mesa ser esquecida não é posto de volta. Esse véu é marcado como ilegível: fecha toda
+  porta, mas nada registra, assenta, diz nem manda ninguém para fora a partir
+  dele (um aviso diz que o passo espera), e o status do dono é um erro, não uma
+  mesa inventada.
 - **Comandos.** `campaign_audience(paths, audience)` (do mestre;
   `{kind: "hidden" | "table" | "players", accounts}`, as contas precisam ser
   jogadores da mesa da nota) e `campaign_access(path)` (quem tem acesso: ao
@@ -632,12 +709,22 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   ponteiro, toque ou clique, Enter e Espaço; Esc fecha e devolve o foco; uma
   folha de baixo num celular) lista ao mestre cada jogador com *vê* / *edita* /
   *não vê* e um atalho para mudar, e a um jogador que vê a nota ("Você, Bruno e o
-  mestre" / "A mesa toda"), nunca os controles do mestre.
+  mestre" / "A mesa toda"; o servidor diz qual pessoa é a que pergunta, `you`, e
+  a janela a escreve "Você", primeiro; as contas dos outros não são enviadas a
+  um jogador), nunca os controles do mestre. "Liberar
+  para…" é uma lista de caixas de marcar (a mesa toda, cada jogador, ninguém) que
+  fica aberta enquanto vários jogadores são marcados (uma marca por vez: as
+  linhas esperam enquanto uma é aplicada); no celular a folha dá o foco
+  ao botão de fechar, e o botão não carrega dica nativa ao lado do balão.
 - **Testado.** `tests_audience.rs` (um jogador fora do público não consegue
   listar, ler, buscar, ver backlinks, tags, abrir sala, sincronizar, buscar o
   anexo nem ver a nota no log da mesa; um dentro consegue; incluir e retirar um
-  jogador ao vivo; exclusão; permissões), `db/tests.rs` (esquema 17 e as regras do
-  público), `app/ui/e2e/audience.spec.mjs` e `e2e-server/audience.spec.mjs`.
+  jogador ao vivo; exclusão; permissões), `tests_audience_review.rs` (o que um
+  jogador fora do público ouve por cada canal; os eventos de um mestre; quem
+  edita por permissão saindo da sala e uma entrada tardia recusada; exclusões,
+  renomeações e anexos ditos a quem os via; o trabalho de um pedido; os jogadores
+  de uma mesa; a época e uma mesa que não pode ser lida), `db/tests.rs` (esquema
+  17 e as regras do público), `app/ui/e2e/audience.spec.mjs` e `e2e-server/audience.spec.mjs`.
 - **Não feito.** O público de um quadro é a mesma regra onde um quadro pode ser
   liberado (é um arquivo da mesa como as notas); nenhum controle separado foi
   acrescentado para ele.

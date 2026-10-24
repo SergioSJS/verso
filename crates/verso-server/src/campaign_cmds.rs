@@ -14,6 +14,7 @@
 //! to be joined again over the new text, and every window hears
 //! `campaign-changed`.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -103,6 +104,14 @@ pub async fn command(
         return access(server, who, client, &args).await;
     }
     let (folder, key) = game_master(server, who, client)?;
+    // The table as it was before this command: what each player saw then,
+    // against what it sees after, is what the player is told.
+    let before = campaign::veil_of(server, &folder);
+    // What a command changes is told from the table as it was: a table that
+    // cannot be read now is not changed by a command.
+    if before.as_ref().is_some_and(|v| v.is_unreadable()) {
+        return Err(failed("the table's state cannot be read now"));
+    }
     // The notes whose state changed, for what the players are told, and
     // who lost which (what their devices are told).
     let mut touched: Vec<String> = Vec::new();
@@ -187,14 +196,19 @@ pub async fn command(
     // gained and lost, each its own (`campaign_sync`).
     if !events.is_empty() {
         campaign::forget(server, &folder);
-        let (s, f, k) = (Arc::clone(server), folder.clone(), key.clone());
+        let (s, f, k, b) = (
+            Arc::clone(server),
+            folder.clone(),
+            key.clone(),
+            before.clone(),
+        );
         let _ = blocking(move || {
-            crate::campaign_sync::audience_events(&s, &f, &k, &events);
+            crate::campaign_sync::audience_events(&s, &f, &k, &events, b);
             Ok(())
         })
         .await;
     }
-    changed(server, &folder, &key, touched).await;
+    changed(server, &folder, &key, touched, before).await;
     // A table opened: the players waiting outside hear it at once, not at
     // their next try.
     if cmd == "campaign_settings" && args["open"] == true {
@@ -240,12 +254,14 @@ async fn opened(server: &Arc<Server>, folder: &str, root: &str, owner: &str) {
 }
 
 /// A note whose audience changed, for what the players' devices are told:
-/// the players who lost it, and whether a set of players is involved
-/// (before or after), which makes each player's log its own.
+/// the players who lost it, those who gained it, and whether a set of
+/// players is involved (before or after), which makes each player's log its
+/// own.
 #[derive(Debug, Clone)]
 pub struct Event {
     pub path: String,
     pub lost: Vec<String>,
+    pub gained: Vec<String>,
     pub restricted: bool,
 }
 
@@ -389,15 +405,17 @@ fn events_of(
         if was == is {
             continue;
         }
-        let lost: Vec<String> = players_of(server, folder, &path)?
+        let players: Vec<String> = players_of(server, folder, &path)?
             .into_iter()
             .map(|p| p.id)
-            .filter(|a| was.includes(a) && !is.includes(a))
             .collect();
+        let lost = |a: &&String| was.includes(a) && !is.includes(a);
+        let gained = |a: &&String| !was.includes(a) && is.includes(a);
         out.push(Event {
             restricted: was.is_players() || is.is_players(),
+            lost: players.iter().filter(lost).cloned().collect(),
+            gained: players.iter().filter(gained).cloned().collect(),
             path,
-            lost,
         });
     }
     Ok(out)
@@ -455,32 +473,42 @@ async fn grant(
     .await
 }
 
-/// The players of the table that holds `path`: the members of the folder
-/// who are not owners, when the table is the folder; the people of the
-/// share at the table's folder otherwise.
-fn players_of(
+/// The players of the table that holds `path`: every account that reaches
+/// the table's folder and only reads there — the readers of the folder, and
+/// the readers of a share at the table's folder, above it or inside it. The
+/// game masters, the owners and the editors, are never players, whatever
+/// else they hold.
+pub(crate) fn players_of(
     server: &Server,
     folder: &str,
     path: &str,
 ) -> Result<Vec<CampaignPlayer>, ContractError> {
     let veil = campaign::veil_of(server, folder).ok_or_else(|| refused("not inside a table"))?;
     let root = veil.table(path).map(|t| t.root.clone()).unwrap_or_default();
-    let people: Vec<(crate::db::Account, Role)> = if root.is_empty() {
-        server.db.members(folder).map_err(failed)?
-    } else {
-        match server.db.share_at(folder, &root).map_err(failed)? {
-            Some(s) => server.db.share_people(&s.id).map_err(failed)?,
-            None => Vec::new(),
+    let mut masters: HashSet<String> = HashSet::new();
+    let mut players: Vec<CampaignPlayer> = Vec::new();
+    let mut take = |a: crate::db::Account, r: Role| {
+        if r.writes() {
+            masters.insert(a.id);
+        } else if !players.iter().any(|p| p.id == a.id) {
+            players.push(CampaignPlayer {
+                id: a.id,
+                name: a.name,
+            });
         }
     };
-    Ok(people
-        .into_iter()
-        .filter(|(_, r)| *r != Role::Owner)
-        .map(|(a, _)| CampaignPlayer {
-            id: a.id,
-            name: a.name,
-        })
-        .collect())
+    for (a, r) in server.db.members(folder).map_err(failed)? {
+        take(a, r);
+    }
+    for share in server.db.shares_of(folder).map_err(failed)? {
+        if campaign::covers(&share.path, &root) || campaign::covers(&root, &share.path) {
+            for (a, r) in server.db.share_people(&share.id).map_err(failed)? {
+                take(a, r);
+            }
+        }
+    }
+    players.retain(|p| !masters.contains(&p.id));
+    Ok(players)
 }
 
 /// A table as the contract has it.
@@ -532,6 +560,11 @@ async fn status(
                 can_invite: false,
             });
         };
+        // A table that cannot be read is not a table of the folder: the
+        // window asks again, and is told nothing made up.
+        if veil.is_unreadable() {
+            return Err(failed("the table's state cannot be read now"));
+        }
         if owner {
             let mut players: Vec<CampaignPlayer> = Vec::new();
             for t in &veil.tables {
@@ -683,8 +716,16 @@ async fn access(
             if viewer == "player" && access == "none" {
                 continue;
             }
+            let you = viewer == "player" && p.id == w.account.id;
             people.push(CampaignPerson {
-                id: p.id,
+                you,
+                // A player is told who else has access by name; the accounts
+                // of the others are the game master's to know.
+                id: if viewer == "player" && !you {
+                    String::new()
+                } else {
+                    p.id
+                },
                 name: p.name,
                 access: access.to_owned(),
             });
@@ -769,53 +810,101 @@ async fn invite(
 }
 
 /// The table's state changed: the veil is made again, what players are
-/// told follows, and every window hears it.
-pub async fn changed(server: &Arc<Server>, folder: &str, key: &str, touched: Vec<String>) {
+/// told follows, and every window hears it. `before` is the table as it
+/// was before the change: a player is told of what it gained or lost, never
+/// of a note it did not see before and does not now.
+pub async fn changed(
+    server: &Arc<Server>,
+    folder: &str,
+    key: &str,
+    touched: Vec<String>,
+    before: Option<Arc<campaign::Veil>>,
+) {
     campaign::forget(server, folder);
     let (s, f, k) = (Arc::clone(server), folder.to_owned(), key.to_owned());
     let _ = blocking(move || {
-        refresh(&s, &f, &k, &touched);
+        refresh(&s, &f, &k, &touched, before);
         Ok(())
     })
     .await;
 }
 
 /// The synchronous part of [`changed`].
-pub fn refresh(server: &Server, folder: &str, key: &str, touched: &[String]) {
+pub fn refresh(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    touched: &[String],
+    before: Option<Arc<campaign::Veil>>,
+) {
     campaign::forget(server, folder);
+    // A table that cannot be read now tells no one anything and sends no
+    // one out; the change is told by the next one.
+    if campaign::veil_to_write(server, folder, "what players are told").is_err() {
+        // The rooms close all the same: an unreadable table hides every note,
+        // so no player stays in a document it may no longer be in. The rest
+        // is told when the table can be read.
+        crate::collab::readers::veil_changed(server, key);
+        server.campaigns.defer(
+            folder,
+            campaign::Pending::Refresh {
+                key: key.to_owned(),
+                touched: touched.to_vec(),
+                before,
+            },
+        );
+        return;
+    }
     // A closed table keeps its players out at once.
     close_out(server, folder);
     crate::campaign_sync::refresh_readers(server, folder, key, false);
     crate::collab::readers::veil_changed(server, key);
-    let clients: Vec<(String, bool)> = lock(&server.clients)
+    let ids: Vec<String> = lock(&server.clients)
         .iter()
         .filter(|(_, c)| c.folder.as_ref().is_some_and(|(f, _)| f == folder))
-        .map(|(id, c)| {
-            (
-                id.clone(),
-                c.folder.as_ref().is_some_and(|(_, r)| *r == Role::Owner),
-            )
-        })
+        .map(|(id, _)| id.clone())
         .collect();
-    let (owners, players): (Vec<_>, Vec<_>) = clients.into_iter().partition(|(_, o)| *o);
-    let owners: Vec<String> = owners.into_iter().map(|(c, _)| c).collect();
-    let players: Vec<String> = players.into_iter().map(|(c, _)| c).collect();
+    // The windows that may only read are players; the others — the owner
+    // and any editor, the game masters — see the folder whole.
+    let (players, masters) = crate::readers::split(server, &ids);
     let event =
         |paths: Value| json!({ "event": "campaign-changed", "payload": { "paths": paths } });
-    server.push(&owners, &event(json!(touched)));
-    // A player is told no path in that event: it reads its list again, and
-    // is told as a folder is, of the notes it now has or has lost.
-    server.push(&players, &event(json!([])));
+    server.push(&masters, &event(json!(touched)));
+    let Some(after) = campaign::veil_of(server, folder) else {
+        server.push(&players, &event(json!([])));
+        return;
+    };
     // Each player is told of the notes it now has or has lost: what one
-    // player sees is not what another does.
+    // player sees is not what another does, and a player who saw a note
+    // neither before nor now is told nothing of it, not even that something
+    // moved.
     for player in &players {
-        let veil = campaign::veil_for_client(server, key, player);
+        let Some(account) = lock(&server.clients).get(player).map(|c| c.account.clone()) else {
+            continue;
+        };
+        let (was, is) = (
+            before.as_ref().map(|v| v.view(&account)),
+            after.view(&account),
+        );
+        let seen = |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_none_or(|v| !v.hides_note(p));
+        let edits =
+            |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_some_and(|v| v.may_edit(p, &account));
         let (mut now, mut gone): (Vec<&String>, Vec<&String>) = (Vec::new(), Vec::new());
+        let mut moved = touched.is_empty();
         for p in touched {
-            match &veil {
-                Some(v) if v.hides_note(p) => gone.push(p),
-                _ => now.push(p),
+            let (b, a) = (seen(was.as_ref(), p), seen(Some(&is), p));
+            if a {
+                now.push(p);
+            } else if b {
+                gone.push(p);
             }
+            moved |= a || b || edits(was.as_ref(), p) != edits(Some(&is), p);
+        }
+        if moved {
+            server.push(std::slice::from_ref(player), &event(json!([])));
+        }
+        if now.is_empty() && gone.is_empty() {
+            continue;
         }
         server.push(
             std::slice::from_ref(player),
@@ -877,7 +966,6 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         "delete_entry" | "delete_note" => {
             if let Some(path) = args["path"].as_str() {
-                remember_gone(server, folder, path);
                 touched = server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
         }
@@ -891,20 +979,98 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
     }
 }
 
-/// The notes under `path` (or it) are about to be deleted: the players who
-/// see them are remembered, so that the sync log tells their devices.
-fn remember_gone(server: &Server, folder: &str, path: &str) {
-    let Some(veil) = campaign::veil_of(server, folder) else {
-        return;
+/// The paths a command that deletes, renames or moves names, which the
+/// players who see them are remembered for before it runs.
+fn losing(cmd: &str, args: &Value) -> Vec<String> {
+    let one = |field: &str| {
+        args[field]
+            .as_str()
+            .map(str::to_owned)
+            .into_iter()
+            .collect()
     };
-    let (root, under) = (campaign::key(path), format!("{}/", campaign::key(path)));
-    for n in veil.states() {
-        let k = campaign::key(&n.path);
-        if let Audience::Players(set) = &n.audience
-            && (k == root || k.starts_with(&under))
-        {
-            let accounts: Vec<String> = set.iter().cloned().collect();
-            let _ = server.db.campaign_gone_add(folder, &n.path, &accounts);
+    match cmd {
+        "delete_entry" | "delete_note" | "sync_delete" => one("path"),
+        "rename_entry" | "rename_note" | "sync_rename" => one("from"),
+        "move_entries" => args["paths"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// A deletion, a rename or a move is about to run (ADR 0110 item 4, amended
+/// 2026-10-23): the players who see what it names are remembered now, while
+/// the files and the table's state are still there, so that the sync log
+/// tells their devices the old names are gone — the notes of a folder, the
+/// whole table's and the attachments their notes open too. Only a folder
+/// with per-player logs needs it; the others' shared log tells everyone.
+pub fn before_write(server: &Server, folder: &str, key: &str, cmd: &str, args: &Value) {
+    let named = losing(cmd, args);
+    if named.is_empty() || !campaign::veil_of(server, folder).is_some_and(|v| v.restricted()) {
+        return;
+    }
+    for (path, accounts) in crate::campaign_sync::seers_under(server, folder, key, &named) {
+        if let Err(e) = server.db.campaign_gone_add(folder, &path, &accounts) {
+            crate::log::warn(&format!("remembering who saw a note that goes: {e}"));
         }
     }
+}
+
+/// The write `before_write` ran for did not happen: what it remembered of
+/// who saw the paths is dropped, so that a later deletion is not told to a
+/// player from a time the table had since left.
+pub fn write_failed(server: &Server, folder: &str, cmd: &str, args: &Value) {
+    for path in losing(cmd, args) {
+        if let Err(e) = server.db.campaign_gone_clear(folder, &path) {
+            crate::log::warn(&format!("dropping who saw a path that stayed: {e}"));
+        }
+    }
+}
+
+/// `result`, the write `before_write` ran for: when it failed, what was
+/// remembered is dropped ([`write_failed`]).
+pub fn drop_if_failed<T>(
+    server: &Server,
+    folder: &str,
+    (cmd, args): (&str, &Value),
+    result: Result<T, ContractError>,
+) -> Result<T, ContractError> {
+    if result.is_err() {
+        write_failed(server, folder, cmd, args);
+    }
+    result
+}
+
+/// A device is about to delete or rename `path` (`field` of the command
+/// `cmd`): [`before_write`].
+pub fn device_will(
+    server: &Server,
+    (folder, key): (&str, &str),
+    cmd: &str,
+    field: &str,
+    path: &str,
+) {
+    before_write(server, folder, key, cmd, &json!({ field: path }));
+}
+
+/// A device did: what the table keeps of the path follows ([`after_write`]).
+/// `cmd` is the window's command that does the same, `field` its argument
+/// naming the path, `to` where it went (empty for a deletion).
+pub fn device_did(
+    server: &Server,
+    folder: &str,
+    (cmd, field): (&str, &str),
+    (path, to): (&str, &str),
+) {
+    let answer = if to.is_empty() {
+        Value::Null
+    } else {
+        json!({ "path": to })
+    };
+    after_write(server, folder, cmd, &json!({ field: path }), &answer);
 }

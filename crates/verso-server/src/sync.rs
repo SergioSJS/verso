@@ -26,6 +26,7 @@ use verso_service::OpError;
 use verso_service::lock;
 
 use crate::auth::{Via, Who};
+use crate::campaign_cmds as cc;
 use crate::rpc::{arg, blocking, role_here};
 use crate::state::Server;
 
@@ -406,7 +407,16 @@ fn record_changes(
     // and changed ones, and those read again whose bytes did not change.
     let mut readers = crate::db::ReaderOf::new();
     // A table's veil is made again from the folder as it now is (ADR 0110).
-    crate::campaign::forget(server, folder);
+    crate::campaign::forget_files(server, folder);
+    // A table that cannot be read now: nothing is recorded; the next
+    // reconciliation finds the files as they are.
+    if crate::campaign::veil_to_write(server, folder, "the folder's log").is_err() {
+        // What the write left on the disk is recorded by the next
+        // reconciliation, which finds the files as they are; the write
+        // itself succeeded, and says so.
+        return server.db.head(folder).map_err(verso_service::failed);
+    }
+    crate::campaign_sync::replay_pending(server, folder);
     let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
     let table = crate::campaign::veil_for_key(server, key);
     for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
@@ -452,30 +462,32 @@ fn record_changes(
         }
         changes.push((path, Some((hash, size, quick)), from));
     }
+    // A note a player saw that was deleted, or renamed: the players' devices
+    // are told it went — decided in the step that records it, from what was
+    // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).
+    let (mut notices, lost) =
+        crate::campaign_sync::deletion_notices(server, (folder, key), &changes);
+    // And who does not see what was written, as it is written.
+    if let Err(e) =
+        crate::campaign_sync::unseen_notices(server, (folder, key), &changes, &mut notices)
+    {
+        // Not recorded without them: the write stands, the next walk records it.
+        crate::log::warn(&format!("a change waits to be recorded: {}", e.message));
+        return server.db.head(folder).map_err(verso_service::failed);
+    }
     let (head, same) = server
         .db
-        .record(
+        .record_with(
             folder,
             (by.account, by.device),
             &changes,
             quick_only,
             (&readers, &recheck),
+            &notices,
         )
         .map_err(verso_service::failed)?;
-    // A note released to some players that was deleted: their devices are
-    // told it went (ADR 0110 item 4, amended 2026-10-23).
-    let first = head - i64::try_from(changes.len()).unwrap_or(0) + 1;
-    for (i, (path, now_is, _)) in changes.iter().enumerate() {
-        if now_is.is_none()
-            && let Ok(accounts) = server.db.campaign_gone_take(folder, path)
-            && !accounts.is_empty()
-        {
-            let seq = first + i64::try_from(i).unwrap_or(0);
-            let _ = server.db.campaign_epoch_set(folder, first - 1);
-            let _ = server.db.campaign_lost_add(folder, seq, &accounts);
-            let _ = server.db.reader_force(folder, &[seq]);
-            crate::campaign::forget(server, folder);
-        }
+    if !notices.is_empty() {
+        crate::campaign::forget_files(server, folder);
     }
     // Each text file's new bytes a version, a rename followed, a deletion
     // kept reachable (ADR 0091 items 1, 4 and 9).
@@ -494,7 +506,7 @@ fn record_changes(
             .filter(|(_, same)| !**same)
             .flat_map(|((path, _, from), _)| std::iter::once(path.as_str()).chain(from.as_deref()))
             .collect();
-        crate::readers::push_sync_changed(server, folder, (head, &paths), &seen);
+        crate::readers::push_sync_changed(server, (folder, key), (head, &paths), &seen, &lost);
         // A note of a table edited may open or close the attachments it
         // links: a reader is told of those again (ADR 0110 item 4).
         if crate::campaign::veil_of(server, folder).is_some_and(|v| {
@@ -730,19 +742,14 @@ pub(crate) async fn command_in(
                 let since: i64 = arg(&args, "since")?;
                 head_for_question(&s, &folder, &key, &c)?;
                 let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                // The players of a table with logs of their own are asked by
+                // their own page (`sync_reader`, `share_sync`); the table
+                // changing between that choice and this is the one place the
+                // shared log could be told to one of them: refused, asked again.
                 if crate::campaign_sync::restricted(&s, &key) {
-                    let changes: Vec<Value> =
-                        crate::campaign_sync::viewer_changes(&s, &folder, &key, &viewer)?
-                            .into_iter()
-                            .filter(|t| t.seq > since && t.tell)
-                            .map(|t| t.change)
-                            .take(1000)
-                            .collect();
-                    let more = changes
-                        .last()
-                        .and_then(|l| l["seq"].as_i64())
-                        .is_some_and(|last| last < head);
-                    return Ok(json!({ "head": head, "changes": changes, "more": more }));
+                    return Err(verso_service::failed(
+                        "the table changed: ask again in a moment",
+                    ));
                 }
                 let changes =
                     s.db.reader_changes_since(&folder, since, 1000)
@@ -817,13 +824,23 @@ pub(crate) async fn command_in(
                     let _only = lock(&one);
                     let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
                     let p = path.clone();
+                    // The players who see it, remembered while it is there.
+                    cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
                     let gone = s.service.with_key(&key, move |ws| {
                         is_now(ws, &p, Some(&base))?;
                         let gone = ws.delete_entry(&p)?;
                         // No empty folder left behind on the server either.
                         ws.prune_empty_parents(&p);
                         Ok(gone)
-                    })?;
+                    });
+                    let gone = cc::drop_if_failed(
+                        &s,
+                        &folder,
+                        ("sync_delete", &json!({ "path": path })),
+                        gone,
+                    )?;
+                    // What the table keeps of the note goes with it.
+                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, ""));
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,
@@ -854,6 +871,9 @@ pub(crate) async fn command_in(
                 let same =
                     verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
                 let (to, other) = as_kept(&s, &folder, &to, &*inside)?;
+                if !same {
+                    cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
+                }
                 let (f, t) = (from.clone(), to.clone());
                 let reach = Arc::clone(&inside);
                 let landed = s.service.with_key(&key, move |ws| {
@@ -887,12 +907,20 @@ pub(crate) async fn command_in(
                         })
                         .collect();
                     Ok(Some((done.path, outside)))
-                })?;
+                });
+                let landed = cc::drop_if_failed(
+                    &s,
+                    &folder,
+                    ("sync_rename", &json!({ "from": from })),
+                    landed,
+                )?;
                 let Some((landed, outside)) = landed else {
                     drop(only);
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
                 };
+                // What the table keeps of the note follows it.
+                cc::device_did(&s, &folder, ("rename_entry", "from"), (&from, &landed));
                 let head = reconcile_paths(
                     &s,
                     &folder,

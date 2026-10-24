@@ -50,6 +50,30 @@ pub type Recorded = (String, Option<(String, i64, String)>, Option<String>);
 /// it is told as the file is.
 pub type ReaderOf = HashMap<String, (String, i64)>;
 
+/// What a table's audience says of a change as it is recorded (ADR 0110
+/// item 4, amended 2026-10-23), by the path of the change. It is written in
+/// the transaction that records the change, so that no reader of the log
+/// ever finds the change without it.
+#[derive(Debug, Clone, Default)]
+pub struct Notice {
+    /// Every reader's log holds the change, even if the file is told to a
+    /// reader as it was: the change is who sees the note, not what it holds.
+    pub force: bool,
+    /// The players who lose the note with it (or who saw the path that
+    /// was deleted): their log tells them the path is gone.
+    pub lost: Vec<String>,
+    /// The players whose own log leaves the change out.
+    pub skip: Vec<String>,
+    /// A deletion: also the players remembered for the path
+    /// (`campaign_gone`), taken in the transaction that records it and
+    /// kept to `only` — the accounts that are still players.
+    pub remember: bool,
+    pub only: Option<Vec<String>>,
+}
+
+/// The notices of the changes being recorded, by path.
+pub type Notices = HashMap<String, Notice>;
+
 /// One who may only read is told the projection's hash and size.
 const READER_FILE: &str = "COALESCE(reader_hash, hash), COALESCE(reader_size, size)";
 
@@ -87,6 +111,96 @@ const SEEN: &str = "(path = ?3 OR substr(path, 1, length(?3) + 1) = ?3 || '/' \
      OR path = ?4 OR substr(path, 1, length(?4) + 1) = ?4 || '/' \
      OR renamed_from = ?3 OR substr(renamed_from, 1, length(?3) + 1) = ?3 || '/' \
      OR renamed_from = ?4 OR substr(renamed_from, 1, length(?4) + 1) = ?4 || '/')";
+
+/// A change of the log as a reader is told it (see
+/// [`Db::reader_changes_since`]).
+const READER_CHANGE: &str = "SELECT c.seq, c.path,
+        CASE WHEN c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0 THEN NULL ELSE COALESCE(c.reader_hash, c.hash) END,
+        CASE WHEN COALESCE(c.reader_size, 0) < 0 THEN 0 ELSE COALESCE(c.reader_size, c.size) END,
+        (c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0), c.renamed_from, c.device,
+        COALESCE(NULLIF(a.name, ''), a.email)
+ FROM changes c LEFT JOIN accounts a ON a.id = c.actor";
+
+fn change_of(r: &rusqlite::Row<'_>) -> rusqlite::Result<Change> {
+    Ok(Change {
+        seq: r.get(0)?,
+        path: r.get(1)?,
+        hash: r.get(2)?,
+        size: r.get(3)?,
+        deleted: r.get(4)?,
+        renamed_from: r.get(5)?,
+        device: r.get(6)?,
+        by: r.get(7)?,
+    })
+}
+
+/// Whether a change is one every reader's log holds.
+fn forces(n: &Notice) -> bool {
+    n.force || !n.lost.is_empty()
+}
+
+/// The notice of a deletion with the players remembered for its path.
+fn merged_notice(
+    tx: &rusqlite::Transaction<'_>,
+    folder: &str,
+    path: &str,
+    notice: Option<&Notice>,
+) -> R<Option<Notice>> {
+    let Some(n) = notice else {
+        return Ok(None);
+    };
+    let mut out = n.clone();
+    if n.remember {
+        let taken: Vec<String> = {
+            let mut st = tx
+                .prepare("SELECT account FROM campaign_gone WHERE folder = ?1 AND path = ?2")
+                .map_err(e)?;
+            st.query_map(params![folder, path], |r| r.get::<_, String>(0))
+                .map_err(e)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(e)?
+        };
+        tx.execute(
+            "DELETE FROM campaign_gone WHERE folder = ?1 AND path = ?2",
+            params![folder, path],
+        )
+        .map_err(e)?;
+        for a in taken {
+            if n.only.as_ref().is_none_or(|o| o.contains(&a)) && !out.lost.contains(&a) {
+                out.lost.push(a);
+            }
+        }
+    }
+    Ok(Some(out))
+}
+
+/// What the change at `seq` carries of its table's audience: the players
+/// who lost the path, and those whose log leaves it out.
+fn audience_of_change(
+    tx: &rusqlite::Transaction<'_>,
+    folder: &str,
+    seq: i64,
+    notice: Option<&Notice>,
+) -> R<()> {
+    let Some(n) = notice else {
+        return Ok(());
+    };
+    for a in &n.lost {
+        tx.execute(
+            "INSERT OR IGNORE INTO campaign_lost (folder, seq, account) VALUES (?1, ?2, ?3)",
+            params![folder, seq, a],
+        )
+        .map_err(e)?;
+    }
+    for a in n.skip.iter().filter(|a| !n.lost.contains(a)) {
+        tx.execute(
+            "INSERT OR IGNORE INTO campaign_skip (folder, account, seq) VALUES (?1, ?2, ?3)",
+            params![folder, a, seq],
+        )
+        .map_err(e)?;
+    }
+    Ok(())
+}
 
 /// A share's one or two roots as the two parameters of [`SEEN`].
 fn two_roots<'a>(roots: &[&'a str]) -> (&'a str, &'a str) {
@@ -151,10 +265,26 @@ impl Db {
     pub fn record(
         &self,
         folder: &str,
+        who: (Option<&str>, Option<&str>),
+        changes: &[Recorded],
+        quick: &[(String, String)],
+        told: (&ReaderOf, &[String]),
+    ) -> R<(i64, Vec<bool>)> {
+        self.record_with(folder, who, changes, quick, told, &Notices::new())
+    }
+
+    /// [`Db::record`] with what a table's audience says of the changes: a
+    /// change a notice forces, or names players who lost its path, is a
+    /// change every reader's log holds; the players who lost it and those
+    /// whose log leaves it out are kept in the same transaction.
+    pub fn record_with(
+        &self,
+        folder: &str,
         (actor, device): (Option<&str>, Option<&str>),
         changes: &[Recorded],
         quick: &[(String, String)],
         (readers, recheck): (&ReaderOf, &[String]),
+        notices: &Notices,
     ) -> R<(i64, Vec<bool>)> {
         let mut same_for_reader = Vec::with_capacity(changes.len());
         let mut conn = self.conn();
@@ -193,6 +323,7 @@ impl Db {
                     } else {
                         renamed_from.is_none() && before.as_ref() == Some(shown)
                     };
+                    let same = same && !notices.get(path).is_some_and(forces);
                     same_for_reader.push(same);
                     let (rh, rs) = (reader.map(|r| &r.0), reader.map(|r| r.1));
                     tx.execute(
@@ -206,6 +337,7 @@ impl Db {
                         params![folder, seq, path, hash, size, renamed_from, actor, at, device, rh, rs, same],
                     )
                     .map_err(e)?;
+                    audience_of_change(&tx, folder, seq, notices.get(path))?;
                 }
                 None => {
                     // A file a reader was never told of (a table's hidden
@@ -220,6 +352,10 @@ impl Db {
                         .optional()
                         .map_err(e)?
                         .unwrap_or(false);
+                    // Remembered in the step that records the deletion: no
+                    // other step can take them first or leave them behind.
+                    let merged = merged_notice(&tx, folder, path, notices.get(path))?;
+                    let unseen = unseen && !merged.as_ref().is_some_and(forces);
                     same_for_reader.push(unseen);
                     tx.execute(
                         "DELETE FROM manifest WHERE folder = ?1 AND path = ?2",
@@ -231,6 +367,7 @@ impl Db {
                         params![folder, seq, path, actor, at, device, unseen],
                     )
                     .map_err(e)?;
+                    audience_of_change(&tx, folder, seq, merged.as_ref())?;
                 }
             }
         }
@@ -292,10 +429,12 @@ impl Db {
         Ok(rows)
     }
 
-    /// `paths` are hidden from readers from now on and were never told to
-    /// the people who read them as a table's (ADR 0110): the manifest says
-    /// so, and no change of the log before this one names them to a reader.
-    pub fn reader_silence(&self, folder: &str, paths: &[String]) -> R<()> {
+    /// `paths` are hidden from readers from now on and were never told to the
+    /// people who read them as a table's (ADR 0110): the manifest says so.
+    /// No row of the log is touched — one that left it would move every
+    /// number a device counted — and what the log said before is told to no
+    /// player by what it now is (`campaign_sync`).
+    pub fn reader_hide(&self, folder: &str, paths: &[String]) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         for p in paths {
@@ -304,28 +443,8 @@ impl Db {
                 params![folder, p],
             )
             .map_err(e)?;
-            tx.execute(
-                "UPDATE changes SET reader_same = 1 WHERE folder = ?1 AND (path = ?2 OR renamed_from = ?2)",
-                params![folder, p],
-            )
-            .map_err(e)?;
         }
         tx.commit().map_err(e)
-    }
-
-    /// The changes `seqs` are changes every reader sees, even if the file
-    /// is told to a reader as it was: a note released to some players
-    /// changed who sees it, not what it holds.
-    pub fn reader_force(&self, folder: &str, seqs: &[i64]) -> R<()> {
-        let conn = self.conn();
-        for q in seqs {
-            conn.execute(
-                "UPDATE changes SET reader_same = 0 WHERE folder = ?1 AND seq = ?2",
-                params![folder, q],
-            )
-            .map_err(e)?;
-        }
-        Ok(())
     }
 
     /// The last change a reader sees: one only inside a secret block is
@@ -375,31 +494,121 @@ impl Db {
     pub fn reader_changes_since(&self, folder: &str, since: i64, limit: i64) -> R<Vec<Change>> {
         let conn = self.reader();
         let mut st = conn
-            .prepare(
-                "SELECT c.seq, c.path,
-                        CASE WHEN c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0 THEN NULL ELSE COALESCE(c.reader_hash, c.hash) END,
-                        CASE WHEN COALESCE(c.reader_size, 0) < 0 THEN 0 ELSE COALESCE(c.reader_size, c.size) END,
-                        (c.deleted = 1 OR COALESCE(c.reader_size, 0) < 0), c.renamed_from, c.device,
-                        COALESCE(NULLIF(a.name, ''), a.email)
-                 FROM changes c LEFT JOIN accounts a ON a.id = c.actor
-                 WHERE c.folder = ?1 AND c.seq > ?2 AND c.reader_same = 0 ORDER BY c.seq LIMIT ?3",
-            )
+            .prepare(&format!(
+                "{READER_CHANGE} WHERE c.folder = ?1 AND c.seq > ?2 AND c.reader_same = 0 ORDER BY c.seq LIMIT ?3"
+            ))
             .map_err(e)?;
-        st.query_map(params![folder, since, limit], |r| {
-            Ok(Change {
-                seq: r.get(0)?,
-                path: r.get(1)?,
-                hash: r.get(2)?,
-                size: r.get(3)?,
-                deleted: r.get(4)?,
-                renamed_from: r.get(5)?,
-                device: r.get(6)?,
-                by: r.get(7)?,
-            })
-        })
+        st.query_map(params![folder, since, limit], change_of)
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
+    /// The changes in `account`'s own log of a table's folder (ADR 0110
+    /// item 4): the readers' changes up to `upto` less those its log
+    /// leaves out (`campaign_skip`), from the `offset`-th, at most `limit`.
+    pub fn campaign_member_changes(
+        &self,
+        (folder, account): (&str, &str),
+        upto: i64,
+        (offset, limit): (i64, i64),
+    ) -> R<Vec<Change>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(&format!(
+                "{READER_CHANGE} WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0
+                   AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                   WHERE s.folder = c.folder AND s.account = ?3 AND s.seq = c.seq)
+                 ORDER BY c.seq LIMIT ?4 OFFSET ?5"
+            ))
+            .map_err(e)?;
+        st.query_map(params![folder, upto, account, limit, offset], change_of)
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
+    /// The changes of `account`'s own log that a share sees (its path, or
+    /// its path before a rename, is inside one of `roots`): the same rows
+    /// [`Db::campaign_member_changes`] holds, cut to the share.
+    pub fn campaign_share_changes(
+        &self,
+        (folder, account): (&str, &str),
+        (upto, roots): (i64, &[&str]),
+        (offset, limit): (i64, i64),
+    ) -> R<Vec<Change>> {
+        let (a, b) = two_roots(roots);
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(&format!(
+                "{READER_CHANGE} WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0 AND {}
+                   AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                   WHERE s.folder = c.folder AND s.account = ?5 AND s.seq = c.seq)
+                 ORDER BY c.seq LIMIT ?6 OFFSET ?7",
+                SEEN.replace("path", "c.path")
+                    .replace("renamed_from", "c.renamed_from"),
+            ))
+            .map_err(e)?;
+        st.query_map(
+            params![folder, upto, a, b, account, limit, offset],
+            change_of,
+        )
         .map_err(e)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(e)
+    }
+
+    /// How many changes of `account`'s own log a share sees up to `upto`.
+    pub fn campaign_share_count(
+        &self,
+        (folder, account): (&str, &str),
+        (upto, roots): (i64, &[&str]),
+    ) -> R<i64> {
+        let (a, b) = two_roots(roots);
+        self.reader()
+            .query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM changes c
+                     WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0 AND {}
+                       AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                       WHERE s.folder = c.folder AND s.account = ?5 AND s.seq = c.seq)",
+                    SEEN.replace("path", "c.path").replace("renamed_from", "c.renamed_from"),
+                ),
+                params![folder, upto, a, b, account],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// The last change of each path among the readers' changes after
+    /// `after`: where a player's log begins when it is asked for the first
+    /// time.
+    pub fn reader_last_changes(&self, folder: &str, after: i64) -> R<HashMap<String, i64>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT path, MAX(seq) FROM changes
+                 WHERE folder = ?1 AND seq > ?2 AND reader_same = 0 GROUP BY path",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, after], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map_err(e)?
+            .collect::<rusqlite::Result<HashMap<_, _>>>()
+            .map_err(e)
+    }
+
+    /// How many changes `account`'s own log holds up to `upto`: its head.
+    pub fn campaign_member_count(&self, folder: &str, account: &str, upto: i64) -> R<i64> {
+        self.reader()
+            .query_row(
+                "SELECT COUNT(*) FROM changes c
+                 WHERE c.folder = ?1 AND c.seq <= ?2 AND c.reader_same = 0
+                   AND NOT EXISTS (SELECT 1 FROM campaign_skip s
+                                   WHERE s.folder = c.folder AND s.account = ?3 AND s.seq = c.seq)",
+                params![folder, upto, account],
+                |r| r.get(0),
+            )
+            .map_err(e)
     }
 
     /// Of `paths`, those whose last change a reader does not see: a change

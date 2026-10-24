@@ -246,6 +246,9 @@ impl Db {
                 params![folder, root],
             )
             .map_err(e)?;
+            // The folder's readers have counted its log as one for everyone
+            // up to here; from here each player's is its own.
+            players_logs_begin(&conn, folder)?;
         }
         Ok(n > 0)
     }
@@ -271,6 +274,7 @@ impl Db {
                 .map_err(e)?;
             }
             rehome_log(&tx, folder)?;
+            forget_players_logs(&tx, folder)?;
         }
         tx.commit().map_err(e)?;
         Ok(n > 0)
@@ -354,6 +358,12 @@ impl Db {
     pub fn campaign_audience(&self, folder: &str, paths: &[String], audience: &Audience) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
+        // From the moment a note is released to some players, in the same
+        // step: the players' logs are each their own. A failed step leaves
+        // neither the audience nor the epoch.
+        if audience.is_players() {
+            players_logs_begin(&tx, folder)?;
+        }
         for p in paths {
             tx.execute(
                 "INSERT INTO campaign_notes (folder, path, released) VALUES (?1, ?2, ?3)
@@ -405,31 +415,50 @@ impl Db {
         tx.commit().map_err(e)
     }
 
-    /// `accounts` lost the note recorded at change `seq` of the sync log.
-    pub fn campaign_lost_add(&self, folder: &str, seq: i64, accounts: &[String]) -> R<()> {
-        let conn = self.conn();
-        for a in accounts {
-            conn.execute(
-                "INSERT OR IGNORE INTO campaign_lost (folder, seq, account) VALUES (?1, ?2, ?3)",
-                params![folder, seq, a],
-            )
-            .map_err(e)?;
-        }
-        Ok(())
-    }
-
-    /// The note at `path` was deleted and `accounts` saw it: the deletion
-    /// the sync log records next tells their devices.
+    /// The note at `path` is about to be deleted or renamed and `accounts`
+    /// see it: the deletion the sync log records next tells their devices.
+    /// What an earlier, unrecorded step left for the path goes first.
     pub fn campaign_gone_add(&self, folder: &str, path: &str, accounts: &[String]) -> R<()> {
-        let conn = self.conn();
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        tx.execute(
+            "DELETE FROM campaign_gone WHERE folder = ?1 AND path = ?2",
+            params![folder, path],
+        )
+        .map_err(e)?;
         for a in accounts {
-            conn.execute(
+            tx.execute(
                 "INSERT OR IGNORE INTO campaign_gone (folder, path, account) VALUES (?1, ?2, ?3)",
                 params![folder, path, a],
             )
             .map_err(e)?;
         }
+        tx.commit().map_err(e)
+    }
+
+    /// What was remembered for `path` and the files under it is dropped: a
+    /// deletion, a rename or a move that did not run.
+    pub fn campaign_gone_clear(&self, folder: &str, path: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "DELETE FROM campaign_gone WHERE folder = ?1
+                   AND (path = ?2 OR substr(path, 1, length(?3)) = ?3)",
+                params![folder, path, under_sql(path)],
+            )
+            .map_err(e)?;
         Ok(())
+    }
+
+    /// Who is remembered for the deleted note at `path`, left in place.
+    pub fn campaign_gone_peek(&self, folder: &str, path: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT account FROM campaign_gone WHERE folder = ?1 AND path = ?2")
+            .map_err(e)?;
+        st.query_map(params![folder, path], |r| r.get::<_, String>(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
     }
 
     /// Who saw the deleted note at `path`, taken: asked once, as the
@@ -455,19 +484,48 @@ impl Db {
         Ok(out)
     }
 
-    /// The changes (by number) at which `account` lost a note.
+    /// The changes (by number) after `after`, up to `until`, at which
+    /// `account` lost a path, or saw it deleted.
     pub fn campaign_lost_of(
         &self,
         folder: &str,
         account: &str,
+        (after, until): (i64, i64),
     ) -> R<std::collections::HashSet<i64>> {
         let conn = self.reader();
         let mut st = conn
-            .prepare("SELECT seq FROM campaign_lost WHERE folder = ?1 AND account = ?2")
+            .prepare(
+                "SELECT seq FROM campaign_lost
+                 WHERE folder = ?1 AND account = ?2 AND seq > ?3 AND seq <= ?4",
+            )
             .map_err(e)?;
-        st.query_map(params![folder, account], |r| r.get::<_, i64>(0))
-            .map_err(e)?
-            .collect::<rusqlite::Result<_>>()
+        st.query_map(params![folder, account, after, until], |r| {
+            r.get::<_, i64>(0)
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    /// Whether `account` was told `path` deleted before change `before`:
+    /// the rename at `before` came from a name it knew.
+    pub fn campaign_lost_path(
+        &self,
+        folder: &str,
+        account: &str,
+        path: &str,
+        before: i64,
+    ) -> R<bool> {
+        self.reader()
+            .query_row(
+                "SELECT 1 FROM changes c JOIN campaign_lost l ON l.folder = c.folder AND l.seq = c.seq
+                 WHERE c.folder = ?1 AND c.path = ?3 AND c.deleted = 1 AND c.seq < ?4 AND l.account = ?2
+                 LIMIT 1",
+                params![folder, account, path, before],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|r| r.is_some())
             .map_err(e)
     }
 
@@ -484,41 +542,37 @@ impl Db {
             .map_err(e)
     }
 
-    /// The players' logs of `folder` begin after change `seq`, once.
-    pub fn campaign_epoch_set(&self, folder: &str, seq: i64) -> R<()> {
-        self.conn()
-            .execute(
-                "INSERT OR IGNORE INTO campaign_epoch (folder, seq) VALUES (?1, ?2)",
-                params![folder, seq],
-            )
-            .map_err(e)?;
-        Ok(())
-    }
-
-    /// Where `account`'s log was settled to, and the changes it leaves out.
-    pub fn campaign_viewer(
-        &self,
-        folder: &str,
-        account: &str,
-    ) -> R<(Option<i64>, std::collections::HashSet<i64>)> {
-        let conn = self.reader();
-        let settled: Option<i64> = conn
+    /// Where `account`'s log was settled to: every change up to it is
+    /// decided. None before its first ask.
+    pub fn campaign_viewer(&self, folder: &str, account: &str) -> R<Option<i64>> {
+        self.reader()
             .query_row(
                 "SELECT settled FROM campaign_viewer WHERE folder = ?1 AND account = ?2",
                 params![folder, account],
                 |r| r.get(0),
             )
             .optional()
-            .map_err(e)?;
+            .map_err(e)
+    }
+
+    /// The changes after `after` that `account`'s log leaves out already:
+    /// those its notices said at the change, before any ask.
+    pub fn campaign_skips_after(
+        &self,
+        folder: &str,
+        account: &str,
+        after: i64,
+    ) -> R<std::collections::HashSet<i64>> {
+        let conn = self.reader();
         let mut st = conn
-            .prepare("SELECT seq FROM campaign_skip WHERE folder = ?1 AND account = ?2")
+            .prepare(
+                "SELECT seq FROM campaign_skip WHERE folder = ?1 AND account = ?2 AND seq > ?3",
+            )
             .map_err(e)?;
-        let skips = st
-            .query_map(params![folder, account], |r| r.get::<_, i64>(0))
+        st.query_map(params![folder, account, after], |r| r.get::<_, i64>(0))
             .map_err(e)?
             .collect::<rusqlite::Result<_>>()
-            .map_err(e)?;
-        Ok((settled, skips))
+            .map_err(e)
     }
 
     /// `account`'s log is settled up to change `upto`; `skips` are the
@@ -555,25 +609,26 @@ impl Db {
     }
 
     /// Who may edit a note. A player who edits a note sees it: when the note
-    /// is not the table's, the player joins its audience.
+    /// is not the table's, the player joins its audience. The grant and the
+    /// audience are one step.
     pub fn campaign_grant(&self, folder: &str, path: &str, grant: &Grant) -> R<()> {
         let (kind, account) = match grant {
             Grant::None => ("none", None),
             Grant::Group => ("group", None),
             Grant::Player(a) => ("player", Some(a.as_str())),
         };
-        self.conn()
-            .execute(
-                "INSERT INTO campaign_notes (folder, path, grant_kind, grant_account)
-                 VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT (folder, path) DO UPDATE SET
-                   grant_kind = excluded.grant_kind, grant_account = excluded.grant_account",
-                params![folder, path, kind, account],
-            )
-            .map_err(e)?;
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        tx.execute(
+            "INSERT INTO campaign_notes (folder, path, grant_kind, grant_account)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT (folder, path) DO UPDATE SET
+               grant_kind = excluded.grant_kind, grant_account = excluded.grant_account",
+            params![folder, path, kind, account],
+        )
+        .map_err(e)?;
         if let Grant::Player(a) = grant {
-            let whole: bool = self
-                .conn()
+            let whole: bool = tx
                 .query_row(
                     "SELECT released FROM campaign_notes WHERE folder = ?1 AND path = ?2",
                     params![folder, path],
@@ -581,15 +636,15 @@ impl Db {
                 )
                 .map_err(e)?;
             if !whole {
-                self.conn()
-                    .execute(
-                        "INSERT OR IGNORE INTO campaign_audience (folder, path, account) VALUES (?1, ?2, ?3)",
-                        params![folder, path, a],
-                    )
-                    .map_err(e)?;
+                players_logs_begin(&tx, folder)?;
+                tx.execute(
+                    "INSERT OR IGNORE INTO campaign_audience (folder, path, account) VALUES (?1, ?2, ?3)",
+                    params![folder, path, a],
+                )
+                .map_err(e)?;
             }
         }
-        Ok(())
+        tx.commit().map_err(e)
     }
 
     /// `from` (a note or a folder) was renamed or moved to `to`: the state
@@ -644,25 +699,95 @@ impl Db {
                 .map_err(e)?;
         }
         rehome_log(&tx, folder)?;
+        forget_players_logs(&tx, folder)?;
         tx.commit().map_err(e)?;
         Ok(touched)
     }
 
-    /// An account left the folder (or the share): the notes granted to it
-    /// are granted to no one.
-    pub fn campaign_ungrant_account(&self, folder: &str, account: &str) -> R<usize> {
-        let _ = self.conn().execute(
-            "DELETE FROM campaign_audience WHERE folder = ?1 AND account = ?2",
-            params![folder, account],
-        );
-        self.conn()
-            .execute(
-                "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
-                 WHERE folder = ?1 AND grant_kind = 'player' AND grant_account = ?2",
+    /// An account may no longer read the folder (it left it or its share, or
+    /// its role writes): the notes granted to it are granted to no one, it is
+    /// in no audience, and what its log kept goes — so that if it is let in
+    /// again it begins anew, and never inherits the audiences it had or counts
+    /// what happened while it was out. Nothing, if it still reads the folder
+    /// by another way.
+    pub fn campaign_account_left(&self, folder: &str, account: &str) -> R<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let reads: bool = tx
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM grants WHERE folder = ?1 AND account = ?2 AND role = 'reader')
+                     OR EXISTS (SELECT 1 FROM share_grants g JOIN shares s ON s.id = g.share
+                                WHERE s.folder = ?1 AND g.account = ?2 AND g.role = 'reader')",
+                params![folder, account],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        if reads {
+            return Ok(());
+        }
+        for table in [
+            "campaign_audience",
+            "campaign_viewer",
+            "campaign_skip",
+            "campaign_lost",
+            "campaign_gone",
+        ] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE folder = ?1 AND account = ?2"),
                 params![folder, account],
             )
-            .map_err(e)
+            .map_err(e)?;
+        }
+        tx.execute(
+            "UPDATE campaign_notes SET grant_kind = 'none', grant_account = NULL
+             WHERE folder = ?1 AND grant_kind = 'player' AND grant_account = ?2",
+            params![folder, account],
+        )
+        .map_err(e)?;
+        tx.commit().map_err(e)
     }
+}
+
+/// The players' logs of `folder` begin after its last change, once: from
+/// here on a note is released to some players. The change before it is
+/// every player's.
+fn players_logs_begin(conn: &rusqlite::Connection, folder: &str) -> R<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO campaign_epoch (folder, seq)
+         SELECT ?1, COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1",
+        [folder],
+    )
+    .map_err(e)?;
+    Ok(())
+}
+
+/// A folder with no table left has no player's log of its own: the
+/// numbers a device counted in one would run ahead of the shared log's if
+/// a table were made again, so what keeps them goes with the last table
+/// and the next one begins anew.
+fn forget_players_logs(conn: &rusqlite::Connection, folder: &str) -> R<()> {
+    let left: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM campaigns WHERE folder = ?1",
+            [folder],
+            |r| r.get(0),
+        )
+        .map_err(e)?;
+    if left > 0 {
+        return Ok(());
+    }
+    for table in [
+        "campaign_epoch",
+        "campaign_viewer",
+        "campaign_skip",
+        "campaign_lost",
+        "campaign_gone",
+        "campaign_audience",
+    ] {
+        conn.execute(&format!("DELETE FROM {table} WHERE folder = ?1"), [folder])
+            .map_err(e)?;
+    }
+    Ok(())
 }
 
 /// A folder with no table left keeps its log as the folder's own

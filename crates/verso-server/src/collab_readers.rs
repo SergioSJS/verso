@@ -313,12 +313,17 @@ pub fn demoted(server: &Server, client: &str) {
     }
 }
 
-/// A table's state changed (a release, a hide, a table made or undone):
-/// the readers of every room of `key` leave the document they hold, told
-/// each closed, so that they read the note again and join anew over the
-/// text the veil now leaves (ADR 0110 item 4). A room that was split
-/// stays split (a document that once held a secret may hold it in its
-/// history), its shadow made again from the text now.
+/// A table's state changed (a release, a hide, a grant, a table made or
+/// undone): the readers of every room of `key` leave the document they
+/// hold, told each closed, so that they read the note again and join anew
+/// over the text the veil now leaves (ADR 0110 item 4). A room that was
+/// split stays split (a document that once held a secret may hold it in
+/// its history), its shadow made again from the text now.
+///
+/// A player who edits the note by a grant is in the room's document, not
+/// among its readers: it is asked again too, and leaves when the note is
+/// no longer one it sees, or one it may edit — told the room closed, it
+/// reads the note again and joins as what it now is.
 pub fn veil_changed(server: &Server, key: &str) {
     let rooms: Vec<_> = lock(&server.rooms.map)
         .iter()
@@ -327,21 +332,30 @@ pub fn veil_changed(server: &Server, key: &str) {
         .collect();
     for room in rooms {
         let mut r = lock(&room);
-        if r.kind != Kind::Note {
-            continue;
-        }
-        if r.readers.split {
+        if r.kind == Kind::Note && r.readers.split {
             let text = text_of(&r.doc);
             if let Err(e) = split(server, &mut r, &text) {
                 crate::log::warn(&format!("a room's readers' document: {}", e.message));
             }
         }
-        if r.readers.clients.is_empty() {
+        let mut out: Vec<String> = if r.kind == Kind::Note {
+            r.readers.clients.drain().collect()
+        } else {
+            Vec::new()
+        };
+        let rest: Vec<String> = r
+            .clients
+            .iter()
+            .filter(|c| !out.contains(c) && !still_admitted(server, c, &r.key, &r.path, true))
+            .cloned()
+            .collect();
+        out.extend(rest);
+        if out.is_empty() {
             continue;
         }
-        let out: Vec<String> = r.readers.clients.drain().collect();
         for c in &out {
             r.clients.remove(c);
+            r.readers.forget(c);
         }
         let path = r.path.clone();
         server.push(
@@ -349,4 +363,49 @@ pub fn veil_changed(server: &Server, key: &str) {
             &event("collab-closed", &path, "revision", &json!(null)),
         );
     }
+}
+
+/// Whether the window `client` may be in the document of the room of
+/// `path`: a game master always; a player when the note is one it sees and
+/// it may edit (`edits`) — a player who may only read has no place in the
+/// document of a note with a grant, it reads the note as every reader does.
+fn still_admitted(server: &Server, client: &str, key: &str, path: &str, edits: bool) -> bool {
+    let account = {
+        let table = lock(&server.clients);
+        match table.get(client) {
+            // A window that is not known any more is not in a room.
+            None => return false,
+            Some(c) if !c.token_write || !c.folder.as_ref().is_some_and(|(_, r)| r.writes()) => {
+                c.account.clone()
+            }
+            Some(_) => return true,
+        }
+    };
+    let Some(veil) = crate::campaign::veil_for_key(server, key) else {
+        return true;
+    };
+    let veil = veil.view(&account);
+    !veil.hides_note(path) && (!edits || veil.may_edit(path, &account))
+}
+
+/// `client` joins the room of `path` of folder `key`: a player must still
+/// see the note, asked under the room's lock — the check of the command
+/// ran before it, and the table may have changed between the two. Returns
+/// whether the window joins as a reader: one that asked to edit by a grant
+/// the table has since taken back joins as a reader, as it would have been
+/// told to.
+pub fn admitted(
+    server: &Server,
+    (client, reader): (&str, bool),
+    key: &str,
+    path: &str,
+) -> Result<bool, ContractError> {
+    // Not there for it, as a hidden note is for every door.
+    if !still_admitted(server, client, key, path, false) {
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::NotFound,
+            message: "not found".to_owned(),
+        });
+    }
+    Ok(reader || !still_admitted(server, client, key, path, true))
 }

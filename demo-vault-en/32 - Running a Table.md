@@ -41,7 +41,7 @@ The window is made of cards: **Invite players** (the link in a field, with **Cop
 
 ## Release bit by bit
 
-- Right-click a note › **Release to…**: **The whole table**, or one or more players (tick as many as you like, one at a time), or **Nobody (hidden)**. The note shows in the list of those you chose, in searches, in the graph, in links and in boards; it syncs to their device. Whoever was not chosen does not see it: it is as if it did not exist.
+- Right-click a note › **Release to…**: **The whole table**, or one or more players (tick as many as you like: the menu stays open), or **Nobody (hidden)**. The note shows in the list of those you chose, in searches, in the graph, in links and in boards; it syncs to their device. Whoever was not chosen does not see it: it is as if it did not exist.
 - **Nobody (hidden)** takes it back (the device is told to let it go). Taking a player off a note they already saw tells their device to let it go too, and the others' hear nothing.
 - On a folder of the table: **Release everything here** and **Hide everything here** (always the whole table). With several notes selected, the same in the selection's menu. In the **Table** window: **Release everything**.
 
