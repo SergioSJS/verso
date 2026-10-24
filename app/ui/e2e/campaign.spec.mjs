@@ -45,14 +45,14 @@ test("the game master makes a folder a table, releases and hides notes, and the 
   // Release it to the whole table from its menu: a submenu with the table, each player and nobody.
   await cripta.click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
-  await app.page.getByRole("menuitem", { name: "Toda a mesa" }).click();
+  await app.page.getByRole("menuitemcheckbox", { name: "Toda a mesa" }).click();
   await expect(app.page.locator("#status")).toHaveText("Liberada para toda a mesa.");
   await expect.poll(() => app.calls("campaign_audience")).toEqual([{ paths: ["Mundo/Cripta.md"], audience: { kind: "table" } }]);
   await expect(cripta.locator(".hidden-mark")).toHaveCount(0);
   // And hide it again.
   await cripta.click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
-  await app.page.getByRole("menuitem", { name: "Ninguém (oculta)" }).click();
+  await app.page.getByRole("menuitemcheckbox", { name: "Ninguém (oculta)" }).click();
   await expect(cripta.locator(".hidden-mark")).toHaveCount(1);
   await expect(app.page.locator("#status")).toHaveText("Oculta da mesa.");
 });

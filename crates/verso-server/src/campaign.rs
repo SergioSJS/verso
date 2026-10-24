@@ -283,23 +283,65 @@ impl Veil {
     }
 }
 
+/// A player of a folder: the folder's id and the account's.
+type Account = (String, String);
+
+/// The files a player was told of: the log head and the generation of the
+/// veils they were told at, and the files.
+type Told = (i64, u64, Arc<Vec<serde_json::Value>>);
+
 /// The veils of the folders, by folder id; `None` is a folder with no
 /// table.
 #[derive(Default)]
 pub struct Cache {
     map: Mutex<HashMap<String, Option<Arc<Veil>>>>,
+    /// How many times any folder's veil was forgotten: a veil read before a
+    /// forgetting is not kept after it (it may be of the state before).
+    generation: std::sync::atomic::AtomicU64,
+    /// One at a time, per folder and account, the decision of what a
+    /// player's log holds (`campaign_sync::viewer_*`).
+    viewers: Mutex<HashMap<Account, Arc<Mutex<()>>>>,
+    /// The files a player is told of, by folder and account, with the log
+    /// head and the generation they were told at.
+    pub(crate) told_files: Mutex<HashMap<Account, Told>>,
 }
 
-/// The veil of `folder`, if it has a table.
+impl Cache {
+    /// The lock of one player's log of `folder`.
+    pub(crate) fn viewer_lock(&self, folder: &str, account: &str) -> Arc<Mutex<()>> {
+        Arc::clone(
+            lock(&self.viewers)
+                .entry((folder.to_owned(), account.to_owned()))
+                .or_default(),
+        )
+    }
+
+    /// Where the forgettings are.
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+/// The veil of `folder`, if it has a table. A folder whose tables cannot
+/// be read is a closed table, not a folder with none ([`unreadable`]):
+/// every door fails closed, and the failure is not kept.
 pub fn veil_of(server: &Server, folder: &str) -> Option<Arc<Veil>> {
     if let Some(found) = lock(&server.campaigns.map).get(folder) {
         return found.clone();
     }
-    let made = make(server, folder).unwrap_or_else(|e| {
-        crate::log::error(&format!("reading a table's state: {e}"));
-        None
-    });
-    lock(&server.campaigns.map).insert(folder.to_owned(), made.clone());
+    let generation = server.campaigns.generation();
+    let made = match make(server, folder) {
+        Ok(made) => made,
+        Err(e) => {
+            crate::log::error(&format!("reading a table's state: {e}"));
+            return Some(unreadable(folder));
+        }
+    };
+    let mut map = lock(&server.campaigns.map);
+    // Forgotten while it was read: the next ask reads again.
+    if server.campaigns.generation() == generation {
+        map.insert(folder.to_owned(), made.clone());
+    }
     made
 }
 
@@ -308,7 +350,7 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
     if tables.is_empty() {
         return Ok(None);
     }
-    let notes = server
+    let notes: HashMap<String, NoteState> = server
         .db
         .campaign_notes(folder)?
         .into_iter()
@@ -326,6 +368,15 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
         .into_iter()
         .find(|(_, r)| *r == Role::Owner)
         .map_or_else(|| "en".to_owned(), |(a, _)| a.lang);
+    // The players' logs are each their own once a note is released to some
+    // players — or one is granted to a player who is not the whole table's —
+    // whatever the epoch row says: a state that cannot be told otherwise
+    // fails closed.
+    let restricted = server.db.campaign_epoch(folder)?.is_some()
+        || notes.values().any(|n: &NoteState| {
+            n.audience.is_players()
+                || (matches!(n.grant, Grant::Player(_)) && n.audience != Audience::Table)
+        });
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,
@@ -334,16 +385,48 @@ fn make(server: &Server, folder: &str) -> Result<Option<Arc<Veil>>, String> {
         images: Arc::new(images),
         files: OnceLock::new(),
         viewer: Viewer::Public,
-        restricted: server.db.campaign_epoch(folder)?.is_some(),
+        restricted,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
     })))
 }
 
+/// What a folder whose tables cannot be read is to a player: one closed
+/// table that holds the whole folder, whose notes are all hidden and whose
+/// players' logs are each their own. A failed read is not "no table"
+/// (which would open every door): it is the most restrictive answer, and
+/// it is never kept, so the next ask reads again.
+#[must_use]
+pub fn unreadable(folder: &str) -> Arc<Veil> {
+    Arc::new(Veil {
+        folder: folder.to_owned(),
+        tables: vec![Campaign {
+            folder: folder.to_owned(),
+            root: String::new(),
+            open: false,
+            log_max: crate::db::LOG_DEFAULT,
+            image_max: crate::db::IMAGE_DEFAULT,
+        }],
+        notes: Arc::new(HashMap::new()),
+        lang: "en".to_owned(),
+        images: Arc::new(HashSet::new()),
+        files: OnceLock::new(),
+        viewer: Viewer::Public,
+        restricted: true,
+        views: Mutex::new(HashMap::new()),
+        union: OnceLock::new(),
+    })
+}
+
 /// The folder's files or its tables changed: the veil is made again at
 /// the next ask.
 pub fn forget(server: &Server, folder: &str) {
-    lock(&server.campaigns.map).remove(folder);
+    let mut map = lock(&server.campaigns.map);
+    server
+        .campaigns
+        .generation
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    map.remove(folder);
 }
 
 /// The folder's key (as the service names it) behind the folder id.

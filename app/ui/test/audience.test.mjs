@@ -74,15 +74,19 @@ describe("The indicator's words", () => {
     playerTable: "the whole table",
     playerOnlyYou: "only you",
     playerNames: (list) => list,
+    you: "you",
   };
-  const person = (name) => ({ id: name, name, access: "sees" });
+  const person = (name, you = false) => ({ id: name, name, access: "sees", you });
   test("the game master's name counts who sees it among the players", () => {
     assert.equal(a.ownerLabel({ total: 3, seeing: 2, editing: 0 }, w), "2 of 3 players");
   });
   test("a player is told the table, only itself, or the names with the game master", () => {
     assert.equal(a.playerLabel(a.TABLE, [], "the master", w, "en"), "the whole table");
-    assert.equal(a.playerLabel(players("x"), [person("Ana")], "the master", w, "en"), "only you");
-    assert.equal(a.playerLabel(players("x", "y"), [person("Ana"), person("Bruno")], "the master", w, "en"), "Ana, Bruno, and the master");
+    assert.equal(a.playerLabel(players("x"), [person("Ana", true)], "the master", w, "en"), "only you");
+    assert.equal(a.playerLabel(players("x", "y"), [person("Ana"), person("Bruno", true)], "the master", w, "en"), "you, Ana, and the master");
+  });
+  test("the one asking comes first in a list of names, worded as you", () => {
+    assert.deepEqual(a.yourFirst([person("Ana"), person("Bruno", true), person("Caio")]).map((p) => p.name), ["Bruno", "Ana", "Caio"]);
   });
   test("the count: seeing/total for the game master, people for a player", () => {
     assert.equal(a.countText("owner", { total: 3, seeing: 2, editing: 0 }, a.HIDDEN, [], "Table"), "2/3");

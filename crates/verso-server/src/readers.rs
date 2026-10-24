@@ -288,12 +288,17 @@ pub fn read(
 
 /// The folder's log moved on: every window on the folder hears it — a
 /// reader only when a change of `paths` is one it sees (`seen`), with the
-/// head of what it sees.
+/// head of what it sees. Where the players each have a log of their own
+/// (a table with notes released to some of them) a player is told only
+/// when a path it sees is among `seen`, or it is one of `also` (the
+/// accounts that lose a path with the change): a player outside a note's
+/// audience is told neither the note, nor its changes, nor that any came.
 pub fn push_sync_changed(
     server: &Server,
-    folder: &str,
+    (folder, key): (&str, &str),
     (head, paths): (i64, &[&str]),
     seen: &[&str],
+    also: &[String],
 ) {
     let writers: Vec<String>;
     let readers: Vec<String>;
@@ -312,18 +317,61 @@ pub fn push_sync_changed(
             .collect();
     }
     server.push_sync_changed(folder, head, paths, &writers);
-    if !seen.is_empty() && !readers.is_empty() {
-        // Players of a table with notes released to some of them each have
-        // a log of their own: no head is told, each asks.
-        if crate::campaign::veil_of(server, folder).is_some_and(|v| v.restricted()) {
-            server.push_sync_changed(folder, -1, seen, &readers);
-            return;
-        }
-        match server.db.reader_count(folder, i64::MAX) {
-            Ok(reader_head) => server.push_sync_changed(folder, reader_head, seen, &readers),
-            Err(e) => crate::log::warn(&format!("a reader's head: {e}")),
-        }
+    if (seen.is_empty() && also.is_empty()) || readers.is_empty() {
+        return;
     }
+    // Players of a table with notes released to some players each have
+    // a log of their own: no head is told, each asks.
+    if crate::campaign::veil_of(server, folder).is_some_and(|v| v.restricted()) {
+        let heard = who_sees(server, key, &readers, seen, also);
+        server.push_sync_changed(folder, -1, seen, &heard);
+        return;
+    }
+    match server.db.reader_count(folder, i64::MAX) {
+        Ok(reader_head) => server.push_sync_changed(folder, reader_head, seen, &readers),
+        Err(e) => crate::log::warn(&format!("a reader's head: {e}")),
+    }
+}
+
+/// Of the reader windows `readers`, those whose account sees a file among
+/// `seen` or is one of `also`.
+fn who_sees(
+    server: &Server,
+    key: &str,
+    readers: &[String],
+    seen: &[&str],
+    also: &[String],
+) -> Vec<String> {
+    let accounts: Vec<(String, String)> = {
+        let table = lock(&server.clients);
+        readers
+            .iter()
+            .filter_map(|id| table.get(id).map(|c| (id.clone(), c.account.clone())))
+            .collect()
+    };
+    let Some(veil) = crate::campaign::veil_for_key(server, key) else {
+        return Vec::new();
+    };
+    let paths: Vec<String> = seen.iter().map(|p| (*p).to_owned()).collect();
+    server
+        .service
+        .with_key(key, move |ws| {
+            let mut by_account: std::collections::HashMap<String, bool> =
+                std::collections::HashMap::new();
+            Ok(accounts
+                .into_iter()
+                .filter(|(_, a)| {
+                    *by_account.entry(a.clone()).or_insert_with(|| {
+                        also.contains(a)
+                            || paths
+                                .iter()
+                                .any(|p| !crate::campaign_serve::is_hidden_in(ws, &veil.view(a), p))
+                    })
+                })
+                .map(|(id, _)| id)
+                .collect())
+        })
+        .unwrap_or_default()
 }
 
 /// A board's room wrote its file: the readers of the folder, who are never

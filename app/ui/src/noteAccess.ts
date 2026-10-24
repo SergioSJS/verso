@@ -14,7 +14,7 @@
 // opening it moves nothing. It follows the table's status by itself.
 
 import { commands, type CampaignAccess } from "./bindings";
-import { countText, ownerLabel, peopleOf, playerLabel, tally, type Words } from "./audience";
+import { countText, ownerLabel, peopleOf, playerLabel, tally, yourFirst, type Words } from "./audience";
 import { audienceItems, campaign, noteAudience, noteState, tableFor, tablePlayers } from "./campaign";
 import { cp } from "./campaignStrings";
 import { narrow } from "./chrome";
@@ -29,6 +29,7 @@ const WORDS: Words = {
   playerTable: cp.accessPlayerTable,
   playerOnlyYou: cp.accessPlayerOnlyYou,
   playerNames: cp.accessPlayerNames,
+  you: cp.accessYou,
 };
 
 /** The title row is this narrow (px) or less: the count gives way and the
@@ -206,8 +207,9 @@ export class NoteAccess {
     const v = this.view(path);
     const t = tally(v.people);
     const label = v.viewer === "owner" ? ownerLabel(t, WORDS) : playerLabel(v.audience, v.people, cp.theMaster, WORDS, LANG);
+    // Its name is the accessible one; the popover is what hovering shows, so
+    // no native tooltip says the same a second time beside it.
     this.btn.setAttribute("aria-label", label);
-    this.btn.title = label;
     this.count.textContent = countText(v.viewer, t, v.audience, v.people, cp.tableWord);
     this.el.hidden = false;
     this.el.dataset["audience"] = v.audience.kind;
@@ -255,9 +257,9 @@ export class NoteAccess {
       else {
         body.push(h("p", "na-line", cp.accessPeopleLine));
         const list = h("ul", "na-list");
-        for (const p of v.people) {
+        for (const p of yourFirst(v.people)) {
           const li = h("li", "na-row is-sees");
-          li.append(h("span", "na-name", p.name));
+          li.append(h("span", "na-name", p.you ? cp.accessYou : p.name));
           list.append(li);
         }
         body.push(list);
@@ -278,6 +280,9 @@ export class NoteAccess {
     document.body.append(this.pop);
     this.pop.hidden = false;
     this.place();
+    // A sheet on a phone is a dialog the finger opened: its close button
+    // takes the focus, as a dialog's first control does.
+    if (narrow.matches && pin) this.pop.querySelector<HTMLElement>(".na-close")?.focus();
   }
 
   private close(refocus: boolean): void {

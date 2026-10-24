@@ -1248,6 +1248,11 @@ export type CampaignPerson = {
 	name: string,
 	/**  `edits`, `sees` or `none`. */
 	access: string,
+	/**
+	 *  Whether this person is the one asking: a player's own row, which the
+	 *  window words as "you". Always false for the game master's list.
+	 */
+	you: boolean,
 };
 
 /**  A player of a table: an account that may open the table's folder. */
