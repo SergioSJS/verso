@@ -1139,6 +1139,8 @@ pub(crate) async fn folder_run(
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
+            // The players who see what goes, remembered while it is there.
+            crate::campaign_cmds::before_write(&s, &folder_id, &key, &n, &args);
         }
         // A deletion is recorded with who made it (ADR 0080 item 2).
         let answer = if matches!(

@@ -507,6 +507,15 @@ fn join_room(
         }
     };
     let mut r = lock(&room);
+    // A player of a table is asked again under the room's lock: what the
+    // command saw may have changed, and a release or a hide that closed the
+    // room's windows has run or will run after this window is in it.
+    if let Err(e) = readers::admitted(server, (client, reader), key, path) {
+        // A room made for a window that is not let in is not kept.
+        drop(r);
+        leave(server, client, key, path);
+        return Err(e);
+    }
     // A reader of a note with secret blocks joins its projection's own
     // document (ADR 0087 item 4).
     if reader && let Some(joined) = readers::join(server, &mut r, client, user)? {

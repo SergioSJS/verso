@@ -58,52 +58,56 @@ async function open(app, path = "Mundo/Cripta.md") {
 const button = (app) => app.page.locator(".note-access-btn");
 const pop = (app) => app.page.getByRole("dialog", { name: /Quem vê esta nota/ });
 
-test("the note's menu releases it to the whole table, to some players, or to nobody", async ({ app }) => {
+test("the note's menu releases it to the whole table, to some players, or to nobody, and stays open while players are ticked", async ({ app }) => {
   await setup(app, "owner", { "Mundo/Cripta.md": { audience: { kind: "hidden" } }, "Mundo/Diario.md": { audience: { kind: "hidden" } } });
   const menuOf = async () => {
     await row(app, "Mundo/Cripta.md").click({ button: "right" });
     await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
   };
-  const item = (name) => app.page.getByRole("menuitem", { name });
+  // A row of this menu is a check box: it says whether it is on.
+  const item = (name, checked) => app.page.getByRole("menuitemcheckbox", checked === undefined ? { name } : { name, checked });
+  const last = async () => (await app.calls("campaign_audience")).at(-1);
   // A hidden note: only "Ninguém (oculta)" is checked; no "Toda a mesa" yet; every player offered.
   await menuOf();
-  await expect(item("✓ Ninguém (oculta)")).toBeVisible();
-  for (const n of ["Toda a mesa", "Bia", "Caio", "Dora"]) await expect(item(n)).toBeVisible();
-  await expect(item("✓ Bia")).toHaveCount(0);
+  await expect(item("Ninguém (oculta)", true)).toBeVisible();
+  for (const n of ["Toda a mesa", "Bia", "Caio", "Dora"]) await expect(item(n, false)).toBeVisible();
   await shot(app.page, test.info(), "105-depois-menu-liberar-para-claro");
   // One player: the audience is that player alone, and the status line says whom.
   await item("Bia").click();
-  await expect.poll(async () => (await app.calls("campaign_audience")).at(-1)).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia"] } });
+  await expect.poll(last).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia"] } });
   await expect(app.page.locator("#status")).toHaveText("Liberada para Bia.");
-  // Several players: Caio joins, Bia stays checked; the table row is not checked, nothing turns into "table" by itself.
-  await menuOf();
-  await expect(item("✓ Bia")).toBeVisible();
+  // The menu is still there: Caio is ticked in it too, Bia stays checked, the table row is not,
+  // and nothing turns into "table" by itself.
+  await expect(item("Bia", true)).toBeVisible();
   await item("Caio").click();
-  await expect.poll(async () => (await app.calls("campaign_audience")).at(-1)).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia", "acc-caio"] } });
-  await menuOf();
-  await expect(item("✓ Bia")).toBeVisible();
-  await expect(item("✓ Caio")).toBeVisible();
-  await expect(item("✓ Toda a mesa")).toHaveCount(0);
+  await expect.poll(last).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia", "acc-caio"] } });
+  await expect(item("Bia", true)).toBeVisible();
+  await expect(item("Caio", true)).toBeVisible();
+  await expect(item("Toda a mesa", false)).toBeVisible();
+  await expect(item("Ninguém (oculta)", false)).toBeVisible();
   // The whole table: every player is checked; clicking one takes that player out and leaves the others.
   await item("Toda a mesa").click();
   await expect(app.page.locator("#status")).toHaveText("Liberada para toda a mesa.");
-  await menuOf();
-  for (const n of ["✓ Toda a mesa", "✓ Bia", "✓ Caio", "✓ Dora"]) await expect(item(n)).toBeVisible();
-  await item("✓ Caio").click();
-  await expect.poll(async () => (await app.calls("campaign_audience")).at(-1)).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia", "acc-dora"] } });
+  for (const n of ["Toda a mesa", "Bia", "Caio", "Dora"]) await expect(item(n, true)).toBeVisible();
+  await item("Caio").click();
+  await expect.poll(last).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "players", accounts: ["acc-bia", "acc-dora"] } });
+  await expect(item("Caio", false)).toBeVisible();
   // Unchecking the last player hides the note; so does "Ninguém (oculta)".
-  await menuOf();
-  await item("✓ Bia").click();
-  await menuOf();
-  await item("✓ Dora").click();
-  await expect.poll(async () => (await app.calls("campaign_audience")).at(-1)).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "hidden" } });
+  await item("Bia").click();
+  await item("Dora").click();
+  await expect.poll(last).toEqual({ paths: ["Mundo/Cripta.md"], audience: { kind: "hidden" } });
+  await expect(item("Ninguém (oculta)", true)).toBeVisible();
   await expect(row(app, "Mundo/Cripta.md").locator(".hidden-mark")).toHaveCount(1);
-  await menuOf();
   await item("Toda a mesa").click();
-  await menuOf();
   await item("Ninguém (oculta)").click();
   await expect(app.page.locator("#status")).toHaveText("Oculta da mesa.");
   await expect(row(app, "Mundo/Cripta.md").locator(".hidden-mark")).toHaveCount(1);
+  // The keyboard ticks too: Space on a focused row; Escape leaves the menu.
+  await item("Bia").focus();
+  await app.page.keyboard.press("Space");
+  await expect(item("Bia", true)).toBeVisible();
+  await app.page.keyboard.press("Escape");
+  await expect(item("Bia")).toHaveCount(0);
 });
 
 test("a selection and a folder are still released and hidden for the whole table", async ({ app }) => {
@@ -129,8 +133,8 @@ test("an edit grant to a player who could not see the note adds them, and the st
   await expect(app.page.locator("#status")).toHaveText("Só Caio edita esta nota. Caio também passou a ver esta nota.");
   await row(app, "Mundo/Cripta.md").click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
-  await expect(app.page.getByRole("menuitem", { name: "✓ Caio" })).toBeVisible();
-  await expect(app.page.getByRole("menuitem", { name: "✓ Bia" })).toBeVisible();
+  await expect(app.page.getByRole("menuitemcheckbox", { name: "Caio", checked: true })).toBeVisible();
+  await expect(app.page.getByRole("menuitemcheckbox", { name: "Bia", checked: true })).toBeVisible();
 });
 
 test("the game master's indicator: count, name, popover with every player, keyboard and pointer", async ({ app }, info) => {
@@ -212,7 +216,7 @@ test("its shortcut opens the same menu, and the indicator and popover repaint wi
   await expect(button(app).locator(".note-access-count")).toHaveText("1/3");
   await button(app).click();
   await pop(app).getByRole("button", { name: "Alterar quem vê…" }).click();
-  await app.page.getByRole("menuitem", { name: "Caio" }).click();
+  await app.page.getByRole("menuitemcheckbox", { name: "Caio" }).click();
   // The popover stays and says it now: both see it; the count and the name follow.
   await expect(pop(app)).toBeVisible();
   await expect(pop(app).getByRole("listitem").filter({ hasText: "Caio" })).toHaveText(/✓\s*vê/);
@@ -362,8 +366,8 @@ test("on a phone the popover is a bottom sheet with a close button, and nothing 
   await app.page.emulateMedia({ colorScheme: "light" });
   // The shortcut's menu opens over the sheet and the sheet stays.
   await p.getByRole("button", { name: "Alterar quem vê…" }).click();
-  await expect(app.page.getByRole("menuitem", { name: "Toda a mesa" })).toBeVisible();
-  await app.page.getByRole("menuitem", { name: "Dora" }).click();
+  await expect(app.page.getByRole("menuitemcheckbox", { name: "Toda a mesa" })).toBeVisible();
+  await app.page.getByRole("menuitemcheckbox", { name: "Dora" }).click();
   await expect(p).toBeVisible();
   await expect(b.locator(".note-access-count")).toHaveText("3/3");
   await close.click();
@@ -377,9 +381,14 @@ test("a player's phone sheet shows who sees it, with no control", async ({ app }
   await button(app).click();
   const p = pop(app);
   await expect(p).toHaveClass(/is-sheet/);
-  await expect(p.getByRole("button", { name: "Fechar" })).toBeVisible();
+  // A dialog the finger opened: its close button has the focus.
+  await expect(p.getByRole("button", { name: "Fechar" })).toBeFocused();
   await expect(p.getByRole("button", { name: "Alterar quem vê…" })).toHaveCount(0);
   await expect(p).toContainText("Bia");
+  // The one asking is "Você", first; the button carries no native tooltip beside the popover.
+  await expect(p.getByRole("listitem").first()).toHaveText("Você");
+  await expect(p.getByRole("listitem").nth(1)).toHaveText("Bia");
+  await expect(button(app)).not.toHaveAttribute("title", /./);
   await shot(app.page, info, "104-depois-nota-jogador-telefone-folha-claro");
   await p.getByRole("button", { name: "Fechar" }).click();
   await expect(p).toBeHidden();

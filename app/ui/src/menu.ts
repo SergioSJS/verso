@@ -186,8 +186,12 @@ export function selectionMenu(x: number, y: number, paths: string[]): void {
 export const menu = h("ul", "menu");
 /** Where the focus was when the menu opened, to give it back when it closes. */
 export let menuOpener: Element | null = null;
-/** A row; with a fourth element it opens a submenu instead of running. */
-export type MenuItem = [label: string, run: () => void, iconName?: string, sub?: MenuItem[]];
+/** A row; with a fourth element it opens a submenu instead of running; with a
+ *  fifth, a function that says whether it is on, it is a check row
+ *  (`menuitemcheckbox`): the menu stays open when it is used, so that several
+ *  can be ticked, and every check row of its list is read again once its
+ *  action is done. */
+export type MenuItem = [label: string, run: () => unknown, iconName?: string, sub?: MenuItem[], check?: () => boolean];
 /** A row that opens a submenu of its own. */
 export function group(label: string, iconName: string, sub: MenuItem[]): MenuItem {
   return [label, () => {}, iconName, sub];
@@ -352,8 +356,10 @@ export function menuKeydown(e: KeyboardEvent): void {
 }
 
 function buildList(ul: HTMLElement, items: MenuItem[]): void {
+  // The check rows of this list, drawn again when one has acted.
+  const checks: Array<() => void> = [];
   ul.replaceChildren(
-    ...items.map(([label, run, iconName, sub]) => {
+    ...items.map(([label, run, iconName, sub, check]) => {
       // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
       li.setAttribute("role", "none");
@@ -364,10 +370,26 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
       }
       const b = h("button");
       b.type = "button";
+      let mark: HTMLElement | null = null;
+      if (check) {
+        mark = h("span", "menu-check");
+        mark.setAttribute("aria-hidden", "true");
+        b.append(mark);
+      }
       if (iconName) b.append(icon(iconName));
       b.append(h("span", "", label));
-      b.setAttribute("role", "menuitem");
+      b.setAttribute("role", check ? "menuitemcheckbox" : "menuitem");
       li.append(b);
+      if (check && mark) {
+        const m = mark;
+        const paint = (): void => {
+          const on = check();
+          b.setAttribute("aria-checked", String(on));
+          m.textContent = on ? "✓" : "";
+        };
+        paint();
+        checks.push(paint);
+      }
       if (sub) {
         b.classList.add("has-sub");
         b.setAttribute("aria-haspopup", "menu");
@@ -386,6 +408,15 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
         b.addEventListener("click", () => {
           if (b.getAttribute("aria-expanded") === "true") closeSub(b);
           else openSub(b, true);
+        });
+      } else if (check) {
+        // Used, it leaves the menu open: another can be ticked.
+        b.addEventListener("click", () => {
+          void Promise.resolve(run())
+            .catch(() => undefined)
+            .finally(() => {
+              for (const paint of checks) paint();
+            });
         });
       } else {
         b.addEventListener("click", () => {
