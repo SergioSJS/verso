@@ -238,10 +238,9 @@ async fn opened(server: &Arc<Server>, folder: &str, root: &str, owner: &str) {
         let members = s.db.members(&f).map_err(failed)?;
         let mut shared = Vec::new();
         for share in s.db.shares_of(&f).map_err(failed)? {
-            let inside =
-                share.path == r || r.is_empty() || share.path.starts_with(&format!("{r}/"));
-            let over = share.path.is_empty() || r.starts_with(&format!("{}/", share.path));
-            if inside || over {
+            // A share inside the table, the table's own, or one over it,
+            // compared as the veil compares paths (`campaign::covers`).
+            if campaign::covers(&r, &share.path) || campaign::covers(&share.path, &r) {
                 for (account, _) in s.db.share_people(&share.id).map_err(failed)? {
                     shared.push((account.id, share.id.clone()));
                 }
