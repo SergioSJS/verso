@@ -56,8 +56,6 @@ async function owner(app) {
 
 for (const theme of ["light", "dark"]) {
   test(`the players' card, ${theme} @layout`, async ({ app, page }, info) => {
-    test.skip(theme === "dark" && !phone(page), "dark is a phone picture");
-    test.skip(!/^(chromium|phone-webkit)$/.test(info.project.name), "one engine per size");
     await page.addInitScript((th) => {
       const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
       localStorage.setItem("verso.settings", JSON.stringify({ ...s, theme: th }));
@@ -66,7 +64,7 @@ for (const theme of ["light", "dark"]) {
     const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar imagens` });
     await sw("Bia").check({ force: true });
     await expect(dialog.getByRole("switch", { name: "Bia pode enviar imagens" })).toBeChecked();
-    if (SHOTS) {
+    if (SHOTS && /^(chromium|phone-webkit)$/.test(info.project.name) && (theme === "light" || phone(page))) {
       await page.waitForTimeout(300);
       await page.screenshot({ path: `${SHOTS}/${PFX}-jogadores-${phone(page) ? "telefone" : "desktop"}-${theme}.png` });
     }
