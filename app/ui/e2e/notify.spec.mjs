@@ -196,8 +196,10 @@ test("each kind as chosen: Só na lista lists without a toast; Desligado neither
   await notifySettings(app);
   const rows = page.locator(".settings-body .setting");
   await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Mesa", "Som da Mesa", "Volume do som da Mesa", "Também nas notificações do sistema"]);
-  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13).
-  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue(await s.evaluate((el) => (el.closest(".setting")?.querySelector(".setting-title")?.textContent === "Mesa" ? "off" : "toast")));
+  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13);
+  // the Mesa's chime is a sound, not a kind, and starts as the soft one.
+  const first = { Mesa: "off", "Som da Mesa": "soft" };
+  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue(first[await s.evaluate((el) => el.closest(".setting")?.querySelector(".setting-title")?.textContent ?? "")] ?? "toast");
   const sync = page.getByRole("combobox", { name: "Sincronização" });
   await sync.selectOption("list");
   // The person's layer: the window's settings, synced to the account on a
