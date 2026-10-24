@@ -105,6 +105,8 @@ class TableView {
   private rosterPinned = false;
   /** ONE row on top (ADR 0107, 2026-10-23): who is here, the owner's way to the Mesa window, then hide and the menu at the right. */
   private readonly top = h("div", "table-top");
+  /** The name and the top row, one row on a phone (css/table.css). */
+  private readonly head = h("div", "table-head");
   /** The table's name when the folder has tables (one log per table, 2026-10-23), with the way to another table. */
   private readonly title = h("div", "table-title");
   /** The list of tables, when no note says which one the panel is at. */
@@ -142,7 +144,8 @@ class TableView {
     this.win.hidden = true;
     this.title.hidden = true;
     this.choose.hidden = true;
-    this.el.append(this.title, this.choose, this.top, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.head.append(this.title, this.top);
+    this.el.append(this.head, this.choose, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();

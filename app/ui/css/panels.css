@@ -946,8 +946,12 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .right-close { display: none; }
 /* A phone: the drawer has its own close. */
 @media (max-width: 760px) {
-  .right-close { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 0 .4rem 0 .8rem; min-height: 44px; border-bottom: 1px solid var(--hair); font-weight: 600; color: var(--ink-2); }
+  /* No title row: the close is the tab row's last button (the title is the tabs' own names). */
+  aside.right { position: fixed; }
+  .right-close { position: absolute; top: env(safe-area-inset-top); right: 0; z-index: 2; display: flex; padding: 0; min-height: 0; background: var(--paper-2); }
+  #right-title { display: none; }
   .right-close .ghost { min-width: 44px; min-height: 44px; }
+  .right-tabs { padding-right: 44px; }
 }
 
 /* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */

@@ -24,6 +24,7 @@ type Words = {
   localOnlyRolls: string;
   savedButton: string;
   attach: string;
+  diceRow: string;
   chipsLabel: string;
   chipRemove: (name: string) => string;
   modeLabel: string;
@@ -67,6 +68,7 @@ const pt: Words = {
   localOnlyRolls: "Sem servidor, esta mesa só rola dados. Escreva /r 1d20+3.",
   savedButton: "Rolagens salvas",
   attach: "Anexar imagem",
+  diceRow: "Dados",
   chipsLabel: "Imagens a enviar",
   chipRemove: (name) => `Tirar a imagem ${name}`,
   modeLabel: "Quem vê a rolagem",
@@ -110,6 +112,7 @@ const en: Words = {
   localOnlyRolls: "With no server this table only rolls dice. Write /r 1d20+3.",
   savedButton: "Saved rolls",
   attach: "Attach an image",
+  diceRow: "Dice",
   chipsLabel: "Images to send",
   chipRemove: (name) => `Remove the image ${name}`,
   modeLabel: "Who sees the roll",

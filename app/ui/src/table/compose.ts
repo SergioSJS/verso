@@ -77,8 +77,8 @@ export class Compose {
 
   constructor() {
     this.el.setAttribute("aria-label", tt.inputLabel);
-    // Larger than a line, as a chat box is: 3 lines (2 on a phone), growing to 8 (css/table.css); Shift+Enter breaks the line.
-    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 2 : 3;
+    // Larger than a line, as a chat box is: 3 lines (one on a phone, as a chat's), growing to 8 (css/table.css); Shift+Enter breaks the line.
+    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 1 : 3;
     this.field.placeholder = tt.placeholder;
     this.field.setAttribute("aria-label", tt.inputLabel);
     this.field.setAttribute("enterkeyhint", "send");

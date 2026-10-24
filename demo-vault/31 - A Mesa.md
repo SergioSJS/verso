@@ -29,6 +29,8 @@ O registro rola sozinho para a rolagem mais nova, a menos que você tenha subido
 
 Logo abaixo do campo de mensagem fica a **bandeja de dados**: uma fila só, de botões pequenos, como a do módulo Dice Tray do Foundry. Ela monta uma rolagem sem digitar — e a escreve **no próprio campo de mensagem**:
 
+No celular a Mesa abre numa folha que ocupa quase a tela inteira, e a linha de dados fica atrás do botão **Dados**, na fileira do campo de mensagem: toque nele para abrir ou fechar a linha, e o aparelho lembra a sua escolha.
+
 1. **Clique num dado** — d4, d6, d8, d10, d12 ou d20 — e o campo passa a ter `/r 1d6`; mais um clique no d6 e um no d20 dão `/r 2d6+1d20`. Uma bolinha no dado mostra quantos dele estão na rolagem. Clicar **não rola**. Os outros dados (d2, d3, d66, d100 e dF) ficam atrás do botão **⋯**.
 2. **Botão direito** num dado tira um (no teclado: `Shift+Enter`, `Delete` ou `Backspace` no dado; no celular, segure o dedo nele). `Enter` num dado soma um.
 3. O pequeno campo **numérico** (o `0`) é o modificador: digite, use as setas `↑` `↓` ou a roda do mouse, de −99 a +99 (`/r 2d6+1d20+2`).
