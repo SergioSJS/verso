@@ -496,7 +496,7 @@ per table, 2026-10-23)":
   `e2e/table-per-table.spec.mjs`.
 
 - **The table's window and the folder's page (2026-10-23).** The maintainer, on a screenshot of the campaign window (a native checkbox, a loose "Saved.", "Undo table" as the purple primary button): *"essa tela ta feia demais, faz um toggle maneiro pra ativar, passa um UX aí cara pelo amor"*; and on the folder's page: *"nessa tela aqui, da pasta, deveriam ter informações da mesa, na página da pasta, deveria estar ali, ativar ou não a mesa, configurações e tal"*. Built: **Table open** is a switch (`role=switch`, a status pill *Open*/*Closed*, one line of what it means) that saves at once and answers beside itself; the window is cards (invitation with the link in a field, *Copy* and its expiry; players with what is granted to each, as links, and who is at the table now; notes with released/hidden counts and the two bulk actions; the limits folded under *Advanced*, a field saving when left or on Enter); **Undo table** is a red, quiet action at the bottom (a destructive action is red in every palette, `--danger`; it asks first and says the files never change), never the primary. On a phone the window is a sheet. The folder's page has a **Table** card under the title built of the same parts (`campaignParts.ts`): to the owner of a folder that is a table the switch, players (and who is online), *Invite*, the counts and *Table settings* (foldable, remembered per folder); to a player one read-only line; on a folder that can become a table (server or synced, the owner, not inside a table) one *Make this folder a table* call to action; nothing on a folder only on this computer. Any folder's page, so N tables per folder.
-- **A closed table is said to the player (2026-10-23).** A player's window "did not connect" to a closed table (`refused: a mesa está fechada` in its log, nothing on the screen). Now the window says, in the folder's place and in the interface's language, *The table is closed by the game master. You get in when it opens.*, with *Try now*, and tries again by itself (15 s, doubling to 2 min); the same in the desktop's remote window, a folder synced with the server (`SyncStatus.problem = table_closed`, retried every 15 s) and a browser (the server's push `gone: folder, reason: closed` keeps the folder remembered). The owner never sees it, and the Table chip, badge and panel say *closed* to the game master. **Nothing closed the table without the person**: `campaign_make` on an existing table is `INSERT OR IGNORE` (it does not touch `open`), `campaign_settings` with `open` absent keeps it (`COALESCE`), the window's limit fields send no `open`, no migration touches it, and a new table starts open (tests `making_a_table_again_…` in `db/tests.rs` and `tests_campaign.rs`); the only sender of `open: false` is the switch. The old window put keyboard focus on its checkbox, where a stray Space could close the table without the person meaning to; the redesigned window puts it on the title, saves at once with visible feedback and says *Closed* in red.
+- **A closed table is said to the player (2026-10-23).** A player's window "did not connect" to a closed table (`refused: a mesa está fechada` in its log, nothing on the screen). Now the window says, in the folder's place and in the interface's language, *The table is closed by the game master. You get in when it opens.*, with *Try now*, and tries again by itself (15 s, doubling to 30 s — see "As built, night findings" below); the same in the desktop's remote window, a folder synced with the server (`SyncStatus.problem = table_closed`, retried every 15 s) and a browser (the server's push `gone: folder, reason: closed` keeps the folder remembered). The owner never sees it, and the Table chip, badge and panel say *closed* to the game master. **Nothing closed the table without the person**: `campaign_make` on an existing table is `INSERT OR IGNORE` (it does not touch `open`), `campaign_settings` with `open` absent keeps it (`COALESCE`), the window's limit fields send no `open`, no migration touches it, and a new table starts open (tests `making_a_table_again_…` in `db/tests.rs` and `tests_campaign.rs`); the only sender of `open: false` is the switch. The old window put keyboard focus on its checkbox, where a stray Space could close the table without the person meaning to; the redesigned window puts it on the title, saves at once with visible feedback and says *Closed* in red.
 
 ## As built (a share is the same table, 2026-10-23)
 
@@ -537,3 +537,25 @@ A third difference, found by the e2e: a table's picture was looked up from the
 share's parent (`resolve_attachment` with no note to say where the target is
 written from), so a share player's own thumbnail came back missing. The share
 now looks such a target up from the share's root.
+## As built (night findings, 2026-10-24)
+
+What the live test of 2026-10-23 night showed, and what was built in the code
+that night. None of this is a maintainer decision; it was chosen while fixing,
+and is recorded so it is not mistaken for one.
+
+- **A closed table, reopened.** The wait between tries of a player's window
+  at a closed table now doubles from 15 s to **30 s** (it was 2 min; measured
+  on the night, a reopened table took up to 30 s to reach a waiting player).
+  And when the game master opens a table, the server pushes
+  `table-opened` (`{ folder }`, the id the person opens: the folder's, or the
+  share's) to the signed-in windows of the folder's members and of the people
+  on a share that reaches the table (inside it, equal to its root, or over
+  it — never another subfolder's share); a waiting browser window tries at
+  once on it. **Only the browser hears it**: the desktop's remote window drops
+  its connection when the open is refused on a closed table, and a synced
+  folder's link ignores unknown events, so both keep trying on the timer.
+- **A reader of a synced folder** (desktop) has the closed lock and the
+  notice on an attempt, as a reader on a server has; the per-note line "You can
+  only read this folder" is gone for everyone (the lock says it).
+- **Joining by an invitation** opens what was joined (the folder, or the
+  share; a person who holds the whole folder gets the folder).

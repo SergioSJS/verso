@@ -29,6 +29,7 @@ import { tableLabel } from "./which";
 import { tt } from "./strings";
 import { ts } from "./trayStrings";
 import { campaign, isTableRoot, makeTable, tableFor } from "../campaign";
+import { tableAt } from "../campaignParts";
 import { openCampaignDialog } from "../campaignDialog";
 import { cp } from "../campaignStrings";
 import { mayShare } from "../shares";
@@ -223,14 +224,16 @@ class TableView {
       b.title = ts.makeTableWhy;
       b.addEventListener("click", () => void makeTable(""));
       this.make.append(b);
-    } else if (mayShare() && isTableRoot("")) {
+    } else if (mayShare() && (isTableRoot("") || pick().current !== null)) {
+      // The table the panel is at: the folder's own, or a subfolder's.
+      const at = isTableRoot("") ? "" : (pick().current ?? "");
       // In the top row, beside the roster: the icon always, the words when the panel is wide enough (table.css).
       const b = button("ghost table-win-button", ts.openTableWindow, "user");
       b.append(h("span", "table-win-label", ts.openTableWindow));
       b.setAttribute("aria-label", ts.openTableWindow);
-      b.addEventListener("click", () => openCampaignDialog(""));
+      b.addEventListener("click", () => openCampaignDialog(at));
       // Closed, the game master sees it where the table is (players wait outside).
-      if (tableFor("")?.open === false) this.win.append(h("span", "table-closed-pill", cp.closedTag));
+      if (tableAt(at)?.open === false) this.win.append(h("span", "table-closed-pill", cp.closedTag));
       this.win.append(b);
     } else if (!isServerTable(src) && !mayShare()) {
       line = src.notice?.() ? null : ts.noTableLocal;

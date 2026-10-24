@@ -54,7 +54,14 @@ export function showTableClosed(retry: () => Promise<boolean>, haveFolder: boole
   tryNow = attempt;
   if (!hearing) {
     hearing = true;
-    void listen("table-opened", () => tryNow?.());
+    void listen<{ folder?: string }>("table-opened", (e) => {
+      // The news of another folder's table is not this one's: a page that names the folder it waits on
+      // (a browser: `?folder=`) tries only for it.
+      const waiting = new URLSearchParams(location.search).get("folder");
+      const told = e.payload?.folder;
+      if (waiting !== null && typeof told === "string" && told !== waiting) return;
+      tryNow?.();
+    });
   }
   if (!shown?.isConnected) {
     page?.classList.add("empty");

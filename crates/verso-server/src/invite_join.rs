@@ -59,7 +59,14 @@ pub async fn join(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
     if let (Some(folder), Some(role)) = (&link.folder, link.role.as_deref().and_then(Role::parse)) {
         match &link.share {
             Some(share) if ctx.server.db.share(share)?.is_some() => {
-                opens = Some(share.clone());
+                // Someone who holds the whole folder already sees the table
+                // in it; the share is not listed beside it, so the window
+                // opens the folder.
+                opens = Some(if ctx.server.db.role(folder, &account)?.is_some() {
+                    folder.clone()
+                } else {
+                    share.clone()
+                });
                 let now = ctx.server.db.share_role(share, &account)?;
                 ctx.server
                     .db
