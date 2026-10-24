@@ -147,14 +147,14 @@ function noticeText(key: "syncOffline" | "syncPaused" | null): string | null {
   return key ? tt[key] : null;
 }
 
-/** Another person's entry heard live: their dice fall (in their own look,
+/** News heard live: another person's entry, or the same account's from another device; the dice fall (in the roller's look,
  *  once, and not here when the note's room already makes them fall), and
  *  the "Mesa" notification when the panel is not on screen. */
 function news(e: TableEntry, wire: { roll: import("../bindings").DiceRoll | null }): void {
   const roll = wire.roll;
   const falls = !!roll && e.kind !== "secret" && (!e.path || !liveRoom(e.path)) && settings.others3d !== false && will3d(e.path, roll);
   if (roll && falls) void play3d(e.path, roll, stylesOf(roll) ?? undefined);
-  // The chime (2026-10-23): another person's message or roll, unless the dice fall for it (their own sound)
+  // The chime (2026-10-23): a message or roll that is news here (another person's, or your account's from another device), unless the dice fall for it (their own sound)
   // or the person is writing in the table's box; whether the window is in front does not matter (the OS
   // notification below is the one that waits for it to be behind).
   const { chime, volume } = chosen();

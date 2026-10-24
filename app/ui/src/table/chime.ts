@@ -11,7 +11,7 @@
 
 import { audioContext, armAudio, unlockAudio } from "../dice3d/audio";
 import { settings } from "../settings";
-import type { TableEntry } from "./model";
+import { isNews, type TableEntry } from "./model";
 
 export const CHIMES = ["off", "soft", "bell", "pop"] as const;
 export type Chime = (typeof CHIMES)[number];
@@ -51,9 +51,9 @@ export function readVolume(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : VOLUME_DEFAULT;
 }
 
-/** Whether `e` earns a chime: another person's message, image or roll (a roll the dice already sound for, its fall, does not; a masked secret says nothing). */
+/** Whether `e` earns a chime: news here (another person's, or your own account's from another device), a message, image or roll (a roll the dice already sound for, its fall, does not; a masked secret says nothing). */
 export function earnsChime(e: TableEntry, falls: boolean, typing: boolean): boolean {
-  if (e.mine || e.kind === "secret") return false;
+  if (!isNews(e) || e.kind === "secret") return false;
   if (falls && (e.kind === "roll" || e.kind === "table")) return false;
   return !typing;
 }

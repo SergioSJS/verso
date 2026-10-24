@@ -2,7 +2,7 @@
 // `/r 1d20+3`, an image) and the server source's handling of the contract's
 // commands and events — one entry held once however it arrives, pins, clear,
 // roles, the roster. The panel itself is tested in e2e/table2.spec.mjs.
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
@@ -165,6 +165,132 @@ test("an entry by someone else is unread and told to the window; mine, and the s
   assert.equal(t.entries().find((e) => e.id === "90").mine, true);
   assert.equal(t.unread(), 2);
   t.markSeen();
+  assert.equal(t.unread(), 0);
+});
+
+test("the same account on ANOTHER device is news here: it falls, sounds and counts unread, still \"Você\"", async () => {
+  const news = [];
+  const f = fake();
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  // No command of this window is on its way: acc-ana's entry came from elsewhere.
+  f.fire("table-entry", rollWire(30, { by: "Ana", by_id: "acc-ana" }));
+  assert.deepEqual(news, ["30"]);
+  assert.equal(t.unread(), 1);
+  const e = t.entries().find((x) => x.id === "30");
+  assert.equal(e.mine, true);
+  assert.equal(e.elsewhere, true);
+  assert.equal(m.isNews(e), true);
+});
+
+test("this window's own roll, its event arriving BEFORE the answer, is not news; another device's meanwhile is", async () => {
+  const news = [];
+  const f = fake();
+  let answer;
+  f.api.roll = () => new Promise((res) => (answer = () => res({ status: "ok", data: rollWire(92, { by: "Ana", by_id: "acc-ana" }) })));
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  const rolled = t.roll("1d20+3");
+  // The server tells every window of the account, this one too, before the answer;
+  // and another device of the account rolled at the same moment.
+  f.fire("table-entry", rollWire(92, { by: "Ana", by_id: "acc-ana" }));
+  f.fire("table-entry", rollWire(93, { by: "Ana", by_id: "acc-ana" }));
+  assert.deepEqual(news, []);
+  answer();
+  await rolled;
+  assert.deepEqual(news, ["93"]);
+  assert.equal(t.unread(), 1);
+  assert.equal(t.entries().find((x) => x.id === "92").elsewhere, undefined);
+  assert.equal(t.entries().find((x) => x.id === "93").elsewhere, true);
+});
+
+const deferred = () => {
+  let done;
+  const promise = new Promise((res) => (done = res));
+  return { promise, done };
+};
+
+test("a note room's roll made here: the table's push, before OR after the room's answer, is not news", async () => {
+  for (const order of ["before", "after"]) {
+    const news = [];
+    const f = fake();
+    const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+    const answer = deferred();
+    const roll = rollWire(40, { by: "Ana", by_id: "acc-ana" }).roll;
+    const call = t.making(answer.promise, (r) => (r.status === "ok" ? m.claimRoll(r.data) : null));
+    if (order === "before") f.fire("table-entry", rollWire(40, { by: "Ana", by_id: "acc-ana" }));
+    answer.done({ status: "ok", data: roll });
+    await call;
+    if (order === "after") f.fire("table-entry", rollWire(40, { by: "Ana", by_id: "acc-ana" }));
+    assert.deepEqual(news, [], order);
+    assert.equal(t.unread(), 0, order);
+    // Another device's roll of the same dice afterwards is news again.
+    f.fire("table-entry", rollWire(41, { by: "Ana", by_id: "acc-ana" }));
+    assert.deepEqual(news, ["41"], order);
+  }
+});
+
+test("a command that fails as unavailable may still have been appended: its entry is not released as another device's", async () => {
+  const news = [];
+  const f = fake();
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  const answer = deferred();
+  const call = t.making(answer.promise, (r) => (r.status === "error" && r.error.kind === "unavailable" ? (e) => e.notation === "1d20+3" : null));
+  f.fire("table-entry", rollWire(50, { by: "Ana", by_id: "acc-ana" }));
+  answer.done({ status: "error", error: { kind: "unavailable", message: "gone" } });
+  await call;
+  assert.deepEqual(news, []);
+});
+
+test("two commands at once: each claims its own entry, and a third that nobody claimed is news", async () => {
+  const news = [];
+  const f = fake();
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  const one = deferred();
+  const two = deferred();
+  const claim = (r) => (r.status === "ok" ? m.claimRoll(r.data) : null);
+  const a = t.making(one.promise, claim);
+  const b = t.making(two.promise, claim);
+  const mk = (id, total) => rollWire(id, { by: "Ana", by_id: "acc-ana", roll: { ...rollWire(id).roll, total } });
+  f.fire("table-entry", mk(60, 11));
+  f.fire("table-entry", mk(61, 12));
+  f.fire("table-entry", mk(62, 13));
+  one.done({ status: "ok", data: mk(60, 11).roll });
+  await a;
+  assert.deepEqual(news, [], "one command is still on its way");
+  two.done({ status: "ok", data: mk(61, 12).roll });
+  await b;
+  assert.deepEqual(news, ["62"]);
+  assert.equal(t.unread(), 1);
+});
+
+test("an entry held for a command that never answers is released as news after a few seconds", async () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const news = [];
+    const f = fake();
+    const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+    void t.making(new Promise(() => {}), () => null);
+    f.fire("table-entry", rollWire(70, { by: "Ana", by_id: "acc-ana" }));
+    assert.deepEqual(news, []);
+    mock.timers.tick(3100);
+    assert.deepEqual(news, ["70"]);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("an entry removed or a table closed while held is never news", async () => {
+  const news = [];
+  const f = fake();
+  const t = await m.openServerTable({ ...f.deps, onNews: (e) => news.push(e.id) });
+  const answer = deferred();
+  const call = t.making(answer.promise, () => null);
+  f.fire("table-entry", rollWire(80, { by: "Ana", by_id: "acc-ana" }));
+  f.fire("table-removed", { table: "", id: "80" });
+  f.fire("table-entry", rollWire(81, { by: "Ana", by_id: "acc-ana" }));
+  await t.close();
+  answer.done({ status: "ok", data: null });
+  await call;
+  assert.deepEqual(news, []);
   assert.equal(t.unread(), 0);
 });
 
