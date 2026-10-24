@@ -149,9 +149,13 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
     let mut notices = Notices::new();
     let mut told: Vec<String> = Vec::new();
     for path in &went {
-        let players: Vec<String> = crate::campaign_cmds::players_of(server, folder, path)
-            .map(|p| p.into_iter().map(|p| p.id).collect())
-            .unwrap_or_default();
+        // Who the readers are cannot be asked: nothing is recorded, and the
+        // readers who had the note are not left without being told it went.
+        let Ok(players) = crate::campaign_cmds::players_of(server, folder, path) else {
+            crate::log::warn("who reads a table cannot be asked: its hidden notes wait");
+            return;
+        };
+        let players: Vec<String> = players.into_iter().map(|p| p.id).collect();
         told.extend(players.iter().cloned());
         notices.insert(
             path.clone(),
@@ -216,7 +220,7 @@ pub fn replay_pending(server: &Server, folder: &str) {
                     audience_events(server, folder, &key, &events, before);
                 } else {
                     let derived = derive_again(server, folder, &events);
-                    audience_events(server, folder, &key, &derived, None);
+                    audience_events(server, folder, &key, &derived, before);
                 }
             }
             crate::campaign::Pending::Refresh {

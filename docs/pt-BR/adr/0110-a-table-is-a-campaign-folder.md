@@ -692,6 +692,15 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   ia ganhar e não vê não é avisado de nada), e o que esperou por uma mesa desfeita
   é descartado; no máximo 64 esperam. Tirar um compartilhamento esquece suas
   pessoas que leem a pasta por nenhum outro caminho.
+  Quinta revisão (2026-10-24): o que espera além do limite é feito um só — os dois
+  mais antigos juntos, suas notas e jogadores reunidos, derivados de novo quando
+  ditos —, nunca descartado; um público derivado de novo guarda a mesa como era,
+  então as notas que apontam para ele também são ditas. Na atualização para o
+  esquema 18 as cópias que o código antigo ocultou (tamanho de leitor −1)
+  continuam nos dispositivos dos jogadores: nenhuma exclusão forçada é feita na
+  atualização, só para uma mesa feita dali em diante. O primeiro pedido de quem
+  chega conta as linhas de antes da época dentro da mesa (só a contagem, sem
+  nomes: o que ele não vê é um buraco).
 - **O que uma janela ouve é o que ganhou ou perdeu.** `campaign-changed` e o
   `folder-changed` de uma liberação são feitos por jogador a partir da mesa
   antes e depois da mudança: uma nota que ele não via antes nem vê agora não é

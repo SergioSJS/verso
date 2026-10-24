@@ -313,7 +313,76 @@ pub(crate) enum Pending {
     },
 }
 
-/// How much waits for one folder's table at most: the oldest goes.
+impl Pending {
+    /// Two entries as one: the same kind joins its notes and players; a
+    /// window's refresh joins an audience's by being kept as the audience.
+    fn merged(self, other: Self) -> Self {
+        use crate::campaign_cmds::Event;
+        match (self, other) {
+            (
+                Self::Audience {
+                    key,
+                    mut events,
+                    before,
+                    ..
+                },
+                Self::Audience { events: more, .. },
+            ) => {
+                for e in more {
+                    match events.iter_mut().find(|x| x.path == e.path) {
+                        Some(x) => {
+                            let Event { lost, gained, .. } = e;
+                            for a in lost {
+                                if !x.lost.contains(&a) {
+                                    x.lost.push(a);
+                                }
+                            }
+                            for a in gained {
+                                if !x.gained.contains(&a) {
+                                    x.gained.push(a);
+                                }
+                            }
+                        }
+                        None => events.push(e),
+                    }
+                }
+                // A state generation that no table has: derived again.
+                Self::Audience {
+                    key,
+                    events,
+                    before,
+                    at: u64::MAX,
+                }
+            }
+            (
+                Self::Refresh {
+                    key,
+                    mut touched,
+                    before,
+                },
+                Self::Refresh { touched: more, .. },
+            ) => {
+                for p in more {
+                    if !touched.contains(&p) {
+                        touched.push(p);
+                    }
+                }
+                Self::Refresh {
+                    key,
+                    touched,
+                    before,
+                }
+            }
+            // A refresh only tells windows what to read again; an audience is
+            // what the devices' logs say. The audience stays.
+            (a @ Self::Audience { .. }, Self::Refresh { .. })
+            | (Self::Refresh { .. }, a @ Self::Audience { .. }) => a,
+        }
+    }
+}
+
+/// How much waits for one folder's table at most: past it, entries are made
+/// one.
 const PENDING_MOST: usize = 64;
 
 /// How many players' locks and told files the server keeps at most (a
@@ -367,9 +436,12 @@ impl Cache {
         let mut all = lock(&self.pending);
         let list = all.entry(folder.to_owned()).or_default();
         list.push(what);
-        if list.len() > PENDING_MOST {
-            list.remove(0);
-            crate::log::warn("a table's changes wait too long to be told: the oldest is dropped");
+        // Bounded, and nothing is let go: past the bound the two oldest are
+        // made one (their notes and the players they named together, to be
+        // derived again from the table as it is when they are told).
+        while list.len() > PENDING_MOST {
+            let (a, b) = (list.remove(0), list.remove(0));
+            list.insert(0, a.merged(b));
         }
     }
 
