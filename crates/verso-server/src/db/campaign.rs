@@ -246,6 +246,9 @@ impl Db {
                 params![folder, root],
             )
             .map_err(e)?;
+            // The folder's readers have counted its log as one for everyone
+            // up to here; from here each player's is its own.
+            players_logs_begin(&conn, folder)?;
         }
         Ok(n > 0)
     }

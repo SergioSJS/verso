@@ -429,6 +429,24 @@ impl Db {
         Ok(rows)
     }
 
+    /// `paths` are hidden from readers from now on and were never told to the
+    /// people who read them as a table's (ADR 0110): the manifest says so.
+    /// No row of the log is touched — one that left it would move every
+    /// number a device counted — and what the log said before is told to no
+    /// player by what it now is (`campaign_sync`).
+    pub fn reader_hide(&self, folder: &str, paths: &[String]) -> R<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        for p in paths {
+            tx.execute(
+                "UPDATE manifest SET reader_hash = '', reader_size = -1 WHERE folder = ?1 AND path = ?2",
+                params![folder, p],
+            )
+            .map_err(e)?;
+        }
+        tx.commit().map_err(e)
+    }
+
     /// The last change a reader sees: one only inside a secret block is
     /// none (ADR 0087). 0 for none.
     pub fn reader_head(&self, folder: &str) -> R<i64> {

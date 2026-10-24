@@ -92,6 +92,7 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
     let mut readers: ReaderOf = HashMap::new();
     let mut changes: Vec<crate::db::Recorded> = Vec::new();
     let mut explicit: Vec<String> = Vec::new();
+    let mut silent: Vec<String> = Vec::new();
     for (path, (hash, size, rhash, rsize, quick)) in &stored {
         // After an edit, only the attachments can have moved (the notes
         // changed are recorded with their own hash).
@@ -124,10 +125,15 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             }
             continue;
         }
-        // Hidden and never told as the table's: the readers had the file as
-        // a plain folder's, so they are told it went — a change, after the
-        // others. Nothing before it is taken back: a row that leaves the
-        // log shifts every cursor counted past it.
+        // Hidden and never told as the table's: silent — what was said of it
+        // before the table stays said and counted (a row that left the log
+        // would shift every cursor counted past it), and no player is told
+        // its name now, who may never have had it. Only the manifest says it
+        // is hidden from here on.
+        if rsize.is_none() && will.1 < 0 {
+            silent.push(path.clone());
+            continue;
+        }
         if let Some(r) = now {
             readers.insert(path.clone(), r);
         }
@@ -136,6 +142,11 @@ pub fn refresh_readers(server: &Server, folder: &str, key: &str, attachments_onl
             Some((hash.clone(), *size, quick.clone())),
             None,
         ));
+    }
+    if !silent.is_empty()
+        && let Err(e) = server.db.reader_hide(folder, &silent)
+    {
+        crate::log::warn(&format!("hiding a table's notes from sync: {e}"));
     }
     if changes.is_empty() && explicit.is_empty() {
         return;

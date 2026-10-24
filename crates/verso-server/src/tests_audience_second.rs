@@ -441,8 +441,7 @@ async fn since(w: &mut Win, head: i64) -> serde_json::Value {
 }
 
 #[test]
-fn making_the_first_table_over_existing_files_tells_plain_readers_they_went_and_takes_nothing_back()
-{
+fn making_the_first_table_over_existing_files_takes_no_row_out_of_the_readers_count() {
     block_on(async {
         let r = start().await;
         let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
@@ -462,17 +461,14 @@ fn making_the_first_table_over_existing_files_tells_plain_readers_they_went_and_
         assert!(head > 0, "{first}");
         let made = owner.call("campaign_make", json!({ "root": "" })).await;
         assert!(made.get("ok").is_some(), "{made}");
-        // Nothing left her count, and the notes she had are told gone.
+        // Nothing left her count, and no name of a note the table now keeps
+        // from her is told her, who may never have had it.
         let again = ana.call("sync_changes", json!({ "since": 0 })).await;
         assert!(
             again["ok"]["head"].as_i64().unwrap() >= head,
             "a row left the readers' count: {first} then {again}"
         );
-        let after = ana.call("sync_changes", json!({ "since": head })).await;
-        assert!(
-            told(&after).contains(&("Sessao.md".to_owned(), true)),
-            "the readers who had the file are not told it went: {after}"
-        );
+        assert!(!again.to_string().contains("Sessao"), "{again}");
     });
 }
 
