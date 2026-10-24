@@ -151,6 +151,7 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .cd-player-name { font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
 .cd-online { color: var(--good); font-size: .7rem; }
 .cd-count-btn { min-width: 2.2rem; min-height: 32px; padding: 0 .5rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); color: var(--ink); font: 600 .85rem var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cd-count-icon, .cd-col-icon { display: none; }
 .cd-count-btn:hover { background: var(--paper-3); }
 .cd-count-btn[aria-expanded="true"] { border-color: var(--seal); color: var(--seal); }
 .cd-count-btn:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
@@ -201,22 +202,34 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
   .quick.campaign-overlay .campaign-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; box-sizing: border-box; border-radius: 16px 16px 0 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
   .cd-open { grid-template-columns: 1fr auto; }
   .cd-field input { width: 100%; }
-  /* The players' table becomes a card per player: same controls, no sideways scroll. */
-  .cd-table, .cd-table tbody { display: block; }
-  .cd-table thead { display: block; }
-  .cd-table thead tr { display: flex; justify-content: flex-end; }
-  .cd-table thead th { display: none; border: 0; }
-  .cd-table thead th.cd-col-images { display: block; width: auto; padding-right: 0; }
+  /* The players' table on a phone: ONE slim row per player (avatar and name, the two counts with their icons, the images switch)
+     under a header row of the same columns; "Salvo" sits in a slot of its own, so nothing moves when it shows. */
+  .cd-table, .cd-table tbody, .cd-table thead { display: block; }
+  .cd-access { --cd-grid: minmax(0, 1fr) 52px 52px 64px; }
+  .cd-table thead tr { display: grid; grid-template-columns: var(--cd-grid); align-items: center; column-gap: .25rem; margin-bottom: 1rem; position: relative; }
+  .cd-table thead th { display: none; border: 0; padding: 0; text-align: center; }
+  .cd-table thead th.cd-col-sees, .cd-table thead th.cd-col-edits { display: flex; justify-content: center; width: auto; color: var(--ink-3); }
+  .cd-table thead th.cd-col-sees { grid-column: 2; }
+  .cd-table thead th.cd-col-edits { grid-column: 3; }
+  .cd-table thead th .cd-col-text { display: none; }
+  .cd-table thead th.cd-col-images { display: flex; grid-column: 4; justify-content: flex-end; width: auto; padding: 0; position: static; }
   .cd-table thead th.cd-col-images .cd-col-label { display: none; }
-  .cd-table thead th.cd-col-images .cd-all-box { margin-left: 0; }
-  .cd-table .cd-player { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .6rem; padding: .6rem .7rem; margin-bottom: .5rem; border: 1px solid var(--hair); border-radius: 10px; }
+  .cd-table thead th.cd-col-images .cd-all-box { margin-left: 0; position: static; }
+  .cd-table thead .cd-feedback { position: absolute; right: 0; top: 100%; margin-top: .1rem; font-size: .66rem; line-height: 1; white-space: nowrap; }
+  .cd-table .cd-col-icon { display: block; width: 16px; height: 16px; }
+  .cd-table .cd-player { display: grid; grid-template-columns: var(--cd-grid); align-items: center; column-gap: .25rem; position: relative; padding: .2rem 0 .6rem; border-bottom: 1px solid var(--hair); }
   .cd-table .cd-player > th, .cd-table .cd-player > td { display: block; width: auto; padding: 0; border: 0; text-align: left; }
-  .cd-table .cd-player > .cd-who { grid-column: 1 / -1; }
-  .cd-table .cd-player > td::before { content: attr(data-label); display: block; font: 600 .7rem var(--ui); letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .15rem; }
-  .cd-table .cd-player > .cd-images { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; white-space: normal; }
-  .cd-table .cd-player > .cd-images::before { margin: 0 .3rem 0 0; }
-  .cd-count-btn { min-height: 44px; min-width: 44px; }
-  /* The switch is the big one, and its touch target reaches 44 px tall. */
+  .cd-table .cd-player > td::before { content: none; }
+  .cd-table .cd-player > .cd-num { text-align: center; }
+  .cd-who-box { min-width: 0; gap: .5rem; }
+  .cd-who-text { min-width: 0; }
+  .cd-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+  .cd-count-btn { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; min-width: 48px; min-height: 44px; padding: 0 .3rem; }
+  .cd-count-icon { display: block; width: 14px; height: 14px; flex: none; opacity: .75; }
+  .cd-table .cd-player > .cd-images { display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
+  .cd-images .switch { margin-right: 0; }
+  .cd-table .cd-player .cd-feedback { position: absolute; right: 0; bottom: .1rem; font-size: .66rem; line-height: 1; margin: 0; }
+  /* The switch's touch target reaches 44 px tall without a giant switch. */
   .cd-images .switch.big input { inset: -6px -4px; width: calc(100% + 8px); height: calc(100% + 12px); }
   .cd-all { width: 22px; height: 22px; }
   .cd-table .cd-detail { display: block; margin: -.3rem 0 .5rem; border: 1px solid var(--hair); border-radius: 10px; }

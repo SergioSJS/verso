@@ -41,6 +41,16 @@ const MAIN: readonly DieKind[] = [4, 6, 8, 10, 12, 20];
 const OTHER: readonly DieKind[] = COMPOSER_DICE.filter((k) => !MAIN.includes(k));
 const LONG_PRESS_MS = 500;
 
+const ROW_KEY = "verso.table.diceRow";
+/** Whether the dice row is shown on a phone: closed until this device opened it. */
+function readRowOpen(): boolean {
+  try {
+    return localStorage.getItem(ROW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type Slot = { kind: DieKind; button: HTMLButtonElement; count: HTMLElement };
 
 export class Tray {
@@ -61,6 +71,7 @@ export class Tray {
   private moved: { keep: boolean; mod: boolean } = { keep: false, mod: false };
   /** The composer's own tools, for the toolbar of its box: the saved rolls and who sees the roll. */
   readonly tools: HTMLElement[];
+  private readonly toggle = h("button", "tray-tool tray-toggle");
   private readonly savedButton = h("button", "tray-tool tray-saved-button");
   private readonly moreBox = h("div", "tray-pop tray-more");
   private readonly savedBox = h("div", "tray-pop tray-saved");
@@ -168,7 +179,14 @@ export class Tray {
     });
     this.moreBox.append(roller);
     this.scroll.append(this.moreButton, this.mod, this.kh, this.kl);
-    this.tools = [this.savedButton, this.mode];
+    // A phone: the dice row is behind this button (css/table.css), its state kept on this device.
+    this.toggle.type = "button";
+    this.toggle.title = ts.diceRow;
+    this.toggle.setAttribute("aria-label", ts.diceRow);
+    this.toggle.append(icon("dice", ""));
+    this.toggle.addEventListener("click", () => this.setRowOpen(this.el.classList.contains("collapsed")));
+    this.setRowOpen(readRowOpen());
+    this.tools = [this.savedButton, this.mode, this.toggle];
     this.row.append(this.scroll);
     this.el.append(this.row, this.moreBox, this.savedBox);
 
@@ -372,6 +390,16 @@ export class Tray {
       ],
       ts.modeLabel,
     );
+  }
+
+  private setRowOpen(open: boolean): void {
+    this.el.classList.toggle("collapsed", !open);
+    this.toggle.setAttribute("aria-expanded", String(open));
+    try {
+      localStorage.setItem(ROW_KEY, open ? "1" : "0");
+    } catch {
+      /* no storage: the state is for this session */
+    }
   }
 
   /** The secret toggle as it stands, for a server's table; the local one has none. */

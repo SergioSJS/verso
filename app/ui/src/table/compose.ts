@@ -77,8 +77,8 @@ export class Compose {
 
   constructor() {
     this.el.setAttribute("aria-label", tt.inputLabel);
-    // Larger than a line, as a chat box is: 3 lines (2 on a phone), growing to 8 (css/table.css); Shift+Enter breaks the line.
-    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 2 : 3;
+    // Larger than a line, as a chat box is: 3 lines (one on a phone, as a chat's), growing to 8 (css/table.css); Shift+Enter breaks the line.
+    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 1 : 3;
     this.field.placeholder = tt.placeholder;
     this.field.setAttribute("aria-label", tt.inputLabel);
     this.field.setAttribute("enterkeyhint", "send");
@@ -149,7 +149,9 @@ export class Compose {
     const t = isServerTable(src) ? src : null;
     this.tray.sync(src);
     this.attach.hidden = !t || !t.canSendImage();
-    this.field.placeholder = t ? (t.canSendImage() ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
+    // A phone's field is one line wide: the short hint (the paperclip says images).
+    const narrow = window.matchMedia("(max-width: 760px)").matches;
+    this.field.placeholder = t ? (t.canSendImage() && !narrow ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
     if (!t || !t.canSendImage()) this.dropStaged();
     this.ready();
   }

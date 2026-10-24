@@ -39,6 +39,9 @@ async function setup(app, page, { server = false, role = "owner" } = {}) {
   } else await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
   const view = page.locator(".table-view");
   await expect(view).toBeVisible();
+  // A phone keeps the dice row behind its button (fix/phone-table-space): open it first.
+  const toggle = view.getByRole("button", { name: "Dados", exact: true });
+  if ((await toggle.isVisible()) && (await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(view.locator(".tray-row")).toBeVisible();
   return view;
 }
@@ -72,9 +75,15 @@ test("the row is one line, the toolbar of the box has the paperclip, the bookmar
   }
   await expect(modeButton(view)).toHaveAccessibleName("Quem vê a rolagem: Pública");
   await expect(view.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
-  const barBox = await bar.boundingBox();
+  // On a phone the toolbar shares the field's row (display: contents): its controls sit level with the field.
   const textBox = await field(view).boundingBox();
-  expect(barBox.y).toBeGreaterThanOrEqual(textBox.y + textBox.height - 1);
+  if (phone(page)) {
+    const sendBox = await send(view).boundingBox();
+    expect(Math.abs(sendBox.y + sendBox.height / 2 - (textBox.y + textBox.height / 2))).toBeLessThan(textBox.height);
+  } else {
+    const barBox = await bar.boundingBox();
+    expect(barBox.y).toBeGreaterThanOrEqual(textBox.y + textBox.height - 1);
+  }
   // The old block and the old row of buttons are gone.
   await expect(view.getByRole("button", { name: "Compor rolagem" })).toHaveCount(0);
   await expect(view.getByRole("textbox", { name: "Notação", exact: true })).toHaveCount(0);
@@ -362,8 +371,8 @@ test("the message field is larger and multi-line: Shift+Enter breaks the line, E
   const input = field(view);
   const lineHeight = await input.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
   const start = (await input.boundingBox()).height;
-  // 3 lines on a desktop, 2 on a phone.
-  const lines = phone(page) ? 2 : 3;
+  // 3 lines on a desktop, one on a phone (a chat's).
+  const lines = phone(page) ? 1 : 3;
   expect(start).toBeGreaterThanOrEqual(lineHeight * lines);
   expect(start).toBeLessThan(lineHeight * (lines + 1.5));
   await input.click();
@@ -384,13 +393,14 @@ test("the message field is larger and multi-line: Shift+Enter breaks the line, E
   const h = await text.evaluate((el) => ({ box: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) }));
   expect(h.box).toBeGreaterThanOrEqual(h.line * 2 - 1);
   await expect(input).toHaveValue("");
-  // It grows with its text, up to eight lines, then scrolls.
+  // It grows with its text, up to eight lines (four on a phone), then scrolls.
+  const most = phone(page) ? 4 : 8;
   await input.fill(Array.from({ length: 5 }, (_, i) => `linha ${i + 1}`).join("\n"));
   expect((await input.boundingBox()).height).toBeGreaterThan(start);
   await input.fill(Array.from({ length: 14 }, (_, i) => `linha ${i + 1}`).join("\n"));
   const full = await input.evaluate((el) => ({ box: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight), scroll: el.scrollHeight, client: el.clientHeight }));
-  expect(full.box).toBeLessThan(full.line * 9);
-  expect(full.box).toBeGreaterThan(full.line * 7);
+  expect(full.box).toBeLessThan(full.line * (most + 1));
+  expect(full.box).toBeGreaterThan(full.line * (most - 1));
   expect(full.scroll).toBeGreaterThan(full.client);
   // A roll still works from the first line.
   await input.fill("/r 1d6\ncom uma nota");
@@ -410,6 +420,11 @@ for (const [w, h, narrow] of [[1280, 800, 260], [390, 844, null]]) {
     await expect(mode).toBeVisible();
     await expect(mode).toHaveAccessibleName("Quem vê a rolagem: Pública");
     await expect(mode).toHaveAttribute("aria-haspopup", "menu");
+    // On a phone the button is the icon alone (its name says who sees the roll): the room goes to the log.
+    if (w <= 760 && !narrow) {
+      await expect(mode.locator(".tray-mode-label")).toBeHidden();
+      await expect(mode.locator("svg")).toBeVisible();
+    }
     // Icon and label side by side, never overlapping; the label whole; the same height as its neighbours.
     const geo = await mode.evaluate((el) => {
       const i = el.querySelector("svg").getBoundingClientRect();
@@ -419,12 +434,14 @@ for (const [w, h, narrow] of [[1280, 800, 260], [390, 844, null]]) {
       return { iconRight: i.right, labelLeft: r.left, labelRight: r.right, boxRight: b.right, clipped: l.scrollWidth > l.clientWidth + 0.5 || el.scrollWidth > el.clientWidth + 0.5, text: l.textContent, h: b.height };
     });
     expect(geo.text).toBe("Pública");
-    expect(geo.iconRight).toBeLessThanOrEqual(geo.labelLeft + 0.5);
-    expect(geo.labelRight).toBeLessThanOrEqual(geo.boxRight + 0.5);
-    expect(geo.clipped).toBe(false);
+    if (!(w <= 760 && !narrow)) {
+      expect(geo.iconRight).toBeLessThanOrEqual(geo.labelLeft + 0.5);
+      expect(geo.labelRight).toBeLessThanOrEqual(geo.boxRight + 0.5);
+      expect(geo.clipped).toBe(false);
+    }
     const saved = await view.getByRole("button", { name: "Rolagens salvas", exact: true }).boundingBox();
     expect(Math.abs(geo.h - saved.height)).toBeLessThanOrEqual(1);
-    const bar = await view.locator(".table-box-bar").boundingBox();
+    const bar = await view.locator(w <= 760 && !narrow ? ".table-box" : ".table-box-bar").boundingBox();
     const mb = await mode.boundingBox();
     expect(mb.x + mb.width).toBeLessThanOrEqual(bar.x + bar.width + 0.5);
     // By the keyboard: the app's own focus ring (2 px solid), never the browser's default; Enter opens the menu, arrows move, Enter chooses.
