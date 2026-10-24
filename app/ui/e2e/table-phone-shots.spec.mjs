@@ -6,9 +6,12 @@ import { test } from "./fixtures.mjs";
 const OUT = process.env.SHOTS;
 const PREFIX = process.env.SHOT_PREFIX ?? "x";
 
+// Skipped for the whole file, before any fixture opens a window: a skip
+// inside the test left the harness unread and failed the clean-log check.
+test.skip(!OUT, "SHOTS not set");
+
 for (const theme of ["light", "dark"]) {
   test(`the Mesa, ${theme} @layout`, async ({ app, page }, info) => {
-    test.skip(!OUT, "SHOTS not set");
     await page.addInitScript((th) => {
       const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
       localStorage.setItem("verso.settings", JSON.stringify({ ...s, theme: th }));
