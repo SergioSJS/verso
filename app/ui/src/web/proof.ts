@@ -24,6 +24,12 @@ export function setProver(p: Prover | null): void {
   prover = p;
 }
 
+/** The page's prover, for a command that goes over the WebSocket and not
+ *  through `api` (the table's invitation): null in the desktop app. */
+export function pageProver(): Prover | null {
+  return prover;
+}
+
 /** Whether an error is the server's `prove_first`. */
 export function provesFirst(e: unknown): boolean {
   return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "prove_first";

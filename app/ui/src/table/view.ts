@@ -28,7 +28,7 @@ import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
 import { tt } from "./strings";
 import { ts } from "./trayStrings";
-import { isTableRoot, makeTable, tableFor } from "../campaign";
+import { campaign, isTableRoot, makeTable, tableFor } from "../campaign";
 import { openCampaignDialog } from "../campaignDialog";
 import { cp } from "../campaignStrings";
 import { mayShare } from "../shares";
@@ -214,8 +214,12 @@ class TableView {
     this.make.replaceChildren();
     this.win.replaceChildren();
     let line: string | null = null;
-    if (mayShare() && !tableFor("")) {
+    // Only a folder with no table at all offers to become one here: with tables below, making another
+    // belongs to the folder's page card and the folder's menu, which handle any number of them.
+    if (mayShare() && !tableFor("") && campaign().tables.length === 0) {
       const b = button("save table-make-button", cp.makeTable, "user");
+      b.append(h("span", "table-make-label", cp.makeTable));
+      b.setAttribute("aria-label", cp.makeTable);
       b.title = ts.makeTableWhy;
       b.addEventListener("click", () => void makeTable(""));
       this.make.append(b);

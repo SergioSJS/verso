@@ -55,9 +55,11 @@ pub async fn join(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
             "this link is used or expired",
         ));
     }
+    let mut opens: Option<String> = None;
     if let (Some(folder), Some(role)) = (&link.folder, link.role.as_deref().and_then(Role::parse)) {
         match &link.share {
             Some(share) if ctx.server.db.share(share)?.is_some() => {
+                opens = Some(share.clone());
                 let now = ctx.server.db.share_role(share, &account)?;
                 ctx.server
                     .db
@@ -68,6 +70,7 @@ pub async fn join(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
             None => {
                 let now = ctx.server.db.role(folder, &account)?;
                 let kept = now.map_or(role, |n| n.max(role));
+                opens = Some(folder.clone());
                 ctx.server.db.grant(folder, &account, kept)?;
                 ctx.server
                     .role_changed(folder, &account, Some(kept), "revoked");
@@ -80,5 +83,7 @@ pub async fn join(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
         link.folder.as_deref(),
         true,
     );
-    Ok(ok(json!({ "folder": link.folder })))
+    // `open`: what the window shows next, the folder or share just joined
+    // (a folder's id, or a share's), so the person lands at the table.
+    Ok(ok(json!({ "folder": link.folder, "open": opens })))
 }
