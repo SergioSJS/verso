@@ -659,6 +659,13 @@ The maintainer's decision recorded in items 4 and 12. What was built:
   now has it again; who was to gain it and does not is told nothing), and what
   waited for a table that was undone is dropped; at most 64 wait. Taking a share
   away forgets its people who read the folder by no other way.
+  Fifth review (2026-10-24): what waits past the bound is made one — the two
+  oldest joined, their notes and players together, derived again when told —
+  never let go; a derived audience keeps the table as it was, so the notes that
+  link it are told too. On the schema-18 upgrade the copies the old code hid
+  (reader size −1) stay on players' devices: no forced deletion is made at the
+  upgrade, only for a table made from then on. A newcomer's first ask counts the
+  pre-epoch in-table rows (a count only, no names: what it cannot see is a hole).
 - **What a window is told is what it gained or lost.** `campaign-changed` and the
   `folder-changed` of a release are made per player from the table before and
   after the change: a note it saw neither before nor after is not named, not

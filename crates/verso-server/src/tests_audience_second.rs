@@ -768,3 +768,184 @@ fn a_share_taken_away_forgets_its_people_who_read_the_folder_by_no_other_way() {
         );
     });
 }
+
+#[test]
+fn what_waits_past_the_bound_is_made_one_not_let_go() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        release_to(&mut m, BARAO, &[&ana_id]).await;
+        let ana_head = since(&mut m.ana, 0).await["ok"]["head"].as_i64().unwrap();
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        // Ana loses the note; the telling is the oldest of many that wait.
+        let set: std::collections::BTreeSet<String> = [bia_id.clone()].into_iter().collect();
+        server
+            .db
+            .campaign_audience(
+                &folder,
+                &[BARAO.to_owned()],
+                &crate::db::Audience::Players(set),
+            )
+            .unwrap();
+        crate::campaign::forget(&server, &folder);
+        let entry = |path: &str, lost: Vec<String>| crate::campaign::Pending::Audience {
+            key: key.clone(),
+            events: vec![crate::campaign_cmds::Event {
+                path: path.to_owned(),
+                lost,
+                gained: Vec::new(),
+                restricted: true,
+            }],
+            before: None,
+            at: 0,
+        };
+        server
+            .campaigns
+            .defer(&folder, entry(BARAO, vec![ana_id.clone()]));
+        for i in 0..70 {
+            server
+                .campaigns
+                .defer(&folder, entry(&format!("x{i}.md"), Vec::new()));
+        }
+        assert!(server.campaigns.pending_len(&folder) <= 64);
+        let (s, f) = (std::sync::Arc::clone(&server), folder.clone());
+        tokio::task::spawn_blocking(move || crate::campaign_sync::replay_pending(&s, &f))
+            .await
+            .unwrap();
+        let log = since(&mut m.ana, ana_head).await;
+        assert!(
+            told(&log).contains(&(BARAO.to_owned(), true)),
+            "the oldest waiting change was let go and Ana keeps the note: {log}"
+        );
+    });
+}
+
+#[test]
+fn an_audience_derived_again_still_tells_the_notes_that_link_it() {
+    block_on(async {
+        let mut m = mesa().await;
+        let (ana_id, bia_id) = (m.ana_id.clone(), m.bia_id.clone());
+        let ana_head = since(&mut m.ana, 0).await["ok"]["head"].as_i64().unwrap();
+        let bia_head = since(&mut m.bia, 0).await["ok"]["head"].as_i64().unwrap();
+        let (server, folder) = (std::sync::Arc::clone(&m.r.server), m.id.clone());
+        let (_, key) = key_of(&m, &ana_id);
+        let before = crate::campaign::veil_of(&server, &folder);
+        // The note becomes Ana's; the telling waits and is stale when it comes.
+        let set: std::collections::BTreeSet<String> = [ana_id.clone()].into_iter().collect();
+        server
+            .db
+            .campaign_audience(
+                &folder,
+                &[BARAO.to_owned()],
+                &crate::db::Audience::Players(set),
+            )
+            .unwrap();
+        crate::campaign::forget(&server, &folder);
+        server.campaigns.defer(
+            &folder,
+            crate::campaign::Pending::Audience {
+                key,
+                events: vec![crate::campaign_cmds::Event {
+                    path: BARAO.to_owned(),
+                    lost: Vec::new(),
+                    gained: vec![ana_id],
+                    restricted: true,
+                }],
+                before,
+                at: 0,
+            },
+        );
+        let (s, f) = (std::sync::Arc::clone(&server), folder.clone());
+        tokio::task::spawn_blocking(move || crate::campaign_sync::replay_pending(&s, &f))
+            .await
+            .unwrap();
+        let _ = bia_id;
+        // Aberta links the note: its link is open for Ana now.
+        let ana = since(&mut m.ana, ana_head).await;
+        assert!(
+            told(&ana).contains(&("Aberta.md".to_owned(), false)),
+            "the note that links it is not told to Ana: {ana}"
+        );
+        let bia = since(&mut m.bia, bia_head).await;
+        assert!(!bia.to_string().contains("Aberta"), "{bia}");
+    });
+}
+
+#[test]
+fn players_synced_before_the_table_are_told_what_it_hides_and_a_later_release_tells_the_others_nothing()
+ {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let (mut owner, _) = Win::open(&r, &admin, &id).await;
+        for (name, text) in [("Livre", "livre\n"), ("Barão Zq", "zqbody\n")] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        owner.call("reindex", json!({})).await;
+        // Two readers, who have synced the folder as it is.
+        let mut players = Vec::new();
+        for (email, name) in [("ana@casa.lan", "Ana"), ("bia@casa.lan", "Bia")] {
+            let a = r
+                .server
+                .db
+                .create_account(email, name, "pt", Some("uma senha longa"), false)
+                .unwrap();
+            r.server.db.grant(&id, &a.id, Role::Reader).unwrap();
+            let b = sign_in(&r, email, "uma senha longa").await;
+            let (mut w, o) = Win::open(&r, &b, &id).await;
+            assert!(o.get("ok").is_some(), "{o}");
+            let head = since(&mut w, 0).await["ok"]["head"].as_i64().unwrap();
+            players.push((a.id, w, head));
+        }
+        // The folder becomes a table: Livre is released, the rest is hidden.
+        let made = owner.call("campaign_make", json!({ "root": "" })).await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let rel = owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Livre.md"], "released": true }),
+            )
+            .await;
+        assert!(rel.get("ok").is_some(), "{rel}");
+        for (_, w, head) in players.iter_mut() {
+            let log = since(w, *head).await;
+            for gone in ["Barão Zq.md", "Sessao.md"] {
+                assert!(
+                    told(&log).contains(&(gone.to_owned(), true)),
+                    "a reader who had {gone} is not told it went: {log}"
+                );
+            }
+            *head = log["ok"]["head"].as_i64().unwrap();
+        }
+        // A note is released to Ana alone: Bia is told nothing, and her count stays.
+        let ana_id = players[0].0.clone();
+        let rel = owner
+            .call(
+                "campaign_audience",
+                json!({ "paths": ["Barão Zq.md"], "audience": { "kind": "players", "accounts": [ana_id] } }),
+            )
+            .await;
+        assert!(rel.get("ok").is_some(), "{rel}");
+        let (_, bia, bia_head) = &mut players[1];
+        let heard = bia.hear(500).await;
+        assert!(
+            !heard.iter().any(|e| e["event"] == "sync-changed"),
+            "Bia is pinged by a release she is not in: {heard:?}"
+        );
+        assert!(!format!("{heard:?}").contains("Bar"), "{heard:?}");
+        let log = since(bia, *bia_head).await;
+        assert_eq!(log["ok"]["head"], *bia_head, "Bia's count moved: {log}");
+        assert!(!log.to_string().contains("Bar"), "{log}");
+        let (_, ana, ana_head) = &mut players[0];
+        let log = since(ana, *ana_head).await;
+        assert!(
+            told(&log).contains(&("Barão Zq.md".to_owned(), false)),
+            "Ana is not told the note is hers: {log}"
+        );
+    });
+}
