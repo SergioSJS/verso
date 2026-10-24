@@ -9,7 +9,9 @@
 .table-choose-hint { margin: 0; font-size: .78rem; color: var(--ink-2); }
 .table-choose-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
 .table-choose-option { display: inline-flex; align-items: center; gap: .4rem; width: 100%; min-height: 2rem; padding: .25rem .6rem; text-align: left; border: 1px solid var(--hair); border-radius: 6px; }
-.table-view.choosing > :not(.table-title):not(.table-choose) { display: none; }
+.table-view.choosing > :not(.table-head):not(.table-choose) { display: none; }
+.table-view.choosing .table-top { display: none; }
+.table-head { display: contents; }
 .table-top { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; container-type: inline-size; }
 .table-top[hidden], .table-win[hidden] { display: none; }
 .table-bar { display: flex; align-items: center; justify-content: flex-end; gap: .4rem; margin-left: auto; }
@@ -61,7 +63,8 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 }
 /* The phone: the panel's Mesa tab is a sheet from the bottom (ADR 0107 item 10). */
 @media (max-width: 760px) {
-  body[data-right-tab="table"] aside.right { top: auto; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: min(70vh, 600px); transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  /* The sheet takes the height above the bottom bar (the log is what it is for; fix/phone-table-space, 2026-10-24). */
+  body[data-right-tab="table"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
   body.right-open[data-right-tab="table"] aside.right { transform: none; }
   /* The sheet and its rows never wider than the screen, closed or open (390 px phones measured 392). */
   body aside.right, body aside.right > .right-close, body aside.right > .right-tabs, body aside.right > .right-body { box-sizing: border-box; max-width: 100vw; }
@@ -104,10 +107,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-box { display: flex; flex-direction: column; box-sizing: border-box; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
 .table-box:focus-within { outline: 2px solid var(--seal); outline-offset: 1px; }
 .table-input { flex: none; width: 100%; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: transparent; border: 0; outline: 0; border-radius: 8px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
-@media (max-width: 760px) { .table-input { --table-lines: 2; } }
+@media (max-width: 760px) { .table-input { --table-lines: 1; max-height: calc(4 * 1.35em + .8rem + 2px); } }
 .table-box-bar { display: flex; align-items: center; gap: .15rem; padding: .1rem .25rem .2rem; }
 .table-box-spacer { flex: 1; }
 .table-box-bar .iconic, .table-box-bar .tray-tool { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.table-box-bar .tray-toggle { display: none; }
 .table-send:disabled { opacity: .45; cursor: default; }
 .table-attach[hidden] { display: none; }
 .table-chips { display: flex; flex-wrap: wrap; gap: .3rem; padding: .35rem .4rem 0; }
@@ -128,7 +132,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-lightbox-close { color: #fff; border: 1px solid #fff6; border-radius: 7px; padding: .35rem .9rem; }
 @media (max-width: 760px) {
   /* The sheet rises above the on-screen keyboard while the field has it (screen/viewport.ts). */
-  body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); height: min(70vh, 600px, calc(100dvh - var(--table-kb, 0px) - 1rem)); }
+  body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); }
   .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
     .table-input { font-size: 16px; }
   .table-older { min-height: 2.2rem; }
@@ -195,4 +199,36 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   .saved-name { font-size: 16px; min-height: 2.6rem; }
   .saved-list { max-height: 9rem; }
   .tray-saved { left: 0; width: auto; }
+}
+
+/* A phone, the Mesa's room (fix/phone-table-space, 2026-10-24): the header is ONE row, the composer ONE line like a chat's,
+   the dice row behind a button that remembers its state. Every control stays, named and 40 px tall. */
+@media (max-width: 760px) {
+  .table-view { gap: .25rem; }
+  .table-head { display: flex; align-items: center; gap: .3rem; min-width: 0; }
+  .table-head .table-title { flex: 1 1 auto; min-width: 0; }
+  .table-head .table-top { flex: 0 0 auto; flex-wrap: nowrap; container-type: normal; margin-left: auto; }
+  .table-top .table-bar { margin-left: 0; }
+  .table-win-label, .table-hide-label { display: none; }
+  .table-win-button, .table-hide { min-width: 40px; min-height: 40px; justify-content: center; }
+  .table-view.choosing .table-head { display: none; }
+  .table-log { gap: .2rem; }
+  .table-entry { padding-top: .25rem; padding-bottom: .25rem; }
+  .table-body { margin-top: .1rem; }
+  .table-compose { gap: .15rem; padding-top: .25rem; }
+  /* The box is a row: the tools, the field, send. The bar dissolves into it; the images wait on a row above. */
+  .table-box { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+  .table-box > .table-chips { flex: 1 0 100%; }
+  .table-box-bar { display: contents; }
+  .table-box-bar > * { order: 1; }
+  .table-box-spacer { display: none; }
+  .table-box > .table-input { order: 2; flex: 1 1 0; width: auto; min-height: 40px; padding-top: .55rem; padding-bottom: .55rem; }
+  .table-box-bar > .table-send { order: 3; }
+  .table-box-bar .iconic, .table-box-bar .tray-tool { width: 36px; height: 40px; min-width: 36px; }
+  .table-box-bar > .table-send { width: 40px; min-width: 40px; margin: 0 .15rem .0 0; align-self: flex-end; }
+  .table-box-bar .tray-mode { height: 40px; width: 36px; padding: 0; justify-content: center; }
+  .table-box-bar .tray-mode-label { display: none; }
+  .table-box-bar .tray-toggle { display: inline-grid; }
+  .tray-toggle[aria-expanded="true"] { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
+  .tray-wrap.collapsed > .tray-row { display: none; }
 }

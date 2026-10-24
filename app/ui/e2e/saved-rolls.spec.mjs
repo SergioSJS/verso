@@ -32,6 +32,9 @@ async function showTray(app, page, files) {
   else await page.evaluate(() => document.body.classList.remove("no-right"));
   await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
   const view = page.locator(".table-view");
+  // A phone keeps the dice row behind its button: open it first.
+  const toggle = view.getByRole("button", { name: "Dados", exact: true });
+  if ((await toggle.isVisible()) && (await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await openSaved(view);
   return view;
 }
