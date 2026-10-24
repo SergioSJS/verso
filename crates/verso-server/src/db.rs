@@ -468,6 +468,10 @@ pub struct Db {
     /// folder's write. Empty for a database in memory.
     readers: Vec<Mutex<Connection>>,
     next_reader: std::sync::atomic::AtomicUsize,
+    /// The (folder, account) pairs let send images at some table (ADR 0107
+    /// item 3 as amended 2026-10-24), kept made again by every writer of
+    /// `campaign_images` (`refresh_images`).
+    images: Mutex<std::collections::HashSet<(String, String)>>,
 }
 
 /// How many reading connections a server keeps.
@@ -572,11 +576,14 @@ impl Db {
                 ));
             }
         }
-        Ok(Self {
+        let db = Self {
             conn: Mutex::new(conn),
             readers: Vec::new(),
             next_reader: std::sync::atomic::AtomicUsize::new(0),
-        })
+            images: Mutex::new(std::collections::HashSet::new()),
+        };
+        db.refresh_images(&db.conn());
+        Ok(db)
     }
 
     fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
@@ -736,9 +743,10 @@ impl Db {
     }
 
     pub fn delete_account(&self, account: &str) -> R<()> {
-        self.conn()
-            .execute("DELETE FROM accounts WHERE id = ?1", [account])
+        let conn = self.conn();
+        conn.execute("DELETE FROM accounts WHERE id = ?1", [account])
             .map_err(e)?;
+        self.refresh_images(&conn);
         Ok(())
     }
 
@@ -957,9 +965,10 @@ impl Db {
     }
 
     pub fn forget_folder(&self, id: &str) -> R<()> {
-        self.conn()
-            .execute("DELETE FROM folders WHERE id = ?1", [id])
+        let conn = self.conn();
+        conn.execute("DELETE FROM folders WHERE id = ?1", [id])
             .map_err(e)?;
+        self.refresh_images(&conn);
         Ok(())
     }
 

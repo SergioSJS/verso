@@ -225,7 +225,7 @@ fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
                 .as_ref()
                 .map(|(f, _)| (f.clone(), c.account.clone()))
         });
-    found.is_some_and(|pair| verso_service::lock(&server.image_grants).contains(&pair))
+    found.is_some_and(|(folder, account)| server.db.image_granted(&folder, &account))
 }
 
 #[cfg(test)]

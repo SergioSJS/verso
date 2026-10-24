@@ -841,6 +841,11 @@ jogador pode fazer).
   então uma permissão retirada enquanto os bytes viajavam é respeitada. A
   conferência de tamanho antes de ler uma mensagem consulta um conjunto em
   memória, não o banco.
+- **Um celular pareado como leitor é leitor para o servidor.** A conexão dele
+  agora conta como só de leitura (`Client.token_write` passa a incluir o papel
+  do celular), então ele recebe o que um leitor recebe (os avisos de leitor,
+  não os do mestre) e um envio grande vindo dele, imagem da mesa inclusive, é
+  recusado antes de ser lido.
 - **A permissão vai com a cadeira naquela mesa**, não só com a pasta: quando
   uma conta deixa de ser jogadora de uma mesa (o compartilhamento dela ali
   acaba, ou ela vira mestra) a permissão vai embora, mesmo que ela ainda leia

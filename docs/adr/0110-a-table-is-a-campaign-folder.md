@@ -802,6 +802,11 @@ of the folder, so a reader sent none).
   reader). It is judged again right before the file is written, so a permission
   taken back while the bytes were on their way is honoured. The size check
   before a message is parsed reads an in-memory set, not the database.
+- **A phone paired as a reader is a reader to the server.** Its connection
+  now counts as read-only (`Client.token_write` folds the phone's role in), so
+  it gets what a reader is told (the reader's pushes, not the game master's)
+  and a large upload from it, a table image included, is refused before it is
+  parsed.
 - **The permission goes with the seat at that table**, not only with the
   folder: when an account stops being a player of a table (its share there
   ends, or it becomes a game master) the permission goes, though it still
