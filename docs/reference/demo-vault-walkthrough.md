@@ -1539,11 +1539,16 @@ must be a server's, and the person its owner.
    table mark, and every note under it has the padlock "Oculta da mesa". On a
    folder of this computer alone the row is not there. Level: H; E:
    `campaign.spec.mjs`.
-2. Right-click a hidden note › *Liberar para a mesa*: the padlock goes and the
-   status line says it; *Ocultar da mesa* puts it back. With several notes
-   selected, the selection's menu does the same at once. On a folder of the
-   table, *Liberar tudo daqui* and *Ocultar tudo daqui*. Level: H; E:
-   `campaign.spec.mjs`.
+2. Right-click a hidden note › *Liberar para…* › *Toda a mesa*: the padlock goes
+   and the status line says it; › *Ninguém (oculta)* puts it back; ticking one
+   or two players releases it to them alone (the others never see it, a player
+   edited by the game master is added to those who see it and the status line
+   says so). With several notes selected, the selection's menu releases or hides
+   them whole-table at once. On a folder of the table, *Liberar tudo daqui* and
+   *Ocultar tudo daqui*. Level: H; E: `campaign.spec.mjs`, `audience.spec.mjs`.
+   Inside a note of the table, the users icon beside the star lists who sees
+   it: hover, tap, or Tab + Enter; Esc closes; on a phone it is a bottom sheet.
+   Level: H; E: `audience.spec.mjs`.
 3. In the dialog: *Mesa aberta* off and on; *Convidar jogadores* › *Gerar link*
    shows a link to copy (single use, 7 days); *Liberar tudo* asks first; the
    limits take 1,000 to 200,000 entries and 1 to 30 MB and refuse the rest;
