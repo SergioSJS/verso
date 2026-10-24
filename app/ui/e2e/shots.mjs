@@ -7,3 +7,6 @@ mkdirSync(DIR, { recursive: true });
 
 /** The path of a screenshot of this round, named by the number it takes in the run. */
 export const shot = (name) => `${DIR}${name}.png`;
+
+/** "antes" when the run is of the code before a fix (SHOT_PHASE=antes), else "depois". */
+export const phase = process.env.SHOT_PHASE === "antes" ? "antes" : "depois";

@@ -6,20 +6,27 @@
 // maintainer's Bruno: the window "não está conectando" and said nothing).
 // Where the folder would be, a persistent state: "A mesa está fechada pelo
 // mestre. Você entra quando ela abrir.", a button to try now, and the window
-// trying again by itself, gently (15 s, doubling to 2 min), until it gets
+// trying again by itself, gently (15 s, doubling to 30 s), until it gets
 // in. The same in the desktop's remote window, a folder synced with the
 // server, and a browser. The owner never sees it: owners always enter.
 
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
+import { listen } from "@tauri-apps/api/event";
 import { page } from "./settings";
 
 const FIRST = 15_000;
-const MOST = 120_000;
+const MOST = 30_000;
 
 let timer = 0;
 let wait = FIRST;
 let shown: HTMLElement | null = null;
+/** Tries to enter now, while the closed state is on screen. */
+let tryNow: (() => void) | null = null;
+
+// The game master opened the table: the server tells the players' windows,
+// and a window waiting outside tries at once (not at its next timer).
+let hearing = false;
 
 /** The state is gone: a folder was shown, or the person went elsewhere. */
 export function clearClosed(): void {
@@ -44,6 +51,11 @@ export function showTableClosed(retry: () => Promise<boolean>, haveFolder: boole
     window.clearTimeout(timer);
     if (shown?.isConnected) void retry();
   };
+  tryNow = attempt;
+  if (!hearing) {
+    hearing = true;
+    void listen("table-opened", () => tryNow?.());
+  }
   if (!shown?.isConnected) {
     page?.classList.add("empty");
     const box = h("div", "table-closed-state");

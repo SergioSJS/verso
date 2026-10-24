@@ -195,7 +195,27 @@ pub async fn command(
         .await;
     }
     changed(server, &folder, &key, touched).await;
+    // A table opened: the players waiting outside hear it at once, not at
+    // their next try.
+    if cmd == "campaign_settings" && args["open"] == true {
+        opened(server, &folder, &who.account.id).await;
+    }
     status(server, who, client).await
+}
+
+/// The table of `folder` was opened by `owner`: every other member's
+/// signed-in windows are told, which is what a player shut out by a closed
+/// table waits for (their window tries to enter again on it). The message
+/// names the folder and nothing else.
+async fn opened(server: &Arc<Server>, folder: &str, owner: &str) {
+    let (s, f) = (Arc::clone(server), folder.to_owned());
+    let members = blocking(move || s.db.members(&f).map_err(failed))
+        .await
+        .unwrap_or_default();
+    let message = json!({ "event": "table-opened", "payload": { "folder": folder } });
+    for (account, _) in members.iter().filter(|(a, _)| a.id != owner) {
+        server.push_sessions(&account.id, &message);
+    }
 }
 
 /// A note whose audience changed, for what the players' devices are told:

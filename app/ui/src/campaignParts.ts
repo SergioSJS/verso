@@ -21,14 +21,17 @@ import { openNote } from "./layout/spaces";
 import { name } from "./paths";
 import { LOCALE } from "./strings";
 import { withServerProof } from "./serverProof";
-import { askServerProof } from "./serverProver";
+import { proverHere } from "./serverProver";
 import { isServerTable } from "./table/model";
 import { tableSource } from "./table/record";
 
-/** An invitation is a sensitive action: the desktop asks the person on the
- *  spot, a browser's pages ask themselves (ADR 0083 item 6). */
+/** An invitation is a sensitive action: the person is asked on the spot,
+ *  by the desktop's dialog or the browser's own (ADR 0083 item 6). The
+ *  invitation goes over the WebSocket, which the page's `api` does not
+ *  cover (2026-10-23: a browser's game master met "nothing was generated"
+ *  with no way to confirm). */
 function proved<T>(call: () => Promise<{ status: "ok"; data: T } | { status: "error"; error: ContractError }>) {
-  return withServerProof(call, document.documentElement.dataset.host === "server" ? null : askServerProof);
+  return withServerProof(call, proverHere());
 }
 
 /** The table at `root`, as the window last heard it. */
