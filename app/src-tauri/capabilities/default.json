@@ -130,6 +130,7 @@
     "allow-table-history",
     "allow-table-say",
     "allow-table-send-image",
+    "allow-table-attach",
     "allow-table-roll",
     "allow-table-pin",
     "allow-table-delete",

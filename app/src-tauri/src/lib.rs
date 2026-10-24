@@ -820,6 +820,7 @@ macro_rules! commands_for {
                 table::table_history,
                 table::table_say,
                 table::table_send_image,
+                table::table_attach,
                 table::table_roll,
                 table::table_pin,
                 table::table_delete,

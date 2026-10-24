@@ -120,6 +120,7 @@ fn main() {
         "table_history",
         "table_say",
         "table_send_image",
+        "table_attach",
         "table_roll",
         "table_pin",
         "table_delete",

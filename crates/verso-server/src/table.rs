@@ -69,12 +69,13 @@ pub const BURST: f64 = 20.0;
 const COLOUR: &str = "#b5651d";
 
 /// What the commands of the table are.
-pub const COMMANDS: [&str; 9] = [
+pub const COMMANDS: [&str; 10] = [
     "table_join",
     "table_leave",
     "table_look",
     "table_say",
     "table_send_image",
+    "table_attach",
     "table_roll",
     "table_pin",
     "table_delete",
@@ -655,6 +656,14 @@ pub async fn command(
     let account = who.account.id.clone();
     let name = who.account.name.clone();
     let s = Arc::clone(server);
+    // A file put into a note or board the person edits: the table is the
+    // note's, and the person need not be at the table's panel (ADR 0113 D).
+    if cmd == "table_attach" {
+        let data: String = arg(&args, "base64")?;
+        let into: String = arg(&args, "into")?;
+        pace(&s, client)?;
+        return crate::table_image::attach(server, who, client, (&data, &into)).await;
+    }
     // The table the call is for: the one it names (a real table of the
     // folder, ADR 0107 as amended 2026-10-23), the folder's default for an
     // old peer that names none.
