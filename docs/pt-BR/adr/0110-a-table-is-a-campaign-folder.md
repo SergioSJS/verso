@@ -670,14 +670,28 @@ A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
   dispositivo vale enquanto isso). O que esperou por uma mesa ilegível — os
   eventos das janelas e as entradas de log dos públicos — é dito quando ela pode
   ser lida, e as salas se fecham na hora (uma mesa ilegível oculta toda nota).
-  Ocultar um caminho que os leitores tinham como arquivo de uma pasta comum
-  nunca tira uma linha da contagem dos leitores e não é dito a nenhum jogador
-  pelo nome (pode nunca tê-lo tido): as linhas ficam, contadas, e são ditas pelo
-  que o caminho é agora. Os contadores de esquecimento são por pasta e um arquivo
+  Fazer a primeira mesa sobre
+  arquivos que os leitores já tinham não tira nenhuma linha da contagem dos
+  leitores; as notas que ela oculta são ditas como sumidas — uma exclusão forçada
+  depois da época — aos leitores que existem naquele momento, e a ninguém que
+  chegue depois (escolha feita no código: uma nota oculta não existe para um
+  jogador, item 4; as linhas de antes da mesa de notas agora ocultas continuam
+  contadas, ditas pelo que o caminho é agora, porque o cursor de um dispositivo as
+  conta). Os contadores de esquecimento são por pasta e um arquivo
   escrito não é uma mudança do estado da mesa; uma decisão que continua
   encontrando um estado que se move é recusada para quem pergunta repetir, nunca
   escrita. O `sync_state` de um compartilhamento conta o topo antes de montar os
   arquivos.
+  Quarta revisão (2026-10-24): o esquema 18 dá a uma mesa feita antes de existir
+  época a que o log da pasta tinha, de modo que os números que os dispositivos dos
+  leitores têm continuam sem lacuna e sem nada enviado duas vezes; fazer uma mesa,
+  seu log e sua época são uma transação. O que espera por uma mesa ilegível nunca
+  é refeito a partir de uma escrita (uma sala que salva segura sua trava): um
+  comando e o pedido de um jogador o refazem; o que esperou enquanto a mesa
+  seguia em frente é derivado de novo (quem perdeu e vê agora o tem de novo; quem
+  ia ganhar e não vê não é avisado de nada), e o que esperou por uma mesa desfeita
+  é descartado; no máximo 64 esperam. Tirar um compartilhamento esquece suas
+  pessoas que leem a pasta por nenhum outro caminho.
 - **O que uma janela ouve é o que ganhou ou perdeu.** `campaign-changed` e o
   `folder-changed` de uma liberação são feitos por jogador a partir da mesa
   antes e depois da mudança: uma nota que ele não via antes nem vê agora não é

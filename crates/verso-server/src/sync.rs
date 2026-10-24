@@ -416,7 +416,6 @@ fn record_changes(
         // itself succeeded, and says so.
         return server.db.head(folder).map_err(verso_service::failed);
     }
-    crate::campaign_sync::replay_pending(server, folder);
     let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
     let table = crate::campaign::veil_for_key(server, key);
     for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {

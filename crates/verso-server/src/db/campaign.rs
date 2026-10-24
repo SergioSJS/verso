@@ -92,6 +92,16 @@ CREATE TABLE campaign_gone (
 );
 ";
 
+/// Schema 18: a table made before the players' logs were their own wherever
+/// there is a table has the epoch its folder's log stood at, so that the
+/// numbers the readers' devices hold go on from there: nothing is skipped
+/// or sent twice at the upgrade.
+pub(super) const EPOCHS: &str = r"
+INSERT OR IGNORE INTO campaign_epoch (folder, seq)
+  SELECT folder, (SELECT COALESCE(MAX(c.seq), 0) FROM changes c WHERE c.folder = campaigns.folder)
+  FROM campaigns GROUP BY folder;
+";
+
 /// The table log's ceiling a table gets, and the bounds its owner may set
 /// it within (ADR 0110, MS.1).
 pub const LOG_DEFAULT: i64 = 20_000;
@@ -227,10 +237,13 @@ impl Db {
             .map_err(e)
     }
 
-    /// Make `root` of `folder` a table: whether it was not one already.
+    /// Make `root` of `folder` a table: whether it was not one already. The
+    /// table, the log the folder had so far and the epoch of the players'
+    /// logs are one step.
     pub fn campaign_make(&self, folder: &str, root: &str) -> R<bool> {
-        let n = self
-            .conn()
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let n = tx
             .execute(
                 "INSERT OR IGNORE INTO campaigns (folder, root, created) VALUES (?1, ?2, ?3)",
                 params![folder, root, now()],
@@ -239,8 +252,7 @@ impl Db {
         // The folder's first table takes the log the folder had so far
         // (the same rule as schema 16): nothing is left behind.
         if n > 0 {
-            let conn = self.conn();
-            conn.execute(
+            tx.execute(
                 "UPDATE table_log SET tbl = ?2 WHERE folder = ?1 AND tbl = ''
                    AND (SELECT COUNT(*) FROM campaigns WHERE folder = ?1) = 1",
                 params![folder, root],
@@ -248,8 +260,9 @@ impl Db {
             .map_err(e)?;
             // The folder's readers have counted its log as one for everyone
             // up to here; from here each player's is its own.
-            players_logs_begin(&conn, folder)?;
+            players_logs_begin(&tx, folder)?;
         }
+        tx.commit().map_err(e)?;
         Ok(n > 0)
     }
 
