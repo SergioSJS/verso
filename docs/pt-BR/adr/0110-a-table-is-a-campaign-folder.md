@@ -104,6 +104,22 @@ do autor.
      _(recomendada)_ — nada vaza por esquecimento.
    - **B — Liberada, a menos que escondida.**
 
+   **Alterado em 2026-10-23 — liberada para quem (decisão do mantenedor).**
+   Uma nota liberada é liberada *para alguém*: para a mesa toda, ou para um ou
+   mais jogadores escolhidos; oculta continua sendo "para ninguém". O
+   mantenedor, sobre a proposta do "Liberar para…": *"gosto da sua sugestão, e
+   tem que ficar visivel em algum lugar quem tem acesso, as vezes um icone de
+   usuários que no hover, mostra quem tem acesso e quem não, isso dentro da
+   nota, so tem que ficar esperto, usando skills de ux para posicionar sem
+   quebrar nada na responsividade."* Assim, o **público** de uma nota é
+   oculta, a mesa toda, ou um conjunto de jogadores da mesa; o servidor o guarda
+   junto do resto do estado da nota e o pergunta a cada jogador toda vez que
+   antes perguntava "oculta" (ver "Como foi construído (o público de uma nota,
+   2026-10-23)"). Uma nota que só o mestre e os jogadores escolhidos veem não
+   existe para os outros, pela regra acima. Uma permissão de edição a um
+   jogador (item 5) implica que esse jogador está no público. Quem tem acesso
+   aparece dentro da nota.
+
 5. **Algumas notas editáveis pelos jogadores.** `[DECIDED]` (*"nota do
    grupo, nota da ficha"*). `[PROPOSED]` Concessões de escrita por nota,
    guardadas no servidor como no item 4: **o grupo** (todo jogador da mesa
@@ -177,6 +193,12 @@ do autor.
 12. **O diário privado do jogador.** `[DECIDED]` (adição, aceita)
     `[PROPOSED]` Cada jogador tem uma nota que só ele e o mestre veem e
     editam (na área dos jogadores), para anotações e segredos do personagem.
+
+    **Alterado em 2026-10-23 (decisão do mantenedor).** O diário não é um
+    recurso à parte: é **uma nota liberada para um jogador** (item 4, alterado)
+    e permitida a esse jogador para editar (item 5). O mesmo vale para uma pista
+    que só um personagem recebeu e para a ficha de cada jogador liberada só ao
+    seu dono. Nada separado é construído para ele.
 
 13. **"Ver como jogador".** `[DECIDED]` (adição, aceita) `[PROPOSED]` O
     mestre pré-visualiza a mesa exatamente como um jogador escolhido a vê
@@ -558,3 +580,64 @@ Uma terceira diferença, achada pelo e2e: a imagem de uma mesa era procurada a
 partir do pai do compartilhamento (`resolve_attachment` sem nota que diga de
 onde o alvo é escrito), então a miniatura do próprio jogador do compartilhamento
 vinha faltando. Agora o compartilhamento procura esse alvo a partir da sua raiz.
+
+## Como foi construído (o público de uma nota, 2026-10-23)
+
+A decisão do mantenedor registrada nos itens 4 e 12. O que foi construído:
+
+- **Estado.** `campaign_notes.released = 1` continua sendo a mesa toda, então
+  toda nota liberada antes continua da mesa (o esquema 17 acrescenta tabelas e
+  não muda nenhuma linha); com `released = 0`, as linhas de `campaign_audience
+  (folder, path, account)` são os jogadores que veem a nota, e nenhuma é oculta.
+  Uma permissão de edição a um jogador o põe no público de uma nota que não era
+  da mesa; a permissão de edição do grupo todo faz da nota a da mesa; estreitar
+  um público retira a permissão que deixou de valer; ocultar retira qualquer
+  uma. O público acompanha a nota quando ela é renomeada ou movida e some com
+  ela quando é apagada.
+- **Uma pergunta, feita a alguém.** O véu responde "oculta" para um espectador
+  dado: o do próprio jogador (`Veil::view(account)`), o público — o que a mesa
+  toda vê, que é o que recebe uma chamada que não diz quem pergunta, então
+  falha fechado — e a união (o que qualquer jogador vê), que é o que o log de
+  sincronização guarda para leitores. As portas que diziam "oculta" antes
+  perguntam o do próprio jogador: as listas, leituras, busca, backlinks, grafo,
+  tags, abrir rápido, quadros e incorporações, os links da mesa desenhados como
+  cadeados, o texto servido, os arquivos em `/f/` (um anexo abre só por uma nota
+  que esse jogador vê), as salas e sua admissão, os eventos que cada janela
+  ouve, a sincronização de um dispositivo e o log da mesa (uma entrada de
+  rolagem ou oráculo feita numa nota que um espectador não vê perde o caminho e
+  a origem para ele). A sombra compartilhada de uma sala para leitores é cortada
+  com os olhos do público: um link para uma nota que só alguns jogadores veem
+  vira cadeado nela, para todos, até recarregarem (nenhum nome de uma nota assim
+  cruza um documento compartilhado).
+- **O log do dispositivo de um jogador é só dele** quando a pasta tem uma nota
+  liberada para alguns jogadores (`campaign_epoch`). O log que o servidor guarda
+  é dito para os jogadores juntos; cada jogador recebe o seu recorte, numerado
+  na sua própria contagem: as mudanças de uma nota que o jogador não via quando
+  vieram não são mudanças dele (decidido na primeira vez que o log dele é
+  pedido, guardado em `campaign_skip`, de modo que os números que um dispositivo
+  já contou nunca se movem), uma nota que ele perdeu é dita como exclusão
+  (`campaign_lost`, também para uma nota apagada enquanto ele a via,
+  `campaign_gone`), e o hash de cada nota é o do texto próprio daquele jogador.
+  Uma mudança que só muda quem vê uma nota, e as notas que apontam para ela, são
+  registradas para que o log de todo jogador as tenha. Um jogador que não vê uma
+  nota não ouve seu nome, suas mudanças, nem quantas houve.
+- **Comandos.** `campaign_audience(paths, audience)` (do mestre;
+  `{kind: "hidden" | "table" | "players", accounts}`, as contas precisam ser
+  jogadores da mesa da nota) e `campaign_access(path)` (quem tem acesso: ao
+  mestre, todo jogador com o que cada um pode; a um jogador, só as pessoas que
+  têm acesso; uma nota que o jogador não vê responde como uma ausente). O status
+  diz o público de cada nota.
+- **Mostrado dentro da nota.** Um ícone de usuários com uma contagem na linha do
+  título da nota, ao lado da estrela; o balão (passar o mouse num dispositivo de
+  ponteiro, toque ou clique, Enter e Espaço; Esc fecha e devolve o foco; uma
+  folha de baixo num celular) lista ao mestre cada jogador com *vê* / *edita* /
+  *não vê* e um atalho para mudar, e a um jogador que vê a nota ("Você, Bruno e o
+  mestre" / "A mesa toda"), nunca os controles do mestre.
+- **Testado.** `tests_audience.rs` (um jogador fora do público não consegue
+  listar, ler, buscar, ver backlinks, tags, abrir sala, sincronizar, buscar o
+  anexo nem ver a nota no log da mesa; um dentro consegue; incluir e retirar um
+  jogador ao vivo; exclusão; permissões), `db/tests.rs` (esquema 17 e as regras do
+  público), `app/ui/e2e/audience.spec.mjs` e `e2e-server/audience.spec.mjs`.
+- **Não feito.** O público de um quadro é a mesma regra onde um quadro pode ser
+  liberado (é um arquivo da mesa como as notas); nenhum controle separado foi
+  acrescentado para ele.
