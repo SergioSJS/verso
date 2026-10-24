@@ -22,7 +22,7 @@ import { announce, clock, rollBlockFor, saidOf, whoOf } from "./addToNote";
 import { armDrag } from "../layout/drag";
 import { rollable } from "../rollblock/entry";
 import { Compose } from "./compose";
-import { isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
+import { isNews, isServerTable, type ServerTable, type TableEntry, type TableSource } from "./model";
 import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
@@ -125,6 +125,7 @@ class TableView {
   private readonly toEnd = button("ghost table-to-end", tt.toEnd, "chevronDown");
   private stuck = true;
   private known = new Set<string>();
+  private told = new Set<string>();
   private first = true;
   private off: (() => void) | null = null;
   private bound: TableSource | null = null;
@@ -181,6 +182,7 @@ class TableView {
     this.off?.();
     this.bound = src;
     this.known = new Set();
+    this.told = new Set();
     this.first = true;
     this.off = src.onChange(() => {
       if (this.el.isConnected) this.render();
@@ -346,9 +348,11 @@ class TableView {
     } else this.list.replaceChildren(...items);
     // Others' news is said once, with their name; the first paint and a
     // hidden or restored log say nothing.
-    if (!this.first) {
-      const others = fresh.filter((e) => !e.mine);
-      const last = others[others.length - 1];
+    {
+      // Said once: another's news when it arrives, and a same-account entry of another device when it BECOMES news (it may be painted held, before).
+      const others = [...entries, ...pinned].filter((e) => !this.told.has(e.id) && ((fresh.includes(e) && isNews(e)) || e.elsewhere === true));
+      for (const e of others) this.told.add(e.id);
+      const last = this.first ? undefined : others[others.length - 1];
       if (last) {
         this.said.textContent = "";
         const text = announce(last);
