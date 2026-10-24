@@ -514,7 +514,7 @@ mesa, 2026-10-23)":
   `test/tableServer.test.mjs` e `e2e/table-per-table.spec.mjs`.
 
 - **A janela da mesa e a página da pasta (2026-10-23).** O mantenedor, numa captura da janela da campanha (um checkbox nativo, um "Salvo." solto, "Desfazer mesa" como o botão principal roxo): *"essa tela ta feia demais, faz um toggle maneiro pra ativar, passa um UX aí cara pelo amor"*; e na página da pasta: *"nessa tela aqui, da pasta, deveriam ter informações da mesa, na página da pasta, deveria estar ali, ativar ou não a mesa, configurações e tal"*. Feito: **Mesa aberta** é uma chave (`role=switch`, um selo *Aberta*/*Fechada*, uma linha do que significa) que salva na hora e responde ao lado; a janela é feita de cartões (convite com o link num campo, *Copiar* e o vencimento; jogadores com o que foi entregue a cada um, em links, e quem está na mesa agora; notas com as contagens de liberadas/ocultas e as duas ações em massa; os limites recolhidos em *Avançado*, o campo salvando ao sair ou com Enter); **Desfazer mesa** é uma ação vermelha e discreta no pé (uma ação destrutiva é vermelha em toda paleta, `--danger`; pergunta antes e diz que os arquivos nunca mudam), nunca o botão principal. No celular a janela é uma folha. A página da pasta tem um cartão **Mesa** sob o título, feito das mesmas peças (`campaignParts.ts`): para a dona de uma pasta que é mesa, a chave, as jogadoras (e quem está online), *Convidar*, as contagens e *Configurações da mesa* (recolhível, lembrado por pasta); para uma jogadora, uma linha só de leitura; numa pasta que pode virar mesa (servidor ou sincronizada, a dona, fora de uma mesa) um chamado *Tornar esta pasta uma mesa*; nada numa pasta só deste computador. Vale para a página de qualquer pasta, então N mesas por pasta.
-- **Uma mesa fechada é dita à jogadora (2026-10-23).** A janela de uma jogadora "não conectava" a uma mesa fechada (`refused: a mesa está fechada` no log, nada na tela). Agora a janela diz, no lugar da pasta e na língua da interface, *A mesa está fechada pelo mestre. Você entra quando ela abrir.*, com *Tentar agora*, e tenta de novo sozinha (15 s, dobrando até 2 min); o mesmo na janela remota do desktop, numa pasta sincronizada com o servidor (`SyncStatus.problem = table_closed`, nova tentativa a cada 15 s) e no navegador (o aviso do servidor `gone: folder, reason: closed` mantém a pasta lembrada). A dona nunca vê isso, e o botão, o selo e o painel da Mesa dizem *fechada* ao mestre. **Nada fechou a mesa sem a pessoa**: `campaign_make` numa mesa existente é `INSERT OR IGNORE` (não toca em `open`), `campaign_settings` sem `open` o mantém (`COALESCE`), os campos de limite da janela não mandam `open`, nenhuma migração o toca, e uma mesa nova começa aberta (testes `making_a_table_again_…` em `db/tests.rs` e `tests_campaign.rs`); o único que manda `open: false` é a chave. A janela antiga punha o foco do teclado no checkbox, onde um Espaço perdido podia fechar a mesa sem a pessoa querer; a janela redesenhada põe o foco no título, salva na hora com resposta visível e diz *Fechada* em vermelho.
+- **Uma mesa fechada é dita à jogadora (2026-10-23).** A janela de uma jogadora "não conectava" a uma mesa fechada (`refused: a mesa está fechada` no log, nada na tela). Agora a janela diz, no lugar da pasta e na língua da interface, *A mesa está fechada pelo mestre. Você entra quando ela abrir.*, com *Tentar agora*, e tenta de novo sozinha (15 s, dobrando até 30 s — veja "Como foi construído, achados da noite" abaixo); o mesmo na janela remota do desktop, numa pasta sincronizada com o servidor (`SyncStatus.problem = table_closed`, nova tentativa a cada 15 s) e no navegador (o aviso do servidor `gone: folder, reason: closed` mantém a pasta lembrada). A dona nunca vê isso, e o botão, o selo e o painel da Mesa dizem *fechada* ao mestre. **Nada fechou a mesa sem a pessoa**: `campaign_make` numa mesa existente é `INSERT OR IGNORE` (não toca em `open`), `campaign_settings` sem `open` o mantém (`COALESCE`), os campos de limite da janela não mandam `open`, nenhuma migração o toca, e uma mesa nova começa aberta (testes `making_a_table_again_…` em `db/tests.rs` e `tests_campaign.rs`); o único que manda `open: false` é a chave. A janela antiga punha o foco do teclado no checkbox, onde um Espaço perdido podia fechar a mesa sem a pessoa querer; a janela redesenhada põe o foco no título, salva na hora com resposta visível e diz *Fechada* em vermelho.
 
 ## Como foi construído (um compartilhamento é a mesma mesa, 2026-10-23)
 
@@ -558,3 +558,25 @@ Uma terceira diferença, achada pelo e2e: a imagem de uma mesa era procurada a
 partir do pai do compartilhamento (`resolve_attachment` sem nota que diga de
 onde o alvo é escrito), então a miniatura do próprio jogador do compartilhamento
 vinha faltando. Agora o compartilhamento procura esse alvo a partir da sua raiz.
+## Como foi construído (achados da noite, 2026-10-24)
+
+O que o teste ao vivo da noite de 2026-10-23 mostrou, e o que foi construído
+no código naquela noite. Nada disto é decisão do mantenedor; foi escolhido ao
+corrigir, e fica registrado para não ser confundido com uma.
+
+- **Mesa fechada, reaberta.** A espera entre tentativas da janela de quem
+  aguarda numa mesa fechada agora dobra de 15 s até **30 s** (eram 2 min; na
+  noite, uma mesa reaberta levou até 30 s para chegar a quem esperava). E
+  quando o mestre abre uma mesa, o servidor envia `table-opened` (`{ folder }`,
+  o id que a pessoa abre: o da pasta ou o do compartilhamento) às janelas
+  conectadas dos membros da pasta e de quem está num compartilhamento que
+  alcança a mesa (dentro dela, igual à raiz, ou acima — nunca o de outra
+  subpasta); a janela do navegador que espera tenta na hora. **Só o navegador
+  ouve**: a janela remota do desktop derruba a conexão quando a abertura é
+  recusada numa mesa fechada, e o vínculo de uma pasta sincronizada ignora
+  eventos desconhecidos; os dois seguem tentando pelo relógio.
+- **Quem só lê uma pasta sincronizada** (desktop) tem o cadeado fechado e o
+  aviso ao tentar, como quem lê num servidor; a linha "Você só lê esta pasta"
+  por nota saiu para todos (o cadeado diz).
+- **Entrar por um convite** abre o que foi acolhido (a pasta ou o
+  compartilhamento; quem tem a pasta inteira vai para a pasta).

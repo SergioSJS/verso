@@ -153,23 +153,44 @@ pub async fn command(
     // A table opened: the players waiting outside hear it at once, not at
     // their next try.
     if cmd == "campaign_settings" && args["open"] == true {
-        opened(server, &folder, &who.account.id).await;
+        let root: String = arg(&args, "root")?;
+        opened(server, &folder, &root, &who.account.id).await;
     }
     status(server, who, client).await
 }
 
-/// The table of `folder` was opened by `owner`: every other member's
-/// signed-in windows are told, which is what a player shut out by a closed
-/// table waits for (their window tries to enter again on it). The message
-/// names the folder and nothing else.
-async fn opened(server: &Arc<Server>, folder: &str, owner: &str) {
-    let (s, f) = (Arc::clone(server), folder.to_owned());
-    let members = blocking(move || s.db.members(&f).map_err(failed))
-        .await
-        .unwrap_or_default();
-    let message = json!({ "event": "table-opened", "payload": { "folder": folder } });
+/// The table at `root` of `folder` was opened by `owner`: every other
+/// member's signed-in windows are told, and those of the people on a share
+/// that reaches the table (a share inside the table, the table's own, or
+/// one over it — never another subfolder's), which is what a player shut
+/// out by a closed table waits for (their window tries to enter again on
+/// it). The message names the id the person opens (the folder's, or the
+/// share's) and nothing else.
+async fn opened(server: &Arc<Server>, folder: &str, root: &str, owner: &str) {
+    let (s, f, r) = (Arc::clone(server), folder.to_owned(), root.to_owned());
+    let (members, shared) = blocking(move || {
+        let members = s.db.members(&f).map_err(failed)?;
+        let mut shared = Vec::new();
+        for share in s.db.shares_of(&f).map_err(failed)? {
+            let inside =
+                share.path == r || r.is_empty() || share.path.starts_with(&format!("{r}/"));
+            let over = share.path.is_empty() || r.starts_with(&format!("{}/", share.path));
+            if inside || over {
+                for (account, _) in s.db.share_people(&share.id).map_err(failed)? {
+                    shared.push((account.id, share.id.clone()));
+                }
+            }
+        }
+        Ok((members, shared))
+    })
+    .await
+    .unwrap_or_default();
+    let told = |id: &str| json!({ "event": "table-opened", "payload": { "folder": id } });
     for (account, _) in members.iter().filter(|(a, _)| a.id != owner) {
-        server.push_sessions(&account.id, &message);
+        server.push_sessions(&account.id, &told(folder));
+    }
+    for (account, share) in shared.iter().filter(|(a, _)| a != owner) {
+        server.push_sessions(account, &told(share));
     }
 }
 

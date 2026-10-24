@@ -1295,8 +1295,57 @@ fn a_subfolder_table_is_a_share_and_its_players_see_it_re_rooted() {
                 json!({ "root": "Campanha", "open": false }),
             )
             .await;
-        let (_, o) = Win::open(&r, &b, &share.id).await;
+        let (mut shut, o) = Win::open(&r, &b, &share.id).await;
         assert_eq!(o["err"]["message"], "a mesa está fechada", "{o}");
+        // A player of another subfolder's share, in the folder meanwhile.
+        owner
+            .call(
+                "create_note",
+                json!({ "name": "Outra/Nota", "text": "o\n" }),
+            )
+            .await;
+        let dora = r
+            .server
+            .db
+            .create_account(
+                "dora@casa.lan",
+                "Dora",
+                "pt",
+                Some("a senha da dora"),
+                false,
+            )
+            .unwrap();
+        let other = r.server.db.make_share(&id, "Outra").unwrap();
+        r.server
+            .db
+            .grant_share(&other.id, &dora.id, Role::Reader)
+            .unwrap();
+        let db = sign_in(&r, "dora@casa.lan", "a senha da dora").await;
+        let (mut dora_win, o) = Win::open(&r, &db, &other.id).await;
+        assert!(o.get("ok").is_some(), "{o}");
+        // The table opens: the share's player shut out hears it at once,
+        // with the share's id; the other subfolder's player does not.
+        owner
+            .call(
+                "campaign_settings",
+                json!({ "root": "Campanha", "open": true }),
+            )
+            .await;
+        let heard = shut.listen(300).await;
+        assert!(
+            heard.iter().any(
+                |e| e["event"] == "table-opened" && e["payload"]["folder"] == share.id.as_str()
+            ),
+            "{heard:?}"
+        );
+        let not = dora_win.listen(200).await;
+        assert!(not.iter().all(|e| e["event"] != "table-opened"), "{not:?}");
+        owner
+            .call(
+                "campaign_settings",
+                json!({ "root": "Campanha", "open": false }),
+            )
+            .await;
         // A reader of the whole folder is not locked out by a closed table
         // inside it: it reads the rest, and none of the table.
         let bia = r

@@ -11,7 +11,7 @@
 // the controls it shows and what they do.
 
 import { mayEditGranted } from "../campaign";
-import { canWrite, can, loadCan, onCan } from "../can";
+import { canWrite, can, loadCan, onCan, readsSynced } from "../can";
 import { narrow, paintExpanded, toggleRight, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { newUntitled } from "../files";
@@ -152,7 +152,7 @@ function paintReadOnly(): void {
   // the person is theirs to edit, so the lock says nothing there; on a note
   // they only read, or with none open, it shows.
   const path = layout().activeLeaf?.path ?? "";
-  folderLock.hidden = canWrite() || ui.search.disabled || (path !== "" && mayEditGranted(path));
+  folderLock.hidden = (canWrite() && !readsSynced()) || ui.search.disabled || (path !== "" && mayEditGranted(path));
 }
 
 function applyCan(): void {

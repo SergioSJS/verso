@@ -72,6 +72,7 @@ export class Layout {
     if (!parent) return;
     const i = parent.children.findIndex((c) => c.kind === "pane" && c.pane === pane);
     parent.children.splice(i, 1);
+    pane.dispose();
     this.collapse();
     if (this.maximized === pane) this.maximized = null;
     this.render();
