@@ -9,7 +9,9 @@
 //! table, and the status says so.
 
 use super::*;
-use verso_contract::{CampaignGrant, CampaignInvite, CampaignStatus};
+use verso_contract::{
+    CampaignAccess, CampaignAudience, CampaignGrant, CampaignInvite, CampaignStatus,
+};
 
 fn no_table() -> ContractError {
     refused("a table is a server's; a folder of this computer alone has none")
@@ -77,6 +79,26 @@ pub fn campaign_release(
 #[specta::specta]
 pub fn campaign_release_all(root: String) -> Result<CampaignStatus, ContractError> {
     let _ = root;
+    Err(no_table())
+}
+
+/// Release notes to some players, to the whole table or to nobody: a folder
+/// stands for the notes under it.
+#[tauri::command]
+#[specta::specta]
+pub fn campaign_audience(
+    paths: Vec<String>,
+    audience: CampaignAudience,
+) -> Result<CampaignStatus, ContractError> {
+    let _ = (paths, audience);
+    Err(no_table())
+}
+
+/// Who has access to a note of the table, and what each person can do.
+#[tauri::command]
+#[specta::specta]
+pub fn campaign_access(path: String) -> Result<CampaignAccess, ContractError> {
+    let _ = path;
     Err(no_table())
 }
 

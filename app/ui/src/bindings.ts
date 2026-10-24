@@ -619,6 +619,13 @@ export const commands = {
 	campaignRelease: (paths: string[], released: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_release", { paths, released })),
 	/**  Release every note of the table at `root`. */
 	campaignReleaseAll: (root: string) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_release_all", { root })),
+	/**
+	 *  Release notes to some players, to the whole table or to nobody: a folder
+	 *  stands for the notes under it.
+	 */
+	campaignAudience: (paths: string[], audience: CampaignAudience) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_audience", { paths, audience })),
+	/**  Who has access to a note of the table, and what each person can do. */
+	campaignAccess: (path: string) => typedError<CampaignAccess, ContractError>(__TAURI_INVOKE("campaign_access", { path })),
 	/**  Mark a note's name a secret: every link to it is drawn as blocks. */
 	campaignSecretName: (path: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_secret_name", { path, on })),
 	/**  Who may edit a note: nobody, the group, or one player. */
@@ -1163,6 +1170,35 @@ export type Block = {
 export type BlockKind = "paragraph" | "list" | "table" | "heading" | "quote" | "code";
 
 /**
+ *  Who has access to a note of a table (`campaign_access`, ADR 0110
+ *  item 4 as amended 2026-10-23): the note's audience and, per player, what
+ *  they can do. To the game master every player is listed, those without
+ *  access too; to a player only the ones who have it, and never the
+ *  game master's controls.
+ */
+export type CampaignAccess = {
+	path: string,
+	/**  `owner` or `player`. */
+	viewer: string,
+	audience: CampaignAudience,
+	people: CampaignPerson[],
+	/**  The game master's name: the one who always has access. */
+	master: string,
+};
+
+/**
+ *  Who a note is released to (ADR 0110 item 4, amended 2026-10-23): nobody,
+ *  the whole table, or a set of the table's players.
+ */
+export type CampaignAudience = 
+/**  Nobody but the game master. */
+{ kind: "hidden" } | 
+/**  Every player at the table, and those who join later. */
+{ kind: "table" } | 
+/**  These players, by account. */
+{ kind: "players"; accounts: string[] };
+
+/**
  *  Notes released or hidden, told to every window on the folder (event
  *  `campaign-changed`): the window reads `campaign_status` again, and a
  *  player's file tree reloads.
@@ -1197,10 +1233,21 @@ export type CampaignInvite = {
  */
 export type CampaignNote = {
 	path: string,
+	/**  Whether any player sees it: the audience is not `hidden`. */
 	released: boolean,
+	/**  Who sees it. */
+	audience: CampaignAudience,
 	/**  Every link to it is drawn as four blocks, whatever was written. */
 	secret_name: boolean,
 	grant: CampaignGrant,
+};
+
+/**  What one person at a table can do with a note (`campaign_access`). */
+export type CampaignPerson = {
+	id: string,
+	name: string,
+	/**  `edits`, `sees` or `none`. */
+	access: string,
 };
 
 /**  A player of a table: an account that may open the table's folder. */
