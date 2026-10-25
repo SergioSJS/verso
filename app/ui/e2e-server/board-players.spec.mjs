@@ -165,6 +165,9 @@ test("Ana draws on the group's board live and the game master gets it; Bruno, wh
     await ana.page.mouse.click(free.x, free.y);
     await ana.page.keyboard.type("da Ana");
     await ana.page.keyboard.press("Escape");
+    // Let go of it, as a person does: the change is whole once it is not being edited.
+    const away = await onBoard(ana.page, 500, 450);
+    await ana.page.mouse.click(away.x, away.y);
     await expect.poll(async () => (await scene(gm)).some((e) => e.type === "text" && e.text === "da Ana"), { timeout: 30_000 }).toBe(true);
     // The room writes the file with it — and with all that she does not see.
     await expect
