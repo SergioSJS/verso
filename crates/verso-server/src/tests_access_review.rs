@@ -457,3 +457,43 @@ fn a_credential_demoted_while_connected_writes_no_more_from_the_next_command() {
         assert!(ok.get("ok").is_some(), "{ok}");
     });
 }
+
+#[test]
+fn a_devices_rename_corrects_the_links_of_hidden_notes_without_telling() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let b = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        let wrote = m
+            .owner
+            .call(
+                "write_note",
+                json!({ "path": "Barão Zq.md", "text": "zqbody [[Livre]]\n", "revision": b["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let mut cid = editor(&m).await;
+        let state = cid.call("sync_state", json!({})).await;
+        let files = state["ok"]["files"].as_array().unwrap().clone();
+        let livre = files.iter().find(|f| f["path"] == "Livre.md").unwrap();
+        let done = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Livre.md", "to": "Livre2.md", "base": livre["hash"] }),
+            )
+            .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        assert!(!done.to_string().contains("Barão"), "{done}");
+        let baron = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        assert!(
+            baron["ok"]["text"].as_str().unwrap().contains("[[Livre2]]"),
+            "{baron}"
+        );
+    });
+}
