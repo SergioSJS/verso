@@ -61,6 +61,7 @@ import type {
   FolderLayer,
   FolderSettings, FolderBlocks, BlockKind,
   SyncStatus,
+  FileAccess,
 } from "../bindings";
 import { Bin } from "./trash";
 import { Clouds } from "./cloud";
@@ -1354,8 +1355,16 @@ export class Core {
     },
     folder_sync_now: () => null,
     // The synced desktop's last answer of what the server lets the person
-    // change (ADR 0113 S8): the harness's folder is its own, nothing to tell.
-    sync_rights: () => ({ fresh: true, files: [] }),
+    // change (ADR 0113 S8). Like the host, it answers only the paths it holds
+    // an answer for; the harness's folder is its own, so it holds none.
+    sync_rights: (a) => {
+      const held = new Map<string, FileAccess>();
+      const files = (a["paths"] as string[]).flatMap((path) => {
+        const access = held.get(path);
+        return access ? [{ path, access }] : [];
+      });
+      return { fresh: true, files };
+    },
     ...this.clouds.handlers(),
     ...this.bin.handlers(),
     ...this.maps.handlers(),
