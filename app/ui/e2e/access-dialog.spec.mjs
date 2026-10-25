@@ -197,12 +197,17 @@ for (const width of [1500, 820, 390]) {
     await setup(app, width);
     const page = app.page;
     const sheetWidth = width <= 760;
+    let at = -1;
     for (const [target, name, folder] of [
       [row(app, "Mundo/Cripta.md"), /^Acesso · Cripta/, false],
       [folderRow(app), /^Acesso · pasta “Mundo”/, true],
     ]) {
+      at += 1;
       // A phone's side panel gives way to the sheet: bring it back.
-      if (sheetWidth && !((await folderRow(app).boundingBox())?.x >= 0 && (await folderRow(app).boundingBox()).x < width)) await page.getByRole("button", { name: "Arquivos" }).click();
+      if (sheetWidth && at > 0) {
+        const inView = await expect(folderRow(app)).toBeInViewport({ timeout: 1500 }).then(() => true, () => false);
+        if (!inView) await page.getByRole("button", { name: "Arquivos" }).click();
+      }
       await fromMenu(app, target);
       const d = dialogOf(app, name);
       await expect(d).toBeVisible();
