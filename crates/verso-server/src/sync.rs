@@ -683,6 +683,11 @@ pub(crate) async fn command_in(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let actor = who.account.id.clone();
+    let door = if cmd == "sync_rename" {
+        Some(crate::access::Door::of(server, who, client)?)
+    } else {
+        None
+    };
     // Whose eyes a table's veil is for this command.
     let viewer = who.account.id.clone();
     // The device's name, as its session keeps it: two devices of one
@@ -891,7 +896,18 @@ pub(crate) async fn command_in(
                     cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
                 }
                 let (f, t) = (from.clone(), to.clone());
-                let reach = Arc::clone(&inside);
+                // The notes the device may write itself; the links of the
+                // others — a player's hidden or read-only ones — are
+                // corrected by the server, without telling (ADR 0113).
+                let reach: Arc<dyn Fn(&str) -> bool + Send + Sync> =
+                    if let Some(d) = door.clone().filter(crate::access::Door::veiled) {
+                        let inside = Arc::clone(&inside);
+                        Arc::new(move |p: &str| {
+                            inside(p) && d.may_path(crate::access::Action::Edit, p).allowed()
+                        })
+                    } else {
+                        Arc::clone(&inside)
+                    };
                 let landed = s.service.with_key(&key, move |ws| {
                     is_now(ws, &f, Some(&base))?;
                     if same {
