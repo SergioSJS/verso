@@ -17,7 +17,8 @@ import { allEntries } from "./folder";
 import { ui } from "./dom";
 import { closedTabs, recents } from "./history";
 import { NoteLeaf } from "./leaves/note";
-import { spaces } from "./layout/spaces";
+import { layout, spaces } from "./layout/spaces";
+import { panel, quick } from "./main";
 import { preview } from "./preview/install";
 import { t } from "./strings";
 
@@ -39,6 +40,11 @@ export function dropUnshared(): void {
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !out(p)));
   for (const sp of spaces) for (const p of sp.layout.panes()) p.trailRemoved(out);
   preview.close(false);
+  // What the window drew of the front tab (outline, history button) and the
+  // switcher's last list: drawn again from what is left.
+  const front = layout().activeLeaf;
+  panel.show(front && !front.unshared ? front : null);
+  quick.forget();
   // Notes that embed or show it draw again (and what is cached of it goes).
   for (const leaf of leaves) if (leaf instanceof NoteLeaf && !leaf.unshared) leaf.relinkNow(names);
   ui.status.textContent = t.unsharedStatus;
