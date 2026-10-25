@@ -17,7 +17,7 @@
 // side refuses what it cannot do anyway, and the desktop app answers at
 // once.
 
-import { commands, type Can, type Capabilities, type Host } from "./bindings";
+import { commands, type Can, type Capabilities, type FolderAccess, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
 import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
 
@@ -54,6 +54,9 @@ export function loadCan(): Promise<Capabilities> {
 }
 
 /** Ask again: the folder or the person's role in it changed. */
+export function refreshCan(): void {
+  askAgain();
+}
 function askAgain(): void {
   asked = null;
   forgetCapabilities();
@@ -70,25 +73,10 @@ export function canWrite(): boolean {
   return can("write");
 }
 
-/** The open folder is synced here and the person only reads it on its
- *  server (`verso:sync-state`): the window's own `canWrite` stays true, the
- *  server refuses the writes, so the lock and the notice must still say so. */
-let syncedRead = false;
-export function readsSynced(): boolean {
-  return syncedRead;
-}
-addEventListener("verso:sync-state", (e) => {
-  const d = (e as CustomEvent<{ on?: boolean; role?: string }>).detail;
-  const now = Boolean(d?.on) && d?.role === "reader";
-  if (now === syncedRead) return;
-  syncedRead = now;
-  for (const run of listeners) run();
-});
-
-/** The person may change the folder from this window: it writes, and the
- *  folder is not one they only read through a sync. */
-export function canChange(): boolean {
-  return canWrite() && !syncedRead;
+/** Who the person is at the open folder, as the side last said it; none
+ *  for a host with no server's model (`access.ts` is what asks). */
+export function folderAccessNow(): FolderAccess | null {
+  return known.access ?? null;
 }
 
 /** Which side the window talks to: the desktop app or a server. */

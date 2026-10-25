@@ -6,7 +6,8 @@ import { newBase } from "./bases";
 import { importFiles } from "./importFiles";
 import { imp } from "./importStrings";
 import { commands } from "./bindings";
-import { can, canWrite, host, noteAddress } from "./can";
+import { may } from "./access";
+import { can, host, noteAddress } from "./can";
 import { narrow } from "./chrome";
 import { h, ui } from "./dom";
 import { fail } from "./errors";
@@ -29,7 +30,7 @@ import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
-import { campaignEntryItems, campaignSelectionItems } from "./campaign";
+import { campaignEntryItems, accessSelectionItems } from "./campaign";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -50,7 +51,9 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
   // phone shows one pane at a time (item 2); "Open" opens without the
   // preview a single tap gives (item 8).
   const server = host() === "server";
-  const write = canWrite();
+  // What this person may do with this entry: the server said (ADR 0113).
+  const write = may(path, "rename");
+  const mayBin = may(path, "delete");
   // The first list holds what is used most; the rest sits in groups, as
   // submenus (2026-10-21: the file menu had thirty loose rows).
   const items: MenuItem[] = folder
@@ -163,7 +166,7 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     group(windowItems.length ? t.menuWindowWhere : t.menuWhere, "link", [...windowItems, ...(windowItems.length ? [sep] : []), ...whereItems]),
     ...(write ? [group(t.menuNew, "plus", createMenuItems(here))] : []),
     sep,
-    ...(write ? [[t.deleteEntry, () => void deleteEntry(path, kind), "close"] as MenuItem] : []),
+    ...(mayBin ? [[t.deleteEntry, () => void deleteEntry(path, kind), "close"] as MenuItem] : []),
   );
   showMenu(x, y, items);
 }
@@ -171,15 +174,16 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
 /** The menu of a selection of the tree (ADR 0048, revised 2026-10-07):
  *  what acts on all of it at once. */
 export function selectionMenu(x: number, y: number, paths: string[]): void {
-  const write = canWrite();
+  const moves = paths.every((p) => may(p, "move"));
+  const bins = paths.every((p) => may(p, "delete"));
   showMenu(x, y, [
-    ...(write ? [[`${t.moveTo}…`, () => movePrompt(paths), "sidebar"] as MenuItem] : []),
-    ...campaignSelectionItems(paths),
+    ...(moves ? [[`${t.moveTo}…`, () => movePrompt(paths), "sidebar"] as MenuItem] : []),
+    ...accessSelectionItems(paths),
     [t.selection.copyPaths, () => void navigator.clipboard.writeText(paths.join("\n")).then(() => (ui.status.textContent = t.copied)), "link"],
     ["—", () => {}],
     [t.selection.clear, () => clearSelection(), "close"],
     ["—", () => {}],
-    ...(write ? [[t.deleteEntry, () => void deleteEntries(paths), "close"] as MenuItem] : []),
+    ...(bins ? [[t.deleteEntry, () => void deleteEntries(paths), "close"] as MenuItem] : []),
   ]);
 }
 
@@ -197,8 +201,9 @@ export function group(label: string, iconName: string, sub: MenuItem[]): MenuIte
   return [label, () => {}, iconName, sub];
 }
 export function createMenuItems(folder = ""): MenuItem[] {
-  // A reader on a server makes nothing (ADR 0076 item 11).
-  if (!canWrite()) return [];
+  // Who makes nothing in a folder is offered nothing there (ADR 0076 item
+  // 11; ADR 0113: the folder's own access, K.5 for a player).
+  if (!may(folder, "create")) return [];
   const items: MenuItem[] = [
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],

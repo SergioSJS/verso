@@ -76,7 +76,7 @@ export const commands = {
 	 *  A note's text as it is on disk, with what the index knows of it;
 	 *  `not_text` when its bytes are not UTF-8.
 	 */
-	readNote: (path: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("read_note", { path })),
+	readNote: (path: string) => typedError<NoteText_Serialize, ContractError>(__TAURI_INVOKE("read_note", { path })),
 	/**
 	 *  The notes whose `type:` is `name`, case ignored (ADR 0052): what the
 	 *  search's `type:` narrows to.
@@ -96,12 +96,12 @@ export const commands = {
 	 *  meanwhile: nothing written, read again and show the diff (invariant 11).
 	 *  The answer is the text that was sent, with the revision of those bytes.
 	 */
-	writeNote: (path: string, text: string, revision: string) => typedError<Written, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
+	writeNote: (path: string, text: string, revision: string) => typedError<Written_Serialize, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
 	/**
 	 *  Create a note (`name`, with or without `.md`, folders created) with
 	 *  `text`; `exists` when something stands there (ADR 0048).
 	 */
-	createNote: (name: string, text: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("create_note", { name, text })),
+	createNote: (name: string, text: string) => typedError<NoteText_Serialize, ContractError>(__TAURI_INVOKE("create_note", { name, text })),
 	/**
 	 *  Create a file that is not a note (an image pasted into a note) from
 	 *  base64 bytes, at `path` relative to the folder; returns the confined
@@ -321,13 +321,13 @@ export const commands = {
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes; `not_text` when its bytes are not UTF-8.
 	 */
-	readText: (path: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("read_text", { path })),
+	readText: (path: string) => typedError<TextFile_Serialize, ContractError>(__TAURI_INVOKE("read_text", { path })),
 	/**
 	 *  Write any file's text over the revision that was read; a changed file
 	 *  is refused (invariant 11) and the UI shows the difference. The answer
 	 *  is the text that was sent, with the revision of those bytes.
 	 */
-	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
+	writeText: (path: string, text: string, revision: string) => typedError<TextFile_Serialize, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
 	/**
 	 *  Save a board (ADR 0057 point 2): `json` is the canvas as the window
 	 *  holds it — the window sends back every field it read, the ones it does
@@ -336,7 +336,7 @@ export const commands = {
 	 *  Obsidian's layout over the revision that was read (invariant 11).
 	 *  `not_canvas` when the file on disk is not JSON.
 	 */
-	writeBoard: (path: string, json: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_board", { path, json, revision })),
+	writeBoard: (path: string, json: string, revision: string) => typedError<TextFile_Serialize, ContractError>(__TAURI_INVOKE("write_board", { path, json, revision })),
 	/**
 	 *  A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
 	 *  the window built: a new board, or the preview of a conversion, reads
@@ -509,7 +509,7 @@ export const commands = {
 	 *  What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
 	 *  with a folder on this computer, does everything the window offers.
 	 */
-	capabilities: () => typedError<Capabilities, ContractError>(__TAURI_INVOKE("capabilities")),
+	capabilities: () => typedError<Capabilities_Serialize, ContractError>(__TAURI_INVOKE("capabilities")),
 	/**  The space the open folder takes (ADR 0075 item 4). */
 	folderSpace: () => typedError<FolderSpace, ContractError>(__TAURI_INVOKE("folder_space")),
 	/**  Join a note for editing with others: on a server only. */
@@ -580,6 +580,12 @@ export const commands = {
 	 *  shown at the table: not for a reader of the folder.
 	 */
 	tableSendImage: (base64: string, table: string | null) => typedError<TableEntry, ContractError>(__TAURI_INVOKE("table_send_image", { base64, table })),
+	/**
+	 *  An image (base64) written into the table's attachments place for a note
+	 *  or board the person edits, with no entry in the chat (ADR 0113 D); the
+	 *  file's path.
+	 */
+	tableAttach: (base64: string, into: string) => typedError<string, ContractError>(__TAURI_INVOKE("table_attach", { base64, into })),
 	/**  Dice rolled by the server at the table, from no note's room. */
 	tableRoll: (notation: string, source: string | null, path: string | null, secret: boolean | null, styles: {
 	"1": DiceStyle,
@@ -630,13 +636,24 @@ export const commands = {
 	campaignSecretName: (path: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_secret_name", { path, on })),
 	/**  Who may edit a note: nobody, the group, or one player. */
 	campaignGrant: (path: string, grant: CampaignGrant) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_grant", { path, grant })),
-	/**
-	 *  Give players, or take from them, the permission to send images to the
-	 *  table's chat (ADR 0107 item 3 as amended 2026-10-24).
-	 */
-	campaignPermission: (root: string, accounts: string[], images: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_permission", { root, accounts, images })),
 	/**  An invitation link to the table, for a reader. */
 	campaignInvite: (root: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("campaign_invite", { root })),
+	/**
+	 *  The access of each path named: its own set, what applies, where it comes
+	 *  from and, for a folder, how many files lie under it and which have a set
+	 *  of their own (ADR 0113 section C).
+	 */
+	accessGet: (paths: string[]) => typedError<AccessInfo[], ContractError>(__TAURI_INVOKE("access_get", { paths })),
+	/**
+	 *  Write the whole access of each path named, or delete it (*Follow the
+	 *  folder*); on a folder it replaces everything inside (ADR 0113 item 2).
+	 */
+	accessSet: (paths: string[], change: AccessChange) => typedError<AccessSetResult, ContractError>(__TAURI_INVOKE("access_set", { paths, change })),
+	/**
+	 *  Give players, or take from them, a right at a table: today `files`,
+	 *  *Send files* (ADR 0113 K.4).
+	 */
+	tableRightsSet: (root: string, accounts: string[], right: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("table_rights_set", { root, accounts, right, on })),
 	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
@@ -823,6 +840,13 @@ export const commands = {
 	/**  Compare now, without waiting for a change or the scan. */
 	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
 	/**
+	 *  What the person may do with each of `paths` of the window's synced
+	 *  folder, as the server last said (ADR 0113 S8): the answer the window
+	 *  asks of its own folder without the server, so that what it locks and
+	 *  unlocks is what the server will accept, online or off.
+	 */
+	syncRights: (paths: string[]) => typedError<SyncRights, ContractError>(__TAURI_INVOKE("sync_rights", { paths })),
+	/**
 	 *  Check a cloud for the window's folder. Nothing is saved unless it is
 	 *  accepted; then the secret is kept in the system's keychain and the
 	 *  check's findings wait for [`folder_sync_cloud_start`].
@@ -965,6 +989,138 @@ export const commands = {
 };
 
 /* Types */
+/**  What the credential may do at most. */
+export type AccessCap = "write" | 
+/**  A read-only token, a phone paired as a reader, a read link. */
+"read";
+
+/**  What `access_set` writes on each path. */
+export type AccessChange = 
+/**
+ *  The path's whole set; on a folder, it replaces everything inside
+ *  (earlier exceptions included).
+ */
+{ kind: "set"; set: AccessSetView; 
+/**  `Some` to turn the secret name on or off; `None` leaves it. */
+secret_name: boolean | null } | 
+/**  *Follow the folder*: the path's own set is deleted. */
+{ kind: "follow" };
+
+/**
+ *  Access changed, told to every window on the folder (event
+ *  `access-changed`), per player as `campaign-changed` is: the window asks
+ *  again what it shows.
+ */
+export type AccessChanged = {
+	/**  The paths whose access changed (empty when a table or a right did). */
+	paths: string[],
+};
+
+/**  A file or subfolder with an access set of its own inside a folder. */
+export type AccessException = {
+	path: string,
+	folder: boolean,
+	set: AccessSetView,
+};
+
+/**  The access of one path (`access_get`). */
+export type AccessInfo = {
+	path: string,
+	folder: boolean,
+	/**  The table that holds the path (its `root`); empty when none. */
+	table: string,
+	/**  The path's own set; none while it follows its folder. */
+	own: AccessSetView | null,
+	/**  What applies now: its own, else its folder's, else hidden. */
+	set: AccessSetView,
+	why: AccessWhy,
+	/**  For a folder: how many files lie under it (what *Apply* changes). */
+	files: number,
+	/**  For a folder: the files and subfolders with a set of their own. */
+	exceptions: AccessException[],
+	/**  The note's name is a secret (links to it show as blocks). */
+	secret_name: boolean,
+	/**  How many secret blocks the note holds: whoever edits sees them. */
+	secret_blocks: number,
+	/**  The table's players (to a player, only the ones who have access). */
+	players: AccessPlayer[],
+	/**  Whether the person asking may change it (the game master). */
+	manage: boolean,
+	/**  The game master's name: the one who always has access. */
+	master: string,
+};
+
+/**  How much of a path a person has. */
+export type AccessLevel = 
+/**  Does not see it: to them it does not exist. */
+"none" | 
+/**  Sees it, reads it. */
+"see" | 
+/**  Sees it and edits it. */
+"edit";
+
+/**  A player of the table, as the access dialog lists them. */
+export type AccessPlayer = {
+	id: string,
+	name: string,
+	/**  A folder's editor: a player who edits every file they see. */
+	editor: boolean,
+	/**  The one asking (a player's own row). */
+	you: boolean,
+};
+
+/**  One player's level in a set. */
+export type AccessRow = {
+	account: string,
+	level: AccessLevel,
+};
+
+/**  Who a person is at a folder's table. */
+export type AccessSeat = 
+/**  The folder's owner. */
+"master" | 
+/**  An editor or a reader of the folder. */
+"player" | 
+/**  A read link's visitor. */
+"visitor" | 
+/**  No place here (a folder with no table counts the role below). */
+"none";
+
+/**  What `access_set` answers. */
+export type AccessSetResult = {
+	/**  How many files changed their access. */
+	changed: number,
+};
+
+/**
+ *  The whole access of a path: the *Whole table* level and the players
+ *  whose level differs (ADR 0113 item 2).
+ */
+export type AccessSetView = {
+	whole: AccessLevel,
+	rows: AccessRow[],
+};
+
+/**
+ *  Where a level comes from, so the window can word it and never
+ *  recompute it.
+ */
+export type AccessWhy = 
+/**  The game master: always. */
+{ kind: "master" } | 
+/**  No table: the folder's role decides. */
+{ kind: "role" } | 
+/**  The path's own set. */
+{ kind: "own" } | 
+/**  A folder's set, the nearest above. */
+{ kind: "folder"; path: string } | 
+/**  No set anywhere: the table's default, hidden. */
+{ kind: "default" } | 
+/**  An attachment no set covers, shown by a file the person sees. */
+{ kind: "derived" } | 
+/**  The table is closed to players. */
+{ kind: "closed" };
+
 /**
  *  What the running app is: its version (the workspace's, ADR 0051) and the
  *  commit it was built from — shown in the settings and the About panel.
@@ -1245,6 +1401,13 @@ export type CampaignNote = {
 	/**  Every link to it is drawn as four blocks, whatever was written. */
 	secret_name: boolean,
 	grant: CampaignGrant,
+	/**
+	 *  The players who see it, by account (ADR 0113): every one of them,
+	 *  whatever the audience can say. To the game master.
+	 */
+	sees?: string[],
+	/**  The players who edit it, by account. */
+	edits?: string[],
 };
 
 /**  What one person at a table can do with a note (`campaign_access`). */
@@ -1300,15 +1463,16 @@ export type CampaignTable = {
 	open: boolean,
 	/**  The table log's ceiling (1,000 to 200,000 entries; MS.1). */
 	log_max: number,
-	/**  The image size limit, in bytes (1 to 30 MB; MS.1). */
+	/**  The file size limit, in bytes (1 to 30 MB; MS.1): any file *Send files* carries. */
 	image_max: number,
 	/**
-	 *  To the game master: the players this table lets send images to its
-	 *  chat (ADR 0107 item 3 as amended 2026-10-24). Empty to a player.
+	 *  To the game master: the players this table lets *Send files* — images,
+	 *  PDF, audio — to its chat and into the notes they edit (ADR 0113 K.4).
+	 *  Empty to a player.
 	 */
 	image_players?: string[],
 	/**
-	 *  Whether this account may send images at the table: always the
+	 *  Whether this account may send files at the table: always the
 	 *  game master, a player only when it was given the permission.
 	 */
 	images?: boolean,
@@ -1344,7 +1508,9 @@ export type Can =
 /**  Several people editing one note at once (ADR 0073 item 7). */
 "collab";
 
-export type Capabilities = {
+export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
+
+export type Capabilities_Deserialize = {
 	host: Host,
 	can: Can[],
 	/**
@@ -1353,6 +1519,29 @@ export type Capabilities = {
 	 *  window learns how far the core is (ADR 0026 rule 2).
 	 */
 	latency_ms: number | null,
+	/**
+	 *  Who the person is at the open folder's table (ADR 0113): the one
+	 *  source of "who am I here". A host with no server says nothing: the
+	 *  folder is the person's own.
+	 */
+	access?: FolderAccess | null,
+};
+
+export type Capabilities_Serialize = {
+	host: Host,
+	can: Can[],
+	/**
+	 *  The round trip to the side, in milliseconds, when it is across a
+	 *  network (the desktop app on a server's folder, ADR 0073 item 2): the
+	 *  window learns how far the core is (ADR 0026 rule 2).
+	 */
+	latency_ms: number | null,
+	/**
+	 *  Who the person is at the open folder's table (ADR 0113): the one
+	 *  source of "who am I here". A host with no server says nothing: the
+	 *  folder is the person's own.
+	 */
+	access?: FolderAccess | null,
 };
 
 /**
@@ -1773,6 +1962,17 @@ export type ErrorKind =
 "phone_reads";
 
 /**
+ *  What the person asking may do with a file, answered with every read and
+ *  on each entry of a listing. `attach` is whether they may put a new file
+ *  into it (the right to send files, on a file they edit).
+ */
+export type FileAccess = {
+	level: AccessLevel,
+	attach: boolean,
+	why: AccessWhy,
+};
+
+/**
  *  One entry of the open folder as the last walk saw it: what a folder
  *  listing shows and sorts by. `size` and `modified` are `f64` because
  *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
@@ -1794,6 +1994,11 @@ export type FileEntry_Deserialize = {
 	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
 	modified: number | null,
 	label: EntryLabel_Deserialize | null,
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
 };
 
 /**
@@ -1810,6 +2015,11 @@ export type FileEntry_Serialize = {
 	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
 	modified: number | null,
 	label: EntryLabel_Serialize | null,
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
 };
 
 /**  What one entry of the open folder is. */
@@ -1893,6 +2103,22 @@ export type FocusesSummary_Serialize = {
 	read_only_code?: ReadOnlyReasonCode | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
+};
+
+/**
+ *  The one source of "who am I here" (ADR 0113 section C), in the
+ *  capabilities.
+ */
+export type FolderAccess = {
+	seat: AccessSeat,
+	/**
+	 *  The role at the folder or share: `owner`, `editor`, `reader`; empty
+	 *  for a visitor or a stranger.
+	 */
+	role: string,
+	cap: AccessCap,
+	/**  Whether the folder has a table at all. */
+	table: boolean,
 };
 
 /**  A block with an `^id` in a note of the folder (`list_block_ids`). */
@@ -2659,7 +2885,10 @@ export type MovedEntries = {
 };
 
 /**  A note's text as it is on disk now, with what the index knows of it. */
-export type NoteText = {
+export type NoteText = NoteText_Serialize | NoteText_Deserialize;
+
+/**  A note's text as it is on disk now, with what the index knows of it. */
+export type NoteText_Deserialize = {
 	path: string,
 	/**  Without line endings; line `n` (1-based) is `lines[n - 1]`. */
 	lines: string[],
@@ -2708,6 +2937,68 @@ export type NoteText = {
 	 *  or a nested one that is not read, is said in its note (ADR 0052).
 	 */
 	schema_blocks: SchemaNotice[],
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
+};
+
+/**  A note's text as it is on disk now, with what the index knows of it. */
+export type NoteText_Serialize = {
+	path: string,
+	/**  Without line endings; line `n` (1-based) is `lines[n - 1]`. */
+	lines: string[],
+	/**
+	 *  The note rendered as HTML by the core's own parser, for a preview:
+	 *  wikilinks are `<a class="wikilink" data-target>`, embeds
+	 *  `<span class="embed" data-target>`; the UI resolves targets
+	 *  through `links`.
+	 */
+	html: string,
+	/**
+	 *  The frontmatter as a properties panel shows it: key and one line
+	 *  of text per value, in the order written.
+	 */
+	properties: Property[],
+	/**
+	 *  The whole text as read, line endings included: what the editor
+	 *  gives back is written as is, no normalization (ADR 0012). A file
+	 *  whose bytes are not UTF-8 gives no text at all (`not_text`).
+	 */
+	text: string,
+	/**
+	 *  Opaque: what was read. `write_note` takes it back and refuses a
+	 *  file that changed meanwhile (invariant 11, `changed`).
+	 */
+	revision: string,
+	headings: Heading[],
+	blocks: Block[],
+	/**
+	 *  The file differs from what the index holds: graph answers may be
+	 *  behind this text.
+	 */
+	stale: boolean,
+	/**
+	 *  The index holds the note only as a last known version: a
+	 *  placeholder stood where it was (ADR 0043).
+	 */
+	unverified: boolean,
+	/**
+	 *  The note's type, when its `type:` names a schema of the folder
+	 *  (ADR 0052); null for plain Markdown.
+	 */
+	note_type: NoteType | null,
+	/**
+	 *  The `verso-schema` blocks this note holds: one that types nothing,
+	 *  or a nested one that is not read, is said in its note (ADR 0052).
+	 */
+	schema_blocks: SchemaNotice[],
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
 };
 
 /**  A note's type (ADR 0052): its `type:` as written, and what it reaches. */
@@ -3220,6 +3511,28 @@ export type SyncRefused = {
 };
 
 /**
+ *  What the synced desktop last heard of one file (ADR 0113 S8): the same
+ *  answer the server gives a window, kept by the host while the link is
+ *  down.
+ */
+export type SyncRight = {
+	path: string,
+	access: FileAccess,
+};
+
+/**
+ *  `sync_rights`: the files of the open synced folder the host knows what
+ *  the person may do with. A path it has no answer for is left out, and
+ *  the window keeps to its default. `fresh` is false while the server's
+ *  answer is being asked again (access or the role changed): the window
+ *  asks once more when the sync has passed.
+ */
+export type SyncRights = {
+	fresh: boolean,
+	files: SyncRight[],
+};
+
+/**
  *  A folder's sync with a server, as its window shows it (ADR 0079 item
  *  13): the status bar's state and the folder settings' section.
  */
@@ -3311,7 +3624,8 @@ export type TableCleared = {
  *  One entry of the table, as a window may see it. `kind` is `roll`
  *  (`roll` set, also a random table's: `roll.source`), `oracle` (`draw`
  *  set), `say` (`text` set), `image` (`image` set: the file's path in the
- *  folder) or `secret` ("<name> rolled in secret": nothing else set).
+ *  folder), `file` (a PDF or audio: `image` holds the file's path too; ADR
+ *  0113 K.4) or `secret` ("<name> rolled in secret": nothing else set).
  */
 export type TableEntry = {
 	/**
@@ -3346,7 +3660,7 @@ export type TableEntry = {
 };
 
 /**
- *  The permission to send images changed for this account (event
+ *  The right to send files changed for this account (event
  *  `table-images`): told to its windows at the table at once.
  */
 export type TableImages = {
@@ -3369,9 +3683,8 @@ export type TableJoin = {
 	more: boolean,
 	roster: TableMember[],
 	/**
-	 *  Whether this account may send an image to the table: an owner or an
-	 *  editor always, a player when the game master gave it the permission
-	 *  (ADR 0107 item 3 as amended 2026-10-24).
+	 *  Whether this account may send a file to the table: an owner always, a
+	 *  player when the game master gave it *Send files* (ADR 0113 K.4).
 	 */
 	images?: boolean,
 };
@@ -3420,12 +3733,40 @@ export type Tag = {
  *  Any file of the folder as text, with the revision `write_text` takes
  *  back (invariant 11): the editor of files that are not notes.
  */
-export type TextFile = {
+export type TextFile = TextFile_Serialize | TextFile_Deserialize;
+
+/**
+ *  Any file of the folder as text, with the revision `write_text` takes
+ *  back (invariant 11): the editor of files that are not notes.
+ */
+export type TextFile_Deserialize = {
 	path: string,
 	text: string,
 	revision: string,
 	/**  What the write could not preserve, one line each; empty after a read. */
 	warnings: string[],
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
+};
+
+/**
+ *  Any file of the folder as text, with the revision `write_text` takes
+ *  back (invariant 11): the editor of files that are not notes.
+ */
+export type TextFile_Serialize = {
+	path: string,
+	text: string,
+	revision: string,
+	/**  What the write could not preserve, one line each; empty after a read. */
+	warnings: string[],
+	/**
+	 *  What the person asking may do with it (ADR 0113 section C); a host
+	 *  with no server leaves it out: the folder is the person's own.
+	 */
+	access?: FileAccess | null,
 };
 
 /**
@@ -3685,8 +4026,31 @@ export type WebRect = {
  *  durability). None means the content was lost; all are for the user
  *  to see.
  */
-export type Written = {
-	note: NoteText,
+export type Written = Written_Serialize | Written_Deserialize;
+
+/**
+ *  What a write left behind: the note as written — the text that was
+ *  sent, with the revision of those very bytes, never a re-read — and
+ *  what the atomic write could not guarantee, one line each (permissions,
+ *  owner, extended attributes, hard links, network file system,
+ *  durability). None means the content was lost; all are for the user
+ *  to see.
+ */
+export type Written_Deserialize = {
+	note: NoteText_Deserialize,
+	warnings: string[],
+};
+
+/**
+ *  What a write left behind: the note as written — the text that was
+ *  sent, with the revision of those very bytes, never a re-read — and
+ *  what the atomic write could not guarantee, one line each (permissions,
+ *  owner, extended attributes, hard links, network file system,
+ *  durability). None means the content was lost; all are for the user
+ *  to see.
+ */
+export type Written_Serialize = {
+	note: NoteText_Serialize,
 	warnings: string[],
 };
 

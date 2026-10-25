@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "./bindings";
-import { can, canWrite } from "./can";
+import { mayHere } from "./access";
+import { can } from "./can";
 import { narrow, rightShown, sideShown, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate } from "./daily";
 import { h, ui } from "./dom";
@@ -54,7 +55,7 @@ const DEFAULT_HIDDEN = ["files"];
 /** What the side cannot do leaves the ribbon (ADR 0076 item 11): a reader
  *  on a server makes and changes nothing; a browser opens no window. */
 function possible(id: string): boolean {
-  if (id === "new" || id === "daily" || id === "template" || id === "replace") return canWrite();
+  if (id === "new" || id === "daily" || id === "template" || id === "replace") return mayHere();
   if (id === "new-window") return can("windows");
   if (id === "account") return can("account") && signedIn() !== null;
   return true;

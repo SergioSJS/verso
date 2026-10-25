@@ -154,12 +154,88 @@ fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
     }
 }
 
+/// A change held apart: the file is no longer shared with the person (it was
+/// synced, and the server does not list it now), or the folder is read only.
+fn unshared_or_reader(state: &engine::State, known: &Known, path: &str) -> Refusal {
+    if state.base.contains_key(path)
+        && !known
+            .files
+            .contains_key(&engine::spelled_there(&known.files, path))
+    {
+        return Refusal::File(
+            path.to_owned(),
+            "unshared".to_owned(),
+            "this file is no longer shared with you; your copy stays here".to_owned(),
+        );
+    }
+    reader_refusal(path)
+}
+
 fn reader_refusal(path: &str) -> Refusal {
     Refusal::File(
         path.to_owned(),
         "reader".to_owned(),
         "you may only read the server's folder: this change stays here".to_owned(),
     )
+}
+
+/// A copy of `path` set aside by an earlier conflict that holds exactly
+/// `hash`: `<stem> (conflict, …).<ext>` or `(conflito, …)`, beside it.
+fn held_copy(local: &Files, path: &str, hash: &str) -> Option<String> {
+    let (dir, file) = path.rsplit_once('/').map_or(("", path), |(d, f)| (d, f));
+    let (stem, ext) = match file.rfind('.') {
+        Some(at) if at > 0 => (&file[..at], &file[at..]),
+        _ => (file, ""),
+    };
+    let join = |name: String| {
+        if dir.is_empty() {
+            name
+        } else {
+            format!("{dir}/{name}")
+        }
+    };
+    ["conflict", "conflito"].iter().find_map(|word| {
+        let start = join(format!("{stem} ({word}, "));
+        local
+            .iter()
+            .find(|(p, f)| p.starts_with(&start) && p.ends_with(ext) && f.hash == hash)
+            .map(|(p, _)| p.clone())
+    })
+}
+
+/// What this device's changes may do on the server, path by path (ADR 0113
+/// S8): the server's last answer (`access_get`), or, where it has none to
+/// give, the role. A change the gate does not allow stays here, said once
+/// per pass as a file held apart — never sent to be refused, never a
+/// conflict.
+pub(super) struct Gate<'a> {
+    /// Every change is the server's to judge: the folder's owner, or a
+    /// server that gives no per-file answer to an editor.
+    pub(super) open: bool,
+    /// The files the server said this device may change.
+    pub(super) rights: &'a std::collections::BTreeMap<String, verso_core::sync::remote::Rights>,
+}
+
+impl Gate<'_> {
+    /// The memo is kept under the name as the server compares names (case
+    /// and Unicode form folded), so a file is found whatever its spelling.
+    fn of(&self, path: &str) -> Option<&verso_core::sync::remote::Rights> {
+        self.rights.get(&engine::folded(path))
+    }
+
+    pub(super) fn put(&self, path: &str) -> bool {
+        self.open || self.of(path).is_some_and(|r| r.put)
+    }
+
+    pub(super) fn delete(&self, path: &str) -> bool {
+        self.open || self.of(path).is_some_and(|r| r.delete)
+    }
+
+    /// A rename: the file may be renamed where it is, and the new name is
+    /// one the device may put.
+    pub(super) fn rename(&self, from: &str, to: &str) -> bool {
+        self.open || self.of(from).is_some_and(|r| r.rename) && self.put(to)
+    }
 }
 
 /// This computer's file, read from the disk a piece at a time as the
@@ -449,7 +525,7 @@ pub(super) struct Side<'a> {
     pub(super) ctx: &'a Ctx,
     pub(super) s: &'a Syncer,
     pub(super) remote: &'a dyn Remote,
-    pub(super) reader: bool,
+    pub(super) gate: Gate<'a>,
 }
 
 impl Side<'_> {
@@ -467,7 +543,7 @@ impl Side<'_> {
             ctx,
             s,
             remote,
-            reader,
+            ref gate,
         } = *self;
         let hash_here = |local: &Files, p: &str| local.get(p).map(|f| f.hash.clone());
         match action {
@@ -478,8 +554,8 @@ impl Side<'_> {
                 };
             }
             Action::Upload { path, base } => {
-                if reader {
-                    return Err(reader_refusal(path));
+                if !gate.put(path) {
+                    return Err(unshared_or_reader(state, known, path));
                 }
                 let (hash, size, written) = upload(ctx, s, remote, known, path, base.as_deref())?;
                 // Under the spelling the server keeps for the name (spec
@@ -511,7 +587,7 @@ impl Side<'_> {
                 s.crossed(ctx, "received", path, None);
             }
             Action::DeleteRemote { path, base } => {
-                if reader {
+                if !gate.delete(path) {
                     return Err(reader_refusal(path));
                 }
                 let condition = known
@@ -571,7 +647,7 @@ impl Side<'_> {
                 s.crossed(ctx, "deleted_here", path, None);
             }
             Action::RenameRemote { from, to, base } => {
-                if reader {
+                if !gate.rename(from, to) {
                     return Err(reader_refusal(to));
                 }
                 let condition = known
@@ -617,7 +693,7 @@ impl Side<'_> {
                     Some(b) => Some(Base::Agreed(b.clone())),
                     None => state.made.get(path).cloned().map(Base::Template),
                 };
-                if !reader
+                if gate.put(path)
                     && engine::merges_by_append(path)
                     && let Some(base) = base
                     && let Some(planned) = hash_here(local, path)
@@ -631,6 +707,28 @@ impl Side<'_> {
                         let there = FileState { hash, size };
                         return self.join(known, local, state, path, joined, (there, version));
                     }
+                }
+                // A file this device may not send: its edit was set aside as
+                // a copy before and is here still, the same bytes. The copy is
+                // that edit's one place — another is not made of it each time
+                // the server changes the file (ADR 0113 S8).
+                if !gate.put(path)
+                    && let Some(here) = hash_here(local, path)
+                    && let Some(twin) = held_copy(local, path, &here)
+                {
+                    write_here(ctx, s, path, staged, Some(here.as_str()))?;
+                    known.put(
+                        engine::spelled_there(&known.files, path),
+                        FileState {
+                            hash: hash.clone(),
+                            size,
+                        },
+                        version,
+                    );
+                    state.base.insert(path.clone(), hash);
+                    state.seen.remove(path);
+                    s.crossed(ctx, "conflict", path, Some(&twin));
+                    return Ok(());
                 }
                 // This computer's version steps aside under the copy's name…
                 let (f, t) = (path.clone(), copy.clone());
@@ -657,7 +755,7 @@ impl Side<'_> {
                 state.base.insert(path.clone(), hash);
                 s.crossed(ctx, "conflict", path, Some(copy));
                 // …and the copy goes to the others (a reader keeps it here).
-                if reader {
+                if !gate.put(copy) {
                     return Err(reader_refusal(copy));
                 }
                 let (hash, size, written) = upload(ctx, s, remote, known, copy, None)?;

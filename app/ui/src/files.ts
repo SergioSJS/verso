@@ -7,7 +7,8 @@ import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { changeBookmarks } from "./bookmarks";
-import { canChange, host } from "./can";
+import { type Action, may } from "./access";
+import { host } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText } from "./daily";
 import { ask } from "./dialog";
@@ -48,10 +49,11 @@ import { offerTemplates } from "./templatePicker";
 /** A reader on a server changes nothing: the window's ways to make, move
  *  or bin a file stop here, whatever reached them — a menu, a key, a drop
  *  (ADR 0076 item 11). Says why, once. */
-export function readable(): boolean {
-  if (canChange()) return true;
+export function readable(path: string | string[] = "", action: Action = "create"): boolean {
+  const paths = Array.isArray(path) ? path : [path];
+  if (paths.every((p) => may(p, action))) return true;
   ui.status.textContent = st.readOnly;
-  readerAttempt();
+  readerAttempt(undefined, false, paths[0]);
   return false;
 }
 export function fileBase64(f: File): Promise<string> {
@@ -67,7 +69,7 @@ export function fileBase64(f: File): Promise<string> {
  *  status line says so (I.1a, decided 2026-10-21); a file past the limit is
  *  named, the rest still come. */
 export async function copyFilesInto(folder: string, files: FileList): Promise<void> {
-  if (!readable()) return;
+  if (!readable(folder)) return;
   const limitMb = dropLimitMb(settings.importMaxMb, host() === "server");
   const taken = new Set([...allNotes, ...allFiles, ...allFolders].map((p) => p.toLowerCase()));
   let first = "";
@@ -157,8 +159,8 @@ export function forgetFiles(): void {
 }
 export let untitledN = 0;
 export async function newUntitled(pane: Pane): Promise<void> {
-  if (!readable()) return;
   const folder = pane.active?.path ? dirOf(pane.active.path) : "";
+  if (!readable(folder)) return;
   const taken = new Set(allNotes.map((p) => p.toLowerCase()));
   // On a server another member may take the same name a moment before
   // (the list here is not yet told): a name nobody chose moves on to the
@@ -306,7 +308,7 @@ export async function deleteNote(path: string): Promise<void> {
 }
 /** Anything to the bin: a note, another file, or a folder with what it holds. */
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
-  if (!readable()) return;
+  if (!readable(path, "delete")) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
   const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
@@ -424,7 +426,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
 }
 /** Several entries to the bin, asked once. */
 export async function deleteEntries(paths: string[]): Promise<void> {
-  if (!readable()) return;
+  if (!readable(paths, "delete")) return;
   if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
@@ -452,7 +454,7 @@ export async function deleteEntries(paths: string[]): Promise<void> {
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 export async function turnNoteIntoFolder(path: string): Promise<void> {
-  if (!readable()) return;
+  if (!readable(path, "rename")) return;
   const dir = dirOf(path);
   const stem = name(path);
   const targetFolder = dir ? `${dir}/${stem}` : stem;
@@ -468,7 +470,7 @@ export async function turnNoteIntoFolder(path: string): Promise<void> {
 /** A destination folder, typed with completion over the vault's folders,
  *  for one entry or for the tree's selection. */
 export function movePrompt(path: string | string[]): void {
-  if (!readable()) return;
+  if (!readable(path, "move")) return;
   const many = Array.isArray(path) ? path : [path];
   const label = many.length > 1 ? t.selection.count(many.length) : (many[0] ?? "").split("/").pop() ?? "";
   const back = document.activeElement;
@@ -511,7 +513,7 @@ export function movePrompt(path: string | string[]): void {
 }
 /** A copy beside the original: "Name copy.ext", then "Name copy 2.ext"… */
 export async function duplicateEntry(path: string, kind: Kind): Promise<void> {
-  if (!readable()) return;
+  if (!readable(dirOf(path))) return;
   if (kind === "folder") return;
   const base = path.split("/").pop() ?? path;
   const dot = base.lastIndexOf(".");

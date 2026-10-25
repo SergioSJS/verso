@@ -354,7 +354,7 @@ test("images: the file's thumbnail, opened large; sent from the picker, checked 
   const refused = page.waitForEvent("filechooser");
   await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await refused).setFiles({ name: "arte.png", mimeType: "image/png", buffer: Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>") });
-  await expect(view.locator(".table-compose-error")).toContainText("não é uma imagem que a mesa aceite");
+  await expect(view.locator(".table-compose-error")).toContainText("não é um arquivo que a mesa aceite");
   const huge = page.waitForEvent("filechooser");
   await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await huge).setFiles({ name: "enorme.png", mimeType: "image/png", buffer: Buffer.concat([PNG, Buffer.alloc(10 * 1024 * 1024)]) });

@@ -681,7 +681,7 @@ fn tell_change(
 fn told_rows(
     server: &Server,
     (folder, key): (&str, &str),
-    account: &str,
+    (account, writes): (&str, bool),
     rows: Vec<crate::db::Change>,
 ) -> Result<Vec<Told>, ContractError> {
     let fail = verso_service::failed;
@@ -689,7 +689,7 @@ fn told_rows(
     else {
         return Ok(Vec::new());
     };
-    let Some(veil) = crate::campaign::veil_for_key(server, key).map(|v| v.view(account)) else {
+    let Some(veil) = crate::campaign::viewer_of(server, key, account, writes) else {
         return Ok(rows
             .into_iter()
             .filter_map(|c| {
@@ -750,7 +750,7 @@ pub fn viewer_changes(
     server: &Server,
     folder: &str,
     key: &str,
-    account: &str,
+    (account, writes): (&str, bool),
 ) -> Result<Vec<Told>, ContractError> {
     let one = server.campaigns.viewer_lock(folder, account);
     let _only = lock(&one);
@@ -759,7 +759,7 @@ pub fn viewer_changes(
         .db
         .campaign_member_changes((folder, account), settled, (0, i64::MAX))
         .map_err(verso_service::failed)?;
-    told_rows(server, (folder, key), account, rows)
+    told_rows(server, (folder, key), (account, writes), rows)
 }
 
 /// A page of `account`'s own log: after its cursor `asked`, at most `size`
@@ -770,7 +770,7 @@ pub fn viewer_changes(
 pub fn viewer_page(
     server: &Server,
     (folder, key): (&str, &str),
-    account: &str,
+    (account, writes): (&str, bool),
     (asked, size): (i64, i64),
 ) -> Result<Value, ContractError> {
     let one = server.campaigns.viewer_lock(folder, account);
@@ -787,7 +787,7 @@ pub fn viewer_page(
         .campaign_member_changes((folder, account), settled, (start, size))
         .map_err(fail)?;
     let end = start + i64::try_from(rows.len()).unwrap_or(0);
-    let changes: Vec<Value> = told_rows(server, (folder, key), account, rows)?
+    let changes: Vec<Value> = told_rows(server, (folder, key), (account, writes), rows)?
         .into_iter()
         .enumerate()
         .filter(|(_, t)| t.tell)
@@ -808,7 +808,7 @@ pub fn viewer_page(
 pub fn viewer_share_page(
     server: &Server,
     (folder, key): (&str, &str),
-    account: &str,
+    (account, writes): (&str, bool),
     roots: &[&str],
     (asked, size): (i64, i64),
     shape: &dyn Fn(Value) -> Option<Value>,
@@ -827,7 +827,7 @@ pub fn viewer_share_page(
         .campaign_share_changes((folder, account), (settled, roots), (start, size))
         .map_err(fail)?;
     let end = start + i64::try_from(rows.len()).unwrap_or(0);
-    let changes: Vec<Value> = told_rows(server, (folder, key), account, rows)?
+    let changes: Vec<Value> = told_rows(server, (folder, key), (account, writes), rows)?
         .into_iter()
         .enumerate()
         .filter(|(_, t)| t.tell)
@@ -879,12 +879,22 @@ pub fn viewer_files(
     server: &Server,
     folder: &str,
     key: &str,
-    account: &str,
+    (account, writes): (&str, bool),
 ) -> Result<Arc<Vec<Value>>, ContractError> {
     let fail = verso_service::failed;
     let head = server.db.head(folder).map_err(fail)?;
     let generation = server.campaigns.state_generation(folder);
-    let place = (folder.to_owned(), account.to_owned());
+    // A folder's editor is told its notes whole (ADR 0113 S8): its listing
+    // is kept apart, and a role that changed is a listing made again.
+    let editor = crate::campaign::is_editor(server, folder, account);
+    let place = (
+        folder.to_owned(),
+        match (writes, editor) {
+            (true, true) => format!("{account}\u{0}editor"),
+            (true, false) => format!("{account}\u{0}writer"),
+            _ => account.to_owned(),
+        },
+    );
     if let Some(kept) = lock(&server.campaigns.told_files).get(&place)
         && kept.head == head
         && kept.generation == generation
@@ -892,7 +902,9 @@ pub fn viewer_files(
         return Ok(Arc::clone(&kept.files));
     }
     let rows = server.db.reader_manifest(folder).map_err(fail)?;
-    let Some(veil) = crate::campaign::veil_for_key(server, key).map(|v| v.view(account)) else {
+    let Some(veil) =
+        crate::campaign::veil_for_key(server, key).map(|v| v.view_for(account, editor, writes))
+    else {
         return Ok(Arc::new(
             rows.into_iter()
                 .map(|(path, hash, size)| json!({ "path": path, "hash": hash, "size": size }))

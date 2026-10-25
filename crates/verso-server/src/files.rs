@@ -40,19 +40,22 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
     let who = ctx.who()?;
     // A share's file, by its path in the shared folder, behind the same
     // check (ADR 0081 item 2).
-    let (found, path, role) = match crate::shares::opening(&ctx.server, who, &folder)? {
-        crate::shares::Opening::Folder(found, role) => (found, path, role),
+    let (found, path, role, scope) = match crate::shares::opening(&ctx.server, who, &folder)? {
+        crate::shares::Opening::Folder(found, role) => (found, path, role, None),
         crate::shares::Opening::Share(found, scope, role) => {
             let full = scope.to_full(&path).map_err(|_| ApiError::not_found())?;
-            (found, full, role)
+            (found, full, role, Some(scope))
         }
     };
-    // One who may only read is sent no note, under any name: a link to
-    // one is refused as the note is (ADR 0087 item 4).
-    let reads_only = !(role.writes() && who.reaches(&folder).1);
+    let owner =
+        scope.is_none() && crate::campaign::is_master(&ctx.server, &found.id, &who.account.id);
+    let door = crate::access::Door::build(&ctx.server, who, (found.id.clone(), role, owner), scope);
+    // One who is told the projections is sent no note, under any name: a
+    // link to one is refused as the note is (ADR 0087 item 4).
+    let reads_only = door.projects();
     // A file a table's game master has not released is not there to a
     // player: not found, as a file that does not exist (ADR 0110 item 4).
-    if reads_only {
+    if door.veiled() {
         let key = crate::access::key(&ctx.server, &found)?;
         let (s, p, who_is) = (
             Arc::clone(&ctx.server),

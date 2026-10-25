@@ -61,9 +61,9 @@ for (const theme of ["light", "dark"]) {
       localStorage.setItem("verso.settings", JSON.stringify({ ...s, theme: th }));
     }, theme);
     const dialog = await owner(app);
-    const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar imagens` });
+    const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar arquivos` });
     await sw("Bia").check({ force: true });
-    await expect(dialog.getByRole("switch", { name: "Bia pode enviar imagens" })).toBeChecked();
+    await expect(dialog.getByRole("switch", { name: "Bia pode enviar arquivos" })).toBeChecked();
     if (SHOTS && /^(chromium|phone-webkit)$/.test(info.project.name) && (theme === "light" || phone(page))) {
       await page.waitForTimeout(300);
       await page.screenshot({ path: `${SHOTS}/${PFX}-jogadores-${phone(page) ? "telefone" : "desktop"}-${theme}.png` });
@@ -95,7 +95,7 @@ for (const theme of ["light", "dark"]) {
     expect(sb.height).toBeGreaterThanOrEqual(44);
     // The header: the "Todos" box sits over the switch column and under the heading, not on it.
     const head = await dialog.locator(".cd-players-title, #cd-players-title").first().boundingBox();
-    const all = await dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" }).boundingBox();
+    const all = await dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" }).boundingBox();
     expect(all.y).toBeGreaterThanOrEqual(head.y + head.height - 1);
     expect(Math.abs(all.x + all.width / 2 - (sb.x + sb.width / 2))).toBeLessThan(60);
     // "Salvo" moves nothing: the rows' tops are the same with it shown and gone.

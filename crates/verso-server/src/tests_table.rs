@@ -450,7 +450,10 @@ fn an_image_is_a_file_of_the_folder_and_not_a_readers() {
                 json!({ "base64": b64(&bytes) }),
             )
             .await;
-            assert!(err_of(&no).contains("PNG, JPEG, WebP or GIF"), "{no}");
+            assert!(
+                err_of(&no).contains("an image, a PDF or an audio file"),
+                "{no}"
+            );
         }
         let mut webp = b"RIFF\0\0\0\0WEBPVP8 ".to_vec();
         webp.resize(64, 0);
@@ -1020,6 +1023,16 @@ mod per_table {
                 .await;
                 assert!(made.get("ok").is_some(), "{made}");
             }
+            // The editor is a player (ADR 0113 item 3): the notes are theirs
+            // to join once the game master released them to the table.
+            let released = call(
+                &mut c.owner,
+                9,
+                "campaign_release",
+                json!({ "paths": ["Cripta/Sessao.md", "Fora.md"], "released": true }),
+            )
+            .await;
+            assert!(released.get("ok").is_some(), "{released}");
             for path in ["Cripta/Sessao.md", "Fora.md"] {
                 let joined = call(&mut c.editor, 4, "collab_join", json!({ "path": path })).await;
                 assert!(joined.get("ok").is_some(), "{joined}");
@@ -1173,6 +1186,16 @@ mod per_table {
             )
             .await;
             assert!(made.get("ok").is_some(), "{made}");
+            // Bia is an editor of the share: a player who edits the files
+            // they see (ADR 0113 item 3), so the note is released to her.
+            let released = call(
+                &mut c.owner,
+                9,
+                "campaign_release",
+                json!({ "paths": ["Cripta/Ata.md"], "released": true }),
+            )
+            .await;
+            assert!(released.get("ok").is_some(), "{released}");
             let mut first = open(&r, "bia@casa.lan", "a senha da bia", &share.id).await;
             join_at(&mut first, 2, None).await;
             join_at(&mut c.owner, 2, Some(CRIPTA)).await;
@@ -1225,7 +1248,17 @@ mod per_table {
                 (own["path"].as_str(), own["table"].as_str()),
                 (Some("Ata.md"), Some(""))
             );
-            // An editor on a share sends an image: kept inside the table's folder.
+            // An editor on a share is a player (ADR 0113 item 3): she sends an
+            // image once the game master lets her (K.4). The file is kept
+            // inside the table's folder.
+            let let_her = call(
+                &mut c.owner,
+                10,
+                "table_rights_set",
+                json!({ "root": CRIPTA, "accounts": [bia.id], "right": "files", "on": true }),
+            )
+            .await;
+            assert!(let_her.get("ok").is_some(), "{let_her}");
             let sent = call(
                 &mut first,
                 6,

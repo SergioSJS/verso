@@ -9,10 +9,12 @@
 //! desktop host calls (ADR 0026 rules 1 and 5).
 
 pub mod access;
+pub mod access_cmds;
 pub mod admin;
 pub mod api;
 pub mod audit;
 pub mod auth;
+pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
 pub mod campaign_serve;
@@ -58,6 +60,7 @@ pub mod readers;
 pub mod readlinks;
 pub mod rpc;
 mod rpc_collab;
+mod rpc_open;
 pub mod scope;
 pub mod security_txt;
 pub mod share_links;
@@ -425,6 +428,14 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_access_cmds;
+#[cfg(test)]
+mod tests_access_doors;
+#[cfg(test)]
+mod tests_access_review;
+#[cfg(test)]
+mod tests_access_sync;
+#[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
 mod tests_audience;
@@ -432,6 +443,8 @@ mod tests_audience;
 mod tests_audience_review;
 #[cfg(test)]
 mod tests_audience_second;
+#[cfg(test)]
+mod tests_board_players;
 #[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]

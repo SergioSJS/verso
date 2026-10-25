@@ -501,7 +501,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
   const tag = test.info().project.name;
-  const email = `ana-${tag}@verso.test`;
+  const email = `ana-shares-${tag}@verso.test`;
   // Ana, invited to no folder.
   await page.goto("/admin/invitations");
   const invite = page.locator(".console-content");

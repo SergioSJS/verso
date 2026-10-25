@@ -14,7 +14,8 @@
 
 import { afterFileChange, flushed, stopped } from "../changes";
 import { commands } from "../bindings";
-import { campaign, mayEditGranted } from "../campaign";
+import { may } from "../access";
+import { campaign } from "../campaign";
 import { canWrite } from "../can";
 import { readNotation } from "../dice/notation";
 import { button, h, ui } from "../dom";
@@ -64,7 +65,7 @@ export function savedSource(): string | null {
 /** Whether this window may write `path`: a reader of a server may not, but
  *  a player may write the notes granted to it. */
 function mayWrite(path: string): boolean {
-  return campaign().viewer === "player" ? mayEditGranted(path) : canWrite();
+  return may(path, "edit");
 }
 
 export class SavedRolls {

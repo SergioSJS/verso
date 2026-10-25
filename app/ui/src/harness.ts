@@ -133,7 +133,7 @@ if (table) table.linked = link;
 if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
 if (table) table.mayImage = (root) => campaign.up && campaign.viewer === "player" && campaign.imagesFor(root);
 campaign.linked = link;
-for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_permission", "campaign_invite"]) {
+for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
   const own = core.handlers[cmd];
   if (!own) continue;
   const linked = (a: Parameters<typeof own>[0]) => {

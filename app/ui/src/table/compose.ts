@@ -17,8 +17,9 @@ import { button, h, ui } from "../dom";
 import { play3d, will3d } from "../dice3d";
 import { readNotation, rollHere } from "../dice/notation";
 import { keyboardInset, onViewport } from "../screen/viewport";
+import { icon } from "../icons";
 import { isServerTable, type ServerTable, type TableSource } from "./model";
-import { charsOf, checkImage, COUNTER_FROM, IMAGE_MAX, MESSAGE_MAX, paceWait, readTyped, toBase64 } from "./send";
+import { charsOf, checkFile, fileKind, COUNTER_FROM, IMAGE_MAX, MESSAGE_MAX, paceWait, readTyped, sendable, toBase64 } from "./send";
 import { recordRoll, tableSource } from "./record";
 import { tt } from "./strings";
 import { Tray } from "./tray";
@@ -125,7 +126,7 @@ export class Compose {
     });
     this.attach.addEventListener("click", () => {
       // The system's picker is opened from the click itself, before any await.
-      const picking = pickImages(false);
+      const picking = pickImages(false, "image/*,application/pdf,audio/*");
       void picking.then((files) => this.stage(files));
     });
     // A phone: the sheet rises above the keyboard while the field has it.
@@ -260,21 +261,25 @@ export class Compose {
       } catch {
         return this.fail(tt.imageUnreadable);
       }
-      const why = checkImage(bytes);
+      const why = checkFile(bytes);
       if (why === "type") return this.fail(tt.imageNotImage);
       if (why === "size") return this.fail(tt.imageTooBig(Math.round(IMAGE_MAX / 1048576)));
       if (why === "empty") return this.fail(tt.imageEmpty);
       this.error.hidden = true;
-      this.addChip(file.name || "imagem", bytes, file.type);
+      this.addChip(file.name || "arquivo", bytes, file.type);
     }
   }
 
   private addChip(name: string, bytes: Uint8Array, type: string): void {
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: type.startsWith("image/") ? type : "image/png" }));
+    const image = fileKind(bytes.subarray(0, 16)) === "image";
+    const url = image ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: type.startsWith("image/") ? type : "image/png" })) : "";
     const chip = h("div", "table-chip");
-    const img = h("img", "table-chip-img");
-    img.src = url;
-    img.alt = "";
+    // An image waits as its small picture; a PDF or a sound, as a file icon.
+    const img = image ? h("img", "table-chip-img") : h("span", "table-chip-img table-chip-file");
+    if (img instanceof HTMLImageElement) {
+      img.src = url;
+      img.alt = "";
+    } else img.append(icon("paperclip", ""));
     const remove = button("ghost iconic table-chip-remove", ts.chipRemove(name), "close");
     remove.type = "button";
     remove.setAttribute("aria-label", ts.chipRemove(name));
@@ -293,7 +298,7 @@ export class Compose {
   private unstage(item: Staged): void {
     const at = this.staged.indexOf(item);
     if (at >= 0) this.staged.splice(at, 1);
-    URL.revokeObjectURL(item.url);
+    if (item.url) URL.revokeObjectURL(item.url);
     item.chip.remove();
     this.chips.hidden = this.staged.length === 0;
     this.ready();
@@ -303,11 +308,11 @@ export class Compose {
     for (const item of [...this.staged]) this.unstage(item);
   }
 
-  /** Paste and drop on the panel: images only, and only where they are taken. */
+  /** Paste and drop on the panel: images, PDFs and audio, and only where they are taken. */
   takeTransfer(data: DataTransfer | null): boolean {
     const t = this.table();
     if (!t || !t.canSendImage() || !data) return false;
-    const files = Array.from(data.files).filter((f) => f.type.startsWith("image/") || f.type === "");
+    const files = Array.from(data.files).filter(sendable);
     if (files.length === 0) return false;
     void this.stage(files);
     return true;

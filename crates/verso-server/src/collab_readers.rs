@@ -43,6 +43,9 @@ pub struct Readers {
     shadow: Option<Doc>,
     /// Which shadow this is: a window that joins again compares it.
     epoch: String,
+    /// The shadows of a board's room, one per account that edits it from a
+    /// table (ADR 0113 section H).
+    pub(super) players: super::players::Shadows,
 }
 
 impl Readers {
@@ -51,9 +54,16 @@ impl Readers {
         self.split && self.clients.contains(client)
     }
 
+    /// Whether `client` is in a board's shadow: it hears the room's document
+    /// only through it.
+    pub fn shadowed(&self, client: &str) -> bool {
+        self.players.holds(client)
+    }
+
     /// `client` left the room.
     pub fn forget(&mut self, client: &str) {
         self.clients.remove(client);
+        self.players.forget(client);
     }
 
     /// The readers served the shadow.
@@ -332,6 +342,8 @@ pub fn veil_changed(server: &Server, key: &str) {
         .collect();
     for room in rooms {
         let mut r = lock(&room);
+        // What an account sees of a board may have changed: its shadows go.
+        super::players::veil_changed(server, &mut r);
         if r.kind == Kind::Note && r.readers.split {
             let text = text_of(&r.doc);
             if let Err(e) = split(server, &mut r, &text) {
@@ -370,22 +382,31 @@ pub fn veil_changed(server: &Server, key: &str) {
 /// it may edit (`edits`) — a player who may only read has no place in the
 /// document of a note with a grant, it reads the note as every reader does.
 fn still_admitted(server: &Server, client: &str, key: &str, path: &str, edits: bool) -> bool {
-    let account = {
+    let (account, asker, folder) = {
         let table = lock(&server.clients);
         match table.get(client) {
             // A window that is not known any more is not in a room.
             None => return false,
-            Some(c) if !c.token_write || !c.folder.as_ref().is_some_and(|(_, r)| r.writes()) => {
-                c.account.clone()
-            }
-            Some(_) => return true,
+            Some(c) => (
+                c.account.clone(),
+                crate::access::asker_of(c),
+                c.folder.as_ref().map(|(f, _)| f.clone()),
+            ),
         }
     };
+    // The game master, and whoever no veil cuts, is in any room.
+    let table = folder
+        .as_deref()
+        .is_some_and(|f| crate::access::has_table(server, f));
+    if !crate::access::veiled(&asker, table) {
+        return true;
+    }
     let Some(veil) = crate::campaign::veil_for_key(server, key) else {
         return true;
     };
     let veil = veil.view(&account);
-    !veil.hides_note(path) && (!edits || veil.may_edit(path, &account))
+    let editor = asker.role == Some(crate::db::Role::Editor);
+    !veil.hides_note(path) && (!edits || veil.may_edit(path, &account) || editor)
 }
 
 /// `client` joins the room of `path` of folder `key`: a player must still

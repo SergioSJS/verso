@@ -651,3 +651,315 @@ code's choice to confirm. Sections A–J are the approved proposal adjusted to
 those answers; the details marked `[PROPOSED]` are the author's. Nothing is
 `[OPEN]`. To be read by the other model before S1 starts
 ([0032](0032-author-and-reviewer-roles.md)).
+
+### As built, S1–S3 (2026-10-24, `feat/one-access-model`)
+
+Server side only; the contract and the window are S4–S6.
+
+- **S1.** `access::may(facts, asker, action, target)` in `verso-server`
+  (`access/rules.rs`, no IO), `AccessFacts` (the tables, the sets by path,
+  the rights), the seat from the role alone, `level` with folder
+  inheritance and exceptions, the credential ceiling. The exhaustive matrix
+  test (`access/vectors.rs`) compares it with a second statement of
+  section B written by hand and writes `app/ui/test/access-vectors.json`
+  (895 cases, checked in, checked to be up to date; seen failing on a wrong
+  rule).
+- **S2.** Schema 20: `campaign_access`, `campaign_files`, `campaign_rights`,
+  the old rows carried over (a hidden note stays a note the table knows, as
+  an explicit `none`); the old tables stay, never written. The veil is built
+  from the sets. The equivalence test (`db/tests_access.rs`) generates every
+  old state and checks the veil answers as the old one did for every player
+  and path, and drives the new `campaign_audience` / `campaign_grant`
+  against a model of the old writes; both were seen failing on a wrong
+  mapping.
+- **S3.** `access::Door` (the asker of a request and the facts) is what
+  every door asks: `folder_command` (`check_write`), `rpc_collab`, the
+  device's `sync_put` / `sync_delete` / `sync_rename` (`check_sync`), the
+  table's log (`log_role`, `DeleteEntry`, `Clear`, `SendFile`), `game_master`
+  (`ManageTable`, `ManageAccess`), the status, `files` over HTTP, history and
+  the bin, the closed-table guard, the pushes (`readers::split`). Deleted:
+  `granted_write`, `group_put`, `acting`, `images_allowed` and the repeated
+  `role.writes() && token_writes`.
+- **Read as the ADR is silent, to confirm.** (1) `Attachment` and `OtherFile`
+  follow the same rules. (2) An editor outside a table keeps the folder's
+  role (everything is theirs); inside, *Sees* already means editing (K.1)
+  and a folder they see is one they create and rename in (K.5). (3) A board
+  is never written whole by a player nor typed in by one until S7 (H): a
+  folder editor loses the board's room at a table meanwhile. (4) A device's
+  `sync_put` by a player still needs the note to be served whole (the whole
+  group edits it), S8 lifts it. (5) The game master's read-only credential
+  joins a room as a reader; it reads the notes whole, over the commands. (6)
+  Making a file's set empty keeps an explicit `none` (the row an old hidden
+  note had), so a later folder set does not decide for it.
+
+### Review of S1–S3 (2026-10-24): what a player is shown of what it does not see
+
+Anything of a file shown, named or answered to someone outside its access is
+BLOCKING (the maintainer's rule). The review found five ways and the
+maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
+
+- **A rename's answer** (the maintainer, 2026-10-24, *"Servidor corrige sem
+  contar"*): the server still rewrites the links in the notes a player may not
+  edit, as `share_links::apply` does for a share; the answer to a player keeps
+  only the rewrites of notes it may *Edit*, the skipped and the moved of what
+  it may *See*, and nothing of what is hidden.
+- **A name taken by something hidden** (the maintainer, 2026-10-24, *"Sufixo
+  automático"*): creating or renaming onto a name that something the player
+  cannot see holds is never answered "exists"; the server uses the next free
+  name (`Cripta 2.md`), as a duplicate does, and answers with the name used.
+  A name taken by something the player sees is refused as ever.
+- A file moved or renamed into a table by anyone but the game master is
+  refused (K.5), and always needs *Create* on the new folder; a folder is not a
+  non-master's to rename when it holds a table, or anything the person does not
+  see; the bin is refused to a player at any table of the folder; a new file
+  that is no note, board or base made by a player at a table is a file sent
+  (the right, the bytes by their first bytes, the limit — never SVG, a page or a
+  script) and a device's `sync_put` of one is refused until S8.
+- One statement of "sees the secret blocks": `Player::sees_secrets` asks
+  `may(SeeSecretBlocks)`; a room joins whole for whoever it allows, the game
+  master's read-only credential included (typing stays the writers').
+  `history_copy` asks *Create* on the folder; the pathless commands of a table's
+  root are the game master's; the migration reads audience rows only of notes
+  the old tables had; a paired phone's ceiling follows its pairing live.
+- Left as built: *Say* and *Roll* with a read-only credential stay allowed
+  (the chat is not a file write). The `none` the migration wrote for a note the
+  table had hidden is marked (`migrated`) and is no exception in a folder's list.
+
+### As built, S4–S6 and S10 (2026-10-25, `feat/one-access-model`)
+
+The contract, the window, the dialog and the tutorial. The server side is
+S1–S3 and the synced desktop is S8.
+
+- **The contract (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`,
+  `attach`, `why`) on every read answer and every listing entry; `FolderAccess`
+  in the capabilities (the seat, the role, the credential's ceiling); the
+  `access-changed` event with its paths (empty when a table or a right
+  changed); `access_get`, `access_set` (`AccessChange::Set` replaces a folder's
+  whole set and answers how many files changed; `Follow` deletes a path's own
+  set) and `table_rights_set`. Types in `verso-contract/src/access.rs`, commands
+  in `verso-server/src/access_cmds.rs` and `campaign_cmds.rs`, with the Tauri
+  stubs, permissions, remote forwards and the phone's deny list. Bindings
+  regenerated. `AccessInfo.master` is the owner's account name, never an
+  e-mail (`master_name`; `3d06960c`). `3d0ae216` has the harness answer the new
+  commands from the shared vectors.
+- **One question in the window (S5, `aecec0dc`).** `access.ts` keeps what the
+  server said and asks `accessCore.decide` through `may(path, action)`, which
+  replaces `canChange`, `readsSynced`, `syncedReader`, `mayEditGranted`, the
+  folder-wide `readable()` and the owner inferred from an error. The chip and
+  the badge ask `tableViewer()` (`tableChip.ts`) instead of the campaign's
+  `viewer`.
+- **Chat drag (S5, `aecec0dc`, `26c4da1f`).** Every chat entry is a drag
+  source (`table/view.ts`): a roll, a draw, an oracle or a message is dragged as
+  its block or line; an image or a file as a link to the file already in the
+  folder, nothing uploaded. The drop needs `may(path, "edit")` on the target
+  and nothing of the entry's author. A masked secret entry (kind `secret`) holds
+  nothing to drag and is not draggable.
+- **The Acesso… dialog (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, its
+  strings in `accessStrings.ts`, its controls in `accessControl.ts`. It opens
+  from a file's title icon, one row of the tree's menu and a multiple selection
+  (`noteAccess.ts`, `menu.ts`); a folder shows how many files an *Apply* changes
+  before it applies. The indicator is the table chip (`tableChip.ts`); the Table
+  window keeps a per-file control and a per-player control (`campaign.ts`,
+  `campaignPlayers.ts`).
+- **Send files (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
+  `f0c5f266`).** A player with *Send files* sends images, PDF and audio (MP3,
+  Ogg, WAV, M4A) to the chat, and into the notes and boards they edit. The kind
+  is judged by the first bytes, never by the name (`file_ext` in `table.rs`);
+  an MP3 needs a real MPEG Layer II or III frame header (`f0c5f266`). The bytes
+  are written under the table's attachments place (`table_image.rs`, `PLACE`).
+  The window: `table/send.ts` (`sendable`), `table/compose.ts`, the file card
+  in `table/view.ts`. A rename at a table keeps a file's kind (`door.rs`): a
+  sent PNG is never renamed into a page, an SVG or a PDF, and a text write
+  makes no non-note file.
+- **Removed.** `campaign_permission`, its Tauri command, permission and the
+  old access-menu strings in `campaignStrings.ts` (`c75320a6`); `table_rights_set`
+  replaces it.
+- **Dialog tests (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
+  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+  drives the dialog by keyboard alone; at 1500, 820 and 390 px every control is
+  reachable inside the dialog's width, and the spec checks fair targets on the
+  phone's sheet (Apply, Follow the folder and More options are 44 px there); the
+  dark theme keeps the words legible and a chosen level distinct. Focus returns
+  to the opener's row after a save draws the tree again; the folder page redraws
+  its table card when the seat arrives.
+- **Tutorial and changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
+  `af9976ea`, `60f8dc7f`, `56b2fb43`).** Notes 31 (`31 - A Mesa.md`) and 32
+  (`32 - Rodando uma Mesa.md`) describe the one model, `app/ui/src/demoVault.ts`
+  is regenerated, walkthrough §18 ("Running a table (note 32)") holds the steps,
+  and both CHANGELOGs carry the entries.
+- **Read as the ADR is silent, to confirm.** (1) K.4's "other files" are images,
+  PDF and audio only; any other kind is refused. (2) The file card shows the
+  name and the kind (PDF or audio), with no size. (3) A non-player's note editor
+  still takes images only (`leaves/note/editing.ts`); a player's takes PDF and
+  audio too.
+
+Not done, said: the Table window's *Liberar tudo* and *Ocultar tudo* buttons
+stay, calling `campaign_release_all` and `campaign_release`; the commands
+`campaign_audience`, `campaign_grant` and `campaign_secret_name` stay in the
+server and the harness and are called by the tests, not by the window. The
+secret name's database write (`db/access.rs`) is also what `access_set` runs
+when `secret_name` is given in `AccessChange::Set` (`access_cmds.rs`), so
+`campaign_secret_name` has an access_set path, while the command remains.
+
+### As built, S7 (2026-10-25, `feat/access-s7`)
+
+The board a player edits (H). Server side in `board_sight.rs` (pure) and
+`collab_players.rs` (the room); the dialog follows.
+
+- **A shadow of the room per account.** A player whose `may(Edit)` holds on a
+  board joins a document of their own, made by the server of what the account
+  sees (`board_sight::see`): an element is *Open* (as it is — a text card whole,
+  secret blocks included, 0087 item 5), *Locked* (the card of a file the account
+  does not see: the **same id**, the same place and size, the words every veiled
+  card has, `locked: true` so that the board will not select it — never the
+  file's path, colour or text) or *Gone* (a secret pin, 0090 item 5, and what
+  belongs to it: the edges that touch it, the drawn elements bound to it,
+  inside it or grouped only with secret pins; a tombstone of one is not told
+  either). The snapshot at the join and every update after it are one
+  function; a card's `boundElements` and a group are cut the same way, and the
+  `base` of the room's facts is the file's projection (`shape_canvas`: the
+  same pins left out, the same locked cards). A player who only *sees* the
+  board still follows the file, as before (0090 item 5 revised 2026-10-15).
+- **The room follows the shadow by element.** What a player's window sends is
+  tried on a copy of the shadow and judged (`board_sight::check`): the edit is
+  refused **whole**, with nothing of it in the room, when it puts or removes an
+  entry of an id the account does not see (a marker, a pin, an id only the file
+  holds), when an entry is not its key's element, when it makes a secret pin,
+  when a card it makes or changes names a file the account does not see **or
+  that is not there** (so a card is no way to ask whether a hidden file
+  exists), or when it changes what any other element is to the account (a
+  group opened, an edge to a pin). New elements and changes to the ones they see
+  are taken into the room by the server as its own edits, merged by element
+  as 0082 item 12 says, and told to the other windows; the facts of the
+  board they may change are their count of edits and the background.
+  `write_text`, `write_board` and `sync_put` of a board stay refused to a
+  player, and so does `collab_resolve` (it closes the room for everyone).
+- **Who writes the file.** The game master's window, when it is in the room: it
+  makes the file of the whole room, as ever, and a player's file is dropped.
+  With only players in it, the file a player's window made of its shadow
+  (`collab_canvas`, at the shadow's state) is **laid over the file on disk**
+  (`board_sight::lay_over`): what the account does not see is the disk's, byte
+  for byte; what they see is theirs; what their window dropped, they deleted;
+  and a canvas that would change what an element is to them is not taken at
+  all. A board drawn in by a player alone (no game master yet) is drawn into
+  the shadow only; the game master's window draws the whole when it comes, and
+  the versions merge by rank.
+- **When what an element is to an account changes** — a pin made secret, a
+  card's file released or hidden, the level changed — the account's shadow is
+  closed: its windows are told the room closed (`collab-closed`) and join anew,
+  from the file, as a note's readers do (`veil_changed`; a change inside the
+  room by the game master is seen by `sync`). A game master demoted live leaves
+  every room as before (`demoted`).
+- **What else is cut.** The selection in a presence names an element only when
+  the receiving account sees it (`presence::keep_selected`); `collab-saved`
+  reaches a shadow without the file's hash; `access_get` counts the secret
+  blocks of a board's text cards (not a pin's) and the dialog asks before
+  giving *Edits* on a board that has some, and says what the player is shown.
+  `campaign_grant` accepts a board. The refusals the step deletes are the
+  board's of `rpc_collab` and `campaign_grant`; the one of `collab.rs` stays
+  for a window that only reads.
+- **Tests.** Two properties over rooms made at random (`board_sight_tests.rs`):
+  *no hidden id or text reaches a player* and *an update to an id not seen is
+  refused*, each seen failing on a wrong rule (a pin not hidden, the check
+  skipped, the file left in a marker); and `tests_board_players.rs` against a
+  real server (every frame Ana hears is checked for the canaries; her edits
+  reach the game master; the refused ones leave no trace; the file keeps the
+  pin, the hidden card and its edge byte for byte; the dialog; the closing of
+  the shadow). The end-to-end test is `e2e-server/board-players.spec.mjs`.
+- **Chosen where the ADR is silent, to confirm.** (1) A hidden file's card is
+  *Locked*, never absent: the maintainer's wording (*a locked marker with the
+  same id*). (2) A text
+  card of the board is whole to whoever edits (H, 0087 item 5) — including its
+  links to hidden notes, as a note they edit shows them. (3) A player cannot
+  resolve a conflict between the room and the disk. (4) Presence of the game
+  master (pointer) is told to the player; only the ids it selects are cut.
+  (5) The desktop's synced board of a player (S8) is not touched.
+- **Review of S7 (2026-10-25).** (1) *No activity oracle*: a shadow is told only
+  `seeded` and `background` of the room's facts, never the others' edit
+  counts; its `saved` is made for the account (its own count of edits, moved
+  when the room writes), and the revision it is told of the file — at the join,
+  in `read_text`, in `collab-saved` — is a hash of the text it is shown, so a
+  save of what it does not see is none to it. (2) Presence told to a player is
+  an allowlist of fields (`user`, `pointer`, `button`, `selected` cut to what
+  it sees). (3) Her file is laid over the disk's when no window *that may
+  type* and sees the whole board is in the room — a read-only one does not
+  count. (4) And only when the file lacks nothing the whole board's windows
+  left unsaved (`Board::whole_saved`): otherwise nothing is written, her work
+  stays in the room, and the file is written when a whole window makes it —
+  neither side is dropped. (5) A secret flag is read as the file's projection
+  reads it, every duplicate key. (6) What a player draws into her shadow before
+  the game master draws the room in (the seeding) stays in her shadow only; it
+  never reaches the room, and the room's own versions of the same keys replace
+  it when they come.
+
+### As built, S8 (2026-10-25, `feat/access-s8`)
+
+The synced desktop is one more door of the model; the host decides nothing of
+its own.
+
+- **What a device is served and may put.** A note is served to a device whole,
+  and its `sync_put` accepted, exactly when the person edits it:
+  `Veil::serves_whole` is the one statement (the whole group edits it, the
+  person's own row says *edits*, or they are a folder's editor who sees it —
+  K.1), asked by the reader pipeline (`reader_view_in`, `device_bytes`) and by
+  `Door::check_sync`. This lifts S3's note (4): an editor's device writes the
+  notes it edits again (closes B9). A note a person only sees is still served
+  as the projection and its put refused. A board is never served whole to
+  one who edits it alone, and never put whole (H). The folder's editor is read
+  from the members **live** (never kept in the veil: a demoted editor is served
+  the projection at once, the told-files cache is keyed by it); a read-only
+  credential of the same account is not told apart in the per-player log
+  (decided: the account's right decides what is served, the credential's
+  ceiling still gates the put in `check_sync`).
+- **What a device may do, asked.** `access_get` with `brief: true` answers
+  `{path, see, put, delete, rename}` per path from the same judgement the
+  writes meet (`check_sync`); a path the person does not see is answered as a
+  free name is, never as an error. The host never derives it.
+- **The host keeps the answer.** `State.access` (path → `Rights`, only the
+  files the device may change) is saved with the sync's other per-folder state
+  and holds while offline. A pass asks for the paths it is about to change; it
+  asks for every file when the answer is stale (a connection made, the
+  `access-changed` event, a change of role), and replaces the whole memo only
+  once the server answered. A server or a cloud with no per-file answer leaves
+  the role to decide (reader: nothing; editor: all, the server judging).
+  Before, `role == "reader"` was the only gate.
+- **What crosses.** `Gate` (`sync/transfer.rs`) replaces the `reader` flag: an
+  upload, a remote deletion or a remote rename the memo does not allow stays
+  here, said once as a file held apart (reason `reader`), never sent to be
+  refused, never a conflict copy, no retry storm (a player's board lands here
+  too: it is never put, H). The live note's catch-up pass asks the same gate.
+- **Hidden files.** The listing and the log a device is given were already cut
+  by the veil (`viewer_files`, `viewer_page`): a hidden file's bytes and name
+  never reach it. A file that becomes hidden arrives as the server's forced
+  deletion, which the engine carries out as `DeleteLocal` (to the system's bin,
+  only the file the pass hashed); it is not a deletion by the device, the
+  server's copy stays, and a local edit of it is kept and held apart, never
+  re-uploaded.
+- **The window.** `sync_rights(paths)` answers from the memo as a `FileAccess`
+  per path the host was asked about (a path never asked is left out, `fresh` is
+  false while the question is asked again). `access.ts` asks it for what the
+  window lists or reads, once, and again at `access-changed` and after each
+  pass; for a folder synced here that is not the person's own, `may(path, edit)`
+  is that answer, so a reader edits the notes they have the right to and an
+  editor leaves those they only see. A room's typing follows (`collab.reader`).
+
+Not done, said: (1) creating, renaming, deleting and moving in the synced
+window still follow the role alone (the host gate refuses what the server
+would, the window does not show it yet); (2) a player's new non-note file
+(a *Send files* upload) is not sent by a device; (3) the desktop board's room
+keeps `reader` for a reader of the folder until S7's room answers for the
+player's elements; (4) after a restart offline, an editor's see-only notes
+show unlocked until the first online pass (the memo keeps only what may be
+changed).
+
+Review fixes (2026-10-25): `brief` answers one fixed tuple for a path that is
+not seen or does not exist (`see`, `delete`, `rename` false; `put` is the
+free-name rule, Create on the parent), so no answer tells a hidden file from a
+free name; a device is served a note whole only with a credential that writes
+(the pipeline and `check_sync` ask `view_for(account, editor, writes)`), as the
+window is; only a folder with no table is "no answer" (the role decides), any
+other failure keeps the last memo; the memo is looked up by the name as the
+server compares names (case, NFC); a change held apart for a file no longer
+shared says so (`unshared`); and the edit of a file the person may not send is
+set aside as a conflict copy once (the same bytes are not copied again at each
+change of the server).

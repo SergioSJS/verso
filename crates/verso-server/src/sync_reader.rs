@@ -42,6 +42,7 @@ pub(super) async fn command(
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
     if crate::campaign_sync::restricted(server, &key) {
+        let writes = crate::access::Door::of(server, who, client)?.sends_whole_cap();
         let (s, f, k, a, c) = (
             Arc::clone(server),
             folder.clone(),
@@ -52,7 +53,8 @@ pub(super) async fn command(
         return blocking(move || {
             head_for_question(&s, &f, &k, &c)?;
             if cmd_is_changes {
-                let page = crate::campaign_sync::viewer_page(&s, (&f, &k), &a, (asked, 1000))?;
+                let page =
+                    crate::campaign_sync::viewer_page(&s, (&f, &k), (&a, writes), (asked, 1000))?;
                 return Ok((page, None));
             }
             // The head first, then the files: a change that lands between
@@ -60,7 +62,7 @@ pub(super) async fn command(
             // again from its cursor; the other way round it would be counted
             // in the head and missing from the files, and skipped.
             let head = crate::campaign_sync::viewer_head(&s, &f, &k, &a)?;
-            let files = crate::campaign_sync::viewer_files(&s, &f, &k, &a)?;
+            let files = crate::campaign_sync::viewer_files(&s, &f, &k, (&a, writes))?;
             Ok((json!({ "head": head, "files": files }), None))
         })
         .await;

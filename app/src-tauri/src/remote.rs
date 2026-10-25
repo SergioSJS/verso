@@ -105,6 +105,7 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "table_history"
                 | "table_say"
                 | "table_send_image"
+                | "table_attach"
                 | "table_roll"
                 | "table_pin"
                 | "table_delete"
@@ -119,8 +120,10 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "campaign_access"
                 | "campaign_secret_name"
                 | "campaign_grant"
-                | "campaign_permission"
                 | "campaign_invite"
+                | "access_get"
+                | "access_set"
+                | "table_rights_set"
         )
 }
 

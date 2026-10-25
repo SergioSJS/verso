@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
+import { mayHere } from "../access";
 import { can, canWrite, host, noteAddress } from "../can";
 import { stopped } from "../changes";
 import { narrow } from "../chrome";
@@ -159,7 +160,7 @@ export class Pane {
       if ((e.target as HTMLElement).closest(".tab")) return;
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
-        ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+        ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
         ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
@@ -379,7 +380,7 @@ export class Pane {
     showMenu(x, y, [
       ...(this.canGo(-1) ? [[t.navBack, () => this.go(-1), "chevronLeft"] as MenuItem] : []),
       ...(this.canGo(1) ? [[t.navForward, () => this.go(1), "chevron"] as MenuItem] : []),
-      ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+      ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
       ...(active ? [[st.tabActions, () => {
         const r = active.tab.getBoundingClientRect();
         this.tabMenu(active, r.left + 12, r.bottom);

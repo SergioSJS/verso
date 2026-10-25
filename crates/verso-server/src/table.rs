@@ -42,9 +42,10 @@ use verso_contract::{
 };
 use verso_service::lock;
 
+use crate::access::{Action, Kind};
 use crate::auth::Who;
 use crate::db::{Role, TableRow};
-use crate::rpc::{arg, blocking, role_here, to_value};
+use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// The most characters of a message.
@@ -68,12 +69,13 @@ pub const BURST: f64 = 20.0;
 const COLOUR: &str = "#b5651d";
 
 /// What the commands of the table are.
-pub const COMMANDS: [&str; 9] = [
+pub const COMMANDS: [&str; 10] = [
     "table_join",
     "table_leave",
     "table_look",
     "table_say",
     "table_send_image",
+    "table_attach",
     "table_roll",
     "table_pin",
     "table_delete",
@@ -195,7 +197,8 @@ pub(crate) fn seen(
     scoped(view(row, account, role), root)
 }
 
-/// A new `image` entry for the file at `path`, kept and told.
+/// A new `image` entry (a `file` entry when the file is no image, K.4) for
+/// the file at `path`, kept and told.
 pub(crate) fn image_entry(
     server: &Server,
     (folder, table): (&str, &str),
@@ -207,7 +210,7 @@ pub(crate) fn image_entry(
         server,
         (folder, table),
         New {
-            kind: "image",
+            kind: if is_image_path(path) { "image" } else { "file" },
             account,
             name,
             path: None,
@@ -221,6 +224,15 @@ pub(crate) fn image_entry(
     );
     crate::campaign::forget(server, folder);
     made
+}
+
+/// Whether the stored file at `path` is an image, by the extension the
+/// server itself gave it.
+fn is_image_path(path: &str) -> bool {
+    matches!(
+        path.rsplit('.').next(),
+        Some("png" | "jpg" | "webp" | "gif")
+    )
 }
 
 /// The entry as a window on a share of the table's folder knows it: the
@@ -247,22 +259,28 @@ fn scoped(entry: Option<TableEntry>, root: Option<&str>) -> Option<TableEntry> {
     Some(e)
 }
 
-/// The account and role of window `client` in `folder` now.
+/// The account and role (in the table's log, [`crate::access::log_role`])
+/// of window `client` in `folder` now.
 fn viewer_of(
     server: &Server,
     client: &str,
     folder: &str,
 ) -> Option<(String, Role, Option<String>)> {
-    let clients = lock(&server.clients);
-    let c = clients.get(client)?;
-    let (f, role) = c.folder.as_ref()?;
-    (f == folder).then(|| {
+    let (account, asker, root) = {
+        let clients = lock(&server.clients);
+        let c = clients.get(client)?;
+        let (f, _) = c.folder.as_ref()?;
+        if f != folder {
+            return None;
+        }
         (
             c.account.clone(),
-            *role,
+            crate::access::asker_of(c),
             c.scope.as_ref().map(|s| s.root.clone()),
         )
-    })
+    };
+    let role = crate::access::log_role(&asker, crate::access::has_table(server, folder));
+    Some((account, role, root))
 }
 
 fn key_of(folder: &str, table: &str) -> Key {
@@ -628,9 +646,40 @@ pub fn image_ext(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
-/// The role `who` acts in: the folder's, no more than a paired phone's.
-fn acting(who: &Who, role: Role) -> Role {
-    who.phone.map_or(role, |p| p.min(role))
+/// Whether `bytes` start with an MPEG audio frame header: the 11-bit sync,
+/// a version other than the reserved one, a layer other than the reserved
+/// one, Layer II or III only (so `FF FE` of a UTF-16 text is none).
+fn mpeg_frame(bytes: &[u8]) -> bool {
+    bytes.len() >= 4
+        && bytes[0] == 0xff
+        && bytes[1] & 0xe0 == 0xe0
+        && bytes[1] & 0x18 != 0x08
+        && matches!(bytes[1] & 0x06, 0x02 | 0x04)
+        && bytes[2] >> 4 != 0x0f
+}
+
+/// The kind of file `bytes` are for *Send files* (ADR 0113 K.4), by their
+/// first bytes and never by a name: an image (see [`image_ext`]), a PDF, or
+/// audio (MP3, Ogg, WAV, M4A). An SVG, a page, a script or anything else
+/// is none.
+#[must_use]
+pub fn file_ext(bytes: &[u8]) -> Option<&'static str> {
+    if let Some(ext) = image_ext(bytes) {
+        return Some(ext);
+    }
+    if bytes.starts_with(b"%PDF-") {
+        Some("pdf")
+    } else if bytes.starts_with(b"ID3") || mpeg_frame(bytes) {
+        Some("mp3")
+    } else if bytes.starts_with(b"OggS") {
+        Some("ogg")
+    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WAVE" {
+        Some("wav")
+    } else if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" && &bytes[8..12] == b"M4A " {
+        Some("m4a")
+    } else {
+        None
+    }
 }
 
 /// The commands of the table (ADR 0107).
@@ -645,11 +694,22 @@ pub async fn command(
     // only that one (ADR 0110 item 8 as amended 2026-10-23); a share that
     // is no table has none.
     let scope = crate::shares::scope_here(server, client).map(|s| s.root);
-    let (folder, folder_role) = role_here(server, client)?;
-    let role = acting(who, folder_role);
+    let door = crate::access::Door::of(server, who, client)?;
+    let folder = door.folder.clone();
+    // The role the log speaks of: by the seat (ADR 0113 item 3), never by
+    // the credential.
+    let role = crate::access::log_role(&door.asker, door.has_table());
     let account = who.account.id.clone();
     let name = who.account.name.clone();
     let s = Arc::clone(server);
+    // A file put into a note or board the person edits: the table is the
+    // note's, and the person need not be at the table's panel (ADR 0113 D).
+    if cmd == "table_attach" {
+        let data: String = arg(&args, "base64")?;
+        let into: String = arg(&args, "into")?;
+        pace(&s, client)?;
+        return crate::table_image::attach(server, who, client, (&data, &into)).await;
+    }
     // The table the call is for: the one it names (a real table of the
     // folder, ADR 0107 as amended 2026-10-23), the folder's default for an
     // old peer that names none.
@@ -700,7 +760,7 @@ pub async fn command(
             let sc = scope.clone();
             let mut joined =
                 blocking(move || join(&s, (&f, &t), &account, role, sc.as_deref())).await?;
-            joined.images = may_send_images(server, who, client, &folder, &table, folder_role);
+            joined.images = door.may(Action::SendFile, &table, Kind::Table).allowed();
             to_value(joined)
         }
         "table_leave" => {
@@ -796,7 +856,7 @@ pub async fn command(
             // As a member: the share only bounds what is seen. The file is
             // kept inside the table's own folder, whoever sends it.
             // ADR 0107 item 3 as amended 2026-10-24 (`may_send_images`).
-            if !may_send_images(server, who, client, &folder, &table, folder_role) {
+            if !door.may(Action::SendFile, &table, Kind::Table).allowed() {
                 return Err(refused("you may only read this folder"));
             }
             let data: String = arg(&args, "base64")?;
@@ -894,13 +954,19 @@ pub async fn command(
                     return Err(not_found());
                 }
                 // A player does not delete a roll: nobody re-rolls and
-                // hides the first (item 6). The game master (an owner) may
+                // hides the first (item 6). The game master may
                 // (ADR 0107, 2026-10-23).
-                if !matches!(row.kind.as_str(), "say" | "image") && role != Role::Owner {
-                    return Err(refused("only an owner deletes a roll"));
-                }
-                if row.account != account && role != Role::Owner {
-                    return Err(refused("only its author or an owner deletes an entry"));
+                let roll = !matches!(row.kind.as_str(), "say" | "image" | "file");
+                let own = row.account == account;
+                if !door
+                    .may(Action::DeleteEntry { own, roll }, &t, Kind::Table)
+                    .allowed()
+                {
+                    return Err(refused(if roll {
+                        "only an owner deletes a roll"
+                    } else {
+                        "only its author or an owner deletes an entry"
+                    }));
                 }
                 s.db.table_delete(&f, &t, id).map_err(failed)?;
                 Ok(())
@@ -918,7 +984,7 @@ pub async fn command(
             Ok(Value::Null)
         }
         "table_clear" => {
-            if role != Role::Owner {
+            if !door.may(Action::Clear, &table, Kind::Table).allowed() {
                 return Err(refused("only an owner clears the table"));
             }
             let keep: Option<bool> = arg(&args, "keepPinned")?;
@@ -992,54 +1058,31 @@ fn join(
     })
 }
 
-/// Whether this window may send an image to `table` (ADR 0107 item 3 as
-/// amended 2026-10-24), the one rule the send, the join and the status share:
-/// an owner or an editor, and a player the game master let, each only with a
-/// credential that writes (not a read-only token, not a phone paired as a
-/// reader). The table is the one the window is at: a share only bounds what
-/// is seen.
-pub(crate) fn may_send_images(
-    server: &Server,
-    who: &Who,
-    client: &str,
-    folder: &str,
-    table: &str,
-    folder_role: Role,
-) -> bool {
-    let visible =
-        crate::shares::scope_here(server, client).map_or_else(|| folder.to_owned(), |s| s.share);
-    if !who.reaches(&visible).1 {
-        return false;
-    }
-    (folder_role.writes() && acting(who, folder_role).writes())
-        || images_allowed(server, folder, table, &who.account.id)
-}
-
-/// Whether the game master let `account` send images at `table`
-/// (ADR 0107 item 3 as amended 2026-10-24); a failed read says no.
-pub(crate) fn images_allowed(server: &Server, folder: &str, table: &str, account: &str) -> bool {
-    server
-        .db
-        .campaign_images_has(folder, table, account)
-        .unwrap_or(false)
+/// Whether this window may send a file to `table` (ADR 0107 item 3 as
+/// amended 2026-10-24, ADR 0113 K.4), the one rule the send, the join and
+/// the status share: the rules' `SendFile`. The table is the one the window
+/// is at: a share only bounds what is seen.
+pub(crate) fn may_send_images(server: &Server, who: &Who, client: &str, table: &str) -> bool {
+    crate::access::Door::of(server, who, client)
+        .is_ok_and(|door| door.may(Action::SendFile, table, Kind::Table).allowed())
 }
 
 /// The permission to send images changed for `accounts` at `table`: their
 /// windows at the table are told at once, so the attach button, the paste
 /// and the drop appear or go away as they are.
 pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accounts: &[String]) {
-    let clients: Vec<(String, String)> = {
+    let clients: Vec<String> = {
         let map = lock(&server.tables.map);
         map.get(&key_of(folder, table))
             .map(|m| {
                 m.iter()
                     .filter(|(_, m)| accounts.contains(&m.account))
-                    .map(|(c, m)| (c.clone(), m.account.clone()))
+                    .map(|(c, _)| c.clone())
                     .collect()
             })
             .unwrap_or_default()
     };
-    for (client, account) in clients {
+    for client in clients {
         let on_share = viewer_of(server, &client, folder).is_some_and(|v| v.2.is_some());
         let payload = TableImages {
             table: if on_share {
@@ -1047,14 +1090,18 @@ pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accoun
             } else {
                 table.to_owned()
             },
-            images: images_allowed(server, folder, table, &account)
-                && lock(&server.clients)
-                    .get(&client)
-                    .is_some_and(|c| c.token_write),
+            images: lock(&server.clients).get(&client).is_some_and(|c| {
+                crate::access::may_client(server, c, Action::SendFile, table, Kind::Table)
+            }),
         };
         server.push(
-            &[client],
+            std::slice::from_ref(&client),
             &json!({ "event": "table-images", "payload": payload }),
+        );
+        // The right is access too: the window asks again what it shows.
+        server.push(
+            &[client],
+            &json!({ "event": "access-changed", "payload": { "paths": [] } }),
         );
     }
 }
