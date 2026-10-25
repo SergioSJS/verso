@@ -41,11 +41,13 @@ A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **C
 
 ## Liberar aos poucos
 
-- Botão direito numa nota › **Liberar para…**: **Toda a mesa**, ou uma ou mais jogadoras (marque quantas quiser: o menu continua aberto), ou **Ninguém (oculta)**. A nota aparece na lista de quem você escolheu, nas buscas, no grafo, nos links e nos quadros; sincroniza para o aparelho delas. Quem não foi escolhida não a vê: é como se não existisse.
-- **Ninguém (oculta)** a tira de novo (o aparelho recebe a ordem de largá-la). Ao tirar uma jogadora de uma nota que já via, o aparelho dela também recebe a ordem de largá-la, e o das outras não ouve nada.
-- Numa pasta da mesa: **Liberar tudo daqui** e **Ocultar tudo daqui** (sempre a mesa toda). Selecionando várias notas, o mesmo no menu da seleção. Na janela **Mesa**: **Liberar tudo**.
+- Botão direito numa nota, num board, num arquivo ou numa pasta › **Acesso…**. Abre uma tabela: a linha **Toda a mesa** e uma linha por jogadora, cada uma com **Não vê**, **Vê** ou **Edita**. Oculto é o padrão da mesa: quem está em **Não vê** não sabe que a nota existe. Cada escolha salva na hora e diz **Salvo ✓** ao lado; a linha **Toda a mesa** vale para quem entrar depois, e as linhas que seguem ela aparecem como **= mesa**.
+- O mesmo diálogo abre pelo ícone de pessoas no título de qualquer arquivo, e numa seleção de vários arquivos (**Acesso de N arquivos…**). Na janela **Mesa**, o número **Vê** ou **Edita** de cada jogadora abre a lista dela, com o mesmo controle em cada arquivo.
+- **Uma pasta** vale para tudo o que está dentro dela, arquivos e subpastas. O diálogo da pasta diz, antes de **Aplicar**, quantos arquivos mudam: aplicar substitui o acesso de tudo lá dentro, exceções incluídas. Na janela **Mesa**, **Liberar tudo** e **Ocultar tudo** valem para a mesa toda.
+- **Exceção:** depois de aplicar a pasta, um único arquivo pode ter acesso próprio, diferente do da pasta. O diálogo da pasta lista as **Exceções** com cada arquivo; **↺ Seguir a pasta** devolve o arquivo ao acesso dela. Um arquivo que entra na pasta vindo de outro lugar mantém o acesso que tinha, e aparece nas exceções.
+- Na árvore, uma marca pequena ao lado de cada arquivo mostra o estado dele para você: o cadeado para o que está oculto da mesa, o lápis para o que alguma jogadora edita.
 
-Assim o **diário** de uma jogadora, uma **pista que só um personagem recebeu** ou a **ficha** de cada jogadora são só uma nota liberada para uma jogadora (e, se for dela para escrever, entregue a ela em **Editável por**): não há recurso à parte. Entregar a edição a uma jogadora que ainda não via a nota a **inclui** entre quem a vê, e a linha de status diz isso.
+Assim o **diário** de uma jogadora, uma **pista que só um personagem recebeu** ou a **ficha** de cada jogadora são só uma nota com **Vê** ou **Edita** para ela: não há recurso à parte. Dar **Edita** a uma jogadora que ainda não via a nota a **inclui** entre quem a vê, e a linha de status diz isso.
 
 Uma nota oculta não existe para a jogadora: não está em lista nenhuma, e pedir por ela responde como pedir por uma que nunca houve. As imagens e arquivos só aparecem se uma nota **liberada** os mostra. Os blocos `> [!secret]` ([[25 - Dados e Tabelas Sorteadas]]) continuam escondendo um pedaço de uma nota liberada.
 
@@ -53,7 +55,7 @@ Uma nota oculta não existe para a jogadora: não está em lista nenhuma, e pedi
 
 ## Quem vê esta nota
 
-Dentro da nota, ao lado da estrela, há um ícone de **usuários com um número**: quantas jogadoras veem esta nota. Passe o mouse (ou toque, ou dê foco com Tab e aperte Enter) para abrir a lista: para você, **cada jogadora da mesa**, com **vê**, **edita** ou **não vê** (o ícone e a palavra, não só a cor) e um atalho **Alterar quem vê…** que abre o mesmo menu **Liberar para…**; para a jogadora, só **quem vê a nota** ("Você, Bruno e o mestre" ou "A mesa toda"), nunca os seus controles. **Esc** fecha e o foco volta ao botão; no celular a lista abre como uma folha de baixo, com um botão para fechar. O ícone só aparece em notas de uma mesa que já tem jogadoras.
+Dentro da nota, ao lado da estrela, há um ícone de **usuários com um número**: quantas jogadoras veem esta nota. Passe o mouse (ou toque, ou dê foco com Tab e aperte Enter) para abrir a lista: para você, **cada jogadora da mesa**, com **Vê**, **Edita** ou **Não vê** (o ícone e a palavra, não só a cor) e um atalho **Acesso…** que abre o mesmo diálogo da nota; para a jogadora, só **quem vê a nota** ("Você, Bruno e o mestre" ou "A mesa toda"), nunca os seus controles. **Esc** fecha e o foco volta ao botão; no celular a lista abre como uma folha de baixo, com um botão para fechar. O ícone só aparece em notas de uma mesa que já tem jogadoras.
 
 ---
 
@@ -67,9 +69,11 @@ Quando o nome já é um spoiler: botão direito na nota oculta › **Nome secret
 
 ## Quem edita
 
-Por padrão as jogadoras só leem. Botão direito numa nota › **Editável por** escolhe **ninguém**, **o grupo** (todas as jogadoras editam: a nota do grupo) ou **uma jogadora** (a ficha dela). A jogadora que edita a nota passa a vê-la (entra entre quem a vê; **o grupo** faz dela uma nota da mesa toda), e quem edita a lê **inteira**, com os blocos secretos e os links como você os escreveu: se há segredo nela, não a dê para ninguém.
+Por padrão as jogadoras só leem o que está em **Vê** para elas. Em **Acesso…** da nota, a linha da jogadora em **Edita** a torna quem a edita (a ficha dela, ou uma nota da mesa toda se a linha **Toda a mesa** for **Edita**). Quem edita a nota a vê, e a lê **inteira**, com os blocos secretos e os links como você os escreveu: se há segredo nela, não a dê para ninguém.
 
-Ninguém além de você renomeia, apaga ou cria notas ou arquivos; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
+Quem edita pode **arrastar qualquer rolagem ou mensagem** do chat da [[31 - A Mesa|Mesa]] para dentro da nota, e o mesmo num board, onde o cartão entra como texto. Um jogador que edita um board edita **ao vivo**, e vê só o que lhe é permitido: os cartões de arquivos que ele não vê aparecem trancados.
+
+Quem edita uma **pasta** da mesa edita tudo o que ela vê ali dentro e pode **criar** e **renomear** notas e arquivos, mas **não apaga** nem move. Ninguém além de você apaga; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
 
 ---
 
@@ -81,10 +85,10 @@ O cartão **Jogadores** é uma **tabela**, uma linha por jogadora, com colunas p
 |---|---|
 | **Jogador** | o avatar, o nome e um ponto verde enquanto ela está na mesa |
 | **Vê** | quantas notas estão liberadas para ela; clique no número para abrir a lista, com cada nota como link |
-| **Edita** | quantas notas ela pode editar (entregues em **Editável por**); clique para ver quais |
-| **Imagens** | uma **chave**: liga, e ela passa a poder colar ou anexar imagens no chat da [[31 - A Mesa|Mesa]] |
+| **Edita** | quantas notas ela pode editar (as que você marcou com **Edita** em **Acesso…**); clique para ver quais |
+| **Enviar arquivos** | uma **chave**: liga, e ela passa a poder enviar imagens, PDF e áudio no chat da [[31 - A Mesa|Mesa]] |
 
-Por padrão a jogadora só lê e escreve texto no chat: a chave **Imagens** começa **desligada** e é você quem liga, uma jogadora de cada vez, ou a caixa **Todos** no cabeçalho da coluna, que fica "mista" quando as jogadoras diferem. A chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode enviar imagens". Ligada ou desligada, a janela da jogadora fica sabendo **na hora**: o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar. Quem envia a imagem é o servidor, na pasta de anexos da mesa, com as mesmas conferências de sempre (PNG, JPEG, WebP ou GIF pelos bytes, nunca SVG, o limite de tamanho da mesa, a cota da pasta); tanto faz a jogadora ter entrado por um compartilhamento ou ser membro da pasta. Você, dona da pasta, e quem edita sempre podem. No celular cada jogadora vira um cartão com os mesmos controles, sem rolar para o lado. Tudo pelo teclado: Tab, Espaço na chave, Enter no número.
+Por padrão a jogadora só lê e escreve texto no chat: a chave **Enviar arquivos** começa **desligada** e é você quem liga, uma jogadora de cada vez, ou a caixa **Todos** no cabeçalho da coluna, que fica "mista" quando as jogadoras diferem. A chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode enviar arquivos". Ligada ou desligada, a janela da jogadora fica sabendo **na hora**: o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar. Quem envia o arquivo é o servidor, na pasta de anexos da mesa, com as mesmas conferências de sempre (o tipo do arquivo, o limite de tamanho da mesa, a cota da pasta); tanto faz a jogadora ter entrado por um compartilhamento ou ser membro da pasta. Você, dona da pasta, e quem edita sempre podem. No celular cada jogadora vira um cartão com os mesmos controles, sem rolar para o lado. Tudo pelo teclado: Tab, Espaço na chave, Enter no número.
 
 ---
 
