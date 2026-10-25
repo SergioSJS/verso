@@ -845,6 +845,13 @@ export const commands = {
 	/**  Compare now, without waiting for a change or the scan. */
 	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
 	/**
+	 *  What the person may do with each of `paths` of the window's synced
+	 *  folder, as the server last said (ADR 0113 S8): the answer the window
+	 *  asks of its own folder without the server, so that what it locks and
+	 *  unlocks is what the server will accept, online or off.
+	 */
+	syncRights: (paths: string[]) => typedError<SyncRights, ContractError>(__TAURI_INVOKE("sync_rights", { paths })),
+	/**
 	 *  Check a cloud for the window's folder. Nothing is saved unless it is
 	 *  accepted; then the secret is kept in the system's keychain and the
 	 *  check's findings wait for [`folder_sync_cloud_start`].
@@ -3505,6 +3512,28 @@ export type SyncRefused = {
 	 */
 	reason: string,
 	message: string,
+};
+
+/**
+ *  What the synced desktop last heard of one file (ADR 0113 S8): the same
+ *  answer the server gives a window, kept by the host while the link is
+ *  down.
+ */
+export type SyncRight = {
+	path: string,
+	access: FileAccess,
+};
+
+/**
+ *  `sync_rights`: the files of the open synced folder the host knows what
+ *  the person may do with. A path it has no answer for is left out, and
+ *  the window keeps to its default. `fresh` is false while the server's
+ *  answer is being asked again (access or the role changed): the window
+ *  asks once more when the sync has passed.
+ */
+export type SyncRights = {
+	fresh: boolean,
+	files: SyncRight[],
 };
 
 /**

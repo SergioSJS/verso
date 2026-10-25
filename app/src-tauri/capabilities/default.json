@@ -199,6 +199,7 @@
     "allow-folder-sync-pause",
     "allow-folder-sync-confirm",
     "allow-folder-sync-now",
+    "allow-sync-rights",
     "allow-folder-sync-cloud-check",
     "allow-folder-sync-cloud-start",
     "allow-folder-sync-cloud-cancel",

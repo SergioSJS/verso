@@ -13,7 +13,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use verso_contract::{
     AccessChange, AccessException, AccessInfo, AccessLevel, AccessPlayer, AccessRow,
     AccessSetResult, AccessSetView, AccessWhy, ContractError, ErrorKind,
@@ -125,6 +125,17 @@ pub async fn get(
     if paths.is_empty() || paths.len() > MOST {
         return Err(refused("name between 1 and 500 paths"));
     }
+    // A synced device asks only what its own changes may do (ADR 0113 S8).
+    if args["brief"] == true {
+        let (s, key) = (
+            Arc::clone(server),
+            server
+                .service
+                .folder_of(client)
+                .ok_or_else(verso_service::no_folder)?,
+        );
+        return to_value(blocking(move || Ok(brief(&s, &key, &door, &paths))).await?);
+    }
     let key = server
         .service
         .folder_of(client)
@@ -139,6 +150,46 @@ pub async fn get(
     })
     .await?;
     to_value(infos)
+}
+
+/// What a synced device may do with each path, answered by the one
+/// judgement its writes meet (`Door::check_sync`): a path it does not see
+/// is told as a free name is — nothing of it, never an error that says it
+/// is there. `access_get` with `brief` (ADR 0113 S8).
+fn brief(server: &Server, key: &str, door: &Door, paths: &[String]) -> Vec<Value> {
+    paths
+        .iter()
+        .map(|given| {
+            let full = door.full_checked(given);
+            let there = full.as_ref().is_some_and(|p| {
+                let p = p.clone();
+                server
+                    .service
+                    .with_key(key, move |ws| {
+                        Ok(ws.file_len(&p).is_some() || ws.is_folder(&p))
+                    })
+                    .unwrap_or(false)
+            });
+            let seen = there
+                && full
+                    .as_ref()
+                    .is_some_and(|p| door.may_path(Action::See, p).allowed());
+            if !seen {
+                // A hidden file and a free name: one fixed answer.
+                return json!({
+                    "path": given, "see": false, "put": door.may_put_new(given),
+                    "delete": false, "rename": false,
+                });
+            }
+            json!({
+                "path": given,
+                "see": true,
+                "put": door.check_sync("sync_put", &json!({ "path": given })).is_ok(),
+                "delete": door.check_sync("sync_delete", &json!({ "path": given })).is_ok(),
+                "rename": door.may_rename_here(given),
+            })
+        })
+        .collect()
 }
 
 fn info(

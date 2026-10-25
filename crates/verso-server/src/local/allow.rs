@@ -185,6 +185,7 @@ pub const REFUSED: &[&str] = &[
     "folder_sync_pause",
     "folder_sync_start",
     "folder_sync_stop",
+    "sync_rights",
     "server_accounts",
     "server_create_folder",
     "server_folders",

@@ -640,7 +640,8 @@ fn asks_at_the_same_time_decide_a_players_log_once() {
                 std::thread::spawn(move || {
                     let mut seen: Vec<Vec<i64>> = Vec::new();
                     while !stop.load(std::sync::atomic::Ordering::SeqCst) {
-                        let log = crate::campaign_sync::viewer_changes(&s, &f, &k, &a).unwrap();
+                        let log =
+                            crate::campaign_sync::viewer_changes(&s, &f, &k, (&a, true)).unwrap();
                         seen.push(log.iter().map(|t| t.seq).collect());
                     }
                     seen
@@ -656,7 +657,8 @@ fn asks_at_the_same_time_decide_a_players_log_once() {
         }
         stop.store(true, std::sync::atomic::Ordering::SeqCst);
         let seen: Vec<Vec<Vec<i64>>> = askers.into_iter().map(|t| t.join().unwrap()).collect();
-        let last = crate::campaign_sync::viewer_changes(&server, &folder, &key, &ana_id).unwrap();
+        let last =
+            crate::campaign_sync::viewer_changes(&server, &folder, &key, (&ana_id, true)).unwrap();
         let last: Vec<i64> = last.iter().map(|t| t.seq).collect();
         // What was handed out never moved: every log any device read is the
         // start of the one it reads last.

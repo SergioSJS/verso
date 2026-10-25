@@ -697,6 +697,7 @@ pub(crate) async fn command_in(
     };
     // Whose eyes a table's veil is for this command.
     let viewer = who.account.id.clone();
+    let writes = crate::access::Door::of(server, who, client)?.sends_whole_cap();
     // The device's name, as its session keeps it: two devices of one
     // account told apart in the log and in the folder's change log.
     let device = match &who.via {
@@ -754,7 +755,8 @@ pub(crate) async fn command_in(
                 // A table with notes released to some players: this
                 // player's files, not the players' together.
                 if crate::campaign_sync::restricted(&s, &key) {
-                    let files = crate::campaign_sync::viewer_files(&s, &folder, &key, &viewer)?;
+                    let files =
+                        crate::campaign_sync::viewer_files(&s, &folder, &key, (&viewer, writes))?;
                     return Ok(json!({ "head": head, "files": files }));
                 }
                 let files: Vec<Value> = s

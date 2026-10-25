@@ -266,8 +266,9 @@ async fn join(
 /// on that path carries it — sent, or set aside as a conflict's copy —
 /// bounded by [`CATCH_UP`]; the status bar says "sending 1" meanwhile.
 async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
-    // A reader's own changes stay here (ADR 0079 item 1): nothing waits.
-    if lock(&s.status).role == "reader" {
+    // A change this device may not send stays here (ADR 0079 item 1; ADR
+    // 0113 S8): nothing waits.
+    if !s.may_send(ctx.config.as_deref(), path) {
         return;
     }
     let deadline = tokio::time::Instant::now() + CATCH_UP;

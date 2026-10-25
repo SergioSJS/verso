@@ -189,6 +189,7 @@ fn main() {
         "folder_sync_pause",
         "folder_sync_confirm",
         "folder_sync_now",
+        "sync_rights",
         "folder_sync_cloud_check",
         "folder_sync_cloud_start",
         "folder_sync_cloud_cancel",

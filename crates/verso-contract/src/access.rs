@@ -184,3 +184,23 @@ pub struct AccessChanged {
     /// The paths whose access changed (empty when a table or a right did).
     pub paths: Vec<String>,
 }
+
+/// What the synced desktop last heard of one file (ADR 0113 S8): the same
+/// answer the server gives a window, kept by the host while the link is
+/// down.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncRight {
+    pub path: String,
+    pub access: FileAccess,
+}
+
+/// `sync_rights`: the files of the open synced folder the host knows what
+/// the person may do with. A path it has no answer for is left out, and
+/// the window keeps to its default. `fresh` is false while the server's
+/// answer is being asked again (access or the role changed): the window
+/// asks once more when the sync has passed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncRights {
+    pub fresh: bool,
+    pub files: Vec<SyncRight>,
+}
