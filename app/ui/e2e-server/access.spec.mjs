@@ -150,7 +150,7 @@ async function openSheet(page, name) {
   await box.press("Enter");
   await expect(page.locator(".leaf:not([hidden]) .note-sheet")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Editar", exact: true }).first().click();
-  await expect(page.locator(".editor.live .cm-content")).toBeVisible();
+  await expect(page.locator(".leaf:not([hidden]) .editor.live .cm-content")).toBeVisible();
 }
 
 test("the maintainer's repros: drop a roll, a message and the chat's picture into the sheet one edits; refused, by name, into one one only reads", async ({ browser, page: gm }, info) => {
