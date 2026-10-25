@@ -273,6 +273,13 @@ pub struct Client {
     /// Whether its credential may write at all: a token that only reads
     /// may not, whatever the role.
     pub token_write: bool,
+    /// Whether the account is the folder's owner, on the folder itself and
+    /// not through a share: the game master of its table (ADR 0113 item
+    /// 6), whatever the credential. The role above is the window's
+    /// ceiling; this is who it is.
+    pub owner: bool,
+    /// Whether the window is a paired phone's.
+    pub phone: bool,
     pub tx: Outbox,
 }
 
@@ -624,6 +631,9 @@ impl Server {
                 if let Some((folder, _)) = c.folder.take() {
                     c.folder = Some((folder, role));
                 }
+                // The credential's ceiling follows the pairing's: one source
+                // (ADR 0113), not a flag kept from the connection's start.
+                c.token_write = role.writes();
                 c.tx.send(&serde_json::json!({ "role": role }));
                 if !role.writes() {
                     demoted.push(id.clone());
@@ -651,6 +661,7 @@ impl Server {
                     match role {
                         Some(r) => {
                             c.folder = Some((folder.to_owned(), r));
+                            c.owner = r == Role::Owner;
                             c.tx.send(&serde_json::json!({ "role": r }));
                             if !r.writes() {
                                 demoted.push(id.clone());

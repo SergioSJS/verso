@@ -13,7 +13,7 @@ import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
-import { mayEditGranted } from "../campaign";
+import { may } from "../access";
 import { NoteAccess } from "../noteAccess";
 import { guard } from "../readerNotice";
 import { blockKeys } from "../blocks/keys";
@@ -456,6 +456,7 @@ export class NoteLeaf extends Leaf {
   declare embedFromFolder: typeof editing.embedFromFolder;
   declare attachFromPicker: typeof editing.attachFromPicker;
   declare attachImage: typeof editing.attachImage;
+  declare attachThroughServer: typeof editing.attachThroughServer;
   override setDirty(d: boolean): void {
     super.setDirty(d);
     this.dirtyMark.hidden = !d;
@@ -988,7 +989,7 @@ export class NoteLeaf extends Leaf {
     // A reader of a synced folder is present in the room, not typing
     // (ADR 0082 item 4).
     // A note granted to the player is its to write (ADR 0110 item 5).
-    this.readOnly = this.mixedEol || !(canWrite() || mayEditGranted(note.path)) || (this.collab?.reader ?? false);
+    this.readOnly = this.mixedEol || !may(note.path, "edit") || (this.collab?.reader ?? false);
     this.loadFoldsFor(note.path);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();

@@ -103,25 +103,50 @@ pub const SERVER_READS: &[(&str, &str)] = &[
     ("sync_read", "a note's projection"),
 ];
 
-/// Whether the window `client` of `who` may only read its folder.
+/// Whether what the window `client` of `who` is told of its folder is cut
+/// for it: it is told the notes' projections, the secret blocks left out
+/// (ADR 0087), or it is a player of a table and the veil cuts what it sees
+/// (ADR 0110). The game master of a table is neither, whatever the
+/// ceiling of its credential (ADR 0113 item 6); an editor outside a table
+/// is neither.
 pub fn reads_only(server: &Server, who: &Who, client: &str) -> Result<bool, ContractError> {
-    let (folder, role) = crate::rpc::role_here(server, client)?;
-    let visible = crate::shares::scope_here(server, client).map_or(folder, |s| s.share);
-    Ok(!(role.writes() && who.reaches(&visible).1))
+    let door = crate::access::Door::of(server, who, client)?;
+    Ok(door.projects() || door.veiled())
 }
 
-/// Whether a window, as the server keeps it, may only read its folder.
-fn window_reads_only(c: &crate::state::Client) -> bool {
-    !(c.token_write && c.folder.as_ref().is_some_and(|(_, r)| r.writes()))
-}
-
-/// `clients` as (those who may only read, the others).
+/// `clients` as (those told through the log and the veil, the others),
+/// judged as [`reads_only`]. A window that is not known is one of the
+/// others.
 pub fn split(server: &Server, clients: &[String]) -> (Vec<String>, Vec<String>) {
-    let table = lock(&server.clients);
-    clients
-        .iter()
-        .cloned()
-        .partition(|c| table.get(c).is_some_and(window_reads_only))
+    let seen: Vec<(String, Option<(crate::access::Asker, String)>)> = {
+        let table = lock(&server.clients);
+        clients
+            .iter()
+            .map(|id| {
+                let c = table.get(id).and_then(|c| {
+                    c.folder
+                        .as_ref()
+                        .map(|(f, _)| (crate::access::asker_of(c), f.clone()))
+                });
+                (id.clone(), c)
+            })
+            .collect()
+    };
+    let mut tables: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
+    let (mut cut, mut whole) = (Vec::new(), Vec::new());
+    for (id, c) in seen {
+        let is_cut = match c {
+            Some((asker, folder)) => {
+                let table = *tables
+                    .entry(folder.clone())
+                    .or_insert_with(|| crate::access::has_table(server, &folder));
+                crate::access::filtered(&asker, table)
+            }
+            None => false,
+        };
+        if is_cut { &mut cut } else { &mut whole }.push(id);
+    }
+    (cut, whole)
 }
 
 /// Whether `path` names a note, a file with secret blocks: case ignored,
@@ -194,7 +219,7 @@ pub fn reader_view_in(
         if crate::campaign_serve::is_hidden_in(ws, veil, p) {
             return Ok(Some((String::new(), HIDDEN)));
         }
-        if veil.group_edits(p) {
+        if veil.serves_whole(p) {
             return Ok(None);
         }
     }
@@ -300,22 +325,15 @@ pub fn push_sync_changed(
     seen: &[&str],
     also: &[String],
 ) {
-    let writers: Vec<String>;
-    let readers: Vec<String>;
-    {
+    let on_folder: Vec<String> = {
         let table = lock(&server.clients);
-        let on = |c: &&crate::state::Client| c.folder.as_ref().is_some_and(|(f, _)| f == folder);
-        writers = table
+        table
             .iter()
-            .filter(|(_, c)| on(c) && !window_reads_only(c))
+            .filter(|(_, c)| c.folder.as_ref().is_some_and(|(f, _)| f == folder))
             .map(|(id, _)| id.clone())
-            .collect();
-        readers = table
-            .iter()
-            .filter(|(_, c)| on(c) && window_reads_only(c))
-            .map(|(id, _)| id.clone())
-            .collect();
-    }
+            .collect()
+    };
+    let (readers, writers) = split(server, &on_folder);
     server.push_sync_changed(folder, head, paths, &writers);
     if (seen.is_empty() && also.is_empty()) || readers.is_empty() {
         return;

@@ -293,6 +293,47 @@ pub trait Remote: Send + Sync {
     /// # Errors
     /// [`RemoteErrorKind::Changed`], or [`RemoteErrorKind::Exists`].
     fn rename(&self, from: &str, to: &str, condition: &Condition) -> Result<Written>;
+
+    /// What this device may do with each of `paths` on the remote, as the
+    /// remote judges its own changes (ADR 0113 S8); `None` when the remote
+    /// has no judgement of its own (a cloud: the person is the owner of
+    /// what they synced, an old server: the role decides). A path it does
+    /// not see is answered as a free name is, never as an error.
+    ///
+    /// # Errors
+    /// The connection failed.
+    fn rights(&self, paths: &[String]) -> Result<Option<Vec<(String, Rights)>>> {
+        let _ = paths;
+        Ok(None)
+    }
+}
+
+/// What a device may do with a path on its remote: the one answer the
+/// remote's rules give (`access_get` with `brief` on a UniVerso). Kept in
+/// the state, so that the last answer holds while the device is offline.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Rights {
+    /// The device is told of the file.
+    #[serde(default)]
+    pub see: bool,
+    /// A put of it, whole, is accepted: the person edits it and the device
+    /// holds it whole.
+    #[serde(default)]
+    pub put: bool,
+    /// A deletion of it is accepted.
+    #[serde(default)]
+    pub delete: bool,
+    /// A rename of it inside its folder is accepted.
+    #[serde(default)]
+    pub rename: bool,
+}
+
+impl Rights {
+    /// Whether the device may change the file at all.
+    #[must_use]
+    pub fn writes(&self) -> bool {
+        self.put || self.delete || self.rename
+    }
 }
 
 /// A sink that hashes what it is given and keeps nothing.

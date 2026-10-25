@@ -491,10 +491,19 @@ fn a_table_that_cannot_be_read_is_closed_to_players_not_open() {
 // ------------------------------------------------------------- players
 
 #[test]
-fn the_players_of_a_table_are_the_readers_that_reach_it_and_never_a_game_master() {
+fn the_players_of_a_table_are_the_people_that_reach_it_and_never_a_game_master() {
     block_on(async {
         let mut m = mesa().await;
-        let _master = editor(&m).await;
+        // A second account with the editor's role: a player who edits every
+        // file they see, not a game master (ADR 0113 item 3).
+        let _editor = editor(&m).await;
+        let editor_id =
+            m.r.server
+                .db
+                .account_by_email("mestre2@casa.lan")
+                .unwrap()
+                .unwrap()
+                .id;
         let status = m.owner.call("campaign_status", json!({})).await;
         let mut ids: Vec<String> = status["ok"]["players"]
             .as_array()
@@ -503,7 +512,7 @@ fn the_players_of_a_table_are_the_readers_that_reach_it_and_never_a_game_master(
             .map(|p| p["id"].as_str().unwrap().to_owned())
             .collect();
         ids.sort();
-        let mut want = vec![m.ana_id.clone(), m.bia_id.clone()];
+        let mut want = vec![m.ana_id.clone(), m.bia_id.clone(), editor_id];
         want.sort();
         assert_eq!(ids, want, "an editor is a player of the table: {status}");
         // A table in a subfolder: the readers of the whole folder reach it.
@@ -631,7 +640,8 @@ fn asks_at_the_same_time_decide_a_players_log_once() {
                 std::thread::spawn(move || {
                     let mut seen: Vec<Vec<i64>> = Vec::new();
                     while !stop.load(std::sync::atomic::Ordering::SeqCst) {
-                        let log = crate::campaign_sync::viewer_changes(&s, &f, &k, &a).unwrap();
+                        let log =
+                            crate::campaign_sync::viewer_changes(&s, &f, &k, (&a, true)).unwrap();
                         seen.push(log.iter().map(|t| t.seq).collect());
                     }
                     seen
@@ -647,7 +657,8 @@ fn asks_at_the_same_time_decide_a_players_log_once() {
         }
         stop.store(true, std::sync::atomic::Ordering::SeqCst);
         let seen: Vec<Vec<Vec<i64>>> = askers.into_iter().map(|t| t.join().unwrap()).collect();
-        let last = crate::campaign_sync::viewer_changes(&server, &folder, &key, &ana_id).unwrap();
+        let last =
+            crate::campaign_sync::viewer_changes(&server, &folder, &key, (&ana_id, true)).unwrap();
         let last: Vec<i64> = last.iter().map(|t| t.seq).collect();
         // What was handed out never moved: every log any device read is the
         // start of the one it reads last.

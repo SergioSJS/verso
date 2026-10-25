@@ -52,6 +52,24 @@ export function checkStyles(raw: unknown): DiceStyles | null {
   return { "1": one(s["1"]!), "2": one(s["2"]!), "3": one(s["3"]!) };
 }
 
+/** The kind of file the first bytes are (base64) for *Send files* (ADR 0113 K.4): an image, a PDF or audio; or null. */
+export function fileExt(b64: string): string | null {
+  const image = imageKind(b64);
+  if (image) return image;
+  let bin = "";
+  try {
+    bin = atob(b64.slice(0, 24));
+  } catch {
+    return null;
+  }
+  if (bin.startsWith("%PDF-")) return "pdf";
+  if (bin.startsWith("ID3") || (bin.charCodeAt(0) === 0xff && (bin.charCodeAt(1) & 0xe0) === 0xe0)) return "mp3";
+  if (bin.startsWith("OggS")) return "ogg";
+  if (bin.startsWith("RIFF") && bin.slice(8, 12) === "WAVE") return "wav";
+  if (bin.slice(4, 8) === "ftyp" && bin.slice(8, 12) === "M4A ") return "m4a";
+  return null;
+}
+
 /** The kind of image the first bytes are (base64), or null. */
 function imageKind(b64: string): string | null {
   let bin = "";
@@ -219,12 +237,12 @@ export class Table {
       const root = need(a["table"]);
       if (this.role === "reader" && !this.mayImage(root)) refuse("you may only read this folder");
       paced();
-      const kind = imageKind(String(a["base64"] ?? ""));
-      if (!kind) refuse("a PNG, JPEG, WebP or GIF image");
-      // An image is a file of the folder, written as any file a window creates.
+      const kind = fileExt(String(a["base64"] ?? ""));
+      if (!kind) refuse("an image, a PDF or an audio file (not SVG, a page or a script)");
+      // A file is a file of the folder, written as any file a window creates.
       const path = `attachments/mesa-${this.seq + 1}.${kind}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"]) });
-      return this.add(root, { kind: "image", by: this.name, by_id: this.account, image: path });
+      return this.add(root, { kind: ["png", "jpg", "webp", "gif"].includes(kind) ? "image" : "file", by: this.name, by_id: this.account, image: path });
     };
     h["table_roll"] = (a) => {
       const root = need(a["table"]);

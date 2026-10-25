@@ -35,6 +35,12 @@ mod oracle_draw;
 pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod access;
+pub use access::{
+    AccessCap, AccessChange, AccessChanged, AccessException, AccessInfo, AccessLevel, AccessPlayer,
+    AccessRow, AccessSeat, AccessSetResult, AccessSetView, AccessWhy, FileAccess, FolderAccess,
+    SyncRight, SyncRights,
+};
 mod campaign;
 pub use campaign::{
     CampaignAccess, CampaignAudience, CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote,
@@ -146,6 +152,10 @@ pub struct TextFile {
     pub revision: String,
     /// What the write could not preserve, one line each; empty after a read.
     pub warnings: Vec<String>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A named root of the file tree (ADR 0062).
@@ -269,6 +279,10 @@ pub struct FileEntry {
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: f64,
     pub label: Option<EntryLabel>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A heading of a note, for citing and for the outline.
@@ -327,6 +341,10 @@ pub struct NoteText {
     /// The `verso-schema` blocks this note holds: one that types nothing,
     /// or a nested one that is not read, is said in its note (ADR 0052).
     pub schema_blocks: Vec<SchemaNotice>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A `verso-schema` block of a note.
@@ -661,6 +679,11 @@ pub struct Capabilities {
     /// network (the desktop app on a server's folder, ADR 0073 item 2): the
     /// window learns how far the core is (ADR 0026 rule 2).
     pub latency_ms: Option<u32>,
+    /// Who the person is at the open folder's table (ADR 0113): the one
+    /// source of "who am I here". A host with no server says nothing: the
+    /// folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FolderAccess>,
 }
 
 /// What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —

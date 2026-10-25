@@ -99,6 +99,11 @@ pub struct State {
     /// no read (ADR 0104 item 8).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub tokens: BTreeMap<String, remote::Token>,
+    /// Path → what the server last said this device may change there (ADR
+    /// 0113 S8), only the files it may change. The last answer holds while
+    /// offline: a file with no entry is a file the device only reads.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub access: BTreeMap<String, remote::Rights>,
 }
 
 /// A cloud a folder syncs with (ADR 0104 item 6): WebDAV or S3, and where.

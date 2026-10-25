@@ -13,7 +13,6 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
-import { canWrite } from "../can";
 import { boardPathFor, readDrawing, toBoard } from "../board/convert";
 import { listedPath } from "../board/model";
 import { linkTo, withRelation } from "../board/relation";
@@ -60,7 +59,9 @@ import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
-import { type CollabHandlers, type CollabSession, joinCollab, syncedReader, ySyncAnnotation } from "../collab";
+import { may } from "../access";
+import { NoteAccess } from "../noteAccess";
+import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
@@ -82,6 +83,8 @@ export class BoardLeaf extends TextLeaf {
   override readonly kind: Kind = "board";
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
+  /** Who sees this board, and what the person may do with it (ADR 0113). */
+  readonly access = new NoteAccess(() => this.path);
   private board: BoardHandle | null = null;
   /** A file of the folder put on the board, where it was dropped. */
   addPath(path: string, x: number, y: number): void {
@@ -124,13 +127,14 @@ export class BoardLeaf extends TextLeaf {
       return b;
     };
     this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
-    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
   }
   override async load(path: string, force = false): Promise<void> {
     await super.load(path, force);
     if (this.path !== path) return;
+    this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
@@ -239,7 +243,7 @@ export class BoardLeaf extends TextLeaf {
       save: (json) => this.saveBoard(json),
       // A reader of a synced folder is present on the board, not drawing
       // (ADR 0082 item 4).
-      readOnly: () => !canWrite() || syncedReader() || (this.room !== null && !this.room.writable),
+      readOnly: () => !may(this.path, "edit") || (this.room !== null && !this.room.writable),
       room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {
@@ -566,6 +570,7 @@ export class BoardLeaf extends TextLeaf {
     return true;
   }
   override destroy(): void {
+    this.access.destroy();
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
@@ -668,7 +673,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const sep = lineSeparator(note.text);
     eol = room ? (room.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    readOnly = sep === null || !canWrite() || (room?.reader ?? false);
+    readOnly = sep === null || !may(note.path, "edit") || (room?.reader ?? false);
     const st = room ? EditorState.create({ doc: room.initial(), extensions: [extensions(), room.extension()] }) : EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });

@@ -591,6 +591,8 @@ fn capabilities<R: tauri::Runtime>(
         host: Host::Desktop,
         can,
         latency_ms: live,
+        // A folder of this computer is the person's own: no seat to tell.
+        access: None,
     })
 }
 
@@ -818,6 +820,7 @@ macro_rules! commands_for {
                 table::table_history,
                 table::table_say,
                 table::table_send_image,
+                table::table_attach,
                 table::table_roll,
                 table::table_pin,
                 table::table_delete,
@@ -832,8 +835,10 @@ macro_rules! commands_for {
                 campaign::campaign_access,
                 campaign::campaign_secret_name,
                 campaign::campaign_grant,
-                campaign::campaign_permission,
                 campaign::campaign_invite,
+                campaign::access_get,
+                campaign::access_set,
+                campaign::table_rights_set,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
@@ -881,6 +886,7 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                sync_rights::<$runtime>,
                 folder_sync_cloud_check::<$runtime>,
                 folder_sync_cloud_start::<$runtime>,
                 folder_sync_cloud_cancel::<$runtime>,
@@ -928,6 +934,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
             .typ::<verso_contract::CampaignChanged>()
+            .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
             .typ::<verso_contract::ServerBack>()
@@ -1451,5 +1458,7 @@ mod tests_shares;
 mod tests_sync;
 #[cfg(test)]
 mod tests_sync1;
+#[cfg(test)]
+mod tests_sync_access;
 #[cfg(test)]
 mod tests_sync_data;

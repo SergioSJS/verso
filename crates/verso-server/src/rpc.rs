@@ -27,13 +27,16 @@ use base64::Engine;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
-use verso_contract::{Can, Capabilities, ContractError, ErrorKind, Host};
+use verso_contract::{ContractError, ErrorKind};
 use verso_service::{Access, lock, ops};
 
 use crate::auth::{Via, Who};
-use crate::db::{Folder, Role};
+use crate::db::Role;
 use crate::http::{ApiError, ApiResult, Ctx};
+use crate::rpc_open::{capabilities, record_space, share_counts, tabled};
 use crate::state::{Client, Outbox, QUEUE, QUEUE_BYTES, Server};
+
+pub(crate) use crate::rpc_open::open;
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -318,6 +321,8 @@ async fn run(
             scope: None,
             token_write: !matches!(who.via, Via::Token { write: false, .. })
                 && who.phone.is_none_or(Role::writes),
+            owner: false,
+            phone: who.phone.is_some(),
             tx: tx.clone(),
         },
     );
@@ -619,7 +624,7 @@ async fn handle(
     // item 8).
     crate::shares::check(server, who, client)?;
     // A closed table keeps its players out (ADR 0110 item 3).
-    crate::campaign::guard(server, client)?;
+    crate::campaign::guard(server, who, client)?;
     match r.cmd.as_str() {
         "sync_state" | "sync_changes" | "sync_read" => {
             return crate::sync::command(server, who, client, &r.cmd, r.args, None).await;
@@ -898,19 +903,13 @@ async fn folder_command(
     args: Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
-    let scope = crate::shares::scope_here(server, client);
-    let visible = scope
-        .as_ref()
-        .map_or_else(|| folder.clone(), |s| s.share.clone());
-    let (_, token_writes) = who.reaches(&visible);
-    // A note granted to this player (ADR 0110 item 5): the one write a
-    // reader of a table makes.
-    let granted = access == Access::Write
-        && !role.writes()
-        && token_writes
-        && crate::campaign::granted_write(server, who, &folder, scope.as_ref(), name, &args);
-    if access == Access::Write && !(role.writes() && token_writes) && !granted {
-        return Err(refused("you may only read this folder"));
+    // One question, one answer (ADR 0113): the rules say whether this
+    // window may run a write, by the file's level and the credential's
+    // ceiling, never by a role and a flag read here.
+    let door = crate::access::Door::of(server, who, client)?;
+    let scope = door.scope.clone();
+    if access == Access::Write {
+        door.check_write(name, &args)?;
     }
     // The walk's rules and the folder note's name are the owner's, as
     // `set_walk_rules` and `set_folder_note_name` keep them (ADR 0070): an
@@ -925,22 +924,65 @@ async fn folder_command(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    // What a player is not told of a name (ADR 0113): a name taken by
+    // something it cannot see is not answered as taken, a folder holding
+    // what it cannot see is not its to rename, and what a new file is made
+    // of is judged as a file sent to the chat is.
+    let args = if access == Access::Write && door.veiled() {
+        if name == "create_file" {
+            door.check_bytes(server, &args)?;
+        }
+        if matches!(
+            name,
+            "create_note"
+                | "create_file"
+                | "create_folder"
+                | "rename_note"
+                | "rename_entry"
+                | "write_note"
+                | "write_text"
+        ) {
+            let (s, d, k, n) = (
+                Arc::clone(server),
+                door.clone(),
+                key.clone(),
+                name.to_owned(),
+            );
+            blocking(move || {
+                let mut a = args;
+                s.service
+                    .with_key(&k, |ws| d.guard_names(ws, &n, &mut a).map_err(Into::into))?;
+                Ok(a)
+            })
+            .await?
+        } else {
+            args
+        }
+    } else {
+        args
+    };
     // A window on a share (ADR 0081 item 2): its paths joined to the
     // shared folder's and confined there before the core acts; the answer
     // filtered to the share and re-rooted at it.
     // One who may only read is answered from the notes' projections (ADR
     // 0087): `folder_run` dispatches by the reader's list of commands.
-    let reads_only = !(role.writes() && token_writes) && !granted;
+    // A write the rules allowed is a writer's, whoever asks; the projection
+    // is for what is read.
+    let reads_only = door.projects() && access != Access::Write;
+    let veiled = door.veiled();
     let Some(scope) = scope else {
-        return folder_run(
+        let mut answer = folder_run(
             server,
             who,
             client,
-            (name, access, reads_only),
+            (name, access, reads_only, veiled),
             (&folder, &key),
             args,
         )
-        .await;
+        .await?;
+        tell_less(server, who, &door, &key, name, &mut answer).await;
+        door.inject(name, &mut answer);
+        return Ok(answer);
     };
     let limit = args["limit"]
         .as_u64()
@@ -1024,12 +1066,14 @@ async fn folder_command(
         server,
         who,
         client,
-        (name, access, reads_only),
+        (name, access, reads_only, veiled),
         (&folder, &key),
         args,
     )
     .await
     .map_err(|e| scope.error(e))?;
+    tell_less(server, who, &door, &key, name, &mut answer).await;
+    door.inject(name, &mut answer);
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -1068,20 +1112,53 @@ async fn folder_command(
     Ok(scope.answer_out(name, answer, limit))
 }
 
+/// A rename or a move by a player of a table answers it only what it may
+/// edit or see; the links of the notes it may not are corrected by the
+/// server, without telling (ADR 0113, the maintainer on 2026-10-24,
+/// "Servidor corrige sem contar"), as a rename through a share corrects the
+/// owner's (`share_links`).
+async fn tell_less(
+    server: &Arc<Server>,
+    who: &Who,
+    door: &crate::access::Door,
+    key: &str,
+    name: &str,
+    answer: &mut Value,
+) {
+    if !matches!(name, "rename_note" | "rename_entry" | "move_entries")
+        || !door.veiled()
+        || door.seat() == crate::access::Seat::Master
+    {
+        return;
+    }
+    let hidden = door.take_unowned(answer);
+    if hidden.is_empty() {
+        return;
+    }
+    let (s, k, folder) = (Arc::clone(server), key.to_owned(), door.folder.clone());
+    let (actor, by) = (who.account.id.clone(), who.account.email.clone());
+    let _ = blocking(move || {
+        crate::share_links::apply(&s, &k, (&actor, &by), &folder, hidden);
+        Ok(())
+    })
+    .await;
+}
+
 /// A command of the folder, its paths the folder's own.
 pub(crate) async fn folder_run(
     server: &Arc<Server>,
     who: &Who,
     client: &str,
-    (name, access, reader): (&str, Access, bool),
+    (name, access, reader, veiled): (&str, Access, bool, bool),
     (folder, key): (&str, &str),
     args: Value,
 ) -> Result<Value, ContractError> {
     let key = key.to_owned();
     let key_for_log = key.clone();
     let args_for_log = args.clone();
-    // A player of a table is answered through its veil (ADR 0110).
-    let player = if reader {
+    // A player of a table is answered through its veil (ADR 0110): what it
+    // reads. A write the rules allowed it is a writer's.
+    let player = if veiled && access != Access::Write {
         crate::campaign::player(server, who, client).ok().flatten()
     } else {
         None
@@ -1245,177 +1322,4 @@ pub(crate) async fn folder_run(
         .await;
     }
     Ok(answer)
-}
-
-/// Open the folder for this window, or join its session.
-pub(crate) async fn open(
-    server: &Arc<Server>,
-    client: &str,
-    folder: Folder,
-    role: Role,
-    scope: Option<crate::scope::Scope>,
-) -> Result<Value, ContractError> {
-    let path = server
-        .folder_path(&folder.dir)
-        .ok_or_else(|| verso_service::failed("not a folder name"))?;
-    // A transfer of the folder shown before goes with it.
-    server.transfers.forget(client);
-    // A window is at one folder's table (ADR 0107).
-    crate::table::gone(server, client);
-    let service = Arc::clone(&server.service);
-    let c = client.to_owned();
-    let gate = Arc::clone(
-        lock(&server.opening)
-            .entry(verso_core::folder_key(&path))
-            .or_default(),
-    );
-    let info = blocking(move || {
-        let key = verso_core::folder_key(&path);
-        let _one = lock(&gate);
-        if service.join(&c, &key) {
-            return service
-                .current_folder(&c)
-                .ok_or_else(verso_service::no_folder);
-        }
-        let opened = service.open(&c, move |config| {
-            let mut ws = verso_core::Workspace::open(&path, config)?;
-            ws.set_links_inside(true);
-            Ok(ws)
-        })?;
-        let (info, catch_up) = service.attach(&c, opened);
-        if let Some(catch_up) = catch_up {
-            let service = Arc::clone(&service);
-            std::thread::spawn(move || service.catch_up(&catch_up));
-        }
-        Ok(info)
-    })
-    .await?;
-    lock(&server.keys).insert(info.key.clone(), folder.id.clone());
-    // What changed on the disk while nobody had it open joins the folder's
-    // log for sync, in the background (ADR 0079 item 4).
-    {
-        let s = Arc::clone(server);
-        let key = info.key.clone();
-        tokio::task::spawn_blocking(move || crate::sync::reconcile_key(&s, &key, None, &[]));
-    }
-    let said = match &scope {
-        Some(s) => {
-            json!({ "folder": { "id": s.share, "name": s.name, "role": role, "share": true } })
-        }
-        None => json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }),
-    };
-    if let Some(c) = lock(&server.clients).get_mut(client) {
-        c.folder = Some((folder.id.clone(), role));
-        c.scope.clone_from(&scope);
-        let _ = c.tx.send(&said);
-    }
-    record_space(server, client).await;
-    let info = to_value(info)?;
-    Ok(match &scope {
-        Some(s) => {
-            let counts = share_counts(server, client, s).await;
-            tabled(server, client, s.info(info, counts)).await?
-        }
-        None => tabled(server, client, info).await?,
-    })
-}
-
-/// The folder's summary as a player of a table is told it (ADR 0110).
-async fn tabled(
-    server: &Arc<Server>,
-    client: &str,
-    mut info: Value,
-) -> Result<Value, ContractError> {
-    if info.is_null() {
-        return Ok(info);
-    }
-    let (s, c) = (Arc::clone(server), client.to_owned());
-    blocking(move || {
-        crate::campaign_serve::tell_summary(&s, &c, &mut info);
-        Ok(info)
-    })
-    .await
-}
-
-/// The share's own counts for the index's summary the window shows (ADR
-/// 0081 item 11); none when the folder cannot be read now, and then the
-/// summary says zero.
-async fn share_counts(
-    server: &Arc<Server>,
-    client: &str,
-    scope: &crate::scope::Scope,
-) -> Option<crate::scope::Counts> {
-    let s = Arc::clone(server);
-    let c = client.to_owned();
-    let sc = scope.clone();
-    blocking(move || s.service.with(&c, |ws| Ok(sc.counts(ws)?)))
-        .await
-        .ok()
-}
-
-/// Count the space of the window's folder and keep it for the pages that
-/// list folders (ADR 0075 item 4).
-async fn record_space(server: &Arc<Server>, client: &str) {
-    let Ok((folder, _)) = role_here(server, client) else {
-        return;
-    };
-    let s = Arc::clone(server);
-    let c = client.to_owned();
-    let _ = tokio::task::spawn_blocking(move || {
-        let Ok(space) = s.service.with(&c, ops::folder_space) else {
-            return;
-        };
-        // With when it was counted: the console's "last change" (ADR 0077).
-        let mut kept = serde_json::to_value(&space).unwrap_or_else(|_| json!({}));
-        // Sync's record of the files follows every write as it happens;
-        // the listing the count above walks only the watcher's batches.
-        if let Ok(files) = s.db.manifest(&folder)
-            && !files.is_empty()
-        {
-            let (mut notes, mut attachments) = (0_i64, 0_i64);
-            for (path, k) in &files {
-                if path.ends_with(".md") {
-                    notes += k.size;
-                } else {
-                    attachments += k.size;
-                }
-            }
-            kept["notes"] = json!(notes);
-            kept["attachments"] = json!(attachments);
-            kept["total"] = json!(notes + attachments);
-            kept["files"] = json!(files.len());
-        }
-        kept["at"] = json!(crate::db::now());
-        if let Err(e) =
-            s.db.set_setting(&format!("space:{folder}"), &kept.to_string())
-        {
-            crate::log::error(&format!("keeping a folder's space: {e}"));
-        }
-        // Whole bytes: the space is counted in f64 by the contract.
-        crate::quota::warn(
-            &s,
-            &folder,
-            kept["total"].as_u64().unwrap_or(space.total as u64),
-        );
-    })
-    .await;
-}
-
-fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
-    let mut can = vec![Can::Account, Can::Collab];
-    let visible = crate::shares::scope_here(server, client).map(|s| s.share);
-    if let Ok((folder, role)) = role_here(server, client)
-        && role.writes()
-        && who.reaches(visible.as_deref().unwrap_or(&folder)).1
-    {
-        can.push(Can::Write);
-    }
-    if who.account.admin && !matches!(who.via, Via::Token { .. }) {
-        can.push(Can::Admin);
-    }
-    Capabilities {
-        host: Host::Server,
-        can,
-        latency_ms: None,
-    }
 }

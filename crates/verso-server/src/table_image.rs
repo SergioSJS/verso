@@ -25,7 +25,7 @@ use crate::auth::Who;
 use crate::db::Role;
 use crate::rpc::{blocking, to_value};
 use crate::state::Server;
-use crate::table::image_ext;
+use crate::table::file_ext;
 
 /// The folder's attachments place when the folder names none.
 const PLACE: &str = "attachments";
@@ -47,13 +47,74 @@ pub async fn send(
     (folder, table, role): (&str, &str, Role),
     (data, inside): (&str, Option<&str>),
 ) -> Result<Value, ContractError> {
+    // The permission may have been taken back while the bytes were on their
+    // way: judged again right before the file is written.
+    let check = |server: &Server| crate::table::may_send_images(server, who, client, table);
+    let path = store(server, who, client, (folder, table), data, &check).await?;
+    let s = Arc::clone(server);
+    let (f, t, account, name) = (
+        folder.to_owned(),
+        table.to_owned(),
+        who.account.id.clone(),
+        who.account.name.clone(),
+    );
+    let p = path.clone();
+    let row =
+        blocking(move || crate::table::image_entry(&s, (&f, &t), (&account, &name), &p)).await?;
+    to_value(crate::table::seen(&row, &who.account.id, role, inside))
+}
+
+/// `data` (base64) written into the table's attachments place for a note or
+/// board the person edits (`into`), with no entry in the chat (ADR 0113
+/// item 5, D): the rules' `Attach` on the file, and the same checks of the
+/// bytes, the limit and the folder's quota as an image sent to the chat.
+/// Answers the file's path in the folder.
+pub async fn attach(
+    server: &Arc<Server>,
+    who: &Arc<Who>,
+    client: &str,
+    (data, into): (&str, &str),
+) -> Result<Value, ContractError> {
+    let door = crate::access::Door::of(server, who, client)?;
+    let full = match &door.scope {
+        Some(s) => s.to_full_write(into)?,
+        None => into.to_owned(),
+    };
+    let table = door
+        .veil
+        .as_ref()
+        .and_then(|v| v.table(&full).map(|t| t.root.clone()))
+        .unwrap_or_default();
+    let folder = door.folder.clone();
+    let check = |_: &Server| {
+        crate::access::Door::of(server, who, client)
+            .is_ok_and(|d| d.may_path(crate::access::Action::Attach, &full).allowed())
+    };
+    let path = store(server, who, client, (&folder, &table), data, &check).await?;
+    // A window on a share knows the file by its path from the share's root.
+    let shown = match &door.scope {
+        Some(s) => s.to_rel(&path).unwrap_or(path),
+        None => path,
+    };
+    to_value(shown)
+}
+
+/// The bytes checked and the file made; its path in the folder.
+async fn store(
+    server: &Arc<Server>,
+    who: &Arc<Who>,
+    client: &str,
+    (folder, table): (&str, &str),
+    data: &str,
+    allowed: &(dyn Fn(&Server) -> bool + Sync),
+) -> Result<String, ContractError> {
     // The table's own limit (ADR 0110, MS.1), its default when the folder
     // is no table. Base64 takes four characters for three bytes: judged
     // before decoding.
     let limit = crate::campaign::image_limit(server, folder, table);
     if data.len() > limit / 3 * 4 + 8 {
         return Err(refused(&format!(
-            "an image is at most {} MB",
+            "a file is at most {} MB",
             limit / (1024 * 1024)
         )));
     }
@@ -62,11 +123,12 @@ pub async fn send(
         .map_err(|_| refused("the bytes are not base64"))?;
     if bytes.len() > limit {
         return Err(refused(&format!(
-            "an image is at most {} MB",
+            "a file is at most {} MB",
             limit / (1024 * 1024)
         )));
     }
-    let ext = image_ext(&bytes).ok_or_else(|| refused("a PNG, JPEG, WebP or GIF image"))?;
+    let ext = file_ext(&bytes)
+        .ok_or_else(|| refused("an image, a PDF or an audio file (not SVG, a page or a script)"))?;
     let key = server
         .service
         .folder_of(client)
@@ -94,33 +156,19 @@ pub async fn send(
         .filter(char::is_ascii_digit)
         .collect();
     let path = format!("{place}/mesa-{stamp}-{id}.{ext}");
-    // The permission may have been taken back while the bytes were on their
-    // way: judged again right before the file is written.
-    let (_, folder_role) = crate::rpc::role_here(server, client)?;
-    if !crate::table::may_send_images(server, who, client, folder, table, folder_role) {
+    if !allowed(server) {
         return Err(refused("you may only read this folder"));
     }
     let made = crate::rpc::folder_run(
         server,
         who,
         client,
-        ("create_file", Access::Write, false),
+        ("create_file", Access::Write, false, false),
         (folder, &key),
         json!({ "path": path, "base64": data }),
     )
     .await?;
-    let path = made.as_str().map_or(path, str::to_owned);
-    let s = Arc::clone(server);
-    let (f, t, account, name) = (
-        folder.to_owned(),
-        table.to_owned(),
-        who.account.id.clone(),
-        who.account.name.clone(),
-    );
-    let p = path.clone();
-    let row =
-        blocking(move || crate::table::image_entry(&s, (&f, &t), (&account, &name), &p)).await?;
-    to_value(crate::table::seen(&row, &who.account.id, role, inside))
+    Ok(made.as_str().map_or(path, str::to_owned))
 }
 
 /// The folder's attachments place: Obsidian's setting for it when the

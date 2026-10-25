@@ -67,6 +67,34 @@ export function checkImage(bytes: Uint8Array): ImageWhy | null {
   return imageKind(bytes.subarray(0, 16)) ? null : "type";
 }
 
+export type FileKind = "image" | "pdf" | "audio";
+
+/** The kind of file the first bytes are for *Send files* (ADR 0113 K.4): an
+ *  image, a PDF or audio (MP3, Ogg, WAV, M4A); never the name. SVG, a page
+ *  and a script are none. The server's `table::file_ext`. */
+export function fileKind(head: Uint8Array): FileKind | null {
+  if (imageKind(head)) return "image";
+  const at = (from: number, ...b: number[]) => b.every((v, i) => head[from + i] === v);
+  if (at(0, 0x25, 0x50, 0x44, 0x46, 0x2d)) return "pdf";
+  if (at(0, 0x49, 0x44, 0x33) || (head[0] === 0xff && ((head[1] ?? 0) & 0xe0) === 0xe0)) return "audio";
+  if (at(0, 0x4f, 0x67, 0x67, 0x53)) return "audio";
+  if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x41, 0x56, 0x45)) return "audio";
+  if (at(4, 0x66, 0x74, 0x79, 0x70) && at(8, 0x4d, 0x34, 0x41, 0x20)) return "audio";
+  return null;
+}
+
+/** Why `bytes` is not a file the table takes, or null when it is. */
+export function checkFile(bytes: Uint8Array): ImageWhy | null {
+  if (bytes.length === 0) return "empty";
+  if (bytes.length > IMAGE_MAX) return "size";
+  return fileKind(bytes.subarray(0, 16)) ? null : "type";
+}
+
+/** Whether a picked, pasted or dropped file is one *Send files* may carry, by what the browser says of it. */
+export function sendable(f: { type: string; name: string }): boolean {
+  return f.type.startsWith("image/") || f.type === "application/pdf" || f.type.startsWith("audio/") || (f.type === "" && /\.(pdf|mp3|m4a|ogg|wav)$/i.test(f.name));
+}
+
 /** Base64 of `bytes`, in slices (a 10 MB image does not fit one call's arguments). */
 export function toBase64(bytes: Uint8Array): string {
   let bin = "";

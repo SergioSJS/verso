@@ -12,7 +12,7 @@ use serde_json::Value;
 use verso_contract::ContractError;
 
 use crate::auth::Who;
-use crate::rpc::{arg, blocking, refused, role_here, to_value};
+use crate::rpc::{arg, blocking, refused, to_value};
 use crate::state::Server;
 
 /// The commands of a shared note (ADR 0073 item 7): a reader joins and is
@@ -24,10 +24,10 @@ pub(crate) async fn collab_command(
     cmd: &str,
     args: &Value,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    let scope = crate::shares::scope_here(server, client);
-    let visible = scope.as_ref().map_or(folder, |s| s.share.clone());
-    let writes = role.writes() && who.reaches(&visible).1;
+    // One question, one answer (ADR 0113): the rules decide who types in
+    // a room and who only reads it.
+    let door = crate::access::Door::of(server, who, client)?;
+    let scope = door.scope.clone();
     let typing = matches!(
         cmd,
         "collab_update" | "collab_save" | "collab_resolve" | "collab_canvas"
@@ -58,20 +58,37 @@ pub(crate) async fn collab_command(
             None => confined?,
         }
     };
-    // A player of a table (ADR 0110): a note granted to it is edited like
-    // a writer's; one the table has not released is not there.
-    let player = if writes {
-        None
-    } else {
-        crate::campaign::player(server, who, client)?
-    };
-    let granted = player
-        .as_ref()
-        .is_some_and(|p| crate::readers::is_note(&path) && p.veil.may_edit(&path, &p.account));
-    if typing && !writes && !granted {
+    // Who types in the room: the rules' Edit on the file. A board a player
+    // edits is edited by element, in a shadow of its room made of what the
+    // player sees (ADR 0113 H); one a player only sees is followed by its
+    // file, as it is saved.
+    let board_of_a_player =
+        door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
+    let writes = door.may_path(crate::access::Action::Edit, &path).allowed();
+    // The document a window joins is the whole one for whoever the rules let
+    // see the secret blocks — the game master's read-only credential too
+    // (ADR 0113 item 6) — and the projection's for the rest; typing is the
+    // writers' alone.
+    let whole = writes
+        || (!board_of_a_player
+            && door
+                .may_path(crate::access::Action::SeeSecretBlocks, &path)
+                .allowed());
+    // A conflict between the room and the disk is the game master's to
+    // choose: it closes the room for everyone.
+    if board_of_a_player && cmd == "collab_resolve" {
+        return Err(refused(
+            "the game master chooses between the board and the file",
+        ));
+    }
+    if typing && !writes {
         return Err(refused("you may only read this folder"));
     }
-    if let Some(p) = player.filter(|_| !granted) {
+    // A note a player does not edit is one it sees, or is not there.
+    if door.veiled()
+        && !writes
+        && let Some(p) = crate::campaign::player(server, who, client)?
+    {
         let (s, k, v, q) = (Arc::clone(server), key.clone(), p.veil, path.clone());
         let hidden = blocking(move || {
             s.service
@@ -85,7 +102,6 @@ pub(crate) async fn collab_command(
             });
         }
     }
-    let writes = writes || granted;
     let s = Arc::clone(server);
     let c = client.to_owned();
     let cmd = cmd.to_owned();
@@ -96,7 +112,10 @@ pub(crate) async fn collab_command(
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" => to_value(crate::collab::join(&s, (&c, !writes), &key, &path, &user)?),
+        "collab_join" if board_of_a_player && writes => to_value(
+            crate::collab::players::join_shadow(&s, (&c, &account), &key, &path, &user)?,
+        ),
+        "collab_join" => to_value(crate::collab::join(&s, (&c, !whole), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
             crate::collab::update(&s, (&c, &account), &key, &path, &update)?;

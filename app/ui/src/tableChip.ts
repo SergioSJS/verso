@@ -13,7 +13,8 @@
 // can do — and lists the notes granted to them, as links. No settings for a
 // player.
 
-import { campaign, mayEditGranted, tableFor } from "./campaign";
+import { onAccess, tableViewer } from "./access";
+import { campaign, tableFor } from "./campaign";
 import { openCampaignDialog } from "./campaignDialog";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
@@ -46,7 +47,7 @@ function closePop(): void {
 function granted(root: string): string[] {
   return campaign()
     .notes.map((n) => n.path)
-    .filter((p) => under(root, p) && mayEditGranted(p))
+    .filter((p) => under(root, p))
     .sort((a, b) => a.localeCompare(b));
 }
 
@@ -90,7 +91,7 @@ function playerPop(root: string, anchor: HTMLElement): void {
 
 /** The owner opens the table's window; a player, its popover. */
 function activate(root: string, anchor: HTMLElement): void {
-  if (campaign().viewer === "owner") {
+  if (tableViewer() === "owner") {
     closePop();
     openCampaignDialog(root);
   } else if (pop && popFor === anchor) closePop();
@@ -108,10 +109,10 @@ function manyPop(anchor: HTMLElement): void {
     const a = h("button", "table-chip-link", tableName(t.root));
     a.type = "button";
     a.title = t.root || "/";
-    a.setAttribute("aria-label", campaign().viewer === "owner" ? cp.badgeOwner(tableName(t.root)) : cp.badgePlayer(tableName(t.root)));
+    a.setAttribute("aria-label", tableViewer() === "owner" ? cp.badgeOwner(tableName(t.root)) : cp.badgePlayer(tableName(t.root)));
     a.addEventListener("click", () => {
       closePop();
-      if (campaign().viewer === "owner") openCampaignDialog(t.root);
+      if (tableViewer() === "owner") openCampaignDialog(t.root);
       else playerPop(t.root, anchor);
     });
     const li = h("li");
@@ -124,7 +125,7 @@ function manyPop(anchor: HTMLElement): void {
 
 /** The badge of a table's row in the tree: "Mesa", a button. */
 export function tableBadge(root: string): HTMLElement {
-  const owner = campaign().viewer === "owner";
+  const owner = tableViewer() === "owner";
   const b = h("button", "campaign-mark table-mark table-badge");
   b.type = "button";
   b.dataset["table"] = root;
@@ -157,15 +158,15 @@ function context(): { root: string } | null {
 function paint(): void {
   if (!chip) return;
   const s = campaign();
-  const show = s.tables.length > 0 && (s.viewer === "owner" || s.viewer === "player") && !ui.search.disabled;
+  const show = s.tables.length > 0 && tableViewer() !== null && !ui.search.disabled;
   chip.hidden = !show;
   if (!show) {
     closePop();
     return;
   }
-  const owner = s.viewer === "owner";
+  const owner = tableViewer() === "owner";
   const ctx = context();
-  chip.dataset["viewer"] = s.viewer;
+  chip.dataset["viewer"] = owner ? "owner" : "player";
   chip.dataset["table"] = ctx ? ctx.root : "*";
   let text: string;
   let label: string;
@@ -218,5 +219,6 @@ export function installTableChip(): void {
       back?.focus();
     }
   });
+  onAccess(paint);
   paint();
 }

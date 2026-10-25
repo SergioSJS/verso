@@ -645,3 +645,325 @@ respostas; K.1, K.2, K.4 e K.5 são respostas dele do mesmo dia, K.3 a escolha
 do código a confirmar; os detalhes marcados `[PROPOSED]` são do autor. Nada está
 `[OPEN]`. A ser lida pelo outro modelo antes de o S1 começar
 ([0032](0032-author-and-reviewer-roles.md)).
+
+### Como construído, S1–S3 (2026-10-24, `feat/one-access-model`)
+
+Só o lado do servidor; o contrato e a janela são S4–S6.
+
+- **S1.** `access::may(facts, asker, action, target)` no `verso-server`
+  (`access/rules.rs`, sem IO), `AccessFacts` (as mesas, os conjuntos por
+  caminho, os direitos), o assento só pelo papel, `level` com herança da
+  pasta e exceções, o teto da credencial. O teste exaustivo da matriz
+  (`access/vectors.rs`) a compara com um segundo enunciado da seção B
+  escrito à mão e escreve `app/ui/test/access-vectors.json` (895 casos,
+  versionado, conferido como em dia; visto falhar com uma regra errada).
+- **S2.** Esquema 20: `campaign_access`, `campaign_files`, `campaign_rights`,
+  as linhas antigas levadas (uma nota oculta continua uma nota que a mesa
+  conhece, como um `none` explícito); as tabelas antigas ficam, nunca mais
+  escritas. O véu é feito dos conjuntos. O teste de equivalência
+  (`db/tests_access.rs`) gera todo estado antigo e confere que o véu responde
+  como o antigo para todo jogador e caminho, e conduz o novo
+  `campaign_audience` / `campaign_grant` contra um modelo das escritas
+  antigas; os dois foram vistos falhar com um mapeamento errado.
+- **S3.** `access::Door` (quem pergunta numa requisição e os fatos) é o que
+  toda porta consulta: `folder_command` (`check_write`), `rpc_collab`, o
+  `sync_put` / `sync_delete` / `sync_rename` do dispositivo (`check_sync`),
+  o registro da mesa (`log_role`, `DeleteEntry`, `Clear`, `SendFile`),
+  `game_master` (`ManageTable`, `ManageAccess`), o status, `files` por HTTP,
+  o histórico e a lixeira, o guarda da mesa fechada, os avisos
+  (`readers::split`). Apagados: `granted_write`, `group_put`, `acting`,
+  `images_allowed` e o `role.writes() && token_writes` repetido.
+- **Lido onde o ADR cala, a confirmar.** (1) `Attachment` e `OtherFile`
+  seguem as mesmas regras. (2) Quem edita fora de uma mesa mantém o papel da
+  pasta (tudo é dele); dentro, *Vê* já significa editar (K.1) e uma pasta que
+  ele vê é uma em que cria e renomeia (K.5). (3) Um board nunca é escrito
+  inteiro por um jogador nem digitado por um até o S7 (H): um editor da pasta
+  perde a sala do board numa mesa nesse meio-tempo. (4) O `sync_put` do
+  dispositivo de um jogador ainda exige a nota servida inteira (o grupo todo
+  a edita); o S8 tira isso. (5) A credencial só de leitura do mestre entra
+  numa sala como leitor; lê as notas inteiras pelos comandos. (6) Esvaziar o
+  conjunto de um arquivo guarda um `none` explícito (a linha que uma nota
+  oculta antiga tinha), para que um conjunto de pasta depois não decida por
+  ele.
+
+### Revisão de S1–S3 (2026-10-24): o que um jogador vê do que não pode ver
+
+Qualquer coisa de um arquivo mostrada, nomeada ou respondida a quem está fora
+do seu acesso é BLOQUEANTE (regra do mantenedor). A revisão achou cinco
+caminhos e o mantenedor decidiu dois comportamentos; todos estão testados
+(`tests_access_review.rs`).
+
+- **A resposta de um renomear** (o mantenedor, 2026-10-24, *"Servidor corrige
+  sem contar"*): o servidor ainda reescreve os links nas notas que o jogador não
+  pode editar, como `share_links::apply` faz num compartilhamento; a resposta ao
+  jogador guarda só as reescritas das notas que ele pode *Editar*, os pulados e
+  movidos do que ele pode *Ver*, e nada do que está oculto.
+- **Um nome ocupado por algo oculto** (o mantenedor, 2026-10-24, *"Sufixo
+  automático"*): criar ou renomear para um nome que algo que o jogador não vê
+  ocupa nunca é respondido "já existe"; o servidor usa o próximo nome livre
+  (`Cripta 2.md`), como um duplicar faz, e responde com o nome usado. Um nome
+  ocupado por algo que o jogador vê é recusado como sempre.
+- Um arquivo movido ou renomeado para dentro de uma mesa por quem não é o mestre
+  é recusado (K.5), e sempre exige *Criar* na pasta nova; uma pasta não é de um
+  não mestre para renomear quando guarda uma mesa, ou algo que a pessoa não vê;
+  a lixeira é recusada a um jogador em qualquer mesa da pasta; um arquivo novo
+  que não é nota, board nem base feito por um jogador numa mesa é um arquivo
+  enviado (o direito, os bytes pelos primeiros bytes, o limite — nunca SVG,
+  página ou script) e o `sync_put` de um dispositivo é recusado até o S8.
+- Uma só afirmação de "vê os blocos secretos": `Player::sees_secrets` pergunta
+  `may(SeeSecretBlocks)`; uma sala entra inteira para quem ela permite, a
+  credencial só de leitura do mestre inclusive (digitar continua dos que
+  escrevem). `history_copy` pergunta *Criar* na pasta; os comandos sem caminho da
+  raiz de uma mesa são do mestre; a migração lê só linhas de audiência de notas
+  que as tabelas antigas tinham; o teto de um celular pareado segue o pareamento
+  ao vivo.
+- Como construído: *Dizer* e *Rolar* com credencial só de leitura continuam
+  permitidos (o chat não é escrita de arquivo). O `none` que a migração escreveu
+  para uma nota que a mesa mantinha oculta é marcado (`migrated`) e não é
+  exceção na lista de uma pasta.
+
+### Como construído, S4–S6 e S10 (2026-10-25, `feat/one-access-model`)
+
+O contrato, a janela, o diálogo e o tutorial. O lado do servidor é S1–S3 e o
+desktop sincronizado é S8.
+
+- **O contrato (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`, `attach`,
+  `why`) em toda resposta de leitura e em toda entrada de listagem;
+  `FolderAccess` nas capacidades (o assento, o papel, o teto da credencial); o
+  evento `access-changed` com os seus caminhos (vazio quando uma mesa ou um
+  direito mudou); `access_get`, `access_set` (`AccessChange::Set` substitui o
+  conjunto inteiro de uma pasta e responde quantos arquivos mudaram; `Follow`
+  apaga o conjunto próprio de um caminho) e `table_rights_set`. Tipos em
+  `verso-contract/src/access.rs`, comandos em `verso-server/src/access_cmds.rs`
+  e `campaign_cmds.rs`, com os stubs do Tauri, as permissões, os encaminhamentos
+  remotos e a lista de bloqueio do celular. Vínculos regenerados.
+  `AccessInfo.master` é o nome da conta do dono, nunca um e-mail
+  (`master_name`; `3d06960c`). `3d0ae216` faz o harness responder os comandos
+  novos pelos vetores compartilhados.
+- **Uma pergunta na janela (S5, `aecec0dc`).** `access.ts` guarda o que o
+  servidor disse e pergunta a `accessCore.decide` por meio de
+  `may(path, action)`, que substitui `canChange`, `readsSynced`, `syncedReader`,
+  `mayEditGranted`, o `readable()` de pasta inteira e o dono inferido de um erro.
+  O chip e o selo perguntam `tableViewer()` (`tableChip.ts`) em vez do `viewer`
+  da campanha.
+- **Arrastar do chat (S5, `aecec0dc`, `26c4da1f`).** Toda entrada do chat é
+  origem de arrasto (`table/view.ts`): uma rolagem, um sorteio, um oráculo ou
+  uma mensagem é arrastada como o seu bloco ou a sua linha; uma imagem ou um
+  arquivo, como link para o arquivo que já está na pasta, sem envio. A soltura
+  exige `may(path, "edit")` no alvo e nada do autor da entrada. Uma entrada
+  secreta mascarada (tipo `secret`) não tem o que arrastar e não é arrastável.
+- **O diálogo Acesso… (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, os
+  seus textos em `accessStrings.ts`, os seus controles em `accessControl.ts`.
+  Abre pelo ícone do título de um arquivo, por uma linha do menu da árvore e
+  por uma seleção múltipla (`noteAccess.ts`, `menu.ts`); uma pasta mostra quantos
+  arquivos o *Aplicar* muda antes de aplicar. O indicador é o chip da mesa
+  (`tableChip.ts`); a janela da mesa mantém um controle por arquivo e um por
+  jogador (`campaign.ts`, `campaignPlayers.ts`).
+- **Enviar arquivos (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
+  `f0c5f266`).** Um jogador com *Enviar arquivos* envia imagens, PDF e áudio
+  (MP3, Ogg, WAV, M4A) ao chat e às notas e boards que edita. O tipo é julgado
+  pelos primeiros bytes, nunca pelo nome (`file_ext` em `table.rs`); um MP3
+  precisa de um cabeçalho de quadro MPEG de Camada II ou III de verdade
+  (`f0c5f266`). Os bytes são gravados no lugar de anexos da mesa
+  (`table_image.rs`, `PLACE`). A janela: `table/send.ts` (`sendable`),
+  `table/compose.ts`, o cartão do arquivo em `table/view.ts`. Renomear numa mesa
+  mantém o tipo do arquivo (`door.rs`): um PNG enviado nunca vira página, SVG ou
+  PDF pelo nome, e uma escrita de texto não cria arquivo que não seja nota.
+- **Removido.** `campaign_permission`, o seu comando no Tauri, a sua permissão e
+  os textos antigos dos menus de acesso em `campaignStrings.ts` (`c75320a6`);
+  `table_rights_set` o substitui.
+- **Testes do diálogo (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
+  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+  usa o diálogo só pelo teclado; em 1500, 820 e 390 px todo controle é alcançável
+  dentro da largura do diálogo, e o teste confere alvos adequados na folha do
+  celular (Aplicar, Seguir a pasta e Mais opções têm 44 px ali); o tema escuro
+  mantém as palavras legíveis e um nível escolhido distinto. O foco volta à linha
+  de quem abriu depois que um salvamento redesenha a árvore; a página da pasta
+  redesenha o seu cartão da mesa quando o assento chega.
+- **Tutorial e changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
+  `af9976ea`, `60f8dc7f`, `56b2fb43`).** As notas 31 (`31 - A Mesa.md`) e 32
+  (`32 - Rodando uma Mesa.md`) descrevem o modelo único, `app/ui/src/demoVault.ts`
+  é regenerado, o passo a passo da §18 do roteiro (`Running a table (note 32)`)
+  traz os passos, e os dois CHANGELOGs trazem as entradas.
+- **Lido como o ADR silencia, a confirmar.** (1) "Outros arquivos" do K.4 são só
+  imagens, PDF e áudio; qualquer outro tipo é recusado. (2) O cartão do arquivo
+  mostra o nome e o tipo (PDF ou áudio), sem tamanho. (3) O editor de nota de quem
+  não é jogador continua aceitando só imagens (`leaves/note/editing.ts`); o de um
+  jogador aceita PDF e áudio também.
+
+Não feito, dito: os botões *Liberar tudo* e *Ocultar tudo* da janela da mesa
+continuam, chamando `campaign_release_all` e `campaign_release`; os comandos
+`campaign_audience`, `campaign_grant` e `campaign_secret_name` continuam no
+servidor e no harness e são chamados pelos testes, não pela janela. A gravação
+do nome secreto no banco (`db/access.rs`) também é o que `access_set` executa
+quando `secret_name` vem em `AccessChange::Set` (`access_cmds.rs`), então
+`campaign_secret_name` tem um caminho por access_set, enquanto o comando
+permanece.
+
+### Como construído, S7 (2026-10-25, `feat/access-s7`)
+
+O board que um jogador edita (H). No servidor em `board_sight.rs` (puro) e
+`collab_players.rs` (a sala); o diálogo acompanha.
+
+- **Uma sombra da sala por conta.** Um jogador cujo `may(Edit)` vale num board
+  entra num documento só dele, feito pelo servidor do que a conta vê
+  (`board_sight::see`): um elemento é *Aberto* (como está — um cartão de texto
+  inteiro, blocos secretos inclusive, 0087 item 5), *Trancado* (o cartão de um
+  arquivo que a conta não vê: o **mesmo id**, o mesmo lugar e tamanho, as
+  palavras que todo cartão com véu tem, `locked: true` para o board não o
+  selecionar — nunca o caminho, a cor ou o texto do arquivo) ou *Ausente* (um
+  pin secreto, 0090 item 5, e o que pertence a ele: as arestas que o tocam, os
+  elementos desenhados presos a ele, dentro dele ou agrupados só com pins
+  secretos; nem a lápide de um deles é contada). O retrato do `join` e cada
+  atualização depois são uma só função; os `boundElements` de um cartão e um
+  grupo são cortados do mesmo jeito, e a `base` dos fatos da sala é a projeção
+  do arquivo (`shape_canvas`: os mesmos pins fora, os mesmos cartões
+  trancados). Quem só *vê* o board continua seguindo o arquivo, como antes (0090
+  item 5 revisto em 2026-10-15).
+- **A sala segue a sombra por elemento.** O que a janela do jogador manda é
+  tentado numa cópia da sombra e julgado (`board_sight::check`): a edição é
+  recusada **inteira**, sem nada dela na sala, quando põe ou tira uma entrada de
+  um id que a conta não vê (um marcador, um pin, um id que só o arquivo tem),
+  quando uma entrada não é o elemento da sua chave, quando faz um pin secreto,
+  quando um cartão que ela faz ou muda nomeia um arquivo que a conta não vê
+  **ou que não existe** (assim um cartão não serve para perguntar se um
+  arquivo oculto existe), ou quando muda o que qualquer outro elemento é para a
+  conta (um grupo aberto, uma aresta para um pin). Elementos novos e mudanças
+  nos que ela vê entram na sala pelas mãos do servidor, como edições dele,
+  mescladas por elemento como diz o 0082 item 12, e contadas às outras janelas;
+  dos fatos do board ela muda a contagem de edições e o fundo. `write_text`,
+  `write_board` e `sync_put` de um board continuam recusados a um jogador, e
+  `collab_resolve` também (fecha a sala para todos).
+- **Quem escreve o arquivo.** A janela do mestre, quando está na sala: ela faz o
+  arquivo da sala inteira, como sempre, e o arquivo de um jogador é descartado.
+  Só com jogadores nela, o arquivo que a janela de um jogador fez da sua sombra
+  (`collab_canvas`, no estado da sombra) é **posto sobre o arquivo do disco**
+  (`board_sight::lay_over`): o que a conta não vê é o do disco, byte a byte; o
+  que vê é dela; o que a janela largou, ela apagou; e um canvas que mudaria o
+  que um elemento é para ela não é aceito. Um board desenhado só por um jogador
+  (sem o mestre ainda) é desenhado só na sombra; a janela do mestre desenha o
+  todo quando chega, e as versões se mesclam por posto.
+- **Quando o que um elemento é para uma conta muda** — um pin que virou secreto,
+  o arquivo de um cartão liberado ou oculto, o nível mudado — a sombra da conta
+  é fechada: suas janelas ouvem que a sala fechou (`collab-closed`) e entram de
+  novo, pelo arquivo, como os leitores de uma nota (`veil_changed`; uma mudança
+  dentro da sala pelo mestre é vista por `sync`). Um mestre rebaixado ao vivo
+  sai de toda sala como antes (`demoted`).
+- **O que mais é cortado.** A seleção numa presença só nomeia um elemento quando
+  a conta que recebe o vê (`presence::keep_selected`); o `collab-saved` chega a
+  uma sombra sem o hash do arquivo; o `access_get` conta os blocos secretos dos
+  cartões de texto de um board (não os de um pin) e o diálogo pergunta antes de
+  dar *Edita* num board que tem, e diz o que o jogador vê. O `campaign_grant`
+  aceita um board. As recusas que o passo apaga são as do board em `rpc_collab` e
+  em `campaign_grant`; a de `collab.rs` fica para a janela que só lê.
+- **Testes.** Duas propriedades sobre salas feitas ao acaso
+  (`board_sight_tests.rs`): *nenhum id ou texto oculto chega a um jogador* e
+  *uma atualização a um id não visto é recusada*, cada uma vista falhar com uma
+  regra errada (um pin não oculto, a checagem pulada, o arquivo deixado num
+  marcador); e `tests_board_players.rs` contra um servidor de verdade (todo
+  quadro que a Ana ouve é conferido contra os canários; as edições dela chegam
+  ao mestre; as recusadas não deixam rastro; o arquivo guarda o pin, o cartão
+  oculto e sua aresta byte a byte; o diálogo; o fechamento da sombra). O teste
+  de ponta a ponta é `e2e-server/board-players.spec.mjs`.
+- **Escolhido onde o ADR cala, a confirmar.** (1) O cartão de um arquivo oculto
+  é *Trancado*, nunca ausente: a palavra do mantenedor (*um marcador trancado
+  com o mesmo id*). (2) Um
+  cartão de texto do board é inteiro para quem edita (H, 0087 item 5) — com seus
+  links para notas ocultas, como uma nota que ele edita os mostra. (3) Um
+  jogador não resolve um conflito entre a sala e o disco. (4) A presença do
+  mestre (o ponteiro) é contada ao jogador; só os ids que ele seleciona são
+  cortados. (5) O board sincronizado de um jogador no desktop (S8) não foi
+  tocado.
+- **Revisão do S7 (2026-10-25).** (1) *Sem oráculo de atividade*: uma sombra só
+  ouve `seeded` e `background` dos fatos da sala, nunca a contagem de edições dos
+  outros; o `saved` dela é feito para a conta (a contagem das próprias edições,
+  movida quando a sala escreve), e a revisão que ela ouve do arquivo — no
+  `join`, no `read_text`, no `collab-saved` — é um hash do texto que ela vê, de
+  modo que salvar o que ela não vê não é nada para ela. (2) A presença contada a
+  um jogador é uma lista de campos permitidos (`user`, `pointer`, `button`,
+  `selected` cortado ao que ela vê). (3) O arquivo dela é posto sobre o do disco
+  quando nenhuma janela *que pode digitar* e vê o board inteiro está na sala — uma
+  só de leitura não conta. (4) E só quando o arquivo não falta nada do que as
+  janelas do board inteiro deixaram sem salvar (`Board::whole_saved`): senão nada
+  é escrito, o trabalho dela fica na sala e o arquivo é escrito quando uma janela
+  inteira o faz — nenhum lado é descartado. (5) Uma marca secreta é lida como a
+  projeção do arquivo a lê, toda chave repetida. (6) O que um jogador desenha na
+  sombra antes de o mestre desenhar a sala (a semeadura) fica só na sombra; nunca
+  chega à sala, e as versões da própria sala das mesmas chaves o substituem quando
+  chegam.
+
+### Como construído, S8 (2026-10-25, `feat/access-s8`)
+
+O desktop sincronizado é mais uma porta do modelo; o host não decide nada por
+conta própria.
+
+- **O que um dispositivo recebe e pode enviar.** Uma nota é servida inteira a
+  um dispositivo, e o `sync_put` dela aceito, exatamente quando a pessoa a
+  edita: `Veil::serves_whole` é a afirmação única (o grupo todo edita, a linha
+  própria da pessoa diz *edita*, ou ela é editora da pasta e a vê — K.1),
+  consultada pelo pipeline de leitor (`reader_view_in`, `device_bytes`) e por
+  `Door::check_sync`. Isso levanta a nota (4) de S3: o dispositivo de um
+  editor volta a escrever as notas que edita (fecha B9). Uma nota que a pessoa
+  só vê continua servida como projeção e o envio dela é recusado. Um board
+  nunca é servido inteiro a quem o edita sozinho, nem enviado inteiro (H). O
+  editor da pasta é lido dos membros **ao vivo** (nunca guardado no véu: um
+  editor rebaixado recebe a projeção na hora, e o cache de arquivos informados
+  é chaveado por isso); uma credencial só de leitura da mesma conta não é
+  distinguida no log por jogador (decidido: o direito da conta decide o que é
+  servido, o teto da credencial ainda barra o envio em `check_sync`).
+- **O que um dispositivo pode fazer, perguntado.** `access_get` com
+  `brief: true` responde `{path, see, put, delete, rename}` por caminho, pelo
+  mesmo julgamento que as escritas enfrentam (`check_sync`); um caminho que a
+  pessoa não vê é respondido como um nome livre, nunca como erro. O host nunca
+  deriva isso.
+- **O host guarda a resposta.** `State.access` (caminho → `Rights`, só os
+  arquivos que o dispositivo pode alterar) é salvo com o resto do estado do
+  sync por pasta e vale offline. Uma passada pergunta pelos caminhos que vai
+  alterar; pergunta por todos os arquivos quando a resposta está velha (conexão
+  refeita, evento `access-changed`, mudança de papel) e só troca o memo inteiro
+  depois que o servidor respondeu. Um servidor ou nuvem sem resposta por
+  arquivo deixa o papel decidir (leitor: nada; editor: tudo, o servidor
+  julgando). Antes, `role == "reader"` era o único portão.
+- **O que cruza.** `Gate` (`sync/transfer.rs`) substitui a flag `reader`: um
+  envio, uma exclusão remota ou um renomear remoto que o memo não permite fica
+  aqui, dito uma vez como arquivo à parte (motivo `reader`), nunca enviado para
+  ser recusado, nunca uma cópia de conflito, sem tempestade de tentativas (o
+  board de um jogador cai aqui também: nunca é enviado, H). A passada de
+  alcance da nota ao vivo consulta o mesmo portão.
+- **Arquivos ocultos.** A listagem e o log que um dispositivo recebe já eram
+  cortados pelo véu (`viewer_files`, `viewer_page`): os bytes e o nome de um
+  arquivo oculto nunca chegam. Um arquivo que passa a ser oculto chega como a
+  exclusão forçada do servidor, que o motor executa como `DeleteLocal` (para a
+  lixeira do sistema, só o arquivo que a passada leu); não é exclusão do
+  dispositivo, a cópia do servidor fica, e uma edição local dele é mantida e
+  posta à parte, nunca reenviada.
+- **A janela.** `sync_rights(paths)` responde do memo como um `FileAccess` por
+  caminho sobre o qual o host foi perguntado (caminho nunca perguntado fica de
+  fora, `fresh` é falso enquanto a pergunta é refeita). `access.ts` pergunta
+  pelo que a janela lista ou lê, uma vez, e de novo em `access-changed` e após
+  cada passada; numa pasta sincronizada aqui que não é da própria pessoa,
+  `may(path, edit)` é essa resposta, então uma leitora edita as notas a que tem
+  direito e um editor deixa as que só vê. A digitação numa sala acompanha
+  (`collab.reader`).
+
+Não feito, dito: (1) criar, renomear, excluir e mover na janela sincronizada
+ainda seguem só o papel (o portão do host recusa o que o servidor recusaria, a
+janela ainda não mostra); (2) um arquivo novo que não é nota de um jogador (um
+envio de *Enviar arquivos*) não é enviado por um dispositivo; (3) a sala do
+board no desktop mantém `reader` para leitor da pasta até a sala de S7 responder
+pelos elementos do jogador; (4) após reiniciar offline, as notas que um editor
+só vê aparecem destravadas até a primeira passada online (o memo guarda só o
+que pode ser alterado).
+
+Correções da revisão (2026-10-25): `brief` responde uma tupla fixa para um
+caminho que não é visto ou não existe (`see`, `delete`, `rename` falsos; `put`
+é a regra do nome livre, Criar na pasta de cima), de modo que nenhuma resposta
+distingue um arquivo oculto de um nome livre; um dispositivo recebe uma nota
+inteira só com credencial que escreve (o pipeline e `check_sync` consultam
+`view_for(account, editor, writes)`), como a janela; só uma pasta sem mesa é
+"sem resposta" (o papel decide), qualquer outra falha mantém o último memo; o
+memo é consultado pelo nome como o servidor compara nomes (caixa, NFC); uma
+mudança posta à parte por um arquivo que deixou de ser compartilhado diz isso
+(`unshared`); e a edição de um arquivo que a pessoa não pode enviar é posta de
+lado como cópia de conflito uma só vez (os mesmos bytes não são copiados de
+novo a cada mudança do servidor).

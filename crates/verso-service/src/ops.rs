@@ -656,6 +656,7 @@ pub(crate) fn entries_out(
                 size: e.len as f64,
                 modified: e.modified as f64,
                 label,
+                access: None,
             }
         })
         .collect())

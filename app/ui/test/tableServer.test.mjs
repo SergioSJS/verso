@@ -520,3 +520,37 @@ test("a player sends images when the game master lets it, told live; an older se
   assert.equal((await m.openServerTable(fake({ role: "reader" }).deps)).canSendImage(), false);
   assert.equal((await m.openServerTable(fake({ role: "editor" }).deps)).canSendImage(), true);
 });
+
+test("a file of the chat is an entry that can be dragged as a link; a masked secret holds nothing to drag", () => {
+  const words = () => "";
+  const file = m.entryOfServer(wire(1, { kind: "file", text: null, image: "attachments/mapa.pdf" }), "acc-ana", words);
+  assert.equal(file?.kind, "file");
+  assert.equal(file?.image, "attachments/mapa.pdf");
+  const masked = m.entryOfServer(wire(2, { kind: "secret", text: null }), "acc-ana", words);
+  assert.equal(masked?.kind, "secret");
+  assert.equal(masked?.image, null);
+});
+
+test("Send files (K.4): a PDF and audio are checked by their bytes like an image; not a page, not a script", () => {
+  const text = (s) => new TextEncoder().encode(s);
+  const pdf = text("%PDF-1.4\n1 0 obj");
+  const mp3 = text("ID3\x04\0\0\0\0\0\0");
+  const ogg = text("OggS\0\x02");
+  const wav = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45]);
+  const m4a = new Uint8Array([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20]);
+  for (const bytes of [pdf, mp3, ogg, wav, m4a, png]) assert.equal(m.checkFile(bytes), null);
+  assert.equal(m.fileKind(pdf), "pdf");
+  assert.equal(m.fileKind(wav), "audio");
+  assert.equal(m.fileKind(png), "image");
+  assert.equal(m.checkFile(text("<html><script>1</script></html>")), "type");
+  assert.equal(m.checkFile(text('<svg xmlns="http://www.w3.org/2000/svg"/>')), "type");
+  assert.equal(m.checkFile(new Uint8Array(0)), "empty");
+  const big = new Uint8Array(m.IMAGE_MAX + 1);
+  big.set(pdf);
+  assert.equal(m.checkFile(big), "size");
+  // What a browser lists as sendable, with or without a type.
+  assert.equal(m.sendable({ type: "application/pdf", name: "a" }), true);
+  assert.equal(m.sendable({ type: "audio/ogg", name: "a" }), true);
+  assert.equal(m.sendable({ type: "", name: "a.PDF" }), true);
+  assert.equal(m.sendable({ type: "text/html", name: "a.html" }), false);
+});

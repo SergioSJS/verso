@@ -52,12 +52,12 @@ fn heard(d: &Device, event: &str, n: usize) -> Vec<Value> {
 }
 
 /// The browser: a second connection on the server's folder.
-struct Browser {
+pub(super) struct Browser {
     remote: Arc<remote::Remote>,
     heard: tokio::sync::mpsc::UnboundedReceiver<remote::Heard>,
 }
 
-fn browser(r: &Running, token: &str) -> Browser {
+pub(super) fn browser(r: &Running, token: &str) -> Browser {
     let login = verso_core::servers::ServerLogin {
         url: r.url.clone(),
         token: token.to_owned(),
@@ -75,7 +75,7 @@ fn browser(r: &Running, token: &str) -> Browser {
 }
 
 impl Browser {
-    fn call(&self, cmd: &str, args: Value) -> Result<Value, Value> {
+    pub(super) fn call(&self, cmd: &str, args: Value) -> Result<Value, Value> {
         tauri::async_runtime::block_on(self.remote.call(cmd, args))
     }
 

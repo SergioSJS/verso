@@ -24,14 +24,15 @@ use verso_contract::{
 };
 use verso_service::lock;
 
+use crate::access::{Action, Door, Kind};
 use crate::auth::Who;
 use crate::campaign;
 use crate::db::{Audience, Grant, Role};
-use crate::rpc::{arg, blocking, role_here, to_value};
+use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// What the commands of a table's game master are.
-pub const COMMANDS: [&str; 12] = [
+pub const COMMANDS: [&str; 14] = [
     "campaign_status",
     "campaign_make",
     "campaign_unmake",
@@ -42,8 +43,11 @@ pub const COMMANDS: [&str; 12] = [
     "campaign_access",
     "campaign_secret_name",
     "campaign_grant",
-    "campaign_permission",
     "campaign_invite",
+    // ADR 0113: the one model's commands.
+    "access_get",
+    "access_set",
+    "table_rights_set",
 ];
 
 #[must_use]
@@ -60,25 +64,23 @@ fn failed(e: impl std::fmt::Display) -> ContractError {
 }
 
 /// The folder of a window that is its game master: the owner, on the
-/// folder itself, with a credential that writes.
+/// folder itself, with a credential that writes, not a phone — the rules'
+/// `ManageTable` and `ManageAccess` (ADR 0113 section B), one condition.
 fn game_master(
     server: &Server,
     who: &Who,
     client: &str,
+    action: Action,
 ) -> Result<(String, String), ContractError> {
-    let (folder, role) = role_here(server, client)?;
+    let door = Door::of(server, who, client)?;
     let key = server
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
-    if role != Role::Owner
-        || crate::shares::scope_here(server, client).is_some()
-        || who.phone.is_some()
-        || !who.reaches(&folder).1
-    {
+    if !door.may(action, "", Kind::Folder).allowed() {
         return Err(refused("only the folder's owner runs its table"));
     }
-    Ok((folder, key))
+    Ok((door.folder, key))
 }
 
 /// A table's folder as the window names it: `""` or a folder path inside
@@ -104,7 +106,27 @@ pub async fn command(
     if cmd == "campaign_access" {
         return access(server, who, client, &args).await;
     }
-    let (folder, key) = game_master(server, who, client)?;
+    if cmd == "access_get" {
+        return crate::access_cmds::get(server, who, client, &args).await;
+    }
+    if cmd == "access_set" {
+        return crate::access_cmds::set(server, who, client, &args).await;
+    }
+    // Who changes who sees and edits (the access of a path) and who runs the
+    // table (open, close, limits, rights) is one: the folder's owner.
+    let action = if matches!(
+        cmd,
+        "campaign_release"
+            | "campaign_release_all"
+            | "campaign_audience"
+            | "campaign_secret_name"
+            | "campaign_grant"
+    ) {
+        Action::ManageAccess
+    } else {
+        Action::ManageTable
+    };
+    let (folder, key) = game_master(server, who, client, action)?;
     // What waited for the table to be readable is told before anything new.
     let (s, f) = (Arc::clone(server), folder.clone());
     blocking(move || {
@@ -184,7 +206,18 @@ pub async fn command(
             touched = vec![path];
             events = lost;
         }
-        "campaign_permission" => subject = Some(permission(server, &folder, &args).await?),
+        "table_rights_set" => {
+            // `files` is the one right so far (ADR 0113 K.4): the permission
+            // to send files.
+            let right: String = arg(&args, "right")?;
+            if right != "files" {
+                return Err(refused("no such right"));
+            }
+            let given = json!({
+                "root": args["root"], "accounts": args["accounts"], "images": args["on"],
+            });
+            subject = Some(permission(server, &folder, &given).await?);
+        }
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
@@ -365,7 +398,7 @@ async fn permission(
 
 /// The notes (paths of the folder) `paths` name: a folder stands for the
 /// notes under it. Only those inside a table.
-fn expand(
+pub(crate) fn expand(
     server: &Server,
     key: &str,
     folder: &str,
@@ -484,10 +517,11 @@ async fn grant(
 ) -> Result<(String, Vec<Event>), ContractError> {
     let path = note_arg(server, folder, args)?;
     let given: CampaignGrant = arg(args, "grant")?;
-    // A board holds cards of hidden notes the player is shown locked: a
-    // write of what it was served would put the locks in the board.
-    if !crate::readers::is_note(&path) {
-        return Err(refused("only a note can be edited by players"));
+    // A board a player edits is edited by element, in a room of its own
+    // (ADR 0113 H): never written whole, so the locks of the cards of hidden
+    // notes never reach the file.
+    if !crate::readers::is_note(&path) && !crate::readers::is_board(&path) {
+        return Err(refused("only a note or a board can be edited by players"));
     }
     let grant = match given {
         CampaignGrant::None => Grant::None,
@@ -529,10 +563,11 @@ async fn grant(
 }
 
 /// The players of the table that holds `path`: every account that reaches
-/// the table's folder and only reads there — the readers of the folder, and
-/// the readers of a share at the table's folder, above it or inside it. The
-/// game masters, the owners and the editors, are never players, whatever
-/// else they hold.
+/// the table's folder and is not its owner — the readers and the editors of
+/// the folder, and the people of a share at the table's folder, above it or
+/// inside it. The folder's owner, the game master, is never one, whatever
+/// else it holds; an editor is a player who edits every file they see
+/// (ADR 0113 item 3, K.1).
 pub(crate) fn players_of(
     server: &Server,
     folder: &str,
@@ -549,17 +584,36 @@ pub(crate) fn players_in(
     folder: &str,
     root: &str,
 ) -> Result<Vec<CampaignPlayer>, ContractError> {
+    Ok(seats_in(server, folder, root)?
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect())
+}
+
+/// The players of the table rooted at `root`, each with whether the folder
+/// or a share gives them the role of an editor.
+pub(crate) fn seats_in(
+    server: &Server,
+    folder: &str,
+    root: &str,
+) -> Result<Vec<(CampaignPlayer, bool)>, ContractError> {
     let mut masters: HashSet<String> = HashSet::new();
-    let mut players: Vec<CampaignPlayer> = Vec::new();
+    let mut players: Vec<(CampaignPlayer, bool)> = Vec::new();
     let mut take = |a: crate::db::Account, r: Role| {
-        if r.writes() {
+        if r == Role::Owner {
             masters.insert(a.id);
-        } else if !players.iter().any(|p| p.id == a.id) {
-            players.push(CampaignPlayer {
-                id: a.id,
-                name: a.name,
-                roots: Vec::new(),
-            });
+        } else if let Some(p) = players.iter_mut().find(|p| p.0.id == a.id) {
+            // The highest covering grant (0081 item 14).
+            p.1 |= r == Role::Editor;
+        } else {
+            players.push((
+                CampaignPlayer {
+                    id: a.id,
+                    name: a.name,
+                    roots: Vec::new(),
+                },
+                r == Role::Editor,
+            ));
         }
     };
     for (a, r) in server.db.members(folder).map_err(failed)? {
@@ -572,7 +626,7 @@ pub(crate) fn players_in(
             }
         }
     }
-    players.retain(|p| !masters.contains(&p.id));
+    players.retain(|p| !masters.contains(&p.0.id));
     Ok(players)
 }
 
@@ -612,11 +666,12 @@ async fn status(
     who: &Arc<Who>,
     client: &str,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    let owner = role == Role::Owner
-        && crate::shares::scope_here(server, client).is_none()
-        && who.phone.is_none();
-    let (s, w, c) = (Arc::clone(server), Arc::clone(who), client.to_owned());
+    let door = Door::of(server, who, client)?;
+    let folder = door.folder.clone();
+    // The game master's view: the folder's owner, whatever the ceiling of
+    // its credential (ADR 0113 item 6); a phone runs no table.
+    let owner = door.seat() == crate::access::Seat::Master && !door.asker.phone;
+    let (s, w) = (Arc::clone(server), Arc::clone(who));
     let status = blocking(move || {
         let Some(veil) = campaign::veil_of(&s, &folder) else {
             return Ok(CampaignStatus {
@@ -634,8 +689,13 @@ async fn status(
         }
         if owner {
             let mut players: Vec<CampaignPlayer> = Vec::new();
+            // A folder's editor edits every file they see (ADR 0113 K.1).
+            let mut editors: HashSet<String> = HashSet::new();
             for t in &veil.tables {
-                for p in players_in(&s, &folder, &t.root)? {
+                for (p, editor) in seats_in(&s, &folder, &t.root)? {
+                    if editor {
+                        editors.insert(p.id.clone());
+                    }
                     match players.iter_mut().find(|q| q.id == p.id) {
                         Some(q) => q.roots.push(t.root.clone()),
                         None => players.push(CampaignPlayer {
@@ -647,12 +707,29 @@ async fn status(
             }
             let mut notes: Vec<CampaignNote> = veil
                 .states()
-                .map(|n| CampaignNote {
-                    path: n.path.clone(),
-                    released: n.audience.any() || n.grant != Grant::None,
-                    audience: audience_of(&n.audience),
-                    secret_name: n.secret_name,
-                    grant: grant_of(&n.grant),
+                .map(|n| {
+                    // Who sees and who edits it, each by what the rules give
+                    // them: the audience and the grant cannot say a player
+                    // who falls below the whole table's row.
+                    let sees: Vec<String> = players
+                        .iter()
+                        .filter(|p| veil.view(&p.id).released(&n.path))
+                        .map(|p| p.id.clone())
+                        .collect();
+                    let edits: Vec<String> = sees
+                        .iter()
+                        .filter(|id| editors.contains(*id) || veil.may_edit(&n.path, id))
+                        .cloned()
+                        .collect();
+                    CampaignNote {
+                        path: n.path.clone(),
+                        released: n.audience.any() || n.grant != Grant::None,
+                        audience: audience_of(&n.audience),
+                        secret_name: n.secret_name,
+                        grant: grant_of(&n.grant),
+                        sees,
+                        edits,
+                    }
                 })
                 .collect();
             notes.sort_by(|a, b| a.path.cmp(&b.path));
@@ -678,8 +755,8 @@ async fn status(
         // window on a share knows the share as a folder of its own: the
         // paths are its own, and a table above the share's folder is the
         // share's whole.
-        let reads = crate::readers::reads_only(&s, &w, &c)?;
-        let scope = crate::shares::scope_here(&s, &c);
+        let reads = door.veiled();
+        let scope = door.scope.clone();
         let own = |path: &str| -> Option<String> {
             match &scope {
                 Some(sc) => sc.to_rel(path),
@@ -697,7 +774,7 @@ async fn status(
                 }?;
                 Some(CampaignTable {
                     root,
-                    images: crate::table::may_send_images(&s, &w, &c, &folder, &t.root, role),
+                    images: door.may(Action::SendFile, &t.root, Kind::Table).allowed(),
                     ..table_of(t)
                 })
             })
@@ -718,6 +795,8 @@ async fn status(
                     },
                     secret_name: false,
                     grant: grant_of(&n.grant),
+                    sees: Vec::new(),
+                    edits: Vec::new(),
                 })
             })
             .collect();
@@ -742,14 +821,15 @@ async fn access(
     client: &str,
     args: &Value,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    let owner = role == Role::Owner
-        && crate::shares::scope_here(server, client).is_none()
-        && who.phone.is_none();
+    let door = Door::of(server, who, client)?;
+    let folder = door.folder.clone();
+    // The game master's own phone is the game master, and may read who has
+    // access (ADR 0113 item 6); changing it is `game_master`'s.
+    let owner = door.seat() == crate::access::Seat::Master;
     let given: String = arg(args, "path")?;
-    let (s, w, c) = (Arc::clone(server), Arc::clone(who), client.to_owned());
+    let (s, w) = (Arc::clone(server), Arc::clone(who));
     let found = blocking(move || {
-        let scope = crate::shares::scope_here(&s, &c);
+        let scope = door.scope.clone();
         let path = match &scope {
             Some(sc) => sc.to_full(&given)?,
             None => given.clone(),
@@ -762,9 +842,7 @@ async fn access(
             "owner"
         } else {
             // A player sees who has access to a note it has access to.
-            if !crate::readers::reads_only(&s, &w, &c)?
-                || veil.hides_note_from(&path, &w.account.id)
-            {
+            if !door.veiled() || veil.hides_note_from(&path, &w.account.id) {
                 return Err(ContractError {
                     kind: verso_contract::ErrorKind::NotFound,
                     message: "not found".to_owned(),
@@ -949,11 +1027,25 @@ pub fn refresh(
     // The windows that may only read are players; the others — the owner
     // and any editor, the game masters — see the folder whole.
     let (players, masters) = crate::readers::split(server, &ids);
-    let event =
-        |paths: Value| json!({ "event": "campaign-changed", "payload": { "paths": paths } });
-    server.push(&masters, &event(json!(touched)));
+    // `access-changed` (ADR 0113 section C) is told beside `campaign-changed`
+    // until the window has moved off the latter: the same windows, the same
+    // paths.
+    let event = |paths: Value| {
+        json!([
+            { "event": "campaign-changed", "payload": { "paths": paths } },
+            { "event": "access-changed", "payload": { "paths": paths } },
+        ])
+    };
+    let push = |to: &[String], paths: Value| {
+        if let Some(both) = event(paths).as_array() {
+            for e in both {
+                server.push(to, e);
+            }
+        }
+    };
+    push(&masters, json!(touched));
     let Some(after) = campaign::veil_of(server, folder) else {
-        server.push(&players, &event(json!([])));
+        push(&players, json!([]));
         return;
     };
     // Each player is told of the notes it now has or has lost: what one
@@ -961,7 +1053,12 @@ pub fn refresh(
     // neither before nor now is told nothing of it, not even that something
     // moved.
     for player in &players {
-        let Some(account) = lock(&server.clients).get(player).map(|c| c.account.clone()) else {
+        let Some((account, editor)) = lock(&server.clients).get(player).map(|c| {
+            (
+                c.account.clone(),
+                c.folder.as_ref().is_some_and(|(_, r)| *r == Role::Editor),
+            )
+        }) else {
             continue;
         };
         let (was, is) = (
@@ -969,8 +1066,10 @@ pub fn refresh(
             after.view(&account),
         );
         let seen = |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_none_or(|v| !v.hides_note(p));
-        let edits =
-            |v: Option<&Arc<campaign::Veil>>, p: &str| v.is_some_and(|v| v.may_edit(p, &account));
+        // An editor of the folder edits every note they see (ADR 0113 K.1).
+        let edits = |v: Option<&Arc<campaign::Veil>>, p: &str| {
+            v.is_some_and(|v| v.may_edit(p, &account) || (editor && !v.hides_note(p)))
+        };
         let (mut now, mut gone): (Vec<&String>, Vec<&String>) = (Vec::new(), Vec::new());
         let mut moved = touched.is_empty();
         for p in touched {
@@ -983,7 +1082,7 @@ pub fn refresh(
             moved |= a || b || edits(was.as_ref(), p) != edits(Some(&is), p);
         }
         if moved {
-            server.push(std::slice::from_ref(player), &event(json!([])));
+            push(std::slice::from_ref(player), json!([]));
         }
         if now.is_empty() && gone.is_empty() {
             continue;
@@ -1005,15 +1104,15 @@ fn close_out(server: &Server, folder: &str) {
     {
         let mut table = lock(&server.clients);
         for (id, c) in table.iter_mut() {
-            let Some((f, role)) = c.folder.clone() else {
+            let Some((f, _)) = c.folder.clone() else {
                 continue;
             };
-            if f != folder || role == Role::Owner {
+            // The game master enters any table, open or not.
+            if f != folder || crate::access::asker_of(c).seat() == crate::access::Seat::Master {
                 continue;
             }
             let root = c.scope.as_ref().map_or("", |s| s.root.as_str()).to_owned();
-            let reads = !(role.writes() && c.token_write);
-            if campaign::closed_for(server, folder, &root, reads) {
+            if campaign::closed_for(server, folder, &root, true) {
                 c.folder = None;
                 c.scope = None;
                 c.tx.send(&json!({ "gone": "folder", "reason": "closed" }));
@@ -1028,9 +1127,9 @@ fn close_out(server: &Server, folder: &str) {
 /// table keeps about the notes (ADR 0110 item 4): the state follows the
 /// note, and goes with it.
 pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
-    if campaign::veil_of(server, folder).is_none() {
+    let Some(before) = campaign::veil_of(server, folder) else {
         return;
-    }
+    };
     let mut touched = false;
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
@@ -1053,11 +1152,35 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         _ => {}
     }
+    // A file moved keeps the access it had (ADR 0113 K.2): one that had a
+    // set of its own takes it along with its path; one that followed its
+    // folder takes along what it followed, as a set of its own, so that a
+    // move never changes who sees it. `before` is the table as it was.
+    let carried: Vec<(String, crate::access::NodeSet)> = moves
+        .iter()
+        .filter_map(|(from, to)| Some((to.clone(), before.inherited_set(from)?)))
+        .collect();
     for (from, to) in moves {
         touched |= server.db.campaign_move(folder, &from, &to).unwrap_or(0) > 0;
     }
-    if touched {
+    if touched || !carried.is_empty() {
         campaign::forget(server, folder);
+    }
+    if !carried.is_empty()
+        && let Some(after) = campaign::veil_of(server, folder)
+    {
+        let mut changed = false;
+        for (to, set) in carried {
+            if after.in_table(&to) && after.effective_set(&to) != set {
+                match server.db.access_put(folder, &to, set) {
+                    Ok(()) => changed = true,
+                    Err(e) => crate::log::warn(&format!("keeping the access of a moved file: {e}")),
+                }
+            }
+        }
+        if changed {
+            campaign::forget(server, folder);
+        }
     }
 }
 

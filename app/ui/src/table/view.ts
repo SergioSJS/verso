@@ -18,7 +18,7 @@ import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import type { DiceStyle } from "../dice3d/look";
 import { entryMenu, openImage, panelMenu } from "./actions";
-import { announce, clock, rollBlockFor, saidOf, whoOf } from "./addToNote";
+import { announce, clock, lineFor, rollBlockFor, saidOf, whoOf } from "./addToNote";
 import { armDrag } from "../layout/drag";
 import { rollable } from "../rollblock/entry";
 import { Compose } from "./compose";
@@ -449,7 +449,7 @@ class TableView {
       where.title = tt.openNote(name(e.path));
       where.addEventListener("click", () => openNote(e.path, false));
       meta.append(where);
-    } else if (e.kind !== "say" && e.kind !== "image" && e.kind !== "secret") meta.append(h("span", "table-where plain", tt.noWhere));
+    } else if (e.kind !== "say" && e.kind !== "image" && e.kind !== "file" && e.kind !== "secret") meta.append(h("span", "table-where plain", tt.noWhere));
     if (e.secret && e.kind !== "secret") {
       const badge = h("span", "table-secret", tt.secretToggle);
       badge.title = tt.secretDesc;
@@ -467,6 +467,7 @@ class TableView {
       text.append(...messageNodes(e.text ?? ""));
       body.append(text);
     } else if (e.kind === "image") body.append(this.picture(e));
+    else if (e.kind === "file") body.append(this.fileCard(e));
     else if (e.kind === "secret") body.append(h("span", "table-masked", tt.secretMasked));
     else if (e.kind === "oracle") {
       const label = e.oracle === "question" ? tt.oracleQuestion : e.oracle === "spark" ? tt.oracleSpark : tt.oracleTable(e.notation);
@@ -481,7 +482,7 @@ class TableView {
     li.append(meta, body);
     // The entry's actions are in its "…" menu (keyboard, screen reader, phone): pin and
     // delete on the server's table, "Add to note…" on every roll.
-    if (server || rollable(e) || e.kind === "say" || e.kind === "image") {
+    if (server || rollable(e) || e.kind === "say" || e.kind === "image" || e.kind === "file") {
       const more = button("ghost iconic table-menu", "", "more");
       more.setAttribute("aria-label", tt.entryActions(said));
       more.setAttribute("aria-haspopup", "menu");
@@ -489,12 +490,32 @@ class TableView {
       more.addEventListener("click", () => entryMenu(more, e, server));
       li.append(more);
     }
-    // A roll is dragged from the line to a note or a board (pointer drag, as the tree's rows).
-    if (rollable(e)) {
+    // Every entry is dragged from the line to a note or a board (pointer
+    // drag, as the tree's rows), whoever wrote it: a roll or a draw as its
+    // block, a message as its line, an image as the file that is already in
+    // the folder — linked, nothing uploaded. Dropping needs *Edit* on the
+    // target and nothing of the entry's author (ADR 0113 D).
+    if (rollable(e) || e.kind === "say") {
       li.classList.add("rollable");
-      armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? "" }), () => said);
+      armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? lineFor(e, target) }), () => said);
+    } else if ((e.kind === "image" || e.kind === "file") && e.image) {
+      const file = e.image;
+      li.classList.add("rollable");
+      armDrag(li, () => ({ kind: "file", path: file, linkOnly: true }), () => said);
     }
     return li;
+  }
+
+  /** A file of the table that is no image (a PDF, a sound; ADR 0113 K.4): a card with its name and kind; a click opens it. */
+  private fileCard(e: TableEntry): HTMLElement {
+    const path = e.image ?? "";
+    const card = button("table-file", "");
+    card.title = tt.fileOpen;
+    card.setAttribute("aria-label", `${tt.fileOpen}: ${name(path)}`);
+    const kind = /\.pdf$/i.test(path) ? tt.filePdf : tt.fileAudio;
+    card.append(icon("paperclip", ""), h("span", "table-file-name", name(path)), h("span", "table-file-kind", kind));
+    card.addEventListener("click", () => openNote(path, false));
+    return card;
   }
 
   /** An image of the table: its thumbnail (the file, through the normal address); a click opens it. */
@@ -504,6 +525,8 @@ class TableView {
     open.setAttribute("aria-label", `${tt.imageOpen}: ${tt.imageAlt(whoOf(e))}`);
     const img = h("img", "table-thumb");
     img.alt = tt.imageAlt(whoOf(e));
+    // Dragged as the entry is (armDrag), not as a native picture.
+    img.draggable = false;
     img.decoding = "async";
     img.loading = "lazy";
     const path = e.image ?? "";

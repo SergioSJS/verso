@@ -115,7 +115,7 @@ async function mesa(page) {
 
 
 const field = (view) => view.getByRole("textbox", { name: "Mensagem para a mesa" });
-const SWITCH = { name: "Ana pode enviar imagens" };
+const SWITCH = { name: "Ana pode enviar arquivos" };
 
 test.use({ actionTimeout: 10_000 });
 
@@ -216,7 +216,7 @@ for (const format of ["member", "share"]) {
       });
 
       await item(5, "the header box gives everyone the permission, and Bia's window learns it too", async () => {
-        const all = dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" });
+        const all = dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" });
         await all.check({ force: true });
         await expect(attach).toBeVisible({ timeout: 15_000 });
         await expect(bia.page.locator(".table-view").getByRole("button", { name: "Anexar imagem" })).toBeVisible({ timeout: 15_000 });

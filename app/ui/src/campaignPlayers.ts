@@ -14,6 +14,8 @@
 // server's news, only updated, so a focus, an open list or an answer beside
 // a switch is not lost to a repaint.
 
+import { segmented } from "./accessControl";
+import { setPlayerLevel } from "./accessDialog";
 import type { CampaignPlayer } from "./bindings";
 import { campaign, noteAudience, setImages } from "./campaign";
 import { feedback, follow, hueOf, noteLink, onlineIds, tableAt, under } from "./campaignParts";
@@ -31,6 +33,8 @@ export function seenBy(root: string, account: string): string[] {
   return campaign()
     .notes.filter((n) => under(root, n.path))
     .filter((n) => {
+      // The server says it per player (ADR 0113); an older one, by audience.
+      if (n.sees) return n.sees.includes(account);
       const a = noteAudience(n.path);
       return a.kind === "table" || (a.kind === "players" && a.accounts.includes(account));
     })
@@ -41,7 +45,7 @@ export function seenBy(root: string, account: string): string[] {
 /** The notes of the table at `root` that `account` may edit. */
 export function editedBy(root: string, account: string): string[] {
   return campaign()
-    .notes.filter((n) => under(root, n.path) && (n.grant.kind === "group" || (n.grant.kind === "player" && n.grant.account === account)))
+    .notes.filter((n) => under(root, n.path) && (n.edits ? n.edits.includes(account) : n.grant.kind === "group" || (n.grant.kind === "player" && n.grant.account === account)))
     .map((n) => n.path)
     .sort(byName);
 }
@@ -211,8 +215,14 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
         const ul = h("ul", "cd-note-list");
         if (list.length === 0) ul.append(h("li", "cd-hint", cp.noNotes));
         for (const path of list) {
-          const li = h("li");
+          const li = h("li", "cd-note-row");
           li.append(noteLink(path, after));
+          // The same control as the Access dialog, for this player on this file:
+          // person → the Table's window, file → the dialog (ADR 0113 item 1).
+          const seg = segmented(p.name, kind === "edits" ? "edit" : "see", (level) => {
+            void setPlayerLevel(path, p.id, level);
+          });
+          li.append(seg.el);
           ul.append(li);
         }
         sec.append(ul);

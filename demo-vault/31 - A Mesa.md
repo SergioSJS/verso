@@ -85,7 +85,7 @@ No pé do painel há o campo **Escreva para a mesa…**:
 - **Mensagens.** Escreva e aperte **Enter** (Shift+Enter quebra a linha). Texto simples, até **500 caracteres**; perto do limite aparece um contador. Um `[[link]]` para uma nota da pasta vira link.
 - **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem — ou monte a rolagem na fila de dados logo abaixo, como acima.
 - **Secreta.** Na barra da caixa, o menu **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
-- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem só lê a pasta não envia imagens.
+- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem não tem **Enviar arquivos** na janela da Mesa não envia imagens, PDF nem áudio.
 
 Cada linha tem o botão **⋯**:
 
@@ -101,7 +101,7 @@ Em **Ajustes › Notificações**, o tipo **Mesa** avisa de uma mensagem ou rola
 
 ## Levar uma rolagem para uma nota
 
-**Arraste** a linha de uma rolagem, de uma tabela sorteada ou de um oráculo do painel da Mesa e **solte sobre o texto de uma nota** (no modo Editar ou na Fonte): um traço mostra onde ela vai cair, e o bloco entra com uma linha em branco de cada lado, **num único passo** que um **⌘Z** desfaz. Solte sobre um **board** e ela vira um cartão de texto. Mensagens e imagens não se arrastam: use o **⋯** (veja abaixo).
+**Arraste** a linha de uma rolagem, de uma tabela sorteada ou de um oráculo do painel da Mesa e **solte sobre o texto de uma nota** (no modo Editar ou na Fonte): um traço mostra onde ela vai cair, e o bloco entra com uma linha em branco de cada lado, **num único passo** que um **⌘Z** desfaz. Solte sobre um **board** e ela vira um cartão de texto. Quem edita a nota arrasta também **mensagens** e **rolagens** do chat da Mesa; as imagens não se arrastam: use o **⋯** (veja abaixo).
 
 Na nota ela fica escrita como um pequeno bloco `roll`, texto que qualquer um lê, até no Obsidian:
 
