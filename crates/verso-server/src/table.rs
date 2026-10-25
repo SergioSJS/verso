@@ -197,7 +197,8 @@ pub(crate) fn seen(
     scoped(view(row, account, role), root)
 }
 
-/// A new `image` entry for the file at `path`, kept and told.
+/// A new `image` entry (a `file` entry when the file is no image, K.4) for
+/// the file at `path`, kept and told.
 pub(crate) fn image_entry(
     server: &Server,
     (folder, table): (&str, &str),
@@ -209,7 +210,11 @@ pub(crate) fn image_entry(
         server,
         (folder, table),
         New {
-            kind: "image",
+            kind: if is_image_path(path) {
+                "image"
+            } else {
+                "file"
+            },
             account,
             name,
             path: None,
@@ -223,6 +228,15 @@ pub(crate) fn image_entry(
     );
     crate::campaign::forget(server, folder);
     made
+}
+
+/// Whether the stored file at `path` is an image, by the extension the
+/// server itself gave it.
+fn is_image_path(path: &str) -> bool {
+    matches!(
+        path.rsplit('.').next(),
+        Some("png" | "jpg" | "webp" | "gif")
+    )
 }
 
 /// The entry as a window on a share of the table's folder knows it: the
@@ -636,6 +650,32 @@ pub fn image_ext(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// The kind of file `bytes` are for *Send files* (ADR 0113 K.4), by their
+/// first bytes and never by a name: an image (see [`image_ext`]), a PDF, or
+/// audio (MP3, Ogg, WAV, M4A). An SVG, a page, a script or anything else
+/// is none.
+#[must_use]
+pub fn file_ext(bytes: &[u8]) -> Option<&'static str> {
+    if let Some(ext) = image_ext(bytes) {
+        return Some(ext);
+    }
+    if bytes.starts_with(b"%PDF-") {
+        Some("pdf")
+    } else if bytes.starts_with(b"ID3")
+        || (bytes.len() >= 2 && bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0)
+    {
+        Some("mp3")
+    } else if bytes.starts_with(b"OggS") {
+        Some("ogg")
+    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WAVE" {
+        Some("wav")
+    } else if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" && &bytes[8..12] == b"M4A " {
+        Some("m4a")
+    } else {
+        None
+    }
+}
+
 /// The commands of the table (ADR 0107).
 pub async fn command(
     server: &Arc<Server>,
@@ -910,7 +950,7 @@ pub async fn command(
                 // A player does not delete a roll: nobody re-rolls and
                 // hides the first (item 6). The game master may
                 // (ADR 0107, 2026-10-23).
-                let roll = !matches!(row.kind.as_str(), "say" | "image");
+                let roll = !matches!(row.kind.as_str(), "say" | "image" | "file");
                 let own = row.account == account;
                 if !door
                     .may(Action::DeleteEntry { own, roll }, &t, Kind::Table)

@@ -372,3 +372,101 @@ fn a_player_is_told_counts_of_what_it_sees_and_no_email() {
         assert!(refused(&no), "{no}");
     });
 }
+
+/// *Send files* (ADR 0113 K.4) covers a PDF and audio as it covers an
+/// image: through the chat (a `file` entry) and into a note one edits, with
+/// the same checks, the file always written under the table's attachments
+/// place; and nothing without the right.
+#[test]
+fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
+    use base64::Engine;
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        let b64 = |b: &[u8]| base64::engine::general_purpose::STANDARD.encode(b);
+        let pdf = b64(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n");
+        let mp3 = b64(b"ID3\x04\0\0\0\0\0\0 audio");
+        let ogg = b64(b"OggS\0\x02 audio");
+        let html = b64(b"<html><script>1</script></html>");
+        let joined = m
+            .ana
+            .call("table_join", json!({ "color": null, "styles": null }))
+            .await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        let edit = json!({ "kind": "set", "set": { "whole": "none",
+            "rows": [{ "account": ana, "level": "edit" }] }, "secret_name": null });
+        let g = m
+            .owner
+            .call("access_set", json!({ "paths": ["Livre.md"], "change": edit }))
+            .await;
+        assert!(g.get("ok").is_some(), "{g}");
+        // Without the right: nothing, in the chat or in the note.
+        for (what, data) in [("pdf", &pdf), ("audio", &mp3)] {
+            let no = m
+                .ana
+                .call("table_send_image", json!({ "base64": data }))
+                .await;
+            assert!(refused(&no), "{what}: {no}");
+            let no = m
+                .ana
+                .call("table_attach", json!({ "base64": data, "into": "Livre.md" }))
+                .await;
+            assert!(refused(&no), "{what}: {no}");
+        }
+        let given = m
+            .owner
+            .call(
+                "table_rights_set",
+                json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
+            )
+            .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        // In the chat: a file entry, written under the attachments place.
+        for (data, ext) in [(&pdf, ".pdf"), (&mp3, ".mp3"), (&ogg, ".ogg")] {
+            let sent = m
+                .ana
+                .call("table_send_image", json!({ "base64": data }))
+                .await;
+            assert_eq!(sent["ok"]["kind"], "file", "{sent}");
+            let path = sent["ok"]["image"].as_str().unwrap_or_default();
+            assert!(
+                path.starts_with("attachments/mesa-") && path.ends_with(ext),
+                "{path}"
+            );
+            let files = m.owner.call("list_files", json!({})).await;
+            assert!(files.to_string().contains(path), "{files}");
+        }
+        // Into the note she edits: the same place.
+        let made = m
+            .ana
+            .call("table_attach", json!({ "base64": pdf, "into": "Livre.md" }))
+            .await;
+        let path = made["ok"].as_str().unwrap_or_default();
+        assert!(
+            path.starts_with("attachments/mesa-") && path.ends_with(".pdf"),
+            "{made}"
+        );
+        // The same checks: a page is no file, whatever it is called.
+        for call_ in [
+            ("table_send_image", json!({ "base64": html })),
+            ("table_attach", json!({ "base64": html, "into": "Livre.md" })),
+        ] {
+            let no = m.ana.call(call_.0, call_.1).await;
+            assert!(refused(&no), "{no}");
+        }
+        // As a file she makes herself: the name must say what the bytes are.
+        let lie = m
+            .ana
+            .call(
+                "create_file",
+                json!({ "path": "attachments/x.html", "base64": pdf }),
+            )
+            .await;
+        assert!(refused(&lie), "{lie}");
+        assert_eq!(
+            m.r.server.db.table_count(&m.id, "").unwrap(),
+            3,
+            "three entries in the chat, the attached file is none"
+        );
+    });
+}

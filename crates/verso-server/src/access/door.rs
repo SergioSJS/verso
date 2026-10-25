@@ -426,8 +426,9 @@ impl Door {
     }
 
     /// The bytes of a new file a player makes at a table are judged as
-    /// those sent to the chat are (K.4): a PNG, JPEG, WebP or GIF by its
-    /// first bytes, at most the table's limit — never an SVG, a page or a
+    /// those sent to the chat are (K.4): an image, a PDF or audio by its
+    /// first bytes (`table::file_ext`), at most the table's limit, under a
+    /// name whose extension says the same — never an SVG, a page or a
     /// script.
     pub fn check_bytes(&self, server: &Server, args: &Value) -> Result<(), ContractError> {
         let Some(path) = args["path"].as_str().map(|p| self.full(p)) else {
@@ -443,8 +444,15 @@ impl Door {
         let data = args["base64"].as_str().unwrap_or_default();
         let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
             .map_err(|_| crate::rpc::refused("the bytes are not base64"))?;
-        if bytes.len() > limit || crate::table::image_ext(&bytes).is_none() {
-            return Err(crate::rpc::refused("a PNG, JPEG, WebP or GIF image"));
+        let ext = path.rsplit('.').next().map(str::to_ascii_lowercase);
+        let named = |e: &str| match e {
+            "jpg" => matches!(ext.as_deref(), Some("jpg" | "jpeg")),
+            e => ext.as_deref() == Some(e),
+        };
+        if bytes.len() > limit || !crate::table::file_ext(&bytes).is_some_and(named) {
+            return Err(crate::rpc::refused(
+                "an image, a PDF or an audio file (not SVG, a page or a script)",
+            ));
         }
         Ok(())
     }
