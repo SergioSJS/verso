@@ -171,6 +171,7 @@ export class TextLeaf extends Leaf {
     this.dataModes.hidden = diagramFormat(path) === null;
     const r = await opening.readText(path, this.quiet(path));
     if (r.status !== "ok") {
+      if (this.veiled(r.error)) return this.unshare();
       if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
       return this.showFailure(path, r.error, () => void this.load(path, true));
     }
