@@ -162,6 +162,35 @@ fn reader_refusal(path: &str) -> Refusal {
     )
 }
 
+/// What this device's changes may do on the server, path by path (ADR 0113
+/// S8): the server's last answer (`access_get`), or, where it has none to
+/// give, the role. A change the gate does not allow stays here, said once
+/// per pass as a file held apart — never sent to be refused, never a
+/// conflict.
+pub(super) struct Gate<'a> {
+    /// Every change is the server's to judge: the folder's owner, or a
+    /// server that gives no per-file answer to an editor.
+    pub(super) open: bool,
+    /// The files the server said this device may change.
+    pub(super) rights: &'a std::collections::BTreeMap<String, verso_core::sync::remote::Rights>,
+}
+
+impl Gate<'_> {
+    pub(super) fn put(&self, path: &str) -> bool {
+        self.open || self.rights.get(path).is_some_and(|r| r.put)
+    }
+
+    pub(super) fn delete(&self, path: &str) -> bool {
+        self.open || self.rights.get(path).is_some_and(|r| r.delete)
+    }
+
+    /// A rename: the file may be renamed where it is, and the new name is
+    /// one the device may put.
+    pub(super) fn rename(&self, from: &str, to: &str) -> bool {
+        self.open || self.rights.get(from).is_some_and(|r| r.rename) && self.put(to)
+    }
+}
+
 /// This computer's file, read from the disk a piece at a time as the
 /// remote asks for them — never whole in memory (ADR 0079 item 12, revised
 /// 2026-10-12) — and refused as changed when the disk's file is no longer
@@ -449,7 +478,7 @@ pub(super) struct Side<'a> {
     pub(super) ctx: &'a Ctx,
     pub(super) s: &'a Syncer,
     pub(super) remote: &'a dyn Remote,
-    pub(super) reader: bool,
+    pub(super) gate: Gate<'a>,
 }
 
 impl Side<'_> {
@@ -467,7 +496,7 @@ impl Side<'_> {
             ctx,
             s,
             remote,
-            reader,
+            ref gate,
         } = *self;
         let hash_here = |local: &Files, p: &str| local.get(p).map(|f| f.hash.clone());
         match action {
@@ -478,7 +507,7 @@ impl Side<'_> {
                 };
             }
             Action::Upload { path, base } => {
-                if reader {
+                if !gate.put(path) {
                     return Err(reader_refusal(path));
                 }
                 let (hash, size, written) = upload(ctx, s, remote, known, path, base.as_deref())?;
@@ -511,7 +540,7 @@ impl Side<'_> {
                 s.crossed(ctx, "received", path, None);
             }
             Action::DeleteRemote { path, base } => {
-                if reader {
+                if !gate.delete(path) {
                     return Err(reader_refusal(path));
                 }
                 let condition = known
@@ -571,7 +600,7 @@ impl Side<'_> {
                 s.crossed(ctx, "deleted_here", path, None);
             }
             Action::RenameRemote { from, to, base } => {
-                if reader {
+                if !gate.rename(from, to) {
                     return Err(reader_refusal(to));
                 }
                 let condition = known
@@ -617,7 +646,7 @@ impl Side<'_> {
                     Some(b) => Some(Base::Agreed(b.clone())),
                     None => state.made.get(path).cloned().map(Base::Template),
                 };
-                if !reader
+                if gate.put(path)
                     && engine::merges_by_append(path)
                     && let Some(base) = base
                     && let Some(planned) = hash_here(local, path)
@@ -657,7 +686,7 @@ impl Side<'_> {
                 state.base.insert(path.clone(), hash);
                 s.crossed(ctx, "conflict", path, Some(copy));
                 // …and the copy goes to the others (a reader keeps it here).
-                if reader {
+                if !gate.put(copy) {
                     return Err(reader_refusal(copy));
                 }
                 let (hash, size, written) = upload(ctx, s, remote, known, copy, None)?;

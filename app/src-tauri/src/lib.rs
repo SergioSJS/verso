@@ -1459,4 +1459,6 @@ mod tests_sync;
 #[cfg(test)]
 mod tests_sync1;
 #[cfg(test)]
+mod tests_sync_access;
+#[cfg(test)]
 mod tests_sync_data;

@@ -13,7 +13,7 @@
 
 use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -29,7 +29,7 @@ mod transfer;
 pub(crate) mod universo;
 use crate::cloud;
 pub(crate) use transfer::contract_of;
-use transfer::{Refusal, Side};
+use transfer::{Gate, Refusal, Side};
 use verso_core::sync::remote as rem;
 
 /// A piece of a file on the wire, read from the disk as it is sent (ADR
@@ -115,7 +115,21 @@ pub(crate) struct Syncer {
     /// the hash of the text they were made with (ADR 0093 item 12): moved
     /// into the state by the pass, kept here until the base has the path.
     made: Mutex<BTreeMap<String, String>>,
+    /// What the server says this device may change is asked again: a
+    /// connection was made, access changed, the role changed (ADR 0113 S8).
+    rights_stale: AtomicBool,
+    /// How the server answers: `RIGHTS_UNKNOWN` until asked on this
+    /// connection, `RIGHTS_PER_FILE`, or `RIGHTS_BY_ROLE` for a server (or
+    /// cloud) with no per-file answer.
+    rights_mode: AtomicU8,
+    /// The paths the server answered for since the last full question,
+    /// those it said nothing may be changed in included: not asked twice.
+    rights_asked: Mutex<HashSet<String>>,
 }
+
+const RIGHTS_UNKNOWN: u8 = 0;
+const RIGHTS_PER_FILE: u8 = 1;
+const RIGHTS_BY_ROLE: u8 = 2;
 
 /// Who made a change on the server: the person, the device.
 type Author = (Option<String>, Option<String>);
@@ -149,7 +163,31 @@ impl Syncer {
             settings_said: AtomicBool::new(false),
             authors: Mutex::new(HashMap::new()),
             made: Mutex::new(BTreeMap::new()),
+            rights_stale: AtomicBool::new(true),
+            rights_mode: AtomicU8::new(RIGHTS_UNKNOWN),
+            rights_asked: Mutex::new(HashSet::new()),
         })
+    }
+
+    /// What the server says is asked again at the next pass (access or
+    /// the role changed, or the connection was remade). The last answer
+    /// holds until then, and while the server is out of reach.
+    pub(crate) fn rights_stale(&self) {
+        self.rights_stale.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether this device's change to `path` goes to the server, by the
+    /// last answer kept: the owner's always; otherwise what the server
+    /// said, or, where it gives no answer per file, the role.
+    pub(crate) fn may_send(&self, config: Option<&Path>, path: &str) -> bool {
+        let role = lock(&self.status).role.clone();
+        if role == "owner" {
+            return true;
+        }
+        if self.rights_mode.load(Ordering::Relaxed) == RIGHTS_BY_ROLE {
+            return role != "reader";
+        }
+        synced(config, &self.key).is_some_and(|st| st.access.get(path).is_some_and(|r| r.put))
     }
 
     /// A note made here from its template, with the text it was made with
@@ -767,6 +805,77 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     })
 }
 
+/// Asks the server what this device may change, for the paths a pass is
+/// about to change (all the files, when the answer is stale), and keeps the
+/// answers in the state. True when the server's judgement of each change is
+/// the only one: the folder's owner, or a server that gives no per-file
+/// answer to an editor (ADR 0113 S8).
+fn judged(
+    s: &Syncer,
+    remote: &dyn rem::Remote,
+    role: &str,
+    (plan, theirs, ours): (&engine::Plan, &Files, &Files),
+    state: &mut engine::State,
+) -> Result<bool, rem::RemoteError> {
+    if role == "owner" {
+        return Ok(true);
+    }
+    if s.rights_mode.load(Ordering::Relaxed) == RIGHTS_BY_ROLE {
+        return Ok(role != "reader");
+    }
+    let stale = s.rights_stale.load(Ordering::Relaxed);
+    let mut want: BTreeSet<String> = BTreeSet::new();
+    for a in &plan.actions {
+        match a {
+            Action::Upload { path, .. } | Action::DeleteRemote { path, .. } => {
+                want.insert(path.clone());
+            }
+            Action::RenameRemote { from, to, .. } => {
+                want.insert(from.clone());
+                want.insert(to.clone());
+            }
+            Action::Conflict { path, copy, .. } => {
+                want.insert(path.clone());
+                want.insert(copy.clone());
+            }
+            _ => {}
+        }
+    }
+    if stale {
+        want.extend(state.access.keys().cloned());
+        want.extend(theirs.keys().cloned());
+        want.extend(ours.keys().cloned());
+    } else {
+        let asked = lock(&s.rights_asked);
+        want.retain(|p| !asked.contains(p));
+    }
+    if want.is_empty() {
+        return Ok(false);
+    }
+    let list: Vec<String> = want.into_iter().collect();
+    let Some(answers) = remote.rights(&list)? else {
+        s.rights_mode.store(RIGHTS_BY_ROLE, Ordering::Relaxed);
+        return Ok(role != "reader");
+    };
+    s.rights_mode.store(RIGHTS_PER_FILE, Ordering::Relaxed);
+    let mut asked = lock(&s.rights_asked);
+    if stale {
+        state.access.clear();
+        asked.clear();
+        s.rights_stale.store(false, Ordering::Relaxed);
+    }
+    for p in &list {
+        state.access.remove(p);
+        asked.insert(p.clone());
+    }
+    for (p, r) in answers {
+        if r.writes() {
+            state.access.insert(p, r);
+        }
+    }
+    Ok(false)
+}
+
 /// What a pass carried out, said for the tests.
 #[derive(Debug, Default)]
 pub(crate) struct Passed {
@@ -890,12 +999,26 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             paused: Some(n),
         });
     }
-    let reader = l.role == "reader";
+    let open = tokio::task::block_in_place(|| {
+        judged(
+            s,
+            &*remote,
+            &l.role,
+            (&plan, &known.files, &local),
+            &mut state,
+        )
+    })
+    .map_err(transfer::contract_of)?;
+    // The answers as they stand for this pass; the state keeps them.
+    let rights = state.access.clone();
     let on = Side {
         ctx,
         s,
         remote: &*remote,
-        reader,
+        gate: Gate {
+            open,
+            rights: &rights,
+        },
     };
     let (mut sending, mut receiving) = (0_u32, 0_u32);
     for a in &plan.actions {
@@ -1261,6 +1384,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             log::write("INFO", "sync", &format!("role in the server's folder: {role}"));
                             s.set(&ctx, |st| st.role.clone_from(&role));
                             l.role = role;
+                            s.rights_stale();
+                            break false;
+                        }
+                        // Access changed (ADR 0113 S8): what this device may
+                        // change is asked again before the next pass sends
+                        // anything; the windows hear it as they did.
+                        Some(remote::Heard::Event(e, payload)) if e == "access-changed" => {
+                            s.rights_stale();
+                            tell(&ctx, &s, &e, payload);
                             break false;
                         }
                         Some(remote::Heard::Event(e, payload)) => tell(&ctx, &s, &e, payload),

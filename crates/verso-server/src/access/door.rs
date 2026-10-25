@@ -88,8 +88,7 @@ impl Door {
         let owner = owner && scope.is_none() && !link;
         let veil = campaign::veil_of(server, &folder);
         let facts = Arc::new(facts_for(server, &folder, veil.as_deref(), &who.account.id));
-        let editor_live =
-            veil.is_some() && campaign::is_editor(server, &folder, &who.account.id);
+        let editor_live = veil.is_some() && campaign::is_editor(server, &folder, &who.account.id);
         Self {
             asker: Asker {
                 account: who.account.id.clone(),
