@@ -1,0 +1,314 @@
+// The "Acesso…" dialog as a person, a keyboard and a screen reader meet it
+// (ADR 0113 section F, table J row S6): opened from a note's, a board's and a
+// folder's menu; "Toda a mesa" and one row per player, each a labelled radio
+// group of Não vê / Vê / Edita; a folder's exception shown in the folder's
+// dialog with its way back; the access indicator of the file following; the
+// keyboard alone; 1500, 820 and 390 px wide (the phone's is a sheet with
+// everything reachable); and the dark theme with nothing invisible. The
+// server's commands are played by the harness (`src/harness/campaign.ts`).
+
+import { test, expect } from "./fixtures.mjs";
+
+const PLAYERS = [
+  { id: "acc-ana", name: "Ana" },
+  { id: "acc-bia", name: "Bia" },
+  { id: "acc-caio", name: "Caio" },
+  { id: "acc-dora", name: "Dora" },
+];
+const TABLE = { root: "Mundo", open: true, log_max: 20000, image_max: 10 * 1024 * 1024 };
+const HIDDEN = { audience: { kind: "hidden" } };
+const NAMES = ["Bia", "Caio", "Dora"];
+
+test.beforeEach(async ({}, info) => {
+  test.skip(/phone|tablet/.test(info.project.name), "the widths are set by the test itself");
+});
+
+async function setup(app, width = 1500) {
+  await app.page.setViewportSize({ width, height: width < 600 ? 844 : 900 });
+  await app.open("?vault=empty&table=owner");
+  const notes = { "Mundo/Cripta.md": HIDDEN, "Mundo/Diario.md": HIDDEN, "Mundo/Quadro.canvas": HIDDEN };
+  const paths = Object.keys(notes);
+  for (const p of paths) await app.writeOutside(p, `# ${p.split("/").pop().replace(/\.\w+$/, "")}\n\nUm lugar frio.\n`);
+  await app.folderChanged(paths, true);
+  await app.page.evaluate(
+    ([table, players, given]) => {
+      const c = window.__harness.campaign;
+      c.tables = [table];
+      c.players = players;
+      for (const [path, v] of Object.entries(given)) c.notes.set(path, { path, released: false, audience: v.audience, secret_name: false, grant: { kind: "none" } });
+      window.__harness.emit("campaign-changed", { paths: [] });
+    },
+    [TABLE, PLAYERS, notes],
+  );
+  await app.folderChanged(paths, true);
+  // On a phone the tree is in the side panel.
+  if (width <= 760) await app.page.getByRole("button", { name: "Arquivos" }).click();
+  const folder = app.page.locator('#notes summary[data-folder="Mundo"]');
+  if (!(await app.page.locator('#notes li[data-path="Mundo/Cripta.md"]').isVisible())) await folder.click();
+}
+
+const row = (app, path) => app.page.locator(`#notes li[data-path="${path}"] > button`);
+const folderRow = (app) => app.page.locator('#notes summary[data-folder="Mundo"]');
+const dialogOf = (app, name = /^Acesso · /) => app.page.getByRole("dialog", { name });
+const group = (d, who) => d.getByRole("radiogroup", { name: who, exact: true });
+const level = (d, who, word) => group(d, who).getByRole("radio", { name: word, exact: true });
+const lastSet = async (app) => (await app.calls("access_set")).at(-1);
+
+async function fromMenu(app, target) {
+  await target.click({ button: "right" });
+  await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
+}
+
+test("opened from a note's, a board's and a folder's menu: the whole table and one labelled row per player", async ({ app }) => {
+  await setup(app);
+  const cases = [
+    [row(app, "Mundo/Cripta.md"), /^Acesso · Cripta/],
+    [row(app, "Mundo/Quadro.canvas"), /^Acesso · Quadro/],
+    [folderRow(app), /^Acesso · pasta “Mundo”/],
+  ];
+  for (const [target, name] of cases) {
+    await fromMenu(app, target);
+    const d = dialogOf(app, name);
+    await expect(d).toBeVisible();
+    // A screen reader hears a dialog with a name, and a labelled group per row.
+    await expect(d).toHaveAccessibleName(name);
+    await expect(d.getByRole("radiogroup")).toHaveCount(1 + NAMES.length);
+    for (const who of ["Toda a mesa", ...NAMES]) {
+      const g = group(d, who);
+      await expect(g).toBeVisible();
+      await expect(g.getByRole("radio")).toHaveCount(3);
+      for (const word of ["Não vê", "Vê", "Edita"]) await expect(level(d, who, word)).toBeVisible();
+      // Exactly one choice is made in a group, and it is the hidden default.
+      await expect(g.getByRole("radio", { checked: true })).toHaveCount(1);
+      await expect(level(d, who, "Não vê")).toBeChecked();
+    }
+    await expect(d.getByRole("button", { name: "Fechar" })).toBeVisible();
+    await expect(d).toContainText("Você, o mestre, sempre vê e edita.");
+    await app.page.keyboard.press("Escape");
+    await expect(d).toBeHidden();
+  }
+});
+
+test("a folder is set, then a file gets an exception: the folder's dialog shows it with its way back, and the file's indicator follows", async ({ app }) => {
+  await setup(app);
+  await fromMenu(app, folderRow(app));
+  const f = dialogOf(app, /^Acesso · pasta “Mundo”/);
+  await level(f, "Toda a mesa", "Vê").click();
+  await f.getByRole("button", { name: "Aplicar" }).click();
+  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
+  await expect(f.getByRole("status")).toContainText("Aplicado a 3 arquivos.");
+  await expect(f).toContainText("Nenhum arquivo tem acesso próprio.");
+  await app.page.keyboard.press("Escape");
+  // The note: all three see it, by the folder.
+  await row(app, "Mundo/Cripta.md").click();
+  const indicator = app.page.locator(".note-access-btn");
+  await expect(indicator.locator(".note-access-count")).toHaveText("3/3");
+  // A file exception: Bia does not see this one.
+  await indicator.click();
+  const d = dialogOf(app, /^Acesso · Cripta/);
+  await expect(d).toContainText("Segue a pasta “Mundo”.");
+  await level(d, "Bia", "Não vê").click();
+  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { set: { whole: "see", rows: [{ account: "acc-bia", level: "none" }] } } });
+  await expect(d).toContainText("Acesso próprio (exceção de “Mundo”).");
+  await expect(indicator.locator(".note-access-count")).toHaveText("2/3");
+  await app.page.keyboard.press("Escape");
+  // The folder's dialog lists the exception, with the sum of who sees it.
+  await fromMenu(app, folderRow(app));
+  const again = dialogOf(app, /^Acesso · pasta “Mundo”/);
+  await expect(again).toContainText("Exceções (1)");
+  const ex = again.locator(".ac-ex").filter({ hasText: "Mundo/Cripta.md" });
+  await expect(ex).toContainText("2 veem");
+  await again.getByRole("button", { name: "↺ Seguir a pasta: Mundo/Cripta.md" }).click();
+  await expect.poll(() => lastSet(app)).toEqual({ paths: ["Mundo/Cripta.md"], change: { kind: "follow" } });
+  await expect(again.locator(".ac-ex")).toHaveCount(0);
+  await expect(again).toContainText("Exceções (0)");
+  await app.page.keyboard.press("Escape");
+  // And the file's indicator is back to the folder's.
+  await expect(indicator.locator(".note-access-count")).toHaveText("3/3");
+});
+
+test("keyboard only: Tab stays in the dialog, arrows choose, Enter applies, Escape closes and the focus returns to the opener", async ({ app }) => {
+  await setup(app);
+  const page = app.page;
+  const opener = row(app, "Mundo/Cripta.md");
+  await opener.focus();
+  await page.keyboard.press("Shift+F10");
+  let item = page.getByRole("menuitem", { name: /^Acesso…/ });
+  if (!(await item.isVisible())) {
+    // No keyboard way to the menu on this engine: the pointer opens it, the keys do the rest.
+    await opener.click({ button: "right" });
+    item = page.getByRole("menuitem", { name: /^Acesso…/ });
+  }
+  await expect(item).toBeVisible();
+  await page.keyboard.press("Enter");
+  const d = dialogOf(app);
+  await expect(d).toBeVisible();
+  // The focus is inside, on the first radio of the first group.
+  await expect(group(d, "Toda a mesa").locator("[tabindex='0']")).toBeFocused();
+  // One tab stop per group; Tab walks groups, then the close button, then wraps: never leaves.
+  const stops = [];
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press("Tab");
+    expect(await d.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    stops.push(await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim() ?? ""));
+  }
+  expect(stops).toContain("Fechar");
+  // Shift+Tab goes back through the dialog too.
+  await page.keyboard.press("Shift+Tab");
+  expect(await d.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  // Arrows choose, and the choice is saved.
+  await level(d, "Caio", "Não vê").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(level(d, "Caio", "Vê")).toBeChecked();
+  await expect(level(d, "Caio", "Vê")).toBeFocused();
+  await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-caio", level: "see" }] } } });
+  await page.keyboard.press("ArrowRight");
+  await expect(level(d, "Caio", "Edita")).toBeChecked();
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await expect(level(d, "Caio", "Não vê")).toBeChecked();
+  // Enter on the close button closes it, and the focus is back where the person was.
+  await d.getByRole("button", { name: "Fechar" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(d).toBeHidden();
+  await expect(opener).toBeFocused();
+  // A folder: Enter on Aplicar applies, Escape closes, the focus returns.
+  await folderRow(app).focus();
+  await folderRow(app).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Acesso…" }).focus();
+  await page.keyboard.press("Enter");
+  const fd = dialogOf(app, /^Acesso · pasta “Mundo”/);
+  await level(fd, "Toda a mesa", "Não vê").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(level(fd, "Toda a mesa", "Vê")).toBeChecked();
+  expect((await app.calls("access_set")).filter((c) => c.paths[0] === "Mundo")).toHaveLength(0);
+  await fd.getByRole("button", { name: "Aplicar" }).focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
+  await page.keyboard.press("Escape");
+  await expect(fd).toBeHidden();
+  await expect(page.locator("#notes").locator(":focus")).toHaveCount(1);
+});
+
+for (const width of [1500, 820, 390]) {
+  test(`at ${width} px every control is reachable, nothing is cut off and the page does not scroll sideways`, async ({ app }) => {
+    await setup(app, width);
+    const page = app.page;
+    for (const [target, name, folder] of [
+      [row(app, "Mundo/Cripta.md"), /^Acesso · Cripta/, false],
+      [folderRow(app), /^Acesso · pasta “Mundo”/, true],
+    ]) {
+      await fromMenu(app, target);
+      const d = dialogOf(app, name);
+      await expect(d).toBeVisible();
+      const sheet = width <= 760;
+      await expect(d).toHaveClass(sheet ? /is-sheet/ : /^(?!.*is-sheet)/);
+      const box = await d.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+      expect(box.y).toBeGreaterThanOrEqual(-1);
+      expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize().height + 1);
+      if (sheet) expect(box.width).toBeGreaterThanOrEqual(width - 2);
+      // No horizontal scroll, neither on the page nor inside the dialog.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+      // Every control can be scrolled to, is in the dialog's width, and is a fair target on a phone.
+      const controls = [d.getByRole("button", { name: "Fechar" }), ...["Toda a mesa", ...NAMES].flatMap((who) => ["Não vê", "Vê", "Edita"].map((w) => level(d, who, w)))];
+      if (folder) controls.push(d.getByRole("button", { name: "Aplicar" }));
+      for (const c of controls) {
+        await c.scrollIntoViewIfNeeded();
+        await expect(c).toBeInViewport();
+        const b = await c.boundingBox();
+        expect(b.width).toBeGreaterThan(0);
+        expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+        if (sheet) expect(b.height).toBeGreaterThanOrEqual(43);
+      }
+      // Words are not clipped: no radio's label is wider than the radio.
+      expect(await d.evaluate((el) => [...el.querySelectorAll(".ac-seg-btn")].every((b) => b.scrollWidth <= b.clientWidth + 1))).toBe(true);
+      // Something is still done at this width: the choice saves.
+      if (!folder) {
+        await level(d, "Bia", "Vê").click();
+        await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { set: { rows: [{ account: "acc-bia", level: "see" }] } } });
+      }
+      await d.getByRole("button", { name: "Fechar" }).click();
+      await expect(d).toBeHidden();
+    }
+  });
+}
+
+test("in the dark theme the words have contrast, a chosen level differs from the others and nothing is invisible", async ({ app }) => {
+  await setup(app);
+  await app.page.emulateMedia({ colorScheme: "dark" });
+  await fromMenu(app, row(app, "Mundo/Cripta.md"));
+  const d = dialogOf(app);
+  await level(d, "Dora", "Vê").click();
+  await expect(level(d, "Dora", "Vê")).toBeChecked();
+  await expect(d.getByText("só ele/ela")).toBeVisible();
+  const report = await d.evaluate((root) => {
+    const cv = document.createElement("canvas").getContext("2d");
+    const rgba = (css) => {
+      cv.clearRect(0, 0, 1, 1);
+      cv.fillStyle = "#000";
+      cv.fillStyle = css;
+      cv.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = cv.getImageData(0, 0, 1, 1).data;
+      return [r, g, b, a / 255];
+    };
+    const lum = ([r, g, b]) => {
+      const f = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    // The colour a box is drawn on: the first ancestor with an opaque background.
+    const under = (el) => {
+      for (let e = el; e; e = e.parentElement) {
+        const c = rgba(getComputedStyle(e).backgroundColor);
+        if (c[3] > 0.95) return c;
+      }
+      return [255, 255, 255, 1];
+    };
+    const ratio = (a, b) => {
+      const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+      return (x + 0.05) / (y + 0.05);
+    };
+    const bad = [];
+    for (const el of root.querySelectorAll("*")) {
+      const st = getComputedStyle(el);
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!own || el.closest("[hidden]") || st.display === "none") continue;
+      if (st.visibility === "hidden" || Number(st.opacity) === 0) bad.push(`invisible: ${el.className} ${el.textContent.trim().slice(0, 20)}`);
+      const fg = rgba(st.color);
+      const bg = under(el);
+      const disabled = el.matches(":disabled");
+      const r = ratio(fg, bg);
+      if (!disabled && r < 4.5) bad.push(`contrast ${r.toFixed(2)}: ${el.className} "${el.textContent.trim().slice(0, 20)}"`);
+    }
+    const paper = rgba(getComputedStyle(root).backgroundColor);
+    const radios = [...root.querySelectorAll(".ac-seg-btn")];
+    const on = radios.find((b) => b.classList.contains("is-on"));
+    const off = radios.find((b) => !b.classList.contains("is-on"));
+    return {
+      bad,
+      paperDark: lum(paper) < 0.2,
+      onDiffers: getComputedStyle(on).backgroundColor !== getComputedStyle(off).backgroundColor || getComputedStyle(on).boxShadow !== getComputedStyle(off).boxShadow || getComputedStyle(on).fontWeight !== getComputedStyle(off).fontWeight,
+      borderSeen: rgba(getComputedStyle(root).borderTopColor)[3] > 0,
+      tokens: ["--paper", "--ink", "--ink-2", "--hair", "--accent"].map((t) => [t, getComputedStyle(document.documentElement).getPropertyValue(t).trim()]),
+    };
+  });
+  expect(report.bad).toEqual([]);
+  expect(report.paperDark).toBe(true);
+  expect(report.onDiffers).toBe(true);
+  expect(report.borderSeen).toBe(true);
+  for (const [token, value] of report.tokens) expect(value, token).not.toBe("");
+  // Every state has a word, never colour alone: the three words, and the mark of the chosen.
+  for (const word of ["Não vê", "Vê", "Edita"]) await expect(level(d, "Dora", word)).toHaveText(new RegExp(word));
+  await expect(level(d, "Dora", "Vê")).toHaveAttribute("aria-checked", "true");
+  // The same is reachable on the phone's sheet.
+  await app.page.keyboard.press("Escape");
+  await app.page.setViewportSize({ width: 390, height: 844 });
+  await app.page.getByRole("button", { name: "Arquivos" }).click();
+  await fromMenu(app, row(app, "Mundo/Cripta.md"));
+  const sheet = dialogOf(app);
+  await expect(sheet).toHaveClass(/is-sheet/);
+  await expect(level(sheet, "Dora", "Vê")).toBeChecked();
+  await expect(level(sheet, "Dora", "Vê")).toBeInViewport();
+});
