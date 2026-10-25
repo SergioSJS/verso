@@ -193,6 +193,12 @@ export abstract class Leaf {
     const access = folderAccessNow();
     return Boolean(access?.table) && access?.seat !== "master" && (error.kind === "not_found" || error.kind === "refused");
   }
+  /** This tab's file is veiled by a failed read: neutral at once, and the
+   *  window lets go of the name (recents, switcher, outline: unshared.ts). */
+  protected veil(path: string): void {
+    this.unshare();
+    dispatchEvent(new CustomEvent("verso:veiled", { detail: path }));
+  }
   /** Why the last read of this tab's file failed, or null. */
   failed: ContractError["kind"] | null = null;
   /** A tab brought back behind another, whose file waits to be shown
@@ -210,7 +216,7 @@ export abstract class Leaf {
    *  tab shows no editor, so nothing can be typed into it and lost (review
    *  `board.md`, reading 3, finding 4). */
   protected showFailure(path: string, error: ContractError, retry: () => void): void {
-    if (this.veiled(error)) return this.unshare();
+    if (this.veiled(error)) return this.veil(path);
     this.failure?.remove();
     const box = h("div", "load-failure");
     box.setAttribute("role", "alert");
