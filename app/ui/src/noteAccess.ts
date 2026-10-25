@@ -180,6 +180,8 @@ export class NoteAccess {
     const viewer = campaign().viewer;
     if (viewer !== "owner" && viewer !== "player") return false;
     if (!/\.(md|canvas|base)$/i.test(path) || !tableFor(path)) return false;
+    // A table with no player yet has nothing to tell its game master.
+    if (this.fetched?.data.manage && this.fetched.data.players.length === 0) return false;
     return this.fetched?.path === path;
   }
 
@@ -201,7 +203,7 @@ export class NoteAccess {
     }
     const people: CampaignPerson[] = info.players.map((p) => ({ id: p.id, name: p.name, access: p.you && may(path, "edit") ? "edits" : "sees", you: p.you }));
     const audience: CampaignAudience = info.set.whole !== "none" ? { kind: "table" } : { kind: "players", accounts: people.map((p) => p.id) };
-    return { viewer: "player", audience, people, master: cp.theMaster };
+    return { viewer: "player", audience, people, master: info.master || cp.theMaster };
   }
 
   /** The note changed, or the table did: ask the server what it says of

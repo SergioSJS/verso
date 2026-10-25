@@ -170,7 +170,7 @@ test("a folder is applied with a button that says how many files change; its exc
   await app.page.locator('#notes summary[data-folder="Mundo/Sala"]').click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
   const d = dialogOf(app, /^Acesso · pasta “Sala”/);
-  await expect(d).toContainText("Aplicar muda o acesso de 1 arquivo.");
+  await expect(d).toContainText("Aplicar muda o acesso de 1 arquivo");
   await level(d, "Toda a mesa", "Vê").click();
   // Nothing is written until Aplicar.
   expect((await app.calls("access_set")).length).toBe(0);

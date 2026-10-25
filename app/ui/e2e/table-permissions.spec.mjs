@@ -116,12 +116,12 @@ test("the players are a table with columns, and a switch per player saves at onc
   await expect(sw("Dora")).toBeChecked();
   await expect(all).toBeChecked();
   await expect(all).toHaveJSProperty("indeterminate", false);
-  await expect(app.page.locator("#status")).toHaveText("Todos os jogadores podem enviar imagens.");
+  await expect(app.page.locator("#status")).toHaveText("Todos os jogadores podem enviar arquivos.");
   await shot(app.page, info, `115-depois-acesso-jogadores-imagens-${tag(app.page)}-claro`);
   await sw("Caio").uncheck({ force: true });
   await expect.poll(async () => (await app.calls("campaign_permission")).at(-1)).toEqual({ root: "", accounts: ["acc-caio"], images: false });
   await expect(all).toHaveJSProperty("indeterminate", true);
-  await expect(app.page.locator("#status")).toHaveText("Caio não envia mais imagens.");
+  await expect(app.page.locator("#status")).toHaveText("Caio não envia mais arquivos.");
   // No sideways scroll anywhere, on a phone least of all.
   const wide = await app.page.evaluate(() => {
     const d = document.querySelector(".campaign-dialog");

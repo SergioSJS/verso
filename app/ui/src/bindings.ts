@@ -1044,6 +1044,8 @@ export type AccessInfo = {
 	players: AccessPlayer[],
 	/**  Whether the person asking may change it (the game master). */
 	manage: boolean,
+	/**  The game master's name: the one who always has access. */
+	master: string,
 };
 
 /**  How much of a path a person has. */

@@ -127,7 +127,7 @@ test("inside a table a player has no folder lock: a note they edit takes the typ
   await expect(notice(page)).toBeVisible();
   await expect(notice(page)).toContainText("Você só lê esta nota");
   // And the chip in the title row says it in words.
-  await expect(page.locator(".note-sheet .access-chip").first()).toHaveText("Você lê");
+  await expect(page.locator(".note-sheet .access-chip:visible").first()).toHaveText("Você lê");
   await page.locator('#notes li[data-path="Aberta.md"] > button').click();
-  await expect(page.locator(".note-sheet .access-chip").first()).toHaveText("Você edita");
+  await expect(page.locator(".note-sheet .access-chip:visible").first()).toHaveText("Você edita");
 });
