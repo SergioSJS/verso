@@ -86,6 +86,14 @@ class AccessDialog {
   private readonly feedback = h("span", "ac-feedback");
   private readonly body = h("div", "ac-body");
   private readonly opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  /** Where the opener is in the tree, to find it again when a save drew the tree anew. */
+  private readonly openerAt = ((): string | null => {
+    const e = this.opener;
+    const file = e?.closest("li[data-path]")?.getAttribute("data-path");
+    const folder = e?.closest("summary[data-folder]")?.getAttribute("data-folder");
+    if (file != null && e?.parentElement?.tagName === "LI") return `li[data-path="${CSS.escape(file)}"] > button`;
+    return folder != null ? `summary[data-folder="${CSS.escape(folder)}"]` : null;
+  })();
   private draft: SetDraft;
   private info: AccessInfo;
   private parent: AccessInfo | null = null;
@@ -133,7 +141,11 @@ class AccessDialog {
     addEventListener("resize", this.onResize);
     pop.addEventListener("keydown", (e) => {
       if (e.key !== "Tab") return;
-      const list = [...pop.querySelectorAll<HTMLElement>("button:not([disabled]), input, summary")].filter((x) => x.getClientRects().length > 0 && x.tabIndex >= 0);
+      // A control inside a closed <details> cannot take the focus (only its summary can): leaving it in
+      // the list made the summary look like a middle stop, and Tab from it left the dialog.
+      const list = [...pop.querySelectorAll<HTMLElement>("button:not([disabled]), input, summary")].filter(
+        (x) => x.getClientRects().length > 0 && x.tabIndex >= 0 && !(x.closest("details:not([open])") && x.tagName !== "SUMMARY"),
+      );
       const at = list.indexOf(document.activeElement as HTMLElement);
       if (list.length === 0) return;
       if (e.shiftKey && at <= 0) {
@@ -468,7 +480,9 @@ class AccessDialog {
     removeEventListener("resize", this.onResize);
     this.pop.remove();
     if (open === this) open = null;
-    if (this.opener?.isConnected) this.opener.focus({ preventScroll: true });
+    // A save draws the tree anew: the row that opened the dialog is another element now.
+    const back = this.opener?.isConnected ? this.opener : this.openerAt ? document.querySelector<HTMLElement>(`#notes ${this.openerAt}`) : null;
+    back?.focus({ preventScroll: true });
   }
 }
 
