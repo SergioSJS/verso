@@ -84,6 +84,34 @@ fn is_secret(v: &Value) -> bool {
         || truthy(at(v, &["customData", "verso", "secret"]))
 }
 
+/// Whether the element's JSON, read as the file's projection reads it (every
+/// key written twice counted, not only the last), marks a node secret.
+fn secret_as_the_file_reads_it(json: &str) -> bool {
+    use verso_core::canvas::{Canvas, Json};
+    let Ok(c) = Canvas::parse(json) else {
+        return false;
+    };
+    let each = |of: &Json, key: &str| -> Vec<Json> {
+        match of {
+            Json::Object(e) => e
+                .iter()
+                .filter(|(k, _)| k == key)
+                .map(|(_, v)| v.clone())
+                .collect(),
+            _ => Vec::new(),
+        }
+    };
+    if verso_core::canvas_secret::node_is_secret(&c.root) {
+        return true;
+    }
+    each(&c.root, "customData").iter().any(|cd| {
+        verso_core::canvas_secret::node_is_secret(cd)
+            || each(cd, "canvas")
+                .iter()
+                .any(verso_core::canvas_secret::node_is_secret)
+    })
+}
+
 /// The ids an element names: the ends of an edge, the container and the
 /// frame, what an arrow is bound to, what a drawn element lies under.
 fn refs(v: &Value) -> Vec<&str> {
@@ -223,8 +251,8 @@ pub fn see(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>) -> Sight {
     // The secret pins, and the groups only they carry.
     let mut shut: BTreeSet<String> = BTreeSet::new();
     let mut open: BTreeSet<&str> = BTreeSet::new();
-    for (_, id, v) in &parsed {
-        if is_secret(v) {
+    for (key, id, v) in &parsed {
+        if is_secret(v) || secret_as_the_file_reads_it(&entries[*key]) {
             gone.insert((*id).to_owned());
             shut.extend(groups(v).into_iter().map(str::to_owned));
         }

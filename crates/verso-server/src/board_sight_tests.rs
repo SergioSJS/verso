@@ -173,6 +173,25 @@ fn an_entry_that_is_not_its_keys_element_is_not_shown() {
 }
 
 #[test]
+fn a_flag_written_twice_counts_as_the_file_reads_it() {
+    // `JSON.parse` keeps the last `verso`; the file's projection counts every
+    // one, and so does the room's.
+    let mut r = room(&[text_card("ok", "x", false)]);
+    r.insert(
+        "pin\n1\n1".to_owned(),
+        r#"{"id":"pin","customData":{"canvas":{"id":"pin","type":"text","verso":{"secret":true},"verso":{}}}}"#.to_owned(),
+    );
+    r.insert(
+        "pin2\n1\n1".to_owned(),
+        r#"{"id":"pin2","customData":{"canvas":{"id":"pin2"}, "canvas":{"id":"pin2","verso":{"secret":"yes"}, "verso":{"secret":false}}}}"#.to_owned(),
+    );
+    let s = see(&r, &none);
+    assert_eq!(s.class["pin"], Class::Gone);
+    assert_eq!(s.class["pin2"], Class::Gone);
+    assert_eq!(s.class["ok"], Class::Open);
+}
+
+#[test]
 fn a_flag_that_is_not_understood_counts_as_set() {
     let mut pin = text_card("pin", "x", false);
     pin["customData"]["canvas"]["verso"] = json!({ "secret": "yes" });
