@@ -101,6 +101,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-pinned svg { width: .8rem; height: .8rem; }
 .table-image { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; max-width: 100%; }
 .table-thumb { display: block; max-width: 100%; max-height: 11rem; border-radius: 6px; border: 1px solid var(--hair); object-fit: contain; background: var(--paper-2); }
+.table-file { display: inline-flex; align-items: center; gap: .45rem; max-width: 100%; min-height: 2.4rem; padding: .3rem .6rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper-2); color: var(--ink); cursor: pointer; text-align: left; }
+.table-file svg { width: 1rem; height: 1rem; flex: none; }
+.table-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-file-kind { flex: none; font-size: .7rem; color: var(--ink-2); }
+.table-chip-file { display: inline-grid; place-items: center; background: var(--paper-2); }
 .table-image-missing { color: var(--ink-3); font-size: .8rem; text-decoration: underline; }
 .table-compose { flex: none; display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; border-top: 1px solid var(--hair); }
 /* One box, as a chat box is (Foundry, Roll20): the images waiting above the text, the actions at its right. */

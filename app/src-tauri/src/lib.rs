@@ -835,7 +835,6 @@ macro_rules! commands_for {
                 campaign::campaign_access,
                 campaign::campaign_secret_name,
                 campaign::campaign_grant,
-                campaign::campaign_permission,
                 campaign::campaign_invite,
                 campaign::access_get,
                 campaign::access_set,

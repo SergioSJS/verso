@@ -102,7 +102,7 @@ test("the players are a table with columns, and a switch per player saves at onc
   await shot(app.page, info, `114-depois-acesso-jogadores-${tag(app.page)}-claro`);
   // It saves at once and says so beside the switch; the call names the table and the player.
   await sw("Bia").check({ force: true });
-  await expect.poll(() => app.calls("campaign_permission")).toEqual([{ root: "", accounts: ["acc-bia"], images: true }]);
+  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "files", on: true }]);
   await expect(sw("Bia")).toBeChecked();
   await expect(bia.locator(".cd-feedback")).toHaveText("Salvo");
   await expect(app.page.locator("#status")).toHaveText("Bia pode enviar arquivos agora.");
@@ -111,7 +111,7 @@ test("the players are a table with columns, and a switch per player saves at onc
   const all = dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" });
   await expect(all).toHaveJSProperty("indeterminate", true);
   await all.check({ force: true });
-  await expect.poll(async () => (await app.calls("campaign_permission")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], images: true });
+  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], right: "files", on: true });
   await expect(sw("Caio")).toBeChecked();
   await expect(sw("Dora")).toBeChecked();
   await expect(all).toBeChecked();
@@ -119,7 +119,7 @@ test("the players are a table with columns, and a switch per player saves at onc
   await expect(app.page.locator("#status")).toHaveText("Todos os jogadores podem enviar arquivos.");
   await shot(app.page, info, `115-depois-acesso-jogadores-imagens-${tag(app.page)}-claro`);
   await sw("Caio").uncheck({ force: true });
-  await expect.poll(async () => (await app.calls("campaign_permission")).at(-1)).toEqual({ root: "", accounts: ["acc-caio"], images: false });
+  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-caio"], right: "files", on: false });
   await expect(all).toHaveJSProperty("indeterminate", true);
   await expect(app.page.locator("#status")).toHaveText("Caio não envia mais arquivos.");
   // No sideways scroll anywhere, on a phone least of all.
@@ -145,7 +145,7 @@ test("the keyboard reaches every control of the table and the dark theme reads",
   await sw.focus();
   await expect(sw).toBeFocused();
   await app.page.keyboard.press("Space");
-  await expect.poll(() => app.calls("campaign_permission")).toEqual([{ root: "", accounts: ["acc-bia"], images: true }]);
+  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "files", on: true }]);
   // The focus stays on the switch after it saves, to carry on.
   await expect(sw).toBeFocused();
   // Tab goes on to the next player's counts and switch, in reading order.
@@ -174,7 +174,7 @@ test("the keyboard reaches every control of the table and the dark theme reads",
 test("a refused change puts the switch back and says why", async ({ app }) => {
   const dialog = await owner(app);
   await app.page.evaluate(() => {
-    window.__harness.core.handlers["campaign_permission"] = () => {
+    window.__harness.core.handlers["table_rights_set"] = () => {
       throw { kind: "refused", message: "not a player of this table" };
     };
   });

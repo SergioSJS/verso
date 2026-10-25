@@ -202,7 +202,7 @@ for (const format of ["member", "share"]) {
       expect(released.viewer, JSON.stringify(released)).toBe("owner");
       const anaId = released.players.find((x) => x.name === "Ana")?.id;
       expect(anaId, JSON.stringify(released.players)).toBeTruthy();
-      await invoke(gm, "campaign_permission", { root: root.replace(/\/$/, ""), accounts: [anaId], images: true });
+      await invoke(gm, "table_rights_set", { root: root.replace(/\/$/, ""), accounts: [anaId], right: "files", on: true });
       await withDice(ana.context);
       const shareName = members ? null : /Mesa \(admin\)/;
       await openFolder(ana.page, folder.id, shareName);

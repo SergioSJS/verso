@@ -450,7 +450,10 @@ fn an_image_is_a_file_of_the_folder_and_not_a_readers() {
                 json!({ "base64": b64(&bytes) }),
             )
             .await;
-            assert!(err_of(&no).contains("PNG, JPEG, WebP or GIF"), "{no}");
+            assert!(
+                err_of(&no).contains("an image, a PDF or an audio file"),
+                "{no}"
+            );
         }
         let mut webp = b"RIFF\0\0\0\0WEBPVP8 ".to_vec();
         webp.resize(64, 0);
@@ -1251,8 +1254,8 @@ mod per_table {
             let let_her = call(
                 &mut c.owner,
                 10,
-                "campaign_permission",
-                json!({ "root": CRIPTA, "accounts": [bia.id], "images": true }),
+                "table_rights_set",
+                json!({ "root": CRIPTA, "accounts": [bia.id], "right": "files", "on": true }),
             )
             .await;
             assert!(let_her.get("ok").is_some(), "{let_her}");

@@ -17,6 +17,7 @@ import { emit } from "@tauri-apps/api/event";
 import type { AccessChange, AccessInfo, AccessLevel, AccessSetView, AccessWhy, CampaignAccess, CampaignAudience, CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError, FileAccess } from "../bindings";
 import { allowed, kindOf, type Setting, type Who } from "./accessRules";
 import type { Core } from "./core";
+import { fileExt } from "./table";
 
 const LOG_LEAST = 1_000;
 const LOG_MOST = 200_000;
@@ -208,14 +209,15 @@ export class Campaign {
       }
       return this.changed([path]);
     };
-    h["campaign_permission"] = (a) => {
+    h["table_rights_set"] = (a) => {
       this.owner();
+      if (a["right"] !== "files") refuse("no such right");
       const root = this.rootOf(a["root"]);
       if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
       const accounts = a["accounts"] as string[];
       if (!Array.isArray(accounts) || accounts.length === 0 || accounts.length > 500) refuse("name between 1 and 500 players");
       if (!accounts.every((id) => this.seated().some((p) => p.id === id && (!p.roots || p.roots.length === 0 || p.roots.includes(root))))) refuse("not a player of this table");
-      for (const id of accounts) this.grantImages(root, id, a["images"] === true);
+      for (const id of accounts) this.grantImages(root, id, a["on"] === true);
       return this.changed([]);
     };
     h["campaign_invite"] = (a) => {
@@ -231,17 +233,15 @@ export class Campaign {
       // Into a note or board the person edits: the vectors' `attach` (ADR 0113 D).
       const into = String(a["into"] ?? "");
       if (!this.up || !this.fileAccess(into).attach) refuse("you may only read this folder");
+      const ext = fileExt(String(a["base64"] ?? ""));
+      if (!ext) refuse("an image, a PDF or an audio file (not SVG, a page or a script)");
       this.attached += 1;
-      const path = `attachments/mesa-attach-${this.attached}.png`;
+      const path = `attachments/mesa-attach-${this.attached}.${ext}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"] ?? "") });
       return path;
     };
     h["access_get"] = (a) => this.accessGet(a["paths"] as string[]);
     h["access_set"] = (a) => this.accessSet(a["paths"] as string[], a["change"] as AccessChange);
-    h["table_rights_set"] = (a) => {
-      if (a["right"] !== "files") refuse("no such right");
-      return h["campaign_permission"]!({ root: a["root"], accounts: a["accounts"], images: a["on"] });
-    };
     const caps = h["capabilities"];
     if (caps)
       h["capabilities"] = (a) => {

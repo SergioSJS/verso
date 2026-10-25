@@ -280,7 +280,7 @@ impl Door {
                         // A rename inside a folder: the player sees the file
                         // and edits the folder (K.5). A table's root, or a
                         // folder above one, is the game master's.
-                        self.rename_in_place(&from)
+                        self.rename_in_place(&from, &to)
                     } else {
                         // Out of one folder into another: a move. Into a table
                         // it is the game master's (K.5), and always the new
@@ -385,6 +385,15 @@ impl Door {
     /// hidden file from being overwritten.
     fn write_verdict(&self, path: &str) -> Verdict {
         if self.veiled() && !self.may_path(Action::See, path).allowed() {
+            // A new file that is no note, board or base is a file sent: only
+            // `create_file` judges its right and its bytes, never a text
+            // write (K.4).
+            if self.seat() != Seat::Master
+                && self.facts.table_of(path).is_some()
+                && !Kind::of_path(path).is_note_like()
+            {
+                return Verdict::Deny(super::Reason::NoRight);
+            }
             self.create_in(path)
         } else {
             self.may_path(Action::Edit, path)
@@ -426,8 +435,9 @@ impl Door {
     }
 
     /// The bytes of a new file a player makes at a table are judged as
-    /// those sent to the chat are (K.4): a PNG, JPEG, WebP or GIF by its
-    /// first bytes, at most the table's limit — never an SVG, a page or a
+    /// those sent to the chat are (K.4): an image, a PDF or audio by its
+    /// first bytes (`table::file_ext`), at most the table's limit, under a
+    /// name whose extension says the same — never an SVG, a page or a
     /// script.
     pub fn check_bytes(&self, server: &Server, args: &Value) -> Result<(), ContractError> {
         let Some(path) = args["path"].as_str().map(|p| self.full(p)) else {
@@ -443,8 +453,15 @@ impl Door {
         let data = args["base64"].as_str().unwrap_or_default();
         let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
             .map_err(|_| crate::rpc::refused("the bytes are not base64"))?;
-        if bytes.len() > limit || crate::table::image_ext(&bytes).is_none() {
-            return Err(crate::rpc::refused("a PNG, JPEG, WebP or GIF image"));
+        let ext = path.rsplit('.').next().map(str::to_ascii_lowercase);
+        let named = |e: &str| match e {
+            "jpg" => matches!(ext.as_deref(), Some("jpg" | "jpeg")),
+            e => ext.as_deref() == Some(e),
+        };
+        if bytes.len() > limit || !crate::table::file_ext(&bytes).is_some_and(named) {
+            return Err(crate::rpc::refused(
+                "an image, a PDF or an audio file (not SVG, a page or a script)",
+            ));
         }
         Ok(())
     }
@@ -607,9 +624,16 @@ impl Door {
     /// A rename of `from` inside its folder: the person sees the file and
     /// edits the folder (K.5); a table's root, or a folder above one, is the
     /// game master's.
-    fn rename_in_place(&self, from: &str) -> Verdict {
+    fn rename_in_place(&self, from: &str, to: &str) -> Verdict {
         if self.seat() != Seat::Master && self.facts.holds_table(from) {
             return Verdict::Deny(super::Reason::NotMaster);
+        }
+        // A name is no way round *Send files* (K.4): at a table, a file
+        // keeps its kind — the same extension, or both the same sort of
+        // note — so a sent PNG is never served as a page, an SVG or a PDF.
+        if self.seat() != Seat::Master && self.facts.table_of(to).is_some() && !same_kind(from, to)
+        {
+            return Verdict::Deny(super::Reason::NoRight);
         }
         and(
             self.may_path(Action::See, from),
@@ -620,7 +644,8 @@ impl Door {
     /// Whether a device may rename `given` where it is (ADR 0113 S8).
     #[must_use]
     pub fn may_rename_here(&self, given: &str) -> bool {
-        self.rename_in_place(&self.full(given)).allowed()
+        let from = self.full(given);
+        self.rename_in_place(&from, &from).allowed()
     }
 
     /// Whether a device may put a file at `given` that is new to it: a free
@@ -642,6 +667,19 @@ impl Door {
         let folder = Self::parent(path);
         self.may(Action::Create, &folder, Kind::Folder)
     }
+}
+
+/// Whether renaming `from` to `to` keeps what the file is: the same
+/// extension, or both notes (or both boards, both bases).
+fn same_kind(from: &str, to: &str) -> bool {
+    let ext = |p: &str| {
+        p.rsplit('/')
+            .next()
+            .and_then(|n| n.rsplit_once('.'))
+            .map(|(_, e)| e.to_lowercase())
+    };
+    ext(from) == ext(to)
+        || (Kind::of_path(from).is_note_like() && Kind::of_path(from) == Kind::of_path(to))
 }
 
 /// Both allowed, else the first refusal.
