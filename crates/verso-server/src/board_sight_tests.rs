@@ -206,6 +206,8 @@ fn the_file_of_a_board_is_shaped_the_same_way() {
     assert_eq!(shaped["nodes"][0]["type"], "text");
     assert_eq!(shaped["nodes"][0]["text"], LOCKED_WORDS);
     assert!(shaped["nodes"][0].get("file").is_none());
+    // The board draws it locked: nothing of it is selected, moved or sent.
+    assert_eq!(shaped["nodes"][0]["verso"]["locked"], true);
     assert!(
         shaped["nodes"][1]["text"]
             .as_str()
@@ -326,7 +328,7 @@ fn made(d: &mut Dice) -> Made {
         if let Some(c) = cards.get(d.below(cards.len().max(1))) {
             let id = format!("ed-{i}");
             items.push(edge(&id, c, pin));
-            gone.push((id.clone(), format!("{id}")));
+            gone.push((id.clone(), id.to_string()));
             let lab = format!("lab-{i}");
             items.push(json!({ "id": lab, "type": "text", "text": format!("zqlabel{i}"), "containerId": id, "version": 1, "versionNonce": 1 }));
             gone.push((lab, format!("zqlabel{i}")));

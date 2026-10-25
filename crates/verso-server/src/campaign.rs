@@ -302,8 +302,12 @@ impl Veil {
     /// everyone as it is, since all who read it may edit it.
     #[must_use]
     pub fn group_edits(&self, path: &str) -> bool {
-        self.set_of(path)
-            .is_some_and(|s| s.whole == Level::Edit && s.rows.is_empty())
+        // A board a player edits is edited by element, in a room of its
+        // own: it is never served whole (ADR 0113 H).
+        !crate::readers::is_board(path)
+            && self
+                .set_of(path)
+                .is_some_and(|s| s.whole == Level::Edit && s.rows.is_empty())
     }
 
     /// The attachments released notes link or embed, built by `make` the

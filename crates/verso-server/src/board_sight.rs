@@ -152,7 +152,6 @@ fn marker(v: &Value, text: &str, gone: &BTreeSet<String>) -> Value {
         "versionNonce",
         "index",
         "isDeleted",
-        "updated",
     ] {
         if let Some(x) = v.get(k) {
             m.insert(k.to_owned(), x.clone());
@@ -270,7 +269,7 @@ pub fn see(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>) -> Sight {
         if gone.contains(*id) {
             continue;
         }
-        let shown = match file_of(v).and_then(|f| lock(f)) {
+        let shown = match file_of(v).and_then(lock) {
             Some(text) => {
                 sight.class.insert((*id).to_owned(), Class::Locked);
                 marker(v, &text, &gone)
@@ -346,7 +345,7 @@ pub fn shape_canvas(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> Va
                     kept.push(json!({
                         "id": n["id"], "type": "text",
                         "x": n["x"], "y": n["y"], "width": n["width"], "height": n["height"],
-                        "text": text,
+                        "text": text, "verso": { "locked": true },
                     }));
                 }
             }
@@ -360,6 +359,25 @@ pub fn shape_canvas(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> Va
         items.retain(|v| class(v) == Class::Open);
     }
     out
+}
+
+/// The text of the board file `whole` as a player who edits it is served it:
+/// [`shape_canvas`], laid over the file in its own layout (every token that
+/// did not change kept). Fails closed: a file that is not a canvas is served
+/// as an empty one.
+#[must_use]
+pub fn shaped_text(whole: &str, lock: &dyn Fn(&str) -> Option<String>) -> String {
+    use verso_core::canvas::Canvas;
+    const EMPTY: &str = "{\"nodes\":[],\"edges\":[]}\n";
+    let (Ok(canvas), Ok(value)) = (Canvas::parse(whole), serde_json::from_str::<Value>(whole))
+    else {
+        return EMPTY.to_owned();
+    };
+    let shaped = shape_canvas(&value, lock);
+    match Canvas::parse(&shaped.to_string()) {
+        Ok(new) => canvas.merged(new.root).write(),
+        Err(_) => EMPTY.to_owned(),
+    }
 }
 
 /// The board file a player's window made of its room, laid over the file as
