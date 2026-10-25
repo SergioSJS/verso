@@ -54,6 +54,9 @@ export function loadCan(): Promise<Capabilities> {
 }
 
 /** Ask again: the folder or the person's role in it changed. */
+export function refreshCan(): void {
+  askAgain();
+}
 function askAgain(): void {
   asked = null;
   forgetCapabilities();

@@ -42,22 +42,20 @@ test("the game master makes a folder a table, releases and hides notes, and the 
   await expect(cripta.locator(".hidden-mark")).toHaveAttribute("aria-label", "Oculta da mesa");
   // A note outside the table has no mark.
   await expect(row(app, "Aberta.md").locator(".campaign-mark")).toHaveCount(0);
-  // Release it to the whole table from its menu: a submenu with the table, each player and nobody.
+  // Release it to the whole table from the one Access dialog (ADR 0113).
   await cripta.click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
-  await app.page.getByRole("menuitemcheckbox", { name: "Toda a mesa" }).click();
-  await expect(app.page.locator("#status")).toHaveText("Liberada para toda a mesa.");
-  await expect.poll(() => app.calls("campaign_audience")).toEqual([{ paths: ["Mundo/Cripta.md"], audience: { kind: "table" } }]);
+  await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
+  const access = app.page.getByRole("dialog", { name: /^Acesso · Cripta/ });
+  await access.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await expect(access.getByRole("status")).toContainText("Salvo ✓");
+  await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { kind: "set", set: { whole: "see", rows: [] } } });
   await expect(cripta.locator(".hidden-mark")).toHaveCount(0);
   // And hide it again.
-  await cripta.click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Liberar para…" }).click();
-  await app.page.getByRole("menuitemcheckbox", { name: "Ninguém (oculta)" }).click();
+  await access.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Não vê", exact: true }).click();
   await expect(cripta.locator(".hidden-mark")).toHaveCount(1);
-  await expect(app.page.locator("#status")).toHaveText("Oculta da mesa.");
 });
 
-test("a name made secret, a note granted, and the folder's rows", async ({ app }) => {
+test("a name made secret, a note given to the group, and the folder's access, all in the one dialog", async ({ app }) => {
   await furnish(app, "?vault=empty&table=owner");
   await app.page.evaluate(() => {
     const c = window.__harness.campaign;
@@ -66,33 +64,37 @@ test("a name made secret, a note granted, and the folder's rows", async ({ app }
   });
   await expect(row(app, "Barão.md").locator(".hidden-mark")).toHaveCount(1);
   await row(app, "Barão.md").click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Nome secreto" }).click();
-  await expect.poll(() => app.calls("campaign_secret_name")).toEqual([{ path: "Barão.md", on: true }]);
-  await expect(app.page.locator("#status")).toHaveText("O nome desta nota agora é secreto: os links a ela aparecem como ▒▒▒▒.");
-  // Now marked, and offered to undo.
-  await row(app, "Barão.md").click({ button: "right" });
-  await expect(app.page.getByRole("menuitem", { name: "✓ Nome secreto" })).toBeVisible();
+  await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
+  const d = app.page.getByRole("dialog", { name: /^Acesso · Barão/ });
+  await d.getByText("Mais opções").click();
+  await d.getByRole("checkbox", { name: /Nome secreto/ }).check();
+  await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Barão.md"], change: { secret_name: true } });
   await app.page.keyboard.press("Escape");
-  // Granted to the group, then to a player.
+  // Reopened, it is marked.
+  await row(app, "Barão.md").click({ button: "right" });
+  await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
+  await app.page.getByRole("dialog", { name: /^Acesso · Barão/ }).getByText("Mais opções").click();
+  await expect(app.page.getByRole("checkbox", { name: /Nome secreto/ })).toBeChecked();
+  await app.page.keyboard.press("Escape");
+  // Given to the whole group to edit: released with it, no hidden mark.
   await row(app, "Aberta.md").click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Editável por: ninguém" }).click();
-  await app.page.getByRole("menuitem", { name: "o grupo" }).click();
-  await expect.poll(() => app.calls("campaign_grant")).toEqual([{ path: "Aberta.md", grant: { kind: "group" } }]);
-  await expect(app.page.locator("#status")).toHaveText("Todos os jogadores editam esta nota.");
-  // A granted note is released with it: no hidden mark.
+  await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
+  const a = app.page.getByRole("dialog", { name: /^Acesso · Aberta/ });
+  await a.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Edita", exact: true }).click();
+  await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Aberta.md"], change: { set: { whole: "edit", rows: [] } } });
   await expect(row(app, "Aberta.md").locator(".hidden-mark")).toHaveCount(0);
-  await row(app, "Aberta.md").click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Editável por: o grupo" }).click();
-  await app.page.getByRole("menuitem", { name: "Bia" }).click();
-  await expect(app.page.locator("#status")).toHaveText("Só Bia edita esta nota.");
-  // The folder inside a table releases and hides what is under it.
+  await app.page.keyboard.press("Escape");
+  // The folder inside a table is applied with a button.
   await app.page.locator('summary[data-folder="Mundo"]').click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Liberar tudo daqui" }).click();
-  await expect.poll(async () => (await app.calls("campaign_release")).at(-1)).toEqual({ paths: ["Mundo"], released: true });
+  await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
+  const f = app.page.getByRole("dialog", { name: /^Acesso · pasta “Mundo”/ });
+  await f.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await f.getByRole("button", { name: "Aplicar" }).click();
+  await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
   await expect(row(app, "Mundo/Cripta.md").locator(".hidden-mark")).toHaveCount(0);
 });
 
-test("a selection of notes is released at once", async ({ app }) => {
+test("a selection of notes is given access at once", async ({ app }) => {
   await furnish(app, "?vault=empty&table=owner");
   await app.page.evaluate(() => {
     window.__harness.campaign.tables = [{ root: "", open: true, log_max: 20000, image_max: 10 * 1024 * 1024 }];
@@ -101,11 +103,14 @@ test("a selection of notes is released at once", async ({ app }) => {
   await row(app, "Livre.md").click({ modifiers: ["ControlOrMeta"] });
   await row(app, "Barão.md").click({ modifiers: ["ControlOrMeta"] });
   await row(app, "Barão.md").click({ button: "right" });
-  await app.page.getByRole("menuitem", { name: "Liberar para a mesa" }).click();
-  await expect.poll(async () => (await app.calls("campaign_release")).length).toBe(1);
-  const calls = await app.calls("campaign_release");
+  await app.page.getByRole("menuitem", { name: "Acesso de 2 arquivos…" }).click();
+  const d = app.page.getByRole("dialog", { name: /^Acesso de 2 arquivos/ });
+  await d.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await d.getByRole("button", { name: "Aplicar" }).click();
+  await expect.poll(async () => (await app.calls("access_set")).length).toBe(1);
+  const calls = await app.calls("access_set");
   expect([...calls[0].paths].sort()).toEqual(["Barão.md", "Livre.md"]);
-  await expect(app.page.locator("#status")).toHaveText("2 notas liberadas para a mesa.");
+  await expect(d.getByRole("status")).toContainText("Aplicado a 2 arquivos.");
   await expect(row(app, "Livre.md").locator(".hidden-mark")).toHaveCount(0);
 });
 
@@ -146,7 +151,7 @@ test("the table's window: a switch that saves at once, cards, limits under Advan
   // The players the server counts, with what is granted to them.
   const grid = dialog.getByRole("table", { name: "Jogadores da mesa e o que cada um pode fazer" });
   await expect(grid).toContainText("Bia");
-  await expect(grid.getByRole("switch", { name: "Bia pode enviar imagens" })).not.toBeChecked();
+  await expect(grid.getByRole("switch", { name: "Bia pode enviar arquivos" })).not.toBeChecked();
   // Release everything asks first.
   await dialog.getByRole("button", { name: "Liberar tudo" }).click();
   await expect(dialog.getByText(/Liberar todas as notas desta mesa agora\?/)).toBeVisible();

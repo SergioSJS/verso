@@ -12,7 +12,10 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { forgetAccess, may } from "./access";
-import { audienceIds, gained, HIDDEN, ofPlayers, TABLE, togglePlayer } from "./audience";
+import { HIDDEN, TABLE } from "./audience";
+import { refreshCan } from "./can";
+import { openAccess } from "./accessDialog";
+import { ac } from "./accessStrings";
 import { commands, type CampaignAudience, type CampaignChanged, type CampaignGrant, type CampaignNote, type CampaignStatus, type CampaignTable, type ContractError } from "./bindings";
 import { openCampaignDialog } from "./campaignDialog";
 import { tableBadge } from "./tableChip";
@@ -105,7 +108,12 @@ export async function loadCampaign(): Promise<void> {
 
 /** The status the server answered: held, and the tree marked. */
 export function setStatus(next: CampaignStatus): void {
+  // A table made or undone changes who the person is at the folder (the
+  // capabilities' `FolderAccess.table`): the side is asked again.
+  const tabled = (s: CampaignStatus): boolean => s.viewer !== "none" && s.tables.length > 0;
+  const changedTable = tabled(next) !== tabled(status);
   status = next;
+  if (changedTable) refreshCan();
   states.clear();
   for (const n of next.notes) states.set(n.path, n);
   markCampaign();
@@ -199,48 +207,27 @@ export async function setImages(root: string, accounts: string[], on: boolean, d
   return run(() => commands.campaignPermission(root, accounts, on), done);
 }
 
-/** Who may edit a note. An edit grant to a player who could not see the
- *  note lets them see it (the server adds them to its audience): said. */
-export async function grantNote(path: string, grant: CampaignGrant): Promise<boolean> {
-  const before = noteAudience(path);
-  const word = grant.kind === "none" ? cp.grantedNone : grant.kind === "group" ? cp.grantedGroup : cp.grantedPlayer(status.players.find((p) => p.id === grant.account)?.name ?? "");
-  if (!(await run(() => commands.campaignGrant(path, grant), word))) return false;
-  const all = status.players.map((p) => p.id);
-  const added = gained(before, noteAudience(path), all);
-  if (grant.kind === "player" && added.length > 0) say(`${word} ${cp.alsoSees(names(added))}`);
-  return true;
-}
-
-/** Release a note to nobody, the whole table or some of its players. */
-export async function setAudience(path: string, audience: CampaignAudience): Promise<boolean> {
-  const done = audience.kind === "table" ? cp.audienceTableDone : audience.kind === "hidden" ? cp.hidden(1) : cp.audiencePlayersDone(names(audience.accounts));
-  return run(() => commands.campaignAudience([path], audience), done);
-}
-
-/** The rows of "Release to…": the whole table, each player (several
- *  allowed: the menu stays open while they are ticked, each one checked while
- *  it sees the note), nobody. Each row reads the note's audience when it is
- *  used and when it is drawn again. */
-export function audienceItems(path: string): MenuItem[] {
-  const now = (): CampaignAudience => noteAudience(path);
-  const all = (): string[] => status.players.map((p) => p.id);
-  return [
-    [cp.audienceTable, () => setAudience(path, TABLE), "users", undefined, () => now().kind === "table"],
-    ...status.players.map(
-      (p): MenuItem => [p.name, () => setAudience(path, togglePlayer(now(), p.id, all())), "user", undefined, () => audienceIds(now(), all()).includes(p.id)],
-    ),
-    [cp.audienceNobody, () => setAudience(path, ofPlayers([])), "lock", undefined, () => now().kind === "hidden"],
-  ];
-}
-
-/** A note's name a secret, or not. */
-export async function secretName(path: string, on: boolean): Promise<boolean> {
-  return run(() => commands.campaignSecretName(path, on), on ? cp.secretNameOn : cp.secretNameOff);
-}
-
 type Kind = "folder" | "note" | "board" | string;
 
-/** The game master's rows in the menu of a file or a folder of the tree.
+/** "Ana edita · 2 veem": what the table's state says of the file, for the one
+ *  row of the menu that opens its access (ADR 0113 section F). */
+export function accessSummary(path: string): string {
+  const s = states.get(path);
+  const name = (id: string): string => status.players.find((p) => p.id === id)?.name ?? "";
+  const edits = s?.edits ?? [];
+  const sees = (s?.sees ?? []).filter((id) => !edits.includes(id));
+  const everyone = status.players.length > 0 && (s?.edits ?? []).length === status.players.length;
+  const parts: string[] = [];
+  if (everyone) parts.push(ac.summaryTable);
+  else {
+    if (edits.length > 0) parts.push(ac.summaryEdits(edits.map(name)));
+    if (sees.length > 0) parts.push(ac.summarySees(sees.length));
+  }
+  return parts.length > 0 ? parts.join(" · ") : ac.summaryHidden;
+}
+
+/** The game master's rows in the menu of a file or a folder of the tree:
+ *  one, *Acesso… · Ana edita · 2 veem*, with no submenus (ADR 0113 item 1).
  *  Only the owner of a server's folder has any. */
 export function campaignEntryItems(path: string, kind: Kind): MenuItem[] {
   if (!mayShare()) return [];
@@ -248,43 +235,22 @@ export function campaignEntryItems(path: string, kind: Kind): MenuItem[] {
   if (kind === "folder") {
     if (isTableRoot(path)) {
       return [
+        [ac.open, () => void openAccess([path]), "users"],
         [cp.tableSettings, () => openCampaignDialog(path), "user"],
         [cp.undoTable, () => openCampaignDialog(path, true), "close"],
       ];
     }
-    if (table) {
-      return [
-        [cp.releaseHere, () => void releaseNotes([path], true), "unlock"],
-        [cp.hideHere, () => void releaseNotes([path], false), "lock"],
-      ];
-    }
+    if (table) return [[ac.open, () => void openAccess([path]), "users"]];
     return [[cp.makeTable, () => void makeTable(path), "user"]];
   }
-  if (!table || !noteLike(path)) return [];
-  const here = states.get(path);
-  const items: MenuItem[] = [[cp.releaseTo, () => {}, hiddenFromTable(path) ? "lock" : "unlock", audienceItems(path)]];
-  if (/\.md$/i.test(path)) {
-    items.push([`${here?.secret_name ? "✓ " : ""}${cp.secretName}`, () => void secretName(path, !here?.secret_name), "lock"]);
-    const grant = here?.grant ?? { kind: "none" as const };
-    const mark = (on: boolean, label: string): string => (on ? `✓ ${label}` : label);
-    const sub: MenuItem[] = [
-      [mark(grant.kind === "none", cp.nobody), () => void grantNote(path, { kind: "none" }), "close"],
-      [mark(grant.kind === "group", cp.group), () => void grantNote(path, { kind: "group" }), "user"],
-      ...status.players.map((p): MenuItem => [mark(grant.kind === "player" && grant.account === p.id, p.name), () => void grantNote(path, { kind: "player", account: p.id }), "user"]),
-    ];
-    const current = grant.kind === "none" ? cp.nobody : grant.kind === "group" ? cp.group : (status.players.find((p) => grant.kind === "player" && p.id === grant.account)?.name ?? "");
-    items.push([`${cp.editableBy}: ${current}`, () => {}, "edit", sub]);
-  }
-  return items;
+  if (!table) return [];
+  return [[`${ac.open} · ${accessSummary(path)}`, () => void openAccess([path]), hiddenFromTable(path) ? "lock" : "users"]];
 }
 
-/** The rows of the menu of a selection: release or hide what it holds. */
-export function campaignSelectionItems(paths: string[]): MenuItem[] {
+/** The one row of the menu of a selection: the access of all of it. */
+export function accessSelectionItems(paths: string[]): MenuItem[] {
   if (!mayShare() || !paths.some((p) => tableFor(p))) return [];
-  return [
-    [cp.releaseSelected, () => void releaseNotes(paths, true), "unlock"],
-    [cp.hideSelected, () => void releaseNotes(paths, false), "lock"],
-  ];
+  return [[ac.menuMany(paths.length), () => void openAccess(paths), "users"]];
 }
 
 /** The rows of the menu of the tree's root. */
