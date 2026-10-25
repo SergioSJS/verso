@@ -646,6 +646,18 @@ pub fn image_ext(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// Whether `bytes` start with an MPEG audio frame header: the 11-bit sync,
+/// a version other than the reserved one, a layer other than the reserved
+/// one, Layer II or III only (so `FF FE` of a UTF-16 text is none).
+fn mpeg_frame(bytes: &[u8]) -> bool {
+    bytes.len() >= 4
+        && bytes[0] == 0xff
+        && bytes[1] & 0xe0 == 0xe0
+        && bytes[1] & 0x18 != 0x08
+        && matches!(bytes[1] & 0x06, 0x02 | 0x04)
+        && bytes[2] >> 4 != 0x0f
+}
+
 /// The kind of file `bytes` are for *Send files* (ADR 0113 K.4), by their
 /// first bytes and never by a name: an image (see [`image_ext`]), a PDF, or
 /// audio (MP3, Ogg, WAV, M4A). An SVG, a page, a script or anything else
@@ -657,9 +669,7 @@ pub fn file_ext(bytes: &[u8]) -> Option<&'static str> {
     }
     if bytes.starts_with(b"%PDF-") {
         Some("pdf")
-    } else if bytes.starts_with(b"ID3")
-        || (bytes.len() >= 2 && bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0)
-    {
+    } else if bytes.starts_with(b"ID3") || mpeg_frame(bytes) {
         Some("mp3")
     } else if bytes.starts_with(b"OggS") {
         Some("ogg")

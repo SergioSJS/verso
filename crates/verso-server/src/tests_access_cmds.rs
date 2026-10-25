@@ -520,7 +520,12 @@ fn a_player_cannot_make_a_file_by_a_rename_or_a_text_write() {
                     )
                     .await;
                 assert!(sent.get("ok").is_some(), "{sent}");
-                for to in ["Mundo Zq/foto.html", "Mundo Zq/foto.svg", "Mundo Zq/foto.pdf", "Mundo Zq/foto.md"] {
+                for to in [
+                    "Mundo Zq/foto.html",
+                    "Mundo Zq/foto.svg",
+                    "Mundo Zq/foto.pdf",
+                    "Mundo Zq/foto.md",
+                ] {
                     for cmd in ["rename_entry", "rename_note"] {
                         let no = m
                             .ana
@@ -537,7 +542,11 @@ fn a_player_cannot_make_a_file_by_a_rename_or_a_text_write() {
                     assert!(!list.contains(&format!("foto{bad}\"")), "{bad}: {list}");
                 }
             }
-            for path in ["Mundo Zq/novo.html", "Mundo Zq/novo.svg", "Mundo Zq/novo.pdf"] {
+            for path in [
+                "Mundo Zq/novo.html",
+                "Mundo Zq/novo.svg",
+                "Mundo Zq/novo.pdf",
+            ] {
                 let no = m
                     .ana
                     .call(
@@ -551,4 +560,15 @@ fn a_player_cannot_make_a_file_by_a_rename_or_a_text_write() {
             }
         }
     });
+}
+
+#[test]
+fn file_ext_wants_a_real_mpeg_frame_for_an_mp3() {
+    use crate::table::file_ext;
+    assert_eq!(file_ext(&[0xff, 0xfb, 0x90, 0x00]), Some("mp3"));
+    assert_eq!(file_ext(b"ID3\x04\0\0\0\0\0\0"), Some("mp3"));
+    // A UTF-16 text starts FF FE; a reserved version or layer is none.
+    assert_eq!(file_ext(&[0xff, 0xfe, b'h', 0, b'i', 0]), None);
+    assert_eq!(file_ext(&[0xff, 0xe8, 0x90, 0x00]), None);
+    assert_eq!(file_ext(&[0xff, 0xf9, 0x90, 0x00]), None);
 }
