@@ -690,8 +690,13 @@ async fn status(
         }
         if owner {
             let mut players: Vec<CampaignPlayer> = Vec::new();
+            // A folder's editor edits every file they see (ADR 0113 K.1).
+            let mut editors: HashSet<String> = HashSet::new();
             for t in &veil.tables {
-                for p in players_in(&s, &folder, &t.root)? {
+                for (p, editor) in seats_in(&s, &folder, &t.root)? {
+                    if editor {
+                        editors.insert(p.id.clone());
+                    }
                     match players.iter_mut().find(|q| q.id == p.id) {
                         Some(q) => q.roots.push(t.root.clone()),
                         None => players.push(CampaignPlayer {
@@ -703,12 +708,29 @@ async fn status(
             }
             let mut notes: Vec<CampaignNote> = veil
                 .states()
-                .map(|n| CampaignNote {
-                    path: n.path.clone(),
-                    released: n.audience.any() || n.grant != Grant::None,
-                    audience: audience_of(&n.audience),
-                    secret_name: n.secret_name,
-                    grant: grant_of(&n.grant),
+                .map(|n| {
+                    // Who sees and who edits it, each by what the rules give
+                    // them: the audience and the grant cannot say a player
+                    // who falls below the whole table's row.
+                    let sees: Vec<String> = players
+                        .iter()
+                        .filter(|p| veil.view(&p.id).released(&n.path))
+                        .map(|p| p.id.clone())
+                        .collect();
+                    let edits: Vec<String> = sees
+                        .iter()
+                        .filter(|id| editors.contains(*id) || veil.may_edit(&n.path, id))
+                        .cloned()
+                        .collect();
+                    CampaignNote {
+                        path: n.path.clone(),
+                        released: n.audience.any() || n.grant != Grant::None,
+                        audience: audience_of(&n.audience),
+                        secret_name: n.secret_name,
+                        grant: grant_of(&n.grant),
+                        sees,
+                        edits,
+                    }
                 })
                 .collect();
             notes.sort_by(|a, b| a.path.cmp(&b.path));
@@ -774,6 +796,8 @@ async fn status(
                     },
                     secret_name: false,
                     grant: grant_of(&n.grant),
+                    sees: Vec::new(),
+                    edits: Vec::new(),
                 })
             })
             .collect();

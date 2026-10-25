@@ -94,7 +94,7 @@ test("asking for Edit, a new note by key or a rename says so too", async ({ app,
   await expect(page.locator("#notes input")).toHaveCount(0);
 });
 
-test("a note granted to a player edits normally, with no notice; the lock follows the note on screen", async ({ app, page }) => {
+test("inside a table a player has no folder lock: a note they edit takes the typing, one they only read says 'Você só lê esta nota'", async ({ app, page }) => {
   await app.open("?vault=empty&table=player&side=server&role=reader");
   for (const [p, text] of Object.entries({ "Aberta.md": "# Aberta\n", "Livre.md": "# Livre\n" })) await app.writeOutside(p, text);
   await app.folderChanged(["Aberta.md", "Livre.md"], true);
@@ -107,10 +107,9 @@ test("a note granted to a player edits normally, with no notice; the lock follow
   });
   await app.folderChanged(["Aberta.md"], true);
   const lock = page.locator("#open .folder-lock");
-  // No note open: the folder is only read.
-  await expect(lock).toBeVisible();
+  // The player edits some files and reads others: the folder's lock would lie (ADR 0113 F).
+  await expect(lock).toBeHidden();
   await page.locator('#notes li[data-path="Aberta.md"] > button').click();
-  // The granted note is theirs to edit: no lock while it is on screen.
   await expect(lock).toBeHidden();
   await app.key("Mod+e");
   const editor = page.locator(".cm-content:visible").first();
@@ -119,17 +118,16 @@ test("a note granted to a player edits normally, with no notice; the lock follow
   await expect(editor).toContainText("ZZ");
   await page.waitForTimeout(300);
   await expect(notice(page)).toBeHidden();
-  // The other note, only read: the notice.
+  // The other note, only read: the notice names the note, not the folder.
   await page.locator('#notes li[data-path="Livre.md"] > button').click();
-  // A released note they only read: the lock is back.
-  await expect(lock).toBeVisible();
+  await expect(lock).toBeHidden();
   await app.key("Mod+e");
   await page.locator(".cm-content:visible").first().click();
   await page.keyboard.type("ZZ");
   await expect(notice(page)).toBeVisible();
-  // Back to the granted note, then no note at all.
+  await expect(notice(page)).toContainText("Você só lê esta nota");
+  // And the chip in the title row says it in words.
+  await expect(page.locator(".note-sheet .access-chip").first()).toHaveText("Você lê");
   await page.locator('#notes li[data-path="Aberta.md"] > button').click();
-  await expect(lock).toBeHidden();
-  await page.evaluate(() => window.__harness.emit("campaign-changed", { paths: [] }));
-  await expect(lock).toBeHidden();
+  await expect(page.locator(".note-sheet .access-chip").first()).toHaveText("Você edita");
 });

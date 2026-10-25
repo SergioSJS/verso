@@ -504,7 +504,11 @@ export class Campaign {
   status(): CampaignStatus {
     if (!this.up || this.tables.length === 0) return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
     if (this.viewer === "owner") {
-      const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden" })).sort((a, b) => a.path.localeCompare(b.path));
+      const who = (path: string, at: AccessLevel): string[] => {
+        const set = this.nearest(path)?.set;
+        return set ? this.seated().filter((p) => (at === "see" ? this.levelIn(set, p.id) !== "none" : this.levelIn(set, p.id) === "edit")).map((p) => p.id) : [];
+      };
+      const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden", sees: who(n.path, "see"), edits: who(n.path, "edit") })).sort((a, b) => a.path.localeCompare(b.path));
       return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, image_players: this.seated().filter((p) => this.imageGrants.has(`${t.root}\0${p.id}`)).map((p) => p.id) })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
     }
     const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, audience: (audOf(n).kind === "table" ? { kind: "table" } : { kind: "players", accounts: [this.account] }) as CampaignAudience, released: true, secret_name: false }));
@@ -595,10 +599,13 @@ export class Campaign {
     const up = (): boolean => this.up && this.tables.length > 0;
     for (const cmd of ["read_note", "read_text", "create_note", "write_text"]) {
       const was = h[cmd]!;
-      h[cmd] = (a) => {
+      const wrapped = (a: Parameters<typeof was>[0]) => {
         const got = was(a);
         return up() && got && typeof got === "object" ? { ...(got as object), access: this.fileAccess((got as { path: string }).path) } : got;
       };
+      // Read by the harness's own test as the handler it wraps (the arguments it reads).
+      Object.defineProperty(wrapped, "toString", { value: () => String(was) });
+      h[cmd] = wrapped;
     }
     const listed = h["list_entries"]!;
     h["list_entries"] = (a) => {

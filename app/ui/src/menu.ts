@@ -30,7 +30,7 @@ import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
-import { campaignEntryItems, campaignSelectionItems } from "./campaign";
+import { campaignEntryItems, accessSelectionItems } from "./campaign";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -178,7 +178,7 @@ export function selectionMenu(x: number, y: number, paths: string[]): void {
   const bins = paths.every((p) => may(p, "delete"));
   showMenu(x, y, [
     ...(moves ? [[`${t.moveTo}…`, () => movePrompt(paths), "sidebar"] as MenuItem] : []),
-    ...campaignSelectionItems(paths),
+    ...accessSelectionItems(paths),
     [t.selection.copyPaths, () => void navigator.clipboard.writeText(paths.join("\n")).then(() => (ui.status.textContent = t.copied)), "link"],
     ["—", () => {}],
     [t.selection.clear, () => clearSelection(), "close"],

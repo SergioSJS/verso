@@ -70,6 +70,13 @@ pub struct CampaignNote {
     /// Every link to it is drawn as four blocks, whatever was written.
     pub secret_name: bool,
     pub grant: CampaignGrant,
+    /// The players who see it, by account (ADR 0113): every one of them,
+    /// whatever the audience can say. To the game master.
+    #[serde(default)]
+    pub sees: Vec<String>,
+    /// The players who edit it, by account.
+    #[serde(default)]
+    pub edits: Vec<String>,
 }
 
 /// A player of a table: an account that may open the table's folder.

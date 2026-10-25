@@ -72,13 +72,13 @@ test("the players are a table with columns, and a switch per player saves at onc
   // Real column and row headers.
   // (A phone draws a card per player and keeps only the Images header, with its box.)
   if (!phone(app.page)) {
-    for (const col of ["Jogador", "Vê", "Edita", /Imagens/]) await expect(t.getByRole("columnheader", { name: col })).toBeVisible();
+    for (const col of ["Jogador", "Vê", "Edita", /Enviar arquivos/]) await expect(t.getByRole("columnheader", { name: col })).toBeVisible();
   } else {
     await expect(t.locator(".cd-col-images")).toBeVisible();
-    await expect(dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" })).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" })).toBeVisible();
   }
   // The header's name is the column's, not the box's and its answer's.
-  await expect(t.locator(".cd-col-images")).toHaveAccessibleName("Imagens");
+  await expect(t.locator(".cd-col-images")).toHaveAccessibleName("Enviar arquivos");
   const rows = t.getByRole("row").filter({ has: app.page.getByRole("rowheader") });
   await expect(rows).toHaveCount(3);
   await expect(t.getByRole("rowheader", { name: /^Bia/ })).toBeVisible();
@@ -96,7 +96,7 @@ test("the players are a table with columns, and a switch per player saves at onc
   await expect(dialog.getByText("Notas que Bia vê")).toHaveCount(0);
 
   // Off by default: nobody sends images until the game master says.
-  const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar imagens` });
+  const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar arquivos` });
   await expect(sw("Bia")).not.toBeChecked();
   await expect(sw("Caio")).not.toBeChecked();
   await shot(app.page, info, `114-depois-acesso-jogadores-${tag(app.page)}-claro`);
@@ -105,10 +105,10 @@ test("the players are a table with columns, and a switch per player saves at onc
   await expect.poll(() => app.calls("campaign_permission")).toEqual([{ root: "", accounts: ["acc-bia"], images: true }]);
   await expect(sw("Bia")).toBeChecked();
   await expect(bia.locator(".cd-feedback")).toHaveText("Salvo");
-  await expect(app.page.locator("#status")).toHaveText("Bia pode enviar imagens agora.");
+  await expect(app.page.locator("#status")).toHaveText("Bia pode enviar arquivos agora.");
   await expect(sw("Caio")).not.toBeChecked();
   // The header box is mixed while the players differ; ticking it gives everyone, unticking takes it from everyone.
-  const all = dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" });
+  const all = dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" });
   await expect(all).toHaveJSProperty("indeterminate", true);
   await all.check({ force: true });
   await expect.poll(async () => (await app.calls("campaign_permission")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], images: true });
@@ -141,7 +141,7 @@ test("the players are a table with columns, and a switch per player saves at onc
 test("the keyboard reaches every control of the table and the dark theme reads", async ({ app }, info) => {
   test.skip(phone(app.page), "a finger has no keys");
   const dialog = await owner(app);
-  const sw = dialog.getByRole("switch", { name: "Bia pode enviar imagens" });
+  const sw = dialog.getByRole("switch", { name: "Bia pode enviar arquivos" });
   await sw.focus();
   await expect(sw).toBeFocused();
   await app.page.keyboard.press("Space");
@@ -178,7 +178,7 @@ test("a refused change puts the switch back and says why", async ({ app }) => {
       throw { kind: "refused", message: "not a player of this table" };
     };
   });
-  const sw = dialog.getByRole("switch", { name: "Dora pode enviar imagens" });
+  const sw = dialog.getByRole("switch", { name: "Dora pode enviar arquivos" });
   app.expected.push(/refused: not a player of this table/);
   await sw.click({ force: true });
   await expect(sw).not.toBeChecked();

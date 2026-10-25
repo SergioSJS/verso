@@ -1397,6 +1397,13 @@ export type CampaignNote = {
 	/**  Every link to it is drawn as four blocks, whatever was written. */
 	secret_name: boolean,
 	grant: CampaignGrant,
+	/**
+	 *  The players who see it, by account (ADR 0113): every one of them,
+	 *  whatever the audience can say. To the game master.
+	 */
+	sees?: string[],
+	/**  The players who edit it, by account. */
+	edits?: string[],
 };
 
 /**  What one person at a table can do with a note (`campaign_access`). */

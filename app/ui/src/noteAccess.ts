@@ -13,14 +13,17 @@
 // bottom sheet with a close button. It opens over the page (fixed), so
 // opening it moves nothing. It follows the table's status by itself.
 
-import { commands, type CampaignAccess } from "./bindings";
-import { countText, ownerLabel, peopleOf, playerLabel, tally, yourFirst, type Words } from "./audience";
-import { audienceItems, campaign, noteAudience, noteState, tableFor, tablePlayers } from "./campaign";
+import { may, seat } from "./access";
+import { openAccess } from "./accessDialog";
+import { ac } from "./accessStrings";
+import { commands, type AccessInfo, type AccessLevel, type CampaignAudience, type CampaignPerson } from "./bindings";
+import { countText, ownerLabel, playerLabel, tally, yourFirst, type Words } from "./audience";
+import { campaign, tableFor } from "./campaign";
 import { cp } from "./campaignStrings";
 import { narrow } from "./chrome";
 import { h } from "./dom";
 import { icon } from "./icons";
-import { menu, showMenu } from "./menu";
+import { menu } from "./menu";
 import { placeInView } from "./screen/viewport";
 import { LANG } from "./strings";
 
@@ -51,7 +54,9 @@ export class NoteAccess {
   /** The focus is being given back by a close: it must not open it again. */
   private quiet = false;
   private timer = 0;
-  private fetched: { path: string; data: CampaignAccess } | null = null;
+  private fetched: { path: string; data: AccessInfo } | null = null;
+  /** What the person may do with the file, in words: the player's chip. */
+  private readonly chip = h("span", "access-chip");
   private fetching = 0;
   private watch: ResizeObserver | null = null;
   private readonly again = (): void => this.update();
@@ -65,7 +70,8 @@ export class NoteAccess {
     b.setAttribute("aria-controls", `${this.id}-pop`);
     this.count.setAttribute("aria-hidden", "true");
     b.append(icon("users"), this.count);
-    this.el.append(b);
+    this.chip.hidden = true;
+    this.el.append(b, this.chip);
     this.el.hidden = true;
     const p = this.pop;
     p.id = `${this.id}-pop`;
@@ -75,6 +81,13 @@ export class NoteAccess {
 
     b.addEventListener("click", () => {
       window.clearTimeout(this.timer);
+      // The game master's click is the one Access dialog (ADR 0113 F); hovering
+      // keeps showing the summary, read-only.
+      if (this.fetched?.data.manage) {
+        this.close(false);
+        void openAccess([this.where()], this.btn);
+        return;
+      }
       if (this.isOpen && this.pinned) this.close(false);
       else this.open(true);
     });
@@ -124,6 +137,7 @@ export class NoteAccess {
     document.addEventListener("keydown", this.key, true);
     document.addEventListener("pointerdown", this.outside, true);
     addEventListener("verso:campaign-status", this.again);
+    addEventListener("verso:access-changed", this.again);
     addEventListener("resize", this.place);
     addEventListener("scroll", this.place, true);
   }
@@ -160,34 +174,46 @@ export class NoteAccess {
     return [...this.pop.querySelectorAll<HTMLElement>("button")].filter((b) => b.getClientRects().length > 0);
   }
 
-  /** Whether the note at hand is a note of a table that this window may ask about. */
+  /** Whether the file at hand is a note, a board or a base of a table that
+   *  this window may ask about. */
   private applies(path: string): boolean {
     const viewer = campaign().viewer;
     if (viewer !== "owner" && viewer !== "player") return false;
-    if (!/\.md$/i.test(path) || !tableFor(path)) return false;
-    return viewer === "owner" ? campaign().players.length > 0 : this.fetched?.path === path;
+    if (!/\.(md|canvas|base)$/i.test(path) || !tableFor(path)) return false;
+    return this.fetched?.path === path;
   }
 
-  /** The state drawn now, from the window's status (the game master) or
-   *  from what the server last told (a player). */
-  private view(path: string): { viewer: "owner" | "player"; audience: CampaignAccess["audience"]; people: CampaignAccess["people"]; master: string } {
-    if (campaign().viewer === "owner") {
-      const audience = noteAudience(path);
-      return { viewer: "owner", audience, people: peopleOf(audience, noteState(path)?.grant ?? { kind: "none" }, tablePlayers()), master: "" };
+  /** The state drawn now, from what the server last told of the file
+   *  (`access_get`): the game master's list of players with what each can
+   *  do, or the player's of who sees. */
+  private view(path: string): { viewer: "owner" | "player"; audience: CampaignAudience; people: CampaignPerson[]; master: string } {
+    const info = this.fetched!.data;
+    const level = (id: string): AccessLevel => info.set.rows.find((r) => r.account === id)?.level ?? info.set.whole;
+    if (info.manage) {
+      const people: CampaignPerson[] = info.players.map((p) => {
+        const l = level(p.id);
+        const access = l === "none" ? "none" : l === "edit" || p.editor ? "edits" : "sees";
+        return { id: p.id, name: p.name, access, you: false };
+      });
+      const seers = people.filter((p) => p.access !== "none");
+      const audience: CampaignAudience = info.set.whole !== "none" && seers.length === people.length ? { kind: "table" } : seers.length === 0 ? { kind: "hidden" } : { kind: "players", accounts: seers.map((p) => p.id) };
+      return { viewer: "owner", audience, people, master: "" };
     }
-    const d = this.fetched!.data;
-    return { viewer: "player", audience: d.audience, people: d.people, master: d.master };
+    const people: CampaignPerson[] = info.players.map((p) => ({ id: p.id, name: p.name, access: p.you && may(path, "edit") ? "edits" : "sees", you: p.you }));
+    const audience: CampaignAudience = info.set.whole !== "none" ? { kind: "table" } : { kind: "players", accounts: people.map((p) => p.id) };
+    return { viewer: "player", audience, people, master: cp.theMaster };
   }
 
-  /** The note changed, or the table did: ask again what a player cannot
-   *  know, and draw the button and, if open, its popover. */
+  /** The note changed, or the table did: ask the server what it says of
+   *  the file, and draw the button and, if open, its popover. */
   update(): void {
     const path = this.where();
-    if (campaign().viewer === "player" && path && tableFor(path) && /\.md$/i.test(path)) {
+    const viewer = campaign().viewer;
+    if ((viewer === "owner" || viewer === "player") && path && tableFor(path) && /\.(md|canvas|base)$/i.test(path)) {
       const n = ++this.fetching;
-      void commands.campaignAccess(path).then((r) => {
+      void commands.accessGet([path]).then((r) => {
         if (n !== this.fetching) return;
-        this.fetched = r.status === "ok" ? { path, data: r.data } : null;
+        this.fetched = r.status === "ok" && r.data[0] ? { path, data: r.data[0] } : null;
         this.paint();
       });
       return;
@@ -213,6 +239,14 @@ export class NoteAccess {
     this.count.textContent = countText(v.viewer, t, v.audience, v.people, cp.tableWord);
     this.el.hidden = false;
     this.el.dataset["audience"] = v.audience.kind;
+    // A player is told what they may do with this file, in words.
+    const mine = seat() === "player";
+    this.chip.hidden = !mine;
+    if (mine) {
+      const edits = may(path, "edit");
+      this.chip.textContent = edits ? ac.youEdit : ac.youRead;
+      this.chip.classList.toggle("is-edit", edits);
+    }
     if (this.isOpen) {
       this.fill(path);
       this.place();
@@ -245,11 +279,11 @@ export class NoteAccess {
         list.append(li);
       }
       body.push(list);
-      const change = h("button", "btn na-change", cp.accessChange);
+      const change = h("button", "btn na-change", ac.change);
       change.type = "button";
       change.addEventListener("click", () => {
-        const r = change.getBoundingClientRect();
-        showMenu(r.left, r.bottom + 4, audienceItems(path), cp.releaseTo);
+        this.close(false);
+        void openAccess([path], this.btn);
       });
       body.push(change);
     } else {
@@ -323,6 +357,7 @@ export class NoteAccess {
     document.removeEventListener("keydown", this.key, true);
     document.removeEventListener("pointerdown", this.outside, true);
     removeEventListener("verso:campaign-status", this.again);
+    removeEventListener("verso:access-changed", this.again);
     removeEventListener("resize", this.place);
     removeEventListener("scroll", this.place, true);
     this.watch?.disconnect();

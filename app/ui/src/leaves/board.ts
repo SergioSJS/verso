@@ -60,6 +60,7 @@ import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
 import { may } from "../access";
+import { NoteAccess } from "../noteAccess";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
@@ -82,6 +83,8 @@ export class BoardLeaf extends TextLeaf {
   override readonly kind: Kind = "board";
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
+  /** Who sees this board, and what the person may do with it (ADR 0113). */
+  readonly access = new NoteAccess(() => this.path);
   private board: BoardHandle | null = null;
   /** A file of the folder put on the board, where it was dropped. */
   addPath(path: string, x: number, y: number): void {
@@ -124,13 +127,14 @@ export class BoardLeaf extends TextLeaf {
       return b;
     };
     this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
-    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
   }
   override async load(path: string, force = false): Promise<void> {
     await super.load(path, force);
     if (this.path !== path) return;
+    this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
@@ -566,6 +570,7 @@ export class BoardLeaf extends TextLeaf {
     return true;
   }
   override destroy(): void {
+    this.access.destroy();
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
