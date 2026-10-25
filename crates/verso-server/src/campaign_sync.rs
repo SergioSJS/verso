@@ -689,7 +689,7 @@ fn told_rows(
     else {
         return Ok(Vec::new());
     };
-    let Some(veil) = crate::campaign::veil_for_key(server, key).map(|v| v.view(account)) else {
+    let Some(veil) = crate::campaign::viewer_of(server, key, account) else {
         return Ok(rows
             .into_iter()
             .filter_map(|c| {
@@ -884,7 +884,17 @@ pub fn viewer_files(
     let fail = verso_service::failed;
     let head = server.db.head(folder).map_err(fail)?;
     let generation = server.campaigns.state_generation(folder);
-    let place = (folder.to_owned(), account.to_owned());
+    // A folder's editor is told its notes whole (ADR 0113 S8): its listing
+    // is kept apart, and a role that changed is a listing made again.
+    let editor = crate::campaign::is_editor(server, folder, account);
+    let place = (
+        folder.to_owned(),
+        if editor {
+            format!("{account}\u{0}editor")
+        } else {
+            account.to_owned()
+        },
+    );
     if let Some(kept) = lock(&server.campaigns.told_files).get(&place)
         && kept.head == head
         && kept.generation == generation
@@ -892,7 +902,9 @@ pub fn viewer_files(
         return Ok(Arc::clone(&kept.files));
     }
     let rows = server.db.reader_manifest(folder).map_err(fail)?;
-    let Some(veil) = crate::campaign::veil_for_key(server, key).map(|v| v.view(account)) else {
+    let Some(veil) = crate::campaign::veil_for_key(server, key)
+        .map(|v| v.view_for(account, editor))
+    else {
         return Ok(Arc::new(
             rows.into_iter()
                 .map(|(path, hash, size)| json!({ "path": path, "hash": hash, "size": size }))

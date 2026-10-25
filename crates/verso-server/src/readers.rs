@@ -219,7 +219,7 @@ pub fn reader_view_in(
         if crate::campaign_serve::is_hidden_in(ws, veil, p) {
             return Ok(Some((String::new(), HIDDEN)));
         }
-        if veil.group_edits(p) {
+        if veil.serves_whole(p) {
             return Ok(None);
         }
     }

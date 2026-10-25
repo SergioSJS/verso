@@ -13,7 +13,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use verso_contract::{
     AccessChange, AccessException, AccessInfo, AccessLevel, AccessPlayer, AccessRow,
     AccessSetResult, AccessSetView, AccessWhy, ContractError, ErrorKind,
@@ -125,6 +125,10 @@ pub async fn get(
     if paths.is_empty() || paths.len() > MOST {
         return Err(refused("name between 1 and 500 paths"));
     }
+    // A synced device asks only what its own changes may do (ADR 0113 S8).
+    if args["brief"] == true {
+        return to_value(brief(&door, &paths));
+    }
     let key = server
         .service
         .folder_of(client)
@@ -139,6 +143,32 @@ pub async fn get(
     })
     .await?;
     to_value(infos)
+}
+
+/// What a synced device may do with each path, answered by the one
+/// judgement its writes meet (`Door::check_sync`): a path it does not see
+/// is told as a free name is — nothing of it, never an error that says it
+/// is there. `access_get` with `brief` (ADR 0113 S8).
+fn brief(door: &Door, paths: &[String]) -> Vec<Value> {
+    paths
+        .iter()
+        .map(|given| {
+            let ok = |name: &str, args: Value| door.check_sync(name, &args).is_ok();
+            let sibling = match given.rsplit_once('/') {
+                Some((dir, _)) => format!("{dir}/\u{1}renamed"),
+                None => "\u{1}renamed".to_owned(),
+            };
+            json!({
+                "path": given,
+                "see": door
+                    .full_checked(given)
+                    .is_some_and(|p| door.may_path(Action::See, &p).allowed()),
+                "put": ok("sync_put", json!({ "path": given })),
+                "delete": ok("sync_delete", json!({ "path": given })),
+                "rename": ok("sync_rename", json!({ "from": given, "to": sibling })),
+            })
+        })
+        .collect()
 }
 
 fn info(

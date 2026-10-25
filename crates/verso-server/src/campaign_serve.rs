@@ -793,7 +793,7 @@ pub fn device_bytes(
     if is_hidden_in(ws, veil, path) {
         return Err(OpError::Contract(absent()));
     }
-    if veil.group_edits(path) {
+    if veil.serves_whole(path) {
         return Ok(ws.read_file(path)?);
     }
     let text = String::from_utf8_lossy(&bytes);
