@@ -92,8 +92,8 @@ async fn grant(owner: &mut Socket, id: u64, root: &str, account: &str, on: bool)
     call(
         owner,
         id,
-        "campaign_permission",
-        json!({ "root": root, "accounts": [account], "images": on }),
+        "table_rights_set",
+        json!({ "root": root, "accounts": [account], "right": "files", "on": on }),
     )
     .await
 }
@@ -181,7 +181,7 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
         let rows = r.server.db.audit_log(Some(&c.folder), 50).unwrap();
         let n = rows
             .iter()
-            .filter(|a| a.action == "campaign_permission")
+            .filter(|a| a.action == "table_rights_set")
             .count();
         assert_eq!(n, 2, "{rows:?}");
     });

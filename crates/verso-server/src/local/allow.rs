@@ -221,7 +221,6 @@ pub const REFUSED: &[&str] = &[
     "campaign_access",
     "campaign_secret_name",
     "campaign_grant",
-    "campaign_permission",
     "campaign_invite",
     "access_get",
     "access_set",
