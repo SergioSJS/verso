@@ -549,6 +549,11 @@ impl Door {
                 list.retain(|m| sees(self, &m["from"]) || sees(self, &m["to"]));
             }
         }
+        // A warning names paths in words (the index forgetting a note): what
+        // a player cannot see is not named, so none is told.
+        if let Some(list) = answer["warnings"].as_array_mut() {
+            list.clear();
+        }
         if let Some(list) = answer["refused"].as_array_mut() {
             list.retain(|k| sees(self, &k["path"]));
         }
