@@ -152,6 +152,22 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
         .map_or_else(|| sync::off_status(config.as_deref(), &key), |s| s.status()))
 }
 
+/// What the person may do with each of `paths` of the window's synced
+/// folder, as the server last said (ADR 0113 S8): the answer the window
+/// asks of its own folder without the server, so that what it locks and
+/// unlocks is what the server will accept, online or off.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn sync_rights<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    paths: Vec<String>,
+) -> Result<verso_contract::SyncRights, ContractError> {
+    let s = syncer(&app, &window)?;
+    let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    Ok(s.rights_told(config.as_deref(), &paths))
+}
+
 /// Sync the window's folder with a folder of a server the app is signed
 /// in to: `folder`, one there by id, or a new one named `name` (item 1; a
 /// name the server has already becomes `name (2)`, never a merge).
