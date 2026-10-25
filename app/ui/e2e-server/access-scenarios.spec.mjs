@@ -313,12 +313,7 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     expect(moved.error, JSON.stringify(moved)).toBeFalsy();
     expect(moved.path).toBe("Diario/Zqsombra 3.md");
     // Bruno sees Ana's notes of the folder (it is shared with the table) and nothing of the hidden one.
-    await expect
-      .poll(async () => {
-        await reveal(bruno.page, "Diario");
-        return bruno.page.locator('#notes li[data-path="Diario/Zqsombra 2.md"]').count();
-      }, { timeout: 30_000 })
-      .toBe(1);
+    await expect.poll(async () => (await entries(bruno.page)).includes("Diario/Zqsombra 2.md"), { timeout: 30_000 }).toBe(true);
     expect(await traces(bruno.page, ["zqcorposombra", "Zqsombra.md"])).toEqual([]);
   });
 });
@@ -375,12 +370,7 @@ test("e. the game master moves a file with its own access into another folder: i
     const wrote = await tryInvoke(ana.page, "write_note", { path: "B/Zqitem.md", text: `${read.text}\nAna foi aqui\n`, revision: read.revision });
     expect(wrote.error, JSON.stringify(wrote)).toBeFalsy();
     expect((await invoke(gm, "read_note", { path: "B/Zqitem.md" })).text).toContain("Ana foi aqui");
-    await expect
-      .poll(async () => {
-        await reveal(bruno.page, "B");
-        return bruno.page.locator('#notes li[data-path="B/Base.md"]').count();
-      }, { timeout: 30_000 })
-      .toBe(1);
+    await expect.poll(async () => (await entries(bruno.page)).includes("B/Base.md"), { timeout: 30_000 }).toBe(true);
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
     expect(JSON.stringify(await entries(bruno.page))).not.toContain("Zqitem");
   });
