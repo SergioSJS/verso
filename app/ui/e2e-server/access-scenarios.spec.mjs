@@ -308,3 +308,58 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
 
 /** The paths the core lists for a window. */
 const listedTo = async (page) => invoke(page, "list_files", {});
+
+test("e. the game master moves a file with its own access into another folder: it keeps it, as an exception of the new folder", async ({ browser, page: gm }, info) => {
+  const files = { "A/Zqitem.md": "# Zqitem\n\nzqcorpoitem\n", "A/Outro.md": "# Outro\n", "B/Base.md": "# Base\n" };
+  await scenario(browser, gm, info, "mover", files, async ({ folder, ana, bruno, set, id }) => {
+    await applyFolder(gm, "A", [["Toda a mesa", "Vê"]]);
+    await applyFolder(gm, "B", [["Toda a mesa", "Vê"]]);
+    await gm.keyboard.press("Escape");
+    // The file has its own access: only Ana, and she edits.
+    await set(["A/Zqitem.md"], "none", { Ana: "edit" });
+    await openFolder(ana.page, folder.id);
+    await openFolder(bruno.page, folder.id);
+    await reveal(ana.page, "A");
+    await reveal(bruno.page, "A");
+    await expect(ana.page.locator('#notes li[data-path="A/Zqitem.md"]')).toBeVisible({ timeout: 30_000 });
+    await expect(bruno.page.locator('#notes li[data-path="A/Outro.md"]')).toBeVisible({ timeout: 30_000 });
+    expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
+    // In A's dialog it is an exception.
+    const before = await accessDialog(gm, "A", true);
+    await expect(before.locator(".ac-ex-list")).toContainText("A/Zqitem.md");
+    await gm.keyboard.press("Escape");
+
+    // The move.
+    const moved = await invoke(gm, "rename_entry", { from: "A/Zqitem.md", to: "B/Zqitem.md" });
+    expect(moved.path).toBe("B/Zqitem.md");
+    const own = (await invoke(gm, "access_get", { paths: ["B/Zqitem.md"] }))[0];
+    expect(own.own, "the file has its own access").toBeTruthy();
+    expect(own.own.whole).toBe("none");
+    expect(own.own.rows).toEqual([{ account: id("Ana"), level: "edit" }]);
+
+    // The new folder's dialog shows it as an exception: Ana edits; the old folder lists none.
+    const after = await accessDialog(gm, "B", true);
+    await expect(after.locator(".ac-ex-list")).toContainText("B/Zqitem.md");
+    await expect(after.locator(".ac-ex-list")).toContainText("Ana edita");
+    await expect(after).toContainText("Exceções (1)");
+    await gm.keyboard.press("Escape");
+    const old = await accessDialog(gm, "A", true);
+    await expect(old).toContainText("Exceções (0)");
+    await gm.keyboard.press("Escape");
+    // The file's dialog says it is its own, as an exception of B.
+    const file = await accessDialog(gm, "B/Zqitem.md");
+    await expect(file).toContainText("Acesso próprio (exceção de “B”)");
+    await gm.keyboard.press("Escape");
+
+    // Ana still has it, in B, and edits it; Bruno has no word of it.
+    await expect.poll(async () => (await invoke(ana.page, "list_files", {})).includes("B/Zqitem.md"), { timeout: 30_000 }).toBe(true);
+    const read = await invoke(ana.page, "read_note", { path: "B/Zqitem.md" });
+    const wrote = await tryInvoke(ana.page, "write_note", { path: "B/Zqitem.md", text: `${read.text}\nAna foi aqui\n`, revision: read.revision });
+    expect(wrote.error, JSON.stringify(wrote)).toBeFalsy();
+    expect((await invoke(gm, "read_note", { path: "B/Zqitem.md" })).text).toContain("Ana foi aqui");
+    await reveal(bruno.page, "B");
+    await expect(bruno.page.locator('#notes li[data-path="B/Base.md"]')).toBeVisible({ timeout: 30_000 });
+    expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
+    expect(JSON.stringify(await invoke(bruno.page, "list_files", {}))).not.toContain("Zqitem");
+  });
+});
