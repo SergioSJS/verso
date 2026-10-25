@@ -189,6 +189,39 @@ fn a_name_taken_by_something_hidden_is_never_answered_as_taken() {
     });
 }
 
+/// The window names a note without its extension (`renameNote`) and the core
+/// gives it `.md`: the name judged, and looked for among the taken ones, is the
+/// one that will be made (found by the S9 end-to-end test: a player's rename
+/// was refused as "you may only read", and onto a hidden name it would have
+/// answered "exists").
+#[test]
+fn a_notes_rename_by_a_name_without_its_extension_is_judged_as_the_note_it_makes() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let mut cid = editor(&m).await;
+        // A free name: the note is renamed, and keeps `.md`.
+        let free = cid
+            .call("rename_entry", json!({ "from": "Livre.md", "to": "Nova" }))
+            .await;
+        assert_eq!(free["ok"]["path"], "Nova.md", "{free}");
+        // A name something hidden holds: the next free one, never "exists".
+        let hidden = cid
+            .call("rename_entry", json!({ "from": "Nova.md", "to": "Barão Zq" }))
+            .await;
+        assert_eq!(hidden["ok"]["path"], "Barão Zq 2.md", "{hidden}");
+        assert!(!hidden.to_string().contains("exists"), "{hidden}");
+        // A name the player sees is taken, as ever.
+        let taken = cid
+            .call(
+                "rename_entry",
+                json!({ "from": "Barão Zq 2.md", "to": "Aberta" }),
+            )
+            .await;
+        assert_eq!(taken["err"]["kind"], "exists", "{taken}");
+    });
+}
+
 #[test]
 fn a_folder_that_holds_what_a_player_does_not_see_is_not_theirs_to_rename() {
     block_on(async {

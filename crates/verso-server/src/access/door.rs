@@ -224,6 +224,18 @@ impl Door {
             .map_or_else(String::new, |(d, _)| d.to_owned())
     }
 
+    /// Where a rename of `from` to `to` lands: a note is named without its
+    /// extension by the window, and the core gives it `.md` as it does at
+    /// `note_key`, so the name that is judged — and looked for among the
+    /// taken ones — is the one that will be made.
+    fn rename_target(from: &str, to: String) -> String {
+        if from.ends_with(".md") && !to.ends_with(".md") {
+            format!("{to}.md")
+        } else {
+            to
+        }
+    }
+
     /// The path a new note named `name` will have.
     fn note_path(name: &str) -> String {
         if name
@@ -275,6 +287,7 @@ impl Door {
             },
             "rename_note" | "rename_entry" => match (path_of("from"), path_of("to")) {
                 (Some(from), Some(to)) => {
+                    let to = Self::rename_target(&from, to);
                     let (a, b) = (Self::parent(&from), Self::parent(&to));
                     if a == b {
                         // A rename inside a folder: the player sees the file
@@ -521,9 +534,16 @@ impl Door {
             "create_file" | "create_folder" => {
                 ("path", args["path"].as_str().map(|p| self.full(p)), false)
             }
-            "rename_note" | "rename_entry" => {
-                ("to", args["to"].as_str().map(|p| self.full(p)), false)
-            }
+            "rename_note" | "rename_entry" => (
+                "to",
+                match (args["from"].as_str(), args["to"].as_str()) {
+                    (Some(from), Some(to)) => {
+                        Some(Self::rename_target(&self.full(from), self.full(to)))
+                    }
+                    _ => None,
+                },
+                false,
+            ),
             _ => return Ok(()),
         };
         let Some(wanted) = wanted else {
