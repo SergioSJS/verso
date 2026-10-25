@@ -113,6 +113,27 @@ fn secret_blocks(text: &str) -> u32 {
     n
 }
 
+/// The text of the text cards of a board that a player who edits it is
+/// shown: every text node but a secret pin.
+fn board_texts(json: &str) -> String {
+    let Ok(v) = serde_json::from_str::<Value>(json) else {
+        return String::new();
+    };
+    v["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|n| {
+            matches!(
+                n.pointer("/verso/secret"),
+                None | Some(Value::Null | Value::Bool(false))
+            )
+        })
+        .filter_map(|n| n["text"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// `access_get`: the access of each path named.
 pub async fn get(
     server: &Arc<Server>,
@@ -177,10 +198,12 @@ fn info(
         if !manage {
             under.retain(|f| !crate::campaign_serve::is_hidden_in(ws, &viewer, f));
         }
-        let text = if !folder && Kind::of_path(&p) == Kind::Note {
-            ws.read_note(&p).ok().map(|n| n.text)
-        } else {
-            None
+        let text = match Kind::of_path(&p) {
+            Kind::Note if !folder => ws.read_note(&p).ok().map(|n| n.text),
+            // A board's text cards are notes to whoever edits it (ADR 0113
+            // H); a secret pin is not shown to them at all.
+            Kind::Board if !folder => ws.read_text(&p).ok().map(|t| board_texts(&t.text)),
+            _ => None,
         };
         Ok((folder, under, text))
     })?;

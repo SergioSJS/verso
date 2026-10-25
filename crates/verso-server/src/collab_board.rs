@@ -188,6 +188,21 @@ impl Board {
         Ok(())
     }
 
+    /// The file a player's window made, laid over the disk's, kept for the
+    /// state `doc` holds now.
+    pub fn keep_now(&mut self, doc: &Doc, json: String) -> Result<(), ContractError> {
+        if json.len() > CANVAS_MOST {
+            return Err(refused("a board's file of 16 MB at most"));
+        }
+        let at = doc.transact().state_vector();
+        self.canvases.retain(|(sv, _)| *sv != at);
+        self.canvases.push((at, json));
+        if self.canvases.len() > CANVASES_KEPT {
+            self.canvases.remove(0);
+        }
+        Ok(())
+    }
+
     /// The file a window made of exactly the state `doc` holds now.
     pub fn canvas_now(&self, doc: &Doc) -> Option<String> {
         let now = doc.transact().state_vector();
@@ -230,7 +245,7 @@ impl Board {
 }
 
 /// An entry's key: the element's id, its version and its nonce.
-fn parse_key(key: &str) -> Option<(&str, i64, i64)> {
+pub(crate) fn parse_key(key: &str) -> Option<(&str, i64, i64)> {
     let mut parts = key.rsplitn(3, '\n');
     let nonce = parts.next()?.parse().ok()?;
     let version = parts.next()?.parse().ok()?;

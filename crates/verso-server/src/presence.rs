@@ -209,6 +209,25 @@ pub fn named_only(bytes: &[u8]) -> Result<Vec<u8>, String> {
     Ok(encode(&entries))
 }
 
+/// A presence already stamped, its `selected` ids kept to those `keep`
+/// names: a player is never told the id of an element it does not see, not
+/// even as someone's selection (ADR 0113 section H).
+pub fn keep_selected(bytes: &[u8], keep: &dyn Fn(&str) -> bool) -> Result<Vec<u8>, String> {
+    let entries = decode(bytes)?
+        .into_iter()
+        .map(|mut e| {
+            if let Ok(mut v) = serde_json::from_str::<Value>(&e.state)
+                && let Some(list) = v.get_mut("selected").and_then(Value::as_array_mut)
+            {
+                list.retain(|x| x.as_str().is_some_and(keep));
+                e.state = v.to_string();
+            }
+            e
+        })
+        .collect::<Vec<_>>();
+    Ok(encode(&entries))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
