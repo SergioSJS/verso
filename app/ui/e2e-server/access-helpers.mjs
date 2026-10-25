@@ -266,5 +266,5 @@ export async function applyFolder(gm, path, choices) {
   return dialog;
 }
 
-/** The paths a player's window lists (the core's answer, not the tree). */
-export const listed = async (page) => (await invoke(page, "list_files", {})).map((f) => f.path ?? f);
+/** Every path of the folder the core lists for a window (notes, boards, files and folders; not the tree). */
+export const entries = async (page) => (await invoke(page, "list_entries", {})).map((e) => e.path);

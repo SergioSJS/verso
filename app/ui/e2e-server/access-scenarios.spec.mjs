@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PDF, PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -61,7 +61,7 @@ test("a. Ana drags the map from the chat onto her sheet and it is linked; Bruno,
       expect((await switcher(p, "Zqsegredo")).join("|")).not.toContain("Zqsegredo");
       await p.keyboard.press("Escape");
       expect(await traces(p, ["Zqsegredo", "zqcorpo"])).toEqual([]);
-      expect(JSON.stringify(await invoke(p, "list_files", {}))).not.toContain("Zqsegredo");
+      expect(JSON.stringify(await entries(p))).not.toContain("Zqsegredo");
     }
   });
 });
@@ -216,12 +216,12 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
     // The tab she had open on it stays as she left it, saying it cannot be opened: she closes it.
-    await expect(ana.page.locator(".leaf:not([hidden])")).not.toContainText("zqmarcatav", { timeout: 30_000 });
+    await expect(ana.page.locator(".leaf.failed")).toHaveCount(1, { timeout: 30_000 });
     await closeTabs(ana.page);
     expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
     await ana.page.keyboard.press("Escape");
     expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
-    expect(JSON.stringify(await invoke(ana.page, "list_files", {}))).not.toContain("Zqtaverna");
+    expect(JSON.stringify(await entries(ana.page))).not.toContain("Zqtaverna");
     expect(await treeOf(bruno.page)).toEqual([true, true]);
     // The folder's exception keeps the rest following the folder.
     await openNoteBy(ana.page, "Ponte");
@@ -274,7 +274,7 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     await pickMenu(ana.page, "Novo", "Nova nota nesta pasta");
     await ana.page.locator("input.new-note").fill("Sessao um");
     await ana.page.locator("input.new-note").press("Enter");
-    await expect.poll(async () => (await invoke(gm, "list_files", {})).includes("Diario/Sessao um.md"), { timeout: 30_000 }).toBe(true);
+    await expect.poll(async () => (await entries(gm)).includes("Diario/Sessao um.md"), { timeout: 30_000 }).toBe(true);
     await expect(mine("Sessao um")).toBeVisible({ timeout: 30_000 });
 
     // She renames it, from the note's menu.
@@ -282,7 +282,7 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     await ana.page.getByRole("menuitem", { name: "Renomear", exact: true }).click();
     await ana.page.locator("input.rename").fill("Sessao dois");
     await ana.page.locator("input.rename").press("Enter");
-    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.startsWith("Diario/Sessao")), { timeout: 30_000 }).toEqual(["Diario/Sessao dois.md"]);
+    await expect.poll(async () => (await entries(gm)).filter((f) => f.startsWith("Diario/Sessao")), { timeout: 30_000 }).toEqual(["Diario/Sessao dois.md"]);
     await expect(mine("Sessao dois")).toBeVisible({ timeout: 30_000 });
 
     // She cannot delete it: no row in the menu, and the command is refused.
@@ -292,20 +292,20 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     await ana.page.keyboard.press("Escape");
     const refused = await tryInvoke(ana.page, "delete_entry", { path: "Diario/Sessao dois.md" });
     expect(refused.error, JSON.stringify(refused)).toBeTruthy();
-    expect(await invoke(gm, "list_files", {})).toContain("Diario/Sessao dois.md");
+    expect(await entries(gm)).toContain("Diario/Sessao dois.md");
 
     // A name that a hidden file holds: the silent suffix, no word of the hidden one.
     await ana.page.locator('#notes summary[data-folder="Diario"]').click({ button: "right" });
     await pickMenu(ana.page, "Novo", "Nova nota nesta pasta");
     await ana.page.locator("input.new-note").fill("Zqsombra");
     await ana.page.locator("input.new-note").press("Enter");
-    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.startsWith("Diario/Zqsombra")).sort(), { timeout: 30_000 }).toEqual(["Diario/Zqsombra 2.md", "Diario/Zqsombra.md"]);
+    await expect.poll(async () => (await entries(gm)).filter((f) => f.startsWith("Diario/Zqsombra")).sort(), { timeout: 30_000 }).toEqual(["Diario/Zqsombra 2.md", "Diario/Zqsombra.md"]);
     await expect(mine("Zqsombra 2")).toBeVisible({ timeout: 30_000 });
     await expect(ana.page.locator("#status")).not.toContainText(/exist|já|outro nome/i);
     expect(await ana.page.locator('#notes li[data-path="Diario/Zqsombra.md"]').count()).toBe(0);
     // Her own file is hers; the hidden one's body is in no page of hers.
     expect(await traces(ana.page, ["zqcorposombra"])).toEqual([]);
-    expect(await listedTo(ana.page)).not.toContain("Diario/Zqsombra.md");
+    expect(await entries(ana.page)).not.toContain("Diario/Zqsombra.md");
     // The same through the contract: a rename onto the hidden name is also suffixed, never "exists".
     const moved = await tryInvoke(ana.page, "rename_entry", { from: "Diario/Sessao dois.md", to: "Diario/Zqsombra.md" });
     expect(moved.error, JSON.stringify(moved)).toBeFalsy();
@@ -316,9 +316,6 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     expect(await traces(bruno.page, ["zqcorposombra", "Zqsombra.md"])).toEqual([]);
   });
 });
-
-/** The paths the core lists for a window. */
-const listedTo = async (page) => invoke(page, "list_files", {});
 
 test("e. the game master moves a file with its own access into another folder: it keeps it, as an exception of the new folder", async ({ browser, page: gm }, info) => {
   const files = { "A/Zqitem.md": "# Zqitem\n\nzqcorpoitem\n", "A/Outro.md": "# Outro\n", "B/Base.md": "# Base\n" };
@@ -345,7 +342,7 @@ test("e. the game master moves a file with its own access into another folder: i
     await gm.getByRole("menuitem", { name: "Mover para…", exact: true }).click();
     await gm.locator("input.new-note").fill("B");
     await gm.locator("input.new-note").press("Enter");
-    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.endsWith("Zqitem.md")), { timeout: 30_000 }).toEqual(["B/Zqitem.md"]);
+    await expect.poll(async () => (await entries(gm)).filter((f) => f.endsWith("Zqitem.md")), { timeout: 30_000 }).toEqual(["B/Zqitem.md"]);
     await expect(gm.locator('#notes li[data-path="B/Zqitem.md"]')).toBeVisible({ timeout: 30_000 });
     const own = (await invoke(gm, "access_get", { paths: ["B/Zqitem.md"] }))[0];
     expect(own.own, "the file has its own access").toBeTruthy();
@@ -367,7 +364,7 @@ test("e. the game master moves a file with its own access into another folder: i
     await gm.keyboard.press("Escape");
 
     // Ana still has it, in B, and edits it; Bruno has no word of it.
-    await expect.poll(async () => (await invoke(ana.page, "list_files", {})).includes("B/Zqitem.md"), { timeout: 30_000 }).toBe(true);
+    await expect.poll(async () => (await entries(ana.page)).includes("B/Zqitem.md"), { timeout: 30_000 }).toBe(true);
     const read = await invoke(ana.page, "read_note", { path: "B/Zqitem.md" });
     const wrote = await tryInvoke(ana.page, "write_note", { path: "B/Zqitem.md", text: `${read.text}\nAna foi aqui\n`, revision: read.revision });
     expect(wrote.error, JSON.stringify(wrote)).toBeFalsy();
@@ -375,7 +372,7 @@ test("e. the game master moves a file with its own access into another folder: i
     await reveal(bruno.page, "B");
     await expect(bruno.page.locator('#notes li[data-path="B/Base.md"]')).toBeVisible({ timeout: 30_000 });
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
-    expect(JSON.stringify(await invoke(bruno.page, "list_files", {}))).not.toContain("Zqitem");
+    expect(JSON.stringify(await entries(bruno.page))).not.toContain("Zqitem");
   });
 });
 
@@ -424,7 +421,7 @@ test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game mas
     await expect(attach).toBeHidden({ timeout: 15_000 });
     for (const p of [ana.page, bruno.page]) {
       expect(await traces(p, ["Zqsegredo", "zqcorpo"])).toEqual([]);
-      expect(JSON.stringify(await invoke(p, "list_files", {}))).not.toContain("Zqsegredo");
+      expect(JSON.stringify(await entries(p))).not.toContain("Zqsegredo");
     }
   });
 });
