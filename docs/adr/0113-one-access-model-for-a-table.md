@@ -784,3 +784,15 @@ keeps `reader` for a reader of the folder until S7's room answers for the
 player's elements; (4) after a restart offline, an editor's see-only notes
 show unlocked until the first online pass (the memo keeps only what may be
 changed).
+
+Review fixes (2026-10-25): `brief` answers one fixed tuple for a path that is
+not seen or does not exist (`see`, `delete`, `rename` false; `put` is the
+free-name rule, Create on the parent), so no answer tells a hidden file from a
+free name; a device is served a note whole only with a credential that writes
+(the pipeline and `check_sync` ask `view_for(account, editor, writes)`), as the
+window is; only a folder with no table is "no answer" (the role decides), any
+other failure keeps the last memo; the memo is looked up by the name as the
+server compares names (case, NFC); a change held apart for a file no longer
+shared says so (`unshared`); and the edit of a file the person may not send is
+set aside as a conflict copy once (the same bytes are not copied again at each
+change of the server).

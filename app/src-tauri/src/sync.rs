@@ -193,11 +193,13 @@ impl Syncer {
         let asked = lock(&self.rights_asked);
         let files = paths
             .iter()
-            .filter(|p| writes.contains_key(*p) || asked.contains(*p))
+            .filter(|p| {
+                writes.contains_key(&engine::folded(p)) || asked.contains(&engine::folded(p))
+            })
             .map(|p| SyncRight {
                 path: p.clone(),
                 access: FileAccess {
-                    level: if writes.get(p).is_some_and(|r| r.put) {
+                    level: if writes.get(&engine::folded(p)).is_some_and(|r| r.put) {
                         AccessLevel::Edit
                     } else {
                         AccessLevel::See
@@ -228,7 +230,8 @@ impl Syncer {
         if self.rights_mode.load(Ordering::Relaxed) == RIGHTS_BY_ROLE {
             return role != "reader";
         }
-        synced(config, &self.key).is_some_and(|st| st.access.get(path).is_some_and(|r| r.put))
+        synced(config, &self.key)
+            .is_some_and(|st| st.access.get(&engine::folded(path)).is_some_and(|r| r.put))
     }
 
     /// A note made here from its template, with the text it was made with
@@ -883,12 +886,11 @@ fn judged(
         }
     }
     if stale {
-        want.extend(state.access.keys().cloned());
         want.extend(theirs.keys().cloned());
         want.extend(ours.keys().cloned());
     } else {
         let asked = lock(&s.rights_asked);
-        want.retain(|p| !asked.contains(p));
+        want.retain(|p| !asked.contains(&engine::folded(p)));
     }
     if want.is_empty() {
         return Ok(false);
@@ -906,12 +908,12 @@ fn judged(
         s.rights_stale.store(false, Ordering::Relaxed);
     }
     for p in &list {
-        state.access.remove(p);
-        asked.insert(p.clone());
+        state.access.remove(&engine::folded(p));
+        asked.insert(engine::folded(p));
     }
     for (p, r) in answers {
         if r.writes() {
-            state.access.insert(p, r);
+            state.access.insert(engine::folded(&p), r);
         }
     }
     Ok(false)

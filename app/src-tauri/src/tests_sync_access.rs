@@ -111,8 +111,8 @@ fn a_players_device_sends_the_notes_it_edits_keeps_the_others_here_and_is_told_n
     let kept = engine::load(d.ctx.config.as_deref(), &d.key)
         .unwrap()
         .unwrap();
-    assert!(kept.access["Edita.md"].put, "{:?}", kept.access);
-    assert!(!kept.access.contains_key("Le.md"));
+    assert!(kept.access["edita.md"].put, "{:?}", kept.access);
+    assert!(!kept.access.contains_key("le.md"));
     assert!(d.s.may_send(d.ctx.config.as_deref(), "Edita.md"));
     assert!(!d.s.may_send(d.ctx.config.as_deref(), "Le.md"));
     let _ = bia;
@@ -248,4 +248,82 @@ fn a_players_board_is_never_sent_whole_even_when_they_edit_it() {
     );
     assert_eq!(here(&d), ["Mapa.canvas"]);
     assert!(!d.s.may_send(d.ctx.config.as_deref(), "Mapa.canvas"));
+}
+
+#[test]
+fn a_change_held_apart_for_a_file_no_longer_shared_says_so() {
+    let (r, owner, _bia) = table();
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    give(&owner, "Le.md", &set("none", &[]));
+    d.s.rights_stale();
+    // Edited here before the device hears it is gone: the edit stays.
+    write(&d, "Le.md", b"# Le\n\nminha\n");
+    sync(&d);
+    sync(&d);
+    assert_eq!(here(&d), ["Edita.md", "Le.md"]);
+    assert_eq!(refused(&d), [("Le.md".to_owned(), "unshared".to_owned())]);
+    assert_eq!(on_server(&owner, "Le.md").as_deref(), Some("# Le\n"));
+}
+
+#[test]
+fn a_read_only_files_edit_is_set_aside_once_not_again_for_each_change_of_the_server() {
+    let (r, owner, _bia) = table();
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    let mine = b"# Le\n\nminha\n";
+    let copies = |d: &Device| {
+        here(d)
+            .into_iter()
+            .filter(|p| p.starts_with("Le (conflict") || p.starts_with("Le (conflito"))
+            .count()
+    };
+    for round in 1..=3 {
+        write(&d, "Le.md", mine);
+        owner
+            .call(
+                "write_text",
+                json!({ "path": "Le.md", "text": format!("# Le {round}\n"), "revision": null }),
+            )
+            .ok();
+        let read = owner.call("read_note", json!({ "path": "Le.md" })).unwrap();
+        owner
+            .call(
+                "write_note",
+                json!({ "path": "Le.md", "text": format!("# Le {round}\n"), "revision": read["revision"] }),
+            )
+            .unwrap();
+        sync(&d);
+        sync(&d);
+        assert_eq!(copies(&d), 1, "round {round}: {:?}", here(&d));
+    }
+}
+
+#[test]
+fn the_memo_finds_a_file_whatever_the_case_or_unicode_form_of_its_name() {
+    let r = serve(&[("Caf\u{e9}.md", "# Cafe\n")]);
+    let owner = browser(&r, &r.owner);
+    owner.call("reindex", json!({})).unwrap();
+    owner.call("campaign_make", json!({ "root": "" })).unwrap();
+    owner
+        .call("campaign_settings", json!({ "root": "", "open": true }))
+        .unwrap();
+    let bia = r
+        .server
+        .upgrade()
+        .unwrap()
+        .db
+        .account_by_email("bia@casa.lan")
+        .unwrap()
+        .unwrap()
+        .id;
+    give(&owner, "Caf\u{e9}.md", &set("see", &[(&bia, "edit")]));
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    for spelling in ["Cafe\u{301}.md", "caf\u{e9}.md", "CAFE\u{301}.md"] {
+        assert!(
+            d.s.may_send(d.ctx.config.as_deref(), spelling),
+            "{spelling:?}"
+        );
+    }
 }

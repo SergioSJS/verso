@@ -79,6 +79,7 @@ const pt = {
   refused: "Não sincronizados",
   reasons: {
     reader: "você só lê a pasta no servidor",
+    unshared: "este arquivo não é mais compartilhado com você; a sua cópia fica aqui",
     quota: "a pasta chegou à cota do servidor",
     placeholder: "não está neste computador (armazenamento sob demanda)",
     too_large: "maior que 1 GiB",
@@ -175,6 +176,7 @@ const en: typeof pt = {
   refused: "Not synced",
   reasons: {
     reader: "you only read the folder on the server",
+    unshared: "this file is no longer shared with you; your copy stays here",
     quota: "the folder reached the server's quota",
     placeholder: "not on this computer (on-demand storage)",
     too_large: "larger than 1 GiB",

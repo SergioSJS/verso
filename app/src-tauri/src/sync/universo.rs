@@ -280,9 +280,10 @@ impl Remote for Universo {
             let (answer, _) =
                 match self.ask("access_get", json!({ "paths": chunk, "brief": true }), None) {
                     Ok(a) => a,
-                    // An old server, or one that does not answer this for the
-                    // folder: the role decides, as it always did.
-                    Err(e) if e.kind == RemoteErrorKind::Failed => return Ok(None),
+                    // An old server's folder with no table refuses it: the role
+                    // decides. Anything else (a connection lost, a server busy)
+                    // is the pass's error, and the last memo stands.
+                    Err(e) if e.message.contains("not inside a table") => return Ok(None),
                     Err(e) => return Err(e),
                 };
             let Some(list) = answer.as_array() else {

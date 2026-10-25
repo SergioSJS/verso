@@ -222,3 +222,84 @@ fn what_a_device_may_do_is_answered_by_the_one_judgement_and_a_hidden_path_like_
         assert_eq!(o["ok"][0]["put"], true, "{o}");
     });
 }
+
+fn same_but_path(a: &Value, b: &Value) -> bool {
+    ["see", "put", "delete", "rename"]
+        .iter()
+        .all(|k| a[k] == b[k])
+}
+
+/// A hidden file and a free name are one answer, whatever the folder's set
+/// and the role: nothing in `brief` tells them apart (BLOCKING if it did).
+#[test]
+fn a_hidden_file_and_a_free_name_are_one_answer_across_sets_and_roles() {
+    block_on(async {
+        let mut m = mesa().await;
+        let mut cid = cid(&m).await;
+        for whole in ["none", "see", "edit"] {
+            let folder = json!({ "kind": "set", "secret_name": null,
+                "set": { "whole": whole, "rows": [] } });
+            let a = m
+                .owner
+                .call("access_set", json!({ "paths": [""], "change": folder }))
+                .await;
+            assert!(a.get("ok").is_some(), "{a}");
+            // The hidden note keeps an own set of none under every folder set.
+            let none = json!({ "kind": "set", "secret_name": null,
+                "set": { "whole": "none", "rows": [] } });
+            let a = m
+                .owner
+                .call(
+                    "access_set",
+                    json!({ "paths": ["Barão Zq.md"], "change": none }),
+                )
+                .await;
+            assert!(a.get("ok").is_some(), "{a}");
+            let paths = json!(["Barão Zq.md", "Nada Zq.md", "Mundo Zq/Nada Zq.md"]);
+            for (who, w) in [("ana", &mut m.ana), ("cid", &mut cid)] {
+                let r = w
+                    .call("access_get", json!({ "paths": paths, "brief": true }))
+                    .await;
+                let list = r["ok"].as_array().expect("an array").clone();
+                assert!(
+                    same_but_path(&list[0], &list[1]),
+                    "{who}, folder {whole}: {} / {}",
+                    list[0],
+                    list[1]
+                );
+                assert_eq!(list[0]["see"], false);
+                assert_eq!(list[0]["delete"], false);
+                assert_eq!(list[0]["rename"], false);
+            }
+        }
+    });
+}
+
+/// A read-only credential of an account that edits a note is told the
+/// projection, as its window is, and puts nothing.
+#[test]
+fn a_read_only_credential_of_an_editing_account_is_told_the_projection() {
+    block_on(async {
+        let mut m = mesa().await;
+        let text = livre_for_ana(&mut m).await;
+        let mut cid = cid(&m).await;
+        let whole = crate::sync::sha256(text.as_bytes());
+        for w in [&mut m.ana, &mut cid] {
+            let state = w.call("sync_state", json!({})).await;
+            assert_eq!(hash_of(&state, "Livre.md").unwrap(), whole);
+        }
+        for c in verso_service::lock(&m.r.server.clients).values_mut() {
+            if c.account == m.ana_id || c.account != m.bia_id {
+                c.token_write = false;
+            }
+        }
+        for w in [&mut m.ana, &mut cid] {
+            let state = w.call("sync_state", json!({})).await;
+            let h = hash_of(&state, "Livre.md").unwrap();
+            assert_ne!(h, whole, "{state}");
+            assert!(!read(w, "Livre.md").await.contains(SECRET));
+            let no = w.call("sync_put", put("Livre.md", "x\n", Some(&h))).await;
+            assert!(refused(&no), "{no}");
+        }
+    });
+}

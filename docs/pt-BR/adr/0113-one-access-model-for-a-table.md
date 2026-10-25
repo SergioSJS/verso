@@ -784,3 +784,16 @@ board no desktop mantém `reader` para leitor da pasta até a sala de S7 respond
 pelos elementos do jogador; (4) após reiniciar offline, as notas que um editor
 só vê aparecem destravadas até a primeira passada online (o memo guarda só o
 que pode ser alterado).
+
+Correções da revisão (2026-10-25): `brief` responde uma tupla fixa para um
+caminho que não é visto ou não existe (`see`, `delete`, `rename` falsos; `put`
+é a regra do nome livre, Criar na pasta de cima), de modo que nenhuma resposta
+distingue um arquivo oculto de um nome livre; um dispositivo recebe uma nota
+inteira só com credencial que escreve (o pipeline e `check_sync` consultam
+`view_for(account, editor, writes)`), como a janela; só uma pasta sem mesa é
+"sem resposta" (o papel decide), qualquer outra falha mantém o último memo; o
+memo é consultado pelo nome como o servidor compara nomes (caixa, NFC); uma
+mudança posta à parte por um arquivo que deixou de ser compartilhado diz isso
+(`unshared`); e a edição de um arquivo que a pessoa não pode enviar é posta de
+lado como cópia de conflito uma só vez (os mesmos bytes não são copiados de
+novo a cada mudança do servidor).

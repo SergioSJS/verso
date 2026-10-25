@@ -249,6 +249,7 @@ async fn changes(
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
     if crate::readers::reads_only(server, who, client)? && own_log(server, &key).await? {
+        let writes = crate::access::Door::of(server, who, client)?.sends_whole_cap();
         let (s, f, a, rs, sc, c) = (
             Arc::clone(server),
             crate::rpc::role_here(server, client)?.0,
@@ -262,7 +263,14 @@ async fn changes(
             let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
             let shape = |v: Value| change(&sc, v);
             let size = i64::try_from(PAGE).unwrap_or(1000);
-            crate::campaign_sync::viewer_share_page(&s, (&f, &key), &a, &rs, (asked, size), &shape)
+            crate::campaign_sync::viewer_share_page(
+                &s,
+                (&f, &key),
+                (&a, writes),
+                &rs,
+                (asked, size),
+                &shape,
+            )
         })
         .await;
     }
