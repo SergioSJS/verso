@@ -43,6 +43,7 @@ import { settings } from "../../settings";
 import { slashKeymap } from "../../slash";
 import { LOCALE, t } from "../../strings";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "../../table";
+import { sendable } from "../../table/send";
 import { focusedAlign, focusTableCell, tableAction, tableHasFocus } from "../../tableEditor";
 import { Mode, NoteLeaf } from "../note";
 import { fromDisk, readOnlyText } from "../text";
@@ -323,7 +324,7 @@ export async function attachFromPicker(this: NoteLeaf, camera: boolean): Promise
  *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
 export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boolean {
   if (!files || files.length === 0 || !this.note || this.readOnly) return false;
-  const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+  const images = Array.from(files).filter((f) => f.type.startsWith("image/") || (seat() === "player" && sendable(f)));
   if (images.length === 0) return false;
   e.preventDefault();
   void (async () => {
@@ -346,7 +347,7 @@ export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boo
 export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: boolean; name?: string } = {}): Promise<string | null> {
   const said = f.name || opts.name || "";
   // A phone may give no type for a HEIC picture: its extension says.
-  if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name)) {
+  if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name) && !(seat() === "player" && sendable(f))) {
     ui.status.textContent = a.notImage(said);
     return null;
   }
