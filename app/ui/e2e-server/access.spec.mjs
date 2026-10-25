@@ -125,7 +125,7 @@ async function say(view, text) {
 
 
 const ENTRY = '.table-entry';
-const sheetDoc = (page) => page.evaluate(() => document.querySelector(".note-sheet .editor").__cmView.state.doc.toString());
+const sheetDoc = (page) => page.evaluate(() => document.querySelector(".leaf:not([hidden]) .note-sheet .editor").__cmView.state.doc.toString());
 const files = async (gm) => (await invoke(gm, "list_files", {})).length;
 
 /** `entry` dragged by the pointer to the middle of the editor's last line. */
@@ -148,7 +148,7 @@ async function openSheet(page, name) {
   await box.fill(name);
   await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
   await box.press("Enter");
-  await expect(page.locator(".note-sheet")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".leaf:not([hidden]) .note-sheet")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Editar", exact: true }).first().click();
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
 }
