@@ -111,9 +111,9 @@ export async function setup(browser, gm, info, label, files) {
     window.__VERSO_TEST__ = {};
   });
   await signedIn(gm, ADMIN.email, ADMIN.password);
-  const folder = await api(gm, "POST", "/api/folders", { name: `Cenario ${tag}` });
+  const folder = await api(gm, "POST", "/api/folders", { name: `Zz cenario ${tag}` });
   await gm.goto(`/?folder=${folder.id}`);
-  await expect(gm.locator("#folder")).toHaveText(`Cenario ${tag}`, { timeout: 30_000 });
+  await expect(gm.locator("#folder")).toHaveText(`Zz cenario ${tag}`, { timeout: 30_000 });
   for (const [path, text] of Object.entries(files)) {
     if (path.endsWith(".canvas")) {
       const laid = await invoke(gm, "board_text", { json: text });
@@ -123,8 +123,8 @@ export async function setup(browser, gm, info, label, files) {
     }
   }
   await invoke(gm, "campaign_make", { root: "" });
-  const ana = await account(browser, gm, { email: `ana-${tag}@verso.test`, name: "Ana", password: "a senha da ana", folder: folder.id, role: "reader" });
-  const bruno = await account(browser, gm, { email: `bruno-${tag}@verso.test`, name: "Bruno", password: "a senha do bruno", folder: folder.id, role: "reader" });
+  const ana = await account(browser, gm, { email: `ana-s9-${tag}@verso.test`, name: "Ana", password: "a senha da ana", folder: folder.id, role: "reader" });
+  const bruno = await account(browser, gm, { email: `bruno-s9-${tag}@verso.test`, name: "Bruno", password: "a senha do bruno", folder: folder.id, role: "reader" });
   const status = await invoke(gm, "campaign_status", {});
   const id = (name) => status.players.find((p) => p.name === name).id;
   const set = async (paths, whole, rows = {}) =>
