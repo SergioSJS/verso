@@ -205,8 +205,8 @@ for (const width of [1500, 820, 390]) {
       at += 1;
       // A phone's side panel gives way to the sheet: bring it back.
       if (sheetWidth && at > 0) {
-        const inView = await expect(folderRow(app)).toBeInViewport({ timeout: 1500 }).then(() => true, () => false);
-        if (!inView) await page.getByRole("button", { name: "Arquivos" }).click();
+        if (!(await page.evaluate(() => document.body.classList.contains("side-open")))) await page.getByRole("button", { name: "Arquivos" }).click();
+        await expect(folderRow(app)).toBeInViewport();
       }
       await fromMenu(app, target);
       const d = dialogOf(app, name);
