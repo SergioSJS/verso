@@ -479,3 +479,76 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
         );
     });
 }
+
+/// A name is not a way round *Send files* (ADR 0113 K.4): a player who
+/// makes a note in a folder they edit cannot rename it to a PDF, a page or
+/// an SVG, nor write such a file with `write_text`, whatever the right.
+#[test]
+fn a_player_cannot_make_a_file_by_a_rename_or_a_text_write() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        let g = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq"], "change": { "kind": "set", "set": { "whole": "none",
+                    "rows": [{ "account": ana, "level": "edit" }] }, "secret_name": null } }),
+            )
+            .await;
+        assert!(g.get("ok").is_some(), "{g}");
+        for right in [false, true] {
+            if right {
+                let r = m
+                    .owner
+                    .call(
+                        "table_rights_set",
+                        json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
+                    )
+                    .await;
+                assert!(r.get("ok").is_some(), "{r}");
+            }
+            // A note keeps being a note under any name (the core adds .md);
+            // a file she was let send keeps its kind: a rename to another
+            // extension would serve the same bytes as a page or an SVG.
+            if right {
+                let sent = m
+                    .ana
+                    .call(
+                        "create_file",
+                        json!({ "path": "Mundo Zq/foto.png", "base64": crate::tests_campaign::PNG }),
+                    )
+                    .await;
+                assert!(sent.get("ok").is_some(), "{sent}");
+                for to in ["Mundo Zq/foto.html", "Mundo Zq/foto.svg", "Mundo Zq/foto.pdf", "Mundo Zq/foto.md"] {
+                    for cmd in ["rename_entry", "rename_note"] {
+                        let no = m
+                            .ana
+                            .call(cmd, json!({ "from": "Mundo Zq/foto.png", "to": to }))
+                            .await;
+                        // (`rename_note` of a non-note names a note; the list below holds the proof.)
+                        assert!(refused(&no) || cmd == "rename_note", "{cmd} {to}: {no}");
+                    }
+                }
+                let files = m.owner.call("list_files", json!({})).await;
+                let list = files.to_string();
+                assert!(list.contains("foto.png"), "{list}");
+                for bad in [".html", ".svg", ".pdf"] {
+                    assert!(!list.contains(&format!("foto{bad}\"")), "{bad}: {list}");
+                }
+            }
+            for path in ["Mundo Zq/novo.html", "Mundo Zq/novo.svg", "Mundo Zq/novo.pdf"] {
+                let no = m
+                    .ana
+                    .call(
+                        "write_text",
+                        json!({ "path": path, "text": "<script>1</script>", "revision": null }),
+                    )
+                    .await;
+                assert!(refused(&no), "write_text {path} (right {right}): {no}");
+                let files = m.owner.call("list_files", json!({})).await;
+                assert!(!files.to_string().contains(path), "{path} exists: {files}");
+            }
+        }
+    });
+}
