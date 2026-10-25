@@ -167,7 +167,7 @@ test("the table's window: a switch that saves at once, cards, limits under Advan
   await log.press("Enter");
   await expect(dialog.getByText("Salvo")).toBeVisible();
   expect((await app.calls("campaign_settings")).at(-1)).toEqual({ root: "", open: null, logMax: 5000, imageMax: null });
-  const image = dialog.getByLabel("Tamanho de uma imagem na mesa (MB)");
+  const image = dialog.getByLabel("Tamanho máximo de um arquivo na mesa (MB)");
   await image.fill("20");
   await image.press("Tab");
   await expect.poll(async () => (await app.calls("campaign_settings")).at(-1)).toEqual({ root: "", open: null, logMax: null, imageMax: 20 * 1024 * 1024 });
