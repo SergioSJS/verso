@@ -99,6 +99,19 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     });
   }
 
+  /** Whether this window is in a shadow of the room: a player's, made by the
+   *  server of what their account sees (ADR 0113 H). A card of a file they do
+   *  not see is a locked marker in it, and the room refuses a change to one:
+   *  the board's own adjustments of a locked element are never sent. */
+  get shadow(): boolean {
+    return this.meta.get("shadow") === true;
+  }
+
+  /** Whether `e` is one this window never sends: a locked element of a shadow. */
+  private mute(e: El): boolean {
+    return this.shadow && e["locked"] === true;
+  }
+
   /** Whether a window drew the file into the room yet. */
   get seeded(): boolean {
     return this.meta.get("seeded") === true;
@@ -218,7 +231,12 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.pending = null;
     if (!p || !this.writable || !this.open) return;
     const held = this.resolved();
-    const changed = changedElements(p.scene, this.known);
+    const changed = changedElements(p.scene, this.known).filter((e) => {
+      if (!this.mute(e)) return true;
+      // The board's own change of a marker: agreed on here, never sent.
+      this.known.set(e.id, rankOf(e));
+      return false;
+    });
     const bg = p.background === "transparent" ? "" : p.background;
     // The background is the person's to change, never the board loading.
     const bgChanged = p.user && this.seeded && (typeof this.meta.get("background") === "string" ? this.meta.get("background") : (backgroundOf(this.base()) ?? "")) !== bg;

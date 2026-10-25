@@ -222,7 +222,6 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
           const seg = segmented(p.name, kind === "edits" ? "edit" : "see", (level) => {
             void setPlayerLevel(path, p.id, level);
           });
-          if (/\.canvas$/i.test(path)) seg.disable(["edit"]);
           li.append(seg.el);
           ul.append(li);
         }

@@ -519,10 +519,11 @@ async fn grant(
 ) -> Result<(String, Vec<Event>), ContractError> {
     let path = note_arg(server, folder, args)?;
     let given: CampaignGrant = arg(args, "grant")?;
-    // A board holds cards of hidden notes the player is shown locked: a
-    // write of what it was served would put the locks in the board.
-    if !crate::readers::is_note(&path) {
-        return Err(refused("only a note can be edited by players"));
+    // A board a player edits is edited by element, in a room of its own
+    // (ADR 0113 H): never written whole, so the locks of the cards of hidden
+    // notes never reach the file.
+    if !crate::readers::is_note(&path) && !crate::readers::is_board(&path) {
+        return Err(refused("only a note or a board can be edited by players"));
     }
     let grant = match given {
         CampaignGrant::None => Grant::None,

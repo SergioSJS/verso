@@ -725,6 +725,97 @@ maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
   (the chat is not a file write). The `none` the migration wrote for a note the
   table had hidden is marked (`migrated`) and is no exception in a folder's list.
 
+### As built, S7 (2026-10-25, `feat/access-s7`)
+
+The board a player edits (H). Server side in `board_sight.rs` (pure) and
+`collab_players.rs` (the room); the dialog follows.
+
+- **A shadow of the room per account.** A player whose `may(Edit)` holds on a
+  board joins a document of their own, made by the server of what the account
+  sees (`board_sight::see`): an element is *Open* (as it is — a text card whole,
+  secret blocks included, 0087 item 5), *Locked* (the card of a file the account
+  does not see: the **same id**, the same place and size, the words every veiled
+  card has, `locked: true` so that the board will not select it — never the
+  file's path, colour or text) or *Gone* (a secret pin, 0090 item 5, and what
+  belongs to it: the edges that touch it, the drawn elements bound to it,
+  inside it or grouped only with secret pins; a tombstone of one is not told
+  either). The snapshot at the join and every update after it are one
+  function; a card's `boundElements` and a group are cut the same way, and the
+  `base` of the room's facts is the file's projection (`shape_canvas`: the
+  same pins left out, the same locked cards). A player who only *sees* the
+  board still follows the file, as before (0090 item 5 revised 2026-10-15).
+- **The room follows the shadow by element.** What a player's window sends is
+  tried on a copy of the shadow and judged (`board_sight::check`): the edit is
+  refused **whole**, with nothing of it in the room, when it puts or removes an
+  entry of an id the account does not see (a marker, a pin, an id only the file
+  holds), when an entry is not its key's element, when it makes a secret pin,
+  when a card it makes or changes names a file the account does not see **or
+  that is not there** (so a card is no way to ask whether a hidden file
+  exists), or when it changes what any other element is to the account (a
+  group opened, an edge to a pin). New elements and changes to the ones they see
+  are taken into the room by the server as its own edits, merged by element
+  as 0082 item 12 says, and told to the other windows; the facts of the
+  board they may change are their count of edits and the background.
+  `write_text`, `write_board` and `sync_put` of a board stay refused to a
+  player, and so does `collab_resolve` (it closes the room for everyone).
+- **Who writes the file.** The game master's window, when it is in the room: it
+  makes the file of the whole room, as ever, and a player's file is dropped.
+  With only players in it, the file a player's window made of its shadow
+  (`collab_canvas`, at the shadow's state) is **laid over the file on disk**
+  (`board_sight::lay_over`): what the account does not see is the disk's, byte
+  for byte; what they see is theirs; what their window dropped, they deleted;
+  and a canvas that would change what an element is to them is not taken at
+  all. A board drawn in by a player alone (no game master yet) is drawn into
+  the shadow only; the game master's window draws the whole when it comes, and
+  the versions merge by rank.
+- **When what an element is to an account changes** — a pin made secret, a
+  card's file released or hidden, the level changed — the account's shadow is
+  closed: its windows are told the room closed (`collab-closed`) and join anew,
+  from the file, as a note's readers do (`veil_changed`; a change inside the
+  room by the game master is seen by `sync`). A game master demoted live leaves
+  every room as before (`demoted`).
+- **What else is cut.** The selection in a presence names an element only when
+  the receiving account sees it (`presence::keep_selected`); `collab-saved`
+  reaches a shadow without the file's hash; `access_get` counts the secret
+  blocks of a board's text cards (not a pin's) and the dialog asks before
+  giving *Edits* on a board that has some, and says what the player is shown.
+  `campaign_grant` accepts a board. The refusals the step deletes are the
+  board's of `rpc_collab` and `campaign_grant`; the one of `collab.rs` stays
+  for a window that only reads.
+- **Tests.** Two properties over rooms made at random (`board_sight_tests.rs`):
+  *no hidden id or text reaches a player* and *an update to an id not seen is
+  refused*, each seen failing on a wrong rule (a pin not hidden, the check
+  skipped, the file left in a marker); and `tests_board_players.rs` against a
+  real server (every frame Ana hears is checked for the canaries; her edits
+  reach the game master; the refused ones leave no trace; the file keeps the
+  pin, the hidden card and its edge byte for byte; the dialog; the closing of
+  the shadow). The end-to-end test is `e2e-server/board-players.spec.mjs`.
+- **Chosen where the ADR is silent, to confirm.** (1) A hidden file's card is
+  *Locked*, never absent: the maintainer's wording (*a locked marker with the
+  same id*). (2) A text
+  card of the board is whole to whoever edits (H, 0087 item 5) — including its
+  links to hidden notes, as a note they edit shows them. (3) A player cannot
+  resolve a conflict between the room and the disk. (4) Presence of the game
+  master (pointer) is told to the player; only the ids it selects are cut.
+  (5) The desktop's synced board of a player (S8) is not touched.
+- **Review of S7 (2026-10-25).** (1) *No activity oracle*: a shadow is told only
+  `seeded` and `background` of the room's facts, never the others' edit
+  counts; its `saved` is made for the account (its own count of edits, moved
+  when the room writes), and the revision it is told of the file — at the join,
+  in `read_text`, in `collab-saved` — is a hash of the text it is shown, so a
+  save of what it does not see is none to it. (2) Presence told to a player is
+  an allowlist of fields (`user`, `pointer`, `button`, `selected` cut to what
+  it sees). (3) Her file is laid over the disk's when no window *that may
+  type* and sees the whole board is in the room — a read-only one does not
+  count. (4) And only when the file lacks nothing the whole board's windows
+  left unsaved (`Board::whole_saved`): otherwise nothing is written, her work
+  stays in the room, and the file is written when a whole window makes it —
+  neither side is dropped. (5) A secret flag is read as the file's projection
+  reads it, every duplicate key. (6) What a player draws into her shadow before
+  the game master draws the room in (the seeding) stays in her shadow only; it
+  never reaches the room, and the room's own versions of the same keys replace
+  it when they come.
+
 ### As built, S8 (2026-10-25, `feat/access-s8`)
 
 The synced desktop is one more door of the model; the host decides nothing of

@@ -48,6 +48,8 @@ pub const ROLLS_KEPT: usize = 20;
 #[path = "collab_dice.rs"]
 mod rolls;
 pub use rolls::{Opts as RollOpts, oracle, roll};
+#[path = "collab_players.rs"]
+pub(crate) mod players;
 #[path = "collab_readers.rs"]
 pub(crate) mod readers;
 #[path = "collab_restore.rs"]
@@ -320,13 +322,27 @@ impl Rooms {
 /// readers served its projection (ADR 0087), who hear nothing of its
 /// document (`collab_readers.rs`).
 fn tell(server: &Server, room: &Room, except: Option<&str>, message: &serde_json::Value) {
-    let to: Vec<String> = room
+    // A window in a board's shadow hears the room's document only through
+    // its shadow (`collab_players.rs`); the rest it hears, but for the hash
+    // of the file, which is the whole file's.
+    let doc = matches!(
+        message["event"].as_str(),
+        Some("collab-update" | "collab-awareness" | "collab-saved")
+    );
+    let (shadowed, whole): (Vec<String>, Vec<String>) = room
         .clients
         .iter()
         .filter(|c| Some(c.as_str()) != except && !room.readers.hides(c))
         .cloned()
-        .collect();
-    server.push(&to, message);
+        .partition(|c| room.readers.shadowed(c));
+    server.push(&whole, message);
+    if !doc && !shadowed.is_empty() {
+        let mut cut = message.clone();
+        if let Some(p) = cut["payload"].as_object_mut() {
+            p.remove("hash");
+        }
+        server.push(&shadowed, &cut);
+    }
 }
 
 fn event(name: &str, path: &str, field: &str, value: &serde_json::Value) -> serde_json::Value {
@@ -418,6 +434,61 @@ pub fn join(
     }
 }
 
+/// The room of `path` in folder `key`, made from the disk when it is the
+/// first window in it.
+fn room_for(
+    server: &Arc<Server>,
+    key: &str,
+    path: &str,
+) -> Result<Option<Arc<Mutex<Room>>>, ContractError> {
+    let kind = kind_of(path);
+    Ok(Some(match server.rooms.get(key, path) {
+        Some(room) => room,
+        None => {
+            let note = read(server, key, path)?;
+            // The file as found, when its history has nothing yet: what
+            // the room's first save can be undone to (ADR 0091).
+            crate::history::seen(server, key, path, &note.text);
+            let (doc, crlf, saved, board) = if kind == Kind::Board {
+                // Drawn in by the first window to join (collab_board.rs).
+                let doc = crate::collab_board::new_doc(&note.text);
+                let board = crate::collab_board::Board::of(&doc);
+                (doc, false, String::new(), board)
+            } else {
+                let Some((text, crlf)) = normalized(&note.text) else {
+                    return Ok(None);
+                };
+                let doc = holding(new_doc(), &text);
+                let size = crate::collab_board::Board::measured(&doc);
+                (doc, crlf, text, size)
+            };
+            let room = Arc::new(Mutex::new(Room {
+                key: key.to_owned(),
+                path: path.to_owned(),
+                kind,
+                doc,
+                crlf,
+                revision: note.revision,
+                saved,
+                conflict: false,
+                edited: Instant::now(),
+                scheduled: false,
+                clients: HashSet::new(),
+                epoch: crate::crypto::id().map_err(verso_service::failed)?,
+                claims: crate::presence::Claims::new(),
+                writers: crate::writers::Writers::new(),
+                board,
+                rolls: std::collections::VecDeque::new(),
+                readers: readers::Readers::default(),
+                authors: Vec::new(),
+            }));
+            let mut map = lock(&server.rooms.map);
+            // Two windows joining at once: the first room made stays.
+            Arc::clone(map.entry((key.to_owned(), path.to_owned())).or_insert(room))
+        }
+    }))
+}
+
 /// The rooms one window may be in at once: the notes and boards a window
 /// shows side by side, with room. Each room holds a document of up to
 /// `collab_board::ROOM_MOST`; a connection that joined every note of a
@@ -451,60 +522,20 @@ fn join_room(
     } else {
         CollabKind::Text
     };
-    let room = match server.rooms.get(key, path) {
-        Some(room) => room,
-        None => {
-            let note = read(server, key, path)?;
-            // The file as found, when its history has nothing yet: what
-            // the room's first save can be undone to (ADR 0091).
-            crate::history::seen(server, key, path, &note.text);
-            let (doc, crlf, saved, board) = if kind == Kind::Board {
-                // Drawn in by the first window to join (collab_board.rs).
-                let doc = crate::collab_board::new_doc(&note.text);
-                let board = crate::collab_board::Board::of(&doc);
-                (doc, false, String::new(), board)
-            } else {
-                let Some((text, crlf)) = normalized(&note.text) else {
-                    return Ok(CollabJoin {
-                        kind: wire,
-                        update: String::new(),
-                        // A reader is not told the file's (ADR 0087).
-                        revision: if reader { String::new() } else { note.revision },
-                        read_only: true,
-                        crlf: false,
-                        user: user.to_owned(),
-                        epoch: String::new(),
-                        rolls: Vec::new(),
-                    });
-                };
-                let doc = holding(new_doc(), &text);
-                let size = crate::collab_board::Board::measured(&doc);
-                (doc, crlf, text, size)
-            };
-            let room = Arc::new(Mutex::new(Room {
-                key: key.to_owned(),
-                path: path.to_owned(),
-                kind,
-                doc,
-                crlf,
-                revision: note.revision,
-                saved,
-                conflict: false,
-                edited: Instant::now(),
-                scheduled: false,
-                clients: HashSet::new(),
-                epoch: crate::crypto::id().map_err(verso_service::failed)?,
-                claims: crate::presence::Claims::new(),
-                writers: crate::writers::Writers::new(),
-                board,
-                rolls: std::collections::VecDeque::new(),
-                readers: readers::Readers::default(),
-                authors: Vec::new(),
-            }));
-            let mut map = lock(&server.rooms.map);
-            // Two windows joining at once: the first room made stays.
-            Arc::clone(map.entry((key.to_owned(), path.to_owned())).or_insert(room))
-        }
+    let Some(room) = room_for(server, key, path)? else {
+        // A text whose line ends are mixed: shown read-only, never shared.
+        let note = read(server, key, path)?;
+        return Ok(CollabJoin {
+            kind: wire,
+            update: String::new(),
+            // A reader is not told the file's (ADR 0087).
+            revision: if reader { String::new() } else { note.revision },
+            read_only: true,
+            crlf: false,
+            user: user.to_owned(),
+            epoch: String::new(),
+            rolls: Vec::new(),
+        });
     };
     let mut r = lock(&room);
     // A player of a table is asked again under the room's lock: what the
@@ -566,6 +597,17 @@ pub fn update(
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
     }
+    if r.readers.shadowed(client) {
+        // A player in a board's shadow: judged by element.
+        if players::update(server, &mut r, (client, account), &bytes)? {
+            r.edited = Instant::now();
+            if !r.scheduled && !r.conflict && r.waiting() {
+                r.scheduled = true;
+                schedule(server, Arc::clone(&room));
+            }
+        }
+        return Ok(());
+    }
     let who = crate::writers::Writer {
         connection: client,
         account,
@@ -617,6 +659,7 @@ pub fn update(
         Some(client),
         &event("collab-update", path, "update", &json!(update)),
     );
+    players::sync(server, &mut r);
     r.edited = Instant::now();
     // A board's change that is no one's edit — drawn in, measured again —
     // leaves nothing to write (invariant 7).
@@ -830,6 +873,7 @@ pub fn awareness(
     let stamped =
         crate::presence::stamped(&bytes, who, claims, clients).map_err(|e| refused(&e))?;
     let stamped = readers::presence(server, &r, who.client, stamped);
+    players::presence(server, &r, who.client, &stamped);
     tell(
         server,
         &r,
@@ -928,6 +972,8 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                         None,
                         &event("collab-update", &path, "update", &json!(b64(&update))),
                     );
+                    r.board.whole_saved = players::whole_edits(&r.doc, &r.writers);
+                    players::sync(server, &mut r);
                 }
             }
             // The folder's log for sync follows the save (ADR 0079 item 4),
@@ -941,6 +987,7 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             let mut saved = event("collab-saved", &path, "revision", &json!(r.revision));
             saved["payload"]["hash"] = json!(hash);
             tell(server, &r, None, &saved);
+            players::saved(server, &mut r);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
@@ -1127,7 +1174,11 @@ pub fn canvas(
         if r.kind != Kind::Board {
             return Err(refused("not a board"));
         }
-        r.board.keep(&at, json)?;
+        if r.readers.shadowed(client) {
+            players::canvas(server, &mut r, client, &at, &json)?;
+        } else {
+            r.board.keep(&at, json)?;
+        }
         !r.scheduled && !r.conflict && r.waiting() && r.board.canvas_now(&r.doc).is_some()
     };
     if ready && let Err(e) = write(server, &room) {

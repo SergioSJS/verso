@@ -421,6 +421,12 @@ pub async fn command(
     if door.veiled() && !door.may_path(crate::access::Action::Edit, &path).allowed() {
         return Err(not_found("no such version of this file"));
     }
+    // A past version of a board holds what the player is not shown of it: a
+    // card of a hidden file, a secret pin (ADR 0113 H). The history of a
+    // board is the game master's.
+    if door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board {
+        return Err(not_found("no such version of this file"));
+    }
     // A copy of a version is a new file beside the file: the folder is one
     // the person makes files in.
     if cmd == "history_copy" {

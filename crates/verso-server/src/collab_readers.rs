@@ -43,6 +43,9 @@ pub struct Readers {
     shadow: Option<Doc>,
     /// Which shadow this is: a window that joins again compares it.
     epoch: String,
+    /// The shadows of a board's room, one per account that edits it from a
+    /// table (ADR 0113 section H).
+    pub(super) players: super::players::Shadows,
 }
 
 impl Readers {
@@ -51,9 +54,16 @@ impl Readers {
         self.split && self.clients.contains(client)
     }
 
+    /// Whether `client` is in a board's shadow: it hears the room's document
+    /// only through it.
+    pub fn shadowed(&self, client: &str) -> bool {
+        self.players.holds(client)
+    }
+
     /// `client` left the room.
     pub fn forget(&mut self, client: &str) {
         self.clients.remove(client);
+        self.players.forget(client);
     }
 
     /// The readers served the shadow.
@@ -332,6 +342,8 @@ pub fn veil_changed(server: &Server, key: &str) {
         .collect();
     for room in rooms {
         let mut r = lock(&room);
+        // What an account sees of a board may have changed: its shadows go.
+        super::players::veil_changed(server, &mut r);
         if r.kind == Kind::Note && r.readers.split {
             let text = text_of(&r.doc);
             if let Err(e) = split(server, &mut r, &text) {
