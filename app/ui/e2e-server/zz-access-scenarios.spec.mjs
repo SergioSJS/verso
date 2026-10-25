@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces, where } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -223,7 +223,7 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await expect(dead).toContainText("Este arquivo não é mais compartilhado com você");
     await expect(ana.page.locator(".tab-list .tab", { hasText: "Sem acesso" })).toHaveCount(1);
     await expect(ana.page.locator("#status")).not.toContainText("Zqtaverna");
-    expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
+    expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"]), await where(ana.page, "Zqtaverna")).toEqual([]);
     expect((await switcher(ana.page, "")).join("|")).not.toContain("Zqtaverna");
     expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
     await ana.page.keyboard.press("Escape");
@@ -448,13 +448,14 @@ test("g. a board and a picture Ana has open drop their content when the game mas
     // The picture, from the tree, in a tab of its own.
     await ana.page.locator('#notes li[data-path="Zqfigura.png"] > button').click();
     await expect(ana.page.locator(".leaf:not([hidden]) img").first()).toBeVisible({ timeout: 30_000 });
-    expect(await traces(ana.page, ["zqcartaoum"])).not.toEqual([]);
+    expect((await scene(ana.page)).map((e) => e.text).join("|")).toContain("zqcartaoum");
 
     // The game master takes both away: no closing, no reload.
     await set(["Zqquadro.canvas", "Zqfigura.png"], "none");
     await expect(ana.page.locator(".leaf.unshared")).toHaveCount(2, { timeout: 30_000 });
     await expect(ana.page.locator(".tab-list .tab", { hasText: "Sem acesso" })).toHaveCount(2);
-    expect(await traces(ana.page, ["Zqquadro", "Zqfigura", "zqcartaoum", "zqcartaodois"])).toEqual([]);
+    expect(await traces(ana.page, ["Zqquadro", "Zqfigura", "zqcartaoum", "zqcartaodois"]), await where(ana.page, "Zqquadro")).toEqual([]);
+    expect((await scene(ana.page)).map((e) => e.text).join("|")).not.toContain("zqcarta");
     await expect(ana.page.locator("#status")).not.toContainText(/Zqquadro|Zqfigura/);
     expect(await ana.page.locator(".leaf img[src*='Zqfigura']").count()).toBe(0);
     expect((await switcher(ana.page, "Zq")).join("|")).not.toMatch(/Zqquadro|Zqfigura/);
