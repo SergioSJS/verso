@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces, where } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -215,11 +215,16 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await expect(folderDialog).toContainText("Exceções (1)");
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
-    // The tab she had open on it stays as she left it, saying it cannot be opened: she closes it.
-    await expect(ana.page.locator(".leaf.failed")).toHaveCount(1, { timeout: 30_000 });
-    await closeTabs(ana.page);
-    // (The tab's own words, and the status line, named the note she had open: her window starts again.)
-    await openFolder(ana.page, folder.id);
+    // The tab she had open on it drops its content at once — no closing it, no reload:
+    // neutral words, no name, no text, nothing of it in the page, the status line,
+    // the tab, the recent files or the switcher.
+    const dead = ana.page.locator(".leaf.unshared");
+    await expect(dead).toHaveCount(1, { timeout: 30_000 });
+    await expect(dead).toContainText("Este arquivo não é mais compartilhado com você");
+    await expect(ana.page.locator(".tab-list .tab", { hasText: "Sem acesso" })).toHaveCount(1);
+    await expect(ana.page.locator("#status")).not.toContainText("Zqtaverna");
+    expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"]), await where(ana.page, "Zqtaverna")).toEqual([]);
+    expect((await switcher(ana.page, "")).join("|")).not.toContain("Zqtaverna");
     expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
     await ana.page.keyboard.press("Escape");
     expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
@@ -423,5 +428,41 @@ test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game mas
       expect(await traces(p, ["Zqsegredo", "zqcorpo"])).toEqual([]);
       expect(JSON.stringify(await entries(p))).not.toContain("Zqsegredo");
     }
+  });
+});
+
+test("g. a board and a picture Ana has open drop their content when the game master stops sharing them, at once", async ({ browser, page: gm }, info) => {
+  const board = JSON.stringify({
+    nodes: [
+      { id: "um", type: "text", text: "zqcartaoum", x: 0, y: 0, width: 200, height: 60 },
+      { id: "dois", type: "text", text: "zqcartaodois", x: 300, y: 0, width: 200, height: 60 },
+    ],
+    edges: [],
+  });
+  const files = { "Zqquadro.canvas": board, "Livre.md": "# Livre\n" };
+  await scenario(browser, gm, info, "retirar", files, async ({ folder, ana, set }) => {
+    await invoke(gm, "create_file", { path: "Zqfigura.png", base64: PNG.toString("base64") });
+    await set(["Zqquadro.canvas", "Zqfigura.png", "Livre.md"], "see");
+    await openBoard(ana.page, folder.id, "Zqquadro");
+    await expect.poll(async () => (await scene(ana.page)).length).toBeGreaterThanOrEqual(2);
+    const cards = () => ana.page.evaluate(() => JSON.stringify((window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => e.customData ?? null)));
+    expect(await cards()).toContain("zqcartaoum");
+    // A double click keeps the board's tab (a preview tab is replaced by the next file opened).
+    await ana.page.locator(".tab-list .tab").first().dblclick();
+    // The picture, from the tree, in a tab of its own.
+    await ana.page.locator('#notes li[data-path="Zqfigura.png"] > button').click();
+    await expect(ana.page.locator(".leaf:not([hidden]) img").first()).toBeVisible({ timeout: 30_000 });
+
+    // The game master takes both away: no closing, no reload.
+    await set(["Zqquadro.canvas", "Zqfigura.png"], "none");
+    await expect(ana.page.locator(".leaf.unshared")).toHaveCount(2, { timeout: 30_000 });
+    await expect(ana.page.locator(".tab-list .tab", { hasText: "Sem acesso" })).toHaveCount(2);
+    expect(await traces(ana.page, ["Zqquadro", "Zqfigura", "zqcartaoum", "zqcartaodois"]), await where(ana.page, "Zqquadro")).toEqual([]);
+    await expect(ana.page.locator("#status")).not.toContainText(/Zqquadro|Zqfigura/);
+    expect(await ana.page.locator(".leaf img[src*='Zqfigura']").count()).toBe(0);
+    expect((await switcher(ana.page, "Zq")).join("|")).not.toMatch(/Zqquadro|Zqfigura/);
+    await ana.page.keyboard.press("Escape");
+    // What stays shared stays usable.
+    await openNoteBy(ana.page, "Livre");
   });
 });

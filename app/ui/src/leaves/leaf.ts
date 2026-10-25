@@ -159,6 +159,32 @@ export abstract class Leaf {
     this.setPreview(false);
     persistSoon();
   }
+  /** The file stopped being shared with this person (`unshare`). */
+  unshared = false;
+  /** Access to this tab's file was withdrawn, live (ADR 0113): nothing of
+   *  the file stays — the content is torn down, the tab loses its name and
+   *  its path, and the page says in neutral words that it is no longer
+   *  shared. No reload, no way to read what was there. */
+  unshare(): void {
+    if (this.unshared) return;
+    this.unshared = true;
+    this.setDirty(false);
+    this.clearFailure();
+    this.destroy();
+    this.path = "";
+    this.tabName.textContent = t.unsharedTab;
+    this.tab.title = t.unsharedTab;
+    this.tabIcon.replaceChildren(icon("lock"));
+    this.setGone(false);
+    this.el.classList.remove("failed");
+    this.el.classList.add("unshared");
+    const box = h("div", "load-failure unshared-box");
+    box.setAttribute("role", "status");
+    const close = button("ghost", t.close);
+    close.addEventListener("click", () => void this.close(true));
+    box.append(h("p", "load-failure-title", t.unsharedTitle), h("p", "", t.unsharedBody), close);
+    this.el.replaceChildren(box);
+  }
   /** Why the last read of this tab's file failed, or null. */
   failed: ContractError["kind"] | null = null;
   /** A tab brought back behind another, whose file waits to be shown

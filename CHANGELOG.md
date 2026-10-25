@@ -124,6 +124,8 @@ test release.
 
 ### Fixed
 
+- **A player's open tabs drop a file at once when the game master stops sharing it** ([ADR 0113](docs/adr/0113-one-access-model-for-a-table.md)): the tab used to keep the file's text and name until closed. Now it shows "This file is no longer shared with you", with nothing of the file left in the window, and the file leaves the recent files, the closed tabs, back/forward and the hover card; notes that embedded it are drawn again.
+
 - **Renaming a note at a table works for a player who edits its folder, and a name a hidden note holds is never answered "already exists"** ([ADR 0113](docs/adr/0113-one-access-model-for-a-table.md) K.5): the window names a renamed note without `.md`, and the server judged that name as if it were no note, refusing the rename and not seeing that the name was taken by something the player cannot see. The server now judges the name the note will have.
 
 - **A player who edits a folder of a table can make and rename notes in it** ([ADR 0113](docs/adr/0113-one-access-model-for-a-table.md) K.5): *New note*, *New folder* and *Rename* in the tree asked the permission of the folder's root, so they said "You only read this folder" even in a folder the game master gave the player to edit. They now ask the folder that was chosen.
