@@ -123,6 +123,8 @@ versão de teste.
 
 ### Corrigido
 
+- **As abas abertas de um jogador largam um arquivo na hora em que o mestre deixa de compartilhá-lo** ([ADR 0113](adr/0113-one-access-model-for-a-table.md)): a aba guardava o texto e o nome do arquivo até ser fechada. Agora mostra "Este arquivo não é mais compartilhado com você", sem nada do arquivo na janela, e o arquivo sai dos recentes, das abas fechadas, do voltar/avançar e do cartão de prévia; as notas que o incorporavam são redesenhadas.
+
 - **Renomear uma nota numa mesa funciona para o jogador que edita a pasta dela, e um nome que uma nota oculta tem nunca é respondido como "já existe"** ([ADR 0113](adr/0113-one-access-model-for-a-table.md) K.5): a janela nomeia a nota renomeada sem `.md`, e o servidor julgava esse nome como se não fosse uma nota, recusando a troca e sem ver que o nome era de algo que o jogador não vê. Agora o servidor julga o nome que a nota terá.
 
 - **Quem edita uma pasta de uma mesa pode criar e renomear notas nela** ([ADR 0113](adr/0113-one-access-model-for-a-table.md) K.5): *Nova nota*, *Nova pasta* e *Renomear* na árvore pediam a permissão da raiz da pasta, e por isso diziam "Você só lê esta pasta" até numa pasta que o mestre deu ao jogador para editar. Agora pedem a pasta escolhida.

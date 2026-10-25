@@ -68,6 +68,12 @@ export class QuickSwitcher {
       if (e.target === this.el) this.hide();
     });
   }
+  /** What was listed last is forgotten: it is drawn again when the switcher
+   *  opens (a file the person lost sight of is not left in the page). */
+  forget(): void {
+    this.items = [];
+    this.list.replaceChildren();
+  }
   show(query = ""): void {
     opened(this.el);
     this.el.hidden = false;
