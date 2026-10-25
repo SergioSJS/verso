@@ -163,14 +163,25 @@ impl Door {
         self.editor_or_more() && self.asker.cap == Cap::Write
     }
 
+    /// Whether the credential writes: only then is a device served what the
+    /// person edits whole, as a window is (`SeeSecretBlocks`).
+    #[must_use]
+    pub fn sends_whole_cap(&self) -> bool {
+        self.asker.cap == Cap::Write
+    }
+
     /// Whether a device of the asker is served the note at `path` whole
     /// (ADR 0113 S8): the pipeline of `sync_state` / `sync_read` and the
     /// judgement of `sync_put` ask this one statement.
     #[must_use]
     pub fn serves_whole(&self, path: &str) -> bool {
         self.veil.as_ref().is_some_and(|v| {
-            v.view_for(&self.asker.account, self.editor_live)
-                .serves_whole(path)
+            v.view_for(
+                &self.asker.account,
+                self.editor_live,
+                self.sends_whole_cap(),
+            )
+            .serves_whole(path)
         })
     }
 
@@ -269,14 +280,7 @@ impl Door {
                         // A rename inside a folder: the player sees the file
                         // and edits the folder (K.5). A table's root, or a
                         // folder above one, is the game master's.
-                        if self.seat() != Seat::Master && self.facts.holds_table(&from) {
-                            Verdict::Deny(super::Reason::NotMaster)
-                        } else {
-                            and(
-                                self.may_path(Action::See, &from),
-                                self.may(Action::Rename, &a, Kind::Folder),
-                            )
-                        }
+                        self.rename_in_place(&from)
                     } else {
                         // Out of one folder into another: a move. Into a table
                         // it is the game master's (K.5), and always the new
@@ -598,6 +602,40 @@ impl Door {
             list.retain(|k| sees(self, &k["path"]));
         }
         out
+    }
+
+    /// A rename of `from` inside its folder: the person sees the file and
+    /// edits the folder (K.5); a table's root, or a folder above one, is the
+    /// game master's.
+    fn rename_in_place(&self, from: &str) -> Verdict {
+        if self.seat() != Seat::Master && self.facts.holds_table(from) {
+            return Verdict::Deny(super::Reason::NotMaster);
+        }
+        and(
+            self.may_path(Action::See, from),
+            self.may(Action::Rename, &Self::parent(from), Kind::Folder),
+        )
+    }
+
+    /// Whether a device may rename `given` where it is (ADR 0113 S8).
+    #[must_use]
+    pub fn may_rename_here(&self, given: &str) -> bool {
+        self.rename_in_place(&self.full(given)).allowed()
+    }
+
+    /// Whether a device may put a file at `given` that is new to it: a free
+    /// name, or one it does not see — the same answer for both, so that no
+    /// answer tells a hidden file from a name nobody holds.
+    #[must_use]
+    pub fn may_put_new(&self, given: &str) -> bool {
+        if !self.veiled() {
+            return self
+                .check_sync("sync_put", &serde_json::json!({ "path": given }))
+                .is_ok();
+        }
+        let path = self.full(given);
+        let kind = Kind::of_path(&path);
+        self.create_in(&path).allowed() && kind.is_note_like() && kind != Kind::Board
     }
 
     fn create_in(&self, path: &str) -> Verdict {

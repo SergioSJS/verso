@@ -82,8 +82,11 @@ enum Viewer {
     Union,
     /// This account.
     Account(String),
-    /// This account, a folder's editor: a player who edits every file they
-    /// see (ADR 0113 K.1).
+    /// This account with a credential that writes: served whole the notes
+    /// it edits (ADR 0113 S8).
+    Writer(String),
+    /// This account, a folder's editor, with a credential that writes: a
+    /// player who edits every file they see (ADR 0113 K.1).
     Editor(String),
 }
 
@@ -156,7 +159,7 @@ impl Veil {
         match &self.viewer {
             Viewer::Public => set.whole,
             Viewer::Union => set.most(),
-            Viewer::Account(a) | Viewer::Editor(a) => set.of(a),
+            Viewer::Account(a) | Viewer::Writer(a) | Viewer::Editor(a) => set.of(a),
         }
     }
 
@@ -178,21 +181,32 @@ impl Veil {
         )
     }
 
-    /// This veil as `account` sees the folder when it is a folder's editor
-    /// (`editor`) with a credential that writes: a player who edits every
-    /// file they see (ADR 0113 K.1), so is served it whole. The role is
-    /// read live by the caller, never kept: a demoted editor is served
-    /// the projection again at once.
+    /// This veil as `account` sees the folder through a credential that
+    /// `writes` (or reads only), `editor` being a folder's editor. Whoever
+    /// edits a note is served it whole only with a credential that writes,
+    /// as the window is (`SeeSecretBlocks`). The role is read live by the
+    /// caller, never kept: a demoted editor is served the projection at once.
     #[must_use]
-    pub fn view_for(&self, account: &str, editor: bool) -> Arc<Veil> {
-        if !editor {
+    pub fn view_for(&self, account: &str, editor: bool, writes: bool) -> Arc<Veil> {
+        if !writes {
             return self.view(account);
         }
+        let (name, viewer) = if editor {
+            (
+                format!("\u{0}editor:{account}"),
+                Viewer::Editor(account.to_owned()),
+            )
+        } else {
+            (
+                format!("\u{0}writer:{account}"),
+                Viewer::Writer(account.to_owned()),
+            )
+        };
         let mut views = lock(&self.views);
         Arc::clone(
             views
-                .entry(format!("\u{0}editor:{account}"))
-                .or_insert_with(|| Arc::new(self.derive(Viewer::Editor(account.to_owned())))),
+                .entry(name)
+                .or_insert_with(|| Arc::new(self.derive(viewer))),
         )
     }
 
@@ -334,14 +348,17 @@ impl Veil {
     /// alone: its room cuts it by element (H).
     #[must_use]
     pub fn serves_whole(&self, path: &str) -> bool {
-        if self.group_edits(path) {
+        if matches!(self.viewer, Viewer::Union) && self.group_edits(path) {
             return true;
         }
         if !crate::readers::is_note(path) {
-            return false;
+            return matches!(self.viewer, Viewer::Writer(_) | Viewer::Editor(_))
+                && self.group_edits(path);
         }
         match &self.viewer {
-            Viewer::Account(a) => self.may_edit(path, a) && !self.hides_note(path),
+            Viewer::Writer(a) => {
+                (self.group_edits(path) || self.may_edit(path, a)) && !self.hides_note(path)
+            }
             Viewer::Editor(_) => self.in_table(path) && !self.hides_note(path),
             _ => false,
         }
@@ -370,7 +387,7 @@ impl Veil {
             && (files() || self.images.contains(&key(path)));
         match &self.viewer {
             Viewer::Public => !self.sees_as(&Self::visitor_asker(), path, derived),
-            Viewer::Account(a) | Viewer::Editor(a) => {
+            Viewer::Account(a) | Viewer::Writer(a) | Viewer::Editor(a) => {
                 !self.sees_as(&Self::player_asker(a), path, derived)
             }
             // The players together: seen when any player sees it.
@@ -818,10 +835,10 @@ pub fn is_editor(server: &Server, folder: &str, account: &str) -> bool {
 /// The veil of the folder behind `key` as `account` sees it, a folder's
 /// editor read live ([`Veil::view_for`]).
 #[must_use]
-pub fn viewer_of(server: &Server, key: &str, account: &str) -> Option<Arc<Veil>> {
+pub fn viewer_of(server: &Server, key: &str, account: &str, writes: bool) -> Option<Arc<Veil>> {
     let folder = folder_of_key(server, key)?;
     let veil = veil_of(server, &folder)?;
-    Some(veil.view_for(account, is_editor(server, &folder, account)))
+    Some(veil.view_for(account, is_editor(server, &folder, account), writes))
 }
 
 /// The veil for the folder behind a service key, as its **public** sees
@@ -835,11 +852,13 @@ pub fn veil_for_key(server: &Server, key: &str) -> Option<Arc<Veil>> {
 /// closed).
 pub fn veil_for_client(server: &Server, key: &str, client: &str) -> Option<Arc<Veil>> {
     let veil = veil_for_key(server, key)?;
-    let account = lock(&server.clients).get(client).map(|c| c.account.clone());
-    Some(match account {
-        Some(a) => {
+    let seen = lock(&server.clients)
+        .get(client)
+        .map(|c| (c.account.clone(), crate::access::asker_of(c).cap));
+    Some(match seen {
+        Some((a, cap)) => {
             let editor = folder_of_key(server, key).is_some_and(|f| is_editor(server, &f, &a));
-            veil.view_for(&a, editor)
+            veil.view_for(&a, editor, cap == Cap::Write)
         }
         None => veil,
     })
