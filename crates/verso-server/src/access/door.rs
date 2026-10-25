@@ -314,6 +314,10 @@ impl Door {
                 {
                     verdict = Verdict::Deny(super::Reason::NoRight);
                 }
+                // A board is never put whole by a player, seen or not (H).
+                if self.veiled() && Kind::of_path(&path) == Kind::Board {
+                    verdict = Verdict::Deny(super::Reason::ReadOnly);
+                }
                 // A path the person does not see is a new file to them (the
                 // name is kept off the hidden one): judged like a free name.
                 let unseen = self.veiled() && !self.may_path(Action::See, &path).allowed();
@@ -508,7 +512,9 @@ impl Door {
         };
         for n in 2..10_000 {
             let candidate = format!("{stem} {n}{ext}");
-            if !taken.contains(&campaign::key(&candidate)) {
+            let k = campaign::key(&candidate);
+            // Nor a name a stale set of the table still holds.
+            if !taken.contains(&k) && !self.facts.sets.contains_key(&k) {
                 args[field] = Value::String(to_rel(&candidate));
                 return Ok(());
             }

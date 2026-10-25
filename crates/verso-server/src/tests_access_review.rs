@@ -505,3 +505,52 @@ fn a_devices_rename_corrects_the_links_of_hidden_notes_without_telling() {
         );
     });
 }
+
+fn put_args(path: &str) -> Value {
+    let bytes = b"meu\n";
+    json!({ "path": path, "offset": 0, "size": 4, "hash": crate::sync::sha256(bytes), "base": null, "data": base64_of(bytes) })
+}
+
+#[test]
+fn a_device_put_is_refused_to_a_reader_a_demoted_credential_and_for_a_board() {
+    block_on(async {
+        let mut m = mesa().await;
+        // A reader's put on a hidden name, and on a free one: refused alike.
+        let hidden = m.ana.call("sync_put", put_args("Barão Zq.md")).await;
+        let free = m.ana.call("sync_put", put_args("Livre Novo.md")).await;
+        assert!(
+            refused(&hidden) && hidden["err"] == free["err"],
+            "{hidden} / {free}"
+        );
+        open_root_hide_baron(&mut m).await;
+        let board = base64_of(br#"{"nodes":[],"edges":[]}"#);
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": "Cofre.canvas", "base64": board }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let hid = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Cofre.canvas"], "change": set("none") }),
+            )
+            .await;
+        assert!(hid.get("ok").is_some(), "{hid}");
+        let mut cid = editor(&m).await;
+        // A board is never put whole by a player, with the right to create.
+        for p in ["Novo.canvas", "Cofre.canvas"] {
+            let no = cid.call("sync_put", put_args(p)).await;
+            assert!(refused(&no), "{p}: {no}");
+        }
+        // A credential demoted while connected puts nothing.
+        for c in verso_service::lock(&m.r.server.clients).values_mut() {
+            c.token_write = false;
+        }
+        let no = cid.call("sync_put", put_args("Livre Novo.md")).await;
+        assert!(refused(&no), "{no}");
+    });
+}

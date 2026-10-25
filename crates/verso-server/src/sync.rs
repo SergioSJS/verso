@@ -644,6 +644,10 @@ pub async fn command(
             Ok(a)
         })
         .await?;
+        // The name the guard chose is judged again, as the one sent was.
+        if cmd == "sync_put" {
+            door.check_sync(cmd, &args)?;
+        }
     }
     // A share synced to a folder of the receiver's computer (ADR 0081
     // item 6): its paths joined to the shared folder's, its answers
