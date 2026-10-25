@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { dropUnshared } from "../unshared";
 import { shareMark } from "../shares";
 import { readLinkMark } from "../readLinks";
 import { hiddenMark, tableMark } from "../campaign";
@@ -438,6 +439,8 @@ export async function listAll(): Promise<void> {
   allFolders = folders.status === "ok" ? folders.data : [];
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
+  // What the person no longer sees leaves their open tabs (access withdrawn live).
+  if (entries.status === "ok") dropUnshared();
   const was = treeFocus();
   // Another folder: the folders it was left with open.
   if (revealedFolder !== currentFolder) loadOpenFolders(currentFolder);
