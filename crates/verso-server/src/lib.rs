@@ -59,6 +59,7 @@ pub mod readers;
 pub mod readlinks;
 pub mod rpc;
 mod rpc_collab;
+mod rpc_open;
 pub mod scope;
 pub mod security_txt;
 pub mod share_links;

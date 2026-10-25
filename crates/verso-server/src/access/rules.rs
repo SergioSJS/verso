@@ -479,6 +479,14 @@ impl AccessFacts {
         (level, why)
     }
 
+    /// Whether `path` is a table's root or a folder above one.
+    #[must_use]
+    pub fn holds_table(&self, path: &str) -> bool {
+        self.tables
+            .iter()
+            .any(|t| crate::campaign::covers(path, &t.root))
+    }
+
     /// Whether `account` has the right to send files at the table rooted at
     /// `root` (K.4).
     #[must_use]
@@ -576,7 +584,12 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
         // move in or out (K.5).
         Create | Rename => edit(level),
         Move | Delete => {
-            if master || (!in_table && who.at_least_editor()) {
+            // A folder above a table, or the table's root, moves or trashes
+            // the table with its hidden files: the game master's alone,
+            // whatever the folder's own role says.
+            if !master && f.holds_table(t.path) {
+                Deny(NotMaster)
+            } else if master || (!in_table && who.at_least_editor()) {
                 needs_write()
             } else if level < Level::See {
                 unseen()
@@ -742,6 +755,25 @@ mod tests {
         // A folder she only sees is a folder she does not create in.
         let f = facts("t", &[("t/places", set(Level::See))]);
         assert!(!may(&f, &ana, Action::Create, &folder).allowed());
+    }
+
+    #[test]
+    fn a_folder_above_a_table_is_not_moved_nor_deleted_by_an_editor() {
+        let f = facts("Campanhas/Mesa", &[]);
+        let ed = player(Role::Editor);
+        let gm = player(Role::Owner);
+        for kind in [Kind::Folder, Kind::Table] {
+            for path in ["Campanhas", "Campanhas/Mesa"] {
+                let t = Target::new(path, kind);
+                for a in [Action::Move, Action::Delete] {
+                    assert!(!may(&f, &ed, a, &t).allowed(), "{path} {a:?}");
+                    assert!(may(&f, &gm, a, &t).allowed(), "{path} {a:?}");
+                }
+            }
+        }
+        // A folder beside it stays the editor's, as outside any table.
+        let t = Target::new("Outra", Kind::Folder);
+        assert!(may(&f, &ed, Action::Delete, &t).allowed());
     }
 
     #[test]
