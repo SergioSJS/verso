@@ -43,7 +43,9 @@ const pt = {
   failed: "Não salvou",
   close: "Fechar",
   noPlayers: "Esta mesa ainda não tem jogadores.",
-  boardNote: "Os jogadores ainda não editam boards ao vivo: a edição de board vem numa próxima etapa.",
+  boardNote: "Quem edita este board vê os cartões de texto inteiros, com os blocos secretos. Os cartões de arquivos que ele não vê aparecem trancados, e os pins secretos não aparecem para ele.",
+  secretBlocksBoard: (n: number) => (n === 1 ? "Este board tem 1 bloco secreto em cartões de texto: quem edita o vê." : `Este board tem ${n} blocos secretos em cartões de texto: quem edita os vê.`),
+  askSecretBoard: (n: number) => (n === 1 ? "Quem edita este board vê o bloco secreto de seus cartões de texto. Dar edição mesmo assim?" : `Quem edita este board vê os ${n} blocos secretos de seus cartões de texto. Dar edição mesmo assim?`),
   // A folder, or several files.
   applyHead: "Aplicar a pasta",
   applyCount: (files: number, exceptions: number) =>
@@ -106,7 +108,9 @@ const en: typeof pt = {
   failed: "Not saved",
   close: "Close",
   noPlayers: "This table has no players yet.",
-  boardNote: "Players do not edit boards live yet: editing a board comes in a later step.",
+  boardNote: "Whoever edits this board sees its text cards whole, secret blocks included. Cards of files they do not see show locked, and secret pins are not shown to them.",
+  secretBlocksBoard: (n) => (n === 1 ? "This board has 1 secret block in its text cards: whoever edits sees it." : `This board has ${n} secret blocks in its text cards: whoever edits sees them.`),
+  askSecretBoard: (n) => (n === 1 ? "Whoever edits this board sees the secret block of its text cards. Give editing anyway?" : `Whoever edits this board sees the ${n} secret blocks of its text cards. Give editing anyway?`),
   applyHead: "Apply to the folder",
   applyCount: (files, exceptions) =>
     `Applying changes the access of ${files} ${files === 1 ? "file" : "files"}${exceptions > 0 ? `, ${exceptions} ${exceptions === 1 ? "exception" : "exceptions"} included` : ""}.`,

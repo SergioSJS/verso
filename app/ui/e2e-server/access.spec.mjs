@@ -10,8 +10,9 @@
 //    editar eu posso fazer isso"): Bruno's roll and the game master's message
 //    go into her sheet; into Bruno's sheet, which she only sees, they do not,
 //    and the notice names the note: "Você só lê esta nota".
-// 4. The group's board: the game master's dialog says what players can do with
-//    a board (they do not edit one live yet), and the one dialog serves it.
+// 4. The group's board: the game master's dialog says what a player who edits
+//    a board sees of it, and gives *Edits* on it like on any file (the board's
+//    own live test is board-players.spec.mjs).
 
 import { deflateSync } from "node:zlib";
 
@@ -229,8 +230,8 @@ test("the maintainer's repros: drop a roll, a message and the chat's picture int
     await gm.getByRole("menuitem", { name: /^Acesso…/ }).click();
     const dialog = gm.getByRole("dialog", { name: /^Acesso · Quadro do grupo/ });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("Os jogadores ainda não editam boards ao vivo");
-    await expect(dialog.getByRole("radiogroup", { name: "Ana", exact: true }).getByRole("radio", { name: "Edita", exact: true })).toBeDisabled();
+    await expect(dialog).toContainText("Quem edita este board vê os cartões de texto inteiros");
+    await expect(dialog.getByRole("radiogroup", { name: "Ana", exact: true }).getByRole("radio", { name: "Edita", exact: true })).toBeEnabled();
   } finally {
     for (const c of opened) await c.close().catch(() => {});
   }

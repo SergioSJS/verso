@@ -14,6 +14,7 @@ pub mod admin;
 pub mod api;
 pub mod audit;
 pub mod auth;
+pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
 pub mod campaign_serve;
@@ -442,6 +443,8 @@ mod tests_audience;
 mod tests_audience_review;
 #[cfg(test)]
 mod tests_audience_second;
+#[cfg(test)]
+mod tests_board_players;
 #[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]

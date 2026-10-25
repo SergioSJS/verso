@@ -59,11 +59,12 @@ pub(crate) async fn collab_command(
         }
     };
     // Who types in the room: the rules' Edit on the file. A board a player
-    // edits is edited by element, in a room of its own (ADR 0113 H, S7):
-    // until then a player has no place in the document of a board.
+    // edits is edited by element, in a shadow of its room made of what the
+    // player sees (ADR 0113 H); one a player only sees is followed by its
+    // file, as it is saved.
     let board_of_a_player =
         door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
-    let writes = !board_of_a_player && door.may_path(crate::access::Action::Edit, &path).allowed();
+    let writes = door.may_path(crate::access::Action::Edit, &path).allowed();
     // The document a window joins is the whole one for whoever the rules let
     // see the secret blocks — the game master's read-only credential too
     // (ADR 0113 item 6) — and the projection's for the rest; typing is the
@@ -73,6 +74,13 @@ pub(crate) async fn collab_command(
             && door
                 .may_path(crate::access::Action::SeeSecretBlocks, &path)
                 .allowed());
+    // A conflict between the room and the disk is the game master's to
+    // choose: it closes the room for everyone.
+    if board_of_a_player && cmd == "collab_resolve" {
+        return Err(refused(
+            "the game master chooses between the board and the file",
+        ));
+    }
     if typing && !writes {
         return Err(refused("you may only read this folder"));
     }
@@ -104,6 +112,9 @@ pub(crate) async fn collab_command(
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
+        "collab_join" if board_of_a_player && writes => to_value(
+            crate::collab::players::join_shadow(&s, (&c, &account), &key, &path, &user)?,
+        ),
         "collab_join" => to_value(crate::collab::join(&s, (&c, !whole), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;

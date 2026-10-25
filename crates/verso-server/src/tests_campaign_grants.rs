@@ -160,7 +160,17 @@ fn a_grant_lets_a_player_edit_one_note_and_nothing_else() {
                 json!({ "path": "Tabuleiro.canvas", "grant": { "kind": "group" } }),
             )
             .await;
-        assert_eq!(board["err"]["kind"], "refused", "{board}");
+        // A board is given like a note now (ADR 0113 H); a file that is
+        // neither is still refused.
+        assert!(board.get("ok").is_some(), "{board}");
+        let other = m
+            .owner
+            .call(
+                "campaign_grant",
+                json!({ "path": "Anexos/aberto.png", "grant": { "kind": "group" } }),
+            )
+            .await;
+        assert_eq!(other["err"]["kind"], "refused", "{other}");
     });
 }
 
