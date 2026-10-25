@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -234,6 +234,77 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcatav", { timeout: 30_000 });
     const last = await accessDialog(gm, "Cenas", true);
     await expect(last).toContainText("Exceções (0)");
-    expect(await fileRow(gm, "Cenas/Ponte.md")).toBeVisible();
+    await expect(await fileRow(gm, "Cenas/Ponte.md")).toBeVisible();
   });
 });
+
+/** Rows of an open menu, picked by its labels ("Novo", then "Nova nota nesta pasta"). */
+async function pickMenu(page, ...labels) {
+  const menu = page.locator(".menu:not([hidden])");
+  for (const name of labels) await menu.getByRole("menuitem", { name, exact: true }).click();
+}
+
+test("d. Ana makes and renames a note in a folder she edits and cannot delete it; a name a hidden file holds gets the silent suffix", async ({ browser, page: gm }, info) => {
+  const files = { "Diario/Base.md": "# Base\n", "Diario/Zqsombra.md": "# Zqsombra\n\nzqcorposombra\n" };
+  await scenario(browser, gm, info, "criar", files, async ({ folder, ana, bruno, set }) => {
+    // The folder: the table sees, Ana edits. One file of it is hidden from all.
+    await applyFolder(gm, "Diario", [["Toda a mesa", "Vê"], ["Ana", "Edita"]]);
+    await gm.keyboard.press("Escape");
+    await set(["Diario/Zqsombra.md"], "none");
+    await openFolder(ana.page, folder.id);
+    await openFolder(bruno.page, folder.id);
+    await reveal(ana.page, "Diario");
+    const mine = (n) => ana.page.locator(`#notes li[data-path="Diario/${n}.md"]`);
+    await expect(mine("Base")).toBeVisible({ timeout: 30_000 });
+    expect(await traces(ana.page, ["Zqsombra", "zqcorposombra"])).toEqual([]);
+
+    // She makes a note in the folder, from the folder's menu.
+    await ana.page.locator('#notes summary[data-folder="Diario"]').click({ button: "right" });
+    await pickMenu(ana.page, "Novo", "Nova nota nesta pasta");
+    await ana.page.locator("input.new-note").fill("Sessao um");
+    await ana.page.locator("input.new-note").press("Enter");
+    await expect.poll(async () => (await invoke(gm, "list_files", {})).includes("Diario/Sessao um.md"), { timeout: 30_000 }).toBe(true);
+    await expect(mine("Sessao um")).toBeVisible({ timeout: 30_000 });
+
+    // She renames it, from the note's menu.
+    await mine("Sessao um").locator("> button").click({ button: "right" });
+    await ana.page.getByRole("menuitem", { name: "Renomear", exact: true }).click();
+    await ana.page.locator("input.rename").fill("Sessao dois");
+    await ana.page.locator("input.rename").press("Enter");
+    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.startsWith("Diario/Sessao")), { timeout: 30_000 }).toEqual(["Diario/Sessao dois.md"]);
+    await expect(mine("Sessao dois")).toBeVisible({ timeout: 30_000 });
+
+    // She cannot delete it: no row in the menu, and the command is refused.
+    await mine("Sessao dois").locator("> button").click({ button: "right" });
+    await expect(ana.page.getByRole("menuitem", { name: "Renomear", exact: true })).toBeVisible();
+    await expect(ana.page.getByRole("menuitem", { name: "Mover para a lixeira", exact: true })).toHaveCount(0);
+    await ana.page.keyboard.press("Escape");
+    const refused = await tryInvoke(ana.page, "delete_entry", { path: "Diario/Sessao dois.md" });
+    expect(refused.error, JSON.stringify(refused)).toBeTruthy();
+    expect(await invoke(gm, "list_files", {})).toContain("Diario/Sessao dois.md");
+
+    // A name that a hidden file holds: the silent suffix, no word of the hidden one.
+    await ana.page.locator('#notes summary[data-folder="Diario"]').click({ button: "right" });
+    await pickMenu(ana.page, "Novo", "Nova nota nesta pasta");
+    await ana.page.locator("input.new-note").fill("Zqsombra");
+    await ana.page.locator("input.new-note").press("Enter");
+    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.startsWith("Diario/Zqsombra")).sort(), { timeout: 30_000 }).toEqual(["Diario/Zqsombra 2.md", "Diario/Zqsombra.md"]);
+    await expect(mine("Zqsombra 2")).toBeVisible({ timeout: 30_000 });
+    await expect(ana.page.locator("#status")).not.toContainText(/exist|já|outro nome/i);
+    expect(await ana.page.locator('#notes li[data-path="Diario/Zqsombra.md"]').count()).toBe(0);
+    // Her own file is hers; the hidden one's body is in no page of hers.
+    expect(await traces(ana.page, ["zqcorposombra"])).toEqual([]);
+    expect(await listedTo(ana.page)).not.toContain("Diario/Zqsombra.md");
+    // The same through the contract: a rename onto the hidden name is also suffixed, never "exists".
+    const moved = await tryInvoke(ana.page, "rename_entry", { from: "Diario/Sessao dois.md", to: "Diario/Zqsombra.md" });
+    expect(moved.error, JSON.stringify(moved)).toBeFalsy();
+    expect(moved.path).toBe("Diario/Zqsombra 3.md");
+    // Bruno sees Ana's notes of the folder (it is shared with the table) and nothing of the hidden one.
+    await reveal(bruno.page, "Diario");
+    await expect(bruno.page.locator('#notes li[data-path="Diario/Zqsombra 2.md"]')).toBeVisible({ timeout: 30_000 });
+    expect(await traces(bruno.page, ["zqcorposombra", "Zqsombra.md"])).toEqual([]);
+  });
+});
+
+/** The paths the core lists for a window. */
+const listedTo = async (page) => invoke(page, "list_files", {});
