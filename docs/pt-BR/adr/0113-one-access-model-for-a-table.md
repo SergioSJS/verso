@@ -721,3 +721,79 @@ caminhos e o mantenedor decidiu dois comportamentos; todos estão testados
   permitidos (o chat não é escrita de arquivo). O `none` que a migração escreveu
   para uma nota que a mesa mantinha oculta é marcado (`migrated`) e não é
   exceção na lista de uma pasta.
+
+### Como construído, S8 (2026-10-25, `feat/access-s8`)
+
+O desktop sincronizado é mais uma porta do modelo; o host não decide nada por
+conta própria.
+
+- **O que um dispositivo recebe e pode enviar.** Uma nota é servida inteira a
+  um dispositivo, e o `sync_put` dela aceito, exatamente quando a pessoa a
+  edita: `Veil::serves_whole` é a afirmação única (o grupo todo edita, a linha
+  própria da pessoa diz *edita*, ou ela é editora da pasta e a vê — K.1),
+  consultada pelo pipeline de leitor (`reader_view_in`, `device_bytes`) e por
+  `Door::check_sync`. Isso levanta a nota (4) de S3: o dispositivo de um
+  editor volta a escrever as notas que edita (fecha B9). Uma nota que a pessoa
+  só vê continua servida como projeção e o envio dela é recusado. Um board
+  nunca é servido inteiro a quem o edita sozinho, nem enviado inteiro (H). O
+  editor da pasta é lido dos membros **ao vivo** (nunca guardado no véu: um
+  editor rebaixado recebe a projeção na hora, e o cache de arquivos informados
+  é chaveado por isso); uma credencial só de leitura da mesma conta não é
+  distinguida no log por jogador (decidido: o direito da conta decide o que é
+  servido, o teto da credencial ainda barra o envio em `check_sync`).
+- **O que um dispositivo pode fazer, perguntado.** `access_get` com
+  `brief: true` responde `{path, see, put, delete, rename}` por caminho, pelo
+  mesmo julgamento que as escritas enfrentam (`check_sync`); um caminho que a
+  pessoa não vê é respondido como um nome livre, nunca como erro. O host nunca
+  deriva isso.
+- **O host guarda a resposta.** `State.access` (caminho → `Rights`, só os
+  arquivos que o dispositivo pode alterar) é salvo com o resto do estado do
+  sync por pasta e vale offline. Uma passada pergunta pelos caminhos que vai
+  alterar; pergunta por todos os arquivos quando a resposta está velha (conexão
+  refeita, evento `access-changed`, mudança de papel) e só troca o memo inteiro
+  depois que o servidor respondeu. Um servidor ou nuvem sem resposta por
+  arquivo deixa o papel decidir (leitor: nada; editor: tudo, o servidor
+  julgando). Antes, `role == "reader"` era o único portão.
+- **O que cruza.** `Gate` (`sync/transfer.rs`) substitui a flag `reader`: um
+  envio, uma exclusão remota ou um renomear remoto que o memo não permite fica
+  aqui, dito uma vez como arquivo à parte (motivo `reader`), nunca enviado para
+  ser recusado, nunca uma cópia de conflito, sem tempestade de tentativas (o
+  board de um jogador cai aqui também: nunca é enviado, H). A passada de
+  alcance da nota ao vivo consulta o mesmo portão.
+- **Arquivos ocultos.** A listagem e o log que um dispositivo recebe já eram
+  cortados pelo véu (`viewer_files`, `viewer_page`): os bytes e o nome de um
+  arquivo oculto nunca chegam. Um arquivo que passa a ser oculto chega como a
+  exclusão forçada do servidor, que o motor executa como `DeleteLocal` (para a
+  lixeira do sistema, só o arquivo que a passada leu); não é exclusão do
+  dispositivo, a cópia do servidor fica, e uma edição local dele é mantida e
+  posta à parte, nunca reenviada.
+- **A janela.** `sync_rights(paths)` responde do memo como um `FileAccess` por
+  caminho sobre o qual o host foi perguntado (caminho nunca perguntado fica de
+  fora, `fresh` é falso enquanto a pergunta é refeita). `access.ts` pergunta
+  pelo que a janela lista ou lê, uma vez, e de novo em `access-changed` e após
+  cada passada; numa pasta sincronizada aqui que não é da própria pessoa,
+  `may(path, edit)` é essa resposta, então uma leitora edita as notas a que tem
+  direito e um editor deixa as que só vê. A digitação numa sala acompanha
+  (`collab.reader`).
+
+Não feito, dito: (1) criar, renomear, excluir e mover na janela sincronizada
+ainda seguem só o papel (o portão do host recusa o que o servidor recusaria, a
+janela ainda não mostra); (2) um arquivo novo que não é nota de um jogador (um
+envio de *Enviar arquivos*) não é enviado por um dispositivo; (3) a sala do
+board no desktop mantém `reader` para leitor da pasta até a sala de S7 responder
+pelos elementos do jogador; (4) após reiniciar offline, as notas que um editor
+só vê aparecem destravadas até a primeira passada online (o memo guarda só o
+que pode ser alterado).
+
+Correções da revisão (2026-10-25): `brief` responde uma tupla fixa para um
+caminho que não é visto ou não existe (`see`, `delete`, `rename` falsos; `put`
+é a regra do nome livre, Criar na pasta de cima), de modo que nenhuma resposta
+distingue um arquivo oculto de um nome livre; um dispositivo recebe uma nota
+inteira só com credencial que escreve (o pipeline e `check_sync` consultam
+`view_for(account, editor, writes)`), como a janela; só uma pasta sem mesa é
+"sem resposta" (o papel decide), qualquer outra falha mantém o último memo; o
+memo é consultado pelo nome como o servidor compara nomes (caixa, NFC); uma
+mudança posta à parte por um arquivo que deixou de ser compartilhado diz isso
+(`unshared`); e a edição de um arquivo que a pessoa não pode enviar é posta de
+lado como cópia de conflito uma só vez (os mesmos bytes não são copiados de
+novo a cada mudança do servidor).

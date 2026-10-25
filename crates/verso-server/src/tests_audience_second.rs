@@ -81,7 +81,7 @@ fn a_table_that_cannot_be_read_records_nothing_sends_no_one_out_and_settles_noth
         let asked = tokio::task::spawn_blocking(move || {
             crate::campaign_cmds::refresh(&s, &f, &k, &[], None);
             crate::campaign_sync::refresh_readers(&s, &f, &k, false);
-            crate::campaign_sync::viewer_page(&s, (&f, &k), &a, (0, 1000))
+            crate::campaign_sync::viewer_page(&s, (&f, &k), (&a, true), (0, 1000))
         })
         .await
         .unwrap();

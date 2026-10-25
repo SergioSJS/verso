@@ -37,6 +37,10 @@ pub struct Door {
     pub scope: Option<crate::scope::Scope>,
     /// The folder's tables as the rules see them; none when it has none.
     pub veil: Option<Arc<Veil>>,
+    /// Whether the account is an editor of the folder itself (read when the
+    /// door was made, not through a share): such a device is served the
+    /// notes it sees whole ([`Veil::serves_whole`]).
+    editor_live: bool,
     facts: Arc<AccessFacts>,
 }
 
@@ -84,6 +88,7 @@ impl Door {
         let owner = owner && scope.is_none() && !link;
         let veil = campaign::veil_of(server, &folder);
         let facts = Arc::new(facts_for(server, &folder, veil.as_deref(), &who.account.id));
+        let editor_live = veil.is_some() && campaign::is_editor(server, &folder, &who.account.id);
         Self {
             asker: Asker {
                 account: who.account.id.clone(),
@@ -106,6 +111,7 @@ impl Door {
             folder,
             scope,
             veil,
+            editor_live,
             facts,
         }
     }
@@ -157,6 +163,28 @@ impl Door {
         self.editor_or_more() && self.asker.cap == Cap::Write
     }
 
+    /// Whether the credential writes: only then is a device served what the
+    /// person edits whole, as a window is (`SeeSecretBlocks`).
+    #[must_use]
+    pub fn sends_whole_cap(&self) -> bool {
+        self.asker.cap == Cap::Write
+    }
+
+    /// Whether a device of the asker is served the note at `path` whole
+    /// (ADR 0113 S8): the pipeline of `sync_state` / `sync_read` and the
+    /// judgement of `sync_put` ask this one statement.
+    #[must_use]
+    pub fn serves_whole(&self, path: &str) -> bool {
+        self.veil.as_ref().is_some_and(|v| {
+            v.view_for(
+                &self.asker.account,
+                self.editor_live,
+                self.sends_whole_cap(),
+            )
+            .serves_whole(path)
+        })
+    }
+
     /// The rules' answer for `path` (a path of the folder, not of a share).
     #[must_use]
     pub fn may(&self, action: Action, path: &str, kind: Kind) -> Verdict {
@@ -175,6 +203,18 @@ impl Door {
             Some(s) => s.to_full_write(given).unwrap_or_else(|_| given.to_owned()),
             None => given.to_owned(),
         }
+    }
+
+    /// The path in the folder of `given`, confined; none when it leaves the
+    /// folder or the share.
+    #[must_use]
+    pub fn full_checked(&self, given: &str) -> Option<String> {
+        let full = match &self.scope {
+            Some(s) => s.to_full(given).ok()?,
+            None => given.to_owned(),
+        };
+        crate::scope::checked(&full).ok()?;
+        Some(full)
     }
 
     /// The folder a path is in, as the rules take it: `""` is the folder.
@@ -240,14 +280,7 @@ impl Door {
                         // A rename inside a folder: the player sees the file
                         // and edits the folder (K.5). A table's root, or a
                         // folder above one, is the game master's.
-                        if self.seat() != Seat::Master && self.facts.holds_table(&from) {
-                            Verdict::Deny(super::Reason::NotMaster)
-                        } else {
-                            and(
-                                self.may_path(Action::See, &from),
-                                self.may(Action::Rename, &a, Kind::Folder),
-                            )
-                        }
+                        self.rename_in_place(&from)
                     } else {
                         // Out of one folder into another: a move. Into a table
                         // it is the game master's (K.5), and always the new
@@ -295,9 +328,9 @@ impl Door {
     /// rules say. A put of a note goes the way a write of it does; a
     /// player's device holds the veiled, projected copy of whatever it
     /// does not edit whole, and a put of that would write the projection
-    /// over the game master's text: only a file the whole group edits is
-    /// served whole (ADR 0110 item 5; ADR 0113 S8 lifts it), and a board
-    /// is never put whole by a player (H).
+    /// over the game master's text: only a note the person edits is served
+    /// whole ([`Door::serves_whole`], ADR 0113 S8), so only that one is put
+    /// back, and a board is never put whole by a player (H).
     pub fn check_sync(&self, cmd: &str, args: &Value) -> Result<(), ContractError> {
         match cmd {
             "sync_put" => {
@@ -323,9 +356,11 @@ impl Door {
                 let unseen = self.veiled() && !self.may_path(Action::See, &path).allowed();
                 if verdict.allowed() && self.veiled() && !unseen {
                     // Notes and boards are what a device holds projected.
+                    // A note is put only by one who is served it whole: the
+                    // projection written back would erase its secret blocks.
                     let whole = match Kind::of_path(&path) {
                         Kind::Board => false,
-                        Kind::Note => self.veil.as_ref().is_some_and(|v| v.group_edits(&path)),
+                        Kind::Note => self.serves_whole(&path),
                         _ => true,
                     };
                     if !whole {
@@ -567,6 +602,40 @@ impl Door {
             list.retain(|k| sees(self, &k["path"]));
         }
         out
+    }
+
+    /// A rename of `from` inside its folder: the person sees the file and
+    /// edits the folder (K.5); a table's root, or a folder above one, is the
+    /// game master's.
+    fn rename_in_place(&self, from: &str) -> Verdict {
+        if self.seat() != Seat::Master && self.facts.holds_table(from) {
+            return Verdict::Deny(super::Reason::NotMaster);
+        }
+        and(
+            self.may_path(Action::See, from),
+            self.may(Action::Rename, &Self::parent(from), Kind::Folder),
+        )
+    }
+
+    /// Whether a device may rename `given` where it is (ADR 0113 S8).
+    #[must_use]
+    pub fn may_rename_here(&self, given: &str) -> bool {
+        self.rename_in_place(&self.full(given)).allowed()
+    }
+
+    /// Whether a device may put a file at `given` that is new to it: a free
+    /// name, or one it does not see — the same answer for both, so that no
+    /// answer tells a hidden file from a name nobody holds.
+    #[must_use]
+    pub fn may_put_new(&self, given: &str) -> bool {
+        if !self.veiled() {
+            return self
+                .check_sync("sync_put", &serde_json::json!({ "path": given }))
+                .is_ok();
+        }
+        let path = self.full(given);
+        let kind = Kind::of_path(&path);
+        self.create_in(&path).allowed() && kind.is_note_like() && kind != Kind::Board
     }
 
     fn create_in(&self, path: &str) -> Verdict {

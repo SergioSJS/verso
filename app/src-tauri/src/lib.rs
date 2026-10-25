@@ -887,6 +887,7 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                sync_rights::<$runtime>,
                 folder_sync_cloud_check::<$runtime>,
                 folder_sync_cloud_start::<$runtime>,
                 folder_sync_cloud_cancel::<$runtime>,
@@ -1458,5 +1459,7 @@ mod tests_shares;
 mod tests_sync;
 #[cfg(test)]
 mod tests_sync1;
+#[cfg(test)]
+mod tests_sync_access;
 #[cfg(test)]
 mod tests_sync_data;
