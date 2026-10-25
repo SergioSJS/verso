@@ -209,18 +209,33 @@ pub fn named_only(bytes: &[u8]) -> Result<Vec<u8>, String> {
     Ok(encode(&entries))
 }
 
-/// A presence already stamped, its `selected` ids kept to those `keep`
-/// names: a player is never told the id of an element it does not see, not
-/// even as someone's selection (ADR 0113 section H).
-pub fn keep_selected(bytes: &[u8], keep: &dyn Fn(&str) -> bool) -> Result<Vec<u8>, String> {
+/// A presence already stamped, as a player in a board's shadow is told it: only
+/// the fields a board draws — who (`user`), where the pointer is, which button,
+/// and the `selected` ids `keep` names. An allowlist, so that a field a window
+/// adds later, with the id of an element in it, is never told (ADR 0113
+/// section H). A window gone (`null`) stays gone.
+pub fn for_player(bytes: &[u8], keep: &dyn Fn(&str) -> bool) -> Result<Vec<u8>, String> {
     let entries = decode(bytes)?
         .into_iter()
         .map(|mut e| {
-            if let Ok(mut v) = serde_json::from_str::<Value>(&e.state)
-                && let Some(list) = v.get_mut("selected").and_then(Value::as_array_mut)
+            if let Ok(v) = serde_json::from_str::<Value>(&e.state)
+                && let Some(fields) = v.as_object()
             {
-                list.retain(|x| x.as_str().is_some_and(keep));
-                e.state = v.to_string();
+                let mut out = serde_json::Map::new();
+                for k in ["user", "pointer", "button"] {
+                    if let Some(x) = fields.get(k) {
+                        out.insert(k.to_owned(), x.clone());
+                    }
+                }
+                if let Some(list) = fields.get("selected").and_then(Value::as_array) {
+                    let kept: Vec<Value> = list
+                        .iter()
+                        .filter(|x| x.as_str().is_some_and(keep))
+                        .cloned()
+                        .collect();
+                    out.insert("selected".to_owned(), Value::Array(kept));
+                }
+                e.state = Value::Object(out).to_string();
             }
             e
         })
