@@ -46,7 +46,7 @@ impl Door {
     /// game master whatever the credential (ADR 0113 item 6).
     pub fn of(server: &Server, who: &Who, client: &str) -> Result<Self, ContractError> {
         let (folder, role) = crate::rpc::role_here(server, client)?;
-        let (scope, owner) = {
+        let (scope, owner, writes) = {
             let clients = verso_service::lock(&server.clients);
             let c = clients.get(client);
             (
@@ -54,9 +54,17 @@ impl Door {
                 // Kept in memory with the window: no database is read per
                 // command.
                 c.is_some_and(|c| c.owner),
+                c.is_some_and(|c| c.token_write),
             )
         };
-        Ok(Self::build(server, who, (folder, role, owner), scope))
+        let mut door = Self::build(server, who, (folder, role, owner), scope);
+        // The ceiling is the window's own, as the connection holds it now: a
+        // paired phone made a reader from the computer reads from its next
+        // command, over the WebSocket too, not from its next connection.
+        if who.phone.is_some() || !writes {
+            door.asker.cap = if writes { Cap::Write } else { Cap::Read };
+        }
+        Ok(door)
     }
 
     /// The door of `who` at `folder` with `role` there (through `scope`, a

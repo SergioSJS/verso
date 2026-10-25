@@ -430,3 +430,30 @@ fn write_text_never_makes_a_file_that_needs_the_right_to_send_files() {
         }
     });
 }
+
+#[test]
+fn a_credential_demoted_while_connected_writes_no_more_from_the_next_command() {
+    block_on(async {
+        let mut m = mesa().await;
+        let text = json!({ "name": "Nota Um", "text": "um\n" });
+        let ok = m.owner.call("create_note", text).await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+        let flip = |on: bool| {
+            for c in verso_service::lock(&m.r.server.clients).values_mut() {
+                c.token_write = on;
+            }
+        };
+        flip(false);
+        let no = m
+            .owner
+            .call("create_note", json!({ "name": "Nota Dois", "text": "d\n" }))
+            .await;
+        assert!(refused(&no), "{no}");
+        flip(true);
+        let ok = m
+            .owner
+            .call("create_note", json!({ "name": "Nota Dois", "text": "d\n" }))
+            .await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+    });
+}
