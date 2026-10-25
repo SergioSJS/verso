@@ -348,7 +348,8 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   const said = f.name || opts.name || "";
   // A phone may give no type for a HEIC picture: its extension says.
   if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name) && !(seat() === "player" && sendable(f))) {
-    ui.status.textContent = a.notImage(said);
+    // Only a player at a table may send a PDF or audio (Send files, K.4).
+    ui.status.textContent = seat() === "player" ? a.notImage(said) : a.notImageOnly(said);
     return null;
   }
   // A player at a table puts a new file into a note it edits through the
