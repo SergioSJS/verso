@@ -380,6 +380,14 @@ pub fn shaped_text(whole: &str, lock: &dyn Fn(&str) -> Option<String>) -> String
     }
 }
 
+/// The revision a player who edits a board is told of the file: a hash of the
+/// text they are shown, so that it moves only when what they see does (the
+/// file's own moves with an edit of a secret pin).
+#[must_use]
+pub fn revision_of(shaped: &str) -> String {
+    format!("v{}", crate::sync::sha256(shaped.as_bytes()))
+}
+
 /// The board file a player's window made of its room, laid over the file as
 /// it is on disk: what the player does not see is the disk's, whatever the
 /// window sent; what they see is the window's; what the window dropped, they

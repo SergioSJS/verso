@@ -327,7 +327,7 @@ fn tell(server: &Server, room: &Room, except: Option<&str>, message: &serde_json
     // of the file, which is the whole file's.
     let doc = matches!(
         message["event"].as_str(),
-        Some("collab-update" | "collab-awareness")
+        Some("collab-update" | "collab-awareness" | "collab-saved")
     );
     let (shadowed, whole): (Vec<String>, Vec<String>) = room
         .clients
@@ -986,6 +986,7 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             let mut saved = event("collab-saved", &path, "revision", &json!(r.revision));
             saved["payload"]["hash"] = json!(hash);
             tell(server, &r, None, &saved);
+            players::saved(server, &mut r);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
