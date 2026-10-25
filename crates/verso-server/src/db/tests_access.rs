@@ -452,3 +452,31 @@ fn schema_20_ignores_an_audience_with_no_note_and_marks_the_hidden_it_wrote() {
             .contains("fechada.md")
     );
 }
+
+/// An explicit `none` the game master sets later on a migrated path is an
+/// exception someone made: it is no longer marked as migrated.
+#[test]
+fn an_explicit_none_on_a_migrated_path_is_no_longer_migrated() {
+    let conn = schema_19();
+    seed(&conn);
+    conn.execute_batch(
+        "INSERT INTO campaign_notes (folder, path, released) VALUES ('f', 'Fechada.md', 0);",
+    )
+    .unwrap();
+    let db = Db::from(conn).unwrap();
+    assert!(
+        db.access_facts("f")
+            .unwrap()
+            .migrated
+            .contains("fechada.md")
+    );
+    db.access_put("f", "Fechada.md", crate::access::NodeSet::default())
+        .unwrap();
+    let facts = db.access_facts("f").unwrap();
+    assert!(
+        !facts.migrated.contains("fechada.md"),
+        "{:?}",
+        facts.migrated
+    );
+    assert!(facts.sets.contains_key("fechada.md"));
+}

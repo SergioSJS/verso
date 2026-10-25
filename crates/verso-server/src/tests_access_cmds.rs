@@ -318,3 +318,57 @@ fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
         );
     });
 }
+
+/// What a player is told of a path counts only what it sees: the files
+/// under a folder, the secret blocks of a note, and the game master is
+/// never named by an e-mail (the review of 2026-10-24).
+#[test]
+fn a_player_is_told_counts_of_what_it_sees_and_no_email() {
+    block_on(async {
+        let mut m = mesa().await;
+        let made = m
+            .owner
+            .call(
+                "create_note",
+                json!({ "name": "Mundo Zq/Aberto Zq", "text": "x\n\n> [!secret]\n> zqsegredo\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let set = |whole: &str| json!({ "kind": "set", "set": { "whole": whole, "rows": [] }, "secret_name": null });
+        for (path, whole) in [("Mundo Zq", "see"), ("Mundo Zq/Cripta Zq.md", "none")] {
+            let done = m
+                .owner
+                .call(
+                    "access_set",
+                    json!({ "paths": [path], "change": set(whole) }),
+                )
+                .await;
+            assert!(done.get("ok").is_some(), "{done}");
+        }
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        m.r.server.db.set_profile(&admin.id, "", "pt").unwrap();
+        let paths = json!({ "paths": ["Mundo Zq", "Mundo Zq/Aberto Zq.md"] });
+        let mine = m.owner.call("access_get", paths.clone()).await;
+        assert_eq!(mine["ok"][0]["files"], 2, "{mine}");
+        assert_eq!(mine["ok"][1]["secret_blocks"], 1, "{mine}");
+        let hers = m.ana.call("access_get", paths).await;
+        assert_eq!(hers["ok"][0]["files"], 1, "{hers}");
+        assert_eq!(hers["ok"][1]["secret_blocks"], 0, "{hers}");
+        assert!(!hers.to_string().contains('@'), "{hers}");
+        assert_eq!(hers["ok"][0]["master"], "", "{hers}");
+        // A path that is not there cannot be given a set.
+        let no = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq/Nao existe.md"], "change": set("see") }),
+            )
+            .await;
+        assert!(refused(&no), "{no}");
+    });
+}
