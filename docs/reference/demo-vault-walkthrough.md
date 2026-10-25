@@ -1539,13 +1539,15 @@ must be a server's, and the person its owner.
    table mark, and every note under it has the padlock "Oculta da mesa". On a
    folder of this computer alone the row is not there. Level: H; E:
    `campaign.spec.mjs`.
-2. Right-click a hidden note › *Liberar para…* › *Toda a mesa*: the padlock goes
-   and the status line says it; › *Ninguém (oculta)* puts it back; ticking one
-   or two players releases it to them alone (the others never see it, a player
-   edited by the game master is added to those who see it and the status line
-   says so). With several notes selected, the selection's menu releases or hides
-   them whole-table at once. On a folder of the table, *Liberar tudo daqui* and
-   *Ocultar tudo daqui*. Level: H; E: `campaign.spec.mjs`, `audience.spec.mjs`.
+2. Right-click a hidden note › *Acesso…*: the table has a *Whole table* row and
+   one row per player, each *Does not see*, *Sees* or *Edits*. *Whole table* ›
+   *Sees* releases the note to everyone and the padlock goes; setting one player
+   to *Sees* releases it to them alone (the others never see it), and a player
+   set to *Edits* is added to those who see it, with a warning if the note has
+   secret blocks. With several notes selected, *Access for N files…* sets them
+   at once. On a folder of the table, *Acesso…* applies to everything inside it
+   (*Apply* says how many files change). Level: H; E: `campaign.spec.mjs`,
+   `audience.spec.mjs` (to be updated to the new dialog).
    Inside a note of the table, the users icon beside the star lists who sees
    it: hover, tap, or Tab + Enter; Esc closes; on a phone it is a bottom sheet.
    Level: H; E: `audience.spec.mjs`.
@@ -1554,8 +1556,9 @@ must be a server's, and the person its owner.
    limits take 1,000 to 200,000 entries and 1 to 30 MB and refuse the rest;
    *Desfazer mesa* asks first. Level: H; E: `campaign.spec.mjs`. The invitation
    itself, with the fresh proof, is the server's: A.
-4. Right-click a note › *Nome secreto*; › *Editável por* › *o grupo* or a
-   player. Level: H; E: `campaign.spec.mjs`.
+4. Right-click a note › *Acesso…* › *Edits* on a player's row (or on *Whole
+   table*); right-click a hidden note › *Acesso…* › *Nome secreto* (in *More
+   options*). Level: H; E: `campaign.spec.mjs` (to be updated to the new dialog).
 5. As a player (a second account, the invitation's link): the tree has only
    the released notes; a link to a hidden note reads "texto 🔒", with an alias
    "apelido 🔒", a secret name ▒▒▒▒, an embed "🔒 (ainda não revelado)"; the
@@ -1567,6 +1570,33 @@ must be a server's, and the person its owner.
    window leaves the folder, and opening it again answers "a mesa está
    fechada"; the owner enters. Level: U (`tests_campaign.rs`); A with two
    accounts.
+7. The dialog's exceptions. Right-click a folder › *Acesso…*: set *Whole table*
+   to *Sees*, then *Apply*; the line before it says how many files change. Then
+   set one file inside the folder to *Edits* for a player: the folder's dialog
+   lists it under *Exceptions*, with *↺ Follow the folder*; the button returns it
+   to the folder's access and the list empties. A file moved into the folder
+   from elsewhere keeps its own access and is listed as an exception. Level: H
+   (by hand; no E yet).
+8. The tree's marks. A hidden note has a padlock beside it; a note a player
+   edits has a pencil. Inside a table a player does not see the folder's own
+   padlock. Level: H (by hand; no E yet).
+9. Sending files. In the Table window, the *Enviar arquivos* switch of one
+   player is off by default; turn it on, and as that player (a second account)
+   the attach and paste controls appear at once, without a reload. The player
+   sends an image, a PDF and an audio file in the table's chat; each one lands in
+   the table's attachments folder. Turn the switch off: the controls go. Level:
+   H; A with two accounts.
+10. A player who *Edits* a note. As that player, drag a roll or a chat message
+    from the *Mesa* panel onto the note's text: a line shows where it lands, and
+    one ⌘Z takes it back. An image does not drag; use the message's ⋯.
+    Level: H; A with two accounts.
+11. A player who *Edits* a board. As that player, move a card the player may see:
+    the other players see the move live. The locked cards of files the player
+    does not see stay locked cards. Level: H; A with two
+    accounts.
+12. A player who *Edits* a folder. As that player, *New note* and *Rename* are
+    offered in the folder; *Delete* and moving files are not. Level: H (by hand;
+    no E yet).
 
 ## 19. The end
 
