@@ -280,7 +280,10 @@ fn a_folder_above_a_table_is_not_deleted_moved_nor_renamed_by_an_editor() {
         crate::campaign::forget(&m.r.server, &m.id);
         let made = m
             .owner
-            .call("create_note", json!({ "name": "Mundo Zq/Sub/Oculta Zq", "text": "x\n" }))
+            .call(
+                "create_note",
+                json!({ "name": "Mundo Zq/Sub/Oculta Zq", "text": "x\n" }),
+            )
             .await;
         assert!(made.get("ok").is_some(), "{made}");
         let mut cid = editor(&m).await;
@@ -295,10 +298,7 @@ fn a_folder_above_a_table_is_not_deleted_moved_nor_renamed_by_an_editor() {
                 "rename_entry",
                 json!({ "from": "Mundo Zq", "to": "Anexos/Mundo Zq" }),
             ),
-            (
-                "rename_entry",
-                json!({ "from": "Mundo Zq", "to": "Outro" }),
-            ),
+            ("rename_entry", json!({ "from": "Mundo Zq", "to": "Outro" })),
             (
                 "rename_entry",
                 json!({ "from": "Mundo Zq/Sub", "to": "Mundo Zq/Sub2" }),
@@ -312,5 +312,44 @@ fn a_folder_above_a_table_is_not_deleted_moved_nor_renamed_by_an_editor() {
             .call("read_note", json!({ "path": "Mundo Zq/Sub/Oculta Zq.md" }))
             .await;
         assert!(still.get("ok").is_some(), "{still}");
+    });
+}
+
+#[test]
+fn a_devices_rename_onto_a_hidden_name_gets_the_suffix_and_never_says_taken() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let mut cid = editor(&m).await;
+        let state = cid.call("sync_state", json!({})).await;
+        let files = state["ok"]["files"].as_array().unwrap().clone();
+        let livre = files.iter().find(|f| f["path"] == "Livre.md").unwrap();
+        let done = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Livre.md", "to": "Barão Zq.md", "base": livre["hash"] }),
+            )
+            .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        assert_eq!(done["ok"]["path"], "Barão Zq 2.md", "{done}");
+        assert!(!done.to_string().contains("exists"), "{done}");
+        // The hidden note is untouched, and a folder holding hidden files
+        // is not a device's to rename.
+        let hide = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq/Cripta Zq.md"], "change": set("none") }),
+            )
+            .await;
+        assert!(hide.get("ok").is_some(), "{hide}");
+        let no = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Mundo Zq", "to": "Outro", "base": "" }),
+            )
+            .await;
+        assert!(refused(&no), "{no}");
+        assert!(!no.to_string().contains("Cripta"), "{no}");
     });
 }
