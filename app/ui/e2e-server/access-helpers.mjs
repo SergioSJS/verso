@@ -272,3 +272,12 @@ export async function applyFolder(gm, path, choices) {
 
 /** Every path of the folder the core lists for a window (notes, boards, files and folders; not the tree). */
 export const entries = async (page) => (await invoke(page, "list_entries", {})).map((e) => e.path);
+
+/** Where `word` stands in the page (for a failure's message): the markup around it. */
+export const where = (page, word) =>
+  page.evaluate((w) => {
+    const html = document.documentElement.outerHTML;
+    const out = [];
+    for (let i = html.indexOf(w); i >= 0 && out.length < 3; i = html.indexOf(w, i + 1)) out.push(html.slice(Math.max(0, i - 160), i + 80));
+    return out.join("\n---\n");
+  }, word);
