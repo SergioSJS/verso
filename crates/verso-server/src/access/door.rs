@@ -631,9 +631,7 @@ impl Door {
         // A name is no way round *Send files* (K.4): at a table, a file
         // keeps its kind — the same extension, or both the same sort of
         // note — so a sent PNG is never served as a page, an SVG or a PDF.
-        if self.seat() != Seat::Master
-            && self.facts.table_of(to).is_some()
-            && !same_kind(from, to)
+        if self.seat() != Seat::Master && self.facts.table_of(to).is_some() && !same_kind(from, to)
         {
             return Verdict::Deny(super::Reason::NoRight);
         }
