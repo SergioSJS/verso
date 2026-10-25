@@ -15,6 +15,7 @@
 //  - anything else, nothing.
 // The parts are the table window's (campaignParts.ts).
 
+import { tableViewer } from "./access";
 import { campaign, isTableRoot, makeTable, tableFor } from "./campaign";
 import { openCampaignDialog } from "./campaignDialog";
 import { follow, inviteBlock, noteLink, notesBlock, onlineIds, openSwitch } from "./campaignParts";
@@ -46,7 +47,7 @@ function fold(path: string, on: boolean): void {
 
 /** The card for the folder at `path`, or null when the page has none. */
 export function tableCard(path: string): HTMLElement | null {
-  const viewer = campaign().viewer;
+  const viewer = tableViewer();
   if (isTableRoot(path)) {
     if (viewer === "owner") return ownerCard(path);
     if (viewer === "player") return playerCard(path);
