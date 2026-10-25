@@ -149,7 +149,9 @@ test("keyboard only: Tab stays in the dialog, arrows choose, Enter applies, Esca
   const stops = [];
   for (let i = 0; i < 12; i++) {
     await page.keyboard.press("Tab");
-    expect(await d.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    const inside = await d.evaluate((el) => el.contains(document.activeElement));
+    const where = await page.evaluate(() => `${document.activeElement?.tagName}.${document.activeElement?.className} ${document.activeElement?.textContent?.trim().slice(0, 20)}`);
+    expect(inside, `Tab ${i + 1} landed on ${where}; stops so far: ${stops.join(" | ")}`).toBe(true);
     stops.push(await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim() ?? ""));
   }
   expect(stops).toContain("Fechar");
@@ -194,10 +196,13 @@ for (const width of [1500, 820, 390]) {
   test(`at ${width} px every control is reachable, nothing is cut off and the page does not scroll sideways`, async ({ app }) => {
     await setup(app, width);
     const page = app.page;
+    const sheetWidth = width <= 760;
     for (const [target, name, folder] of [
       [row(app, "Mundo/Cripta.md"), /^Acesso · Cripta/, false],
       [folderRow(app), /^Acesso · pasta “Mundo”/, true],
     ]) {
+      // A phone's side panel gives way to the sheet: bring it back.
+      if (sheetWidth && !((await folderRow(app).boundingBox())?.x >= 0 && (await folderRow(app).boundingBox()).x < width)) await page.getByRole("button", { name: "Arquivos" }).click();
       await fromMenu(app, target);
       const d = dialogOf(app, name);
       await expect(d).toBeVisible();

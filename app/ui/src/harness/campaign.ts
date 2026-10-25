@@ -388,7 +388,9 @@ export class Campaign {
       const folder = path === "" || this.core.folders.has(path);
       if (change.kind === "follow") {
         this.derived.delete(path);
-        if (this.sets.delete(path) || this.notes.delete(path)) changed += 1;
+        const hadSet = this.sets.delete(path);
+        const hadNote = this.notes.delete(path);
+        if (hadSet || hadNote) changed += 1;
         touched.push(path);
         continue;
       }
