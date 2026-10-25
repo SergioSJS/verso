@@ -164,7 +164,7 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
         // The same bytes pass the same checks: never an SVG, by the bytes.
         let svg = base64::engine::general_purpose::STANDARD.encode(b"<svg xmlns='x'/>");
         let no = call(&mut ana, 8, "table_send_image", json!({ "base64": svg })).await;
-        assert!(err_of(&no).contains("PNG, JPEG, WebP or GIF"), "{no}");
+        assert!(err_of(&no).contains("an image, a PDF or an audio file"), "{no}");
         // Taken back: told at once, refused again.
         let taken = grant(&mut c.owner, 8, "", &c.ana_id, false).await;
         assert_eq!(
