@@ -404,6 +404,7 @@ fn read_board_edited(
         let mut file = ws.read_text(&path)?;
         let locks = crate::collab::players::Locks::new(ws, &p.veil);
         file.text = crate::board_sight::shaped_text(&file.text, &|f| locks.text(f));
+        file.revision = crate::board_sight::revision_of(&file.text);
         return to(serde_json::to_value(verso_service::convert::text_out(file)));
     }
     let bytes = ws.read_file(&path)?;

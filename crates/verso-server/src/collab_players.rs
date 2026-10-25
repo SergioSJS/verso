@@ -71,6 +71,10 @@ pub struct Shadow {
     /// What the account sees of the file the room was made from: ids the
     /// room may not hold yet.
     disk: BTreeMap<String, Class>,
+    /// The revision the account is told of the file: a hash of the file as
+    /// it is shown them, never the file's own — that one moves when only
+    /// what they do not see changes.
+    rev: String,
 }
 
 /// The shadows of a room, by account.
@@ -214,12 +218,35 @@ fn copy_of(doc: &Doc) -> Result<Doc, ContractError> {
     Ok(copy)
 }
 
-/// The facts of the room a shadow is told: all but its own `base`.
+/// The facts of the room a shadow is told: that the file was drawn in and its
+/// background, nothing else. Not the edits of the others — their count tells
+/// when something nobody shows the account changed — nor what was saved: that
+/// one is made for the account (`saved_for`).
 fn told_facts(room: &Meta) -> Meta {
     room.iter()
-        .filter(|(k, _)| k.as_str() != "base")
+        .filter(|(k, _)| matches!(k.as_str(), "seeded" | "background"))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect()
+}
+
+/// The count of the edits in `facts`, as `collab_board::edits` counts them.
+fn edits_in(facts: &Meta) -> String {
+    facts
+        .iter()
+        .filter(|(k, _)| k.starts_with("edit:"))
+        .map(|(k, v)| format!("{k}={v};"))
+        .collect()
+}
+
+/// The `saved` a shadow is told: the count of its own edits when nothing waits
+/// in the room, what it was told before while something does.
+fn saved_for(waiting: bool, now: &Meta, told: &Meta) -> Option<Any> {
+    let was = told.get("saved");
+    if waiting {
+        return was.is_none().then(|| Any::String(String::new().into()));
+    }
+    let own = edits_in(now);
+    (was != Some(&Any::String(own.clone().into()))).then(|| Any::String(own.into()))
 }
 
 /// The classes of the ids a canvas file holds, for `locks`.
@@ -246,13 +273,17 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         Some(Any::String(s)) => s.to_string(),
         _ => String::new(),
     };
-    let (sight, shaped, disk) = server.service.with_key(&r.key, |ws| {
+    let path = r.path.clone();
+    let (sight, shaped, disk, rev) = server.service.with_key(&r.key, |ws| {
+        let file = ws.read_text(&path)?;
         let locks = Locks::new(ws, &veil);
         let sight = board_sight::see(&entries, &|f| locks.text(f));
         let (shaped, disk) = disk_classes(&base, &locks);
-        Ok((sight, shaped, disk))
+        let shown = board_sight::shaped_text(&file.text, &|f| locks.text(f));
+        Ok((sight, shaped, disk, board_sight::revision_of(&shown)))
     })?;
     let mut told = told_facts(&facts);
+    told.insert("saved".to_owned(), Any::String(String::new().into()));
     told.insert("base".to_owned(), Any::String(shaped.to_string().into()));
     // What the window reads to know it is in a shadow (boardRoom.ts).
     told.insert("shadow".to_owned(), Any::Bool(true));
@@ -274,6 +305,7 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         told: (sight.shown.clone(), told),
         sight,
         disk,
+        rev,
     })
 }
 
@@ -347,7 +379,7 @@ pub(super) fn join(
     Ok(CollabJoin {
         kind: CollabKind::Board,
         update: b64(&state(&sh.doc, Kind::Board)?),
-        revision: r.revision.clone(),
+        revision: sh.rev.clone(),
         read_only: false,
         crlf: false,
         user: user.to_owned(),
@@ -397,6 +429,7 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
         return;
     };
     let mut closed: Vec<String> = Vec::new();
+    let waiting = r.board.waiting(&r.doc);
     for (account, sight, disk) in sights {
         let Some(sh) = r.readers.players.by.get_mut(&account) else {
             continue;
@@ -425,10 +458,12 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
             .filter(|k| !sight.shown.contains_key(*k))
             .cloned()
             .collect();
-        let facts_put: Vec<(String, Any)> = told_facts(&facts)
+        let mut facts_put: Vec<(String, Any)> = told_facts(&facts)
             .into_iter()
             .filter(|(k, v)| sh.told.1.get(k) != Some(v))
             .collect();
+        facts_put
+            .extend(saved_for(waiting, &sh.now.1, &sh.told.1).map(|v| ("saved".to_owned(), v)));
         for (k, v) in &puts {
             sh.told.0.insert(k.clone(), v.clone());
             sh.now.0.insert(k.clone(), v.clone());
@@ -451,6 +486,45 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
         }
     }
     close(server, r, &closed);
+}
+
+/// The room wrote its file: each shadow's windows are told it was saved — with
+/// the revision of the file as the account is shown it, and only when that
+/// moved: a save of what they do not see is none to them.
+pub(super) fn saved(server: &Server, r: &mut Room) {
+    if r.readers.players.is_empty() {
+        return;
+    }
+    let Some(veil) = crate::campaign::veil_for_key(server, &r.key) else {
+        return;
+    };
+    let accounts: Vec<String> = r.readers.players.by.keys().cloned().collect();
+    let path = r.path.clone();
+    let revs = server.service.with_key(&r.key, |ws| {
+        let file = ws.read_text(&path)?;
+        let mut out = Vec::new();
+        for a in &accounts {
+            let v = veil.view(a);
+            let locks = Locks::new(ws, &v);
+            let shown = board_sight::shaped_text(&file.text, &|f| locks.text(f));
+            out.push((a.clone(), board_sight::revision_of(&shown)));
+        }
+        Ok(out)
+    });
+    for (account, rev) in revs.unwrap_or_default() {
+        let Some(sh) = r.readers.players.by.get_mut(&account) else {
+            continue;
+        };
+        if sh.rev == rev {
+            continue;
+        }
+        sh.rev.clone_from(&rev);
+        let to: Vec<String> = sh.clients.iter().cloned().collect();
+        server.push(
+            &to,
+            &event("collab-saved", &r.path, "revision", &json!(rev)),
+        );
+    }
 }
 
 /// `clients`, windows of shadows, told the room closed: out of it.

@@ -191,6 +191,13 @@ impl Copy {
         }
         n
     }
+    fn take_into(doc: &Doc, events: &[Value]) {
+        for e in events {
+            if e["event"] == "collab-update" && e["payload"]["path"] == PATH {
+                apply(doc, &bytes(e["payload"]["update"].as_str().unwrap()));
+            }
+        }
+    }
     fn element(&self, id: &str) -> Option<Value> {
         collab_board::elements(&self.doc).remove(id)
     }
@@ -1041,5 +1048,110 @@ fn a_player_who_edits_a_board_reads_it_as_her_room_is_told_and_has_no_history_of
                 exchange(&mut m.ana, cmd, json!({ "path": PATH, "id": "x" }), LEAKS).await;
             assert!(got.get("err").is_some(), "{cmd}: {got}");
         }
+    });
+}
+
+#[test]
+fn what_the_game_master_does_to_what_she_does_not_see_leaves_no_trace_for_her() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let gm = master_seeds(&mut m).await;
+        let (joined, ana, _) = join(&mut m.ana, LEAKS).await;
+        let raw = m.owner.call("read_text", json!({ "path": PATH })).await;
+        // The revision she is told is of the file she is shown, never the file's.
+        assert_ne!(joined["ok"]["revision"], raw["ok"]["revision"]);
+        let before = ana.base();
+        // The game master moves the pin, counts it as an edit, hands the room
+        // the file of it, and the room writes it.
+        let mut pin = collab_board::elements(&gm)["zqpin"].clone();
+        pin["x"] = json!(777);
+        let edit = yrs::merge_updates_v1([
+            put(&gm, "zqpin", 2, 8, &pin).as_slice(),
+            edited(&gm, 1).as_slice(),
+        ])
+        .unwrap();
+        let (sent, _) = send(&mut m.owner, &edit, &[]).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        let (given, _) = exchange(
+            &mut m.owner,
+            "collab_canvas",
+            json!({ "path": PATH, "at": sv(&gm), "json": canvas_of(&gm).to_string() }),
+            &[],
+        )
+        .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        let (_, events) = exchange(&mut m.owner, "collab_save", json!({ "path": PATH }), &[]).await;
+        Copy::take_into(&gm, &events);
+        for e in hear(&mut m.owner, 200, &[]).await {
+            Copy::take_into(&gm, &[e]);
+        }
+        let after = disk(&mut m).await;
+        assert_eq!(node(&after, "zqpin").unwrap()["x"], 777);
+        // She heard nothing of it: no update (not the count of edits, not the
+        // saved), no saved, and the file she is told of is the same.
+        let told = hear(&mut m.ana, 600, LEAKS).await;
+        let kinds: Vec<&str> = told
+            .iter()
+            .filter_map(|e| e["event"].as_str())
+            .filter(|e| matches!(*e, "collab-update" | "collab-awareness"))
+            .collect();
+        assert!(kinds.is_empty(), "{kinds:?}");
+        // The file's text moved in layout, so she is told it was saved — with
+        // the revision of what she is shown, the one she reads.
+        let read = m.ana.call("read_text", json!({ "path": PATH })).await;
+        let said = told.iter().rfind(|e| e["event"] == "collab-saved");
+        if let Some(said) = said {
+            assert_eq!(said["payload"]["revision"], read["ok"]["revision"]);
+        } else {
+            assert_eq!(read["ok"]["revision"], joined["ok"]["revision"]);
+        }
+        assert_eq!(ana.base(), before);
+        // What she does is saved to her: her own edit waits, then is written.
+        let mut open = ana.element("c-open").unwrap();
+        open["x"] = json!(5);
+        let mine = yrs::merge_updates_v1([
+            put(&ana.doc, "c-open", 2, 21, &open).as_slice(),
+            edited(&ana.doc, 1).as_slice(),
+        ])
+        .unwrap();
+        send(&mut m.ana, &mine, LEAKS).await;
+        for e in hear(&mut m.owner, 300, &[]).await {
+            if e["event"] == "collab-update" {
+                apply(&gm, &bytes(e["payload"]["update"].as_str().unwrap()));
+            }
+        }
+        let (given, _) = exchange(
+            &mut m.owner,
+            "collab_canvas",
+            json!({ "path": PATH, "at": sv(&gm), "json": canvas_of(&gm).to_string() }),
+            &[],
+        )
+        .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        exchange(&mut m.owner, "collab_save", json!({ "path": PATH }), &[]).await;
+        assert_eq!(node(&disk(&mut m).await, "c-open").unwrap()["x"], 5);
+        let told = hear(&mut m.ana, 600, LEAKS).await;
+        assert!(
+            told.iter().any(|e| e["event"] == "collab-saved"),
+            "{told:?}"
+        );
+        let meta = |c: &Copy, k: &str| {
+            let m = c.doc.get_or_insert_map(META);
+            let txn = c.doc.transact();
+            m.get(&txn, k).map(|v| v.to_string(&txn))
+        };
+        for e in &told {
+            if e["event"] == "collab-update" {
+                apply(&ana.doc, &bytes(e["payload"]["update"].as_str().unwrap()));
+            }
+        }
+        assert_eq!(
+            meta(&ana, "saved"),
+            Some(format!("edit:{}=1;", ana.doc.client_id()))
+        );
+        let gm_key = format!("edit:{}", gm.client_id());
+        assert!(meta(&ana, &gm_key).is_none());
     });
 }
