@@ -134,6 +134,8 @@ export class Panel {
     }
   }
   show(leaf: Leaf | null): void {
+    // A tab that stopped being shared has nothing to show (its path is gone).
+    if (leaf?.unshared) leaf = null;
     this.leaf = leaf;
     this.refresh();
     if (leaf instanceof NoteLeaf) leaf.updateWords();
