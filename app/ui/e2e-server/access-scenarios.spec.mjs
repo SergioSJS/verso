@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PDF, PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -361,5 +361,55 @@ test("e. the game master moves a file with its own access into another folder: i
     await expect(bruno.page.locator('#notes li[data-path="B/Base.md"]')).toBeVisible({ timeout: 30_000 });
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
     expect(JSON.stringify(await invoke(bruno.page, "list_files", {}))).not.toContain("Zqitem");
+  });
+});
+
+test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game master and Bruno see its card; without the right she cannot", async ({ browser, page: gm }, info) => {
+  const files = { "Fichas/Ana.md": "# Ana\n", "Zqsegredo.md": "# Zqsegredo\n\nzqcorpo\n" };
+  await scenario(browser, gm, info, "pdf", files, async ({ folder, ana, bruno, set }) => {
+    await set(["Fichas/Ana.md"], "none", { Ana: "edit" });
+    await set(["Zqsegredo.md"], "none");
+    await openFolder(ana.page, folder.id);
+    await openFolder(bruno.page, folder.id);
+    const [g, a, b] = [await mesa(gm), await mesa(ana.page), await mesa(bruno.page)];
+    const attach = a.getByRole("button", { name: "Anexar imagem" });
+    const cards = (v) => v.locator(".table-file", { hasText: "PDF" });
+    // The players are in the game master's status now: a command that changes the table makes the window ask again.
+    await invoke(gm, "campaign_settings", { root: "", open: true, logMax: null, imageMax: null });
+    await g.getByRole("button", { name: "Abrir a janela da Mesa" }).click();
+    const dialog = gm.locator(".campaign-dialog");
+    await expect(dialog).toBeVisible();
+    const sw = dialog.getByRole("switch", { name: "Ana pode enviar arquivos" });
+
+    // Without the right: no button, the paste is not taken, the command is refused.
+    await expect(attach).toBeHidden();
+    await expect(sw).toBeVisible({ timeout: 15_000 });
+    await expect(sw).not.toBeChecked();
+    await sendFile(ana.page, a, "plano.pdf", "application/pdf", PDF);
+    const refused = await tryInvoke(ana.page, "table_send_image", { base64: PDF.toString("base64"), table: null });
+    expect(refused.error, JSON.stringify(refused)).toBeTruthy();
+    await ana.page.waitForTimeout(1000);
+    for (const v of [g, a, b]) await expect(cards(v)).toHaveCount(0);
+
+    // The game master lets her: the button appears, live; her PDF reaches the others as a card.
+    await sw.check({ force: true });
+    await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
+    await expect(attach).toBeVisible({ timeout: 15_000 });
+    await sendFile(ana.page, a, "plano.pdf", "application/pdf", PDF);
+    for (const v of [g, a, b]) await expect(cards(v)).toHaveCount(1, { timeout: 30_000 });
+    expect((await invoke(gm, "list_files", {})).some((f) => /attachments\/mesa-\d+-\w+\.pdf$/.test(f))).toBe(true);
+    // Bruno has no right of his own: no button.
+    await expect(b.getByRole("button", { name: "Anexar imagem" })).toBeHidden();
+    // A click on the card opens the file for those who see it (the table's own place is the table's).
+    await cards(b).click();
+    await expect(bruno.page.locator(".leaf:not([hidden])")).toBeVisible({ timeout: 30_000 });
+
+    // The right taken back: the button goes at once.
+    await sw.uncheck({ force: true });
+    await expect(attach).toBeHidden({ timeout: 15_000 });
+    for (const p of [ana.page, bruno.page]) {
+      expect(await traces(p, ["Zqsegredo", "zqcorpo"])).toEqual([]);
+      expect(JSON.stringify(await invoke(p, "list_files", {}))).not.toContain("Zqsegredo");
+    }
   });
 });
