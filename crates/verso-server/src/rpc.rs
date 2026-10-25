@@ -27,13 +27,16 @@ use base64::Engine;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
-use verso_contract::{Can, Capabilities, ContractError, ErrorKind, Host};
+use verso_contract::{ContractError, ErrorKind};
 use verso_service::{Access, lock, ops};
 
 use crate::auth::{Via, Who};
-use crate::db::{Folder, Role};
+use crate::db::Role;
 use crate::http::{ApiError, ApiResult, Ctx};
+use crate::rpc_open::{capabilities, record_space, share_counts, tabled};
 use crate::state::{Client, Outbox, QUEUE, QUEUE_BYTES, Server};
+
+pub(crate) use crate::rpc_open::open;
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -931,7 +934,13 @@ async fn folder_command(
         }
         if matches!(
             name,
-            "create_note" | "create_file" | "create_folder" | "rename_note" | "rename_entry"
+            "create_note"
+                | "create_file"
+                | "create_folder"
+                | "rename_note"
+                | "rename_entry"
+                | "write_note"
+                | "write_text"
         ) {
             let (s, d, k, n) = (
                 Arc::clone(server),
@@ -1313,193 +1322,4 @@ pub(crate) async fn folder_run(
         .await;
     }
     Ok(answer)
-}
-
-/// Open the folder for this window, or join its session.
-pub(crate) async fn open(
-    server: &Arc<Server>,
-    client: &str,
-    folder: Folder,
-    role: Role,
-    scope: Option<crate::scope::Scope>,
-) -> Result<Value, ContractError> {
-    let path = server
-        .folder_path(&folder.dir)
-        .ok_or_else(|| verso_service::failed("not a folder name"))?;
-    // A transfer of the folder shown before goes with it.
-    server.transfers.forget(client);
-    // A window is at one folder's table (ADR 0107).
-    crate::table::gone(server, client);
-    let service = Arc::clone(&server.service);
-    let c = client.to_owned();
-    let gate = Arc::clone(
-        lock(&server.opening)
-            .entry(verso_core::folder_key(&path))
-            .or_default(),
-    );
-    let info = blocking(move || {
-        let key = verso_core::folder_key(&path);
-        let _one = lock(&gate);
-        if service.join(&c, &key) {
-            return service
-                .current_folder(&c)
-                .ok_or_else(verso_service::no_folder);
-        }
-        let opened = service.open(&c, move |config| {
-            let mut ws = verso_core::Workspace::open(&path, config)?;
-            ws.set_links_inside(true);
-            Ok(ws)
-        })?;
-        let (info, catch_up) = service.attach(&c, opened);
-        if let Some(catch_up) = catch_up {
-            let service = Arc::clone(&service);
-            std::thread::spawn(move || service.catch_up(&catch_up));
-        }
-        Ok(info)
-    })
-    .await?;
-    lock(&server.keys).insert(info.key.clone(), folder.id.clone());
-    // What changed on the disk while nobody had it open joins the folder's
-    // log for sync, in the background (ADR 0079 item 4).
-    {
-        let s = Arc::clone(server);
-        let key = info.key.clone();
-        tokio::task::spawn_blocking(move || crate::sync::reconcile_key(&s, &key, None, &[]));
-    }
-    let said = match &scope {
-        Some(s) => {
-            json!({ "folder": { "id": s.share, "name": s.name, "role": role, "share": true } })
-        }
-        None => json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }),
-    };
-    // The game master of the table: the folder's owner on the folder
-    // itself, whatever the credential (ADR 0113 item 6).
-    let account = lock(&server.clients)
-        .get(client)
-        .map(|c| c.account.clone())
-        .unwrap_or_default();
-    let owner = scope.is_none()
-        && server
-            .db
-            .role(&folder.id, &account)
-            .ok()
-            .flatten()
-            .is_some_and(|r| r == Role::Owner);
-    if let Some(c) = lock(&server.clients).get_mut(client) {
-        c.folder = Some((folder.id.clone(), role));
-        c.owner = owner;
-        c.scope.clone_from(&scope);
-        let _ = c.tx.send(&said);
-    }
-    record_space(server, client).await;
-    let info = to_value(info)?;
-    Ok(match &scope {
-        Some(s) => {
-            let counts = share_counts(server, client, s).await;
-            tabled(server, client, s.info(info, counts)).await?
-        }
-        None => tabled(server, client, info).await?,
-    })
-}
-
-/// The folder's summary as a player of a table is told it (ADR 0110).
-async fn tabled(
-    server: &Arc<Server>,
-    client: &str,
-    mut info: Value,
-) -> Result<Value, ContractError> {
-    if info.is_null() {
-        return Ok(info);
-    }
-    let (s, c) = (Arc::clone(server), client.to_owned());
-    blocking(move || {
-        crate::campaign_serve::tell_summary(&s, &c, &mut info);
-        Ok(info)
-    })
-    .await
-}
-
-/// The share's own counts for the index's summary the window shows (ADR
-/// 0081 item 11); none when the folder cannot be read now, and then the
-/// summary says zero.
-async fn share_counts(
-    server: &Arc<Server>,
-    client: &str,
-    scope: &crate::scope::Scope,
-) -> Option<crate::scope::Counts> {
-    let s = Arc::clone(server);
-    let c = client.to_owned();
-    let sc = scope.clone();
-    blocking(move || s.service.with(&c, |ws| Ok(sc.counts(ws)?)))
-        .await
-        .ok()
-}
-
-/// Count the space of the window's folder and keep it for the pages that
-/// list folders (ADR 0075 item 4).
-async fn record_space(server: &Arc<Server>, client: &str) {
-    let Ok((folder, _)) = role_here(server, client) else {
-        return;
-    };
-    let s = Arc::clone(server);
-    let c = client.to_owned();
-    let _ = tokio::task::spawn_blocking(move || {
-        let Ok(space) = s.service.with(&c, ops::folder_space) else {
-            return;
-        };
-        // With when it was counted: the console's "last change" (ADR 0077).
-        let mut kept = serde_json::to_value(&space).unwrap_or_else(|_| json!({}));
-        // Sync's record of the files follows every write as it happens;
-        // the listing the count above walks only the watcher's batches.
-        if let Ok(files) = s.db.manifest(&folder)
-            && !files.is_empty()
-        {
-            let (mut notes, mut attachments) = (0_i64, 0_i64);
-            for (path, k) in &files {
-                if path.ends_with(".md") {
-                    notes += k.size;
-                } else {
-                    attachments += k.size;
-                }
-            }
-            kept["notes"] = json!(notes);
-            kept["attachments"] = json!(attachments);
-            kept["total"] = json!(notes + attachments);
-            kept["files"] = json!(files.len());
-        }
-        kept["at"] = json!(crate::db::now());
-        if let Err(e) =
-            s.db.set_setting(&format!("space:{folder}"), &kept.to_string())
-        {
-            crate::log::error(&format!("keeping a folder's space: {e}"));
-        }
-        // Whole bytes: the space is counted in f64 by the contract.
-        crate::quota::warn(
-            &s,
-            &folder,
-            kept["total"].as_u64().unwrap_or(space.total as u64),
-        );
-    })
-    .await;
-}
-
-fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
-    let mut can = vec![Can::Account, Can::Collab];
-    // Who the person is here, and what the ceiling of the credential is:
-    // the rules' answer (ADR 0113), the window's one source.
-    let door = crate::access::Door::of(server, who, client).ok();
-    // `Can::Write` is the folder-wide "may change the folder" the hosts
-    // without a server also give; the person's place is `access`.
-    if door.as_ref().is_some_and(crate::access::Door::writes_here) {
-        can.push(Can::Write);
-    }
-    if who.account.admin && !matches!(who.via, Via::Token { .. }) {
-        can.push(Can::Admin);
-    }
-    Capabilities {
-        host: Host::Server,
-        can,
-        latency_ms: None,
-        access: door.map(|d| d.folder_access()),
-    }
 }

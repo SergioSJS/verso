@@ -115,7 +115,7 @@ async function mesa(page) {
 
 
 const field = (view) => view.getByRole("textbox", { name: "Mensagem para a mesa" });
-const SWITCH = { name: "Ana pode enviar imagens" };
+const SWITCH = { name: "Ana pode enviar arquivos" };
 
 test.use({ actionTimeout: 10_000 });
 

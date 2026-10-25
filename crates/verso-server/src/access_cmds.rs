@@ -164,13 +164,19 @@ fn info(
         return Err(absent());
     }
     let (k, p, f) = (key.to_owned(), full.clone(), door.folder.clone());
+    let sees_secrets = manage || door.may_path(Action::SeeSecretBlocks, &full).allowed();
+    let viewer = veil.view(&me);
     let (folder, files, text) = server.service.with_key(&k, |ws| {
         let folder = ws.is_folder(&p);
-        let under = if folder {
+        let mut under = if folder {
             campaign_files(ws, &veil, &p)
         } else {
             Vec::new()
         };
+        // A player is told of the files it sees, never the count of the rest.
+        if !manage {
+            under.retain(|f| !crate::campaign_serve::is_hidden_in(ws, &viewer, f));
+        }
         let text = if !folder && Kind::of_path(&p) == Kind::Note {
             ws.read_note(&p).ok().map(|n| n.text)
         } else {
@@ -262,14 +268,19 @@ fn info(
         files: u32::try_from(files.len()).unwrap_or(u32::MAX),
         exceptions,
         secret_name: manage && veil.secret_name(&full),
-        secret_blocks: text.as_deref().map_or(0, secret_blocks),
+        secret_blocks: if sees_secrets {
+            text.as_deref().map_or(0, secret_blocks)
+        } else {
+            0
+        },
         players,
         manage,
+        // Never an e-mail: a player is told a name, or the window words it.
         master: master_name(server, &f),
     })
 }
 
-/// The game master's name (its e-mail when it has none).
+/// The game master's name; empty when it has none (the window words it).
 fn master_name(server: &Server, folder: &str) -> String {
     server
         .db
@@ -277,7 +288,7 @@ fn master_name(server: &Server, folder: &str) -> String {
         .unwrap_or_default()
         .into_iter()
         .find(|(_, r)| *r == crate::db::Role::Owner)
-        .map(|(a, _)| if a.name.is_empty() { a.email } else { a.name })
+        .map(|(a, _)| a.name)
         .unwrap_or_default()
 }
 
@@ -378,10 +389,21 @@ pub async fn set(
     let (touched, events, changed) = blocking(move || {
         let veil = before_for.ok_or_else(|| refused("not inside a table"))?;
         let mut fulls = Vec::new();
+        let known: std::collections::HashSet<String> = s.service.with_key(&k, |ws| {
+            let mut all: std::collections::HashSet<String> = crate::campaign_serve::all_files(ws)
+                .iter()
+                .map(|f| campaign::key(f))
+                .collect();
+            all.extend(ws.folders().iter().map(|f| campaign::key(f)));
+            Ok(all)
+        })?;
         for given in &p {
             let full = full_path_plain(given)?;
             if !veil.in_table(&full) {
                 return Err(refused("not inside a table"));
+            }
+            if !full.is_empty() && !known.contains(&campaign::key(&full)) {
+                return Err(refused("not a path of this folder"));
             }
             fulls.push(full);
         }

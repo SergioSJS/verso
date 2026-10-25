@@ -269,3 +269,288 @@ fn base64_of(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
+
+#[test]
+fn a_folder_above_a_table_is_not_deleted_moved_nor_renamed_by_an_editor() {
+    block_on(async {
+        let mut m = mesa().await;
+        // "Mundo Zq" holds the table "Mundo Zq/Sub": above it, in no table.
+        m.r.server.db.campaign_drop(&m.id, "").unwrap();
+        m.r.server.db.campaign_make(&m.id, "Mundo Zq/Sub").unwrap();
+        crate::campaign::forget(&m.r.server, &m.id);
+        let made = m
+            .owner
+            .call(
+                "create_note",
+                json!({ "name": "Mundo Zq/Sub/Oculta Zq", "text": "x\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let mut cid = editor(&m).await;
+        for (cmd, args) in [
+            ("delete_entry", json!({ "path": "Mundo Zq" })),
+            ("delete_note", json!({ "path": "Mundo Zq" })),
+            (
+                "move_entries",
+                json!({ "paths": ["Mundo Zq"], "folder": "Anexos" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Mundo Zq", "to": "Anexos/Mundo Zq" }),
+            ),
+            ("rename_entry", json!({ "from": "Mundo Zq", "to": "Outro" })),
+            (
+                "rename_entry",
+                json!({ "from": "Mundo Zq/Sub", "to": "Mundo Zq/Sub2" }),
+            ),
+        ] {
+            let no = cid.call(cmd, args).await;
+            assert!(refused(&no), "{cmd}: {no}");
+        }
+        let still = m
+            .owner
+            .call("read_note", json!({ "path": "Mundo Zq/Sub/Oculta Zq.md" }))
+            .await;
+        assert!(still.get("ok").is_some(), "{still}");
+    });
+}
+
+#[test]
+fn a_devices_rename_onto_a_hidden_name_gets_the_suffix_and_never_says_taken() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let mut cid = editor(&m).await;
+        let state = cid.call("sync_state", json!({})).await;
+        let files = state["ok"]["files"].as_array().unwrap().clone();
+        let livre = files.iter().find(|f| f["path"] == "Livre.md").unwrap();
+        let done = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Livre.md", "to": "Barão Zq.md", "base": livre["hash"] }),
+            )
+            .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        assert_eq!(done["ok"]["path"], "Barão Zq 2.md", "{done}");
+        assert!(!done.to_string().contains("exists"), "{done}");
+        // The hidden note is untouched, and a folder holding hidden files
+        // is not a device's to rename.
+        let hide = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq/Cripta Zq.md"], "change": set("none") }),
+            )
+            .await;
+        assert!(hide.get("ok").is_some(), "{hide}");
+        let no = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Mundo Zq", "to": "Outro", "base": "" }),
+            )
+            .await;
+        assert!(refused(&no), "{no}");
+        assert!(!no.to_string().contains("Cripta"), "{no}");
+    });
+}
+
+#[test]
+fn a_write_to_a_hidden_name_is_answered_as_a_write_to_a_free_one_and_never_overwrites() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let mut cid = editor(&m).await;
+        let hidden = cid
+            .call(
+                "write_note",
+                json!({ "path": "Barão Zq.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        let free = cid
+            .call(
+                "write_note",
+                json!({ "path": "Livre Novo.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        // The whole answer, the name sent aside, is the one a free name gets.
+        assert_eq!(hidden["err"], free["err"], "{hidden} / {free}");
+        assert!(!hidden.to_string().contains(" 2"), "{hidden}");
+        assert_eq!(hidden.get("ok").is_some(), free.get("ok").is_some());
+        // A device's put is answered alike: a new file, the name it was
+        // sent apart (the player's own file may be named "X 2.md").
+        let bytes = b"meu\n";
+        let put = |p: &str| json!({ "path": p, "offset": 0, "size": 4, "hash": crate::sync::sha256(bytes), "base": null, "data": base64_of(bytes) });
+        let h = cid.call("sync_put", put("Barão Zq.md")).await;
+        let f = cid.call("sync_put", put("Livre Novo.md")).await;
+        assert_eq!(h["ok"]["done"], f["ok"]["done"], "{h} / {f}");
+        assert!(h.get("ok").is_some() && f.get("ok").is_some(), "{h} / {f}");
+        assert_eq!(h["ok"]["path"], "Barão Zq 2.md", "{h}");
+        let text = cid
+            .call(
+                "write_text",
+                json!({ "path": "Barão Zq.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        assert!(!text.to_string().contains("only read"), "{text}");
+        // The hidden note is untouched.
+        let baron = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        assert!(
+            baron["ok"]["text"].as_str().unwrap().contains("zqbody"),
+            "{baron}"
+        );
+    });
+}
+
+#[test]
+fn write_text_never_makes_a_file_that_needs_the_right_to_send_files() {
+    block_on(async {
+        let mut m = mesa().await;
+        let given = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq"], "change": set("edit") }),
+            )
+            .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        let mut cid = editor(&m).await;
+        for path in [
+            "Mundo Zq/novo.txt",
+            "Mundo Zq/novo.html",
+            "Mundo Zq/novo.canvas",
+            "Mundo Zq/novo.base",
+        ] {
+            let made = cid
+                .call(
+                    "write_text",
+                    json!({ "path": path, "text": "x", "revision": "" }),
+                )
+                .await;
+            assert!(made.get("err").is_some(), "{path}: {made}");
+            let there = m.owner.call("read_text", json!({ "path": path })).await;
+            assert!(
+                there.get("err").is_some() || path.ends_with(".base"),
+                "{path} was made by write_text: {made} / {there}"
+            );
+        }
+    });
+}
+
+#[test]
+fn a_credential_demoted_while_connected_writes_no_more_from_the_next_command() {
+    block_on(async {
+        let mut m = mesa().await;
+        let text = json!({ "name": "Nota Um", "text": "um\n" });
+        let ok = m.owner.call("create_note", text).await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+        let flip = |on: bool| {
+            for c in verso_service::lock(&m.r.server.clients).values_mut() {
+                c.token_write = on;
+            }
+        };
+        flip(false);
+        let no = m
+            .owner
+            .call("create_note", json!({ "name": "Nota Dois", "text": "d\n" }))
+            .await;
+        assert!(refused(&no), "{no}");
+        flip(true);
+        let ok = m
+            .owner
+            .call("create_note", json!({ "name": "Nota Dois", "text": "d\n" }))
+            .await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+    });
+}
+
+#[test]
+fn a_devices_rename_corrects_the_links_of_hidden_notes_without_telling() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let b = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        let wrote = m
+            .owner
+            .call(
+                "write_note",
+                json!({ "path": "Barão Zq.md", "text": "zqbody [[Livre]]\n", "revision": b["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let mut cid = editor(&m).await;
+        let state = cid.call("sync_state", json!({})).await;
+        let files = state["ok"]["files"].as_array().unwrap().clone();
+        let livre = files.iter().find(|f| f["path"] == "Livre.md").unwrap();
+        let done = cid
+            .call(
+                "sync_rename",
+                json!({ "from": "Livre.md", "to": "Livre2.md", "base": livre["hash"] }),
+            )
+            .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        assert!(!done.to_string().contains("Barão"), "{done}");
+        let baron = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        assert!(
+            baron["ok"]["text"].as_str().unwrap().contains("[[Livre2]]"),
+            "{baron}"
+        );
+    });
+}
+
+fn put_args(path: &str) -> Value {
+    let bytes = b"meu\n";
+    json!({ "path": path, "offset": 0, "size": 4, "hash": crate::sync::sha256(bytes), "base": null, "data": base64_of(bytes) })
+}
+
+#[test]
+fn a_device_put_is_refused_to_a_reader_a_demoted_credential_and_for_a_board() {
+    block_on(async {
+        let mut m = mesa().await;
+        // A reader's put on a hidden name, and on a free one: refused alike.
+        let hidden = m.ana.call("sync_put", put_args("Barão Zq.md")).await;
+        let free = m.ana.call("sync_put", put_args("Livre Novo.md")).await;
+        assert!(
+            refused(&hidden) && hidden["err"] == free["err"],
+            "{hidden} / {free}"
+        );
+        open_root_hide_baron(&mut m).await;
+        let board = base64_of(br#"{"nodes":[],"edges":[]}"#);
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": "Cofre.canvas", "base64": board }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let hid = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Cofre.canvas"], "change": set("none") }),
+            )
+            .await;
+        assert!(hid.get("ok").is_some(), "{hid}");
+        let mut cid = editor(&m).await;
+        // A board is never put whole by a player, with the right to create.
+        for p in ["Novo.canvas", "Cofre.canvas"] {
+            let no = cid.call("sync_put", put_args(p)).await;
+            assert!(refused(&no), "{p}: {no}");
+        }
+        // A credential demoted while connected puts nothing.
+        for c in verso_service::lock(&m.r.server.clients).values_mut() {
+            c.token_write = false;
+        }
+        let no = cid.call("sync_put", put_args("Livre Novo.md")).await;
+        assert!(refused(&no), "{no}");
+    });
+}

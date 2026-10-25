@@ -445,7 +445,7 @@ class TableView {
       where.title = tt.openNote(name(e.path));
       where.addEventListener("click", () => openNote(e.path, false));
       meta.append(where);
-    } else if (e.kind !== "say" && e.kind !== "image" && e.kind !== "secret") meta.append(h("span", "table-where plain", tt.noWhere));
+    } else if (e.kind !== "say" && e.kind !== "image" && e.kind !== "file" && e.kind !== "secret") meta.append(h("span", "table-where plain", tt.noWhere));
     if (e.secret && e.kind !== "secret") {
       const badge = h("span", "table-secret", tt.secretToggle);
       badge.title = tt.secretDesc;
@@ -463,6 +463,7 @@ class TableView {
       text.append(...messageNodes(e.text ?? ""));
       body.append(text);
     } else if (e.kind === "image") body.append(this.picture(e));
+    else if (e.kind === "file") body.append(h("span", "table-file", name(e.image ?? "")));
     else if (e.kind === "secret") body.append(h("span", "table-masked", tt.secretMasked));
     else if (e.kind === "oracle") {
       const label = e.oracle === "question" ? tt.oracleQuestion : e.oracle === "spark" ? tt.oracleSpark : tt.oracleTable(e.notation);
@@ -477,7 +478,7 @@ class TableView {
     li.append(meta, body);
     // The entry's actions are in its "…" menu (keyboard, screen reader, phone): pin and
     // delete on the server's table, "Add to note…" on every roll.
-    if (server || rollable(e) || e.kind === "say" || e.kind === "image") {
+    if (server || rollable(e) || e.kind === "say" || e.kind === "image" || e.kind === "file") {
       const more = button("ghost iconic table-menu", "", "more");
       more.setAttribute("aria-label", tt.entryActions(said));
       more.setAttribute("aria-haspopup", "menu");
@@ -493,7 +494,7 @@ class TableView {
     if (rollable(e) || e.kind === "say") {
       li.classList.add("rollable");
       armDrag(li, () => ({ kind: "roll", make: (target) => rollBlockFor(e, target) ?? lineFor(e, target) }), () => said);
-    } else if (e.kind === "image" && e.image) {
+    } else if ((e.kind === "image" || e.kind === "file") && e.image) {
       const file = e.image;
       li.classList.add("rollable");
       armDrag(li, () => ({ kind: "file", path: file, linkOnly: true }), () => said);

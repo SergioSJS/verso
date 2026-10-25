@@ -13,7 +13,7 @@
 // bottom sheet with a close button. It opens over the page (fixed), so
 // opening it moves nothing. It follows the table's status by itself.
 
-import { may, seat } from "./access";
+import { may, seat, tableViewer } from "./access";
 import { openAccess } from "./accessDialog";
 import { ac } from "./accessStrings";
 import { commands, type AccessInfo, type AccessLevel, type CampaignAudience, type CampaignPerson } from "./bindings";
@@ -177,8 +177,7 @@ export class NoteAccess {
   /** Whether the file at hand is a note, a board or a base of a table that
    *  this window may ask about. */
   private applies(path: string): boolean {
-    const viewer = campaign().viewer;
-    if (viewer !== "owner" && viewer !== "player") return false;
+    if (tableViewer() === null) return false;
     if (!/\.(md|canvas|base)$/i.test(path) || !tableFor(path)) return false;
     // A table with no player yet has nothing to tell its game master.
     if (this.fetched?.data.manage && this.fetched.data.players.length === 0) return false;
@@ -210,8 +209,7 @@ export class NoteAccess {
    *  the file, and draw the button and, if open, its popover. */
   update(): void {
     const path = this.where();
-    const viewer = campaign().viewer;
-    if ((viewer === "owner" || viewer === "player") && path && tableFor(path) && /\.(md|canvas|base)$/i.test(path)) {
+    if (tableViewer() !== null && path && tableFor(path) && /\.(md|canvas|base)$/i.test(path)) {
       const n = ++this.fetching;
       void commands.accessGet([path]).then((r) => {
         if (n !== this.fetching) return;

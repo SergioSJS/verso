@@ -261,10 +261,14 @@ export function hint(target: DropTarget, x: number, y: number, shiftKey = false)
     target.body.classList.add("drop-hint", zone, "drop-" + zone);
   }
   else if ("insert" in target) {
-    target.insert.el.classList.add("drop");
+    // A roll, a message or a file is only offered a note the person edits.
+    const carries = drag?.kind === "roll" || drag?.kind === "file";
+    if (!carries || may(target.insert.path, "edit")) target.insert.el.classList.add("drop");
     if (drag?.kind === "roll" && may(target.insert.path, "edit")) showDropCaret(target.insert, drag.make(target.insert.path), x, y);
   }
-  else if ("board" in target) target.board.el.classList.add("drop");
+  else if ("board" in target) {
+    if (!(drag?.kind === "roll" || drag?.kind === "file") || may(target.board.path, "edit")) target.board.el.classList.add("drop");
+  }
   else if ("treeItem" in target) {
     if (shiftKey) {
       target.el.classList.add("drop-pin");

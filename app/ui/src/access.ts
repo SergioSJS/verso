@@ -77,6 +77,16 @@ export function seat(): "master" | "player" | "visitor" | "own" {
   return a.seat;
 }
 
+/** The person's side of a table as the window words it: the game master is
+ *  the owner of the table, a player or a visitor its player; none outside a
+ *  server's model. From the seat the server told, never from a role or a
+ *  status the window kept. */
+export function tableViewer(): "owner" | "player" | null {
+  const s = seat();
+  if (s === "master") return "owner";
+  return s === "player" || s === "visitor" ? "player" : null;
+}
+
 /** Whether the folder has a table the person sits at. */
 export function atTable(): boolean {
   return folderAccessNow()?.table === true;

@@ -46,7 +46,7 @@ impl Door {
     /// game master whatever the credential (ADR 0113 item 6).
     pub fn of(server: &Server, who: &Who, client: &str) -> Result<Self, ContractError> {
         let (folder, role) = crate::rpc::role_here(server, client)?;
-        let (scope, owner) = {
+        let (scope, owner, writes) = {
             let clients = verso_service::lock(&server.clients);
             let c = clients.get(client);
             (
@@ -54,9 +54,17 @@ impl Door {
                 // Kept in memory with the window: no database is read per
                 // command.
                 c.is_some_and(|c| c.owner),
+                c.is_some_and(|c| c.token_write),
             )
         };
-        Ok(Self::build(server, who, (folder, role, owner), scope))
+        let mut door = Self::build(server, who, (folder, role, owner), scope);
+        // The ceiling is the window's own, as the connection holds it now: a
+        // paired phone made a reader from the computer reads from its next
+        // command, over the WebSocket too, not from its next connection.
+        if who.phone.is_some() || !writes {
+            door.asker.cap = if writes { Cap::Write } else { Cap::Read };
+        }
+        Ok(door)
     }
 
     /// The door of `who` at `folder` with `role` there (through `scope`, a
@@ -208,7 +216,7 @@ impl Door {
                 if self.veiled() && Kind::of_path(&path) == Kind::Board {
                     return Err(crate::rpc::refused(READS));
                 }
-                self.may_path(Action::Edit, &path)
+                self.write_verdict(&path)
             }
             "create_note" => match args["name"].as_str() {
                 Some(n) => self.create_in(&Self::note_path(&self.full(n))),
@@ -230,11 +238,16 @@ impl Door {
                     let (a, b) = (Self::parent(&from), Self::parent(&to));
                     if a == b {
                         // A rename inside a folder: the player sees the file
-                        // and edits the folder (K.5).
-                        and(
-                            self.may_path(Action::See, &from),
-                            self.may(Action::Rename, &a, Kind::Folder),
-                        )
+                        // and edits the folder (K.5). A table's root, or a
+                        // folder above one, is the game master's.
+                        if self.seat() != Seat::Master && self.facts.holds_table(&from) {
+                            Verdict::Deny(super::Reason::NotMaster)
+                        } else {
+                            and(
+                                self.may_path(Action::See, &from),
+                                self.may(Action::Rename, &a, Kind::Folder),
+                            )
+                        }
                     } else {
                         // Out of one folder into another: a move. Into a table
                         // it is the game master's (K.5), and always the new
@@ -291,7 +304,7 @@ impl Door {
                 let Some(path) = args["path"].as_str().map(|p| self.full(p)) else {
                     return Err(crate::rpc::refused(READS));
                 };
-                let mut verdict = self.may_path(Action::Edit, &path);
+                let mut verdict = self.write_verdict(&path);
                 // A file that is no note, board or base is a file sent: a
                 // player's device sends none this way (S8).
                 if verdict.allowed()
@@ -301,7 +314,14 @@ impl Door {
                 {
                     verdict = Verdict::Deny(super::Reason::NoRight);
                 }
-                if verdict.allowed() && self.veiled() {
+                // A board is never put whole by a player, seen or not (H).
+                if self.veiled() && Kind::of_path(&path) == Kind::Board {
+                    verdict = Verdict::Deny(super::Reason::ReadOnly);
+                }
+                // A path the person does not see is a new file to them (the
+                // name is kept off the hidden one): judged like a free name.
+                let unseen = self.veiled() && !self.may_path(Action::See, &path).allowed();
+                if verdict.allowed() && self.veiled() && !unseen {
                     // Notes and boards are what a device holds projected.
                     let whole = match Kind::of_path(&path) {
                         Kind::Board => false,
@@ -320,6 +340,19 @@ impl Door {
             }
             "sync_delete" => self.check_write("delete_entry", args),
             _ => self.check_write("rename_entry", args),
+        }
+    }
+
+    /// A write to `path`: editing it. A player writing to a path they do not
+    /// see is told what they would be told of a free name — it is judged as
+    /// making a file in its folder — so that "you may only read" never says
+    /// that something hidden is there; [`Door::guard_names`] then keeps the
+    /// hidden file from being overwritten.
+    fn write_verdict(&self, path: &str) -> Verdict {
+        if self.veiled() && !self.may_path(Action::See, path).allowed() {
+            self.create_in(path)
+        } else {
+            self.may_path(Action::Edit, path)
         }
     }
 
@@ -430,6 +463,9 @@ impl Door {
                     .map(|n| Self::note_path(&self.full(n))),
                 true,
             ),
+            "write_note" | "write_text" | "sync_put" => {
+                ("path", args["path"].as_str().map(|p| self.full(p)), false)
+            }
             "create_file" | "create_folder" => {
                 ("path", args["path"].as_str().map(|p| self.full(p)), false)
             }
@@ -442,6 +478,13 @@ impl Door {
             return Ok(());
         };
         let _ = is_note;
+        // A write to a path the person sees is theirs to make as it is; the
+        // directory is read only for one they do not.
+        if matches!(name, "write_note" | "write_text" | "sync_put")
+            && self.may_path(Action::See, &wanted).allowed()
+        {
+            return Ok(());
+        }
         let mut taken: std::collections::HashSet<String> = crate::campaign_serve::all_files(ws)
             .iter()
             .map(|f| campaign::key(f))
@@ -469,7 +512,9 @@ impl Door {
         };
         for n in 2..10_000 {
             let candidate = format!("{stem} {n}{ext}");
-            if !taken.contains(&campaign::key(&candidate)) {
+            let k = campaign::key(&candidate);
+            // Nor a name a stale set of the table still holds.
+            if !taken.contains(&k) && !self.facts.sets.contains_key(&k) {
                 args[field] = Value::String(to_rel(&candidate));
                 return Ok(());
             }
@@ -512,6 +557,11 @@ impl Door {
             if let Some(list) = answer[field].as_array_mut() {
                 list.retain(|m| sees(self, &m["from"]) || sees(self, &m["to"]));
             }
+        }
+        // A warning names paths in words (the index forgetting a note): what
+        // a player cannot see is not named, so none is told.
+        if let Some(list) = answer["warnings"].as_array_mut() {
+            list.clear();
         }
         if let Some(list) = answer["refused"].as_array_mut() {
             list.retain(|k| sees(self, &k["path"]));

@@ -378,3 +378,13 @@ test("a player sends images when the game master lets it, told live; an older se
   assert.equal((await m.openServerTable(fake({ role: "reader" }).deps)).canSendImage(), false);
   assert.equal((await m.openServerTable(fake({ role: "editor" }).deps)).canSendImage(), true);
 });
+
+test("a file of the chat is an entry that can be dragged as a link; a masked secret holds nothing to drag", () => {
+  const words = () => "";
+  const file = m.entryOfServer(wire(1, { kind: "file", text: null, image: "attachments/mapa.pdf" }), "acc-ana", words);
+  assert.equal(file?.kind, "file");
+  assert.equal(file?.image, "attachments/mapa.pdf");
+  const masked = m.entryOfServer(wire(2, { kind: "secret", text: null }), "acc-ana", words);
+  assert.equal(masked?.kind, "secret");
+  assert.equal(masked?.image, null);
+});

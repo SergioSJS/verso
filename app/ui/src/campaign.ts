@@ -11,7 +11,7 @@
 // server drew.
 
 import { listen } from "@tauri-apps/api/event";
-import { forgetAccess, may } from "./access";
+import { forgetAccess, may, onAccess, tableViewer } from "./access";
 import { HIDDEN, TABLE } from "./audience";
 import { refreshCan } from "./can";
 import { openAccess } from "./accessDialog";
@@ -63,7 +63,7 @@ export function noteState(path: string): CampaignNote | undefined {
 /** Whether the note at `path` is hidden from the table: the game master's
  *  view — a player's lists lack it. */
 export function hiddenFromTable(path: string): boolean {
-  if (status.viewer !== "owner" || !noteLike(path) || !tableFor(path)) return false;
+  if (tableViewer() !== "owner" || !noteLike(path) || !tableFor(path)) return false;
   return noteAudience(path).kind === "hidden";
 }
 
@@ -109,7 +109,9 @@ export async function loadCampaign(): Promise<void> {
 /** The status the server answered: held, and the tree marked. */
 export function setStatus(next: CampaignStatus): void {
   // A table made or undone changes who the person is at the folder (the
-  // capabilities' `FolderAccess.table`): the side is asked again.
+  // capabilities' `FolderAccess.table`): the side is asked again. This one
+  // compares two statuses, so it reads the status: it is what triggers the
+  // question, not an answer to "who am I".
   const tabled = (s: CampaignStatus): boolean => s.viewer !== "none" && s.tables.length > 0;
   const changedTable = tabled(next) !== tabled(status);
   status = next;
@@ -134,7 +136,7 @@ export function hiddenMark(path: string): HTMLElement | null {
 /** A pencil on a file a player edits (ADR 0113 section F); none on the ones
  *  it only reads, and none for the game master, who edits all. */
 export function editMark(path: string): HTMLElement | null {
-  if (status.viewer !== "player" || !noteLike(path) || !tableFor(path) || !may(path, "edit")) return null;
+  if (tableViewer() !== "player" || !noteLike(path) || !tableFor(path) || !may(path, "edit")) return null;
   const mark = h("span", "campaign-mark edit-mark");
   mark.setAttribute("role", "img");
   mark.setAttribute("aria-label", cp.youEdit);
@@ -145,7 +147,7 @@ export function editMark(path: string): HTMLElement | null {
 
 /** The badge of a folder that is a table: a button, "Mesa" (tableChip.ts). */
 export function tableMark(path: string): HTMLElement | null {
-  if ((status.viewer !== "owner" && status.viewer !== "player") || !isTableRoot(path) || path === "") return null;
+  if (tableViewer() === null || !isTableRoot(path) || path === "") return null;
   return tableBadge(path);
 }
 
@@ -263,6 +265,8 @@ export function campaignRootItems(): MenuItem[] {
  *  window asks the status again, and the lists follow (a player's, by the
  *  folder's own `folder-changed`). */
 export function hearCampaign(): void {
+  // The marks follow who the person is: the seat arrives with the capabilities.
+  onAccess(markCampaign);
   void listen<CampaignChanged>("campaign-changed", () => void loadCampaign());
   // What the person may do changed (ADR 0113): what was said of the files is
   // stale, the tree is read again with the new answers, and the open files
