@@ -210,11 +210,7 @@ pub(crate) fn image_entry(
         server,
         (folder, table),
         New {
-            kind: if is_image_path(path) {
-                "image"
-            } else {
-                "file"
-            },
+            kind: if is_image_path(path) { "image" } else { "file" },
             account,
             name,
             path: None,

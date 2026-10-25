@@ -397,7 +397,10 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
             "rows": [{ "account": ana, "level": "edit" }] }, "secret_name": null });
         let g = m
             .owner
-            .call("access_set", json!({ "paths": ["Livre.md"], "change": edit }))
+            .call(
+                "access_set",
+                json!({ "paths": ["Livre.md"], "change": edit }),
+            )
             .await;
         assert!(g.get("ok").is_some(), "{g}");
         // Without the right: nothing, in the chat or in the note.
@@ -409,7 +412,10 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
             assert!(refused(&no), "{what}: {no}");
             let no = m
                 .ana
-                .call("table_attach", json!({ "base64": data, "into": "Livre.md" }))
+                .call(
+                    "table_attach",
+                    json!({ "base64": data, "into": "Livre.md" }),
+                )
                 .await;
             assert!(refused(&no), "{what}: {no}");
         }
@@ -449,7 +455,10 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
         // The same checks: a page is no file, whatever it is called.
         for call_ in [
             ("table_send_image", json!({ "base64": html })),
-            ("table_attach", json!({ "base64": html, "into": "Livre.md" })),
+            (
+                "table_attach",
+                json!({ "base64": html, "into": "Livre.md" }),
+            ),
         ] {
             let no = m.ana.call(call_.0, call_.1).await;
             assert!(refused(&no), "{no}");
