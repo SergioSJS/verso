@@ -103,14 +103,14 @@ async function openBoard(page, folder, name) {
 }
 
 /** A text drawn on the board where a person would: a free spot, the text tool, a click away to let go. */
-async function drawText(page, text) {
-  const free = await onBoard(page, 0, 300);
+async function drawText(page, text, at = [0, 300]) {
+  const free = await onBoard(page, at[0], at[1]);
   await page.mouse.click(free.x, free.y);
   await page.keyboard.press("t");
   await page.mouse.click(free.x, free.y);
   await page.keyboard.type(text);
   await page.keyboard.press("Escape");
-  const away = await onBoard(page, 500, 450);
+  const away = await onBoard(page, 500, 520);
   await page.mouse.click(away.x, away.y);
 }
 
@@ -148,7 +148,7 @@ test("b. Ana edits the group's board live and the game master gets it; Bruno, wh
     // Bruno only sees: what he draws is none.
     await openBoard(bruno.page, folder.id, "Quadro do grupo");
     const before = (await scene(bruno.page)).length;
-    await drawText(bruno.page, "do Bruno antes");
+    await drawText(bruno.page, "do Bruno antes", [250, 420]);
     await bruno.page.waitForTimeout(1500);
     expect((await scene(bruno.page)).length).toBe(before);
     expect(await drawn(gm)).not.toContain("do Bruno antes");
@@ -164,7 +164,7 @@ test("b. Ana edits the group's board live and the game master gets it; Bruno, wh
     expect(now.whole).toBe("edit");
     // Bruno's window opens the board again (the room is joined at the opening) and he draws.
     await openBoard(bruno.page, folder.id, "Quadro do grupo");
-    await drawText(bruno.page, "do Bruno depois");
+    await drawText(bruno.page, "do Bruno depois", [250, 420]);
     await expect.poll(() => drawn(gm), { timeout: 30_000 }).toContain("do Bruno depois");
     expect(await drawn(gm)).toContain("da Ana");
     expect(await traces(bruno.page, HIDDEN_BOARD)).toEqual([]);
@@ -215,6 +215,9 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await expect(folderDialog).toContainText("Exceções (1)");
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
+    // The tab she had open on it stays as she left it, saying it cannot be opened: she closes it.
+    await expect(ana.page.locator(".leaf:not([hidden])")).not.toContainText("zqmarcatav", { timeout: 30_000 });
+    await closeTabs(ana.page);
     expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
     await ana.page.keyboard.press("Escape");
     expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
@@ -237,6 +240,14 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await expect(await fileRow(gm, "Cenas/Ponte.md")).toBeVisible();
   });
 });
+
+/** The window's tabs closed, from each tab's menu. */
+async function closeTabs(page) {
+  while ((await page.locator(".tab-list .tab").count()) > 0) {
+    await page.locator(".tab-list .tab").first().click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Fechar aba", exact: true }).click();
+  }
+}
 
 /** Rows of an open menu, picked by its labels ("Novo", then "Nova nota nesta pasta"). */
 async function pickMenu(page, ...labels) {
@@ -330,8 +341,12 @@ test("e. the game master moves a file with its own access into another folder: i
     await gm.keyboard.press("Escape");
 
     // The move.
-    const moved = await invoke(gm, "rename_entry", { from: "A/Zqitem.md", to: "B/Zqitem.md" });
-    expect(moved.path).toBe("B/Zqitem.md");
+    await gm.locator('#notes li[data-path="A/Zqitem.md"] > button').click({ button: "right" });
+    await gm.getByRole("menuitem", { name: "Mover para…", exact: true }).click();
+    await gm.locator("input.new-note").fill("B");
+    await gm.locator("input.new-note").press("Enter");
+    await expect.poll(async () => (await invoke(gm, "list_files", {})).filter((f) => f.endsWith("Zqitem.md")), { timeout: 30_000 }).toEqual(["B/Zqitem.md"]);
+    await expect(gm.locator('#notes li[data-path="B/Zqitem.md"]')).toBeVisible({ timeout: 30_000 });
     const own = (await invoke(gm, "access_get", { paths: ["B/Zqitem.md"] }))[0];
     expect(own.own, "the file has its own access").toBeTruthy();
     expect(own.own.whole).toBe("none");
