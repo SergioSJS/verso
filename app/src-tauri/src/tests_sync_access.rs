@@ -168,3 +168,84 @@ fn a_file_that_becomes_hidden_leaves_the_device_and_the_servers_copy_stays() {
     assert_eq!(on_server(&owner, "Le.md").as_deref(), Some("# Le\n"));
     assert_eq!(here(&d), ["Edita.md"]);
 }
+
+#[test]
+fn the_window_is_told_what_the_server_last_said_and_not_a_word_of_what_it_never_listed() {
+    let (r, owner, bia) = table();
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    let ask = |paths: &[&str]| {
+        let paths: Vec<String> = paths.iter().map(|p| (*p).to_owned()).collect();
+        d.s.rights_told(d.ctx.config.as_deref(), &paths)
+    };
+    let told = ask(&["Edita.md", "Le.md", "Oculta.md"]);
+    assert!(told.fresh);
+    let level = |t: &verso_contract::SyncRights, p: &str| {
+        t.files.iter().find(|f| f.path == p).map(|f| f.access.level)
+    };
+    assert_eq!(
+        level(&told, "Edita.md"),
+        Some(verso_contract::AccessLevel::Edit)
+    );
+    assert_eq!(
+        level(&told, "Le.md"),
+        Some(verso_contract::AccessLevel::See)
+    );
+    // The hidden note was never listed to it: nothing is said of it, not
+    // even that it is unknown.
+    assert_eq!(level(&told, "Oculta.md"), None);
+    // Access changes: not fresh until the next pass asked the server again,
+    // and then the new answer.
+    give(&owner, "Le.md", &set("see", &[(&bia, "edit")]));
+    d.s.rights_stale();
+    assert!(!ask(&["Le.md"]).fresh);
+    sync(&d);
+    let told = ask(&["Le.md"]);
+    assert!(told.fresh);
+    assert_eq!(
+        level(&told, "Le.md"),
+        Some(verso_contract::AccessLevel::Edit)
+    );
+}
+
+#[test]
+fn a_players_board_is_never_sent_whole_even_when_they_edit_it() {
+    let r = serve(&[("Mapa.canvas", "{\"nodes\":[],\"edges\":[]}")]);
+    let owner = browser(&r, &r.owner);
+    owner.call("reindex", json!({})).unwrap();
+    owner.call("campaign_make", json!({ "root": "" })).unwrap();
+    owner
+        .call("campaign_settings", json!({ "root": "", "open": true }))
+        .unwrap();
+    let bia = r
+        .server
+        .upgrade()
+        .unwrap()
+        .db
+        .account_by_email("bia@casa.lan")
+        .unwrap()
+        .unwrap()
+        .id;
+    give(&owner, "Mapa.canvas", &set("see", &[(&bia, "edit")]));
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    assert_eq!(here(&d), ["Mapa.canvas"]);
+    let drawn = br#"{"nodes":[{"id":"1","type":"text","text":"x","x":0,"y":0,"width":9,"height":9}],"edges":[]}"#;
+    write(&d, "Mapa.canvas", drawn);
+    sync(&d);
+    sync(&d);
+    let on_server = owner
+        .call("read_text", json!({ "path": "Mapa.canvas" }))
+        .unwrap();
+    assert_eq!(
+        on_server["text"], "{\"nodes\":[],\"edges\":[]}",
+        "{on_server}"
+    );
+    // Said once, kept here, no conflict copy made of it.
+    assert_eq!(
+        refused(&d),
+        [("Mapa.canvas".to_owned(), "reader".to_owned())]
+    );
+    assert_eq!(here(&d), ["Mapa.canvas"]);
+    assert!(!d.s.may_send(d.ctx.config.as_deref(), "Mapa.canvas"));
+}

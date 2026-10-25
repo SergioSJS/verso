@@ -54,6 +54,14 @@ export type SyncState = { on: boolean; state: string; role: string; live: boolea
 
 let syncState: SyncState | null = null;
 
+/** Whether the server let the person edit this synced note, though they
+ *  only read the folder (ADR 0113 S8): access.ts says, from what the host
+ *  heard; a reader of the folder is a typist of a note they edit. */
+let syncedMay: (path: string) => boolean = () => false;
+export function setSyncedMay(fn: (path: string) => boolean): void {
+  syncedMay = fn;
+}
+
 /** Whether the person lets this folder's notes be live (item 15). */
 function liveAllowed(): boolean {
   return syncState?.live ?? true;
@@ -261,7 +269,7 @@ export abstract class RoomSession {
   /** The person only reads the folder on the server: present in the
    *  room, not typing (ADR 0082 item 4). */
   get reader(): boolean {
-    return this.synced && syncState?.role === "reader";
+    return this.synced && syncState?.role === "reader" && !syncedMay(this.path);
   }
 
   /** The names of the others in the note now, each once. */

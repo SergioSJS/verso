@@ -724,3 +724,63 @@ maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
 - Left as built: *Say* and *Roll* with a read-only credential stay allowed
   (the chat is not a file write). The `none` the migration wrote for a note the
   table had hidden is marked (`migrated`) and is no exception in a folder's list.
+
+### As built, S8 (2026-10-25, `feat/access-s8`)
+
+The synced desktop is one more door of the model; the host decides nothing of
+its own.
+
+- **What a device is served and may put.** A note is served to a device whole,
+  and its `sync_put` accepted, exactly when the person edits it:
+  `Veil::serves_whole` is the one statement (the whole group edits it, the
+  person's own row says *edits*, or they are a folder's editor who sees it —
+  K.1), asked by the reader pipeline (`reader_view_in`, `device_bytes`) and by
+  `Door::check_sync`. This lifts S3's note (4): an editor's device writes the
+  notes it edits again (closes B9). A note a person only sees is still served
+  as the projection and its put refused. A board is never served whole to
+  one who edits it alone, and never put whole (H). The folder's editor is read
+  from the members **live** (never kept in the veil: a demoted editor is served
+  the projection at once, the told-files cache is keyed by it); a read-only
+  credential of the same account is not told apart in the per-player log
+  (decided: the account's right decides what is served, the credential's
+  ceiling still gates the put in `check_sync`).
+- **What a device may do, asked.** `access_get` with `brief: true` answers
+  `{path, see, put, delete, rename}` per path from the same judgement the
+  writes meet (`check_sync`); a path the person does not see is answered as a
+  free name is, never as an error. The host never derives it.
+- **The host keeps the answer.** `State.access` (path → `Rights`, only the
+  files the device may change) is saved with the sync's other per-folder state
+  and holds while offline. A pass asks for the paths it is about to change; it
+  asks for every file when the answer is stale (a connection made, the
+  `access-changed` event, a change of role), and replaces the whole memo only
+  once the server answered. A server or a cloud with no per-file answer leaves
+  the role to decide (reader: nothing; editor: all, the server judging).
+  Before, `role == "reader"` was the only gate.
+- **What crosses.** `Gate` (`sync/transfer.rs`) replaces the `reader` flag: an
+  upload, a remote deletion or a remote rename the memo does not allow stays
+  here, said once as a file held apart (reason `reader`), never sent to be
+  refused, never a conflict copy, no retry storm (a player's board lands here
+  too: it is never put, H). The live note's catch-up pass asks the same gate.
+- **Hidden files.** The listing and the log a device is given were already cut
+  by the veil (`viewer_files`, `viewer_page`): a hidden file's bytes and name
+  never reach it. A file that becomes hidden arrives as the server's forced
+  deletion, which the engine carries out as `DeleteLocal` (to the system's bin,
+  only the file the pass hashed); it is not a deletion by the device, the
+  server's copy stays, and a local edit of it is kept and held apart, never
+  re-uploaded.
+- **The window.** `sync_rights(paths)` answers from the memo as a `FileAccess`
+  per path the host was asked about (a path never asked is left out, `fresh` is
+  false while the question is asked again). `access.ts` asks it for what the
+  window lists or reads, once, and again at `access-changed` and after each
+  pass; for a folder synced here that is not the person's own, `may(path, edit)`
+  is that answer, so a reader edits the notes they have the right to and an
+  editor leaves those they only see. A room's typing follows (`collab.reader`).
+
+Not done, said: (1) creating, renaming, deleting and moving in the synced
+window still follow the role alone (the host gate refuses what the server
+would, the window does not show it yet); (2) a player's new non-note file
+(a *Send files* upload) is not sent by a device; (3) the desktop board's room
+keeps `reader` for a reader of the folder until S7's room answers for the
+player's elements; (4) after a restart offline, an editor's see-only notes
+show unlocked until the first online pass (the memo keeps only what may be
+changed).

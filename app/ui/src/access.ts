@@ -14,21 +14,41 @@
 
 import { type Action, decide } from "./accessCore";
 import { commands, type FileAccess, type FolderAccess } from "./bindings";
+import { setSyncedMay } from "./collab";
 import { canWrite, folderAccessNow, onCan } from "./can";
 
 export type { Action };
 
 const told = new Map<string, FileAccess>();
+
+/** The path as the server names files: no leading slash. */
+const norm = (p: string): string => p.replace(/^\/+/, "");
 const listeners = new Set<() => void>();
 
 /** The folder is synced here and the person only reads it on its server
  *  (`verso:sync-state`): the writes are refused there, so the lock and the
  *  notice must still say so. The one copy of that fact. */
 let syncedRead = false;
+/** The person's role in a folder synced here that is not their own: the
+ *  host then knows, file by file, what the server lets them change
+ *  (`sync_rights`, ADR 0113 S8), and that answer outranks the role. */
+let syncedRole: string | null = null;
+/** The files whose rights the host is asked for, and the ones waiting to be. */
+const asked = new Set<string>();
+let timer: ReturnType<typeof setTimeout> | null = null;
+/** The host answered `sync_rights` once: this window is the desktop's, whose
+ *  files are read from this computer and carry no word of the server's. */
+let hosted = false;
 addEventListener("verso:sync-state", (e) => {
-  const d = (e as CustomEvent<{ on?: boolean; role?: string }>).detail;
+  const d = (e as CustomEvent<{ on?: boolean; role?: string; state?: string }>).detail;
   const now = Boolean(d?.on) && d?.role === "reader";
-  if (now === syncedRead) return;
+  const role = d?.on && d.role && d.role !== "owner" ? d.role : null;
+  const moved = role !== syncedRole;
+  syncedRole = role;
+  // The sync has passed (it asks the server again after a change of access
+  // or of role, before it sends anything): hear what the host now holds.
+  if (role) askRights([...asked], true);
+  if (now === syncedRead && !moved) return;
   syncedRead = now;
   changed();
 });
@@ -43,8 +63,51 @@ export function onAccess(run: () => void): void {
   listeners.add(run);
 }
 
-/** The path as the server names files: no leading slash. */
-const norm = (p: string): string => p.replace(/^\/+/, "");
+/** Ask the host what the server lets the person do with `paths` of a
+ *  synced folder they do not own; the answers are kept like any server's.
+ *  `again`: ask for every file already asked. */
+function askRights(paths: string[], again = false): void {
+  if (!syncedRole) return;
+  let any = again;
+  for (const p of paths) {
+    const n = norm(p);
+    if (!asked.has(n)) {
+      asked.add(n);
+      any = true;
+    }
+  }
+  if (!any || timer) return;
+  timer = setTimeout(() => {
+    timer = null;
+    void pull(0);
+  }, 30);
+}
+
+/** Read the host's answers for every file asked. While the host is asking
+ *  the server again (`fresh` false) what it holds is not the last word: ask
+ *  once more shortly, a few times. */
+async function pull(attempt: number): Promise<void> {
+  const paths = [...asked];
+  let moved = false;
+  let fresh = true;
+  for (let i = 0; i < paths.length; i += 500) {
+    const r = await commands.syncRights(paths.slice(i, i + 500)).catch(() => null);
+    if (!r || r.status !== "ok") return;
+    hosted = true;
+    fresh &&= r.data.fresh;
+    for (const f of r.data.files) {
+      if (told.get(norm(f.path))?.level !== f.access.level) moved = true;
+      remember(f.path, f.access);
+    }
+  }
+  if (moved) changed();
+  if (!fresh && attempt < 10 && !timer && syncedRole) {
+    timer = setTimeout(() => {
+      timer = null;
+      void pull(attempt + 1);
+    }, 400);
+  }
+}
 
 /** Keep what the server said of a file. */
 export function remember(path: string, access: FileAccess | null | undefined): void {
@@ -61,6 +124,8 @@ export function fileAccess(path: string): FileAccess | null {
  *  changed, and the answers to come say it again. */
 export function forgetAccess(): void {
   told.clear();
+  // The host heard it too: what it holds of the files is asked again.
+  askRights([...asked], true);
   changed();
 }
 
@@ -95,6 +160,12 @@ export function atTable(): boolean {
 /** Whether the person may `action` on `path` (a file, a folder, `""` the
  *  folder itself). `see` is true for a path the server did not describe. */
 export function may(path: string, action: Action): boolean {
+  // A synced folder that is not the person's own: editing a file is what the
+  // host heard the server say of it (ADR 0113 S8), whatever their role at the
+  // folder — a reader edits the notes they have the right to, an editor
+  // leaves those they only see.
+  const heard = syncedRole && hosted ? fileAccess(path) : null;
+  if (heard && action === "edit") return heard.level === "edit" && canWrite();
   return decide({ folder: folderAccessNow(), canWrite: canWrite(), syncedReader: syncedRead }, fileAccess(path), action);
 }
 
@@ -127,13 +198,20 @@ export function hearAccess(): void {
   const one = (d: unknown): void => {
     const x = d as { path?: string; access?: FileAccess } | null;
     if (x?.path) remember(x.path, x.access);
+    if (x?.path && !x.access) askRights([x.path]);
   };
   for (const name of ["readNote", "readText", "createNote", "writeText", "writeBoard"]) wrap(name, one);
   wrap("writeNote", (d) => one((d as { note?: unknown } | null)?.note));
   wrap("listEntries", (d) => {
-    for (const e of (d as { path: string; access?: FileAccess }[]) ?? []) remember(e.path, e.access);
+    const entries = (d as { path: string; access?: FileAccess }[]) ?? [];
+    for (const e of entries) remember(e.path, e.access);
+    askRights(entries.filter((e) => !e.access).map((e) => e.path));
   });
   // The person's role or the folder changed: what was said is stale.
   onCan(forgetAccess);
-  addEventListener("verso:folder-shown", () => told.clear());
+  addEventListener("verso:folder-shown", () => {
+    told.clear();
+    asked.clear();
+  });
+  setSyncedMay((path) => syncedRole !== null && hosted && fileAccess(path)?.level === "edit");
 }

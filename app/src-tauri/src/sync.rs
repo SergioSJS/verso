@@ -176,6 +176,47 @@ impl Syncer {
         self.rights_stale.store(true, Ordering::Relaxed);
     }
 
+    /// What the person may do with each of `paths`, as the server last
+    /// said (ADR 0113 S8): the files it said may be changed are *edit*, the
+    /// others it was asked about *see*; a path it was not asked about is
+    /// left out. `fresh` is false while the question is being asked again.
+    pub(crate) fn rights_told(
+        &self,
+        config: Option<&Path>,
+        paths: &[String],
+    ) -> verso_contract::SyncRights {
+        use verso_contract::{AccessLevel, AccessWhy, FileAccess, SyncRight};
+        let role = lock(&self.status).role.clone();
+        let writes = synced(config, &self.key)
+            .map(|st| st.access)
+            .unwrap_or_default();
+        let asked = lock(&self.rights_asked);
+        let files = paths
+            .iter()
+            .filter(|p| writes.contains_key(*p) || asked.contains(*p))
+            .map(|p| SyncRight {
+                path: p.clone(),
+                access: FileAccess {
+                    level: if writes.get(p).is_some_and(|r| r.put) {
+                        AccessLevel::Edit
+                    } else {
+                        AccessLevel::See
+                    },
+                    attach: false,
+                    why: if role == "owner" {
+                        AccessWhy::Master
+                    } else {
+                        AccessWhy::Own
+                    },
+                },
+            })
+            .collect();
+        verso_contract::SyncRights {
+            fresh: !self.rights_stale.load(Ordering::Relaxed),
+            files,
+        }
+    }
+
     /// Whether this device's change to `path` goes to the server, by the
     /// last answer kept: the owner's always; otherwise what the server
     /// said, or, where it gives no answer per file, the role.

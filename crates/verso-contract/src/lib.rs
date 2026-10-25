@@ -39,6 +39,7 @@ mod access;
 pub use access::{
     AccessCap, AccessChange, AccessChanged, AccessException, AccessInfo, AccessLevel, AccessPlayer,
     AccessRow, AccessSeat, AccessSetResult, AccessSetView, AccessWhy, FileAccess, FolderAccess,
+    SyncRight, SyncRights,
 };
 mod campaign;
 pub use campaign::{

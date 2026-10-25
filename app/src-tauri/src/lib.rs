@@ -887,6 +887,7 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                sync_rights::<$runtime>,
                 folder_sync_cloud_check::<$runtime>,
                 folder_sync_cloud_start::<$runtime>,
                 folder_sync_cloud_cancel::<$runtime>,
