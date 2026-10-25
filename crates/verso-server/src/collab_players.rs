@@ -736,6 +736,33 @@ pub(super) fn presence(server: &Server, r: &Room, sender: &str, stamped: &[u8]) 
     }
 }
 
+/// Whether the window `client` may type in the folder: its role and its
+/// credential write.
+fn types(server: &Server, client: &str) -> bool {
+    let table = lock(&server.clients);
+    table.get(client).is_some_and(|c| {
+        let a = crate::access::asker_of(c);
+        a.cap == crate::access::Cap::Write && a.role.is_some_and(|r| r.writes())
+    })
+}
+
+/// The count of the edits of the windows that wrote into the room itself —
+/// the ones that see the whole board — as `collab_board::edits` counts them.
+pub(super) fn whole_edits(doc: &Doc, writers: &crate::writers::Writers) -> String {
+    let own: HashSet<String> = writers
+        .keys()
+        .map(|c| format!("edit:{}", c.get()))
+        .collect();
+    let Some((_, facts)) = read_doc(doc) else {
+        return String::new();
+    };
+    facts
+        .iter()
+        .filter(|(k, _)| own.contains(*k))
+        .map(|(k, v)| format!("{k}={v};"))
+        .collect()
+}
+
 /// The file a window in a shadow made of it, at the state `at`, kept for
 /// the room to write: laid over the file as it is on disk, and only when
 /// no window that sees the whole board is in the room to make it itself.
@@ -749,7 +776,19 @@ pub(super) fn canvas(
     let Some(account) = r.readers.players.account_of(client) else {
         return Err(refused("join the board first"));
     };
-    if r.clients.iter().any(|c| !r.readers.players.holds(c)) {
+    // A window that sees the whole board and may type makes the file of it
+    // itself. One that only reads (a phone as a reader) never will.
+    if r.clients
+        .iter()
+        .any(|c| !r.readers.players.holds(c) && types(server, c))
+    {
+        return Ok(());
+    }
+    // The room holds edits of the whole board's windows that the file lacks
+    // (one left before its file was kept): laid over the disk's, theirs would
+    // be lost. The players' stay in the room, and the file is written when a
+    // window that sees the whole board makes it.
+    if whole_edits(&r.doc, &r.writers) != r.board.whole_saved {
         return Ok(());
     }
     super::readable_vector(at)?;

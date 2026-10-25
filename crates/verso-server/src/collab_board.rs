@@ -72,6 +72,10 @@ pub struct Board {
     canvases: Vec<(StateVector, String)>,
     /// What the room's state may have grown to since it was last measured.
     pub bytes: usize,
+    /// The count of the edits of the windows that see the whole board, as
+    /// they stood when the file was last written: while the room holds more,
+    /// the file on disk lacks something of theirs (ADR 0113 H).
+    pub whole_saved: String,
 }
 
 fn refused(message: &str) -> ContractError {
@@ -123,6 +127,7 @@ impl Board {
                 .transact()
                 .encode_state_as_update_v1(&StateVector::default())
                 .len(),
+            whole_saved: String::new(),
         }
     }
 

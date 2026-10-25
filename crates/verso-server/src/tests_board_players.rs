@@ -1157,3 +1157,146 @@ fn what_the_game_master_does_to_what_she_does_not_see_leaves_no_trace_for_her() 
         assert!(meta(&ana, &gm_key).is_none());
     });
 }
+
+/// Ana moves her card and hands the room the file of her shadow, then asks it
+/// to write.
+async fn ana_moves_her_card(m: &mut Mesa, ana: &Copy, x: i64, n: i64) {
+    let mut open = ana.element("c-open").unwrap();
+    open["x"] = json!(x);
+    open["customData"]["canvas"]["x"] = json!(x);
+    let edit = yrs::merge_updates_v1([
+        put(&ana.doc, "c-open", 2, 20 + n, &open).as_slice(),
+        edited(&ana.doc, n).as_slice(),
+    ])
+    .unwrap();
+    let (sent, _) = send(&mut m.ana, &edit, LEAKS).await;
+    assert!(sent.get("ok").is_some(), "{sent}");
+    let (given, _) = exchange(
+        &mut m.ana,
+        "collab_canvas",
+        json!({ "path": PATH, "at": sv(&ana.doc), "json": canvas_of(&ana.doc).to_string() }),
+        LEAKS,
+    )
+    .await;
+    assert!(given.get("ok").is_some(), "{given}");
+    exchange(&mut m.ana, "collab_save", json!({ "path": PATH }), LEAKS).await;
+}
+
+#[test]
+fn a_window_that_only_reads_does_not_stop_her_file_from_being_written() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        master_seeds(&mut m).await;
+        // The game master's read-only credential is in the room, as a window
+        // that sees the whole board and never types; the typing one left.
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        let (secret, _) =
+            m.r.server
+                .db
+                .create_token(&admin.id, "so le", false, None, std::slice::from_ref(&m.id))
+                .unwrap();
+        let mut ws = crate::tests::connect(&m.r, None, None, Some(&secret))
+            .await
+            .unwrap();
+        crate::tests::next(&mut ws).await;
+        let opened =
+            crate::tests::call(&mut ws, 1, "open_server_folder", json!({ "id": m.id })).await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+        let joined = crate::tests::call(&mut ws, 2, "collab_join", json!({ "path": PATH })).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        exchange(&mut m.owner, "collab_leave", json!({ "path": PATH }), &[]).await;
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        ana_moves_her_card(&mut m, &ana, 33, 1).await;
+        let now = disk(&mut m).await;
+        assert_eq!(node(&now, "c-open").unwrap()["x"], 33);
+        let original: Value = serde_json::from_str(&file()).unwrap();
+        assert_eq!(node(&now, "zqpin"), node(&original, "zqpin"));
+        assert_eq!(node(&now, "c-hid"), node(&original, "c-hid"));
+    });
+}
+
+#[test]
+fn what_the_game_master_left_unsaved_is_never_written_over_nor_dropped() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let gm = master_seeds(&mut m).await;
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        // The game master moves the pin, counts it, and leaves before his file
+        // of it is kept.
+        let mut pin = collab_board::elements(&gm)["zqpin"].clone();
+        pin["x"] = json!(777);
+        pin["customData"]["canvas"]["x"] = json!(777);
+        let edit = yrs::merge_updates_v1([
+            put(&gm, "zqpin", 2, 8, &pin).as_slice(),
+            edited(&gm, 1).as_slice(),
+        ])
+        .unwrap();
+        let (sent, _) = send(&mut m.owner, &edit, &[]).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        exchange(&mut m.owner, "collab_leave", json!({ "path": PATH }), &[]).await;
+        // Ana works and hands her file: the disk lacks the pin's move, so
+        // nothing is written — the file would lose it.
+        ana_moves_her_card(&mut m, &ana, 33, 1).await;
+        let still: Value = serde_json::from_str(&file()).unwrap();
+        assert_eq!(disk(&mut m).await, still);
+        // The game master is back: the room is as both left it, and his file
+        // of it holds the two.
+        let (_, back, _) = join(&mut m.owner, &[]).await;
+        let whole = canvas_of(&back.doc);
+        assert_eq!(node(&whole, "zqpin").unwrap()["x"], 777);
+        assert_eq!(node(&whole, "c-open").unwrap()["x"], 33);
+        let (given, _) = exchange(
+            &mut m.owner,
+            "collab_canvas",
+            json!({ "path": PATH, "at": sv(&back.doc), "json": whole.to_string() }),
+            &[],
+        )
+        .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        let (_, events) = exchange(&mut m.owner, "collab_save", json!({ "path": PATH }), &[]).await;
+        Copy::take_into(&back.doc, &events);
+        let now = disk(&mut m).await;
+        assert_eq!(node(&now, "zqpin").unwrap()["x"], 777);
+        assert_eq!(node(&now, "c-open").unwrap()["x"], 33);
+
+        // The other order: what he left was kept, so Ana alone writes, over it.
+        let (_, ana2, _) = join(&mut m.ana, LEAKS).await;
+        let mut pin = collab_board::elements(&back.doc)["zqpin"].clone();
+        pin["x"] = json!(888);
+        pin["customData"]["canvas"]["x"] = json!(888);
+        let edit = yrs::merge_updates_v1([
+            put(&back.doc, "zqpin", 5, 9, &pin).as_slice(),
+            edited(&back.doc, 2).as_slice(),
+        ])
+        .unwrap();
+        let (_, events) = send(&mut m.owner, &edit, &[]).await;
+        Copy::take_into(&back.doc, &events);
+        let whole = canvas_of(&back.doc);
+        exchange(
+            &mut m.owner,
+            "collab_canvas",
+            json!({ "path": PATH, "at": sv(&back.doc), "json": whole.to_string() }),
+            &[],
+        )
+        .await;
+        let (_, events) = exchange(&mut m.owner, "collab_save", json!({ "path": PATH }), &[]).await;
+        Copy::take_into(&back.doc, &events);
+        assert_eq!(node(&disk(&mut m).await, "zqpin").unwrap()["x"], 888);
+        exchange(&mut m.owner, "collab_leave", json!({ "path": PATH }), &[]).await;
+        let _ = ana2;
+        let mut again = ana_again(&m).await;
+        let (_, fresh, _) = join(&mut again, LEAKS).await;
+        ana_moves_her_card(&mut m, &fresh, 44, 3).await;
+        let end = disk(&mut m).await;
+        assert_eq!(node(&end, "zqpin").unwrap()["x"], 888);
+    });
+}
