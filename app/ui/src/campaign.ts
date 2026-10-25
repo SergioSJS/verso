@@ -203,10 +203,10 @@ export async function setTable(root: string, change: { open?: boolean; logMax?: 
   return run(() => commands.campaignSettings(root, change.open ?? null, change.logMax ?? null, change.imageMax ?? null), done);
 }
 
-/** Let some players of the table at `root` send images to its chat, or take
- *  it from them (ADR 0107 item 3 as amended 2026-10-24). */
+/** Let some players of the table at `root` send files (images, PDF, audio) to
+ *  its chat and into the notes they edit, or take it from them (ADR 0113 K.4). */
 export async function setImages(root: string, accounts: string[], on: boolean, done: string): Promise<boolean> {
-  return run(() => commands.campaignPermission(root, accounts, on), done);
+  return run(() => commands.tableRightsSet(root, accounts, "files", on), done);
 }
 
 type Kind = "folder" | "note" | "board" | string;

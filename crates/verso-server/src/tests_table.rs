@@ -1251,8 +1251,8 @@ mod per_table {
             let let_her = call(
                 &mut c.owner,
                 10,
-                "campaign_permission",
-                json!({ "root": CRIPTA, "accounts": [bia.id], "images": true }),
+                "table_rights_set",
+                json!({ "root": CRIPTA, "accounts": [bia.id], "right": "files", "on": true }),
             )
             .await;
             assert!(let_her.get("ok").is_some(), "{let_her}");

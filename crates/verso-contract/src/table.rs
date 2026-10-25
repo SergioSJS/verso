@@ -48,7 +48,8 @@ pub struct DiceStyles {
 /// One entry of the table, as a window may see it. `kind` is `roll`
 /// (`roll` set, also a random table's: `roll.source`), `oracle` (`draw`
 /// set), `say` (`text` set), `image` (`image` set: the file's path in the
-/// folder) or `secret` ("<name> rolled in secret": nothing else set).
+/// folder), `file` (a PDF or audio: `image` holds the file's path too; ADR
+/// 0113 K.4) or `secret` ("<name> rolled in secret": nothing else set).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableEntry {
     /// The table it belongs to: its folder inside the server's folder,
@@ -99,14 +100,13 @@ pub struct TableJoin {
     pub entries: Vec<TableEntry>,
     pub more: bool,
     pub roster: Vec<TableMember>,
-    /// Whether this account may send an image to the table: an owner or an
-    /// editor always, a player when the game master gave it the permission
-    /// (ADR 0107 item 3 as amended 2026-10-24).
+    /// Whether this account may send a file to the table: an owner always, a
+    /// player when the game master gave it *Send files* (ADR 0113 K.4).
     #[serde(default)]
     pub images: bool,
 }
 
-/// The permission to send images changed for this account (event
+/// The right to send files changed for this account (event
 /// `table-images`): told to its windows at the table at once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableImages {

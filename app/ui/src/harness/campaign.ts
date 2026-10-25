@@ -209,14 +209,15 @@ export class Campaign {
       }
       return this.changed([path]);
     };
-    h["campaign_permission"] = (a) => {
+    h["table_rights_set"] = (a) => {
       this.owner();
+      if (a["right"] !== "files") refuse("no such right");
       const root = this.rootOf(a["root"]);
       if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
       const accounts = a["accounts"] as string[];
       if (!Array.isArray(accounts) || accounts.length === 0 || accounts.length > 500) refuse("name between 1 and 500 players");
       if (!accounts.every((id) => this.seated().some((p) => p.id === id && (!p.roots || p.roots.length === 0 || p.roots.includes(root))))) refuse("not a player of this table");
-      for (const id of accounts) this.grantImages(root, id, a["images"] === true);
+      for (const id of accounts) this.grantImages(root, id, a["on"] === true);
       return this.changed([]);
     };
     h["campaign_invite"] = (a) => {
@@ -241,10 +242,6 @@ export class Campaign {
     };
     h["access_get"] = (a) => this.accessGet(a["paths"] as string[]);
     h["access_set"] = (a) => this.accessSet(a["paths"] as string[], a["change"] as AccessChange);
-    h["table_rights_set"] = (a) => {
-      if (a["right"] !== "files") refuse("no such right");
-      return h["campaign_permission"]!({ root: a["root"], accounts: a["accounts"], images: a["on"] });
-    };
     const caps = h["capabilities"];
     if (caps)
       h["capabilities"] = (a) => {

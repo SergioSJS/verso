@@ -32,7 +32,7 @@ use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// What the commands of a table's game master are.
-pub const COMMANDS: [&str; 15] = [
+pub const COMMANDS: [&str; 14] = [
     "campaign_status",
     "campaign_make",
     "campaign_unmake",
@@ -43,7 +43,6 @@ pub const COMMANDS: [&str; 15] = [
     "campaign_access",
     "campaign_secret_name",
     "campaign_grant",
-    "campaign_permission",
     "campaign_invite",
     // ADR 0113: the one model's commands.
     "access_get",
@@ -207,10 +206,9 @@ pub async fn command(
             touched = vec![path];
             events = lost;
         }
-        "campaign_permission" => subject = Some(permission(server, &folder, &args).await?),
         "table_rights_set" => {
             // `files` is the one right so far (ADR 0113 K.4): the permission
-            // to send files, as `campaign_permission` gives it.
+            // to send files.
             let right: String = arg(&args, "right")?;
             if right != "files" {
                 return Err(refused("no such right"));

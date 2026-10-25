@@ -21,13 +21,14 @@ pub struct CampaignTable {
     pub open: bool,
     /// The table log's ceiling (1,000 to 200,000 entries; MS.1).
     pub log_max: u32,
-    /// The image size limit, in bytes (1 to 30 MB; MS.1).
+    /// The file size limit, in bytes (1 to 30 MB; MS.1): any file *Send files* carries.
     pub image_max: u32,
-    /// To the game master: the players this table lets send images to its
-    /// chat (ADR 0107 item 3 as amended 2026-10-24). Empty to a player.
+    /// To the game master: the players this table lets *Send files* — images,
+    /// PDF, audio — to its chat and into the notes they edit (ADR 0113 K.4).
+    /// Empty to a player.
     #[serde(default)]
     pub image_players: Vec<String>,
-    /// Whether this account may send images at the table: always the
+    /// Whether this account may send files at the table: always the
     /// game master, a player only when it was given the permission.
     #[serde(default)]
     pub images: bool,
