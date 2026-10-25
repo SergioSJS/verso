@@ -104,28 +104,17 @@ impl Shadows {
             .find(|(_, s)| s.clients.contains(client))
             .map(|(a, _)| a.clone())
     }
-
-    /// Every window in a shadow, all shadows dropped.
-    pub fn drain(&mut self) -> Vec<String> {
-        let out = self
-            .by
-            .values()
-            .flat_map(|s| s.clients.iter().cloned())
-            .collect();
-        self.by.clear();
-        out
-    }
 }
 
 /// What a player is told of the files cards name, asked of the folder.
-struct Locks<'a> {
+pub(crate) struct Locks<'a> {
     ws: RefCell<&'a mut verso_core::Workspace>,
     veil: &'a crate::campaign::Veil,
     cache: RefCell<HashMap<String, Option<String>>>,
 }
 
 impl<'a> Locks<'a> {
-    fn new(ws: &'a mut verso_core::Workspace, veil: &'a crate::campaign::Veil) -> Self {
+    pub(crate) fn new(ws: &'a mut verso_core::Workspace, veil: &'a crate::campaign::Veil) -> Self {
         Self {
             ws: RefCell::new(ws),
             veil,
@@ -135,7 +124,7 @@ impl<'a> Locks<'a> {
 
     /// The words of the locked card for `file`, when the account does not
     /// see it.
-    fn text(&self, file: &str) -> Option<String> {
+    pub(crate) fn text(&self, file: &str) -> Option<String> {
         if let Some(t) = self.cache.borrow().get(file) {
             return t.clone();
         }
@@ -265,6 +254,8 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
     })?;
     let mut told = told_facts(&facts);
     told.insert("base".to_owned(), Any::String(shaped.to_string().into()));
+    // What the window reads to know it is in a shadow (boardRoom.ts).
+    told.insert("shadow".to_owned(), Any::Bool(true));
     let doc = Doc::new();
     let puts: Vec<(String, String)> = sight
         .shown
@@ -370,6 +361,12 @@ pub(super) fn join(
 /// for which an element became another thing (a pin made secret, a file
 /// hidden) is closed: its windows read the board again and join anew.
 pub(super) fn sync(server: &Server, r: &mut Room) {
+    refresh(server, r, false);
+}
+
+/// [`sync`], and — when the table's rules changed (`fresh`) — the file's own
+/// ids judged anew: a shadow whose file's cards are other things now is closed.
+pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
     if r.readers.players.is_empty() {
         return;
     }
@@ -381,12 +378,18 @@ pub(super) fn sync(server: &Server, r: &mut Room) {
         return;
     };
     let accounts: Vec<String> = r.readers.players.by.keys().cloned().collect();
+    let base = match facts.get("base") {
+        Some(Any::String(s)) => s.to_string(),
+        _ => String::new(),
+    };
     let sights = server.service.with_key(&r.key, |ws| {
         let mut out = Vec::new();
         for a in &accounts {
             let v = veil.view(a);
             let locks = Locks::new(ws, &v);
-            out.push((a.clone(), board_sight::see(&entries, &|f| locks.text(f))));
+            let sight = board_sight::see(&entries, &|f| locks.text(f));
+            let disk = fresh.then(|| disk_classes(&base, &locks));
+            out.push((a.clone(), sight, disk));
         }
         Ok(out)
     });
@@ -394,7 +397,7 @@ pub(super) fn sync(server: &Server, r: &mut Room) {
         return;
     };
     let mut closed: Vec<String> = Vec::new();
-    for (account, sight) in sights {
+    for (account, sight, disk) in sights {
         let Some(sh) = r.readers.players.by.get_mut(&account) else {
             continue;
         };
@@ -402,7 +405,8 @@ pub(super) fn sync(server: &Server, r: &mut Room) {
             .sight
             .class
             .iter()
-            .any(|(id, c)| sight.class.get(id).is_some_and(|n| n != c));
+            .any(|(id, c)| sight.class.get(id).is_some_and(|n| n != c))
+            || disk.as_ref().is_some_and(|(_, d)| *d != sh.disk);
         if moved {
             closed.extend(sh.clients.iter().cloned());
             r.readers.players.by.remove(&account);
@@ -464,11 +468,10 @@ pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
     );
 }
 
-/// Every shadow of `r` dropped, its windows told the room closed: what the
-/// table lets an account see changed.
+/// What the table lets an account see changed (a release, a hide, a level):
+/// the shadows that see the room otherwise now are closed, the others follow.
 pub(super) fn veil_changed(server: &Server, r: &mut Room) {
-    let out = r.readers.players.drain();
-    close(server, r, &out);
+    refresh(server, r, true);
 }
 
 /// The facts of the board a player may change: their count of edits and

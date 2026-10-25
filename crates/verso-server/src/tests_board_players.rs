@@ -930,3 +930,116 @@ fn the_dialog_can_give_edits_on_a_board_and_counts_its_secret_blocks() {
         assert!(ana.base().contains("c-open") && !ana.base().contains("zqpin"));
     });
 }
+
+#[test]
+fn a_rule_that_changes_what_her_cards_are_closes_her_shadow_and_one_that_does_not_leaves_it() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": PATH, "base64": STANDARD.encode(file()) }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        // Alone in the room, the board not drawn in yet.
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        assert!(ana.base().contains("c-hid") && !ana.base().contains("Barão"));
+        // The game master hides a note no card of the board names: nothing
+        // happens to her window.
+        let hid = m
+            .owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Livre.md"], "released": false }),
+            )
+            .await;
+        assert!(hid.get("ok").is_some(), "{hid}");
+        let hid = m
+            .owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Aberta.md"], "released": false }),
+            )
+            .await;
+        assert!(hid.get("ok").is_some(), "{hid}");
+        // (Livre.md is the file of a card: that one is hers.)
+        let told = hear(&mut m.ana, 400, LEAKS).await;
+        assert!(
+            told.iter().any(|e| e["event"] == "collab-closed"),
+            "{told:?}"
+        );
+        let (_, again, _) = join(&mut m.ana, LEAKS).await;
+        assert!(!again.base().contains("Livre.md"), "{}", again.base());
+        // Releasing a note no card names closes nothing.
+        let shown = m
+            .owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Aberta.md"], "released": true }),
+            )
+            .await;
+        assert!(shown.get("ok").is_some(), "{shown}");
+        let told = hear(&mut m.ana, 400, LEAKS).await;
+        assert!(
+            told.iter().all(|e| e["event"] != "collab-closed"),
+            "{told:?}"
+        );
+    });
+}
+
+#[test]
+fn a_player_who_edits_a_board_reads_it_as_her_room_is_told_and_has_no_history_of_it() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        master_seeds(&mut m).await;
+        let whole = disk(&mut m).await;
+        for cmd in ["read_text", "read_file_text"] {
+            let (read, _) = exchange(&mut m.ana, cmd, json!({ "path": PATH }), LEAKS).await;
+            let text = read["ok"]["text"]
+                .as_str()
+                .or_else(|| read["ok"].as_str())
+                .unwrap_or_default();
+            let seen: Value = serde_json::from_str(text).unwrap_or(Value::Null);
+            let ids: Vec<&str> = seen["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|n| n["id"].as_str())
+                .collect();
+            assert_eq!(ids, ["c-open", "c-hid", "note"], "{cmd}: {read}");
+            // The hidden card is a text card, the text of a text card is whole.
+            assert_eq!(node(&seen, "c-hid").unwrap()["type"], "text");
+            assert!(
+                node(&seen, "note").unwrap()["text"]
+                    .as_str()
+                    .unwrap()
+                    .contains(HERS)
+            );
+            assert!(seen["edges"].as_array().unwrap().is_empty());
+            assert_eq!(whole["nodes"].as_array().unwrap().len(), 4);
+        }
+        // The same for the game master's board when the whole table edits it.
+        let set = NodeSet {
+            whole: Level::Edit,
+            rows: std::collections::BTreeMap::new(),
+        };
+        m.r.server.db.access_put(&m.id, PATH, set).unwrap();
+        crate::campaign::forget(&m.r.server, &m.id);
+        let veil = crate::campaign::veil_of(&m.r.server, &m.id).unwrap();
+        assert!(!veil.group_edits(PATH));
+        let (read, _) = exchange(&mut m.ana, "read_text", json!({ "path": PATH }), LEAKS).await;
+        assert!(read.get("ok").is_some(), "{read}");
+        // No history: a past version is a whole board.
+        for cmd in ["history_list", "history_read"] {
+            let (got, _) =
+                exchange(&mut m.ana, cmd, json!({ "path": PATH, "id": "x" }), LEAKS).await;
+            assert!(got.get("err").is_some(), "{cmd}: {got}");
+        }
+    });
+}

@@ -255,6 +255,10 @@ enum Verdict {
     Hidden,
     /// A note the player may edit: read whole.
     Edits,
+    /// A board the player may edit: read as the room is told them — the text
+    /// cards whole, the card of a file they do not see locked, no secret pin
+    /// (ADR 0113 H).
+    Board,
     Fine,
 }
 
@@ -271,6 +275,7 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
         }
     }
     let mut edits = false;
+    let mut board = false;
     for given in named {
         for path in [given.clone(), ws.confined(&given).unwrap_or(given)] {
             if !p.veil.in_table(&path) {
@@ -280,7 +285,11 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
             }
             if note_like(&path) {
                 if p.edits(&path) {
-                    edits = true;
+                    if is_board(&path) {
+                        board = true;
+                    } else {
+                        edits = true;
+                    }
                 } else if p.veil.hides_note(&path) {
                     return Verdict::Hidden;
                 }
@@ -292,7 +301,13 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
             }
         }
     }
-    if edits { Verdict::Edits } else { Verdict::Fine }
+    if board {
+        Verdict::Board
+    } else if edits {
+        Verdict::Edits
+    } else {
+        Verdict::Fine
+    }
 }
 
 /// A command a player calls, answered; `None` when a reader may not call
@@ -343,7 +358,10 @@ fn run(
                 .dispatch(client, name, args)
                 .unwrap_or_else(|| Err(absent()));
         }
-        Verdict::Edits | Verdict::Fine => {}
+        Verdict::Board if matches!(name, "read_text" | "read_file_text") => {
+            return service.with(client, |ws| read_board_edited(ws, p, name, &args));
+        }
+        Verdict::Edits | Verdict::Board | Verdict::Fine => {}
     }
     match name {
         "read_note" | "read_text" | "read_file_text" => {
@@ -368,6 +386,32 @@ fn run(
             service.with(client, |ws| Ok(filter(ws, p, name, &args, answered)))
         }
     }
+}
+
+/// A board the player edits, read: what the room is told them
+/// (`board_sight::shaped_text`), in the file's own layout.
+fn read_board_edited(
+    ws: &mut Workspace,
+    p: &Player,
+    name: &str,
+    args: &Value,
+) -> Result<Value, OpError> {
+    let path = args["path"].as_str().unwrap_or_default().to_owned();
+    let to = |v: Result<Value, serde_json::Error>| {
+        v.map_err(|e| OpError::Contract(verso_service::failed(e.to_string())))
+    };
+    if name == "read_text" {
+        let mut file = ws.read_text(&path)?;
+        let locks = crate::collab::players::Locks::new(ws, &p.veil);
+        file.text = crate::board_sight::shaped_text(&file.text, &|f| locks.text(f));
+        return to(serde_json::to_value(verso_service::convert::text_out(file)));
+    }
+    let bytes = ws.read_file(&path)?;
+    let locks = crate::collab::players::Locks::new(ws, &p.veil);
+    Ok(Value::String(crate::board_sight::shaped_text(
+        &String::from_utf8_lossy(&bytes),
+        &|f| locks.text(f),
+    )))
 }
 
 fn read_veiled(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Result<Value, OpError> {

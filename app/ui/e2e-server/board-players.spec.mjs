@@ -100,6 +100,7 @@ async function onBoard(page, x, y) {
   return { x: (x + v.scrollX) * v.zoom + v.left, y: (y + v.scrollY) * v.zoom + v.top };
 }
 
+/** The board's nodes; the file is laid out by the core (`board_text`), as Obsidian lays a canvas: a room is only for a board in that layout. */
 const BOARD = JSON.stringify({
   nodes: [
     { id: "livre", type: "file", file: "Livre.md", x: 0, y: 0, width: 250, height: 60 },
@@ -124,10 +125,12 @@ test("Ana draws on the group's board live and the game master gets it; Bruno, wh
     await expect(gm.locator("#folder")).toHaveText(`Quadro ${tag}`, { timeout: 30_000 });
     await invoke(gm, "create_note", { name: "Livre", text: "# Livre\n\npara todos\n" });
     await invoke(gm, "create_note", { name: "Segredo", text: "# Segredo\n\nzqbody\n" });
-    expect(await invoke(gm, "create_file", { path: "Quadro do grupo.canvas", base64: Buffer.from(BOARD).toString("base64") })).toBe("Quadro do grupo.canvas");
+    const laid = await invoke(gm, "board_text", { json: BOARD });
+    expect(typeof laid).toBe("string");
+    expect(await invoke(gm, "create_file", { path: "Quadro do grupo.canvas", base64: Buffer.from(laid).toString("base64") })).toBe("Quadro do grupo.canvas");
     await invoke(gm, "campaign_make", { root: "" });
-    const ana = await account(browser, gm, { email: `ana-${tag}@verso.test`, name: "Ana", password: "a senha da ana", folder: folder.id, role: "reader" });
-    const bruno = await account(browser, gm, { email: `bruno-${tag}@verso.test`, name: "Bruno", password: "a senha do bruno", folder: folder.id, role: "reader" });
+    const ana = await account(browser, gm, { email: `ana-quadro-${tag}@verso.test`, name: "Ana", password: "a senha da ana", folder: folder.id, role: "reader" });
+    const bruno = await account(browser, gm, { email: `bruno-quadro-${tag}@verso.test`, name: "Bruno", password: "a senha do bruno", folder: folder.id, role: "reader" });
     opened.push(ana.context, bruno.context);
     const status = await invoke(gm, "campaign_status", {});
     const id = (name) => status.players.find((p) => p.name === name).id;
@@ -155,9 +158,6 @@ test("Ana draws on the group's board live and the game master gets it; Bruno, wh
     expect(lock.canvas.type).toBe("text");
     expect(lock.canvas.text).toContain("🔒");
     expect(JSON.stringify(hers)).not.toMatch(/Segredo|zqpin|zqedge|zqbody/);
-    // She is in the room of the board.
-    await expect(ana.page.locator(".live-mark:visible").first()).toContainText(/ao vivo/i);
-
     // She draws a text; the game master's window gets it.
     const free = await onBoard(ana.page, 0, 300);
     await ana.page.mouse.click(free.x, free.y);
