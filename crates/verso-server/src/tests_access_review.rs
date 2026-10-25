@@ -269,3 +269,48 @@ fn base64_of(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
+
+#[test]
+fn a_folder_above_a_table_is_not_deleted_moved_nor_renamed_by_an_editor() {
+    block_on(async {
+        let mut m = mesa().await;
+        // "Mundo Zq" holds the table "Mundo Zq/Sub": above it, in no table.
+        m.r.server.db.campaign_drop(&m.id, "").unwrap();
+        m.r.server.db.campaign_make(&m.id, "Mundo Zq/Sub").unwrap();
+        crate::campaign::forget(&m.r.server, &m.id);
+        let made = m
+            .owner
+            .call("create_note", json!({ "name": "Mundo Zq/Sub/Oculta Zq", "text": "x\n" }))
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let mut cid = editor(&m).await;
+        for (cmd, args) in [
+            ("delete_entry", json!({ "path": "Mundo Zq" })),
+            ("delete_note", json!({ "path": "Mundo Zq" })),
+            (
+                "move_entries",
+                json!({ "paths": ["Mundo Zq"], "folder": "Anexos" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Mundo Zq", "to": "Anexos/Mundo Zq" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Mundo Zq", "to": "Outro" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Mundo Zq/Sub", "to": "Mundo Zq/Sub2" }),
+            ),
+        ] {
+            let no = cid.call(cmd, args).await;
+            assert!(refused(&no), "{cmd}: {no}");
+        }
+        let still = m
+            .owner
+            .call("read_note", json!({ "path": "Mundo Zq/Sub/Oculta Zq.md" }))
+            .await;
+        assert!(still.get("ok").is_some(), "{still}");
+    });
+}

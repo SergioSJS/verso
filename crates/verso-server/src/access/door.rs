@@ -230,11 +230,16 @@ impl Door {
                     let (a, b) = (Self::parent(&from), Self::parent(&to));
                     if a == b {
                         // A rename inside a folder: the player sees the file
-                        // and edits the folder (K.5).
-                        and(
-                            self.may_path(Action::See, &from),
-                            self.may(Action::Rename, &a, Kind::Folder),
-                        )
+                        // and edits the folder (K.5). A table's root, or a
+                        // folder above one, is the game master's.
+                        if self.seat() != Seat::Master && self.facts.holds_table(&from) {
+                            Verdict::Deny(super::Reason::NotMaster)
+                        } else {
+                            and(
+                                self.may_path(Action::See, &from),
+                                self.may(Action::Rename, &a, Kind::Folder),
+                            )
+                        }
                     } else {
                         // Out of one folder into another: a move. Into a table
                         // it is the game master's (K.5), and always the new
