@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PNG, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PNG, accessDialog, choose, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -63,5 +63,111 @@ test("a. Ana drags the map from the chat onto her sheet and it is linked; Bruno,
       expect(await traces(p, ["Zqsegredo", "zqcorpo"])).toEqual([]);
       expect(JSON.stringify(await invoke(p, "list_files", {}))).not.toContain("Zqsegredo");
     }
+  });
+});
+
+/** The board's nodes: a card of a note the table sees, one of a note it does not, a secret pin. */
+const BOARD = JSON.stringify({
+  nodes: [
+    { id: "livre", type: "file", file: "Livre.md", x: 0, y: 0, width: 250, height: 60 },
+    { id: "cripta", type: "file", file: "Zqescondida.md", x: 300, y: 0, width: 250, height: 60 },
+    { id: "zqpin", type: "text", text: "zqpinboard", verso: { secret: true }, x: 600, y: 0, width: 80, height: 40 },
+  ],
+  edges: [{ id: "zqedge", fromNode: "livre", toNode: "zqpin" }],
+});
+const HIDDEN_BOARD = ["Zqescondida", "zqpin", "zqedge", "zqcorpo"];
+
+/** The board's scene in a window, as a test reads it. */
+const scene = (page) =>
+  page.evaluate(() => (window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => ({ id: e.id, type: e.type, x: e.x, y: e.y, locked: e.locked === true, text: e.text })));
+
+/** A point of the board, on the page. */
+async function onBoard(page, x, y) {
+  const v = await page.evaluate(() => {
+    const s = window.__VERSO_TEST__.board.getAppState();
+    return { scrollX: s.scrollX, scrollY: s.scrollY, zoom: s.zoom.value, left: s.offsetLeft, top: s.offsetTop };
+  });
+  return { x: (x + v.scrollX) * v.zoom + v.left, y: (y + v.scrollY) * v.zoom + v.top };
+}
+
+/** The group's board open in a window (the folder, then the quick switcher). */
+async function openBoard(page, folder, name) {
+  await openFolder(page, folder);
+  await page.keyboard.press("ControlOrMeta+p");
+  const box = page.getByRole("combobox", { name: "Abrir…" });
+  await expect(box).toBeFocused();
+  await box.fill(name);
+  await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
+  await box.press("Enter");
+  await page.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.board.getAppState().width > 0, null, { timeout: 30_000 });
+}
+
+/** A text drawn on the board where a person would: a free spot, the text tool, a click away to let go. */
+async function drawText(page, text) {
+  const free = await onBoard(page, 0, 300);
+  await page.mouse.click(free.x, free.y);
+  await page.keyboard.press("t");
+  await page.mouse.click(free.x, free.y);
+  await page.keyboard.type(text);
+  await page.keyboard.press("Escape");
+  const away = await onBoard(page, 500, 450);
+  await page.mouse.click(away.x, away.y);
+}
+
+/** The drawn texts the file of the board holds. */
+const drawn = async (gm) => {
+  const doc = JSON.parse((await invoke(gm, "read_text", { path: "Quadro do grupo.canvas" })).text);
+  return (doc.verso?.drawing ?? []).filter((d) => d.type === "text").map((d) => d.text);
+};
+
+test("b. Ana edits the group's board live and the game master gets it; Bruno, who sees, cannot; one change in the dialog gives both Edits", async ({ browser, page: gm }, info) => {
+  const files = { "Livre.md": "# Livre\n\npara todos\n", "Zqescondida.md": "# Zqescondida\n\nzqcorpo\n", "Quadro do grupo.canvas": BOARD };
+  await scenario(browser, gm, info, "quadro", files, async ({ folder, ana, bruno, set, id }) => {
+    await set(["Livre.md"], "see");
+    await set(["Zqescondida.md"], "none");
+    await set(["Quadro do grupo.canvas"], "see");
+    await openBoard(gm, folder.id, "Quadro do grupo");
+    // From the one dialog of the board: Ana edits, Bruno only sees.
+    const dialog = await accessDialog(gm, "Quadro do grupo.canvas");
+    await choose(dialog, "Ana", "Edita");
+    await expect(dialog).toContainText("Salvo");
+    await gm.keyboard.press("Escape");
+    const level = async (who) => (await invoke(gm, "access_get", { paths: ["Quadro do grupo.canvas"] }))[0].set.rows.find((r) => r.account === id(who))?.level ?? "whole";
+    await expect.poll(() => level("Ana")).toBe("edit");
+
+    // Ana draws; the game master's window has it, and the file.
+    await openBoard(ana.page, folder.id, "Quadro do grupo");
+    await expect.poll(async () => (await scene(ana.page)).find((e) => e.id === "cripta")?.locked).toBe(true);
+    await drawText(ana.page, "da Ana");
+    if (info.project.name === "chromium") {
+      await expect.poll(async () => (await scene(gm)).some((e) => e.type === "text" && e.text === "da Ana"), { timeout: 30_000 }).toBe(true);
+    }
+    await expect.poll(() => drawn(gm), { timeout: 30_000 }).toContain("da Ana");
+    expect(await traces(ana.page, HIDDEN_BOARD)).toEqual([]);
+
+    // Bruno only sees: what he draws is none.
+    await openBoard(bruno.page, folder.id, "Quadro do grupo");
+    const before = (await scene(bruno.page)).length;
+    await drawText(bruno.page, "do Bruno antes");
+    await bruno.page.waitForTimeout(1500);
+    expect((await scene(bruno.page)).length).toBe(before);
+    expect(await drawn(gm)).not.toContain("do Bruno antes");
+    expect(await traces(bruno.page, HIDDEN_BOARD)).toEqual([]);
+
+    // The game master gives the whole table Edits in one change of the dialog: Ana and Bruno both edit.
+    const again = await accessDialog(gm, "Quadro do grupo.canvas");
+    await choose(again, "Toda a mesa", "Edita");
+    await expect(again).toContainText("Salvo");
+    await gm.keyboard.press("Escape");
+    await expect.poll(() => level("Bruno")).toBe("whole");
+    const now = (await invoke(gm, "access_get", { paths: ["Quadro do grupo.canvas"] }))[0].set;
+    expect(now.whole).toBe("edit");
+    // Bruno's window opens the board again (the room is joined at the opening) and he draws.
+    await openBoard(bruno.page, folder.id, "Quadro do grupo");
+    await drawText(bruno.page, "do Bruno depois");
+    await expect.poll(() => drawn(gm), { timeout: 30_000 }).toContain("do Bruno depois");
+    expect(await drawn(gm)).toContain("da Ana");
+    expect(await traces(bruno.page, HIDDEN_BOARD)).toEqual([]);
+    expect(await traces(ana.page, HIDDEN_BOARD)).toEqual([]);
   });
 });
