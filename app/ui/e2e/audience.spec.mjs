@@ -142,10 +142,12 @@ test("the arrow keys change the choice of a row, and Escape gives the focus back
   await expect(d).toBeHidden();
 });
 
-test("giving Edita on a note with secret blocks asks first; a board cannot be given to edit yet", async ({ app }) => {
+test("giving Edita on a note or a board with secret blocks asks first; a player who edits a board sees its text cards whole", async ({ app }) => {
   await setup(app, "owner", { "Mundo/Cripta.md": players("acc-bia"), "Mundo/Quadro.canvas": players("acc-bia") });
   await app.page.evaluate(() => {
     window.__harness.core.files.get("Mundo/Cripta.md").bytes = new TextEncoder().encode("# Cripta\n\n> [!secret]\n> o cofre\n\n> [!secret]\n> a chave\n");
+    const board = { nodes: [{ id: "t", type: "text", text: "> [!secret]\n> o cofre do mestre", x: 0, y: 0, width: 200, height: 60 }, { id: "pin", type: "text", text: "> [!secret]\n> so do pin", verso: { secret: true }, x: 300, y: 0, width: 40, height: 40 }], edges: [] };
+    window.__harness.core.files.get("Mundo/Quadro.canvas").bytes = new TextEncoder().encode(JSON.stringify(board));
   });
   const d = await openDialog(app, "Mundo/Cripta.md");
   await expect(d).toContainText("Esta nota tem 2 blocos secretos: quem edita os vê.");
@@ -159,10 +161,17 @@ test("giving Edita on a note with secret blocks asks first; a board cannot be gi
   await app.page.locator(".confirm").getByRole("button", { name: "Dar edição" }).click();
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
   await app.page.keyboard.press("Escape");
+  // A board is given like any file: its text cards' secret blocks count (a
+  // secret pin's do not), and the dialog says what the player is shown.
   const board = await openDialog(app, "Mundo/Quadro.canvas");
-  await expect(board).toContainText("Os jogadores ainda não editam boards ao vivo");
-  await expect(level(board, "Bia", "Edita")).toBeDisabled();
-  await expect(level(board, "Toda a mesa", "Edita")).toBeDisabled();
+  await expect(board).toContainText("Quem edita este board vê os cartões de texto inteiros");
+  await expect(board).toContainText("Este board tem 1 bloco secreto em cartões de texto: quem edita o vê.");
+  await expect(level(board, "Bia", "Edita")).toBeEnabled();
+  await expect(level(board, "Toda a mesa", "Edita")).toBeEnabled();
+  await level(board, "Bia", "Edita").click();
+  await expect(app.page.locator(".confirm")).toContainText("Quem edita este board vê o bloco secreto de seus cartões de texto");
+  await app.page.locator(".confirm").getByRole("button", { name: "Dar edição" }).click();
+  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Quadro.canvas"], change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
 });
 
 test("a folder is applied with a button that says how many files change; its exceptions are listed with a way back", async ({ app }) => {

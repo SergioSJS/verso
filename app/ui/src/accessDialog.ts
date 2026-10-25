@@ -197,7 +197,6 @@ class AccessDialog {
     const wholeRow = h("div", "ac-row ac-whole");
     wholeRow.append(h("span", "ac-name", ac.wholeTable));
     this.whole = segmented(ac.wholeTable, this.draft.whole, (v) => void this.pickWhole(v), "whole");
-    if (board) this.whole.disable(["edit"]);
     wholeRow.append(this.whole.el);
     body.append(wholeRow, h("hr", "ac-rule"));
 
@@ -216,7 +215,6 @@ class AccessDialog {
       const own = this.draft.rows.get(p.id) ?? null;
       const level = own ?? this.draft.whole;
       const seg = segmented(p.name, level, (v) => void this.pickPlayer(p.id, v), `p-${p.id}`);
-      if (board) seg.disable(["edit"]);
       this.controls.set(p.id, seg);
       const note = h("span", "ac-hint");
       if (own !== null) {
@@ -236,8 +234,9 @@ class AccessDialog {
 
     // Warnings.
     const blocks = this.infos.reduce((n, i) => n + i.secret_blocks, 0);
-    if (blocks > 0) body.append(this.warn(ac.secretBlocks(blocks)));
-    if (board) body.append(this.warn(ac.boardNote));
+    const boards = this.paths.every(isBoard);
+    if (blocks > 0) body.append(this.warn(boards ? ac.secretBlocksBoard(blocks) : ac.secretBlocks(blocks)));
+    if (board) body.append(h("p", "ac-line", ac.boardNote));
     if (this.mixed()) body.append(h("p", "ac-line", ac.mixed));
 
     if (this.apply) this.buildApply(body);
@@ -340,7 +339,7 @@ class AccessDialog {
   private async confirmEdit(level: AccessLevel, was: AccessLevel | null): Promise<boolean> {
     const blocks = this.infos.reduce((n, i) => n + i.secret_blocks, 0);
     if (level !== "edit" || was === "edit" || blocks === 0) return true;
-    return ask(ac.askSecret(blocks), { yes: ac.askGive, no: ac.askCancel });
+    return ask(this.paths.every(isBoard) ? ac.askSecretBoard(blocks) : ac.askSecret(blocks), { yes: ac.askGive, no: ac.askCancel });
   }
 
   private async pickWhole(level: AccessLevel): Promise<void> {
