@@ -133,7 +133,11 @@ class AccessDialog {
     addEventListener("resize", this.onResize);
     pop.addEventListener("keydown", (e) => {
       if (e.key !== "Tab") return;
-      const list = [...pop.querySelectorAll<HTMLElement>("button:not([disabled]), input, summary")].filter((x) => x.getClientRects().length > 0 && x.tabIndex >= 0);
+      // A control inside a closed <details> cannot take the focus (only its summary can): leaving it in
+      // the list made the summary look like a middle stop, and Tab from it left the dialog.
+      const list = [...pop.querySelectorAll<HTMLElement>("button:not([disabled]), input, summary")].filter(
+        (x) => x.getClientRects().length > 0 && x.tabIndex >= 0 && !(x.closest("details:not([open])") && x.tagName !== "SUMMARY"),
+      );
       const at = list.indexOf(document.activeElement as HTMLElement);
       if (list.length === 0) return;
       if (e.shiftKey && at <= 0) {
