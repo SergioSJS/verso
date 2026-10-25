@@ -17,6 +17,7 @@ import { emit } from "@tauri-apps/api/event";
 import type { AccessChange, AccessInfo, AccessLevel, AccessSetView, AccessWhy, CampaignAccess, CampaignAudience, CampaignGrant, CampaignNote, CampaignPlayer, CampaignStatus, CampaignTable, ContractError, FileAccess } from "../bindings";
 import { allowed, kindOf, type Setting, type Who } from "./accessRules";
 import type { Core } from "./core";
+import { fileExt } from "./table";
 
 const LOG_LEAST = 1_000;
 const LOG_MOST = 200_000;
@@ -231,8 +232,10 @@ export class Campaign {
       // Into a note or board the person edits: the vectors' `attach` (ADR 0113 D).
       const into = String(a["into"] ?? "");
       if (!this.up || !this.fileAccess(into).attach) refuse("you may only read this folder");
+      const ext = fileExt(String(a["base64"] ?? ""));
+      if (!ext) refuse("an image, a PDF or an audio file (not SVG, a page or a script)");
       this.attached += 1;
-      const path = `attachments/mesa-attach-${this.attached}.png`;
+      const path = `attachments/mesa-attach-${this.attached}.${ext}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"] ?? "") });
       return path;
     };

@@ -44,6 +44,7 @@ const oneLine = (text: string): string => text.replace(/\s*\n\s*/g, " ").trim();
 export function saidOf(e: TableEntry): string {
   if (e.kind === "say") return oneLine(e.text ?? "");
   if (e.kind === "image") return tt.sentImage(whoOf(e));
+  if (e.kind === "file") return tt.sentFile(whoOf(e), name(e.image ?? ""));
   if (e.kind === "secret") return tt.secretMasked;
   if (e.kind === "oracle") {
     const label = e.oracle === "question" ? tt.oracleQuestion : e.oracle === "spark" ? tt.oracleSpark : tt.oracleTable(e.notation);
@@ -59,7 +60,7 @@ export function lineFor(e: TableEntry, target: string): string {
   const who = e.mine && meName() ? meName() : e.mine && e.by ? e.by : whoOf(e);
   const where = e.path ? ` · [[${linkText(target, e.path)}]]` : "";
   // An image is an embed of its file (ADR 0107 item 5).
-  if (e.kind === "image" && e.image) return `- **${who}** · ${clock(e.at)}${where} — ![[${linkText(target, e.image)}]]`;
+  if ((e.kind === "image" || e.kind === "file") && e.image) return `- **${who}** · ${clock(e.at)}${where} — ![[${linkText(target, e.image)}]]`;
   return `- **${who}** · ${clock(e.at)}${where} — ${saidOf(e)}`;
 }
 
@@ -76,6 +77,7 @@ export function rollBlockFor(e: TableEntry, target: string): string | null {
 export function announce(e: TableEntry): string {
   if (e.kind === "say") return tt.wrote(whoOf(e), saidOf(e));
   if (e.kind === "image") return tt.sentImage(whoOf(e));
+  if (e.kind === "file") return tt.sentFile(whoOf(e), name(e.image ?? ""));
   if (e.kind === "secret") return tt.secretRolled(whoOf(e));
   return tt.said(whoOf(e), saidOf(e));
 }

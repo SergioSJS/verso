@@ -245,7 +245,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     // The server says it at the join and when it changes (the rules' `SendFile`).
     canSendImage: () => images,
     canClear: () => role === "owner",
-    canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image") && e.mine),
+    canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image" || e.kind === "file") && e.mine),
     look() {
       if (!closed) void api.look(myColor(), deps.styles(), where);
     },
