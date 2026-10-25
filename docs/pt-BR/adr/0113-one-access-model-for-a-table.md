@@ -722,6 +722,84 @@ caminhos e o mantenedor decidiu dois comportamentos; todos estão testados
   para uma nota que a mesa mantinha oculta é marcado (`migrated`) e não é
   exceção na lista de uma pasta.
 
+### Como construído, S4–S6 e S10 (2026-10-25, `feat/one-access-model`)
+
+O contrato, a janela, o diálogo e o tutorial. O lado do servidor é S1–S3 e o
+desktop sincronizado é S8.
+
+- **O contrato (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`, `attach`,
+  `why`) em toda resposta de leitura e em toda entrada de listagem;
+  `FolderAccess` nas capacidades (o assento, o papel, o teto da credencial); o
+  evento `access-changed` com os seus caminhos (vazio quando uma mesa ou um
+  direito mudou); `access_get`, `access_set` (`AccessChange::Set` substitui o
+  conjunto inteiro de uma pasta e responde quantos arquivos mudaram; `Follow`
+  apaga o conjunto próprio de um caminho) e `table_rights_set`. Tipos em
+  `verso-contract/src/access.rs`, comandos em `verso-server/src/access_cmds.rs`
+  e `campaign_cmds.rs`, com os stubs do Tauri, as permissões, os encaminhamentos
+  remotos e a lista de bloqueio do celular. Vínculos regenerados.
+  `AccessInfo.master` é o nome da conta do dono, nunca um e-mail
+  (`master_name`; `3d06960c`). `3d0ae216` faz o harness responder os comandos
+  novos pelos vetores compartilhados.
+- **Uma pergunta na janela (S5, `aecec0dc`).** `access.ts` guarda o que o
+  servidor disse e pergunta a `accessCore.decide` por meio de
+  `may(path, action)`, que substitui `canChange`, `readsSynced`, `syncedReader`,
+  `mayEditGranted`, o `readable()` de pasta inteira e o dono inferido de um erro.
+  O chip e o selo perguntam `tableViewer()` (`tableChip.ts`) em vez do `viewer`
+  da campanha.
+- **Arrastar do chat (S5, `aecec0dc`, `26c4da1f`).** Toda entrada do chat é
+  origem de arrasto (`table/view.ts`): uma rolagem, um sorteio, um oráculo ou
+  uma mensagem é arrastada como o seu bloco ou a sua linha; uma imagem ou um
+  arquivo, como link para o arquivo que já está na pasta, sem envio. A soltura
+  exige `may(path, "edit")` no alvo e nada do autor da entrada. Uma entrada
+  secreta mascarada (tipo `secret`) não tem o que arrastar e não é arrastável.
+- **O diálogo Acesso… (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, os
+  seus textos em `accessStrings.ts`, os seus controles em `accessControl.ts`.
+  Abre pelo ícone do título de um arquivo, por uma linha do menu da árvore e
+  por uma seleção múltipla (`noteAccess.ts`, `menu.ts`); uma pasta mostra quantos
+  arquivos o *Aplicar* muda antes de aplicar. O indicador é o chip da mesa
+  (`tableChip.ts`); a janela da mesa mantém um controle por arquivo e um por
+  jogador (`campaign.ts`, `campaignPlayers.ts`).
+- **Enviar arquivos (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
+  `f0c5f266`).** Um jogador com *Enviar arquivos* envia imagens, PDF e áudio
+  (MP3, Ogg, WAV, M4A) ao chat e às notas e boards que edita. O tipo é julgado
+  pelos primeiros bytes, nunca pelo nome (`file_ext` em `table.rs`); um MP3
+  precisa de um cabeçalho de quadro MPEG de Camada II ou III de verdade
+  (`f0c5f266`). Os bytes são gravados no lugar de anexos da mesa
+  (`table_image.rs`, `PLACE`). A janela: `table/send.ts` (`sendable`),
+  `table/compose.ts`, o cartão do arquivo em `table/view.ts`. Renomear numa mesa
+  mantém o tipo do arquivo (`door.rs`): um PNG enviado nunca vira página, SVG ou
+  PDF pelo nome, e uma escrita de texto não cria arquivo que não seja nota.
+- **Removido.** `campaign_permission`, o seu comando no Tauri, a sua permissão e
+  os textos antigos dos menus de acesso em `campaignStrings.ts` (`c75320a6`);
+  `table_rights_set` o substitui.
+- **Testes do diálogo (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
+  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+  usa o diálogo só pelo teclado; em 1500, 820 e 390 px todo controle é alcançável
+  dentro da largura do diálogo, e o teste confere alvos adequados na folha do
+  celular (Aplicar, Seguir a pasta e Mais opções têm 44 px ali); o tema escuro
+  mantém as palavras legíveis e um nível escolhido distinto. O foco volta à linha
+  de quem abriu depois que um salvamento redesenha a árvore; a página da pasta
+  redesenha o seu cartão da mesa quando o assento chega.
+- **Tutorial e changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
+  `af9976ea`, `60f8dc7f`, `56b2fb43`).** As notas 31 (`31 - A Mesa.md`) e 32
+  (`32 - Rodando uma Mesa.md`) descrevem o modelo único, `app/ui/src/demoVault.ts`
+  é regenerado, o passo a passo da §18 do roteiro (`Running a table (note 32)`)
+  traz os passos, e os dois CHANGELOGs trazem as entradas.
+- **Lido como o ADR silencia, a confirmar.** (1) "Outros arquivos" do K.4 são só
+  imagens, PDF e áudio; qualquer outro tipo é recusado. (2) O cartão do arquivo
+  mostra o nome e o tipo (PDF ou áudio), sem tamanho. (3) O editor de nota de quem
+  não é jogador continua aceitando só imagens (`leaves/note/editing.ts`); o de um
+  jogador aceita PDF e áudio também.
+
+Não feito, dito: os botões *Liberar tudo* e *Ocultar tudo* da janela da mesa
+continuam, chamando `campaign_release_all` e `campaign_release`; os comandos
+`campaign_audience`, `campaign_grant` e `campaign_secret_name` continuam no
+servidor e no harness e são chamados pelos testes, não pela janela. A gravação
+do nome secreto no banco (`db/access.rs`) também é o que `access_set` executa
+quando `secret_name` vem em `AccessChange::Set` (`access_cmds.rs`), então
+`campaign_secret_name` tem um caminho por access_set, enquanto o comando
+permanece.
+
 ### Como construído, S7 (2026-10-25, `feat/access-s7`)
 
 O board que um jogador edita (H). No servidor em `board_sight.rs` (puro) e

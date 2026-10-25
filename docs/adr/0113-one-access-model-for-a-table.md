@@ -725,6 +725,82 @@ maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
   (the chat is not a file write). The `none` the migration wrote for a note the
   table had hidden is marked (`migrated`) and is no exception in a folder's list.
 
+### As built, S4–S6 and S10 (2026-10-25, `feat/one-access-model`)
+
+The contract, the window, the dialog and the tutorial. The server side is
+S1–S3 and the synced desktop is S8.
+
+- **The contract (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`,
+  `attach`, `why`) on every read answer and every listing entry; `FolderAccess`
+  in the capabilities (the seat, the role, the credential's ceiling); the
+  `access-changed` event with its paths (empty when a table or a right
+  changed); `access_get`, `access_set` (`AccessChange::Set` replaces a folder's
+  whole set and answers how many files changed; `Follow` deletes a path's own
+  set) and `table_rights_set`. Types in `verso-contract/src/access.rs`, commands
+  in `verso-server/src/access_cmds.rs` and `campaign_cmds.rs`, with the Tauri
+  stubs, permissions, remote forwards and the phone's deny list. Bindings
+  regenerated. `AccessInfo.master` is the owner's account name, never an
+  e-mail (`master_name`; `3d06960c`). `3d0ae216` has the harness answer the new
+  commands from the shared vectors.
+- **One question in the window (S5, `aecec0dc`).** `access.ts` keeps what the
+  server said and asks `accessCore.decide` through `may(path, action)`, which
+  replaces `canChange`, `readsSynced`, `syncedReader`, `mayEditGranted`, the
+  folder-wide `readable()` and the owner inferred from an error. The chip and
+  the badge ask `tableViewer()` (`tableChip.ts`) instead of the campaign's
+  `viewer`.
+- **Chat drag (S5, `aecec0dc`, `26c4da1f`).** Every chat entry is a drag
+  source (`table/view.ts`): a roll, a draw, an oracle or a message is dragged as
+  its block or line; an image or a file as a link to the file already in the
+  folder, nothing uploaded. The drop needs `may(path, "edit")` on the target
+  and nothing of the entry's author. A masked secret entry (kind `secret`) holds
+  nothing to drag and is not draggable.
+- **The Acesso… dialog (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, its
+  strings in `accessStrings.ts`, its controls in `accessControl.ts`. It opens
+  from a file's title icon, one row of the tree's menu and a multiple selection
+  (`noteAccess.ts`, `menu.ts`); a folder shows how many files an *Apply* changes
+  before it applies. The indicator is the table chip (`tableChip.ts`); the Table
+  window keeps a per-file control and a per-player control (`campaign.ts`,
+  `campaignPlayers.ts`).
+- **Send files (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
+  `f0c5f266`).** A player with *Send files* sends images, PDF and audio (MP3,
+  Ogg, WAV, M4A) to the chat, and into the notes and boards they edit. The kind
+  is judged by the first bytes, never by the name (`file_ext` in `table.rs`);
+  an MP3 needs a real MPEG Layer II or III frame header (`f0c5f266`). The bytes
+  are written under the table's attachments place (`table_image.rs`, `PLACE`).
+  The window: `table/send.ts` (`sendable`), `table/compose.ts`, the file card
+  in `table/view.ts`. A rename at a table keeps a file's kind (`door.rs`): a
+  sent PNG is never renamed into a page, an SVG or a PDF, and a text write
+  makes no non-note file.
+- **Removed.** `campaign_permission`, its Tauri command, permission and the
+  old access-menu strings in `campaignStrings.ts` (`c75320a6`); `table_rights_set`
+  replaces it.
+- **Dialog tests (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
+  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+  drives the dialog by keyboard alone; at 1500, 820 and 390 px every control is
+  reachable inside the dialog's width, and the spec checks fair targets on the
+  phone's sheet (Apply, Follow the folder and More options are 44 px there); the
+  dark theme keeps the words legible and a chosen level distinct. Focus returns
+  to the opener's row after a save draws the tree again; the folder page redraws
+  its table card when the seat arrives.
+- **Tutorial and changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
+  `af9976ea`, `60f8dc7f`, `56b2fb43`).** Notes 31 (`31 - A Mesa.md`) and 32
+  (`32 - Rodando uma Mesa.md`) describe the one model, `app/ui/src/demoVault.ts`
+  is regenerated, walkthrough §18 ("Running a table (note 32)") holds the steps,
+  and both CHANGELOGs carry the entries.
+- **Read as the ADR is silent, to confirm.** (1) K.4's "other files" are images,
+  PDF and audio only; any other kind is refused. (2) The file card shows the
+  name and the kind (PDF or audio), with no size. (3) A non-player's note editor
+  still takes images only (`leaves/note/editing.ts`); a player's takes PDF and
+  audio too.
+
+Not done, said: the Table window's *Liberar tudo* and *Ocultar tudo* buttons
+stay, calling `campaign_release_all` and `campaign_release`; the commands
+`campaign_audience`, `campaign_grant` and `campaign_secret_name` stay in the
+server and the harness and are called by the tests, not by the window. The
+secret name's database write (`db/access.rs`) is also what `access_set` runs
+when `secret_name` is given in `AccessChange::Set` (`access_cmds.rs`), so
+`campaign_secret_name` has an access_set path, while the command remains.
+
 ### As built, S7 (2026-10-25, `feat/access-s7`)
 
 The board a player edits (H). Server side in `board_sight.rs` (pure) and
