@@ -19,6 +19,7 @@ import { noteImages } from "../images";
 import { renderSticker, resolveColor, showStickerPicker } from "../labels";
 import { armDrag } from "../layout/drag";
 import { Pane } from "../layout/pane";
+import { tableViewer } from "../access";
 import { tableCard } from "../tableCard";
 import { campaign } from "../campaign";
 import { mayShare } from "../shares";
@@ -157,6 +158,10 @@ export class FolderLeaf extends Leaf {
     addEventListener("verso:campaign-status", () => {
       if (this.el.isConnected) this.paintTable();
     });
+    // The seat the server tells comes after the table is made: the card is drawn for it.
+    addEventListener("verso:can-changed", () => {
+      if (this.el.isConnected) this.paintTable();
+    });
     this.el.addEventListener("contextmenu", (e) => {
       if ((e.target as HTMLElement).closest(".item")) return;
       e.preventDefault();
@@ -180,7 +185,7 @@ export class FolderLeaf extends Leaf {
   private tableFor = "\u0000";
   /** The card of the table under the title; drawn again when the tables change. */
   private paintTable(): void {
-    const key = `${this.path}|${campaign().viewer}|${mayShare()}|${campaign().tables.map((t) => t.root).join(",")}`;
+    const key = `${this.path}|${campaign().viewer}|${tableViewer()}|${mayShare()}|${campaign().tables.map((t) => t.root).join(",")}`;
     if (key === this.tableFor) return;
     this.tableFor = key;
     const card = tableCard(this.path);
