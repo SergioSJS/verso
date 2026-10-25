@@ -618,6 +618,26 @@ pub async fn command(
     if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") {
         door.check_sync(cmd, &args)?;
     }
+    // A name taken by something the player cannot see is never answered as
+    // taken: the next free one is used, and a folder holding what they
+    // cannot see is not theirs to rename (ADR 0113), as in the window.
+    let mut args = args;
+    if cmd == "sync_rename" && door.veiled() {
+        let key = server
+            .service
+            .folder_of(client)
+            .ok_or_else(verso_service::no_folder)?;
+        let (s, d) = (Arc::clone(server), door.clone());
+        args = blocking(move || {
+            let mut a = args;
+            s.service.with_key(&key, |ws| {
+                d.guard_names(ws, "rename_entry", &mut a)
+                    .map_err(Into::into)
+            })?;
+            Ok(a)
+        })
+        .await?;
+    }
     // A share synced to a folder of the receiver's computer (ADR 0081
     // item 6): its paths joined to the shared folder's, its answers
     // re-rooted, the log and the files filtered to it.
