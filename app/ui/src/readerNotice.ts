@@ -87,6 +87,15 @@ export function guard(path?: string | null, at?: Attempt): boolean {
   return true;
 }
 
+/** `readerAttempt` when making something in `folder` is refused; answers
+ *  whether it is. It asks the folder that was chosen — a player of a table
+ *  edits the folder they were given, not the root's (ADR 0113 K.5). */
+export function guardCreate(folder: string, at?: Attempt): boolean {
+  if (may(folder, "create")) return false;
+  readerAttempt(at, false, null);
+  return true;
+}
+
 /** Whether a key press would have changed the text had the editor let it. */
 function editingKey(e: KeyboardEvent): boolean {
   if (e.isComposing) return false;
