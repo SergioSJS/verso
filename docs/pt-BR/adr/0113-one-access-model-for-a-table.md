@@ -721,3 +721,78 @@ caminhos e o mantenedor decidiu dois comportamentos; todos estão testados
   permitidos (o chat não é escrita de arquivo). O `none` que a migração escreveu
   para uma nota que a mesa mantinha oculta é marcado (`migrated`) e não é
   exceção na lista de uma pasta.
+
+### Como construído, S7 (2026-10-25, `feat/access-s7`)
+
+O board que um jogador edita (H). No servidor em `board_sight.rs` (puro) e
+`collab_players.rs` (a sala); o diálogo acompanha.
+
+- **Uma sombra da sala por conta.** Um jogador cujo `may(Edit)` vale num board
+  entra num documento só dele, feito pelo servidor do que a conta vê
+  (`board_sight::see`): um elemento é *Aberto* (como está — um cartão de texto
+  inteiro, blocos secretos inclusive, 0087 item 5), *Trancado* (o cartão de um
+  arquivo que a conta não vê: o **mesmo id**, o mesmo lugar e tamanho, as
+  palavras que todo cartão com véu tem, `locked: true` para o board não o
+  selecionar — nunca o caminho, a cor ou o texto do arquivo) ou *Ausente* (um
+  pin secreto, 0090 item 5, e o que pertence a ele: as arestas que o tocam, os
+  elementos desenhados presos a ele, dentro dele ou agrupados só com pins
+  secretos; nem a lápide de um deles é contada). O retrato do `join` e cada
+  atualização depois são uma só função; os `boundElements` de um cartão e um
+  grupo são cortados do mesmo jeito, e a `base` dos fatos da sala é a projeção
+  do arquivo (`shape_canvas`: os mesmos pins fora, os mesmos cartões
+  trancados). Quem só *vê* o board continua seguindo o arquivo, como antes (0090
+  item 5 revisto em 2026-10-15).
+- **A sala segue a sombra por elemento.** O que a janela do jogador manda é
+  tentado numa cópia da sombra e julgado (`board_sight::check`): a edição é
+  recusada **inteira**, sem nada dela na sala, quando põe ou tira uma entrada de
+  um id que a conta não vê (um marcador, um pin, um id que só o arquivo tem),
+  quando uma entrada não é o elemento da sua chave, quando faz um pin secreto,
+  quando um cartão que ela faz ou muda nomeia um arquivo que a conta não vê
+  **ou que não existe** (assim um cartão não serve para perguntar se um
+  arquivo oculto existe), ou quando muda o que qualquer outro elemento é para a
+  conta (um grupo aberto, uma aresta para um pin). Elementos novos e mudanças
+  nos que ela vê entram na sala pelas mãos do servidor, como edições dele,
+  mescladas por elemento como diz o 0082 item 12, e contadas às outras janelas;
+  dos fatos do board ela muda a contagem de edições e o fundo. `write_text`,
+  `write_board` e `sync_put` de um board continuam recusados a um jogador, e
+  `collab_resolve` também (fecha a sala para todos).
+- **Quem escreve o arquivo.** A janela do mestre, quando está na sala: ela faz o
+  arquivo da sala inteira, como sempre, e o arquivo de um jogador é descartado.
+  Só com jogadores nela, o arquivo que a janela de um jogador fez da sua sombra
+  (`collab_canvas`, no estado da sombra) é **posto sobre o arquivo do disco**
+  (`board_sight::lay_over`): o que a conta não vê é o do disco, byte a byte; o
+  que vê é dela; o que a janela largou, ela apagou; e um canvas que mudaria o
+  que um elemento é para ela não é aceito. Um board desenhado só por um jogador
+  (sem o mestre ainda) é desenhado só na sombra; a janela do mestre desenha o
+  todo quando chega, e as versões se mesclam por posto.
+- **Quando o que um elemento é para uma conta muda** — um pin que virou secreto,
+  o arquivo de um cartão liberado ou oculto, o nível mudado — a sombra da conta
+  é fechada: suas janelas ouvem que a sala fechou (`collab-closed`) e entram de
+  novo, pelo arquivo, como os leitores de uma nota (`veil_changed`; uma mudança
+  dentro da sala pelo mestre é vista por `sync`). Um mestre rebaixado ao vivo
+  sai de toda sala como antes (`demoted`).
+- **O que mais é cortado.** A seleção numa presença só nomeia um elemento quando
+  a conta que recebe o vê (`presence::keep_selected`); o `collab-saved` chega a
+  uma sombra sem o hash do arquivo; o `access_get` conta os blocos secretos dos
+  cartões de texto de um board (não os de um pin) e o diálogo pergunta antes de
+  dar *Edita* num board que tem, e diz o que o jogador vê. O `campaign_grant`
+  aceita um board. As recusas que o passo apaga são as do board em `rpc_collab` e
+  em `campaign_grant`; a de `collab.rs` fica para a janela que só lê.
+- **Testes.** Duas propriedades sobre salas feitas ao acaso
+  (`board_sight_tests.rs`): *nenhum id ou texto oculto chega a um jogador* e
+  *uma atualização a um id não visto é recusada*, cada uma vista falhar com uma
+  regra errada (um pin não oculto, a checagem pulada, o arquivo deixado num
+  marcador); e `tests_board_players.rs` contra um servidor de verdade (todo
+  quadro que a Ana ouve é conferido contra os canários; as edições dela chegam
+  ao mestre; as recusadas não deixam rastro; o arquivo guarda o pin, o cartão
+  oculto e sua aresta byte a byte; o diálogo; o fechamento da sombra). O teste
+  de ponta a ponta é `e2e-server/board-players.spec.mjs`.
+- **Escolhido onde o ADR cala, a confirmar.** (1) O cartão de um arquivo oculto
+  é *Trancado*, nunca ausente: a palavra do mantenedor (*um marcador trancado
+  com o mesmo id*). (2) Um
+  cartão de texto do board é inteiro para quem edita (H, 0087 item 5) — com seus
+  links para notas ocultas, como uma nota que ele edita os mostra. (3) Um
+  jogador não resolve um conflito entre a sala e o disco. (4) A presença do
+  mestre (o ponteiro) é contada ao jogador; só os ids que ele seleciona são
+  cortados. (5) O board sincronizado de um jogador no desktop (S8) não foi
+  tocado.
