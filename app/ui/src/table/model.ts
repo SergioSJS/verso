@@ -12,9 +12,9 @@
 import type { DiceRoll, DiceTermRoll, OracleDraw, TableEntry as Wire } from "../bindings";
 import { readDiceStyles, type DiceStyles } from "../dice3d/look";
 
-/** `say` and `image` are the server table's (ADR 0107 item 3); `secret` is
+/** `say`, `image` and `file` (any other file of the chat, linked) are the server table's (ADR 0107 item 3); `secret` is
  *  what a roll "to the owner" is to everyone but its roller and the owners. */
-export type EntryKind = "roll" | "table" | "oracle" | "say" | "image" | "secret";
+export type EntryKind = "roll" | "table" | "oracle" | "say" | "image" | "file" | "secret";
 export type OracleKind = "question" | "spark" | "table";
 
 /** One line of the log. `by` is the roller's name as the server stamped it
@@ -157,7 +157,7 @@ export function entryOfServer(s: Wire, you: string, oracleWords: OracleWords): T
     return { ...base, kind: "oracle", oracle: kind, total: kind === "spark" ? null : d.roll, row: oracleWords(d) };
   }
   if (s.kind === "say") return { ...base, kind: "say", text: s.text ?? "" };
-  if (s.kind === "image" && s.image) return { ...base, kind: "image", image: s.image };
+  if ((s.kind === "image" || s.kind === "file") && s.image) return { ...base, kind: s.kind, image: s.image };
   if (s.kind === "secret") return { ...base, kind: "secret", secret: true, path: "" };
   return null;
 }
