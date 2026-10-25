@@ -372,11 +372,19 @@ fn a_write_to_a_hidden_name_is_answered_as_a_write_to_a_free_one_and_never_overw
                 json!({ "path": "Livre Novo.md", "text": "meu\n", "revision": "x" }),
             )
             .await;
-        assert_eq!(
-            hidden["err"]["kind"], free["err"]["kind"],
-            "{hidden} / {free}"
-        );
+        // The whole answer, the name sent aside, is the one a free name gets.
+        assert_eq!(hidden["err"], free["err"], "{hidden} / {free}");
+        assert!(!hidden.to_string().contains(" 2"), "{hidden}");
         assert_eq!(hidden.get("ok").is_some(), free.get("ok").is_some());
+        // A device's put is answered alike: a new file, the name it was
+        // sent apart (the player's own file may be named "X 2.md").
+        let bytes = b"meu\n";
+        let put = |p: &str| json!({ "path": p, "offset": 0, "size": 4, "hash": crate::sync::sha256(bytes), "base": null, "data": base64_of(bytes) });
+        let h = cid.call("sync_put", put("Barão Zq.md")).await;
+        let f = cid.call("sync_put", put("Livre Novo.md")).await;
+        assert_eq!(h["ok"]["done"], f["ok"]["done"], "{h} / {f}");
+        assert!(h.get("ok").is_some() && f.get("ok").is_some(), "{h} / {f}");
+        assert_eq!(h["ok"]["path"], "Barão Zq 2.md", "{h}");
         let text = cid
             .call(
                 "write_text",

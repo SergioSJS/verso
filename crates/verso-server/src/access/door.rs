@@ -314,7 +314,10 @@ impl Door {
                 {
                     verdict = Verdict::Deny(super::Reason::NoRight);
                 }
-                if verdict.allowed() && self.veiled() {
+                // A path the person does not see is a new file to them (the
+                // name is kept off the hidden one): judged like a free name.
+                let unseen = self.veiled() && !self.may_path(Action::See, &path).allowed();
+                if verdict.allowed() && self.veiled() && !unseen {
                     // Notes and boards are what a device holds projected.
                     let whole = match Kind::of_path(&path) {
                         Kind::Board => false,
