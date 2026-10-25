@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PNG, accessDialog, choose, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
+import { PNG, accessDialog, applyFolder, choose, fileRow, openNoteBy, reveal, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -169,5 +169,71 @@ test("b. Ana edits the group's board live and the game master gets it; Bruno, wh
     expect(await drawn(gm)).toContain("da Ana");
     expect(await traces(bruno.page, HIDDEN_BOARD)).toEqual([]);
     expect(await traces(ana.page, HIDDEN_BOARD)).toEqual([]);
+  });
+});
+
+test("c. a folder set, then an exception on one file, then back to the folder: what Ana sees at each step", async ({ browser, page: gm }, info) => {
+  const files = { "Cenas/Zqtaverna.md": "# Zqtaverna\n\nzqmarcatav\n", "Cenas/Ponte.md": "# Ponte\n\nzqmarcaponte\n" };
+  await scenario(browser, gm, info, "pasta", files, async ({ folder, ana, bruno }) => {
+    await openFolder(ana.page, folder.id);
+    await openFolder(bruno.page, folder.id);
+    const names = ["Zqtaverna", "Ponte"];
+    const treeOf = async (page) => {
+      const out = [];
+      for (const n of names) out.push((await page.locator(`#notes li[data-path="Cenas/${n}.md"]`).count()) > 0);
+      return out;
+    };
+    // The default hides: Ana sees no file of the folder, and the switcher finds none.
+    expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
+    await ana.page.keyboard.press("Escape");
+    expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
+
+    // The folder: the whole table sees. The game master's dialog counts the two files.
+    const dialog = await applyFolder(gm, "Cenas", [["Toda a mesa", "Vê"]]);
+    await expect(dialog).toContainText("Aplicado a 2 arquivos");
+    await gm.keyboard.press("Escape");
+    for (const p of [ana.page, bruno.page]) {
+      await expect.poll(async () => {
+        await reveal(p, "Cenas");
+        return treeOf(p);
+      }, { timeout: 30_000 }).toEqual([true, true]);
+    }
+    await openNoteBy(ana.page, "Zqtaverna");
+    await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcatav", { timeout: 30_000 });
+
+    // An exception on one file, from the file's own dialog: Ana does not see it, Bruno does.
+    const file = await accessDialog(gm, "Cenas/Zqtaverna.md");
+    await expect(file).toContainText("Segue a pasta");
+    await choose(file, "Ana", "Não vê");
+    await expect(file).toContainText("Salvo");
+    await expect(file).toContainText("Acesso próprio");
+    await gm.keyboard.press("Escape");
+    // ... and the folder's dialog lists it as an exception, with who sees it.
+    const folderDialog = await accessDialog(gm, "Cenas", true);
+    await expect(folderDialog.locator(".ac-ex-list")).toContainText("Cenas/Zqtaverna.md");
+    await expect(folderDialog.locator(".ac-ex-list")).toContainText("1 vê");
+    await expect(folderDialog).toContainText("Exceções (1)");
+    await gm.keyboard.press("Escape");
+    await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
+    expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
+    await ana.page.keyboard.press("Escape");
+    expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
+    expect(JSON.stringify(await invoke(ana.page, "list_files", {}))).not.toContain("Zqtaverna");
+    expect(await treeOf(bruno.page)).toEqual([true, true]);
+    // The folder's exception keeps the rest following the folder.
+    await openNoteBy(ana.page, "Ponte");
+    await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcaponte", { timeout: 30_000 });
+
+    // The arrow back, on the file: it follows the folder again, and Ana sees it.
+    const again = await accessDialog(gm, "Cenas/Zqtaverna.md");
+    await again.getByRole("button", { name: "↺ Seguir a pasta" }).click();
+    await expect(again).toContainText("Segue a pasta", { timeout: 30_000 });
+    await gm.keyboard.press("Escape");
+    await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("true,true");
+    await openNoteBy(ana.page, "Zqtaverna");
+    await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcatav", { timeout: 30_000 });
+    const last = await accessDialog(gm, "Cenas", true);
+    await expect(last).toContainText("Exceções (0)");
+    expect(await fileRow(gm, "Cenas/Ponte.md")).toBeVisible();
   });
 });
