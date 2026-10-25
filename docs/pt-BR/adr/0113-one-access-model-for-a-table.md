@@ -796,3 +796,20 @@ O board que um jogador edita (H). No servidor em `board_sight.rs` (puro) e
   mestre (o ponteiro) é contada ao jogador; só os ids que ele seleciona são
   cortados. (5) O board sincronizado de um jogador no desktop (S8) não foi
   tocado.
+- **Revisão do S7 (2026-10-25).** (1) *Sem oráculo de atividade*: uma sombra só
+  ouve `seeded` e `background` dos fatos da sala, nunca a contagem de edições dos
+  outros; o `saved` dela é feito para a conta (a contagem das próprias edições,
+  movida quando a sala escreve), e a revisão que ela ouve do arquivo — no
+  `join`, no `read_text`, no `collab-saved` — é um hash do texto que ela vê, de
+  modo que salvar o que ela não vê não é nada para ela. (2) A presença contada a
+  um jogador é uma lista de campos permitidos (`user`, `pointer`, `button`,
+  `selected` cortado ao que ela vê). (3) O arquivo dela é posto sobre o do disco
+  quando nenhuma janela *que pode digitar* e vê o board inteiro está na sala — uma
+  só de leitura não conta. (4) E só quando o arquivo não falta nada do que as
+  janelas do board inteiro deixaram sem salvar (`Board::whole_saved`): senão nada
+  é escrito, o trabalho dela fica na sala e o arquivo é escrito quando uma janela
+  inteira o faz — nenhum lado é descartado. (5) Uma marca secreta é lida como a
+  projeção do arquivo a lê, toda chave repetida. (6) O que um jogador desenha na
+  sombra antes de o mestre desenhar a sala (a semeadura) fica só na sombra; nunca
+  chega à sala, e as versões da própria sala das mesmas chaves o substituem quando
+  chegam.
