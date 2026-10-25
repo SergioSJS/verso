@@ -902,8 +902,8 @@ pub fn viewer_files(
         return Ok(Arc::clone(&kept.files));
     }
     let rows = server.db.reader_manifest(folder).map_err(fail)?;
-    let Some(veil) = crate::campaign::veil_for_key(server, key)
-        .map(|v| v.view_for(account, editor))
+    let Some(veil) =
+        crate::campaign::veil_for_key(server, key).map(|v| v.view_for(account, editor))
     else {
         return Ok(Arc::new(
             rows.into_iter()

@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use verso_contract::ErrorKind;
 use verso_core::sync::remote::{
     Change, Condition, Entry, Listing, Meta, Read, Remote, RemoteError, RemoteErrorKind, Result,
-    Sink, Source, Written,
+    Rights, Sink, Source, Written,
 };
 
 use crate::remote::Remote as Socket;
@@ -269,4 +269,44 @@ impl Remote for Universo {
             version: base.clone(),
         })
     }
+
+    /// `access_get` with `brief`: what the server's one judgement says this
+    /// device may do with each path, 500 at a time. A server that does not
+    /// know `brief` answers whole `AccessInfo`s (or refuses a folder with
+    /// no table): then it has no answer, and the role decides.
+    fn rights(&self, paths: &[String]) -> Result<Option<Vec<(String, Rights)>>> {
+        let mut out = Vec::with_capacity(paths.len());
+        for chunk in paths.chunks(MOST) {
+            let (answer, _) =
+                match self.ask("access_get", json!({ "paths": chunk, "brief": true }), None) {
+                    Ok(a) => a,
+                    // An old server, or one that does not answer this for the
+                    // folder: the role decides, as it always did.
+                    Err(e) if e.kind == RemoteErrorKind::Failed => return Ok(None),
+                    Err(e) => return Err(e),
+                };
+            let Some(list) = answer.as_array() else {
+                return Ok(None);
+            };
+            for r in list {
+                let (Some(path), true) = (r["path"].as_str(), r.get("put").is_some()) else {
+                    return Ok(None);
+                };
+                let yes = |k: &str| r[k] == true;
+                out.push((
+                    path.to_owned(),
+                    Rights {
+                        see: yes("see"),
+                        put: yes("put"),
+                        delete: yes("delete"),
+                        rename: yes("rename"),
+                    },
+                ));
+            }
+        }
+        Ok(Some(out))
+    }
 }
+
+/// How many paths `access_get` is asked about at once (the server's limit).
+pub(crate) const MOST: usize = 500;

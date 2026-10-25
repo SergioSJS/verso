@@ -71,7 +71,10 @@ async fn livre_for_ana(m: &mut Mesa) -> String {
         "whole": "see", "rows": [{ "account": m.ana_id, "level": "edit" }] } });
     let a = m
         .owner
-        .call("access_set", json!({ "paths": ["Livre.md"], "change": set }))
+        .call(
+            "access_set",
+            json!({ "paths": ["Livre.md"], "change": set }),
+        )
         .await;
     assert!(a.get("ok").is_some(), "{a}");
     text
@@ -130,10 +133,14 @@ fn a_device_is_told_a_note_it_edits_whole_and_puts_it_back_and_the_others_a_proj
         assert!(refused(&no), "{no}");
         // Her right taken away: the next listing is the projection again
         // and the put is refused.
-        let see = json!({ "kind": "set", "secret_name": null, "set": { "whole": "see", "rows": [] } });
+        let see =
+            json!({ "kind": "set", "secret_name": null, "set": { "whole": "see", "rows": [] } });
         let a = m
             .owner
-            .call("access_set", json!({ "paths": ["Livre.md"], "change": see }))
+            .call(
+                "access_set",
+                json!({ "paths": ["Livre.md"], "change": see }),
+            )
             .await;
         assert!(a.get("ok").is_some(), "{a}");
         let state = m.ana.call("sync_state", json!({})).await;
@@ -166,7 +173,16 @@ fn a_folders_editor_device_writes_what_it_sees_and_is_told_nothing_of_the_rest()
         // A demoted editor is a reader: the projection at once.
         m.r.server
             .db
-            .grant(&m.id, &m.r.server.db.account_by_email("cid@casa.lan").unwrap().unwrap().id, Role::Reader)
+            .grant(
+                &m.id,
+                &m.r.server
+                    .db
+                    .account_by_email("cid@casa.lan")
+                    .unwrap()
+                    .unwrap()
+                    .id,
+                Role::Reader,
+            )
             .unwrap();
         let state = cid.call("sync_state", json!({})).await;
         assert_ne!(hash_of(&state, "Livre.md").unwrap(), hash, "{state}");
@@ -198,7 +214,10 @@ fn what_a_device_may_do_is_answered_by_the_one_judgement_and_a_hidden_path_like_
         // The game master may everything.
         let o = m
             .owner
-            .call("access_get", json!({ "paths": ["Barão Zq.md"], "brief": true }))
+            .call(
+                "access_get",
+                json!({ "paths": ["Barão Zq.md"], "brief": true }),
+            )
             .await;
         assert_eq!(o["ok"][0]["put"], true, "{o}");
     });
