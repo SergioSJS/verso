@@ -447,6 +447,8 @@ test("g. a board and a picture Ana has open drop their content when the game mas
     await expect.poll(async () => (await scene(ana.page)).length).toBeGreaterThanOrEqual(2);
     const cards = () => ana.page.evaluate(() => JSON.stringify((window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => e.customData ?? null)));
     expect(await cards()).toContain("zqcartaoum");
+    // A double click keeps the board's tab (a preview tab is replaced by the next file opened).
+    await ana.page.locator(".tab-list .tab").first().dblclick();
     // The picture, from the tree, in a tab of its own.
     await ana.page.locator('#notes li[data-path="Zqfigura.png"] > button').click();
     await expect(ana.page.locator(".leaf:not([hidden]) img").first()).toBeVisible({ timeout: 30_000 });
