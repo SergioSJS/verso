@@ -100,6 +100,11 @@ function buildNotices(): void {
   // A folder opened or closed enables the search field: the reader's lock
   // follows, as the bar does.
   new MutationObserver(paintReadOnly).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
+  // A file the person lost sight of: a failed open of it is not left on the line.
+  addEventListener("verso:unshared", () => {
+    failedText.textContent = "";
+    failedLine.hidden = true;
+  });
   addEventListener("verso:failed", (e) => {
     failedText.textContent = (e as CustomEvent<string>).detail;
     failedLine.hidden = false;

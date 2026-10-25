@@ -31,7 +31,12 @@ function place(): void {
   if (document.activeElement === more && target?.isConnected) return;
   target = row && row.offsetParent !== null ? row : null;
   more.hidden = target === null;
-  if (!target) return;
+  if (!target) {
+    // Beside no row: it names none (a row the person lost sight of is not left in its label).
+    more.setAttribute("aria-label", st.rowMore(""));
+    more.title = st.rowMore("");
+    return;
+  }
   const name = target.querySelector(".row-name, .folder-label")?.textContent ?? "";
   more.setAttribute("aria-label", st.rowMore(name));
   more.title = st.rowMore(name);

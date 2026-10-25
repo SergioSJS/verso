@@ -42,4 +42,5 @@ export function dropUnshared(): void {
   // Notes that embed or show it draw again (and what is cached of it goes).
   for (const leaf of leaves) if (leaf instanceof NoteLeaf && !leaf.unshared) leaf.relinkNow(names);
   ui.status.textContent = t.unsharedStatus;
+  dispatchEvent(new Event("verso:unshared"));
 }

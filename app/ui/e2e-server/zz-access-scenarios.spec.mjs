@@ -445,17 +445,17 @@ test("g. a board and a picture Ana has open drop their content when the game mas
     await set(["Zqquadro.canvas", "Zqfigura.png", "Livre.md"], "see");
     await openBoard(ana.page, folder.id, "Zqquadro");
     await expect.poll(async () => (await scene(ana.page)).length).toBeGreaterThanOrEqual(2);
+    const cards = () => ana.page.evaluate(() => JSON.stringify((window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => e.customData ?? null)));
+    expect(await cards()).toContain("zqcartaoum");
     // The picture, from the tree, in a tab of its own.
     await ana.page.locator('#notes li[data-path="Zqfigura.png"] > button').click();
     await expect(ana.page.locator(".leaf:not([hidden]) img").first()).toBeVisible({ timeout: 30_000 });
-    expect((await scene(ana.page)).map((e) => e.text).join("|")).toContain("zqcartaoum");
 
     // The game master takes both away: no closing, no reload.
     await set(["Zqquadro.canvas", "Zqfigura.png"], "none");
     await expect(ana.page.locator(".leaf.unshared")).toHaveCount(2, { timeout: 30_000 });
     await expect(ana.page.locator(".tab-list .tab", { hasText: "Sem acesso" })).toHaveCount(2);
     expect(await traces(ana.page, ["Zqquadro", "Zqfigura", "zqcartaoum", "zqcartaodois"]), await where(ana.page, "Zqquadro")).toEqual([]);
-    expect((await scene(ana.page)).map((e) => e.text).join("|")).not.toContain("zqcarta");
     await expect(ana.page.locator("#status")).not.toContainText(/Zqquadro|Zqfigura/);
     expect(await ana.page.locator(".leaf img[src*='Zqfigura']").count()).toBe(0);
     expect((await switcher(ana.page, "Zq")).join("|")).not.toMatch(/Zqquadro|Zqfigura/);
