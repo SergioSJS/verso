@@ -353,3 +353,45 @@ fn a_devices_rename_onto_a_hidden_name_gets_the_suffix_and_never_says_taken() {
         assert!(!no.to_string().contains("Cripta"), "{no}");
     });
 }
+
+#[test]
+fn a_write_to_a_hidden_name_is_answered_as_a_write_to_a_free_one_and_never_overwrites() {
+    block_on(async {
+        let mut m = mesa().await;
+        open_root_hide_baron(&mut m).await;
+        let mut cid = editor(&m).await;
+        let hidden = cid
+            .call(
+                "write_note",
+                json!({ "path": "Barão Zq.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        let free = cid
+            .call(
+                "write_note",
+                json!({ "path": "Livre Novo.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        assert_eq!(
+            hidden["err"]["kind"], free["err"]["kind"],
+            "{hidden} / {free}"
+        );
+        assert_eq!(hidden.get("ok").is_some(), free.get("ok").is_some());
+        let text = cid
+            .call(
+                "write_text",
+                json!({ "path": "Barão Zq.md", "text": "meu\n", "revision": "x" }),
+            )
+            .await;
+        assert!(!text.to_string().contains("only read"), "{text}");
+        // The hidden note is untouched.
+        let baron = m
+            .owner
+            .call("read_note", json!({ "path": "Barão Zq.md" }))
+            .await;
+        assert!(
+            baron["ok"]["text"].as_str().unwrap().contains("zqbody"),
+            "{baron}"
+        );
+    });
+}

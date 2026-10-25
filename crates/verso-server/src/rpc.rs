@@ -931,7 +931,13 @@ async fn folder_command(
         }
         if matches!(
             name,
-            "create_note" | "create_file" | "create_folder" | "rename_note" | "rename_entry"
+            "create_note"
+                | "create_file"
+                | "create_folder"
+                | "rename_note"
+                | "rename_entry"
+                | "write_note"
+                | "write_text"
         ) {
             let (s, d, k, n) = (
                 Arc::clone(server),

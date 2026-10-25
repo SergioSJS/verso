@@ -208,7 +208,7 @@ impl Door {
                 if self.veiled() && Kind::of_path(&path) == Kind::Board {
                     return Err(crate::rpc::refused(READS));
                 }
-                self.may_path(Action::Edit, &path)
+                self.write_verdict(&path)
             }
             "create_note" => match args["name"].as_str() {
                 Some(n) => self.create_in(&Self::note_path(&self.full(n))),
@@ -296,7 +296,7 @@ impl Door {
                 let Some(path) = args["path"].as_str().map(|p| self.full(p)) else {
                     return Err(crate::rpc::refused(READS));
                 };
-                let mut verdict = self.may_path(Action::Edit, &path);
+                let mut verdict = self.write_verdict(&path);
                 // A file that is no note, board or base is a file sent: a
                 // player's device sends none this way (S8).
                 if verdict.allowed()
@@ -325,6 +325,19 @@ impl Door {
             }
             "sync_delete" => self.check_write("delete_entry", args),
             _ => self.check_write("rename_entry", args),
+        }
+    }
+
+    /// A write to `path`: editing it. A player writing to a path they do not
+    /// see is told what they would be told of a free name — it is judged as
+    /// making a file in its folder — so that "you may only read" never says
+    /// that something hidden is there; [`Door::guard_names`] then keeps the
+    /// hidden file from being overwritten.
+    fn write_verdict(&self, path: &str) -> Verdict {
+        if self.veiled() && !self.may_path(Action::See, path).allowed() {
+            self.create_in(path)
+        } else {
+            self.may_path(Action::Edit, path)
         }
     }
 
@@ -435,6 +448,9 @@ impl Door {
                     .map(|n| Self::note_path(&self.full(n))),
                 true,
             ),
+            "write_note" | "write_text" | "sync_put" => {
+                ("path", args["path"].as_str().map(|p| self.full(p)), false)
+            }
             "create_file" | "create_folder" => {
                 ("path", args["path"].as_str().map(|p| self.full(p)), false)
             }
@@ -447,6 +463,13 @@ impl Door {
             return Ok(());
         };
         let _ = is_note;
+        // A write to a path the person sees is theirs to make as it is; the
+        // directory is read only for one they do not.
+        if matches!(name, "write_note" | "write_text" | "sync_put")
+            && self.may_path(Action::See, &wanted).allowed()
+        {
+            return Ok(());
+        }
         let mut taken: std::collections::HashSet<String> = crate::campaign_serve::all_files(ws)
             .iter()
             .map(|f| campaign::key(f))

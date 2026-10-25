@@ -622,17 +622,21 @@ pub async fn command(
     // taken: the next free one is used, and a folder holding what they
     // cannot see is not theirs to rename (ADR 0113), as in the window.
     let mut args = args;
-    if cmd == "sync_rename" && door.veiled() {
+    if matches!(cmd, "sync_rename" | "sync_put") && door.veiled() {
         let key = server
             .service
             .folder_of(client)
             .ok_or_else(verso_service::no_folder)?;
+        let name = if cmd == "sync_put" {
+            "sync_put"
+        } else {
+            "rename_entry"
+        };
         let (s, d) = (Arc::clone(server), door.clone());
         args = blocking(move || {
             let mut a = args;
             s.service.with_key(&key, |ws| {
-                d.guard_names(ws, "rename_entry", &mut a)
-                    .map_err(Into::into)
+                d.guard_names(ws, name, &mut a).map_err(Into::into)
             })?;
             Ok(a)
         })
