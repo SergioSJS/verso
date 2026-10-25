@@ -227,7 +227,11 @@ export async function reveal(page, folder) {
   for (let k = 1; k <= parts.length; k++) {
     const summary = page.locator(`#notes summary[data-folder="${parts.slice(0, k).join("/")}"]`);
     await expect(summary).toBeVisible({ timeout: 30_000 });
-    if (!(await summary.evaluate((s) => s.parentElement.open))) await summary.click();
+    // A click on a folder opens its page as well, and the tree may draw again closed: look again.
+    for (let i = 0; i < 4 && !(await summary.evaluate((s) => s.parentElement.open)); i++) {
+      await summary.click();
+      await page.waitForTimeout(400);
+    }
   }
 }
 

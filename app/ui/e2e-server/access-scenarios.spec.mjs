@@ -313,8 +313,12 @@ test("d. Ana makes and renames a note in a folder she edits and cannot delete it
     expect(moved.error, JSON.stringify(moved)).toBeFalsy();
     expect(moved.path).toBe("Diario/Zqsombra 3.md");
     // Bruno sees Ana's notes of the folder (it is shared with the table) and nothing of the hidden one.
-    await reveal(bruno.page, "Diario");
-    await expect(bruno.page.locator('#notes li[data-path="Diario/Zqsombra 2.md"]')).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(async () => {
+        await reveal(bruno.page, "Diario");
+        return bruno.page.locator('#notes li[data-path="Diario/Zqsombra 2.md"]').count();
+      }, { timeout: 30_000 })
+      .toBe(1);
     expect(await traces(bruno.page, ["zqcorposombra", "Zqsombra.md"])).toEqual([]);
   });
 });
