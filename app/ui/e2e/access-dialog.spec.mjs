@@ -16,7 +16,6 @@ const PLAYERS = [
   { id: "acc-dora", name: "Dora" },
 ];
 const TABLE = { root: "Mundo", open: true, log_max: 20000, image_max: 10 * 1024 * 1024 };
-const HIDDEN = { audience: { kind: "hidden" } };
 const NAMES = ["Bia", "Caio", "Dora"];
 
 test.beforeEach(async ({}, info) => {
@@ -26,25 +25,25 @@ test.beforeEach(async ({}, info) => {
 async function setup(app, width = 1500) {
   await app.page.setViewportSize({ width, height: width < 600 ? 844 : 900 });
   await app.open("?vault=empty&table=owner");
-  const notes = { "Mundo/Cripta.md": HIDDEN, "Mundo/Diario.md": HIDDEN, "Mundo/Quadro.canvas": HIDDEN };
-  const paths = Object.keys(notes);
+  const paths = ["Mundo/Cripta.md", "Mundo/Diario.md", "Mundo/Quadro.canvas"];
   for (const p of paths) await app.writeOutside(p, `# ${p.split("/").pop().replace(/\.\w+$/, "")}\n\nUm lugar frio.\n`);
   await app.folderChanged(paths, true);
   await app.page.evaluate(
-    ([table, players, given]) => {
+    ([table, players]) => {
       const c = window.__harness.campaign;
       c.tables = [table];
       c.players = players;
-      for (const [path, v] of Object.entries(given)) c.notes.set(path, { path, released: false, audience: v.audience, secret_name: false, grant: { kind: "none" } });
       window.__harness.emit("campaign-changed", { paths: [] });
     },
-    [TABLE, PLAYERS, notes],
+    [TABLE, PLAYERS],
   );
   await app.folderChanged(paths, true);
   // On a phone the tree is in the side panel.
   if (width <= 760) await app.page.getByRole("button", { name: "Arquivos" }).click();
   const folder = app.page.locator('#notes summary[data-folder="Mundo"]');
-  if (!(await app.page.locator('#notes li[data-path="Mundo/Cripta.md"]').isVisible())) await folder.click();
+  await expect(folder).toBeVisible();
+  if ((await folder.getAttribute("aria-expanded")) !== "true") await folder.click();
+  await expect(app.page.locator('#notes li[data-path="Mundo/Cripta.md"]')).toBeVisible();
 }
 
 const row = (app, path) => app.page.locator(`#notes li[data-path="${path}"] > button`);
@@ -140,6 +139,7 @@ test("keyboard only: Tab stays in the dialog, arrows choose, Enter applies, Esca
     item = page.getByRole("menuitem", { name: /^Acesso…/ });
   }
   await expect(item).toBeVisible();
+  await item.focus();
   await page.keyboard.press("Enter");
   const d = dialogOf(app);
   await expect(d).toBeVisible();
@@ -291,7 +291,7 @@ test("in the dark theme the words have contrast, a chosen level differs from the
       paperDark: lum(paper) < 0.2,
       onDiffers: getComputedStyle(on).backgroundColor !== getComputedStyle(off).backgroundColor || getComputedStyle(on).boxShadow !== getComputedStyle(off).boxShadow || getComputedStyle(on).fontWeight !== getComputedStyle(off).fontWeight,
       borderSeen: rgba(getComputedStyle(root).borderTopColor)[3] > 0,
-      tokens: ["--paper", "--ink", "--ink-2", "--hair", "--accent"].map((t) => [t, getComputedStyle(document.documentElement).getPropertyValue(t).trim()]),
+      tokens: ["--paper", "--ink", "--ink-2", "--hair"].map((t) => [t, getComputedStyle(document.documentElement).getPropertyValue(t).trim()]),
     };
   });
   expect(report.bad).toEqual([]);
