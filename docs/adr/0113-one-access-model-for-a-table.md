@@ -798,3 +798,20 @@ The board a player edits (H). Server side in `board_sight.rs` (pure) and
   resolve a conflict between the room and the disk. (4) Presence of the game
   master (pointer) is told to the player; only the ids it selects are cut.
   (5) The desktop's synced board of a player (S8) is not touched.
+- **Review of S7 (2026-10-25).** (1) *No activity oracle*: a shadow is told only
+  `seeded` and `background` of the room's facts, never the others' edit
+  counts; its `saved` is made for the account (its own count of edits, moved
+  when the room writes), and the revision it is told of the file — at the join,
+  in `read_text`, in `collab-saved` — is a hash of the text it is shown, so a
+  save of what it does not see is none to it. (2) Presence told to a player is
+  an allowlist of fields (`user`, `pointer`, `button`, `selected` cut to what
+  it sees). (3) Her file is laid over the disk's when no window *that may
+  type* and sees the whole board is in the room — a read-only one does not
+  count. (4) And only when the file lacks nothing the whole board's windows
+  left unsaved (`Board::whole_saved`): otherwise nothing is written, her work
+  stays in the room, and the file is written when a whole window makes it —
+  neither side is dropped. (5) A secret flag is read as the file's projection
+  reads it, every duplicate key. (6) What a player draws into her shadow before
+  the game master draws the room in (the seeding) stays in her shadow only; it
+  never reaches the room, and the room's own versions of the same keys replace
+  it when they come.
