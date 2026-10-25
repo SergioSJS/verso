@@ -816,6 +816,8 @@ fn the_selection_of_the_game_master_never_names_what_she_does_not_see() {
             "user": { "name": "x", "color": "#aabbcc" },
             "pointer": { "x": 1, "y": 2, "tool": "pointer" },
             "selected": ["zqpin", "zqedge", "c-open", "c-hid"],
+            "editing": "zqpin",
+            "zqfield": { "ids": ["zqpin"] },
         });
         let (sent, _) = exchange(
             &mut m.owner,

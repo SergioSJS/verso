@@ -724,7 +724,7 @@ pub(super) fn presence(server: &Server, r: &Room, sender: &str, stamped: &[u8]) 
         if to.is_empty() {
             continue;
         }
-        let Ok(cut) = crate::presence::keep_selected(stamped, &|id| {
+        let Ok(cut) = crate::presence::for_player(stamped, &|id| {
             matches!(sh.sight.class.get(id), Some(Class::Open | Class::Locked))
         }) else {
             continue;
