@@ -636,11 +636,6 @@ export const commands = {
 	campaignSecretName: (path: string, on: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_secret_name", { path, on })),
 	/**  Who may edit a note: nobody, the group, or one player. */
 	campaignGrant: (path: string, grant: CampaignGrant) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_grant", { path, grant })),
-	/**
-	 *  Give players, or take from them, the permission to send images to the
-	 *  table's chat (ADR 0107 item 3 as amended 2026-10-24).
-	 */
-	campaignPermission: (root: string, accounts: string[], images: boolean) => typedError<CampaignStatus, ContractError>(__TAURI_INVOKE("campaign_permission", { root, accounts, images })),
 	/**  An invitation link to the table, for a reader. */
 	campaignInvite: (root: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("campaign_invite", { root })),
 	/**
@@ -1468,15 +1463,16 @@ export type CampaignTable = {
 	open: boolean,
 	/**  The table log's ceiling (1,000 to 200,000 entries; MS.1). */
 	log_max: number,
-	/**  The image size limit, in bytes (1 to 30 MB; MS.1). */
+	/**  The file size limit, in bytes (1 to 30 MB; MS.1): any file *Send files* carries. */
 	image_max: number,
 	/**
-	 *  To the game master: the players this table lets send images to its
-	 *  chat (ADR 0107 item 3 as amended 2026-10-24). Empty to a player.
+	 *  To the game master: the players this table lets *Send files* — images,
+	 *  PDF, audio — to its chat and into the notes they edit (ADR 0113 K.4).
+	 *  Empty to a player.
 	 */
 	image_players?: string[],
 	/**
-	 *  Whether this account may send images at the table: always the
+	 *  Whether this account may send files at the table: always the
 	 *  game master, a player only when it was given the permission.
 	 */
 	images?: boolean,
@@ -3628,7 +3624,8 @@ export type TableCleared = {
  *  One entry of the table, as a window may see it. `kind` is `roll`
  *  (`roll` set, also a random table's: `roll.source`), `oracle` (`draw`
  *  set), `say` (`text` set), `image` (`image` set: the file's path in the
- *  folder) or `secret` ("<name> rolled in secret": nothing else set).
+ *  folder), `file` (a PDF or audio: `image` holds the file's path too; ADR
+ *  0113 K.4) or `secret` ("<name> rolled in secret": nothing else set).
  */
 export type TableEntry = {
 	/**
@@ -3663,7 +3660,7 @@ export type TableEntry = {
 };
 
 /**
- *  The permission to send images changed for this account (event
+ *  The right to send files changed for this account (event
  *  `table-images`): told to its windows at the table at once.
  */
 export type TableImages = {
@@ -3686,9 +3683,8 @@ export type TableJoin = {
 	more: boolean,
 	roster: TableMember[],
 	/**
-	 *  Whether this account may send an image to the table: an owner or an
-	 *  editor always, a player when the game master gave it the permission
-	 *  (ADR 0107 item 3 as amended 2026-10-24).
+	 *  Whether this account may send a file to the table: an owner always, a
+	 *  player when the game master gave it *Send files* (ADR 0113 K.4).
 	 */
 	images?: boolean,
 };

@@ -463,7 +463,7 @@ class TableView {
       text.append(...messageNodes(e.text ?? ""));
       body.append(text);
     } else if (e.kind === "image") body.append(this.picture(e));
-    else if (e.kind === "file") body.append(h("span", "table-file", name(e.image ?? "")));
+    else if (e.kind === "file") body.append(this.fileCard(e));
     else if (e.kind === "secret") body.append(h("span", "table-masked", tt.secretMasked));
     else if (e.kind === "oracle") {
       const label = e.oracle === "question" ? tt.oracleQuestion : e.oracle === "spark" ? tt.oracleSpark : tt.oracleTable(e.notation);
@@ -500,6 +500,18 @@ class TableView {
       armDrag(li, () => ({ kind: "file", path: file, linkOnly: true }), () => said);
     }
     return li;
+  }
+
+  /** A file of the table that is no image (a PDF, a sound; ADR 0113 K.4): a card with its name and kind; a click opens it. */
+  private fileCard(e: TableEntry): HTMLElement {
+    const path = e.image ?? "";
+    const card = button("table-file", "");
+    card.title = tt.fileOpen;
+    card.setAttribute("aria-label", `${tt.fileOpen}: ${name(path)}`);
+    const kind = /\.pdf$/i.test(path) ? tt.filePdf : tt.fileAudio;
+    card.append(icon("paperclip", ""), h("span", "table-file-name", name(path)), h("span", "table-file-kind", kind));
+    card.addEventListener("click", () => openNote(path, false));
+    return card;
   }
 
   /** An image of the table: its thumbnail (the file, through the normal address); a click opens it. */

@@ -87,7 +87,7 @@ test("the row is one line, the toolbar of the box has the paperclip, the bookmar
   // The old block and the old row of buttons are gone.
   await expect(view.getByRole("button", { name: "Compor rolagem" })).toHaveCount(0);
   await expect(view.getByRole("textbox", { name: "Notação", exact: true })).toHaveCount(0);
-  for (const name of ["Rolar dados…", "Enviar imagem", /^Secreta$/]) await expect(view.getByRole("button", { name })).toHaveCount(0);
+  for (const name of ["Rolar dados…", "Enviar arquivo", /^Secreta$/]) await expect(view.getByRole("button", { name })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // A phone's targets are 40 px tall at least.
   if (phone(page)) {

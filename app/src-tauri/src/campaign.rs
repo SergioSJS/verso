@@ -119,19 +119,6 @@ pub fn campaign_grant(path: String, grant: CampaignGrant) -> Result<CampaignStat
     Err(no_table())
 }
 
-/// Give players, or take from them, the permission to send images to the
-/// table's chat (ADR 0107 item 3 as amended 2026-10-24).
-#[tauri::command]
-#[specta::specta]
-pub fn campaign_permission(
-    root: String,
-    accounts: Vec<String>,
-    images: bool,
-) -> Result<CampaignStatus, ContractError> {
-    let _ = (root, accounts, images);
-    Err(no_table())
-}
-
 /// The access of each path named: its own set, what applies, where it comes
 /// from and, for a folder, how many files lie under it and which have a set
 /// of their own (ADR 0113 section C).

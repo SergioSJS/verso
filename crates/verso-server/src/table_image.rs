@@ -25,7 +25,7 @@ use crate::auth::Who;
 use crate::db::Role;
 use crate::rpc::{blocking, to_value};
 use crate::state::Server;
-use crate::table::image_ext;
+use crate::table::file_ext;
 
 /// The folder's attachments place when the folder names none.
 const PLACE: &str = "attachments";
@@ -114,7 +114,7 @@ async fn store(
     let limit = crate::campaign::image_limit(server, folder, table);
     if data.len() > limit / 3 * 4 + 8 {
         return Err(refused(&format!(
-            "an image is at most {} MB",
+            "a file is at most {} MB",
             limit / (1024 * 1024)
         )));
     }
@@ -123,11 +123,12 @@ async fn store(
         .map_err(|_| refused("the bytes are not base64"))?;
     if bytes.len() > limit {
         return Err(refused(&format!(
-            "an image is at most {} MB",
+            "a file is at most {} MB",
             limit / (1024 * 1024)
         )));
     }
-    let ext = image_ext(&bytes).ok_or_else(|| refused("a PNG, JPEG, WebP or GIF image"))?;
+    let ext = file_ext(&bytes)
+        .ok_or_else(|| refused("an image, a PDF or an audio file (not SVG, a page or a script)"))?;
     let key = server
         .service
         .folder_of(client)
