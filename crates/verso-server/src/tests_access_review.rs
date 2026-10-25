@@ -395,3 +395,38 @@ fn a_write_to_a_hidden_name_is_answered_as_a_write_to_a_free_one_and_never_overw
         );
     });
 }
+
+#[test]
+fn write_text_never_makes_a_file_that_needs_the_right_to_send_files() {
+    block_on(async {
+        let mut m = mesa().await;
+        let given = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq"], "change": set("edit") }),
+            )
+            .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        let mut cid = editor(&m).await;
+        for path in [
+            "Mundo Zq/novo.txt",
+            "Mundo Zq/novo.html",
+            "Mundo Zq/novo.canvas",
+            "Mundo Zq/novo.base",
+        ] {
+            let made = cid
+                .call(
+                    "write_text",
+                    json!({ "path": path, "text": "x", "revision": "" }),
+                )
+                .await;
+            assert!(made.get("err").is_some(), "{path}: {made}");
+            let there = m.owner.call("read_text", json!({ "path": path })).await;
+            assert!(
+                there.get("err").is_some() || path.ends_with(".base"),
+                "{path} was made by write_text: {made} / {there}"
+            );
+        }
+    });
+}
