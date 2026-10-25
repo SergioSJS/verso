@@ -195,7 +195,7 @@ export class Campaign {
     h["campaign_grant"] = (a) => {
       this.owner();
       const path = this.note(String(a["path"]));
-      if (!/\.md$/i.test(path)) refuse("only a note can be edited by players");
+      if (!/\.(md|canvas)$/i.test(path)) refuse("only a note or a board can be edited by players");
       const grant = a["grant"] as CampaignGrant;
       if (grant.kind === "player" && !this.players.some((p) => p.id === grant.account && p.id !== this.account)) refuse("not a player of this table");
       const s = this.state(path);
@@ -345,7 +345,18 @@ export class Campaign {
         .filter((p) => owner || p.id === this.account || this.levelIn(set, p.id) !== "none")
         .map((p) => ({ id: owner || p.id === this.account ? p.id : "", name: p.name, editor: p.id === this.account && this.role === "editor", you: !owner && p.id === this.account }));
       const text = this.core.files.get(path);
-      const blocks = text && /\.md$/i.test(path) ? (new TextDecoder().decode(text.bytes).match(/^(?:\s*>)*\s*\[!secret/gim) ?? []).length : 0;
+      const count = (md: string): number => (md.match(/^(?:\s*>)*\s*\[!secret/gim) ?? []).length;
+      // A board's text cards are notes to whoever edits it; a secret pin is not shown to them (ADR 0113 H).
+      const boardTexts = (json: string): string => {
+        try {
+          const nodes = (JSON.parse(json) as { nodes?: { text?: unknown; verso?: { secret?: unknown } }[] }).nodes ?? [];
+          return nodes.filter((n) => !n.verso?.secret && typeof n.text === "string").map((n) => n.text as string).join("\n");
+        } catch {
+          return "";
+        }
+      };
+      const decoded = text ? new TextDecoder().decode(text.bytes) : "";
+      const blocks = /\.md$/i.test(path) ? count(decoded) : /\.canvas$/i.test(path) ? count(boardTexts(decoded)) : 0;
       return {
         path,
         folder,
