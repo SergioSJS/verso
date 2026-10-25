@@ -150,6 +150,8 @@ pub struct AccessInfo {
     pub players: Vec<AccessPlayer>,
     /// Whether the person asking may change it (the game master).
     pub manage: bool,
+    /// The game master's name: the one who always has access.
+    pub master: String,
 }
 
 /// What `access_set` writes on each path.

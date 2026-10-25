@@ -265,7 +265,20 @@ fn info(
         secret_blocks: text.as_deref().map_or(0, secret_blocks),
         players,
         manage,
+        master: master_name(server, &f),
     })
+}
+
+/// The game master's name (its e-mail when it has none).
+fn master_name(server: &Server, folder: &str) -> String {
+    server
+        .db
+        .members(folder)
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(_, r)| *r == crate::db::Role::Owner)
+        .map(|(a, _)| if a.name.is_empty() { a.email } else { a.name })
+        .unwrap_or_default()
 }
 
 /// The files (not folders) of the folder lying under `under`, in a table.

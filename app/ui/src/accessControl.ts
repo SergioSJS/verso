@@ -29,7 +29,7 @@ export type Segmented = {
 
 /** `name` is the accessible name of the group ("Ana"). `pick` is called with
  *  the level the person chose, by pointer or by arrow key. */
-export function segmented(name: string, initial: AccessLevel | null, pick: (level: AccessLevel) => void): Segmented {
+export function segmented(name: string, initial: AccessLevel | null, pick: (level: AccessLevel) => void, key = ""): Segmented {
   const el = h("div", "ac-seg");
   el.setAttribute("role", "radiogroup");
   el.setAttribute("aria-label", name);
@@ -40,6 +40,8 @@ export function segmented(name: string, initial: AccessLevel | null, pick: (leve
     b.type = "button";
     b.setAttribute("role", "radio");
     b.dataset["level"] = l.level;
+    // The dialog draws itself again after a save: the focus finds its button by this.
+    if (key) b.dataset["key"] = `${key}:${l.level}`;
     b.append(h("span", "ac-seg-mark", l.mark), h("span", "ac-seg-word", l.label()));
     b.querySelector(".ac-seg-mark")?.setAttribute("aria-hidden", "true");
     return b;

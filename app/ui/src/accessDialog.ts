@@ -184,6 +184,7 @@ class AccessDialog {
     close.setAttribute("aria-label", ac.close);
     close.title = ac.close;
     close.append(icon("close"));
+    close.dataset["key"] = "close";
     close.addEventListener("click", () => this.close());
     head.append(title, close);
     const table = h("div", "ac-table", this.info.table === "" ? ac.tableWhole : ac.table(baseName(this.info.table) || this.info.table));
@@ -195,7 +196,7 @@ class AccessDialog {
     const board = this.paths.some(isBoard);
     const wholeRow = h("div", "ac-row ac-whole");
     wholeRow.append(h("span", "ac-name", ac.wholeTable));
-    this.whole = segmented(ac.wholeTable, this.draft.whole, (v) => void this.pickWhole(v));
+    this.whole = segmented(ac.wholeTable, this.draft.whole, (v) => void this.pickWhole(v), "whole");
     if (board) this.whole.disable(["edit"]);
     wholeRow.append(this.whole.el);
     body.append(wholeRow, h("hr", "ac-rule"));
@@ -214,7 +215,7 @@ class AccessDialog {
       who.append(avatar, h("span", "ac-name", p.name));
       const own = this.draft.rows.get(p.id) ?? null;
       const level = own ?? this.draft.whole;
-      const seg = segmented(p.name, level, (v) => void this.pickPlayer(p.id, v));
+      const seg = segmented(p.name, level, (v) => void this.pickPlayer(p.id, v), `p-${p.id}`);
       if (board) seg.disable(["edit"]);
       this.controls.set(p.id, seg);
       const note = h("span", "ac-hint");

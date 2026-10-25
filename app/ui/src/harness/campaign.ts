@@ -359,6 +359,7 @@ export class Campaign {
         secret_blocks: blocks,
         players,
         manage: owner,
+        master: "Mestre Ravena",
       } satisfies AccessInfo;
     });
   }
@@ -384,6 +385,7 @@ export class Campaign {
         changed += under.length;
         for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k)) { this.sets.delete(k); this.notes.delete(k); }
         touched.push(...under);
+        for (const f of under) this.mirror(f, set);
       } else changed += 1;
       this.sets.set(path, set);
       touched.push(path);
