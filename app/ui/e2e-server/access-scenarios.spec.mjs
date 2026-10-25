@@ -218,6 +218,8 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     // The tab she had open on it stays as she left it, saying it cannot be opened: she closes it.
     await expect(ana.page.locator(".leaf.failed")).toHaveCount(1, { timeout: 30_000 });
     await closeTabs(ana.page);
+    // (The tab's own words, and the status line, named the note she had open: her window starts again.)
+    await openFolder(ana.page, folder.id);
     expect((await switcher(ana.page, "Zqtaverna")).join("|")).not.toContain("Zqtaverna");
     await ana.page.keyboard.press("Escape");
     expect(await traces(ana.page, ["Zqtaverna", "zqmarcatav"])).toEqual([]);
@@ -369,8 +371,12 @@ test("e. the game master moves a file with its own access into another folder: i
     const wrote = await tryInvoke(ana.page, "write_note", { path: "B/Zqitem.md", text: `${read.text}\nAna foi aqui\n`, revision: read.revision });
     expect(wrote.error, JSON.stringify(wrote)).toBeFalsy();
     expect((await invoke(gm, "read_note", { path: "B/Zqitem.md" })).text).toContain("Ana foi aqui");
-    await reveal(bruno.page, "B");
-    await expect(bruno.page.locator('#notes li[data-path="B/Base.md"]')).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(async () => {
+        await reveal(bruno.page, "B");
+        return bruno.page.locator('#notes li[data-path="B/Base.md"]').count();
+      }, { timeout: 30_000 })
+      .toBe(1);
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
     expect(JSON.stringify(await entries(bruno.page))).not.toContain("Zqitem");
   });
