@@ -273,8 +273,11 @@ export class Campaign {
 
   /** The set a path has of its own: given with `access_set`, else its note's. */
   private ownSet(path: string): { whole: AccessLevel; rows: Map<string, AccessLevel> } | null {
-    return this.sets.get(path) ?? this.setOfNote(this.notes.get(path));
+    return this.sets.get(path) ?? (this.derived.has(path) ? null : this.setOfNote(this.notes.get(path)));
   }
+
+  /** Files under a folder that was set: their note state follows the folder's set (for the older readers), it is no set of their own. */
+  private readonly derived = new Set<string>();
 
   /** The nearest set up to the table's root, and whether it is the path's own. */
   private nearest(path: string): { set: { whole: AccessLevel; rows: Map<string, AccessLevel> }; own: boolean; at: string } | null {
@@ -384,7 +387,10 @@ export class Campaign {
       this.tableOrRefuse(path);
       const folder = path === "" || this.core.folders.has(path);
       if (change.kind === "follow") {
-        if (this.sets.delete(path) || this.notes.delete(path)) changed += 1;
+        this.derived.delete(path);
+        const hadSet = this.sets.delete(path);
+        const hadNote = this.notes.delete(path);
+        if (hadSet || hadNote) changed += 1;
         touched.push(path);
         continue;
       }
@@ -394,11 +400,15 @@ export class Campaign {
       if (folder) {
         const under = [...this.core.files.keys()].filter((f) => covers(path, f) && f !== path && this.tableOf(f));
         changed += under.length;
-        for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k)) { this.sets.delete(k); this.notes.delete(k); }
+        for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k)) { this.sets.delete(k); this.notes.delete(k); this.derived.delete(k); }
         touched.push(...under);
-        for (const f of under) this.mirror(f, set);
+        for (const f of under) {
+          this.mirror(f, set);
+          this.derived.add(f);
+        }
       } else changed += 1;
       this.sets.set(path, set);
+      this.derived.delete(path);
       touched.push(path);
       if (typeof change.secret_name === "boolean") this.state(path).secret_name = change.secret_name;
       this.mirror(path, set);

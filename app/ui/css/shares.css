@@ -319,6 +319,8 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
   .ac-seg-btn { min-height: 44px; font-size: .88rem; }
   .ac-reset { min-width: 44px; min-height: 44px; }
   .ac-close { width: 44px; height: 44px; }
+  .ac-apply, .ac-follow { min-height: 44px; }
+  .ac-more summary { min-height: 44px; display: flex; align-items: center; }
   .ac-row { padding: .6rem 0; }
 }
 /* The player's chip beside the title: what they may do with this file. */
