@@ -972,6 +972,7 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                         None,
                         &event("collab-update", &path, "update", &json!(b64(&update))),
                     );
+                    r.board.whole_saved = players::whole_edits(&r.doc, &r.writers);
                     players::sync(server, &mut r);
                 }
             }
