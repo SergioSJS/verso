@@ -261,15 +261,42 @@ fn saved_for(waiting: bool, now: &Meta, told: &Meta) -> Option<Any> {
 }
 
 /// The classes of the ids a canvas file holds, for `locks`.
-fn disk_classes(base: &str, locks: &Locks) -> (Value, BTreeMap<String, Class>) {
+fn disk_classes(
+    base: &str,
+    lock: &dyn Fn(&str) -> Option<String>,
+) -> (Value, BTreeMap<String, Class>) {
     let canvas: Value = serde_json::from_str(base)
         .ok()
         .filter(Value::is_object)
         .unwrap_or_else(|| json!({ "nodes": [], "edges": [] }));
-    let classes =
-        board_sight::see(&board_sight::entries_of_canvas(&canvas), &|f| locks.text(f)).class;
-    let shaped = board_sight::shape_canvas(&canvas, &|f| locks.text(f));
-    (shaped, classes)
+    let sight = board_sight::see(&board_sight::entries_of_canvas(&canvas), lock);
+    let shaped = board_sight::shape_canvas_seen(&canvas, &sight, lock);
+    (shaped, sight.class)
+}
+
+/// Every string under a `file` key in `json`, wherever it is: the names a
+/// card may name. More than the cards' is harmless (each is only asked of
+/// the folder); fewer would lock the card.
+fn file_names_in(json: &str, out: &mut BTreeSet<String>) {
+    fn walk(v: &Value, out: &mut BTreeSet<String>) {
+        match v {
+            Value::Object(m) => {
+                for (k, x) in m {
+                    match (k.as_str(), x) {
+                        ("file", Value::String(s)) => {
+                            out.insert(s.clone());
+                        }
+                        _ => walk(x, out),
+                    }
+                }
+            }
+            Value::Array(a) => a.iter().for_each(|x| walk(x, out)),
+            _ => {}
+        }
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(json) {
+        walk(&v, out);
+    }
 }
 
 /// A shadow of `r` for `account`, made of what it sees now.
@@ -285,14 +312,38 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         _ => String::new(),
     };
     let path = r.path.clone();
-    let (sight, shaped, disk, rev) = server.service.with_key(&r.key, |ws| {
+    let (file, told_files) = server.service.with_key(&r.key, |ws| {
         let file = ws.read_text(&path)?;
+        // What the account is told of each file a card names, asked of the
+        // folder here, under its lock — the one thing that needs it. The
+        // judging of the board itself (parsing, classing, shaping: CPU that
+        // grows with the board) is done after, so that a read or a join of
+        // another note is never held behind it.
+        let mut names = BTreeSet::new();
+        for json in entries.values() {
+            file_names_in(json, &mut names);
+        }
+        file_names_in(&base, &mut names);
+        file_names_in(&file.text, &mut names);
         let locks = Locks::new(ws, &veil);
-        let sight = board_sight::see(&entries, &|f| locks.text(f));
-        let (shaped, disk) = disk_classes(&base, &locks);
-        let shown = board_sight::shaped_text(&file.text, &|f| locks.text(f));
-        Ok((sight, shaped, disk, board_sight::revision_of(&shown)))
+        let told: HashMap<String, Option<String>> = names
+            .into_iter()
+            .map(|n| {
+                let t = locks.text(&n);
+                (n, t)
+            })
+            .collect();
+        Ok((file, told))
     })?;
+    // A name not asked above is locked: nothing is said by guessing.
+    let lock = |f: &str| match told_files.get(f) {
+        Some(t) => t.clone(),
+        None => Some(crate::campaign_text::locked_card(&veil.lang)),
+    };
+    let sight = board_sight::see(&entries, &lock);
+    let (shaped, disk) = disk_classes(&base, &lock);
+    let shown = board_sight::shaped_text(&file.text, &lock);
+    let rev = board_sight::revision_of(&shown);
     let mut told = told_facts(&facts);
     told.insert("saved".to_owned(), Any::String(String::new().into()));
     told.insert("base".to_owned(), Any::String(shaped.to_string().into()));
@@ -443,7 +494,7 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
             let v = veil.view(a);
             let locks = Locks::new(ws, &v);
             let sight = board_sight::see(&entries, &|f| locks.text(f));
-            let disk = fresh.then(|| disk_classes(&base, &locks));
+            let disk = fresh.then(|| disk_classes(&base, &|f| locks.text(f)));
             out.push((a.clone(), sight, disk));
         }
         Ok(out)

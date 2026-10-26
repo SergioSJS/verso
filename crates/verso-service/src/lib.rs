@@ -538,15 +538,18 @@ impl Service {
     /// answered as `failed`, not propagated: propagated, it would poison
     /// the lock and every later command would fail until restart, with the
     /// user's notes open.
-    pub fn with<T>(
+    pub fn with<T, F: FnOnce(&mut Workspace) -> Result<T, OpError>>(
         &self,
         client: &str,
-        f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
+        f: F,
     ) -> Result<T, ContractError> {
         let session = self.session_of(client).ok_or_else(no_folder)?;
+        let asked = std::time::Instant::now();
         let mut session = lock(&session);
+        let (got, label) = (std::time::Instant::now(), std::any::type_name::<F>());
         let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
         self.history_flush(&mut session.workspace);
+        self.slow_lock(label, got - asked, got.elapsed());
         match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
@@ -560,19 +563,22 @@ impl Service {
     /// Run `f` on folder `key` if it is open, whichever client shows it: a
     /// file of the folder a page asks for outside its connection (the
     /// server's `/f/`). `no_folder` when no client shows it.
-    pub fn with_key<T>(
+    pub fn with_key<T, F: FnOnce(&mut Workspace) -> Result<T, OpError>>(
         &self,
         key: &str,
-        f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
+        f: F,
     ) -> Result<T, ContractError> {
         let session = lock(&self.sessions)
             .by_key
             .get(key)
             .map(Arc::clone)
             .ok_or_else(no_folder)?;
+        let asked = std::time::Instant::now();
         let mut session = lock(&session);
+        let (got, label) = (std::time::Instant::now(), std::any::type_name::<F>());
         let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
         self.history_flush(&mut session.workspace);
+        self.slow_lock(label, got - asked, got.elapsed());
         match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
@@ -852,6 +858,24 @@ impl Service {
     }
 
     /// Record what the last command wrote in the computer's history.
+    /// A folder's lock waited for or held a long time is said in the log,
+    /// with the work that held it: every command of the folder (a read, a
+    /// join) goes through this one lock, so one slow holder is every
+    /// command's wait (measured live, 2026-10-26).
+    fn slow_lock(&self, label: &str, waited: std::time::Duration, held: std::time::Duration) {
+        const SLOW: std::time::Duration = std::time::Duration::from_millis(250);
+        if waited >= SLOW || held >= SLOW {
+            self.events().log(
+                "WARN",
+                &format!(
+                    "the folder's lock: waited {} ms, held {} ms by {label}",
+                    waited.as_millis(),
+                    held.as_millis()
+                ),
+            );
+        }
+    }
+
     fn history_flush(&self, ws: &mut Workspace) {
         for problem in ws.history_flush() {
             self.events().log("WARN", &problem);
