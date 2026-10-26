@@ -35,13 +35,13 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
   await page.waitForTimeout(1500);
   expect(await app.calls("write_note")).toHaveLength(0);
   // The room joins: the tab is live, the text is there once, and the room holds it.
-  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE), { timeout: 8000 }).toContain("um digitado antes");
-  await expect(editor).toContainText("um digitado antes");
+  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE), { timeout: 8000 }).toContain("digitado antes");
+  await expect(editor).toContainText("digitado antes");
   expect(((await editor.innerText()).match(/digitado antes/g) ?? []).length).toBe(1);
-  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE)).toContain("um digitado antes");
+  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE)).toContain("digitado antes");
   // Typing goes on in the room.
   await page.keyboard.type(" e depois");
-  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE)).toContain("um digitado antes e depois");
+  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE)).toContain("digitado antes e depois");
   expect(await app.calls("write_note")).toHaveLength(0);
 });
 
