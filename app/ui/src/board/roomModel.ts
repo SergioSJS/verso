@@ -113,8 +113,8 @@ export function unsent(e: El, known: ReadonlyMap<string, Rank>): boolean {
 }
 
 /** The keys Excalidraw moves by itself on load and render, no part of
- *  what an element is (the server's `board_sight` ignores the same). */
-const NOISE = ["version", "versionNonce", "updated", "seed", "index"];
+ *  what an element is (the server's `board_sight` ignores the same; not the `index`: bringing to the front is a change). */
+const NOISE = ["version", "versionNonce", "updated", "seed"];
 
 /** Whether `a` and `b` are the same element but for that noise. */
 export function sameSubstance(a: El, b: El): boolean {
