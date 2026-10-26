@@ -78,7 +78,20 @@ export function plainHttpNotice(): void {
       // Gone for as long as this page lives.
     }
   });
-  (document.querySelector(".work-notices") ?? document.body).append(bar);
+  place(bar, 0);
+}
+
+/** Into the work area's notices row once the window has drawn it (the
+ *  folder's page comes after this is called). Never into the page's body:
+ *  there a flow bar breaks the window's layout (seen live 2026-10-26);
+ *  with no row after 10 s, the status bar's mark says it alone. */
+function place(bar: HTMLElement, tries: number): void {
+  const row = document.querySelector(".work-notices");
+  if (row) {
+    row.append(bar);
+    return;
+  }
+  if (tries < 100) setTimeout(() => place(bar, tries + 1), 100);
 }
 
 /** A mark that stays in the status bar while the page is on plain HTTP

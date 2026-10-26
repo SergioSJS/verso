@@ -34,7 +34,8 @@ await esbuild.build({
 const { plainHttp, plainHttpLine, plainHttpMark, plainHttpNotice, ensureClipboard, sha256Hex } = await import("./.bundles/plainHttp.test-bundle.mjs");
 
 beforeEach(() => {
-  document.body.replaceChildren();
+  // The window's notices row, where the bar goes (never the page's body).
+  document.body.innerHTML = '<main class="work"><div class="work-notices"></div></main>';
   localStorage.clear();
   secure(false);
 });
@@ -63,6 +64,12 @@ test("the notice shows until closed, then stays closed for this server (it survi
   localStorage.clear();
   plainHttpNotice();
   assert.equal(document.querySelector(".plain-http-bar"), null, "never on a secure page");
+});
+
+test("with no notices row the bar is never put in the page's body", () => {
+  document.body.replaceChildren();
+  plainHttpNotice();
+  assert.equal(document.querySelector(".plain-http-bar"), null);
 });
 
 test("the way to HTTPS opens a dialog that can be closed", () => {
