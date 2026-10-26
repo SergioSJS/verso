@@ -1358,3 +1358,87 @@ fn a_locked_card_says_the_same_whether_the_file_is_hidden_secret_named_or_not_th
         assert_eq!(strip("k-hid"), strip("k-gone"), "hidden vs not there");
     });
 }
+
+/// Echoes are judged against what the room told the account (and what her
+/// window drew when it seeded), and a shadow that drifted is made anew when
+/// she is alone in it and joins again.
+#[test]
+fn an_echo_is_judged_against_the_latest_the_account_holds_and_a_drifted_shadow_is_made_anew() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let gm = master_seeds(&mut m).await;
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        // She moves a card (accepted), then sends the card back at a newer
+        // version with its first content: a real revert, a change — it
+        // reaches the game master.
+        let first = ana.element("c-open").unwrap();
+        let mut moved = first.clone();
+        moved["x"] = json!(77);
+        let (sent, _) = send(&mut m.ana, &put(&ana.doc, "c-open", 2, 21, &moved), LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        let (sent, _) = send(&mut m.ana, &put(&ana.doc, "c-open", 3, 22, &first), LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        let told = hear(&mut m.owner, 400, &[]).await;
+        Copy::take_into(&gm, &told);
+        assert_eq!(collab_board::elements(&gm)["c-open"]["x"], 0, "a revert is a change");
+        // Sending the latest again with a new version is an echo: nothing
+        // reaches the game master.
+        let (sent, _) = send(&mut m.ana, &put(&ana.doc, "c-open", 4, 23, &first), LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        let told = hear(&mut m.owner, 300, &[]).await;
+        assert!(told.iter().all(|e| e["event"] != "collab-update"), "{told:?}");
+        // Her shadow now holds a version the room never had: joined again,
+        // alone, she gets the room's state in a shadow made anew.
+        let (joined, again, _) = join(&mut m.ana, LEAKS).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        assert_ne!(again.epoch, ana.epoch, "a shadow made anew");
+        assert_eq!(collab_board::elements(&again.doc)["c-open"]["version"], 3);
+    });
+}
+
+/// What her window drew of the file when it seeded is hers alone: an echo
+/// of it is taken, a new card of a hidden file is not, and a rejoin drops it.
+#[test]
+fn what_a_window_seeded_is_compared_for_echoes_only_and_goes_with_the_shadow() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": PATH, "base64": STANDARD.encode(file()) }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        // No window of the game master's drew the room: hers does.
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        let card = json!({ "type": "embeddable", "x": 1, "y": 1, "width": 10, "height": 10, "index": "a1",
+            "customData": { "canvas": { "id": "lost", "type": "file", "file": "Lugares/Nada.md" } } });
+        let seed = yrs::merge_updates_v1(
+            [put(&ana.doc, "lost", 1, 5, &card), seeded(&ana.doc)]
+                .iter()
+                .map(Vec::as_slice),
+        )
+        .unwrap();
+        let (sent, _) = send(&mut m.ana, &seed, LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        // The board bumps its version: an echo, taken.
+        let (sent, _) = send(&mut m.ana, &put(&ana.doc, "lost", 2, 6, &card), LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        // A new card of the hidden file is not.
+        let mut hid = card.clone();
+        hid["customData"]["canvas"]["id"] = json!("other");
+        hid["customData"]["canvas"]["file"] = json!("Barão Zq.md");
+        let (sent, _) = send(&mut m.ana, &put(&ana.doc, "other", 1, 7, &hid), LEAKS).await;
+        assert!(refused(&sent), "{sent}");
+        // Joined again, alone: the shadow is the room's (nothing drawn),
+        // the window seeds again.
+        let (_, again, _) = join(&mut m.ana, LEAKS).await;
+        assert_ne!(again.epoch, ana.epoch);
+        assert!(!collab_board::elements(&again.doc).contains_key("lost"));
+    });
+}
