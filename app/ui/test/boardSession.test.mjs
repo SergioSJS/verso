@@ -280,3 +280,59 @@ test("an element another deletes as this person's own press selects it is never 
     for (const s of [a, other]) s.leave();
   }
 });
+
+/** A shadow (ADR 0113 H): the room told this window it is in one. */
+function shadowSession(refuse) {
+  const doc = new Y.Doc();
+  const els = doc.getMap("elements");
+  const a = { id: "c1", type: "embeddable", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 9, index: "a1", groupIds: [], frameId: null, customData: { canvas: { id: "c1", type: "file", file: "Nada.md" } } };
+  els.set("c1\n3\n9", JSON.stringify(a));
+  doc.getMap("meta").set("base", '{"nodes":[],"edges":[]}');
+  doc.getMap("meta").set("shadow", true);
+  doc.getMap("meta").set("seeded", true);
+  const calls = [];
+  globalThis.__invoke = async (cmd) => {
+    calls.push(cmd);
+    if (cmd === "collab_update" && refuse) throw { kind: "refused", message: "no" };
+    return null;
+  };
+  const closed = [];
+  const s = new b.BoardSession("Mesa.canvas", { update: b64(Y.encodeStateAsUpdate(doc)), revision: "r1", user: "Ana", epoch: "e1" }, { saved() {}, conflict() {}, closed: (why) => closed.push(why ?? "closed"), remote() {} });
+  return { s, a, calls, closed };
+}
+
+test("a shadow never sends an element the board only bumped: same substance, new version", async () => {
+  const { s, a, calls } = shadowSession(false);
+  try {
+    const p = { apply: () => [], people() {} };
+    s.attach(p, []);
+    for (let i = 0; i < 5; i++) {
+      s.scene([{ ...a, version: 4 + i, versionNonce: 100 + i, seed: i, index: "a2" }], "transparent", false);
+      s.push();
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 0);
+    // A real change goes.
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 1);
+  } finally {
+    s.leave();
+  }
+});
+
+test("a refused change in a shadow keeps the board: told once as refused, never as lost, nothing sent after", async () => {
+  const { s, a, calls, closed } = shadowSession(true);
+  s.attach({ apply: () => [], people() {} }, []);
+  s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+  s.push();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(closed, ["refused"]);
+  const n = calls.filter((c) => c === "collab_update").length;
+  s.scene([{ ...a, version: 21, versionNonce: 6, x: 60 }], "transparent", true);
+  s.push();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(calls.filter((c) => c === "collab_update").length, n);
+  assert.deepEqual(closed, ["refused"]);
+});

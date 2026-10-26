@@ -66,7 +66,7 @@ export function roomText(this: TextLeaf): string {
 
 /** The room closed — renamed, deleted, its line ends mixed, read anew:
  *  the file read again, on its own. */
-export async function roomClosed(this: TextLeaf, why?: "lost"): Promise<void> {
+export async function roomClosed(this: TextLeaf, why?: "lost" | "refused"): Promise<void> {
   const path = this.path;
   await this.saving;
   if (!path || path !== this.path) return;

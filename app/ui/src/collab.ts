@@ -86,7 +86,7 @@ export type CollabHandlers = {
   conflict: () => void;
   /** The room is gone: the tab reads the note again — `lost` when text
    *  typed while the connection was down could not go along. */
-  closed: (why?: "lost") => void;
+  closed: (why?: "lost" | "refused") => void;
   /** Someone else's edit arrived: the reading view may be stale. */
   remote: () => void;
   /** A synced folder's note went local, its text kept (ADR 0082 item 8). */
@@ -354,8 +354,17 @@ export abstract class RoomSession {
   /** An edit the room refused: closed here, the tab told what did not go. */
   private lost(): void {
     if (this.closedLocally) return;
+    const keepScene = this.keepsSceneOnRefusal();
     this.leave();
-    this.handlers.closed("lost");
+    this.handlers.closed(keepScene ? "refused" : "lost");
+  }
+
+  /** Whether a refused update leaves the window's scene as it is (the
+   *  window is told once and sends nothing more) instead of reading the
+   *  file anew: a board's, whose reload and rejoin would send the same
+   *  refused change again and reset the view. */
+  protected keepsSceneOnRefusal(): boolean {
+    return false;
   }
 
   /** The tab goes, or reads another note: out of the room. */
@@ -595,6 +604,14 @@ export function lostLine(): string {
   return document.documentElement.lang.startsWith("pt")
     ? "A conexão caiu e a nota foi relida do servidor: o que foi digitado enquanto isso não pôde ser mantido."
     : "The connection dropped and the note was read again from the server: what was typed meanwhile could not be kept.";
+}
+
+/** What the tab says once when the room refused an edit of a board: the
+ *  board stays as it is, and sends nothing more. */
+export function refusedLine(): string {
+  return document.documentElement.lang.startsWith("pt")
+    ? "A mesa recusou uma alteração do quadro: ele continua como está aqui, mas nada mais é enviado. Reabra o quadro para voltar a editar."
+    : "The table refused a change to the board: it stays as it is here but nothing more is sent. Reopen the board to edit again.";
 }
 
 /** Whether an editor transaction came from the room, not from this window. */
