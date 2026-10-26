@@ -263,6 +263,10 @@ export abstract class RoomSession {
     window.clearTimeout(this.presenceTimer);
     this.presenceTimer = undefined;
     this.presenceDue.clear();
+    // The old cursor leaves the others' boards before it is let go.
+    const me = this.doc.clientID;
+    removeAwarenessStates(this.awareness, [me], "local");
+    void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, [me])));
     this.awareness.destroy();
     this.doc.destroy();
     this.doc = new Y.Doc();
@@ -414,6 +418,8 @@ export abstract class RoomSession {
     }
     this.refusedAt = now;
     this.edited = false;
+    this.rejoining = true;
+    this.beforeRejoin();
     void this.refusedInPlace();
   }
   private refusedAt = 0;
@@ -423,20 +429,32 @@ export abstract class RoomSession {
   /** The room's truth in, the view kept: a new document of the room's
    *  state, then the holder's board takes it in place (`reborn`). */
   private async refusedInPlace(): Promise<void> {
-    this.rejoining = true;
-    const r = await commands.collabJoin(this.path);
+    let joined: Awaited<ReturnType<typeof commands.collabJoin>> | null = null;
+    try {
+      joined = await commands.collabJoin(this.path);
+    } catch {
+      joined = null;
+    }
+    // Never left rejoining: the way out is the old one (the board read anew).
     if (this.closedLocally) return;
-    if (r.status !== "ok" || r.data.read_only) {
+    if (!joined || joined.status !== "ok" || joined.data.read_only) {
       this.rejoining = false;
       this.leave();
       this.handlers.closed("lost");
       return;
     }
-    this.rebuild(r.data);
-    this.rejoining = false;
+    try {
+      this.rebuild(joined.data);
+    } finally {
+      this.rejoining = false;
+    }
     this.reborn();
     this.handlers.refused?.();
   }
+
+  /** A refusal is being answered: the subclass notes what its holder has
+   *  now, to tell what changes while the room's state is on its way. */
+  protected beforeRejoin(): void {}
 
   /** The document is the room's anew: the subclass binds to it. */
   protected reborn(): void {}
