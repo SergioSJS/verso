@@ -46,12 +46,12 @@ test("the game master makes a folder a table, releases and hides notes, and the 
   await cripta.click({ button: "right" });
   await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
   const access = app.page.getByRole("dialog", { name: /^Acesso · Cripta/ });
-  await access.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await access.getByRole("combobox", { name: "Toda a mesa", exact: true }).selectOption({ label: "Vê" });
   await expect(access.getByRole("status")).toContainText("Salvo ✓");
   await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { kind: "set", set: { whole: "see", rows: [] } } });
   await expect(cripta.locator(".hidden-mark")).toHaveCount(0);
   // And hide it again.
-  await access.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Não vê", exact: true }).click();
+  await access.getByRole("combobox", { name: "Toda a mesa", exact: true }).selectOption({ label: "Não vê" });
   await expect(cripta.locator(".hidden-mark")).toHaveCount(1);
 });
 
@@ -80,7 +80,7 @@ test("a name made secret, a note given to the group, and the folder's access, al
   await row(app, "Aberta.md").click({ button: "right" });
   await app.page.getByRole("menuitem", { name: /^Acesso…/ }).click();
   const a = app.page.getByRole("dialog", { name: /^Acesso · Aberta/ });
-  await a.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Edita", exact: true }).click();
+  await a.getByRole("combobox", { name: "Toda a mesa", exact: true }).selectOption({ label: "Edita" });
   await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Aberta.md"], change: { set: { whole: "edit", rows: [] } } });
   await expect(row(app, "Aberta.md").locator(".hidden-mark")).toHaveCount(0);
   await app.page.keyboard.press("Escape");
@@ -88,7 +88,7 @@ test("a name made secret, a note given to the group, and the folder's access, al
   await app.page.locator('summary[data-folder="Mundo"]').click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
   const f = app.page.getByRole("dialog", { name: /^Acesso · pasta “Mundo”/ });
-  await f.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await f.getByRole("combobox", { name: "Toda a mesa", exact: true }).selectOption({ label: "Vê" });
   await f.getByRole("button", { name: "Aplicar" }).click();
   await expect.poll(async () => (await app.calls("access_set")).at(-1)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
   await expect(row(app, "Mundo/Cripta.md").locator(".hidden-mark")).toHaveCount(0);
@@ -105,7 +105,7 @@ test("a selection of notes is given access at once", async ({ app }) => {
   await row(app, "Barão.md").click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Acesso de 2 arquivos…" }).click();
   const d = app.page.getByRole("dialog", { name: /^Acesso de 2 arquivos/ });
-  await d.getByRole("radiogroup", { name: "Toda a mesa", exact: true }).getByRole("radio", { name: "Vê", exact: true }).click();
+  await d.getByRole("combobox", { name: "Toda a mesa", exact: true }).selectOption({ label: "Vê" });
   await d.getByRole("button", { name: "Aplicar" }).click();
   await expect.poll(async () => (await app.calls("access_set")).length).toBe(1);
   const calls = await app.calls("access_set");
@@ -227,10 +227,10 @@ test("the table's window in the dark theme", async ({ app }) => {
   await shot(app.page, "78-janela-da-mesa-fechada-escuro");
 });
 
-test("the folder's page carries the table card: the game master's switch, a player's line, a way to make one", async ({ app }) => {
+test("the folder's page carries the table strip: state, counts, Acesso…, Convidar, Abrir a Mesa and the gear; a way to make one", async ({ app }) => {
   await furnish(app, "?vault=empty&table=owner");
   const page = app.page;
-  // A folder that is not a table yet: one call to action under the title.
+  // A folder that is not a table yet: the same strip, with one call to action.
   await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
   const cta = page.locator(".table-card-make");
   await expect(cta).toBeVisible();
@@ -239,32 +239,36 @@ test("the folder's page carries the table card: the game master's switch, a play
   await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "Mundo" }]);
   await page.getByRole("dialog", { name: "Mesa “Mundo”" }).waitFor();
   await page.keyboard.press("Escape");
-  // It is a table now: the card has the switch, the players, the notes and the settings.
+  // It is a table now: one line with the state, the players and the ways in.
   const card = page.locator(".table-card-owner");
   await expect(card).toBeVisible();
   await expect(cta).toHaveCount(0);
-  await expect(card.locator(".table-card-summary")).toContainText("1 jogador");
-  const open = card.getByRole("switch", { name: "Mesa aberta" });
+  await expect(card.locator(".table-strip-state")).toHaveText("Aberta");
+  await expect(card.locator(".table-strip-meta")).toContainText("1 jogador");
+  // The counts use the words of the new model; the old bulk buttons are gone from the page.
+  await expect(card.locator(".table-strip-counts")).toContainText(/visíveis aos jogadores/);
+  await expect(card.locator(".table-strip-counts")).toContainText(/só do mestre/);
+  for (const old of ["Liberar tudo", "Ocultar tudo"]) await expect(card.getByRole("button", { name: old })).toHaveCount(0);
+  await expect(card.getByRole("switch")).toHaveCount(0);
+  // The switch is in the settings, where it saves at once.
+  await card.getByRole("button", { name: "Configurações da mesa" }).click();
+  const settings = page.getByRole("dialog", { name: "Mesa “Mundo”" });
+  const open = settings.getByRole("switch", { name: "Mesa aberta" });
   await expect(open).toBeChecked();
   await open.uncheck({ force: true });
   await expect.poll(async () => (await app.calls("campaign_settings")).at(-1)).toMatchObject({ root: "Mundo", open: false });
-  await expect(card.locator(".cd-pill")).toHaveText("Fechada");
-  await expect(open).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(card.locator(".table-strip-state")).toHaveText("Fechada");
   await shot(page, "80-pagina-da-pasta-mesa-fechada-claro");
-  await card.getByText("Convidar").click();
+  // Convidar opens the invitation under the strip.
+  await card.getByRole("button", { name: "Convidar" }).click();
   await card.getByRole("button", { name: "Gerar link" }).click();
   await expect(card.getByRole("textbox", { name: "Link do convite" })).toHaveValue(/\/invite\//);
   await shot(page, "81-pagina-da-pasta-convite-claro");
-  // Folded away, and the fold is remembered for this folder.
-  await card.getByRole("button", { name: "Recolher a mesa" }).click();
-  await expect(card.getByRole("switch")).toBeHidden();
-  expect(await page.evaluate(() => localStorage.getItem("verso.tableCard.folded"))).toBe('["Mundo"]');
-  await card.getByRole("button", { name: "Mostrar a mesa" }).click();
-  await expect(card.getByRole("switch")).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("verso.tableCard.folded"))).toBe("[]");
-  // The settings button opens the whole window.
-  await card.getByRole("button", { name: "Configurações da mesa" }).click();
-  await expect(page.getByRole("dialog", { name: "Mesa “Mundo”" })).toBeVisible();
+  // Acesso… opens the folder's Access dialog.
+  await card.getByRole("button", { name: "Acesso…" }).click();
+  await expect(page.getByRole("dialog", { name: /^Acesso · pasta “Mundo”/ })).toBeVisible();
+  await page.keyboard.press("Escape");
 });
 
 test("a local folder shows no table card; a player sees one read-only line", async ({ app }) => {
@@ -274,7 +278,7 @@ test("a local folder shows no table card; a player sees one read-only line", asy
   await expect(app.page.locator(".table-card")).toHaveCount(0);
 });
 
-test("a player sees the table card as one line, with the notes granted to them as links", async ({ app }) => {
+test("a player sees the table strip as one line: state, who is online and Entrar na Mesa", async ({ app }) => {
   await furnish(app, "?vault=empty&table=player&side=server&role=reader");
   await app.page.evaluate(() => {
     const c = window.__harness.campaign;
@@ -285,10 +289,13 @@ test("a player sees the table card as one line, with the notes granted to them a
   await app.folderChanged(["Mundo/Cripta.md"], true);
   await app.page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
   const card = app.page.locator(".table-card-player");
-  await expect(card).toContainText("Mesa · jogador");
-  await expect(card).toContainText("A mesa está aberta.");
-  await expect(card.getByRole("button", { name: "Cripta" })).toBeVisible();
+  await expect(card).toContainText("Mesa");
+  await expect(card.locator(".table-strip-state")).toHaveText("Aberta");
+  await expect(card.getByRole("button", { name: "Entrar na Mesa" })).toBeVisible();
+  // Nothing of the game master's: no counts of what is hidden, no switch, no Acesso…, no gear.
+  for (const mine of ["Acesso…", "Convidar", "Configurações da mesa"]) await expect(card.getByRole("button", { name: mine })).toHaveCount(0);
   await expect(card.getByRole("switch")).toHaveCount(0);
+  await expect(card).not.toContainText("só do mestre");
   await shot(app.page, "82-pagina-da-pasta-jogador-claro");
 });
 

@@ -144,7 +144,7 @@ test("Ana draws on the group's board live and the game master gets it; Bruno, wh
     const dialog = gm.getByRole("dialog", { name: /^Acesso · Quadro do grupo/ });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("Quem edita este board vê os cartões de texto inteiros");
-    await dialog.getByRole("radiogroup", { name: "Ana", exact: true }).getByRole("radio", { name: "Edita", exact: true }).click();
+    await dialog.getByRole("combobox", { name: "Ana", exact: true }).selectOption({ label: "Edita" });
     await expect(dialog).toContainText("Salvo");
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await invoke(gm, "access_get", { paths: ["Quadro do grupo.canvas"] }))[0].set.rows.find((r) => r.account === id("Ana"))?.level).toBe("edit");
