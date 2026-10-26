@@ -282,7 +282,7 @@ test("an element another deletes as this person's own press selects it is never 
 });
 
 /** A shadow (ADR 0113 H): the room told this window it is in one. */
-function shadowSession(refuse) {
+function shadowSession(refuse, unseeded = false) {
   let refusals = refuse;
   const doc = new Y.Doc();
   const els = doc.getMap("elements");
@@ -290,10 +290,12 @@ function shadowSession(refuse) {
   els.set("c1\n3\n9", JSON.stringify(a));
   doc.getMap("meta").set("base", '{"nodes":[],"edges":[]}');
   doc.getMap("meta").set("shadow", true);
-  doc.getMap("meta").set("seeded", true);
+  if (!unseeded) doc.getMap("meta").set("seeded", true);
   const calls = [];
-  globalThis.__invoke = async (cmd) => {
+  globalThis.__updates = [];
+  globalThis.__invoke = async (cmd, args) => {
     calls.push(cmd);
+    if (cmd === "collab_update") globalThis.__updates.push(args.update);
     if (cmd === "collab_update" && refusals > 0) {
       refusals--;
       throw { kind: "refused", message: "no" };
@@ -423,6 +425,12 @@ test("edits made while the room's state is on its way are kept, not undone, and 
     assert.ok(sentNew && !sentNew.isDeleted, "what the person made meanwhile is kept");
     await new Promise((r) => setTimeout(r, 150));
     assert.ok(calls.filter((c) => c === "collab_update").length >= 2, "and sent after the state came in");
+    // The batch after the rejoin carries what she did meanwhile, not the refused change.
+    const later = new Y.Doc();
+    Y.applyUpdate(later, Buffer.from(globalThis.__updates.at(-1), "base64"));
+    const keys = [...later.getMap("elements").keys()];
+    assert.ok(keys.some((k) => k.startsWith("new1\n")), keys.join("|"));
+    assert.ok(!keys.some((k) => k.startsWith("c1\n20")), "the refused element is not sent again");
   } finally {
     globalThis.__joinDelay = 0;
     s.leave();
@@ -442,4 +450,35 @@ test("a rejoin that fails is the old way out: the board is read anew, nothing st
   } finally {
     globalThis.__joinFails = false;
   }
+});
+
+test("a room not drawn into yet: the refused change is not drawn into it, and the board goes back to the file's version", async () => {
+  const { s, a } = shadowSession(1, true);
+  let scene = [];
+  const p = {
+    apply(remote) {
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  s.attach(p, [{ ...a, version: 1, versionNonce: 1 }]);
+  const room = s.doc.getMap("elements");
+  assert.ok(room.size >= 1, "seeded");
+  scene = [{ ...a, version: 1, versionNonce: 1 }];
+  s.scene(scene, "transparent", false);
+  const moved = { ...a, version: 20, versionNonce: 5, x: 50 };
+  scene = [moved];
+  s.scene(scene, "transparent", true);
+  s.push();
+  await new Promise((r) => setTimeout(r, 80));
+  const back = scene.find((e) => e.id === "c1");
+  assert.equal(back.x, 0, "back to the file's version");
+  assert.equal(back.version, 3, "the room's version");
+  const held = [...s.doc.getMap("elements").values()].map((v) => JSON.parse(v));
+  assert.ok(held.every((e) => e.x !== 50), "the refused change is not in the room's document");
+  s.leave();
 });
