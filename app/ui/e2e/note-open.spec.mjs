@@ -22,6 +22,7 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
   await server(app, page, 2500);
   const began = Date.now();
   await app.quickOpen("Bem-vindos");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
   const editor = page.locator(".cm-content").first();
   await expect(editor).toContainText("um", { timeout: 1500 });
   expect(Date.now() - began).toBeLessThan(2000);
@@ -47,6 +48,7 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
 test("a note nobody edited is not unsaved, in a reader's tab or after the room joins", async ({ app, page }) => {
   await server(app, page, 300);
   await app.quickOpen("Bem-vindos");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".live-mark:visible")).toHaveText(/ao vivo/);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   await page.evaluate((n) => window.__harness.rooms.type(n, "Bia", "da Bia\n"), NOTE);
