@@ -569,3 +569,63 @@ fn an_edit_that_makes_a_pin_a_locked_card_or_opens_a_group_is_refused() {
     let ops = [Op::Put("n7\n1\n3".to_owned(), off.to_string())];
     assert!(check(&ops, &r, &s, &d, &hides_file, &sees_file).is_err());
 }
+
+/// The rule, not the incident: an element sent again as it is, whatever
+/// version noise Excalidraw put on it, is an echo; nothing else is.
+#[test]
+fn any_echo_of_what_the_player_holds_is_no_change_and_a_real_change_is() {
+    // The maintainer's board: cards to paths that are not there, a card of
+    // a file hidden, a card of one they see, a marker's twin.
+    let items = [
+        card("c1", "Lugares/Taverna do Corvo.md"),
+        card("c2", "Fichas/Ficha da Ana — Lyra.md"),
+        card("c3", "Cripta Zq.md"),
+        card("c4", "Livre 1.md"),
+        text_card("t1", "hello", false),
+    ];
+    let held = room(&items);
+    let mut dice = Dice(0x9E37_79B9_7F4A_7C15);
+    for _ in 0..200 {
+        let mut ops = Vec::new();
+        for v in &items {
+            if dice.one_in(2) {
+                continue;
+            }
+            let mut e = v.clone();
+            e["version"] = json!(dice.below(50) + 4);
+            e["versionNonce"] = json!(dice.below(10_000));
+            e["seed"] = json!(dice.below(1000));
+            e["index"] = json!(format!("z{}", dice.below(99)));
+            e["updated"] = json!(dice.below(1_000_000));
+            let (k, j) = entry(&e);
+            ops.push(Op::Put(k, j));
+        }
+        let want: BTreeSet<String> = ops
+            .iter()
+            .filter_map(|o| match o {
+                Op::Put(k, _) => key_of(k).map(|(i, _, _)| i.to_owned()),
+                Op::Del(_) => None,
+            })
+            .collect();
+        assert_eq!(echoes(&ops, &held), want);
+    }
+    // A changed card (its file) is no echo; a deletion never is.
+    let mut moved = card("c4", "Cripta Zq.md");
+    moved["version"] = json!(9);
+    let (k, j) = entry(&moved);
+    assert!(echoes(&[Op::Put(k, j)], &held).is_empty());
+    let mut gone = card("c1", "Lugares/Taverna do Corvo.md");
+    gone["isDeleted"] = json!(true);
+    let (k, j) = entry(&gone);
+    assert!(echoes(&[Op::Put(k, j)], &held).is_empty());
+    assert!(echoes(&[Op::Del("c1\n3\n9".to_owned())], &held).is_empty());
+}
+
+/// A card of a file that is not there reads as hidden: the same marker.
+#[test]
+fn a_card_of_a_file_that_is_not_there_is_judged_as_one_hidden() {
+    let r = room(&[card("c1", "Lugares/Taverna.md"), card("c4", "Livre 1.md")]);
+    let s = see(&r, &|f| (!sees_file(f)).then(|| LOCKED_WORDS.to_owned()));
+    assert_eq!(s.class["c1"], Class::Locked);
+    assert_eq!(s.class["c4"], Class::Open);
+}

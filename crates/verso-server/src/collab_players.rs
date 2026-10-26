@@ -32,7 +32,7 @@
 //! whole file of a board (`write_text`, `sync_put`), and is never asked to.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -133,8 +133,15 @@ impl<'a> Locks<'a> {
             return t.clone();
         }
         let mut ws = self.ws.borrow_mut();
-        let reached = ws.reached_exact(file).unwrap_or_else(|| file.to_owned());
-        let told = crate::campaign_serve::is_hidden_in(&mut ws, self.veil, &reached).then(|| {
+        // One rule for the file a card names (`reached_exact`, ADR 0057):
+        // one that is not there is the same to a player as one hidden from
+        // them — a locked card, never an answer to "does it exist".
+        let reached = ws.reached_exact(file);
+        let hidden = reached
+            .as_ref()
+            .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
+        let reached = reached.unwrap_or_else(|| file.to_owned());
+        let told = hidden.then(|| {
             if self.veil.secret_name(&reached) {
                 crate::campaign_text::REDACTED.to_owned()
             } else {
@@ -201,6 +208,11 @@ fn apply_ops(
         meta.insert(&mut txn, k.as_str(), v.clone());
     }
     Some(txn.encode_update_v1())
+}
+
+/// The id an entry's key names.
+fn key_id(key: &str) -> Option<&str> {
+    crate::collab_board::parse_key(key).map(|(i, _, _)| i)
 }
 
 /// A copy of `doc`, to try an update on.
@@ -628,10 +640,27 @@ pub(super) fn update(
             return Err(refused("a fact of the board that is not yours to change"));
         }
     }
-    let ops: Vec<Op> = puts
+    let all_ops: Vec<Op> = puts
         .iter()
         .map(|(k, v)| Op::Put(k.clone(), v.clone()))
         .chain(dels.iter().map(|k| Op::Del(k.clone())))
+        .collect();
+    // An element sent again as it already is, in substance, is no change
+    // (Excalidraw bumps versions on load and render): never judged, never
+    // refused, and not the room's either — it is already what it holds.
+    let echoed = if seeding {
+        BTreeSet::new()
+    } else {
+        board_sight::echoes(&all_ops, &sh.now.0)
+    };
+    let is_echo = |k: &str| key_id(k).is_some_and(|i| echoed.contains(i));
+    let puts: Vec<(String, String)> = puts.into_iter().filter(|(k, _)| !is_echo(k)).collect();
+    let dels: Vec<String> = dels.into_iter().filter(|k| !is_echo(k)).collect();
+    let ops: Vec<Op> = all_ops
+        .into_iter()
+        .filter(|o| match o {
+            Op::Put(k, _) | Op::Del(k) => !is_echo(k),
+        })
         .collect();
     // The first update of a window that draws the board in is the file's
     // own elements, made of the projection: it goes into the shadow only.
