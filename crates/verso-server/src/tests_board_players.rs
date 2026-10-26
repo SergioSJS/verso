@@ -1300,3 +1300,61 @@ fn what_the_game_master_left_unsaved_is_never_written_over_nor_dropped() {
         assert_eq!(node(&end, "zqpin").unwrap()["x"], 888);
     });
 }
+
+/// One text for every locked card: a card of a file that is hidden, of one
+/// hidden with a secret name, and of one that is not there are the same
+/// marker for a player, but for the id and the place (no oracle).
+#[test]
+fn a_locked_card_says_the_same_whether_the_file_is_hidden_secret_named_or_not_there() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let cards = json!({ "nodes": [
+            { "id": "k-hid", "type": "file", "file": "Barão Zq.md", "x": 0, "y": 0, "width": 200, "height": 100 },
+            { "id": "k-sec", "type": "file", "file": "Mapa Zq.md", "x": 0, "y": 0, "width": 200, "height": 100 },
+            { "id": "k-gone", "type": "file", "file": "Nada Zq.md", "x": 0, "y": 0, "width": 200, "height": 100 },
+        ], "edges": [] })
+        .to_string();
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": PATH, "base64": STANDARD.encode(&cards) }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let (_, copy, _) = join(&mut m.owner, &[]).await;
+        let mut updates: Vec<Vec<u8>> = ["k-hid", "k-sec", "k-gone"]
+            .iter()
+            .enumerate()
+            .map(|(i, id)| {
+                let n = serde_json::from_str::<Value>(&cards).unwrap()["nodes"][i].clone();
+                put(
+                    &copy.doc,
+                    id,
+                    1,
+                    5,
+                    &json!({ "type": "embeddable", "x": 0, "y": 0, "width": 200, "height": 100, "index": format!("a{i}"),
+                        "link": "https://verso.invalid/board-node", "customData": { "canvas": n } }),
+                )
+            })
+            .collect();
+        updates.push(seeded(&copy.doc));
+        let seed = yrs::merge_updates_v1(updates.iter().map(Vec::as_slice)).unwrap();
+        let (sent, _) = send(&mut m.owner, &seed, &[]).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        let (_, ana, _) = join(&mut m.ana, &[]).await;
+        let all = collab_board::elements(&ana.doc);
+        let strip = |id: &str| {
+            let mut e = all[id].clone();
+            e["id"] = json!("");
+            e["index"] = json!("");
+            e["customData"]["canvas"]["id"] = json!("");
+            e.to_string()
+        };
+        assert_eq!(all["k-hid"]["locked"], true);
+        assert_eq!(strip("k-hid"), strip("k-sec"), "hidden vs secret name");
+        assert_eq!(strip("k-hid"), strip("k-gone"), "hidden vs not there");
+    });
+}
