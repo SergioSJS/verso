@@ -222,8 +222,14 @@ export abstract class RoomSession {
       // says it (offline is not this: the rejoin sends it all).
       () => this.lost(),
       () => !this.closedLocally,
+      () => this.idle(),
     );
   }
+
+  /** Every update this window sent has been answered: the room holds what
+   *  the window holds (a board's file, made of exactly that state, goes
+   *  now, if it went before the room had the last update). */
+  protected idle(): void {}
 
   /** The document's and the awareness's listeners, and this window's name
    *  and colour: again whenever the document is made anew. */
