@@ -220,6 +220,9 @@ for (const format of ["member", "share"]) {
         await all.check({ force: true });
         await expect(attach).toBeVisible({ timeout: 15_000 });
         await expect(bia.page.locator(".table-view").getByRole("button", { name: "Anexar imagem" })).toBeVisible({ timeout: 15_000 });
+        // The box is disabled while its save is in flight: wait for it to settle before undoing.
+        await expect(all).toBeEnabled({ timeout: 15_000 });
+        await expect(all).toBeChecked();
         await all.uncheck({ force: true });
         await expect(attach).toBeHidden({ timeout: 15_000 });
       });
