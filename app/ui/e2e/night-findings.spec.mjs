@@ -195,3 +195,31 @@ test("the plain-HTTP notice is under the phone's drawer @layout", async ({ app, 
   expect(under).toBe(true);
   await page.screenshot({ path: shot(`112-${phase}-aviso-http-sob-gaveta-telefone-claro`) });
 });
+
+// The plain-HTTP notice is a row of the work area, not an overlay: the panes shrink under it.
+test("the plain-HTTP notice takes its own row and covers no pane control @layout", async ({ app, page }) => {
+  await app.open("?vault=empty&table=owner");
+  const before = await page.evaluate(() => document.querySelector(".panes").getBoundingClientRect().top);
+  await page.evaluate(() => {
+    const bar = document.createElement("div");
+    bar.className = "plain-http-bar";
+    bar.setAttribute("role", "status");
+    bar.append("Conexão sem HTTPS: a senha e as notas passam abertas na rede. Modo offline, notificações e passkeys ficam desligados.");
+    const close = document.createElement("button");
+    close.className = "plain-http-close";
+    close.setAttribute("aria-label", "Fechar");
+    close.textContent = "×";
+    bar.append(close);
+    document.querySelector(".work-notices").append(bar);
+  });
+  const m = await page.evaluate(() => {
+    const bar = document.querySelector(".plain-http-bar").getBoundingClientRect();
+    const panes = document.querySelector(".panes").getBoundingClientRect();
+    const first = document.querySelector(".panes button, .panes [tabindex], .panes a, .panes input");
+    return { barBottom: bar.bottom, panesTop: panes.top, firstTop: first ? first.getBoundingClientRect().top : null, scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+  expect(m.panesTop).toBeGreaterThan(before);
+  expect(m.barBottom).toBeLessThanOrEqual(m.panesTop + 0.5);
+  if (m.firstTop !== null) expect(m.barBottom).toBeLessThanOrEqual(m.firstTop + 0.5);
+  expect(m.scroll).toBeLessThanOrEqual(0);
+});

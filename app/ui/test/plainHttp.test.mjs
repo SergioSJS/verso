@@ -35,7 +35,7 @@ const { plainHttp, plainHttpLine, plainHttpMark, plainHttpNotice, ensureClipboar
 
 beforeEach(() => {
   document.body.replaceChildren();
-  sessionStorage.clear();
+  localStorage.clear();
   secure(false);
 });
 
@@ -50,7 +50,7 @@ test("over http that the browser does not call secure, the line carries the way 
   assert.equal(plainHttpLine("Sem HTTPS."), null, "a secure context says nothing");
 });
 
-test("the notice shows once a session and stays closed once closed", () => {
+test("the notice shows until closed, then stays closed for this server (it survives a reload)", () => {
   plainHttpNotice();
   const bar = document.querySelector(".plain-http-bar");
   assert.ok(bar, "shown");
@@ -58,9 +58,9 @@ test("the notice shows once a session and stays closed once closed", () => {
   bar.querySelector(".plain-http-close").click();
   assert.equal(document.querySelector(".plain-http-bar"), null);
   plainHttpNotice();
-  assert.equal(document.querySelector(".plain-http-bar"), null, "not again in this session");
+  assert.equal(document.querySelector(".plain-http-bar"), null, "not again for this server");
   secure(true);
-  sessionStorage.clear();
+  localStorage.clear();
   plainHttpNotice();
   assert.equal(document.querySelector(".plain-http-bar"), null, "never on a secure page");
 });
