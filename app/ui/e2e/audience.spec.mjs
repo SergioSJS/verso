@@ -196,10 +196,10 @@ test("a folder is applied with a button that says how many files change; its exc
   await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
   const big = dialogOf(app, /^Acesso · pasta “Mundo”/);
   await big.getByRole("button", { name: /com acesso próprio/ }).click();
-  await expect(big.getByText("Cripta.md")).toBeVisible();
+  await expect(big.getByText("Cripta", { exact: true })).toBeVisible();
   await big.getByRole("button", { name: "↺ Seguir a pasta: Mundo/Cripta.md" }).click();
   await expect.poll(() => lastSet(app)).toEqual({ paths: ["Mundo/Cripta.md"], change: { kind: "follow" } });
-  await expect(big.getByText("Cripta.md")).toHaveCount(0);
+  await expect(big.getByText("Cripta", { exact: true })).toHaveCount(0);
 });
 
 test("a selection has one row, 'Acesso de N arquivos…', and applies to all of it", async ({ app }) => {
