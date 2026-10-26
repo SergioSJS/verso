@@ -45,10 +45,15 @@ pub const TEXT: usize = 32 * 1024 * 1024;
 pub const BUDGET: usize = 128 * 1024 * 1024;
 
 /// The commands that carry a file's bytes.
-const UPLOADS: [&str; 2] = ["create_file", "sync_put"];
+const UPLOADS: [&str; 4] = [
+    "create_file",
+    "sync_put",
+    "table_send_image",
+    "table_attach",
+];
 
 /// The commands that carry a text, a board or a room's edit.
-const TEXTS: [&str; 10] = [
+const TEXTS: [&str; 11] = [
     "write_note",
     "write_text",
     "write_board",
@@ -59,12 +64,21 @@ const TEXTS: [&str; 10] = [
     "collab_update",
     "collab_canvas",
     "query_base",
+    // A bundle of up to 4 MB (ADR 0098 item 5), escaped into JSON.
+    "write_folder_data",
 ];
 
 /// The most a message of `cmd` may be.
 #[must_use]
 pub fn most_for(cmd: &str) -> usize {
-    if UPLOADS.contains(&cmd) {
+    if cmd == "table_send_image" || cmd == "table_attach" {
+        // An image of the largest a table may allow (ADR 0110, MS.1: 30 MB
+        // at most; 10 MB by default, ADR 0107 item 3) as base64, with room;
+        // the command judges the table's own limit.
+        usize::try_from(crate::db::IMAGE_MOST).unwrap_or(usize::MAX) / 3 * 4 + 1024
+    } else if cmd == "table_say" {
+        crate::table::SAY_MESSAGE
+    } else if UPLOADS.contains(&cmd) {
         crate::rpc::MAX_MESSAGE
     } else if TEXTS.contains(&cmd) {
         TEXT
@@ -152,7 +166,9 @@ pub fn admit_text(
     client: &str,
     text: &str,
 ) -> Result<Option<OwnedSemaphorePermit>, Refusal> {
-    if text.len() <= SMALL {
+    // A message of the table is judged from the first bytes it can be: 500
+    // characters never need more than `SAY_MESSAGE`.
+    if text.len() <= crate::table::SAY_MESSAGE {
         return Ok(None);
     }
     let Ok(head) = serde_json::from_str::<Head>(text) else {
@@ -181,19 +197,59 @@ pub fn admit(
             most / (1024 * 1024)
         ))));
     }
-    if UPLOADS.contains(&cmd) && !may_write(server, client) {
+    if UPLOADS.contains(&cmd)
+        && !may_write(server, client, cmd)
+        && !may_send_image(server, client, cmd)
+    {
         return Err(refuse(refused("you may only read this folder".to_owned())));
     }
     server.inflight.take(len).map_err(refuse)
 }
 
-/// Whether the window `client` shows a folder it may write, by its role
-/// and its credential, as `crate::rpc` checks before the core acts; that
-/// check stays, this one only spares the parse.
-fn may_write(server: &Server, client: &str) -> bool {
-    verso_service::lock(&server.clients)
+/// Whether the window `client` may possibly upload, by its role and its
+/// credential, as `crate::rpc` checks before the core acts (ADR 0113: the
+/// rules, per file); that check stays, this one only spares the parse. A
+/// player of a table may create files in a folder it edits (K.5), so in a
+/// folder that has — or may have — a table it is left to the rules; in one
+/// that has none, a reader's upload is refused unparsed.
+fn may_write(server: &Server, client: &str, cmd: &str) -> bool {
+    let found = {
+        let table = verso_service::lock(&server.clients);
+        table.get(client).and_then(|c| {
+            c.folder
+                .as_ref()
+                .map(|(f, r)| (f.clone(), c.token_write, r.writes()))
+        })
+    };
+    let Some((folder, cap, writes)) = found else {
+        return false;
+    };
+    // A file sent to the chat is judged by the right to send it
+    // (`may_send_image`); only the files a player makes in a folder it edits
+    // are left to the rules.
+    cap && (writes
+        || (cmd != "table_send_image"
+            && crate::access::has_table_cached(server, &folder).unwrap_or(false)))
+}
+
+/// Whether `cmd` is a table's image and the window's account was let send
+/// images at some table of its folder (ADR 0107 item 3 as amended
+/// 2026-10-24): the command judges the table itself, after the parse.
+fn may_send_image(server: &Server, client: &str, cmd: &str) -> bool {
+    if cmd != "table_send_image" && cmd != "table_attach" {
+        return false;
+    }
+    // In memory: no database is read on the connection's receive task. A
+    // reader paired by a phone, or with a token that only reads, never is.
+    let found = verso_service::lock(&server.clients)
         .get(client)
-        .is_some_and(|c| c.token_write && c.folder.as_ref().is_some_and(|(_, r)| r.writes()))
+        .filter(|c| c.token_write)
+        .and_then(|c| {
+            c.folder
+                .as_ref()
+                .map(|(f, _)| (f.clone(), c.account.clone()))
+        });
+    found.is_some_and(|(folder, account)| server.db.image_granted(&folder, &account))
 }
 
 #[cfg(test)]
@@ -205,8 +261,21 @@ mod tests {
         assert_eq!(most_for("create_file"), crate::rpc::MAX_MESSAGE);
         assert_eq!(most_for("sync_put"), crate::rpc::MAX_MESSAGE);
         assert_eq!(most_for("write_note"), TEXT);
+        assert_eq!(most_for("write_folder_data"), TEXT);
         assert_eq!(most_for("list_notes"), SMALL);
         assert_eq!(most_for("nonsense"), SMALL);
+    }
+
+    /// The table's messages are bounded by their command (ADR 0107 item
+    /// 12): a message is read from its name before it is parsed, an image
+    /// is an upload (a reader's refused before it is parsed).
+    #[test]
+    fn the_tables_messages_are_bounded_by_their_command() {
+        assert_eq!(most_for("table_say"), crate::table::SAY_MESSAGE);
+        assert!(most_for("table_send_image") > crate::table::IMAGE_BYTES);
+        assert!(most_for("table_send_image") < crate::rpc::MAX_MESSAGE);
+        assert!(UPLOADS.contains(&"table_send_image"));
+        assert_eq!(most_for("table_roll"), SMALL);
     }
 
     /// Large messages take from the budget until it is spent, then are

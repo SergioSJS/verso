@@ -1,0 +1,18 @@
+# Construct: the charset of a `^id`. Spec: docs/spec/dialect.md §5.7 and Q22 a
+# (decided 2026-10-21: only letters, digits and hyphen; anything else stays
+# plain text; accented letters do not count, as observed). Only `abc-1` is an
+# id; `ação`, `a_b`, `é1` and `ab.c` are text.
+blocks:
+  - id: abc-1
+    pos: { line: 1, col: 10 }
+    lines: [1, 1]
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, the input written into a throwaway folder of
+    the Sandbox vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)`: `blocks` holds only
+    "abc-1" (line 0 col 0 .. line 0 col 15); the sections of the other four
+    paragraphs carry no `id`. The folder was removed afterwards.

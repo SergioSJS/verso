@@ -107,6 +107,67 @@ fn a_roll_in_a_room_is_the_servers_and_the_room_hears_it() {
     });
 }
 
+/// Which of the note's dice with the same code was clicked (ADR 0107)
+/// travels with the roll: relayed to the room, kept for whoever joins,
+/// answered back; an absurd place is dropped, none is none, and a roll
+/// written without the field (an older server or log) still reads.
+#[test]
+fn the_clicked_dies_place_travels_with_the_roll_and_a_hostile_one_is_dropped() {
+    block_on(async {
+        let r = start().await;
+        let (mut seen, mut roller) = two_in_the_room(&r).await;
+        let second = call(
+            &mut roller,
+            3,
+            "collab_roll",
+            json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": 1 }),
+        )
+        .await;
+        assert_eq!(second["ok"]["occurrence"], 1, "{second}");
+        let heard = event_named(&mut seen, "collab-roll").await;
+        assert_eq!(heard["roll"]["occurrence"], 1, "{heard}");
+        for (id, bad) in [(4, json!(5000)), (5, json!(u32::MAX)), (6, Value::Null)] {
+            let answer = call(
+                &mut roller,
+                id,
+                "collab_roll",
+                json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": bad }),
+            )
+            .await;
+            assert!(answer["ok"]["occurrence"].is_null(), "{bad}: {answer}");
+            event_named(&mut seen, "collab-roll").await;
+        }
+        // Not a number a place can be: refused, nothing relayed.
+        for (id, bad) in [
+            (7, json!(-1)),
+            (8, json!("1")),
+            (9, json!(1.5)),
+            (10, json!(1u64 << 40)),
+        ] {
+            let answer = call(
+                &mut roller,
+                id,
+                "collab_roll",
+                json!({ "path": NOTE, "notation": "1d20", "source": null, "occurrence": bad }),
+            )
+            .await;
+            assert_eq!(answer["err"]["kind"], "refused", "{bad}: {answer}");
+        }
+        let rejoined = call(&mut seen, 11, "collab_join", json!({ "path": NOTE })).await;
+        let rolls = rejoined["ok"]["rolls"].as_array().unwrap();
+        assert_eq!(rolls.len(), 4, "{rejoined}");
+        assert_eq!(rolls[0]["occurrence"], 1);
+        assert!(rolls[1]["occurrence"].is_null());
+        // A roll without the field reads.
+        let old = json!({
+            "notation": "1d20", "source": null, "terms": [], "modifier": 0,
+            "total": 5, "by": "Ana", "at": "2026-10-14T21:30:00Z"
+        });
+        let roll: verso_contract::DiceRoll = serde_json::from_value(old).unwrap();
+        assert_eq!(roll.occurrence, None);
+    });
+}
+
 /// A notation the server does not read, a table that is not a link, a
 /// window not in the room: refused, nothing relayed, nothing kept.
 #[test]
@@ -187,5 +248,122 @@ fn a_room_keeps_its_last_rolls_only() {
         let rolls = rejoined["ok"]["rolls"].as_array().unwrap().clone();
         assert_eq!(rolls.len(), crate::collab::ROLLS_KEPT);
         assert_eq!(rolls[0]["notation"], "1d6+5");
+    });
+}
+
+/// An oracle draw in a room (ADR 0102 item 5): the server draws a
+/// question, a spark and a table, names the account, the other window
+/// hears each; the question's text is not in the request, and nothing is
+/// written.
+#[test]
+fn an_oracle_draw_in_a_room_is_the_servers_and_the_room_hears_it() {
+    block_on(async {
+        let r = start().await;
+        let (mut seen, mut asker) = two_in_the_room(&r).await;
+        let before = call(&mut seen, 50, "read_note", json!({ "path": NOTE })).await;
+        let q = call(
+            &mut asker,
+            3,
+            "collab_oracle",
+            json!({ "path": NOTE, "ask": { "kind": "question", "odds": [10, 30, 10, 10, 30, 10] } }),
+        )
+        .await;
+        let draw = q["ok"].clone();
+        assert_eq!(
+            (draw["kind"].as_str(), draw["by"].as_str()),
+            (Some("question"), Some("Ana")),
+            "{q}"
+        );
+        let face = draw["roll"].as_u64().unwrap();
+        assert!((1..=100).contains(&face), "{draw}");
+        let col = draw["answer"].as_u64().unwrap();
+        let expected = [10_u64, 40, 50, 60, 90, 100]
+            .iter()
+            .position(|up| face <= *up)
+            .unwrap() as u64;
+        assert_eq!(col, expected, "{draw}");
+        let heard = event_named(&mut seen, "collab-oracle").await;
+        assert_eq!(heard["path"], NOTE);
+        assert_eq!(heard["draw"], draw);
+
+        let lists =
+            json!({ "action": ["a"], "theme": ["t1", "t2"], "descriptor": ["d"], "focus": ["f"] });
+        let s = call(
+            &mut asker,
+            4,
+            "collab_oracle",
+            json!({ "path": NOTE, "ask": { "kind": "spark", "lists": lists } }),
+        )
+        .await;
+        let words = s["ok"]["words"].as_array().unwrap().clone();
+        assert_eq!(words.len(), 4, "{s}");
+        assert_eq!(
+            (words[0].as_str(), words[2].as_str(), words[3].as_str()),
+            (Some("a"), Some("d"), Some("f"))
+        );
+        assert_eq!(
+            event_named(&mut seen, "collab-oracle").await["draw"],
+            s["ok"]
+        );
+
+        let t = call(
+            &mut asker,
+            5,
+            "collab_oracle",
+            json!({ "path": NOTE, "ask": { "kind": "table", "entries": ["só uma"] } }),
+        )
+        .await;
+        assert_eq!(
+            (t["ok"]["roll"].as_u64(), t["ok"]["words"][0].as_str()),
+            (Some(1), Some("só uma")),
+            "{t}"
+        );
+        assert_eq!(
+            event_named(&mut seen, "collab-oracle").await["draw"],
+            t["ok"]
+        );
+
+        // Nothing was written.
+        tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+        let after = call(&mut seen, 51, "read_note", json!({ "path": NOTE })).await;
+        assert_eq!(after["ok"]["revision"], before["ok"]["revision"]);
+    });
+}
+
+/// A draw the server cannot make, or from a window not in the room:
+/// refused, nothing relayed.
+#[test]
+fn an_oracle_draw_the_server_cannot_make_is_refused() {
+    block_on(async {
+        let r = start().await;
+        let (_seen, mut asker) = two_in_the_room(&r).await;
+        let mut id = 10;
+        for (path, ask) in [
+            (NOTE, json!({ "kind": "question", "odds": [50, 50] })),
+            (
+                NOTE,
+                json!({ "kind": "question", "odds": [10, 30, 10, 10, 30, 11] }),
+            ),
+            (NOTE, json!({ "kind": "table", "entries": [] })),
+            (
+                NOTE,
+                json!({ "kind": "spark", "lists": { "action": [], "theme": ["t"], "descriptor": ["d"], "focus": ["f"] } }),
+            ),
+            (NOTE, json!({ "kind": "dice" })),
+            (
+                "Outra.md",
+                json!({ "kind": "table", "entries": ["a", "b"] }),
+            ),
+        ] {
+            id += 1;
+            let answer = call(
+                &mut asker,
+                id,
+                "collab_oracle",
+                json!({ "path": path, "ask": ask }),
+            )
+            .await;
+            assert_eq!(answer["err"]["kind"], "refused", "{ask}: {answer}");
+        }
     });
 }

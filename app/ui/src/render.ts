@@ -9,7 +9,14 @@ import katex from "katex";
 import { h } from "./dom";
 import { icon } from "./icons";
 import { markSecrets } from "./secret/blocks";
+import { markOracles } from "./oracle/blocks";
+import type { OracleHost } from "./oracle/host";
 import { t } from "./strings";
+
+/** What is told when a code block has been given its colours, which replaces
+ *  the block's content some time after it was drawn: whatever was added to
+ *  the block meanwhile (a colour swatch) is added again. */
+export const highlightedHooks = new Set<(code: HTMLElement) => void>();
 
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
@@ -45,6 +52,7 @@ export function typeset(root: HTMLElement): void {
         () => frag.append("\n"),
       );
       code.replaceChildren(frag);
+      for (const f of highlightedHooks) f(code);
     });
   }
 }
@@ -52,10 +60,12 @@ export function typeset(root: HTMLElement): void {
  *  `[!kind]+` or `[!kind]-` callout opens and closes it, by the pointer or
  *  the keyboard, and `-` starts it closed (spec Q5). A link in the title
  *  stays a link. */
-export function wireCallouts(root: ParentNode, open: readonly boolean[] = []): void {
+export function wireCallouts(root: ParentNode, open: readonly boolean[] = [], oracleHost?: OracleHost | null): void {
   let at = 0;
   // A secret block says what it does (ADR 0087 item 5).
   markSecrets(root);
+  // An oracle callout allows rolling answers directly (ADR 0102).
+  markOracles(root, oracleHost);
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
     const was = open[at++];
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");

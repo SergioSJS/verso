@@ -21,6 +21,16 @@
   (a feature guardrail enters with its feature and is seen failing first),
   [0033](0033-pr-workflow.md) (the levels), [0035](0035-cross-cutting-requirements.md)
   (both languages, accessibility), `docs/reference/threat-model.md`.
+- Revisions: 2026-10-21 — two points the maintainer answered in the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): item 15's mailbox
+  (0083.15, option B: it does not exist yet, he will create it; the point
+  stays open until then) and the `yrs` fuzzing findings (0083.14, option C:
+  not reported upstream; our guards stay). 2026-10-21, later — the first
+  surface open to a visitor with no account, the read links of
+  [0105](0105-read-links-without-an-account.md), is built; the threat model
+  (`docs/reference/threat-model.md`) has its rows, and `tests_threats.rs`
+  asserts item 9's headers on `/r/<token>`, `/r/<token>/state` and
+  `/r/<token>/f/` too. No item of this ADR changes.
 
 ## Context
 
@@ -338,7 +348,10 @@ as written. Sizes: S is hours, M a day or two, L more.
       `security@versomd.com`, a mailbox the maintainer reads; no bug
       bounty. *Decided:* `security@versomd.com`, no bug bounty; that the
       mailbox exists is still for the maintainer to confirm, which does
-      not hold the item back.
+      not hold the item back. *2026-10-21* (0083.15, option B): **the
+      mailbox does not exist yet; the maintainer will create it.** The
+      point stays `[OPEN]` until he confirms it exists — until then the
+      `security.txt` promises an address nobody reads.
 
 16. **The outside reading, and the sanitizer's cross-review** (F9). Before
     the announcement: `app/ui/src/sanitize.ts` read by the model that did
@@ -765,8 +778,11 @@ targets found, and what closed each:
 
 Final state: 60 s under `-O` on the `note` and `board` targets with no
 crash *(reported)*; the seeds, the six inputs once kept aside as open
-(f95226d) among them, replay clean (8d419e9). The yrs findings are to be
-reported upstream, waiting for the maintainer's OK *(reported)*.
+(f95226d) among them, replay clean (8d419e9). The yrs findings were to be
+reported upstream, waiting for the maintainer's OK *(reported)*;
+`[DECIDED 2026-10-21]` (0083.14, option C): **they are not reported** to the
+`yrs` project, and our own guards (the bounds, the `yjs_bounds.rs` tests, the
+fuzz seeds) stay.
 
 **Item 16** (0b5fea1; e86eee8, 1e25bcf). The reading:
 `app/ui/src/sanitize.ts`, written by Opus 5.5, read by Fable 5.1 on

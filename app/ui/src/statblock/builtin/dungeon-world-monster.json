@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "dungeon-world-monster",
+  "name": {
+    "pt": "Dungeon World — Monstro",
+    "en": "Dungeon World — Monster"
+  },
+  "description": {
+    "pt": "Ficha de monstro (CC BY 3.0): nomes e ordem dos campos.",
+    "en": "A monster sheet (CC BY 3.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Dungeon World SRD, monsters",
+      "url": "https://www.dungeonworldsrd.com/monsters/"
+    }
+  ],
+  "profile": "pbta",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"tags","properties":["tags"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"tags","properties":["tags"],"label":{"pt":"Tags","en":"Tags"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"attack","properties":["attack","hp","hp_current","hp","armor"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"attack","properties":["attack"],"label":{"pt":"Attack","en":"Attack"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"armor","properties":["armor"],"label":{"pt":"Armor","en":"Armor"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"qualities","properties":["special_qualities"],"label":{"pt":"Special Qualities","en":"Special Qualities"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"instinct","properties":["instinct"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"instinct","properties":["instinct"],"label":{"pt":"Instinct","en":"Instinct"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"moves","properties":["moves"],"label":{"pt":"Moves","en":"Moves"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 2d6","en":"Roll 2d6"},"inputs":{}}
+  ]
+}

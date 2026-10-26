@@ -243,8 +243,7 @@ made the public source of an open-source plugin Obsidian publishes —
 Context's reading of the view's keys relies on. A Revisions line in
 [0053](0053-views-bases.md) answers its "Not built" list.
 
-Recorded, not resolved: the Maps plugin's manifest asks for Obsidian
-1.13.1, its help page says 1.10.
+Resolved on 2026-10-21 (0094, option A, in the decisions questionnaire of 2026-10-20): the Maps plugin's manifest asks for Obsidian 1.13.1 and its help page says 1.10; **both versions are cited and the manifest's (1.13.1) is followed**, as it is published code and the help page may be out of date.
 
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1
 by the maintainer's answer of 2026-10-14 (`docs/roadmap.md`, Phase 4 —

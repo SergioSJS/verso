@@ -13,12 +13,16 @@ import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
+import { may } from "../access";
+import { NoteAccess } from "../noteAccess";
+import { guard } from "../readerNotice";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { afterFileChange, tellOutcomes } from "../changes";
+import { refreshBestiary } from "../statblock/bestiary";
 import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
@@ -39,8 +43,9 @@ import { methods } from "../methods";
 import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
+import { hasCapability } from "../capabilities";
 import { PropertiesView } from "../props";
-import { propertySuggestions } from "../resolve";
+import { propertySuggestions, resolveNoteByName } from "../resolve";
 import { st } from "../screen/strings";
 import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
@@ -56,6 +61,8 @@ import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
 import * as reading from "./note/reading";
+import * as folds from "./note/folds";
+import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
@@ -66,6 +73,9 @@ import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
 import { fillLinkCard, wireNotePreview } from "../preview/install";
 import { diceWidget } from "../dice/live";
+import { diceBox } from "../dice/card";
+import { diagramLang, openBlockDiagram } from "../datagraph/block";
+import { dgw } from "../datagraph/words";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -121,6 +131,7 @@ export class NoteLeaf extends Leaf {
     title: () => name(this.path),
     suggest: (kind) => propertySuggestions(this.path, kind),
     status: (message) => (ui.status.textContent = message),
+    swatches: () => hasCapability("colorSwatches"),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the
@@ -159,6 +170,8 @@ export class NoteLeaf extends Leaf {
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
   readonly star = h("button", "star");
+  /** Who sees this note, when it is a table's (ADR 0110). */
+  readonly access = new NoteAccess(() => this.path);
   readonly coverBox = h("div", "note-cover-box");
   readonly addCoverBtn = h("button", "note-add-cover-btn");
   readonly stickerBtn = h("button", "note-sticker-btn");
@@ -234,6 +247,13 @@ export class NoteLeaf extends Leaf {
   private checkWaits = false;
   /** The note the reading view last drew. */
   shownPath = "";
+  /** What the note has folded, in either mode, and whose it is
+   *  (`leaves/note/folds.ts`). */
+  folds = new Set<string>();
+  foldsFor = "";
+  /** The editor's folds being put as the note's: not a person's doing. */
+  restoringFolds = false;
+  private foldTimer = 0;
   eol = "\n";
   /** Shown, never edited: the file mixes line endings (`mixedEol`), or
    *  the side lets this person only read the folder (ADR 0076 item 11). */
@@ -295,7 +315,8 @@ export class NoteLeaf extends Leaf {
 
     const titleRow = h("div", "title-row");
     this.liveMark.hidden = true;
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.access.el, this.liveMark);
+    this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;
     sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
@@ -316,8 +337,15 @@ export class NoteLeaf extends Leaf {
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      diagram: { label: dgw.viewAsDiagram, wants: (lang) => diagramLang(lang) !== null, open: (lang, text) => openBlockDiagram(this, lang, text) },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      notePath: () => this.path,
+      roll: { resolve: resolveNoteByName, open: (path) => void openNote(path, false) },
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
+      statblock: {
+        die: (notation, look) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }, { ...look, popover: true }),
+        refusal: () => (this.readOnly ? "readOnly" : this.conflict.up ? "conflict" : null),
+      },
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
@@ -428,6 +456,7 @@ export class NoteLeaf extends Leaf {
   declare embedFromFolder: typeof editing.embedFromFolder;
   declare attachFromPicker: typeof editing.attachFromPicker;
   declare attachImage: typeof editing.attachImage;
+  declare attachThroughServer: typeof editing.attachThroughServer;
   override setDirty(d: boolean): void {
     super.setDirty(d);
     this.dirtyMark.hidden = !d;
@@ -545,6 +574,7 @@ export class NoteLeaf extends Leaf {
       this.wireTableResizers(this.preview);
     }
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? [this.live, this.blockExt] : []) });
+    if (m !== "preview") this.applyEditorFolds();
     this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
@@ -555,6 +585,9 @@ export class NoteLeaf extends Leaf {
     this.editorHost.classList.toggle("source", m === "source");
   }
   toggleMode(): void {
+    // The person asked for Edit on a note they may not change: the mode
+    // still switches (the source is there to read), and the word is said.
+    if (this.mode === "preview") guard(this.path, this.editor.dom);
     this.setMode(this.mode === "preview" ? "live" : "preview");
   }
   declare selectedBlocks: typeof editing.selectedBlocks;
@@ -565,6 +598,7 @@ export class NoteLeaf extends Leaf {
   declare caretPoint: typeof editing.caretPoint;
   declare turnBlockMenu: typeof editing.turnBlockMenu;
   declare copyBlockLink: typeof editing.copyBlockLink;
+  declare followLinkAtCaret: typeof editing.followLinkAtCaret;
   declare blockMenu: typeof editing.blockMenu;
   declare blockPlusAt: typeof editing.blockPlusAt;
   declare blockPlus: typeof editing.blockPlus;
@@ -730,6 +764,9 @@ export class NoteLeaf extends Leaf {
   declare promptCover: typeof cover.promptCover;
   declare paintCoverAndSticker: typeof cover.paintCoverAndSticker;
   declare paintFlags: typeof cover.paintFlags;
+  addProperty(): void {
+    this.props.addProperty();
+  }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
     return this.loading;
@@ -834,6 +871,7 @@ export class NoteLeaf extends Leaf {
     const note = await opening.readNote(path, this.quiet(path));
     if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") {
+      if (this.veiled(note.error)) return this.veil(path);
       this.path = path;
       this.setTitle(name(path));
       // A tab brought back with its file in the cloud waits to be shown.
@@ -906,7 +944,7 @@ export class NoteLeaf extends Leaf {
    *  another device — keeps its text, out of the room, and says it is gone
    *  in words, as after a change seen outside: never the system's text of
    *  a failed read. */
-  private async roomClosed(why?: "lost"): Promise<void> {
+  private async roomClosed(why?: "lost" | "refused"): Promise<void> {
     const path = this.path;
     await this.loading;
     if (this.destroyed || path !== this.path) return;
@@ -951,7 +989,9 @@ export class NoteLeaf extends Leaf {
     this.mixedEol = sep === null;
     // A reader of a synced folder is present in the room, not typing
     // (ADR 0082 item 4).
-    this.readOnly = this.mixedEol || !canWrite() || (this.collab?.reader ?? false);
+    // A note granted to the player is its to write (ADR 0110 item 5).
+    this.readOnly = this.mixedEol || !may(note.path, "edit") || (this.collab?.reader ?? false);
+    this.loadFoldsFor(note.path);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.goneBanner.hide();
@@ -960,6 +1000,7 @@ export class NoteLeaf extends Leaf {
     this.refresh(note);
     this.setDirty(false);
     this.paintStar();
+    this.access.update();
     this.applyMode();
     markCurrent();
     if (this.pane.active === this) panel.show(this);
@@ -1000,6 +1041,7 @@ export class NoteLeaf extends Leaf {
     this.setTitle(name(path));
     this.title.textContent = name(path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    this.access.update();
     markCurrent();
     persistSoon();
   }
@@ -1012,6 +1054,7 @@ export class NoteLeaf extends Leaf {
   declare repaint: typeof reading.repaint;
   declare wireTableResizers: typeof reading.wireTableResizers;
   declare wireMermaidBlocks: typeof reading.wireMermaidBlocks;
+  declare wireStatblocks: typeof reading.wireStatblocks;
   declare wireCodeBlocks: typeof reading.wireCodeBlocks;
   declare wirePreviewImages: typeof reading.wirePreviewImages;
   declare imageSources: typeof reading.imageSources;
@@ -1022,6 +1065,22 @@ export class NoteLeaf extends Leaf {
   declare wireBlockquoteFolds: typeof reading.wireBlockquoteFolds;
   declare wireReadingLineNumbers: typeof reading.wireReadingLineNumbers;
   declare foldAllHeadings: typeof reading.foldAllHeadings;
+  declare loadFoldsFor: typeof folds.loadFoldsFor;
+  declare keepFolds: typeof folds.keepFolds;
+  declare setFold: typeof folds.setFold;
+  declare applyReadingFolds: typeof folds.applyReadingFolds;
+  declare rememberCallouts: typeof folds.rememberCallouts;
+  declare revealInReading: typeof folds.revealInReading;
+  declare applyEditorFolds: typeof folds.applyEditorFolds;
+  declare editorFoldsChanged: typeof folds.editorFoldsChanged;
+  /** The editor's folds into the note's, after the typing settles (a
+   *  heading retyped is another name). */
+  syncFoldsLater(): void {
+    window.clearTimeout(this.foldTimer);
+    this.foldTimer = window.setTimeout(() => {
+      if (!this.destroyed && this.mode !== "preview") this.editorFoldsChanged();
+    }, 400);
+  }
   declare paintPreview: typeof reading.paintPreview;
   declare relink: typeof reading.relink;
   declare dressLinks: typeof reading.dressLinks;
@@ -1101,6 +1160,8 @@ export class NoteLeaf extends Leaf {
     if (this.gone) this.setGone(false);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
+    // A statblock that inherits from this note draws again (ADR 0099 item 1).
+    refreshBestiary();
     ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
   }
   /** A write refused. `changed`: the file moved on since it was read
@@ -1197,21 +1258,27 @@ export class NoteLeaf extends Leaf {
   }
   override jumpTo(line: number): void {
     if (this.mode === "preview") {
-      const heads = Array.from(this.preview.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      const heads = Array.from(this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"));
       const n = this.headings().findIndex((hd) => hd.line === line);
-      heads[n]?.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
+      const head = heads[n];
+      if (!head) return;
+      // A heading inside a folded section is reached by opening the sections.
+      this.revealInReading(head);
+      head.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
       return;
     }
     const l = this.editor.state.doc.line(Math.min(line, this.editor.state.doc.lines));
-    this.editor.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    this.editor.dispatch({ effects: unfoldFor(this.editor.state, l.from), selection: { anchor: l.from }, scrollIntoView: true });
     this.editor.focus();
   }
   override destroy(): void {
     this.destroyed = true;
+    this.access.destroy();
     this.unpreview();
     this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);
+    window.clearTimeout(this.foldTimer);
     this.readingSearch?.close();
     // The tab's close saved them already (`flush`); this one catches a
     // keystroke typed since, and writes nothing over a conflict.
@@ -1233,4 +1300,5 @@ methods(NoteLeaf, cover);
 methods(NoteLeaf, web);
 methods(NoteLeaf, editing);
 methods(NoteLeaf, reading);
+methods(NoteLeaf, folds);
 methods(NoteLeaf, live);

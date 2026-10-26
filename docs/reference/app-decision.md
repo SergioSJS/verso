@@ -84,7 +84,7 @@ under and what it hands back to reopen the folder.
 | Group | Command | What for |
 |---|---|---|
 | Folder | `pick_folder`, `reopen_folder`, `open_initial`, `current_folder`, `reindex` | the native picker, run by the host, then the folder indexed; a folder opened before, by its key; the folder named on the command line, once; the folder a note window joins; index again. Only the main window switches folders, and never while a note window is open |
-| Lists | `list_notes`, `list_files`, `list_folders`, `list_entries`, `list_tags`, `list_web_notes`, `graph` | what the tree, the folder view, the tag panel and the graph show |
+| Lists | `list_notes`, `list_files`, `list_folders`, `list_entries`, `list_tags`, `list_block_ids`, `list_web_notes`, `graph` | what the tree, the folder view, the tag panel and the graph show |
 | Read | `read_note`, `read_text`, `read_file_text`, `resolve_attachment`, `search`, `links`, `backlinks` | a note with its HTML, properties, headings and revision; any text file with its revision (`not_text` when it is not UTF-8); the file an embed names, from the note that holds it (spec Q12); search and links from the index |
 | Write | `write_note`, `write_text` | the text of a note or text file, over the revision that was read |
 | Create | `create_note`, `create_file`, `create_folder` | refused with `exists` when something stands there |

@@ -28,11 +28,17 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 
 Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo sobre ela e solte):
 
-- **Abrir em nova aba**, **Abrir ao lado**, **Abrir em nova janela** e **Relações** (o grafo em volta dela).
+- **Abrir**, **Abrir em nova aba**, **Abrir ao lado** e **Relações** (o grafo em volta dela). **Abrir em nova janela** fica no grupo **Janela e localização**.
 - **Renomear** (ou `F2` — na árvore ou com a nota aberta —, ou um clique no título da nota aberta). Se outras notas apontam para ela, o Verso mostra, nota por nota, como cada link vai ficar, e pergunta: **Atualizar links** ou **Deixar como está**.
 - **Mover para…** leva a nota para outra pasta; **Duplicar** faz uma cópia.
-- **Mostrar no Finder**, **Copiar caminho relativo** e **Copiar caminho completo**.
+- O que é raro fica em grupos, que abrem num submenu (passe o mouse, ou `→` e `Enter`; `←` ou `Esc` volta): **Personalizar** (figurinha e cor), **Organizar** (selecionar, fixar, mover para cima ou para baixo, ocultar da árvore, transformar em pasta, **Criar foco aqui**), **Janela e localização** (**Abrir em nova janela**, **Mostrar no Finder**, **Copiar caminho relativo** e **Copiar caminho completo**) e **Novo** (nota, pasta, base, board, página web e projeto a partir de modelo).
 - **Mover para a lixeira** (ou `Delete`, ou `⌘⌫`, na árvore): a nota vai para a pasta `.trash` do cofre, como no Obsidian — nada se perde de vez; veja [[#A Lixeira]].
+
+---
+
+## Trocar de Pasta
+
+O botão com o nome da pasta, no alto da árvore, abre o seletor: as pastas deste computador que você já abriu, as suas e as compartilhadas num servidor. Duas pastas de mesmo nome mostram, embaixo, onde cada uma fica. Uma pasta que você não quer mais ver na lista tem um **×** ao lado (a pasta aberta não tem): ele só a tira da lista — nada é apagado do disco. Para trazê-las de volta, **Ajustes › Arquivos e links › Mostrar pastas ocultas**.
 
 ---
 
@@ -41,7 +47,8 @@ Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo 
 - Arraste uma nota da árvore para outra pasta para movê-la. Com o dedo, segure a nota um instante antes de arrastar: deslizar direto só rola a árvore.
 - **Vários de uma vez:** `⌘`-clique acrescenta ou tira uma nota ou pasta da seleção, `⇧`-clique seleciona tudo desde a última clicada, e `Esc` limpa. Arraste a seleção para uma pasta, ou use o botão direito nela — **Mover para…**, **Copiar caminhos relativos**, **Mover para a lixeira** —, e tudo vai junto; os links que precisam mudar aparecem num plano só.
 - Arraste um arquivo da árvore para o **texto de uma nota**: entra um link para ele (ou um embed, se for imagem, PDF ou outro arquivo).
-- Arraste arquivos do Finder para a árvore: eles são copiados para a pasta onde você soltar.
+- Arraste arquivos do Finder para a árvore: eles são copiados para a pasta onde você soltar; um nome já usado ganha `(2)` — nada é sobrescrito nem recusado — e a barra de status diz quais foram renomeados. No app de computador, soltar vai até o mesmo limite de **Importar arquivos…** (abaixo): o app copia o arquivo direto, sem passar pela janela. Na janela de um navegador, ou ao soltar dentro do texto de uma nota ou de um board, o limite é 32 MB por arquivo.
+- Sem arrastar: **Importar arquivos…** (paleta de comandos, ou **Novo ▸ Importar arquivos…** no botão direito de uma pasta ou do espaço vazio da árvore) abre o seletor de arquivos do sistema; os escolhidos são copiados para aquela pasta, um nome já usado ganha `(2)`, e o primeiro fica selecionado na árvore. O tamanho máximo de cada arquivo é um ajuste (**Ajustes › Arquivos e links › Tamanho máximo de um arquivo importado**, 32 MB de início, até 1024): um PDF de 200 MB entra sem passar pela janela, o app o copia direto para a pasta. Num servidor o limite é 32 MB.
 - Cole ou arraste uma **imagem** dentro de uma nota: ela é salva na pasta `assets` ao lado da nota (**Ajustes › Arquivos e links › Pasta de anexos**).
 
 ---
@@ -68,6 +75,18 @@ Cada nota, quadro e base guarda as suas **versões**: o que estava escrito a cad
 - **Copiar como nova nota** põe a versão ao lado do arquivo, como `Nome (versão 2026-10-14 15h04).md`.
 - As escritas seguidas viram uma versão a cada dez minutos de edição. Todas ficam por um dia, uma por hora até 30 dias e uma por dia depois, por um ano — **Ajustes › Arquivos e links › Manter versões por** muda isso. O histórico fica fora da pasta, na configuração do Verso: nada dele aparece entre os seus arquivos. Imagens e PDFs não entram; um anexo substituído vai para a [[#A Lixeira|lixeira]].
 - Numa pasta de servidor ([[23 - Verso num Servidor]]), quem pode editar vê o histórico e restaura — também numa nota que outras pessoas estão editando junto, que todos veem mudar —, e quem só lê não vê histórico.
+
+---
+
+## A Árvore pelo Teclado
+
+A árvore de arquivos é uma única parada do `Tab`: ela lembra o item em que você estava, então `Tab` entra nela e `Tab` de novo sai. Lá dentro:
+
+- `↓` e `↑` vão ao item de baixo e ao de cima; `Home` e `End` vão ao primeiro e ao último.
+- `→` abre uma pasta fechada; numa pasta aberta, entra nela. `←` fecha a pasta aberta; num item, sobe para a pasta dele.
+- `Enter` abre a nota, ou abre e fecha a pasta. `Espaço` seleciona o item (como `⌘` + clique) sem abrir nada.
+- Digite as primeiras letras de um nome para pular para ele; a mesma letra de novo vai ao próximo. `*` abre todas as pastas ao lado do item.
+- A tecla de menu, ou `Shift` + `F10`, abre o menu do item; `F2` renomeia e `Delete` manda para a lixeira.
 
 ---
 

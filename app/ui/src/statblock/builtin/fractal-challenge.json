@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "fractal-challenge",
+  "name": {
+    "pt": "Fractal — Desafio",
+    "en": "Fractal — Challenge"
+  },
+  "description": {
+    "pt": "Um Desafio do Fractal: Obstáculos (cada um pode ser um [[link]] para outro Desafio: campanha, arco, episódio), Reservas com Gatilho e Consequência, e Antecipação.",
+    "en": "A Fractal Challenge: Obstacles (each may be a [[link]] to another Challenge: campaign, arc, episode), Reserves with Trigger and Consequence, and Anticipation. Field names only; the YAML keys are the game's own Portuguese words."
+  },
+  "sources": [
+    {
+      "label": "Fractal RPG SRD v1.0.3 (official)",
+      "url": "https://fractal-system.itch.io/pt-br"
+    },
+    {
+      "label": "Walter Licínio on Fractal",
+      "url": "https://walterlicinio.itch.io/fractal"
+    }
+  ],
+  "profile": "fractal",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"text","id":"descricao","properties":["descricao"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"obstaculos","properties":["obstaculos"],"label":{"pt":"Obstáculos","en":"Obstacles"},"hideWhenEmpty":true,"dice":true,"flag":{"key":"quebrado","label":{"pt":"Quebrado","en":"Broken"},"count":{"pt":"{n} de {m} quebrados","en":"{n} of {m} broken"}}},
+    {"type":"group","id":"reserva-1","properties":["reserva_1_nome","reserva_1_atual","reserva_1_total","reserva_1_gatilho","reserva_1_consequencia"],"hideWhenEmpty":true,"nested":[{"type":"tracker","id":"reserva-1-valor","properties":["reserva_1_nome"],"label":{"pt":"{reserva_1_nome}","en":"{reserva_1_nome}"},"hideWhenEmpty":true,"current":"reserva_1_atual","max":"reserva_1_total","style":"boxes"},{"type":"property","id":"reserva-1-gatilho","properties":["reserva_1_gatilho"],"label":{"pt":"✦ Gatilho","en":"✦ Trigger"},"hideWhenEmpty":true},{"type":"property","id":"reserva-1-consequencia","properties":["reserva_1_consequencia"],"label":{"pt":"▣ Consequência","en":"▣ Consequence"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"reserva-2","properties":["reserva_2_nome","reserva_2_atual","reserva_2_total","reserva_2_gatilho","reserva_2_consequencia"],"hideWhenEmpty":true,"nested":[{"type":"tracker","id":"reserva-2-valor","properties":["reserva_2_nome"],"label":{"pt":"{reserva_2_nome}","en":"{reserva_2_nome}"},"hideWhenEmpty":true,"current":"reserva_2_atual","max":"reserva_2_total","style":"boxes"},{"type":"property","id":"reserva-2-gatilho","properties":["reserva_2_gatilho"],"label":{"pt":"✦ Gatilho","en":"✦ Trigger"},"hideWhenEmpty":true},{"type":"property","id":"reserva-2-consequencia","properties":["reserva_2_consequencia"],"label":{"pt":"▣ Consequência","en":"▣ Consequence"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"reserva-3","properties":["reserva_3_nome","reserva_3_atual","reserva_3_total","reserva_3_gatilho","reserva_3_consequencia"],"hideWhenEmpty":true,"nested":[{"type":"tracker","id":"reserva-3-valor","properties":["reserva_3_nome"],"label":{"pt":"{reserva_3_nome}","en":"{reserva_3_nome}"},"hideWhenEmpty":true,"current":"reserva_3_atual","max":"reserva_3_total","style":"boxes"},{"type":"property","id":"reserva-3-gatilho","properties":["reserva_3_gatilho"],"label":{"pt":"✦ Gatilho","en":"✦ Trigger"},"hideWhenEmpty":true},{"type":"property","id":"reserva-3-consequencia","properties":["reserva_3_consequencia"],"label":{"pt":"▣ Consequência","en":"▣ Consequence"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"reserva-4","properties":["reserva_4_nome","reserva_4_atual","reserva_4_total","reserva_4_gatilho","reserva_4_consequencia"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"reserva-4-valor","properties":["reserva_4_nome"],"label":{"pt":"{reserva_4_nome}","en":"{reserva_4_nome}"},"hideWhenEmpty":true,"current":"reserva_4_atual","max":"reserva_4_total","style":"boxes"},{"type":"property","id":"reserva-4-gatilho","properties":["reserva_4_gatilho"],"label":{"pt":"✦ Gatilho","en":"✦ Trigger"},"hideWhenEmpty":true},{"type":"property","id":"reserva-4-consequencia","properties":["reserva_4_consequencia"],"label":{"pt":"▣ Consequência","en":"▣ Consequence"},"hideWhenEmpty":true}]},
+    {"type":"property","id":"antecipacao","properties":["antecipacao"],"label":{"pt":"Antecipação","en":"Anticipation"},"hideWhenEmpty":true},
+    {"type":"roll","id":"rolagem","properties":[],"label":{"pt":"Rolagem de Risco","en":"Risk roll"},"inputs":{"fatos_aplicaveis":{"key":"fatos_aplicaveis"},"vantagem":{"key":"vantagem"}}}
+  ]
+}

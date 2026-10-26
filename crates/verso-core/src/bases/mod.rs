@@ -246,6 +246,8 @@ impl NoteFacts {
         let mut tags: Vec<String> = Vec::new();
         let mut push = |t: &str| {
             let t = t.trim().trim_start_matches('#');
+            // Digits are a tag here (DL.2 = B): a body `#2024` never gets
+            // this far, `body_tags` has dropped it.
             if !t.is_empty() && !tags.iter().any(|x| x.to_lowercase() == t.to_lowercase()) {
                 tags.push(t.to_owned());
             }
@@ -255,14 +257,19 @@ impl NoteFacts {
                 match v {
                     Value::Sequence(items) => {
                         for i in items {
-                            if let Value::String(s) = i {
-                                push(s);
+                            if let Some(t) = verso_dialect::frontmatter_tag(i) {
+                                push(&t);
                             }
                         }
                     }
                     Value::String(s) => {
                         for t in s.split([',', ' ']) {
                             push(t);
+                        }
+                    }
+                    Value::Integer(_) => {
+                        if let Some(t) = verso_dialect::frontmatter_tag(v) {
+                            push(&t);
                         }
                     }
                     _ => {}

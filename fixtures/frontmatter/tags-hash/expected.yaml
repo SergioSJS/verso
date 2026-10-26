@@ -1,0 +1,19 @@
+# Construct: a `#` in a frontmatter tag. Spec: Q22 c (decided 2026-10-21:
+# `#ideia` and `ideia` are the same tag). Observed: the `#` of a quoted
+# item is dropped by the tag list (`#quoted` listed once). An unquoted
+# `tags: [#ideia]` is NOT valid YAML for Obsidian: it reads no frontmatter at
+# all for that note (no `frontmatter` in its cache). The schema has no key
+# for the tags a note has (§4.6), so this fixture asserts the values; the
+# tag rule is tested in crates/verso-dialect/tests/tags.rs.
+frontmatter:
+  tags: ["#quoted", plain]
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on `getCache(...).frontmatter`
+    -> { tags: ["#quoted", "plain"] } on this fixture's exact input.md;
+    `obsidian tags counts` lists #quoted (1) and #plain (1) and no ##quoted. A note `tags: [idea]` and another `tags: [#idea]` (unquoted):
+    the first lists #idea, the second has no frontmatter in the cache.

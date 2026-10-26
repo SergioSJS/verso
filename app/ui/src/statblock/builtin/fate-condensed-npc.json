@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "fate-condensed-npc",
+  "name": {
+    "pt": "Fate Condensed — PNJ menor",
+    "en": "Fate Condensed — Minor NPC"
+  },
+  "description": {
+    "pt": "PNJ menor (CC BY 3.0): um aspecto, poucas perícias, estresse. PNJs maiores usam a ficha de personagem.",
+    "en": "A minor NPC (CC BY 3.0): one aspect, few skills, stress. Major NPCs use the character sheet."
+  },
+  "sources": [
+    {
+      "label": "Fate Condensed, being the GM",
+      "url": "https://fate-srd.com/fate-condensed/being-game-master"
+    },
+    {
+      "label": "Fate SRD licensing (CC BY 3.0)",
+      "url": "https://fate-srd.com/official-licensing-fate"
+    }
+  ],
+  "profile": "fate",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"aspect","properties":["aspect"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"aspect","properties":["aspect"],"label":{"pt":"Aspect","en":"Aspect"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true},
+    {"type":"tracker","id":"stress","properties":["stress","stress_max"],"label":{"pt":"Stress","en":"Stress"},"hideWhenEmpty":true,"current":"stress","max":"stress_max","style":"boxes"},
+    {"type":"traits","id":"stunts","properties":["stunts"],"label":{"pt":"Stunts","en":"Stunts"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 4dF","en":"Roll 4dF"},"inputs":{}}
+  ]
+}

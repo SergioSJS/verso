@@ -83,3 +83,43 @@
   .frame-button { color: ButtonText; }
   .frame-button:hover { background: Highlight; color: HighlightText; }
 }
+
+/* Windows and Linux: the menu button in the corner where the Mac has its
+   lights (ADR 0072, decided 2026-10-22), the ribbon's width and the top
+   row's height, over the strip that carries the row across the ribbon. The
+   menu it opens is the context menu's look (`.menu`) with the shortcut
+   column of a menu bar. */
+.frame-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: calc(var(--ribbon-w) + 1px);
+  height: 2.45rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: default;
+  transition: background-color .12s, color .12s;
+}
+.frame-menu:hover, .frame-menu[aria-expanded="true"] { background: var(--paper-3); color: var(--ink); }
+.frame-menu:focus-visible { outline: 2px solid var(--seal); outline-offset: -2px; }
+.frame-menu svg { width: 16px; height: 16px; }
+.frame-inactive .frame-menu:not(:hover) { color: var(--ink-3); }
+.winmenu { z-index: 65; min-width: 12rem; }
+.winmenu > li:last-child > button:not(.has-sub) { color: inherit; }
+.winmenu li > button { gap: 1.5rem; }
+.winmenu .winmenu-label { flex: 1; white-space: nowrap; }
+.winmenu .winmenu-label u { text-decoration: underline; text-underline-offset: 2px; }
+.winmenu-key { margin-left: auto; padding: 0; border: 0; background: none; box-shadow: none; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.winmenu li > button:hover .winmenu-key, .winmenu li > button:focus-visible .winmenu-key { color: inherit; }
+.winmenu li > button[aria-disabled="true"] { opacity: .45; cursor: default; }
+.winmenu li > button[aria-disabled="true"]:hover { background: transparent; color: inherit; }
+@media (forced-colors: active) {
+  .frame-menu { color: ButtonText; }
+  .frame-menu:hover, .frame-menu[aria-expanded="true"] { background: Highlight; color: HighlightText; }
+}

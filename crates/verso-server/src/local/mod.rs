@@ -23,6 +23,7 @@
 
 pub mod allow;
 pub mod announce;
+mod bind;
 pub mod cert;
 pub mod net;
 pub mod pairing;
@@ -33,6 +34,8 @@ mod routes;
 mod tests;
 #[cfg(test)]
 mod tests_parts;
+#[cfg(test)]
+mod tests_parts_bin;
 #[cfg(test)]
 mod tests_serving;
 
@@ -46,6 +49,8 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use verso_service::lock;
 
+use self::bind::bind_all;
+pub use self::bind::reachable;
 use self::net::{IfNet, Interfaces};
 use self::pairing::{Ended, Pairing, PendingView, Polled, Ready, Redeemed};
 use crate::config::Config;
@@ -1456,42 +1461,4 @@ fn names_for(paths: &[String]) -> HashMap<String, PathBuf> {
         out.insert(name, path);
     }
     out
-}
-
-/// Whether a connection to `addr` is accepted within two seconds.
-#[must_use]
-pub fn reachable(addr: SocketAddr) -> bool {
-    std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
-}
-
-/// A port from the dynamic range (49152–65535).
-fn random_port() -> Result<u16, String> {
-    let mut b = [0_u8; 2];
-    getrandom::fill(&mut b).map_err(|e| e.to_string())?;
-    Ok(49_152 + u16::from_le_bytes(b) % (65_536 - 49_152) as u16)
-}
-
-/// A listener on every address at one port: the port kept from the first
-/// time, a new one chosen when it is taken (item 4).
-fn bind_all(db: &Db, nets: &[IfNet]) -> Result<(Vec<std::net::TcpListener>, u16), String> {
-    let kept: Option<u16> = db.setting(PORT)?.and_then(|s| s.parse().ok());
-    let mut candidates: Vec<u16> = kept.into_iter().collect();
-    for _ in 0..20 {
-        candidates.push(random_port()?);
-    }
-    'ports: for port in candidates {
-        let mut listeners = Vec::new();
-        for n in nets {
-            let Ok(l) = std::net::TcpListener::bind(SocketAddr::new(n.ip, port)) else {
-                continue 'ports;
-            };
-            l.set_nonblocking(true).map_err(|e| e.to_string())?;
-            listeners.push(l);
-        }
-        if kept != Some(port) {
-            db.set_setting(PORT, &port.to_string())?;
-        }
-        return Ok((listeners, port));
-    }
-    Err("no free port on this computer's addresses".to_owned())
 }

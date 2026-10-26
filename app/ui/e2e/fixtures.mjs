@@ -17,6 +17,13 @@ const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg:
 export class App {
   constructor(page) {
     this.page = page;
+    /** Faults a test provokes on purpose (a blocked request): the fixture lets these lines pass. */
+    this.expected = [];
+  }
+
+  /** The test breaks something on purpose: a fault line matching `pattern` is not a failure. */
+  expectFault(pattern) {
+    this.expected.push(pattern);
   }
 
   /** Open the harness: `?vault=empty` for an empty folder. */
@@ -32,9 +39,9 @@ export class App {
 
   /** Open a file by name with the quick switcher (⌘P): the name typed
    *  into its field, and Enter only once the list answers it. */
-  async quickOpen(name) {
+  async quickOpen(name, label = "Abrir…") {
     await this.key("Mod+p");
-    const field = this.page.getByRole("combobox", { name: "Abrir…" });
+    const field = this.page.getByRole("combobox", { name: label });
     await expect(field).toBeFocused();
     await field.fill(name);
     await expect(this.page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
@@ -211,7 +218,8 @@ export const test = base.extend({
       const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
       await route.fulfill({ status: 200, body: Buffer.from(b64, "base64"), contentType: TYPES[ext] ?? "application/octet-stream" });
     });
-    await use(new App(page));
+    const app = new App(page);
+    await use(app);
     // The harness still there: a test that left it reports nothing.
     const there = await page.evaluate(() => window.__harness !== undefined).catch(() => false);
     if (!there) problems.push("the harness is gone at the end of the test: its log and console were not read");
@@ -219,7 +227,7 @@ export const test = base.extend({
     for (const l of logged) problems.push(`app log: ${l}`);
     const jumps = await page.evaluate(() => window.__shellJumps ?? []).catch(() => []);
     for (const j of new Set(jumps)) problems.push(`layout: ${j}`);
-    expect(problems, "the window's console and the app's log stay clean").toEqual([]);
+    expect(problems.filter((p) => !app.expected.some((re) => re.test(p))), "the window's console and the app's log stay clean").toEqual([]);
   },
 });
 

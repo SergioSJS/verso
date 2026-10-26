@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "13th-age-character",
+  "name": {
+    "pt": "13th Age — Personagem",
+    "en": "13th Age — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem do Archmage Engine (OGL 1.0a): nomes e ordem dos campos, sem texto de livro.",
+    "en": "An Archmage Engine character sheet (OGL 1.0a): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "13th Age SRD, character rules",
+      "url": "https://www.13thagesrd.com/character-rules/"
+    },
+    {
+      "label": "13th Age SRD, combat rules",
+      "url": "https://www.13thagesrd.com/combat-rules/"
+    }
+  ],
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","class"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["class"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["level","one_unique_thing"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"level","properties":["level"],"label":{"pt":"Level","en":"Level"},"hideWhenEmpty":true},{"type":"property","id":"unique","properties":["one_unique_thing"],"label":{"pt":"One Unique Thing","en":"One Unique Thing"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"attributes","properties":["attributes"],"hideWhenEmpty":true,"headers":[{"pt":"Str","en":"Str"},{"pt":"Con","en":"Con"},{"pt":"Dex","en":"Dex"},{"pt":"Int","en":"Int"},{"pt":"Wis","en":"Wis"},{"pt":"Cha","en":"Cha"}],"modifier":"none","rule":true},
+    {"type":"group","id":"defences","properties":["hp","hp_current","hp","ac","pd","md","initiative","recoveries","recoveries_max","recovery_dice"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"pd","properties":["pd"],"label":{"pt":"PD","en":"PD"},"hideWhenEmpty":true},{"type":"property","id":"md","properties":["md"],"label":{"pt":"MD","en":"MD"},"hideWhenEmpty":true},{"type":"property","id":"initiative","properties":["initiative"],"label":{"pt":"Initiative","en":"Initiative"},"hideWhenEmpty":true},{"type":"tracker","id":"recoveries","properties":["recoveries","recoveries_max"],"label":{"pt":"Recoveries","en":"Recoveries"},"hideWhenEmpty":true,"current":"recoveries","max":"recoveries_max","style":"boxes"},{"type":"property","id":"recovery-dice","properties":["recovery_dice"],"label":{"pt":"Recovery dice","en":"Recovery dice"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"backgrounds","properties":["backgrounds"],"label":{"pt":"Backgrounds","en":"Backgrounds"},"hideWhenEmpty":true,"dice":true,"rule":true},
+    {"type":"traits","id":"icons","properties":["icon_relationships"],"label":{"pt":"Icon relationships","en":"Icon relationships"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"powers","properties":["powers"],"label":{"pt":"Class powers","en":"Class powers"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"talents","properties":["talents"],"label":{"pt":"Talents","en":"Talents"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"feats","properties":["feats"],"label":{"pt":"Feats","en":"Feats"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}

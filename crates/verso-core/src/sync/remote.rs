@@ -1,0 +1,543 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The remote of a sync (ADR 0104 item 3): the other side of a folder's
+//! sync, whatever it is — a UniVerso (ADR 0079) or a cloud the person
+//! already has (WebDAV, S3). A trait, and nothing else: no network, no
+//! disk, no async runtime. The engine ([`super::plan`]) plans against the
+//! picture of the remote this module builds; the desktop host carries the
+//! plan out through an implementation of [`Remote`] and `verso-fs`.
+//!
+//! A remote tells each of its files by an opaque **version**: the token a
+//! write is made conditional on (a WebDAV or S3 ETag; for a UniVerso, the
+//! file's hash). A write names the version it replaces ([`Condition`]) and
+//! is refused with [`RemoteErrorKind::Changed`] when the file is another
+//! now — so that no remote ever overwrites a version nobody has seen (the
+//! ADR's item 7, invariant 11). Where a service cannot say so, it is not a
+//! remote at all: the adapter refuses to connect.
+//!
+//! The engine compares files by the SHA-256 of their bytes. A cloud knows
+//! its versions, not those hashes: [`refresh`] asks the remote for a hash
+//! ([`Remote::fingerprint`]) only for a file whose version it has not seen
+//! before, and the state keeps what it learned ([`Token`]).
+
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use super::{FileState, Files};
+
+/// Why a remote could not do what was asked, by what the host can do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemoteErrorKind {
+    /// The file there is not the version the write was conditional on
+    /// (HTTP 412, or a UniVerso's `changed`): read again, plan again.
+    Changed,
+    /// No such file there.
+    NotFound,
+    /// The service asked to slow down (HTTP 429, 503): after this many
+    /// seconds when it said how long, otherwise the host's backoff.
+    RateLimited(Option<u64>),
+    /// The service cannot keep the promise that no version is lost: it
+    /// does not honour the precondition, or gives no strong version. Not
+    /// connected, and why.
+    Refused,
+    /// No answer: the network, the host, a certificate. The pass ends and
+    /// the host tries again with a growing wait.
+    Unreachable,
+    /// A new name is taken there.
+    Exists,
+    /// A new name differs there only in case from another (spec Q8).
+    CaseTwin,
+    /// The service would not keep a file by this name; the message says
+    /// why.
+    NameInvalid,
+    /// The remote's storage is full, or the folder's quota passed.
+    Quota,
+    /// This file is not readable there now.
+    Unavailable,
+    /// The cursor the remote gave before is no longer good (a feed that
+    /// forgot it): a full comparison from the bases follows.
+    CursorLost,
+    /// The host's own side of a transfer failed (reading a piece from the
+    /// disk, writing one): the host knows why.
+    Local,
+    /// Anything else the remote refused.
+    Failed,
+}
+
+/// A remote's error: its kind, what to say, and, for an adapter that
+/// carries another error's kind through (the UniVerso's contract errors),
+/// that kind's name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteError {
+    pub kind: RemoteErrorKind,
+    pub message: String,
+    /// The adapter's own name for the error, when the host needs to turn
+    /// it back into what it was (the UniVerso's `ErrorKind`).
+    pub detail: Option<String>,
+}
+
+impl RemoteError {
+    #[must_use]
+    pub fn new(kind: RemoteErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+            detail: None,
+        }
+    }
+
+    #[must_use]
+    pub fn detailed(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
+        self
+    }
+}
+
+impl std::fmt::Display for RemoteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for RemoteError {}
+
+pub type Result<T> = std::result::Result<T, RemoteError>;
+
+/// A file as the remote lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry {
+    pub path: String,
+    /// The version token a write to this file is conditional on.
+    pub version: String,
+    /// The SHA-256 of its bytes, when the listing says (a UniVerso's
+    /// does); a cloud's does not, and [`refresh`] finds it.
+    pub hash: Option<String>,
+    pub size: u64,
+    /// Who made it, when the remote says (a UniVerso's log): the person's
+    /// name and the device's.
+    pub by: Option<String>,
+    pub device: Option<String>,
+}
+
+/// One change to the remote's files since a cursor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Change {
+    /// A file is there, new or changed.
+    Present(Entry),
+    /// A file is gone; who deleted it, when the remote says.
+    Gone {
+        path: String,
+        by: Option<String>,
+        device: Option<String>,
+    },
+    /// A file moved: `from` is gone, the entry is there.
+    Renamed { from: String, entry: Entry },
+}
+
+/// Who made a change there, as the remote's log says (a UniVerso's).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Who {
+    pub path: String,
+    pub by: Option<String>,
+    pub device: Option<String>,
+}
+
+/// What a remote answers to "what is there": every file (`full`), or the
+/// changes after the cursor asked from.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Listing {
+    /// The changes are the whole picture: what is not among them is not
+    /// there. A remote with no change feed (WebDAV, S3) always answers so.
+    pub full: bool,
+    pub changes: Vec<Change>,
+    /// Where the remote's feed is now; ask from here next time. None: no
+    /// feed.
+    pub cursor: Option<String>,
+}
+
+/// What a write is conditional on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Condition {
+    /// The path must not exist there (`If-None-Match: *`).
+    Absent,
+    /// The file there must still be this version (`If-Match`).
+    Version(String),
+}
+
+/// What a write sends besides the bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Meta {
+    pub size: u64,
+    /// The SHA-256 of the bytes, which the remote may keep with the file
+    /// (S3's metadata) so that another device need not read it to know it.
+    pub hash: String,
+}
+
+/// Where a write's bytes come from: the file on this computer, a piece at
+/// a time, never whole in memory (ADR 0079 item 12). The host implements
+/// it over `verso-fs`; the remote never touches a disk.
+pub trait Source: Send {
+    /// The next piece; `None` after the last.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Local`] when the file cannot be read, or is not
+    /// the one that was hashed.
+    fn next(&mut self) -> Result<Option<Vec<u8>>>;
+    /// Start again from the first byte (a retry after a 429 or 503).
+    ///
+    /// # Errors
+    /// As [`Source::next`].
+    fn rewind(&mut self) -> Result<()>;
+}
+
+/// Where a read's bytes go: a staged file beside where it lands. A remote
+/// hands bytes over only once it has an answer to keep, so that a retry
+/// (a 429 before the body) never has to take back what was put.
+pub trait Sink {
+    /// One more piece, in order.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Local`] when it cannot be kept.
+    fn put(&mut self, piece: &[u8]) -> Result<()>;
+}
+
+/// What a write left there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Written {
+    /// The path it landed at — the spelling the remote keeps for the name
+    /// (spec Q7).
+    pub path: String,
+    /// The version the file has now.
+    pub version: String,
+}
+
+/// What a read found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Read {
+    /// The version read.
+    pub version: String,
+    /// The hash the remote says the bytes have, when it says.
+    pub hash: Option<String>,
+    pub size: u64,
+}
+
+/// The other side of a folder's sync. Methods block: the host calls them
+/// where blocking is allowed. One value per connection.
+pub trait Remote: Send + Sync {
+    /// Every file, or the changes after `after` (the cursor a listing
+    /// gave).
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::CursorLost`] when `after` is no longer good.
+    fn list(&self, after: Option<&str>) -> Result<Listing>;
+
+    /// The SHA-256 of the file's bytes, with its version. The default
+    /// reads it and hashes what arrives.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::NotFound`] when it is gone.
+    fn fingerprint(&self, path: &str) -> Result<(String, String)> {
+        let mut sink = HashingSink::default();
+        let read = self.read(path, &mut sink)?;
+        Ok((read.version, sink.finish()))
+    }
+
+    /// Whether the file is there. Asked before a deletion here that a
+    /// listing alone asks for: a listing that lags behind a write (a
+    /// service that is not strongly consistent) must not delete a file the
+    /// remote has. The default reads and hashes it; a cloud's adapter
+    /// asks for its metadata only.
+    ///
+    /// # Errors
+    /// Whatever the remote failed with, other than the file being gone.
+    fn exists(&self, path: &str) -> Result<bool> {
+        match self.fingerprint(path) {
+            Ok(_) => Ok(true),
+            Err(e) if e.kind == RemoteErrorKind::NotFound => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// The file's bytes into `sink`, in order. The remote verifies what it
+    /// can (size, its own checksum) before it says it is read.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::NotFound`] when it is gone.
+    fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read>;
+
+    /// Write the file at `path` from `source`, only if `condition` holds.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Changed`] when it does not.
+    fn write(
+        &self,
+        path: &str,
+        condition: &Condition,
+        meta: &Meta,
+        source: &mut dyn Source,
+    ) -> Result<Written>;
+
+    /// Delete the file, only if it is still the version in `condition`.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Changed`] when it is another now.
+    fn delete(&self, path: &str, condition: &Condition) -> Result<()>;
+
+    /// Move the file `from` to `to`, only if `from` is still the version
+    /// in `condition` and `to` is free.
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Changed`], or [`RemoteErrorKind::Exists`].
+    fn rename(&self, from: &str, to: &str, condition: &Condition) -> Result<Written>;
+
+    /// What this device may do with each of `paths` on the remote, as the
+    /// remote judges its own changes (ADR 0113 S8); `None` when the remote
+    /// has no judgement of its own (a cloud: the person is the owner of
+    /// what they synced, an old server: the role decides). A path it does
+    /// not see is answered as a free name is, never as an error.
+    ///
+    /// # Errors
+    /// The connection failed.
+    fn rights(&self, paths: &[String]) -> Result<Option<Vec<(String, Rights)>>> {
+        let _ = paths;
+        Ok(None)
+    }
+}
+
+/// What a device may do with a path on its remote: the one answer the
+/// remote's rules give (`access_get` with `brief` on a UniVerso). Kept in
+/// the state, so that the last answer holds while the device is offline.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Rights {
+    /// The device is told of the file.
+    #[serde(default)]
+    pub see: bool,
+    /// A put of it, whole, is accepted: the person edits it and the device
+    /// holds it whole.
+    #[serde(default)]
+    pub put: bool,
+    /// A deletion of it is accepted.
+    #[serde(default)]
+    pub delete: bool,
+    /// A rename of it inside its folder is accepted.
+    #[serde(default)]
+    pub rename: bool,
+}
+
+impl Rights {
+    /// Whether the device may change the file at all.
+    #[must_use]
+    pub fn writes(&self) -> bool {
+        self.put || self.delete || self.rename
+    }
+}
+
+/// A sink that hashes what it is given and keeps nothing.
+#[derive(Default)]
+pub struct HashingSink(Sha256);
+
+impl HashingSink {
+    #[must_use]
+    pub fn finish(self) -> String {
+        hex(&self.0.finalize())
+    }
+}
+
+impl Sink for HashingSink {
+    fn put(&mut self, piece: &[u8]) -> Result<()> {
+        self.0.update(piece);
+        Ok(())
+    }
+}
+
+/// Lower-case hexadecimal.
+#[must_use]
+pub fn hex(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+    bytes.iter().fold(String::new(), |mut out, b| {
+        let _ = write!(out, "{b:02x}");
+        out
+    })
+}
+
+/// What the state keeps of a remote file between runs (outside the
+/// folder, ADR 0011): the version it had when its hash was found, so that
+/// a listing that shows the same version needs no read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Token {
+    pub version: String,
+    pub hash: String,
+    pub size: u64,
+}
+
+/// The remote's files as a pass compares them, with the version each has
+/// and the feed's cursor.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Known {
+    pub files: Files,
+    /// Path → version, in step with `files`.
+    pub versions: BTreeMap<String, String>,
+    pub cursor: Option<String>,
+}
+
+impl Known {
+    /// The condition a write replacing the file `path` holds, whose hash
+    /// the plan says is `base` (none: a new file).
+    ///
+    /// # Errors
+    /// [`RemoteErrorKind::Changed`] when the picture no longer has the
+    /// base the plan was made on.
+    pub fn condition(&self, path: &str, base: Option<&str>) -> Result<Condition> {
+        let Some(base) = base else {
+            return Ok(Condition::Absent);
+        };
+        let there = super::spelled_there(&self.files, path);
+        match (self.files.get(&there), self.versions.get(&there)) {
+            (Some(f), Some(v)) if f.hash == base => Ok(Condition::Version(v.clone())),
+            _ => Err(RemoteError::new(
+                RemoteErrorKind::Changed,
+                "the file there is not the one the plan was made on",
+            )),
+        }
+    }
+
+    /// The picture's files as the state keeps them for the next run.
+    #[must_use]
+    pub fn tokens(&self) -> BTreeMap<String, Token> {
+        self.files
+            .iter()
+            .filter_map(|(p, f)| {
+                self.versions.get(p).map(|v| {
+                    (
+                        p.clone(),
+                        Token {
+                            version: v.clone(),
+                            hash: f.hash.clone(),
+                            size: f.size,
+                        },
+                    )
+                })
+            })
+            .collect()
+    }
+
+    /// A file written, renamed or fetched by this pass: the picture now
+    /// holds it so that the next step on the same path has its version.
+    pub fn put(&mut self, path: String, state: FileState, version: String) {
+        self.versions.insert(path.clone(), version);
+        self.files.insert(path, state);
+    }
+
+    /// A file gone from the picture (a delete or the source of a rename).
+    pub fn remove(&mut self, path: &str) -> Option<(FileState, Option<String>)> {
+        let version = self.versions.remove(path);
+        self.files.remove(path).map(|f| (f, version))
+    }
+}
+
+/// Bring the picture up to date: the remote's listing, from the cursor the
+/// picture is at, or in full when it has none or the remote lost it. A file
+/// whose hash the listing lacks is looked up in `remembered` by its version
+/// and asked of the remote only when the version is new. The entries the
+/// listing named are returned with who made each, for the activity list.
+///
+/// The picture is left as it was when this fails.
+///
+/// # Errors
+/// What the remote's listing or a fingerprint failed with, other than a
+/// lost cursor (then the listing is asked in full) and a file gone since it
+/// was listed (then it is not in the picture).
+pub fn refresh(
+    remote: &dyn Remote,
+    known: &mut Option<Known>,
+    remembered: &BTreeMap<String, Token>,
+) -> Result<Vec<Who>> {
+    let after = known.as_ref().and_then(|k| k.cursor.clone());
+    let (listing, kept) = match remote.list(after.as_deref()) {
+        Err(e) if e.kind == RemoteErrorKind::CursorLost => (remote.list(None)?, None),
+        other => (other?, known.as_ref()),
+    };
+    let mut next = match (listing.full, kept) {
+        (false, Some(k)) => k.clone(),
+        _ => Known::default(),
+    };
+    let mut named = Vec::new();
+    let learn = |entry: &Entry, next: &mut Known| -> Result<Who> {
+        let hash = match &entry.hash {
+            Some(h) => Some(h.clone()),
+            None => {
+                let same = |t: &Token| t.version == entry.version;
+                let before = known
+                    .as_ref()
+                    .and_then(|k| k.versions.get(&entry.path).zip(k.files.get(&entry.path)))
+                    .filter(|(v, _)| **v == entry.version)
+                    .map(|(_, f)| f.hash.clone());
+                match before.or_else(|| {
+                    remembered
+                        .get(&entry.path)
+                        .filter(|t| same(t))
+                        .map(|t| t.hash.clone())
+                }) {
+                    Some(h) => Some(h),
+                    None => match remote.fingerprint(&entry.path) {
+                        Ok((version, hash)) if version == entry.version => Some(hash),
+                        // It changed between the listing and the read: the
+                        // next pass lists it again.
+                        Ok(_) => None,
+                        Err(e) if e.kind == RemoteErrorKind::NotFound => None,
+                        Err(e) => return Err(e),
+                    },
+                }
+            }
+        };
+        match hash {
+            Some(hash) => next.put(
+                entry.path.clone(),
+                FileState {
+                    hash,
+                    size: entry.size,
+                },
+                entry.version.clone(),
+            ),
+            None => {
+                next.remove(&entry.path);
+            }
+        }
+        Ok(Who {
+            path: entry.path.clone(),
+            by: entry.by.clone(),
+            device: entry.device.clone(),
+        })
+    };
+    for change in &listing.changes {
+        match change {
+            Change::Present(entry) => named.push(learn(entry, &mut next)?),
+            Change::Gone { path, by, device } => {
+                next.remove(path);
+                named.push(Who {
+                    path: path.clone(),
+                    by: by.clone(),
+                    device: device.clone(),
+                });
+            }
+            Change::Renamed { from, entry } => {
+                next.remove(from);
+                named.push(learn(entry, &mut next)?);
+            }
+        }
+    }
+    next.cursor = listing.cursor.or_else(|| {
+        // A remote with no feed has no cursor; one that gave none this
+        // time keeps the last.
+        kept.and_then(|k| k.cursor.clone())
+    });
+    *known = Some(next);
+    Ok(named)
+}
+
+#[cfg(test)]
+mod tests;

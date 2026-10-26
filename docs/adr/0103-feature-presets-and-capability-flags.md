@@ -1,139 +1,143 @@
-# ADR 0103 — Feature presets and capability flags: pure writing, worldbuilding, and tabletop RPG
+# ADR 0103 — Features: a visible switch for each optional feature, all on by default
 
-- Date: 2026-10-17
-- Source: the maintainer, on 2026-10-17, addressing the architectural review
-  of ADRs 0098–0102. Tabletop RPG and worldbuilding features (dice, secret
-  blocks, maps, statblocks, bundles, oracles) have entered the product, but
-  the invariant that Verso remains a pure, focused, distraction-free
-  Markdown workspace for novelists, journalists, and students must never be
-  compromised ([0003](0003-primitives-not-workarounds.md),
-  [0030](0030-base-dialect-obsidian-compatible.md),
-  [0036](0036-tabletop-rpg-support.md)). This ADR formalizes the capability
-  presets and the graceful degradation of all domain-specific features.
-- Related: [0003](0003-primitives-not-workarounds.md),
-  [0012](0012-files-are-source-of-truth.md),
-  [0015](0015-schema-packs.md),
-  [0030](0030-base-dialect-obsidian-compatible.md),
+- Date: 2026-10-17; rewritten 2026-10-20
+- Source: the maintainer, 2026-10-17, on a proposal of presets: *"tem que
+  ser visível o que está sendo desabilitado, porque talvez a pessoa queira
+  habilitar um ou outro recurso"* (what is being turned off has to be
+  visible, because a person may want to turn one feature or another on).
+  The first text of this ADR, written that day by another AI (Gemini, in
+  Antigravity) and marked Accepted with no acceptance by the maintainer,
+  made three named presets — "Escrita Pura", "Construção de Mundos", "RPG
+  Completo" — chosen from a list that said nothing of what each changed. On
+  2026-10-20 the maintainer: *"não tá claro pra mim o que muda esses
+  presets … eu acho que nem fica claro pro usuário também … ele deveria vir
+  habilitado por padrão um modo completo com todas as features. E eu não sei
+  se ele deveria chamar modo RPG"* (it isn't clear to me what these presets
+  change … nor to the user … it should come with a complete mode, every
+  feature on, by default; and I don't know that it should be called RPG
+  mode). This text replaces the first one; the answers of 2026-10-20 are
+  quoted in the items.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): the migration of item 4
+  decided as proposed (0103.4); a dated note added to item 4 and a new
+  item 7, because [0100](0100-visual-customization-wizard.md) item 3 (the
+  folder may suggest a theme), [0101](0101-3d-dice-physics-overlay.md) item
+  5 (a switch off by default) and [0106](0106-structured-data-as-a-diagram.md)
+  (a new switch) touch this ADR. Status Accepted.
+  2026-10-21, evening — where the switches live: the maintainer, *"os
+  recursos de rpg deveriam estar separados dos recursos da aplicação"*,
+  then, on seeing them as two groups inside one page, *"colocar esses
+  recursos de rpg dentro do grupo RPG & Mesa Solo"*. Settings ›
+  Features keeps the shortcuts "Everything" / "Writing only" (which
+  still cover every switch) and the general switches; the RPG switches
+  (dice, random tables, oracles, statblocks, the world wizard, 3D dice),
+  their "turn all on / off" (never turning 3D on) and the 3D dice
+  appearance move to a page "Dados e RPG" / "Dice and RPG", first in the
+  RPG & Solo Play group of Settings. The page name is the author's.
+- Related: [0012](0012-files-are-source-of-truth.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
   [0070](0070-what-travels-with-the-folder.md),
-  [0086](0086-infobox-a-typed-notes-card.md),
+  [0073](0073-self-hosted-server-first.md) item 5,
   [0088](0088-dice-and-random-tables.md),
   [0098](0098-world-and-campaign-wizard-template-bundles.md),
   [0099](0099-visual-markdown-statblocks-and-cards.md),
-  [0100](0100-visual-customization-wizard.md),
-  [0101](0101-3d-dice-physics-overlay.md),
   [0102](0102-creative-oracles-and-improvisation.md).
-- Status in the briefing: not present; foundational preset specification.
+- Status in the briefing: not present.
 
 ## Context
 
-Verso is built on the premise that files are the source of truth
-([0012](0012-files-are-source-of-truth.md)) and that its dialect extends
-Obsidian without contradicting it
-([0030](0030-base-dialect-obsidian-compatible.md)). A person writing an essay,
-a book, or technical documentation expects a clean reading and editing
-experience: code blocks look like code, inline code looks like code, and the
-command palette is not overwhelmed with game-mastering tools.
-
-At the same time, Verso provides rich tabletop gaming and worldbuilding
-capabilities ([0036](0036-tabletop-rpg-support.md),
-[0088](0088-dice-and-random-tables.md),
-[0098](0098-world-and-campaign-wizard-template-bundles.md),
-[0099](0099-visual-markdown-statblocks-and-cards.md),
-[0102](0102-creative-oracles-and-improvisation.md)). Without explicit
-feature gating, heuristic triggers (such as detecting `hp:` or `ac:` in
-frontmatter) could erroneously turn a real estate or hardware note into a
-monster sheet, and RPG commands would clutter non-gaming vaults.
-
-A unified capability and preset architecture is therefore required to
-govern how features activate, where settings live, and how unenabled
-constructs degrade gracefully without modifying files.
+Verso serves someone writing a novel and someone running a campaign. A
+person who only writes should be able to keep game tools out of sight; a
+person who plays wants all of them. A preset with a name says neither what
+it turns off nor how to get one thing back: the first build's three presets
+differed, in practice, by one feature, and three of their six flags were
+never read.
 
 ## Decision
 
-Proposed (2026-10-17). Accepted on 2026-10-17 (Status): each `[OPEN]` was decided as
-recommended and is marked `[DECIDED 2026-10-17]`.
+Accepted on 2026-10-20 (the maintainer: *"adorei as sugestões e melhorias
+e correções. pode definir uma sequencia e atuar em tudo"* — I loved the
+suggestions, improvements and fixes; set an order and act on all of it),
+for the design proposed to him that day; `[DECIDED 2026-10-21]` marks a
+detail he decided later, by marking an option of the questionnaire of
+2026-10-20.
 
-1. **Three standard presets are established.**
-   `[DECIDED 2026-10-17]`:
-   - **`writing` ("Escrita Pura" / "Pure Writing")**: A distraction-free
-     environment for authors and researchers. All gaming-specific widgets
-     are turned off. `` `dice: ...` `` renders as standard inline code;
-     a `statblock` code block renders as syntax-highlighted code;
-     `[!oracle]` callouts render as generic callouts. RPG commands and
-     templates are hidden from the palette and project wizard.
-   - **`worldbuilding` ("Construção de Mundos" / "Worldbuilding")**: For
-     creative worldbuilders, novelists, and screenwriters. Random tables,
-     creative oracles ([0102](0102-creative-oracles-and-improvisation.md)),
-     infoboxes ([0086](0086-infobox-a-typed-notes-card.md)), and world lore
-     template bundles
-     ([0098](0098-world-and-campaign-wizard-template-bundles.md)) are
-     active. Statblock rendering and 3D dice remain off.
-   - **`rpg` ("RPG Completo" / "Tabletop RPG")**: For players and game
-     masters. All features are active: inline dice rolling
-     ([0088](0088-dice-and-random-tables.md)), visual statblocks
-     ([0099](0099-visual-markdown-statblocks-and-cards.md)), creative
-     oracles ([0102](0102-creative-oracles-and-improvisation.md)),
-     campaign bundles, and optional 3D dice
-     ([0101](0101-3d-dice-physics-overlay.md)).
+1. **One switch per optional feature, in Settings › App › Features.** Each
+   says in one line what it adds and where it shows:
+   - **Dice** — `` `dice: 1d20+3` `` in a note becomes a button; the "Roll
+     dice…" command; the roll buttons of a statblock ([0088](0088-dice-and-random-tables.md)).
+   - **Random tables** — a table or list with an `^id` rolls ([0088](0088-dice-and-random-tables.md)
+     item 3).
+   - **Oracles** — the buttons of `[!oracle]`, the "Ask the oracle"
+     command and its `/` item ([0102](0102-creative-oracles-and-improvisation.md)).
+   - **Statblocks** — a `statblock` block drawn as a card ([0099](0099-visual-markdown-statblocks-and-cards.md)).
+   - **Project wizard** — creating a world, campaign or book from a bundle
+     ([0098](0098-world-and-campaign-wizard-template-bundles.md)).
+   A feature that is not built has no switch. Secrets, maps and the infobox
+   are part of the core and have none.
 
-2. **Settings layering follows ADR 0070.**
-   `[DECIDED 2026-10-17]`: A person's active preset is kept in **local
-   settings** (`localStorage` / desktop config, unsynced), preserving
-   individual preference. A vault may declare a recommended preset in
-   `.verso/settings.json` (`"preset": "rpg"`). When opening a vault for the
-   first time, the window adopts the vault's recommended preset; the person
-   may change their local preset at any time without dirtying the vault's
-   files.
+2. **Everything on by default.** *"deveria vir habilitado por padrão um
+   modo completo com todas as features"*.
 
-3. **Granular capability flags underpin presets.**
-   `[DECIDED 2026-10-17]`: Presets are bundles of boolean capability flags:
-   `diceRolling`, `randomTables`, `oracles`, `statblocks`, `campaignBundles`,
-   and `threeDice`. Power users may fine-tune individual flags under
-   Settings › Capabilities.
+3. **Shortcuts named by what they do**: "Everything" and "Writing only".
+   Before applying, a shortcut shows exactly what it turns on and off, and
+   nothing changes on cancel. Only the switches are stored; switches that
+   match no shortcut read "Custom". No mode is called "RPG".
 
-4. **Graceful degradation is universal and leaves files untouched.**
-   `[DECIDED 2026-10-17]`: Turning off a capability never mutates any note
-   on disk ([0012](0012-files-are-source-of-truth.md)). CodeMirror 6
-   view plugins and decorators inspect the active flags:
-   - When `statblocks` is disabled, `statblock` code blocks are drawn as
-     fenced code, and `layout: statblock` notes render standard frontmatter
-     or infoboxes ([0086](0086-infobox-a-typed-notes-card.md)).
-   - When `oracles` is disabled, `[!oracle]` renders as a standard callout
-     without interactive action buttons.
-   - When `diceRolling` is disabled, `` `dice: ...` `` renders as standard
-     inline code.
-   - Palette commands corresponding to inactive capabilities are filtered out.
+4. **The person's choice, not the folder's.** The switches are the
+   person's settings ([0070](0070-what-travels-with-the-folder.md) item 1;
+   on a server, the account's, [0073](0073-self-hosted-server-first.md)
+   item 5). A folder never turns a feature on or off. `[DECIDED 2026-10-21]` (0103.4,
+   option A): a build
+   that stored a preset reads it once — writing → all off, worldbuilding →
+   all on but statblocks, anything else → all on — and drops it.
+   *Note, 2026-10-21 — themes differ.* "Never the folder" is the rule for
+   feature switches. For themes the maintainer decided otherwise, knowingly
+   (0100.3, option B, in [0100](0100-visual-customization-wizard.md)
+   item 3): a theme is the person's choice, and a folder may add an
+   optional `recommendedTheme` suggestion in `.verso/settings.json` that the
+   person accepts or ignores. This is a decision of the maintainer for
+   themes only; it changes nothing for the switches.
 
-5. **Accessibility and internationalization ([0035](0035-cross-cutting-requirements.md)).**
-   `[DECIDED 2026-10-17]`: Preset names and descriptions are localized in
-   both Portuguese (`pt-BR`) and English (`en`). Switching presets
-   announces the newly active mode in a polite live region (`aria-live="polite"`).
-   The preset switcher uses proper radiogroup semantics (`role="radiogroup"`
-   and `role="radio"` with `aria-checked`).
+5. **Off changes no file and hides nothing for good.** Off, the construct
+   is drawn as what Obsidian draws without a plugin — inline code, a code
+   block, a plain callout — and its commands and `/` items are gone; a
+   settings page of an off feature says it is off, with a button to turn it
+   on. A change applies at once, without a reload, and is announced.
+
+6. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
+   a fieldset with a legend; each switch labelled, its line its
+   description; keyboard only works; every word in pt-BR and EN.
+
+7. **Two switches whose rule is not "on by default".** `[DECIDED
+   2026-10-21]`:
+   - **Data diagram** (0106.6, option A) — a switch in Settings › App ›
+     Features, on by default like the others; off, no button of the
+     diagram appears ([0106](0106-structured-data-as-a-diagram.md)). It
+     exists when the feature is built.
+   - **3D dice** (0101.5, option A) — its own switch, "3D dice", **off by
+     default even with "Everything" on**: the one expensive feature in
+     weight and battery, so item 2 has this one exception, approved by the
+     maintainer. The "Everything" shortcut says before applying that it does
+     not turn 3D dice on. With reduced motion on it never animates, switch on
+     or not. Sound is another switch, off. It exists when the feature is
+     built ([0101](0101-3d-dice-physics-overlay.md)).
 
 ## Consequences
 
-- The application settings store gains a `preset` key and capability flags.
-- CodeMirror decoration extensions for dice, statblocks, and oracles check
-  the active capabilities before creating widgets.
-- The command palette respects capability filters, keeping navigation lean
-  for pure writers.
-- The project wizard ([0098](0098-world-and-campaign-wizard-template-bundles.md))
-  filters available templates based on the active preset.
-- Documentation and demo vaults ([0058](0058-demo-vault-as-tutorial.md))
-  gain examples of each preset.
+- `app/ui/src/capabilities.ts` keeps `hasCapability(id)` as the one gate;
+  the preset id and its list are gone.
+- The project wizard lists every bundle; it no longer filters by preset.
 
 ## Discarded alternatives
 
-- **Separate binaries or compile-time flags**: Rejected because users often
-  wear multiple hats (writing a novel in one folder, running an RPG session
-  in another) using the same application.
-- **Dynamic community plugin marketplace**: Rejected as premature; core
-  capabilities are first-class primitives ([0003](0003-primitives-not-workarounds.md))
-  gated by transparent flags.
+- **Named presets** (the first build): the maintainer could not tell what
+  they changed.
+- **A preset recommended by the folder**: a person opening a shared folder
+  would find their tools changed by someone else's choice.
 
 ## Status
 
-**Accepted (2026-10-17).**
+Accepted (2026-10-20), the design proposed to the maintainer that day; item
+4's migration decided on 2026-10-21.

@@ -1,0 +1,43 @@
+filters:
+  and:
+    - file.inFolder("projects")
+formulas:
+  budget_k: "(budget / 1000).toFixed(1)"
+  mes: 'date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")'
+properties:
+  formula.budget_k:
+    displayName: Budget (thousands)
+  formula.mes:
+    displayName: Month
+views:
+  - type: table
+    name: All Projects
+    order:
+      - file.name
+      - status
+      - priority
+      - owner
+      - budget
+      - formula.budget_k
+      - formula.mes
+    sort:
+      - property: date
+        direction: DESC
+    summaries:
+      budget: Sum
+  - type: kanban
+    name: By Status
+    groupBy: status
+  - type: cards
+    name: Cards
+  - type: calendar
+    name: Calendar
+    startDate: date
+  - type: list
+    name: Project List
+  - type: map
+    name: Map
+    order:
+      - file.name
+      - status
+    coordinates: note.location

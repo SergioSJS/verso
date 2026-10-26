@@ -18,9 +18,15 @@ import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
+import { hasCapability } from "../../capabilities";
+import { wireRollBlocks } from "../../rollblock/wire";
+import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
+import type { DieLook } from "../../statblock/inline";
+import { sameText, writeInReading, type Value, type ValuePath } from "../../statblock/edit";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
+import { headingVisibility, setHeadingFolded } from "./folds";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
 import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
@@ -34,8 +40,14 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
-import { wireDice } from "../../dice/card";
+import { diceBox, wireDice } from "../../dice/card";
+import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
+import { diagramLang, openBlockDiagram } from "../../datagraph/block";
+import { dgw } from "../../datagraph/words";
+
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -97,9 +109,43 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
   }
 }
 
+/** The statblocks of the reading view drawn as cards (ADR 0099): their
+ *  dice the note's own (in a room, the server rolls), their trackers
+ *  written through the oracle's safe path — found again by their text
+ *  among the note's (statblock/edit.ts). A card of an embedded note is
+ *  drawn, never written to, and its picture is read as its own note names
+ *  it (`source`: the note the cards under `root` belong to). */
+export function wireStatblocks(this: NoteLeaf, root: HTMLElement, source: string = this.path): void {
+  if (!hasCapability("statblocks")) return;
+  const dice = hasCapability("diceRolling");
+  const host = { path: () => this.path, follow: (target: string) => this.follow(target) };
+  const found: { code: HTMLElement; pre: HTMLElement; text: string; own: boolean }[] = [];
+  for (const code of root.querySelectorAll<HTMLElement>("pre > code")) {
+    if (!isStatblockCode(code)) continue;
+    const pre = code.parentElement;
+    if (!pre || pre.dataset["statblockRendered"]) continue;
+    found.push({ code, pre, text: code.textContent ?? "", own: !pre.closest(".embed-note, .embed, .embed-base, .embed-pdf") });
+  }
+  const mine = found.filter((f) => f.own);
+  found.forEach((f, index) => {
+    f.pre.dataset["statblockRendered"] = "true";
+    const same = mine.filter((m) => sameText(m.text, f.text));
+    const ordinal = same.indexOf(f);
+    const card = renderStatblockHost(f.text, {
+      source,
+      key: source,
+      ...(dice ? { dice: (notation: string, look?: DieLook) => diceBox({ kind: "roll", notation }, host, { ...look, popover: true }) } : {}),
+      rolls: dice,
+      ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
+    });
+    f.pre.replaceWith(card);
+  });
+}
+
 export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
   for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
-    if (pre.querySelector(".copy-code-btn")) continue;
+    // A statblock's source and its error text have the card's own buttons.
+    if (pre.querySelector(".copy-code-btn") || pre.closest(".statblock-host, .statblock-card")) continue;
     pre.style.position = "relative";
     const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     foldBtn.type = "button";
@@ -124,11 +170,26 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
       });
     });
     pre.append(foldBtn, btn);
+    // JSON, YAML, TOML, XML and CSV: the block as a diagram, beside the note (ADR 0106).
+    const code = pre.querySelector("code");
+    const lang = Array.from(code?.classList ?? []).find((c) => c.startsWith("language-"))?.slice(9) ?? "";
+    if (lang !== "" && diagramLang(lang) !== null) {
+      const view = h("button", "copy-code-btn dg-view-btn");
+      view.type = "button";
+      view.title = dgw.viewAsDiagram;
+      view.setAttribute("aria-label", dgw.viewAsDiagram);
+      view.dataset["action"] = "view-diagram";
+      view.append(icon("diagram"));
+      view.addEventListener("click", () => openBlockDiagram(this, lang, code?.textContent ?? pre.textContent ?? ""));
+      pre.append(view);
+    }
   }
 }
 
 export function wirePreviewImages(this: NoteLeaf, root: HTMLElement): void {
   for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+    // A statblock's portrait is the card's: no grip, no size from its alt.
+    if (img.closest(".statblock-card")) continue;
     const alt = img.getAttribute("alt") ?? "";
     const size = sizeOf(alt);
     if (size?.w) img.style.width = `${size.w}px`;
@@ -248,23 +309,17 @@ export function persistImageSize(this: NoteLeaf, img: HTMLImageElement, rawSrc: 
 export function wireHeadingFolds(this: NoteLeaf, root: HTMLElement): void {
   const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
   for (const h of headings) {
-    if (h.querySelector(".heading-fold-btn")) continue;
+    // A statblock's headings are the card's, not the note's sections.
+    if (h.querySelector(".heading-fold-btn") || h.closest(".statblock-card")) continue;
     const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     btn.type = "button";
+    btn.setAttribute("aria-expanded", "true");
     h.prepend(btn);
     const toggle = () => {
-      const level = parseInt(h.tagName.slice(1), 10);
       const folded = !h.classList.contains("heading-folded");
-      h.classList.toggle("heading-folded", folded);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = folded ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+      setHeadingFolded(h, folded);
+      if (h.parentElement) headingVisibility(h.parentElement);
+      this.setFold(h.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -293,6 +348,7 @@ export function wireListFolds(this: NoteLeaf, root: HTMLElement): void {
       const folded = !li.classList.contains("list-folded");
       li.classList.toggle("list-folded", folded);
       btn.setAttribute("aria-expanded", String(!folded));
+      this.setFold(li.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -319,6 +375,7 @@ export function wireBlockquoteFolds(this: NoteLeaf, root: HTMLElement): void {
       e.stopPropagation();
       bq.classList.toggle("quote-folded");
       btn.setAttribute("aria-expanded", String(!bq.classList.contains("quote-folded")));
+      this.setFold(bq.dataset["foldKey"], bq.classList.contains("quote-folded"));
     });
   }
 }
@@ -402,20 +459,14 @@ export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: 
 
 export function foldAllHeadings(this: NoteLeaf, fold: boolean): void {
   if (this.mode === "preview") {
-    const headings = Array.from(this.preview.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
-    for (const h of headings) {
-      const level = parseInt(h.tagName.slice(1), 10);
-      h.classList.toggle("heading-folded", fold);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = fold ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+    for (const h of this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
+      if (h.dataset["foldKey"] === undefined) continue;
+      setHeadingFolded(h, fold);
+      if (fold) this.folds.add(h.dataset["foldKey"]);
+      else this.folds.delete(h.dataset["foldKey"]);
     }
+    headingVisibility(this.preview);
+    this.keepFolds();
   } else {
     if (fold) foldAll(this.editor);
     else unfoldAll(this.editor);
@@ -436,7 +487,8 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   const active = document.activeElement;
   const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
   // The same note drawn again keeps its callouts as the user left them.
-  const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
+  const sameNote = this.shownPath === note.path;
+  const open = sameNote ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
   this.shownPath = note.path;
   for (const card of this.cards) {
     card.destroy();
@@ -451,8 +503,12 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   // the core, read-only.
   this.readerView.offer(note.path, note.text);
   const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  // The same note drawn again stays where the person was reading: taking
+  // the old blocks out lets WebKit drop the sheet's scroll to the top.
+  const kept = sameNote && this.preview.childElementCount > 0 ? this.sheet.scrollTop : null;
   setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
-  wireCallouts(this.preview, open);
+  if (kept !== null && this.sheet.scrollTop !== kept) this.sheet.scrollTop = kept;
+  wireCallouts(this.preview, open, this);
   keyLinks(this.preview);
   this.shownText = note.text;
   this.gatherFootnotes();
@@ -464,12 +520,16 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.dressLinks(note.path);
   if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
+  this.wireStatblocks(this.preview);
+  wireRollBlocks(this.preview, this.path, ROLL_HOST);
   this.wireCodeBlocks(this.preview);
+  wireSwatches(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
+  this.applyReadingFolds(this.preview);
   this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
@@ -503,6 +563,15 @@ export function dressLinks(this: NoteLeaf, path: string): void {
     // A note outside what was shared: like an unresolved link, and it says
     // so (ADR 0081 item 11); it never makes a note.
     const out = to === null && this.isOutside(target);
+    // A read link's window (ADR 0105 item 2): a link to what was not
+    // shared is plain text that says so, not a link to nothing.
+    if (out && document.documentElement.dataset["visitor"]) {
+      const plain = h("span", "link-outside", a.textContent ?? target);
+      plain.append(h("small", "link-outside-note", ` (${sh.notSharedShort})`));
+      plain.title = sh.notShared;
+      a.replaceWith(plain);
+      continue;
+    }
     a.classList.toggle("outside", out);
     if (out) {
       a.title = sh.notShared;
@@ -595,6 +664,8 @@ export function dress(this: NoteLeaf, forPath: string): void {
       span.replaceWith(box);
       void this.embedImages(forPath, body, to);
       void noteImages(body, to);
+      this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
 
       let activeCard: CardEditing | null = null;
       let destroyed = false;
@@ -620,6 +691,8 @@ export function dress(this: NoteLeaf, forPath: string): void {
           this.wireMermaidBlocks(body);
           void this.embedImages(forPath, body, to);
           void noteImages(body, to);
+          this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
         }
         destroyed = false;
       };
@@ -724,7 +797,7 @@ export function livePdf(this: NoteLeaf, target: string, mount: HTMLElement): () 
   void commands.resolveAttachment(this.path, spec.file).then((r) => {
     if (destroyed) return;
     if (r.status !== "ok" || !r.data) {
-      mount.textContent = `PDF não encontrado: ${spec.file}`;
+      mount.textContent = t.pdfNotFound(spec.file);
       mount.style.display = "flex";
       mount.style.alignItems = "center";
       mount.style.justifyContent = "center";

@@ -25,6 +25,8 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
     let created = ws.create_note("nova/Alvo", "# Alvo\n").unwrap();
     assert_eq!(created.path, "nova/Alvo.md");
     assert!(!created.stale);
+    // The folder it made is listed at once, with no walk in between.
+    assert!(ws.folders().contains(&"nova".to_owned()));
     assert!(matches!(
         ws.create_note("nova/Alvo.md", "x"),
         Err(CoreError::Write(verso_core::WriteError::Exists))

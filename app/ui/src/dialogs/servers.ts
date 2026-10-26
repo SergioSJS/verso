@@ -21,6 +21,7 @@ import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
+import { cp as cp2 } from "../campaignStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
 /** A sentence whose names stand out: a name is `[name]`. */
@@ -31,6 +32,7 @@ const pt = {
   connect: "Conectar a um servidor",
   connectDesc: "Um UniVerso — um servidor Verso — onde você tem conta. O navegador abre a página dele para você entrar, colar o código que este app copia e permitir este computador; ninguém cola senha aqui.",
   addressLabel: "Endereço do servidor",
+  addressPlaceholder: "https://notas.exemplo",
   connectButton: "Conectar",
   // The code is copied before the page opens (decided 2026-10-14, ADR
   // 0083 As built); shown as well, to type when the copy was refused.
@@ -87,6 +89,7 @@ const en: typeof pt = {
   connect: "Connect to a server",
   connectDesc: "A UniVerso — a Verso server — where you have an account. The browser opens its page for you to sign in, paste the code this app copies and allow this computer; no password is pasted here.",
   addressLabel: "Server address",
+  addressPlaceholder: "https://notes.example",
   connectButton: "Connect",
   copied: "Code copied — paste it on the page that opened: ",
   notCopied: "Type this code on the page that opened: ",
@@ -179,6 +182,12 @@ export function hearServers(): void {
   void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
     const p = e.payload;
+    // The game master closed the table: said as that, in the folder's place
+    // (tableClosed.ts); the host tries again by itself.
+    if (p.what === "closed") {
+      ui.status.textContent = cp2.closedStatus;
+      return;
+    }
     if (p.what === "folder") {
       refusedAt.add(p.url);
       serverState()?.remove();
@@ -277,7 +286,7 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
   url.type = "url";
   url.id = "srv-address";
   url.required = true;
-  url.placeholder = "https://notas.exemplo";
+  url.placeholder = s.addressPlaceholder;
   url.setAttribute("autocomplete", "url");
   url.addEventListener("keydown", (e) => e.stopPropagation());
   label.htmlFor = url.id;

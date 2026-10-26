@@ -28,12 +28,33 @@ export type Rules = { ignoredFolders: string[]; ignoredNames: string[] };
 /** A name found at the end of the typed words: where it starts in the
  *  text before the cursor, the words as typed, the note it names, and
  *  whether the words are an alias rather than the note's name. */
-export type Hit = { start: number; text: string; path: string; name: string; alias: boolean };
+export type Hit = {
+  start: number;
+  text: string;
+  path: string;
+  name: string;
+  alias: boolean;
+  /** A partial suggestion only: the whole name (or alias) the typed words
+   *  begin, as the note spells it. */
+  full?: string;
+};
 
-type Entry = { path: string; name: string; alias: boolean; segments: number };
+type Entry = { path: string; name: string; alias: boolean; segments: number; text: string };
+
+/** The most entries a partial list holds (ADR 0089 item 5, 2026-10-20). */
+export const MAX_PARTIAL = 5;
+/** How many keys of one prefix are looked at before ranking. */
+const SCAN = 2000;
+/** A capital letter or a digit: names, and notes named by a date or a
+ *  number ("2026-10-20", "00 - Welcome"). */
+const CAPITAL = /^[\p{Lu}\p{N}]/u;
+const LETTERS = /[\p{L}\p{N}]/gu;
 
 /** A name shorter than this is never suggested. */
 export const MIN_LENGTH = 3;
+/** What the partial list asks of the typed words: the person's two settings
+ *  (the whole-name chip keeps `MIN_LENGTH`). */
+export type PartialRule = { minLetters: number; capitalOnly: boolean };
 
 /** Two spellings of a name are one when they fold alike: composed (NFC),
  *  lower case. */
@@ -115,6 +136,8 @@ export class LinkNames {
   private reach = 0;
   /** How many names the map holds. */
   readonly size: number;
+  /** The keys in order, built when a partial list is first asked for. */
+  private sorted: string[] | null = null;
 
   constructor(notes: NoteNames[], rules: Rules) {
     const folders = rules.ignoredFolders.map((f) => f.trim().replace(/^\/+|\/+$/g, "").normalize("NFC")).filter(Boolean);
@@ -128,7 +151,7 @@ export class LinkNames {
       for (const [text, alias] of names) {
         const key = fold(text.trim());
         if (Array.from(key).length < MIN_LENGTH || skipped.has(key)) continue;
-        const entry: Entry = { path: note.path, name: note.name, alias, segments };
+        const entry: Entry = { path: note.path, name: note.name, alias, segments, text: text.trim() };
         const list = this.byKey.get(key);
         if (list) list.push(entry);
         else this.byKey.set(key, [entry]);
@@ -149,9 +172,15 @@ export class LinkNames {
    *  continue the word, and the words are prose. `self` is the note being
    *  written: it is never suggested, and a name of several notes goes to
    *  the one nearest `self`'s folder. */
-  find(before: string, next: string, self: string): Hit | null {
-    if (this.size === 0 || before === "") return null;
+  find(typed: string, next: string, self: string): Hit | null {
+    if (this.size === 0 || typed === "") return null;
     if (wordy(next[0])) return null;
+    // A space or a mark of punctuation after the name does not end the
+    // suggestion: it stays until the next word starts.
+    let end = typed.length;
+    while (end > 0 && !wordy(typed[end - 1])) end--;
+    const before = typed.slice(0, end);
+    if (before === "") return null;
     const floor = Math.max(0, before.length - this.reach);
     // Word starts inside the reach, from the last one back, at most as
     // many as a name has.
@@ -177,5 +206,65 @@ export class LinkNames {
       return { start, text, path: near.path, name: near.name, alias: near.alias };
     }
     return null;
+  }
+
+  /** The names the words just typed begin (ADR 0089 item 5, 2026-10-20):
+   *  the cursor at the end of a word of three letters or more in all, the
+   *  first word of the span beginning with a capital letter or a digit, the span a
+   *  strict prefix of a name or alias. The longest span first, then the
+   *  notes nearest `self`'s folder, then the shortest name; at most five
+   *  notes, `self` never among them. */
+  partial(before: string, next: string, self: string, rule: PartialRule = { minLetters: MIN_LENGTH, capitalOnly: true }): Hit[] {
+    if (this.size === 0 || before === "" || wordy(next[0]) || !wordy(before[before.length - 1])) return [];
+    if (!this.sorted) this.sorted = Array.from(this.byKey.keys()).sort(byBytes);
+    const keys = this.sorted;
+    const floor = Math.max(0, before.length - this.reach);
+    const starts: number[] = [];
+    for (let i = before.length - 1; i >= floor && starts.length < this.starts; i--) {
+      if (wordy(before[i]) && (i === 0 || !wordy(before[i - 1]))) starts.push(i);
+    }
+    const home = dirOf(self);
+    const out: Hit[] = [];
+    const seen = new Set<string>();
+    for (let k = starts.length - 1; k >= 0; k--) {
+      const start = starts[k] ?? 0;
+      const text = before.slice(start);
+      if (rule.capitalOnly && !CAPITAL.test(text)) continue;
+      if ((text.match(LETTERS)?.length ?? 0) < rule.minLetters) continue;
+      const head = text.slice(0, 2).normalize("NFD").toLowerCase()[0];
+      if (head === undefined || !this.first.has(head)) continue;
+      const prefix = fold(text);
+      let lo = 0;
+      let hi = keys.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if ((keys[mid] ?? "") < prefix) lo = mid + 1;
+        else hi = mid;
+      }
+      const found: { entry: Entry; key: string }[] = [];
+      for (let i = lo; i < keys.length && i < lo + SCAN; i++) {
+        const key = keys[i] ?? "";
+        if (!key.startsWith(prefix)) break;
+        if (key === prefix) continue;
+        for (const entry of this.byKey.get(key) ?? []) if (entry.path !== self) found.push({ entry, key });
+      }
+      if (found.length === 0) continue;
+      if (!proseBefore(before, start)) return [];
+      found.sort(
+        (a, b) =>
+          Number(!(home === "" || a.entry.path.startsWith(`${home}/`))) - Number(!(home === "" || b.entry.path.startsWith(`${home}/`))) ||
+          a.key.length - b.key.length ||
+          a.entry.segments - b.entry.segments ||
+          byBytes(a.entry.path, b.entry.path) ||
+          Number(a.entry.alias) - Number(b.entry.alias),
+      );
+      for (const { entry } of found) {
+        if (seen.has(entry.path)) continue;
+        seen.add(entry.path);
+        out.push({ start, text, path: entry.path, name: entry.name, alias: entry.alias, full: entry.text });
+        if (out.length >= MAX_PARTIAL) return out;
+      }
+    }
+    return out;
   }
 }

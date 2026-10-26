@@ -13,7 +13,7 @@
 // write the file — a reader has none (item 6).
 
 import { commands, type ContractError, type HistoryListing, type VersionAuthor, type VersionEntry } from "../bindings";
-import { canWrite } from "../can";
+import { may } from "../access";
 import { afterFileChange } from "../changes";
 import { ask } from "../dialog";
 import { diffLines, diffNode } from "../diff";
@@ -29,7 +29,7 @@ import { historyStrings } from "./historyStrings";
 
 /** Whether this window may open a file's history now. */
 export function historyFor(path: string | null | undefined): path is string {
-  return Boolean(path) && canWrite() && hasHistory(path as string);
+  return Boolean(path) && may(path as string, "edit") && hasHistory(path as string);
 }
 
 function size(bytes: number): string {
@@ -371,5 +371,5 @@ export function historyButton(path: string | null): void {
     ui.words.after(bar);
   }
   bar.hidden = !historyFor(path);
-  bar.dataset["path"] = path ?? "";
+  bar.dataset["path"] = bar.hidden ? "" : (path ?? "");
 }

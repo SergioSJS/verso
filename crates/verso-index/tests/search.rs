@@ -315,3 +315,47 @@ fn the_notes_holding_a_phrase_are_the_candidates_of_a_mention() {
     assert!(index.notes_holding("", 10).unwrap().is_empty());
     assert_eq!(index.notes_holding("porto", 1).unwrap().len(), 1);
 }
+
+/// Spec Q22 b, decided 2026-10-21: a nested tag also counts for the tags
+/// above it, as Obsidian 1.13.7's tag pane does (`#a` 2, `#a/b` 1 for one
+/// note of `#a` and one of `#a/b`).
+#[test]
+fn a_nested_tag_counts_for_the_tags_above_it() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "n.md", "Corpo #a/b/c e #alpha\n");
+    put(&mut index, "f.md", "Corpo #a\n");
+    let tags = index.tags().unwrap();
+    let count = |name: &str| tags.iter().find(|(n, _)| n == name).map(|(_, p)| p.clone());
+    assert_eq!(count("a"), Some(vec!["f.md".to_owned(), "n.md".to_owned()]));
+    assert_eq!(count("a/b"), Some(vec!["n.md".to_owned()]));
+    assert_eq!(count("a/b/c"), Some(vec!["n.md".to_owned()]));
+    assert_eq!(count("alpha"), Some(vec!["n.md".to_owned()]));
+}
+
+/// Spec Q22 c and Q24 b, decided 2026-10-21 and observed on Obsidian
+/// 1.13.7: a `#` in a frontmatter tag is no part of its name, and only a
+/// string is a tag. DL.2 = B (maintainer, 2026-10-21), knowingly unlike
+/// Obsidian: an integer or a string of digits is the tag of its text
+/// (`tags: 2024`, `[2025, yes]`); a boolean or a float is none.
+#[test]
+fn frontmatter_tags_drop_the_hash_and_a_number_is_its_text() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "h.md", "---\ntags: [\"#ideia\"]\n---\n");
+    put(&mut index, "p.md", "---\ntags: [ideia]\n---\n");
+    put(&mut index, "n.md", "---\ntags: 2024\n---\n");
+    put(
+        &mut index,
+        "m.md",
+        "---\ntags: [2025, yes, true, 1.5, \"7\", x/y]\n---\n",
+    );
+    let tags = index.tags().unwrap();
+    let mut names: Vec<&str> = tags.iter().map(|(n, _)| n.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        ["2024", "2025", "7", "ideia", "x", "x/y", "yes"],
+        "{tags:?}"
+    );
+    let ideia = tags.iter().find(|(n, _)| n == "ideia").unwrap();
+    assert_eq!(ideia.1, ["h.md", "p.md"]);
+}

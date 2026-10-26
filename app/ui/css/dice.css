@@ -25,16 +25,70 @@
 .dice-again:hover, .dice-close:hover { color: var(--ink); border-color: var(--hair); }
 .dice-close { display: inline-flex; align-items: center; padding: .1rem; }
 .dice-close .icon { width: 12px; height: 12px; }
+/* A card's die (a statblock's, card.ts `popover`): its result opens over
+   the card, under the die (over it when there is no room below), kept
+   inside the card by card.ts; the line it is in never moves. */
+.dice-pop { position: relative; }
+.dice-pop > .dice-card {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  /* card.ts moves it by `left` and reads it back at once: the reduced-motion
+     rule gives every element a .01ms transition of `all`, and a `left` that
+     transitions is read a frame late, the shift counted twice. */
+  transition-property: none;
+  width: max-content;
+  max-width: min(19rem, 100cqi - 12px);
+  font-size: .8rem;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  font-variant: normal;
+  font-style: normal;
+  font-weight: 400;
+  text-decoration: none;
+  padding: .25rem .25rem .25rem .55rem;
+  box-shadow: 0 8px 22px -10px oklch(0% 0 0 / .45);
+}
+.dice-pop > .dice-button[aria-expanded="true"] { border-color: var(--brass); background: color-mix(in oklch, var(--brass) 22%, var(--brass-wash)); }
+.dice-pop > .dice-card.dice-above { top: auto; bottom: calc(100% + 4px); }
 
 /* The roller of the palette (item 6). */
 .dice-roller-box { position: relative; padding: 1rem 1.1rem 1.1rem; gap: .7rem; width: min(30rem, calc(100vw - 32px)); }
 .dice-roller-title { margin: 0; font-family: var(--display); font-size: 1.1rem; font-weight: 500; color: var(--heading-color); }
 .dice-roller-close { position: absolute; top: .6rem; right: .6rem; }
 .dice-roller-row { display: flex; gap: .5rem; }
-.dice-roller-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: .45rem .6rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; }
+.dice-roller-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: .45rem .6rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--control-line); border-radius: 6px; }
 .dice-roller-go { display: inline-flex; align-items: center; gap: .4rem; }
 .dice-roller-go .icon { width: 13px; height: 13px; }
 .dice-roller-out { display: flex; align-items: baseline; gap: .6rem; min-height: 1.6rem; }
 .dice-roller-out .dice-total { font-size: 1.6rem; }
 .dice-roller-out.failed { color: var(--seal); }
 .dice-roller-hint { margin: 0; font-size: .8rem; color: var(--ink-3); }
+
+/* The 3D dice (ADR 0101): a transparent canvas over the window. It never
+ * catches a tap (pointer-events none, set by the stage), so the page works
+ * under the dice; they stay on the table, as in Rolai, until a click on
+ * something that is not a control, Esc or the next roll removes them. It is
+ * aria-hidden. */
+/* The stage sets left, top, width and height: the lower part of the active pane. */
+.dice3d-canvas { position: fixed; z-index: 5000; pointer-events: none; }
+
+/* The 3D dice's appearance settings (Settings › Features). */
+.dice3d-colour { display: flex; align-items: center; gap: .5rem; }
+.dice3d-ink { display: flex; flex-direction: column; gap: .4rem; align-items: flex-end; }
+.dice3d-contrast { margin: 0; max-width: 24rem; font-size: .8rem; color: var(--ink-3); text-align: right; }
+.dice3d-contrast[data-low="true"] { color: var(--seal); font-weight: 600; }
+.dice3d-preview { display: flex; flex-direction: column; gap: .4rem; align-items: flex-end; }
+.dice3d-say { margin: 0; min-height: 1.1em; max-width: 24rem; font-size: .8rem; color: var(--ink-3); text-align: right; }
+.dice3d-size { display: flex; align-items: center; gap: .6rem; }
+.dice3d-size-out { min-width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
+.dice3d-slots { display: flex; flex-direction: column; gap: .6rem; align-items: flex-end; }
+.dice3d-tabs { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+.dice3d-tab { padding: .3rem .7rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink-2); cursor: pointer; }
+.dice3d-tab[aria-selected="true"] { background: var(--brass-wash); border-color: var(--brass); color: var(--ink); }
+.dice3d-tiles { display: flex; gap: .6rem; }
+.dice3d-tile { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; color: var(--ink-3); font-size: .75rem; }
+.dice3d-tile.selected { border-color: var(--brass); }
+.dice3d-tile canvas { width: 56px; height: 56px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }

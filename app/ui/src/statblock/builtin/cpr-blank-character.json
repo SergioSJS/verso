@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "id": "cpr-blank-character",
+  "name": {
+    "pt": "Ficha em branco — Cyberpunk RED",
+    "en": "Blank sheet — for Cyberpunk RED"
+  },
+  "description": {
+    "pt": "Uma ficha em branco, só com nomes de campos, gratuita e sem texto de regras. Conteúdo não oficial sob a Homebrew Content Policy da R. Talsorian Games.",
+    "en": "A blank sheet of field names, free to use, with no rules text. Unofficial content under R. Talsorian Games' Homebrew Content Policy."
+  },
+  "sources": [
+    {
+      "label": "R. Talsorian Games, Homebrew Content Policy",
+      "url": "https://rtalsoriangames.com/homebrew-content-policy/"
+    },
+    {
+      "label": "R. Talsorian Games, character sheet (field names)",
+      "url": "https://rtalsoriangames.com/wp-content/uploads/2020/11/RTG-CPR-CharacterSheet.pdf"
+    }
+  ],
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"role","properties":["role","role_rank"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"role","properties":["role"],"label":{"pt":"Função","en":"Role"},"hideWhenEmpty":true},{"type":"property","id":"role-rank","properties":["role_rank"],"label":{"pt":"Habilidade de Função (nível)","en":"Role Ability (rank)"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"stats","properties":["stats"],"label":{"pt":"Atributos","en":"Stats"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"saves","id":"skills-awareness","properties":["skills_awareness"],"label":{"pt":"Perícias: Percepção","en":"Skills: Awareness"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-body","properties":["skills_body"],"label":{"pt":"Perícias: Corpo","en":"Skills: Body"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-control","properties":["skills_control"],"label":{"pt":"Perícias: Controle","en":"Skills: Control"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-education","properties":["skills_education"],"label":{"pt":"Perícias: Educação","en":"Skills: Education"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-fighting","properties":["skills_fighting"],"label":{"pt":"Perícias: Combate","en":"Skills: Fighting"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-performance","properties":["skills_performance"],"label":{"pt":"Perícias: Atuação","en":"Skills: Performance"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-ranged-weapon","properties":["skills_ranged_weapon"],"label":{"pt":"Perícias: Armas à Distância","en":"Skills: Ranged Weapon"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-social","properties":["skills_social"],"label":{"pt":"Perícias: Sociais","en":"Skills: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-technique","properties":["skills_technique"],"label":{"pt":"Perícias: Técnica","en":"Skills: Technique"},"hideWhenEmpty":true,"dice":false},
+    {"type":"group","id":"tracks","properties":["hit_points","hit_points_max","seriously_wounded","death_save","humanity","humanity_max","luck","luck_max","improvement_points","reputation"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"hit-points","properties":["hit_points","hit_points_max"],"label":{"pt":"Pontos de Vida","en":"Hit Points"},"hideWhenEmpty":true,"current":"hit_points","max":"hit_points_max","style":"boxes"},{"type":"property","id":"seriously-wounded","properties":["seriously_wounded"],"label":{"pt":"Gravemente Ferido","en":"Seriously Wounded"},"hideWhenEmpty":true},{"type":"property","id":"death-save","properties":["death_save"],"label":{"pt":"Teste de Morte","en":"Death Save"},"hideWhenEmpty":true},{"type":"tracker","id":"humanity","properties":["humanity","humanity_max"],"label":{"pt":"Humanidade","en":"Humanity"},"hideWhenEmpty":true,"current":"humanity","max":"humanity_max","style":"boxes"},{"type":"tracker","id":"luck","properties":["luck","luck_max"],"label":{"pt":"Sorte","en":"Luck"},"hideWhenEmpty":true,"current":"luck","max":"luck_max","style":"boxes"},{"type":"property","id":"improvement-points","properties":["improvement_points"],"label":{"pt":"Pontos de Aprimoramento","en":"Improvement Points"},"hideWhenEmpty":true},{"type":"property","id":"reputation","properties":["reputation"],"label":{"pt":"Reputação","en":"Reputation"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"armor","properties":["armor_head","armor_body","armor_shield"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"armor-head","properties":["armor_head"],"label":{"pt":"Armadura: Cabeça (PA)","en":"Armor: Head (SP)"},"hideWhenEmpty":true},{"type":"property","id":"armor-body","properties":["armor_body"],"label":{"pt":"Armadura: Corpo (PA)","en":"Armor: Body (SP)"},"hideWhenEmpty":true},{"type":"property","id":"armor-shield","properties":["armor_shield"],"label":{"pt":"Armadura: Escudo (PA)","en":"Armor: Shield (SP)"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"weapons","properties":["weapons"],"label":{"pt":"Armas","en":"Weapons"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"critical-injuries","properties":["critical_injuries"],"label":{"pt":"Ferimentos Críticos","en":"Critical Injuries"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"addictions","properties":["addictions"],"label":{"pt":"Vícios","en":"Addictions"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"cyberware","properties":["cyberware"],"label":{"pt":"Cyberware","en":"Cyberware"},"hideWhenEmpty":true,"dice":false},
+    {"type":"group","id":"gear-group","properties":["gear","ammunition","cash"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"traits","id":"gear","properties":["gear"],"label":{"pt":"Equipamento","en":"Gear"},"hideWhenEmpty":true,"dice":false},{"type":"property","id":"ammunition","properties":["ammunition"],"label":{"pt":"Munição","en":"Ammunition"},"hideWhenEmpty":true},{"type":"property","id":"cash","properties":["cash"],"label":{"pt":"Dinheiro","en":"Cash"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"lifepath","properties":["lifepath"],"label":{"pt":"Trajetória de Vida","en":"Lifepath"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Conteúdo não oficial, sob a Homebrew Content Policy da R. Talsorian Games; não aprovado nem endossado pela RTG. Veja os créditos em Ajustes.","en":"Unofficial content under the R. Talsorian Games Homebrew Content Policy; not approved or endorsed by RTG. See Credits in Settings."},"dice":false,"rule":false}
+  ]
+}

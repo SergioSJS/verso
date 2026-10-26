@@ -11,6 +11,16 @@
   count in the status bar and a notification centre; settings per
   category; the events listed in item 7. On 2026-10-14 they chose this as
   the first mission of the next round. Written by Opus 5.5.
+- Revisions: 2026-10-22 — T.6 of the afternoon list of 2026-10-21, answered
+  2026-10-22. Option A: on a phone the "someone joined the note" notice is
+  shown **at the bottom, above the keyboard bar**, not at the top over the
+  first line of the editor and the board (**being built**). His question,
+  *"Não faz mais sentido falar que entrou no cofre em vez de nota?"* (wouldn't
+  it make more sense to say they entered the vault instead of the note?), is
+  `[OPEN]`: presence is per note today (the Presence row of item 7), and a
+  folder-level presence comes with the table of
+  [0107](0107-the-table-a-shared-roll-and-chat-log.md); nothing is decided
+  here.
 - Related: [0026](0026-core-ui-contract-inviolable-rules.md) (rule 2, the
   window does not assume which side of the wire the core is on; rule 3,
   types generated from Rust), [0035](0035-cross-cutting-requirements.md)
@@ -181,6 +191,14 @@ the same day; each is marked in place (Status).
    - The values live in the person's layer
      ([0070](0070-what-travels-with-the-folder.md)): the window's
      `Settings`, synced to the account on a server.
+   - **The Table's sound (2026-10-23, the maintainer: "Mensagens no
+     chat deveriam notificar de alguma forma, com som configurável").**
+     Two more rows in the section: "Som da Mesa" (Desligado, Suave, Sino,
+     Estalo; Suave by default) and its volume. It is a sound, not a kind of
+     notification: it plays for another person's message or roll whether
+     the Table panel is open or not, and the "Mesa" kind above (a toast,
+     the list, the system notification) is unchanged. Details in
+     [0107](0107-the-table-a-shared-roll-and-chat-log.md).
 
 9. **The system's notifications** `[DECIDED 2026-10-14]`: in this
    round, on the desktop and in the browser.

@@ -1,0 +1,53 @@
+{
+  "verso-theme": 1,
+  "name": "Yin and Yang",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Yin and Yang",
+    "author": "Chetachi Ezikeuzor",
+    "repoUrl": "https://github.com/chetachiezikeuzor/Yin-and-Yang-Theme",
+    "license": "MPL-2.0"
+  },
+  "values": {
+    "light": {
+      "--paper": "#fcfdfd",
+      "--paper-2": "#ecf0f3",
+      "--hair": "#e0e6eb",
+      "--ink": "#1d282f",
+      "--ink-2": "#6a89a0",
+      "--seal": "#bc6fff",
+      "--brass-ink": "#1d282f",
+      "--h1-color": "#ff33e4",
+      "--h2-color": "#ae76ff",
+      "--h3-color": "#ff5280",
+      "--h4-color": "#e17400",
+      "--h5-color": "#00ab2c",
+      "--h6-color": "#5192fb"
+    },
+    "dark": {
+      "--paper": "#0a0d10",
+      "--paper-2": "#0e1316",
+      "--hair": "#25323c",
+      "--ink": "#f2f8fd",
+      "--ink-2": "#8ca4b5",
+      "--seal": "#ffc2ee",
+      "--brass-ink": "#f2f8fd",
+      "--h1-color": "#f2b3cf",
+      "--h2-color": "#d2b3ff",
+      "--h3-color": "#ff5582",
+      "--h4-color": "#ffb86c",
+      "--h5-color": "#85ffa4",
+      "--h6-color": "#bdd2ff"
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 17,
+    "radius": "soft",
+    "heading-scale": "large",
+    "heading-weight": "bold",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "hr-style": "thin"
+  }
+}

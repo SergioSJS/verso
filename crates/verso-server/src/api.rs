@@ -344,7 +344,7 @@ pub async fn accept(
             return Err(ApiError::new(
                 StatusCode::CONFLICT,
                 "exists",
-                "an account has this e-mail: sign in",
+                "an account has this e-mail: sign in on this page and accept with it",
             ));
         }
         Err(e) => return Err(e.into()),
@@ -360,9 +360,11 @@ pub async fn accept(
             "this link is used or expired",
         ));
     }
+    let mut opens: Option<String> = None;
     if let (Some(folder), Some(role)) = (&link.folder, link.role.as_deref().and_then(Role::parse)) {
         match &link.share {
             Some(share) if ctx.server.db.share(share)?.is_some() => {
+                opens = Some(share.clone());
                 ctx.server.db.grant_share(share, &account.id, role)?;
             }
             // The share went while the invitation was being used: nothing
@@ -371,7 +373,10 @@ pub async fn accept(
             // state`), so it does not reach here.
             Some(_) => {}
             None if link.for_share => {}
-            None => ctx.server.db.grant(folder, &account.id, role)?,
+            None => {
+                opens = Some(folder.clone());
+                ctx.server.db.grant(folder, &account.id, role)?;
+            }
         }
     }
     let account = ctx
@@ -386,7 +391,8 @@ pub async fn accept(
         link.folder.as_deref(),
         true,
     );
-    signed_in(&ctx, &account, json!(null))
+    // `open`: the folder or share just joined, which the page shows next.
+    signed_in(&ctx, &account, json!({ "open": opens }))
 }
 
 /// What a reset link is for: the account's e-mail.

@@ -77,7 +77,7 @@ pub fn scope_for(
     let guard = match (&server.local, server.folder_path(&folder.dir)) {
         (Some(p), Some(vault)) if p.part_name(&share.id).is_some() => {
             let _ = p;
-            Some(Arc::new(crate::scope::Guard { vault }))
+            Some(Arc::new(crate::scope::Guard::phone(vault)))
         }
         _ => None,
     };
@@ -101,6 +101,11 @@ pub fn scope_for(
 pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
     if server.db.folder(id)?.is_some() {
         let (folder, role) = crate::access::role(server, who, id)?;
+        // A closed table keeps its players out (ADR 0110 item 3, MC.1 = A).
+        let master = crate::campaign::is_master(server, &folder.id, &who.account.id);
+        if crate::campaign::closed_for(server, &folder.id, "", !master) {
+            return Err(ApiError::forbidden(crate::campaign::CLOSED));
+        }
         return Ok(Opening::Folder(folder, role));
     }
     let (reaches, writes) = who.reaches(id);
@@ -110,6 +115,10 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
     }
     let (folder, scope, role) =
         scope_for(server, &who.account.id, &share, writes)?.ok_or_else(ApiError::not_found)?;
+    // A share is always a player's place, an editor's as a reader's.
+    if crate::campaign::closed_for(server, &folder.id, &scope.root, true) {
+        return Err(ApiError::forbidden(crate::campaign::CLOSED));
+    }
     Ok(Opening::Share(folder, scope, role))
 }
 
@@ -161,6 +170,7 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
                 Some((scope, role)) => {
                     let changed = c.folder.as_ref().map(|(_, r)| *r) != Some(role);
                     c.folder = Some((folder.to_owned(), role));
+                    c.owner = false;
                     c.scope = Some(scope);
                     if changed {
                         c.tx.send(&json!({ "role": role }));
@@ -221,6 +231,7 @@ pub fn check(server: &Server, who: &Who, client: &str) -> Result<(), ContractErr
     match now {
         Some((folder, scope, role)) => {
             c.folder = Some((folder.id, role));
+            c.owner = false;
             c.scope = Some(scope);
             Ok(())
         }
@@ -648,6 +659,10 @@ pub async fn attachments(
 /// step; a deletion removes the shares of what it deleted. `args` and
 /// `answer` are in the owner's paths.
 pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
+    // The read links of what moved or was deleted follow it (ADR 0105), and
+    // so does the state a table keeps of its notes (ADR 0110).
+    crate::readlinks::after_write(server, folder, cmd, args, answer);
+    crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "blades-clock",
+  "name": {
+    "pt": "Blades in the Dark — Relógio",
+    "en": "Blades in the Dark — Clock"
+  },
+  "description": {
+    "pt": "Relógio de progresso de 4, 6 ou 8 segmentos (CC BY 3.0).",
+    "en": "A progress clock of 4, 6 or 8 segments (CC BY 3.0)."
+  },
+  "sources": [
+    {
+      "label": "Progress clocks",
+      "url": "https://bladesinthedark.com/progress-clocks"
+    },
+    {
+      "label": "Blades in the Dark SRD (CC BY 3.0)",
+      "url": "https://bladesinthedark.com/"
+    }
+  ],
+  "profile": "fitd",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","type"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["type"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"clock","properties":["clock","clock_size"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"clock","properties":["clock","clock_size"],"label":{"pt":"Clock","en":"Clock"},"hideWhenEmpty":true,"current":"clock","max":"clock_size","style":"boxes"}]},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true}
+  ]
+}

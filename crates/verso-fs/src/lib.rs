@@ -39,6 +39,7 @@
 
 mod confine;
 mod escaping;
+mod external;
 mod jail;
 mod journal;
 mod obsidian;
@@ -76,11 +77,12 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
     })
 }
 pub use escaping::escaping_links;
+pub use external::{ImportError, PICK_CHUNK, PickedError, check_picked, copy_picked, read_picked};
 pub use jail::resolves_within;
 pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
-pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
+pub use settings::{DATA_DIRS, SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
 pub use staged::Staged;
 pub use subfolders::{is_folder, subfolders};
@@ -703,6 +705,31 @@ impl Root {
         self.journal
             .push(Touched::Written(journal::slashed(&relative)));
         Ok((self.intern(relative), report))
+    }
+
+    /// Create the file `relative` from a file the person picked outside the
+    /// folder (`source`, the host's path at the entry edge), copied in
+    /// pieces of [`PICK_CHUNK`] into a temporary file and given its name by
+    /// [`Root::create_staged`] — the same atomic create as [`Root::create`]
+    /// (invariant 9), never the file whole in memory. Never overwrites:
+    /// [`WriteError::Exists`] is answered before a byte is copied, and again
+    /// if a file appears meanwhile. A failure mid-copy leaves neither a file
+    /// nor a temporary one. The picked file's own refusals (not a regular
+    /// file, a placeholder, more than `max` bytes) are [`ImportError::Picked`].
+    pub fn create_from_picked(
+        &mut self,
+        relative: &Path,
+        source: &Path,
+        max: u64,
+    ) -> Result<(Handle, OpReport), ImportError> {
+        let confined = self.confine(relative).map_err(WriteError::Confined)?;
+        self.new_names(&confined, None)?;
+        if ops::occupied(&on_disk(&self.path, &confined)).map_err(WriteError::Io)? {
+            return Err(WriteError::Exists.into());
+        }
+        let mut staged = self.stage(&confined)?;
+        copy_picked(source, max, |piece| staged.append(piece))?;
+        Ok(self.create_staged(&confined, staged)?)
     }
 
     /// Put a file that arrived in pieces ([`Root::stage`]) over the file

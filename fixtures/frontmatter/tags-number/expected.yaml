@@ -1,0 +1,23 @@
+# Construct: `tags: 2024`. Spec: Q24 b. DL.2 = B (maintainer, 2026-10-21):
+# the number is the tag "2024", knowingly different from Obsidian, which was
+# observed to list no tag for it. The schema (§4.1) has no key for the tags a
+# note has, so this fixture asserts only what the parser reads (an integer,
+# which the tag rule then takes as the tag of its text); the tag rule is
+# tested in crates/verso-index (tests/search.rs) and crates/verso-dialect
+# (tests/tags.rs).
+frontmatter:
+  tags: 2024
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on
+    `app.metadataCache.getCache(...).frontmatter` -> { tags: 2024 } (a
+    number). `obsidian tags counts` lists no #2024, nor #2025 for
+    `tags: [2025, yes]` (only #yes), nor #true, #1.5 or #7 for
+    `tags: [true, 1.5, "7", nested/x]` (only #nested/x).
+    Verso diverges from Obsidian here by the maintainer's decision (DL.2,
+    2026-10-21): `tags: 2024` makes the tag "2024" and `tags: [2025, yes]`
+    the tags "2025" and "yes"; a boolean or a float in `tags` is no tag.

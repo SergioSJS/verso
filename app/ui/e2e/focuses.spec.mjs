@@ -1,6 +1,7 @@
 // End-to-end tests for Focuses (ADR 0062).
 
 import { test, expect } from "./fixtures.mjs";
+import { pickMenu } from "./menuPath.mjs";
 
 test("focos tab is present in right panel with Início as default", async ({ app }) => {
   await app.open();
@@ -126,9 +127,9 @@ test("tree context menu 'Criar foco aqui' creates a focus", async ({ app }) => {
   await expect(folder).toBeVisible();
   await folder.click({ button: "right" });
 
-  const createFocusOpt = app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" });
-  await expect(createFocusOpt).toBeVisible();
-  await createFocusOpt.click();
+  await app.page.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  await expect(app.page.getByRole("menuitem", { name: "Criar foco aqui", exact: true })).toBeVisible();
+  await app.page.getByRole("menuitem", { name: "Criar foco aqui", exact: true }).click();
 
   // Active focus is now Areas
   const heading = app.page.locator("#notes-heading-text");
@@ -700,9 +701,9 @@ test("create focus here prompts to sync and writes new focus directly to waypoin
   await expect(folder).toBeVisible();
   await folder.click({ button: "right" });
 
-  const createFocusOpt = app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" });
-  await expect(createFocusOpt).toBeVisible();
-  await createFocusOpt.click();
+  await app.page.getByRole("menuitem", { name: "Organizar", exact: true }).click();
+  await expect(app.page.getByRole("menuitem", { name: "Criar foco aqui", exact: true })).toBeVisible();
+  await app.page.getByRole("menuitem", { name: "Criar foco aqui", exact: true }).click();
 
   // Dialog appears asking if user wants to sync with make.md format
   const confirmBox = app.page.locator(".confirm-box");
@@ -735,7 +736,7 @@ test("a focus created in sync mode becomes the active one", async ({ app }) => {
 
   const folder = app.page.locator('#notes summary[data-folder="Areas"]');
   await folder.click({ button: "right" });
-  await app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" }).click();
+  await pickMenu(app.page, "Organizar", "Criar foco aqui");
   await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();
 
   // The tree shows the new focus, not Início: the focus written to the file
@@ -753,7 +754,7 @@ test("adding a path to a focus created from the menu keeps the path in sync mode
 
   // No focus to add to yet: "Adicionar ao foco…" asks for a new one.
   await app.page.locator('#notes summary[data-folder="Areas"]').click({ button: "right" });
-  await app.page.locator('.menu button[role="menuitem"]', { hasText: "Adicionar ao foco" }).click();
+  await pickMenu(app.page, "Organizar", "Adicionar ao foco…");
   await app.page.locator(".prompt-box input").fill("Saude");
   await app.page.locator(".confirm-actions button.save").click();
   await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();

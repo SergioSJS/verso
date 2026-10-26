@@ -25,7 +25,7 @@ import { keymap } from "@codemirror/view";
 import { yCollab, ySyncAnnotation, yUndoManagerKeymap } from "y-codemirror.next";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { commands, type Capabilities, type CollabJoin, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
+import { commands, type Capabilities, type CollabJoin, type CollabOracle, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 import { UpdateQueue } from "./updateQueue";
 
@@ -54,6 +54,14 @@ export type SyncState = { on: boolean; state: string; role: string; live: boolea
 
 let syncState: SyncState | null = null;
 
+/** Whether the server let the person edit this synced note, though they
+ *  only read the folder (ADR 0113 S8): access.ts says, from what the host
+ *  heard; a reader of the folder is a typist of a note they edit. */
+let syncedMay: (path: string) => boolean = () => false;
+export function setSyncedMay(fn: (path: string) => boolean): void {
+  syncedMay = fn;
+}
+
 /** Whether the person lets this folder's notes be live (item 15). */
 function liveAllowed(): boolean {
   return syncState?.live ?? true;
@@ -78,7 +86,7 @@ export type CollabHandlers = {
   conflict: () => void;
   /** The room is gone: the tab reads the note again — `lost` when text
    *  typed while the connection was down could not go along. */
-  closed: (why?: "lost") => void;
+  closed: (why?: "lost" | "refused") => void;
   /** Someone else's edit arrived: the reading view may be stale. */
   remote: () => void;
   /** A synced folder's note went local, its text kept (ADR 0082 item 8). */
@@ -88,6 +96,9 @@ export type CollabHandlers = {
   /** Back, but the room is another: the tab reads the note anew after
    *  sync compared its text from the base (item 9). */
   anew?: () => void;
+  /** The room refused an edit of a board and the window took the room's
+   *  state in again, in place: said once per refused change. */
+  refused?: () => void;
   /** Who else is in the note changed. */
   presence?: () => void;
   /** Before going back into the room: what the tab typed out of it is
@@ -103,6 +114,14 @@ const PRESENCE_EVERY = 100;
 export const REMOTE = "remote";
 /** A colour for each person, from their name. */
 const COLORS = ["#b5651d", "#2e7d32", "#1565c0", "#6a1b9a", "#ad1457", "#00838f", "#9e9d24", "#5d4037"];
+
+/** The colour of a person's cursor in a note, from their name: the table's
+ *  roster shows the same one (ADR 0107 item 8). */
+export function presenceColor(user: string): string {
+  let hash = 0;
+  for (const c of user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return COLORS[hash % COLORS.length] ?? "#b5651d";
+}
 
 /** Every holder's handlers as one: each event told to each holder of the
  *  session — a note's tab and a board's card on the same note, in one
@@ -128,6 +147,10 @@ function fanOut(holders: Set<CollabHandlers>): CollabHandlers {
       const hs = some("anew");
       return hs.length ? () => hs.forEach((h) => h.anew?.()) : undefined;
     },
+    get refused() {
+      const hs = some("refused");
+      return hs.length ? () => hs.forEach((h) => h.refused?.()) : undefined;
+    },
     get presence() {
       const hs = some("presence");
       return hs.length ? () => hs.forEach((h) => h.presence?.()) : undefined;
@@ -142,8 +165,8 @@ function fanOut(holders: Set<CollabHandlers>): CollabHandlers {
 /** What every room's session is, a text's or a board's: the room's Yjs
  *  document, the people in it, the way out and back. */
 export abstract class RoomSession {
-  readonly doc = new Y.Doc();
-  readonly awareness: Awareness;
+  doc = new Y.Doc();
+  awareness: Awareness;
   revision: string;
   epoch: string;
   protected closedLocally = false;
@@ -163,7 +186,9 @@ export abstract class RoomSession {
   readonly handlers: CollabHandlers;
   /** This window's updates to the room, one in flight at a time
    *  (updateQueue.ts). */
-  private readonly outbox: UpdateQueue;
+  private outbox: UpdateQueue;
+  /** The name this window is in the room as. */
+  private readonly person: string;
 
   constructor(
     readonly path: string,
@@ -177,12 +202,16 @@ export abstract class RoomSession {
     Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
     this.revision = joined.revision;
     this.epoch = joined.epoch;
+    this.person = joined.user;
     this.awareness = new Awareness(this.doc);
-    let hash = 0;
-    for (const c of joined.user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-    const color = COLORS[hash % COLORS.length] ?? "#b5651d";
-    this.awareness.setLocalStateField("user", { name: joined.user, color, colorLight: `${color}33` });
-    this.outbox = new UpdateQueue(
+    this.outbox = this.queue();
+    this.wire();
+    sessions.set(this.path, this);
+  }
+
+  /** The queue of this window's updates to the room. */
+  private queue(): UpdateQueue {
+    return new UpdateQueue(
       async (update) => {
         const r = await commands.collabUpdate(this.path, toB64(update));
         if (r.status === "ok") return "ok";
@@ -193,14 +222,27 @@ export abstract class RoomSession {
       // says it (offline is not this: the rejoin sends it all).
       () => this.lost(),
       () => !this.closedLocally,
+      () => this.idle(),
     );
+  }
+
+  /** Every update this window sent has been answered: the room holds what
+   *  the window holds (a board's file, made of exactly that state, goes
+   *  now, if it went before the room had the last update). */
+  protected idle(): void {}
+
+  /** The document's and the awareness's listeners, and this window's name
+   *  and colour: again whenever the document is made anew. */
+  private wire(): void {
+    const color = presenceColor(this.person);
+    this.awareness.setLocalStateField("user", { name: this.person, color, colorLight: `${color}33` });
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       // Local: kept in the document, sent whole when the tab is back.
-      if (origin === REMOTE || this.closedLocally || !this.live) return;
+      if (origin === REMOTE || this.closedLocally || !this.live || this.rejoining) return;
       this.outbox.push(update);
     });
     this.awareness.on("update", ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
-      if (origin === REMOTE || this.closedLocally || !this.live) return;
+      if (origin === REMOTE || this.closedLocally || !this.live || this.rejoining) return;
       for (const id of [...added, ...updated, ...removed]) this.presenceDue.add(id);
       // A pointer moved sends its place at most every PRESENCE_EVERY ms,
       // the latest only: ~45 a second a window held the edits back behind
@@ -214,7 +256,32 @@ export abstract class RoomSession {
       this.seen = now;
       this.handlers.presence?.();
     });
-    sessions.set(this.path, this);
+  }
+
+  /** Between a refusal and the room's state coming in: nothing is sent. */
+  protected rejoining = false;
+
+  /** The room's state, as it is now, in a document of this window's own
+   *  again (the refused edit is not in it: a Yjs document cannot take an
+   *  operation back, and the room never had it). The caller binds what it
+   *  keeps of the old one. */
+  protected rebuild(joined: { update: string; revision: string; epoch: string }): void {
+    window.clearTimeout(this.presenceTimer);
+    this.presenceTimer = undefined;
+    this.presenceDue.clear();
+    // The old cursor leaves the others' boards before it is let go.
+    const me = this.doc.clientID;
+    removeAwarenessStates(this.awareness, [me], "local");
+    void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, [me]))).catch(() => {});
+    this.awareness.destroy();
+    this.doc.destroy();
+    this.doc = new Y.Doc();
+    Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
+    this.revision = joined.revision;
+    this.epoch = joined.epoch;
+    this.awareness = new Awareness(this.doc);
+    this.outbox = this.queue();
+    this.wire();
   }
 
   /** Presence of these clients to send at the next beat. */
@@ -255,7 +322,7 @@ export abstract class RoomSession {
   /** The person only reads the folder on the server: present in the
    *  room, not typing (ADR 0082 item 4). */
   get reader(): boolean {
-    return this.synced && syncState?.role === "reader";
+    return this.synced && syncState?.role === "reader" && !syncedMay(this.path);
   }
 
   /** The names of the others in the note now, each once. */
@@ -340,8 +407,69 @@ export abstract class RoomSession {
   /** An edit the room refused: closed here, the tab told what did not go. */
   private lost(): void {
     if (this.closedLocally) return;
-    this.leave();
-    this.handlers.closed("lost");
+    if (!this.keepsSceneOnRefusal()) {
+      this.leave();
+      this.handlers.closed("lost");
+      return;
+    }
+    // A board in a shadow: the room's state comes in again, in place. Twice
+    // within moments with no change of the person's in between would be a
+    // loop (a bug, logged): then it stops, and says so once.
+    const now = Date.now();
+    if (now - this.refusedAt < 3000 && !this.edited) {
+      console.error(`room ${this.path}: refused again with no change of the person's in between; not rejoining`);
+      this.leave();
+      this.handlers.closed("refused");
+      return;
+    }
+    this.refusedAt = now;
+    this.edited = false;
+    this.rejoining = true;
+    this.beforeRejoin();
+    void this.refusedInPlace();
+  }
+  private refusedAt = 0;
+  /** A change of the person's since the last refusal (the loop guard). */
+  protected edited = true;
+
+  /** The room's truth in, the view kept: a new document of the room's
+   *  state, then the holder's board takes it in place (`reborn`). */
+  private async refusedInPlace(): Promise<void> {
+    let joined: Awaited<ReturnType<typeof commands.collabJoin>> | null = null;
+    try {
+      joined = await commands.collabJoin(this.path);
+    } catch {
+      joined = null;
+    }
+    // Never left rejoining: the way out is the old one (the board read anew).
+    if (this.closedLocally) return;
+    if (!joined || joined.status !== "ok" || joined.data.read_only) {
+      this.rejoining = false;
+      this.leave();
+      this.handlers.closed("lost");
+      return;
+    }
+    try {
+      this.rebuild(joined.data);
+    } finally {
+      this.rejoining = false;
+    }
+    this.reborn();
+    this.handlers.refused?.();
+  }
+
+  /** A refusal is being answered: the subclass notes what its holder has
+   *  now, to tell what changes while the room's state is on its way. */
+  protected beforeRejoin(): void {}
+
+  /** The document is the room's anew: the subclass binds to it. */
+  protected reborn(): void {}
+
+  /** Whether a refused update leaves the window's scene as it is and takes
+   *  the room's state in again, in place, instead of reading the file anew:
+   *  a board's, whose reload would reset the view. */
+  protected keepsSceneOnRefusal(): boolean {
+    return false;
   }
 
   /** The tab goes, or reads another note: out of the room. */
@@ -422,6 +550,8 @@ function hear(): void {
   void listen<CollabState>("collab-conflict", (e) => sessions.get(e.payload.path)?.handlers.conflict(), opts);
   // Dice rolled in a room by another (ADR 0088 item 4; dice/card.ts).
   void listen<CollabRoll>("collab-roll", (e) => dispatchEvent(new CustomEvent<CollabRoll>("verso:collab-roll", { detail: e.payload })), opts);
+  // The oracle drawn in a room by another (ADR 0102 item 5; oracle/room.ts).
+  void listen<CollabOracle>("collab-oracle", (e) => dispatchEvent(new CustomEvent<CollabOracle>("verso:collab-oracle", { detail: e.payload })), opts);
   void listen<CollabState>("collab-closed", (e) => {
     const s = sessions.get(e.payload.path);
     if (!s) return;
@@ -469,7 +599,7 @@ export async function joinRoom<S extends RoomSession>(
   if (synced) catching?.();
   const r = await commands.collabJoin(path);
   if (r.status !== "ok" || r.data.read_only) return null;
-  dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [] } }));
+  dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [], user: r.data.user } }));
   const made = make(r.data, synced);
   if (!made) void commands.collabLeave(path);
   return made;
@@ -579,6 +709,18 @@ export function lostLine(): string {
   return document.documentElement.lang.startsWith("pt")
     ? "A conexão caiu e a nota foi relida do servidor: o que foi digitado enquanto isso não pôde ser mantido."
     : "The connection dropped and the note was read again from the server: what was typed meanwhile could not be kept.";
+}
+
+/** What the tab says once when the room refused an edit of a board: the
+ *  board stays as it is, and sends nothing more. */
+export function refusedLine(stopped = false): string {
+  const pt = document.documentElement.lang.startsWith("pt");
+  if (stopped) {
+    return pt
+      ? "A mesa recusou alterações do quadro repetidamente: nada mais é enviado daqui. Reabra o quadro para voltar a editar."
+      : "The table refused changes to the board over and over: nothing more is sent from here. Reopen the board to edit again.";
+  }
+  return pt ? "A mesa recusou uma alteração do quadro: ele voltou ao estado da mesa; o resto continua como estava." : "The table refused a change to the board: it went back to the table's state; the rest stays as it was.";
 }
 
 /** Whether an editor transaction came from the room, not from this window. */

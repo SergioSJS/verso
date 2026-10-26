@@ -1,0 +1,11 @@
+name: The Old Bridge
+type: Location
+description: A sample card of our own.
+health: 3
+health_max: 6
+clock: 1
+clock_size: 4
+facts:
+  - Toll collected at dusk
+  - Nobody remembers who built it
+notes: Roll 1d6 when the toll goes unpaid.

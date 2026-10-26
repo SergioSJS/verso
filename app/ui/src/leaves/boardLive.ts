@@ -13,8 +13,8 @@
 
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
-import { canWrite } from "../can";
-import { type CollabHandlers, canCollab, type LocalWhy } from "../collab";
+import { may } from "../access";
+import { type CollabHandlers, canCollab, type LocalWhy, refusedLine } from "../collab";
 import { localSaid } from "../coeditWords";
 import { BOARD_VERSION, parseCanvas, type CanvasDoc } from "../board/model";
 import { patchFromCanvas } from "../board/roomModel";
@@ -49,9 +49,20 @@ export function boardHandlers(this: BoardLeaf): CollabHandlers {
     conflict: () => void this.boardConflict(),
     closed: (why) => {
       this.room = null;
+      // Refused in a shadow: the board stays as drawn (scene and view), the
+      // room is left, nothing is sent again, and it is said once.
+      if (why === "refused") {
+        ui.status.textContent = refusedLine(true);
+        this.paintLive();
+        return;
+      }
       void this.roomClosed(why);
     },
     remote: () => {},
+    // The room took the board's state in again, in place: said once.
+    refused: () => {
+      ui.status.textContent = refusedLine();
+    },
     local: (why) => void this.boardWentLocal(why),
     live: () => {
       this.textCameBack();
@@ -81,7 +92,7 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string)
   const later = typeof doc?.verso?.version === "number" && doc.verso.version > BOARD_VERSION;
   const room =
     lineSeparator(text) !== null && this.layoutIsKept() && doc !== null && !later
-      ? await joinBoard(path, this.roomHandlers, canWrite(), () => {
+      ? await joinBoard(path, this.roomHandlers, may(path, "edit"), () => {
           this.catching = true;
           this.paintLive();
         })

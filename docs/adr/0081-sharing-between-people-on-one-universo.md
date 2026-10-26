@@ -49,6 +49,25 @@
   the building raised (Status), each recorded in its item, dated: items
   4, 8 and 11. Two of them, both in item 11, are decided and not built
   yet; one, in item 8, was being built that night.
+  2026-10-21 — items 4 ("links anyone may open: not now") and 17 ("a single
+  document: not in the first version") are revised by
+  [0105](0105-read-links-without-an-account.md), Accepted that day: a read
+  link without an account on a folder or on one note, off on a new server;
+  sharing one note **to write** stays as item 17 left it.
+  2026-10-21 (review of the afternoon batch, **awaiting the maintainer**,
+  question T.9 of the decisions list of the afternoon; nothing decided here)
+  — item 5 says "names and keys, no path", and the folder switcher now shows a
+  `place` label per recent folder: the last two components of its parent
+  folder, never absolute, never `..` (see the same-date line in
+  [0026](0026-core-ui-contract-inviolable-rules.md), rule 4). Whether the
+  label revises item 5 is his to say.
+  2026-10-22 — the maintainer answered T.9 and T.10 of the afternoon list.
+  T.9, option A: the `place` label is accepted as a display label, recorded in
+  [0026](0026-core-ui-contract-inviolable-rules.md) (rule 4); item 5's text is
+  unchanged. T.10, option A (**being built**): the folder switcher gets an ×
+  on a recent folder that **hides it from the list** (nothing is deleted), and
+  Settings gets "Mostrar pastas ocultas" (show hidden folders) to bring them
+  back.
 
 ## Context
 

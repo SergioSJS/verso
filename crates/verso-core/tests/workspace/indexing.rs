@@ -81,6 +81,37 @@ fn index_search_backlinks_and_incremental_runs() {
 }
 
 #[test]
+fn the_graph_lists_links_no_note_and_no_file_answers_to() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(
+        vault.path(),
+        "A.md",
+        "[[Real]] [[Goblin Rei]] [[goblin rei]] [[Goblin Rei]] ![[mapa.png]] [[#Seção]] [[pasta/]]\n",
+    );
+    let _b = note(
+        vault.path(),
+        "B.md",
+        "[[Real]] [[Goblin Rei|rei]] [[Goblin Rei#Notas]]\n",
+    );
+    let _real = note(vault.path(), "Real.md", "# Real\n");
+    let _map = bytes(vault.path(), "mapa.png", b"png");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    // Once per note and name, one spelling, no file, no self link, no
+    // resolved note.
+    let want = |from: &str| (from.to_owned(), "Goblin Rei".to_owned());
+    assert_eq!(
+        ws.graph_unresolved().unwrap(),
+        vec![want("A.md"), want("B.md")]
+    );
+    assert_eq!(
+        ws.reader_graph_unresolved().unwrap(),
+        ws.graph_unresolved().unwrap()
+    );
+}
+
+#[test]
 fn config_dir_precedence_and_no_relative_fallback() {
     let home = Some(Path::new("/Users/x"));
     assert_eq!(
@@ -355,6 +386,15 @@ fn read_note_gives_lines_positions_and_staleness_and_every_path_is_confined() {
         assert!(
             confined(ws.create_file(bad, b"x").map(drop)),
             "create_file {bad:?}"
+        );
+        assert!(
+            matches!(
+                ws.create_file_from_picked(bad, std::path::Path::new("/nonexistent"), 10),
+                Err(verso_core::PickedCreateError::Core(
+                    CoreError::Confined(_) | CoreError::Write(verso_core::WriteError::Confined(_))
+                ))
+            ),
+            "create_file_from_picked {bad:?}"
         );
         assert!(
             confined(ws.create_folder(bad).map(drop)),
@@ -1031,4 +1071,42 @@ fn a_batch_of_new_and_removed_files_reads_only_its_paths() {
     assert!(!r.narrowed);
     assert!(r.gone.is_empty(), "{r:?}");
     assert!(ws.notes().unwrap().contains(&"Tres.md".to_owned()));
+}
+
+#[test]
+fn a_picked_file_is_copied_in_pieces_listed_and_never_overwrites() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let data: Vec<u8> = (0..(2 << 20) + 7).map(|i| (i % 251) as u8).collect();
+    let source = outside.path().join("grande.pdf");
+    std::fs::write(&source, &data).unwrap();
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    let key = ws
+        .create_file_from_picked("anexos/grande.pdf", &source, u64::MAX)
+        .unwrap();
+    assert_eq!(key, "anexos/grande.pdf");
+    assert!(ws.read_file(&key).unwrap() == data);
+    // Listed at once, as `create_file` lists.
+    assert_eq!(
+        ws.resolve_file("x.md", "grande.pdf").as_deref(),
+        Some("anexos/grande.pdf")
+    );
+    // A name taken: refused, the first stays.
+    let again = ws.create_file_from_picked("anexos/grande.pdf", &source, u64::MAX);
+    assert!(matches!(
+        again,
+        Err(verso_core::PickedCreateError::Core(CoreError::Write(
+            verso_core::WriteError::Exists
+        )))
+    ));
+    // Over the bound: refused as the picked file's, nothing created.
+    let big = ws.create_file_from_picked("outro.pdf", &source, 10);
+    assert!(matches!(
+        big,
+        Err(verso_core::PickedCreateError::Picked(
+            verso_core::PickedError::TooLarge
+        ))
+    ));
+    assert!(ws.read_file("outro.pdf").is_err());
 }

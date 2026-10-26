@@ -96,3 +96,17 @@ describe("PDF.js ships no eval", () => {
     });
   }
 });
+
+describe("clampPage (a page pdf.js accepts)", async () => {
+  const { clampPage } = await import("../src/pdfSpec.js").catch(() => import("./.bundles/pdfSpec.test-bundle.mjs"));
+  test("a page past the end opens the last, one before the start the first", () => {
+    assert.equal(clampPage(2, 5), 2);
+    assert.equal(clampPage(9, 3), 3);
+    assert.equal(clampPage(0, 3), 1);
+    assert.equal(clampPage(-4, 3), 1);
+  });
+  test("a document with no pages yet or a non-number still gives page 1", () => {
+    assert.equal(clampPage(2, 0), 1);
+    assert.equal(clampPage(Number.NaN, 4), 1);
+  });
+});

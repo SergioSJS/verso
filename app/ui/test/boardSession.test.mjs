@@ -280,3 +280,233 @@ test("an element another deletes as this person's own press selects it is never 
     for (const s of [a, other]) s.leave();
   }
 });
+
+/** A shadow (ADR 0113 H): the room told this window it is in one. */
+function shadowSession(refuse, unseeded = false) {
+  let refusals = refuse;
+  const doc = new Y.Doc();
+  const els = doc.getMap("elements");
+  const a = { id: "c1", type: "embeddable", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 9, index: "a1", groupIds: [], frameId: null, customData: { canvas: { id: "c1", type: "file", file: "Nada.md" } } };
+  els.set("c1\n3\n9", JSON.stringify(a));
+  doc.getMap("meta").set("base", '{"nodes":[],"edges":[]}');
+  doc.getMap("meta").set("shadow", true);
+  if (!unseeded) doc.getMap("meta").set("seeded", true);
+  const calls = [];
+  globalThis.__updates = [];
+  globalThis.__invoke = async (cmd, args) => {
+    calls.push(cmd);
+    if (cmd === "collab_update") globalThis.__updates.push(args.update);
+    if (cmd === "collab_update" && refusals > 0) {
+      refusals--;
+      throw { kind: "refused", message: "no" };
+    }
+    if (cmd === "collab_join" && globalThis.__joinFails) throw new Error("link down");
+    if (cmd === "collab_join" && globalThis.__joinDelay) await new Promise((r) => setTimeout(r, globalThis.__joinDelay));
+    if (cmd === "collab_join") return { update: b64(Y.encodeStateAsUpdate(doc)), revision: "r2", epoch: "e1", read_only: false, kind: "board", user: "Ana" };
+    return null;
+  };
+  const closed = [];
+  const s = new b.BoardSession("Mesa.canvas", { update: b64(Y.encodeStateAsUpdate(doc)), revision: "r1", user: "Ana", epoch: "e1" }, { saved() {}, conflict() {}, closed: (why) => closed.push(why ?? "closed"), remote() {} });
+  return { s, a, calls, closed };
+}
+
+test("a shadow never sends an element the board only bumped: same substance, new version", async () => {
+  const { s, a, calls } = shadowSession(0);
+  try {
+    const p = { apply: () => [], people() {} };
+    s.attach(p, []);
+    for (let i = 0; i < 5; i++) {
+      s.scene([{ ...a, version: 4 + i, versionNonce: 100 + i, seed: i }], "transparent", false);
+      s.push();
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 0);
+    // Bringing it to the front is a change, and goes.
+    s.scene([{ ...a, version: 12, versionNonce: 4, index: "zz" }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 1);
+    // A real change goes.
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 2);
+  } finally {
+    s.leave();
+  }
+});
+
+test("a refused change in a shadow: one rejoin, the room's truth back in place, the view and the other elements kept, later edits sent", async () => {
+  const { s, a, calls, closed } = shadowSession(1);
+  const other = { ...a, id: "c2", index: "a2", version: 1, versionNonce: 2, customData: { canvas: { id: "c2", type: "text", text: "x" } } };
+  // The room holds c1 only; c2 is the window's own, never accepted.
+  const view = { scrollX: 240, scrollY: -130, zoom: 0.6 };
+  let scene = [a];
+  const told = [];
+  const p = {
+    apply(remote) {
+      told.push(remote.map((e) => `${e.id}:${e.isDeleted ? "gone" : "in"}:${e.x}`));
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  try {
+    s.attach(p, []);
+    const moved = { ...a, version: 20, versionNonce: 5, x: 50 };
+    scene = [moved, other];
+    s.scene(scene, "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1, "one rejoin");
+    assert.deepEqual(closed, [], "never closed");
+    // c1 back to the room's x, c2 (never accepted) gone; the view is the board's own.
+    assert.ok(told.some((t) => t.includes("c2:gone:0") && t.includes("c1:in:0")), JSON.stringify(told));
+    assert.ok(scene.find((e) => e.id === "c2").isDeleted && scene.find((e) => e.id === "c1").x === 0);
+    assert.deepEqual(view, { scrollX: 240, scrollY: -130, zoom: 0.6 });
+    // A following change reaches the room.
+    const before = calls.filter((c) => c === "collab_update").length;
+    s.scene([{ ...scene.find((e) => e.id === "c1"), version: 30, versionNonce: 8, x: 70 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(calls.filter((c) => c === "collab_update").length, before + 1, "later edits are sent");
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+  } finally {
+    s.leave();
+  }
+});
+
+test("refused again within moments with no change of the person's: no second rejoin, stopped and said once", async () => {
+  const { s, a, calls, closed } = shadowSession(5);
+  s.attach({ apply: () => [], people() {} }, []);
+  s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+  s.push();
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+  // The window re-sends with no change of the person's: refused again.
+  s.scene([{ ...a, version: 21, versionNonce: 6, x: 60 }], "transparent", false);
+  s.push();
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls.filter((c) => c === "collab_join").length, 1, "no second rejoin");
+  assert.deepEqual(closed, ["refused"]);
+});
+
+test("edits made while the room's state is on its way are kept, not undone, and sent after it is in", async () => {
+  globalThis.__joinDelay = 60;
+  const { s, a, calls, closed } = shadowSession(1);
+  const mine = { ...a, id: "new1", index: "a9", version: 1, versionNonce: 3, x: 5, customData: { canvas: { id: "new1", type: "text", text: "hi" } } };
+  let scene = [a];
+  const p = {
+    apply(remote) {
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) if (!(m.get(e.id) && s.mine(m.get(e.id)))) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  try {
+    s.attach(p, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    // The refusal is answered; the room's state is still on its way.
+    scene = [{ ...a, version: 20, versionNonce: 5, x: 50 }, mine];
+    s.scene(scene, "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 150));
+    assert.deepEqual(closed, []);
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+    const sentNew = scene.find((e) => e.id === "new1");
+    assert.ok(sentNew && !sentNew.isDeleted, "what the person made meanwhile is kept");
+    await new Promise((r) => setTimeout(r, 150));
+    assert.ok(calls.filter((c) => c === "collab_update").length >= 2, "and sent after the state came in");
+    // The batch after the rejoin carries what she did meanwhile, not the refused change.
+    const later = new Y.Doc();
+    Y.applyUpdate(later, Buffer.from(globalThis.__updates.at(-1), "base64"));
+    const keys = [...later.getMap("elements").keys()];
+    assert.ok(keys.some((k) => k.startsWith("new1\n")), keys.join("|"));
+    assert.ok(!keys.some((k) => k.startsWith("c1\n20")), "the refused element is not sent again");
+  } finally {
+    globalThis.__joinDelay = 0;
+    s.leave();
+  }
+});
+
+test("a rejoin that fails is the old way out: the board is read anew, nothing stays stuck", async () => {
+  globalThis.__joinFails = true;
+  const { s, a, closed } = shadowSession(1);
+  try {
+    s.attach({ apply: () => [], people() {} }, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 60));
+    assert.deepEqual(closed, ["lost"]);
+    assert.equal(s.rejoining, false);
+  } finally {
+    globalThis.__joinFails = false;
+  }
+});
+
+test("a room not drawn into yet: the refused change is not drawn into it, and the board goes back to the file's version", async () => {
+  const { s, a } = shadowSession(1, true);
+  let scene = [];
+  const p = {
+    apply(remote) {
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  s.attach(p, [{ ...a, version: 1, versionNonce: 1 }]);
+  const room = s.doc.getMap("elements");
+  assert.ok(room.size >= 1, "seeded");
+  scene = [{ ...a, version: 1, versionNonce: 1 }];
+  s.scene(scene, "transparent", false);
+  const moved = { ...a, version: 20, versionNonce: 5, x: 50 };
+  scene = [moved];
+  s.scene(scene, "transparent", true);
+  s.push();
+  await new Promise((r) => setTimeout(r, 80));
+  const back = scene.find((e) => e.id === "c1");
+  assert.equal(back.x, 0, "back to the file's version");
+  assert.equal(back.version, 3, "the room's version");
+  const held = [...s.doc.getMap("elements").values()].map((v) => JSON.parse(v));
+  assert.ok(held.every((e) => e.x !== 50), "the refused change is not in the room's document");
+  s.leave();
+});
+
+test("the file of a shadow's board is sent again once every update is answered: the room set aside one made while an update was on its way", async () => {
+  const { s, a, calls } = shadowSession(0);
+  const order = [];
+  const inner = globalThis.__invoke;
+  globalThis.__invoke = async (cmd, args) => {
+    if (cmd === "collab_update") await new Promise((r) => setTimeout(r, 400));
+    const out = await inner(cmd, args);
+    order.push(cmd);
+    return out;
+  };
+  try {
+    s.attach({ apply: () => [], people() {} }, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 100));
+    // Another change while the first is unanswered: it waits behind it.
+    s.scene([{ ...a, version: 30, versionNonce: 6, x: 60 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 1600));
+    const canvases = order.filter((c) => c === "collab_canvas");
+    assert.ok(canvases.length >= 2, order.join(","));
+    assert.equal(order.at(-1) === "collab_canvas" || order.lastIndexOf("collab_canvas") > order.lastIndexOf("collab_update"), true, "the last file goes after the last update is answered");
+    void calls;
+  } finally {
+    s.leave();
+  }
+});

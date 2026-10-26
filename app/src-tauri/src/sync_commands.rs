@@ -24,10 +24,12 @@ fn off(key: &str) -> SyncStatus {
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
     let (language, shown, told, all) = (app.clone(), app.clone(), app.clone(), app.clone());
+    let secrets = Arc::clone(&state.secrets);
     let config = state.service.config().map(Path::to_path_buf);
     let named = config.clone();
     Arc::new(Ctx {
         service: Arc::clone(&state.service),
+        secrets,
         config,
         device: Box::new(move || device::name(named.as_deref())),
         pt: Box::new(move || lock(&language.state::<App>().menu_language).as_str() != "en"),
@@ -48,11 +50,14 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     })
 }
 
-fn running<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Option<Arc<Syncer>> {
+pub(crate) fn running<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    key: &str,
+) -> Option<Arc<Syncer>> {
     lock(&app.state::<App>().syncs).get(key).map(Arc::clone)
 }
 
-fn start<R: tauri::Runtime>(
+pub(crate) fn start<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     key: &str,
     state: &engine::State,
@@ -108,7 +113,7 @@ pub(crate) fn touched<R: tauri::Runtime>(
 }
 
 /// The folder of this window, which syncs only if it is this computer's.
-fn key_of<R: tauri::Runtime>(
+pub(crate) fn key_of<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
 ) -> Result<String, ContractError> {
@@ -145,6 +150,22 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     Ok(running(&app, &key)
         .map_or_else(|| sync::off_status(config.as_deref(), &key), |s| s.status()))
+}
+
+/// What the person may do with each of `paths` of the window's synced
+/// folder, as the server last said (ADR 0113 S8): the answer the window
+/// asks of its own folder without the server, so that what it locks and
+/// unlocks is what the server will accept, online or off.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn sync_rights<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    paths: Vec<String>,
+) -> Result<verso_contract::SyncRights, ContractError> {
+    let s = syncer(&app, &window)?;
+    let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    Ok(s.rights_told(config.as_deref(), &paths))
 }
 
 /// Sync the window's folder with a folder of a server the app is signed
@@ -220,9 +241,17 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
     let key = key_of(&app, &window)?;
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     let removed = lock(&app.state::<App>().syncs).remove(&key);
+    let cloud = removed.as_ref().is_some_and(|s| s.cloud.is_some())
+        || sync::cloud_of(config.as_deref(), &key);
     match removed {
         Some(s) => s.turn_off(config.as_deref())?,
         None => sync::off(config.as_deref(), &key)?,
+    }
+    // Turning a cloud folder's sync off disconnects it: the secret leaves
+    // the keychain (ADR 0104 item 14); the base stays, for connecting the
+    // same cloud again.
+    if cloud {
+        crate::cloud::forget(&*app.state::<App>().secrets, &key);
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
     // Every window of the folder hears it: a live note goes local (ADR
@@ -294,7 +323,10 @@ pub(crate) fn note_made_from_template<R: tauri::Runtime>(
 /* ---------- A synced folder's live notes (ADR 0082) ---------- */
 
 /// The running sync of the folder a window of this computer shows.
-fn synced_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Option<Arc<Syncer>> {
+pub(crate) fn synced_of<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Option<Arc<Syncer>> {
     if remote::of(app, label).is_some() {
         return None;
     }
@@ -324,6 +356,15 @@ pub(crate) fn wrote<R: tauri::Runtime>(
     }
 }
 
+/// The commands a window on a synced folder sends over the sync's link:
+/// the rooms', the table's, the campaign's and the access model's (ADR
+/// 0113: the Access dialog and the seat are the server's answers too).
+pub(crate) fn over_the_link(cmd: &str) -> bool {
+    ["collab_", "table_", "campaign_", "access_"]
+        .iter()
+        .any(|p| cmd.starts_with(p))
+}
+
 /// Before the app's own handler, after `remote::forward`: a window on a
 /// folder of this computer that syncs sends its room commands over the
 /// sync's link (items 2 and 3); every other is the app's, which answers
@@ -332,7 +373,7 @@ pub(crate) fn live_forward<R: tauri::Runtime>(
     invoke: tauri::ipc::Invoke<R>,
 ) -> Option<tauri::ipc::Invoke<R>> {
     let cmd = invoke.message.command().to_owned();
-    if !cmd.starts_with("collab_") {
+    if !over_the_link(&cmd) {
         return Some(invoke);
     }
     let webview = invoke.message.webview();

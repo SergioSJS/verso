@@ -22,6 +22,11 @@ pub fn readable(path: &Path) -> bool {
     std::fs::read_to_string(path).is_ok()
 }
 
+/// The window's page, read whole (`crate::http::page_route`).
+pub fn read_page(path: &Path) -> io::Result<String> {
+    std::fs::read_to_string(path)
+}
+
 /// The data directory and what it holds, made when missing.
 pub fn ensure_dir(path: &Path) -> io::Result<()> {
     std::fs::create_dir_all(path)
@@ -35,4 +40,13 @@ pub fn write_for_tests(path: &Path, text: &str) {
     let mut file = tempfile::NamedTempFile::new_in(dir).unwrap();
     file.write_all(text.as_bytes()).unwrap();
     file.persist(path).unwrap();
+}
+
+/// Takes a file away, for a test.
+#[cfg(test)]
+pub fn remove_for_tests(path: &Path) {
+    tempfile::TempPath::try_from_path(path)
+        .unwrap()
+        .close()
+        .unwrap();
 }

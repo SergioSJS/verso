@@ -12,7 +12,7 @@ import { type Extension } from "@codemirror/state";
 import { allEntries, allNotes } from "../folder";
 import { name } from "../paths";
 import { linkText } from "../resolve";
-import { settings } from "../settings";
+import { clampMinLetters, settings } from "../settings";
 import { LinkNames } from "./linkNames";
 import { linkSuggest } from "./linkSuggest";
 
@@ -52,6 +52,7 @@ export function linkSuggestFor(path: () => string): Extension {
   return linkSuggest({
     enabled: () => settings.suggestLinks,
     names: folderNames,
+    partialRule: () => ({ minLetters: clampMinLetters(settings.suggestMinLetters), capitalOnly: settings.suggestCapitalOnly !== false }),
     path,
     target: (to) => linkText(path(), to),
     say,

@@ -8,14 +8,14 @@
 
 use std::ops::Range;
 
-use pulldown_cmark::{
-    CodeBlockKind, Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd,
-};
+use pulldown_cmark::{CodeBlockKind, Event, LinkType, MetadataBlockKind, Options, Tag, TagEnd};
 
 use crate::frontmatter::{Frontmatter, parse_yaml};
 use crate::position::{LineIndex, Span};
 use crate::wikilink;
-use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link, SchemaBlock};
+use crate::{
+    BlockId, Callout, Document, Embed, Fold, Heading, Link, MAX_CALLOUT_DEPTH, SchemaBlock,
+};
 
 /// Parse the text of one note into its [`Document`] report.
 ///
@@ -27,8 +27,9 @@ use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link, SchemaBlock}
 /// and every span it reports slices back to the construct's own text
 /// (property 3). It reads `source` and nothing else (property 4).
 ///
-/// `source` is text, already decoded: bytes, BOM and encoding are the
-/// caller's concern (spec Q25). Code spans and code blocks are never scanned,
+/// `source` is text, already decoded: bytes and encoding are the caller's
+/// concern (spec Q25); a byte order mark at the start is skipped over, and
+/// every span still slices `source` (spec Q24). Code spans and code blocks are never scanned,
 /// so a `[[link]]` inside them is not a link (spec §5.9): that comes from the
 /// base parser, which reports them as code, not as text.
 #[must_use]
@@ -58,8 +59,15 @@ pub fn parse(source: &str) -> Document {
     // between: a second one naming the same block replaces it — only the
     // last counts, as in Obsidian (decided 2026-10-09).
     let mut alone_named: Option<Range<usize>> = None;
+    // For each open blockquote, whether it is a recognized callout; the
+    // number of those is the depth of the next one (spec Q5). A stack and a
+    // counter, not recursion: a note that nests quotes without end costs
+    // memory in proportion to its size and nothing more.
+    let mut quotes: Vec<bool> = Vec::new();
+    let mut open_callouts: u32 = 0;
 
-    for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
+    let bom = crate::events::bom_len(source);
+    for (event, range) in crate::events::offsets(source, options) {
         // The own text of a list item closes when its first block child
         // starts, or when the item ends; either way before anything inside
         // that child is reported, so blocks stay in document order.
@@ -73,6 +81,19 @@ pub fn parse(source: &str) -> Document {
             // so that arm is dormant until they are.
             Event::Start(tag @ (Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_))) => {
                 depth += 1;
+                if matches!(tag, Tag::BlockQuote(_)) {
+                    // Past the limit a quote stays a quote (spec Q5).
+                    let found = if open_callouts < MAX_CALLOUT_DEPTH {
+                        callout(source, &lines, range.clone(), open_callouts + 1)
+                    } else {
+                        None
+                    };
+                    quotes.push(found.is_some());
+                    if let Some(callout) = found {
+                        open_callouts += 1;
+                        document.callouts.push(callout);
+                    }
+                }
                 let kind = match tag {
                     Tag::Item => Container::Item,
                     _ => Container::Quote,
@@ -80,6 +101,10 @@ pub fn parse(source: &str) -> Document {
                 containers.push((kind, range.clone()));
             }
             Event::End(TagEnd::Item | TagEnd::BlockQuote(_) | TagEnd::FootnoteDefinition) => {
+                if matches!(event, Event::End(TagEnd::BlockQuote(_))) && quotes.pop() == Some(true)
+                {
+                    open_callouts = open_callouts.saturating_sub(1);
+                }
                 depth = depth.saturating_sub(1);
                 containers.pop();
             }
@@ -196,17 +221,12 @@ pub fn parse(source: &str) -> Document {
             {
                 last_top = Some(range.clone());
             }
-            Event::Start(Tag::BlockQuote(_)) => {
-                if let Some(callout) = callout(source, &lines, range) {
-                    document.callouts.push(callout);
-                }
-            }
             // The base also reports `---` blocks later in the file and
             // unclosed ones inside a blockquote; the frontmatter is only the
             // block on the first line (spec §5.1), so the range must start
             // the file.
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle))
-                if range.start == 0 && document.frontmatter.is_none() =>
+                if range.start == bom && document.frontmatter.is_none() =>
             {
                 document.frontmatter = frontmatter(source, range);
             }
@@ -496,9 +516,10 @@ fn lines_of(source: &str, lines: &LineIndex, start: usize, end: usize) -> (u32, 
 
 /// A callout is a blockquote whose first line, after `>` and spaces, starts
 /// with `[!kind]` (spec §5.8). Any kind is accepted as written; the recognized
-/// set, folding and nesting are Q5. A nested blockquote is its own event, so a
-/// nested callout is reported on its own.
-fn callout(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Callout> {
+/// set and folding are Q5. A nested blockquote is its own event, so a nested
+/// callout is reported on its own, with `depth` callouts enclosing it
+/// (itself included); the caller stops at [`MAX_CALLOUT_DEPTH`].
+fn callout(source: &str, lines: &LineIndex, range: Range<usize>, depth: u32) -> Option<Callout> {
     let text = source.get(range.clone())?;
     let first_line = text.lines().next()?;
     let indent = first_line.len() - first_line.trim_start_matches([' ', '\t']).len();
@@ -529,6 +550,7 @@ fn callout(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Callo
         fold,
         span: Span { start, end },
         pos: lines.pos(source, start),
+        depth,
     })
 }
 
@@ -717,5 +739,40 @@ mod tests {
             ids("- um ^a\r\n  - dois ^b\r\n"),
             vec![("a".into(), 1, 6), ("b".into(), 2, 10)]
         );
+    }
+
+    #[test]
+    fn nested_callouts_carry_their_depth_up_to_the_limit() {
+        let doc = parse("> [!note] a\n> > [!tip]- b\n> > > [!secret]+ c\n> > > x\n");
+        let got: Vec<(&str, u32)> = doc
+            .callouts
+            .iter()
+            .map(|c| (c.kind.as_str(), c.depth))
+            .collect();
+        assert_eq!(got, [("note", 1), ("tip", 2), ("secret", 3)]);
+        // A plain quote in a callout counts as none, a sibling callout after
+        // the nest starts again at 1.
+        let doc = parse("> [!a]\n> > plain\n\n> [!b]\n");
+        assert_eq!(
+            doc.callouts.iter().map(|c| c.depth).collect::<Vec<_>>(),
+            [1, 1]
+        );
+        let deep: String = (1..=40)
+            .map(|d| format!("{}[!note] n{d}\n", "> ".repeat(d)))
+            .collect();
+        let doc = parse(&deep);
+        assert_eq!(doc.callouts.len(), 32);
+        assert_eq!(doc.callouts.last().map(|c| c.depth), Some(32));
+    }
+
+    #[test]
+    fn hostile_nesting_neither_recurses_nor_lists_past_the_limit() {
+        // Thousands of levels: the walk is iterative, the list stops at 32.
+        let deep: String = (1..=3000)
+            .map(|d| format!("{}[!note] n{d}\n", "> ".repeat(d)))
+            .collect();
+        assert_eq!(parse(&deep).callouts.len(), 32);
+        let bare = format!("{}[!note] x\n", "> ".repeat(20_000));
+        assert!(parse(&bare).callouts.len() <= 1);
     }
 }

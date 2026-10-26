@@ -122,3 +122,7 @@ export function rollHere(notation: string, source: string | null = null, rng?: R
   const total = terms.reduce((sum, t) => sum + t.sign * t.kept.reduce((a, b) => a + b, 0), modifier);
   return { notation, source, terms, modifier, total, by: "", at: new Date().toISOString() };
 }
+
+/** The die a heard roll was made on, from the first: none said (an older
+ *  window) is the first. */
+export const occurrenceOf = (roll: Pick<DiceRoll, "occurrence">): number => (Number.isInteger(roll.occurrence) && (roll.occurrence ?? 0) >= 0 ? (roll.occurrence ?? 0) : 0);

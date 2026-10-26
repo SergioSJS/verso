@@ -12,6 +12,36 @@
  *  it, with room for the rest of the message. */
 export const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 
+/** "Maximum size of an imported file" (Settings › Files and links): the
+ *  default, and the most the setting takes. */
+export const IMPORT_DEFAULT_MB = 32;
+export const IMPORT_CEILING_MB = 1024;
+/** The most of one file a window on a server sends: `MAX_IMAGE_BYTES`. */
+export const SERVER_FILE_MB = MAX_IMAGE_BYTES / (1024 * 1024);
+
+/** The setting as a whole number of megabytes between 1 and the ceiling;
+ *  the default for what is not a number. */
+export function importSetting(raw: unknown): number {
+  const n = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : IMPORT_DEFAULT_MB;
+  return Math.min(IMPORT_CEILING_MB, Math.max(1, n));
+}
+
+/** The most megabytes of one file "Import files…" takes: the setting on this
+ *  computer's own folder (the host copies the file itself, no byte crosses);
+ *  on a server's folder, at most what a message to the server carries. */
+export function importLimitMb(setting: unknown, onServer: boolean): number {
+  const mb = importSetting(setting);
+  return onServer ? Math.min(mb, SERVER_FILE_MB) : mb;
+}
+
+/** The most megabytes of one file dropped on the tree. A drop hands the page
+ *  the file's bytes, which cross to the host as base64: it stops at what a
+ *  message carries, whatever the setting says; a larger file goes by
+ *  "Import files…". */
+export function dropLimitMb(setting: unknown, onServer: boolean): number {
+  return Math.min(importLimitMb(setting, onServer), SERVER_FILE_MB);
+}
+
 /** What a name may not hold to be reached by a link (`[ ] | # ^`) or to be
  *  kept on every system (`\ / : * ? " < >` and control characters). */
 // eslint-disable-next-line no-control-regex
@@ -20,7 +50,16 @@ const UNFIT = /[[\]|#^\\/:*?"<>\u0000-\u001f]/g;
 /** A file name made fit: the characters above replaced by a space, spaces
  *  gathered, the ends trimmed. Empty when nothing is left. */
 export function fitName(raw: string): string {
-  return raw.replace(UNFIT, " ").replace(/ {2,}/g, " ").replace(/^[.\s]+/, "").trim();
+  return raw.replace(UNFIT, " ").replace(/ {2,}/g, " ").replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
+}
+
+/** The names Windows keeps for devices, with any extension (`con.txt` is the console). */
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/** A stem that is a reserved device name, with an underscore after it (`con.tar` becomes `con_.tar`). */
+function unreserved(stem: string): string {
+  const first = stem.split(".")[0] ?? "";
+  return RESERVED.test(first) ? `${first}_${stem.slice(first.length)}` : stem;
 }
 
 /** The extension an image's type gives, when its name gives none. */
@@ -49,7 +88,7 @@ export function cameraName(taken: Date, ext: string, word = "Foto"): string {
 export function freeAttachment(folder: string, fileName: string, taken: ReadonlySet<string>): string {
   const fit = fitName(fileName);
   const dot = fit.lastIndexOf(".");
-  const stem = (dot > 0 ? fit.slice(0, dot) : fit) || "Imagem";
+  const stem = unreserved((dot > 0 ? fit.slice(0, dot) : fit) || "Imagem");
   const ext = dot > 0 ? fit.slice(dot) : "";
   const at = (n: number) => `${folder ? folder + "/" : ""}${stem}${n > 1 ? ` (${n})` : ""}${ext}`;
   let n = 1;

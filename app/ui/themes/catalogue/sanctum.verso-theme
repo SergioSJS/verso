@@ -1,0 +1,47 @@
+{
+  "verso-theme": 1,
+  "name": "Sanctum",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Sanctum",
+    "author": "José Daniel Mourão (jdanielmourao)",
+    "repoUrl": "https://github.com/jdanielmourao/obsidian-sanctum",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#f4f4f0",
+      "--paper-2": "#f4f4f0",
+      "--hair": "#e2e0dc",
+      "--ink": "#161616",
+      "--ink-2": "#545151",
+      "--seal": "#e8650b",
+      "--brass-ink": "#161616",
+      "--code-paper": "#e2e0dc",
+      "--code-ink": "#545151"
+    },
+    "dark": {
+      "--paper": "#161616",
+      "--paper-2": "#161616",
+      "--hair": "#3a3838",
+      "--ink": "#f4f4f0",
+      "--ink-2": "#c7c5c2",
+      "--seal": "#669961",
+      "--brass-ink": "#f4f4f0",
+      "--code-ink": "#c7c5c2"
+    },
+    "surface-mode": "flat",
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "plain",
+    "checkbox-style": "round",
+    "hr-style": "line"
+  }
+}

@@ -27,7 +27,7 @@ use verso_service::{OpError, lock};
 
 use crate::auth::Who;
 use crate::db::{Audit, FolderBook, Role};
-use crate::rpc::{arg, blocking, role_here, to_value};
+use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 
 /// How long after a deletion its folder's bin is swept: deletions in a
@@ -109,6 +109,34 @@ pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, b
         crate::log::warn(&format!("the bin's record of {}: {e}", gone.path));
     }
     soon(server, folder);
+}
+
+/// The removal `name` asks for, into the bin: a note, an entry, or a data
+/// file of `.verso/` named by its kind and id (ADR 0099 item 2, ADR 0098
+/// item 2).
+pub fn removal(
+    service: &verso_service::Service,
+    client: &str,
+    name: &str,
+    args: &Value,
+) -> Result<verso_core::Trashed, ContractError> {
+    if name == "remove_folder_data" {
+        let kind: verso_contract::FolderDataKind = arg(args, "kind")?;
+        let (id, revision): (String, String) = (arg(args, "id")?, arg(args, "revision")?);
+        let kind = verso_service::ops::data_kind(kind);
+        return service.with(
+            client,
+            |ws| Ok(ws.remove_folder_data(kind, &id, &revision)?),
+        );
+    }
+    let path: String = arg(args, "path")?;
+    service.with(client, |ws| {
+        Ok(if name == "delete_note" {
+            ws.delete_note(&path)?
+        } else {
+            ws.delete_entry(&path)?
+        })
+    })
 }
 
 /// Record a version a device's write replaced, kept at `kept` (item 12).
@@ -293,11 +321,29 @@ pub async fn command(
     cmd: &str,
     args: Value,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    // A reader deletes nothing and sees no bin (item 7).
-    if !(role.writes() && who.reaches(&folder).1) {
+    let door = crate::access::Door::of(server, who, client)?;
+    let folder = door.folder.clone();
+    // A reader deletes nothing and sees no bin (item 7); nor does a player
+    // of a table, who never deletes (ADR 0113 K.5) and would be shown the
+    // names of files they do not see.
+    // And a window that is a player at some table of the folder has none:
+    // the bin would name what the table hides from it, and give it back.
+    if door.veiled()
+        || !door
+            .may(
+                crate::access::Action::Delete,
+                "",
+                crate::access::Kind::Folder,
+            )
+            .allowed()
+    {
         return Err(refused("the trash is for those who may change this folder"));
     }
+    let role = if door.asker.role == Some(Role::Owner) && !door.asker.phone {
+        Role::Owner
+    } else {
+        Role::Editor
+    };
     let purges = matches!(cmd, "trash_delete" | "trash_empty" | "trash_set_days");
     if purges && role != Role::Owner {
         return Err(refused(

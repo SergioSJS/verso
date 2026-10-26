@@ -15,10 +15,12 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
-import type { Capabilities, Mentions } from "./bindings";
+import type { Capabilities, Mentions, PickedFiles } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { Table } from "./harness/table";
+import { Campaign } from "./harness/campaign";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
@@ -84,7 +86,7 @@ if (params.get("sync") === "reader") {
 // the contract's `unreachable`, carrying the address — whatever the test
 // set its handler to; `serverDown(null)` brings it back. `?server=down`
 // starts with it down at localhost:7351.
-const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "server_prove"]);
+const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
 // The system's notifications (ADR 0084 item 9): the plugin's calls,
@@ -95,6 +97,11 @@ core.invoke = (cmd: string, args: unknown): unknown => {
     core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
     return notifications.handle(cmd, (args ?? {}) as Record<string, unknown>);
   }
+  // The webview's zoom (ADR 0072): the host sets it; here the call is kept.
+  if (cmd === "plugin:webview|set_webview_zoom") {
+    core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
+    return null;
+  }
   if (serverDown === null || !TO_A_SERVER.has(cmd)) return answer(cmd, args);
   core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
   throw { kind: "unreachable", message: serverDown };
@@ -103,6 +110,74 @@ core.invoke = (cmd: string, args: unknown): unknown => {
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
+// The folder's table (ADR 0107): a server's, played here when a test says it
+// is up; it wraps the room's rolls, so it comes after the rooms.
+const table = onServer ? null : new Table(core);
+// A window on a server joins the table when a folder is shown; this harness does
+// not play that table, and answers as a side with none does.
+if (onServer)
+  for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear"])
+    core.handlers[cmd] = () => {
+      throw { kind: "refused", message: "the table is not played in this harness" };
+    };
+// A table is a campaign folder (ADR 0110): the server's commands, played
+// here when a test says it is up; `?table=owner` and `?table=player` start
+// with it up, for the game master and for a player.
+const campaign = new Campaign(core);
+// A synced folder's table and campaign are the server's while the sync's
+// link is up (ADR 0107 item 9): reached over the link the rooms play, and
+// unavailable with it down, as the host answers; the status says "none".
+const link = (): boolean | null => (core.sync.on && rooms ? rooms.up : null);
+if (table) table.linked = link;
+// The folder's tables are the campaign's (one log per table, ADR 0107 as amended 2026-10-23).
+if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
+if (table) table.mayImage = (root) => campaign.up && campaign.viewer === "player" && campaign.imagesFor(root);
+campaign.linked = link;
+for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
+  const own = core.handlers[cmd];
+  if (!own) continue;
+  const linked = (a: Parameters<typeof own>[0]) => {
+    if (link() === false) {
+      if (cmd === "campaign_status") return { viewer: "none", tables: [], notes: [], players: [], can_invite: false };
+      if (cmd === "table_leave") return null;
+      throw { kind: "unavailable", message: "the folder's sync is not connected: the table is the server's" };
+    }
+    return own(a);
+  };
+  // The handler it wraps, whose source names the arguments it reads
+  // (e2e/harness.spec.mjs).
+  core.handlers[cmd] = Object.assign(linked, { wraps: own });
+}
+// The owner of a synced folder reaches the server's shares while its link is
+// up: the game master's rows of the menu are the owner's (ADR 0081).
+const sharesOwn = core.handlers["share_list"]!;
+core.handlers["share_list"] = (a) => (core.sync.on && core.sync.role === "owner" && rooms?.up ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
+const tableParam = params.get("table");
+if (tableParam === "owner" || tableParam === "player") {
+  campaign.up = true;
+  campaign.viewer = tableParam;
+}
+// A player at a closed table (`?closed=1`): no folder is open at the start and
+// every way to open one is refused as the server refuses it, until a test says
+// the game master opened the table (`__harness.shutOut = false`).
+if (params.get("closed") === "1") {
+  const win = window as unknown as { __harness: Record<string, unknown> };
+  let shut = true;
+  Object.defineProperty(win, "__harnessShutOut", { get: () => shut, set: (v: boolean) => (shut = v) });
+  const opens = ["pick_folder", "reopen_folder", "open_initial"];
+  const was = opens.map((c) => core.handlers[c]!);
+  opens.forEach((c, i) => {
+    core.handlers[c] = (a) => {
+      if (shut) throw { kind: "refused", message: "a mesa está fechada" };
+      return was[i]!(a);
+    };
+  });
+  core.handlers["current_folder"] = () => (shut ? null : was[0]!({}));
+  void win;
+}
+// The owner of a server's folder is told so by the shares' list (ADR 0081):
+// the game master's rows of the menu are the owner's.
+if (tableParam === "owner") core.handlers["share_list"] = () => [{ id: null, path: "", people: [], attachments: null, missing: false }];
 // A file's version history (ADR 0091): none for a reader on a server.
 const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
@@ -136,8 +211,81 @@ internals.convertFileSrc = (path: string) => `/__vault/${path.split("/").map(enc
 // What the tests read and do: the folder, the commands asked for, the
 // app's log, an event from the host. `__VERSO_TEST__` asks the window for
 // the board's scene (board/view.tsx); the app never sets it.
+// "Import files…" (A11Y.10): the system's file picker is the host's; a test
+// says what the person chose with `pickNext` and the next `pick_files`
+// answers it (then the picker is "cancelled" again).
+const toBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+};
+let nextPick: PickedFiles = { files: [], skipped: [] };
+core.handlers["pick_files"] = (a) => {
+  const now = nextPick;
+  nextPick = { files: [], skipped: [] };
+  // As the host does: a file past the limit asked is named, not given.
+  const max = Number(a["maxMb"]) * 1024 * 1024;
+  const sizeOf = (f: PickedFiles["files"][number]) => (f.token ? (held.get(f.token) ?? "").length : atob(f.base64 ?? "").length);
+  const files = now.files.filter((f) => sizeOf(f) <= max);
+  const skipped = [...now.skipped, ...now.files.filter((f) => sizeOf(f) > max).map((f) => ({ name: f.name, reason: "too_large" as const }))];
+  return { files, skipped };
+};
+
+// Files dropped from the file manager: the host took the paths, the window
+// asks for them (`take_dropped`) and gets what a picker would have.
+// As the host does (files.rs `take_dropped`): for the tree (`asBytes` false)
+// each file is held under a token up to the limit set (`maxMb`); for a note
+// or a board (`asBytes` true) it comes as its bytes, bounded at 32 MiB.
+core.handlers["take_dropped"] = (a) => {
+  const now = nextPick;
+  nextPick = { files: [], skipped: [] };
+  const asBytes = a["asBytes"] === true;
+  const max = (asBytes ? 32 : Number(a["maxMb"])) * 1024 * 1024;
+  const files: PickedFiles["files"] = [];
+  const skipped = [...now.skipped];
+  for (const f of now.files) {
+    const text = f.token ? (held.get(f.token) ?? "") : atob(f.base64 ?? "");
+    if (text.length > max) {
+      skipped.push({ name: f.name, reason: "too_large" as const });
+      continue;
+    }
+    if (asBytes) files.push({ name: f.name, base64: f.base64 ?? toBase64(text), token: null });
+    else {
+      const token = f.token ?? `pick-${files.length}-${f.name}`;
+      held.set(token, text);
+      files.push({ name: f.name, base64: null, token });
+    }
+  }
+  return { files, skipped };
+};
+
+// A file chosen "on this computer's own folder" is held by the host under a
+// token and copied by `create_picked`: the text of each, by token.
+const held = new Map<string, string>();
+core.handlers["create_picked"] = (a) => {
+  const token = String(a["token"]);
+  const text = held.get(token);
+  if (text === undefined) throw { kind: "refused", message: "that file was not chosen by this window, or was already copied" };
+  const path = core.handlers["create_file"]?.({ path: a["path"], base64: toBase64(text ?? "") });
+  held.delete(token);
+  return path;
+};
+
 const harness = {
   ready: false,
+  /** What the next `pick_files` gives: files by name and text. */
+  pickNext: (files: { name: string; text: string }[], skipped: PickedFiles["skipped"] = [], byToken = false) => {
+    nextPick = {
+      files: files.map((f, i) => {
+        if (!byToken) return { name: f.name, base64: toBase64(f.text), token: null };
+        const token = `pick-${i}-${f.name}`;
+        held.set(token, f.text);
+        return { name: f.name, base64: null, token };
+      }),
+      skipped,
+    };
+  },
   core,
   read: (path: string) => core.read(path),
   bytes: (path: string) => core.bytes(path),
@@ -152,6 +300,10 @@ const harness = {
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server's room of a synced folder's notes (ADR 0082). */
   rooms,
+  /** The folder's table (ADR 0107): the server's commands and events, played in the page. */
+  table,
+  /** A table is a campaign folder (ADR 0110): the server's state and commands, played in the page. */
+  campaign,
   /** The files' version histories (ADR 0091). */
   versions,
   /** The window's own sanitizer — the instance main.ts configures, not a
@@ -165,6 +317,19 @@ const harness = {
   /** The system's notifications: its permission, its answer when asked,
    *  what was sent, a click on the last (ADR 0084 item 9). */
   notifications,
+  /** The desktop window shows a server's folder where the person is `as`
+   *  (the host's merge, app/src-tauri/src/remote.rs): the server's answer
+   *  plus the app's own abilities that do not depend on the folder's side.
+   *  Only `verso:folder-shown` is heard, as in the app: the window asks again. */
+  showServerFolder: (as: string) => {
+    role = as;
+    core.handlers["capabilities"] = () => ({
+      host: "server",
+      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders"],
+      latency_ms: null,
+    } as Capabilities);
+    dispatchEvent(new Event("verso:folder-shown"));
+  },
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

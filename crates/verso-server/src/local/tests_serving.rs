@@ -343,6 +343,29 @@ fn a_reader_phone_cannot_write() {
             json!(["Sessao.md"]),
             "nothing was made or deleted"
         );
+        // The server counts it among the readers — it is told what a reader
+        // is told — and a large upload from it is refused before it is parsed,
+        // table image included (ADR 0107 item 3 as amended 2026-10-24).
+        let server = std::sync::Arc::clone(
+            &verso_service::lock(&lab.local.shared.inner)
+                .as_ref()
+                .unwrap()
+                .server,
+        );
+        let ids: Vec<String> = verso_service::lock(&server.clients)
+            .iter()
+            .filter(|(_, c)| c.folder.is_some())
+            .map(|(id, _)| id.clone())
+            .collect();
+        assert_eq!(ids.len(), 1);
+        let (readers, others) = crate::readers::split(&server, &ids);
+        assert_eq!((readers.len(), others.len()), (1, 0));
+        for cmd in ["table_send_image", "create_file"] {
+            assert!(
+                crate::inflight::admit(&server, &ids[0], Some(1), cmd, 90_000).is_err(),
+                "{cmd}"
+            );
+        }
     });
 }
 
@@ -836,6 +859,35 @@ fn the_port_is_kept_across_starts() {
     });
 }
 
+/// Item 4, on a machine that is slow to close a socket (a Windows runner):
+/// serving turned off and on again finds the old listener still closing,
+/// and waits for it rather than choosing another port.
+#[test]
+fn the_port_is_kept_when_the_old_listener_is_still_closing() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let first = lab.port;
+        lab.local.stop();
+        // Whatever of the old listener is left, a socket of ours takes its
+        // place for a moment.
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], first));
+        let holder = loop {
+            if let Ok(l) = std::net::TcpListener::bind(addr) {
+                break l;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            drop(holder);
+        });
+        lab.serve();
+        release.join().unwrap();
+        assert_eq!(lab.port, first, "the port the phones know");
+    });
+}
+
 /// Item 11: a folder with no folder ticked refuses to start.
 #[test]
 fn it_will_not_start_with_nothing_ticked() {
@@ -1087,8 +1139,11 @@ fn the_log_has_the_modes_life_and_no_secret() {
         let refused = call(&mut ws, 3, "reveal", json!({ "path": "Sessao.md" })).await;
         assert_eq!(refused["err"]["kind"], "not_on_phone");
         drop(ws);
-        // The server notices the closed socket on its own time.
-        for _ in 0..100 {
+        // The server notices the closed socket on its own time: it closes the
+        // phone's folder first, and on macOS that waits on `fseventsd`, which
+        // under a loaded suite took more than the 5 s once (2026-10-22).
+        // Bounded, and ending as soon as the line is there.
+        for _ in 0..600 {
             let gone = LOGGED
                 .lock()
                 .unwrap()
