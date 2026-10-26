@@ -266,7 +266,7 @@ export abstract class RoomSession {
     // The old cursor leaves the others' boards before it is let go.
     const me = this.doc.clientID;
     removeAwarenessStates(this.awareness, [me], "local");
-    void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, [me])));
+    void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, [me]))).catch(() => {});
     this.awareness.destroy();
     this.doc.destroy();
     this.doc = new Y.Doc();

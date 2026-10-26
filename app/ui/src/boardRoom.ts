@@ -150,7 +150,21 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     for (const e of during?.scene ?? []) if (!seen.has(e.id)) kept.add(e.id);
     // The room has not been drawn into yet (a shadow made anew): what the
     // board drew is put in again, as the first window does.
-    const reseed = !this.seeded ? (this.last?.scene ?? []).filter((e) => !e.isDeleted && !kept.has(e.id)) : null;
+    // What was sent and the room refused is not drawn into it: it goes back
+    // to the file's version, or goes, on the board too.
+    const back: El[] = [];
+    let reseed: El[] | null = null;
+    if (!this.seeded) {
+      const scene = this.last?.scene ?? [];
+      for (const e of scene) {
+        if (kept.has(e.id) || room.has(e.id) || !this.sentIds.has(e.id)) continue;
+        const orig = this.drawnAt.get(e.id);
+        back.push(orig ? { ...orig, version: rankOf(e).version + 1 } : { ...e, isDeleted: true, version: rankOf(e).version + 1 });
+      }
+      const undone = new Map(back.map((e) => [e.id, e] as const));
+      reseed = scene.map((e) => room.get(e.id) ?? undone.get(e.id) ?? e).filter((e) => !e.isDeleted && !kept.has(e.id));
+    }
+    this.sentIds.clear();
     const gone: El[] = [];
     if (!reseed) for (const e of this.last?.scene ?? []) if (!room.has(e.id) && !kept.has(e.id)) gone.push({ ...e, isDeleted: true, version: rankOf(e).version + 1 });
     this.pending = null;
@@ -158,13 +172,14 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.known.clear();
     for (const [id, e] of room) this.known.set(id, rankOf(e));
     for (const g of gone) this.known.set(g.id, rankOf(g));
+    for (const b of back) this.known.set(b.id, rankOf(b));
     this.selfMade.clear();
     this.missing.clear();
     this.sentAt = "";
     this.adopting = true;
     this.keep = kept;
     try {
-      if (!reseed) for (const p of this.panes) p.apply([...room.values(), ...gone], this.background());
+      for (const p of this.panes) p.apply([...room.values(), ...(reseed ? back : gone)], this.background());
     } finally {
       this.adopting = false;
       this.keep = new Set();
@@ -172,13 +187,19 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     if (reseed) this.seed(reseed);
     // The change made meanwhile goes out now, as any other.
     if (during && kept.size > 0) {
-      this.pending = { scene: during.scene, user: during.user, background: during.background };
-      this.last = { scene: during.scene, user: false, background: during.background };
+      // Only what the person did meanwhile: the refused change is not sent again.
+      const replay = [...room.values(), ...during.scene.filter((e) => kept.has(e.id))];
+      this.pending = { scene: replay, user: during.user, background: during.background };
+      this.last = { scene: replay, user: false, background: during.background };
       this.pushSoon();
     }
     this.changed?.();
   }
   private adopting = false;
+  /** The ids sent to the room since the window last had its state from it. */
+  private readonly sentIds = new Set<string>();
+  /** The elements as the window drew them from the file when it seeded. */
+  private readonly drawnAt = new Map<string, El>();
   private keep = new Set<string>();
 
   /** A shadow's refusal does not reload the board: the room's state comes
@@ -261,6 +282,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
         this.known.set(e.id, rankOf(e));
       }
       this.layouts.seeded(drawn);
+      for (const e of drawn) this.drawnAt.set(e.id, e);
       this.meta.set("seeded", true);
       this.meta.set("background", backgroundOf(this.base()) ?? "");
     }, LOCAL);
@@ -342,6 +364,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
           this.layouts.sent(e, held.get(e.id));
           this.put(sendable(e, held.get(e.id)));
           this.known.set(e.id, rankOf(e));
+          this.sentIds.add(e.id);
         }
         if (bgChanged) this.meta.set("background", bg);
         if (p.user) this.meta.set(`edit:${this.doc.clientID}`, ++this.edits);
