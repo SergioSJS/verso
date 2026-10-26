@@ -102,9 +102,9 @@ test("players who edit a board with no game master in it: the drawing is written
   });
   try {
     await signedIn(gm, ADMIN.email, ADMIN.password);
-    const folder = await api(gm, "POST", "/api/folders", { name: "Verso-teste-mesa" });
+    const folder = await api(gm, "POST", "/api/folders", { name: "Verso-teste-solo" });
     await gm.goto(`/?folder=${folder.id}`);
-    await expect(gm.locator("#folder")).toHaveText("Verso-teste-mesa", { timeout: 30_000 });
+    await expect(gm.locator("#folder")).toHaveText("Verso-teste-solo", { timeout: 30_000 });
     await invoke(gm, "create_note", { name: "Ruínas de Valdor/Lugares/Taverna do Corvo", text: "# Taverna\n" });
     const laid = await invoke(gm, "board_text", { json: FIXTURE });
     const path = "Ruínas de Valdor/Board do grupo.canvas";
