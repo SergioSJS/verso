@@ -38,7 +38,7 @@ it. The two groups are separated below.
 | clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down |
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (declared exceptions: index file in `verso-index`, config in `verso-core`) | access to the open folder outside `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), rule 5) |
 | `cargo-deny`: license allowlist compatible with the chosen license; advisories denied | incompatible or vulnerable dependency |
-| Documentation mirror: each canonical `.md` has a twin in `docs/pt-BR/` with the same heading structure, and vice versa | a document changed in one language only ([0008](0008-documentation-language.md)) |
+| Documentation mirror & link check (`scripts/check-docs-mirror.sh`): public community docs (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`) have a twin in `docs/pt-BR/` with identical heading structure, no orphaned internal docs remain in `docs/pt-BR/`, and all markdown links resolve | a public document changed in one language only or broken links ([0008](0008-documentation-language.md)) |
 | Source files under 1500 lines, but by a recorded exception that only shrinks (`scripts/check-sizes.mjs`) | a file too big to read whole, review or explain ([0067](0067-source-files-stay-small.md)) |
 
 ### Feature guardrails — they go in the same PR as the feature they protect, never later
