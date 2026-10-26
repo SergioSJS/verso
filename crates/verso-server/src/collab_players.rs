@@ -140,14 +140,9 @@ impl<'a> Locks<'a> {
         let hidden = reached
             .as_ref()
             .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
-        let reached = reached.unwrap_or_else(|| file.to_owned());
-        let told = hidden.then(|| {
-            if self.veil.secret_name(&reached) {
-                crate::campaign_text::REDACTED.to_owned()
-            } else {
-                crate::campaign_text::placeholder(&self.veil.lang)
-            }
-        });
+        // One text for every locked card, whatever the reason (hidden,
+        // hidden with a secret name, not there): a card never says which.
+        let told = hidden.then(|| crate::campaign_text::placeholder(&self.veil.lang));
         self.cache
             .borrow_mut()
             .insert(file.to_owned(), told.clone());
