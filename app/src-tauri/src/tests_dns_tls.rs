@@ -39,25 +39,6 @@ fn certificate(name: &str) -> (CertificateDer<'static>, String, Arc<ServerConfig
 }
 
 /// Serve one TLS connection with `config`: an HTTP answer, or the
-/// The first connection to `listener` within `limit`, or none.
-fn accept_within(listener: &TcpListener, limit: Duration) -> Option<std::net::TcpStream> {
-    let _ = listener.set_nonblocking(true);
-    let end = std::time::Instant::now() + limit;
-    while std::time::Instant::now() < end {
-        match listener.accept() {
-            Ok((tcp, _)) => {
-                let _ = tcp.set_nonblocking(false);
-                return Some(tcp);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Err(_) => return None,
-        }
-    }
-    None
-}
-
 /// WebSocket handshake. A client that refuses the certificate ends it.
 fn serve_once(
     listener: TcpListener,
@@ -65,11 +46,11 @@ fn serve_once(
     websocket: bool,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        // Never waits forever: a test whose client gave up (a refused
-        // certificate) must not hang the run (seen on Windows, 2026-10-26).
-        let Some(tcp) = accept_within(&listener, Duration::from_secs(20)) else {
+        let Ok((tcp, _)) = listener.accept() else {
             return;
         };
+        // Never reads forever: a client that gave up (a refused certificate)
+        // must not hang the run (seen on Windows, 2026-10-26).
         let _ = tcp.set_read_timeout(Some(Duration::from_secs(20)));
         let _ = tcp.set_write_timeout(Some(Duration::from_secs(20)));
         let Ok(conn) = ServerConnection::new(config) else {
