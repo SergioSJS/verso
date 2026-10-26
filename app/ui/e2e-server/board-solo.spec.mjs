@@ -214,3 +214,76 @@ test("a player who edits a board alone in it, with no game master: the drawing i
     for (const c of opened) await c.close().catch(() => {});
   }
 });
+
+test("on a slow link: the drawing is written all the same (the file is sent again once the updates are answered)", async ({ browser, page: gm }, info) => {
+  test.skip(info.project.name !== "chromium", "the board is read through the browser test hooks of one engine");
+  test.setTimeout(240_000);
+  const opened = [];
+  await gm.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  try {
+    await signedIn(gm, ADMIN.email, ADMIN.password);
+    const folder = await api(gm, "POST", "/api/folders", { name: "Verso-teste-lenta" });
+    await gm.goto(`/?folder=${folder.id}`);
+    await expect(gm.locator("#folder")).toHaveText("Verso-teste-lenta", { timeout: 30_000 });
+    await invoke(gm, "create_note", { name: "Ruínas de Valdor/Lugares/Taverna do Corvo", text: "# Taverna\n" });
+    const laid = await invoke(gm, "board_text", { json: FIXTURE });
+    const path = "Ruínas de Valdor/Board do grupo.canvas";
+    expect(await invoke(gm, "create_file", { path, base64: Buffer.from(laid).toString("base64") })).toBe(path);
+    await invoke(gm, "campaign_make", { root: "Ruínas de Valdor" });
+    const ana = await account(browser, gm, { email: "ana-lenta@verso.test", name: "Ana", password: "a senha da ana", folder: folder.id, role: "reader" });
+    opened.push(ana.context);
+    // Every update of hers takes most of a second to be answered.
+    await ana.context.addInitScript(() => {
+      const wrap = () => {
+        const t = window.__TAURI_INTERNALS__;
+        if (!t || t.__slow) return false;
+        const inv = t.invoke.bind(t);
+        t.invoke = async (c, a, o) => {
+          if (c === "collab_update") await new Promise((r) => setTimeout(r, 700));
+          return inv(c, a, o);
+        };
+        t.__slow = true;
+        return true;
+      };
+      const iv = setInterval(() => wrap() && clearInterval(iv), 5);
+    });
+    const status = await invoke(gm, "campaign_status", {});
+    const id = (n) => status.players.find((p) => p.name === n).id;
+    const set = (whole, rows) => ({ kind: "set", set: { whole, rows }, secret_name: null });
+    await invoke(gm, "access_set", { paths: [path], change: set("see", [{ account: id("Ana"), level: "edit" }]) });
+    const original = JSON.parse((await invoke(gm, "read_text", { path })).text);
+
+    // Bruno and Ana on the board; the game master's window is not.
+    await openBoard(ana.page, folder.id, "Board do grupo");
+    await ana.page.waitForTimeout(1500);
+    const before = await ana.page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().length);
+    // She draws a rectangle with the pointer, as a person does.
+    const from = await onBoard(ana.page, 900, 700);
+    await ana.page.mouse.click(from.x, from.y);
+    await ana.page.keyboard.press("r");
+    const to = await onBoard(ana.page, 1100, 820);
+    await ana.page.mouse.move(from.x, from.y);
+    await ana.page.mouse.down();
+    await ana.page.mouse.move(to.x, to.y, { steps: 8 });
+    await ana.page.mouse.up();
+    await expect.poll(() => ana.page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().filter((e) => e.type === "rectangle").length)).toBe(1);
+    // The file on disk has it, and everything else of the canvas as it was.
+    await expect
+      .poll(async () => (JSON.parse((await invoke(gm, "read_text", { path })).text).verso?.drawing ?? []).some((d) => d.type === "rectangle"), { timeout: 30_000 })
+      .toBe(true);
+    const now = JSON.parse((await invoke(gm, "read_text", { path })).text);
+    expect(now.nodes.map((n) => [n.id, n.file ?? n.text])).toEqual(original.nodes.map((n) => [n.id, n.file ?? n.text]));
+    expect(now.edges).toEqual(original.edges);
+    expect(before).toBeGreaterThan(0);
+
+    // The game master opens the board later: it is there.
+    await openBoard(gm, folder.id, "Board do grupo");
+    await expect
+      .poll(() => gm.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().filter((e) => e.type === "rectangle").length), { timeout: 30_000 })
+      .toBe(1);
+  } finally {
+    for (const c of opened) await c.close().catch(() => {});
+  }
+});
