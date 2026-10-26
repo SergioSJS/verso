@@ -52,13 +52,17 @@ export function boardHandlers(this: BoardLeaf): CollabHandlers {
       // Refused in a shadow: the board stays as drawn (scene and view), the
       // room is left, nothing is sent again, and it is said once.
       if (why === "refused") {
-        ui.status.textContent = refusedLine();
+        ui.status.textContent = refusedLine(true);
         this.paintLive();
         return;
       }
       void this.roomClosed(why);
     },
     remote: () => {},
+    // The room took the board's state in again, in place: said once.
+    refused: () => {
+      ui.status.textContent = refusedLine();
+    },
     local: (why) => void this.boardWentLocal(why),
     live: () => {
       this.textCameBack();
