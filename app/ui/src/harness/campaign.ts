@@ -400,9 +400,11 @@ export class Campaign {
       if (folder) {
         const under = [...this.core.files.keys()].filter((f) => covers(path, f) && f !== path && this.tableOf(f));
         changed += under.length;
-        for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k)) { this.sets.delete(k); this.notes.delete(k); this.derived.delete(k); }
+        const keep = change.keep_exceptions === true;
+        for (const k of [...this.sets.keys(), ...this.notes.keys()]) if (k !== path && covers(path, k) && !(keep && this.ownSet(k))) { this.sets.delete(k); this.notes.delete(k); this.derived.delete(k); }
         touched.push(...under);
         for (const f of under) {
+          if (keep && this.ownSet(f)) continue;
           this.mirror(f, set);
           this.derived.add(f);
         }
