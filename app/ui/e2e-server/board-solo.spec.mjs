@@ -125,8 +125,9 @@ test("players who edit a board with no game master in it: the drawing is written
     await ana.page.waitForTimeout(1500);
     const before = await ana.page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().length);
     // She draws a rectangle with the pointer, as a person does.
-    await ana.page.keyboard.press("r");
     const from = await onBoard(ana.page, 900, 700);
+    await ana.page.mouse.click(from.x, from.y);
+    await ana.page.keyboard.press("r");
     const to = await onBoard(ana.page, 1100, 820);
     await ana.page.mouse.move(from.x, from.y);
     await ana.page.mouse.down();
