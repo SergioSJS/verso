@@ -109,7 +109,7 @@ test("the dialog gives Não vê | Vê | Edita to the whole table and to each pla
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { kind: "set", set: { whole: "none", rows: [{ account: "acc-bia", level: "see" }] } } });
   await expect(d.getByRole("status")).toContainText("Salvo ✓");
   await expectLevel(d, "Bia", "Vê");
-  await expect(d.getByText("acesso próprio")).toHaveCount(1);
+  await expect(d.getByText("acesso próprio", { exact: true })).toHaveCount(1);
   // Another edits it, together: one list, one set.
   await choose(d, "Caio", "Edita");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { whole: "none", rows: [{ account: "acc-bia", level: "see" }, { account: "acc-caio", level: "edit" }] } } });
@@ -183,6 +183,9 @@ test("a folder is applied with a button that says how many files change; its exc
   await choose(d, "Toda a mesa", "Vê");
   // Nothing is written until Aplicar.
   expect((await app.calls("access_set")).length).toBe(0);
+  // Eco has an access of its own: the folder asks, and here it follows the folder.
+  await expect(d.getByText("1 arquivo aqui dentro tem acesso próprio.")).toBeVisible();
+  await d.getByRole("radio", { name: "Seguir a pasta em todos" }).check();
   await d.getByRole("button", { name: "Aplicar" }).click();
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Sala"], change: { kind: "set", set: { whole: "see", rows: [] } } });
   await expect(d.getByRole("status")).toContainText("Aplicado a 1 arquivo.");
@@ -446,7 +449,7 @@ test("on a phone the dialog is a bottom sheet with a close button and 44 px targ
   for (const who of ["Toda a mesa", "Bia", "Caio", "Dora"]) {
     const sel = await select(d, who).boundingBox();
     expect(sel.height).toBeGreaterThanOrEqual(43.5);
-    const li = await d.locator(".ac-row").filter({ has: select(d, who) }).boundingBox();
+    const li = await select(d, who).locator("xpath=ancestor::li").boundingBox();
     expect(li.height).toBeGreaterThanOrEqual(55.5);
   }
   expect(await app.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

@@ -102,12 +102,12 @@ test("a file saves at once with Salvo and Desfazer, and Desfazer puts back what 
   await choose(d, "Bia", "Edita");
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
   await expect(d.getByRole("status")).toContainText("Salvo ✓");
-  await expect(d.getByText("acesso próprio")).toHaveCount(1);
+  await expect(d.getByText("acesso próprio", { exact: true })).toHaveCount(1);
   await d.getByRole("button", { name: "Desfazer" }).click();
   // It had no set of its own: the way back is to follow again.
   await expect.poll(() => lastSet(app)).toEqual({ paths: ["Mundo/Cripta.md"], change: { kind: "follow" } });
   await expectLevel(d, "Bia", "Não vê");
-  await expect(d.getByText("acesso próprio")).toHaveCount(0);
+  await expect(d.getByText("acesso próprio", { exact: true })).toHaveCount(0);
 });
 
 test("a folder is set with Aplicar; a file under it gets an exception, which the folder's second view lists with its way back", async ({ app }) => {
@@ -140,7 +140,7 @@ test("a folder is set with Aplicar; a file under it gets an exception, which the
   await fromMenu(app, folderRow(app));
   const again = dialogOf(app, /^Acesso · pasta “Mundo”/);
   await expect(again.getByRole("button", { name: /1 arquivo com acesso próprio/ })).toBeVisible();
-  await expect(again.getByText("têm acesso próprio")).toHaveCount(0);
+  await expect(again.getByText(/aqui dentro/)).toHaveCount(0);
   await choose(again, "Caio", "Edita");
   await expect(again.getByText("1 arquivo aqui dentro tem acesso próprio.")).toBeVisible();
   await expect(again.getByRole("radio", { name: "Manter" })).toBeChecked();
@@ -173,9 +173,7 @@ test("a folder with exceptions: Manter writes them back after the folder; Seguir
   const f = dialogOf(app, /^Acesso · pasta “Mundo”/);
   await choose(f, "Toda a mesa", "Vê");
   await f.getByRole("button", { name: "Aplicar" }).click();
-  const calls = (await app.calls("access_set")).map((c) => c.paths.join(","));
   await expect.poll(async () => (await app.calls("access_set")).map((c) => c.paths.join(",")).slice(-2)).toEqual(["Mundo", "Mundo/Diario.md"]);
-  expect(calls.length).toBeGreaterThan(1);
   // The second view: "Seguir a pasta em todos" asks, with the count.
   await f.getByRole("button", { name: /1 arquivo com acesso próprio/ }).click();
   await f.getByRole("button", { name: "Seguir a pasta em todos" }).click();
@@ -238,7 +236,8 @@ test("keyboard only: Tab stays in the dialog, the select changes with the keys, 
   expect((await app.calls("access_set")).filter((c) => c.paths[0] === "Mundo")).toHaveLength(0);
   await fd.getByRole("button", { name: "Aplicar" }).focus();
   await page.keyboard.press("Enter");
-  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
+  // The file Caio was given earlier has its own access: it is written back after the folder (Manter).
+  await expect.poll(async () => (await app.calls("access_set")).find((c) => c.paths[0] === "Mundo")).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" } } });
   await page.keyboard.press("Escape");
   await expect(fd).toBeHidden();
   await expect(page.locator("#notes").locator(":focus")).toHaveCount(1);
@@ -303,7 +302,7 @@ test("in the dark theme the words have contrast, a chosen level differs from the
   const d = dialogOf(app);
   await choose(d, "Dora", "Edita");
   await expectLevel(d, "Dora", "Edita");
-  await expect(d.getByText("acesso próprio")).toBeVisible();
+  await expect(d.getByText("acesso próprio", { exact: true })).toBeVisible();
   const report = await d.evaluate((root) => {
     const cv = document.createElement("canvas").getContext("2d");
     const rgba = (css) => {
