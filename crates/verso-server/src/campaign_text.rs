@@ -45,6 +45,16 @@ pub fn placeholder(lang: &str) -> String {
     }
 }
 
+/// The words of a locked card on a board, for a player who does not see its
+/// file: the one text every locked card has, whether the file is hidden, hidden
+/// with a secret name, or not there at all (a card never says which). Both
+/// ways a player is served a board use it (`campaign_serve`,
+/// `collab_players::Locks`).
+#[must_use]
+pub fn locked_card(lang: &str) -> String {
+    placeholder(lang)
+}
+
 /// The parts of `target#heading|alias`: (target, alias).
 fn split(inner: &str) -> (&str, Option<&str>) {
     let (before, alias) = match inner.split_once('|') {

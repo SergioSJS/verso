@@ -32,7 +32,7 @@
 //! whole file of a board (`write_text`, `sync_put`), and is never asked to.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -66,6 +66,10 @@ pub struct Shadow {
     /// What the room last told it, the room's projection: an element of the
     /// player's own is in `now` and in the room, so in `told` too.
     told: Held,
+    /// What the window drew of the file when it seeded the shadow: judged by
+    /// nobody, never the room's, only what a later echo is compared to. It
+    /// goes with the shadow (a rejoin makes the shadow anew).
+    seeded: Entries,
     /// What the account sees of the room, as of the last change.
     sight: Sight,
     /// What the account sees of the file the room was made from: ids the
@@ -133,14 +137,16 @@ impl<'a> Locks<'a> {
             return t.clone();
         }
         let mut ws = self.ws.borrow_mut();
-        let reached = ws.reached_exact(file).unwrap_or_else(|| file.to_owned());
-        let told = crate::campaign_serve::is_hidden_in(&mut ws, self.veil, &reached).then(|| {
-            if self.veil.secret_name(&reached) {
-                crate::campaign_text::REDACTED.to_owned()
-            } else {
-                crate::campaign_text::placeholder(&self.veil.lang)
-            }
-        });
+        // One rule for the file a card names (`reached_exact`, ADR 0057):
+        // one that is not there is the same to a player as one hidden from
+        // them — a locked card, never an answer to "does it exist".
+        let reached = ws.reached_exact(file);
+        let hidden = reached
+            .as_ref()
+            .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
+        // One text for every locked card, whatever the reason (hidden,
+        // hidden with a secret name, not there): a card never says which.
+        let told = hidden.then(|| crate::campaign_text::locked_card(&self.veil.lang));
         self.cache
             .borrow_mut()
             .insert(file.to_owned(), told.clone());
@@ -201,6 +207,11 @@ fn apply_ops(
         meta.insert(&mut txn, k.as_str(), v.clone());
     }
     Some(txn.encode_update_v1())
+}
+
+/// The id an entry's key names.
+fn key_id(key: &str) -> Option<&str> {
+    crate::collab_board::parse_key(key).map(|(i, _, _)| i)
 }
 
 /// A copy of `doc`, to try an update on.
@@ -303,6 +314,7 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         writers: crate::writers::Writers::new(),
         now: (sight.shown.clone(), told.clone()),
         told: (sight.shown.clone(), told),
+        seeded: Entries::new(),
         sight,
         disk,
         rev,
@@ -367,6 +379,17 @@ pub(super) fn join(
     (client, account): (&str, &str),
     user: &str,
 ) -> Result<CollabJoin, ContractError> {
+    // A window that joins again, alone in its shadow (after a refusal, or a
+    // dropped link), gets the room's state as it is now, projected for the
+    // account anew when its shadow drifted from the room (what it drew when
+    // it seeded, the versions it only echoed): none of that is carried over.
+    // A shadow other windows are in, or that did not drift, stays.
+    let alone = r.readers.players.by.get(account).is_some_and(|sh| {
+        sh.clients.iter().all(|c| c == client) && (!sh.seeded.is_empty() || sh.now.0 != sh.told.0)
+    });
+    if alone {
+        r.readers.players.by.remove(account);
+    }
     if !r.readers.players.by.contains_key(account) {
         let shadow = make(server, r, account)?;
         r.readers.players.by.insert(account.to_owned(), shadow);
@@ -628,10 +651,32 @@ pub(super) fn update(
             return Err(refused("a fact of the board that is not yours to change"));
         }
     }
-    let ops: Vec<Op> = puts
+    let all_ops: Vec<Op> = puts
         .iter()
         .map(|(k, v)| Op::Put(k.clone(), v.clone()))
         .chain(dels.iter().map(|k| Op::Del(k.clone())))
+        .collect();
+    // An element sent again as it already is, in substance, is no change
+    // (Excalidraw bumps versions on load and render): never judged, never
+    // refused, and not the room's either — it is already what it holds.
+    let echoed = if seeding {
+        BTreeSet::new()
+    } else {
+        // What the room told the account, and what the window drew of the
+        // file when it seeded — not the shadow's whole document, which also
+        // holds versions the room never had.
+        let mut known = sh.told.0.clone();
+        known.extend(sh.seeded.iter().map(|(k, v)| (k.clone(), v.clone())));
+        board_sight::echoes(&all_ops, &known)
+    };
+    let is_echo = |k: &str| key_id(k).is_some_and(|i| echoed.contains(i));
+    let puts: Vec<(String, String)> = puts.into_iter().filter(|(k, _)| !is_echo(k)).collect();
+    let dels: Vec<String> = dels.into_iter().filter(|k| !is_echo(k)).collect();
+    let ops: Vec<Op> = all_ops
+        .into_iter()
+        .filter(|o| match o {
+            Op::Put(k, _) | Op::Del(k) => !is_echo(k),
+        })
         .collect();
     // The first update of a window that draws the board in is the file's
     // own elements, made of the projection: it goes into the shadow only.
@@ -676,6 +721,7 @@ pub(super) fn update(
         &event("collab-update", &r.path, "update", &json!(b64(bytes))),
     );
     if seeding {
+        sh.seeded.extend(puts.iter().cloned());
         return Ok(false);
     }
     for (k, v) in &puts {
