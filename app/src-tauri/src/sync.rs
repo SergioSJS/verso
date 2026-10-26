@@ -25,6 +25,7 @@ use super::*;
 use crate::dns::SendRetrying;
 
 pub(crate) mod live;
+mod seat;
 mod transfer;
 pub(crate) mod universo;
 use crate::cloud;
@@ -125,6 +126,9 @@ pub(crate) struct Syncer {
     /// The paths the server answered for since the last full question,
     /// those it said nothing may be changed in included: not asked twice.
     rights_asked: Mutex<HashSet<String>>,
+    /// Who the server says this device is here, and whether to ask again.
+    seat: Mutex<Option<Value>>,
+    seat_stale: AtomicBool,
 }
 
 const RIGHTS_UNKNOWN: u8 = 0;
@@ -166,6 +170,8 @@ impl Syncer {
             rights_stale: AtomicBool::new(true),
             rights_mode: AtomicU8::new(RIGHTS_UNKNOWN),
             rights_asked: Mutex::new(HashSet::new()),
+            seat: Mutex::new(state.seat.clone()),
+            seat_stale: AtomicBool::new(true),
         })
     }
 
@@ -174,6 +180,7 @@ impl Syncer {
     /// holds until then, and while the server is out of reach.
     pub(crate) fn rights_stale(&self) {
         self.rights_stale.store(true, Ordering::Relaxed);
+        self.seat_stale.store(true, Ordering::Relaxed);
     }
 
     /// What the person may do with each of `paths`, as the server last
@@ -948,6 +955,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // rooms come back into them before anything is compared (ADR 0082
     // item 9).
     live::rejoined(s).await;
+    seat::refresh(ctx, s).await;
     let remote = Arc::clone(&l.remote);
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
@@ -1272,8 +1280,8 @@ fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, known: &rem::Known) {
         std::collections::BTreeMap::new()
     };
     state.paused = s.paused.load(Ordering::Relaxed);
-    // A note made from a template that both sides agree on, or that the
-    // server holds since, needs no template base any more.
+    state.seat = s.seat();
+    // A note made from a template both sides agree on needs no base.
     let base = &state.base;
     state.made.retain(|p, _| !base.contains_key(p));
     lock(&s.made).retain(|p, _| !base.contains_key(p));

@@ -587,12 +587,17 @@ fn capabilities<R: tauri::Runtime>(
     if live.is_some() {
         can.push(Can::Collab);
     }
+    // A folder of this computer alone is the person's own: no seat to tell.
+    // A synced one carries the server's answer for it (ADR 0113 S8), the
+    // last one while the server is out of reach.
+    let access = sync_commands::synced_of(&app, window.label())
+        .and_then(|s| s.seat())
+        .and_then(|v| serde_json::from_value(v).ok());
     Ok(Capabilities {
         host: Host::Desktop,
         can,
         latency_ms: live,
-        // A folder of this computer is the person's own: no seat to tell.
-        access: None,
+        access,
     })
 }
 
