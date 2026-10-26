@@ -1449,3 +1449,67 @@ fn what_a_window_seeded_is_compared_for_echoes_only_and_goes_with_the_shadow() {
         assert!(!collab_board::elements(&again.doc).contains_key("lost"));
     });
 }
+
+/// A player's allowed edit is written with no window of the game master's
+/// in the room: laid over the disk's file by the quiet save, nothing she does
+/// not see touched, and the game master finds it when she opens the board.
+#[test]
+fn a_players_edit_is_written_with_no_game_masters_window_and_found_later() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        let ana_id = m.ana_id.clone();
+        access(&m, &[(&ana_id, Level::Edit)]);
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": PATH, "base64": STANDARD.encode(file()) }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let original: Value = serde_json::from_str(&file()).unwrap();
+        let (_, ana, _) = join(&mut m.ana, LEAKS).await;
+        let base: Value = serde_json::from_str(&ana.base()).unwrap();
+        let mut drew: Vec<Vec<u8>> = Vec::new();
+        for (i, n) in base["nodes"].as_array().unwrap().iter().enumerate() {
+            let id = n["id"].as_str().unwrap();
+            let e = json!({ "type": "embeddable", "x": n["x"], "y": n["y"], "width": n["width"], "height": n["height"],
+                "index": format!("a{i}"), "customData": { "canvas": n }, "locked": id == "c-hid" });
+            drew.push(put(&ana.doc, id, 1, 5, &e));
+        }
+        drew.push(seeded(&ana.doc));
+        let seed = yrs::merge_updates_v1(drew.iter().map(Vec::as_slice)).unwrap();
+        let (sent, _) = send(&mut m.ana, &seed, LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        // She draws a rectangle, as her window does: the update, then its file.
+        let edit = yrs::merge_updates_v1(
+            [
+                put(&ana.doc, "hers", 1, 22, &json!({ "type": "rectangle", "index": "c0", "x": 5 })).as_slice(),
+                edited(&ana.doc, 1).as_slice(),
+            ],
+        )
+        .unwrap();
+        let (sent, _) = send(&mut m.ana, &edit, LEAKS).await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let (given, _) = exchange(
+            &mut m.ana,
+            "collab_canvas",
+            json!({ "path": PATH, "at": sv(&ana.doc), "json": canvas_of(&ana.doc).to_string() }),
+            LEAKS,
+        )
+        .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        // No ⌘S: the room writes when it has been quiet.
+        tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+        let now = disk(&mut m).await;
+        assert!(
+            now["verso"]["drawing"].as_array().unwrap().iter().any(|d| d["id"] == "hers"),
+            "{now}"
+        );
+        for id in ["c-hid", "zqpin"] {
+            assert_eq!(node(&now, id), node(&original, id), "{id}");
+        }
+        assert_eq!(now["edges"], original["edges"]);
+    });
+}
