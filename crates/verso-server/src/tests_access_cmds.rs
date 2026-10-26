@@ -572,3 +572,68 @@ fn file_ext_wants_a_real_mpeg_frame_for_an_mp3() {
     assert_eq!(file_ext(&[0xff, 0xe8, 0x90, 0x00]), None);
     assert_eq!(file_ext(&[0xff, 0xf9, 0x90, 0x00]), None);
 }
+
+/// *Manter* (the Access dialog's choice on a folder with files of their own):
+/// with `keep_exceptions` the folder's set is replaced and a file with a set
+/// of its own keeps it, in the one write, so it never follows the folder, not
+/// even for a moment; without it everything inside is replaced as before.
+#[test]
+fn keep_exceptions_leaves_the_files_with_their_own_set_untouched() {
+    block_on(async {
+        let mut m = mesa().await;
+        let set = |whole: &str, keep: bool| json!({ "kind": "set", "set": { "whole": whole, "rows": [] }, "secret_name": null, "keep_exceptions": keep });
+        for (path, whole) in [("Mundo Zq", "see"), ("Mundo Zq/Cripta Zq.md", "none")] {
+            let done = m
+                .owner
+                .call(
+                    "access_set",
+                    json!({ "paths": [path], "change": set(whole, false) }),
+                )
+                .await;
+            assert!(done.get("ok").is_some(), "{done}");
+        }
+        let hidden_from_ana = |r: &Value| r.get("ok").is_none();
+        let ana_sees = m
+            .ana
+            .call("access_get", json!({ "paths": ["Mundo Zq/Cripta Zq.md"] }))
+            .await;
+        assert!(hidden_from_ana(&ana_sees), "{ana_sees}");
+        // Keep: the folder gives Edits to all, the hidden file stays hidden.
+        let kept = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq"], "change": set("edit", true) }),
+            )
+            .await;
+        assert!(kept.get("ok").is_some(), "{kept}");
+        let file = m
+            .owner
+            .call(
+                "access_get",
+                json!({ "paths": ["Mundo Zq/Cripta Zq.md", "Mundo Zq"] }),
+            )
+            .await;
+        assert_eq!(file["ok"][0]["own"]["whole"], "none", "{file}");
+        assert_eq!(file["ok"][1]["own"]["whole"], "edit", "{file}");
+        let ana_sees = m
+            .ana
+            .call("access_get", json!({ "paths": ["Mundo Zq/Cripta Zq.md"] }))
+            .await;
+        assert!(hidden_from_ana(&ana_sees), "{ana_sees}");
+        // Without it: the file follows the folder again, as always.
+        let all = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Mundo Zq"], "change": set("edit", false) }),
+            )
+            .await;
+        assert!(all.get("ok").is_some(), "{all}");
+        let file = m
+            .owner
+            .call("access_get", json!({ "paths": ["Mundo Zq/Cripta Zq.md"] }))
+            .await;
+        assert!(file["ok"][0]["own"].is_null(), "{file}");
+    });
+}

@@ -259,7 +259,15 @@ export async function accessDialog(gm, path, folder = false) {
 }
 
 /** A choice in the dialog: `who` is a player's name or "Toda a mesa"; `level` "Não vê", "Vê" or "Edita". */
-export const choose = (dialog, who, level) => dialog.getByRole("radiogroup", { name: who, exact: true }).getByRole("radio", { name: level, exact: true }).click();
+export const choose = (dialog, who, level) => dialog.getByRole("combobox", { name: who, exact: true }).selectOption({ label: level });
+
+/** A folder's dialog, second view: the files with an access of their own (the list), opened from the summary line. */
+export async function exceptionsOf(dialog) {
+  await dialog.getByRole("button", { name: /com acesso próprio/ }).click();
+  const list = dialog.getByRole("list", { name: "Arquivos com acesso próprio" });
+  await expect(list).toBeVisible();
+  return list;
+}
 
 /** A folder's dialog: the choices made, then "Aplicar". */
 export async function applyFolder(gm, path, choices) {

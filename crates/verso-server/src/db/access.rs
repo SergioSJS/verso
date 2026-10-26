@@ -599,20 +599,30 @@ impl Db {
 
     /// `set` is the whole access of the folder `path` from now on, and of
     /// everything inside it: the rows of what lies below go, earlier
-    /// exceptions included (ADR 0113 item 2, *Apply*).
-    pub fn access_replace_under(&self, folder: &str, path: &str, set: NodeSet) -> R<()> {
+    /// exceptions included (ADR 0113 item 2, *Apply*), unless `keep` is true:
+    /// then the rows below stay as they are, and nothing but the folder's
+    /// own row changes, in the one transaction.
+    pub fn access_replace_under(
+        &self,
+        folder: &str,
+        path: &str,
+        set: NodeSet,
+        keep: bool,
+    ) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         if !set.rows.is_empty() {
             players_logs_begin(&tx, folder)?;
         }
-        tx.execute(
-            "DELETE FROM campaign_access WHERE folder = ?1 AND ?2 <> ''
-               AND substr(path, 1, length(?3)) = ?3",
-            params![folder, path, format!("{path}/")],
-        )
-        .map_err(e)?;
-        if path.is_empty() {
+        if !keep {
+            tx.execute(
+                "DELETE FROM campaign_access WHERE folder = ?1 AND ?2 <> ''
+                   AND substr(path, 1, length(?3)) = ?3",
+                params![folder, path, format!("{path}/")],
+            )
+            .map_err(e)?;
+        }
+        if path.is_empty() && !keep {
             tx.execute(
                 "DELETE FROM campaign_access WHERE folder = ?1 AND path <> ''",
                 [folder],
