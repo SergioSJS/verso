@@ -147,6 +147,40 @@ test("a player's board of cards to paths that are not there stays still: view ke
     const calls = await ana.page.evaluate(() => window.__ROOM_CALLS__);
     expect(calls.refused).toBe(0);
     expect(calls.join).toBe(joins);
+
+    // A forbidden change: the text card becomes a card of a file she does not see.
+    await openBoard(gm, folder.id, "Board do grupo");
+    const card = "a7f0d48c77f456f0";
+    const gmX = () => gm.evaluate((cid) => window.__VERSO_TEST__.boardRoom?.resolved().get(cid)?.x ?? null, card);
+    const sendAs = (patch) =>
+      ana.page.evaluate(
+        ([cid, p]) => {
+          const t = window.__VERSO_TEST__;
+          const els = t.board.getSceneElementsIncludingDeleted().map((e) => {
+            if (e.id !== cid) return e;
+            const next = { ...e, version: e.version + 10, versionNonce: Math.floor(Math.random() * 1e9), ...(p.x !== undefined ? { x: p.x } : {}) };
+            if (p.file) next.customData = { ...e.customData, canvas: { ...e.customData.canvas, type: "file", file: p.file } };
+            return next;
+          });
+          t.board.updateScene({ elements: els });
+          t.boardRoom.scene(els, "transparent", true);
+          t.boardRoom.push();
+        },
+        [card, patch],
+      );
+    await sendAs({ file: "Ruínas de Valdor/Segredo.md" });
+    // Said once, the card back as the table has it, the view kept, one rejoin.
+    await expect(ana.page.locator("#status")).toContainText(/recusou|refused/, { timeout: 15_000 });
+    await expect
+      .poll(() => ana.page.evaluate((cid) => window.__VERSO_TEST__.board.getSceneElements().find((e) => e.id === cid)?.customData?.canvas?.type, card))
+      .toBe("text");
+    expect(await view()).toEqual(before);
+    expect((await ana.page.evaluate(() => window.__ROOM_CALLS__)).join).toBe(joins + 1);
+    // And the next, allowed, change reaches the game master.
+    const x0 = await gmX();
+    await sendAs({ x: (x0 ?? 0) + 77 });
+    await expect.poll(gmX, { timeout: 15_000 }).toBe((x0 ?? 0) + 77);
+    expect(await view()).toEqual(before);
   } finally {
     for (const c of opened) await c.close().catch(() => {});
   }
