@@ -18,7 +18,11 @@
   the end of Phase 2" for Phase 3, after the first release of the server
   ([0034](0034-roadmap-in-phases.md), revised the same day). Item 2
   stands; merge by block comes after conflicts have been seen in use (0073
-  item 10). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md): the first cloud transports are built into the desktop app, not plugins.
+  item 10).
+  2026-10-20 — external cloud storage file-by-file sync (Google Drive,
+  OneDrive, Dropbox, WebDAV) as an alternative transport to UniVerso,
+  with quota models, RFC 8252 loopback OAuth, and app verification
+  detailed in [0104](0104-external-cloud-storage-transports-and-quotas.md).
 
 ## Context
 
@@ -44,7 +48,8 @@ content (merge) and moving bytes (transport).
   sync — the hardest test of [0017](0017-plugins-format-shim-loading.md).
 - Google Drive and OneDrive serve better as a backup destination than as
   continuous sync, because of platform constraints
-  ([0009](0009-external-constraints.md)).
+  ([0009](0009-external-constraints.md)); file-by-file sync mechanics and
+  quota models detailed in [0104](0104-external-cloud-storage-transports-and-quotas.md).
 - Being out of scope until the end of Phase 2 protects the one-month real-use
   gate ([0034](0034-roadmap-in-phases.md)); even so, the Phase 1 file model
   cannot make per-block merge unfeasible later.

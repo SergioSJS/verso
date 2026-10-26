@@ -263,8 +263,7 @@ function guide(lang, { version, changelog, linkOnly, perFile }) {
   const name = isBeta(version) ? "Verso Beta" : "Verso";
   const f = releaseFiles(version);
   const link = (file) => `[${file}](${GITHUB}/releases/download/${tag}/${file})`;
-  const docs = lang === "en" ? "docs/" : "docs/pt-BR/";
-  const handsOn = `${GITHUB}/blob/main/${docs}reference/server-hands-on.md`;
+  const handsOn = `${GITHUB}/blob/main/docs/reference/server-hands-on.md`;
   const news = highlights(changelog);
   const out = [
     // An explicit anchor for the header's link: GitHub's Markdown API
