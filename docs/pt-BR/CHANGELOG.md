@@ -125,6 +125,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Compartilhar uma pasta no navegador diz o motivo quando não dá, e pede a senha de novo quando precisa**: um compartilhamento recusado (uma confirmação antiga que não foi renovada, por exemplo) agora sempre mostra o motivo na janela de compartilhar, no seu idioma, e a pergunta da senha (inclusive senha errada) é coberta por um teste e2e do servidor.
 - **Uma janela no Linux não fica mais branca quando a página web dela quebra**: o Verso agora percebe que o processo web da janela morreu (uma falha do driver de vídeo, por exemplo), registra no log e recarrega a página uma vez; se morrer de novo em até 30 segundos, uma mensagem avisa em vez de repetir sem fim.
 - **Os dados 3D não derrubam mais um computador sem aceleração gráfica**: antes da primeira queda o Verso confere, uma vez, que o WebGL é real e acelerado; se não for (ou se uma rolagem 3D falhar), a rolagem aparece em 2D, a linha de estado diz o porquê uma vez e o 3D fica desligado na sessão.
 - **O servidor nunca responde a página com um 404 vazio** (uma tela branca vista na rodada e2e do servidor de 2026-10-26): se o `web.html` da janela não puder ser lido naquele instante, o servidor entrega a última cópia que leu, ou uma página pequena que tenta de novo em dois segundos, com a causa no log.
