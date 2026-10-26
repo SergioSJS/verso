@@ -55,14 +55,16 @@ function showHelp(opener: HTMLElement): void {
   close.focus();
 }
 
+// localStorage is per origin: dismissed once for this server, not for every session.
 const SEEN = "verso.plainHttp.seen";
 
-/** Once a session, a small notice at the top of the window, closable;
- *  closed, its line stays in the settings where each feature lives. */
+/** A slim bar in the work area's own notices row (the panes shrink, nothing
+ *  is covered), closable; closed, it stays closed for this server, and the
+ *  status bar's mark and the settings' lines keep saying it. */
 export function plainHttpNotice(): void {
   if (!plainHttp()) return;
   try {
-    if (sessionStorage.getItem(SEEN)) return;
+    if (localStorage.getItem(SEEN)) return;
   } catch {
     // No storage: said at each start, which is the safe side.
   }
@@ -71,12 +73,12 @@ export function plainHttpNotice(): void {
   close.addEventListener("click", () => {
     bar.remove();
     try {
-      sessionStorage.setItem(SEEN, "1");
+      localStorage.setItem(SEEN, "1");
     } catch {
       // Gone for as long as this page lives.
     }
   });
-  document.body.append(bar);
+  (document.querySelector(".work-notices") ?? document.body).append(bar);
 }
 
 /** A mark that stays in the status bar while the page is on plain HTTP
