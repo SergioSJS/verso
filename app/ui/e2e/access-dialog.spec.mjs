@@ -162,7 +162,7 @@ test("a folder is set with Aplicar; a file under it gets an exception, which the
   await expect(indicator.locator(".note-access-count")).toHaveText("3/3");
 });
 
-test("a folder with exceptions: Manter writes them back after the folder; Seguir a pasta em todos asks first and does not", async ({ app }) => {
+test("a folder with exceptions: Manter is one write that keeps them; Seguir a pasta em todos asks first and does not", async ({ app }) => {
   await setup(app);
   await fromMenu(app, row(app, "Mundo/Diario.md"));
   const n = dialogOf(app, /^Acesso · Diario/);
@@ -173,7 +173,9 @@ test("a folder with exceptions: Manter writes them back after the folder; Seguir
   const f = dialogOf(app, /^Acesso · pasta “Mundo”/);
   await choose(f, "Toda a mesa", "Vê");
   await f.getByRole("button", { name: "Aplicar" }).click();
-  await expect.poll(async () => (await app.calls("access_set")).map((c) => c.paths.join(",")).slice(-2)).toEqual(["Mundo", "Mundo/Diario.md"]);
+  // One write, with the server told to keep what has its own access: no write-back, no moment when the file follows the folder.
+  await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo"], change: { set: { whole: "see" }, keep_exceptions: true } });
+  expect((await app.calls("access_set")).map((c) => c.paths.join(","))).toEqual(["Mundo/Diario.md", "Mundo"]);
   // The second view: "Seguir a pasta em todos" asks, with the count.
   await f.getByRole("button", { name: /1 arquivo com acesso próprio/ }).click();
   await f.getByRole("button", { name: "Seguir a pasta em todos" }).click();

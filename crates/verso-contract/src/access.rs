@@ -159,11 +159,16 @@ pub struct AccessInfo {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AccessChange {
     /// The path's whole set; on a folder, it replaces everything inside
-    /// (earlier exceptions included).
+    /// (earlier exceptions included) unless `keep_exceptions` is true.
     Set {
         set: AccessSetView,
         /// `Some` to turn the secret name on or off; `None` leaves it.
         secret_name: Option<bool>,
+        /// On a folder: the files and folders inside that have a set of
+        /// their own keep it, untouched, in the same transaction (the
+        /// window's *Manter*). False: everything inside is replaced.
+        #[serde(default)]
+        keep_exceptions: bool,
     },
     /// *Follow the folder*: the path's own set is deleted.
     Follow,

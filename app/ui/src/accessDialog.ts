@@ -604,20 +604,13 @@ class AccessDialog {
   private async applyNow(go: HTMLButtonElement): Promise<void> {
     go.disabled = true;
     this.say(ac.saving);
-    // Setting a folder replaces what is inside it, the files with an access of their own too: to keep
-    // them, their sets are written back, the folder's own before the files in it.
-    const keepers = this.keepOwn ? [...this.exceptions()].sort((a, b) => a.path.split("/").length - b.path.split("/").length) : [];
-    const r = await commands.accessSet(this.paths, { kind: "set", set: viewOf(this.draft), secret_name: null });
+    // Setting a folder replaces what is inside it, the files with an access of their own too, unless the server is
+    // told to keep them: in the one write, so none of them ever follows the folder, not even for a moment.
+    const keep = this.keepOwn && this.exceptions().length > 0;
+    const r = await commands.accessSet(this.paths, { kind: "set", set: viewOf(this.draft), secret_name: null, keep_exceptions: keep });
     if (r.status !== "ok") {
       go.disabled = false;
       return this.say(said(r.error), true);
-    }
-    for (const ex of keepers) {
-      const back = await commands.accessSet([ex.path], { kind: "set", set: ex.set, secret_name: null });
-      if (back.status !== "ok") {
-        await this.refresh();
-        return this.say(said(back.error), true);
-      }
     }
     const got = await commands.accessGet(this.paths);
     if (got.status === "ok" && got.data[0]) {
