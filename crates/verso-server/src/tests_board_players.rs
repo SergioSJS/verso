@@ -1382,13 +1382,20 @@ fn an_echo_is_judged_against_the_latest_the_account_holds_and_a_drifted_shadow_i
         assert!(sent.get("ok").is_some(), "{sent}");
         let told = hear(&mut m.owner, 400, &[]).await;
         Copy::take_into(&gm, &told);
-        assert_eq!(collab_board::elements(&gm)["c-open"]["x"], 0, "a revert is a change");
+        assert_eq!(
+            collab_board::elements(&gm)["c-open"]["x"],
+            0,
+            "a revert is a change"
+        );
         // Sending the latest again with a new version is an echo: nothing
         // reaches the game master.
         let (sent, _) = send(&mut m.ana, &put(&ana.doc, "c-open", 4, 23, &first), LEAKS).await;
         assert!(sent.get("ok").is_some(), "{sent}");
         let told = hear(&mut m.owner, 300, &[]).await;
-        assert!(told.iter().all(|e| e["event"] != "collab-update"), "{told:?}");
+        assert!(
+            told.iter().all(|e| e["event"] != "collab-update"),
+            "{told:?}"
+        );
         // Her shadow now holds a version the room never had: joined again,
         // alone, she gets the room's state in a shadow made anew.
         let (joined, again, _) = join(&mut m.ana, LEAKS).await;
