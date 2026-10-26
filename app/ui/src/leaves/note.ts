@@ -944,7 +944,7 @@ export class NoteLeaf extends Leaf {
    *  another device — keeps its text, out of the room, and says it is gone
    *  in words, as after a change seen outside: never the system's text of
    *  a failed read. */
-  private async roomClosed(why?: "lost"): Promise<void> {
+  private async roomClosed(why?: "lost" | "refused"): Promise<void> {
     const path = this.path;
     await this.loading;
     if (this.destroyed || path !== this.path) return;

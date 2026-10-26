@@ -23,7 +23,7 @@ import { commands } from "./bindings";
 import { type CollabHandlers, fromB64, joinRoom, REMOTE, RoomSession, roomSide, toB64 } from "./collab";
 import { backgroundOf, type CanvasDoc, type El, parseCanvas } from "./board/model";
 import type { BoardPane, BoardPerson as Person, BoardRoomLink } from "./board/types";
-import { canvasOf, changedElements, entryKey, Layouts, mergeScene, outrankedKeys, parseKey, type Rank, rankOf, resolve, sendable, unsent } from "./board/roomModel";
+import { canvasOf, changedElements, entryKey, Layouts, mergeScene, outrankedKeys, parseKey, type Rank, rankOf, resolve, sameSubstance, sendable, unsent } from "./board/roomModel";
 
 /** The origin of this window's own changes to the room's document. */
 const LOCAL = "board";
@@ -105,6 +105,12 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
    *  the board's own adjustments of a locked element are never sent. */
   get shadow(): boolean {
     return this.meta.get("shadow") === true;
+  }
+
+  /** A shadow's refusal never reloads the board (the view stays, the
+   *  refused change is not sent again). */
+  protected override keepsSceneOnRefusal(): boolean {
+    return this.shadow;
   }
 
   /** Whether `e` is one this window never sends: a locked element of a shadow. */
@@ -232,6 +238,14 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     if (!p || !this.writable || !this.open) return;
     const held = this.resolved();
     const changed = changedElements(p.scene, this.known).filter((e) => {
+      const was = held.get(e.id);
+      // An element that is what the room told in substance (a version the
+      // board bumped by itself): agreed on here, never sent — the server
+      // would take it for nothing, and there is nothing to say.
+      if (this.shadow && was && !e.isDeleted && sameSubstance(e, was)) {
+        this.known.set(e.id, rankOf(e));
+        return false;
+      }
       if (!this.mute(e)) return true;
       // The board's own change of a marker: agreed on here, never sent.
       this.known.set(e.id, rankOf(e));
