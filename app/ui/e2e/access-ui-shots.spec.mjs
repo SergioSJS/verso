@@ -44,6 +44,7 @@ async function setup(app, who, width, theme) {
       c.sets.set("Mundo/Diario.md", set("none", []));
       c.sets.set("Mundo/Porto.md", set("see", [["acc-caio", "edit"]]));
       c.sets.set("Mundo/Quadro.canvas", set("see", []));
+      for (const path of ["Mundo/Cripta.md", "Mundo/Porto.md", "Mundo/Quadro.canvas"]) c.notes.set(path, { path, released: true, audience: { kind: "table" }, secret_name: false, grant: { kind: "none" } });
       window.__harness.emit("campaign-changed", { paths: [] });
     },
     [TABLE, PLAYERS, who],
@@ -105,6 +106,7 @@ for (const width of [1500, 390]) {
       await setup(app, "owner", width, theme);
       await tree(app, width);
       await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+      if (width <= 760) await page.getByRole("button", { name: "Arquivos" }).click();
       await expect(page.locator(".table-card-owner")).toBeVisible();
       await page.waitForTimeout(300);
       await page.screenshot({ path: file(`${tag}-4-card-owner-page`) });
@@ -115,6 +117,7 @@ for (const width of [1500, 390]) {
       await setup(app, "player", width, theme);
       await tree(app, width);
       await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+      if (width <= 760) await page.getByRole("button", { name: "Arquivos" }).click();
       await expect(page.locator(".table-card-player")).toBeVisible();
       await page.waitForTimeout(300);
       await page.screenshot({ path: file(`${tag}-5-card-player-page`) });
