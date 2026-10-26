@@ -67,7 +67,9 @@ import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, lostLine, sideCan } from "../collab";
+import { applyToRoom, edited } from "../roomHandover";
+import { Stopwatch } from "../slowOps";
 import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
@@ -868,9 +870,39 @@ export class NoteLeaf extends Leaf {
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
+    const watch = new Stopwatch();
+    // Where the side keeps rooms and they are not a synced folder's local
+    // ones, the room is joined while the file is read, and the text shows
+    // when it is read: the join no longer comes after the read, nor holds
+    // the text back (the maintainer measured 0.7–1.8 s per open on a
+    // server's folder, 2026-10-26).
+    const early = (await this.joinsEarly()) && !this.collab?.live;
+    // A live room of this tab for the same note is kept, not left and
+    // joined again: joinCollab hands the same session back.
+    const keep = this.collab?.open && this.collab.live && this.collab.path === path;
+    if (!keep) {
+      this.collab?.release(this.roomHandlers);
+      this.collab = null;
+    }
+    const catching = () => {
+      this.catching = true;
+      this.paintLive();
+    };
+    let joined = false;
+    let joining: Promise<CollabSession | null> | undefined;
+    if (early) {
+      joining = joinCollab(path, this.roomHandlers, catching).catch(() => null);
+      void joining.then(() => {
+        joined = true;
+        watch.step("room join");
+      });
+    }
     const note = await opening.readNote(path, this.quiet(path));
-    if (this.destroyed || load !== this.loads) return;
+    watch.step("read");
+    const letGo = () => void joining?.then((r) => r?.release(this.roomHandlers));
+    if (this.destroyed || load !== this.loads) return letGo();
     if (note.status !== "ok") {
+      letGo();
       if (this.veiled(note.error)) return this.veil(path);
       this.path = path;
       this.setTitle(name(path));
@@ -880,21 +912,70 @@ export class NoteLeaf extends Leaf {
       return this.showFailure(path, note.error, () => void this.load(path, true));
     }
     this.clearFailure();
-    // Several people in the note, where the side allows it: the room's
-    // text, which may hold edits not written yet, is what the editor shows.
-    this.collab?.release(this.roomHandlers);
-    this.collab = null;
-    const catching = () => {
-      this.catching = true;
+    const mixed = lineSeparator(note.data.text) === null;
+    if (mixed) {
+      letGo();
+      joining = undefined;
+      if (keep) {
+        this.collab?.release(this.roomHandlers);
+        this.collab = null;
+      }
+    }
+    if (joining && !joined) {
+      // The room is not in yet: the text shows now, the room takes over
+      // when it joins, with what was typed meanwhile (`takeRoom`).
+      this.joiningRoom = true;
+      this.show(note.data);
+      watch.step("render");
+      const base = this.editor.state.doc.toString();
+      const room = await joining;
+      this.joiningRoom = false;
+      this.catching = false;
+      if (this.destroyed || load !== this.loads) return void room?.release(this.roomHandlers);
+      if (room) this.takeRoom(room, note.data, base);
       this.paintLive();
-    };
-    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
+      watch.step("hand over");
+      return watch.report(`open ${path}`);
+    }
+    const shared = joining ? await joining : mixed ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
     this.catching = false;
     if (this.destroyed || load !== this.loads) return shared?.release(this.roomHandlers);
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
     this.show(note.data);
+    watch.step("render");
     this.paintLive();
+    watch.report(`open ${path}`);
+  }
+  /** Whether a note is joined while it is read: the side keeps rooms and
+   *  is not this computer's synced folder, whose join waits for the local
+   *  file's text to cross (ADR 0082 item 7) and is sequenced as before. */
+  private async joinsEarly(): Promise<boolean> {
+    const side = await sideCan();
+    return side !== null && side.can.includes("collab") && side.host !== "desktop";
+  }
+  /** Set while the note shows before its room is joined: what is typed
+   *  then is not written to the file (the room will take it). */
+  joiningRoom = false;
+  /** The room joined after the text was shown: the editor binds to it, the
+   *  cursor kept, and what was typed meanwhile goes into the room as one
+   *  edit (nothing lost, nothing twice). */
+  private takeRoom(room: CollabSession, note: NoteText, base: string): void {
+    const typed = this.editor.state.doc.toString();
+    const sel = this.editor.state.selection.main;
+    this.collab = room;
+    this.liveOthers = room.others();
+    this.eol = room.crlf ? "\r\n" : "\n";
+    this.readOnly = !may(note.path, "edit") || room.reader;
+    this.editor.setState(this.editorState(room.initial(), room.extension()));
+    const edit = typed === base || this.readOnly ? null : edited(base, typed);
+    if (edit) applyToRoom(room.text, base, edit);
+    const len = this.editor.state.doc.length;
+    this.editor.dispatch({ selection: { anchor: Math.min(sel.anchor, len), head: Math.min(sel.head, len) } });
+    this.setDirty(edit !== null);
+    this.props.render(note.properties, note.text, this.readOnly, note.note_type);
+    this.applyMode();
+    this.updateWords();
   }
   /** What the tab does when its room speaks, one object for the tab's
    *  life: a board's card on the same note shares the window's place in
@@ -1101,7 +1182,7 @@ export class NoteLeaf extends Leaf {
    *  banner waits for a decision, nothing is written. */
   save(): Promise<void> {
     const run = this.saving.then(async () => {
-      if (!this.note || !this.dirty) return;
+      if (!this.note || !this.dirty || this.joiningRoom) return;
       if (this.conflict.up) {
         ui.status.textContent = t.conflictPendingBoth;
         return;
