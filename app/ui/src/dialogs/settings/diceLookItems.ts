@@ -234,7 +234,7 @@ export function diceLookItems(ctx: ItemCtx): SettingItem[] {
         say.textContent = "";
         const out = await preview3d();
         b.disabled = false;
-        say.textContent = out.played ? ls.rolled(...out.values) : out.why === "motion" ? ls.offMotion : ls.offSwitch;
+        say.textContent = out.played ? ls.rolled(...out.values) : out.why === "motion" ? ls.offMotion : out.why === "gl" ? ls.offGl : ls.offSwitch;
       })();
     });
     box.append(b, say);

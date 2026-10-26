@@ -10,7 +10,10 @@
 
 import type { DiceRoll } from "../bindings";
 import { hasCapability } from "../capabilities";
+import { ui } from "../dom";
 import { settings } from "../settings";
+import { failGl, glVerdict, shouldTell } from "./gl";
+import { ls } from "./lookStrings";
 import type { Die3 } from "./force";
 import { type DiceLook, type DiceStyles, materialOf, readDiceLook, resolveApp, type SlotId } from "./look";
 import { armAudio } from "./audio";
@@ -63,9 +66,24 @@ const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMe
 
 /** Why a 3D roll cannot play now, or null when it can: the switch is off,
  *  or the system asks for less motion. */
-export function why3dOff(): "switch" | "motion" | null {
+export function why3dOff(): "switch" | "motion" | "gl" | null {
   if (reducedMotion()) return "motion";
-  return hasCapability("dice3d") ? null : "switch";
+  if (!hasCapability("dice3d")) return "switch";
+  return glOk() ? null : "gl";
+}
+
+/** Whether this computer can draw WebGL safely (probed once, kept for the session); says why once when not. */
+function glOk(): boolean {
+  if (typeof document === "undefined") return true;
+  const v = glVerdict(() => document.createElement("canvas"));
+  if (!v.ok && shouldTell()) ui.status.textContent = ls.offGl;
+  return v.ok;
+}
+
+/** A 3D roll failed while running: 3D is off for the rest of the session, and the 2D card follows. */
+function broke(): void {
+  failGl();
+  glOk();
 }
 
 /** Whether `roll` gets a 3D fall now: the switch is on, the system does not
@@ -73,6 +91,7 @@ export function why3dOff(): "switch" | "motion" | null {
  *  before the animation, so the caller can hold the 2D card back. */
 export function will3d(path: string, roll: DiceRoll): boolean {
   if (!dice3dActive(hasCapability("dice3d"), reducedMotion())) return false;
+  if (!glOk()) return false;
   // The same event heard again — after a reconnection, or the room echoing
   // a roll this window made — is not animated twice (item 6).
   if (ids.seen(rollId(path, roll))) return false;
@@ -112,7 +131,10 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
       sound = await loadSounds(dice.map((d) => soundMaterial(materialOf(styles[String(d.slot ?? 1) as SlotId] ?? styles["1"]))));
     }
     const stage = engine.throwDice(dice, styles, look.size, images, area(), { time: look.time, sound });
-    if (!stage) return;
+    if (!stage) {
+      broke();
+      return;
+    }
     running = stage;
     // Resolves when the dice have rested: the card shows then, and the dice
     // stay on the table until the person touches something (the stage).
@@ -122,6 +144,7 @@ async function fall(dice: readonly Die3[], styles: DiceStyles = diceLook().style
     await stage.rested;
   } catch {
     running = null;
+    broke();
   }
 }
 
@@ -141,7 +164,7 @@ export async function play3d(path: string, roll: DiceRoll, styles?: DiceStyles):
 /** The settings' "Rolar para testar": a d20 in slot 1, a d6 in slot 2 and
  *  a d6 in slot 3, with the look as it stands, for looking at only — nothing is rolled for a note, and the
  *  numbers have no meaning. Says why when it cannot play. */
-export async function preview3d(): Promise<{ played: false; why: "switch" | "motion" } | { played: true; values: [number, number, number] }> {
+export async function preview3d(): Promise<{ played: false; why: "switch" | "motion" | "gl" } | { played: true; values: [number, number, number] }> {
   const why = why3dOff();
   if (why) return { played: false, why };
   const pick = (n: number): number => {

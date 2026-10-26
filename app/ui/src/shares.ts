@@ -149,6 +149,9 @@ export function openShareDialog(path: string): void {
   title.id = titleId;
   const status = h("p", "share-status");
   status.setAttribute("role", "status");
+  // Whatever the server refuses is said here and seen: scrolled into view
+  // (a phone's dialog may be taller than the screen).
+  new MutationObserver(() => status.scrollIntoView?.({ block: "nearest" })).observe(status, { childList: true, characterData: true });
   const list = h("ul", "share-people");
   list.setAttribute("aria-label", sh.people);
   const attachments = h("div", "share-attachments");

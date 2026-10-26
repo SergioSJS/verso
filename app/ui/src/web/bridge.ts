@@ -515,6 +515,9 @@ async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unkno
     }
   } catch (e) {
     if (e instanceof ApiError) {
+      // A fresh proof the person did not give (cancelled, or no way to ask)
+      // is its own kind, as the desktop host's: the dialog says it in its words.
+      if (e.code === "prove_first") throw { kind: "prove_first", message: e.message } satisfies ContractError;
       throw { kind: e.status === 404 ? "not_found" : e.status === 401 || e.status === 403 ? "refused" : "failed", message: e.message } satisfies ContractError;
     }
     throw { kind: "unavailable", message: String(e) } satisfies ContractError;
