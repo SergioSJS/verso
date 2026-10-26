@@ -1369,3 +1369,48 @@ fn a_subfolder_table_is_a_share_and_its_players_see_it_re_rooted() {
         );
     });
 }
+
+#[test]
+fn a_locked_card_of_a_board_a_player_reads_is_the_same_whatever_the_reason() {
+    block_on(async {
+        let mut m = mesa().await;
+        let board = json!({ "nodes": [
+            { "id": "k-hid", "type": "file", "file": "Barão Zq.md", "x": 1, "y": 2, "width": 3, "height": 4 },
+            { "id": "k-sec", "type": "file", "file": "Mapa Zq.md", "x": 1, "y": 2, "width": 3, "height": 4 },
+            { "id": "k-gone", "type": "file", "file": "Nada Zq.md", "x": 1, "y": 2, "width": 3, "height": 4 },
+        ], "edges": [] })
+        .to_string();
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": "Trio.canvas", "base64": base64::engine::general_purpose::STANDARD.encode(board) }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        m.owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Trio.canvas"], "released": true }),
+            )
+            .await;
+        let read = m
+            .ana
+            .ask("read_text", json!({ "path": "Trio.canvas" }))
+            .await;
+        let json: Value = serde_json::from_str(read["ok"]["text"].as_str().unwrap()).unwrap();
+        let nodes = json["nodes"].as_array().unwrap();
+        let strip = |n: &Value| {
+            let mut n = n.clone();
+            n["id"] = json!("");
+            n.to_string()
+        };
+        assert_eq!(nodes.len(), 3, "{json}");
+        assert!(
+            nodes[0]["text"].as_str().unwrap().starts_with("🔒"),
+            "{json}"
+        );
+        assert_eq!(strip(&nodes[0]), strip(&nodes[1]), "hidden vs secret name");
+        assert_eq!(strip(&nodes[0]), strip(&nodes[2]), "hidden vs not there");
+    });
+}

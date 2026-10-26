@@ -210,13 +210,10 @@ fn veil_board(
     if let Some(nodes) = v["nodes"].as_array_mut() {
         for n in nodes {
             if let Some(file) = n["file"].as_str().map(str::to_owned) {
-                let reached = ws.reached_exact(&file).unwrap_or(file.clone());
-                if hidden(veil, files, &reached) {
-                    let text = if veil.secret_name(&reached) {
-                        REDACTED.to_owned()
-                    } else {
-                        campaign_text::placeholder(lang)
-                    };
+                // A file that is not there is locked like a hidden one.
+                let reached = ws.reached_exact(&file);
+                if reached.as_ref().is_none_or(|r| hidden(veil, files, r)) {
+                    let text = campaign_text::locked_card(lang);
                     let (id, x, y, w, h) = (
                         n["id"].clone(),
                         n["x"].clone(),
