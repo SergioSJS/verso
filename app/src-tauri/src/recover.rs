@@ -86,7 +86,10 @@ mod linux {
         let label = webview.label().to_owned();
         {
             let mut hooked = HOOKED.lock().unwrap_or_else(PoisonError::into_inner);
-            if !hooked.get_or_insert_with(HashSet::new).insert(label.clone()) {
+            if !hooked
+                .get_or_insert_with(HashSet::new)
+                .insert(label.clone())
+            {
                 return;
             }
         }
@@ -150,10 +153,7 @@ mod tests {
         let mut policy = Policy::default();
         let t0 = Instant::now();
         assert_eq!(policy.on_death(t0), Action::Reload);
-        assert_eq!(
-            policy.on_death(t0 + Duration::from_secs(5)),
-            Action::GiveUp
-        );
+        assert_eq!(policy.on_death(t0 + Duration::from_secs(5)), Action::GiveUp);
         // Still dying every few seconds: keeps giving up, never loops.
         assert_eq!(
             policy.on_death(t0 + Duration::from_secs(20)),

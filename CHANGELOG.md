@@ -126,6 +126,7 @@ test release.
 
 ### Fixed
 
+- **Sharing a folder in the browser says why when it cannot, and asks for your password again when needed**: a refused share (an old proof that was not renewed, for example) now always shows the reason in the share dialog, in your language, and the password question (wrong password included) is covered by a server end-to-end test.
 - **A Linux window no longer stays white when its web page crashes**: Verso now notices that the window's web process died (a graphics-driver crash, for instance), logs it, and reloads the page once; if it dies again within 30 seconds, a message says so instead of looping.
 - **3D dice no longer crash a computer without graphics acceleration**: before the first fall Verso checks, once, that WebGL is real and accelerated; if not (or if a 3D roll ever fails), the roll shows in 2D, the status line says why once, and 3D stays off for the session.
 - **The server never answers its page with an empty 404** (a blank white screen seen in the server end-to-end run of 2026-10-26): if the window's `web.html` cannot be read at that instant, the server serves the last copy it read, or a small page that tries again in two seconds, with the cause in the log.

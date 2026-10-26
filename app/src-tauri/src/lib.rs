@@ -59,9 +59,9 @@ mod menu;
 mod menu_spec;
 mod notes;
 mod protocol;
+mod reach;
 #[cfg(any(target_os = "linux", test))]
 mod recover;
-mod reach;
 mod release_sums;
 mod remote;
 #[cfg(target_os = "linux")]
