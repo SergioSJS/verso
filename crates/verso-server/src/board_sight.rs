@@ -532,7 +532,8 @@ pub enum Op {
 
 /// The keys of an element Excalidraw moves by itself, on load and on render,
 /// without the person changing anything: they are no part of its substance.
-const NOISE: [&str; 5] = ["version", "versionNonce", "updated", "seed", "index"];
+/// Not the `index`: bringing an element to the front or back is a change.
+const NOISE: [&str; 4] = ["version", "versionNonce", "updated", "seed"];
 
 /// An element's JSON without its noise.
 fn substance(json: &str) -> Option<Value> {
@@ -545,22 +546,28 @@ fn substance(json: &str) -> Option<Value> {
 }
 
 /// The ids of the elements an edit only repeats: every entry the edit puts
-/// for the id is, in substance, one `known` already holds for it (the room's
-/// or the shadow's — what the player was told, or already had taken). An
-/// echo changes nothing, so it is judged by nobody: it is not a change.
-/// Deleting an id is a change, always.
+/// for the id is, in substance, the *latest* one `known` holds for it (what
+/// the room told the account, and what the window drew of the file when it
+/// seeded). An older version is not it: going back to one is a change. An
+/// echo changes nothing, so it is judged by nobody. Deleting an id is a
+/// change, always.
 #[must_use]
 pub fn echoes(ops: &[Op], known: &Entries) -> BTreeSet<String> {
+    let mut latest: BTreeMap<&str, (i64, i64, &str)> = BTreeMap::new();
+    for (k, e) in known {
+        if let Some((id, v, n)) = key_of(k)
+            && latest.get(id).is_none_or(|(lv, ln, _)| (v, n) > (*lv, *ln))
+        {
+            latest.insert(id, (v, n, e));
+        }
+    }
     let mut put: BTreeMap<&str, bool> = BTreeMap::new();
     for op in ops {
         if let Op::Put(k, json) = op
             && let Some((id, _, _)) = key_of(k)
         {
-            let same = substance(json).is_some_and(|now| {
-                known.iter().any(|(kk, e)| {
-                    key_of(kk).is_some_and(|(i, _, _)| i == id)
-                        && substance(e).is_some_and(|was| was == now)
-                })
+            let same = latest.get(id).is_some_and(|(_, _, e)| {
+                substance(json).is_some_and(|now| substance(e).is_some_and(|was| was == now))
             });
             let all = put.entry(id).or_insert(true);
             *all &= same;

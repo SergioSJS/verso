@@ -312,16 +312,21 @@ test("a shadow never sends an element the board only bumped: same substance, new
     const p = { apply: () => [], people() {} };
     s.attach(p, []);
     for (let i = 0; i < 5; i++) {
-      s.scene([{ ...a, version: 4 + i, versionNonce: 100 + i, seed: i, index: "a2" }], "transparent", false);
+      s.scene([{ ...a, version: 4 + i, versionNonce: 100 + i, seed: i }], "transparent", false);
       s.push();
     }
     await new Promise((r) => setTimeout(r, 20));
     assert.equal(calls.filter((c) => c === "collab_update").length, 0);
+    // Bringing it to the front is a change, and goes.
+    s.scene([{ ...a, version: 12, versionNonce: 4, index: "zz" }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(calls.filter((c) => c === "collab_update").length, 1);
     // A real change goes.
     s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
     s.push();
     await new Promise((r) => setTimeout(r, 20));
-    assert.equal(calls.filter((c) => c === "collab_update").length, 1);
+    assert.equal(calls.filter((c) => c === "collab_update").length, 2);
   } finally {
     s.leave();
   }

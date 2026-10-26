@@ -595,7 +595,6 @@ fn any_echo_of_what_the_player_holds_is_no_change_and_a_real_change_is() {
             e["version"] = json!(dice.below(50) + 4);
             e["versionNonce"] = json!(dice.below(10_000));
             e["seed"] = json!(dice.below(1000));
-            e["index"] = json!(format!("z{}", dice.below(99)));
             e["updated"] = json!(dice.below(1_000_000));
             let (k, j) = entry(&e);
             ops.push(Op::Put(k, j));
@@ -609,6 +608,21 @@ fn any_echo_of_what_the_player_holds_is_no_change_and_a_real_change_is() {
             .collect();
         assert_eq!(echoes(&ops, &held), want);
     }
+    // Bringing a card to the front (its z-order) is a change, judged.
+    let mut front = card("c4", "Livre 1.md");
+    front["version"] = json!(8);
+    front["index"] = json!("zz");
+    let (k, j) = entry(&front);
+    assert!(echoes(&[Op::Put(k, j)], &held).is_empty());
+    // Going back to an older version is a change, not an echo of the latest.
+    let mut known = held.clone();
+    let mut newer = card("c4", "Livre 1.md");
+    newer["version"] = json!(9);
+    newer["x"] = json!(500);
+    let (k, j) = entry(&newer);
+    known.insert(k, j);
+    let (k, j) = entry(&card("c4", "Livre 1.md"));
+    assert!(echoes(&[Op::Put(k, j)], &known).is_empty());
     // A changed card (its file) is no echo; a deletion never is.
     let mut moved = card("c4", "Cripta Zq.md");
     moved["version"] = json!(9);
