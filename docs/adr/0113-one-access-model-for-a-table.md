@@ -892,6 +892,18 @@ The board a player edits (H). Server side in `board_sight.rs` (pure) and
   never reaches the room, and the room's own versions of the same keys replace
   it when they come.
 
+  Echoes and refusals of a board in a shadow (fix/board-loop, 2026-10-26):
+  an element a window sends again, equal in substance to the latest version
+  the room told the account (or the window drew when it seeded; `version`,
+  `versionNonce`, `updated`, `seed` are noise, `index` is not), is no change
+  and is never judged. A refusal does not close the board: the window joins
+  once more, takes the room's state in place (view, selection and tool
+  kept), keeps what the person did meanwhile, and a second refusal within 3 s
+  with no change of hers stops it with a line. A card of a file that is not
+  there is a locked card, with the one text every locked card has. Left as
+  is: a card's id is not hidden from the player (the ids of locked cards are
+  random, so an id says nothing of the file), so no oracle is added by it.
+
 ### As built, S8 (2026-10-25, `feat/access-s8`)
 
 The synced desktop is one more door of the model; the host decides nothing of
