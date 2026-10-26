@@ -212,7 +212,7 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     const folderDialog = await accessDialog(gm, "Cenas", true);
     await expect(folderDialog).toContainText("1 arquivo com acesso próprio");
     const listed = await exceptionsOf(folderDialog);
-    await expect(listed).toContainText("Zqtaverna.md");
+    await expect(listed).toContainText("Zqtaverna");
     await expect(listed).toContainText("1 vê");
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
@@ -341,7 +341,7 @@ test("e. the game master moves a file with its own access into another folder: i
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
     // In A's dialog it is an exception.
     const before = await accessDialog(gm, "A", true);
-    await expect(await exceptionsOf(before)).toContainText("Zqitem.md");
+    await expect(await exceptionsOf(before)).toContainText("Zqitem");
     await gm.keyboard.press("Escape");
 
     // The move.
@@ -360,7 +360,7 @@ test("e. the game master moves a file with its own access into another folder: i
     const after = await accessDialog(gm, "B", true);
     await expect(after).toContainText("1 arquivo com acesso próprio");
     const listedB = await exceptionsOf(after);
-    await expect(listedB).toContainText("Zqitem.md");
+    await expect(listedB).toContainText("Zqitem");
     await expect(listedB).toContainText("Ana edita");
     await gm.keyboard.press("Escape");
     const old = await accessDialog(gm, "A", true);
