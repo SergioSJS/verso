@@ -27,6 +27,10 @@ function unavailable(): never {
 export class Rooms {
   /** The sync's link is up: the folder's notes may be live. */
   up = false;
+  /** A test: the side answers as a server's (a window on a server's folder), not as this computer's synced folder. */
+  asServer = false;
+  /** A test: the room's join answers after this many ms (a server across a network). */
+  joinDelay = 0;
   private readonly rooms = new Map<string, Room>();
   private epochs = 0;
   /** The others' documents and presences, by name. */
@@ -39,13 +43,16 @@ export class Rooms {
     const own = h["capabilities"]!;
     h["capabilities"] = (a) => {
       const c = own(a) as Capabilities;
-      return this.up ? { ...c, can: [...c.can, "collab"], latency_ms: 12 } : c;
+      return this.up ? { ...c, host: this.asServer ? "server" : c.host, can: [...c.can, "collab"], latency_ms: 12 } : c;
     };
     h["collab_join"] = (a) => {
       if (!this.up) unavailable();
       const path = String(a["path"]);
-      const room = this.room(path);
-      return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch, rolls: [...room.rolls] };
+      const answer = (): unknown => {
+        const room = this.room(path);
+        return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch, rolls: [...room.rolls] };
+      };
+      return this.joinDelay > 0 ? new Promise((resolve) => setTimeout(() => resolve(answer()), this.joinDelay)) : answer();
     };
     h["collab_update"] = (a) => {
       if (!this.up) unavailable();

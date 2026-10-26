@@ -27,6 +27,7 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import * as Y from "yjs";
 import { commands, type Capabilities, type CollabJoin, type CollabOracle, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
+import { timed } from "./slowOps";
 import { UpdateQueue } from "./updateQueue";
 
 let capabilities: Promise<Capabilities | null> | null = null;
@@ -597,7 +598,7 @@ export async function joinRoom<S extends RoomSession>(
   }
   held?.leave();
   if (synced) catching?.();
-  const r = await commands.collabJoin(path);
+  const r = await timed(`collab_join ${path}`, () => commands.collabJoin(path));
   if (r.status !== "ok" || r.data.read_only) return null;
   dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [], user: r.data.user } }));
   const made = make(r.data, synced);

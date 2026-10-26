@@ -129,7 +129,9 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
         if (u.docChanged) {
           // Another person's edit, from the room: not this tab's to save.
           const remote = this.collab !== null && u.transactions.every((tr) => !tr.docChanged || tr.annotation(ySyncAnnotation) !== undefined);
-          if (!remote && !u.transactions.some((tr) => tr.annotation(fromDisk))) {
+          // A note nobody can type in is never "unsaved": a change it shows
+          // came from the room or the disk, whatever carried it.
+          if (!remote && !this.readOnly && !u.transactions.some((tr) => tr.annotation(fromDisk))) {
             this.setDirty(true);
             // In a shared note the server writes the file once the edits
             // settle; the tab hears it (`collab-saved`).
