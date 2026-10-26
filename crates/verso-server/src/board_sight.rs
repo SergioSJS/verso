@@ -88,6 +88,12 @@ fn is_secret(v: &Value) -> bool {
 /// key written twice counted, not only the last), marks a node secret.
 fn secret_as_the_file_reads_it(json: &str) -> bool {
     use verso_core::canvas::{Canvas, Json};
+    // The flag is a key spelled `secret`: an element that does not hold the
+    // word, and writes no escape that could spell it, cannot carry one. The
+    // parse below (a copy of the whole element) is for the rest.
+    if !json.contains("secret") && !json.contains('\\') {
+        return false;
+    }
     let Ok(c) = Canvas::parse(json) else {
         return false;
     };
@@ -354,6 +360,17 @@ pub fn entries_of_canvas(canvas: &Value) -> Entries {
 #[must_use]
 pub fn shape_canvas(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> Value {
     let sight = see(&entries_of_canvas(canvas), lock);
+    shape_canvas_seen(canvas, &sight, lock)
+}
+
+/// [`shape_canvas`] for a `sight` already made of `canvas`'s own entries
+/// (`see(&entries_of_canvas(canvas), lock)`): the board is judged once.
+#[must_use]
+pub fn shape_canvas_seen(
+    canvas: &Value,
+    sight: &Sight,
+    lock: &dyn Fn(&str) -> Option<String>,
+) -> Value {
     let mut out = canvas.clone();
     let class = |v: &Value| {
         v.get("id")
