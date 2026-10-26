@@ -499,14 +499,19 @@ pub async fn set(
         for full in &fulls {
             let is_folder = s.service.with_key(&k, |ws| Ok(ws.is_folder(full)))?;
             match &c {
-                AccessChange::Set { set, secret_name, keep_exceptions } => {
+                AccessChange::Set {
+                    set,
+                    secret_name,
+                    keep_exceptions,
+                } => {
                     let node = set_of(set);
                     if is_folder {
                         let under = s
                             .service
                             .with_key(&k, |ws| Ok(campaign_files(ws, &veil, full)))?;
                         changed += u32::try_from(under.len()).unwrap_or(u32::MAX);
-                        s.db.access_replace_under(&f, full, node, *keep_exceptions).map_err(failed)?;
+                        s.db.access_replace_under(&f, full, node, *keep_exceptions)
+                            .map_err(failed)?;
                     } else {
                         if veil.effective_set(full) != node.clone().normalized() {
                             changed += 1;

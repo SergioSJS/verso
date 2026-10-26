@@ -602,7 +602,13 @@ impl Db {
     /// exceptions included (ADR 0113 item 2, *Apply*), unless `keep` is true:
     /// then the rows below stay as they are, and nothing but the folder's
     /// own row changes, in the one transaction.
-    pub fn access_replace_under(&self, folder: &str, path: &str, set: NodeSet, keep: bool) -> R<()> {
+    pub fn access_replace_under(
+        &self,
+        folder: &str,
+        path: &str,
+        set: NodeSet,
+        keep: bool,
+    ) -> R<()> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         if !set.rows.is_empty() {
