@@ -998,11 +998,17 @@ export type AccessCap = "write" |
 export type AccessChange = 
 /**
  *  The path's whole set; on a folder, it replaces everything inside
- *  (earlier exceptions included).
+ *  (earlier exceptions included) unless `keep_exceptions` is true.
  */
 { kind: "set"; set: AccessSetView; 
 /**  `Some` to turn the secret name on or off; `None` leaves it. */
-secret_name: boolean | null } | 
+secret_name: boolean | null; 
+/**
+ *  On a folder: the files and folders inside that have a set of
+ *  their own keep it, untouched, in the same transaction (the
+ *  window's *Manter*). False: everything inside is replaced.
+ */
+keep_exceptions?: boolean } | 
 /**  *Follow the folder*: the path's own set is deleted. */
 { kind: "follow" };
 
