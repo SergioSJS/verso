@@ -963,3 +963,54 @@ server compares names (case, NFC); a change held apart for a file no longer
 shared says so (`unshared`); and the edit of a file the person may not send is
 set aside as a conflict copy once (the same bytes are not copied again at each
 change of the server).
+
+### As built, S9 (2026-10-25, `test/access-s9`)
+
+The maintainer's table scenarios as server end-to-end tests, through the real
+window, with the game master, Ana and Bruno. Each step checks that a hidden
+name never reaches the player's page.
+
+- **The spec.** `app/ui/e2e-server/zz-access-scenarios.spec.mjs` (468 lines)
+  with its helpers in `app/ui/e2e-server/access-helpers.mjs` (283 lines). The
+  scenarios run last in the server suite (`5afbfd89`): their accounts crowd
+  the admin console's first page, which `server.spec` reads. Their folders
+  sort after the demo one and their e-mails are their own (`0204caae`).
+- **Scenario a.** The chat's map onto a sheet one edits, refused to one who
+  only sees it (`4dd22e15`).
+- **Scenario b.** The group's board: Ana edits live, Bruno does not, then both
+  with one change; each drawing gets a free spot (`47483615`, `dd811c93`).
+- **Scenario c.** Folder set, one exception, and the arrow back; what Ana sees
+  at each step (`e54a4d8f`).
+- **Scenario d.** Ana creates and renames in a folder she edits and cannot
+  delete; the silent suffix over a hidden name (`5a967259`).
+- **Scenario e.** A file moved by the game master keeps its own access
+  (`4da9f284`).
+- **Scenario f.** A PDF sent with *Send files*; without the right, none
+  (`698364ad`).
+- **Scenario g.** An open tab, the board and a picture drop: a file that is no
+  longer shared is gone from each (`8bcaf7c9`).
+- **Helpers.** Failure messages show where a hidden name stands; the board's
+  text is read from its scene (`4908aaff`). Bruno's list of what he sees is
+  read from the core where the tree draws itself closed (`0e7d005d`). A folder
+  of the tree looks again until it is open (`fe7f1c95`). Notes are read through
+  `list_entries`, because `list_files` lists only what is not a note
+  (`3ee6f1e7`).
+- **Product bugs found and fixed.** (1) The tree's prompts asked the folder's
+  root instead of the chosen folder; `guardCreate` in
+  `app/ui/src/readerNotice.ts` and `app/ui/src/tree/prompts.ts` (`a59215cc`).
+  (2) A note's rename sent without `.md` was judged as a non-note, so it was
+  refused and blind to the silent suffix; `Door::rename_target` in
+  `crates/verso-server/src/access/door.rs` (`e790daf3`, tests in
+  `crates/verso-server/src/tests_access_review.rs`). (3) An open tab kept the
+  text and name of a file no longer shared; `dropUnshared` in
+  `app/ui/src/unshared.ts` and `Leaf.unshare` in `app/ui/src/leaves/leaf.ts`
+  (`fa1d11c9`). The same follows in recent files, closed tabs, back and
+  forward, the switcher, the hover card and embeds (`fa1d11c9`), in the
+  outline, the history button and the switcher's list (`8bcaf7c9`), and in the
+  failed-open line and the row's floating button (`fabe999e`). The changelog
+  records it (`45e5234a`).
+
+Not done, said: (1) the scenarios skip the phone project; (2) the PDF leaf and
+split panes are not exercised; (3) the desktop synced window is not checked
+for the live unshare; (4) a tab unshared stays neutral if access returns; the
+file must be reopened.

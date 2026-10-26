@@ -967,3 +967,57 @@ mudança posta à parte por um arquivo que deixou de ser compartilhado diz isso
 (`unshared`); e a edição de um arquivo que a pessoa não pode enviar é posta de
 lado como cópia de conflito uma só vez (os mesmos bytes não são copiados de
 novo a cada mudança do servidor).
+
+### Como construído, S9 (2026-10-25, `test/access-s9`)
+
+Os cenários de mesa do mantenedor como testes ponta a ponta do servidor, pela
+janela real, com o mestre, a Ana e o Bruno. Cada passo confere que um nome
+oculto nunca chega à página do jogador.
+
+- **A especificação.** `app/ui/e2e-server/zz-access-scenarios.spec.mjs` (468
+  linhas), com os auxiliares em `app/ui/e2e-server/access-helpers.mjs` (283
+  linhas). Os cenários rodam por último na suíte do servidor (`5afbfd89`): as
+  contas deles lotam a primeira página do console do administrador, que
+  `server.spec` lê. As pastas deles ordenam depois da pasta da demonstração e
+  os e-mails são próprios (`0204caae`).
+- **Cenário a.** O mapa do chat sobre uma folha que um edita, recusado a quem
+  só a vê (`4dd22e15`).
+- **Cenário b.** O board do grupo: a Ana edita ao vivo, o Bruno não, depois os
+  dois com uma mudança; cada desenho ganha um espaço livre (`47483615`,
+  `dd811c93`).
+- **Cenário c.** Pasta definida, uma exceção e a seta de volta; o que a Ana vê
+  em cada passo (`e54a4d8f`).
+- **Cenário d.** A Ana cria e renomeia numa pasta que edita e não pode excluir;
+  o sufixo silencioso sobre um nome oculto (`5a967259`).
+- **Cenário e.** Um arquivo movido pelo mestre mantém o próprio acesso
+  (`4da9f284`).
+- **Cenário f.** Um PDF enviado por *Enviar arquivos*; sem o direito, nenhum
+  (`698364ad`).
+- **Cenário g.** Uma aba aberta, o board e uma imagem solta: um arquivo que
+  deixou de ser compartilhado some de cada um (`8bcaf7c9`).
+- **Auxiliares.** As mensagens de falha mostram onde está um nome oculto; o
+  texto do board é lido da sua cena (`4908aaff`). A lista do que o Bruno vê é
+  lida do núcleo onde a árvore se desenha fechada (`0e7d005d`). Uma pasta da
+  árvore é consultada de novo até ficar aberta (`fe7f1c95`). As notas são lidas
+  por `list_entries`, porque `list_files` lista só o que não é nota
+  (`3ee6f1e7`).
+- **Bugs do produto encontrados e corrigidos.** (1) Os avisos da árvore
+  perguntavam a raiz da pasta em vez da pasta escolhida; `guardCreate` em
+  `app/ui/src/readerNotice.ts` e `app/ui/src/tree/prompts.ts` (`a59215cc`). (2)
+  O renomear de uma nota enviado sem `.md` era julgado como não-nota, por isso
+  era recusado e cego ao sufixo silencioso; `Door::rename_target` em
+  `crates/verso-server/src/access/door.rs` (`e790daf3`, testes em
+  `crates/verso-server/src/tests_access_review.rs`). (3) Uma aba aberta mantinha
+  o texto e o nome de um arquivo que deixou de ser compartilhado; `dropUnshared`
+  em `app/ui/src/unshared.ts` e `Leaf.unshare` em `app/ui/src/leaves/leaf.ts`
+  (`fa1d11c9`). O mesmo vale para arquivos recentes, abas fechadas, voltar e
+  avançar, o alternador, o cartão de visualização e os embutidos (`fa1d11c9`),
+  para o esboço, o botão de histórico e a lista do alternador (`8bcaf7c9`), e
+  para a linha de abertura que falhou e o botão flutuante da linha
+  (`fabe999e`). O changelog registra isso (`45e5234a`).
+
+Não feito, dito: (1) os cenários pulam o projeto de celular; (2) a folha de PDF
+e os painéis divididos não são exercitados; (3) a janela sincronizada do
+desktop não é conferida quanto à remoção ao vivo; (4) uma aba que deixou de ser
+compartilhada continua neutra se o acesso voltar; o arquivo precisa ser
+reaberto.
