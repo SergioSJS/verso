@@ -350,3 +350,55 @@ fn the_access_commands_of_a_synced_folder_go_over_the_link() {
         assert!(!over_the_link(cmd), "{cmd} goes to the server");
     }
 }
+
+/// The seat a synced folder's window is given: the server's `FolderAccess`.
+fn seat_of(d: &Device) -> (Option<String>, Option<bool>) {
+    let seat = d.s.seat();
+    (
+        seat.as_ref()
+            .and_then(|v| v["seat"].as_str().map(str::to_owned)),
+        seat.as_ref().and_then(|v| v["table"].as_bool()),
+    )
+}
+
+fn seat_events(d: &Device) -> usize {
+    lock(&d.told)
+        .iter()
+        .filter(|(_, e, _)| e == "seat-changed")
+        .count()
+}
+
+#[test]
+fn the_synced_folders_windows_get_the_servers_seat_and_it_follows_changes_and_holds_offline() {
+    let (r, owner, bia) = table();
+    // The game master's device: the seat is "master", the folder has a table.
+    let gm = device(&r, &r.owner, &[]);
+    assert_eq!(seat_of(&gm), (None, None));
+    sync(&gm);
+    assert_eq!(seat_of(&gm), (Some("master".to_owned()), Some(true)));
+    assert_eq!(seat_events(&gm), 1);
+    // A player's device: the seat is "player".
+    let d = device(&r, &r.reader, &[]);
+    sync(&d);
+    assert_eq!(seat_of(&d), (Some("player".to_owned()), Some(true)));
+    // Access changes: the device asks again; the window is told only when
+    // the answer differs from the one kept.
+    give(&owner, "Le.md", &set("see", &[(&bia, "edit")]));
+    d.s.rights_stale();
+    let before = seat_events(&d);
+    sync(&d);
+    assert_eq!(seat_events(&d), before, "the same seat is not said again");
+    d.s.forget_seat();
+    d.s.rights_stale();
+    sync(&d);
+    assert_eq!(seat_of(&d), (Some("player".to_owned()), Some(true)));
+    assert_eq!(seat_events(&d), before + 1);
+    // The last answer is kept with the sync's state: a device started again
+    // with the server out of reach still knows who it is.
+    let after = d.s.seat();
+    let state = crate::sync::synced(d.ctx.config.as_deref(), &d.key).unwrap();
+    assert_eq!(state.seat, after);
+    let again = crate::sync::Syncer::new(&d.key, &state);
+    assert_eq!(again.seat(), after);
+    assert!(again.seat().is_some());
+}

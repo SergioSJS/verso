@@ -17,6 +17,7 @@
 // side refuses what it cannot do anyway, and the desktop app answers at
 // once.
 
+import { listen } from "@tauri-apps/api/event";
 import { commands, type Can, type Capabilities, type FolderAccess, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
 import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
@@ -131,3 +132,6 @@ function paintCan(): void {
 // shown: asked again.
 addEventListener("verso:role", askAgain);
 addEventListener("verso:folder-shown", askAgain);
+// A synced folder's server said who this device is there (ADR 0113 S8): the
+// seat is the host's answer, so the window asks the capabilities again.
+void listen("seat-changed", askAgain).catch(() => {});
