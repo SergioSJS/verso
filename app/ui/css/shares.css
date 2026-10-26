@@ -282,7 +282,7 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .ac-grab { display: none; }
 .ac-head { display: flex; align-items: center; gap: .5rem; padding: .7rem .9rem .5rem; }
 .ac-title { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 1rem var(--display); }
-.ac-pre { margin-right: .3rem; color: var(--ink-3); font: 500 .8rem var(--ui); }
+.ac-pre { margin-right: .45rem; color: var(--ink-3); font: 500 .8rem var(--ui); word-spacing: .3em; white-space: pre-wrap; }
 .ac-close { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; border-radius: 6px; color: var(--ink-3); cursor: pointer; }
 .ac-close:hover { background: var(--paper-3); color: var(--ink); }
 .ac-close:focus-visible, .ac-lk:focus-visible, .ac-sel select:focus-visible, .ac-search input:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
@@ -316,8 +316,13 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .ac-summary .ac-n { font-weight: 600; }
 .ac-summary .ac-chev { margin-left: auto; color: var(--ink-3); }
 .ac-summary button:hover .ac-chev { color: var(--ink); }
-.ac-more { margin: 0 .9rem .5rem; color: var(--ink-2); font-size: .82rem; }
-.ac-more summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.ac-more { margin: .1rem .9rem .5rem; border-top: 1px solid var(--hair); color: var(--ink); font-size: .86rem; }
+.ac-more summary { display: flex; align-items: center; gap: .5rem; min-height: 44px; padding: .55rem 0; list-style: none; cursor: pointer; }
+.ac-more summary::-webkit-details-marker { display: none; }
+.ac-more summary::after { content: "›"; margin-left: auto; color: var(--ink-3); font-size: 1rem; transition: transform .12s; }
+.ac-more[open] summary::after { transform: rotate(90deg); }
+.ac-more summary:hover::after { color: var(--ink); }
+.ac-more summary:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; border-radius: 5px; }
 .ac-check { display: flex; gap: .45rem; align-items: flex-start; margin-top: .2rem; }
 .ac-crumb { display: flex; align-items: center; gap: .4rem; padding: 0 .9rem .3rem; color: var(--ink-3); font-size: .8rem; }
 .ac-crumb .ac-lk { padding-left: 0; }
@@ -339,7 +344,8 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .access-pop.is-sheet .ac-row { min-height: 56px; }
 .access-pop.is-sheet .ac-avatar { width: 32px; height: 32px; }
 .access-pop.is-sheet .ac-sel select { min-height: 44px; min-width: 7.6rem; font-size: .95rem; }
-.access-pop.is-sheet .ac-follow, .access-pop.is-sheet .ac-more summary { min-height: 44px; }
+.access-pop.is-sheet .ac-follow { min-height: 44px; }
+.access-pop.is-sheet .ac-more summary { min-height: 56px; }
 .access-pop.is-sheet .ac-lk { min-height: 44px; display: inline-flex; align-items: center; padding: 0 .6rem; }
 .access-pop.is-sheet .ac-search input, .access-pop.is-sheet .ac-foot .btn { min-height: 44px; }
 .access-pop.is-sheet .ac-ex { min-height: 48px; }
