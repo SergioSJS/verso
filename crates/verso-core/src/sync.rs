@@ -104,6 +104,10 @@ pub struct State {
     /// offline: a file with no entry is a file the device only reads.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub access: BTreeMap<String, remote::Rights>,
+    /// Who the server says this device is at the folder (its `FolderAccess`
+    /// as JSON, ADR 0113 S8): the last answer holds while offline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat: Option<serde_json::Value>,
 }
 
 /// A cloud a folder syncs with (ADR 0104 item 6): WebDAV or S3, and where.

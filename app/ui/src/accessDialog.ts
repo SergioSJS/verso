@@ -21,7 +21,7 @@ import { commands, type AccessChange, type AccessInfo, type AccessLevel, type Ac
 import { narrow } from "./chrome";
 import { ask } from "./dialog";
 import { button, h } from "./dom";
-import { told } from "./errors";
+import { errorSentence, failSaid, told } from "./errors";
 import { icon } from "./icons";
 import { name as baseName } from "./paths";
 import { placeInView } from "./screen/viewport";
@@ -54,7 +54,8 @@ export async function openAccess(paths: string[], anchor?: HTMLElement | null): 
   open?.close();
   const r = await commands.accessGet(paths);
   if (r.status !== "ok") {
-    told(r.error.kind, r.error.message, r.error);
+    // Refused or out of reach: the person sees it, not only the log.
+    failSaid(errorSentence(r.error), r.error);
     return;
   }
   const infos = r.data;
