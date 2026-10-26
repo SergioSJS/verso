@@ -356,6 +356,15 @@ pub(crate) fn wrote<R: tauri::Runtime>(
     }
 }
 
+/// The commands a window on a synced folder sends over the sync's link:
+/// the rooms', the table's, the campaign's and the access model's (ADR
+/// 0113: the Access dialog and the seat are the server's answers too).
+pub(crate) fn over_the_link(cmd: &str) -> bool {
+    ["collab_", "table_", "campaign_", "access_"]
+        .iter()
+        .any(|p| cmd.starts_with(p))
+}
+
 /// Before the app's own handler, after `remote::forward`: a window on a
 /// folder of this computer that syncs sends its room commands over the
 /// sync's link (items 2 and 3); every other is the app's, which answers
@@ -364,7 +373,7 @@ pub(crate) fn live_forward<R: tauri::Runtime>(
     invoke: tauri::ipc::Invoke<R>,
 ) -> Option<tauri::ipc::Invoke<R>> {
     let cmd = invoke.message.command().to_owned();
-    if !(cmd.starts_with("collab_") || cmd.starts_with("table_") || cmd.starts_with("campaign_")) {
+    if !over_the_link(&cmd) {
         return Some(invoke);
     }
     let webview = invoke.message.webview();
