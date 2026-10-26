@@ -126,6 +126,7 @@ test release.
 
 ### Fixed
 
+- **A Linux window no longer stays white when its web page crashes**: Verso now notices that the window's web process died (a graphics-driver crash, for instance), logs it, and reloads the page once; if it dies again within 30 seconds, a message says so instead of looping.
 - **3D dice no longer crash a computer without graphics acceleration**: before the first fall Verso checks, once, that WebGL is real and accelerated; if not (or if a 3D roll ever fails), the roll shows in 2D, the status line says why once, and 3D stays off for the session.
 - **The server never answers its page with an empty 404** (a blank white screen seen in the server end-to-end run of 2026-10-26): if the window's `web.html` cannot be read at that instant, the server serves the last copy it read, or a small page that tries again in two seconds, with the cause in the log.
 - **The "no HTTPS" notice no longer covers the page**: on a plain-HTTP server it was a floating bar over the top of the open pane (the board's tools, the title, the tabs); it is now a slim row of its own above the panes, and once closed it stays closed for that server (the "no HTTPS" mark in the status bar stays).

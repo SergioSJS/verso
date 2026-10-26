@@ -59,6 +59,8 @@ mod menu;
 mod menu_spec;
 mod notes;
 mod protocol;
+#[cfg(any(target_os = "linux", test))]
+mod recover;
 mod reach;
 mod release_sums;
 mod remote;
@@ -1045,6 +1047,14 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     // folder over and exits before anything else of it starts.
     let builder =
         tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
+    // A web process that dies leaves the Linux window white for good: watch
+    // each webview once, from its first page load (src/recover.rs).
+    #[cfg(target_os = "linux")]
+    let builder = builder.on_page_load(|webview, payload| {
+        if payload.event() == tauri::webview::PageLoadEvent::Started {
+            recover::hook(webview);
+        }
+    });
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
         let id = event.id().as_ref();
@@ -1235,6 +1245,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             event: tauri::WindowEvent::Destroyed,
             ..
         } => {
+            #[cfg(target_os = "linux")]
+            recover::forget(label);
             {
                 let state = app.state::<App>();
                 let showed = state.service.folder_of(label).is_some()
