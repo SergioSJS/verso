@@ -1546,8 +1546,10 @@ must be a server's, and the person its owner.
    set to *Edits* is added to those who see it, with a warning if the note has
    secret blocks. With several notes selected, *Access for N files…* sets them
    at once. On a folder of the table, *Acesso…* applies to everything inside it
-   (*Apply* says how many files change). Level: H; E: `campaign.spec.mjs`,
-   `audience.spec.mjs` (to be updated to the new dialog).
+   (the footer has *Cancel* / *Apply* and says *Changes N files*). Each row is
+   one compact select; a note saves at once and the footer says *Salvo ✓* with
+   *Desfazer*. Level: H; E: `campaign.spec.mjs`, `audience.spec.mjs`,
+   `access-dialog.spec.mjs`.
    Inside a note of the table, the users icon beside the star lists who sees
    it: hover, tap, or Tab + Enter; Esc closes; on a phone it is a bottom sheet.
    Level: H; E: `audience.spec.mjs`.
@@ -1558,7 +1560,7 @@ must be a server's, and the person its owner.
    itself, with the fresh proof, is the server's: A.
 4. Right-click a note › *Acesso…* › *Edits* on a player's row (or on *Whole
    table*); right-click a hidden note › *Acesso…* › *Nome secreto* (in *More
-   options*). Level: H; E: `campaign.spec.mjs` (to be updated to the new dialog).
+   options*). Level: H; E: `campaign.spec.mjs`.
 5. As a player (a second account, the invitation's link): the tree has only
    the released notes; a link to a hidden note reads "texto 🔒", with an alias
    "apelido 🔒", a secret name ▒▒▒▒, an embed "🔒 (ainda não revelado)"; the
@@ -1571,12 +1573,18 @@ must be a server's, and the person its owner.
    fechada"; the owner enters. Level: U (`tests_campaign.rs`); A with two
    accounts.
 7. The dialog's exceptions. Right-click a folder › *Acesso…*: set *Whole table*
-   to *Sees*, then *Apply*; the line before it says how many files change. Then
-   set one file inside the folder to *Edits* for a player: the folder's dialog
-   lists it under *Exceptions*, with *↺ Follow the folder*; the button returns it
-   to the folder's access and the list empties. A file moved into the folder
-   from elsewhere keeps its own access and is listed as an exception. Level: H
-   (by hand; no E yet).
+   to *Sees*, then *Apply*; the footer says how many files change. Then set one
+   file inside the folder to *Edits* for a player: the folder's dialog has the
+   line *1 file with own access · View*, which opens a second view with a
+   search and *↺ Follow* on each row; the button returns it to the folder's
+   access and the list empties. After a change of the folder, the dialog asks
+   *Keep* (default) or *Follow the folder in all*; *Follow the folder in all*
+   in the second view asks first. Level: H; E: `access-dialog.spec.mjs`.
+   Folder page strip: under the folder's title, *MESA ● Aberta · N players · N
+   online* with *Access…*, *Invite*, *Open the Table* and the gear (the *Mesa
+   aberta* switch is in the settings); a player sees one line and *Join the
+   Table*. Level: H; E: `campaign.spec.mjs`. A file moved into the folder
+   from elsewhere keeps its own access and is listed as an exception. Level: H.
 8. The tree's marks. A hidden note has a padlock beside it; a note a player
    edits has a pencil. Inside a table a player does not see the folder's own
    padlock. Level: H (by hand; no E yet).
