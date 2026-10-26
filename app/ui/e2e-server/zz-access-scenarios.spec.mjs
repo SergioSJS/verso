@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { PDF, PNG, accessDialog, entries, applyFolder, choose, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces, where } from "./access-helpers.mjs";
+import { PDF, PNG, accessDialog, entries, applyFolder, choose, exceptionsOf, fileRow, openNoteBy, reveal, tryInvoke, dragIntoSheet, invoke, mesa, openFolder, openSheet, say, sendFile, setup, sheetDoc, switcher, traces, where } from "./access-helpers.mjs";
 
 test.use({ actionTimeout: 15_000 });
 
@@ -210,9 +210,10 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await gm.keyboard.press("Escape");
     // ... and the folder's dialog lists it as an exception, with who sees it.
     const folderDialog = await accessDialog(gm, "Cenas", true);
-    await expect(folderDialog.locator(".ac-ex-list")).toContainText("Cenas/Zqtaverna.md");
-    await expect(folderDialog.locator(".ac-ex-list")).toContainText("1 vê");
-    await expect(folderDialog).toContainText("Exceções (1)");
+    await expect(folderDialog).toContainText("1 arquivo com acesso próprio");
+    const listed = await exceptionsOf(folderDialog);
+    await expect(listed).toContainText("Zqtaverna.md");
+    await expect(listed).toContainText("1 vê");
     await gm.keyboard.press("Escape");
     await expect.poll(async () => (await treeOf(ana.page)).join(), { timeout: 30_000 }).toBe("false,true");
     // The tab she had open on it drops its content at once — no closing it, no reload:
@@ -243,7 +244,7 @@ test("c. a folder set, then an exception on one file, then back to the folder: w
     await openNoteBy(ana.page, "Zqtaverna");
     await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcatav", { timeout: 30_000 });
     const last = await accessDialog(gm, "Cenas", true);
-    await expect(last).toContainText("Exceções (0)");
+    await expect(last.getByRole("button", { name: /com acesso próprio/ })).toHaveCount(0);
     await expect(await fileRow(gm, "Cenas/Ponte.md")).toBeVisible();
   });
 });
@@ -340,7 +341,7 @@ test("e. the game master moves a file with its own access into another folder: i
     expect(await traces(bruno.page, ["Zqitem", "zqcorpoitem"])).toEqual([]);
     // In A's dialog it is an exception.
     const before = await accessDialog(gm, "A", true);
-    await expect(before.locator(".ac-ex-list")).toContainText("A/Zqitem.md");
+    await expect(await exceptionsOf(before)).toContainText("Zqitem.md");
     await gm.keyboard.press("Escape");
 
     // The move.
@@ -357,12 +358,13 @@ test("e. the game master moves a file with its own access into another folder: i
 
     // The new folder's dialog shows it as an exception: Ana edits; the old folder lists none.
     const after = await accessDialog(gm, "B", true);
-    await expect(after.locator(".ac-ex-list")).toContainText("B/Zqitem.md");
-    await expect(after.locator(".ac-ex-list")).toContainText("Ana edita");
-    await expect(after).toContainText("Exceções (1)");
+    await expect(after).toContainText("1 arquivo com acesso próprio");
+    const listedB = await exceptionsOf(after);
+    await expect(listedB).toContainText("Zqitem.md");
+    await expect(listedB).toContainText("Ana edita");
     await gm.keyboard.press("Escape");
     const old = await accessDialog(gm, "A", true);
-    await expect(old).toContainText("Exceções (0)");
+    await expect(old.getByRole("button", { name: /com acesso próprio/ })).toHaveCount(0);
     await gm.keyboard.press("Escape");
     // The file's dialog says it is its own, as an exception of B.
     const file = await accessDialog(gm, "B/Zqitem.md");

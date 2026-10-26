@@ -231,7 +231,7 @@ test("the maintainer's repros: drop a roll, a message and the chat's picture int
     const dialog = gm.getByRole("dialog", { name: /^Acesso · Quadro do grupo/ });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("Quem edita este board vê os cartões de texto inteiros");
-    await expect(dialog.getByRole("radiogroup", { name: "Ana", exact: true }).getByRole("radio", { name: "Edita", exact: true })).toBeEnabled();
+    await expect(dialog.getByRole("combobox", { name: "Ana", exact: true })).toBeEnabled();
   } finally {
     for (const c of opened) await c.close().catch(() => {});
   }

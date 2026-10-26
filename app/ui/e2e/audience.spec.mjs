@@ -62,8 +62,11 @@ const pop = (app) => app.page.getByRole("dialog", { name: /Quem vê esta nota/ }
 
 
 const dialogOf = (app, name = /^Acesso · /) => app.page.getByRole("dialog", { name });
-const group = (d, who) => d.getByRole("radiogroup", { name: who, exact: true });
-const level = (d, who, word) => group(d, who).getByRole("radio", { name: word, exact: true });
+const VALUE = { "Não vê": "none", Vê: "see", Edita: "edit" };
+const select = (d, who) => d.getByRole("combobox", { name: who, exact: true });
+/** A level is chosen from the row's select. */
+const choose = (d, who, word) => select(d, who).selectOption({ label: word });
+const expectLevel = (d, who, word) => expect(select(d, who)).toHaveValue(VALUE[word]);
 const calls = async (app) => (await app.calls("access_set")).map((c) => c);
 const lastSet = async (app) => (await app.calls("access_set")).at(-1);
 const openDialog = async (app, path) => {
@@ -90,54 +93,51 @@ test("the dialog gives Não vê | Vê | Edita to the whole table and to each pla
   await setup(app, "owner", { "Mundo/Cripta.md": { audience: { kind: "hidden" } } });
   const d = await openDialog(app, "Mundo/Cripta.md");
   await expect(d).toContainText("Mesa: Mundo");
-  await expect(level(d, "Toda a mesa", "Não vê")).toBeChecked();
+  await expectLevel(d, "Toda a mesa", "Não vê");
   for (const who of ["Bia", "Caio", "Dora"]) {
-    await expect(group(d, who)).toBeVisible();
-    await expect(level(d, who, "Não vê")).toBeChecked();
+    await expect(select(d, who)).toBeVisible();
+    await expectLevel(d, who, "Não vê");
   }
-  await expect(d.getByText("= mesa")).toHaveCount(3);
-  await expect(d).toContainText("Você, o mestre, sempre vê e edita.");
+  await expect(d.getByText("segue a mesa")).toHaveCount(3);
+  await expect(d).toContainText("O mestre sempre vê e edita.");
   await shot(app.page, info, "140-depois-acesso-arquivo-claro");
   await app.page.emulateMedia({ colorScheme: "dark" });
   await shot(app.page, info, "141-depois-acesso-arquivo-escuro");
   await app.page.emulateMedia({ colorScheme: "light" });
   // One player sees it: saved at once, answered beside the control.
-  await level(d, "Bia", "Vê").click();
+  await choose(d, "Bia", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md"], change: { kind: "set", set: { whole: "none", rows: [{ account: "acc-bia", level: "see" }] } } });
   await expect(d.getByRole("status")).toContainText("Salvo ✓");
-  await expect(level(d, "Bia", "Vê")).toBeChecked();
-  await expect(d.getByText("só ele/ela")).toHaveCount(1);
+  await expectLevel(d, "Bia", "Vê");
+  await expect(d.getByText("acesso próprio")).toHaveCount(1);
   // Another edits it, together: one list, one set.
-  await level(d, "Caio", "Edita").click();
+  await choose(d, "Caio", "Edita");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { whole: "none", rows: [{ account: "acc-bia", level: "see" }, { account: "acc-caio", level: "edit" }] } } });
-  // The whole table: the rows that read "= mesa" follow; the ones of their own stay.
-  await level(d, "Toda a mesa", "Vê").click();
+  // The whole table: the rows that read "segue a mesa" follow; the ones of their own stay.
+  await choose(d, "Toda a mesa", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { whole: "see", rows: [{ account: "acc-caio", level: "edit" }] } } });
-  await expect(level(d, "Dora", "Vê")).toBeChecked();
-  await expect(level(d, "Bia", "Vê")).toBeChecked();
-  // ↺ returns a player to the whole table's value.
-  await d.getByRole("button", { name: "Voltar ao valor da mesa: Caio" }).click();
+  await expectLevel(d, "Dora", "Vê");
+  await expectLevel(d, "Bia", "Vê");
+  // Choosing the whole table's value returns a player to it: no row of their own.
+  await choose(d, "Caio", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { whole: "see", rows: [] } } });
-  await expect(level(d, "Caio", "Vê")).toBeChecked();
+  await expectLevel(d, "Caio", "Vê");
   // Below the default is allowed: "toda a mesa vê, menos o Caio".
-  await level(d, "Caio", "Não vê").click();
+  await choose(d, "Caio", "Não vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { whole: "see", rows: [{ account: "acc-caio", level: "none" }] } } });
 });
 
 test("the arrow keys change the choice of a row, and Escape gives the focus back", async ({ app }) => {
   await setup(app, "owner", { "Mundo/Cripta.md": { audience: { kind: "hidden" } } });
   const d = await openDialog(app, "Mundo/Cripta.md");
-  await level(d, "Dora", "Não vê").focus();
-  await app.page.keyboard.press("ArrowRight");
-  await expect(level(d, "Dora", "Vê")).toBeChecked();
+  await select(d, "Dora").focus();
+  await app.page.keyboard.press("ArrowDown");
+  await expectLevel(d, "Dora", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-dora", level: "see" }] } } });
-  await app.page.keyboard.press("ArrowRight");
-  await expect(level(d, "Dora", "Edita")).toBeChecked();
-  await app.page.keyboard.press("ArrowLeft");
-  await expect(level(d, "Dora", "Vê")).toBeChecked();
-  // One tab stop per row: the checked radio.
-  await expect(level(d, "Dora", "Vê")).toHaveAttribute("tabindex", "0");
-  await expect(level(d, "Dora", "Não vê")).toHaveAttribute("tabindex", "-1");
+  await app.page.keyboard.press("ArrowDown");
+  await expectLevel(d, "Dora", "Edita");
+  await app.page.keyboard.press("ArrowUp");
+  await expectLevel(d, "Dora", "Vê");
   await app.page.keyboard.press("Escape");
   await expect(d).toBeHidden();
 });
@@ -151,13 +151,13 @@ test("giving Edita on a note or a board with secret blocks asks first; a player 
   });
   const d = await openDialog(app, "Mundo/Cripta.md");
   await expect(d).toContainText("Esta nota tem 2 blocos secretos: quem edita os vê.");
-  await level(d, "Bia", "Edita").click();
+  await choose(d, "Bia", "Edita");
   const ask = app.page.locator(".confirm");
   await expect(ask).toContainText("Quem edita esta nota vê os 2 blocos secretos dela");
   await ask.getByRole("button", { name: "Cancelar" }).click();
-  await expect(level(d, "Bia", "Vê")).toBeChecked();
+  await expectLevel(d, "Bia", "Vê");
   expect((await app.calls("access_set")).length).toBe(0);
-  await level(d, "Bia", "Edita").click();
+  await choose(d, "Bia", "Edita");
   await app.page.locator(".confirm").getByRole("button", { name: "Dar edição" }).click();
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
   await app.page.keyboard.press("Escape");
@@ -166,9 +166,9 @@ test("giving Edita on a note or a board with secret blocks asks first; a player 
   const board = await openDialog(app, "Mundo/Quadro.canvas");
   await expect(board).toContainText("Quem edita este board vê os cartões de texto inteiros");
   await expect(board).toContainText("Este board tem 1 bloco secreto em cartões de texto: quem edita o vê.");
-  await expect(level(board, "Bia", "Edita")).toBeEnabled();
-  await expect(level(board, "Toda a mesa", "Edita")).toBeEnabled();
-  await level(board, "Bia", "Edita").click();
+  await expect(select(board, "Bia")).toBeEnabled();
+  await expect(select(board, "Toda a mesa")).toBeEnabled();
+  await choose(board, "Bia", "Edita");
   await expect(app.page.locator(".confirm")).toContainText("Quem edita este board vê o bloco secreto de seus cartões de texto");
   await app.page.locator(".confirm").getByRole("button", { name: "Dar edição" }).click();
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Quadro.canvas"], change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
@@ -179,8 +179,8 @@ test("a folder is applied with a button that says how many files change; its exc
   await app.page.locator('#notes summary[data-folder="Mundo/Sala"]').click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
   const d = dialogOf(app, /^Acesso · pasta “Sala”/);
-  await expect(d).toContainText("Aplicar muda o acesso de 1 arquivo");
-  await level(d, "Toda a mesa", "Vê").click();
+  await expect(d).toContainText("Mesa: Mundo · 1 arquivo");
+  await choose(d, "Toda a mesa", "Vê");
   // Nothing is written until Aplicar.
   expect((await app.calls("access_set")).length).toBe(0);
   await d.getByRole("button", { name: "Aplicar" }).click();
@@ -192,11 +192,11 @@ test("a folder is applied with a button that says how many files change; its exc
   await app.page.locator('#notes summary[data-folder="Mundo"]').click({ button: "right" });
   await app.page.getByRole("menuitem", { name: "Acesso…" }).click();
   const big = dialogOf(app, /^Acesso · pasta “Mundo”/);
-  await expect(big).toContainText("Exceções (");
-  await expect(big.getByText("Mundo/Cripta.md")).toBeVisible();
+  await big.getByRole("button", { name: /com acesso próprio/ }).click();
+  await expect(big.getByText("Cripta.md")).toBeVisible();
   await big.getByRole("button", { name: "↺ Seguir a pasta: Mundo/Cripta.md" }).click();
   await expect.poll(() => lastSet(app)).toEqual({ paths: ["Mundo/Cripta.md"], change: { kind: "follow" } });
-  await expect(big.getByText("Mundo/Cripta.md")).toHaveCount(0);
+  await expect(big.getByText("Cripta.md")).toHaveCount(0);
 });
 
 test("a selection has one row, 'Acesso de N arquivos…', and applies to all of it", async ({ app }) => {
@@ -207,8 +207,9 @@ test("a selection has one row, 'Acesso de N arquivos…', and applies to all of 
   for (const old of ["Ocultar da mesa", "Liberar para a mesa"]) await expect(app.page.getByRole("menuitem", { name: old })).toHaveCount(0);
   await app.page.getByRole("menuitem", { name: "Acesso de 2 arquivos…" }).click();
   const d = dialogOf(app, /^Acesso de 2 arquivos/);
-  await expect(d).toContainText("Aplicar muda o acesso destes 2 arquivos.");
-  await level(d, "Bia", "Edita").click();
+  await expect(d).toContainText("Mesa: Mundo");
+  await choose(d, "Bia", "Edita");
+  await expect(d).toContainText("Altera 2 arquivos");
   await d.getByRole("button", { name: "Aplicar" }).click();
   await expect.poll(() => lastSet(app)).toMatchObject({ paths: ["Mundo/Cripta.md", "Mundo/Diario.md"], change: { set: { rows: [{ account: "acc-bia", level: "edit" }] } } });
   expect(await app.calls("campaign_release")).toHaveLength(0);
@@ -225,7 +226,7 @@ test("a file with an access of its own can follow its folder again", async ({ ap
   await expect(d).toContainText("Acesso próprio (exceção de “Mundo”).");
   await d.getByRole("button", { name: "↺ Seguir a pasta" }).click();
   await expect.poll(() => lastSet(app)).toEqual({ paths: ["Mundo/Cripta.md"], change: { kind: "follow" } });
-  await expect(d).toContainText("Segue a pasta “Mundo”.");
+  await expect(d).toContainText("Segue a pasta Mundo");
 });
 
 test("the game master's indicator: count, name, a hover summary with every player, and a click that opens the dialog", async ({ app }, info) => {
@@ -295,7 +296,7 @@ test("the indicator and its summary repaint with what the dialog saves", async (
   await expect(button(app).locator(".note-access-count")).toHaveText("1/3");
   await button(app).click();
   const d = dialogOf(app);
-  await level(d, "Caio", "Vê").click();
+  await choose(d, "Caio", "Vê");
   await expect(d.getByRole("status")).toContainText("Salvo ✓");
   await app.page.keyboard.press("Escape");
   await expect(button(app).locator(".note-access-count")).toHaveText("2/3");
@@ -443,15 +444,17 @@ test("on a phone the dialog is a bottom sheet with a close button and 44 px targ
   const close = d.getByRole("button", { name: "Fechar" });
   await expect(close).toBeFocused();
   for (const who of ["Toda a mesa", "Bia", "Caio", "Dora"]) {
-    const radio = await level(d, who, "Vê").boundingBox();
-    expect(radio.height).toBeGreaterThanOrEqual(43.5);
+    const sel = await select(d, who).boundingBox();
+    expect(sel.height).toBeGreaterThanOrEqual(43.5);
+    const li = await d.locator(".ac-row").filter({ has: select(d, who) }).boundingBox();
+    expect(li.height).toBeGreaterThanOrEqual(55.5);
   }
   expect(await app.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await shot(app.page, info, "142-depois-acesso-telefone-claro");
   await app.page.emulateMedia({ colorScheme: "dark" });
   await shot(app.page, info, "143-depois-acesso-telefone-escuro");
   await app.page.emulateMedia({ colorScheme: "light" });
-  await level(d, "Dora", "Vê").click();
+  await choose(d, "Dora", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: expect.arrayContaining([{ account: "acc-dora", level: "see" }]) } } });
   await expect(b.locator(".note-access-count")).toHaveText("3/3");
   await close.click();
