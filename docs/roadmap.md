@@ -38,6 +38,13 @@ Decided by the maintainer on 2026-10-14 (*"VAI SER TUDO NA V1"*). Incorporates c
 | V.8 | C | Offline mobile PWA storage and sync | [0092](adr/0092-the-phone-offline.md) | Built |
 | V.17 | C | In-app notification center | [0084](adr/0084-notifications-in-the-window.md) | Built |
 | V.20 | C | "This app is a server": local network pairing via QR | [0096](adr/0096-this-app-is-a-server.md) | Built |
+| V.24 | D | World & campaign wizard (template bundles) | [0098](adr/0098-world-and-campaign-wizard-template-bundles.md) | Built |
+| V.25 | D | Visual Markdown statblocks & cards | [0099](adr/0099-visual-markdown-statblocks-and-cards.md) | Built |
+| V.26 | D | Visual customization wizard & appearance tokens | [0100](adr/0100-visual-customization-wizard.md) | Built |
+| V.27 | D | 3D dice physics overlay | [0101](adr/0101-3d-dice-physics-overlay.md) | Built |
+| V.28 | D | Creative oracles & solo improvisation | [0102](adr/0102-creative-oracles-and-improvisation.md) | Built |
+| V.29 | D | WebDAV and S3 cloud storage sync | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Built (`feat/rpg-tools`) |
+| V.30 | D | Feature presets & capability flags | [0103](adr/0103-feature-presets-and-capability-flags.md) | Built |
 
 ### What blocks V1 release
 
@@ -49,7 +56,7 @@ The following items gate the official release of V1 (they do not block local com
 | V.10 | Validation of server bounds on 1-core 1 GB host | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 18 | Pending |
 | V.11 | Windows code signing (via SignPath Foundation) | [ADR 0095](adr/0095-mac-notarization-and-windows-code-signing.md) | Pending public repository |
 | V.12 | Repository made public at `SergioSJS/verso` | [ADR 0004](adr/0004-project-name-verso.md) | Pending maintainer decision |
-| V.13 | Screen reader accessibility pass | [`docs/review/accessibility.md`](review/accessibility.md) | Pending |
+| V.13 | Screen reader accessibility pass (automated landmarks and labels built; live VoiceOver/NVDA pass in manual checks) | [`docs/review/accessibility.md`](review/accessibility.md), [`docs/reference/manual-checks.md`](reference/manual-checks.md) | Automated pass built; live reader check gates V1 release |
 | V.14 | One month of real use with zero data loss | [ADR 0012](adr/0012-files-are-source-of-truth.md) | In daily use by maintainer |
 | V.15 | App manual verification checklist | [`docs/reference/manual-checks.md`](reference/manual-checks.md) | Gates V1 release only |
 | V.21 | Mac Intel app package | [ADR 0095](adr/0095-mac-notarization-and-windows-code-signing.md) | Pending |
@@ -62,7 +69,7 @@ The following items gate the official release of V1 (they do not block local com
 Features deliberately deferred until after the V1 release:
 
 1. **Third-party plugin system and compatibility shim** ([ADR 0016](adr/0016-plugins-execution-and-capabilities.md), [ADR 0017](adr/0017-plugins-format-shim-loading.md), [ADR 0047](adr/0047-plugin-api-open-questions.md)).
-2. **Cloud storage transports** (S3 bucket, WebDAV, external cloud sync — [ADR 0073](adr/0073-self-hosted-server-first.md), [ADR 0104](adr/0104-external-cloud-storage-transports-and-quotas.md)).
+2. **Cloud storage transports via vendor API** (Google Drive, OneDrive, Dropbox — [ADR 0073](adr/0073-self-hosted-server-first.md), [ADR 0104](adr/0104-external-cloud-storage-transports-and-quotas.md)). WebDAV and S3 are in Phase 4 (V.29).
 3. **End-to-end encryption** as an opt-in for single-user servers ([ADR 0073](adr/0073-self-hosted-server-first.md)).
 4. **Remote MCP server over the network** ([ADR 0045](adr/0045-server-and-mcp-security.md), [ADR 0073](adr/0073-self-hosted-server-first.md)).
 5. **Agent writing directly to notes with diff** ([ADR 0018](adr/0018-llm-native-mcp-in-core.md)).

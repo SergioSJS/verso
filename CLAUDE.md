@@ -32,6 +32,15 @@ review finding.
   Read the relevant ADR from [`docs/adr/README.md`](docs/adr/README.md) first. If
   the required decision is `PROPOSED` or `[OPEN]`, ask before implementing.
 
+### When to stop and ask
+Stopping is the correct behavior, not a failure, when:
+- A fixture looks wrong (`fixtures/**/expected.yaml` or `input.md`).
+- The needed decision is `PROPOSED` or `[OPEN]`.
+- Two documents contradict each other.
+- The work requires violating an invariant or turning off a guardrail.
+- The work is outside the current phase of [`docs/roadmap.md`](docs/roadmap.md).
+- The solution would require knowing how Obsidian works on the inside ([ADR 0009](docs/adr/0009-external-constraints.md)).
+
 ---
 
 ## 2. Invariants
@@ -60,7 +69,7 @@ Violating an invariant is **BLOCKING** by definition, with no discussion of meri
 
 ### 2.4 Fixtures — [ADR 0031](docs/adr/0031-fixtures-as-contract.md)
 14. **Never change `fixtures/**/expected.yaml` or `input.md` without the maintainer's explicit approval.** If code disagrees with the fixture, the code is wrong until the maintainer says otherwise. If a fixture looks wrong: **stop, do not edit, ask**.
-15. Any new fixture follows the schema in `docs/spec/dialect.md` §4 and is marked as an AI draft on line 1 until approved.
+15. Any new fixture follows the schema in `docs/spec/dialect.md` §4 and is marked as an AI draft on line 1 until approved. A fixture answering an `[OPEN]` spec question only enters in the PR that closes that question (updating `docs/spec/dialect.md` §9 in the same PR). A fixture of behavior compatible with Obsidian records in `observed:` how it was verified.
 
 ### 2.5 Scope — [ADR 0034](docs/adr/0034-roadmap-in-phases.md)
 16. Out of scope until after V1: third-party plugin execution and the compatibility shim. Do not implement unrequested features "since it is cheap".
@@ -69,7 +78,7 @@ Violating an invariant is **BLOCKING** by definition, with no discussion of meri
 
 ## 3. Guardrails & coding constraints
 
-The CI and workspace guardrails ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), [ADR 0067](docs/adr/0067-source-files-stay-small.md)) protect codebase integrity:
+Two groups ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), [ADR 0067](docs/adr/0067-source-files-stay-small.md)): **workspace** guardrails and **feature** guardrails. Every feature guardrail enters in the same PR as the feature it protects and must be seen failing before the PR merges.
 
 | Guardrail | Enforces | Command / Script |
 |---|---|---|
@@ -78,9 +87,12 @@ The CI and workspace guardrails ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 
 | No panics in prod | Clippy `-D warnings`; `unwrap_used` and `expect_used` denied outside tests | `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` |
 | Folder confinement | `std::fs` denied outside `verso-fs` (declared exceptions: sidecar, data, update, log, resolv_conf) | Enforced in `scripts/check.sh` |
 | Source file size limit | Every source file (`.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.css`) under **1500 lines** ([ADR 0067](docs/adr/0067-source-files-stay-small.md)) | `node scripts/check-sizes.mjs` |
-| Dependency & license safety | Licenses allowlisted; security advisories denied | `cargo deny check`, `node scripts/check-npm-licenses.mjs`, `node scripts/check-npm-audit.mjs` |
-| Public docs mirror | Public documents mirrored in `docs/pt-BR/` with same headings; all links resolve ([ADR 0008](docs/adr/0008-documentation-language.md)) | `bash scripts/check-docs-mirror.sh` |
-| Demo vault tutorial | Demo vault holds together, embeds and boards valid ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)) | `node scripts/demo-vault.mjs check` |
+| Dependency & license safety | Licenses allowlisted; security advisories denied (an exception in `deny.toml` or `app/ui/audit-exceptions.json` requires justification, link and expiry) | `cargo deny check`, `node scripts/check-npm-licenses.mjs`, `node scripts/check-npm-audit.mjs` |
+| Public docs mirror & links | Public documents mirrored in `docs/pt-BR/` with same headings; all relative links across `.md` files resolve ([ADR 0008](docs/adr/0008-documentation-language.md)) | `bash scripts/check-docs-mirror.sh` |
+| Dialect fixtures | Fixture structure, keys, and no unapproved draft on `main` ([ADR 0031](docs/adr/0031-fixtures-as-contract.md)) | `bash scripts/check-fixtures.sh` |
+| Demo vault tutorial | Demo vaults (`demo-vault/` and `demo-vault-en/`) hold together, embeds and boards valid ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)) | `node scripts/demo-vault.mjs check` |
+| Theme catalogue | Shipped `.verso-theme` files pass contrast floor (3:1), allowed licences and SHA-256 listing ([ADR 0100](docs/adr/0100-visual-customization-wizard.md), ADR 0109) | `node scripts/check-theme-catalogue.mjs` |
+| Release page | Release page matches workflow artifacts ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)) | `node --test scripts/release-page.test.mjs` |
 | Generated types | TypeScript types match Rust contract ([ADR 0026](docs/adr/0026-core-ui-contract-inviolable-rules.md)) | Generated via `verso-app --export-bindings` |
 | WebAssembly | Parser compiles to WASM without IO | `cargo check --target wasm32-unknown-unknown -p verso-dialect` |
 
@@ -90,36 +102,46 @@ The CI and workspace guardrails ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 
 
 ## 4. Codebase structure & fast dev loop
 
-### Crate & directory map
+### Crate & directory map ([ADR 0028](docs/adr/0028-crate-structure.md))
 ```
 crates/
 ├── verso-dialect   # Pure Markdown parser: no IO, no async, compiles to wasm32
-├── verso-index     # SQLite/FTS5 full-text search, backlinks, graph
+├── verso-index     # SQLite/FTS5 full-text search, backlinks, block ^id index, graph
 ├── verso-fs        # Opaque handles, watcher, atomic writes, confinement
 ├── verso-core      # Orchestrates dialect, index, fs; exposes core logic
 ├── verso-contract  # Contract types (Specta-annotated, no IO)
 ├── verso-service   # Command dispatch & session management (transport-free)
-├── verso-server    # HTTP/WebSocket server (UniVerso), accounts, rooms, data DB
+├── verso-cloud     # Cloud remotes (WebDAV, S3; ADR 0104), host-side, no disk; core/fs never depend on it
+├── verso-server    # HTTP/WebSocket server (UniVerso), accounts, rooms, table log, data DB
 ├── verso-cli       # Subcommands: index, search, backlinks, mcp, serve
 └── verso-bench     # Benchmarks (never shipped)
 
 app/
 ├── src-tauri/      # Desktop host (Tauri v2, macOS/Windows/Linux platform code)
 └── ui/             # CodeMirror 6, Excalidraw, bases, UI modules
+    ├── themes/catalogue/ # Built-in .verso-theme files (ADR 0109)
     └── src/
-        ├── leaves/     # Note, board, base, folder, PDF, graph views
-        ├── dialogs/    # Switcher, palette, settings, world wizard
+        ├── leaves/     # Note, board, base, folder, PDF, graph, datagraph views
+        ├── dialogs/    # Switcher, palette, settings, access, world wizard
         ├── board/      # Canvas & Excalidraw integration
         ├── bases/      # Views over folder (tables, kanban, cards, map layout)
         ├── blocks/     # Drag handles, block menus, Notion-style blocks
-        ├── editor/     # CodeMirror extensions, autocomplete, Live Preview
-        ├── dice/       # Dice notation parser & Rolai physics integration
-        ├── oracle/     # Creative oracles engine
-        ├── statblock/  # Visual statblocks & card rendering
+        ├── editor/     # CodeMirror extensions, autocomplete, Live Preview, swatches
+        ├── dice/       # Dice notation parser & Rolai profile engine
+        ├── dice3d/     # Lazy 3D dice physics overlay (three + cannon-es, ADR 0101)
+        ├── oracle/     # Creative oracles engine (ADR 0102)
+        ├── statblock/  # Visual statblocks & card rendering (ADR 0099)
+        ├── bundles/    # Project wizard template bundles (ADR 0098)
+        ├── theme/      # Appearance tokens, gallery & theme builder (ADR 0100, 0109)
+        ├── datagraph/  # Structured data diagram viewer (ADR 0106)
+        ├── table/      # Shared campaign table, roll & chat log (ADR 0107, 0110, 0113)
         ├── harness/    # In-memory test harness mocking core IPC
         ├── bindings.ts # Generated TypeScript contract types
         └── strings.ts  # Bilingual UI string catalog (pt-BR / EN)
 ```
+
+- `verso-server` never touches folder files directly, only through `verso-service` → `verso-core` → `verso-fs`, and opens only its own database in `VERSO_DATA_DIR`.
+- A new dependency requires justification in the PR, stating what it replaces in our own code and confirming that its license passes `cargo-deny`.
 
 ### Fast verification commands
 - **UI type-check & build:** `cd app/ui && npm run check && npm run build`
@@ -142,20 +164,22 @@ app/
 Every change a user can see must update:
 1. **Bilingual UI strings:** Add both pt-BR and EN entries in `app/ui/src/strings.ts` ([ADR 0035](docs/adr/0035-cross-cutting-requirements.md)).
 2. **Changelog:** Add an entry under `## Unreleased` in `CHANGELOG.md` and under `## Não lançado` in `docs/pt-BR/CHANGELOG.md`.
-3. **The demo vault tutorial (`demo-vault/`):**
-   - Add or update the lesson note explaining the feature.
+3. **The demo vault tutorials (`demo-vault/` and `demo-vault-en/`):**
+   - Add or update the lesson note in both `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), paired in `scripts/demo-vault/names.mjs`.
    - Update `scripts/demo-vault/tour.mjs` (and `scripts/demo-vault/treino.mjs` for board features).
-   - Rebuild the demo vault: `node scripts/demo-vault.mjs build` and verify `node scripts/demo-vault.mjs check`. (Never edit `Tour do Verso.canvas`, `Treino do Board.canvas`, or `app/ui/src/demoVault.ts` by hand).
+   - Rebuild the demo vaults: `node scripts/demo-vault.mjs build` and verify `node scripts/demo-vault.mjs check`. (Never edit the generated `.canvas` files or `app/ui/src/demoVault*.ts` by hand).
 4. **Walkthrough & tests:**
    - Add verification steps to [`docs/reference/demo-vault-walkthrough.md`](docs/reference/demo-vault-walkthrough.md).
    - Add IPC command response in `app/ui/src/harness/` if contract commands were added.
    - Add automated test in `app/ui/e2e/`.
    - List any platform-only checks in [`docs/reference/manual-checks.md`](docs/reference/manual-checks.md).
+5. **Install:** On macOS, end with the beta installed via `scripts/install-beta.sh` only, never a hand-copied binary ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)); a browser harness or dev copy is not the app.
 
-### Pull request workflow ([ADR 0033](docs/adr/0033-pr-workflow.md), [ADR 0051](docs/adr/0051-development-flow-and-releases.md))
+### Pull request & review workflow ([ADR 0032](docs/adr/0032-author-and-reviewer-roles.md), [ADR 0033](docs/adr/0033-pr-workflow.md), [ADR 0051](docs/adr/0051-development-flow-and-releases.md))
 - Use `.github/pull_request_template.md`: What / Why / Discarded alternatives / How to verify / Rust concept used (explained for a learner).
 - When touching paths, filesystem, processes, or keyboard bindings, consult [`docs/reference/cross-platform-checklist.md`](docs/reference/cross-platform-checklist.md).
-- Merge conditions: Green CI + No open BLOCKING finding + The maintainer can explain the PR in their own words.
+- Review findings are classified as **BLOCKING** (violates invariant/guardrail/decision or loses data; blocks merge), **IMPORTANT** (must be resolved or explicitly deferred with a record), or **MINOR** (author's discretion).
+- Merge conditions: Green CI + No open BLOCKING finding + The maintainer can explain the PR in their own words (DCO `Signed-off-by` is the maintainer's; no AI signature).
 - Merge with a merge commit (never squash or rebase: documents cite commits by hash).
 - Versions are cut only when the maintainer asks: `node scripts/release.mjs prepare X.Y.Z[-beta.N]`.
 
@@ -164,7 +188,7 @@ Every change a user can see must update:
 ## 6. Language policy — [ADR 0008](docs/adr/0008-documentation-language.md)
 
 1. **Internal engineering documentation is English only:**
-   `CLAUDE.md`, `.github/pull_request_template.md`, `docs/roadmap.md`, `docs/BRIEFING.md`, `docs/adr/`, `docs/spec/`, `docs/reference/`, and `docs/review/` are maintained exclusively in English.
+   `CLAUDE.md`, `AGENTS.md`, `.github/pull_request_template.md`, `docs/roadmap.md`, `docs/BRIEFING.md`, `docs/adr/`, `docs/spec/`, `docs/reference/`, and `docs/review/` are maintained exclusively in English.
 2. **Public-facing documents are mirrored in pt-BR:**
    `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, and `SECURITY.md` have an equivalent pt-BR twin under `docs/pt-BR/` with identical heading structure and valid links, verified by `scripts/check-docs-mirror.sh`.
-3. **Product localization:** The app UI is bilingual (pt-BR and EN, [ADR 0035](docs/adr/0035-cross-cutting-requirements.md)). The demo vault tutorial content is in pt-BR ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)).
+3. **Product localization:** The app UI and the demo vault tutorials (`demo-vault/` in pt-BR and `demo-vault-en/` in English, [ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)) are bilingual ([ADR 0035](docs/adr/0035-cross-cutting-requirements.md)).
