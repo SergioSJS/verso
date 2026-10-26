@@ -50,6 +50,7 @@ type Words = {
   rolled: (a: number, b: number, c: number) => string;
   offSwitch: string;
   offMotion: string;
+  offGl: string;
 };
 
 const pt: Words = {
@@ -93,6 +94,7 @@ const pt: Words = {
   rolled: (a, b, c) => `d20: ${a}, d6: ${b}, d6: ${c}`,
   offSwitch: "Os dados 3D estão desligados. Ligue \"Dados 3D\" nesta página para testar.",
   offMotion: "O sistema pede menos movimento, então os dados 3D não animam. Nada para testar.",
+  offGl: "Dados 3D indisponíveis neste computador (sem aceleração gráfica); as rolagens aparecem em 2D.",
 };
 
 const en: Words = {
@@ -136,6 +138,7 @@ const en: Words = {
   rolled: (a, b, c) => `d20: ${a}, d6: ${b}, d6: ${c}`,
   offSwitch: "3D dice are off. Turn on \"3D dice\" on this page to test.",
   offMotion: "The system asks for less motion, so the 3D dice do not animate. Nothing to test.",
+  offGl: "3D dice unavailable on this computer (no graphics acceleration); rolls show in 2D.",
 };
 
 export const ls: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;

@@ -13,7 +13,8 @@ export * from "./src/dice3d/force";
 export * from "./src/dice3d/plan";
 export * from "./src/dice3d/timeline";
 export * from "./src/dice3d/sim";
-export * from "./src/dice3d/labels";`,
+export * from "./src/dice3d/labels";
+export * from "./src/dice3d/gl";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -512,4 +513,39 @@ test("a number is centred by its ink and fits inside every face with a margin", 
       });
     }
   }
+});
+
+test("the WebGL probe: no context, a software renderer or a throwing canvas end in 2D; a real GPU passes", () => {
+  const ctx = (renderer, ext = true) => ({
+    RENDERER: 0x1f01,
+    getExtension: (n) => (n === "WEBGL_debug_renderer_info" && ext ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null),
+    getParameter: (p) => (p === 0x9246 || p === 0x1f01 ? renderer : null),
+  });
+  const canvas = (gl) => () => ({ getContext: () => gl });
+  assert.deepEqual(m.probeGl(canvas(null)), { ok: false, why: "none" });
+  assert.deepEqual(m.probeGl(() => { throw new Error("x"); }), { ok: false, why: "none" });
+  assert.deepEqual(m.probeGl(canvas(ctx("llvmpipe (LLVM 15.0.7, 256 bits)"))), { ok: false, why: "software" });
+  assert.deepEqual(m.probeGl(canvas(ctx("Google SwiftShader"))), { ok: false, why: "software" });
+  assert.deepEqual(m.probeGl(canvas(ctx("softpipe", false))), { ok: false, why: "software" });
+  assert.deepEqual(m.probeGl(canvas(ctx("Mesa Intel(R) UHD Graphics 620"))), { ok: true });
+  assert.deepEqual(m.probeGl(canvas(ctx("Apple M2"))), { ok: true });
+  // the probe asks with failIfMajorPerformanceCaveat
+  let asked;
+  m.probeGl(() => ({ getContext: (k, o) => ((asked = o), null) }));
+  assert.equal(asked.failIfMajorPerformanceCaveat, true);
+});
+
+test("the session verdict is kept, said once, and a runtime failure turns 3D off", () => {
+  m.resetGl();
+  let n = 0;
+  const good = () => (n++, { getContext: () => ({ getExtension: () => null, getParameter: () => "GPU" }) });
+  assert.equal(m.glVerdict(good).ok, true);
+  assert.equal(m.glVerdict(good).ok, true);
+  assert.equal(n, 1);
+  assert.equal(m.shouldTell(), false);
+  m.failGl();
+  assert.equal(m.glVerdict(good).ok, false);
+  assert.equal(m.shouldTell(), true);
+  assert.equal(m.shouldTell(), false);
+  m.resetGl();
 });
