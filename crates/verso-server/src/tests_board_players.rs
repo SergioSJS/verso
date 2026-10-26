@@ -30,7 +30,7 @@ use crate::tests_campaign::{Mesa, Win, mesa};
 /// What only the hidden things of the board hold: the pin, what belongs to
 /// it, the hidden note's file and words. The marker keeps its id, so `c-hid`
 /// is not here.
-const LEAKS: &[&str] = &[
+pub(crate) const LEAKS: &[&str] = &[
     "zqpin",
     "zqedge",
     "zqdraw",
@@ -44,11 +44,11 @@ const LEAKS: &[&str] = &[
 /// hers, as a note she edits (ADR 0087 item 5).
 const HERS: &str = "zqblock";
 
-const PATH: &str = "Quadro.canvas";
+pub(crate) const PATH: &str = "Quadro.canvas";
 
 static IDS: AtomicU64 = AtomicU64::new(900);
 
-fn file() -> String {
+pub(crate) fn file() -> String {
     json!({
         "nodes": [
             { "id": "c-open", "type": "file", "file": "Livre.md", "x": 0, "y": 0, "width": 200, "height": 100 },
@@ -107,7 +107,7 @@ fn elements() -> Vec<(&'static str, Value)> {
     out
 }
 
-fn access(m: &Mesa, rows: &[(&str, Level)]) {
+pub(crate) fn access(m: &Mesa, rows: &[(&str, Level)]) {
     let set = NodeSet {
         whole: Level::See,
         rows: rows.iter().map(|(a, l)| ((*a).to_owned(), *l)).collect(),
@@ -116,18 +116,23 @@ fn access(m: &Mesa, rows: &[(&str, Level)]) {
     crate::campaign::forget(&m.r.server, &m.id);
 }
 
-fn bytes(b64: &str) -> Vec<u8> {
+pub(crate) fn bytes(b64: &str) -> Vec<u8> {
     STANDARD.decode(b64).unwrap()
 }
 
-fn apply(doc: &Doc, update: &[u8]) {
+pub(crate) fn apply(doc: &Doc, update: &[u8]) {
     doc.transact_mut()
         .apply_update(Update::decode_v1(update).unwrap())
         .unwrap();
 }
 
 /// Every frame that is not the answer to `id`, and the answer.
-async fn exchange(win: &mut Win, cmd: &str, args: Value, canaries: &[&str]) -> (Value, Vec<Value>) {
+pub(crate) async fn exchange(
+    win: &mut Win,
+    cmd: &str,
+    args: Value,
+    canaries: &[&str],
+) -> (Value, Vec<Value>) {
     let id = IDS.fetch_add(1, Ordering::SeqCst);
     win.ws
         .send(Message::Text(
@@ -154,7 +159,7 @@ async fn exchange(win: &mut Win, cmd: &str, args: Value, canaries: &[&str]) -> (
     }
 }
 
-fn clean(what: &str, text: &str, canaries: &[&str]) {
+pub(crate) fn clean(what: &str, text: &str, canaries: &[&str]) {
     let all = crate::tests_secret::heard(text);
     for s in canaries {
         assert!(!all.contains(s), "{what}: {s:?} reached a player: {text}");
@@ -162,7 +167,7 @@ fn clean(what: &str, text: &str, canaries: &[&str]) {
 }
 
 /// What `win` hears for `ms`, each frame checked.
-async fn hear(win: &mut Win, ms: u64, canaries: &[&str]) -> Vec<Value> {
+pub(crate) async fn hear(win: &mut Win, ms: u64, canaries: &[&str]) -> Vec<Value> {
     let mut out = Vec::new();
     let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
     while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, win.ws.next()).await {
@@ -175,13 +180,13 @@ async fn hear(win: &mut Win, ms: u64, canaries: &[&str]) -> Vec<Value> {
 }
 
 /// A window's copy of a room: its document, kept up by the events.
-struct Copy {
-    doc: Doc,
-    epoch: String,
+pub(crate) struct Copy {
+    pub(crate) doc: Doc,
+    pub(crate) epoch: String,
 }
 
 impl Copy {
-    fn take(&self, events: &[Value]) -> usize {
+    pub(crate) fn take(&self, events: &[Value]) -> usize {
         let mut n = 0;
         for e in events {
             if e["event"] == "collab-update" && e["payload"]["path"] == PATH {
@@ -191,22 +196,22 @@ impl Copy {
         }
         n
     }
-    fn take_into(doc: &Doc, events: &[Value]) {
+    pub(crate) fn take_into(doc: &Doc, events: &[Value]) {
         for e in events {
             if e["event"] == "collab-update" && e["payload"]["path"] == PATH {
                 apply(doc, &bytes(e["payload"]["update"].as_str().unwrap()));
             }
         }
     }
-    fn element(&self, id: &str) -> Option<Value> {
+    pub(crate) fn element(&self, id: &str) -> Option<Value> {
         collab_board::elements(&self.doc).remove(id)
     }
-    fn has_text(&self, needle: &str) -> bool {
+    pub(crate) fn has_text(&self, needle: &str) -> bool {
         collab_board::elements(&self.doc)
             .values()
             .any(|e| e.to_string().contains(needle))
     }
-    fn base(&self) -> String {
+    pub(crate) fn base(&self) -> String {
         let meta = self.doc.get_or_insert_map(META);
         let txn = self.doc.transact();
         meta.get(&txn, "base")
@@ -215,7 +220,7 @@ impl Copy {
     }
 }
 
-async fn join(win: &mut Win, canaries: &[&str]) -> (Value, Copy, Vec<Value>) {
+pub(crate) async fn join(win: &mut Win, canaries: &[&str]) -> (Value, Copy, Vec<Value>) {
     let (joined, events) = exchange(win, "collab_join", json!({ "path": PATH }), canaries).await;
     let doc = Doc::new();
     if let Some(u) = joined["ok"]["update"].as_str() {
@@ -228,7 +233,7 @@ async fn join(win: &mut Win, canaries: &[&str]) -> (Value, Copy, Vec<Value>) {
     (joined, Copy { doc, epoch }, events)
 }
 
-async fn send(win: &mut Win, update: &[u8], canaries: &[&str]) -> (Value, Vec<Value>) {
+pub(crate) async fn send(win: &mut Win, update: &[u8], canaries: &[&str]) -> (Value, Vec<Value>) {
     exchange(
         win,
         "collab_update",
@@ -238,26 +243,26 @@ async fn send(win: &mut Win, update: &[u8], canaries: &[&str]) -> (Value, Vec<Va
     .await
 }
 
-fn edited(doc: &Doc, n: i64) -> Vec<u8> {
+pub(crate) fn edited(doc: &Doc, n: i64) -> Vec<u8> {
     let meta = doc.get_or_insert_map(META);
     let mut txn = doc.transact_mut();
     meta.insert(&mut txn, format!("edit:{}", doc.client_id()), n);
     txn.encode_update_v1()
 }
 
-fn seeded(doc: &Doc) -> Vec<u8> {
+pub(crate) fn seeded(doc: &Doc) -> Vec<u8> {
     let meta = doc.get_or_insert_map(META);
     let mut txn = doc.transact_mut();
     meta.insert(&mut txn, "seeded", true);
     txn.encode_update_v1()
 }
 
-fn refused(v: &Value) -> bool {
+pub(crate) fn refused(v: &Value) -> bool {
     v["err"]["kind"] == "refused"
 }
 
 /// The game master's window draws the file into the room.
-async fn master_seeds(m: &mut Mesa) -> Doc {
+pub(crate) async fn master_seeds(m: &mut Mesa) -> Doc {
     let made = m
         .owner
         .call(
@@ -503,7 +508,7 @@ async fn ana_again(m: &Mesa) -> Win {
 
 /// The canvas a window's converter makes of a room's elements: the nodes
 /// the cards carry, the edges, the rest as the drawing, in the board's order.
-fn canvas_of(doc: &Doc) -> Value {
+pub(crate) fn canvas_of(doc: &Doc) -> Value {
     let mut all: Vec<Value> = collab_board::elements(doc)
         .into_values()
         .filter(|e| e["isDeleted"] != true)
@@ -529,16 +534,16 @@ fn canvas_of(doc: &Doc) -> Value {
     json!({ "nodes": nodes, "edges": edges, "verso": { "version": 1, "drawing": drawing } })
 }
 
-fn sv(doc: &Doc) -> String {
+pub(crate) fn sv(doc: &Doc) -> String {
     STANDARD.encode(collab_board::state_vector(doc))
 }
 
-async fn disk(m: &mut Mesa) -> Value {
+pub(crate) async fn disk(m: &mut Mesa) -> Value {
     let read = m.owner.call("read_text", json!({ "path": PATH })).await;
     serde_json::from_str(read["ok"]["text"].as_str().unwrap()).unwrap()
 }
 
-fn node<'a>(canvas: &'a Value, id: &str) -> Option<&'a Value> {
+pub(crate) fn node<'a>(canvas: &'a Value, id: &str) -> Option<&'a Value> {
     canvas["nodes"].as_array()?.iter().find(|n| n["id"] == id)
 }
 
@@ -908,7 +913,7 @@ fn what_an_element_becomes_to_her_closes_her_shadow_and_the_next_one_is_made_ane
 }
 
 /// The canaries once the hidden note is released.
-const LEAKS_AFTER_RELEASE: &[&str] = &["zqpin", "zqedge", "zqdraw", "zqlabel"];
+pub(crate) const LEAKS_AFTER_RELEASE: &[&str] = &["zqpin", "zqedge", "zqdraw", "zqlabel"];
 
 #[test]
 fn the_dialog_can_give_edits_on_a_board_and_counts_its_secret_blocks() {

@@ -508,6 +508,14 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     return mergeScene(local, this.resolved().values(), busy, (e) => this.mine(e));
   }
 
+  protected override idle(): void {
+    // A file sent while an update was still on its way was set aside by the
+    // room (its state was not the room's yet): sent again, though the state
+    // is the same.
+    this.sentAt = "";
+    this.canvasSoon();
+  }
+
   /** Hand the room the file, once the state rests, when edits wait. */
   private canvasSoon(): void {
     if (!this.writable || !this.live || !this.waiting) return;
