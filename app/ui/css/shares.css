@@ -190,7 +190,8 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 .table-strip-state { display: inline-flex; align-items: center; gap: .3rem; font-weight: 600; color: var(--good); }
 .table-strip-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .table-strip-state.is-closed { color: var(--ink-3); }
-.table-strip-meta { flex: 1; min-width: 0; color: var(--ink-2); }
+.table-strip-meta { flex: 1 1 auto; white-space: nowrap; color: var(--ink-2); }
+/* A narrow pane (a desktop split, the Mac beside the Mesa panel): the meta keeps one line and the actions go under it, never a column of words (seen live 2026-10-26). */
 .table-strip-actions { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin-left: auto; }
 .table-strip .btn { min-height: 30px; padding: .25rem .65rem; }
 .table-strip-gear { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid transparent; border-radius: 7px; color: var(--ink-2); cursor: pointer; }
