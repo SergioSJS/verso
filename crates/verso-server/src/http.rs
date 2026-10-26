@@ -16,7 +16,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{delete, get, get_service, post};
+use axum::routing::{delete, get, post};
 use serde::Serialize;
 
 use crate::auth::{self, Peer, Who};
@@ -251,6 +251,61 @@ pub fn ok<T: Serialize>(value: T) -> Response {
 /// (`web.js`) in place of the desktop's.
 const PAGE: &str = "web.html";
 
+/// The window's page for the routes that name it: read at each request
+/// (a new build is a new window), and, when the file cannot be read at that
+/// instant (a build replacing `dist/`, a volume that blinked), the last copy
+/// that was; with none, a small page that asks again in two seconds, never an
+/// empty `404` that leaves a visitor on a blank screen (seen in the server
+/// e2e of 2026-10-26: `/` answered `404` with no body).
+fn page_route(path: std::path::PathBuf) -> axum::routing::MethodRouter<Arc<Server>> {
+    let last: Arc<std::sync::Mutex<Option<Arc<str>>>> = Arc::default();
+    get(move || {
+        let (path, last) = (path.clone(), Arc::clone(&last));
+        async move {
+            let read = tokio::task::spawn_blocking({
+                let path = path.clone();
+                move || crate::data::read_page(&path)
+            })
+            .await;
+            let html = match read {
+                Ok(Ok(text)) => {
+                    let text: Arc<str> = text.into();
+                    if let Ok(mut kept) = last.lock() {
+                        *kept = Some(Arc::clone(&text));
+                    }
+                    Some(text)
+                }
+                _ => last.lock().ok().and_then(|kept| kept.clone()),
+            };
+            match html {
+                Some(text) => (
+                    [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                    text.to_string(),
+                )
+                    .into_response(),
+                None => {
+                    crate::log::error(&format!(
+                        "the window's page {} cannot be read",
+                        path.display()
+                    ));
+                    (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        [
+                            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                            (header::RETRY_AFTER, "2"),
+                        ],
+                        RETRY_PAGE,
+                    )
+                        .into_response()
+                }
+            }
+        }
+    })
+}
+
+/// What a visitor sees while the page cannot be read.
+const RETRY_PAGE: &str = "<!doctype html><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"2\"><title>Verso</title><p style=\"font:16px system-ui;margin:2em\">Verso is starting. Trying again in a moment&hellip; / O Verso est&aacute; iniciando. Tentando de novo j&aacute;&hellip;</p>";
+
 /// Every route of the server.
 pub fn router(server: Arc<Server>) -> Router {
     let ui = server.config.ui_dir.clone();
@@ -424,7 +479,7 @@ pub fn router(server: Arc<Server>) -> Router {
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
-    let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    let page = || page_route(ui.join(PAGE));
     let router = router
         .route("/", page())
         .route("/signin", page())

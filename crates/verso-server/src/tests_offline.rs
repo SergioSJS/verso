@@ -116,3 +116,27 @@ fn the_windows_files_are_asked_about_each_time_unless_their_name_has_a_hash() {
         assert_eq!(changed.status().as_u16(), 200);
     });
 }
+
+#[test]
+fn the_page_is_never_an_empty_404_when_its_file_cannot_be_read_for_a_moment() {
+    block_on(async {
+        let r = start().await;
+        let ui = r.server.config.ui_dir.clone();
+        crate::data::ensure_dir(&ui).unwrap();
+        let page = ui.join("web.html");
+        let client = reqwest::Client::new();
+        // No file yet: a page that asks again, not a blank 404.
+        let res = client.get(r.url("/")).send().await.unwrap();
+        assert_eq!(res.status().as_u16(), 503, "{res:?}");
+        assert_eq!(res.headers()["retry-after"], "2");
+        assert!(res.text().await.unwrap().contains("refresh"));
+        // Served once, then the file goes (a build replacing dist/): the last copy.
+        crate::data::write_for_tests(&page, "<!doctype html><title>V1</title>");
+        let res = client.get(r.url("/signin")).send().await.unwrap();
+        assert_eq!(res.status().as_u16(), 200);
+        crate::data::remove_for_tests(&page);
+        let res = client.get(r.url("/signin")).send().await.unwrap();
+        assert_eq!(res.status().as_u16(), 200);
+        assert!(res.text().await.unwrap().contains("V1"));
+    });
+}
