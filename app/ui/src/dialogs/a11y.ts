@@ -13,6 +13,21 @@ export function asDialog(el: HTMLElement, label: string, close: () => void, labe
   el.setAttribute("aria-modal", "true");
   if (labelledBy) el.setAttribute("aria-labelledby", labelledBy);
   else el.setAttribute("aria-label", label);
+  // Safari does not focus a checkbox or a button when it is clicked, so the
+  // focus can rest on the page's body with the dialog open: Escape then
+  // never reaches the dialog. The top dialog takes it from the document.
+  const fromBody = (e: KeyboardEvent) => {
+    if (!el.isConnected) {
+      document.removeEventListener("keydown", fromBody);
+      return;
+    }
+    const at = document.activeElement;
+    if (e.key === "Escape" && !e.defaultPrevented && !hotkeyRecorder && (!at || at === document.body) && el.getClientRects().length > 0 && isTop(el)) {
+      e.preventDefault();
+      close();
+    }
+  };
+  document.addEventListener("keydown", fromBody);
   el.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.defaultPrevented && !hotkeyRecorder) {
       e.preventDefault();
