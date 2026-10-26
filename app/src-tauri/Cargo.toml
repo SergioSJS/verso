@@ -135,6 +135,11 @@ webview2-com = "0.38"
 # bindings Tauri already builds (gtk 0.18.2, MIT); they replace nothing of
 # ours.
 gtk = "0.18"
+# The web process of the window died (src/recover.rs): WebKitGTK's
+# `web-process-terminated` signal, reached through `with_webview`; the
+# binding wry already builds (2.0.2, MIT), at the feature (v2_20) that has
+# the signal. It replaces nothing of ours.
+webkit2gtk = { version = "2", features = ["v2_20"] }
 
 [dev-dependencies]
 # The fakes of a WebDAV server and an S3 service the sync tests run against

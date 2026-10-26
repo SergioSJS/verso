@@ -125,6 +125,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Uma janela no Linux não fica mais branca quando a página web dela quebra**: o Verso agora percebe que o processo web da janela morreu (uma falha do driver de vídeo, por exemplo), registra no log e recarrega a página uma vez; se morrer de novo em até 30 segundos, uma mensagem avisa em vez de repetir sem fim.
 - **Os dados 3D não derrubam mais um computador sem aceleração gráfica**: antes da primeira queda o Verso confere, uma vez, que o WebGL é real e acelerado; se não for (ou se uma rolagem 3D falhar), a rolagem aparece em 2D, a linha de estado diz o porquê uma vez e o 3D fica desligado na sessão.
 - **O servidor nunca responde a página com um 404 vazio** (uma tela branca vista na rodada e2e do servidor de 2026-10-26): se o `web.html` da janela não puder ser lido naquele instante, o servidor entrega a última cópia que leu, ou uma página pequena que tenta de novo em dois segundos, com a causa no log.
 - **O aviso "sem HTTPS" não cobre mais a página**: num servidor HTTP simples ele era uma barra flutuando sobre o topo do painel aberto (as ferramentas do board, o título, as abas); agora é uma faixa fina própria acima dos painéis e, fechado, fica fechado para aquele servidor (a marca "sem HTTPS" na barra de status continua).
