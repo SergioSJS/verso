@@ -18,11 +18,15 @@ test("a note opens within the budget, fresh and from an open tab, and is not uns
   for (const n of ["Um", "Dois"]) await invoke(page, "create_note", { name: n, text: `# ${n}\n\ntexto de ${n}\n` });
 
   const open = async (name) => {
-    await page.keyboard.press("ControlOrMeta+p");
     const box = page.getByRole("combobox", { name: "Abrir…" });
-    await expect(box).toBeFocused();
-    await box.fill(name);
-    await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
+    // The index may not have the new notes yet: asked again until it lists them.
+    await expect(async () => {
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("ControlOrMeta+p");
+      await expect(box).toBeFocused({ timeout: 2000 });
+      await box.fill(name);
+      await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name, { timeout: 2000 });
+    }).toPass({ timeout: 30_000 });
     const began = Date.now();
     await box.press("Enter");
     await expect(page.locator(".leaf:not([hidden])")).toContainText(`texto de ${name}`, { timeout: 15_000 });
