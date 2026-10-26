@@ -131,12 +131,13 @@ test("the arrow keys change the choice of a row, and Escape gives the focus back
   await setup(app, "owner", { "Mundo/Cripta.md": { audience: { kind: "hidden" } } });
   const d = await openDialog(app, "Mundo/Cripta.md");
   await select(d, "Dora").focus();
-  await app.page.keyboard.press("ArrowDown");
+  // Type-ahead (the first letter of the option) changes a closed select on every platform; on macOS arrows only open its menu.
+  await app.page.keyboard.press("V");
   await expectLevel(d, "Dora", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-dora", level: "see" }] } } });
-  await app.page.keyboard.press("ArrowDown");
+  await app.page.keyboard.press("E");
   await expectLevel(d, "Dora", "Edita");
-  await app.page.keyboard.press("ArrowUp");
+  await app.page.keyboard.press("V");
   await expectLevel(d, "Dora", "Vê");
   await app.page.keyboard.press("Escape");
   await expect(d).toBeHidden();

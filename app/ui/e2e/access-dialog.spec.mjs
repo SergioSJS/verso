@@ -218,7 +218,8 @@ test("keyboard only: Tab stays in the dialog, the select changes with the keys, 
   expect(await d.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   // The keys choose, and the choice is saved.
   await select(d, "Caio").focus();
-  await page.keyboard.press("ArrowDown");
+  // Type-ahead (the first letter of the option) changes a closed select on every platform; on macOS ArrowDown only opens its menu.
+  await page.keyboard.press("V");
   await expectLevel(d, "Caio", "Vê");
   await expect.poll(() => lastSet(app)).toMatchObject({ change: { set: { rows: [{ account: "acc-caio", level: "see" }] } } });
   // Enter on the close button closes it, and the focus is back where the person was.
@@ -233,7 +234,7 @@ test("keyboard only: Tab stays in the dialog, the select changes with the keys, 
   await page.keyboard.press("Enter");
   const fd = dialogOf(app, /^Acesso · pasta “Mundo”/);
   await select(fd, "Toda a mesa").focus();
-  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("V");
   await expectLevel(fd, "Toda a mesa", "Vê");
   expect((await app.calls("access_set")).filter((c) => c.paths[0] === "Mundo")).toHaveLength(0);
   await fd.getByRole("button", { name: "Aplicar" }).focus();
