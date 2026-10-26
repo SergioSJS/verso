@@ -530,6 +530,48 @@ pub enum Op {
     Del(String),
 }
 
+/// The keys of an element Excalidraw moves by itself, on load and on render,
+/// without the person changing anything: they are no part of its substance.
+const NOISE: [&str; 5] = ["version", "versionNonce", "updated", "seed", "index"];
+
+/// An element's JSON without its noise.
+fn substance(json: &str) -> Option<Value> {
+    let mut v: Value = serde_json::from_str(json).ok()?;
+    let m = v.as_object_mut()?;
+    for k in NOISE {
+        m.remove(k);
+    }
+    Some(v)
+}
+
+/// The ids of the elements an edit only repeats: every entry the edit puts
+/// for the id is, in substance, one `known` already holds for it (the room's
+/// or the shadow's — what the player was told, or already had taken). An
+/// echo changes nothing, so it is judged by nobody: it is not a change.
+/// Deleting an id is a change, always.
+#[must_use]
+pub fn echoes(ops: &[Op], known: &Entries) -> BTreeSet<String> {
+    let mut put: BTreeMap<&str, bool> = BTreeMap::new();
+    for op in ops {
+        if let Op::Put(k, json) = op
+            && let Some((id, _, _)) = key_of(k)
+        {
+            let same = substance(json).is_some_and(|now| {
+                known.iter().any(|(kk, e)| {
+                    key_of(kk).is_some_and(|(i, _, _)| i == id)
+                        && substance(e).is_some_and(|was| was == now)
+                })
+            });
+            let all = put.entry(id).or_insert(true);
+            *all &= same;
+        }
+    }
+    put.into_iter()
+        .filter(|(_, all)| *all)
+        .map(|(id, _)| id.to_owned())
+        .collect()
+}
+
 /// An edit of a player's, judged against what they see of the room.
 ///
 /// `room` is the room's entries as they are, `sight` what the player sees
