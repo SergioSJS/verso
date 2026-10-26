@@ -113,7 +113,7 @@ test("the plain-HTTP notice does not cover an open dialog @layout", async ({ app
     bar.className = "plain-http-bar";
     bar.setAttribute("role", "status");
     bar.append("Conexão sem HTTPS: a senha e as notas passam abertas na rede. Modo offline, notificações e passkeys ficam desligados.");
-    document.body.append(bar);
+    document.querySelector(".work-notices").append(bar);
   });
   const bar = page.locator(".plain-http-bar");
   await expect(bar).toBeVisible();
@@ -183,7 +183,7 @@ test("the plain-HTTP notice is under the phone's drawer @layout", async ({ app, 
     const bar = document.createElement("div");
     bar.className = "plain-http-bar";
     bar.append("Conexão sem HTTPS: a senha e as notas passam abertas na rede.");
-    document.body.append(bar);
+    document.querySelector(".work-notices").append(bar);
     document.body.classList.add("side-open");
   });
   await page.waitForTimeout(500);
@@ -215,7 +215,8 @@ test("the plain-HTTP notice takes its own row and covers no pane control @layout
   const m = await page.evaluate(() => {
     const bar = document.querySelector(".plain-http-bar").getBoundingClientRect();
     const panes = document.querySelector(".panes").getBoundingClientRect();
-    const first = document.querySelector(".panes button, .panes [tabindex], .panes a, .panes input");
+    // The first one that is drawn: a control hidden at this width (the pane switch) has no box to compare.
+    const first = [...document.querySelectorAll(".panes button, .panes [tabindex], .panes a, .panes input")].find((x) => x.getClientRects().length > 0);
     return { barBottom: bar.bottom, panesTop: panes.top, firstTop: first ? first.getBoundingClientRect().top : null, scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
   });
   expect(m.panesTop).toBeGreaterThan(before);
