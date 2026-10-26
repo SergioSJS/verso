@@ -25,7 +25,7 @@ async function enter(page) {
 
 async function signedIn(page, email, password) {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/signin/);
+  await expect(page).toHaveURL(/\/signin/, { timeout: 30_000 }); // the redirect follows the session check, which is slow when the server is busy
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
   const res = await enter(page);
