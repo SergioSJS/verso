@@ -8,7 +8,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
-import { expect, test } from "@playwright/test";
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
 
