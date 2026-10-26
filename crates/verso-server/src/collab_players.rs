@@ -384,15 +384,9 @@ pub(super) fn join(
     // account anew when its shadow drifted from the room (what it drew when
     // it seeded, the versions it only echoed): none of that is carried over.
     // A shadow other windows are in, or that did not drift, stays.
-    let alone = r
-        .readers
-        .players
-        .by
-        .get(account)
-        .is_some_and(|sh| {
-            sh.clients.iter().all(|c| c == client)
-                && (!sh.seeded.is_empty() || sh.now.0 != sh.told.0)
-        });
+    let alone = r.readers.players.by.get(account).is_some_and(|sh| {
+        sh.clients.iter().all(|c| c == client) && (!sh.seeded.is_empty() || sh.now.0 != sh.told.0)
+    });
     if alone {
         r.readers.players.by.remove(account);
     }
