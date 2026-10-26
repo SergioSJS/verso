@@ -871,6 +871,7 @@ export class NoteLeaf extends Leaf {
     const note = await opening.readNote(path, this.quiet(path));
     if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") {
+      if (this.veiled(note.error)) return this.veil(path);
       this.path = path;
       this.setTitle(name(path));
       // A tab brought back with its file in the cloud waits to be shown.

@@ -16,6 +16,7 @@ import { folderAccessNow } from "./can";
 import { allEntries } from "./folder";
 import { ui } from "./dom";
 import { closedTabs, recents } from "./history";
+import type { Leaf } from "./leaves/leaf";
 import { NoteLeaf } from "./leaves/note";
 import { layout, spaces } from "./layout/spaces";
 import { panel, quick } from "./main";
@@ -33,6 +34,18 @@ export function dropUnshared(): void {
     if (leaf.unshared || leaf.path === "" || leaf.kind === "folder" || leaf.kind === "graph") continue;
     if (!allEntries.has(leaf.path)) gone.add(leaf.path);
   }
+  teardown(leaves, gone);
+}
+
+/** A read of `path` failed for a player in a way that veils it (leaf.ts): its
+ *  tab is already neutral; the rest of the window lets go of the name too. */
+addEventListener("verso:veiled", (e) => {
+  const path = (e as CustomEvent<string>).detail;
+  if (!path) return;
+  teardown(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)), new Set([path]));
+});
+
+function teardown(leaves: Leaf[], gone: Set<string>): void {
   if (gone.size === 0) return;
   const names = new Set([...gone].map((p) => p.split("/").pop() ?? p));
   for (const leaf of leaves) if (gone.has(leaf.path)) leaf.unshare();
