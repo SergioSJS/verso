@@ -386,6 +386,8 @@ test("images: the file's thumbnail, opened large; sent from the picker, checked 
   const again = page.waitForEvent("filechooser");
   await view.getByRole("button", { name: "Anexar imagem" }).click();
   await (await again).setFiles({ name: "outra.png", mimeType: "image/png", buffer: PNG });
+  // The file is read before it waits in the box: Enter pressed earlier has nothing to send.
+  await expect(view.locator(".table-chip")).toHaveCount(1);
   await field(view).press("Enter");
   await expect(view.locator(".table-compose-error")).toContainText("Devagar");
   // The refused image stays in the box, for another try.
