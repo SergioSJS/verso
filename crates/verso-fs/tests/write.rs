@@ -167,6 +167,31 @@ fn a_write_through_a_symlink_lands_on_the_target_and_keeps_the_link() {
     assert!(report.wrote_through_symlink_to.is_some());
 }
 
+/// The report names where the write landed as the disk spells it, not as
+/// the link wrote it (review M5). Only Windows respells; a symlink there
+/// may need a privilege the machine does not give, and then it is skipped.
+#[cfg(windows)]
+#[test]
+fn the_report_of_a_write_through_a_symlink_names_the_target_as_the_disk_spells_it() {
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("real.md"), "conteudo real").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    if std::os::windows::fs::symlink_file(
+        outside.path().join("REAL.md"),
+        dir.path().join("nota.md"),
+    )
+    .is_err()
+    {
+        return;
+    }
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let report = root.write(h, b"editado", &stamp).unwrap();
+    let landed = report.wrote_through_symlink_to.unwrap();
+    assert_eq!(landed.file_name().unwrap(), "real.md");
+}
+
 #[test]
 fn refuses_to_write_over_a_placeholder_and_read_reports_it_unavailable() {
     let dir = tempfile::tempdir().unwrap();
@@ -403,4 +428,29 @@ fn a_relative_root_survives_a_change_of_working_directory() {
     let (bytes, _) = root.read(h).unwrap();
     std::env::set_current_dir(previous).unwrap();
     assert_eq!(bytes, b"A");
+}
+
+/// A device's edit names the file in its own case (`Receita.md`) while the
+/// disk holds `receita.md`. Where the file system folds case the two are
+/// one file, and the write replaces it: the name the disk holds stays. On
+/// NTFS a rename over a file gives it the case of the new name, so the
+/// write puts the temporary file over the name as the disk spells it
+/// (`os::kept_spelling`; found by the server's sync test on a loaded
+/// Windows machine, 2026-10-21). Nothing to check on a file system that
+/// tells the two apart: they are two files there.
+#[test]
+fn a_write_through_another_case_keeps_the_name_the_disk_holds() {
+    let (dir, mut root) = root_with("receita.md", "antes");
+    if fs::metadata(dir.path().join("RECEITA.MD")).is_err() {
+        return;
+    }
+    let h = root.handle(Path::new("Receita.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let _report = root.write(h, b"depois", &stamp).unwrap();
+    let names: Vec<String> = fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, vec!["receita.md".to_owned()]);
+    assert_eq!(fs::read(dir.path().join("receita.md")).unwrap(), b"depois");
 }

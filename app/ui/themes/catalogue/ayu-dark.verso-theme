@@ -1,0 +1,39 @@
+{
+  "verso-theme": 1,
+  "name": "Ayu Dark",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Ayu Dark",
+    "author": "Konstantin Pschera",
+    "repoUrl": "https://github.com/ayu-theme/ayu-colors",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#10141c",
+      "--paper-2": "#0d1017",
+      "--hair": "#1b1f29",
+      "--ink": "#bfbdb6",
+      "--ink-2": "#5a6378",
+      "--seal": "#e6b450",
+      "--brass-ink": "#ff8f40",
+      "--code-paper": "#141821",
+      "--code-ink": "#bfbdb6",
+      "--red": "#f07178",
+      "--orange": "#ff8f40",
+      "--yellow": "#ffb454",
+      "--green": "#aad94c",
+      "--cyan": "#95e6cb",
+      "--blue": "#59c2ff",
+      "--purple": "#d2a6ff"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "heading-scale": "large",
+    "line-height": "snug",
+    "line-width": "narrow",
+    "blockquote-style": "bar",
+    "hr-style": "line"
+  }
+}

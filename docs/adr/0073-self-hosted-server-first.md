@@ -216,6 +216,9 @@
   and lock: name the real proxies, or `none`, to close it. Fine at home, not
   on a public Wi-Fi. HTTPS stays what the guide recommends, as a later and
   optional step. The old wording of item 6 is kept above, marked.
+  2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
+  in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
+  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
 
 ## Context
 
@@ -664,3 +667,18 @@ the criteria that would send the iPad from the browser to a native app; how
 a cost would be passed on if storage of ours ever exists; and, from the
 Consequences, "this app is a server" updating through
 [0055](0055-in-app-updater.md) while phones are connected.
+
+Answered on 2026-10-21 (`[DECIDED 2026-10-21]`, the maintainer's marks, all
+option A): **permission finer than the folder** (0073.perm) — only **read** per
+note, through the read link of one note ([0105](0105-read-links-without-an-account.md)
+item 2); writing per note only if someone asks (it stays with
+[0081](0081-sharing-between-people-on-one-universo.md) item 17); **optional
+end-to-end encryption** (0073.e2e) — after V1, the moment decided on
+2026-10-14; **the MCP transport and authorization over the network**
+(0073.mcp) — after V1, the local MCP over stdio keeps working; **the
+pre-signed URL of item 4 against rule 4** (0073.bucket) — decided when the
+bucket mode is built, after V1, with the design in hand; **the criteria for
+the iPad to go from the browser to a native app** (0073.ipad) — postponed,
+it stays in the browser until there is a concrete complaint; **passing on a
+cost if storage of ours ever exists** (0073.custo) — out of scope, as the ADR
+already conditions it on a company, a means of payment and an invoice.

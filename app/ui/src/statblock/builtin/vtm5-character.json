@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "vtm5-character",
+  "name": {
+    "pt": "Vampire (V5) — Personagem",
+    "en": "Vampire (V5) — Character"
+  },
+  "description": {
+    "pt": "Vampire: The Masquerade 5ª edição. Ficha de personagem: identidade, atributos, perícias, disciplinas, Fome e as trilhas de dano. Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). Só nomes e ordem dos campos.",
+    "en": "Vampire: The Masquerade 5th edition. A character sheet: identity, attributes, skills, disciplines, Hunger and the damage tracks. Unofficial fan-made material, not official World of Darkness material (Dark Pack). Field names and order only."
+  },
+  "sources": [
+    {
+      "label": "Vampire: The Masquerade wiki, character creation (CC BY-SA 3.0)",
+      "url": "https://vtm.paradoxwikis.com/Character_creation"
+    },
+    {
+      "label": "Paradox Dark Pack Agreement",
+      "url": "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement"
+    }
+  ],
+  "profile": "wod5",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"identity","properties":["concept","predator_type","chronicle","ambition","desire","clan","sire","generation"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"concept","properties":["concept"],"label":{"pt":"Conceito","en":"Concept"},"hideWhenEmpty":true},{"type":"property","id":"predator-type","properties":["predator_type"],"label":{"pt":"Tipo de Predador","en":"Predator Type"},"hideWhenEmpty":true},{"type":"property","id":"chronicle","properties":["chronicle"],"label":{"pt":"Crônica","en":"Chronicle"},"hideWhenEmpty":true},{"type":"property","id":"ambition","properties":["ambition"],"label":{"pt":"Ambição","en":"Ambition"},"hideWhenEmpty":true},{"type":"property","id":"desire","properties":["desire"],"label":{"pt":"Desejo","en":"Desire"},"hideWhenEmpty":true},{"type":"property","id":"clan","properties":["clan"],"label":{"pt":"Clã","en":"Clan"},"hideWhenEmpty":true},{"type":"property","id":"sire","properties":["sire"],"label":{"pt":"Sire","en":"Sire"},"hideWhenEmpty":true},{"type":"property","id":"generation","properties":["generation"],"label":{"pt":"Geração","en":"Generation"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"attributes-physical","properties":["attributes_physical"],"label":{"pt":"Atributos: Físicos","en":"Attributes: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-social","properties":["attributes_social"],"label":{"pt":"Atributos: Sociais","en":"Attributes: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-mental","properties":["attributes_mental"],"label":{"pt":"Atributos: Mentais","en":"Attributes: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-physical","properties":["skills_physical"],"label":{"pt":"Perícias: Físicas","en":"Skills: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-social","properties":["skills_social"],"label":{"pt":"Perícias: Sociais","en":"Skills: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-mental","properties":["skills_mental"],"label":{"pt":"Perícias: Mentais","en":"Skills: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"specialties","properties":["specialties"],"label":{"pt":"Especialidades","en":"Specialties"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"disciplines","properties":["disciplines"],"label":{"pt":"Disciplinas","en":"Disciplines"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"tracker","id":"hunger","properties":["hunger","hunger_max"],"label":{"pt":"Fome","en":"Hunger"},"hideWhenEmpty":true,"current":"hunger","max":"hunger_max","style":"boxes"},
+    {"type":"group","id":"tracks-damage","properties":["health_superficial","health","health_aggravated","health","willpower_superficial","willpower","willpower_aggravated","willpower","health","willpower"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"health-superficial","properties":["health_superficial","health"],"label":{"pt":"Saúde: dano superficial","en":"Health: superficial damage"},"hideWhenEmpty":true,"current":"health_superficial","max":"health","style":"boxes"},{"type":"tracker","id":"health-aggravated","properties":["health_aggravated","health"],"label":{"pt":"Saúde: dano agravado","en":"Health: aggravated damage"},"hideWhenEmpty":true,"current":"health_aggravated","max":"health","style":"boxes"},{"type":"tracker","id":"willpower-superficial","properties":["willpower_superficial","willpower"],"label":{"pt":"Força de Vontade: dano superficial","en":"Willpower: superficial damage"},"hideWhenEmpty":true,"current":"willpower_superficial","max":"willpower","style":"boxes"},{"type":"tracker","id":"willpower-aggravated","properties":["willpower_aggravated","willpower"],"label":{"pt":"Força de Vontade: dano agravado","en":"Willpower: aggravated damage"},"hideWhenEmpty":true,"current":"willpower_aggravated","max":"willpower","style":"boxes"},{"type":"property","id":"health","properties":["health"],"label":{"pt":"Saúde (trilha)","en":"Health (track)"},"hideWhenEmpty":true},{"type":"property","id":"willpower","properties":["willpower"],"label":{"pt":"Força de Vontade (trilha)","en":"Willpower (track)"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"standing","properties":["humanity","stains","blood_potency"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"humanity","properties":["humanity"],"label":{"pt":"Humanidade","en":"Humanity"},"hideWhenEmpty":true},{"type":"property","id":"stains","properties":["stains"],"label":{"pt":"Manchas","en":"Stains"},"hideWhenEmpty":true},{"type":"property","id":"blood-potency","properties":["blood_potency"],"label":{"pt":"Potência do Sangue","en":"Blood Potency"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"chronicle-tenets","properties":["chronicle_tenets"],"label":{"pt":"Princípios da Crônica","en":"Chronicle Tenets"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"touchstones-convictions","properties":["touchstones_convictions"],"label":{"pt":"Âncoras e Convicções","en":"Touchstones and Convictions"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"advantages","properties":["advantages"],"label":{"pt":"Vantagens (Méritos, Loresheets, coterie)","en":"Advantages (Merits, Loresheets, coterie)"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"flaws","properties":["flaws"],"label":{"pt":"Defeitos","en":"Flaws"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool (dados regulares e de Fome)","en":"Roll the pool (regular and Hunger dice)"},"inputs":{}},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). © Paradox Interactive AB — veja os créditos em Ajustes.","en":"Unofficial fan-made material, not official World of Darkness material (Dark Pack). © Paradox Interactive AB — see Credits in Settings."},"dice":false,"rule":false}
+  ]
+}

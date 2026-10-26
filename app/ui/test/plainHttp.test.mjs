@@ -34,8 +34,9 @@ await esbuild.build({
 const { plainHttp, plainHttpLine, plainHttpMark, plainHttpNotice, ensureClipboard, sha256Hex } = await import("./.bundles/plainHttp.test-bundle.mjs");
 
 beforeEach(() => {
-  document.body.replaceChildren();
-  sessionStorage.clear();
+  // The window's notices row, where the bar goes (never the page's body).
+  document.body.innerHTML = '<main class="work"><div class="work-notices"></div></main>';
+  localStorage.clear();
   secure(false);
 });
 
@@ -50,7 +51,7 @@ test("over http that the browser does not call secure, the line carries the way 
   assert.equal(plainHttpLine("Sem HTTPS."), null, "a secure context says nothing");
 });
 
-test("the notice shows once a session and stays closed once closed", () => {
+test("the notice shows until closed, then stays closed for this server (it survives a reload)", () => {
   plainHttpNotice();
   const bar = document.querySelector(".plain-http-bar");
   assert.ok(bar, "shown");
@@ -58,11 +59,17 @@ test("the notice shows once a session and stays closed once closed", () => {
   bar.querySelector(".plain-http-close").click();
   assert.equal(document.querySelector(".plain-http-bar"), null);
   plainHttpNotice();
-  assert.equal(document.querySelector(".plain-http-bar"), null, "not again in this session");
+  assert.equal(document.querySelector(".plain-http-bar"), null, "not again for this server");
   secure(true);
-  sessionStorage.clear();
+  localStorage.clear();
   plainHttpNotice();
   assert.equal(document.querySelector(".plain-http-bar"), null, "never on a secure page");
+});
+
+test("with no notices row the bar is never put in the page's body", () => {
+  document.body.replaceChildren();
+  plainHttpNotice();
+  assert.equal(document.querySelector(".plain-http-bar"), null);
 });
 
 test("the way to HTTPS opens a dialog that can be closed", () => {

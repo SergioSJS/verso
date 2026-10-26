@@ -217,7 +217,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
 .title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
-.note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
+.note-title { flex: 1; min-width: 0; overflow-wrap: anywhere; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
 /* A synced folder's note, live in the server's room or local (ADR 0082
@@ -251,7 +251,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .props-toggle:hover { color: var(--ink); background: var(--paper-2); }
 .props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
 .props.collapsed .props-toggle .icon { transform: rotate(-90deg); }
-.props.collapsed .prop, .props.collapsed .prop-new { display: none; }
+.props.collapsed:not(.empty) .prop, .props.collapsed:not(.empty) .prop-new { display: none; }
 .prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
 .prop:hover { background: var(--paper-2); }
 .prop-key { display: inline-flex; align-items: center; gap: .45rem; color: var(--ink-3); min-width: 0; }
@@ -280,18 +280,17 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
 .prop-remove .icon { width: 12px; height: 12px; }
-/* No properties: a hairline under the title, the add button a ghost at its right end. */
-/* No properties: the rule under the title stays, and the button keeps
-   its own band at the right — in the flow, so it is never painted over
-   the title above it or the note below. Shown on hovering the sheet. */
-.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
-.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
-.sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
+/* No properties: the hairline under the title stays, with the add button
+   clearly discoverable, aligned on the left. */
+.props.empty { display: flex; align-items: center; justify-content: flex-start; height: auto; min-height: 1.8rem; margin: .4rem 0 .3rem; padding: 0; border-bottom: 0; }
+.props.empty .prop-new { display: inline-flex; margin: 0; padding: .2rem .55rem; opacity: .8; color: var(--ink-3); border-radius: 5px; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.props.empty .prop-new:hover, .props.empty .prop-new:focus-visible, .sheet:hover .props.empty .prop-new { opacity: 1; }
+.props.empty .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
 .props.adding .prop-new { display: none; }
 .prop.kind-new { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; }
 .prop.kind-new .prop-key input { width: 100%; min-width: 0; }
-.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; }
+.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; cursor: pointer; }
 .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .prop-new .icon { width: 13px; height: 13px; }
 .editor .cm-lp-frontmatter { display: none; }
@@ -347,3 +346,24 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .links-section:first-child .links-head { margin-top: .4rem; }
 .links-section + .links-section { margin-top: .9rem; border-top: 1px solid var(--hair); }
 
+
+/* Target size (WCAG 2.5.8, A11Y.13): the tab's close mark, a pill's remove
+   mark and the status bar's buttons are drawn small; their click area is a
+   24 x 24 px box around the mark's centre, made of an invisible pseudo-element
+   (absolute, so no bar or pill changes its size). The pill no longer clips its
+   children, so the box can reach past its rounded edge. */
+.tab-close, .bar-toggle, .pill-x, .status-keys button { position: relative; }
+.tab-close::after, .bar-toggle::after, .pill-x::after {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.pill { overflow: visible; }
+/* The remove mark's icon is 14px at the box's left edge (no left padding): its centre is 7px in. */
+.pill-x::after { left: -5px; transform: translateY(-50%); }
+/* The status bar's text buttons are wide enough; only the height grows. */
+.status-keys button::after { content: ""; position: absolute; inset: -5px -2px; }

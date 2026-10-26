@@ -10,8 +10,9 @@
 // the top of the pane. The layout itself is in `css/screen.css`; here are
 // the controls it shows and what they do.
 
+import { atTable, may, onAccess, seat } from "../access";
 import { canWrite, can, loadCan, onCan } from "../can";
-import { narrow, toggleSide } from "../chrome";
+import { narrow, paintExpanded, toggleRight, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { newUntitled } from "../files";
 import { icon } from "../icons";
@@ -25,6 +26,7 @@ import { signedIn } from "../web/api";
 import { installSelectBar } from "../tree/selectBar";
 import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
+import { installTableChip } from "../tableChip";
 import { st } from "./strings";
 
 /* ---------- The bottom bar (item 6) ---------- */
@@ -58,12 +60,19 @@ function buildBar(): void {
     verb(st.barNew, "plus", () => void newUntitled(paneToOpenIn()), "bar-folder bar-write"),
     back,
     verb(st.barCommands, "command", () => paletteDialog.show(), "bar-folder"),
+    verb(st.barPanel, "panelRight", () => toggleRight(), "bar-right"),
   );
+  // The panel at the right (backlinks, outline, tags…) opens from here on
+  // a phone: a visible verb with a name, not a gesture to guess.
   document.querySelector("main.work")?.append(bar);
+  paintExpanded();
   paintBar();
   // A folder opened or closed enables the search field: the bar follows.
   new MutationObserver(paintBar).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
   document.addEventListener("verso:nav", paintBar);
+  document.addEventListener("verso:nav", paintReadOnly);
+  addEventListener("verso:campaign-status", paintReadOnly);
+  addEventListener("verso:folder-shown", paintReadOnly);
 }
 
 /** What the bar can do now: a folder open, a step back to take. */
@@ -75,23 +84,27 @@ function paintBar(): void {
 
 /* ---------- The top of the pane (items 6 and 11) ---------- */
 const notices = h("div", "work-notices");
-const readOnlyLine = h("p", "read-only-line", st.readOnly);
 const failedLine = h("div", "failed-line");
 const failedText = h("span", "failed-text");
 
 function buildNotices(): void {
-  readOnlyLine.setAttribute("role", "note");
-  readOnlyLine.hidden = true;
   failedLine.setAttribute("role", "alert");
   failedLine.hidden = true;
   const dismiss = button("ghost iconic", st.dismiss, "close");
   dismiss.addEventListener("click", () => (failedLine.hidden = true));
   failedLine.append(failedText, dismiss);
-  notices.append(readOnlyLine, failedLine);
+  notices.append(failedLine);
+  buildLock();
+  installTableChip();
   document.querySelector("main.work")?.prepend(notices);
-  // A folder opened or closed enables the search field: the reader's line
+  // A folder opened or closed enables the search field: the reader's lock
   // follows, as the bar does.
   new MutationObserver(paintReadOnly).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
+  // A file the person lost sight of: a failed open of it is not left on the line.
+  addEventListener("verso:unshared", () => {
+    failedText.textContent = "";
+    failedLine.hidden = true;
+  });
   addEventListener("verso:failed", (e) => {
     failedText.textContent = (e as CustomEvent<string>).detail;
     failedLine.hidden = false;
@@ -125,11 +138,29 @@ function buildSideFoot(): void {
   document.querySelector("aside.side")?.append(sideFoot);
 }
 
-/** "You only read this folder" of a folder on screen: with none open, a
- *  server answers no write — not a reader's role, and not a line to show
- *  over the start page. */
+/** The closed lock beside the folder's name: "You only read this folder"
+ *  (maintainer, 2026-10-23: no banner at the top of the window; a lock
+ *  somewhere, and a word when the person tries to edit — readerNotice.ts).
+ *  Said of a folder on screen: with none open, a server answers no write —
+ *  not a reader's role, and not a mark to show over the start page. */
+const folderLock = h("span", "folder-lock");
+function buildLock(): void {
+  folderLock.setAttribute("role", "img");
+  folderLock.setAttribute("aria-label", st.lockName);
+  folderLock.title = st.lockName;
+  folderLock.append(icon("lock"));
+  folderLock.hidden = true;
+  ui.folder.after(folderLock);
+}
 function paintReadOnly(): void {
-  readOnlyLine.hidden = canWrite() || ui.search.disabled;
+  // Follows the note on screen (maintainer, 2026-10-23): a note granted to
+  // the person is theirs to edit, so the lock says nothing there; on a note
+  // they only read, or with none open, it shows.
+  const path = layout().activeLeaf?.path ?? "";
+  // The lock says "you only read": not where the person edits what is on
+  // screen, and not inside a table, where they edit some files and the lock
+  // would lie (ADR 0113 section F); the notice names the note.
+  folderLock.hidden = ui.search.disabled || may(path, "edit") || (atTable() && seat() === "player");
 }
 
 function applyCan(): void {
@@ -163,6 +194,16 @@ export function installScreen(): void {
   installSelectBar();
   installKeyboard();
   onCan(applyCan);
+  // What the person may do with files changed: the lock, and the open files
+  // not being typed in are read again with the answers (ADR 0113).
+  onAccess(() => {
+    paintReadOnly();
+    for (const s of spaces) {
+      for (const p of s.layout.panes()) {
+        for (const l of p.leaves) if ((l instanceof NoteLeaf || l instanceof TextLeaf) && !l.dirty && l.path) void l.load(l.path, true);
+      }
+    }
+  });
   void loadCan();
   narrow.addEventListener("change", lineNumbersFollow);
 }

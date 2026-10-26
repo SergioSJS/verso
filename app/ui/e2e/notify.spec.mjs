@@ -131,10 +131,13 @@ test("toasts sit above Settings and are never made inert: an action is reached w
   await expect(page.locator(".settings-title")).toHaveText("Servidores");
   await expect(toast).toHaveCount(0);
   if (phone(page)) {
-    // On a phone the toasts are at the top, the whole width but the margins.
+    // On a phone the toasts are at the bottom, above the bottom bar, the
+    // whole width but the margins (T.6): never over the first line.
     await app.emit("share-given", { id: "s10", name: "Mapa", role: "editor", by: "Bia", share: true, server: "https://notas.casa" });
     const box = await toasts(page).first().boundingBox();
-    expect(box.y).toBeLessThan(80);
+    const bar = await page.locator(".bottom-bar").boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+    expect(box.y).toBeGreaterThan(page.viewportSize().height / 2);
     expect(Math.round(box.x)).toBe(16);
     expect(Math.round(box.width)).toBe(page.viewportSize().width - 32);
   }
@@ -192,9 +195,11 @@ test("each kind as chosen: Só na lista lists without a toast; Desligado neither
   await app.open();
   await notifySettings(app);
   const rows = page.locator(".settings-body .setting");
-  await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Também nas notificações do sistema"]);
-  // Every kind starts as "Aviso e lista".
-  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue("toast");
+  await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Mesa", "Som da Mesa", "Volume do som da Mesa", "Também nas notificações do sistema"]);
+  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13);
+  // the Mesa's chime is a sound, not a kind, and starts as the soft one.
+  const first = { Mesa: "off", "Som da Mesa": "soft" };
+  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue(first[await s.evaluate((el) => el.closest(".setting")?.querySelector(".setting-title")?.textContent ?? "")] ?? "toast");
   const sync = page.getByRole("combobox", { name: "Sincronização" });
   await sync.selectOption("list");
   // The person's layer: the window's settings, synced to the account on a
@@ -257,7 +262,8 @@ test("a synced folder's share revoked, its conflict copies and a live room's con
   await say(app, { ...SYNC, conflicts: [copy] });
   await say(app, { ...SYNC, conflicts: [copy] });
   await expect(toasts(page)).toHaveCount(1);
-  await expect(toasts(page)).toContainText(`Os dois lados mudaram ${copy}; a versão deste computador ficou numa cópia ao lado.`);
+  // The notice names the note both sides changed, not its copy (2026-10-23).
+  await expect(toasts(page)).toContainText("Os dois lados mudaram Sessao.md; a versão deste computador ficou numa cópia ao lado.");
   await toasts(page).getByRole("button", { name: "Ver os conflitos" }).click();
   await expect(page.locator(".settings-title")).toHaveText("Sincronizar");
   await page.keyboard.press("Escape");

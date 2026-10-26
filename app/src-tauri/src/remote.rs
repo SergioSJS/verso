@@ -44,6 +44,35 @@ pub(crate) fn contract_version() -> String {
         .collect()
 }
 
+/// What this app can do whatever folder a window shows, as the contract
+/// names it: its own windows, child web views, updates, console and the
+/// opening of folders of this computer (ADR 0027, ADR 0076 item 11).
+/// "Show in Finder", "Copy full path" and the agents work on a path of this
+/// computer, which a server's folder has not: they stay absent there
+/// (ADR 0076 item 11; the agents are an open question, kept absent).
+const APP_ABILITIES: [&str; 5] = [
+    "windows",
+    "web_views",
+    "updates",
+    "devtools",
+    "local_folders",
+];
+
+/// The server's answer for a folder it holds, plus the abilities of this
+/// app that do not depend on the folder's side. `write`, `collab`,
+/// `account`, `admin` and `host` stay the server's (ADR 0026: the UI does
+/// not assume the side, the host merges).
+pub(crate) fn with_app_abilities(caps: &mut Value) {
+    let Some(can) = caps.get_mut("can").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for ability in APP_ABILITIES {
+        if !can.iter().any(|c| c == ability) {
+            can.push(json!(ability));
+        }
+    }
+}
+
 /// The commands a window on a server's folder sends to the server; every
 /// other one is this app's (its windows, its menus, its updates).
 pub(crate) fn forwards(cmd: &str) -> bool {
@@ -69,6 +98,32 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "collab_present"
                 | "collab_canvas"
                 | "collab_roll"
+                | "collab_oracle"
+                | "table_join"
+                | "table_leave"
+                | "table_look"
+                | "table_history"
+                | "table_say"
+                | "table_send_image"
+                | "table_attach"
+                | "table_roll"
+                | "table_pin"
+                | "table_delete"
+                | "table_clear"
+                | "campaign_status"
+                | "campaign_make"
+                | "campaign_unmake"
+                | "campaign_settings"
+                | "campaign_release"
+                | "campaign_release_all"
+                | "campaign_audience"
+                | "campaign_access"
+                | "campaign_secret_name"
+                | "campaign_grant"
+                | "campaign_invite"
+                | "access_get"
+                | "access_set"
+                | "table_rights_set"
         )
 }
 
@@ -310,6 +365,7 @@ impl Remote {
         match (cmd, answer) {
             ("capabilities", Ok((mut caps, piece))) => {
                 caps["latency_ms"] = json!(ms);
+                with_app_abilities(&mut caps);
                 Ok((caps, piece))
             }
             // A piece from a server of sync 1: base64 in the answer.
@@ -769,6 +825,8 @@ pub(crate) async fn server_open<R: tauri::Runtime>(
     app.state::<App>().service.release(&label);
     lock(&app.state::<App>().remotes).insert(label, remote);
     let _ = window.set_title(&format!("{} — Verso", info.name));
+    // The next start brings this window back (ADR 0065).
+    crate::session::remember(&app);
     Ok(info)
 }
 
@@ -1203,10 +1261,12 @@ async fn connect<R: tauri::Runtime>(
 /// What a window on a server's folder hears when the server, or what it
 /// held there, is gone (ADR 0084 item 10).
 fn gone(url: &str, what: &str, reason: Option<String>, address: Option<String>) -> ServerGone {
+    // The game master closed the table: said as that, not as a share revoked.
+    let shut = what == "folder" && reason.as_deref() == Some("closed");
     ServerGone {
         url: url.to_owned(),
-        what: what.to_owned(),
-        reason,
+        what: if shut { "closed" } else { what }.to_owned(),
+        reason: reason.filter(|_| !shut),
         address,
     }
 }
@@ -1302,10 +1362,14 @@ async fn redial_once<R: tauri::Runtime>(
     };
     // The folder's key, from the answer: the window hears a change of its
     // own folder only.
-    let Ok(info) = remote
+    let opened = remote
         .call("open_server_folder", json!({ "id": folder }))
-        .await
-    else {
+        .await;
+    let Ok(info) = opened else {
+        // A closed table: said, and tried again until the game master opens it.
+        if opened.is_err_and(|e| e.to_string().contains(verso_contract::TABLE_CLOSED)) {
+            let _ = app.emit_to(label, "server-gone", gone(url, "closed", None, None));
+        }
         return Step::Again;
     };
     let key = info.get("key").cloned().unwrap_or(json!(""));
@@ -1337,6 +1401,34 @@ pub(crate) fn server_retry<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     reach::try_now(window.label());
     Ok(())
+}
+
+/// A connection's server, as a window is told it.
+pub(crate) fn server_window(r: &Remote) -> verso_contract::ServerWindow {
+    verso_contract::ServerWindow {
+        url: r.url.trim_end_matches('/').to_owned(),
+        folder: r.folder.clone(),
+    }
+}
+
+/// Where this window reaches its server: the address the app is signed in
+/// to and the folder's id there, or nothing for a folder of this computer
+/// that is not synced (or whose sync link is down).
+/// A link the server hands over without its public name is a path, and the
+/// window puts this before it; its own origin (`tauri://localhost`) is the
+/// app's, never the server's.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn window_server<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+) -> Result<Option<verso_contract::ServerWindow>, ContractError> {
+    // A server's folder, or a folder of this computer synced with one over
+    // its live link (ADR 0082, ADR 0110 as built): a table's links go to the
+    // server of that link.
+    let app = window.app_handle();
+    let remote = of(app, window.label())
+        .or_else(|| synced_of(app, window.label()).and_then(|s| s.live.remote()));
+    Ok(remote.map(|r| server_window(&r)))
 }
 
 /// Before the app's own handler: a window on a server's folder sends the

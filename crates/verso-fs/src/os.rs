@@ -92,6 +92,40 @@ pub(crate) fn sync_dir(dir: &Path) -> std::io::Result<()> {
     windows::open_dir_for_flush(dir)?.sync_all()
 }
 
+/// `path`, an existing file's, spelled as its directory holds the name. On
+/// NTFS a rename over a file gives it the case of the name it is renamed
+/// to, so a write that names `Receita.md` for the file the disk holds as
+/// `receita.md` would respell it: the temporary file goes over the name as
+/// the disk keeps it, and a write over a file keeps its name (found by the
+/// server's sync test on a loaded Windows machine, 2026-10-21). Only the
+/// case of the last component can differ: any other answer (a short name,
+/// a file that is not there, a path that cannot be resolved) leaves `path`
+/// as it was. Other systems keep the name of the file replaced.
+#[cfg(windows)]
+pub(crate) fn kept_spelling(path: std::path::PathBuf) -> std::path::PathBuf {
+    let (Some(name), Some(dir)) = (path.file_name(), path.parent()) else {
+        return path;
+    };
+    let Ok(real) = std::fs::canonicalize(&path) else {
+        return path;
+    };
+    match real.file_name() {
+        Some(held)
+            if held != name
+                && held.to_string_lossy().to_lowercase()
+                    == name.to_string_lossy().to_lowercase() =>
+        {
+            dir.join(held)
+        }
+        _ => path,
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn kept_spelling(path: std::path::PathBuf) -> std::path::PathBuf {
+    path
+}
+
 /// `std::fs::rename`: `from` gets the name `to`, replacing a file there.
 /// On Windows a handle another program holds — on either file, or on any
 /// file inside a directory being moved: an antivirus or the search indexer

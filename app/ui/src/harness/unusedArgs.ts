@@ -19,7 +19,8 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_resolve: ["path", "keep"],
   collab_present: ["path"],
   collab_canvas: ["path", "at", "json"],
-  collab_roll: ["path", "notation", "source"],
+  collab_roll: ["path", "notation", "source", "styles", "secret", "occurrence"],
+  collab_oracle: ["path", "ask"],
   // What a note was made with is desktop sync's (ADR 0093 item 12): the
   // harness's folder syncs with nothing; the call is recorded as any is.
   note_made_from_template: ["path", "text"],
@@ -33,6 +34,10 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   share_grant: ["path", "email", "role"],
   share_revoke: ["path", "account"],
   share_attachments: ["path", "attachments"],
+  // Read links are a server's (ADR 0105): refused here whatever they carry.
+  read_link_secrets: ["kind", "path"],
+  read_link_create: ["kind", "path", "expiresDays", "expiresAt", "password"],
+  read_link_revoke: ["id"],
   // A fresh proof to the window's server (ADR 0083 item 6).
   server_prove: ["password"],
   reopen_folder: ["key"],
@@ -49,6 +54,8 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_embed_origins: ["origins"],
   set_walk_rules: ["builtinIgnores", "gitignore"],
   set_menu_language: ["language"],
+  set_menu_commands: ["features", "keys"],
+  set_menu_enabled: ["enabled"],
   install_cli: ["replace"],
   new_window: ["sameFolder"],
 };

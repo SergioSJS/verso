@@ -65,6 +65,14 @@ impl Running {
         self._dirs.1.path().join("Campanha")
     }
 
+    /// A note's text in the test folder, read through `verso-fs` as the
+    /// server reads it (ADR 0029: no `std::fs` outside `data.rs`).
+    pub(crate) fn campanha_text(&self, relative: &str) -> String {
+        let mut root = verso_fs::Root::open(self.campanha(), Vec::new()).unwrap();
+        let handle = root.handle(std::path::Path::new(relative)).unwrap();
+        String::from_utf8(root.read(handle).unwrap().0).unwrap()
+    }
+
     pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }
@@ -74,7 +82,7 @@ impl Running {
 /// `VERSO_UPDATE_CHECK=off` turns it off but through this table rather than
 /// the process's environment: a test server never reaches the network
 /// (dozens of them asking the release feed at once were limited by GitHub).
-fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
+pub(crate) fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
     struct Loopback;
     impl config::Env for Loopback {
         fn var(&self, name: &str) -> Option<String> {

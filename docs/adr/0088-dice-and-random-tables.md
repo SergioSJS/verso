@@ -22,6 +22,31 @@
   [0009](0009-external-constraints.md), [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present; [0036](0036-tabletop-rpg-support.md)'s
   random table is `PROPOSED` there; on acceptance.
+- Revisions: 2026-10-20 — item 2 holds for `` `dice:` `` in a note; an
+  oracle's answer, asked by the person with "Insert into note", is written
+  in the note ([0102](0102-creative-oracles-and-improvisation.md) item 4,
+  the maintainer: *"qual o motivo de não poder gravar na nota?"*).
+  2026-10-20 — item 5: besides the parser and the roller, Rolai's system
+  profiles and their restricted expression evaluator are copied, with the
+  MIT notice, so a statblock rolls the way its system reads a roll
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, the
+  maintainer: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
+  app meu aberto"*).
+  2026-10-21 — item 5 revised again: "no new runtime dependency" no longer
+  forbids the 3D roll. The maintainer put 3D dice in V1
+  ([0101](0101-3d-dice-physics-overlay.md), 0101.0 and 0101.1, marking
+  options of the questionnaire of 2026-10-20): a lazy chunk, loaded by
+  `import()` only when the "3D dice" switch is on and cached by the service
+  worker, the initial bundle staying free of any 3D library. The library is
+  not chosen yet (0101 item 3). "The 3D roll … stays Rolai's" in item 5 no
+  longer holds.
+  2026-10-21 — item 4 revised for the table of [0107](0107-the-table-a-shared-roll-and-chat-log.md):
+  a roll in a note of a UniVerso folder also reaches the folder's table,
+  whose log is kept with no expiry (0107 item 5, the maintainer:
+  *"deveria ficar salvo, sem prazo de validade"*), so "nothing is stored"
+  no longer holds there; the roll carries the roller's dice appearance
+  (0107 item 11); a secret roll reaches only the roller and the folder's
+  owners (0107 item 7). A note's room still keeps its last rolls in memory.
 
 ## Context
 
@@ -89,7 +114,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
    and roller copied into the window** (`app/ui/src/dice/`), the MIT
    notice kept in the files, rather than a dependency on a package not
    published to npm; no new runtime dependency. The 3D roll, rooms by
-   link and the OBS mode stay Rolai's.
+   link and the OBS mode stay Rolai's (revised 2026-10-21: the 3D roll does
+   not, see Revisions and [0101](0101-3d-dice-physics-overlay.md)).
 6. **A roller without a note.** `[DECIDED 2026-10-14]`: a "Roll dice…" command that
    opens a small roller, a notation typed and rolled, nothing written.
    Decided: **yes**, in the command palette; a drawer as Rolai's
@@ -138,3 +164,5 @@ maintainer, each with a recommendation: the notation (item 1), unequal
 rows (item 3), who rolls in a room (item 4), how Rolai's engine is
 reused (item 5), the roller without a note (item 6), and whether
 primitives satisfy [0036](0036-tabletop-rpg-support.md)'s Consequences.
+
+*Added (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". The editor's `/` menu gets **Dice roll** (keywords dice, dado, roll, rolar, d20), shown only while the Dice feature is on: it inserts an inline `` `dice: 1d20` `` with the notation selected, so the person types over it.

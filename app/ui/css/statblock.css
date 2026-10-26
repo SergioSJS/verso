@@ -1,0 +1,385 @@
+/* Verso — statblock cards (ADR 0099). A book's statblock: the layout's
+   colours as custom properties on the card (render.ts `dress`), the app's
+   own tokens where it names none, in light and in dark. The card is a
+   container: what it holds is sized by the card's width, not the window's
+   (a split pane, a phone, a column of three). Nothing of it is placed over
+   anything else but a die's result, which opens over the card, inside it
+   (dice.css, `.dice-pop`). */
+
+.statblock-card {
+  --sb-accent: var(--seal);
+  --sb-rule: var(--seal);
+  --sb-background: var(--paper);
+  --sb-text: var(--ink);
+  --sb-bar: var(--brass);
+  --sb-heading-font: var(--display);
+  --sb-body-font: var(--book);
+  --sb-quiet: color-mix(in oklch, var(--sb-text) 68%, transparent);
+  container: statblock / inline-size;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 68ch;
+  margin: 1.25rem auto;
+  padding: .45rem clamp(.8rem, 4%, 1.25rem) 1rem;
+  background: var(--sb-background);
+  color: var(--sb-text);
+  font-family: var(--sb-body-font);
+  font-size: .95rem;
+  line-height: 1.45;
+  text-align: left;
+  border-top: 5px solid var(--sb-bar);
+  border-bottom: 5px solid var(--sb-bar);
+  border-radius: 3px;
+  box-shadow: 0 6px 20px -12px oklch(0% 0 0 / .35);
+  overflow-wrap: anywhere;
+}
+.statblock-card:has(.statblock-columns) { max-width: min(100%, 130ch); }
+
+/* The card's own buttons: a quiet strip of their own above the sheet, so
+   no heading runs under them at any width. */
+.statblock-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: .3rem;
+  margin: 0 calc(-1 * clamp(.3rem, 2%, .6rem)) .2rem;
+}
+.statblock-layout-badge,
+.statblock-edit-layout,
+.statblock-toggle-btn {
+  font-family: var(--ui);
+  font-size: .7rem;
+  line-height: 1.3;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--hair);
+  border-radius: 5px;
+  padding: .12rem .45rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  min-width: 0;
+}
+.statblock-layout-badge { max-width: min(16rem, 100% - 4.5rem); }
+.statblock-layout-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statblock-layout-badge:hover,
+.statblock-edit-layout:hover,
+.statblock-toggle-btn:hover { color: var(--sb-text); border-color: var(--sb-accent); }
+.statblock-toggle-btn .icon, .statblock-edit-layout .icon { width: 1em; height: 1em; }
+.statblock-card button:focus-visible,
+.statblock-card a:focus-visible,
+.statblock-card select:focus-visible,
+.statblock-card input:focus-visible { outline: 2px solid var(--sb-accent); outline-offset: 2px; }
+
+.statblock-columns {
+  column-count: var(--sb-columns, 2);
+  column-width: var(--sb-column-width, 400px);
+  column-gap: 1.6rem;
+  column-rule: 1px solid color-mix(in oklch, var(--sb-rule) 25%, transparent);
+}
+.statblock-block { break-inside: avoid; margin: .12rem 0; min-width: 0; }
+.statblock-traits, .statblock-group, .statblock-collapse { break-inside: auto; }
+
+/* A tapered rule after a block (the plugin's `hasRule`). */
+.statblock-ruled::after {
+  content: "";
+  display: block;
+  height: 3px;
+  margin: .45rem 0 .35rem;
+  background: linear-gradient(to right, var(--sb-rule), color-mix(in oklch, var(--sb-rule) 0%, transparent));
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+/* Blocks side by side, each at least 10rem, the next line when there is no room. */
+.statblock-row { display: flex; align-items: flex-start; justify-content: space-between; column-gap: .9rem; flex-wrap: wrap; }
+.statblock-row > .statblock-block { flex: 1 1 10rem; }
+.statblock-row > .statblock-image { flex: none; }
+
+/* The card's headings are its own: the reading view's sizes and margins
+   for a note's headings (reading.css) do not reach them. */
+.statblock-card .statblock-heading-text {
+  margin: 0;
+  font-family: var(--sb-heading-font);
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: .01em;
+  text-transform: none;
+  color: var(--sb-accent);
+  line-height: 1.15;
+}
+.statblock-size-1 .statblock-heading-text { font-size: clamp(1.3rem, 4.6cqi, 1.6rem); }
+.statblock-size-2 .statblock-heading-text { font-size: clamp(1.15rem, 3.8cqi, 1.3rem); }
+.statblock-size-3 .statblock-heading-text,
+.statblock-size-4 .statblock-heading-text,
+.statblock-size-5 .statblock-heading-text,
+.statblock-size-6 .statblock-heading-text { font-size: 1.1rem; }
+.statblock-subheading { font-style: italic; font-size: .88rem; color: var(--sb-quiet); }
+
+.statblock-card .statblock-section {
+  margin: .6rem 0 .3rem;
+  font-family: var(--sb-heading-font);
+  font-variant: small-caps;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.25;
+  text-transform: none;
+  color: var(--sb-accent);
+  border-bottom: 1px solid var(--sb-accent);
+}
+.statblock-card summary.statblock-section { cursor: pointer; border-bottom: none; }
+
+.statblock-prop-name { font-weight: 700; color: var(--sb-accent); }
+.statblock-trait { margin: .3rem 0; }
+.statblock-trait-name { font-style: italic; }
+.statblock-trait-head { font-style: italic; margin-top: .5rem; }
+/* An item's mark (a Fractal Fato "quebrado"): a toggle, the item struck through. */
+.statblock-flag, .statblock-flag-mark, .statblock-flag-count {
+  font-family: var(--ui);
+  font-size: .72rem;
+  font-variant: normal;
+  line-height: 1.35;
+  padding: 0 .45rem;
+  border: 1px solid var(--sb-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-accent);
+  vertical-align: .08em;
+}
+.statblock-flag-count { border-color: transparent; padding: 0; color: var(--sb-quiet); font-weight: 400; letter-spacing: 0; }
+.statblock-flag { cursor: pointer; }
+.statblock-flag[aria-pressed="true"], .statblock-flag-mark { background: var(--sb-accent); color: var(--sb-background); }
+/* The decoration does not reach inline-blocks: the toggle stays unstruck. */
+.statblock-flag, .statblock-flag-mark, .statblock-trait .statblock-tracker-note { display: inline-block; }
+.statblock-trait-flagged { text-decoration: line-through; color: var(--sb-quiet); }
+.statblock-traits-nested { margin-left: 1rem; }
+.statblock-paragraph { margin: .3rem 0; }
+.statblock-more { font-size: .82rem; color: var(--ink-3); }
+
+/* A table of scores: name over value and modifier, six to a row, three
+   when the block is narrow. */
+.statblock-table { container: sb-scores / inline-size; }
+.statblock-table-caption { font-weight: 700; color: var(--sb-accent); }
+.statblock-scores {
+  display: grid;
+  grid-template-columns: repeat(var(--sb-cells, 6), minmax(0, 1fr));
+  row-gap: .5rem;
+  padding: .2rem 0;
+  text-align: center;
+}
+@container sb-scores (max-width: 30rem) {
+  .statblock-scores { grid-template-columns: repeat(var(--sb-cells-narrow, 3), minmax(0, 1fr)); }
+}
+.statblock-score { display: flex; flex-direction: column; align-items: center; gap: .1rem; min-width: 0; padding: 0 .2rem; }
+.statblock-score-name {
+  max-width: 100%;
+  font-family: var(--ui);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  /* A layout's long name ("Constituição") breaks with a hyphen where the
+     engine knows the language, anywhere as a last resort: never past the cell. */
+  hyphens: auto;
+  color: var(--sb-accent);
+}
+.statblock-score-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: .3rem;
+  max-width: 100%;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+.statblock-score-value { font-weight: 600; }
+.statblock-mod { color: var(--sb-quiet); }
+/* The modifier is its own die: "(+2)", a quiet chip. */
+.statblock-score .statblock-mod .dice-button {
+  font-family: var(--sb-body-font);
+  font-size: .9em;
+  line-height: 1.3;
+  padding: 0 .3em;
+  color: var(--sb-text);
+}
+
+/* The portrait (the holder div is `.statblock-image` too, as every block is named by its type). */
+.statblock-image-box { display: inline-block; line-height: 0; }
+.statblock-card img.statblock-image { box-sizing: border-box; display: block; width: 78px; height: 78px; max-width: none; margin: 0; object-fit: cover; border-radius: 50%; border: 2px solid var(--sb-accent); }
+
+/* A die in the text is the note's own (dice.css), a little smaller, never
+   taller than its line. */
+.statblock-die .dice-button { font-size: .78em; line-height: 1.35; padding: 0 .35em; }
+
+.statblock-tracker { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
+.statblock-tracker > .statblock-prop-name { min-width: 0; }
+.statblock-boxes, .statblock-counter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .25rem; }
+.statblock-box {
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1.5px solid var(--sb-accent);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+span.statblock-box { cursor: default; display: inline-block; }
+.statblock-box.filled { background: var(--sb-accent); }
+.statblock-step {
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  font-family: var(--ui);
+  border: 1px solid var(--hair);
+  border-radius: 5px;
+  background: var(--paper-2);
+  color: var(--sb-text);
+  cursor: pointer;
+}
+.statblock-step:disabled { opacity: .45; cursor: default; }
+.statblock-tracker-count { font-family: var(--mono); font-size: .82rem; white-space: nowrap; }
+.statblock-tracker-note:not(:empty) { font-family: var(--ui); font-size: .78rem; color: var(--seal); }
+.statblock-repair {
+  font-family: var(--ui);
+  font-size: .78rem;
+  border: 1px solid var(--seal);
+  border-radius: 5px;
+  background: var(--seal-wash);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.statblock-roll { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem; margin: .4rem 0 .2rem; }
+.statblock-roll-ask { display: flex; flex-wrap: wrap; gap: .4rem .6rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+.statblock-roll-field { display: inline-flex; align-items: center; gap: .3rem; font-family: var(--ui); font-size: .78rem; color: var(--sb-quiet); }
+.statblock-roll-input { width: 4.5rem; min-width: 0; font: inherit; color: var(--sb-text); }
+select.statblock-roll-input { width: auto; max-width: 9rem; }
+.statblock-roll-go {
+  font-family: var(--ui);
+  font-size: .8rem;
+  border: 1px solid var(--sb-accent);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--sb-accent);
+  padding: .2rem .6rem;
+  cursor: pointer;
+}
+.statblock-roll-go:hover { background: color-mix(in oklch, var(--sb-accent) 10%, transparent); }
+.statblock-roll-out { flex-basis: 100%; }
+.statblock-roll-out:empty { display: none; }
+.statblock-roll-line { display: block; }
+.statblock-roll-local, .statblock-roll-failed { font-family: var(--ui); font-size: .76rem; color: var(--ink-3); }
+.statblock-roll-failed { color: var(--seal); }
+
+.statblock-badge {
+  margin-top: .5rem;
+  font-family: var(--ui);
+  font-size: .78rem;
+  color: var(--ink-2);
+  background: var(--paper-2);
+  border: 1px dashed var(--hair);
+  border-radius: 5px;
+  padding: .3rem .5rem;
+}
+.statblock-tracker .statblock-badge { margin-top: 0; flex-basis: 100%; }
+.statblock-badge-base { border-color: var(--seal); }
+.statblock-based { margin: .1rem 0 .4rem; font-family: var(--ui); font-size: .78rem; color: var(--ink-3); }
+.statblock-based-link { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.statblock-based-link:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; border-radius: 3px; }
+.statblock-error { border-top-color: var(--seal); border-bottom-color: var(--seal); padding-top: .8rem; }
+.statblock-error > .statblock-badge:first-child { margin-top: 0; }
+.statblock-error-source { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: .8rem; max-height: 24rem; overflow: auto; }
+.statblock-source { position: relative; padding-right: 2.6rem; }
+.statblock-back-btn { position: absolute; top: .4rem; right: .4rem; }
+
+/* Settings Gallery */
+.statblock-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.statblock-gallery-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  padding: 1rem;
+  gap: 0.75rem;
+  transition: all 0.15s var(--ease-out);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.statblock-gallery-card:hover {
+  border-color: var(--seal);
+  box-shadow: 0 4px 16px -6px oklch(0% 0 0 / .15);
+}
+
+.statblock-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.statblock-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.statblock-card-system {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--brass-ink);
+  margin-top: 0.15rem;
+}
+
+.statblock-card-desc {
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.statblock-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.statblock-pill-default {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  background: var(--seal);
+  color: var(--paper);
+  border-radius: 999px;
+}
+
+.statblock-pill-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--paper);
+  color: var(--ink-3);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+}
+
+.statblock-gallery-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-top: 1px solid var(--hair);
+  padding-top: 0.6rem;
+}
+
+.statblock-card-problems { color: var(--seal); }

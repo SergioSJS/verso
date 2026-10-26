@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "vtm5-antagonist",
+  "name": {
+    "pt": "Vampire (V5) — Antagonista",
+    "en": "Vampire (V5) — Antagonist"
+  },
+  "description": {
+    "pt": "Vampire: The Masquerade 5ª edição. Um antagonista: nome, Dificuldade e pools de dados por categoria. Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). Só nomes e ordem dos campos.",
+    "en": "Vampire: The Masquerade 5th edition. An antagonist: a name, a Difficulty and dice pools per category. Unofficial fan-made material, not official World of Darkness material (Dark Pack). Field names and order only."
+  },
+  "sources": [
+    {
+      "label": "Vampire: The Masquerade wiki, antagonists (CC BY-SA 3.0)",
+      "url": "https://vtm.paradoxwikis.com/Antagonists"
+    },
+    {
+      "label": "Paradox Dark Pack Agreement",
+      "url": "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement"
+    }
+  ],
+  "profile": "wod5",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"property","id":"difficulty","properties":["difficulty"],"label":{"pt":"Dificuldade","en":"Difficulty"},"hideWhenEmpty":true},
+    {"type":"saves","id":"pools","properties":["pools"],"label":{"pt":"Reservas de dados","en":"Dice pools"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). © Paradox Interactive AB — veja os créditos em Ajustes.","en":"Unofficial fan-made material, not official World of Darkness material (Dark Pack). © Paradox Interactive AB — see Credits in Settings."},"dice":false,"rule":false}
+  ]
+}

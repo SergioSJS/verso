@@ -23,7 +23,7 @@ O Verso organiza notas e pastas com o mesmo frontmatter que o plugin make.md esc
 Uma nota ou pasta pode ter uma figurinha (um emoji ou um ícone) e uma cor que tinge o nome. Elas aparecem na árvore, nas abas e no cabeçalho da nota.
 
 ### Como definir
-1. Clique na figurinha à esquerda do título da nota aberta (sem figurinha, ali fica um brilho apagado; a estrela, à direita, é a dos favoritos), ou clique com o botão direito na nota ou pasta na árvore e escolha **Alterar figurinha…** ou **Alterar cor…**.
+1. Clique na figurinha à esquerda do título da nota aberta (sem figurinha, ali fica um brilho apagado; a estrela, à direita, é a dos favoritos), ou clique com o botão direito na nota ou pasta na árvore e escolha **Personalizar › Alterar figurinha…** ou **Personalizar › Alterar cor…**.
 2. Busque um emoji pelo nome, em português ou inglês, ou passe para a aba **Ícones**.
 3. Escolha uma cor da paleta.
 
@@ -61,7 +61,7 @@ banner_y: "42"
 Clique numa pasta na árvore para abrir a **página da pasta**: no topo, a nota da pasta; embaixo, uma tabela com os itens dela.
 
 - A nota da pasta é `Projetos/Projetos.md` (dentro da pasta, com o nome dela) ou `Projetos.md` (ao lado da pasta). Para usar outro nome, como `README`, preencha **Ajustes › Organização › Nome da nota da pasta**.
-- A nota da pasta não aparece na árvore: abra pelo botão direito na pasta › **Abrir nota da pasta**, ou pela página da pasta.
+- A nota da pasta não aparece na árvore: abra pelo botão direito na pasta › **Organizar › Abrir nota da pasta**, ou pela página da pasta.
 - Numa pasta sem nota, a página oferece **Criar nota da pasta**.
 - Um clique com o botão direito no espaço vazio da página traz o mesmo menu da árvore: nova nota, pasta, base, board ou página web, **Mostrar no Finder** e os caminhos.
 - Renomear a pasta renomeia a nota dela junto: `Projetos/Projetos.md` vira `Trabalhos/Trabalhos.md`.
@@ -82,7 +82,7 @@ items_template: "Templates/Nota de Reunião.md"
 ## 4. Ordem manual e itens fixados
 
 - **Arrastar**: arraste uma nota ou pasta para cima ou para baixo dentro da mesma pasta.
-- **Pelo teclado**: no menu do item, **Mover para cima** ou **Mover para baixo**.
+- **Pelo teclado**: no menu do item, **Organizar › Mover para cima** ou **Organizar › Mover para baixo**.
 - **Fixar**: no menu do item, **Fixar na pasta** — ou segure `⇧` ao soltar o item na pasta. **Desafixar da pasta** desfaz.
 - **Duas ordens**: uma pasta fica em ordem alfabética até o primeiro arraste, que cria a ordem dela a partir da alfabética. O botão ao lado de **Arquivos** (A→Z na alfabética, uma alça na personalizada), ou o botão direito numa pasta ou na área vazia da árvore, troca a árvore toda entre **Ordem alfabética** e **Ordem personalizada** (a marcada é a atual). A alfabética não apaga nada: de volta à personalizada, cada pasta tem a ordem que tinha.
 - **Na raiz**: as notas soltas na raiz também se ordenam arrastando. A ordem fica numa nota na raiz com o nome da pasta aberta, criada no primeiro arraste.
@@ -103,7 +103,7 @@ pinned:
 
 ## 5. Ocultar da árvore
 
-- No menu do item na árvore, **Ocultar da árvore**. Ele some da árvore, mas continua na busca e nos links.
+- No menu do item na árvore, **Organizar › Ocultar da árvore**. Ele some da árvore, mas continua na busca e nos links.
 - Para mostrar de novo, abra **Ajustes › Organização › Itens ocultos da árvore** e clique em **Mostrar**.
 
 ---
@@ -137,7 +137,7 @@ Focos são conjuntos de pastas e notas que atuam como raízes da árvore de arqu
 
 - **Aba Focos**: no painel da direita (ao lado de Favoritos), a aba **Focos** lista todos os focos do cofre. **Início** representa o cofre completo e fica sempre primeiro.
 - **Filtrar a árvore**: clique num foco para mostrar apenas as suas pastas e notas. O cabeçalho da árvore de arquivos passa a exibir o foco ativo (ex: `ARQUIVOS · Projetos`), com um botão para voltar a Início.
-- **Criar e adicionar**: clique com o botão direito numa pasta ou nota na árvore e escolha **Criar foco aqui** ou **Adicionar ao foco…**.
+- **Criar e adicionar**: clique com o botão direito numa pasta ou nota na árvore e escolha **Organizar › Criar foco aqui** ou **Organizar › Adicionar ao foco…**.
 - **Pelo teclado**: use o comando **Trocar foco** na paleta de comandos para alternar rapidamente entre os focos.
 - **Focos iguais aos do make.md**: se o cofre tiver `.space/waypoints.json`, o Verso lê seus focos e oferece gravar as alterações de volta. Você pode ligar ou desligar em **Ajustes › Organização › Manter os focos iguais aos do make.md**.
 

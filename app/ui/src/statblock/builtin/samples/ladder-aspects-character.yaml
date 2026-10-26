@@ -1,0 +1,14 @@
+name: Tess Ardent
+aspects:
+  - Reluctant lighthouse keeper
+  - The sea owes me one
+ladder:
+  watching: 3
+  climbing: 2
+  talking: 1
+stunts:
+  - Our own placeholder stunt
+refresh: 3
+fate_points: 3
+stress: 0
+stress_max: 3

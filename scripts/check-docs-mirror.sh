@@ -32,7 +32,8 @@ git() { command git -c core.quotepath=false "$@"; }
 MIRRORED=(README.md CONTRIBUTING.md CHANGELOG.md SECURITY.md)
 
 # Markdown trees excluded from link resolution check
-EXCLUDED_PREFIXES=(fixtures/ demo-vault/)
+# Demo vaults are the tutorial, one per language (ADR 0058), checked by demo-vault.mjs.
+EXCLUDED_PREFIXES=(fixtures/ demo-vault/ demo-vault-en/)
 
 fail=0
 say() { printf '%s\n' "$*" >&2; }

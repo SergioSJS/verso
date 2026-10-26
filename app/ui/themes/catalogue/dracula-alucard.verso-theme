@@ -1,0 +1,50 @@
+{
+  "verso-theme": 1,
+  "name": "Dracula Alucard",
+  "mode": "light",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Dracula Alucard",
+    "author": "Zeno Rocha",
+    "repoUrl": "https://github.com/dracula/dracula-theme",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#fffbeb",
+      "--paper-2": "#efeddc",
+      "--hair": "#dedccf",
+      "--ink": "#1f1f1f",
+      "--ink-2": "#6c664b",
+      "--seal": "#644ac9",
+      "--brass-ink": "#a3144d",
+      "--code-paper": "#ece9df",
+      "--code-ink": "#1f1f1f",
+      "--h1-color": "#644ac9",
+      "--h2-color": "#a34d14",
+      "--h3-color": "#14710a",
+      "--h4-color": "#cb3a2a",
+      "--h5-color": "#846e15",
+      "--h6-color": "#644ac9",
+      "--red": "#cb3a2a",
+      "--orange": "#a34d14",
+      "--yellow": "#846e15",
+      "--green": "#14710a",
+      "--cyan": "#036a96",
+      "--blue": "#644ac9",
+      "--purple": "#644ac9",
+      "--pink": "#a3144d",
+      "--hr-color": "#1f1f1f"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "hr-style": "line"
+  }
+}

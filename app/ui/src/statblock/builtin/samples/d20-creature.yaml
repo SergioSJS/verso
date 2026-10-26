@@ -1,0 +1,19 @@
+name: Cave Gnawer
+size: Small
+type: beast
+alignment: unaligned
+ac: 12
+hp: 9
+hit_dice: 2d6+2
+hp_current: 9
+speed: 30 ft., climb 20 ft.
+stats: [8, 14, 12, 3, 10, 5]
+senses: darkvision 60 ft.
+languages: "-"
+cr: 1/8
+traits:
+  - name: Keen nose
+    desc: A note of our own for the sample.
+actions:
+  - name: Bite
+    desc: +4 to hit, reach 5 ft. Hit 4 (1d4 + 2) piercing damage.

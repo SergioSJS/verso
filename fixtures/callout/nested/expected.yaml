@@ -1,0 +1,190 @@
+# Construct: callouts nested in callouts (spec §5.8, Q5). Each callout inside another is listed on its own, in
+# document order, with `depth` = how many callouts enclose it, itself included. Recognized up to 32 deep,
+# the reading view's limit; the 33rd level is a plain blockquote, so it is not listed (and `[!note] Nível 33`
+# is just its text). A `[!secret]` inside a `[!note]` is listed like any other (the `callout/secret` fixture
+# asserts what a reader is served). Cases, in order: two levels; three levels of different kinds with `+`/`-`;
+# a secret in a note; nested and folded, both without a title; 33 levels of `note`.
+callouts:
+  - kind: note
+    title: Duas camadas
+    depth: 1
+    pos: { line: 3, col: 1 }
+  - kind: tip
+    title: Dentro
+    depth: 2
+    pos: { line: 6, col: 3 }
+  - kind: info
+    title: Três camadas
+    depth: 1
+    pos: { line: 9, col: 1 }
+  - kind: warning
+    title: Meio
+    fold: "+"
+    depth: 2
+    pos: { line: 10, col: 3 }
+  - kind: danger
+    title: Fundo
+    fold: "-"
+    depth: 3
+    pos: { line: 11, col: 5 }
+  - kind: note
+    title: Com segredo
+    depth: 1
+    pos: { line: 14, col: 1 }
+  - kind: secret
+    title: Só o mestre
+    depth: 2
+    pos: { line: 17, col: 3 }
+  - kind: note
+    fold: "-"
+    depth: 1
+    pos: { line: 20, col: 1 }
+  - kind: example
+    fold: "-"
+    depth: 2
+    pos: { line: 21, col: 3 }
+  - kind: note
+    title: Nível 1
+    depth: 1
+    pos: { line: 24, col: 1 }
+  - kind: note
+    title: Nível 2
+    depth: 2
+    pos: { line: 25, col: 3 }
+  - kind: note
+    title: Nível 3
+    depth: 3
+    pos: { line: 26, col: 5 }
+  - kind: note
+    title: Nível 4
+    depth: 4
+    pos: { line: 27, col: 7 }
+  - kind: note
+    title: Nível 5
+    depth: 5
+    pos: { line: 28, col: 9 }
+  - kind: note
+    title: Nível 6
+    depth: 6
+    pos: { line: 29, col: 11 }
+  - kind: note
+    title: Nível 7
+    depth: 7
+    pos: { line: 30, col: 13 }
+  - kind: note
+    title: Nível 8
+    depth: 8
+    pos: { line: 31, col: 15 }
+  - kind: note
+    title: Nível 9
+    depth: 9
+    pos: { line: 32, col: 17 }
+  - kind: note
+    title: Nível 10
+    depth: 10
+    pos: { line: 33, col: 19 }
+  - kind: note
+    title: Nível 11
+    depth: 11
+    pos: { line: 34, col: 21 }
+  - kind: note
+    title: Nível 12
+    depth: 12
+    pos: { line: 35, col: 23 }
+  - kind: note
+    title: Nível 13
+    depth: 13
+    pos: { line: 36, col: 25 }
+  - kind: note
+    title: Nível 14
+    depth: 14
+    pos: { line: 37, col: 27 }
+  - kind: note
+    title: Nível 15
+    depth: 15
+    pos: { line: 38, col: 29 }
+  - kind: note
+    title: Nível 16
+    depth: 16
+    pos: { line: 39, col: 31 }
+  - kind: note
+    title: Nível 17
+    depth: 17
+    pos: { line: 40, col: 33 }
+  - kind: note
+    title: Nível 18
+    depth: 18
+    pos: { line: 41, col: 35 }
+  - kind: note
+    title: Nível 19
+    depth: 19
+    pos: { line: 42, col: 37 }
+  - kind: note
+    title: Nível 20
+    depth: 20
+    pos: { line: 43, col: 39 }
+  - kind: note
+    title: Nível 21
+    depth: 21
+    pos: { line: 44, col: 41 }
+  - kind: note
+    title: Nível 22
+    depth: 22
+    pos: { line: 45, col: 43 }
+  - kind: note
+    title: Nível 23
+    depth: 23
+    pos: { line: 46, col: 45 }
+  - kind: note
+    title: Nível 24
+    depth: 24
+    pos: { line: 47, col: 47 }
+  - kind: note
+    title: Nível 25
+    depth: 25
+    pos: { line: 48, col: 49 }
+  - kind: note
+    title: Nível 26
+    depth: 26
+    pos: { line: 49, col: 51 }
+  - kind: note
+    title: Nível 27
+    depth: 27
+    pos: { line: 50, col: 53 }
+  - kind: note
+    title: Nível 28
+    depth: 28
+    pos: { line: 51, col: 55 }
+  - kind: note
+    title: Nível 29
+    depth: 29
+    pos: { line: 52, col: 57 }
+  - kind: note
+    title: Nível 30
+    depth: 30
+    pos: { line: 53, col: 59 }
+  - kind: note
+    title: Nível 31
+    depth: 31
+    pos: { line: 54, col: 61 }
+  - kind: note
+    title: Nível 32
+    depth: 32
+    pos: { line: 55, col: 63 }
+source: >-
+  spec Q5, decided 2026-10-21: the limit of 32 levels and `depth` are Verso's
+  own, shared with the reading view (they are not observed in Obsidian). The
+  nesting itself is Obsidian-compatible and is recorded in `observed`.
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). Two notes: the first two cases of this input
+    (two levels; three levels of tip/warning/danger with `+` and `-`).
+    `obsidian eval` on `app.metadataCache.getCache(...)` lists ONE section of
+    type "callout" per note, spanning the whole nested block (two levels:
+    line 0 col 0 to line 4 col 11; three levels: line 0 col 0 to line 3
+    col 20); Obsidian's cache lists neither the inner callouts nor a depth,
+    so the per-callout entries and `depth` are Verso's (source above). The
+    public Callouts help page states that callouts can be nested.

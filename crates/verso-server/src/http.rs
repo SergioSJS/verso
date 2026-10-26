@@ -16,7 +16,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{delete, get, get_service, post};
+use axum::routing::{delete, get, post};
 use serde::Serialize;
 
 use crate::auth::{self, Peer, Who};
@@ -251,12 +251,72 @@ pub fn ok<T: Serialize>(value: T) -> Response {
 /// (`web.js`) in place of the desktop's.
 const PAGE: &str = "web.html";
 
+/// The window's page for the routes that name it: read at each request
+/// (a new build is a new window), and, when the file cannot be read at that
+/// instant (a build replacing `dist/`, a volume that blinked), the last copy
+/// that was; with none, a small page that asks again in two seconds, never an
+/// empty `404` that leaves a visitor on a blank screen (seen in the server
+/// e2e of 2026-10-26: `/` answered `404` with no body).
+fn page_route(path: std::path::PathBuf) -> axum::routing::MethodRouter<Arc<Server>> {
+    let last: Arc<std::sync::Mutex<Option<Arc<str>>>> = Arc::default();
+    get(move || {
+        let (path, last) = (path.clone(), Arc::clone(&last));
+        async move {
+            let read = tokio::task::spawn_blocking({
+                let path = path.clone();
+                move || crate::data::read_page(&path)
+            })
+            .await;
+            let html = match read {
+                Ok(Ok(text)) => {
+                    let text: Arc<str> = text.into();
+                    if let Ok(mut kept) = last.lock() {
+                        *kept = Some(Arc::clone(&text));
+                    }
+                    Some(text)
+                }
+                _ => last.lock().ok().and_then(|kept| kept.clone()),
+            };
+            match html {
+                Some(text) => (
+                    [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                    text.to_string(),
+                )
+                    .into_response(),
+                None => {
+                    crate::log::error(&format!(
+                        "the window's page {} cannot be read",
+                        path.display()
+                    ));
+                    (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        [
+                            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                            (header::RETRY_AFTER, "2"),
+                        ],
+                        RETRY_PAGE,
+                    )
+                        .into_response()
+                }
+            }
+        }
+    })
+}
+
+/// What a visitor sees while the page cannot be read.
+const RETRY_PAGE: &str = "<!doctype html><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"2\"><title>Verso</title><p style=\"font:16px system-ui;margin:2em\">Verso is starting. Trying again in a moment&hellip; / O Verso est&aacute; iniciando. Tentando de novo j&aacute;&hellip;</p>";
+
 /// Every route of the server.
 pub fn router(server: Arc<Server>) -> Router {
     let ui = server.config.ui_dir.clone();
     let static_files = tower_http::services::ServeDir::new(&ui)
         .append_index_html_on_directories(false)
         .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    // Revalidated each time, or kept for good when the name has a hash
+    // (static_cache.rs): an upgraded server is met by its own window.
+    let static_files = Router::new()
+        .fallback_service(static_files)
+        .layer(middleware::from_fn(crate::static_cache::keep));
     let router: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
@@ -274,6 +334,7 @@ pub fn router(server: Arc<Server>) -> Router {
             "/api/invite/{token}",
             get(crate::api::invitation).post(crate::api::accept),
         )
+        .route("/api/invite/{token}/join", post(crate::invite_join::join))
         .route(
             "/api/reset/{token}",
             get(crate::api::reset_link).post(crate::api::reset),
@@ -391,11 +452,34 @@ pub fn router(server: Arc<Server>) -> Router {
         // someone else would carry it (decided 2026-10-14, ADR 0083 As
         // built). An address under /api/ no route names is answered 404,
         // never the page.
-        .route("/api/{*rest}", axum::routing::any(no_route));
+        .route("/api/{*rest}", axum::routing::any(no_route))
+        // Read links (ADR 0105): the routes of the owner and of the
+        // administrator are under /api/; what a visitor with no account
+        // may reach is /r/<token>/ alone (`crate::visit`).
+        .route(
+            "/api/folders/{id}/readlinks",
+            get(crate::readlinks::list).post(crate::readlinks::make),
+        )
+        .route(
+            "/api/folders/{id}/readlinks/secrets",
+            get(crate::readlinks::secrets),
+        )
+        .route(
+            "/api/folders/{id}/readlinks/{link}",
+            delete(crate::readlinks::revoke),
+        )
+        .route(
+            "/api/admin/read-links",
+            get(crate::readlinks::switch).put(crate::readlinks::set_switch),
+        )
+        .route("/r/{token}/state", get(crate::visit::state))
+        .route("/r/{token}/unlock", post(crate::visit::unlock))
+        .route("/r/{token}/ws", get(crate::visit::ws))
+        .route("/r/{token}/f/{*path}", get(crate::visit::file));
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
-    let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    let page = || page_route(ui.join(PAGE));
     let router = router
         .route("/", page())
         .route("/signin", page())
@@ -407,6 +491,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
+        .route("/r/{token}", page())
         // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
         .route("/.well-known/security.txt", get(crate::security_txt::serve))
         .fallback_service(static_files);
@@ -489,7 +574,11 @@ async fn deadline(request: Request, next: Next) -> Response {
 /// around the pace.
 async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
     let path = request.uri().path();
-    if !path.starts_with("/api/") {
+    // A read link's routes are paced like the API's, per address (ADR 0105
+    // item 6; the link's own pace is `crate::visit`'s); its page, a
+    // static file like the window's, is not.
+    let link = is_link_route(path);
+    if !path.starts_with("/api/") && !link {
         return next.run(request).await;
     }
     let Some(key) = client_key(&server, &request) else {
@@ -506,7 +595,7 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
         }
         .into_response()
     };
-    let upgrade = path == "/api/ws"
+    let upgrade = (path == "/api/ws" || (link && path.ends_with("/ws")))
         && request
             .headers()
             .get(header::UPGRADE)
@@ -526,6 +615,20 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
         return too_many(wait);
     }
     next.run(request).await
+}
+
+/// Whether `path` is under a read link — `/r/<token>/…`, not the page at
+/// `/r/<token>` itself.
+pub(crate) fn is_link_route(path: &str) -> bool {
+    path.strip_prefix("/r/")
+        .is_some_and(|rest| rest.split_once('/').is_some())
+}
+
+/// Whether `path` is a folder's file served to a read link.
+pub(crate) fn is_link_file(path: &str) -> bool {
+    path.strip_prefix("/r/")
+        .and_then(|rest| rest.split_once('/'))
+        .is_some_and(|(_, after)| after.starts_with("f/"))
 }
 
 /// The window's own policy, sent as a header and narrower than the
@@ -731,7 +834,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     let ws_origin = auth::expected_origin(&server, request.headers(), &peer)
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
-    let is_file = request.uri().path().starts_with("/f/");
+    let is_file = request.uri().path().starts_with("/f/") || is_link_file(request.uri().path());
+    let is_link = request.uri().path().starts_with("/r/");
     let is_worker = request.uri().path() == MAP_WORKER;
     let is_service_worker = request.uri().path() == SERVICE_WORKER;
     let asked_by = request.headers().clone();
@@ -752,6 +856,11 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), \
          interest-cohort=()",
     );
+    if is_link {
+        // A read link's page and answers are for no search engine and no
+        // archive (ADR 0105 item 5); the referrer is already none.
+        set(h, "x-robots-tag", "noindex, nofollow");
+    }
     if is_file {
         // A folder's file is for this server's pages alone: another
         // site's page may not embed or fetch it with the reader's cookie

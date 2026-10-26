@@ -41,14 +41,70 @@ pub struct Scope {
     pub guard: Option<std::sync::Arc<Guard>>,
 }
 
-/// What a phone is kept from under a share of this computer's folder: the
-/// share is judged by where a path really is on the disk, at every use
-/// (`verso_fs::resolves_within`), never by its name and never from a list
-/// kept.
+/// What a share is kept from beyond its folder. Of a phone's share of this
+/// computer's folder: judged by where a path really is on the disk, at
+/// every use (`verso_fs::resolves_within`), never by its name and never
+/// from a list kept. Of a read link (ADR 0105): the window of someone with
+/// no account, shown no hidden path and, for one note, only that note and
+/// what it embeds.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Guard {
     /// The folder the share is a part of, on the disk.
     pub vault: std::path::PathBuf,
+    /// Whether a path is judged by where it is on the disk (a phone's, and
+    /// a read link of a folder inside the folder; not a link of the whole
+    /// folder, which has no root to be inside of).
+    pub disk: bool,
+    /// A read link's window (ADR 0105): nothing hidden — no part of a path
+    /// beginning with `.` — and not the quota's events.
+    pub public: bool,
+    /// A read link to one note: the owner's paths it may reach.
+    pub only: Option<Only>,
+}
+
+impl Guard {
+    /// A phone's guard: judged on the disk.
+    #[must_use]
+    pub fn phone(vault: std::path::PathBuf) -> Self {
+        Self {
+            vault,
+            disk: true,
+            public: false,
+            only: None,
+        }
+    }
+}
+
+/// The paths of the owner's folder a read link to one note reaches (ADR
+/// 0105 item 2): the note and what it embeds. Shared by the scope and the
+/// connection that refreshes it as the note changes.
+#[derive(Debug, Clone, Default)]
+pub struct Only(std::sync::Arc<std::sync::Mutex<std::collections::BTreeSet<String>>>);
+
+impl PartialEq for Only {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Only {}
+
+impl Only {
+    /// The paths now reached, in place of the ones before.
+    pub fn set(&self, paths: impl IntoIterator<Item = String>) {
+        *verso_service::lock(&self.0) = paths.into_iter().collect();
+    }
+
+    /// Whether `full` is one of them.
+    #[must_use]
+    pub fn allows(&self, full: &str) -> bool {
+        verso_service::lock(&self.0).contains(full)
+    }
+}
+
+/// Whether a part of `path` is hidden: begins with `.`.
+fn hidden(path: &str) -> bool {
+    path.split('/').any(|p| p.starts_with('.'))
 }
 
 /// Whether a path names a note, a board or a base — what the attachments
@@ -152,7 +208,11 @@ impl Scope {
             }
             return Ok(self.root.clone());
         }
-        let full = format!("{}/{rel}", self.root);
+        let full = if self.root.is_empty() {
+            rel.to_owned()
+        } else {
+            format!("{}/{rel}", self.root)
+        };
         self.allowed(&full, false)?;
         Ok(full)
     }
@@ -169,6 +229,15 @@ impl Scope {
         let Some(g) = &self.guard else {
             return false;
         };
+        if g.public && hidden(full) {
+            return true;
+        }
+        if g.only.as_ref().is_some_and(|only| !only.allows(full)) {
+            return true;
+        }
+        if !g.disk {
+            return false;
+        }
         let within = match (&self.mount, in_mount) {
             (Some((_, path)), true) => path,
             _ => &self.root,
@@ -224,7 +293,11 @@ impl Scope {
     /// as the window knows them.
     #[must_use]
     pub fn said(&self, message: &str) -> String {
-        let mut out = message.replace(&format!("{}/", self.root), "");
+        let mut out = if self.root.is_empty() {
+            message.to_owned()
+        } else {
+            message.replace(&format!("{}/", self.root), "")
+        };
         if let Some((name, path)) = &self.mount {
             out = out.replace(&format!("{path}/"), &format!("{name}/"));
         }
@@ -251,7 +324,9 @@ impl Scope {
     /// too, or the whole warning is dropped: a name cannot be cut out of a
     /// sentence safely, and a warning lost is only less said.
     fn warning(&self, w: &str) -> Option<String> {
-        let (said, rest) = if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
+        let (said, rest) = if self.root.is_empty() && !w.starts_with('/') {
+            (w.to_owned(), w)
+        } else if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
             (self.said(rest), rest)
         } else if let Some((name, path)) = &self.mount
             && let Some(rest) = w.strip_prefix(&format!("{path}/"))
@@ -378,14 +453,25 @@ impl Scope {
             Ok(())
         };
         match cmd {
-            "list_notes" | "list_files" | "list_tags" | "list_web_notes" | "graph"
-            | "list_folders" | "list_entries" | "notes_of_type" => {}
+            "list_notes" | "list_files" | "list_tags" | "list_block_ids" | "list_web_notes"
+            | "graph" | "list_folders" | "list_entries" | "notes_of_type" => {}
             "search" => args["limit"] = json!(200),
             "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
             | "board_preview" | "unlinked_mentions" | "map_open" | "map_tile" => {
                 set(&mut args, "path", Use::Read)?;
             }
-            "resolve_attachment" => set(&mut args, "source", Use::Read)?,
+            "resolve_attachment" => {
+                let bare = args["source"].as_str() == Some("");
+                set(&mut args, "source", Use::Read)?;
+                // No note says where the target is written from (the table's
+                // pictures): the share's root, a folder. A file's target is
+                // looked up from the source's folder, so the folder's own
+                // path (not its parent) is what the source must name.
+                if bare && !self.root.is_empty() {
+                    let at = args["source"].as_str().unwrap_or_default().to_owned();
+                    args["source"] = json!(format!("{at}/"));
+                }
+            }
             "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
                 set(&mut args, "path", Use::Below)?;
             }
@@ -412,7 +498,7 @@ impl Scope {
             "query_base" => {
                 // A base walks the folder's entries; one with a link out of
                 // it under the share is not answered.
-                if let Some(g) = &self.guard {
+                if let Some(g) = self.guard.as_ref().filter(|g| g.disk) {
                     let clean = self.roots().iter().all(|r| {
                         verso_fs::escaping_links(&g.vault, r).is_ok_and(|found| found.is_empty())
                     });
@@ -456,6 +542,8 @@ impl Scope {
                 }
             }
             "list_web_notes" => self.keep(&mut v, "path"),
+            // A block of a note outside the share is not said.
+            "list_block_ids" => self.keep(&mut v["blocks"], "path"),
             "backlinks" => self.keep(&mut v, "from"),
             // A mention in a note outside the share is not said (ADR 0089).
             "unlinked_mentions" => self.keep(&mut v["mentions"], "path"),
@@ -802,7 +890,7 @@ impl Scope {
                 }
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
-            | "collab-closed" | "collab-roll" => {
+            | "collab-closed" | "collab-roll" | "collab-oracle" => {
                 if !self.field(&mut m["payload"], "path") {
                     return None;
                 }
@@ -815,11 +903,26 @@ impl Scope {
                     p.remove("head");
                 }
             }
-            "folder-quota" => {}
+            // The folder's quota is the owner's to know, and a read link's
+            // window has no owner (ADR 0105 item 6).
+            "folder-quota" => {
+                if self.guard.as_ref().is_some_and(|g| g.public) {
+                    return None;
+                }
+            }
             // A folder given to the person (ADR 0084 item 7): theirs to
             // know whichever folder this window shows, and nothing of the
             // owner's folder beyond what was given.
             "share-given" => {}
+            // A table's state changed (ADR 0110): the window asks its status
+            // again; no path of the owner's folder goes with it.
+            "campaign-changed" => m["payload"]["paths"] = json!([]),
+            // The table's events (ADR 0107, 0110): a window on a share at a
+            // table hears what a member hears. `table.rs` already wrote the
+            // table as `""` and the paths from the share's root before it
+            // pushed, so nothing of the owner's folder is in them.
+            "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared"
+            | "table-images" => {}
             _ => return None,
         }
         Some(m)
@@ -863,6 +966,21 @@ mod tests {
         }
         // The share's root and the attachments are not written.
         assert!(s.to_full_write("").is_err());
+        // A target written from the share's root, with no note to say it: looked up from there.
+        let asked = s
+            .args_in(
+                "resolve_attachment",
+                json!({ "source": "", "target": "a/p.png" }),
+            )
+            .unwrap();
+        assert_eq!(asked["source"], "Mesa/Campanha/", "{asked}");
+        let from_note = s
+            .args_in(
+                "resolve_attachment",
+                json!({ "source": "n.md", "target": "p.png" }),
+            )
+            .unwrap();
+        assert_eq!(from_note["source"], "Mesa/Campanha/n.md", "{from_note}");
         assert!(s.to_full_write("Anexos/p.png").is_err());
         assert!(s.args_in("delete_entry", json!({ "path": "" })).is_err());
         assert!(
@@ -1102,5 +1220,58 @@ mod tests {
         assert!(!s.in_root(&s.root.clone()));
         assert!(!s.in_root("Anexos/x.png"));
         assert!(!s.in_root("Outra/a.md"));
+    }
+    /// A read link's scope (ADR 0105): nothing hidden, whatever the core
+    /// would say; and a link to one note reaches the paths it was given.
+    #[test]
+    fn a_read_links_scope_reaches_nothing_hidden_and_only_what_it_was_given() {
+        let public = |root: &str, only: Option<Only>| Scope {
+            share: "link-1".into(),
+            key: "share-link-1".into(),
+            name: "L".into(),
+            root: root.into(),
+            mount: None,
+            guard: Some(std::sync::Arc::new(Guard {
+                vault: std::path::PathBuf::new(),
+                disk: false,
+                public: true,
+                only,
+            })),
+        };
+        // The whole folder: a root of "" covers every path but a hidden one.
+        let whole = public("", None);
+        assert_eq!(whole.to_full("a/b.md").unwrap(), "a/b.md");
+        assert_eq!(whole.to_rel("a/b.md").as_deref(), Some("a/b.md"));
+        for hidden in [".verso/x.json", "a/.trash/b.md", ".git/config"] {
+            assert!(whole.to_full(hidden).is_err(), "{hidden}");
+            assert_eq!(whole.to_rel(hidden), None, "{hidden}");
+            assert!(!whole.in_root(hidden), "{hidden}");
+        }
+        assert!(whole.to_full("../x.md").is_err());
+        // A folder inside the folder: its own paths, not its sibling's.
+        let sub = public("Mesa", None);
+        assert_eq!(sub.to_full("Notas.md").unwrap(), "Mesa/Notas.md");
+        assert_eq!(sub.to_rel("Mesa2/x.md"), None);
+        // One note: the paths it was given, and no other, until it is
+        // given more.
+        let only = Only::default();
+        only.set(["Mesa/Notas.md".to_owned()]);
+        let one = public("", Some(only.clone()));
+        assert!(one.to_full("Mesa/Notas.md").is_ok());
+        assert!(one.to_full("Mesa/Outra.md").is_err());
+        assert_eq!(one.to_rel("Mesa/Outra.md"), None);
+        only.set(["Mesa/Notas.md".to_owned(), "Anexos/q.png".to_owned()]);
+        assert!(one.to_full("Anexos/q.png").is_ok());
+        assert_eq!(one.to_rel("Anexos/q.png").as_deref(), Some("Anexos/q.png"));
+        // The quota's events are the owner's: a visitor hears none.
+        assert!(
+            one.push(&json!({ "event": "folder-quota", "payload": {} }))
+                .is_none()
+        );
+        assert!(
+            scope()
+                .push(&json!({ "event": "folder-quota", "payload": {} }))
+                .is_some()
+        );
     }
 }

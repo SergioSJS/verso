@@ -1,0 +1,26 @@
+# The same characters, in YAML. An &name marks a piece; *name reuses it.
+campaign: The Dark Lighthouse
+session: 3
+allies: &allies
+  - Captain Ruy
+  - Lia Torres
+npcs:
+  - name: Yara of the Lighthouse
+    role: keeper
+    hp: 18
+    items: [lantern, bronze key, tide journal]
+    knows: *allies
+  - name: Captain Ruy
+    role: sailor
+    hp: 31
+    items: [short sword, torn map]
+places:
+  lighthouse:
+    floors: 4
+    access: spiral staircase
+---
+# A second document in the same file becomes a root of its own.
+session: 4
+pending:
+  - find the key in the cellar
+  - ask Yara about the light

@@ -9,7 +9,9 @@
   server, decided by the maintainer with the acceptance of
   [0073](0073-self-hosted-server-first.md), which had left where the
   service's session table and dispatch live `[OPEN]` here; the five crates
-  and their rules are unchanged.
+  and their rules are unchanged. 2026-10-21 — `crates/verso-cloud` recorded,
+  the cloud remotes of [0104](0104-external-cloud-storage-transports-and-quotas.md);
+  the five crates and their rules are unchanged.
 
 ## Context
 
@@ -96,6 +98,13 @@ answer to the plan's B was the recommendation):
 already builds, not a binary of its own
 ([0075](0075-server-packaging-and-storage.md) item 1). Neither crate
 changes what the five crates may do.
+
+**A crate for the cloud remotes, 2026-10-21** ([0104](0104-external-cloud-storage-transports-and-quotas.md),
+built that day):
+
+- `crates/verso-cloud` — the cloud remotes of ADR 0104 (WebDAV, S3),
+  host-side. `verso-core` and `verso-fs` never depend on it; it touches no
+  disk. It does not change what the five crates may do.
 
 ## Discarded alternatives
 

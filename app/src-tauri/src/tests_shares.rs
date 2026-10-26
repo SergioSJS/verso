@@ -247,3 +247,33 @@ fn a_receivers_own_settings_stay_here_quietly() {
     );
     assert!(base.base.contains_key(NOTE));
 }
+
+/// The folder switcher tells two folders of one name apart by where they
+/// sit: a label, never a path (ADR 0026 rule 4).
+#[test]
+fn a_folders_place_is_a_short_label_never_an_absolute_path() {
+    use crate::shares::place_of;
+    let home = Path::new("/Users/ana");
+    let at = |p: &str| place_of(Path::new(p), Some(home));
+    assert_eq!(at("/Users/ana/Caderno"), "~");
+    assert_eq!(at("/Users/ana/Documents/Caderno"), "~/Documents");
+    assert_eq!(
+        at("/Users/ana/Documents/obsidian/Caderno"),
+        "~/Documents/obsidian"
+    );
+    assert_eq!(at("/Users/ana/a/b/c/Caderno"), "~/…/b/c");
+    assert_eq!(at("/Volumes/Disco/Notas/Caderno"), "…/Disco/Notas");
+    assert_eq!(at("/Caderno"), "");
+    for label in [
+        at("/Users/ana/x/Caderno"),
+        at("/Volumes/Disco/Caderno"),
+        at("/mnt/a/b/c/Caderno"),
+    ] {
+        assert!(!label.starts_with('/') && !label.contains(".."), "{label}");
+    }
+    // With no home known, nothing is home-relative.
+    assert_eq!(
+        place_of(Path::new("/Users/ana/Documents/Caderno"), None),
+        "…/ana/Documents"
+    );
+}

@@ -5,7 +5,7 @@
 import type { MapHost } from "./bases/map";
 import { type BaseHost, type BaseSource, BaseView } from "./bases/view";
 import { commands, type TextFile } from "./bindings";
-import { canWrite } from "./can";
+import { atTable, may, seat } from "./access";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { ask } from "./dialog";
 import { ui } from "./dom";
@@ -20,6 +20,7 @@ import { showMenu } from "./menu";
 import { opening } from "./opening";
 import { setNoteProperty } from "./organize/frontmatter";
 import { saveSettings, settings } from "./settings";
+import { refreshBestiary } from "./statblock/bestiary";
 import { baseStrings, LOCALE, t } from "./strings";
 import { dirOf } from "./paths";
 
@@ -38,6 +39,10 @@ export let basesTimer: number | undefined;
 export function refreshBases(): void {
   window.clearTimeout(basesTimer);
   basesTimer = window.setTimeout(() => {
+    // The notes a statblock inherits from, read again (ADR 0099 item 1).
+    refreshBestiary();
+    // The table's saved rolls read their note again.
+    dispatchEvent(new Event("verso:notes-changed"));
     for (const v of liveBases) void v.refresh();
     for (const b of liveBoards) b.refresh();
     // A daily note made or gone shows on the month too.
@@ -52,14 +57,16 @@ export function baseHost(): BaseHost {
     image: (source, target, redraw) => imageUrl(source, target, redraw),
     remote: () => settings.remoteContent,
     // A reader on a server changes no note from a base (ADR 0076 item 11).
-    setProperty: (path, key, value) => (canWrite() ? setNoteProperty(path, key, value) : Promise.resolve(false)),
-    newNote: (folder, props) => (canWrite() ? newNoteWith(folder, props) : Promise.resolve(null)),
+    setProperty: (path, key, value) => (may(path, "edit") ? setNoteProperty(path, key, value) : Promise.resolve(false)),
+    newNote: (folder, props) => (may(folder, "create") ? newNoteWith(folder, props) : Promise.resolve(null)),
     menu: showMenu,
     status: (m) => void (ui.status.textContent = m),
     ask: (m, yes, no) => ask(m, { yes, no }),
     copy: (text) => navigator.clipboard.writeText(text),
     saveNote: saveMarkdownNote,
-    readOnly: () => !canWrite(),
+    // A player at a table edits the rows of the notes it edits, each asked on its own
+    // (`setProperty`); the folder as a whole is read-only to it only where no row could be.
+    readOnly: () => (atTable() && seat() !== "master" ? false : !may("", "create")),
     maps: mapHost,
   };
 }

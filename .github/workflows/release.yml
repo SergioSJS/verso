@@ -226,6 +226,9 @@ jobs:
             ./*-macos-arm64.zip.sig
             ./verso-cli-*-macos-arm64.tar.gz
             ./verso-cli-*-macos-arm64.tar.gz.sig
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
 
   windows:
     name: Verso for Windows (${{ needs.decide.outputs.tag }})
@@ -352,6 +355,9 @@ jobs:
             ./*-windows-x64-setup.exe.sig
             ./verso-cli-*-windows-x64.zip
             ./verso-cli-*-windows-x64.zip.sig
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
 
   # Linux (ADR 0071, items 2, 3 and 6): one build per architecture on the
   # oldest base of the family, Ubuntu 22.04 (glibc 2.35), so the packages run
@@ -493,6 +499,9 @@ jobs:
             ./*-linux-*.AppImage.sig
             ./verso-cli-*-linux-*.tar.gz
             ./verso-cli-*-linux-*.tar.gz.sig
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
 
   # The server (ADR 0075 item 2): `verso serve` is a subcommand of the
   # `verso` binary, built here without the window, static (musl), for x64
@@ -685,12 +694,18 @@ jobs:
             ./universo-*.deb.sig
             ./universo-*.rpm
             ./universo-*.rpm.sig
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
       # Not `release-*`: the image's context is not a release file.
       - name: keep the image's context for the image job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: server-image-context
           if-no-files-found: error
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
           path: target/server-image/
 
   # The signed checksums list (ADR 0055, revised 2026-10-14, the
@@ -771,6 +786,9 @@ jobs:
           path: |
             ./verso-*-SHA256SUMS
             ./verso-*-SHA256SUMS.sig
+          # Only carried to the publishing job; the release keeps the files
+          # (Actions storage is billed by the day, the default is 90).
+          retention-days: 1
 
   # Every platform built and the list signed: the release is published with
   # their files. On a rehearsal nothing is published; the files stay as the

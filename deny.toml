@@ -46,6 +46,15 @@ ignore = [
   { id = "RUSTSEC-2026-0367", reason = "zip: SUID/SGID preservation during extract(); app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0367; expires 2026-12-31" },
   { id = "RUSTSEC-2026-0368", reason = "zip: ZipArchive::extract symlink traversal; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0368; expires 2026-12-31" },
   { id = "RUSTSEC-2026-0369", reason = "zip: ZipStreamReader::extract unconfined symlinks; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0369; expires 2026-12-31" },
+  # Three "unmaintained" notices (not vulnerabilities) published 2026-10 for
+  # the zbus D-Bus family, pulled on Linux by tauri-plugin-notification
+  # (notify-rust, ADR 0084) and tauri-plugin-single-instance. No safe upgrade
+  # exists. Revisit when the plugins move. Added 2026-10-21. Ratified by the
+  # maintainer on 2026-10-21 (decisions list, item X.1, option A), until
+  # 2026-12-31; revisit when the Tauri plugins change library.
+  { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, via zbus (Tauri notification and single-instance plugins, Linux); https://rustsec.org/advisories/RUSTSEC-2026-0370; expires 2026-12-31" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained, via zbus (Tauri notification and single-instance plugins, Linux); https://rustsec.org/advisories/RUSTSEC-2026-0371; expires 2026-12-31" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained, via zbus (Tauri notification and single-instance plugins, Linux); https://rustsec.org/advisories/RUSTSEC-2026-0372; expires 2026-12-31" },
 
 ]
 

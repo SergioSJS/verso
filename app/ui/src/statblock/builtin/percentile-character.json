@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "percentile-character",
+  "name": {
+    "pt": "Percentil — Personagem",
+    "en": "Percentile — Character"
+  },
+  "description": {
+    "pt": "Para jogos de d100 abaixo da perícia: características, perícias em porcentagem e pontos de vida. Um desenho do Verso, sem campos de nenhum livro.",
+    "en": "For roll-under d100 games: characteristics, skills as percentages and hit points. Verso's own design, with no book's fields."
+  },
+  "profile": "d100",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"characteristics","properties":["characteristics"],"label":{"pt":"Characteristics","en":"Characteristics"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"tracker","id":"hp","properties":["hp","hp_max"],"label":{"pt":"Hit points","en":"Hit points"},"hideWhenEmpty":true,"current":"hp","max":"hp_max","style":"number"},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"possessions","properties":["possessions"],"label":{"pt":"Possessions","en":"Possessions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d100 contra a perícia","en":"Roll d100 against the skill"},"inputs":{}}
+  ]
+}

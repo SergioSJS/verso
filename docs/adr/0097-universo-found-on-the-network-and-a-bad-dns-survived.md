@@ -23,6 +23,13 @@
   [0029](0029-guardrails-in-ci.md) (the `std::fs` confinement, an exception
   declared here), [0069](0069-windows-port.md), `docs/reference/threat-model.md`.
 - Status in the briefing: not present.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21), all as recommended:
+  items 2, 3, 5, 7a, 9 and 10 and the limits of the discovery (item 4) are
+  decided as built (0097.2, 0097.3, 0097.4, 0097.5, 0097.7a-i, 0097.7a-ii,
+  0097.9, 0097.10). Item 8 (the text of the "unreachable" error) was not
+  answered then and stayed `[PROPOSED]`; the maintainer answered it later the
+  same day (0097.8, option A), and it is `[DECIDED 2026-10-21]`.
 
 ## Context
 
@@ -59,7 +66,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    click goes on to the sign-in as typing the address would. Typing an
    address stays possible.
 
-2. **`[PROPOSED]` What is announced.** Service type `_verso._tcp` (the
+2. **`[DECIDED 2026-10-21]` What is announced** (0097.2, option A: keep as
+   built, TXT only `v`/`https`/`id`, `url` only with `VERSO_PUBLIC_URL`). Service type `_verso._tcp` (the
    name is this project's; nothing is registered). The instance name is
    `UniVerso-` and six random hexadecimal digits, new at each start —
    **never the computer's, a folder's or an account's name**. The SRV
@@ -79,7 +87,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    Behind a proxy with no public address the announcement is the IP and
    `https=0`, which the server accepts.
 
-3. **`[PROPOSED]` When it is announced, and the off switch.** On by
+3. **`[DECIDED 2026-10-21]` When it is announced, and the off switch**
+   (0097.3, option A). On by
    default when the server listens beyond loopback (`0.0.0.0`, a LAN
    address); never when it listens on loopback only. `VERSO_ANNOUNCE=off`
    (also `0`, `false`, `no`) turns it off. It is announced **only on the
@@ -90,7 +99,10 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    at WARN and never stops the server: it works without being found. A
    goodbye record is sent when the server stops.
 
-4. **Threat analysis of the announcement.**
+4. **Threat analysis of the announcement.** `[DECIDED 2026-10-21]`
+   (0097.4, option A: keep the limits — 40 characters, 50 announcements, a
+   browse only with Settings › Servers open, nothing connecting without a
+   click).
    - *Spoofing.* Anyone on the network can announce a `_verso._tcp`
      service with any address. The worst it can do is **offer a wrong
      address** in the list. So: the app never connects, signs in or sends
@@ -116,7 +128,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
      Only the desktop host browses: a window in a browser cannot, and the
      section is not shown there.
 
-5. **`[PROPOSED]` The list.** *Encontrados nesta rede / Found on this
+5. **`[DECIDED 2026-10-21]` The list** (0097.5, option A: keep as described,
+   with the three commands of the contract). *Encontrados nesta rede / Found on this
    network*: each row has the instance name, the address
    (the public address the server announced, else `http://ip[:port]`, an IPv4 private address first), *HTTPS* or *sem
    HTTPS* / *no HTTPS*, and a *Conectar / Connect* button. A line under
@@ -145,8 +158,12 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    never changes the name the certificate is checked for and never falls
    back from `https` to `http`; and the error names the addresses tried.
 
-7a. **`[PROPOSED]` How, in detail** (the author's; the maintainer has not
-    read them):
+7a. **`[DECIDED 2026-10-21]` How, in detail** (0097.7a-i, option A: the
+    times and the http/https rule as built — a name suspected for 10
+    minutes, an answer kept 5 minutes, 15 seconds when nothing came, 1.2 s
+    per server, up to 6; for `http` only an on-link address, for `https`
+    any; and 0097.7a-ii, option A: the hand-written DNS client, no
+    `hickory-resolver`):
     - the name is resolved by the system, as always, and **nothing else is
       asked while connections work**;
     - when a connection **fails**, the name is suspect for ten minutes and
@@ -219,7 +236,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
       checked, every loop bounded, a random query id), not `hickory`; see
       the Discarded alternatives.
 
-8. **`[PROPOSED]` The error names what was tried.** An unreachable error's
+8. **`[DECIDED 2026-10-21]` The error names what was tried** (0097.8, option
+   A, as built). An unreachable error's
    message is the server's address and, when the name was resolved, each
    IP tried on a line after it. The log says it once a minute:
    `unreachable: the server at https://universo.casa.meioorc.com: … [universo.casa.meioorc.com → 10.0.0.1 (system), 192.168.0.5 (dns 192.168.0.2): no answer]`.
@@ -232,7 +250,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    every address, whether it timed out or refused: the log has the real
    cause.
 
-9. **`[PROPOSED]` The platforms.** *macOS:* the app's `Info.plist` lists
+9. **`[DECIDED 2026-10-21]` The platforms** (0097.9, option A: keep as
+   described). *macOS:* the app's `Info.plist` lists
    `_verso._tcp` in `NSBonjourServices`, beside `_verso-local._tcp`, and
    the Local Network usage description says the app also looks for
    servers; macOS 15 and later asks for the permission the first time,
@@ -257,7 +276,8 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
     already in the tree through `verso-server` and `reqwest`, licences
     unchanged): `rcgen` (MIT OR Apache-2.0), to make a certificate for a name
     in the TLS tests, and `rustls` on ring, to serve it. A DNS library was not
-    added (see the Discarded alternatives).
+    added (see the Discarded alternatives). `[DECIDED 2026-10-21]`
+    (0097.10, option A): the two dev-dependencies are accepted.
 
 ## Consequences
 
@@ -311,11 +331,14 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
 ## Status
 
 Accepted for items 1 and 7 (2026-10-16, *"Gosto de todos"*), which are the
-maintainer's sentences. Items 2 to 6, 7a and 8 to 10, marked `[PROPOSED]`, are
-the author's details of those decisions (what is announced, the `url` key, the
-switch, the list, the DNS rule's timings and policy, the hand-written client,
-the readers of the system's DNS list), built and waiting for the maintainer;
-none is promoted. The `std::fs` exception of `src/resolv_conf.rs` (item 9) was **ratified** on
+maintainer's sentences. The author's details of those decisions (what is
+announced, the `url` key, the switch, the limits, the list, the DNS rule's
+timings and policy, the hand-written client, the platforms, the
+dev-dependencies) were decided by the maintainer on 2026-10-21, as built.
+**Item 8** (the text of the "unreachable" error) was `[PROPOSED]` and was decided
+on 2026-10-21 (0097.8, option A: list each IP tried and give the DNS hint when
+more than one was tried; option B, a short message without IPs, was not
+chosen: cleaner, but hard to diagnose). The `std::fs` exception of `src/resolv_conf.rs` (item 9) was **ratified** on
 2026-10-16 (*"Pode seguir a sua sugestão"*). Decided on 2026-10-16: **the compose
 file keeps bridge networking as the default**, and
 `packaging/server/docker-compose.host-network.yml` is provided as the

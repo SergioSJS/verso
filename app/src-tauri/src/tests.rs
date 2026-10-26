@@ -463,6 +463,16 @@ fn the_commands_answer_through_the_contract() {
     let revision = read["revision"].as_str().unwrap().to_owned();
     let links = call(&webview, "links", json!({ "path": "Taverna" })).unwrap();
     assert_eq!(links[0]["resolved"], "Barão.md", "{links}");
+    // Every `^id` block of the folder: the command is allowed to the window
+    // (build.rs and the capability) and answers in the contract's shape.
+    let ids = call(
+        &webview,
+        "list_block_ids",
+        json!({ "kinds": ["table", "list"] }),
+    )
+    .unwrap();
+    assert_eq!(ids["truncated"], false, "{ids}");
+    assert!(ids["blocks"].is_array(), "{ids}");
     let graph = call(&webview, "graph", json!({})).unwrap();
     assert_eq!(graph[0]["to"], "Barão.md", "{graph}");
 
@@ -662,8 +672,13 @@ fn a_folders_index_progress_reaches_only_its_windows() {
     main.listen("index-progress", move |_| {
         m.fetch_add(1, Ordering::SeqCst);
     });
-    other.listen("index-progress", move |_| {
-        t.fetch_add(1, Ordering::SeqCst);
+    // The other window may still hear its own folder being indexed (seen on
+    // Windows, where that pass is slower): what must never reach it is a
+    // progress of the main window's folder, which names `Uma.md`.
+    other.listen("index-progress", move |e| {
+        if e.payload().contains("Uma.md") {
+            t.fetch_add(1, Ordering::SeqCst);
+        }
     });
     call(&main, "reindex", json!({})).unwrap();
     assert!(mine.load(Ordering::SeqCst) > 0);
@@ -1229,6 +1244,17 @@ fn the_window_controls_are_allowed() {
             "{permission} missing"
         );
     }
+}
+
+/// The window's zoom (ADR 0072, revised 2026-10-20) is allowed: without
+/// the webview's permission the keys do nothing in the app, while the
+/// harness, which keeps the call, passes.
+#[test]
+fn the_window_zoom_is_allowed() {
+    let capability = include_str!("../capabilities/default.json");
+    let zoom = include_str!("../../ui/src/zoom.ts");
+    assert!(zoom.contains("setZoom("), "zoom.ts no longer sets the zoom");
+    assert!(capability.contains("\"core:webview:allow-set-webview-zoom\""));
 }
 
 /// The system's notifications (ADR 0084 item 9) are the window's to ask

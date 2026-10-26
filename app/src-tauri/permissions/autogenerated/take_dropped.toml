@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-take-dropped"
+description = "Enables the take_dropped command without any pre-configured scope."
+commands.allow = ["take_dropped"]
+
+[[permission]]
+identifier = "deny-take-dropped"
+description = "Denies the take_dropped command without any pre-configured scope."
+commands.deny = ["take_dropped"]

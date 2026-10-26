@@ -1,0 +1,26 @@
+# Os mesmos personagens, em YAML. Um &nome marca um trecho; *nome o reaproveita.
+campanha: O Farol Apagado
+sessao: 3
+aliados: &aliados
+  - Capitão Ruy
+  - Lia Torres
+npcs:
+  - nome: Yara do Farol
+    papel: guardiã
+    vida: 18
+    itens: [lanterna, chave de bronze, diário da maré]
+    conhece: *aliados
+  - nome: Capitão Ruy
+    papel: marinheiro
+    vida: 31
+    itens: [espada curta, mapa rasgado]
+locais:
+  farol:
+    andares: 4
+    acesso: escada em espiral
+---
+# Um segundo documento no mesmo arquivo vira uma raiz própria.
+sessao: 4
+pendente:
+  - achar a chave no porão
+  - perguntar à Yara sobre a luz

@@ -14,9 +14,11 @@
 
 use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
-    BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
-    Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
-    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, PeriodSettings, PeriodicSettings,
+    BaseResult, BaseRow, BaseView, BlockKind, ContractError, Edge, EntryLabel, ErrorKind,
+    FileEntry, FileKind, Focus, FocusesSummary, FolderBlock, FolderBlocks, FolderDataEntry,
+    FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten, FolderLayer, FolderSettings,
+    FolderSpace, Hit, Link, MapInfo, MapState, Mention, Mentions, MissingLink, MovedEntries,
+    NoteText, ObsidianPeriodic, OracleSettings, OracleSparks, PeriodSettings, PeriodicSettings,
     RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
@@ -190,6 +192,12 @@ ops! {
         Ok(tags_out(ws.tags()?))
     }
 
+    /// Every block with an `^id` in the folder's notes, of the kinds asked
+    /// (all when none): the oracle finds its tables here (ADR 0102 item 3).
+    Read fn list_block_ids(ws, kinds: Vec<BlockKind>) -> FolderBlocks {
+        Ok(block_ids_out(ws.block_ids(&kinds_in(&kinds))?))
+    }
+
     /// The notes that are web pages, with their addresses.
     Read fn list_web_notes(ws) -> Vec<WebNote> {
         Ok(ws
@@ -202,6 +210,12 @@ ops! {
     /// Every resolved link of the folder: its graph.
     Read fn graph(ws) -> Vec<Edge> {
         Ok(edges_out(ws.graph()?))
+    }
+
+    /// Every link no note answers to, once per note and name: the graph's
+    /// optional nodes for notes that do not exist yet (spec Q14).
+    Read fn graph_unresolved(ws) -> Vec<MissingLink> {
+        Ok(missing_out(ws.graph_unresolved()?))
     }
 
     /// Every folder of the open folder, empty ones included.
@@ -391,6 +405,8 @@ ops! {
             ignore_build_dirs: change.ignore_build_dirs,
             respect_gitignore: change.respect_gitignore,
             periodic: change.periodic.map(periodic_in),
+            oracle: change.oracle.map(oracle_in),
+            recommended_theme: change.recommended_theme,
         };
         Ok(layer_out(ws.set_folder_settings(&change, revision.as_deref())?))
     }
@@ -406,6 +422,46 @@ ops! {
             periodic_notes: o.periodic_notes,
             unavailable: o.unavailable,
         })
+    }
+
+    /// The folder's data files of a kind (`.verso/layouts/`,
+    /// `.verso/bundles/`; ADR 0099 item 2, ADR 0098 item 2), by id.
+    Read fn list_folder_data(ws, kind: FolderDataKind) -> FolderDataList {
+        let listed = ws.list_folder_data(data_kind(kind))?;
+        Ok(FolderDataList {
+            entries: listed
+                .entries
+                .into_iter()
+                .map(|e| FolderDataEntry { id: e.id, revision: e.revision })
+                .collect(),
+            strays: listed.strays,
+        })
+    }
+
+    /// One data file's text as it is on disk, with its revision.
+    Read fn read_folder_data(ws, kind: FolderDataKind, id: String) -> FolderDataFile {
+        let file = ws.read_folder_data(data_kind(kind), &id)?;
+        Ok(FolderDataFile { text: file.text, revision: file.revision })
+    }
+
+    /// Write a data file (one JSON object: a layout of at most 256 KiB, a bundle of at most 4 MiB): with no
+    /// `revision` a new file (`exists` when one stands there), else over
+    /// the version that revision describes (`changed` otherwise).
+    Write fn write_folder_data(
+        ws,
+        kind: FolderDataKind,
+        id: String,
+        text: String,
+        revision: Option<String>,
+    ) -> FolderDataWritten {
+        let revision = ws.write_folder_data(data_kind(kind), &id, &text, revision.as_deref())?;
+        Ok(FolderDataWritten { revision })
+    }
+
+    /// Remove a data file through the bin, when it is still the version
+    /// `revision` describes; answers where it went, like every removal.
+    Write fn remove_folder_data(ws, kind: FolderDataKind, id: String, revision: String) -> Trashed {
+        Ok(trashed_out(ws.remove_folder_data(data_kind(kind), &id, &revision)?))
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
@@ -494,6 +550,48 @@ pub(crate) fn mentions_out(found: verso_core::Mentions) -> Mentions {
     }
 }
 
+pub(crate) fn kinds_in(kinds: &[BlockKind]) -> Vec<verso_core::IndexBlockKind> {
+    use verso_core::IndexBlockKind as K;
+    kinds
+        .iter()
+        .map(|k| match k {
+            BlockKind::Paragraph => K::Paragraph,
+            BlockKind::List => K::List,
+            BlockKind::Table => K::Table,
+            BlockKind::Heading => K::Heading,
+            BlockKind::Quote => K::Quote,
+            BlockKind::Code => K::Code,
+        })
+        .collect()
+}
+
+pub(crate) fn block_ids_out(list: verso_core::IndexBlockList) -> FolderBlocks {
+    use verso_core::IndexBlockKind as K;
+    FolderBlocks {
+        truncated: list.truncated,
+        blocks: list
+            .blocks
+            .into_iter()
+            .map(|b| FolderBlock {
+                path: b.path,
+                id: b.id,
+                kind: match b.kind {
+                    K::Paragraph => BlockKind::Paragraph,
+                    K::List => BlockKind::List,
+                    K::Table => BlockKind::Table,
+                    K::Heading => BlockKind::Heading,
+                    K::Quote => BlockKind::Quote,
+                    K::Code => BlockKind::Code,
+                },
+                label: b.label,
+                under_heading: b.under_heading,
+                rows: b.rows,
+                tasks: b.tasks,
+            })
+            .collect(),
+    }
+}
+
 pub(crate) fn tags_out(tags: Vec<(String, Vec<String>)>) -> Vec<Tag> {
     tags.into_iter()
         .map(|(name, notes)| Tag { name, notes })
@@ -504,6 +602,13 @@ pub(crate) fn edges_out(edges: Vec<(String, String)>) -> Vec<Edge> {
     edges
         .into_iter()
         .map(|(from, to)| Edge { from, to })
+        .collect()
+}
+
+pub(crate) fn missing_out(links: Vec<(String, String)>) -> Vec<MissingLink> {
+    links
+        .into_iter()
+        .map(|(from, target)| MissingLink { from, target })
         .collect()
 }
 
@@ -551,6 +656,7 @@ pub(crate) fn entries_out(
                 size: e.len as f64,
                 modified: e.modified as f64,
                 label,
+                access: None,
             }
         })
         .collect())
@@ -625,6 +731,8 @@ fn layer_out(l: verso_core::FolderLayer) -> FolderLayer {
             ignore_build_dirs: l.settings.ignore_build_dirs,
             respect_gitignore: l.settings.respect_gitignore,
             periodic: l.settings.periodic.map(periodic_out),
+            oracle: l.settings.oracle.map(oracle_out),
+            recommended_theme: l.settings.recommended_theme,
         },
         warnings: l.warnings,
     }
@@ -669,6 +777,42 @@ fn periodic_out(p: verso_core::Periodic) -> PeriodicSettings {
         year: p.year.map(period_out),
         week_start: p.week_start,
         language: p.language,
+    }
+}
+
+fn oracle_in(o: OracleSettings) -> verso_core::Oracle {
+    verso_core::Oracle {
+        odds: o.odds,
+        sparks: o.sparks.map(|s| verso_core::OracleSparks {
+            action: s.action,
+            theme: s.theme,
+            descriptor: s.descriptor,
+            focus: s.focus,
+        }),
+        clear_odds: o.clear_odds.unwrap_or(false),
+        clear_sparks: o.clear_sparks.unwrap_or(false),
+    }
+}
+
+fn oracle_out(o: verso_core::Oracle) -> OracleSettings {
+    OracleSettings {
+        odds: o.odds,
+        sparks: o.sparks.map(|s| OracleSparks {
+            action: s.action,
+            theme: s.theme,
+            descriptor: s.descriptor,
+            focus: s.focus,
+        }),
+        clear_odds: None,
+        clear_sparks: None,
+    }
+}
+
+/// The core's kind for the contract's.
+pub fn data_kind(k: FolderDataKind) -> verso_core::FolderDataKind {
+    match k {
+        FolderDataKind::Layouts => verso_core::FolderDataKind::Layouts,
+        FolderDataKind::Bundles => verso_core::FolderDataKind::Bundles,
     }
 }
 

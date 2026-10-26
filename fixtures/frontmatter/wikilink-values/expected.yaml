@@ -1,0 +1,24 @@
+# Construct: wikilinks inside frontmatter values. Spec: Q24 c (decided
+# 2026-10-21: they count as a link and a backlink, in the index and the
+# graph), Q10 and §4.7. They are `property_links`, not `links`: the index
+# stores them as links with the property's key (crates/verso-index/tests/board.rs
+# asserts the backlink).
+property_links:
+  - property: related
+    target: alvo
+    pos: { line: 2, col: 11 }
+  - property: lista
+    item: 0
+    target: alvo
+    pos: { line: 4, col: 6 }
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on
+    `app.metadataCache.getCache(...)`: `frontmatterLinks` = [{ key: "related",
+    link: "alvo" }, { key: "lista.0", link: "alvo" }]; `obsidian
+    backlinks file=alvo format=json` lists the note; `obsidian links file=<it>`
+    lists alvo.md.

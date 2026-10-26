@@ -1,0 +1,22 @@
+name: Sable Quill
+high_concept: Disgraced court cartographer
+trouble: Everyone owes me, and I owe everyone
+relationship: Rival of Master Ostrander
+aspects:
+  - I never forget a face
+  - A map in every pocket
+skills:
+  lore: 4
+  notice: 3
+  investigate: 3
+  will: 2
+  empathy: 2
+  stealth: 2
+refresh: 3
+fate_points: 3
+stunts:
+  - Our own placeholder stunt
+stress_physical: 0
+stress_physical_max: 3
+stress_mental: 1
+stress_mental_max: 4

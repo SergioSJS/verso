@@ -17,6 +17,7 @@
 // says the sync's state (`sync-status`) as the host would (live.spec.mjs).
 
 import { test, expect } from "./fixtures.mjs";
+import { pickMenu } from "./menuPath.mjs";
 
 const SYNCED = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: "2026-10-11T12:00:00Z", message: null, problem: null, versions: null, revoked: null };
 
@@ -136,7 +137,7 @@ test("a sticker set from the tree on a note live only with Bia joins its room fo
   // The tree's menu: "Alterar figurinha…", an emoji.
   const row = page.locator(`#notes li[data-path="${STICKERED}"] > button`);
   await row.click({ button: "right" });
-  await page.locator('.menu:not([hidden]) button[role="menuitem"]', { hasText: "Alterar figurinha…" }).click();
+  await pickMenu(page, "Personalizar", "Alterar figurinha…");
   const picker = page.locator(".sticker-picker-popover");
   await picker.locator(".sticker-item-btn").first().click();
   await expect(picker).toHaveCount(0);

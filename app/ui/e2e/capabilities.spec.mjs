@@ -23,6 +23,8 @@ test("on a server: a browser's tab for a window, the note's address for its path
   await app.open("?side=server");
   const menu = page.locator(".menu:not([hidden])");
   await row(page, NOTE).click({ button: "right" });
+  // The location group: here no window, the address instead of a path.
+  await menu.getByRole("menuitem", { name: "Janela e localização", exact: true }).click();
   await expect(menu.getByRole("menuitem", { name: "Copiar caminho relativo" })).toBeVisible();
   for (const gone of ["Mostrar no Finder", "Abrir em nova janela", "Copiar caminho completo"]) await expect(menu.getByRole("menuitem", { name: gone })).toHaveCount(0);
   await expect(menu.getByRole("menuitem", { name: "Abrir numa nova aba do navegador" })).toBeVisible();
@@ -64,7 +66,9 @@ test("on a server: a web note shows its page in a frame without hint line when f
 
 test("a reader only reads: the editor, the tree's menus, the ribbon and the palette change nothing", async ({ app, page }) => {
   await app.open("?side=server&role=reader");
-  await expect(page.locator(".read-only-line")).toHaveText("Você só lê esta pasta.");
+  // No banner: the closed lock beside the folder's name says it (2026-10-23).
+  await expect(page.locator(".read-only-line")).toHaveCount(0);
+  await expect(page.locator("#open .folder-lock")).toHaveAttribute("aria-label", "Você só lê esta pasta");
   await app.quickOpen("03 - Propriedades");
   const before = await app.file(NOTE);
   await app.key("Mod+e");
@@ -78,6 +82,7 @@ test("a reader only reads: the editor, the tree's menus, the ribbon and the pale
   await expect(page.locator('.ribbon-item[data-id="new"]')).toHaveCount(0);
   const menu = page.locator(".menu:not([hidden])");
   await row(page, NOTE).click({ button: "right" });
+  await menu.getByRole("menuitem", { name: "Janela e localização", exact: true }).click();
   await expect(menu.getByRole("menuitem", { name: "Copiar caminho relativo" })).toBeVisible();
   for (const gone of ["Renomear", "Apagar", "Duplicar", "Nova nota nesta pasta", "Mover para…"]) await expect(menu.getByRole("menuitem", { name: gone })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -93,22 +98,22 @@ test("a reader only reads: the editor, the tree's menus, the ribbon and the pale
 
 test("the role changes while the window is open: the window reads only, then writes again", async ({ app, page }) => {
   await app.open("?side=server");
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   await app.quickOpen("03 - Propriedades");
   await app.key("Mod+e");
   const editor = page.locator(".pane.focused .cm-content").first();
   await expect(editor).not.toHaveAttribute("aria-readonly", "true");
   await page.evaluate(() => window.__harness.setRole("reader"));
-  await expect(page.locator(".read-only-line")).toBeVisible();
+  await expect(page.locator("#open .folder-lock")).toBeVisible();
   await expect(page.locator(".pane.focused .cm-content").first()).toHaveAttribute("aria-readonly", "true");
   await page.evaluate(() => window.__harness.setRole("editor"));
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   await expect(page.locator(".pane.focused .cm-content").first()).not.toHaveAttribute("aria-readonly", "true");
 });
 
-test("the read-only line fits a phone, in Portuguese @layout", async ({ app, page }) => {
+test("the reader's lock fits a phone, in Portuguese @layout", async ({ app, page }) => {
   await app.open("?side=server&role=reader");
-  const line = page.locator(".read-only-line");
+  const line = page.locator("#open .folder-lock");
   await expect(line).toBeVisible();
   const box = await line.boundingBox();
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);

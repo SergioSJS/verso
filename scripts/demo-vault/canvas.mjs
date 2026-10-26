@@ -74,30 +74,40 @@ function linesOf(text, size, font, width) {
 }
 
 export class Board {
-  constructor() {
+  /** `tr` says a text in the language of the vault being built, `name` a
+   *  file's path (scripts/demo-vault/translate.mjs); the Portuguese vault
+   *  is the sources' own words, so both are the identity there. */
+  constructor(tr = (s) => s, name = (p) => p) {
+    this.tr = tr;
+    this.name = name;
     this.nodes = [];
     this.edges = [];
     this.drawing = [];
   }
 
   group(id, x, y, width, height, label, color) {
-    this.nodes.push({ id, type: "group", x, y, width, height, label, ...(color ? { color } : {}) });
+    this.nodes.push({ id, type: "group", x, y, width, height, label: this.tr(label), ...(color ? { color } : {}) });
   }
 
   file(id, file, x, y, width, height, color, subpath) {
-    this.nodes.push({ id, type: "file", file, x, y, width, height, ...(color ? { color } : {}), ...(subpath ? { subpath } : {}) });
+    this.nodes.push({ id, type: "file", file: this.name(file), x, y, width, height, ...(color ? { color } : {}), ...(subpath ? { subpath: this.tr(subpath) } : {}) });
   }
 
   text(id, text, x, y, width, height, color) {
-    this.nodes.push({ id, type: "text", text, x, y, width, height, ...(color ? { color } : {}) });
+    this.nodes.push({ id, type: "text", text: this.tr(text), x, y, width, height, ...(color ? { color } : {}) });
   }
 
   link(id, url, x, y, width, height, color) {
     this.nodes.push({ id, type: "link", url, x, y, width, height, ...(color ? { color } : {}) });
   }
 
+  /** A link node that shows its page (ADR 0057 point 10): the flag Verso keeps under `verso`. */
+  page(id, url, x, y, width, height) {
+    this.nodes.push({ id, type: "link", url, x, y, width, height, verso: { page: true } });
+  }
+
   edge(id, fromNode, fromSide, toNode, toSide, label, color, extra) {
-    this.edges.push({ id, fromNode, fromSide, toNode, toSide, ...(color ? { color } : {}), ...(label ? { label } : {}), ...(extra ?? {}) });
+    this.edges.push({ id, fromNode, fromSide, toNode, toSide, ...(color ? { color } : {}), ...(label ? { label: this.tr(label) } : {}), ...(extra ?? {}) });
   }
 
   element(type, id, x, y, w, h, o) {
@@ -124,6 +134,7 @@ export class Board {
 
   /** A rectangle, ellipse or diamond; with `label`, text bound inside it. */
   shape(type, id, x, y, w, h, o = {}) {
+    if (o.label !== undefined) o = { ...o, label: this.tr(o.label) };
     const rounded = o.rounded ?? true;
     const roundness = rounded ? (type === "rectangle" ? { type: 3 } : { type: 2 }) : null;
     const e = this.element(type, id, x, y, w, h, { stroke: INK, ...o, roundness });
@@ -152,6 +163,7 @@ export class Board {
   /** Drawn text: as written, or with `width` laid out by the board at that
    *  width. */
   write(id, x, y, text, o = {}) {
+    text = this.tr(text);
     const font = o.font ?? HAND;
     const size = o.size ?? 20;
     let w;

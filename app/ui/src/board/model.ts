@@ -218,6 +218,64 @@ function flag(node: CanvasNode, key: "map" | "pin" | "secret"): boolean {
   return key === "secret" ? v !== undefined && v !== false && v !== null : v === true;
 }
 
+/** A link card that shows its page, live, in a frame (ADR 0057 point 10,
+ *  decided 2026-10-21; ADR 0056): still a JSON Canvas `link` node, with the
+ *  flag Verso keeps under its `verso`. Obsidian, which keeps the key, shows
+ *  the address as it shows any link. */
+export const isPage = (node: CanvasNode): boolean => node.type === "link" && isRecord(node["verso"]) && node["verso"]["page"] === true;
+
+/** The node with its page shown (or taken back to a plain link); `verso`'s
+ *  other keys kept. */
+export function withPage(node: CanvasNode, on: boolean): CanvasNode {
+  const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+  put(verso, "page", on ? true : undefined);
+  const out: CanvasNode = { ...node };
+  put(out, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+  return out;
+}
+
+/** How a data file's card shows the file (ADR 0057 point 10, ADR 0106): its
+ *  text, or its data diagram. Kept on the node under `verso.view`; the text,
+ *  the default, is not written, and any other value reads as the text. */
+export type CardView = "text" | "diagram";
+export function cardView(node: CanvasNode): CardView {
+  const v = isRecord(node["verso"]) ? node["verso"]["view"] : undefined;
+  return v === "diagram" ? "diagram" : "text";
+}
+
+/** The node showing its file as `view`; `verso`'s other keys kept. */
+export function withView(node: CanvasNode, view: CardView): CanvasNode {
+  const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+  put(verso, "view", view === "diagram" ? "diagram" : undefined);
+  const out: CanvasNode = { ...node };
+  put(out, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+  return out;
+}
+
+/** A text card shows at most this many characters of its file; past it, an
+ *  ellipsis (the diagram reads the whole file, within its own limits). */
+export const CARD_TEXT_MAX = 64 * 1024;
+
+/** `text` cut to what a card shows, and whether it was cut. */
+export function cardText(text: string): { shown: string; cut: boolean } {
+  if (text.length <= CARD_TEXT_MAX) return { shown: text, cut: false };
+  // Not in the middle of a surrogate pair.
+  let end = CARD_TEXT_MAX;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end--;
+  return { shown: text.slice(0, end), cut: true };
+}
+
+/** The origin an address is on, or null when it names no web page. */
+export function pageOrigin(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The picture of a map: locked, at the bottom, drawn from tiles when large. */
 export const isMap = (node: CanvasNode): boolean => flag(node, "map");
 /** A file card that is a pin on a map: drawn at one size at any zoom. */
@@ -526,14 +584,33 @@ export function nodeElement(node: CanvasNode): Partial<El> {
 }
 
 /** A new node's canvas data, at a point: a card the board makes. */
-export function newNode(kind: "file" | "text" | "link", value: string, at: [number, number], id: string): CanvasNode {
-  const size: Record<string, [number, number]> = { file: [400, 400], text: [250, 60], link: [400, 120] };
+export function newNode(kind: "file" | "text" | "link", value: string, at: [number, number], id: string, page = false): CanvasNode {
+  const size: Record<string, [number, number]> = { file: [400, 400], text: [250, 60], link: page ? [480, 360] : [400, 120] };
   const [width, height] = size[kind] ?? [250, 60];
   const node: CanvasNode = { id, type: kind, x: Math.round(at[0] - width / 2), y: Math.round(at[1] - height / 2), width, height };
   if (kind === "file") node.file = value;
   else if (kind === "text") node.text = value;
   else node.url = value;
+  return page && kind === "link" ? withPage(node, true) : node;
+}
+
+/** A Markdown text card the board adds by hand (the toolbar's button, a
+ *  double click on an empty spot): wider than the sticky 250x60 of `newNode`,
+ *  centred on the point. */
+export function textCardAt(text: string, at: [number, number], id: string): CanvasNode {
+  const node = newNode("text", text, at, id);
+  node.width = 340;
+  node.height = 110;
+  node.x = Math.round(at[0] - node.width / 2);
+  node.y = Math.round(at[1] - node.height / 2);
   return node;
+}
+
+/** Whether a tap follows the one before it closely enough, in time (ms) and
+ *  in place (px), to make a double tap — Excalidraw's own touch count is
+ *  read from its touches, so the board counts the taps it hears first. */
+export function isDoubleTap(prev: { at: number; x: number; y: number } | null, at: number, x: number, y: number): boolean {
+  return prev !== null && at - prev.at >= 0 && at - prev.at < 400 && Math.hypot(x - prev.x, y - prev.y) < 30;
 }
 
 /** The elements of a canvas, partial, bottom first: the edges and their

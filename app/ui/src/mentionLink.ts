@@ -20,6 +20,17 @@ export function linkFor(m: Pick<Mention, "text" | "alias" | "table">, target: st
   return `[[${target}${m.table ? "\\|" : "|"}${m.text}]]`;
 }
 
+/** The link an `@` mention writes over the `@` and the words typed after it
+ *  (ADR 0089 item 5, 2026-10-20): the whole name or alias typed — `typed`
+ *  being `text`, case ignored — is written as an unlinked mention is
+ *  (`linkFor`: the typed spelling kept when it differs, an alias kept as
+ *  the shown text); a part of a name, or nothing yet, is `[[target]]`. */
+export function mentionWritten(typed: string, text: string, alias: boolean, target: string, table: boolean): string {
+  const t = typed.trim();
+  if (t.normalize("NFC").toLowerCase() !== text.normalize("NFC").toLowerCase()) return `[[${target}]]`;
+  return linkFor({ text: t, alias, table }, target);
+}
+
 /** Where the mention `m` stands in `text` now, in UTF-16 offsets: its line
  *  (1-based; `\n` ends a line, a `\r` before it stays in the line) and its
  *  column in characters (code points, as the core counts). Null when the

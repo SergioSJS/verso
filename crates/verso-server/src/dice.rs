@@ -295,7 +295,19 @@ pub fn roll(
         total,
         by: by.to_owned(),
         at: at.to_owned(),
+        styles: None,
+        occurrence: None,
     })
+}
+
+/// The most dice with one code a note's roll may name by place; a larger
+/// number is no die of a note and is dropped (display only, ADR 0107).
+const OCCURRENCE_MOST: u32 = 1000;
+
+/// The place of the clicked die among the note's dice with its code, as a
+/// window sent it: kept when it can be one, otherwise none.
+pub fn occurrence(raw: Option<u32>) -> Option<u32> {
+    raw.filter(|n| *n < OCCURRENCE_MOST)
 }
 
 /// The table a roll names, as the note writes it: a wikilink on one

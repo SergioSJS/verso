@@ -13,7 +13,6 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
-import { canWrite } from "../can";
 import { boardPathFor, readDrawing, toBoard } from "../board/convert";
 import { listedPath } from "../board/model";
 import { linkTo, withRelation } from "../board/relation";
@@ -33,6 +32,8 @@ import { served } from "../secret/blocks";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
+import { wireDice } from "../dice/card";
+import { wireRollBlocks } from "../rollblock/wire";
 import { openNote } from "../layout/spaces";
 import { listKeymap } from "../listKeymap";
 import { livePreview, redraw, sizeOf } from "../live";
@@ -43,7 +44,9 @@ import { dirOf, Kind, kindOf, name } from "../paths";
 import { parsePdfSpec, PdfView } from "../pdf";
 import { keyLinks, typeset, wireCallouts } from "../render";
 import { resolveNoteByName, withNoteLinks } from "../resolve";
-import { setHtml } from "../sanitize";
+import { approveOrigin, frameWarning, localHost, pictureGate, setHtml } from "../sanitize";
+import { frameable } from "../screen/framed";
+import { embedFrame } from "./web";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
@@ -52,13 +55,19 @@ import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
 import { fromDisk, lineSeparator, readOnlyText } from "./text";
 import { TextLeaf } from "./textfile";
+import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
+import { may } from "../access";
+import { NoteAccess } from "../noteAccess";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
+
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -74,10 +83,16 @@ export class BoardLeaf extends TextLeaf {
   override readonly kind: Kind = "board";
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
+  /** Who sees this board, and what the person may do with it (ADR 0113). */
+  readonly access = new NoteAccess(() => this.path);
   private board: BoardHandle | null = null;
   /** A file of the folder put on the board, where it was dropped. */
   addPath(path: string, x: number, y: number): void {
     this.board?.addPath(path, x, y);
+  }
+  /** A text card put on the board where something was dropped (a roll block of the table). */
+  addText(text: string, x: number, y: number): void {
+    this.board?.addText(text, x, y);
   }
   /** What each card's editor held when it was left, for as long as this
    *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
@@ -112,13 +127,14 @@ export class BoardLeaf extends TextLeaf {
       return b;
     };
     this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
-    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
   }
   override async load(path: string, force = false): Promise<void> {
     await super.load(path, force);
     if (this.path !== path) return;
+    this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
@@ -176,6 +192,11 @@ export class BoardLeaf extends TextLeaf {
   declare roomChanged: typeof boardLive.roomChanged;
   declare saveLocalNow: typeof boardLive.saveLocalNow;
   declare followSaved: typeof boardLive.followSaved;
+  /** A link of a rolled table's row, followed from a die on a card. */
+  followDice(target: string, from: string): void {
+    const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", from);
+    if (to) void openNote(to, false);
+  }
   declare boardConflict: typeof boardLive.boardConflict;
   declare boardWentLocal: typeof boardLive.boardWentLocal;
   declare boardReadAnew: typeof boardLive.boardReadAnew;
@@ -222,19 +243,36 @@ export class BoardLeaf extends TextLeaf {
       save: (json) => this.saveBoard(json),
       // A reader of a synced folder is present on the board, not drawing
       // (ADR 0082 item 4).
-      readOnly: () => !canWrite() || (this.room !== null && !this.room.writable),
+      readOnly: () => !may(this.path, "edit") || (this.room !== null && !this.room.writable),
       room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {
         if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
       },
-      openFile: (path, aside) => void openNote(listed(path), aside),
+      openFile: (path, aside, view) => {
+        openData(listed(path), view);
+        void openNote(listed(path), aside);
+      },
+      fileText: (path) => fileText(listed(path)),
+      renderCode: (el, text, path) => renderCode(el, text, listed(path)),
+      data: dataHost(listed),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
-        if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
-        else el.replaceChildren();
+        if (r.status === "ok") {
+          await drawCard(el, r.data.html, listed(path));
+          // The note's `dice:` codes are dice here as in its own tab; the
+          // roll is the board's, the note is not written (ADR 0088).
+          wireDice(el, { path: () => listed(path), follow: (target, from) => this.followDice(target, from) });
+          wireRollBlocks(el, listed(path), ROLL_HOST);
+        } else el.replaceChildren();
       },
-      renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
+      renderText: async (el, text) => {
+        await drawCard(el, await commands.renderMarkdown(text), this.path);
+        // A `dice:` code of a text card is a die, as in a note; its roll is
+        // the board's, nothing is written (ADR 0088).
+        wireDice(el, { path: () => this.path, follow: (target, from) => this.followDice(target, from) });
+        wireRollBlocks(el, this.path, ROLL_HOST);
+      },
       noteText: async (path) => {
         const r = await opening.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";
@@ -290,9 +328,31 @@ export class BoardLeaf extends TextLeaf {
         },
       },
       secret: { served, project: (json) => commands.projectBoard(json) },
+      web: {
+        gate: (url) => pictureGate(url),
+        approve: (origin) => approveOrigin(origin),
+        warn: (url) => frameWarning(url, true),
+        frameable: (url) => frameable(url),
+        frame: (url, title) => {
+          const f = embedFrame(url);
+          f.title = title;
+          return f;
+        },
+        words: { local: t.embedLocal, approve: t.embedApprove, approveAnyway: t.embedApproveAnyway },
+        isLocal: (hostname) => localHost(hostname),
+      },
       sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
-      prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
+      prefs: {
+        stroke: settings.boardStroke,
+        font: settings.boardFont,
+        grid: settings.boardGrid,
+        open: settings.boardOpen,
+        // Read at each double click: changed in Settings, it applies to the board already open.
+        get doubleClick() {
+          return settings.boardDoubleClick;
+        },
+      },
       lastView: () => {
         try {
           const v = JSON.parse(localStorage.getItem(this.viewKey()) ?? "null") as SavedView | null;
@@ -510,6 +570,7 @@ export class BoardLeaf extends TextLeaf {
     return true;
   }
   override destroy(): void {
+    this.access.destroy();
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
@@ -572,6 +633,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         else ui.status.textContent = t.unresolved(target);
       },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      notePath: () => path,
     });
     const keys: KeyBinding[] = [
       { key: "Mod-s", run: () => (void save(), true) },
@@ -611,7 +673,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const sep = lineSeparator(note.text);
     eol = room ? (room.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    readOnly = sep === null || !canWrite() || (room?.reader ?? false);
+    readOnly = sep === null || !may(note.path, "edit") || (room?.reader ?? false);
     const st = room ? EditorState.create({ doc: room.initial(), extensions: [extensions(), room.extension()] }) : EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });

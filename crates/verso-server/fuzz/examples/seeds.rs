@@ -57,7 +57,7 @@ fn note_window(client: u64, state: &[u8]) -> Doc {
 
 fn notes() {
     let file = "# Nota\r\n\r\nolá 😀 mundo\r\n";
-    let room = NoteRoom::open(file, ROOM).expect("a note");
+    let mut room = NoteRoom::open(file, ROOM).expect("a note");
     let state = room.state();
     // One window types after the emoji and deletes a word; another,
     // joined at the same state, adds a line at the end meanwhile.
@@ -229,11 +229,54 @@ fn sizes() {
     write("size", "bytes.txt", b"1073741824");
 }
 
+/// What `fuzz_targets/link.rs` reads: a read link's token, a command, an
+/// address under `/r/`.
+fn links() {
+    write("link", "token.txt", b"3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A");
+    write("link", "command.txt", b"read_note");
+    write("link", "write.txt", b"write_note");
+    write("link", "file.txt", b"/r/3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A/f/Mesa/p.png");
+    write("link", "page.txt", b"/r/3vZQxQGWqq0yHtjJQ1G4zU8Yj7mXr0nYk9y0wq2oH1A");
+    write("link", "traversal.txt", b"/r/x/f/../../etc/passwd");
+}
+
+/// What `fuzz_targets/table.rs` reads: a first byte that picks the input
+/// (0 a message, 1 a dice look, 2 an image's bytes, 3 a command's name),
+/// then the input.
+fn tables() {
+    let with = |pick: u8, rest: &[u8]| {
+        let mut v = vec![pick];
+        v.extend_from_slice(rest);
+        v
+    };
+    write("table", "message.bin", &with(0, "Rolei em segredo, mestre 🎲".as_bytes()));
+    write("table", "message-control.bin", &with(0, b"a[31mb"));
+    write("table", "message-long.bin", &with(0, "á".repeat(501).as_bytes()));
+    let one = json!({ "body": "#8C1F2B", "number": "#f7e8e2", "outline": "#2b0a0e",
+        "texture": "marble", "material": "plastic", "app": true });
+    let look = json!({ "1": one, "2": one, "3": one });
+    write("table", "look.bin", &with(1, look.to_string().as_bytes()));
+    let mut bad = look.clone();
+    bad["2"]["texture"] = json!("https://example.org/x.png");
+    write("table", "look-url.bin", &with(1, bad.to_string().as_bytes()));
+    let mut extra = look;
+    extra["3"]["src"] = json!("x");
+    write("table", "look-extra.bin", &with(1, extra.to_string().as_bytes()));
+    write("table", "png.bin", &with(2, b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR"));
+    write("table", "svg.bin", &with(2, b"<svg xmlns='http://www.w3.org/2000/svg'/>"));
+    write("table", "webp.bin", &with(2, b"RIFF\0\0\0\0WEBPVP8 "));
+    write("table", "say.bin", &with(3, b"table_say"));
+    write("table", "image.bin", &with(3, b"table_send_image"));
+    write("table", "request.bin", &with(3, br#"{"id":1,"cmd":"table_say","args":{"text":"oi"}}"#));
+}
+
 fn main() {
+    tables();
     notes();
     boards();
     presences();
     requests();
     hosts();
     sizes();
+    links();
 }

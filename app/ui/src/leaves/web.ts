@@ -5,7 +5,7 @@
 import { commands } from "../bindings";
 import { can } from "../can";
 import { h } from "../dom";
-import { framedPage } from "../screen/framed";
+import { frameable, framedPage, frameVerdicts, isAppOrigin } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
 import { embedPlace, webPlace, type Rect } from "./embedClip";
 import type { NoteLeaf } from "./note";
@@ -34,13 +34,16 @@ export type EmbedView = { label: string | null; opening: boolean; last: string; 
 export const embedViews = new Map<HTMLElement, EmbedView>();
 export let embedRaf = 0;
 
-/** What the host said of each origin (true, false), or the question still
- *  on its way. A question that fails answers no: the child view takes it. */
-const frameVerdicts = new Map<string, boolean | Promise<boolean>>();
+/** Origins whose answer the embeds are waiting for. The answers
+ *  themselves are the window's one cache (screen/framed.ts), shared with
+ *  the approval's check and the board's page cards: the host is asked once
+ *  per origin. */
+const waiting = new Set<string>();
 
 /** Whether `url`'s site may be framed: undefined while the host is asked
  *  (the embeds are looked at again when it answers). */
-function frameable(url: string): boolean | undefined {
+function frameableNow(url: string): boolean | undefined {
+  if (isAppOrigin(url)) return false;
   let origin: string;
   try {
     origin = new URL(url).origin;
@@ -49,14 +52,10 @@ function frameable(url: string): boolean | undefined {
   }
   const known = frameVerdicts.get(origin);
   if (typeof known === "boolean") return known;
-  if (!known) {
-    const ask = commands.embedFrameable(url).then(
-      (r) => r.status === "ok" && r.data,
-      () => false,
-    );
-    frameVerdicts.set(origin, ask);
-    void ask.then((v) => {
-      frameVerdicts.set(origin, v);
+  if (!waiting.has(origin)) {
+    waiting.add(origin);
+    void frameable(url).then(() => {
+      waiting.delete(origin);
       syncEmbedViews();
     });
   }
@@ -90,6 +89,27 @@ export function embedFrame(url: string): HTMLIFrameElement {
   return frame;
 }
 
+/* What can move a box without a resize, a scroll or a change below the
+ * body: the look applied on the root (its data-* attributes and the
+ * custom properties on its style: text width, line height, spacing,
+ * heading scale, font size), a font arriving, and the box's own size
+ * changing for any reason. The child view is placed in window pixels, so
+ * each of these has to send the box again. */
+let boxWatch: ResizeObserver | null = null;
+export function watchEmbedLayout(): void {
+  new MutationObserver(() => {
+    syncWebViews();
+    syncEmbedViews();
+  }).observe(document.documentElement, { attributes: true });
+  void document.fonts?.ready.then(syncEmbedViews);
+  document.fonts?.addEventListener?.("loadingdone", syncEmbedViews);
+}
+function watchBox(el: HTMLElement): void {
+  if (typeof ResizeObserver === "undefined") return;
+  boxWatch ??= new ResizeObserver(syncEmbedViews);
+  boxWatch.observe(el);
+}
+
 export function syncEmbedViews(): void {
   if (!embedRaf) embedRaf = window.requestAnimationFrame(tickEmbedViews);
   for (const v of embedViews.values()) v.still = 0;
@@ -100,6 +120,7 @@ export function tickEmbedViews(): void {
   for (const [el, v] of embedViews) {
     if (!el.isConnected || !el.hasAttribute("data-embed-web")) {
       embedViews.delete(el);
+      boxWatch?.unobserve(el);
       if (v.label) void commands.webClose(v.label);
     }
   }
@@ -119,7 +140,7 @@ export function tickEmbedViews(): void {
     if (!embedViews.has(el)) {
       // Not asked yet, or asked: a site that allows it gets a frame in the
       // box; one that refuses (or the answer not in yet) gets no frame.
-      const framed = frameable(url);
+      const framed = frameableNow(url);
       if (framed === undefined) continue;
       if (framed) {
         el.removeAttribute("data-embed-web");
@@ -132,6 +153,7 @@ export function tickEmbedViews(): void {
     if (!v) {
       v = { label: null, opening: false, last: "", still: 0 };
       embedViews.set(el, v);
+      watchBox(el);
     }
     // What shows: every ancestor that clips the box, the window, and the
     // chrome around the panes. A child view floats over everything, so

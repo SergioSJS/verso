@@ -41,6 +41,16 @@ it (Status).
    are buttons, reached with Tab after the title, ↑ and ↓ between them,
    Enter to choose and Esc to put it away; after a choice the caret is in
    the note's text. The words are the interface's language.
+6. **Where the list looks for templates** (R.1, option A, `[DECIDED
+   2026-10-21]`). The item 1 above speaks of "the templates folder" of
+   Settings only. As built (`app/ui/src/templatePicker.ts`), the list also
+   looks in folders named `Modelos` or `Templates` **above the new note**
+   (up the path of its folder) and in a `Modelos` folder at the root. The
+   maintainer kept it and asked that it be recorded here: the templates of a
+   project made by the assistant are valid inside that project. Option B,
+   only the Settings folder, as the item first said, was not chosen: more
+   predictable, but each project's templates would stop showing up by
+   themselves.
 
 The file stays Markdown: a note made from a template is an ordinary note
 for Obsidian.
@@ -63,4 +73,5 @@ for Obsidian.
 ## Status
 
 Accepted (2026-10-07): the maintainer, in session, choosing the option
-above.
+above. Item 6 added on 2026-10-21 by the maintainer's answer R.1 (option A),
+recording what was built.

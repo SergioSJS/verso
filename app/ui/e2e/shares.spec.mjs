@@ -49,6 +49,43 @@ test("the folder switcher groups this computer, mine and shared with me", async 
   await expect(box).toBeHidden();
 });
 
+test("the folder switcher sets its action apart, tells two folders of one name apart, and caps a long list", async ({ app }) => {
+  await app.open();
+  await app.page.evaluate(() => {
+    const h = window.__harness.core.handlers;
+    const folders = [
+      { key: "a", name: "Caderno", place: "~/Documents" },
+      { key: "b", name: "Caderno", place: "~/…/Dropbox/antigo" },
+      ...Array.from({ length: 9 }, (_, i) => ({ key: `k${i}`, name: `Pasta ${i}`, place: "~/Projetos" })),
+    ];
+    h.recent_folders = () => folders;
+  });
+  await app.page.locator("#open").click();
+  const box = app.page.getByRole("dialog", { name: "Trocar de pasta" });
+  const here = box.getByRole("region", { name: "Neste computador" });
+  // The action: first, with its own icon and look, not one of the folder rows.
+  const action = here.getByRole("button", { name: "Abrir outra pasta…" });
+  await expect(action).toHaveClass(/sw-action/);
+  await expect(here.locator(".switcher-list button", { hasText: "Abrir outra pasta" })).toHaveCount(0);
+  await expect(action.locator("svg")).toHaveCount(1);
+  // Two of one name: told apart by where they sit, and the title says it whole.
+  const rows = here.locator(".switcher-list li > button:not(.sw-hide)");
+  await expect(rows.nth(0)).toContainText("~/Documents");
+  await expect(rows.nth(1)).toContainText("~/…/Dropbox/antigo");
+  await expect(rows.nth(0)).toHaveAttribute("title", "Caderno — ~/Documents");
+  await expect(rows.nth(0).locator("svg")).toHaveCount(1);
+  // The list stops at eight; "3 more…" shows the rest and puts the focus on the ninth.
+  await expect(rows).toHaveCount(9);
+  await box.getByRole("button", { name: "Mais 3…" }).click();
+  await expect(rows).toHaveCount(11);
+  await expect(rows.nth(8)).toBeFocused();
+  // Arrows walk the buttons.
+  await app.page.keyboard.press("ArrowDown");
+  await expect(rows.nth(9)).toBeFocused();
+  await app.page.keyboard.press("Home");
+  await expect(action).toBeFocused();
+});
+
 test("the owner shares a folder: mark, people, roles and removal asked first", async ({ app }) => {
   await app.open();
   const folder = await aFolder(app);
@@ -80,7 +117,7 @@ test("the owner shares a folder: mark, people, roles and removal asked first", a
   // The window learns it when the folder is shown again: from the
   // switcher, the folder of this computer.
   await app.page.locator("#open").click();
-  await app.page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Neste computador" }).getByRole("button").first().click();
+  await app.page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Neste computador" }).locator(".switcher-list button").first().click();
   const mark = app.page.locator(`summary[data-folder="${folder}"] .share-mark`);
   await expect(mark).toHaveAttribute("aria-label", "compartilhada com 1 pessoa");
   await app.page.locator(`summary[data-folder="${folder}"]`).click({ button: "right" });

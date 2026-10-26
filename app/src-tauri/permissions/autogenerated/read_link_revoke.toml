@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-link-revoke"
+description = "Enables the read_link_revoke command without any pre-configured scope."
+commands.allow = ["read_link_revoke"]
+
+[[permission]]
+identifier = "deny-read-link-revoke"
+description = "Denies the read_link_revoke command without any pre-configured scope."
+commands.deny = ["read_link_revoke"]

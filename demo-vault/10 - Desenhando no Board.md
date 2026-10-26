@@ -10,7 +10,7 @@ status: ativo
 
 # Desenhando no Board
 
-Os boards do Verso são desenhados com o **Excalidraw**. Para aprender fazendo, abra o [[Treino do Board.canvas|Treino do Board]]: treze lições, cada uma com um espaço para praticar. Esta nota é a cola, para consultar depois.
+Os boards do Verso são desenhados com o **Excalidraw**. Para aprender fazendo, abra o [[Treino do Board.canvas|Treino do Board]]: catorze lições, cada uma com um espaço para praticar. Esta nota é a cola, para consultar depois.
 
 ![[Treino do Board.canvas]]
 
@@ -37,7 +37,7 @@ Cada ferramenta da barra de cima tem a sua tecla, que aparece ao lado do ícone.
 | `K` | Apontador laser |
 | `Q` | Manter a ferramenta depois de desenhar |
 
-Segure `⇧` enquanto desenha para fazer quadrados e círculos perfeitos. Um duplo clique no vazio escreve um texto.
+Segure `⇧` enquanto desenha para fazer quadrados e círculos perfeitos. Um duplo clique no vazio põe um **cartão de texto** (Markdown, onde um código `dice:` vira dado) — o botão **Cartão de texto** da barra faz o mesmo; em **Ajustes › Board › Duplo clique no board cria** você troca por **Texto desenhado**, o texto solto do Excalidraw. Para o texto desenhado, use a ferramenta Texto (`T`).
 
 Em **Mais ferramentas** (o `⋮` da barra) estão também **Desenho vira forma** (`⇧ X`: um rabisco vira retângulo, círculo, losango, linha ou seta) e **Balde de tinta** (`B`: pinta uma região fechada).
 

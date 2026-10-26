@@ -17,7 +17,7 @@ Este documento demonstra os elementos visuais e de edição do Markdown suportad
 
 ## Títulos e Recolhimento de Seções
 
-Ao passar o mouse pela margem esquerda, ao lado dos títulos abaixo, clique na seta para recolher ou expandir a seção. Na paleta (`⌘⇧P`), **Contrair todas as seções** e **Expandir todas as seções** fazem isso com a nota inteira.
+Ao passar o mouse pela margem esquerda, ao lado dos títulos abaixo, clique na seta para recolher ou expandir a seção. Na paleta (`⌘⇧P`), **Contrair todas as seções** e **Expandir todas as seções** fazem isso com a nota inteira. O Verso lembra o que você recolheu quando a nota é fechada e aberta de novo (neste computador, sem mexer no arquivo), e clicar num título na **Estrutura** da barra lateral direita expande as seções que o escondem.
 
 ### Subtítulo H3: Exemplo de Seção
 Esta seção pode ser recolhida usando a seta na margem esquerda. O conteúdo abaixo ficará oculto até que a seção seja expandida novamente.

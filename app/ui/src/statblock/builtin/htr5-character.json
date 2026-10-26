@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "id": "htr5-character",
+  "name": {
+    "pt": "Hunter (H5) — Personagem",
+    "en": "Hunter (H5) — Character"
+  },
+  "description": {
+    "pt": "Hunter: The Reckoning 5ª edição. Ficha de personagem: identidade, atributos, perícias, Vantagens e Benefícios, a Desesperança do grupo e as trilhas de dano. Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). Só nomes e ordem dos campos.",
+    "en": "Hunter: The Reckoning 5th edition. A character sheet: identity, attributes, skills, Edges and Perks, the cell's Desperation and the damage tracks. Unofficial fan-made material, not official World of Darkness material (Dark Pack). Field names and order only."
+  },
+  "sources": [
+    {
+      "label": "Hunter: The Reckoning wiki, character creation (CC BY-SA 3.0)",
+      "url": "https://htr.paradoxwikis.com/Character_creation"
+    },
+    {
+      "label": "Hunter: The Reckoning wiki, Desperation",
+      "url": "https://htr.paradoxwikis.com/Desperation"
+    },
+    {
+      "label": "Paradox Dark Pack Agreement",
+      "url": "https://www.paradoxinteractive.com/games/world-of-darkness/community/dark-pack-agreement"
+    }
+  ],
+  "profile": "wod5",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"identity","properties":["concept","creed","cell","ambition","desire","drive","redemption"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"concept","properties":["concept"],"label":{"pt":"Conceito","en":"Concept"},"hideWhenEmpty":true},{"type":"property","id":"creed","properties":["creed"],"label":{"pt":"Credo","en":"Creed"},"hideWhenEmpty":true},{"type":"property","id":"cell","properties":["cell"],"label":{"pt":"Célula","en":"Cell"},"hideWhenEmpty":true},{"type":"property","id":"ambition","properties":["ambition"],"label":{"pt":"Ambição","en":"Ambition"},"hideWhenEmpty":true},{"type":"property","id":"desire","properties":["desire"],"label":{"pt":"Desejo","en":"Desire"},"hideWhenEmpty":true},{"type":"property","id":"drive","properties":["drive"],"label":{"pt":"Impulso","en":"Drive"},"hideWhenEmpty":true},{"type":"property","id":"redemption","properties":["redemption"],"label":{"pt":"Redenção","en":"Redemption"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"attributes-physical","properties":["attributes_physical"],"label":{"pt":"Atributos: Físicos","en":"Attributes: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-social","properties":["attributes_social"],"label":{"pt":"Atributos: Sociais","en":"Attributes: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"attributes-mental","properties":["attributes_mental"],"label":{"pt":"Atributos: Mentais","en":"Attributes: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-physical","properties":["skills_physical"],"label":{"pt":"Perícias: Físicas","en":"Skills: Physical"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-social","properties":["skills_social"],"label":{"pt":"Perícias: Sociais","en":"Skills: Social"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills-mental","properties":["skills_mental"],"label":{"pt":"Perícias: Mentais","en":"Skills: Mental"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"edges","properties":["edges"],"label":{"pt":"Edges","en":"Edges"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"perks","properties":["perks"],"label":{"pt":"Benefícios","en":"Perks"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"creed-fields","properties":["creed_fields"],"label":{"pt":"Campos do Credo","en":"Creed Fields"},"hideWhenEmpty":true,"dice":false},
+    {"type":"group","id":"cell-tracks","properties":["desperation","desperation_max","danger","despair"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"desperation","properties":["desperation","desperation_max"],"label":{"pt":"Desesperança (célula)","en":"Desperation (cell)"},"hideWhenEmpty":true,"current":"desperation","max":"desperation_max","style":"boxes"},{"type":"property","id":"danger","properties":["danger"],"label":{"pt":"Perigo (célula)","en":"Danger (cell)"},"hideWhenEmpty":true},{"type":"property","id":"despair","properties":["despair"],"label":{"pt":"Desespero","en":"Despair"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"tracks-damage","properties":["health_superficial","health","health_aggravated","health","willpower_superficial","willpower","willpower_aggravated","willpower","health","willpower"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"health-superficial","properties":["health_superficial","health"],"label":{"pt":"Saúde: dano superficial","en":"Health: superficial damage"},"hideWhenEmpty":true,"current":"health_superficial","max":"health","style":"boxes"},{"type":"tracker","id":"health-aggravated","properties":["health_aggravated","health"],"label":{"pt":"Saúde: dano agravado","en":"Health: aggravated damage"},"hideWhenEmpty":true,"current":"health_aggravated","max":"health","style":"boxes"},{"type":"tracker","id":"willpower-superficial","properties":["willpower_superficial","willpower"],"label":{"pt":"Força de Vontade: dano superficial","en":"Willpower: superficial damage"},"hideWhenEmpty":true,"current":"willpower_superficial","max":"willpower","style":"boxes"},{"type":"tracker","id":"willpower-aggravated","properties":["willpower_aggravated","willpower"],"label":{"pt":"Força de Vontade: dano agravado","en":"Willpower: aggravated damage"},"hideWhenEmpty":true,"current":"willpower_aggravated","max":"willpower","style":"boxes"},{"type":"property","id":"health","properties":["health"],"label":{"pt":"Saúde (trilha)","en":"Health (track)"},"hideWhenEmpty":true},{"type":"property","id":"willpower","properties":["willpower"],"label":{"pt":"Força de Vontade (trilha)","en":"Willpower (track)"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"chronicle-tenets","properties":["chronicle_tenets"],"label":{"pt":"Princípios da Crônica","en":"Chronicle Tenets"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"touchstones","properties":["touchstones"],"label":{"pt":"Âncoras","en":"Touchstones"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"advantages","properties":["advantages"],"label":{"pt":"Vantagens","en":"Advantages"},"hideWhenEmpty":true,"dice":false},
+    {"type":"traits","id":"flaws","properties":["flaws"],"label":{"pt":"Defeitos","en":"Flaws"},"hideWhenEmpty":true,"dice":false},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool (dados regulares e de Desesperança)","en":"Roll the pool (regular and Desperation dice)"},"inputs":{}},
+    {"type":"text","id":"notice","properties":[],"text":{"pt":"Material não oficial feito por fãs, não é material oficial de World of Darkness (Dark Pack). © Paradox Interactive AB — veja os créditos em Ajustes.","en":"Unofficial fan-made material, not official World of Darkness material (Dark Pack). © Paradox Interactive AB — see Credits in Settings."},"dice":false,"rule":false}
+  ]
+}

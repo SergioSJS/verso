@@ -1,0 +1,50 @@
+{
+  "verso-theme": 1,
+  "name": "Dracula",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Dracula",
+    "author": "Zeno Rocha",
+    "repoUrl": "https://github.com/dracula/dracula-theme",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#282a36",
+      "--paper-2": "#21222c",
+      "--hair": "#44475a",
+      "--ink": "#f8f8f2",
+      "--ink-2": "#6272a4",
+      "--seal": "#bd93f9",
+      "--brass-ink": "#ff79c6",
+      "--code-paper": "#343746",
+      "--code-ink": "#f8f8f2",
+      "--h1-color": "#bd93f9",
+      "--h2-color": "#ffb86c",
+      "--h3-color": "#50fa7b",
+      "--h4-color": "#ff5555",
+      "--h5-color": "#f1fa8c",
+      "--h6-color": "#bd93f4",
+      "--red": "#ff5555",
+      "--orange": "#ffb86c",
+      "--yellow": "#f1fa8c",
+      "--green": "#50fa7b",
+      "--cyan": "#8be9fd",
+      "--blue": "#bd93f9",
+      "--purple": "#bd93f9",
+      "--pink": "#ff79c6",
+      "--hr-color": "#f8f8f2"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "hr-style": "line"
+  }
+}

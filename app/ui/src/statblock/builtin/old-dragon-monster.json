@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "old-dragon-monster",
+  "name": {
+    "pt": "Old Dragon 2e — Monstro",
+    "en": "Old Dragon 2e — Monster"
+  },
+  "description": {
+    "pt": "Só os nomes dos campos (CC BY-SA 4.0): nenhum texto do livro.",
+    "en": "Field names only (CC BY-SA 4.0): no book text. The generic words are in English; the game's abbreviations (CA, BA, JP, PV…) are the book's own, in Portuguese."
+  },
+  "sources": [
+    {
+      "label": "Old Dragon 2e SRD (CC BY-SA 4.0)",
+      "url": "https://olddragon.com.br/livros/srd"
+    },
+    {
+      "label": "Licenciamento",
+      "url": "https://olddragon.com.br/licenciamento"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"geral","properties":["tamanho","alinhamento","habitat","qt","ts","xp","mv","mo"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"tamanho","properties":["tamanho"],"label":{"pt":"Tamanho","en":"Size"},"hideWhenEmpty":true},{"type":"property","id":"alinhamento","properties":["alinhamento"],"label":{"pt":"Alinhamento","en":"Alignment"},"hideWhenEmpty":true},{"type":"property","id":"habitat","properties":["habitat"],"label":{"pt":"Habitat","en":"Habitat"},"hideWhenEmpty":true},{"type":"property","id":"qt","properties":["qt"],"label":{"pt":"QT","en":"QT"},"hideWhenEmpty":true},{"type":"property","id":"ts","properties":["ts"],"label":{"pt":"TS","en":"TS"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true},{"type":"property","id":"mv","properties":["mv"],"label":{"pt":"MV","en":"MV"},"hideWhenEmpty":true},{"type":"property","id":"mo","properties":["mo"],"label":{"pt":"MO","en":"MO"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"combate","properties":["ca","dv","jp","atq"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ca","properties":["ca"],"label":{"pt":"CA","en":"CA"},"hideWhenEmpty":true},{"type":"property","id":"dv","properties":["dv"],"label":{"pt":"DV","en":"DV"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"jp","properties":["jp"],"label":{"pt":"JP","en":"JP"},"hideWhenEmpty":true},{"type":"property","id":"atq","properties":["atq"],"label":{"pt":"ATQ","en":"ATQ"},"hideWhenEmpty":true,"dice":true}]},
+    {"type":"text","id":"descricao","properties":["descricao"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"utilidades","properties":["utilidades"],"label":{"pt":"Utilidades","en":"Utilities"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a test (d20 under)"},"inputs":{}}
+  ]
+}

@@ -1,0 +1,18 @@
+name: Odo Brannigan
+class: Ranger
+level: 2
+one_unique_thing: Carries a map of a city that has not been built yet
+attributes: [12, 14, 16, 10, 13, 8]
+hp: 36
+hp_current: 30
+ac: 17
+pd: 14
+md: 12
+initiative: +5
+recoveries: 6
+recoveries_max: 8
+backgrounds:
+  trapper: 3
+  deserter: 2
+powers:
+  - Our own placeholder power

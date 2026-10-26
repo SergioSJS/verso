@@ -1,0 +1,44 @@
+{
+  "verso-theme": 1,
+  "name": "Atom",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Atom",
+    "author": "kognise",
+    "repoUrl": "https://github.com/kognise/obsidian-atom",
+    "license": "Unlicense"
+  },
+  "values": {
+    "light": {
+      "--paper": "#fafafa",
+      "--paper-2": "#eaeaeb",
+      "--hair": "#dbdbdc",
+      "--ink": "#383a42",
+      "--ink-2": "#8e8e90",
+      "--seal": "#1592ff",
+      "--brass-ink": "#383a42"
+    },
+    "dark": {
+      "--paper": "#272b34",
+      "--paper-2": "#20242b",
+      "--hair": "#424958",
+      "--ink": "#dcddde",
+      "--ink-2": "#888888",
+      "--seal": "#61afef",
+      "--brass-ink": "#dcddde"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "checkbox-style": "rounded",
+    "hr-style": "line"
+  }
+}

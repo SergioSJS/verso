@@ -91,7 +91,7 @@ Two groups ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), [ADR 0067](docs/adr/0
 | Public docs mirror & links | Public documents mirrored in `docs/pt-BR/` with same headings; all relative links across `.md` files resolve ([ADR 0008](docs/adr/0008-documentation-language.md)) | `bash scripts/check-docs-mirror.sh` |
 | Dialect fixtures | Fixture structure, keys, and no unapproved draft on `main` ([ADR 0031](docs/adr/0031-fixtures-as-contract.md)) | `bash scripts/check-fixtures.sh` |
 | Demo vault tutorial | Demo vaults (`demo-vault/` and `demo-vault-en/`) hold together, embeds and boards valid ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)) | `node scripts/demo-vault.mjs check` |
-| Theme catalogue | Shipped `.verso-theme` files pass contrast floor (3:1), allowed licences and SHA-256 listing ([ADR 0100](docs/adr/0100-visual-customization-wizard.md), ADR 0109) | `node scripts/check-theme-catalogue.mjs` |
+| Theme catalogue | Shipped `.verso-theme` files pass contrast floor (3:1), allowed licences and SHA-256 listing ([ADR 0109](docs/adr/0109-themes-v2-more-tokens-and-a-catalogue.md)) | `node scripts/check-theme-catalogue.mjs` |
 | Release page | Release page matches workflow artifacts ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)) | `node --test scripts/release-page.test.mjs` |
 | Generated types | TypeScript types match Rust contract ([ADR 0026](docs/adr/0026-core-ui-contract-inviolable-rules.md)) | Generated via `verso-app --export-bindings` |
 | WebAssembly | Parser compiles to WASM without IO | `cargo check --target wasm32-unknown-unknown -p verso-dialect` |

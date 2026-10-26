@@ -38,12 +38,12 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 |---|---|---|
 | [0010](0010-folder-is-the-unit-no-vault.md) | The open folder is the unit of work; there is no vault | Accepted |
 | [0011](0011-config-outside-tree-index-as-cache.md) | Config outside the tree and the index as a rebuildable cache | Accepted |
-| [0041](0041-multi-root-workspace.md) | Workspace with multiple roots | Proposed |
+| [0041](0041-multi-root-workspace.md) | Workspace with multiple roots | Proposed; after V1 (2026-10-21) |
 | [0042](0042-open-from-command-line.md) | Open from the command line: `verso <folder>` | Accepted |
 | [0012](0012-files-are-source-of-truth.md) | Files are the source of truth; opening never rewrites | Accepted |
 | [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Accepted (2026-09-24) |
 | [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Accepted across 0052, 0053, 0057, 0093 |
-| [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
+| [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed; after V1 (2026-10-21); the bundles of 0098 are their format |
 | [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24) |
 | [0053](0053-views-bases.md) | Views over the folder: bases, in Obsidian's format | Accepted (2026-09-24) |
 | [0059](0059-tabs-preview-pinned.md) | Tabs: a preview tab by default, compact pinned tabs, the chosen tab joins its page | Accepted (2026-09-30) |
@@ -71,7 +71,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0016](0016-plugins-execution-and-capabilities.md) | Plugins: TypeScript in a Web Worker, no disk, with declared capabilities | Accepted |
 | [0017](0017-plugins-format-shim-loading.md) | Plugins: familiar format, separate shim, lazy loading and dogfooding | Proposed |
 | [0018](0018-llm-native-mcp-in-core.md) | LLM-native: MCP server in the core, structured query, reviewed writes | Accepted |
-| [0019](0019-generative-opt-in-and-keychain.md) | Generative features opt-in and keys in the keychain | Proposed |
+| [0019](0019-generative-opt-in-and-keychain.md) | Generative features opt-in and keys in the keychain | Accepted (2026-10-21) |
 
 ### Sync
 
@@ -92,14 +92,14 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted; revised 2026-10-09 |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Accepted (2026-10-12) |
 | [0028](0028-crate-structure.md) | Crate structure | Accepted; two server crates (2026-10-09) |
-| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted; revised 2026-09-29 |
+| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted; revised 2026-09-29; the setting's default, on, decided 2026-10-21 |
 | [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24) |
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29); revised 2026-10-14 |
 | [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29) |
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
 | [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Accepted (2026-10-12); shipped in 0.5.0-beta.1 |
 | [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Accepted (2026-10-12) |
-| [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Accepted; shipped in 0.6.0-beta.1 (2026-10-09) |
+| [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Accepted; shipped in 0.6.0-beta.1 (2026-10-09); accepted as a whole 2026-10-21 (no Snap for now, Wayland observed, case-only names after V1) |
 | [0072](0072-window-controls-in-the-app.md) | The window's controls inside the app: no title bar on macOS and Windows | Accepted (2026-10-08) |
 | [0073](0073-self-hosted-server-first.md) | Self-hosted server first: online collaboration before sync | Accepted (2026-10-09); revises 0020, 0021, 0025 |
 | [0074](0074-accounts-and-access-on-the-server.md) | Accounts and access on the server: the first admin, sign-in, tokens | Accepted (2026-10-09) |
@@ -118,14 +118,23 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0092](0092-the-phone-offline.md) | The phone offline: the window served by a UniVerso keeps chosen folders and syncs them | Accepted (2026-10-14) |
 | [0095](0095-mac-notarization-and-windows-code-signing.md) | Mac notarization and Windows code signing, and the Mac Intel build | Accepted (2026-10-14) |
 | [0096](0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Accepted (2026-10-15) |
-| [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md) | UniVerso found on the home network, and a bad DNS survived | Accepted (2026-10-16) |
-| [0098](0098-world-and-campaign-wizard-template-bundles.md) | The World and Campaign Wizard, and Template Bundles | Proposed (2026-10-17): world/campaign hierarchy wizard, declarative JSON bundle schema, Dados Críticos presets, and AI prompt generator with validation recovery loop |
-| [0099](0099-visual-markdown-statblocks-and-cards.md) | Visual Markdown: Statblocks and RPG Note Cards | Proposed (2026-10-17): frontmatter and codeblock statblocks rendering visual rulebook sheets with clickable rolls and agnostic system templates |
-| [0100](0100-visual-customization-wizard.md) | Visual Customization Wizard: Live CSS Styler, Themes, and Profiles | Proposed (2026-10-17): split-view live preview styler, human-friendly design tokens, .verso-theme profiles with export/import |
-| [0101](0101-3d-dice-physics-overlay.md) | 3D Dice Rolling with Physics: The Rolai Three.js Overlay | Proposed (2026-10-17): lazy WebGL overlay, deterministic physics landing matching mathematical roll, multi-client room sync |
-| [0102](0102-creative-oracles-and-improvisation.md) | Creative Oracles and Improvisation Engine | Proposed (2026-10-17): graduated yes/no oracle, idea sparks and complications, /oraculo slash command, extensible by vault tables |
-| [0103](0103-feature-presets-and-capability-flags.md) | Feature presets and capability flags: pure writing, worldbuilding, and tabletop RPG | Accepted (2026-10-17): writing, worldbuilding, and rpg presets; local-first settings layering (0070); graceful degradation leaving files untouched |
-| [0104](0104-external-cloud-storage-transports-and-quotas.md) | External cloud storage transports: OAuth verification, quotas, and file-by-file sync | Proposed (2026-10-20): zero-infrastructure cloud sync (Google Drive, OneDrive, Dropbox, WebDAV); per-user vs per-app rate limits; Google drive.file scope with demo video |
+| [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md) | UniVerso found on the home network, and a bad DNS survived | Accepted (2026-10-16); details decided as built 2026-10-21 |
+| [0098](0098-world-and-campaign-wizard-template-bundles.md) | The project wizard: a folder tree from a bundle, shown and edited before it is written | Accepted (2026-10-20) |
+| [0099](0099-visual-markdown-statblocks-and-cards.md) | Statblocks: a card from a `statblock` block, layouts as files of the folder, rolls by system | Accepted (2026-10-20) |
+| [0100](0100-visual-customization-wizard.md) | Appearance wizard: a live preview in Settings over the real tokens, saved profiles, and `.verso-theme` files | Accepted (2026-10-21) |
+| [0101](0101-3d-dice-physics-overlay.md) | 3D dice: a lazy module that only stages the fall, onto a result already drawn | Accepted (2026-10-21) |
+| [0102](0102-creative-oracles-and-improvisation.md) | Oracles and improvisation: graduated answers, idea sparks, a log in the note | Accepted (2026-10-20) |
+| [0103](0103-feature-presets-and-capability-flags.md) | Features: a visible switch for each optional feature, all on by default | Accepted (2026-10-20) |
+| [0104](0104-external-cloud-storage-transports-and-quotas.md) | Sync with a cloud the person already has: WebDAV, S3, Dropbox, OneDrive and Google Drive, through the sync of ADR 0079 | Accepted (2026-10-21) |
+| [0105](0105-read-links-without-an-account.md) | Read links without an account: a folder or one note of a UniVerso, open to whoever holds the link | Accepted (2026-10-21) |
+| [0106](0106-structured-data-as-a-diagram.md) | Structured data as a diagram: JSON, YAML and more formats drawn as boxes to move, fold and follow back to the text | Accepted (2026-10-21) |
+| [0107](0107-the-table-a-shared-roll-and-chat-log.md) | The table: one log of everyone's rolls and messages, beside the notes | Proposed (2026-10-21) |
+| [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Proposed (2026-10-22) |
+| [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Proposed (2026-10-22) |
+| [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Proposed (2026-10-22); superseded in part by 0113 |
+| [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
+| [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Proposed (2026-10-23) |
+| [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24) |
 
 ### Dialect, engineering and roadmap
 
@@ -141,7 +150,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
-| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01) |
+| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01); the demo vault in English before V1 (decided 2026-10-21) |
 
 ### Open technical decisions
 

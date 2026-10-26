@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "blades-scoundrel",
+  "name": {
+    "pt": "Blades in the Dark — Scoundrel",
+    "en": "Blades in the Dark — Scoundrel"
+  },
+  "description": {
+    "pt": "Ficha do scoundrel (CC BY 3.0): nomes e ordem dos campos, sem texto de livro.",
+    "en": "The scoundrel sheet (CC BY 3.0): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "Blades in the Dark SRD (CC BY 3.0)",
+      "url": "https://bladesinthedark.com/"
+    },
+    {
+      "label": "Character creation",
+      "url": "https://bladesinthedark.com/character-creation"
+    },
+    {
+      "label": "Actions and attributes",
+      "url": "https://bladesinthedark.com/actions-attributes"
+    },
+    {
+      "label": "Stress and trauma",
+      "url": "https://bladesinthedark.com/stress-trauma"
+    }
+  ],
+  "profile": "fitd",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","playbook"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["playbook"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["alias","look","heritage","background","vice","purveyor"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"alias","properties":["alias"],"label":{"pt":"Alias","en":"Alias"},"hideWhenEmpty":true},{"type":"property","id":"look","properties":["look"],"label":{"pt":"Look","en":"Look"},"hideWhenEmpty":true},{"type":"property","id":"heritage","properties":["heritage"],"label":{"pt":"Heritage","en":"Heritage"},"hideWhenEmpty":true},{"type":"property","id":"background","properties":["background"],"label":{"pt":"Background","en":"Background"},"hideWhenEmpty":true},{"type":"property","id":"vice","properties":["vice"],"label":{"pt":"Vice","en":"Vice"},"hideWhenEmpty":true},{"type":"property","id":"purveyor","properties":["purveyor"],"label":{"pt":"Purveyor","en":"Purveyor"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"insight","properties":["hunt","study","survey","tinker"],"label":{"pt":"Insight","en":"Insight"},"hideWhenEmpty":true,"headers":[{"pt":"Hunt","en":"Hunt"},{"pt":"Study","en":"Study"},{"pt":"Survey","en":"Survey"},{"pt":"Tinker","en":"Tinker"}],"modifier":"none","rule":true},
+    {"type":"table","id":"prowess","properties":["finesse","prowl","skirmish","wreck"],"label":{"pt":"Prowess","en":"Prowess"},"hideWhenEmpty":true,"headers":[{"pt":"Finesse","en":"Finesse"},{"pt":"Prowl","en":"Prowl"},{"pt":"Skirmish","en":"Skirmish"},{"pt":"Wreck","en":"Wreck"}],"modifier":"none"},
+    {"type":"table","id":"resolve","properties":["attune","command","consort","sway"],"label":{"pt":"Resolve","en":"Resolve"},"hideWhenEmpty":true,"headers":[{"pt":"Attune","en":"Attune"},{"pt":"Command","en":"Command"},{"pt":"Consort","en":"Consort"},{"pt":"Sway","en":"Sway"}],"modifier":"none"},
+    {"type":"group","id":"trackers","properties":["stress","stress_max","trauma","harm_1","harm_2","harm_3","harm_4","armor","load","healing_clock","coin","stash"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"stress","properties":["stress","stress_max"],"label":{"pt":"Stress","en":"Stress"},"hideWhenEmpty":true,"current":"stress","max":"stress_max","style":"boxes"},{"type":"property","id":"trauma","properties":["trauma"],"label":{"pt":"Trauma","en":"Trauma"},"hideWhenEmpty":true},{"type":"property","id":"harm-1","properties":["harm_1"],"label":{"pt":"Harm 1 (lesser)","en":"Harm 1 (lesser)"},"hideWhenEmpty":true},{"type":"property","id":"harm-2","properties":["harm_2"],"label":{"pt":"Harm 2 (moderate)","en":"Harm 2 (moderate)"},"hideWhenEmpty":true},{"type":"property","id":"harm-3","properties":["harm_3"],"label":{"pt":"Harm 3 (severe)","en":"Harm 3 (severe)"},"hideWhenEmpty":true},{"type":"property","id":"harm-4","properties":["harm_4"],"label":{"pt":"Harm 4 (fatal)","en":"Harm 4 (fatal)"},"hideWhenEmpty":true},{"type":"property","id":"armor","properties":["armor"],"label":{"pt":"Armor","en":"Armor"},"hideWhenEmpty":true},{"type":"property","id":"load","properties":["load"],"label":{"pt":"Load","en":"Load"},"hideWhenEmpty":true},{"type":"tracker","id":"healing","properties":["healing_clock"],"label":{"pt":"Healing clock","en":"Healing clock"},"hideWhenEmpty":true,"current":"healing_clock","max":4,"style":"boxes"},{"type":"property","id":"coin","properties":["coin"],"label":{"pt":"Coin","en":"Coin"},"hideWhenEmpty":true},{"type":"property","id":"stash","properties":["stash"],"label":{"pt":"Stash","en":"Stash"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"abilities","properties":["special_abilities"],"label":{"pt":"Special abilities","en":"Special abilities"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"friends","properties":["friends_rivals"],"label":{"pt":"Friends and rivals","en":"Friends and rivals"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"items","properties":["items"],"label":{"pt":"Items","en":"Items"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"xp","properties":["xp_playbook","xp_insight","xp_prowess","xp_resolve"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"xp-playbook","properties":["xp_playbook"],"label":{"pt":"XP: Playbook","en":"XP: Playbook"},"hideWhenEmpty":true},{"type":"property","id":"xp-insight","properties":["xp_insight"],"label":{"pt":"XP: Insight","en":"XP: Insight"},"hideWhenEmpty":true},{"type":"property","id":"xp-prowess","properties":["xp_prowess"],"label":{"pt":"XP: Prowess","en":"XP: Prowess"},"hideWhenEmpty":true},{"type":"property","id":"xp-resolve","properties":["xp_resolve"],"label":{"pt":"XP: Resolve","en":"XP: Resolve"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool de ação","en":"Roll an action pool"},"inputs":{}}
+  ]
+}

@@ -101,7 +101,10 @@ test("in a room the server rolls, and another member's roll shows with their nam
   const attack = preview.getByRole("button", { name: "Rolar 1d20+3" });
   await attack.click();
   await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
-  expect((await app.calls("collab_roll"))[0]).toEqual({ path: NOTE, notation: "1d20+3", source: null });
+  // The roll carries the roller's own dice, closed in form (ADR 0107 item 11), and is not secret.
+  const sent = (await app.calls("collab_roll"))[0];
+  expect({ path: sent.path, notation: sent.notation, source: sent.source, secret: sent.secret }).toEqual({ path: NOTE, notation: "1d20+3", source: null, secret: null });
+  expect(Object.keys(sent.styles).sort()).toEqual(["1", "2", "3"]);
   const card = preview.locator('.dice[data-dice="1d20+3"] .dice-card');
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
   // This window's own roll does not say whose it is.
@@ -118,6 +121,37 @@ test("in a room the server rolls, and another member's roll shows with their nam
   await expect(toast.locator(".notify-toast-title")).toHaveText("Mesa");
   await expect(toast.locator(".notify-toast-sentence")).toHaveText("Bia rolou 4d6kh3: 15 — 3, 6, 6 (descartados 1)");
   expect(await app.file(NOTE)).toBe(TEXT);
+});
+
+test("a roll heard from the room shows on the die that was clicked, not the first with its code (ADR 0107)", async ({ app, page }) => {
+  await app.open();
+  await page.evaluate(() => (window.__harness.rooms.up = true));
+  await page.evaluate((st) => {
+    window.__harness.core.handlers.folder_sync = () => st;
+  }, SYNCED);
+  await app.emit("sync-status", SYNCED);
+  const twice = "# Ficha\n\nForca: `dice: 1d20` e destreza: `dice: 1d20`.\n";
+  await app.writeOutside("Ficha.md", twice);
+  await app.folderChanged(["Ficha.md"], true);
+  await app.quickOpen("Ficha");
+  const dice = page.locator('.preview:visible .dice[data-dice="1d20"]');
+  await expect(dice).toHaveCount(2);
+  // Clicking the second die sends its place; this window shows it there.
+  await dice.nth(1).getByRole("button", { name: "Rolar 1d20" }).click();
+  await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
+  expect((await app.calls("collab_roll"))[0].occurrence).toBe(1);
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText(/^\d+$/);
+  await expect(dice.nth(0).locator(".dice-card")).toBeHidden();
+  // Bia clicks the first and then the second: each shows on its own die.
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [7], 0));
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("7");
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [19], 1));
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText("19");
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("7");
+  // An older peer's roll names none: the first die.
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [3]));
+  await expect(dice.nth(0).locator(".dice-total")).toHaveText("3");
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText("19");
 });
 
 test("the palette's roller rolls a typed notation and says what it does not read", async ({ app, page }) => {

@@ -34,36 +34,66 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Board } from "./demo-vault/canvas.mjs";
+import { NAMES, english, shared } from "./demo-vault/names.mjs";
+import { translator } from "./demo-vault/translate.mjs";
 import { tour } from "./demo-vault/tour.mjs";
 import { treino } from "./demo-vault/treino.mjs";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
-const vault = join(root, "demo-vault");
-const embedPath = join(root, "app/ui/src/demoVault.ts");
-const boards = { "Tour do Verso.canvas": tour, "Treino do Board.canvas": treino };
-const WELCOME = "00 - Bem-vindo ao Verso.md";
-const TOUR = "Tour do Verso.canvas";
+/** The two vaults (ADR 0058, point 15). Portuguese is the source and the
+ *  English one its twin: every file has its English path in `names.mjs`,
+ *  except the shared ones (`assets/`), which are kept once, in the
+ *  Portuguese folder, and embedded by both. */
+const LANGS = {
+  pt: {
+    dir: "demo-vault",
+    embed: "app/ui/src/demoVault.ts",
+    list: "DEMO_VAULT_FILES",
+    welcome: "00 - Bem-vindo ao Verso.md",
+    tour: "Tour do Verso.canvas",
+    boards: { "Tour do Verso.canvas": tour, "Treino do Board.canvas": treino },
+  },
+  en: {
+    dir: "demo-vault-en",
+    embed: "app/ui/src/demoVaultEn.ts",
+    list: "DEMO_VAULT_EN_FILES",
+    welcome: "00 - Welcome to Verso.md",
+    tour: "Verso Tour.canvas",
+    boards: { "Verso Tour.canvas": tour, "Board Training.canvas": treino },
+  },
+};
+const DIRS = Object.fromEntries(Object.entries(LANGS).map(([k, v]) => [k, join(root, v.dir)]));
 /** Links the tutorial leaves missing on purpose: note 02 shows a link that
  *  creates its note when it is followed. */
-const MEANT_MISSING = new Set(["nova ideia de projeto"]);
+const MEANT_MISSING = new Set(["nova ideia de projeto", "new project idea"]);
 
 /** The folder's files git tracks, relative to it: what the app embeds. A
  *  file left in the folder by a test (a daily note made in the app) is not
  *  the tutorial until it is added (review `board.md`, reading 5,
  *  finding 16); `untracked` names those. */
-function vaultFiles(which = "--cached") {
+function ownFiles(lang, which = "--cached") {
+  const dir = LANGS[lang].dir;
   const flags = which === "--cached" ? ["--cached"] : ["--others", "--exclude-standard"];
-  const out = execFileSync("git", ["-c", "core.quotepath=off", "ls-files", "-z", ...flags, "--", "demo-vault"], { cwd: root });
+  const out = execFileSync("git", ["-c", "core.quotepath=off", "ls-files", "-z", ...flags, "--", dir], { cwd: root });
   return out
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
-    .map((p) => p.slice("demo-vault/".length));
+    .map((p) => p.slice(`${dir}/`.length));
 }
-const untracked = () => vaultFiles("--others");
+/** The files a vault holds as the app sees it: its own, and for the English
+ *  one the shared ones, which live in the Portuguese folder. */
+function vaultFiles(lang, which = "--cached") {
+  if (lang === "pt" || which !== "--cached") return ownFiles(lang, which);
+  return [...ownFiles(lang), ...ownFiles("pt").filter(shared)];
+}
+/** Where a file of a vault is on disk. */
+const diskPath = (lang, p) => join(DIRS[lang === "en" && shared(p) ? "pt" : lang], p);
+const untracked = (lang) => ownFiles(lang, "--others");
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
@@ -72,8 +102,9 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
  *  the import compares a file already in the folder with, to tell a
  *  person's untouched copy of an older tutorial from the person's own edit
  *  (ADR 0058). */
-function historyHashes(p) {
-  const log = execFileSync("git", ["-c", "core.quotepath=off", "log", "--follow", "--name-only", "--format=@%H", "--", `demo-vault/${p}`], { cwd: root, maxBuffer: 1 << 28 })
+function historyHashes(lang, p) {
+  const dir = LANGS[lang === "en" && shared(p) ? "pt" : lang].dir;
+  const log = execFileSync("git", ["-c", "core.quotepath=off", "log", "--follow", "--name-only", "--format=@%H", "--", `${dir}/${p}`], { cwd: root, maxBuffer: 1 << 28 })
     .toString("utf8")
     .split("\n");
   const specs = [];
@@ -92,7 +123,7 @@ function historyHashes(p) {
     if (eol < 0) break;
     const header = out.subarray(at, eol).toString("utf8");
     at = eol + 1;
-    const name = (specs[spec++] ?? "").replace(/^[^:]*:/, "").replace(/^demo-vault\//, "");
+    const name = (specs[spec++] ?? "").replace(/^[^:]*:/, "").replace(`${dir}/`, "");
     const m = /^\S+ blob (\d+)$/.exec(header);
     if (!m) continue; // "<spec> missing": the file was deleted at that commit
     const size = Number(m[1]);
@@ -106,9 +137,10 @@ function historyHashes(p) {
  *  hashes of its earlier versions — git's history joined with the ones the
  *  embed already lists, so that a clone with a shallow history rebuilds the
  *  same text (the list only grows). */
-function embedText() {
-  const src = readFileSync(embedPath, "utf8");
-  const start = "export const DEMO_VAULT_FILES: DemoVaultFile[] = [";
+function embedText(lang) {
+  const embedPath = join(root, LANGS[lang].embed);
+  const start = `export const ${LANGS[lang].list}: DemoVaultFile[] = [`;
+  const src = existsSync(embedPath) ? readFileSync(embedPath, "utf8") : EN_HEAD + start;
   const at = src.indexOf(start);
   if (at < 0) throw new Error(`${embedPath}: no "${start}"`);
   const head = src.slice(0, at + start.length) + "\n";
@@ -121,16 +153,18 @@ function embedText() {
   for (const m of src.matchAll(/"path": ("(?:[^"\\]|\\.)*"),\s*"to": ("(?:[^"\\]|\\.)*"),\s*"past": \[([^\]]*)\]/g)) {
     retiredBefore.set(JSON.parse(m[1]), { to: JSON.parse(m[2]), past: [...m[3].matchAll(/"([0-9a-f]{64})"/g)].map((h) => h[1]) });
   }
-  const files = new Set(vaultFiles());
+  // The English embed holds only the files of its own folder: the shared
+  // ones are the Portuguese embed's, and the window joins the two.
+  const files = new Set(ownFiles(lang));
   const order = [...listed.filter((p) => files.has(p)), ...[...files].filter((p) => !listed.includes(p)).sort()];
   // A path the demo had and no longer has, that git follows to a file it
   // has now (a rename): the import moves the person's untouched copy of it
   // to the trash when it writes the current one.
   const retired = new Map(retiredBefore);
   const items = order.map((p) => {
-    const bytes = readFileSync(join(vault, p));
+    const bytes = readFileSync(join(DIRS[lang], p));
     const now = sha256(bytes);
-    const history = historyHashes(p);
+    const history = historyHashes(lang, p);
     const all = new Set(before.get(p) ?? []);
     for (const [name, hashes] of history) {
       for (const h of hashes) all.add(h);
@@ -147,6 +181,7 @@ function embedText() {
     return `  {\n    "path": ${JSON.stringify(p)},\n${list}    "b64": "${bytes.toString("base64")}"\n  }`;
   });
   const gone = [...retired].filter(([name]) => !files.has(name)).sort(([a], [b]) => (a < b ? -1 : 1));
+  if (lang === "en") return `${head}${items.join(",\n")}\n];\n`;
   const old = gone.length === 0
     ? "export const DEMO_RETIRED: DemoRetired[] = [];\n"
     : `export const DEMO_RETIRED: DemoRetired[] = [\n${gone
@@ -155,12 +190,17 @@ function embedText() {
   return `${head}${items.join(",\n")}\n];\n\n${old}`;
 }
 
-/** A board's text, read back as JSON before anything is written. */
-function boardText(make) {
-  const text = make().toString();
-  JSON.parse(text);
-  return text;
-}
+/** The text a new English embed starts from; the Portuguese one is always there. */
+const EN_HEAD = `// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+/** The English demo vault (ADR 0058, point 15), embedded apart from the
+ *  Portuguese one so that the window loads it only when it is imported.
+ *  Its shared files (\`assets/\`) are \`demoVault.ts\`'s. */
+import type { DemoVaultFile } from "./demoVault";
+
+`;
 
 // ---- The vault holding together ----------------------------------------
 
@@ -213,9 +253,11 @@ function unportable(name) {
   return device || /[. ]$/.test(name) || /[:*"<>?|\\\x00-\x1f]/.test(name);
 }
 
-function problems() {
-  const files = vaultFiles();
+function problems(lang) {
+  const { welcome: WELCOME, tour: TOUR } = LANGS[lang];
+  const files = vaultFiles(lang);
   const said = [];
+  if (lang === "en") twinProblems(said);
   // The tutorial carries no folder settings (ADR 0070): imported, it is
   // the person's folder, and its `.verso/` is made by their first change.
   for (const p of files.filter((f) => f === ".verso" || f.startsWith(".verso/"))) {
@@ -231,7 +273,7 @@ function problems() {
   for (const p of files) byName.set(fold(baseOf(p)), [...(byName.get(fold(baseOf(p))) ?? []), p]);
   const text = new Map();
   const read = (p) => {
-    if (!text.has(p)) text.set(p, readFileSync(join(vault, p), "utf8"));
+    if (!text.has(p)) text.set(p, readFileSync(diskPath(lang, p), "utf8"));
     return text.get(p);
   };
   const headings = (p) => new Set([...readable(read(p)).matchAll(/^#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$/gm)].map((m) => fold(m[1] ?? "")));
@@ -287,11 +329,13 @@ function problems() {
   }
 
   // The daily notes and the templates where the app looks by default: the
-  // window's pt-BR names (the demo vault is in Portuguese).
+  // window's names in the vault's language.
   const main = readFileSync(join(root, "app/ui/src/strings.ts"), "utf8");
   const ptStrings = main.slice(main.indexOf("const pt: Strings = {"), main.indexOf("const en: Strings = {"));
-  const daily = /dailyName: "([^"]+)"/.exec(ptStrings)?.[1];
-  const templates = /templatesName: "([^"]+)"/.exec(ptStrings)?.[1];
+  const enStrings = main.slice(main.indexOf("const en: Strings = {"));
+  const ofLang = lang === "en" ? enStrings : ptStrings;
+  const daily = /dailyName: "([^"]+)"/.exec(ofLang)?.[1];
+  const templates = /templatesName: "([^"]+)"/.exec(ofLang)?.[1];
   if (!daily || !templates) said.push("app/ui/src/strings.ts: the default folders of the daily notes and the templates were not found");
   else {
     if (!files.some((p) => new RegExp(`^${daily}/\\d{4}-\\d{2}-\\d{2}\\.md$`).test(p.normalize("NFC")))) said.push(`no daily note in ${daily}/, where the app looks for them`);
@@ -312,27 +356,82 @@ function problems() {
   return said;
 }
 
-const [command] = process.argv.slice(2);
-if (command === "build") {
-  for (const [name, make] of Object.entries(boards)) writeFileSync(join(vault, name), boardText(make));
-  writeFileSync(embedPath, embedText());
-  console.log(`demo vault: ${Object.keys(boards).length} boards written, ${vaultFiles().length} files embedded`);
-  const left = untracked();
-  if (left.length > 0) console.error(`Not embedded, not tracked by git (add them to make them part of the tutorial): ${left.join(", ")}`);
-  const said = problems();
-  if (said.length > 0) console.error(`The vault does not hold together yet (check will refuse it):\n  ${said.join("\n  ")}`);
-} else if (command === "check") {
-  const stale = [];
-  for (const [name, make] of Object.entries(boards)) {
-    if (readFileSync(join(vault, name), "utf8") !== boardText(make)) stale.push(`demo-vault/${name}`);
+/** The two vaults are twins (ADR 0058, point 15): every Portuguese file has
+ *  an English path in the manifest, no English file lacks one, and a shared
+ *  file is kept once. */
+function twinProblems(said) {
+  const pt = new Set(ownFiles("pt"));
+  const en = new Set(ownFiles("en"));
+  const named = new Set(Object.values(NAMES));
+  for (const p of pt) {
+    if (shared(p)) continue;
+    const to = NAMES[p];
+    if (to === undefined) said.push(`demo-vault/${p} has no English twin in scripts/demo-vault/names.mjs`);
+    else if (!en.has(to)) said.push(`demo-vault/${p}: its English twin demo-vault-en/${to} does not exist`);
   }
-  if (readFileSync(embedPath, "utf8") !== embedText()) stale.push("app/ui/src/demoVault.ts");
-  const said = problems();
-  if (stale.length > 0) console.error(`Not built from the demo vault's sources (ADR 0058): ${stale.join(", ")}\nRun: node scripts/demo-vault.mjs build`);
-  if (said.length > 0) console.error(`The demo vault does not hold together (ADR 0058):\n  ${said.join("\n  ")}`);
-  if (stale.length > 0 || said.length > 0) process.exit(1);
-  console.log(`demo vault: boards and embed up to date; ${vaultFiles().length} files hold together`);
+  for (const p of Object.keys(NAMES)) if (!pt.has(p)) said.push(`names.mjs: ${p} is not a file of demo-vault/ any more`);
+  for (const p of en) {
+    if (shared(p)) said.push(`demo-vault-en/${p}: a shared file is kept once, in demo-vault/`);
+    else if (!named.has(p)) said.push(`demo-vault-en/${p} is the twin of no file in scripts/demo-vault/names.mjs`);
+  }
+}
+
+/** The boards of a vault, built: their text now, and what their words lack
+ *  or hold over. The boards' modules are written in Portuguese; an English
+ *  board is the same drawing said by `scripts/demo-vault/en-boards.mjs`,
+ *  one translator for both so that a pair used by either is used. */
+function boardsOf(lang) {
+  const t = translator(lang);
+  const made = Object.entries(LANGS[lang].boards).map(([name, make]) => {
+    const text = make(new Board(t.tr, t.name)).toString();
+    JSON.parse(text);
+    return { name, text };
+  });
+  const said = [];
+  for (const m of t.missing()) said.push(`scripts/demo-vault/en-boards.mjs: no English for ${JSON.stringify(m)}`);
+  for (const u of t.unused()) said.push(`scripts/demo-vault/en-boards.mjs: ${JSON.stringify(u)} is said by no board`);
+  return { made, said };
+}
+
+const [command, only] = process.argv.slice(2);
+const langs = only === undefined ? ["pt", "en"] : [only];
+if (command === "build") {
+  for (const lang of langs) {
+    const { made, said: words } = boardsOf(lang);
+    for (const m of words) console.error(m);
+    for (const b of made) writeFileSync(join(DIRS[lang], b.name), b.text);
+    writeFileSync(join(root, LANGS[lang].embed), embedText(lang));
+    console.log(`demo vault (${lang}): ${made.length} boards written, ${ownFiles(lang).length} files embedded`);
+    const left = untracked(lang);
+    if (left.length > 0) console.error(`Not embedded, not tracked by git (add them to make them part of the tutorial): ${left.join(", ")}`);
+    const said = problems(lang);
+    if (said.length > 0) console.error(`The ${lang} vault does not hold together yet (check will refuse it):\n  ${said.join("\n  ")}`);
+  }
+} else if (command === "check") {
+  let failed = false;
+  for (const lang of langs) {
+    const stale = [];
+    const { made, said: words } = boardsOf(lang);
+    for (const b of made) {
+      const have = existsSync(join(DIRS[lang], b.name)) ? readFileSync(join(DIRS[lang], b.name), "utf8") : null;
+      if (have !== b.text) stale.push(`${LANGS[lang].dir}/${b.name}`);
+    }
+    const embedPath = join(root, LANGS[lang].embed);
+    if (!existsSync(embedPath) || readFileSync(embedPath, "utf8") !== embedText(lang)) stale.push(LANGS[lang].embed);
+    const said = [...words, ...problems(lang)];
+    if (stale.length > 0) console.error(`Not built from the demo vault's sources (ADR 0058): ${stale.join(", ")}\nRun: node scripts/demo-vault.mjs build`);
+    if (said.length > 0) console.error(`The ${lang} demo vault does not hold together (ADR 0058):\n  ${said.join("\n  ")}`);
+    if (stale.length > 0 || said.length > 0) failed = true;
+    else console.log(`demo vault (${lang}): boards and embed up to date; ${vaultFiles(lang).length} files hold together`);
+  }
+  if (failed) process.exit(1);
+} else if (command === "links") {
+  // The quick look while the English notes are being written: the vault
+  // holding together, without the boards or the embed.
+  const said = problems(only ?? "en");
+  for (const line of said) console.error(line);
+  console.log(`${said.length} problems`);
 } else {
-  console.error("usage: node scripts/demo-vault.mjs build|check");
+  console.error("usage: node scripts/demo-vault.mjs build|check|links [pt|en]");
   process.exit(2);
 }
