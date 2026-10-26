@@ -25,7 +25,7 @@ test("a note opens within the budget, fresh and from an open tab, and is not uns
     await expect(page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
     const began = Date.now();
     await box.press("Enter");
-    await expect(page.locator(".cm-content:visible").first()).toContainText(`texto de ${name}`, { timeout: 15_000 });
+    await expect(page.locator(".leaf:not([hidden])")).toContainText(`texto de ${name}`, { timeout: 15_000 });
     return Date.now() - began;
   };
 
