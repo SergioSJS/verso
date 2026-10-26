@@ -118,6 +118,18 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
    *  selection and the tool are the board's own state, untouched — and what
    *  the board drew that the room does not hold goes. Nothing of it is sent
    *  back: the window agrees with the room. */
+  protected override beforeRejoin(): void {
+    // What the board holds as the refusal came, and a change still waiting
+    // to go: told from what the person changes while the state comes in.
+    this.during = this.pending ? { ...this.pending } : null;
+    this.snapshot = new Map((this.last?.scene ?? []).map((e) => [e.id, `${rankOf(e).version}:${rankOf(e).nonce}`] as const));
+    window.clearTimeout(this.pushTimer);
+    this.pushTimer = undefined;
+    this.pending = null;
+  }
+  private during: { scene: readonly El[]; user: boolean; background: string } | null = null;
+  private snapshot = new Map<string, string>();
+
   protected override reborn(): void {
     window.clearTimeout(this.pushTimer);
     window.clearTimeout(this.canvasTimer);
@@ -125,8 +137,22 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.canvasTimer = undefined;
     this.bind();
     const room = this.resolved();
+    // What the person did while the state came in: kept, never undone, and
+    // judged by the room as any change.
+    const during = this.during;
+    this.during = null;
+    const kept = new Set<string>();
+    for (const e of during?.scene ?? []) {
+      const r = rankOf(e);
+      if (this.snapshot.get(e.id) !== `${r.version}:${r.nonce}`) kept.add(e.id);
+    }
+    const seen = new Set((this.last?.scene ?? []).map((e) => e.id));
+    for (const e of during?.scene ?? []) if (!seen.has(e.id)) kept.add(e.id);
+    // The room has not been drawn into yet (a shadow made anew): what the
+    // board drew is put in again, as the first window does.
+    const reseed = !this.seeded ? (this.last?.scene ?? []).filter((e) => !e.isDeleted && !kept.has(e.id)) : null;
     const gone: El[] = [];
-    for (const e of this.last?.scene ?? []) if (!room.has(e.id)) gone.push({ ...e, isDeleted: true, version: rankOf(e).version + 1 });
+    if (!reseed) for (const e of this.last?.scene ?? []) if (!room.has(e.id) && !kept.has(e.id)) gone.push({ ...e, isDeleted: true, version: rankOf(e).version + 1 });
     this.pending = null;
     this.last = null;
     this.known.clear();
@@ -136,14 +162,24 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.missing.clear();
     this.sentAt = "";
     this.adopting = true;
+    this.keep = kept;
     try {
-      for (const p of this.panes) p.apply([...room.values(), ...gone], this.background());
+      if (!reseed) for (const p of this.panes) p.apply([...room.values(), ...gone], this.background());
     } finally {
       this.adopting = false;
+      this.keep = new Set();
+    }
+    if (reseed) this.seed(reseed);
+    // The change made meanwhile goes out now, as any other.
+    if (during && kept.size > 0) {
+      this.pending = { scene: during.scene, user: during.user, background: during.background };
+      this.last = { scene: during.scene, user: false, background: during.background };
+      this.pushSoon();
     }
     this.changed?.();
   }
   private adopting = false;
+  private keep = new Set<string>();
 
   /** A shadow's refusal does not reload the board: the room's state comes
    *  in again, in place (`reborn`). */
@@ -242,7 +278,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
 
   /** Whether this window's version of `e` is its own, still on its way. */
   mine(e: El): boolean {
-    return this.writable && !this.adopting && unsent(e, this.known);
+    return this.writable && (!this.adopting || this.keep.has(e.id)) && unsent(e, this.known);
   }
 
   /** The board changed: what it changed goes to the room, in a moment.
@@ -252,6 +288,11 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     // Out of the room for good (closed, left): the board is drawn again.
     if (!this.writable || !this.open) return;
     if (user) this.edited = true;
+    // The room's state is on its way: kept, and sent after it is in.
+    if (this.rejoining) {
+      this.during = { scene, user: user || (this.during?.user ?? false), background };
+      return;
+    }
     const was = this.pending;
     this.pending = { scene, user: user || (was?.user ?? false), background };
     this.last = { scene, user: false, background };
@@ -270,6 +311,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   push(): void {
     window.clearTimeout(this.pushTimer);
     this.pushTimer = undefined;
+    if (this.rejoining) return;
     // Nothing new said: the scene as last said, for what the board changed
     // by itself since (`pushSoon`).
     const p = this.pending ?? this.last;

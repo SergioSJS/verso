@@ -298,6 +298,8 @@ function shadowSession(refuse) {
       refusals--;
       throw { kind: "refused", message: "no" };
     }
+    if (cmd === "collab_join" && globalThis.__joinFails) throw new Error("link down");
+    if (cmd === "collab_join" && globalThis.__joinDelay) await new Promise((r) => setTimeout(r, globalThis.__joinDelay));
     if (cmd === "collab_join") return { update: b64(Y.encodeStateAsUpdate(doc)), revision: "r2", epoch: "e1", read_only: false, kind: "board", user: "Ana" };
     return null;
   };
@@ -388,4 +390,56 @@ test("refused again within moments with no change of the person's: no second rej
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(calls.filter((c) => c === "collab_join").length, 1, "no second rejoin");
   assert.deepEqual(closed, ["refused"]);
+});
+
+test("edits made while the room's state is on its way are kept, not undone, and sent after it is in", async () => {
+  globalThis.__joinDelay = 60;
+  const { s, a, calls, closed } = shadowSession(1);
+  const mine = { ...a, id: "new1", index: "a9", version: 1, versionNonce: 3, x: 5, customData: { canvas: { id: "new1", type: "text", text: "hi" } } };
+  let scene = [a];
+  const p = {
+    apply(remote) {
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) if (!(m.get(e.id) && s.mine(m.get(e.id)))) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  try {
+    s.attach(p, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 20));
+    // The refusal is answered; the room's state is still on its way.
+    scene = [{ ...a, version: 20, versionNonce: 5, x: 50 }, mine];
+    s.scene(scene, "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 150));
+    assert.deepEqual(closed, []);
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+    const sentNew = scene.find((e) => e.id === "new1");
+    assert.ok(sentNew && !sentNew.isDeleted, "what the person made meanwhile is kept");
+    await new Promise((r) => setTimeout(r, 150));
+    assert.ok(calls.filter((c) => c === "collab_update").length >= 2, "and sent after the state came in");
+  } finally {
+    globalThis.__joinDelay = 0;
+    s.leave();
+  }
+});
+
+test("a rejoin that fails is the old way out: the board is read anew, nothing stays stuck", async () => {
+  globalThis.__joinFails = true;
+  const { s, a, closed } = shadowSession(1);
+  try {
+    s.attach({ apply: () => [], people() {} }, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 60));
+    assert.deepEqual(closed, ["lost"]);
+    assert.equal(s.rejoining, false);
+  } finally {
+    globalThis.__joinFails = false;
+  }
 });
