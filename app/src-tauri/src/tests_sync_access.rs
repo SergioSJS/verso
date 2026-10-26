@@ -327,3 +327,26 @@ fn the_memo_finds_a_file_whatever_the_case_or_unicode_form_of_its_name() {
         );
     }
 }
+
+/// The Access dialog and the seat of a synced folder are the server's: the
+/// window's `access_get` and `access_set` go over the sync's link, as the
+/// table's and the campaign's commands do, never to this computer's
+/// handler, which answers that a folder alone has no table (seen live
+/// 2026-10-26: right-click › Acesso… did nothing on the Mac).
+#[test]
+fn the_access_commands_of_a_synced_folder_go_over_the_link() {
+    use crate::sync_commands::over_the_link;
+    for cmd in [
+        "access_get",
+        "access_set",
+        "table_rights_set",
+        "campaign_status",
+        "collab_join",
+        "table_say",
+    ] {
+        assert!(over_the_link(cmd), "{cmd} stays on this computer");
+    }
+    for cmd in ["read_note", "write_note", "sync_rights", "list_entries"] {
+        assert!(!over_the_link(cmd), "{cmd} goes to the server");
+    }
+}
