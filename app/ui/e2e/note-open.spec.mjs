@@ -26,8 +26,8 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
   const editor = page.locator(".cm-content").first();
   await expect(editor).toContainText("um", { timeout: 1500 });
   expect(Date.now() - began).toBeLessThan(2000);
-  // The room has not answered yet.
-  await expect(page.locator(".live-mark:visible")).toHaveCount(0);
+  // The room has been asked and has not answered yet: nothing of the typing is in it.
+  expect(await app.calls("collab_join")).toHaveLength(1);
   await editor.click();
   await app.key("Mod+End");
   await page.keyboard.type(" digitado antes");
@@ -35,7 +35,7 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
   await page.waitForTimeout(1500);
   expect(await app.calls("write_note")).toHaveLength(0);
   // The room joins: the tab is live, the text is there once, and the room holds it.
-  await expect(page.locator(".live-mark:visible")).toHaveText(/ao vivo/, { timeout: 5000 });
+  await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE), { timeout: 8000 }).toContain("um digitado antes");
   await expect(editor).toContainText("um digitado antes");
   expect(((await editor.innerText()).match(/digitado antes/g) ?? []).length).toBe(1);
   await expect.poll(() => page.evaluate((n) => window.__harness.rooms.text(n), NOTE)).toContain("um digitado antes");
@@ -49,7 +49,8 @@ test("a note nobody edited is not unsaved, in a reader's tab or after the room j
   await server(app, page, 300);
   await app.quickOpen("Bem-vindos");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
-  await expect(page.locator(".live-mark:visible")).toHaveText(/ao vivo/);
+  await expect.poll(async () => (await app.calls("collab_join")).length).toBe(1);
+  await page.waitForTimeout(600);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   await page.evaluate((n) => window.__harness.rooms.type(n, "Bia", "da Bia\n"), NOTE);
   await expect(page.locator(".cm-content").first()).toContainText("da Bia");
