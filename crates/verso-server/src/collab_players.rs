@@ -66,6 +66,10 @@ pub struct Shadow {
     /// What the room last told it, the room's projection: an element of the
     /// player's own is in `now` and in the room, so in `told` too.
     told: Held,
+    /// What the window drew of the file when it seeded the shadow: judged by
+    /// nobody, never the room's, only what a later echo is compared to. It
+    /// goes with the shadow (a rejoin makes the shadow anew).
+    seeded: Entries,
     /// What the account sees of the room, as of the last change.
     sight: Sight,
     /// What the account sees of the file the room was made from: ids the
@@ -310,6 +314,7 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         writers: crate::writers::Writers::new(),
         now: (sight.shown.clone(), told.clone()),
         told: (sight.shown.clone(), told),
+        seeded: Entries::new(),
         sight,
         disk,
         rev,
@@ -374,6 +379,23 @@ pub(super) fn join(
     (client, account): (&str, &str),
     user: &str,
 ) -> Result<CollabJoin, ContractError> {
+    // A window that joins again, alone in its shadow (after a refusal, or a
+    // dropped link), gets the room's state as it is now, projected for the
+    // account anew when its shadow drifted from the room (what it drew when
+    // it seeded, the versions it only echoed): none of that is carried over.
+    // A shadow other windows are in, or that did not drift, stays.
+    let alone = r
+        .readers
+        .players
+        .by
+        .get(account)
+        .is_some_and(|sh| {
+            sh.clients.iter().all(|c| c == client)
+                && (!sh.seeded.is_empty() || sh.now.0 != sh.told.0)
+        });
+    if alone {
+        r.readers.players.by.remove(account);
+    }
     if !r.readers.players.by.contains_key(account) {
         let shadow = make(server, r, account)?;
         r.readers.players.by.insert(account.to_owned(), shadow);
@@ -646,7 +668,12 @@ pub(super) fn update(
     let echoed = if seeding {
         BTreeSet::new()
     } else {
-        board_sight::echoes(&all_ops, &sh.now.0)
+        // What the room told the account, and what the window drew of the
+        // file when it seeded — not the shadow's whole document, which also
+        // holds versions the room never had.
+        let mut known = sh.told.0.clone();
+        known.extend(sh.seeded.iter().map(|(k, v)| (k.clone(), v.clone())));
+        board_sight::echoes(&all_ops, &known)
     };
     let is_echo = |k: &str| key_id(k).is_some_and(|i| echoed.contains(i));
     let puts: Vec<(String, String)> = puts.into_iter().filter(|(k, _)| !is_echo(k)).collect();
@@ -700,6 +727,7 @@ pub(super) fn update(
         &event("collab-update", &r.path, "update", &json!(b64(bytes))),
     );
     if seeding {
+        sh.seeded.extend(puts.iter().cloned());
         return Ok(false);
     }
     for (k, v) in &puts {
