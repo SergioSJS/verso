@@ -481,7 +481,10 @@ class AccessDialog {
     this.pop.remove();
     if (open === this) open = null;
     // A save draws the tree anew: the row that opened the dialog is another element now.
-    const back = this.opener?.isConnected ? this.opener : this.openerAt ? document.querySelector<HTMLElement>(`#notes ${this.openerAt}`) : null;
+    // A button the pointer clicked does not always take the focus (WebKit), and a hover summary is gone by now: the anchor (the indicator) is the way back then.
+    const live = this.opener?.isConnected && this.opener !== document.body ? this.opener : null;
+    const row = this.openerAt ? document.querySelector<HTMLElement>(`#notes ${this.openerAt}`) : null;
+    const back = live ?? row ?? (this.anchor?.isConnected ? this.anchor : null);
     back?.focus({ preventScroll: true });
   }
 }
