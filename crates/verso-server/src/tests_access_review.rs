@@ -207,7 +207,10 @@ fn a_notes_rename_by_a_name_without_its_extension_is_judged_as_the_note_it_makes
         assert_eq!(free["ok"]["path"], "Nova.md", "{free}");
         // A name something hidden holds: the next free one, never "exists".
         let hidden = cid
-            .call("rename_entry", json!({ "from": "Nova.md", "to": "Barão Zq" }))
+            .call(
+                "rename_entry",
+                json!({ "from": "Nova.md", "to": "Barão Zq" }),
+            )
             .await;
         assert_eq!(hidden["ok"]["path"], "Barão Zq 2.md", "{hidden}");
         assert!(!hidden.to_string().contains("exists"), "{hidden}");

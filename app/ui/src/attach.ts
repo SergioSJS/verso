@@ -22,6 +22,7 @@ const pt = {
   done: (name: string, where: string) => `Imagem anexada: “${name}”${where ? ` (em ${where}/)` : ""}.`,
   tooBig: (name: string, mb: number) => `“${name}” passa de ${mb} MB, o máximo que o servidor recebe de uma vez; nada foi copiado.`,
   notImage: (name: string) => `“${name}” não é uma imagem, um PDF nem um áudio; nada foi copiado.`,
+  notImageOnly: (name: string) => `“${name}” não é uma imagem; nada foi copiado.`,
   noSend: "O mestre ainda não deixou você enviar arquivos.",
   unreadable: (name: string) => `Não foi possível ler “${name}”; nada foi copiado.`,
 };
@@ -35,6 +36,7 @@ const en: typeof pt = {
   done: (name, where) => `Image attached: “${name}”${where ? ` (in ${where}/)` : ""}.`,
   tooBig: (name, mb) => `“${name}” is over ${mb} MB, the most the server takes at once; nothing was copied.`,
   notImage: (name) => `“${name}” is not an image, a PDF or audio; nothing was copied.`,
+  notImageOnly: (name) => `“${name}” is not an image; nothing was copied.`,
   noSend: "The game master has not let you send files yet.",
   unreadable: (name) => `“${name}” could not be read; nothing was copied.`,
 };

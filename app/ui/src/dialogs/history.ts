@@ -371,5 +371,5 @@ export function historyButton(path: string | null): void {
     ui.words.after(bar);
   }
   bar.hidden = !historyFor(path);
-  bar.dataset["path"] = path ?? "";
+  bar.dataset["path"] = bar.hidden ? "" : (path ?? "");
 }
