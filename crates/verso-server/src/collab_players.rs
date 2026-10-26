@@ -146,7 +146,7 @@ impl<'a> Locks<'a> {
             .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
         // One text for every locked card, whatever the reason (hidden,
         // hidden with a secret name, not there): a card never says which.
-        let told = hidden.then(|| crate::campaign_text::placeholder(&self.veil.lang));
+        let told = hidden.then(|| crate::campaign_text::locked_card(&self.veil.lang));
         self.cache
             .borrow_mut()
             .insert(file.to_owned(), told.clone());
