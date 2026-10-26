@@ -482,3 +482,31 @@ test("a room not drawn into yet: the refused change is not drawn into it, and th
   assert.ok(held.every((e) => e.x !== 50), "the refused change is not in the room's document");
   s.leave();
 });
+
+test("the file of a shadow's board is sent again once every update is answered: the room set aside one made while an update was on its way", async () => {
+  const { s, a, calls } = shadowSession(0);
+  const order = [];
+  const inner = globalThis.__invoke;
+  globalThis.__invoke = async (cmd, args) => {
+    if (cmd === "collab_update") await new Promise((r) => setTimeout(r, 400));
+    const out = await inner(cmd, args);
+    order.push(cmd);
+    return out;
+  };
+  try {
+    s.attach({ apply: () => [], people() {} }, []);
+    s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 100));
+    // Another change while the first is unanswered: it waits behind it.
+    s.scene([{ ...a, version: 30, versionNonce: 6, x: 60 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 1600));
+    const canvases = order.filter((c) => c === "collab_canvas");
+    assert.ok(canvases.length >= 2, order.join(","));
+    assert.equal(order.at(-1) === "collab_canvas" || order.lastIndexOf("collab_canvas") > order.lastIndexOf("collab_update"), true, "the last file goes after the last update is answered");
+    void calls;
+  } finally {
+    s.leave();
+  }
+});

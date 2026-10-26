@@ -835,6 +835,10 @@ pub(super) fn canvas(
     // be lost. The players' stay in the room, and the file is written when a
     // window that sees the whole board makes it.
     if whole_edits(&r.doc, &r.writers) != r.board.whole_saved {
+        crate::log::warn(&format!(
+            "board room {}: a file made by account {account} waits: the room holds edits of a window that sees the whole board that the file lacks",
+            r.path
+        ));
         return Ok(());
     }
     super::readable_vector(at)?;
@@ -854,6 +858,10 @@ pub(super) fn canvas(
     };
     let disk = super::read(server, &r.key, &r.path)?;
     if disk.revision != r.revision {
+        crate::log::warn(&format!(
+            "board room {}: a file made by account {account} waits: the file changed on disk since the room read it",
+            r.path
+        ));
         return Ok(());
     }
     let Ok(mine) = serde_json::from_str::<Value>(&disk.text) else {
