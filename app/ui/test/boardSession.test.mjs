@@ -283,6 +283,7 @@ test("an element another deletes as this person's own press selects it is never 
 
 /** A shadow (ADR 0113 H): the room told this window it is in one. */
 function shadowSession(refuse) {
+  let refusals = refuse;
   const doc = new Y.Doc();
   const els = doc.getMap("elements");
   const a = { id: "c1", type: "embeddable", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 9, index: "a1", groupIds: [], frameId: null, customData: { canvas: { id: "c1", type: "file", file: "Nada.md" } } };
@@ -293,7 +294,11 @@ function shadowSession(refuse) {
   const calls = [];
   globalThis.__invoke = async (cmd) => {
     calls.push(cmd);
-    if (cmd === "collab_update" && refuse) throw { kind: "refused", message: "no" };
+    if (cmd === "collab_update" && refusals > 0) {
+      refusals--;
+      throw { kind: "refused", message: "no" };
+    }
+    if (cmd === "collab_join") return { update: b64(Y.encodeStateAsUpdate(doc)), revision: "r2", epoch: "e1", read_only: false, kind: "board", user: "Ana" };
     return null;
   };
   const closed = [];
@@ -302,7 +307,7 @@ function shadowSession(refuse) {
 }
 
 test("a shadow never sends an element the board only bumped: same substance, new version", async () => {
-  const { s, a, calls } = shadowSession(false);
+  const { s, a, calls } = shadowSession(0);
   try {
     const p = { apply: () => [], people() {} };
     s.attach(p, []);
@@ -322,17 +327,60 @@ test("a shadow never sends an element the board only bumped: same substance, new
   }
 });
 
-test("a refused change in a shadow keeps the board: told once as refused, never as lost, nothing sent after", async () => {
-  const { s, a, calls, closed } = shadowSession(true);
+test("a refused change in a shadow: one rejoin, the room's truth back in place, the view and the other elements kept, later edits sent", async () => {
+  const { s, a, calls, closed } = shadowSession(1);
+  const other = { ...a, id: "c2", index: "a2", version: 1, versionNonce: 2, customData: { canvas: { id: "c2", type: "text", text: "x" } } };
+  // The room holds c1 only; c2 is the window's own, never accepted.
+  const view = { scrollX: 240, scrollY: -130, zoom: 0.6 };
+  let scene = [a];
+  const told = [];
+  const p = {
+    apply(remote) {
+      told.push(remote.map((e) => `${e.id}:${e.isDeleted ? "gone" : "in"}:${e.x}`));
+      const m = new Map(scene.map((e) => [e.id, e]));
+      for (const e of remote) m.set(e.id, e);
+      scene = [...m.values()];
+      s.scene(scene, "transparent", false);
+      return remote.map((e) => e.id);
+    },
+    people() {},
+  };
+  try {
+    s.attach(p, []);
+    const moved = { ...a, version: 20, versionNonce: 5, x: 50 };
+    scene = [moved, other];
+    s.scene(scene, "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1, "one rejoin");
+    assert.deepEqual(closed, [], "never closed");
+    // c1 back to the room's x, c2 (never accepted) gone; the view is the board's own.
+    assert.ok(told.some((t) => t.includes("c2:gone:0") && t.includes("c1:in:0")), JSON.stringify(told));
+    assert.ok(scene.find((e) => e.id === "c2").isDeleted && scene.find((e) => e.id === "c1").x === 0);
+    assert.deepEqual(view, { scrollX: 240, scrollY: -130, zoom: 0.6 });
+    // A following change reaches the room.
+    const before = calls.filter((c) => c === "collab_update").length;
+    s.scene([{ ...scene.find((e) => e.id === "c1"), version: 30, versionNonce: 8, x: 70 }], "transparent", true);
+    s.push();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(calls.filter((c) => c === "collab_update").length, before + 1, "later edits are sent");
+    assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+  } finally {
+    s.leave();
+  }
+});
+
+test("refused again within moments with no change of the person's: no second rejoin, stopped and said once", async () => {
+  const { s, a, calls, closed } = shadowSession(5);
   s.attach({ apply: () => [], people() {} }, []);
   s.scene([{ ...a, version: 20, versionNonce: 5, x: 50 }], "transparent", true);
   s.push();
-  await new Promise((r) => setTimeout(r, 30));
-  assert.deepEqual(closed, ["refused"]);
-  const n = calls.filter((c) => c === "collab_update").length;
-  s.scene([{ ...a, version: 21, versionNonce: 6, x: 60 }], "transparent", true);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls.filter((c) => c === "collab_join").length, 1);
+  // The window re-sends with no change of the person's: refused again.
+  s.scene([{ ...a, version: 21, versionNonce: 6, x: 60 }], "transparent", false);
   s.push();
-  await new Promise((r) => setTimeout(r, 30));
-  assert.equal(calls.filter((c) => c === "collab_update").length, n);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls.filter((c) => c === "collab_join").length, 1, "no second rejoin");
   assert.deepEqual(closed, ["refused"]);
 });

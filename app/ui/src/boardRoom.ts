@@ -41,8 +41,8 @@ const MISSING_MOST = 3;
 const POINTER_EVERY = 40;
 
 export class BoardSession extends RoomSession implements BoardRoomLink {
-  readonly entries: Y.Map<string>;
-  readonly meta: Y.Map<unknown>;
+  entries!: Y.Map<string>;
+  meta!: Y.Map<unknown>;
   /** What this window last saw of each element in the room. */
   readonly known = new Map<string, Rank>();
   /** Whether this person may change the board. */
@@ -72,6 +72,12 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
 
   constructor(path: string, joined: { update: string; revision: string; user: string; epoch: string }, handlers: CollabHandlers, synced = false) {
     super(path, joined, handlers, synced);
+    this.bind();
+  }
+
+  /** This session's maps and listeners, on the document it holds now (made
+   *  again after a refusal, `reborn`). */
+  private bind(): void {
     this.entries = this.doc.getMap<string>("elements");
     this.meta = this.doc.getMap("meta");
     for (const [id, el] of this.resolved()) this.known.set(id, rankOf(el));
@@ -107,8 +113,40 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     return this.meta.get("shadow") === true;
   }
 
-  /** A shadow's refusal never reloads the board (the view stays, the
-   *  refused change is not sent again). */
+  /** The room's state is a new document (an edit it refused is not in it):
+   *  every board of this window takes it in, in place — the view, the
+   *  selection and the tool are the board's own state, untouched — and what
+   *  the board drew that the room does not hold goes. Nothing of it is sent
+   *  back: the window agrees with the room. */
+  protected override reborn(): void {
+    window.clearTimeout(this.pushTimer);
+    window.clearTimeout(this.canvasTimer);
+    this.pushTimer = undefined;
+    this.canvasTimer = undefined;
+    this.bind();
+    const room = this.resolved();
+    const gone: El[] = [];
+    for (const e of this.last?.scene ?? []) if (!room.has(e.id)) gone.push({ ...e, isDeleted: true, version: rankOf(e).version + 1 });
+    this.pending = null;
+    this.last = null;
+    this.known.clear();
+    for (const [id, e] of room) this.known.set(id, rankOf(e));
+    for (const g of gone) this.known.set(g.id, rankOf(g));
+    this.selfMade.clear();
+    this.missing.clear();
+    this.sentAt = "";
+    this.adopting = true;
+    try {
+      for (const p of this.panes) p.apply([...room.values(), ...gone], this.background());
+    } finally {
+      this.adopting = false;
+    }
+    this.changed?.();
+  }
+  private adopting = false;
+
+  /** A shadow's refusal does not reload the board: the room's state comes
+   *  in again, in place (`reborn`). */
   protected override keepsSceneOnRefusal(): boolean {
     return this.shadow;
   }
@@ -204,7 +242,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
 
   /** Whether this window's version of `e` is its own, still on its way. */
   mine(e: El): boolean {
-    return this.writable && unsent(e, this.known);
+    return this.writable && !this.adopting && unsent(e, this.known);
   }
 
   /** The board changed: what it changed goes to the room, in a moment.
@@ -213,6 +251,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   scene(scene: readonly El[], background: string, user: boolean): void {
     // Out of the room for good (closed, left): the board is drawn again.
     if (!this.writable || !this.open) return;
+    if (user) this.edited = true;
     const was = this.pending;
     this.pending = { scene, user: user || (was?.user ?? false), background };
     this.last = { scene, user: false, background };
