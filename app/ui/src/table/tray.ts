@@ -203,6 +203,13 @@ export class Tray {
         opener.focus();
       }
     });
+    // WebKit does not focus a button a click lands on, so the key may arrive on the page and not in the tray.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || !this.anyOpen() || this.el.contains(e.target as Node)) return;
+      const opener = !this.savedBox.hidden ? this.savedButton : this.moreButton;
+      this.closePops();
+      opener.focus();
+    });
     document.addEventListener("pointerdown", (e) => {
       if (this.anyOpen() && e.target instanceof Node && !this.el.contains(e.target)) this.closePops();
     });
