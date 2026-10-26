@@ -106,7 +106,7 @@ for (const width of [1500, 390]) {
       await setup(app, "owner", width, theme);
       await tree(app, width);
       await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
-      if (width <= 760) await page.getByRole("button", { name: "Arquivos" }).click();
+      if (width <= 760) await page.evaluate(() => document.body.classList.remove("side-open"));
       await expect(page.locator(".table-card-owner")).toBeVisible();
       await page.waitForTimeout(300);
       await page.screenshot({ path: file(`${tag}-4-card-owner-page`) });
@@ -117,7 +117,7 @@ for (const width of [1500, 390]) {
       await setup(app, "player", width, theme);
       await tree(app, width);
       await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
-      if (width <= 760) await page.getByRole("button", { name: "Arquivos" }).click();
+      if (width <= 760) await page.evaluate(() => document.body.classList.remove("side-open"));
       await expect(page.locator(".table-card-player")).toBeVisible();
       await page.waitForTimeout(300);
       await page.screenshot({ path: file(`${tag}-5-card-player-page`) });
