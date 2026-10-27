@@ -1074,6 +1074,7 @@ async fn folder_command(
         Some(path) => board_in(server, &key, &scope, name, path, args).await?,
         None => args,
     };
+    let asked = args["path"].as_str().map(str::to_owned);
     let mut answer = folder_run(
         server,
         who,
@@ -1086,6 +1087,23 @@ async fn folder_command(
     .map_err(|e| scope.error(e))?;
     tell_less(server, who, &door, &key, name, &mut answer).await;
     door.inject(name, &mut answer);
+    // A link into a note from a board is a card, whose text is a path in the
+    // owner's folder written however the owner wrote it (a space, another
+    // normal form): the index matches it, a path cannot be taken back from
+    // it. The link is the note's that was asked about, so it is told as
+    // that note's path in the share, never as written.
+    if name == "backlinks" {
+        let here = asked
+            .as_deref()
+            .and_then(|p| scope.to_rel(p))
+            .unwrap_or_default();
+        for b in answer.as_array_mut().into_iter().flatten() {
+            let from_board = b["from"].as_str().is_some_and(crate::share_board::is_board);
+            if from_board {
+                b["target"] = Value::String(here.clone());
+            }
+        }
+    }
     if board.is_some() {
         let lang = crate::campaign::player(server, who, client)
             .ok()

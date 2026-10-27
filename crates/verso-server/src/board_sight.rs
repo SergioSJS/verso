@@ -433,6 +433,72 @@ pub fn revision_of(shaped: &str) -> String {
     format!("v{}", crate::sync::sha256(shaped.as_bytes()))
 }
 
+/// Whether two elements of `canvas` share an id and one of them is not
+/// open to the player: a locked card, a secret pin, or something that
+/// touches one.
+fn shared_id_hides(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> bool {
+    let whole = see(&entries_of_canvas(canvas), lock);
+    let hidden: BTreeSet<&str> = whole
+        .class
+        .iter()
+        .filter(|(_, c)| **c != Class::Open)
+        .map(|(i, _)| i.as_str())
+        .collect();
+    let lists: [(&str, Vec<Value>); 3] = [
+        (
+            "nodes",
+            canvas["nodes"].as_array().cloned().unwrap_or_default(),
+        ),
+        (
+            "edges",
+            canvas["edges"].as_array().cloned().unwrap_or_default(),
+        ),
+        (
+            "drawing",
+            canvas["verso"]["drawing"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+        ),
+    ];
+    for (kind, items) in lists {
+        let mut count: BTreeMap<&str, usize> = BTreeMap::new();
+        for v in &items {
+            if let Some(i) = v.get("id").and_then(Value::as_str) {
+                *count.entry(i).or_default() += 1;
+            }
+        }
+        for v in &items {
+            let Some(i) = v.get("id").and_then(Value::as_str) else {
+                continue;
+            };
+            if count[i] < 2 {
+                continue;
+            }
+            let wrapped = match kind {
+                "nodes" => {
+                    json!({ "id": v["id"], "type": "embeddable", "customData": { "canvas": v } })
+                }
+                "edges" => json!({
+                    "id": v["id"], "type": "arrow", "customData": { "canvas": v },
+                    "startBinding": { "elementId": v["fromNode"] },
+                    "endBinding": { "elementId": v["toNode"] },
+                }),
+                _ => v.clone(),
+            };
+            let alone: Entries = [(format!("{i}\n0\n0"), wrapped.to_string())].into();
+            let own = see(&alone, lock);
+            if hidden.contains(i)
+                || own.class.get(i) != Some(&Class::Open)
+                || refs(&wrapped).iter().any(|r| hidden.contains(r))
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// The board file a player's window made of its room, laid over the file as
 /// it is on disk: what the player does not see is the disk's, whatever the
 /// window sent; what they see is the window's; what the window dropped, they
@@ -449,22 +515,11 @@ pub fn lay_over(
     if !disk.is_object() || !player.is_object() {
         return None;
     }
-    // Matched by id: a file whose elements share an id cannot be laid over
-    // without taking one for the other.
-    for (top, inner) in [("nodes", ""), ("edges", ""), ("verso", "drawing")] {
-        let list = if inner.is_empty() {
-            disk[top].as_array()
-        } else {
-            disk[top][inner].as_array()
-        };
-        let mut seen = BTreeSet::new();
-        for v in list.into_iter().flatten() {
-            if let Some(i) = v.get("id").and_then(Value::as_str)
-                && !seen.insert(i)
-            {
-                return None;
-            }
-        }
+    // Matched by id: elements that share an id cannot be told apart, which
+    // is harmless among what the player sees and not when one is hidden
+    // from them (the player's could take its place).
+    if shared_id_hides(disk, lock) {
+        return None;
     }
     let before = see(&entries_of_canvas(disk), lock);
     let mut out = disk.clone();

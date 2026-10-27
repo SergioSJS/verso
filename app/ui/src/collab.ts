@@ -406,7 +406,7 @@ export abstract class RoomSession {
   }
 
   /** An edit the room refused: closed here, the tab told what did not go. */
-  private lost(): void {
+  protected lost(): void {
     if (this.closedLocally) return;
     if (!this.keepsSceneOnRefusal()) {
       this.leave();

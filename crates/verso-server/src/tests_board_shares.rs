@@ -70,6 +70,7 @@ async fn cast_with(table: bool) -> Cast {
         ("Sub/Livre", "livre\n"),
         ("Sub/Lugares/Taverna do Corvo", "taverna\n"),
         ("Sub/Lugares/Ponte", "ponte\n"),
+        ("Sub/Oculta", "oculta zq\n"),
         ("Fora/Y", "zy\n"),
     ] {
         let made = owner
@@ -605,5 +606,77 @@ fn backlinks_and_links_of_a_board_cross_only_in_the_shares_words() {
         for leak in ["Fora", "Segredo", "Cripta", "Sub/"] {
             assert!(!raw.contains(leak), "{leak} in {raw}");
         }
+    });
+}
+
+#[test]
+fn a_backlink_from_a_board_never_carries_the_cards_text() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let made = c
+            .owner
+            .call(
+                "create_note",
+                json!({ "name": "Sub/Poção", "text": "poção\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        // The card names the note as the index matches it, not as a path
+        // can be taken back from: decomposed accents, and a space around.
+        let board = json!({ "nodes": [
+            { "id": "a", "type": "file", "file": "Sub/Poc\u{327}a\u{303}o.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "b", "type": "file", "file": " Sub/Poção.md ", "x": 0, "y": 0, "width": 1, "height": 1 },
+        ], "edges": [] });
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": board.to_string(), "revision": first["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let walked = c.owner.call("reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        let back = c.ana.call("backlinks", json!({ "path": "Poção.md" })).await;
+        let rows = back["ok"].as_array().unwrap();
+        assert!(!rows.is_empty(), "the index matched no card: {back}");
+        let raw = back.to_string();
+        assert!(!raw.contains("Sub"), "{raw}");
+        assert!(rows.iter().all(|r| r["target"] == "Poção.md"), "{raw}");
+    });
+}
+
+#[test]
+fn a_card_of_a_hidden_file_leaves_no_trace_in_the_links_of_a_players_board() {
+    block_on(async {
+        let mut c = cast().await;
+        let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        // "Sub/Oculta.md" is not released: hidden from Ana.
+        let board = json!({ "nodes": [
+            { "id": "a", "type": "file", "file": "Sub/Oculta.md", "subpath": "#Cripta", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "d", "type": "file", "file": "Sub/Livre.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+        ], "edges": [] });
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": board.to_string(), "revision": first["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let walked = c.owner.call("reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        let links = c.ana.call("links", json!({ "path": REL })).await;
+        let raw = links.to_string();
+        assert!(
+            raw.contains("Livre.md"),
+            "the visible card is listed: {raw}"
+        );
+        for leak in ["Oculta", "Cripta"] {
+            assert!(!raw.contains(leak), "{leak} in {raw}");
+        }
+        let back = c.ana.call("backlinks", json!({ "path": "Livre.md" })).await;
+        assert!(!back.to_string().contains("Oculta"), "{back}");
     });
 }

@@ -530,7 +530,10 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     const at = toB64(Y.encodeStateVector(this.doc));
     if (at === this.sentAt) return;
     this.sentAt = at;
-    await commands.collabCanvas(this.path, at, JSON.stringify(this.canvas()));
+    const r = await commands.collabCanvas(this.path, at, JSON.stringify(this.canvas()));
+    // The room could not make the file of this window's board: told as any
+    // refusal of the room is (the board takes the room's state in again).
+    if (r.status !== "ok" && r.error.kind === "refused" && this.shadow) this.lost();
   }
 
   /** Everything this window changed is in the room, and the room has the

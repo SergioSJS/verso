@@ -724,13 +724,31 @@ pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
 /// join anew with the share as it is — a shadow never keeps an old root.
 pub(crate) fn share_moved(server: &Server, share: &str, now: &dyn Fn(&str) -> Option<Scope>) {
     let rooms: Vec<_> = lock(&server.rooms.map).values().map(Arc::clone).collect();
+    // The share as each account has it now is asked first, with no room
+    // locked: that reads the database and the folder.
+    let mut accounts: BTreeSet<String> = BTreeSet::new();
+    for room in &rooms {
+        let r = lock(room);
+        for sh in r.readers.players.by.values() {
+            if sh.scope.as_ref().is_some_and(|s| s.share == share) {
+                accounts.insert(sh.account.clone());
+            }
+        }
+    }
+    let fresh: HashMap<String, Option<Scope>> = accounts
+        .into_iter()
+        .map(|a| {
+            let s = now(&a);
+            (a, s)
+        })
+        .collect();
     for room in rooms {
         let mut r = lock(&room);
         // Each shadow is judged against the share as its own account has it.
         let stale = |sh: &Shadow| {
-            sh.scope
-                .as_ref()
-                .is_some_and(|s| s.share == share && now(&sh.account).as_ref() != Some(s))
+            sh.scope.as_ref().is_some_and(|s| {
+                s.share == share && fresh.get(&sh.account).and_then(Option::as_ref) != Some(s)
+            })
         };
         let clients: Vec<String> = r
             .readers
@@ -1099,7 +1117,11 @@ pub(super) fn canvas(
                 "board room {}: a file made by account {account} was not taken: it changes what an element is to them",
                 r.path
             ));
-            Ok(())
+            // Said to the window, which shows it as a refusal of the room
+            // (`boardRoom.ts`): never a save that did not happen in silence.
+            Err(refused(
+                "the file of this board could not be made from your window: an element of it is not yours to change",
+            ))
         }
     }
 }
