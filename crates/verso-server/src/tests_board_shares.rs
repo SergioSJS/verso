@@ -359,6 +359,13 @@ fn a_board_read_and_written_through_a_share_keeps_the_files_paths_and_revision()
         let on_disk = on_disk["ok"]["text"].as_str().unwrap();
         assert!(on_disk.contains("\"Sub/Lugares/Ponte.md\"") && on_disk.contains("\"Fora/Y.md\""));
         assert!(on_disk.contains("77"), "{on_disk}");
+        // The links of the board name its cards by the share's paths.
+        let links = c.ana.call("links", json!({ "path": REL })).await;
+        let links = links["ok"].to_string();
+        assert!(links.contains("Lugares/Ponte.md"), "{links}");
+        for leak in OUTSIDE.iter().chain(&["Sub/"]) {
+            assert!(!links.contains(leak), "{leak} in {links}");
+        }
         let preview = c
             .ana
             .call(
