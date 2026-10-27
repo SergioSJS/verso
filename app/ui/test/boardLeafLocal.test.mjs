@@ -107,11 +107,17 @@ function tab(disk, startDoc) {
       shown: null,
       show(d, m) {
         this.up = true;
+        this.disk = d;
         this.shown = { disk: d, mine: m };
+      },
+      hide() {
+        this.up = false;
+        this.disk = null;
       },
     },
     paintLive() {},
     setDirty() {},
+    pendingBoard: null,
     showText() {},
     // The tab's board write (board.ts saveBoard): over its revision; a refusal shows both.
     async saveBoardJson(json) {
@@ -119,11 +125,11 @@ function tab(disk, startDoc) {
         const r = await globalThis.__invoke("write_board", { path: this.path, json, revision: this.revision });
         this.hold(r.revision, r.text);
       } catch {
-        this.conflict.show({ text: disk.text }, json);
+        this.conflict.show({ text: disk.text, revision: `r${disk.n}` }, json);
       }
     },
   };
-  for (const name of ["hold", "holdRevision", "takeOutsideIn", "saveLocalNow", "boardWentLocal", "boardConflict", "boardHandlers", "followSaved"]) leaf[name] = b[name];
+  for (const name of ["hold", "holdRevision", "takeOutsideIn", "saveLocalNow", "boardWentLocal", "boardConflict", "boardHandlers", "followSaved", "overwriteLocal"]) leaf[name] = b[name];
   // (Run against a boardLive.ts without `hold`, to see the loss: only the revision moves.)
   leaf.hold ??= function (revision) {
     this.revision = revision;
@@ -207,6 +213,51 @@ test("an element deleted outside and edited here is a conflict too", async () =>
   await tick();
   assert.equal(disk.writes.length, 0);
   assert.equal(leaf.conflict.up, true);
+});
+
+test("a late read of an older revision does not set the base after a newer hold", async () => {
+  const start = canvas(el("x", 0));
+  const disk = world(start);
+  const leaf = tab(disk, start);
+  // The read for r2 is slow; the board holds r3 meanwhile.
+  disk.set(canvas(el("x", 1)));
+  const slow = globalThis.__invoke;
+  globalThis.__invoke = async (cmd, args) => {
+    const answer = await slow(cmd, args);
+    if (cmd === "read_text") await new Promise((r) => setTimeout(r, 30));
+    return answer;
+  };
+  leaf.holdRevision(`r${disk.n}`);
+  leaf.hold("r9", "T9");
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(leaf.heldText, "T9");
+  assert.equal(leaf.heldRevision, "r9");
+  assert.equal(leaf.revision, "r9");
+});
+
+test("overwrite out of the room writes the room's board over the banner's revision, and is refused if the disk moved again", async () => {
+  const start = canvas(el("x", 1));
+  const disk = world(start);
+  const leaf = tab(disk, start);
+  leaf.room.goLocal("offline");
+  edit(leaf.room, "x", 2);
+  disk.set(canvas(el("x", 3)));
+  await b.boardWentLocal.call(leaf, "offline");
+  await tick();
+  assert.equal(leaf.conflict.up, true);
+  // The disk moves once more before the choice: refused, both shown anew.
+  disk.set(canvas(el("x", 4)));
+  await b.overwriteLocal.call(leaf);
+  assert.equal(disk.writes.length, 0, "nothing was written over a disk the banner did not show");
+  assert.equal(leaf.conflict.up, true);
+  assert.equal(xs(JSON.parse(leaf.conflict.disk.text)).x, 4);
+  // Chosen over what the banner shows now: the room's board is written.
+  await b.overwriteLocal.call(leaf);
+  assert.equal(disk.writes.length, 1);
+  assert.equal(disk.writes[0].revision, `r${disk.n - 1}`);
+  assert.equal(xs(onDisk(disk)).x, 2);
+  assert.equal(leaf.conflict.up, false);
+  assert.equal(leaf.revision, `r${disk.n}`);
 });
 
 test("sessions closed", () => {
