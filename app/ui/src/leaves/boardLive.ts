@@ -184,12 +184,14 @@ export async function takeOutsideIn(this: BoardLeaf): Promise<"same" | "taken" |
   const path = this.path;
   const room = this.room;
   if (!room || room.live || this.conflict.up) return "same";
+  const was = this.revision;
+  const stale = (): boolean => path !== this.path || this.room !== room || room.live || this.revision !== was;
   const r = await commands.readText(path);
-  if (r.status !== "ok" || path !== this.path || this.room !== room || room.live) return "same";
+  if (r.status !== "ok" || stale()) return "same";
   if (!changedOutside(this.revision, r.data.revision)) return "same";
   if (r.data.text !== this.heldText || this.heldRevision !== this.revision) {
     const mod = await loadBoardModule();
-    if (path !== this.path || this.room !== room || room.live) return "same";
+    if (stale()) return "same";
     const base = this.heldRevision === this.revision ? this.heldText : null;
     const got = mergeOutside(room, mod.drawnOf, base, r.data.text, nonce);
     if (!got.ok || got.conflicts.length > 0) {
@@ -318,6 +320,25 @@ export async function overwriteInRoom(this: BoardLeaf): Promise<void> {
     if (r.error.kind !== "unavailable") return fail(r.error);
     await new Promise((done) => window.setTimeout(done, 200));
   }
+}
+
+/** "Write mine over it", out of the room: the room's board, over the
+ *  revision the banner showed — refused, and shown again, if the disk moved
+ *  since. */
+export async function overwriteLocal(this: BoardLeaf): Promise<void> {
+  const room = this.room;
+  const disk = this.conflict.disk;
+  if (!room || !disk) return;
+  const r = await commands.writeBoard(this.path, JSON.stringify(room.canvas()), disk.revision);
+  if (r.status !== "ok") {
+    if (r.error.kind === "changed") return this.boardConflict();
+    return fail(r.error);
+  }
+  this.conflict.hide();
+  this.hold(r.data.revision, r.data.text);
+  this.pendingBoard = null;
+  this.setDirty(false);
+  this.showText(r.data.text);
 }
 
 /** A change of the board's file given anew — `before` the canvas it was

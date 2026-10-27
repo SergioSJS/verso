@@ -99,7 +99,7 @@ export class BoardLeaf extends TextLeaf {
   readonly cardHistory = new Map<string, KeptCard>();
   private showing: "board" | "source" = settings.boardOpenAs;
   /** The board's canvas waiting for a write, or refused by one. */
-  private pendingBoard: string | null = null;
+  pendingBoard: string | null = null;
   /** The notes being edited in cards of this board: saved with it. */
   private readonly cards = new Set<CardEditing>();
   /** Whether the file is in Obsidian's layout, as read; a file in another
@@ -219,6 +219,7 @@ export class BoardLeaf extends TextLeaf {
   declare boardReadAnew: typeof boardLive.boardReadAnew;
   declare saveInRoom: typeof boardLive.saveInRoom;
   declare overwriteInRoom: typeof boardLive.overwriteInRoom;
+  declare overwriteLocal: typeof boardLive.overwriteLocal;
   declare applyCanvas: typeof boardLive.applyCanvas;
   /** Draw the editor's text as the board: a first mount, or the new text
    *  over the board already there. Not JSON: said, and the text shown. */
@@ -487,8 +488,12 @@ export class BoardLeaf extends TextLeaf {
       return run;
     }
     // Out of its room: the room's board, not the text face's old text.
-    const local = this.room && !this.room.live ? this.room : null;
-    const board = local ? JSON.stringify(local.canvas()) : this.pendingBoard;
+    if (this.room && !this.room.live) {
+      const run = this.saving.then(() => this.overwriteLocal());
+      this.saving = run.catch(() => undefined);
+      return run;
+    }
+    const board = this.pendingBoard;
     if (board === null) return super.overwrite();
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
@@ -500,7 +505,6 @@ export class BoardLeaf extends TextLeaf {
       this.editor.setState(this.state(r.data.text));
       this.pendingBoard = null;
       this.setDirty(false);
-      if (local) this.showText(r.data.text);
     });
     this.saving = run.catch(() => undefined);
     return run;
@@ -545,11 +549,15 @@ export class BoardLeaf extends TextLeaf {
     if (this.room) {
       // Out of its room (the link dropped): what sync brought down comes
       // into the board, and is saved with it.
-      if (!this.room.live) {
-        if ((await this.takeOutsideIn()) === "taken") await this.saveLocalNow();
+      // Only a synced desktop folder's room goes local (`goLocal` is for
+      // synced sessions); any other room not live keeps doing nothing here.
+      if (this.room.synced && !this.room.live) {
+        const run = this.saving.then(() => this.takeOutsideIn());
+        this.saving = run.then(() => undefined, () => undefined);
+        if ((await run) === "taken") await this.saveLocalNow();
         return;
       }
-      if (!this.room.synced || this.textEdited) return;
+      if (!this.room.synced || !this.room.live || this.textEdited) return;
       const r = await commands.readText(path);
       if (r.status === "ok" && path === this.path && !this.textEdited) {
         if (r.data.revision === this.revision) this.hold(r.data.revision, r.data.text);
