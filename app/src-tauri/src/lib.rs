@@ -765,6 +765,7 @@ macro_rules! commands_for {
                 return_to_main::<$runtime>,
                 open_url::<$runtime>,
                 fetch_file::<$runtime>,
+                placeholder_plan::<$runtime>,
                 open_devtools::<$runtime>,
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,

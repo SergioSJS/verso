@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-placeholder-plan"
+description = "Enables the placeholder_plan command without any pre-configured scope."
+commands.allow = ["placeholder_plan"]
+
+[[permission]]
+identifier = "deny-placeholder-plan"
+description = "Denies the placeholder_plan command without any pre-configured scope."
+commands.deny = ["placeholder_plan"]

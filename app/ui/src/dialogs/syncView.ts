@@ -15,6 +15,7 @@ import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, reachStrings } from "../reach";
+import { type DownWords, placeholderBlock, ranNote, rowNote } from "./syncPlaceholders";
 import { liveHolder, openNote } from "../layout/spaces";
 import { roomSide, syncedSessions } from "../collab";
 import { writeLive } from "../roomWrites";
@@ -101,11 +102,27 @@ const pt = {
     unshared: "A sua cópia fica só neste computador e não vai ao servidor. Peça a quem tem a pasta para compartilhar de novo, se for o caso.",
     reader: "Eles ficam só neste computador. Peça para editar a quem tem a pasta, se for o caso.",
     quota: "Libere espaço na pasta, ou peça ao admin do servidor para aumentar a cota.",
-    placeholder: "Baixe-os do iCloud ou do OneDrive para que sincronizem.",
+    placeholder: "Baixe-os para que sincronizem: o botão abaixo traz os que o Verso consegue baixar.",
     too_large: "Arquivos assim não sincronizam.",
     changed: "Vão de novo na próxima passada.",
     failed: "O log do app (Ajuda › Relatar problema) diz o motivo de cada um.",
   } as Record<string, string>,
+  cloudOnly: (n: number) => (n === 1 ? "1 arquivo está só na nuvem; o servidor tem a cópia." : `${n} arquivos estão só na nuvem; o servidor tem a cópia.`),
+  down: {
+    button: (n, size) => `Baixar ${n} ${n === 1 ? "arquivo" : "arquivos"}${size ? ` (${size})` : ""}`,
+    progress: (done, n) => `Baixando ${done} de ${n}…`,
+    stop: "Parar",
+    stopping: "Parando depois deste arquivo…",
+    done: (n) => (n === 1 ? "Um arquivo baixado. Ele sincroniza agora." : `${n} arquivos baixados. Eles sincronizam agora.`),
+    partial: (ok, bad) => `${ok} ${ok === 1 ? "arquivo baixado" : "arquivos baixados"}; ${bad} não ${bad === 1 ? "pôde" : "puderam"} ser baixado${bad === 1 ? "" : "s"}. O motivo de cada um está na lista.`,
+    failedAll: (bad) => `Nenhum arquivo foi baixado: ${bad === 1 ? "o arquivo falhou" : `os ${bad} arquivos falharam`}. O motivo está na lista.`,
+    stopped: (done, n) => `Parado: ${done} de ${n} baixados. Os outros continuam na lista.`,
+    noRoom: (need, free) => `Não há espaço no disco: baixar isso pede ${need} (com uma folga) e há ${free} livres. Libere espaço e tente de novo.`,
+    unknownSpace: "Não deu para saber o espaço livre no disco; nada foi baixado.",
+    skipped: "Não havia o que baixar: o arquivo já não está só na nuvem. A próxima sincronização o confere.",
+    oldForm: "Na forma antiga do iCloud (.nome.icloud): o Verso não consegue baixar este. Baixe-o pelo Finder.",
+    unavailable: "O iCloud ou o OneDrive não entregou o conteúdo (sem conexão?). Tente de novo.",
+  } as DownWords,
   history: "Atividade recente",
   historyEmpty: "Nada cruzou ainda.",
   what: {
@@ -195,10 +212,26 @@ const en: typeof pt = {
     unshared: "Your copy stays on this computer and does not go to the server. Ask whoever owns the folder to share it again, if you should.",
     reader: "They stay on this computer. Ask the folder's owner to let you edit, if you should.",
     quota: "Free some space in the folder, or ask the server's admin for a larger quota.",
-    placeholder: "Download them from iCloud or OneDrive so that they sync.",
+    placeholder: "Download them so that they sync: the button below brings down the ones Verso can.",
     too_large: "Files like these do not sync.",
     changed: "They go again on the next pass.",
     failed: "The app's log (Help › Report a problem) says why for each one.",
+  },
+  cloudOnly: (n) => (n === 1 ? "1 file is only in the cloud; the server has it." : `${n} files are only in the cloud; the server has them.`),
+  down: {
+    button: (n, size) => `Download ${n} ${n === 1 ? "file" : "files"}${size ? ` (${size})` : ""}`,
+    progress: (done, n) => `Downloading ${done} of ${n}…`,
+    stop: "Stop",
+    stopping: "Stopping after this file…",
+    done: (n) => (n === 1 ? "One file downloaded. It syncs now." : `${n} files downloaded. They sync now.`),
+    partial: (ok, bad) => `${ok} ${ok === 1 ? "file" : "files"} downloaded; ${bad} could not be. The reason for each is in the list.`,
+    failedAll: (bad) => `No file was downloaded: ${bad === 1 ? "the file failed" : `all ${bad} files failed`}. The reason is in the list.`,
+    stopped: (done, n) => `Stopped: ${done} of ${n} downloaded. The rest stay in the list.`,
+    noRoom: (need, free) => `Not enough room on the disk: downloading this takes ${need} (with some margin) and ${free} are free. Free some space and try again.`,
+    unknownSpace: "Could not tell how much space the disk has free; nothing was downloaded.",
+    skipped: "There was nothing to download: the file is no longer only in the cloud. The next sync checks it.",
+    oldForm: "In iCloud's older form (.name.icloud): Verso cannot download this one. Download it from Finder.",
+    unavailable: "iCloud or OneDrive did not give the content (no connection?). Try again.",
   },
   history: "Recent activity",
   historyEmpty: "Nothing has crossed yet.",
@@ -396,11 +429,26 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
         });
         li.append(btn);
       }
+      if (reason === "placeholder") {
+        const note = rowNote(st.key, f.path, s.down);
+        if (note) nameSpan.append(h("span", "sync-file-why", note));
+      }
       if (reason === "failed" && f.message) li.title = f.message;
       list.append(li);
     }
     item.append(h("h4", "sync-item-title", title), h("p", "sync-item-why", s.reasonDo[reason] ?? s.reasonDo["failed"]!), list);
+    // Placeholders sync never sent come down on a click (ADR 0043).
+    if (reason === "placeholder") item.append(placeholderBlock(st.key, files, s.down, refresh));
     needs.append(item);
+  }
+  // Every file came down: the run's outcome is still said once.
+  const ran = byReason.has("placeholder") ? null : ranNote(st.key, s.down);
+  if (ran) needs.append(ran);
+  // Evicted files the server has: nothing is asked, said quietly (ADR 0043).
+  if (st.cloud_only.length > 0) {
+    const quiet = h("p", "sync-quiet", s.cloudOnly(st.cloud_only.length));
+    quiet.setAttribute("role", "note");
+    needs.append(quiet);
   }
 
   // 3. What happened, folded and last: history, not a task.
