@@ -170,7 +170,8 @@ pub struct PlaceholderPlan {
     pub count: u32,
     pub bytes: f64,
     /// The bytes the disk under the folder can still take; `None` when the
-    /// system would not say (the download then goes without the check).
+    /// system would not say (the window then refuses to download: it
+    /// cannot tell the files fit).
     pub free: Option<f64>,
 }
 

@@ -704,7 +704,17 @@ pub(crate) fn placeholder_plan<R: tauri::Runtime>(
                 plan.bytes += e.len as f64;
             }
         }
-        plan.free = ws.free_space().ok().map(|n| n as f64);
+        plan.free = match ws.free_space() {
+            Ok(n) => Some(n as f64),
+            Err(e) => {
+                log::write(
+                    "WARN",
+                    "host",
+                    &format!("could not tell the free space of the folder's disk: {e:?}"),
+                );
+                None
+            }
+        };
         Ok(plan)
     })
 }

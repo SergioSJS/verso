@@ -126,8 +126,8 @@ fn a_synced_file_sent_back_to_the_cloud_is_no_deletion_no_upload_and_asks_nothin
     let status = a.s.status();
     assert_eq!(status.cloud_only, ["Nota.md"], "{status:?}");
     assert!(
-        status.refused.iter().all(|f| f.path != "Nota.md"),
-        "a file the server has asks nothing of the person: {:?}",
+        status.refused.is_empty(),
+        "a file the server has asks nothing of the person, the stub included: {:?}",
         status.refused
     );
     on(&b, &mut lb);
@@ -144,6 +144,7 @@ fn a_synced_file_sent_back_to_the_cloud_is_no_deletion_no_upload_and_asks_nothin
         super::tests_sync::files(&a)
     );
     assert_eq!(a.s.status().cloud_only, ["Nota.md"]);
+    assert!(a.s.status().refused.is_empty());
 
     // Back on this computer (the stub gone, the file in its place): the
     // change that waited arrives.
@@ -155,6 +156,47 @@ fn a_synced_file_sent_back_to_the_cloud_is_no_deletion_no_upload_and_asks_nothin
         Some(b"# Nota, mudada\n".as_slice())
     );
     assert!(a.s.status().cloud_only.is_empty());
+    // The edit arrived on the file; no copy was set beside it.
+    let all = super::tests_sync::files(&a);
+    assert!(all.iter().all(|p| !p.contains("conflito")), "{all:?}");
+}
+
+#[test]
+fn a_cloud_only_file_the_server_deleted_is_not_called_held_by_the_server() {
+    let r = serve(&[]);
+    let a = device(&r, &r.owner, &[("Nota.md", "# Nota\n")]);
+    let mut la = kept(&a);
+    on(&a, &mut la);
+    let b = device(&r, &r.owner, &[]);
+    let mut lb = kept(&b);
+    on(&b, &mut lb);
+    let _stub = evict(&a, "Nota.md");
+    on(&a, &mut la);
+    assert_eq!(a.s.status().cloud_only, ["Nota.md"]);
+
+    // Deleted on the server by the other device.
+    b.ctx
+        .service
+        .with_key(&b.key, |ws| {
+            ws.delete_entry("Nota.md")?;
+            Ok(())
+        })
+        .unwrap();
+    super::tests_sync::changed(&b, &["Nota.md"]);
+    on(&b, &mut lb);
+    on(&a, &mut la);
+
+    // Not "the server has it": it waits for the person, the placeholder
+    // is neither deleted nor hidden.
+    let status = a.s.status();
+    assert!(status.cloud_only.is_empty(), "{status:?}");
+    assert!(
+        status
+            .refused
+            .iter()
+            .any(|f| f.path == "Nota.md" && f.reason == "placeholder"),
+        "{status:?}"
+    );
 }
 
 #[test]
