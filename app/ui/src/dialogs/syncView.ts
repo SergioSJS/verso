@@ -20,6 +20,7 @@ import { liveHolder, openNote } from "../layout/spaces";
 import { roomSide, syncedSessions } from "../collab";
 import { writeLive } from "../roomWrites";
 import { liveLine, liveWords } from "../coeditWords";
+import { currentFolder } from "../folder";
 import { liveTogether, setLiveTogether } from "../settings";
 import { madeBy } from "../syncWho";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
@@ -477,6 +478,8 @@ function togetherRow(refresh: Refresh): HTMLElement {
   box.checked = liveTogether();
   box.addEventListener("change", () => {
     setLiveTogether(box.checked);
+    // Only the folder's key and the new value reach the log.
+    void commands.logWrite("INFO", `live editing turned ${box.checked ? "on" : "off"} for folder ${currentFolder}`).catch(() => undefined);
     void refresh().then(() => dispatchEvent(new Event("verso:live-together")));
   });
   const words = h("span", "sync-together-words");

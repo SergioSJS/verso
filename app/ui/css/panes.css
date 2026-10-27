@@ -224,6 +224,12 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
    item 14): said in words; the dot only repeats them. */
 .live-mark { flex: none; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
 .live-mark[data-live="live"]::before, .status-live[data-live="live"]::before { content: "● "; color: var(--brass-ink); }
+.live-off-notice { flex: 0 1 auto; margin-left: auto; padding: .1rem .4rem; font: inherit; font-size: .78rem; color: var(--ink-3); background: none; border: 1px dashed var(--ink-3); border-radius: 5px; cursor: pointer; text-align: left; }
+.live-off-notice:hover { color: var(--ink); }
+.live-off-notice:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.live-off-notice[hidden] { display: none; }
+.live-mark:not([hidden]) + .live-off-notice { margin-left: .6rem; }
+@media (max-width: 600px) { .title-row { flex-wrap: wrap; } .live-off-notice { margin-left: 0; } }
 .save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
 .save:hover { filter: brightness(1.08); }
 .flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
