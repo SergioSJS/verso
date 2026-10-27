@@ -67,7 +67,7 @@ import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinCollab, lostLine, sideCan } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, lostLine, onJoinRetry, onRoomsBack, sideCan } from "../collab";
 import { applyToRoom, edited } from "../roomHandover";
 import { Stopwatch } from "../slowOps";
 import { tableWidths } from "../tableWidths";
@@ -287,6 +287,7 @@ export class NoteLeaf extends Leaf {
 
   constructor(pane: Pane) {
     super(pane);
+    this.unhearJoin = [onRoomsBack(() => void this.joinRetried(this.path)), onJoinRetry((p) => this.joinRetried(p))];
     this.modeButtons = {
       preview: this.modeButton("preview", "reading", t.reading),
       live: this.modeButton("live", "edit", t.edit),
@@ -1360,8 +1361,23 @@ export class NoteLeaf extends Leaf {
     this.editor.dispatch({ effects: unfoldFor(this.editor.state, l.from), selection: { anchor: l.from }, scrollIntoView: true });
     this.editor.focus();
   }
+  private unhearJoin: (() => void)[] = [];
+  private rejoining = false;
+  /** The sync link is back, or a join found it not ready and the wait is
+   *  over: a note read local joins its room, once nothing typed is unsaved.
+   *  True when it did (the chain of waits goes on). */
+  joinRetried(path: string): boolean {
+    if (this.destroyed || !path || path !== this.path || this.collab || this.joiningRoom || this.dirty || this.rejoining || !this.note) return false;
+    this.rejoining = true;
+    void this.load(path, true).finally(() => {
+      this.rejoining = false;
+    });
+    return true;
+  }
   override destroy(): void {
     this.destroyed = true;
+    for (const off of this.unhearJoin) off();
+    this.unhearJoin = [];
     this.access.destroy();
     this.unpreview();
     this.unmountDrawing();
