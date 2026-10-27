@@ -127,8 +127,10 @@ export async function textWentLocal(this: TextLeaf, why: LocalWhy): Promise<void
   const r = await commands.readText(path);
   if (path !== this.path || !this.collab || this.collab.live) return;
   if (r.status !== "ok") return;
-  this.revision = r.data.revision;
   const differs = r.data.text !== this.roomText();
+  // See the note's: a file the tab does not hold keeps the old revision, so
+  // the save shows both instead of writing over it.
+  if (!differs || r.data.revision === this.revision || this.collab.revision === r.data.revision) this.revision = r.data.revision;
   this.setDirty(differs);
   if (differs) this.scheduleSave();
 }

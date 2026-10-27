@@ -55,6 +55,19 @@ export type SyncState = { on: boolean; state: string; role: string; live: boolea
 
 let syncState: SyncState | null = null;
 
+/** Whether the synced folder's rooms can be reached now (the last answer of
+ *  `follow`). */
+let roomsOk = false;
+/** What a rejoin waits, ms, after the link was not ready: grows, then stays. */
+const REJOIN_WAITS = [1500, 4000, 10000, 30000, 60000];
+const backListeners = new Set<() => void>();
+/** Told when the synced folder's rooms became reachable again: a tab that
+ *  holds no session (it was read while the link was down) joins now. */
+export function onRoomsBack(fn: () => void): () => void {
+  backListeners.add(fn);
+  return () => backListeners.delete(fn);
+}
+
 /** Whether the server let the person edit this synced note, though they
  *  only read the folder (ADR 0113 S8): access.ts says, from what the host
  *  heard; a reader of the folder is a typist of a note they edit. */
@@ -378,12 +391,14 @@ export abstract class RoomSession {
     // Left by the setting: the note is read anew, never sent again.
     if (this.synced && this.left && this.handlers.anew) return this.handlers.anew();
     const r = await commands.collabJoin(this.path);
-    // A synced note whose link dropped again stays local.
-    if (this.synced && r.status !== "ok" && r.error.kind === "unavailable") return;
+    // A synced note whose link is not ready (the status says connected a
+    // moment before the host's live link is) stays local and asks again.
+    if (this.synced && r.status !== "ok" && r.error.kind === "unavailable") return this.rejoinLater();
     if (r.status !== "ok" || r.data.read_only) return this.handlers.closed();
     if (r.data.epoch === this.epoch) {
       Y.applyUpdate(this.doc, fromB64(r.data.update), REMOTE);
       this.live = true;
+      this.retries = 0;
       this.why = null;
       // After whatever this window still had on its way.
       this.outbox.push(Y.encodeStateAsUpdate(this.doc));
@@ -403,6 +418,19 @@ export abstract class RoomSession {
     fresh.destroy();
     this.leave();
     this.handlers.closed(same ? undefined : "lost");
+  }
+
+  private retries = 0;
+  private retryTimer: number | undefined;
+  /** The join found the link not ready: again after a wait that grows,
+   *  while the link is said to be back and the note is still local. */
+  private rejoinLater(): void {
+    window.clearTimeout(this.retryTimer);
+    const wait = REJOIN_WAITS[Math.min(this.retries++, REJOIN_WAITS.length - 1)] ?? 60000;
+    this.retryTimer = window.setTimeout(() => {
+      if (this.closedLocally || this.live || !roomsOk) return;
+      void this.rejoin();
+    }, wait);
   }
 
   /** An edit the room refused: closed here, the tab told what did not go. */
@@ -687,6 +715,9 @@ async function follow(next: SyncState): Promise<void> {
   forgetCapabilities();
   const ok = next.on && next.live && (await canCollab());
   const why: LocalWhy = !next.on ? "off" : !next.live ? "setting" : next.state === "paused" ? "paused" : "offline";
+  const wasOk = roomsOk;
+  roomsOk = ok;
+  if (ok && !wasOk) for (const fn of [...backListeners]) fn();
   for (const s of [...sessions.values()]) {
     if (!s.synced) continue;
     if (!ok && s.live) s.goLocal(why);
