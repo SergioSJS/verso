@@ -143,9 +143,23 @@ export class BoardLeaf extends TextLeaf {
     this.host.before(this.boardHost);
     this.paintFace();
   }
-  override async load(path: string, force = false): Promise<void> {
-    await super.load(path, force);
+  override async load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    try {
+      await this.loadBoard(path, force, retry);
+    } finally {
+      this.loadsRunning--;
+    }
+  }
+  /** What a retry must not drop: the board drawn, or the text typed, since it began. */
+  touchedSince = (): boolean => this.torn || this.textEdited || this.pendingBoard !== null || this.dirty;
+  private async loadBoard(path: string, force: boolean, retry: boolean): Promise<void> {
+    await super.load(path, force, retry);
     if (this.path !== path) return;
+    if (retry && (this.retryBailed || this.touchedSince())) {
+      this.retryBailed = true;
+      return;
+    }
     this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
@@ -154,8 +168,9 @@ export class BoardLeaf extends TextLeaf {
     this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
-    await this.joinBoardRoom(path, text);
+    await this.joinBoardRoom(path, text, retry ? this.touchedSince : undefined);
     if (this.path !== path) return;
+    if (retry && this.room === null && this.touchedSince()) this.retryBailed = true;
     if (this.showing === "board") await this.showBoard();
   }
   protected override roomKind(): "text" | "board" {

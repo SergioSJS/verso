@@ -10,7 +10,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
 import { may } from "../access";
-import { type CollabHandlers, type CollabSession, joinCollab, onJoinRetry, onRoomsBack, type RoomSession, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, type JoinAnswer, joinPending, onJoinRetry, type RoomSession, ySyncAnnotation } from "../collab";
 import { type What } from "../coeditWords";
 import { methods } from "../methods";
 import { h, ui } from "../dom";
@@ -87,7 +87,7 @@ export class TextLeaf extends Leaf {
   constructor(pane: Pane) {
     super(pane);
     this.roomHandlers = this.makeHandlers();
-    this.unhearJoin = [onRoomsBack(() => void this.joinRetried(this.path)), onJoinRetry((p) => this.joinRetried(p))];
+    this.unhearJoin = onJoinRetry((p) => this.joinRetried(p));
     const head = h("header", "leaf-head");
     this.liveMark.hidden = true;
     head.append(this.crumbs, this.modes, this.dataModes, this.liveMark);
@@ -163,7 +163,27 @@ export class TextLeaf extends Leaf {
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
-  async load(path: string, force = false): Promise<void> {
+  async load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    try {
+      await this.loadNow(path, force, retry);
+    } finally {
+      this.loadsRunning--;
+    }
+  }
+  /** Loads under way in this tab (a retry of the room's join waits for them). */
+  loadsRunning = 0;
+  /** Set when a `retry` load stopped because the person typed meanwhile or
+   *  the tab went: the text stays as it is, and the join is asked again. */
+  retryBailed = false;
+  torn = false;
+  private async loadNow(path: string, force: boolean, retry: boolean): Promise<void> {
+    this.retryBailed = false;
+    // A retry joins the room of a tab already showing its text: it replaces
+    // the editor's content only if nothing was typed since it began, checked
+    // after its last wait (invariant: typed text is never overwritten).
+    const typed0 = retry ? this.editor.state.doc.toString() : "";
+    const touched = (): boolean => retry && (this.torn || this.dirty || this.editor.state.doc.toString() !== typed0);
     if (this.dirty && !force && !(await askDiscard())) return;
     // A write in flight lands first: the read comes after it.
     await this.saving;
@@ -173,6 +193,10 @@ export class TextLeaf extends Leaf {
     this.modes.hidden = kindOf(path) !== "frame";
     this.dataModes.hidden = diagramFormat(path) === null;
     const r = await opening.readText(path, this.quiet(path));
+    if (retry && (r.status !== "ok" || touched())) {
+      this.retryBailed = true;
+      return;
+    }
     if (r.status !== "ok") {
       if (this.veiled(r.error)) return this.veil(path);
       if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
@@ -183,9 +207,6 @@ export class TextLeaf extends Leaf {
     const desc = LanguageDescription.matchFilename(languages, path);
     const support = desc ? await desc.load().catch(() => null) : null;
     if (this.path !== path) return;
-    window.clearTimeout(this.saveTimer);
-    this.revision = r.data.revision;
-    this.seen = { revision: r.data.revision, text: r.data.text };
     const sep = lineSeparator(r.data.text);
     // Several people in the file, where the side allows it (ADR 0082 item
     // 12): the room's text, which may hold edits not written yet.
@@ -200,6 +221,15 @@ export class TextLeaf extends Leaf {
         : null;
     this.catching = false;
     if (this.path !== path) return shared?.release(this.roomHandlers);
+    if (touched()) {
+      shared?.release(this.roomHandlers);
+      this.retryBailed = true;
+      this.paintLive();
+      return;
+    }
+    window.clearTimeout(this.saveTimer);
+    this.revision = r.data.revision;
+    this.seen = { revision: r.data.revision, text: r.data.text };
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
     this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
@@ -368,23 +398,27 @@ export class TextLeaf extends Leaf {
   override focusContent(): void {
     this.editor.focus();
   }
-  private unhearJoin: (() => void)[] = [];
+  private unhearJoin: (() => void) | null = null;
   /** The sync link is back, or a join found it not ready and the wait is
-   *  over: a tab that holds no room reads the file anew and joins, once
-   *  nothing typed here is unsaved. True when it did (the caller's chain of
-   *  waits goes on); a board's tab says it its own way. */
-  joinRetried(path: string): boolean {
-    if (!path || path !== this.path || this.collab || this.dirty || this.conflict.up || this.rejoining) return false;
+   *  over (collab.ts): a tab whose join is pending reads the file anew and
+   *  joins, but never replaces text typed meanwhile (`load`'s `retry`). */
+  joinRetried(path: string): JoinAnswer {
+    if (this.torn || !path || path !== this.path || this.collab || !joinPending(path)) return "gone";
+    if (this.dirty || this.conflict.up || this.rejoining || this.loadsRunning > 0) return "busy";
     this.rejoining = true;
-    void this.load(path, true).finally(() => {
-      this.rejoining = false;
-    });
-    return true;
+    void this.load(path, true, true)
+      .finally(() => {
+        this.rejoining = false;
+        if (this.retryBailed && !this.torn) joinBusy(path);
+      })
+      .catch(() => undefined);
+    return "started";
   }
   private rejoining = false;
   override destroy(): void {
-    for (const off of this.unhearJoin) off();
-    this.unhearJoin = [];
+    this.torn = true;
+    this.unhearJoin?.();
+    this.unhearJoin = null;
     window.clearTimeout(this.saveTimer);
     this.unlink?.();
     this.unlink = null;

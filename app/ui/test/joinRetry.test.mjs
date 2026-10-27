@@ -53,6 +53,7 @@ const sync = async (state) => {
 };
 
 let linkUp = true;
+let readOnly = false;
 let answers;
 let joins;
 let log;
@@ -68,7 +69,7 @@ beforeEach(async () => {
     if (cmd === "collab_join") {
       joins++;
       const a = answers.shift() ?? "ok";
-      if (a === "ok") return { read_only: false, rolls: [], user: "Ana", kind: "text" };
+      if (a === "ok") return { read_only: readOnly, rolls: [], user: "Ana", kind: "text" };
       throw { kind: a, message: a };
     }
     return null;
@@ -91,14 +92,15 @@ function tab(path) {
       if (this.closed || this.path !== path) return;
       this.room = room;
     },
+    busy: false,
     joinRetried(p) {
-      if (this.closed || p !== this.path || this.room) return false;
+      if (this.closed || p !== this.path || this.room || !c.joinPending(p)) return "gone";
+      if (this.busy) return "busy";
       void this.join();
-      return true;
+      return "started";
     },
   };
-  const offs = [c.onRoomsBack(() => void t.joinRetried(t.path)), c.onJoinRetry((p) => t.joinRetried(p))];
-  t.off = () => offs.forEach((f) => f());
+  t.off = c.onJoinRetry((p) => t.joinRetried(p));
   return t;
 }
 const wait = async (ms, mock) => {
@@ -179,6 +181,79 @@ test("the link dropping during the wait: no retry storm; the way back rejoins", 
   assert.ok(t.room);
   assert.equal(joins, 2);
   t.off();
+});
+
+test("a busy tab (unsaved text) is asked again after the next wait, not given up", async (tc) => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  tc.after(() => mock.timers.reset());
+  answers = ["unavailable"];
+  const t = tab("a.md");
+  await t.join();
+  t.busy = true;
+  await wait(1500, mock);
+  assert.equal(joins, 1, "not joined while busy");
+  t.busy = false;
+  await wait(4000, mock);
+  assert.ok(t.room, "joined once it rested");
+  t.off();
+});
+
+test("a tab that never had a pending join is not told when the link comes back", async () => {
+  const t = tab("m.md");
+  answers = ["ok"];
+  await t.join();
+  const before = joins;
+  linkUp = false;
+  await sync(down);
+  linkUp = true;
+  await sync(up);
+  assert.equal(joins, before);
+  t.off();
+});
+
+test("a join that never ran because the link was down is pending: the way back joins it", async () => {
+  linkUp = false;
+  await sync(down);
+  const t = tab("d.md");
+  await t.join();
+  assert.equal(joins, 0);
+  assert.ok(c.joinPending("d.md"));
+  linkUp = true;
+  await sync(up);
+  assert.ok(t.room);
+  assert.equal(joins, 1);
+  assert.equal(c.joinPending("d.md"), false);
+  assert.equal(log.filter((l) => l.includes("joined after")).length, 0, "no line for a join that was never retried");
+  t.off();
+});
+
+test("a read_only answer is not pending and leaves nothing to retry", async () => {
+  answers = ["unavailable"];
+  const t = tab("r.md");
+  await t.join();
+  assert.ok(c.joinPending("r.md"));
+  readOnly = true;
+  await c.joinRoom("r.md", undefined, () => ({}));
+  assert.equal(c.joinPending("r.md"), false);
+  readOnly = false;
+  t.off();
+});
+
+test("two tabs of one path join one after the other: one join answered, the second shares", async () => {
+  let inFlight = 0;
+  let most = 0;
+  const base = globalThis.__invoke;
+  globalThis.__invoke = async (cmd, args) => {
+    if (cmd === "collab_join") {
+      inFlight++;
+      most = Math.max(most, inFlight);
+      await new Promise((r) => setImmediate(r));
+      inFlight--;
+    }
+    return base(cmd, args);
+  };
+  await Promise.all([c.joinRoom("s.md", undefined, () => ({ release() {}, open: false })), c.joinRoom("s.md", undefined, () => ({ release() {}, open: false }))]);
+  assert.equal(most, 1, "never two joins of the path at once");
 });
 
 test("a refusal of another kind is not retried", async (tc) => {
