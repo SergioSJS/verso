@@ -45,6 +45,8 @@ use yrs::{Any, Doc, Map, ReadTxn, StateVector, Transact};
 use super::{Kind, Room, b64, event, refused, state};
 use crate::board_sight::{self, Class, Entries, Op, Sight};
 use crate::collab_board::{ELEMENTS, META};
+use crate::scope::Scope;
+use crate::share_board;
 use crate::state::Server;
 
 /// The board's own facts, as the shadow holds them.
@@ -55,6 +57,11 @@ type Held = (Entries, Meta);
 
 /// One account's view of a board room.
 pub struct Shadow {
+    /// The account the shadow is of.
+    account: String,
+    /// The share the windows in it opened, when they opened one: the room
+    /// holds the owner's paths, the shadow the share's (`share_board.rs`).
+    scope: Option<Scope>,
     doc: Doc,
     epoch: String,
     /// The windows of the account in the shadow.
@@ -118,6 +125,9 @@ impl Shadows {
 pub(crate) struct Locks<'a> {
     ws: RefCell<&'a mut verso_core::Workspace>,
     veil: &'a crate::campaign::Veil,
+    /// A window of a share is told nothing of a file outside it: the card
+    /// of one is locked, as one of a hidden file is.
+    scope: Option<&'a Scope>,
     cache: RefCell<HashMap<String, Option<String>>>,
 }
 
@@ -126,8 +136,19 @@ impl<'a> Locks<'a> {
         Self {
             ws: RefCell::new(ws),
             veil,
+            scope: None,
             cache: RefCell::new(HashMap::new()),
         }
+    }
+
+    /// [`Locks::new`] for a window that opened `scope`, if it opened one.
+    pub(crate) fn within(mut self, scope: Option<&'a Scope>) -> Self {
+        self.scope = scope;
+        self
+    }
+
+    fn outside(&self, file: &str) -> bool {
+        self.scope.is_some_and(|s| s.to_rel(file).is_none())
     }
 
     /// The words of the locked card for `file`, when the account does not
@@ -139,11 +160,13 @@ impl<'a> Locks<'a> {
         let mut ws = self.ws.borrow_mut();
         // One rule for the file a card names (`reached_exact`, ADR 0057):
         // one that is not there is the same to a player as one hidden from
-        // them — a locked card, never an answer to "does it exist".
+        // them — a locked card, never an answer to "does it exist". So is
+        // one outside the share the window opened.
         let reached = ws.reached_exact(file);
-        let hidden = reached
-            .as_ref()
-            .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
+        let hidden = self.outside(file)
+            || reached
+                .as_ref()
+                .is_none_or(|r| crate::campaign_serve::is_hidden_in(&mut ws, self.veil, r));
         // One text for every locked card, whatever the reason (hidden,
         // hidden with a secret name, not there): a card never says which.
         let told = hidden.then(|| crate::campaign_text::locked_card(&self.veil.lang));
@@ -157,6 +180,9 @@ impl<'a> Locks<'a> {
     /// A file that is not there is not one they see — a card of one is no
     /// way to ask whether a hidden file exists.
     fn sees(&self, file: &str) -> bool {
+        if self.outside(file) {
+            return false;
+        }
         let mut ws = self.ws.borrow_mut();
         match ws.reached_exact(file) {
             Some(reached) => !crate::campaign_serve::is_hidden_in(&mut ws, self.veil, &reached),
@@ -299,8 +325,33 @@ fn file_names_in(json: &str, out: &mut BTreeSet<String>) {
     }
 }
 
+/// The key a shadow is kept under: the account, and the share it opened if
+/// it opened one — one account may be in the board through the whole folder
+/// and through a share, and the two see the paths of the room differently.
+fn shadow_key(account: &str, scope: Option<&Scope>) -> String {
+    match scope {
+        Some(s) => format!("{account}\u{0}{}", s.share),
+        None => account.to_owned(),
+    }
+}
+
+/// What the room holds of `sight`, the elements told as the share's window
+/// knows them: the card of a file's path re-rooted at the share.
+fn rooted_at(scope: Option<&Scope>, sight: &mut Sight) {
+    let Some(scope) = scope else { return };
+    sight.shown = std::mem::take(&mut sight.shown)
+        .into_iter()
+        .filter_map(|(k, v)| share_board::element_out(scope, &v).map(|v| (k, v)))
+        .collect();
+}
+
 /// A shadow of `r` for `account`, made of what it sees now.
-fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractError> {
+fn make(
+    server: &Server,
+    r: &Room,
+    account: &str,
+    scope: Option<&Scope>,
+) -> Result<Shadow, ContractError> {
     let veil = crate::campaign::veil_for_key(server, &r.key)
         .ok_or_else(|| refused("this board is not at a table"))?
         .view(account);
@@ -312,7 +363,7 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         _ => String::new(),
     };
     let path = r.path.clone();
-    let (file, told_files) = server.service.with_key(&r.key, |ws| {
+    let (file, told_files, plain_files) = server.service.with_key(&r.key, |ws| {
         let file = ws.read_text(&path)?;
         // What the account is told of each file a card names, asked of the
         // folder here, under its lock — the one thing that needs it. The
@@ -325,24 +376,52 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
         }
         file_names_in(&base, &mut names);
         file_names_in(&file.text, &mut names);
-        let locks = Locks::new(ws, &veil);
-        let told: HashMap<String, Option<String>> = names
-            .into_iter()
-            .map(|n| {
-                let t = locks.text(&n);
-                (n, t)
-            })
-            .collect();
-        Ok((file, told))
+        let told: HashMap<String, Option<String>> = {
+            let locks = Locks::new(ws, &veil).within(scope);
+            names
+                .into_iter()
+                .map(|n| {
+                    let t = locks.text(&n);
+                    (n, t)
+                })
+                .collect()
+        };
+        // The file's revision is that of the file as a window of the whole
+        // folder is served it (`campaign_serve`): the share a window
+        // opened does not change it.
+        let plain = {
+            let mut own = BTreeSet::new();
+            file_names_in(&file.text, &mut own);
+            let locks = Locks::new(ws, &veil);
+            own.into_iter()
+                .map(|n| {
+                    let t = locks.text(&n);
+                    (n, t)
+                })
+                .collect::<HashMap<_, _>>()
+        };
+        Ok((file, told, plain))
     })?;
     // A name not asked above is locked: nothing is said by guessing.
     let lock = |f: &str| match told_files.get(f) {
         Some(t) => t.clone(),
         None => Some(crate::campaign_text::locked_card(&veil.lang)),
     };
-    let sight = board_sight::see(&entries, &lock);
-    let (shaped, disk) = disk_classes(&base, &lock);
-    let shown = board_sight::shaped_text(&file.text, &lock);
+    let mut sight = board_sight::see(&entries, &lock);
+    let (mut shaped, disk) = disk_classes(&base, &lock);
+    let plain = |f: &str| match plain_files.get(f) {
+        Some(t) => t.clone(),
+        None => Some(crate::campaign_text::locked_card(&veil.lang)),
+    };
+    let shown = board_sight::shaped_text(&file.text, &plain);
+    if let Some(scope) = scope {
+        share_board::canvas_out(
+            scope,
+            &mut shaped,
+            &crate::campaign_text::locked_card(&veil.lang),
+        );
+    }
+    rooted_at(scope, &mut sight);
     let rev = board_sight::revision_of(&shown);
     let mut told = told_facts(&facts);
     told.insert("saved".to_owned(), Any::String(String::new().into()));
@@ -359,6 +438,8 @@ fn make(server: &Server, r: &Room, account: &str) -> Result<Shadow, ContractErro
     apply_ops(&doc, (&puts, &[]), &facts_put);
     let epoch = crate::crypto::id().map_err(verso_service::failed)?;
     Ok(Shadow {
+        account: account.to_owned(),
+        scope: scope.cloned(),
         doc,
         epoch,
         clients: HashSet::new(),
@@ -381,11 +462,12 @@ pub fn join_shadow(
     key: &str,
     path: &str,
     user: &str,
+    scope: Option<&Scope>,
 ) -> Result<CollabJoin, ContractError> {
-    match shadow_room(server, who, key, path, user) {
+    match shadow_room(server, who, key, path, user, scope) {
         Err(e) if e.message == super::BROKEN => {
             super::reload(server, key, path, "its state could not be made");
-            shadow_room(server, who, key, path, user)
+            shadow_room(server, who, key, path, user, scope)
         }
         joined => joined,
     }
@@ -397,6 +479,7 @@ fn shadow_room(
     key: &str,
     path: &str,
     user: &str,
+    scope: Option<&Scope>,
 ) -> Result<CollabJoin, ContractError> {
     if server.rooms.joined_elsewhere(client, key, path) >= super::JOINED_MOST {
         return Err(refused(&format!(
@@ -419,7 +502,7 @@ fn shadow_room(
             }));
         }
     }
-    join(server, &mut r, (client, account), user)
+    join(server, &mut r, (client, account), user, scope)
 }
 
 /// `client`, a player of `account` who may edit the board, joins the
@@ -429,23 +512,25 @@ pub(super) fn join(
     r: &mut Room,
     (client, account): (&str, &str),
     user: &str,
+    scope: Option<&Scope>,
 ) -> Result<CollabJoin, ContractError> {
+    let at = shadow_key(account, scope);
     // A window that joins again, alone in its shadow (after a refusal, or a
     // dropped link), gets the room's state as it is now, projected for the
     // account anew when its shadow drifted from the room (what it drew when
     // it seeded, the versions it only echoed): none of that is carried over.
     // A shadow other windows are in, or that did not drift, stays.
-    let alone = r.readers.players.by.get(account).is_some_and(|sh| {
+    let alone = r.readers.players.by.get(&at).is_some_and(|sh| {
         sh.clients.iter().all(|c| c == client) && (!sh.seeded.is_empty() || sh.now.0 != sh.told.0)
     });
     if alone {
-        r.readers.players.by.remove(account);
+        r.readers.players.by.remove(&at);
     }
-    if !r.readers.players.by.contains_key(account) {
-        let shadow = make(server, r, account)?;
-        r.readers.players.by.insert(account.to_owned(), shadow);
+    if !r.readers.players.by.contains_key(&at) {
+        let shadow = make(server, r, account, scope)?;
+        r.readers.players.by.insert(at.clone(), shadow);
     }
-    let Some(sh) = r.readers.players.by.get_mut(account) else {
+    let Some(sh) = r.readers.players.by.get_mut(&at) else {
         return Err(refused(super::BROKEN));
     };
     sh.clients.insert(client.to_owned());
@@ -483,19 +568,26 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
         crate::log::warn("a board room's shadows could not read it");
         return;
     };
-    let accounts: Vec<String> = r.readers.players.by.keys().cloned().collect();
+    let accounts: Vec<(String, String, Option<Scope>)> = r
+        .readers
+        .players
+        .by
+        .iter()
+        .map(|(k, sh)| (k.clone(), sh.account.clone(), sh.scope.clone()))
+        .collect();
     let base = match facts.get("base") {
         Some(Any::String(s)) => s.to_string(),
         _ => String::new(),
     };
     let sights = server.service.with_key(&r.key, |ws| {
         let mut out = Vec::new();
-        for a in &accounts {
+        for (at, a, scope) in &accounts {
             let v = veil.view(a);
-            let locks = Locks::new(ws, &v);
-            let sight = board_sight::see(&entries, &|f| locks.text(f));
+            let locks = Locks::new(ws, &v).within(scope.as_ref());
+            let mut sight = board_sight::see(&entries, &|f| locks.text(f));
+            rooted_at(scope.as_ref(), &mut sight);
             let disk = fresh.then(|| disk_classes(&base, &|f| locks.text(f)));
-            out.push((a.clone(), sight, disk));
+            out.push((at.clone(), sight, disk));
         }
         Ok(out)
     });
@@ -572,16 +664,22 @@ pub(super) fn saved(server: &Server, r: &mut Room) {
     let Some(veil) = crate::campaign::veil_for_key(server, &r.key) else {
         return;
     };
-    let accounts: Vec<String> = r.readers.players.by.keys().cloned().collect();
+    let accounts: Vec<(String, String, Option<Scope>)> = r
+        .readers
+        .players
+        .by
+        .iter()
+        .map(|(k, sh)| (k.clone(), sh.account.clone(), sh.scope.clone()))
+        .collect();
     let path = r.path.clone();
     let revs = server.service.with_key(&r.key, |ws| {
         let file = ws.read_text(&path)?;
         let mut out = Vec::new();
-        for a in &accounts {
+        for (at, a, _) in &accounts {
             let v = veil.view(a);
             let locks = Locks::new(ws, &v);
             let shown = board_sight::shaped_text(&file.text, &|f| locks.text(f));
-            out.push((a.clone(), board_sight::revision_of(&shown)));
+            out.push((at.clone(), board_sight::revision_of(&shown)));
         }
         Ok(out)
     });
@@ -656,6 +754,7 @@ pub(super) fn update(
     let Some(sh) = r.readers.players.by.get_mut(&shadow) else {
         return Err(refused("join the board first"));
     };
+    let scope = sh.scope.clone();
     let clients =
         super::caught(|| crate::writers::judged(&sh.doc, &decoded, who, &sh.writers, &sh.clients))?
             .map_err(|why| refused(&why))?;
@@ -729,13 +828,33 @@ pub(super) fn update(
             Op::Put(k, _) | Op::Del(k) => !is_echo(k),
         })
         .collect();
+    // What the room is given of it: the share's paths joined to the share's
+    // (`share_board.rs`), so that an edit can name nothing outside it.
+    let (puts_room, ops_room) = match (&scope, seeding) {
+        (Some(sc), false) => {
+            let rooted = |v: &str| share_board::element_in(sc, v);
+            let puts = puts
+                .iter()
+                .map(|(k, v)| rooted(v).map(|v| (k.clone(), v)))
+                .collect::<Result<Vec<_>, _>>()?;
+            let ops = ops
+                .iter()
+                .map(|o| match o {
+                    Op::Put(k, v) => rooted(v).map(|v| Op::Put(k.clone(), v)),
+                    Op::Del(k) => Ok(Op::Del(k.clone())),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            (puts, ops)
+        }
+        _ => (puts.clone(), ops.clone()),
+    };
     // The first update of a window that draws the board in is the file's
     // own elements, made of the projection: it goes into the shadow only.
     if !seeding {
         let judged = server.service.with_key(&r.key, |ws| {
-            let locks = Locks::new(ws, &veil);
+            let locks = Locks::new(ws, &veil).within(scope.as_ref());
             Ok(board_sight::check(
-                &ops,
+                &ops_room,
                 &room_held.0,
                 &sh.sight,
                 &sh.disk,
@@ -787,7 +906,7 @@ pub(super) fn update(
     if !r.authors.iter().any(|a| a == account) {
         r.authors.push(account.to_owned());
     }
-    let Some(main) = apply_ops(&r.doc, (&puts, &dels), &facts_put) else {
+    let Some(main) = apply_ops(&r.doc, (&puts_room, &dels), &facts_put) else {
         return Ok(false);
     };
     r.board.bytes = r.board.bytes.saturating_add(main.len());
@@ -898,15 +1017,20 @@ pub(super) fn canvas(
     let Some(sh) = r.readers.players.by.get(&account) else {
         return Ok(());
     };
+    let account = sh.account.clone();
     if sh.doc.transact().state_vector() != at {
         return Ok(());
     }
     if json.len() > crate::collab_board::CANVAS_MOST {
         return Err(refused("a board's file of 16 MB at most"));
     }
-    let Ok(theirs) = serde_json::from_str::<Value>(json) else {
+    let Ok(mut theirs) = serde_json::from_str::<Value>(json) else {
         return Ok(());
     };
+    let scope = sh.scope.clone();
+    if let Some(sc) = &scope {
+        share_board::canvas_in(sc, &mut theirs)?;
+    }
     let disk = super::read(server, &r.key, &r.path)?;
     if disk.revision != r.revision {
         crate::log::warn(&format!(
@@ -923,7 +1047,7 @@ pub(super) fn canvas(
     };
     let veil = veil.view(&account);
     let laid = server.service.with_key(&r.key, |ws| {
-        let locks = Locks::new(ws, &veil);
+        let locks = Locks::new(ws, &veil).within(scope.as_ref());
         Ok(board_sight::lay_over(
             &mine,
             &theirs,
