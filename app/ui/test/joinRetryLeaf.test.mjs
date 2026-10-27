@@ -114,6 +114,7 @@ function leaf(path) {
     pendingBoard: null,
     dirty: false,
     retryBailed: false,
+    shown: 0,
     catching: false,
     liveOthers: [],
     roomHandlers: { saved() {}, conflict() {}, closed() {}, remote() {} },
@@ -133,7 +134,9 @@ function leaf(path) {
       try {
         this.retryBailed = false;
         await b.joinBoardRoom.call(this, p, text, retry ? () => this.touchedSince() : undefined);
-        if (retry && this.room === null && this.touchedSince()) this.retryBailed = true;
+        // (as board.ts loadBoard: a bailed retry shows nothing over what was drawn)
+        if (retry && this.room === null && this.touchedSince()) return void (this.retryBailed = true);
+        this.shown++;
       } finally {
         this.loadsRunning--;
       }
@@ -199,6 +202,45 @@ test("drawn meanwhile (a pending board) is never replaced either", async (tc) =>
   await wait(4000);
   assert.ok(l.room);
   l.off();
+});
+
+test("drawn during the held join: the board is not reloaded from the disk's text, the drawing stays pending, the next ask joins", async (tc) => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  tc.after(() => mock.timers.reset());
+  answers = ["unavailable", "hold"];
+  const l = leaf("Drawn.canvas");
+  await l.load("Drawn.canvas", false);
+  const shownBefore = l.shown;
+  await wait(1500);
+  l.pendingBoard = "J";
+  held();
+  await settle();
+  assert.equal(l.room, null);
+  assert.equal(l.shown, shownBefore, "showBoard (board.load of the disk's text) did not run");
+  assert.equal(l.pendingBoard, "J", "the drawing is still pending, to be saved");
+  l.pendingBoard = null; // saved
+  await wait(4000);
+  assert.ok(l.room);
+  l.off();
+});
+
+test("a busy split-view tab is asked again after the other joined, and shares its room", async (tc) => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  tc.after(() => mock.timers.reset());
+  answers = ["unavailable", "unavailable"];
+  const one = leaf("Busy.canvas");
+  const two = leaf("Busy.canvas");
+  await one.load("Busy.canvas", false);
+  await two.load("Busy.canvas", false);
+  two.textEdited = true;
+  await wait(1500);
+  assert.ok(one.room);
+  assert.equal(two.room, null, "the busy tab kept its text");
+  two.textEdited = false;
+  await wait(4000);
+  assert.equal(two.room, one.room, "it shares the room once it rests");
+  one.off();
+  two.off();
 });
 
 test("a tab destroyed while the join is on its way takes no room", async (tc) => {

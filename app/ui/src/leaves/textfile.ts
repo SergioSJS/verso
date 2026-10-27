@@ -10,7 +10,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
 import { may } from "../access";
-import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, type JoinAnswer, joinPending, onJoinRetry, type RoomSession, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, onJoinRetry, type RoomSession, ySyncAnnotation } from "../collab";
 import { type What } from "../coeditWords";
 import { methods } from "../methods";
 import { h, ui } from "../dom";
@@ -193,6 +193,7 @@ export class TextLeaf extends Leaf {
     this.modes.hidden = kindOf(path) !== "frame";
     this.dataModes.hidden = diagramFormat(path) === null;
     const r = await opening.readText(path, this.quiet(path));
+    if (retry && r.status !== "ok" && r.error.kind === "not_found") return joinGiveUp(path);
     if (retry && (r.status !== "ok" || touched())) {
       this.retryBailed = true;
       return;
@@ -207,6 +208,8 @@ export class TextLeaf extends Leaf {
     const desc = LanguageDescription.matchFilename(languages, path);
     const support = desc ? await desc.load().catch(() => null) : null;
     if (this.path !== path) return;
+    // (a retry clears it only once it is known not to give up: the person may be typing)
+    if (!retry) window.clearTimeout(this.saveTimer);
     const sep = lineSeparator(r.data.text);
     // Several people in the file, where the side allows it (ADR 0082 item
     // 12): the room's text, which may hold edits not written yet.

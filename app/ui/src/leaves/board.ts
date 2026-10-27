@@ -154,6 +154,10 @@ export class BoardLeaf extends TextLeaf {
   /** What a retry must not drop: the board drawn, or the text typed, since it began. */
   touchedSince = (): boolean => this.torn || this.textEdited || this.pendingBoard !== null || this.dirty;
   private async loadBoard(path: string, force: boolean, retry: boolean): Promise<void> {
+    // What the tab shows before a retry: put back if the person draws or
+    // types while the join is on its way (the retry reads the disk's text in
+    // first, which must not stand over what they did).
+    const was = retry ? { state: this.editor.state, revision: this.revision, seen: this.seen, heldText: this.heldText, heldRevision: this.heldRevision, textBase: this.textBase } : null;
     await super.load(path, force, retry);
     if (this.path !== path) return;
     if (retry && (this.retryBailed || this.touchedSince())) {
@@ -170,7 +174,20 @@ export class BoardLeaf extends TextLeaf {
     this.layoutKept = laid.status !== "ok" || laid.data === text;
     await this.joinBoardRoom(path, text, retry ? this.touchedSince : undefined);
     if (this.path !== path) return;
-    if (retry && this.room === null && this.touchedSince()) this.retryBailed = true;
+    if (retry && this.room === null && this.touchedSince()) {
+      // The tab is left as the person had it: the board they drew stays on
+      // screen and is saved as before, the text face is what it showed.
+      this.retryBailed = true;
+      if (was && !this.textEdited && !this.torn) {
+        this.editor.setState(was.state);
+        this.revision = was.revision;
+        this.seen = was.seen;
+        this.heldText = was.heldText;
+        this.heldRevision = was.heldRevision;
+        this.textBase = was.textBase;
+      }
+      return;
+    }
     if (this.showing === "board") await this.showBoard();
   }
   protected override roomKind(): "text" | "board" {

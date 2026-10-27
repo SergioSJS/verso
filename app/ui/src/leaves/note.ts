@@ -67,7 +67,7 @@ import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
+import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
 import { applyToRoom, edited } from "../roomHandover";
 import { Stopwatch } from "../slowOps";
 import { tableWidths } from "../tableWidths";
@@ -919,6 +919,7 @@ export class NoteLeaf extends Leaf {
     watch.step("read");
     const letGo = () => void joining?.then((r) => r?.release(this.roomHandlers));
     if (this.destroyed || load !== this.loads) return letGo();
+    if (retry && note.status !== "ok" && note.error.kind === "not_found") return joinGiveUp(path);
     if (retry && (note.status !== "ok" || touched())) {
       letGo();
       this.retryBailed = true;

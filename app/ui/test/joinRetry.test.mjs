@@ -54,6 +54,7 @@ const sync = async (state) => {
 
 let linkUp = true;
 let readOnly = false;
+let side = "desktop";
 let answers;
 let joins;
 let log;
@@ -62,8 +63,9 @@ beforeEach(async () => {
   joins = 0;
   log = [];
   linkUp = true;
+  side = "desktop";
   globalThis.__invoke = async (cmd, args) => {
-    if (cmd === "capabilities") return { can: linkUp ? ["collab"] : [], host: "desktop" };
+    if (cmd === "capabilities") return { can: linkUp ? ["collab"] : [], host: side };
     if (cmd === "log_write") return void log.push(args.message);
     if (cmd === "collab_leave") return null;
     if (cmd === "collab_join") {
@@ -225,6 +227,14 @@ test("a join that never ran because the link was down is pending: the way back j
   assert.equal(c.joinPending("d.md"), false);
   assert.equal(log.filter((l) => l.includes("joined after")).length, 0, "no line for a join that was never retried");
   t.off();
+});
+
+test("a side that is not the synced desktop marks nothing pending", async () => {
+  linkUp = false;
+  side = "web";
+  await sync(down);
+  await c.joinRoom("w.md", undefined, () => ({}));
+  assert.equal(c.joinPending("w.md"), false);
 });
 
 test("a read_only answer is not pending and leaves nothing to retry", async () => {
