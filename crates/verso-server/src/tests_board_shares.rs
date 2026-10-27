@@ -33,6 +33,8 @@ struct Cast {
     r: Running,
     /// The key the owner's folder is open under.
     key: String,
+    /// The share's id.
+    share: String,
     owner: Win,
     ana: Win,
 }
@@ -118,7 +120,13 @@ async fn cast_with(table: bool) -> Cast {
     let b = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
     let (ana, opened) = Win::open(&r, &b, &share).await;
     assert!(opened.get("ok").is_some(), "{opened}");
-    Cast { r, key, owner, ana }
+    Cast {
+        r,
+        key,
+        share,
+        owner,
+        ana,
+    }
 }
 
 /// The game master's window draws the board into the room; returns its copy.
@@ -189,16 +197,18 @@ fn a_card_a_player_puts_through_a_share_is_the_owners_path_in_the_room() {
         assert!(file_of(&ana, "c-out").is_none());
 
         // She puts a note of the share on the board, by the share's path.
-        let new = put(
-            &ana,
-            "c-new",
-            1,
-            31,
-            &card("c-new", "Lugares/Taverna do Corvo.md", "a2"),
-        );
+        // Written as a browser writes it: keys in no sorted order.
+        let new = {
+            use yrs::{Map, Transact};
+            let text = r#"{"version":1,"versionNonce":31,"type":"embeddable","index":"a2","link":"https://verso.invalid/board-node","id":"c-new","x":0,"y":0,"width":100,"height":50,"customData":{"canvas":{"width":100,"file":"Lugares/Taverna do Corvo.md","type":"file","id":"c-new","x":0,"y":0,"height":50}}}"#;
+            let map = ana.get_or_insert_map(collab_board::ELEMENTS);
+            let mut txn = ana.transact_mut();
+            map.insert(&mut txn, "c-new\n1\n31", text);
+            txn.encode_update_v1()
+        };
         let mark = edited(&ana, 1);
         let both = yrs::merge_updates_v1([new.as_slice(), mark.as_slice()]).unwrap();
-        let (sent, _) = exchange(
+        let (sent, mut echoed) = exchange(
             &mut c.ana,
             "collab_update",
             json!({ "path": REL, "update": STANDARD.encode(both) }),
@@ -207,6 +217,12 @@ fn a_card_a_player_puts_through_a_share_is_the_owners_path_in_the_room() {
         .await;
         assert!(sent.get("ok").is_some(), "{sent}");
 
+        // Her own edit is not sent back to her.
+        echoed.extend(hear(&mut c.ana, 300, OUTSIDE).await);
+        assert!(
+            echoed.iter().all(|e| e["event"] != "collab-update"),
+            "her edit came back: {echoed:?}"
+        );
         // The game master's window hears the owner's path, which resolves.
         let told = hear(&mut c.owner, 400, &[]).await;
         for e in told.iter().filter(|e| e["event"] == "collab-update") {
@@ -427,5 +443,92 @@ fn a_share_window_cannot_save_a_card_that_names_its_file_twice() {
             )
             .await;
         assert_eq!(wrote["err"]["kind"], "refused", "{wrote}");
+    });
+}
+
+#[test]
+fn a_shadow_made_with_an_old_share_is_closed_when_the_share_changes() {
+    block_on(async {
+        let mut c = cast().await;
+        master_seeds(&mut c).await;
+        let (joined, _) = ana_joins(&mut c).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        let now = crate::scope::Scope {
+            share: c.share.clone(),
+            key: crate::scope::share_key(&c.share),
+            name: "x".into(),
+            root: "Sub".into(),
+            mount: None,
+            guard: None,
+        };
+        // The share now at another root: the shadow of the old one goes.
+        let moved = crate::scope::Scope {
+            root: "Sub2".into(),
+            ..now
+        };
+        crate::collab::players::share_moved(&c.r.server, &c.share, Some(&moved));
+        let told = hear(&mut c.ana, 600, &[]).await;
+        assert!(
+            told.iter().any(|e| e["event"] == "collab-closed"),
+            "her shadow of the old root stayed: {told:?}"
+        );
+    });
+}
+
+/// The game master changes what a share's window was not shown, after the
+/// window read the board; the window's save over its old read is refused and
+/// the file stays the game master's, byte for byte.
+async fn a_change_of_the_game_master_survives(table: bool) {
+    let mut c = cast_with(table).await;
+    let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+    let read = c.ana.call("read_text", json!({ "path": REL })).await;
+    assert!(read.get("ok").is_some(), "{read}");
+    let rev = read["ok"]["revision"].as_str().unwrap().to_owned();
+    let shown = read["ok"]["text"].as_str().unwrap().to_owned();
+    // The game master moves the card beside the share and adds one.
+    let mut gm: Value = serde_json::from_str(first["ok"]["text"].as_str().unwrap()).unwrap();
+    gm["nodes"][1]["x"] = json!(999);
+    gm["nodes"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "id": "g", "type": "text",
+        "text": "do mestre", "x": 5, "y": 5, "width": 9, "height": 9 }));
+    let made = c
+        .owner
+        .call(
+            "write_text",
+            json!({ "path": BOARD, "text": gm.to_string(), "revision": first["ok"]["revision"] }),
+        )
+        .await;
+    assert!(made.get("ok").is_some(), "{made}");
+    let before = c.owner.call("read_text", json!({ "path": BOARD })).await;
+    let mut v: Value = serde_json::from_str(&shown).unwrap();
+    v["nodes"][0]["x"] = json!(5);
+    for (cmd, field, body) in [
+        ("write_text", "text", v.to_string()),
+        ("write_board", "json", v.to_string()),
+    ] {
+        let wrote = c
+            .ana
+            .call(cmd, json!({ "path": REL, field: body, "revision": rev }))
+            .await;
+        assert!(wrote.get("err").is_some(), "{cmd}: {wrote}");
+    }
+    let after = c.owner.call("read_text", json!({ "path": BOARD })).await;
+    assert_eq!(after["ok"]["text"], before["ok"]["text"]);
+    assert_eq!(after["ok"]["revision"], before["ok"]["revision"]);
+}
+
+#[test]
+fn a_game_masters_change_after_a_share_windows_read_is_never_overwritten() {
+    block_on(async {
+        a_change_of_the_game_master_survives(false).await;
+    });
+}
+
+#[test]
+fn a_player_of_a_table_cannot_overwrite_a_game_masters_change_either() {
+    block_on(async {
+        a_change_of_the_game_master_survives(true).await;
     });
 }
