@@ -761,6 +761,11 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-files li { padding: .18rem 0; overflow-wrap: anywhere; }
 .sync-file-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .sync-needs > .sync-calm { margin-bottom: 1.05rem; }
+.sync-download { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: .7rem; }
+.sync-download .sync-item-why { margin: 0; }
+.sync-progress { width: min(100%, 22rem); }
+.sync-file-why { display: block; font-size: .78rem; color: var(--ink-3); }
+.sync-quiet { margin: .9rem 0 0; font-size: .83rem; color: var(--ink-3); }
 .sync-history { border-top: 1px solid var(--hair); padding-top: .9rem; }
 .sync-history > summary { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; list-style: none; font: 600 .72rem var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .sync-history > summary::-webkit-details-marker { display: none; }
