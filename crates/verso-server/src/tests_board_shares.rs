@@ -53,6 +53,10 @@ fn disk_board() -> String {
 
 /// A folder with a table; a share of "Sub" to Ana, who edits its board.
 async fn cast() -> Cast {
+    cast_with(true).await
+}
+
+async fn cast_with(table: bool) -> Cast {
     let r = start().await;
     let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
     let id = folder_id(&r, &admin).await;
@@ -78,15 +82,17 @@ async fn cast() -> Cast {
     assert!(made.get("ok").is_some(), "{made}");
     let walked = owner.call("reindex", json!({})).await;
     assert!(walked.get("ok").is_some(), "{walked}");
-    let table = owner.call("campaign_make", json!({ "root": "" })).await;
-    assert_eq!(table["ok"]["viewer"], "owner", "{table}");
-    let released = owner
-        .call(
-            "campaign_release",
-            json!({ "paths": ["Sub/Livre.md", "Sub/Lugares/Taverna do Corvo.md", "Sub/Lugares/Ponte.md", "Fora/Y.md"], "released": true }),
-        )
-        .await;
-    assert!(released.get("ok").is_some(), "{released}");
+    if table {
+        let made = owner.call("campaign_make", json!({ "root": "" })).await;
+        assert_eq!(made["ok"]["viewer"], "owner", "{made}");
+        let released = owner
+            .call(
+                "campaign_release",
+                json!({ "paths": ["Sub/Livre.md", "Sub/Lugares/Taverna do Corvo.md", "Sub/Lugares/Ponte.md", "Fora/Y.md"], "released": true }),
+            )
+            .await;
+        assert!(released.get("ok").is_some(), "{released}");
+    }
     let a = r
         .server
         .db
@@ -105,8 +111,10 @@ async fn cast() -> Cast {
         whole: Level::See,
         rows: [(a.id.clone(), Level::Edit)].into_iter().collect(),
     };
-    r.server.db.access_put(&id, BOARD, set).unwrap();
-    crate::campaign::forget(&r.server, &id);
+    if table {
+        r.server.db.access_put(&id, BOARD, set).unwrap();
+        crate::campaign::forget(&r.server, &id);
+    }
     let b = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
     let (ana, opened) = Win::open(&r, &b, &share).await;
     assert!(opened.get("ok").is_some(), "{opened}");
@@ -277,5 +285,91 @@ fn the_game_masters_cards_reach_a_player_through_the_share_as_hers_or_locked() {
         let text = serde_json::to_string(&collab_board::elements(&ana)).unwrap();
         assert!(!text.contains("Fora") && !text.contains("Y.md"), "{text}");
         assert!(!text.contains("Sub/"), "{text}");
+    });
+}
+
+#[test]
+fn a_board_read_and_written_through_a_share_keeps_the_files_paths_and_revision() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let disk = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let rev = disk["ok"]["revision"].as_str().unwrap().to_owned();
+        let read = c.ana.call("read_text", json!({ "path": REL })).await;
+        assert!(read.get("ok").is_some(), "{read}");
+        // The revision is the file's own, whatever text the window is shown.
+        assert_eq!(read["ok"]["revision"], disk["ok"]["revision"], "{read}");
+        let shown = read["ok"]["text"].as_str().unwrap().to_owned();
+        assert!(shown.contains("\"Livre.md\""), "{shown}");
+        for leak in OUTSIDE.iter().chain(&["Sub/"]) {
+            assert!(!shown.contains(leak), "{leak} in {shown}");
+        }
+        // She adds a card by the share's path and saves over that revision.
+        let mut v: Value = serde_json::from_str(&shown).unwrap();
+        v["nodes"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({ "id": "n", "type": "file",
+            "file": "Lugares/Ponte.md", "x": 1, "y": 1, "width": 10, "height": 10 }));
+        let wrote = c
+            .ana
+            .call(
+                "write_text",
+                json!({ "path": REL, "text": v.to_string(), "revision": rev }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        assert!(
+            wrote["ok"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("\"Lugares/Ponte.md\""),
+            "{wrote}"
+        );
+        // The file holds the owner's path, and the card she was not shown.
+        let now = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let on_disk = now["ok"]["text"].as_str().unwrap();
+        assert!(on_disk.contains("\"Sub/Lugares/Ponte.md\""), "{on_disk}");
+        assert!(on_disk.contains("\"Fora/Y.md\""), "{on_disk}");
+        assert!(on_disk.contains("\"Sub/Livre.md\""), "{on_disk}");
+        // A save over the revision it read before is refused: the file moved.
+        let stale = c
+            .ana
+            .call(
+                "write_text",
+                json!({ "path": REL, "text": v.to_string(), "revision": rev }),
+            )
+            .await;
+        assert!(stale.get("err").is_some(), "{stale}");
+        assert_eq!(
+            c.owner.call("read_text", json!({ "path": BOARD })).await["ok"]["text"],
+            now["ok"]["text"]
+        );
+        // The board's own save, laid over the file, the same way.
+        let fresh = wrote["ok"]["revision"].as_str().unwrap().to_owned();
+        v["nodes"][0]["x"] = json!(77);
+        let saved = c
+            .ana
+            .call(
+                "write_board",
+                json!({ "path": REL, "json": v.to_string(), "revision": fresh }),
+            )
+            .await;
+        assert!(saved.get("ok").is_some(), "{saved}");
+        let on_disk = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let on_disk = on_disk["ok"]["text"].as_str().unwrap();
+        assert!(on_disk.contains("\"Sub/Lugares/Ponte.md\"") && on_disk.contains("\"Fora/Y.md\""));
+        assert!(on_disk.contains("77"), "{on_disk}");
+        let preview = c
+            .ana
+            .call(
+                "board_preview",
+                json!({ "path": REL, "json": v.to_string() }),
+            )
+            .await;
+        let text = preview["ok"].as_str().unwrap();
+        assert!(text.contains("\"Lugares/Ponte.md\""), "{preview}");
+        for leak in OUTSIDE.iter().chain(&["Sub/"]) {
+            assert!(!text.contains(leak), "{leak} in {text}");
+        }
     });
 }
