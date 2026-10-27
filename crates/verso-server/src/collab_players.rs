@@ -235,6 +235,11 @@ fn apply_ops(
     Some(txn.encode_update_v1())
 }
 
+/// An element's JSON as the projection serialises it.
+fn normalized(json: &str) -> String {
+    serde_json::from_str::<Value>(json).map_or_else(|_| json.to_owned(), |v| v.to_string())
+}
+
 /// The id an entry's key names.
 fn key_id(key: &str) -> Option<&str> {
     crate::collab_board::parse_key(key).map(|(i, _, _)| i)
@@ -714,6 +719,37 @@ pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
     );
 }
 
+/// A share changed (its folder moved, its paths narrowed) or went: the
+/// shadows made with the share as it was are closed, so that their windows
+/// join anew with the share as it is — a shadow never keeps an old root.
+pub(crate) fn share_moved(server: &Server, share: &str, now: Option<&Scope>) {
+    let rooms: Vec<_> = lock(&server.rooms.map).values().map(Arc::clone).collect();
+    for room in rooms {
+        let mut r = lock(&room);
+        let stale: Vec<String> = r
+            .readers
+            .players
+            .by
+            .values()
+            .filter(|sh| {
+                sh.scope
+                    .as_ref()
+                    .is_some_and(|s| s.share == share && Some(s) != now)
+            })
+            .flat_map(|sh| sh.clients.iter().cloned())
+            .collect();
+        if stale.is_empty() {
+            continue;
+        }
+        r.readers.players.by.retain(|_, sh| {
+            !sh.scope
+                .as_ref()
+                .is_some_and(|s| s.share == share && Some(s) != now)
+        });
+        close(server, &mut r, &stale);
+    }
+}
+
 /// What the table lets an account see changed (a release, a hide, a level):
 /// the shadows that see the room otherwise now are closed, the others follow.
 pub(super) fn veil_changed(server: &Server, r: &mut Room) {
@@ -894,8 +930,14 @@ pub(super) fn update(
         sh.seeded.extend(puts.iter().cloned());
         return Ok(false);
     }
+    // Kept as the projection writes an element (keys sorted, as `see`
+    // serialises it), not as the window did: the next projection of the
+    // same element is then the same text, and is not sent back to its own
+    // window.
     for (k, v) in &puts {
-        sh.told.0.insert(k.clone(), v.clone());
+        let v = normalized(v);
+        sh.now.0.insert(k.clone(), v.clone());
+        sh.told.0.insert(k.clone(), v);
     }
     for k in &dels {
         sh.told.0.remove(k);

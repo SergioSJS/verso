@@ -160,9 +160,18 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         .collect();
     let mut gone = Vec::new();
     let mut demoted = Vec::new();
+    // The shares as they are now, for the board shadows made of an older
+    // one (`collab_players::share_moved`).
+    let mut fresh: Vec<(String, Option<Scope>)> = Vec::new();
     {
         let mut table = lock(&server.clients);
         for (client, now) in found {
+            if let Some(c) = table.get(&client)
+                && let Some(old) = &c.scope
+                && !fresh.iter().any(|(s, _)| *s == old.share)
+            {
+                fresh.push((old.share.clone(), now.as_ref().map(|(s, _)| s.clone())));
+            }
             let Some(c) = table.get_mut(&client) else {
                 continue;
             };
@@ -189,6 +198,9 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         }
     }
     server.left(&gone);
+    for (share, scope) in &fresh {
+        crate::collab::players::share_moved(server, share, scope.as_ref());
+    }
     // One who may now only read leaves the rooms it wrote in (ADR 0087).
     for client in demoted {
         crate::collab::readers::demoted(server, &client);

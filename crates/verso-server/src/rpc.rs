@@ -1168,11 +1168,29 @@ async fn board_in(
         return Ok(args);
     };
     let (s, k, p) = (Arc::clone(server), key.to_owned(), path.to_owned());
-    let disk = blocking(move || {
-        s.service
-            .with_key(&k, |ws| Ok(ws.read_text(&p).ok().map(|f| f.text)))
+    let read = blocking(move || {
+        s.service.with_key(&k, |ws| {
+            Ok(ws.read_text(&p).ok().map(|f| (f.text, f.revision)))
+        })
     })
     .await?;
+    // The cards the window was not shown are put back from the file read
+    // here; the write that follows is over the revision the window read,
+    // and the core refuses it at the write, under the folder's lock, unless
+    // the file is still those bytes. So both must be the file's now: a
+    // window whose revision is any other (one made of what it was shown, or
+    // one the file has moved on from) is refused with the file untouched —
+    // never a write over cards it did not see.
+    if matches!(name, "write_text" | "write_board")
+        && let Some((_, now)) = &read
+        && args["revision"].as_str() != Some(now.as_str())
+    {
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::Changed,
+            message: "the board changed since you read it".to_owned(),
+        });
+    }
+    let disk = read.map(|(text, _)| text);
     args[field] = Value::String(crate::share_board::text_in(
         scope,
         disk.as_deref(),
