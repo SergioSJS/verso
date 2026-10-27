@@ -277,6 +277,31 @@ carried a recommendation; the maintainer decided. Open items answered
     loose at the vault's root stay outside a shared sub-folder, as there
     is no attachments folder to add, and the sharing dialog asks the owner
     to move them into one; sharing the whole vault has no such limit.
+    *As built 2026-10-27 (a board's card paths):* **the paths inside a
+    board's content cross the share boundary like every other path.** A
+    card of a board (ADR 0057) names its note by `file`, a path from the
+    root of the owner's folder, matched exactly; the room and the file on
+    the server hold only those. Through a share, the window's side is the
+    share's: `crates/verso-server/src/share_board.rs` re-roots a card's
+    path at the share on the way out and joins it to the share's on the
+    way in, by the same rule as `Scope::to_full` (no `..`, nothing
+    absolute, so an edit can name nothing outside the share). A card of a
+    file outside the share is told as the locked card every veiled card
+    has (no path, no name, one text whatever the reason); the locked card
+    is the file's, not the window's: a save gives it back as it was, and a
+    card the window dropped is not deleted. The player's shadow of a
+    board room is kept per account **and share** (one account may be in
+    the board through the whole folder and through a share), holds the
+    share's paths, and what it gives the room it gives in the owner's.
+    `read_text`, `write_text`, `write_board`, `board_preview`,
+    `read_file_text` and `links` of a board do the same; the revision is
+    always that of the bytes on disk, and only the `file` strings of the
+    text are rewritten (invariant 7). `[OPEN]`: the **sync** of a share to
+    a device still carries a board's bytes as they are on the server
+    (owner paths), and a share window without a table still joins the
+    board's whole room, whose cards it writes by the share's paths: both
+    need the same re-rooting and, for sync, a hash of the bytes the device
+    holds that is not the server's.
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note
     open through a share and through the owner's folder is **one room**:
     the room's place is the owner's folder key and the full path, which

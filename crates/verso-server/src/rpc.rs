@@ -1175,6 +1175,19 @@ fn board_out(scope: &crate::scope::Scope, name: &str, answer: &mut Value, lang: 
                 answer["text"] = Value::String(crate::share_board::text_out(scope, text, &words));
             }
         }
+        // A card's target is its file's path in the owner's folder: the
+        // share's for a file in it, nothing for a file beside it.
+        "links" => {
+            for l in answer.as_array_mut().into_iter().flatten() {
+                let Some(resolved) = l["resolved"].as_str() else {
+                    continue;
+                };
+                if l["target"].as_str() != Some(resolved) {
+                    continue;
+                }
+                l["target"] = Value::String(scope.to_rel(resolved).unwrap_or_default());
+            }
+        }
         "board_preview" | "read_file_text" => {
             if let Some(text) = answer.as_str() {
                 *answer = Value::String(crate::share_board::text_out(scope, text, &words));
