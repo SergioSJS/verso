@@ -49,6 +49,7 @@ mod placeholder;
 pub mod server;
 mod settings;
 mod single;
+mod space;
 mod staged;
 mod subfolders;
 mod sweep;
@@ -768,6 +769,13 @@ impl Root {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(ReadError::Io(e)),
         }
+    }
+
+    /// The bytes the disk under the folder can still take (ADR 0043,
+    /// decided on 2026-10-27: a download from the cloud refuses to start
+    /// when the files do not fit).
+    pub fn free_space(&self) -> Result<u64, std::io::Error> {
+        space::free_bytes(&self.path)
     }
 
     /// Replace a file's content atomically (ADR 0029): temporary file in the
