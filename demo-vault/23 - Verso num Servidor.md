@@ -109,7 +109,7 @@ Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesm
 - **Pausar** a sincronização deixa a nota *local — sincronização pausada* até você retomar.
 - Quem só **lê** a pasta aparece na nota, com o nome, e não digita.
 - Uma mudança feita **fora do Verso** (o Obsidian, um script) na nota aberta cruza como qualquer outra: entra na sala, ou fica numa cópia se a sala já tinha salvo outra coisa.
-- Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta.
+- Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta. Com ele desligado, a nota e o board dizem **Edição ao vivo desligada nesta pasta**, num botão que abre este ajuste.
 
 Boards, arquivos de texto e bases abertos aqui também ficam ao vivo, do mesmo jeito; os anexos cruzam como arquivos.
 

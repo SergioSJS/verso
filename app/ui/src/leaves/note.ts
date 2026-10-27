@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { liveOffNotice } from "../liveOff";
+import { openSettingsSection } from "../dialogs/sync";
 import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
@@ -318,7 +320,7 @@ export class NoteLeaf extends Leaf {
 
     const titleRow = h("div", "title-row");
     this.liveMark.hidden = true;
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.access.el, this.liveMark);
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
     this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;

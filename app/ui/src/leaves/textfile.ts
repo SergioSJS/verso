@@ -11,6 +11,8 @@ import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
 import { may } from "../access";
 import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, onJoinRetry, type RoomSession, ySyncAnnotation } from "../collab";
+import { liveOffNotice } from "../liveOff";
+import { openSettingsSection } from "../dialogs/sync";
 import { type What } from "../coeditWords";
 import { methods } from "../methods";
 import { h, ui } from "../dom";
@@ -90,7 +92,7 @@ export class TextLeaf extends Leaf {
     this.unhearJoin = onJoinRetry((p) => this.joinRetried(p));
     const head = h("header", "leaf-head");
     this.liveMark.hidden = true;
-    head.append(this.crumbs, this.modes, this.dataModes, this.liveMark);
+    head.append(this.crumbs, this.modes, this.dataModes, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
     this.dataModes.hidden = true;
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
