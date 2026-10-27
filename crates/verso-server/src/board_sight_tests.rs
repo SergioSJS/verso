@@ -645,11 +645,19 @@ fn a_card_of_a_file_that_is_not_there_is_judged_as_one_hidden() {
 }
 
 #[test]
-fn a_file_whose_elements_share_an_id_is_not_laid_over() {
-    let disk = json!({ "nodes": [
+fn elements_that_share_an_id_are_laid_over_unless_one_is_hidden_from_the_player() {
+    let player = json!({ "nodes": [ { "id": "x", "type": "text", "text": "c" } ], "edges": [] });
+    // Both open to the player: the file is laid over.
+    let open = json!({ "nodes": [
         { "id": "x", "type": "text", "text": "a" },
         { "id": "x", "type": "text", "text": "b" },
     ], "edges": [] });
-    let player = json!({ "nodes": [ { "id": "x", "type": "text", "text": "c" } ], "edges": [] });
-    assert!(lay_over(&disk, &player, &|_| None, &|_| true).is_none());
+    assert!(lay_over(&open, &player, &|_| None, &|_| true).is_some());
+    // One is a card of a file the player does not see: not laid over.
+    let hidden = json!({ "nodes": [
+        { "id": "x", "type": "file", "file": "oculta.md" },
+        { "id": "x", "type": "text", "text": "b" },
+    ], "edges": [] });
+    let lock = |f: &str| (f == "oculta.md").then(|| "trancado".to_owned());
+    assert!(lay_over(&hidden, &player, &lock, &|_| true).is_none());
 }
