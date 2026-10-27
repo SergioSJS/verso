@@ -71,7 +71,7 @@ test("outside news are taken in, the local edit kept: the save holds both", () =
   const disk = canvas("antes", [drawn("d1"), drawn("d2"), drawn("r1", { type: "rectangle" })]);
   const text = JSON.stringify(disk);
   assert.equal(b.changedOutside("r1", "r2"), true);
-  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(was), text, nonce) !== undefined, true);
+  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(was), text, nonce).ok, true);
   s.patch(b.patchFromCanvas(s.resolved(), b.toElements(canvas("depois", disk.verso.drawing)), disk, canvas("depois", disk.verso.drawing), nonce));
   const out = s.canvas();
   assert.deepEqual(ids(out), ["d1", "d2", "r1"]);
@@ -83,14 +83,14 @@ test("an element the room holds just so is not touched again", () => {
   const was = canvas("antes", [drawn("d1")]);
   const s = session(was);
   const before = s.resolved().get("d1").version;
-  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(canvas("antes", [])), JSON.stringify(was), nonce), true);
+  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(canvas("antes", [])), JSON.stringify(was), nonce).ok, true);
   assert.equal(s.resolved().get("d1").version, before);
   s.leave();
 });
 
 test("a file that is not a board is not taken in", () => {
   const s = session(canvas("antes", []));
-  assert.equal(b.takeOutsideIn(s, b.toElements, "{}", "not json", nonce), false);
+  assert.equal(b.takeOutsideIn(s, b.toElements, "{}", "not json", nonce).ok, false);
   s.leave();
 });
 
@@ -99,7 +99,7 @@ test("an element deleted outside is deleted in the board, one the board changed 
   const s = session(was);
   s.goLocal("offline");
   const disk = canvas("antes", [drawn("d1")]);
-  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(was), JSON.stringify(disk), nonce), true);
+  assert.equal(b.takeOutsideIn(s, b.toElements, JSON.stringify(was), JSON.stringify(disk), nonce).ok, true);
   assert.deepEqual(ids(s.canvas()), ["d1"]);
   s.leave();
 });

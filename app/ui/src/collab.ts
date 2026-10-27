@@ -386,6 +386,16 @@ export abstract class RoomSession {
    *  again from the disk: the tab reads the note anew, and says so if
    *  something typed meanwhile could not go along. */
   async rejoin(): Promise<void> {
+    if (this.rejoinBusy) return;
+    this.rejoinBusy = true;
+    try {
+      await this.rejoinOnce();
+    } finally {
+      this.rejoinBusy = false;
+    }
+  }
+  private rejoinBusy = false;
+  private async rejoinOnce(): Promise<void> {
     if (this.closedLocally) return;
     if (this.synced && this.live) return;
     // Left by the setting: the note is read anew, never sent again.
@@ -506,6 +516,7 @@ export abstract class RoomSession {
     if (this.closedLocally) return;
     removeAwarenessStates(this.awareness, [this.doc.clientID], "local");
     this.closedLocally = true;
+    window.clearTimeout(this.retryTimer);
     sessions.delete(this.path);
     this.awareness.destroy();
     this.doc.destroy();

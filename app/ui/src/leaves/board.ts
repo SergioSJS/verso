@@ -116,6 +116,15 @@ export class BoardLeaf extends TextLeaf {
   /** The file the board's content stands on: what was read, or written, at
    *  `revision`. What changed outside is taken in over it (board/outside.ts). */
   heldText = "";
+  /** The revision `heldText` was read at: equal to `revision` whenever the
+   *  board knows the file it stands on; otherwise the base is not known. */
+  heldRevision = "";
+  declare hold: typeof boardLive.hold;
+  declare holdRevision: typeof boardLive.holdRevision;
+  /** Whether no room takes this board by what it is (see `roomsBack`). */
+  roomless = false;
+  /** A rejoin by `roomsBack` is on its way: no second load beside it. */
+  joining = false;
   private unhearRooms: (() => void) | null = null;
   /** A synced folder's board out of its room: its save on this computer. */
   localTimer: number | undefined;
@@ -143,7 +152,7 @@ export class BoardLeaf extends TextLeaf {
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
-    this.heldText = text;
+    this.hold(this.revision, text);
     this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
@@ -415,8 +424,7 @@ export class BoardLeaf extends TextLeaf {
       }
       const r = await commands.writeBoard(this.path, mine, this.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, mine);
-      this.revision = r.data.revision;
-      this.heldText = r.data.text;
+      this.hold(r.data.revision, r.data.text);
       this.editor.setState(this.state(r.data.text));
       if (this.pendingBoard === mine) {
         this.pendingBoard = null;
@@ -478,7 +486,9 @@ export class BoardLeaf extends TextLeaf {
       this.saving = run.catch(() => undefined);
       return run;
     }
-    const board = this.pendingBoard;
+    // Out of its room: the room's board, not the text face's old text.
+    const local = this.room && !this.room.live ? this.room : null;
+    const board = local ? JSON.stringify(local.canvas()) : this.pendingBoard;
     if (board === null) return super.overwrite();
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
@@ -486,13 +496,18 @@ export class BoardLeaf extends TextLeaf {
       const r = await commands.writeBoard(this.path, board, disk.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, board);
       this.conflict.hide();
-      this.revision = r.data.revision;
+      this.hold(r.data.revision, r.data.text);
       this.editor.setState(this.state(r.data.text));
       this.pendingBoard = null;
       this.setDirty(false);
+      if (local) this.showText(r.data.text);
     });
     this.saving = run.catch(() => undefined);
     return run;
+  }
+  protected override written(f: Parameters<TextLeaf["written"]>[0], mine: string): void {
+    super.written(f, mine);
+    this.hold(f.revision, f.text);
   }
   private async setFace(face: "board" | "source"): Promise<void> {
     if (face === this.showing) return;
@@ -536,7 +551,10 @@ export class BoardLeaf extends TextLeaf {
       }
       if (!this.room.synced || this.textEdited) return;
       const r = await commands.readText(path);
-      if (r.status === "ok" && path === this.path && !this.textEdited) this.showText(r.data.text);
+      if (r.status === "ok" && path === this.path && !this.textEdited) {
+        if (r.data.revision === this.revision) this.hold(r.data.revision, r.data.text);
+        this.showText(r.data.text);
+      }
       return;
     }
     await this.saving;

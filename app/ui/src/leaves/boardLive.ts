@@ -39,11 +39,31 @@ function lang(): string {
 
 const nonce = (): number => Math.floor(Math.random() * 2 ** 31);
 
+/** The one place the file the board stands on moves: its revision and its
+ *  text together, so a revision is never taken without the text it names. */
+export function hold(this: BoardLeaf, revision: string, text: string): void {
+  this.revision = revision;
+  this.heldRevision = revision;
+  this.heldText = text;
+}
+
+/** A revision the room wrote, whose text is read at that revision; until
+ *  then, or if the file moved on, the base is unknown (`heldRevision` stays
+ *  different) and an outside change is judged with no base. */
+export function holdRevision(this: BoardLeaf, revision: string): void {
+  this.revision = revision;
+  this.heldRevision = "";
+  const path = this.path;
+  void commands.readText(path).then((r) => {
+    if (r.status === "ok" && r.data.revision === revision && this.revision === revision && this.path === path) this.hold(revision, r.data.text);
+  });
+}
+
 /** What the tab does when its board's room speaks. */
 export function boardHandlers(this: BoardLeaf): CollabHandlers {
   return {
     saved: (revision) => {
-      this.revision = revision;
+      this.holdRevision(revision);
       this.setDirty(false);
       void this.followSaved(revision);
     },
@@ -91,8 +111,11 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string)
   // a file that is not one.
   const doc = parseCanvas(text);
   const later = typeof doc?.verso?.version === "number" && doc.verso.version > BOARD_VERSION;
-  const room =
-    lineSeparator(text) !== null && this.layoutIsKept() && doc !== null && !later
+  // A board no room takes by what it is (later version, mixed line ends,
+  // another layout) stays out for good; one a link not ready left out asks
+  // again when the link is back (`roomsBack`).
+  this.roomless = !(lineSeparator(text) !== null && this.layoutIsKept() && doc !== null && !later);
+  const room = !this.roomless
       ? await joinBoard(path, this.roomHandlers, may(path, "edit"), () => {
           this.catching = true;
           this.paintLive();
@@ -136,11 +159,14 @@ export async function saveLocalNow(this: BoardLeaf): Promise<void> {
   window.clearTimeout(this.localTimer);
   const room = this.room;
   if (!room || room.live || !room.writable) return this.saving;
-  // What sync brought down meanwhile comes in first: the save is made over
-  // the revision of a file the board holds all of.
-  if ((await this.takeOutsideIn()) === "conflict") return;
+  // What sync brought down meanwhile comes in first, in the line of the
+  // writes (none runs beside it): the save is made over the revision of a
+  // file the board holds all of.
+  const merge = this.saving.then(() => this.takeOutsideIn());
+  this.saving = merge.then(() => undefined, () => undefined);
+  if ((await merge) === "conflict") return;
   if (!this.room || this.room.live) return;
-  const json = JSON.stringify(room.canvas());
+  const json = JSON.stringify(this.room.canvas());
   const laid = await commands.boardPreview(this.path, json);
   const now = await commands.readText(this.path);
   if (laid.status === "ok" && now.status === "ok" && laid.data === now.data.text) return;
@@ -151,25 +177,27 @@ export async function saveLocalNow(this: BoardLeaf): Promise<void> {
  *  the others' drawings down): its news taken into the board, as the
  *  elements it changes, and only then is the file's revision the board's —
  *  never the revision alone, which would let the next save write over it
- *  (invariant 11, the loss of 2026-10-26). A file that is not a board:
- *  both on screen. */
+ *  (invariant 11, the loss of 2026-10-26). An element changed on both
+ *  sides, a base not known, or a file that is not a board: nothing is
+ *  taken over the board's, the revision stays, and both are on screen. */
 export async function takeOutsideIn(this: BoardLeaf): Promise<"same" | "taken" | "conflict"> {
   const path = this.path;
   const room = this.room;
-  if (!room || room.live) return "same";
+  if (!room || room.live || this.conflict.up) return "same";
   const r = await commands.readText(path);
   if (r.status !== "ok" || path !== this.path || this.room !== room || room.live) return "same";
   if (!changedOutside(this.revision, r.data.revision)) return "same";
-  if (r.data.text !== this.heldText) {
+  if (r.data.text !== this.heldText || this.heldRevision !== this.revision) {
     const mod = await loadBoardModule();
     if (path !== this.path || this.room !== room || room.live) return "same";
-    if (!mergeOutside(room, mod.drawnOf, this.heldText, r.data.text, nonce)) {
+    const base = this.heldRevision === this.revision ? this.heldText : null;
+    const got = mergeOutside(room, mod.drawnOf, base, r.data.text, nonce);
+    if (!got.ok || got.conflicts.length > 0) {
       await this.boardConflict();
       return "conflict";
     }
   }
-  this.heldText = r.data.text;
-  this.revision = r.data.revision;
+  this.hold(r.data.revision, r.data.text);
   if (!this.textEdited) this.showText(r.data.text);
   return "taken";
 }
@@ -179,9 +207,14 @@ export async function takeOutsideIn(this: BoardLeaf): Promise<"same" | "taken" |
  *  unsaved. */
 export async function roomsBack(this: BoardLeaf): Promise<void> {
   const path = this.path;
-  if (!path || this.room || this.conflict.up || this.textEdited) return;
-  if (!(await this.flush()) || this.room || path !== this.path) return;
-  await this.load(path, true);
+  if (!path || this.room || this.roomless || this.joining || this.conflict.up || this.textEdited) return;
+  this.joining = true;
+  try {
+    if (!(await this.flush()) || this.room || path !== this.path) return;
+    await this.load(path, true);
+  } finally {
+    this.joining = false;
+  }
 }
 
 /** The room wrote the file: the text face follows it, unless text is
@@ -191,7 +224,7 @@ export async function followSaved(this: BoardLeaf, revision: string): Promise<vo
   if (this.room?.synced || this.textEdited) return;
   const r = await commands.readText(this.path);
   if (r.status !== "ok" || r.data.revision !== revision || this.textEdited) return;
-  this.heldText = r.data.text;
+  this.hold(r.data.revision, r.data.text);
   this.showText(r.data.text);
 }
 
@@ -218,7 +251,6 @@ export async function boardWentLocal(this: BoardLeaf, why: LocalWhy): Promise<vo
   if (path !== this.path || !this.room || this.room.live || r.status !== "ok") return;
   // The file may already be one sync wrote after the room's last save: its
   // news come in before its revision is the board's.
-  if ((await this.takeOutsideIn()) === "conflict") return;
   await this.saveLocalNow();
 }
 
@@ -258,7 +290,7 @@ export async function saveInRoom(this: BoardLeaf): Promise<void> {
     await room.flush();
     const r = await commands.collabSave(this.path);
     if (r.status === "ok") {
-      this.revision = r.data;
+      this.holdRevision(r.data);
       this.setDirty(false);
       ui.status.textContent = t.saved;
       return;
@@ -279,7 +311,7 @@ export async function overwriteInRoom(this: BoardLeaf): Promise<void> {
     const r = await commands.collabResolve(this.path, "mine");
     if (r.status === "ok") {
       this.conflict.hide();
-      this.revision = r.data;
+      this.holdRevision(r.data);
       this.setDirty(false);
       return;
     }
