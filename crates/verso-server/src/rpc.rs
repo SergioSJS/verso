@@ -1062,6 +1062,19 @@ async fn folder_command(
         _ => {}
     }
     let args = scope.args_in(name, args)?;
+    // A board's cards name files by their paths in the owner's folder: the
+    // window's, joined to the share's on the way in and re-rooted on the
+    // way out (ADR 0081 item 11, as built 2026-10-27).
+    let board = args["path"]
+        .as_str()
+        .is_some_and(crate::share_board::is_board)
+        .then(|| args["path"].as_str().unwrap_or_default().to_owned());
+    let args_path = board.clone();
+    let args = match &board {
+        Some(path) => board_in(server, &key, &scope, name, path, args).await?,
+        None => args,
+    };
+    let asked = args["path"].as_str().map(str::to_owned);
     let mut answer = folder_run(
         server,
         who,
@@ -1074,6 +1087,47 @@ async fn folder_command(
     .map_err(|e| scope.error(e))?;
     tell_less(server, who, &door, &key, name, &mut answer).await;
     door.inject(name, &mut answer);
+    // A link into a note from a board is a card, whose text is a path in the
+    // owner's folder written however the owner wrote it (a space, another
+    // normal form): the index matches it, a path cannot be taken back from
+    // it. The link is the note's that was asked about, so it is told as
+    // that note's path in the share, never as written.
+    if name == "backlinks" {
+        let here = asked
+            .as_deref()
+            .and_then(|p| scope.to_rel(p))
+            .unwrap_or_default();
+        for b in answer.as_array_mut().into_iter().flatten() {
+            let from_board = b["from"].as_str().is_some_and(crate::share_board::is_board);
+            if from_board {
+                b["target"] = Value::String(here.clone());
+            }
+        }
+    }
+    if board.is_some() {
+        let lang = crate::campaign::player(server, who, client)
+            .ok()
+            .flatten()
+            .map_or_else(|| who.account.lang.clone(), |p| p.veil.lang.clone());
+        let cards = match (name, args_path.as_deref()) {
+            ("links", Some(p)) => {
+                let (s, k, p) = (Arc::clone(server), key.clone(), p.to_owned());
+                blocking(move || {
+                    s.service.with_key(&k, |ws| {
+                        Ok(ws
+                            .read_text(&p)
+                            .ok()
+                            .map(|f| crate::share_board::card_files(&f.text)))
+                    })
+                })
+                .await
+                .ok()
+                .flatten()
+            }
+            _ => Some(std::collections::BTreeSet::new()),
+        };
+        board_out(&scope, name, &mut answer, (&lang, &cards));
+    }
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -1110,6 +1164,105 @@ async fn folder_command(
         }
     }
     Ok(scope.answer_out(name, answer, limit))
+}
+
+/// The text of a board a window of a share sends (`write_text`,
+/// `write_board`, `board_preview`), for the owner's folder: its cards' paths
+/// joined to the share's, laid over the file as it is on disk so that the
+/// cards the window was shown locked stay as they are.
+async fn board_in(
+    server: &Arc<Server>,
+    key: &str,
+    scope: &crate::scope::Scope,
+    name: &str,
+    path: &str,
+    mut args: Value,
+) -> Result<Value, ContractError> {
+    let field = match name {
+        "write_text" => "text",
+        "write_board" | "board_preview" => "json",
+        _ => return Ok(args),
+    };
+    let Some(theirs) = args[field].as_str().map(str::to_owned) else {
+        return Ok(args);
+    };
+    let (s, k, p) = (Arc::clone(server), key.to_owned(), path.to_owned());
+    let read = blocking(move || {
+        s.service.with_key(&k, |ws| {
+            Ok(ws.read_text(&p).ok().map(|f| (f.text, f.revision)))
+        })
+    })
+    .await?;
+    // The cards the window was not shown are put back from the file read
+    // here; the write that follows is over the revision the window read,
+    // and the core refuses it at the write, under the folder's lock, unless
+    // the file is still those bytes. So both must be the file's now: a
+    // window whose revision is any other (one made of what it was shown, or
+    // one the file has moved on from) is refused with the file untouched —
+    // never a write over cards it did not see.
+    if matches!(name, "write_text" | "write_board")
+        && let Some((_, now)) = &read
+        && args["revision"].as_str() != Some(now.as_str())
+    {
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::Changed,
+            message: "the board changed since you read it".to_owned(),
+        });
+    }
+    let disk = read.map(|(text, _)| text);
+    args[field] = Value::String(crate::share_board::text_in(
+        scope,
+        disk.as_deref(),
+        &theirs,
+    )?);
+    Ok(args)
+}
+
+/// The answer of a command about a board, to a window of a share: its text
+/// re-rooted at the share (`share_board::text_out`); a card of a file
+/// outside the share is a locked card. The revision is the file's.
+fn board_out(
+    scope: &crate::scope::Scope,
+    name: &str,
+    answer: &mut Value,
+    (lang, cards): (&str, &Option<std::collections::BTreeSet<String>>),
+) {
+    let words = crate::campaign_text::locked_card(lang);
+    match name {
+        "read_text" | "write_text" | "write_board" => {
+            if let Some(text) = answer["text"].as_str() {
+                answer["text"] = Value::String(crate::share_board::text_out(scope, text, &words));
+            }
+        }
+        // A card's target is its file's path in the owner's folder: the
+        // share's for a file in it, nothing for a file beside it.
+        "links" => {
+            for l in answer.as_array_mut().into_iter().flatten() {
+                let Some(target) = l["target"].as_str() else {
+                    continue;
+                };
+                if let Some(rel) = scope.to_rel(target) {
+                    l["target"] = Value::String(rel);
+                    continue;
+                }
+                // A card of a file beside the share, or any target when the
+                // board could not be read to tell cards from texts (fails
+                // closed): nothing of it crosses, not its subpath either.
+                if cards.as_ref().is_none_or(|c| c.contains(target)) {
+                    l["target"] = json!("");
+                    l["heading"] = Value::Null;
+                    l["block"] = Value::Null;
+                    l["alias"] = Value::Null;
+                }
+            }
+        }
+        "board_preview" | "read_file_text" => {
+            if let Some(text) = answer.as_str() {
+                *answer = Value::String(crate::share_board::text_out(scope, text, &words));
+            }
+        }
+        _ => {}
+    }
 }
 
 /// A rename or a move by a player of a table answers it only what it may
