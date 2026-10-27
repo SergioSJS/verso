@@ -739,12 +739,16 @@ export class NoteLeaf extends Leaf {
     const words = text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
     ui.words.textContent = t.words(words, text.replace(/\s/g, "").length);
   }
+  /** The text the file held at the revision the tab holds, when known: a
+   *  file of another revision with this very text changed nothing. */
+  seen: { revision: string; text: string } | null = null;
   /** What the file is now (read, or just written): the revision the next
    *  write goes over, the reading view, the flags. The editor's text and
    *  whether it is saved are the caller's. */
   refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
+    this.seen = { revision: note.revision, text: note.text };
     this.embedCache.clear();
     const drawn = `${note.path}\n${note.html}`;
     if (drawn !== this.drawn) {
@@ -986,6 +990,10 @@ export class NoteLeaf extends Leaf {
     return {
       saved: (revision) => {
         this.revision = revision;
+        this.seen = null;
+        void commands.readNote(this.path).then((r) => {
+          if (r.status === "ok" && r.data.revision === revision && this.revision === revision) this.seen = { revision, text: r.data.text };
+        });
         this.setDirty(false);
         // The reading view, the properties and the flags from the file. A
         // synced folder's file follows when sync brings the save down

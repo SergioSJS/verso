@@ -1292,6 +1292,16 @@ real devices does is not.
   update, open the folder after it: the old entries are in the folder's
   first (shortest-named) table, and none is lost.
 
+- [ ] **A synced board while the link drops (fix/board-local-overwrite)**: on
+  the desktop with a synced folder, open a board; stop the server (or turn
+  the network off) until the status says offline; while it is down, have a
+  player draw on the same board through the server's web page, and bring
+  the link back only for sync to write the file (or wait for the next
+  tick), then edit a text on the board in the desktop window: every
+  drawing of the player is still there, and your edit too. With the link
+  back, the tab says "ao vivo" again within a minute and a probe joined to
+  the room hears the desktop's cursor.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers
