@@ -435,7 +435,7 @@ in a note long enough to scroll.
   says how many came down. With the Wi-Fi off, the files stay in the card with
   "iCloud or OneDrive did not give the content" and none is a zero-byte file.
   A file already synced and sent back to the cloud is not in the card: the quiet
-  line "N files are only in the cloud; the server has them." says so, and the
+  line "N arquivos estão só na nuvem; o servidor tem a cópia." says so, and the
   server still has it. `.Name.ext.icloud` stays listed with its reason.
 - [ ] **A PDF and a picture linked** (A): `[[file.pdf]]` and
   `[[picture.png]]` rested on show the PDF (pdf.js in the app's web view)
