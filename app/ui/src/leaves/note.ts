@@ -67,7 +67,7 @@ import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinCollab, lostLine, sideCan } from "../collab";
+import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
 import { applyToRoom, edited } from "../roomHandover";
 import { Stopwatch } from "../slowOps";
 import { tableWidths } from "../tableWidths";
@@ -287,6 +287,7 @@ export class NoteLeaf extends Leaf {
 
   constructor(pane: Pane) {
     super(pane);
+    this.unhearJoin = onJoinRetry((p) => this.joinRetried(p));
     this.modeButtons = {
       preview: this.modeButton("preview", "reading", t.reading),
       live: this.modeButton("live", "edit", t.edit),
@@ -773,10 +774,18 @@ export class NoteLeaf extends Leaf {
   addProperty(): void {
     this.props.addProperty();
   }
-  load(path: string, force = false): Promise<void> {
-    this.loading = this.doLoad(path, force);
-    return this.loading;
+  load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    const run = this.doLoad(path, force, retry);
+    this.loading = run;
+    const done = (): void => void this.loadsRunning--;
+    run.then(done, done);
+    return run;
   }
+  loadsRunning = 0;
+  /** Set when a `retry` load stopped because text was typed meanwhile or
+   *  the tab went: the text stays as it is, the join is asked again. */
+  retryBailed = false;
   get isGone(): boolean {
     return this.gone;
   }
@@ -861,7 +870,8 @@ export class NoteLeaf extends Leaf {
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
-  private async doLoad(path: string, force: boolean): Promise<void> {
+  private async doLoad(path: string, force: boolean, retry = false): Promise<void> {
+    this.retryBailed = false;
     this.cancelReposition?.();
     if (this.dirty && !force && !(await askDiscard())) return;
     // The tab names its note from the start: a read that waits on a
@@ -874,6 +884,10 @@ export class NoteLeaf extends Leaf {
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
+    // A retry joins the room of a note already shown: it replaces the editor
+    // only if nothing was typed since it began, checked after its last wait.
+    const typed0 = retry ? this.editor.state.doc.toString() : "";
+    const touched = (): boolean => retry && (this.destroyed || this.dirty || this.editor.state.doc.toString() !== typed0);
     const watch = new Stopwatch();
     // Where the side keeps rooms and they are not a synced folder's local
     // ones, the room is joined while the file is read, and the text shows
@@ -905,6 +919,12 @@ export class NoteLeaf extends Leaf {
     watch.step("read");
     const letGo = () => void joining?.then((r) => r?.release(this.roomHandlers));
     if (this.destroyed || load !== this.loads) return letGo();
+    if (retry && note.status !== "ok" && note.error.kind === "not_found") return joinGiveUp(path);
+    if (retry && (note.status !== "ok" || touched())) {
+      letGo();
+      this.retryBailed = true;
+      return;
+    }
     if (note.status !== "ok") {
       letGo();
       if (this.veiled(note.error)) return this.veil(path);
@@ -944,6 +964,14 @@ export class NoteLeaf extends Leaf {
     const shared = joining ? await joining : mixed ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
     this.catching = false;
     if (this.destroyed || load !== this.loads) return shared?.release(this.roomHandlers);
+    // After the last wait and before `show` replaces the text, with nothing
+    // between them that waits.
+    if (touched()) {
+      shared?.release(this.roomHandlers);
+      this.retryBailed = true;
+      this.paintLive();
+      return;
+    }
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
     this.show(note.data);
@@ -1360,8 +1388,27 @@ export class NoteLeaf extends Leaf {
     this.editor.dispatch({ effects: unfoldFor(this.editor.state, l.from), selection: { anchor: l.from }, scrollIntoView: true });
     this.editor.focus();
   }
+  private unhearJoin: (() => void) | null = null;
+  private rejoining = false;
+  /** The sync link is back, or a join found it not ready and the wait is
+   *  over (collab.ts): a note whose join is pending joins its room, never
+   *  replacing text typed meanwhile. */
+  joinRetried(path: string): JoinAnswer {
+    if (this.destroyed || !path || path !== this.path || this.collab || !this.note || !joinPending(path)) return "gone";
+    if (this.joiningRoom || this.dirty || this.rejoining || this.loadsRunning > 0) return "busy";
+    this.rejoining = true;
+    this.load(path, true, true)
+      .finally(() => {
+        this.rejoining = false;
+        if (this.retryBailed && !this.destroyed) joinBusy(path);
+      })
+      .catch(() => undefined);
+    return "started";
+  }
   override destroy(): void {
     this.destroyed = true;
+    this.unhearJoin?.();
+    this.unhearJoin = null;
     this.access.destroy();
     this.unpreview();
     this.unmountDrawing();

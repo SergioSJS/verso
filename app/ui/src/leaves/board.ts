@@ -61,7 +61,7 @@ import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
 import { may } from "../access";
 import { NoteAccess } from "../noteAccess";
-import { type CollabHandlers, type CollabSession, joinCollab, onRoomsBack, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
@@ -125,7 +125,6 @@ export class BoardLeaf extends TextLeaf {
   roomless = false;
   /** A rejoin by `roomsBack` is on its way: no second load beside it. */
   joining = false;
-  private unhearRooms: (() => void) | null = null;
   /** A synced folder's board out of its room: its save on this computer. */
   localTimer: number | undefined;
   constructor(pane: Pane) {
@@ -143,11 +142,39 @@ export class BoardLeaf extends TextLeaf {
     this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
-    this.unhearRooms = onRoomsBack(() => void this.roomsBack());
   }
-  override async load(path: string, force = false): Promise<void> {
-    await super.load(path, force);
+  override async load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    try {
+      await this.loadBoard(path, force, retry);
+    } finally {
+      this.loadsRunning--;
+    }
+  }
+  /** What a retry must not drop: the board drawn, or the text typed, since it began. */
+  touchedSince = (): boolean => this.torn || this.textEdited || this.pendingBoard !== null || this.dirty;
+  private async loadBoard(path: string, force: boolean, retry: boolean): Promise<void> {
+    // What the tab shows before a retry: put back if the person draws or
+    // types while the join is on its way (the retry reads the disk's text in
+    // first, which must not stand over what they did).
+    const was = retry ? { state: this.editor.state, revision: this.revision, seen: this.seen, heldText: this.heldText, heldRevision: this.heldRevision, textBase: this.textBase } : null;
+    // The tab is left as the person had it: the board they drew stays on
+    // screen and is saved as before, against the revision it was drawn on;
+    // the text face is what it showed.
+    const putBack = (): void => {
+      this.retryBailed = true;
+      if (!was || this.textEdited || this.torn) return;
+      this.editor.setState(was.state);
+      this.revision = was.revision;
+      this.seen = was.seen;
+      this.heldText = was.heldText;
+      this.heldRevision = was.heldRevision;
+      this.textBase = was.textBase;
+    };
+    await super.load(path, force, retry);
     if (this.path !== path) return;
+    // Drawn while the disk's text was read in: the read stands over nothing.
+    if (retry && (this.retryBailed || this.touchedSince())) return putBack();
     this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
@@ -156,8 +183,9 @@ export class BoardLeaf extends TextLeaf {
     this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
-    await this.joinBoardRoom(path, text);
+    await this.joinBoardRoom(path, text, retry ? this.touchedSince : undefined);
     if (this.path !== path) return;
+    if (retry && this.room === null && this.touchedSince()) return putBack();
     if (this.showing === "board") await this.showBoard();
   }
   protected override roomKind(): "text" | "board" {
@@ -209,6 +237,7 @@ export class BoardLeaf extends TextLeaf {
   declare followSaved: typeof boardLive.followSaved;
   declare takeOutsideIn: typeof boardLive.takeOutsideIn;
   declare roomsBack: typeof boardLive.roomsBack;
+  declare joinRetried: typeof boardLive.joinRetried;
   /** A link of a rolled table's row, followed from a die on a card. */
   followDice(target: string, from: string): void {
     const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", from);
@@ -612,8 +641,6 @@ export class BoardLeaf extends TextLeaf {
   }
   override destroy(): void {
     this.access.destroy();
-    this.unhearRooms?.();
-    this.unhearRooms = null;
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
