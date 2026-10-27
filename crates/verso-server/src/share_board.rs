@@ -180,6 +180,42 @@ fn laid(text: &str, value: &Value) -> Option<String> {
     Some(board.merged(new.root).write())
 }
 
+/// Whether a node of `board` writes `file` twice: readers differ on which
+/// counts, so the splice does not guess.
+fn duplicate_file(board: &Canvas) -> bool {
+    board.nodes().iter().any(|n| match n {
+        Json::Object(e) => e.iter().filter(|(k, _)| k == "file").count() > 1,
+        _ => false,
+    })
+}
+
+/// The `file` strings of the cards of a board file's text.
+#[must_use]
+pub fn card_files(text: &str) -> std::collections::BTreeSet<String> {
+    let mut out = std::collections::BTreeSet::new();
+    if let Ok(v) = serde_json::from_str::<Value>(text) {
+        for n in v["nodes"].as_array().into_iter().flatten() {
+            if let Some(f) = file_of(n) {
+                out.insert(f.to_owned());
+            }
+        }
+    }
+    if let Ok(board) = Canvas::parse(text) {
+        for n in board.nodes() {
+            if let Json::Object(e) = n {
+                for (k, v) in e {
+                    if k == "file"
+                        && let Some(f) = v.as_str()
+                    {
+                        out.insert(f.to_owned());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The text of a board file as a window of `scope` is told it. Not a board
 /// (not JSON): served as it is — it names no card.
 #[must_use]
@@ -195,7 +231,7 @@ pub fn text_out(scope: &Scope, text: &str, words: &str) -> String {
     if nodes.is_empty() {
         return text.to_owned();
     }
-    if nodes.iter().all(|f| scope.to_rel(f).is_some()) {
+    if !duplicate_file(&board) && nodes.iter().all(|f| scope.to_rel(f).is_some()) {
         let mut swap = |f: &str| Ok(scope.to_rel(f).unwrap_or_default());
         if let Ok(Some(done)) = spliced(text, &board, &mut swap) {
             return done;
@@ -218,6 +254,9 @@ pub fn text_in(scope: &Scope, disk: Option<&str>, theirs: &str) -> Result<String
     let Ok(board) = Canvas::parse(theirs) else {
         return Ok(theirs.to_owned());
     };
+    if duplicate_file(&board) {
+        return Err(verso_service::refused("a card names its file once"));
+    }
     let outside: Vec<Value> = disk
         .and_then(|d| serde_json::from_str::<Value>(d).ok())
         .and_then(|d| d.get("nodes").and_then(Value::as_array).cloned())
