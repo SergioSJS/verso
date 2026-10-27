@@ -58,6 +58,8 @@ export class TextLeaf extends Leaf {
   );
   readonly editor: EditorView;
   revision = "";
+  /** The text the file held at `revision`, when known (see NoteLeaf). */
+  seen: { revision: string; text: string } | null = null;
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
@@ -182,6 +184,7 @@ export class TextLeaf extends Leaf {
     if (this.path !== path) return;
     window.clearTimeout(this.saveTimer);
     this.revision = r.data.revision;
+    this.seen = { revision: r.data.revision, text: r.data.text };
     const sep = lineSeparator(r.data.text);
     // Several people in the file, where the side allows it (ADR 0082 item
     // 12): the room's text, which may hold edits not written yet.
@@ -343,6 +346,7 @@ export class TextLeaf extends Leaf {
   }
   protected written(f: TextFile, mine: string): void {
     this.revision = f.revision;
+    this.seen = { revision: f.revision, text: f.text };
     if (this.text() === mine) this.setDirty(false);
     ui.status.textContent = f.warnings.length > 0 ? f.warnings.join(" · ") : t.saved;
   }
