@@ -380,3 +380,52 @@ fn a_board_read_and_written_through_a_share_keeps_the_files_paths_and_revision()
         }
     });
 }
+
+#[test]
+fn the_links_of_a_board_through_a_share_say_nothing_of_a_card_that_is_missing_or_outside() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let disk = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let rev = disk["ok"]["revision"].as_str().unwrap().to_owned();
+        let board = json!({ "nodes": [
+            { "id": "a", "type": "file", "file": "Fora/Segredo.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "b", "type": "file", "file": "Sub/Faltando.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "c", "type": "file", "file": "SUB/LIVRE.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "d", "type": "file", "file": "Sub/Livre.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+        ], "edges": [] });
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": board.to_string(), "revision": rev }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let walked = c.owner.call("reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        let links = c.ana.call("links", json!({ "path": REL })).await;
+        let raw = links.to_string();
+        for leak in ["Fora", "Segredo", "Sub/", "SUB/", "Faltando\"", "LIVRE"] {
+            assert!(!raw.contains(leak), "{leak} in {raw}");
+        }
+        assert!(raw.contains("Livre.md"), "{raw}");
+    });
+}
+
+#[test]
+fn a_share_window_cannot_save_a_card_that_names_its_file_twice() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let disk = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let rev = disk["ok"]["revision"].as_str().unwrap().to_owned();
+        let text = r#"{"nodes":[{"id":"a","type":"file","file":"../Fora/Y.md","file":"Livre.md","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        let wrote = c
+            .ana
+            .call(
+                "write_text",
+                json!({ "path": REL, "text": text, "revision": rev }),
+            )
+            .await;
+        assert_eq!(wrote["err"]["kind"], "refused", "{wrote}");
+    });
+}

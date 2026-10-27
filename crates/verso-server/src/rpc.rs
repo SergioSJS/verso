@@ -1069,6 +1069,7 @@ async fn folder_command(
         .as_str()
         .is_some_and(crate::share_board::is_board)
         .then(|| args["path"].as_str().unwrap_or_default().to_owned());
+    let args_path = board.clone();
     let args = match &board {
         Some(path) => board_in(server, &key, &scope, name, path, args).await?,
         None => args,
@@ -1089,8 +1090,24 @@ async fn folder_command(
         let lang = crate::campaign::player(server, who, client)
             .ok()
             .flatten()
-            .map_or_else(|| "en".to_owned(), |p| p.veil.lang.clone());
-        board_out(&scope, name, &mut answer, &lang);
+            .map_or_else(|| who.account.lang.clone(), |p| p.veil.lang.clone());
+        let cards = match (name, args_path.as_deref()) {
+            ("links", Some(p)) => {
+                let (s, k, p) = (Arc::clone(server), key.clone(), p.to_owned());
+                blocking(move || {
+                    s.service.with_key(&k, |ws| {
+                        Ok(ws
+                            .read_text(&p)
+                            .map(|f| crate::share_board::card_files(&f.text))
+                            .unwrap_or_default())
+                    })
+                })
+                .await
+                .unwrap_or_default()
+            }
+            _ => std::collections::BTreeSet::new(),
+        };
+        board_out(&scope, name, &mut answer, (&lang, &cards));
     }
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
@@ -1167,7 +1184,12 @@ async fn board_in(
 /// The answer of a command about a board, to a window of a share: its text
 /// re-rooted at the share (`share_board::text_out`); a card of a file
 /// outside the share is a locked card. The revision is the file's.
-fn board_out(scope: &crate::scope::Scope, name: &str, answer: &mut Value, lang: &str) {
+fn board_out(
+    scope: &crate::scope::Scope,
+    name: &str,
+    answer: &mut Value,
+    (lang, cards): (&str, &std::collections::BTreeSet<String>),
+) {
     let words = crate::campaign_text::locked_card(lang);
     match name {
         "read_text" | "write_text" | "write_board" => {
@@ -1179,13 +1201,12 @@ fn board_out(scope: &crate::scope::Scope, name: &str, answer: &mut Value, lang: 
         // share's for a file in it, nothing for a file beside it.
         "links" => {
             for l in answer.as_array_mut().into_iter().flatten() {
-                let Some(resolved) = l["resolved"].as_str() else {
+                let Some(target) = l["target"].as_str() else {
                     continue;
                 };
-                if l["target"].as_str() != Some(resolved) {
-                    continue;
+                if cards.contains(target) {
+                    l["target"] = Value::String(scope.to_rel(target).unwrap_or_default());
                 }
-                l["target"] = Value::String(scope.to_rel(resolved).unwrap_or_default());
             }
         }
         "board_preview" | "read_file_text" => {
