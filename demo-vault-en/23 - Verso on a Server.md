@@ -98,6 +98,8 @@ With the folder open, the shortest way is **Settings › Servers › Sync ‘you
 
 The status bar shows the state — *Synced*, *sending 3*, *Offline*, *Server unreachable*, *Paused*, *1 conflict* — and a click on it opens the section. With the server down, the section says which server did not answer, and *Sync now* tries again; *Sync this folder* and the folder list in Settings › Servers say the same right there, with **Try again**. Whoever only **reads** the folder on the server receives the changes; the ones made here stay here. Turning it off leaves both sides as they are.
 
+Files that iCloud or OneDrive left only in the cloud show in **Settings › Sync** as *files not on this computer yet*, with the **Download N files (X MB)** button: it says the size first, refuses to start if the disk cannot hold them (or if the free space cannot be told), downloads one at a time with progress and a **Stop**, and the ones that come down sync on the next pass. A file that synced before and went back to the cloud asks nothing: the quiet line *are only in the cloud; the server has them* counts it, and it is never deleted on the server.
+
 ### Editing together in a synced folder
 
 While sync is connected, a note opened here **joins the same room** as whoever opened it in the browser or on another device: you edit together, live, with each person's cursor and name. The server writes the note when the edits settle, and sync brings the file to this computer — no conflict copy of your own text.

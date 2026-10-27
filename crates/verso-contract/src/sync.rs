@@ -38,6 +38,11 @@ pub struct SyncStatus {
     pub conflicts: Vec<String>,
     /// Files not synced, each with its reason (item 13).
     pub refused: Vec<SyncRefused>,
+    /// Files that are only in the cloud on this computer (a placeholder of
+    /// on-demand storage) and that sync already has a copy of: the server
+    /// holds it, nothing is asked of the person, and the window says so
+    /// quietly, apart from `refused` (ADR 0043, decided 2026-10-27).
+    pub cloud_only: Vec<String>,
     /// What crossed lately, newest first.
     pub log: Vec<SyncLogEntry>,
     /// When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`.
@@ -153,6 +158,21 @@ pub struct SyncRefused {
     /// or `failed`.
     pub reason: String,
     pub message: String,
+}
+
+/// What bringing placeholders down would take, asked before it starts (ADR
+/// 0043, decided 2026-10-27): the size of the files named, and the room the
+/// disk has left. Bytes are `f64`, as everywhere in the contract.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+pub struct PlaceholderPlan {
+    /// The files named that are placeholders now, and their logical sizes
+    /// added.
+    pub count: u32,
+    pub bytes: f64,
+    /// The bytes the disk under the folder can still take; `None` when the
+    /// system would not say (the window then refuses to download: it
+    /// cannot tell the files fit).
+    pub free: Option<f64>,
 }
 
 /// One thing that crossed.

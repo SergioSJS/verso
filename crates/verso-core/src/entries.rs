@@ -454,6 +454,13 @@ impl Workspace {
         self.root.placeholder(handle).map_err(CoreError::Read)
     }
 
+    /// The bytes the disk under the folder can still take: what a download
+    /// from the cloud is checked against before it starts (ADR 0043,
+    /// decided on 2026-10-27).
+    pub fn free_space(&self) -> Result<u64, CoreError> {
+        self.root.free_space().map_err(CoreError::Folder)
+    }
+
     /// The bytes of a file of the folder that is not a note (an image,
     /// an attachment), confined like every path (ADR 0044), read through
     /// `verso-fs`. A placeholder answers `Read(Unavailable)`.

@@ -98,6 +98,8 @@ Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincroniz
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Servidor fora de alcance*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Com o servidor fora do ar, a seção diz qual servidor não respondeu, e *Sincronizar agora* tenta de novo; *Sincronizar esta pasta* e a lista de pastas em Ajustes › Servidores dizem o mesmo ali mesmo, com **Tentar de novo**. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
+Arquivos que o iCloud ou o OneDrive deixaram só na nuvem aparecem em **Configurações › Sincronizar** como *arquivos que ainda não estão neste computador*, com o botão **Baixar N arquivos (X MB)**: ele diz o tamanho antes, recusa começar se o disco não comporta (ou se não dá para saber o espaço livre), baixa um de cada vez com o progresso e um **Parar**, e os que descem sincronizam na passada seguinte. Um arquivo que já sincronizou e voltou para a nuvem não pede nada: a linha discreta *estão só na nuvem; o servidor tem a cópia* o conta, e ele nunca é apagado no servidor.
+
 ### Editar junto numa pasta sincronizada
 
 Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesma sala** de quem a abriu no navegador ou noutro aparelho: vocês editam juntos, ao vivo, com o cursor e o nome de cada um. O servidor grava a nota quando as edições assentam, e a sincronização traz o arquivo para este computador — nenhuma cópia de conflito do seu próprio texto.

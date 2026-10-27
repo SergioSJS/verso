@@ -65,6 +65,7 @@ import type {
 } from "../bindings";
 import { Bin } from "./trash";
 import { Clouds } from "./cloud";
+import { CloudFiles } from "./cloudFiles";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
@@ -197,12 +198,13 @@ export class Core {
    *  server, so what crosses is whatever a test says (`sync-status`). */
   sync: SyncStatus = Core.syncOff();
   readonly clouds = new Clouds(this, () => Core.syncOff()); // ADR 0104
+  readonly cloudFiles = new CloudFiles(() => this.sync, (st) => (this.sync = st)); // ADR 0043
   /** This computer's name as the person set it in Settings › Servers;
    *  null, the system's ("Mac de Teste"). */
   deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
-    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
   }
 
   constructor(
@@ -1017,7 +1019,6 @@ export class Core {
     popout_target: () => null,
     return_to_main: () => null,
     open_url: () => null,
-    fetch_file: () => false,
     open_devtools: () => null,
     web_open: (a) => {
       const label = `web-${this.webViews.size + 1}`;
@@ -1366,6 +1367,7 @@ export class Core {
       return { fresh: true, files };
     },
     ...this.clouds.handlers(),
+    ...this.cloudFiles.handlers(), // ADR 0043
     ...this.bin.handlers(),
     ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).

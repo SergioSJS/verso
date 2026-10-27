@@ -113,7 +113,7 @@ const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms));
 const input = (box, label) => box.querySelector(`input[aria-label="${label}"]`);
 const status = (cloud) => ({
   key: "k", on: true, server: "nuvem.exemplo.com/dav", folder: "nuvem.exemplo.com/dav", folder_name: "", role: "owner", state: "synced",
-  sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud,
+  sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud,
 });
 
 describe("The form to sync with a cloud", () => {

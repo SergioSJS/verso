@@ -11,27 +11,25 @@
 //! here through `verso-fs`, there through the server's sync commands, in
 //! pieces. The window hears `sync-status`.
 
-use std::collections::HashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use verso_contract::{FolderQuota, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
-use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
+use verso_core::sync::{self as engine, Action, FileState, Files, Seen, remote as rem};
 
 use super::*;
-use crate::dns::SendRetrying;
+use crate::{cloud, dns::SendRetrying};
 
+mod cloud_only;
 pub(crate) mod live;
 mod seat;
 mod transfer;
 pub(crate) mod universo;
-use crate::cloud;
 pub(crate) use transfer::contract_of;
 use transfer::{Gate, Refusal, Side};
-use verso_core::sync::remote as rem;
 
 /// A piece of a file on the wire, read from the disk as it is sent (ADR
 /// 0079 item 12, revised 2026-10-12): the server's.
@@ -561,23 +559,7 @@ fn listed_here(
                 message: String,
                 files: &mut Files,
                 apart: &mut BTreeMap<String, SyncRefused>| {
-        if let Some(b) = base.get(path) {
-            files.insert(
-                path.to_owned(),
-                FileState {
-                    hash: b.clone(),
-                    size: 0,
-                },
-            );
-        }
-        apart.insert(
-            path.to_owned(),
-            SyncRefused {
-                path: path.to_owned(),
-                reason: reason.to_owned(),
-                message,
-            },
-        );
+        cloud_only::hold(&base, (path, reason, message), files, apart);
     };
     for (path, size, modified, placeholder) in listed {
         // A name the server would refuse is said here, not sent (F19).
@@ -592,8 +574,9 @@ fn listed_here(
             continue;
         }
         if placeholder {
+            // The older form's stub of a file synced before is that file.
             held(
-                &path,
+                &cloud_only::standing(&path, |p| base.contains_key(p)),
                 "placeholder",
                 "not on this computer: on-demand storage".to_owned(),
                 &mut files,
@@ -1196,6 +1179,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         });
     }
     save(ctx, s, &mut state, known);
+    let (apart, cloud_only) = cloud_only::split(apart, &known.files);
     let conflicts: Vec<String> = ctx
         .service
         .with_key(&s.key, |ws| {
@@ -1218,7 +1202,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             .iter()
             .map(|f| (f.path.clone(), f.reason.clone()))
             .collect();
-        for f in apart.values() {
+        for f in &apart {
             if !before.contains(&(f.path.clone(), f.reason.clone())) {
                 log::write(
                     "WARN",
@@ -1227,7 +1211,19 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 );
             }
         }
-        st.refused = apart.into_values().collect();
+        st.refused = apart;
+        // One line for the count, when it changes: not a line per path.
+        if !cloud_only.is_empty() && cloud_only.len() != st.cloud_only.len() {
+            log::write(
+                "INFO",
+                "sync",
+                &format!(
+                    "{} files are only in the cloud on this computer; the server has them",
+                    cloud_only.len()
+                ),
+            );
+        }
+        st.cloud_only = cloud_only;
         st.last = Some(log::now());
     });
     Ok(Passed {

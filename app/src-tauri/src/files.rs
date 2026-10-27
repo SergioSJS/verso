@@ -684,6 +684,41 @@ pub(crate) async fn fetch_file<R: tauri::Runtime>(
     Ok(true)
 }
 
+/// What bringing the placeholders among `paths` down would take: how many
+/// of them still are, their sizes added, and the room the disk has left
+/// (ADR 0043, decided 2026-10-27). Asked before a download from the sync
+/// card starts; reads the listing, never the files.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn placeholder_plan<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    paths: Vec<String>,
+) -> Result<verso_contract::PlaceholderPlan, ContractError> {
+    with(&state, &window, |ws| {
+        let wanted: std::collections::HashSet<&str> = paths.iter().map(String::as_str).collect();
+        let mut plan = verso_contract::PlaceholderPlan::default();
+        for e in ws.entries() {
+            if e.kind == verso_core::FileKind::Placeholder && wanted.contains(e.path.as_str()) {
+                plan.count = plan.count.saturating_add(1);
+                plan.bytes += e.len as f64;
+            }
+        }
+        plan.free = match ws.free_space() {
+            Ok(n) => Some(n as f64),
+            Err(e) => {
+                log::write(
+                    "WARN",
+                    "host",
+                    &format!("could not tell the free space of the folder's disk: {e:?}"),
+                );
+                None
+            }
+        };
+        Ok(plan)
+    })
+}
+
 /// Any file as text with its revision, for the editor of files that are
 /// not notes; `not_text` when its bytes are not UTF-8.
 #[tauri::command]

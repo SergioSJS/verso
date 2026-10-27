@@ -424,6 +424,19 @@ in a note long enough to scroll.
   dataless by macOS (*Remove Download* in Finder): the card says *A nota
   só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
   the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **Download from the sync card, on real evicted files** (A, ADR 0043,
+  2026-10-27): on the Mac, a folder in iCloud Drive that syncs with a server,
+  some files sent back to the cloud (*Remove Download* in Finder) that sync
+  never sent. *Settings › Sync* lists them under "files not on this computer
+  yet" with **Download N files (X MB)** and the total is about what Finder
+  shows. Click it: "Downloading 1 of N…" advances, **Stop** ends the run after
+  the file in hand, VoiceOver reads the progress; the files that came down
+  are no longer `dataless` in `ls -lO` and cross on the next pass, and the card
+  says how many came down. With the Wi-Fi off, the files stay in the card with
+  "iCloud or OneDrive did not give the content" and none is a zero-byte file.
+  A file already synced and sent back to the cloud is not in the card: the quiet
+  line "N arquivos estão só na nuvem; o servidor tem a cópia." says so, and the
+  server still has it. `.Name.ext.icloud` stays listed with its reason.
 - [ ] **A PDF and a picture linked** (A): `[[file.pdf]]` and
   `[[picture.png]]` rested on show the PDF (pdf.js in the app's web view)
   and the picture in the card; the console stays clean as the card opens

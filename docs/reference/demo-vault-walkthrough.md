@@ -1263,6 +1263,24 @@ rest below and in `manual-checks.md`.
     real network, the checks in `manual-checks.md`. Level: H for the list,
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
+17. Files only in the cloud, downloaded from the sync card ([ADR
+    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 23,
+    section *Syncing a folder from this computer*): *Settings › Sync* lists
+    files not on this computer yet with *Baixar N arquivos (X MB)*; the size
+    is said before anything starts; a disk without room (or whose room cannot
+    be told) refuses, with the message, and downloads nothing; while it runs
+    *Baixando 12 de N…* is announced and *Parar* ends the run after the file
+    in hand; files that cannot come down stay listed with their reason and
+    the older `.Name.ext.icloud` form is listed as not downloadable from
+    here; a file already synced and sent back to the cloud is not in the card
+    but in the quiet line *estão só na nuvem; o servidor tem a cópia*. By
+    machine: `app/ui/e2e/sync-placeholders.spec.mjs` (the harness answers
+    `placeholder_plan` and `fetch_file`), `app/ui/test/syncPlaceholders.test.mjs`
+    and the Rust tests of `sync/cloud_only.rs` and `tests_sync1.rs`; by hand,
+    on real evicted iCloud files, the check in `manual-checks.md`. Level: H
+    for the card, A for iCloud; R: `scripts/demo-vault.mjs check` for the
+    note.
+
 ## 14. Features, oracle, sheets and worlds (notes 26 and 27, the Fractal campaign)
 
 Open note 26 (*Fichas*, the sheets) and note 27 (*Oráculos e Criação de Mundos*,
