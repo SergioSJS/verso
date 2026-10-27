@@ -63,6 +63,7 @@ mod rpc_collab;
 mod rpc_open;
 pub mod scope;
 pub mod security_txt;
+pub mod share_board;
 pub mod share_links;
 pub mod share_sync;
 pub mod shares;
@@ -447,6 +448,8 @@ mod tests_audience_second;
 mod tests_board_players;
 #[cfg(test)]
 mod tests_board_rooms;
+#[cfg(test)]
+mod tests_board_shares;
 #[cfg(test)]
 mod tests_board_solo;
 #[cfg(test)]

@@ -1062,6 +1062,17 @@ async fn folder_command(
         _ => {}
     }
     let args = scope.args_in(name, args)?;
+    // A board's cards name files by their paths in the owner's folder: the
+    // window's, joined to the share's on the way in and re-rooted on the
+    // way out (ADR 0081 item 11, as built 2026-10-27).
+    let board = args["path"]
+        .as_str()
+        .is_some_and(crate::share_board::is_board)
+        .then(|| args["path"].as_str().unwrap_or_default().to_owned());
+    let args = match &board {
+        Some(path) => board_in(server, &key, &scope, name, path, args).await?,
+        None => args,
+    };
     let mut answer = folder_run(
         server,
         who,
@@ -1074,6 +1085,13 @@ async fn folder_command(
     .map_err(|e| scope.error(e))?;
     tell_less(server, who, &door, &key, name, &mut answer).await;
     door.inject(name, &mut answer);
+    if board.is_some() {
+        let lang = crate::campaign::player(server, who, client)
+            .ok()
+            .flatten()
+            .map_or_else(|| "en".to_owned(), |p| p.veil.lang.clone());
+        board_out(&scope, name, &mut answer, &lang);
+    }
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -1110,6 +1128,60 @@ async fn folder_command(
         }
     }
     Ok(scope.answer_out(name, answer, limit))
+}
+
+/// The text of a board a window of a share sends (`write_text`,
+/// `write_board`, `board_preview`), for the owner's folder: its cards' paths
+/// joined to the share's, laid over the file as it is on disk so that the
+/// cards the window was shown locked stay as they are.
+async fn board_in(
+    server: &Arc<Server>,
+    key: &str,
+    scope: &crate::scope::Scope,
+    name: &str,
+    path: &str,
+    mut args: Value,
+) -> Result<Value, ContractError> {
+    let field = match name {
+        "write_text" => "text",
+        "write_board" | "board_preview" => "json",
+        _ => return Ok(args),
+    };
+    let Some(theirs) = args[field].as_str().map(str::to_owned) else {
+        return Ok(args);
+    };
+    let (s, k, p) = (Arc::clone(server), key.to_owned(), path.to_owned());
+    let disk = blocking(move || {
+        s.service
+            .with_key(&k, |ws| Ok(ws.read_text(&p).ok().map(|f| f.text)))
+    })
+    .await?;
+    args[field] = Value::String(crate::share_board::text_in(
+        scope,
+        disk.as_deref(),
+        &theirs,
+    )?);
+    Ok(args)
+}
+
+/// The answer of a command about a board, to a window of a share: its text
+/// re-rooted at the share (`share_board::text_out`); a card of a file
+/// outside the share is a locked card. The revision is the file's.
+fn board_out(scope: &crate::scope::Scope, name: &str, answer: &mut Value, lang: &str) {
+    let words = crate::campaign_text::locked_card(lang);
+    match name {
+        "read_text" | "write_text" | "write_board" => {
+            if let Some(text) = answer["text"].as_str() {
+                answer["text"] = Value::String(crate::share_board::text_out(scope, text, &words));
+            }
+        }
+        "board_preview" | "read_file_text" => {
+            if let Some(text) = answer.as_str() {
+                *answer = Value::String(crate::share_board::text_out(scope, text, &words));
+            }
+        }
+        _ => {}
+    }
 }
 
 /// A rename or a move by a player of a table answers it only what it may

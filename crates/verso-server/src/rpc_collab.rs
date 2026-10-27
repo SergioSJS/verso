@@ -108,13 +108,21 @@ pub(crate) async fn collab_command(
     let args = args.clone();
     let user = who.account.name.clone();
     let account = who.account.id.clone();
+    let held = scope.clone();
     let answer = blocking(move || match cmd.as_str() {
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" if board_of_a_player && writes => to_value(
-            crate::collab::players::join_shadow(&s, (&c, &account), &key, &path, &user)?,
-        ),
+        "collab_join" if board_of_a_player && writes => {
+            to_value(crate::collab::players::join_shadow(
+                &s,
+                (&c, &account),
+                &key,
+                &path,
+                &user,
+                held.as_ref(),
+            )?)
+        }
         "collab_join" => to_value(crate::collab::join(&s, (&c, !whole), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
