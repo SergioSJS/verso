@@ -107,8 +107,12 @@ export async function wentLocal(this: NoteLeaf, why: LocalWhy): Promise<void> {
     if (r.error.kind === "not_found" && !this.gone) this.markGone();
     return;
   }
-  this.revision = r.data.revision;
   const differs = r.data.text !== this.editorText();
+  // A file that is not the one the tab holds (sync wrote it meanwhile) and
+  // differs from the text keeps the tab's old revision: the save meets the
+  // difference and shows both, never writes over it (invariant 11).
+  const unchanged = this.seen !== null && this.seen.revision === this.revision && this.seen.text === r.data.text;
+  if (!differs || unchanged || r.data.revision === this.revision || this.collab.revision === r.data.revision) this.revision = r.data.revision;
   this.setDirty(differs);
   if (differs) this.scheduleSave();
 }
