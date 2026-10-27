@@ -160,9 +160,18 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         .collect();
     let mut gone = Vec::new();
     let mut demoted = Vec::new();
+    // The shares the windows were on, for the board shadows made of an
+    // older one (`collab_players::share_moved`).
+    let mut moved: Vec<String> = Vec::new();
     {
         let mut table = lock(&server.clients);
         for (client, now) in found {
+            if let Some(c) = table.get(&client)
+                && let Some(old) = &c.scope
+                && !moved.contains(&old.share)
+            {
+                moved.push(old.share.clone());
+            }
             let Some(c) = table.get_mut(&client) else {
                 continue;
             };
@@ -189,6 +198,15 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         }
     }
     server.left(&gone);
+    for share in &moved {
+        let row = server.db.share(share).ok().flatten();
+        let now = |account: &str| {
+            let row = row.as_ref()?;
+            let (_, scope, _) = scope_for(server, account, row, false).ok().flatten()?;
+            Some(scope)
+        };
+        crate::collab::players::share_moved(server, share, &now);
+    }
     // One who may now only read leaves the rooms it wrote in (ADR 0087).
     for client in demoted {
         crate::collab::readers::demoted(server, &client);
