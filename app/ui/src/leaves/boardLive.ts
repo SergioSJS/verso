@@ -14,7 +14,7 @@
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
 import { may } from "../access";
-import { type CollabHandlers, canCollab, type LocalWhy, refusedLine } from "../collab";
+import { type CollabHandlers, canCollab, type JoinAnswer, joinBusy, joinPending, type LocalWhy, refusedLine } from "../collab";
 import { localSaid } from "../coeditWords";
 import { BOARD_VERSION, parseCanvas, type CanvasDoc } from "../board/model";
 import { changedOutside, takeOutsideIn as mergeOutside } from "../board/outside";
@@ -103,7 +103,7 @@ export function boardHandlers(this: BoardLeaf): CollabHandlers {
  *  in or out of a room is drawn again the other way. A canvas in another
  *  layout stays out until its first save, shown as a diff, puts it in
  *  Obsidian's (ADR 0057 point 13): the room writes in that layout. */
-export async function joinBoardRoom(this: BoardLeaf, path: string, text: string): Promise<void> {
+export async function joinBoardRoom(this: BoardLeaf, path: string, text: string, touched?: () => boolean): Promise<void> {
   const was = this.room;
   was?.release(this.roomHandlers);
   this.room = null;
@@ -124,6 +124,13 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string)
   this.catching = false;
   if (this.path !== path) {
     room?.release(this.roomHandlers);
+    return;
+  }
+  // A retry that found the person drew or typed meanwhile joins nothing:
+  // the board stays as it is, local, and the join is asked again.
+  if (touched?.()) {
+    room?.release(this.roomHandlers);
+    this.paintLive();
     return;
   }
   this.room = room;
@@ -206,17 +213,39 @@ export async function takeOutsideIn(this: BoardLeaf): Promise<"same" | "taken" |
 
 /** The sync is back and this tab holds no room (it was read while the link
  *  was down): the file is read anew and the room joined, once nothing is
- *  unsaved. */
+ *  unsaved. Nothing drawn or typed meanwhile is ever replaced: the join
+ *  gives up and is asked again after the next wait. */
 export async function roomsBack(this: BoardLeaf): Promise<void> {
   const path = this.path;
-  if (!path || this.room || this.roomless || this.joining || this.conflict.up || this.textEdited) return;
+  if (!path || this.room || this.roomless) return;
+  if (this.joining || this.conflict.up || this.textEdited) return joinBusy(path);
   this.joining = true;
+  let again = false;
   try {
-    if (!(await this.flush()) || this.room || path !== this.path) return;
-    await this.load(path, true);
+    if (!(await this.flush()) || this.room || path !== this.path) {
+      again = !this.room && path === this.path;
+      return;
+    }
+    if (this.touchedSince()) {
+      again = true;
+      return;
+    }
+    await this.load(path, true, true);
+    again = this.retryBailed;
   } finally {
     this.joining = false;
+    if (again && path === this.path && !this.torn) joinBusy(path);
   }
+}
+
+/** The link is back, or a join found it not ready and the wait is over
+ *  (collab.ts `onJoinRetry`): `roomsBack` runs when this tab's join is
+ *  pending. */
+export function joinRetried(this: BoardLeaf, path: string): JoinAnswer {
+  if (this.torn || !path || path !== this.path || this.room || this.roomless || !joinPending(path)) return "gone";
+  if (this.joining || this.loadsRunning > 0 || this.conflict.up || this.textEdited) return "busy";
+  void this.roomsBack();
+  return "started";
 }
 
 /** The room wrote the file: the text face follows it, unless text is
