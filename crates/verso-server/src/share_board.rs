@@ -273,3 +273,100 @@ pub fn is_board(path: &str) -> bool {
     path.rsplit_once('.')
         .is_some_and(|(_, e)| e.eq_ignore_ascii_case("canvas"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scope() -> Scope {
+        Scope {
+            share: "s1".into(),
+            key: crate::scope::share_key("s1"),
+            name: "Ruínas (Sérgio)".into(),
+            root: "Ruínas de Valdor".into(),
+            mount: None,
+            guard: None,
+        }
+    }
+
+    /// A board in Obsidian's layout, tabs and all.
+    const DISK: &str = "{\n\t\"nodes\":[\n\t\t{\"id\":\"a\",\"type\":\"file\",\"file\":\"Ruínas de Valdor/Lugares/Taverna do Corvo.md\",\"x\":0,\"y\":0,\"width\":400,\"height\":300},\n\t\t{\"id\":\"b\",\"type\":\"file\",\"file\":\"Fora/Segredo \\\"x\\\".md\",\"x\":9,\"y\":9,\"width\":4,\"height\":4},\n\t\t{\"id\":\"t\",\"type\":\"text\",\"text\":\"oi\",\"x\":1,\"y\":1,\"width\":2,\"height\":2}\n\t],\n\t\"edges\":[]\n}";
+
+    #[test]
+    fn an_element_crosses_the_boundary_both_ways() {
+        let s = scope();
+        let held = r#"{"id":"c","customData":{"canvas":{"id":"c","type":"file","file":"Ruínas de Valdor/Lugares/X.md"}}}"#;
+        let told = element_out(&s, held).unwrap();
+        assert!(told.contains("\"Lugares/X.md\""), "{told}");
+        assert!(!told.contains("Valdor"), "{told}");
+        let back = element_in(&s, &told).unwrap();
+        let v: Value = serde_json::from_str(&back).unwrap();
+        assert_eq!(
+            v["customData"]["canvas"]["file"],
+            "Ruínas de Valdor/Lugares/X.md"
+        );
+        // An element of a file outside is not told at all; one with no file
+        // is as it is.
+        let outside = held.replace("Ruínas de Valdor/", "Fora/");
+        assert!(element_out(&s, &outside).is_none());
+        let drawn = r#"{"id":"d","type":"rectangle"}"#;
+        assert_eq!(element_out(&s, drawn).as_deref(), Some(drawn));
+        assert_eq!(element_in(&s, drawn).unwrap(), drawn);
+        // A path from the window never leaves the share.
+        for bad in ["../Fora/X.md", "/Fora/X.md", "a/../../X.md"] {
+            let e = held.replace("Ruínas de Valdor/Lugares/X.md", bad);
+            assert!(element_in(&s, &e).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_boards_text_is_re_rooted_and_nothing_else_changes() {
+        let s = scope();
+        // All the cards in the share: only the strings change.
+        let inside = DISK.replace("Fora/Segredo \\\"x\\\".md", "Ruínas de Valdor/Ponte.md");
+        let out = text_out(&s, &inside, "locked");
+        assert_eq!(
+            out,
+            inside
+                .replace("Ruínas de Valdor/Lugares", "Lugares")
+                .replace("Ruínas de Valdor/Ponte", "Ponte")
+        );
+        let back = text_in(&s, Some(&inside), &out).unwrap();
+        assert_eq!(back, inside, "a round trip is the file, byte for byte");
+        // A text with no card is returned as it is, and so is one that is no
+        // board.
+        let plain = "{\"nodes\":[],\"edges\":[]}\n";
+        assert_eq!(text_out(&s, plain, "l"), plain);
+        assert_eq!(text_in(&s, None, plain).unwrap(), plain);
+        assert_eq!(text_out(&s, "not json", "l"), "not json");
+    }
+
+    #[test]
+    fn a_card_outside_the_share_is_locked_out_and_kept_in() {
+        let s = scope();
+        let out = text_out(&s, DISK, "LOCKED");
+        for leak in ["Fora", "Segredo", "Valdor"] {
+            assert!(!out.contains(leak), "{leak} in {out}");
+        }
+        assert!(out.contains("LOCKED") && out.contains("\"Lugares/Taverna do Corvo.md\""));
+        // The window moves the locked card and adds one of its own; saving
+        // gives the file's card back as it is, not the window's.
+        let mut v: Value = serde_json::from_str(&out).unwrap();
+        v["nodes"][1]["x"] = json!(500);
+        v["nodes"][1]["text"] = json!("tomei");
+        v["nodes"].as_array_mut().unwrap().push(
+            json!({ "id": "n", "type": "file", "file": "Lugares/Ponte.md", "x": 1, "y": 1, "width": 1, "height": 1 }),
+        );
+        let saved = text_in(&s, Some(DISK), &v.to_string()).unwrap();
+        let w: Value = serde_json::from_str(&saved).unwrap();
+        let disk: Value = serde_json::from_str(DISK).unwrap();
+        assert_eq!(w["nodes"][1], disk["nodes"][1]);
+        assert_eq!(w["nodes"][0], disk["nodes"][0]);
+        assert_eq!(w["nodes"][3]["file"], "Ruínas de Valdor/Lugares/Ponte.md");
+        // A window that dropped the locked card does not delete it.
+        let mut v: Value = serde_json::from_str(&out).unwrap();
+        v["nodes"].as_array_mut().unwrap().remove(1);
+        let saved = text_in(&s, Some(DISK), &v.to_string()).unwrap();
+        assert!(saved.contains("Fora/Segredo"), "{saved}");
+    }
+}
