@@ -60,64 +60,103 @@ let syncState: SyncState | null = null;
 let roomsOk = false;
 /** What a rejoin waits, ms, after the link was not ready: grows, then stays. */
 const REJOIN_WAITS = [1500, 4000, 10000, 30000, 60000];
-const backListeners = new Set<() => void>();
-/** Told when the synced folder's rooms became reachable again: a tab that
- *  holds no session (it was read while the link was down) joins now. */
-export function onRoomsBack(fn: () => void): () => void {
-  backListeners.add(fn);
-  return () => backListeners.delete(fn);
-}
 
-/** Synced paths whose join was answered `unavailable` while the link was
- *  said to be up (the status says connected a moment before the host's live
- *  link is): how many times it was asked again, and the timer of the next. */
-const notReady = new Map<string, { tries: number; timer: number }>();
-const retryListeners = new Set<(path: string) => boolean>();
-/** Told, after a wait that grows, that the join of `path` found the link not
- *  ready: the tab that holds no room for it joins again (and, if it still
- *  is not ready, `joinRoom` asks again). A tab that closed or moved on
- *  answers false, and the chain ends. */
-export function onJoinRetry(fn: (path: string) => boolean): () => void {
+/** Paths whose join is pending: it answered `unavailable` while the link
+ *  was said to be up (the status says connected a moment before the host's
+ *  live link is), or it never ran because the link was down. How many times
+ *  it was asked again, and the timer of the next wait. A join that answered
+ *  read_only, a refusal, or that the person turned off is not pending. */
+type Pending = { tries: number; timer: number; logged: boolean };
+const pending = new Map<string, Pending>();
+/** What a tab answers when told its join may be asked again: it started a
+ *  join, it is busy (unsaved text, a load under way) and is asked again after
+ *  the next wait, or it is gone (closed, on another file, or in its room). */
+export type JoinAnswer = "started" | "busy" | "gone";
+const retryListeners = new Set<(path: string) => JoinAnswer>();
+export function onJoinRetry(fn: (path: string) => JoinAnswer): () => void {
   retryListeners.add(fn);
   return () => retryListeners.delete(fn);
+}
+
+/** Whether the join of `path` is pending: only such a tab is told to join
+ *  again, never a tab that holds no room for another reason (mixed line
+ *  ends, a reader, a kind no room takes). */
+export function joinPending(path: string): boolean {
+  return pending.has(path);
 }
 
 function logInfo(line: string): void {
   void commands.logWrite("INFO", line).catch(() => undefined);
 }
 
-function joinNotReady(path: string): void {
-  const was = notReady.get(path);
-  if (was) window.clearTimeout(was.timer);
-  const tries = was?.tries ?? 0;
-  if (!was) logInfo(`collab_join ${path}: the link is not ready; asking again`);
-  const wait = REJOIN_WAITS[Math.min(tries, REJOIN_WAITS.length - 1)] ?? 60000;
+function markPending(path: string): void {
+  if (!pending.has(path)) pending.set(path, { tries: 0, timer: 0, logged: false });
+}
+
+function scheduleJoin(path: string): void {
+  const w = pending.get(path);
+  if (!w) return;
+  window.clearTimeout(w.timer);
+  const wait = REJOIN_WAITS[Math.min(w.tries, REJOIN_WAITS.length - 1)] ?? 60000;
   const timer = window.setTimeout(() => {
-    const now = notReady.get(path);
-    if (!now || now.timer !== timer) return;
-    // The timer is spent; the entry stays (its tries) until a join answers.
-    now.timer = 0;
-    now.tries++;
-    if (!roomsOk || retryListeners.size === 0) return void notReady.delete(path);
-    // Nobody joined again (the tab closed, moved on, or has unsaved text):
-    // the chain ends here, with no timer left.
-    const taken = [...retryListeners].map((fn) => fn(path)).some(Boolean);
-    if (!taken) notReady.delete(path);
+    if (pending.get(path)?.timer === timer) fireJoin(path);
   }, wait);
-  notReady.set(path, { tries, timer });
+  w.timer = timer;
+}
+
+/** The wait is over, or the link is back: each tab is told. A tab that
+ *  started a join settles or reschedules it itself; busy ones are asked
+ *  after the next wait; with nobody left to join, the path is let go. */
+function fireJoin(path: string): void {
+  const w = pending.get(path);
+  if (!w) return;
+  w.timer = 0;
+  if (!roomsOk) return;
+  w.tries++;
+  const answers = [...retryListeners].map((fn) => fn(path));
+  if (answers.includes("started")) return;
+  if (answers.includes("busy")) return scheduleJoin(path);
+  pending.delete(path);
+}
+
+/** A tab's retry stopped before it reached the join (it was busy or the
+ *  person typed): asked again after the next wait. */
+export function joinBusy(path: string): void {
+  // (the join may have answered and the tab let it go: pending again)
+  markPending(path);
+  if (roomsOk) scheduleJoin(path);
+}
+
+function joinNotReady(path: string): void {
+  markPending(path);
+  const w = pending.get(path);
+  if (w && !w.logged) {
+    w.logged = true;
+    logInfo(`collab_join ${path}: the link is not ready; asking again`);
+  }
+  scheduleJoin(path);
 }
 
 function joinSettled(path: string): void {
-  const was = notReady.get(path);
-  if (!was) return;
-  window.clearTimeout(was.timer);
-  notReady.delete(path);
-  logInfo(`collab_join ${path}: joined after ${was.tries} retries`);
+  const w = pending.get(path);
+  if (!w) return;
+  window.clearTimeout(w.timer);
+  pending.delete(path);
+  if (w.logged) logInfo(`collab_join ${path}: joined after ${w.tries} retries`);
 }
 
-function dropJoinRetries(): void {
-  for (const w of notReady.values()) window.clearTimeout(w.timer);
-  notReady.clear();
+function joinNotPending(path: string): void {
+  const w = pending.get(path);
+  if (w) window.clearTimeout(w.timer);
+  pending.delete(path);
+}
+
+/** The link went down: no timer runs meanwhile; the way back asks. */
+function pauseJoinRetries(): void {
+  for (const w of pending.values()) {
+    window.clearTimeout(w.timer);
+    w.timer = 0;
+  }
 }
 
 /** Whether the server let the person edit this synced note, though they
@@ -671,20 +710,50 @@ async function syncedSide(): Promise<boolean> {
  *  or the file is shown read-only (its line ends mixed). `catching` is
  *  told while a synced folder's join waits for the file's local text to
  *  cross (item 7). */
-export async function joinRoom<S extends RoomSession>(
+export function joinRoom<S extends RoomSession>(
   path: string,
   catching: (() => void) | undefined,
   make: (joined: CollabJoin, synced: boolean) => S | null,
   share?: { handlers: CollabHandlers; is: (s: RoomSession) => s is S },
 ): Promise<S | null> {
-  if (!(await canCollab())) return null;
+  // One join of a path at a time: two tabs of it (a split view) join one
+  // after the other, and the second finds the first's session to share.
+  const prior = joining.get(path);
+  const run = (prior ?? Promise.resolve()).then(() => joinRoomNow(path, catching, make, share));
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  joining.set(path, tail);
+  void tail.then(() => {
+    if (joining.get(path) === tail) joining.delete(path);
+  });
+  return run;
+}
+const joining = new Map<string, Promise<void>>();
+
+async function joinRoomNow<S extends RoomSession>(
+  path: string,
+  catching: (() => void) | undefined,
+  make: (joined: CollabJoin, synced: boolean) => S | null,
+  share?: { handlers: CollabHandlers; is: (s: RoomSession) => s is S },
+): Promise<S | null> {
+  if (!(await canCollab())) {
+    // The link is down, or the side keeps no rooms: the way back asks.
+    markPending(path);
+    return null;
+  }
   const synced = await syncedSide();
-  if (synced && !liveAllowed()) return null;
+  if (synced && !liveAllowed()) {
+    joinNotPending(path);
+    return null;
+  }
   hear();
   // Held already in this window — a card on a note a tab holds: shared.
   const held = sessions.get(path);
   if (share && held && held.open && share.is(held)) {
     held.hold(share.handlers);
+    joinNotPending(path);
     return held;
   }
   held?.leave();
@@ -692,10 +761,13 @@ export async function joinRoom<S extends RoomSession>(
   const r = await timed(`collab_join ${path}`, () => commands.collabJoin(path));
   if (r.status !== "ok") {
     if (synced && roomsOk && r.error.kind === "unavailable") joinNotReady(path);
-    else notReady.delete(path);
+    else joinNotPending(path);
     return null;
   }
-  if (r.data.read_only) return null;
+  if (r.data.read_only) {
+    joinNotPending(path);
+    return null;
+  }
   joinSettled(path);
   dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [], user: r.data.user } }));
   const made = make(r.data, synced);
@@ -786,9 +858,9 @@ async function follow(next: SyncState): Promise<void> {
   const why: LocalWhy = !next.on ? "off" : !next.live ? "setting" : next.state === "paused" ? "paused" : "offline";
   const wasOk = roomsOk;
   roomsOk = ok;
-  // Down: the transition back asks again (`onRoomsBack`), no timer meanwhile.
-  if (!ok) dropJoinRetries();
-  if (ok && !wasOk) for (const fn of [...backListeners]) fn();
+  // Down: no timer runs; the way back asks each pending join again.
+  if (!ok) pauseJoinRetries();
+  if (ok && !wasOk) for (const path of [...pending.keys()]) fireJoin(path);
   for (const s of [...sessions.values()]) {
     if (!s.synced) continue;
     if (!ok && s.live) s.goLocal(why);
