@@ -264,6 +264,14 @@ pub fn text_in(scope: &Scope, disk: Option<&str>, theirs: &str) -> Result<String
         .into_iter()
         .filter(|n| file_of(n).is_some_and(|f| scope.to_rel(f).is_none()))
         .collect();
+    // Cards put back are matched by id: ones that cannot be told apart (an
+    // id twice, or none) could be replaced by what the window holds, and
+    // the file would lose them. Never written.
+    if !outside.is_empty() && !ids_tell_apart(disk, &outside) {
+        return Err(verso_service::refused(
+            "this board has cards that cannot be told apart (an id used twice or missing): edit it in the folder",
+        ));
+    }
     let has_files = board
         .nodes()
         .iter()
@@ -282,6 +290,19 @@ pub fn text_in(scope: &Scope, disk: Option<&str>, theirs: &str) -> Result<String
     canvas_in(scope, &mut value)?;
     lay_back(&mut value, &outside);
     laid(theirs, &value).ok_or_else(|| verso_service::refused("not a board"))
+}
+
+/// Whether every card of `outside` has an id no other node of `disk` has.
+fn ids_tell_apart(disk: Option<&str>, outside: &[Value]) -> bool {
+    let all: Vec<Value> = disk
+        .and_then(|d| serde_json::from_str::<Value>(d).ok())
+        .and_then(|d| d.get("nodes").and_then(Value::as_array).cloned())
+        .unwrap_or_default();
+    outside.iter().all(|o| {
+        o.get("id").and_then(Value::as_str).is_some_and(|id| {
+            !id.is_empty() && all.iter().filter(|n| n.get("id") == o.get("id")).count() == 1
+        })
+    })
 }
 
 /// The cards of `outside` put back into `value`'s: where the window had its

@@ -449,6 +449,23 @@ pub fn lay_over(
     if !disk.is_object() || !player.is_object() {
         return None;
     }
+    // Matched by id: a file whose elements share an id cannot be laid over
+    // without taking one for the other.
+    for (top, inner) in [("nodes", ""), ("edges", ""), ("verso", "drawing")] {
+        let list = if inner.is_empty() {
+            disk[top].as_array()
+        } else {
+            disk[top][inner].as_array()
+        };
+        let mut seen = BTreeSet::new();
+        for v in list.into_iter().flatten() {
+            if let Some(i) = v.get("id").and_then(Value::as_str)
+                && !seen.insert(i)
+            {
+                return None;
+            }
+        }
+    }
     let before = see(&entries_of_canvas(disk), lock);
     let mut out = disk.clone();
     let id = |v: &Value| v.get("id").and_then(Value::as_str).map(str::to_owned);

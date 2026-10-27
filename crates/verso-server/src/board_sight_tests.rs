@@ -643,3 +643,13 @@ fn a_card_of_a_file_that_is_not_there_is_judged_as_one_hidden() {
     assert_eq!(s.class["c1"], Class::Locked);
     assert_eq!(s.class["c4"], Class::Open);
 }
+
+#[test]
+fn a_file_whose_elements_share_an_id_is_not_laid_over() {
+    let disk = json!({ "nodes": [
+        { "id": "x", "type": "text", "text": "a" },
+        { "id": "x", "type": "text", "text": "b" },
+    ], "edges": [] });
+    let player = json!({ "nodes": [ { "id": "x", "type": "text", "text": "c" } ], "edges": [] });
+    assert!(lay_over(&disk, &player, &|_| None, &|_| true).is_none());
+}

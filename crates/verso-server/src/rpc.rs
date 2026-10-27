@@ -1098,14 +1098,15 @@ async fn folder_command(
                     s.service.with_key(&k, |ws| {
                         Ok(ws
                             .read_text(&p)
-                            .map(|f| crate::share_board::card_files(&f.text))
-                            .unwrap_or_default())
+                            .ok()
+                            .map(|f| crate::share_board::card_files(&f.text)))
                     })
                 })
                 .await
-                .unwrap_or_default()
+                .ok()
+                .flatten()
             }
-            _ => std::collections::BTreeSet::new(),
+            _ => Some(std::collections::BTreeSet::new()),
         };
         board_out(&scope, name, &mut answer, (&lang, &cards));
     }
@@ -1206,7 +1207,7 @@ fn board_out(
     scope: &crate::scope::Scope,
     name: &str,
     answer: &mut Value,
-    (lang, cards): (&str, &std::collections::BTreeSet<String>),
+    (lang, cards): (&str, &Option<std::collections::BTreeSet<String>>),
 ) {
     let words = crate::campaign_text::locked_card(lang);
     match name {
@@ -1222,8 +1223,18 @@ fn board_out(
                 let Some(target) = l["target"].as_str() else {
                     continue;
                 };
-                if cards.contains(target) {
-                    l["target"] = Value::String(scope.to_rel(target).unwrap_or_default());
+                if let Some(rel) = scope.to_rel(target) {
+                    l["target"] = Value::String(rel);
+                    continue;
+                }
+                // A card of a file beside the share, or any target when the
+                // board could not be read to tell cards from texts (fails
+                // closed): nothing of it crosses, not its subpath either.
+                if cards.as_ref().is_none_or(|c| c.contains(target)) {
+                    l["target"] = json!("");
+                    l["heading"] = Value::Null;
+                    l["block"] = Value::Null;
+                    l["alias"] = Value::Null;
                 }
             }
         }
