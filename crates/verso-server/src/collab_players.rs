@@ -722,31 +722,26 @@ pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
 /// A share changed (its folder moved, its paths narrowed) or went: the
 /// shadows made with the share as it was are closed, so that their windows
 /// join anew with the share as it is — a shadow never keeps an old root.
-pub(crate) fn share_moved(server: &Server, share: &str, now: Option<&Scope>) {
+pub(crate) fn share_moved(server: &Server, share: &str, now: &dyn Fn(&str) -> Option<Scope>) {
     let rooms: Vec<_> = lock(&server.rooms.map).values().map(Arc::clone).collect();
     for room in rooms {
         let mut r = lock(&room);
-        let stale: Vec<String> = r
+        // Each shadow is judged against the share as its own account has it.
+        let stale = |sh: &Shadow| {
+            sh.scope
+                .as_ref()
+                .is_some_and(|s| s.share == share && now(&sh.account).as_ref() != Some(s))
+        };
+        let clients: Vec<String> = r
             .readers
             .players
             .by
             .values()
-            .filter(|sh| {
-                sh.scope
-                    .as_ref()
-                    .is_some_and(|s| s.share == share && Some(s) != now)
-            })
+            .filter(|sh| stale(sh))
             .flat_map(|sh| sh.clients.iter().cloned())
             .collect();
-        if stale.is_empty() {
-            continue;
-        }
-        r.readers.players.by.retain(|_, sh| {
-            !sh.scope
-                .as_ref()
-                .is_some_and(|s| s.share == share && Some(s) != now)
-        });
-        close(server, &mut r, &stale);
+        r.readers.players.by.retain(|_, sh| !stale(sh));
+        close(server, &mut r, &clients);
     }
 }
 

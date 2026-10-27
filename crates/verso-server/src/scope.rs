@@ -544,7 +544,21 @@ impl Scope {
             "list_web_notes" => self.keep(&mut v, "path"),
             // A block of a note outside the share is not said.
             "list_block_ids" => self.keep(&mut v["blocks"], "path"),
-            "backlinks" => self.keep(&mut v, "from"),
+            // A board's card names its note by the note's path in the owner's
+            // folder: the share's, so that where the share is never crosses.
+            "backlinks" => {
+                self.keep(&mut v, "from");
+                for b in v.as_array_mut().into_iter().flatten() {
+                    let from_board = b["from"]
+                        .as_str()
+                        .is_some_and(|f| f.to_ascii_lowercase().ends_with(".canvas"));
+                    if from_board
+                        && let Some(rel) = b["target"].as_str().and_then(|t| self.to_rel(t))
+                    {
+                        b["target"] = Value::String(rel);
+                    }
+                }
+            }
             // A mention in a note outside the share is not said (ADR 0089).
             "unlinked_mentions" => self.keep(&mut v["mentions"], "path"),
             "graph" => {

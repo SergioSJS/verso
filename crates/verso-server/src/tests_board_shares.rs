@@ -35,6 +35,8 @@ struct Cast {
     key: String,
     /// The share's id.
     share: String,
+    /// Ana's account.
+    account: String,
     owner: Win,
     ana: Win,
 }
@@ -124,6 +126,7 @@ async fn cast_with(table: bool) -> Cast {
         r,
         key,
         share,
+        account: a.id.clone(),
         owner,
         ana,
     }
@@ -466,7 +469,9 @@ fn a_shadow_made_with_an_old_share_is_closed_when_the_share_changes() {
             root: "Sub2".into(),
             ..now
         };
-        crate::collab::players::share_moved(&c.r.server, &c.share, Some(&moved));
+        let account = c.account.clone();
+        let now = move |a: &str| (a == account).then(|| moved.clone());
+        crate::collab::players::share_moved(&c.r.server, &c.share, &now);
         let told = hear(&mut c.ana, 600, &[]).await;
         assert!(
             told.iter().any(|e| e["event"] == "collab-closed"),
@@ -530,5 +535,75 @@ fn a_game_masters_change_after_a_share_windows_read_is_never_overwritten() {
 fn a_player_of_a_table_cannot_overwrite_a_game_masters_change_either() {
     block_on(async {
         a_change_of_the_game_master_survives(true).await;
+    });
+}
+
+#[test]
+fn a_board_whose_hidden_cards_cannot_be_told_apart_is_never_written_through_a_share() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let board = json!({ "nodes": [
+            { "id": "x", "type": "file", "file": "Fora/A.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "x", "type": "file", "file": "Fora/B.md", "x": 5, "y": 0, "width": 1, "height": 1 },
+            { "type": "file", "file": "Fora/C.md", "x": 9, "y": 0, "width": 1, "height": 1 },
+            { "id": "d", "type": "file", "file": "Sub/Livre.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+        ], "edges": [] });
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": board.to_string(), "revision": first["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let before = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let rev = before["ok"]["revision"].clone();
+        let read = c.ana.call("read_text", json!({ "path": REL })).await;
+        let mut v: Value = serde_json::from_str(read["ok"]["text"].as_str().unwrap()).unwrap();
+        v["nodes"][3]["x"] = json!(77);
+        for (cmd, field) in [("write_text", "text"), ("write_board", "json")] {
+            let w = c
+                .ana
+                .call(
+                    cmd,
+                    json!({ "path": REL, field: v.to_string(), "revision": rev }),
+                )
+                .await;
+            assert_eq!(w["err"]["kind"], "refused", "{cmd}: {w}");
+        }
+        let after = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        assert_eq!(after["ok"]["text"], before["ok"]["text"]);
+    });
+}
+
+#[test]
+fn backlinks_and_links_of_a_board_cross_only_in_the_shares_words() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let board = json!({ "nodes": [
+            { "id": "a", "type": "file", "file": "Fora/Segredo.md", "subpath": "#Cripta Secreta", "x": 0, "y": 0, "width": 1, "height": 1 },
+            { "id": "d", "type": "file", "file": "Sub/Livre.md", "x": 0, "y": 0, "width": 1, "height": 1 },
+        ], "edges": [] });
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": board.to_string(), "revision": first["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        let walked = c.owner.call("reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        let back = c.ana.call("backlinks", json!({ "path": "Livre.md" })).await;
+        let raw = back.to_string();
+        assert!(raw.contains("Quadro.canvas"), "{raw}");
+        assert!(!raw.contains("Sub/"), "{raw}");
+        let links = c.ana.call("links", json!({ "path": REL })).await;
+        let raw = links.to_string();
+        for leak in ["Fora", "Segredo", "Cripta", "Sub/"] {
+            assert!(!raw.contains(leak), "{leak} in {raw}");
+        }
     });
 }
