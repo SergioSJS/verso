@@ -45,6 +45,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   return_to_main: ["path"],
   open_url: ["url"],
   fetch_file: ["path"],
+  placeholder_plan: ["paths"],
   web_open: ["place"],
   web_bounds: ["label", "place"],
   web_visible: ["label", "visible"],

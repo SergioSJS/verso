@@ -267,6 +267,13 @@ export const commands = {
 	 */
 	fetchFile: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("fetch_file", { path })),
 	/**
+	 *  What bringing the placeholders among `paths` down would take: how many
+	 *  of them still are, their sizes added, and the room the disk has left
+	 *  (ADR 0043, decided 2026-10-27). Asked before a download from the sync
+	 *  card starts; reads the listing, never the files.
+	 */
+	placeholderPlan: (paths: string[]) => typedError<PlaceholderPlan, ContractError>(__TAURI_INVOKE("placeholder_plan", { paths })),
+	/**
 	 *  Open the web inspector — console, elements, network — of the window
 	 *  that asks: View › Open console (⌥⌘I), in the installed app as in
 	 *  development (ADR 0051, 2026-09-30). The window asks only when its
@@ -3179,6 +3186,25 @@ export type PickedFiles = {
 	skipped: SkippedPick[],
 };
 
+/**
+ *  What bringing placeholders down would take, asked before it starts (ADR
+ *  0043, decided 2026-10-27): the size of the files named, and the room the
+ *  disk has left. Bytes are `f64`, as everywhere in the contract.
+ */
+export type PlaceholderPlan = {
+	/**
+	 *  The files named that are placeholders now, and their logical sizes
+	 *  added.
+	 */
+	count: number,
+	bytes: number | null,
+	/**
+	 *  The bytes the disk under the folder can still take; `None` when the
+	 *  system would not say (the download then goes without the check).
+	 */
+	free: number | null,
+};
+
 /**  One frontmatter key and its value. */
 export type Property = {
 	key: string,
@@ -3574,6 +3600,13 @@ export type SyncStatus = {
 	conflicts: string[],
 	/**  Files not synced, each with its reason (item 13). */
 	refused: SyncRefused[],
+	/**
+	 *  Files that are only in the cloud on this computer (a placeholder of
+	 *  on-demand storage) and that sync already has a copy of: the server
+	 *  holds it, nothing is asked of the person, and the window says so
+	 *  quietly, apart from `refused` (ADR 0043, decided 2026-10-27).
+	 */
+	cloud_only: string[],
 	/**  What crossed lately, newest first. */
 	log: SyncLogEntry[],
 	/**  When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`. */
