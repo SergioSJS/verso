@@ -158,12 +158,23 @@ export class BoardLeaf extends TextLeaf {
     // types while the join is on its way (the retry reads the disk's text in
     // first, which must not stand over what they did).
     const was = retry ? { state: this.editor.state, revision: this.revision, seen: this.seen, heldText: this.heldText, heldRevision: this.heldRevision, textBase: this.textBase } : null;
+    // The tab is left as the person had it: the board they drew stays on
+    // screen and is saved as before, against the revision it was drawn on;
+    // the text face is what it showed.
+    const putBack = (): void => {
+      this.retryBailed = true;
+      if (!was || this.textEdited || this.torn) return;
+      this.editor.setState(was.state);
+      this.revision = was.revision;
+      this.seen = was.seen;
+      this.heldText = was.heldText;
+      this.heldRevision = was.heldRevision;
+      this.textBase = was.textBase;
+    };
     await super.load(path, force, retry);
     if (this.path !== path) return;
-    if (retry && (this.retryBailed || this.touchedSince())) {
-      this.retryBailed = true;
-      return;
-    }
+    // Drawn while the disk's text was read in: the read stands over nothing.
+    if (retry && (this.retryBailed || this.touchedSince())) return putBack();
     this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
@@ -174,20 +185,7 @@ export class BoardLeaf extends TextLeaf {
     this.layoutKept = laid.status !== "ok" || laid.data === text;
     await this.joinBoardRoom(path, text, retry ? this.touchedSince : undefined);
     if (this.path !== path) return;
-    if (retry && this.room === null && this.touchedSince()) {
-      // The tab is left as the person had it: the board they drew stays on
-      // screen and is saved as before, the text face is what it showed.
-      this.retryBailed = true;
-      if (was && !this.textEdited && !this.torn) {
-        this.editor.setState(was.state);
-        this.revision = was.revision;
-        this.seen = was.seen;
-        this.heldText = was.heldText;
-        this.heldRevision = was.heldRevision;
-        this.textBase = was.textBase;
-      }
-      return;
-    }
+    if (retry && this.room === null && this.touchedSince()) return putBack();
     if (this.showing === "board") await this.showBoard();
   }
   protected override roomKind(): "text" | "board" {
