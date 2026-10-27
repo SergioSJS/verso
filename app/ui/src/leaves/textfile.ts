@@ -10,7 +10,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
 import { may } from "../access";
-import { type CollabHandlers, type CollabSession, joinCollab, type RoomSession, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, onJoinRetry, onRoomsBack, type RoomSession, ySyncAnnotation } from "../collab";
 import { type What } from "../coeditWords";
 import { methods } from "../methods";
 import { h, ui } from "../dom";
@@ -87,6 +87,7 @@ export class TextLeaf extends Leaf {
   constructor(pane: Pane) {
     super(pane);
     this.roomHandlers = this.makeHandlers();
+    this.unhearJoin = [onRoomsBack(() => void this.joinRetried(this.path)), onJoinRetry((p) => this.joinRetried(p))];
     const head = h("header", "leaf-head");
     this.liveMark.hidden = true;
     head.append(this.crumbs, this.modes, this.dataModes, this.liveMark);
@@ -367,7 +368,23 @@ export class TextLeaf extends Leaf {
   override focusContent(): void {
     this.editor.focus();
   }
+  private unhearJoin: (() => void)[] = [];
+  /** The sync link is back, or a join found it not ready and the wait is
+   *  over: a tab that holds no room reads the file anew and joins, once
+   *  nothing typed here is unsaved. True when it did (the caller's chain of
+   *  waits goes on); a board's tab says it its own way. */
+  joinRetried(path: string): boolean {
+    if (!path || path !== this.path || this.collab || this.dirty || this.conflict.up || this.rejoining) return false;
+    this.rejoining = true;
+    void this.load(path, true).finally(() => {
+      this.rejoining = false;
+    });
+    return true;
+  }
+  private rejoining = false;
   override destroy(): void {
+    for (const off of this.unhearJoin) off();
+    this.unhearJoin = [];
     window.clearTimeout(this.saveTimer);
     this.unlink?.();
     this.unlink = null;

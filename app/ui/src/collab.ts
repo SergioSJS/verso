@@ -68,6 +68,58 @@ export function onRoomsBack(fn: () => void): () => void {
   return () => backListeners.delete(fn);
 }
 
+/** Synced paths whose join was answered `unavailable` while the link was
+ *  said to be up (the status says connected a moment before the host's live
+ *  link is): how many times it was asked again, and the timer of the next. */
+const notReady = new Map<string, { tries: number; timer: number }>();
+const retryListeners = new Set<(path: string) => boolean>();
+/** Told, after a wait that grows, that the join of `path` found the link not
+ *  ready: the tab that holds no room for it joins again (and, if it still
+ *  is not ready, `joinRoom` asks again). A tab that closed or moved on
+ *  answers false, and the chain ends. */
+export function onJoinRetry(fn: (path: string) => boolean): () => void {
+  retryListeners.add(fn);
+  return () => retryListeners.delete(fn);
+}
+
+function logInfo(line: string): void {
+  void commands.logWrite("INFO", line).catch(() => undefined);
+}
+
+function joinNotReady(path: string): void {
+  const was = notReady.get(path);
+  if (was) window.clearTimeout(was.timer);
+  const tries = was?.tries ?? 0;
+  if (!was) logInfo(`collab_join ${path}: the link is not ready; asking again`);
+  const wait = REJOIN_WAITS[Math.min(tries, REJOIN_WAITS.length - 1)] ?? 60000;
+  const timer = window.setTimeout(() => {
+    const now = notReady.get(path);
+    if (!now || now.timer !== timer) return;
+    // The timer is spent; the entry stays (its tries) until a join answers.
+    now.timer = 0;
+    now.tries++;
+    if (!roomsOk || retryListeners.size === 0) return void notReady.delete(path);
+    // Nobody joined again (the tab closed, moved on, or has unsaved text):
+    // the chain ends here, with no timer left.
+    const taken = [...retryListeners].map((fn) => fn(path)).some(Boolean);
+    if (!taken) notReady.delete(path);
+  }, wait);
+  notReady.set(path, { tries, timer });
+}
+
+function joinSettled(path: string): void {
+  const was = notReady.get(path);
+  if (!was) return;
+  window.clearTimeout(was.timer);
+  notReady.delete(path);
+  logInfo(`collab_join ${path}: joined after ${was.tries} retries`);
+}
+
+function dropJoinRetries(): void {
+  for (const w of notReady.values()) window.clearTimeout(w.timer);
+  notReady.clear();
+}
+
 /** Whether the server let the person edit this synced note, though they
  *  only read the folder (ADR 0113 S8): access.ts says, from what the host
  *  heard; a reader of the folder is a typist of a note they edit. */
@@ -638,7 +690,13 @@ export async function joinRoom<S extends RoomSession>(
   held?.leave();
   if (synced) catching?.();
   const r = await timed(`collab_join ${path}`, () => commands.collabJoin(path));
-  if (r.status !== "ok" || r.data.read_only) return null;
+  if (r.status !== "ok") {
+    if (synced && roomsOk && r.error.kind === "unavailable") joinNotReady(path);
+    else notReady.delete(path);
+    return null;
+  }
+  if (r.data.read_only) return null;
+  joinSettled(path);
   dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [], user: r.data.user } }));
   const made = make(r.data, synced);
   if (!made) void commands.collabLeave(path);
@@ -728,6 +786,8 @@ async function follow(next: SyncState): Promise<void> {
   const why: LocalWhy = !next.on ? "off" : !next.live ? "setting" : next.state === "paused" ? "paused" : "offline";
   const wasOk = roomsOk;
   roomsOk = ok;
+  // Down: the transition back asks again (`onRoomsBack`), no timer meanwhile.
+  if (!ok) dropJoinRetries();
   if (ok && !wasOk) for (const fn of [...backListeners]) fn();
   for (const s of [...sessions.values()]) {
     if (!s.synced) continue;

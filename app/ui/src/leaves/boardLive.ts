@@ -219,6 +219,15 @@ export async function roomsBack(this: BoardLeaf): Promise<void> {
   }
 }
 
+/** The link is back, or a join found it not ready and the wait is over
+ *  (collab.ts `onJoinRetry`): `roomsBack` runs when this tab holds no room
+ *  and nothing is unsaved. True when it did. */
+export function joinRetried(this: BoardLeaf, path: string): boolean {
+  if (!path || path !== this.path || this.room || this.roomless || this.joining || this.conflict.up || this.textEdited) return false;
+  void this.roomsBack();
+  return true;
+}
+
 /** The room wrote the file: the text face follows it, unless text is
  *  typed there. A synced folder's file follows when sync brings the save
  *  down (`recheck`). */
