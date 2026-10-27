@@ -17,6 +17,7 @@ import { may } from "../access";
 import { type CollabHandlers, canCollab, type LocalWhy, refusedLine } from "../collab";
 import { localSaid } from "../coeditWords";
 import { BOARD_VERSION, parseCanvas, type CanvasDoc } from "../board/model";
+import { changedOutside, takeOutsideIn as mergeOutside } from "../board/outside";
 import { patchFromCanvas } from "../board/roomModel";
 import { fail } from "../errors";
 import { leavesOf } from "../layout/spaces";
@@ -135,11 +136,52 @@ export async function saveLocalNow(this: BoardLeaf): Promise<void> {
   window.clearTimeout(this.localTimer);
   const room = this.room;
   if (!room || room.live || !room.writable) return this.saving;
+  // What sync brought down meanwhile comes in first: the save is made over
+  // the revision of a file the board holds all of.
+  if ((await this.takeOutsideIn()) === "conflict") return;
+  if (!this.room || this.room.live) return;
   const json = JSON.stringify(room.canvas());
   const laid = await commands.boardPreview(this.path, json);
   const now = await commands.readText(this.path);
   if (laid.status === "ok" && now.status === "ok" && laid.data === now.data.text) return;
   await this.saveBoardJson(json);
+}
+
+/** Out of the room, the file changed on disk from outside (sync bringing
+ *  the others' drawings down): its news taken into the board, as the
+ *  elements it changes, and only then is the file's revision the board's —
+ *  never the revision alone, which would let the next save write over it
+ *  (invariant 11, the loss of 2026-10-26). A file that is not a board:
+ *  both on screen. */
+export async function takeOutsideIn(this: BoardLeaf): Promise<"same" | "taken" | "conflict"> {
+  const path = this.path;
+  const room = this.room;
+  if (!room || room.live) return "same";
+  const r = await commands.readText(path);
+  if (r.status !== "ok" || path !== this.path || this.room !== room || room.live) return "same";
+  if (!changedOutside(this.revision, r.data.revision)) return "same";
+  if (r.data.text !== this.heldText) {
+    const mod = await loadBoardModule();
+    if (path !== this.path || this.room !== room || room.live) return "same";
+    if (!mergeOutside(room, mod.drawnOf, this.heldText, r.data.text, nonce)) {
+      await this.boardConflict();
+      return "conflict";
+    }
+  }
+  this.heldText = r.data.text;
+  this.revision = r.data.revision;
+  if (!this.textEdited) this.showText(r.data.text);
+  return "taken";
+}
+
+/** The sync is back and this tab holds no room (it was read while the link
+ *  was down): the file is read anew and the room joined, once nothing is
+ *  unsaved. */
+export async function roomsBack(this: BoardLeaf): Promise<void> {
+  const path = this.path;
+  if (!path || this.room || this.conflict.up || this.textEdited) return;
+  if (!(await this.flush()) || this.room || path !== this.path) return;
+  await this.load(path, true);
 }
 
 /** The room wrote the file: the text face follows it, unless text is
@@ -149,6 +191,7 @@ export async function followSaved(this: BoardLeaf, revision: string): Promise<vo
   if (this.room?.synced || this.textEdited) return;
   const r = await commands.readText(this.path);
   if (r.status !== "ok" || r.data.revision !== revision || this.textEdited) return;
+  this.heldText = r.data.text;
   this.showText(r.data.text);
 }
 
@@ -173,7 +216,9 @@ export async function boardWentLocal(this: BoardLeaf, why: LocalWhy): Promise<vo
   const path = this.path;
   const r = await commands.readText(path);
   if (path !== this.path || !this.room || this.room.live || r.status !== "ok") return;
-  this.revision = r.data.revision;
+  // The file may already be one sync wrote after the room's last save: its
+  // news come in before its revision is the board's.
+  if ((await this.takeOutsideIn()) === "conflict") return;
   await this.saveLocalNow();
 }
 

@@ -61,7 +61,7 @@ import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
 import { may } from "../access";
 import { NoteAccess } from "../noteAccess";
-import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, onRoomsBack, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
@@ -113,6 +113,10 @@ export class BoardLeaf extends TextLeaf {
    *  there since: in a room, what was typed goes in as elements. */
   textBase = "";
   textEdited = false;
+  /** The file the board's content stands on: what was read, or written, at
+   *  `revision`. What changed outside is taken in over it (board/outside.ts). */
+  heldText = "";
+  private unhearRooms: (() => void) | null = null;
   /** A synced folder's board out of its room: its save on this computer. */
   localTimer: number | undefined;
   constructor(pane: Pane) {
@@ -130,6 +134,7 @@ export class BoardLeaf extends TextLeaf {
     this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
+    this.unhearRooms = onRoomsBack(() => void this.roomsBack());
   }
   override async load(path: string, force = false): Promise<void> {
     await super.load(path, force);
@@ -138,6 +143,7 @@ export class BoardLeaf extends TextLeaf {
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
+    this.heldText = text;
     this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
@@ -192,6 +198,8 @@ export class BoardLeaf extends TextLeaf {
   declare roomChanged: typeof boardLive.roomChanged;
   declare saveLocalNow: typeof boardLive.saveLocalNow;
   declare followSaved: typeof boardLive.followSaved;
+  declare takeOutsideIn: typeof boardLive.takeOutsideIn;
+  declare roomsBack: typeof boardLive.roomsBack;
   /** A link of a rolled table's row, followed from a die on a card. */
   followDice(target: string, from: string): void {
     const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", from);
@@ -408,6 +416,7 @@ export class BoardLeaf extends TextLeaf {
       const r = await commands.writeBoard(this.path, mine, this.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, mine);
       this.revision = r.data.revision;
+      this.heldText = r.data.text;
       this.editor.setState(this.state(r.data.text));
       if (this.pendingBoard === mine) {
         this.pendingBoard = null;
@@ -519,7 +528,13 @@ export class BoardLeaf extends TextLeaf {
     // follows when sync brings the room's save down: the text face shows it
     // (ADR 0082 item 6).
     if (this.room) {
-      if (!this.room.synced || !this.room.live || this.textEdited) return;
+      // Out of its room (the link dropped): what sync brought down comes
+      // into the board, and is saved with it.
+      if (!this.room.live) {
+        if ((await this.takeOutsideIn()) === "taken") await this.saveLocalNow();
+        return;
+      }
+      if (!this.room.synced || this.textEdited) return;
       const r = await commands.readText(path);
       if (r.status === "ok" && path === this.path && !this.textEdited) this.showText(r.data.text);
       return;
@@ -571,6 +586,8 @@ export class BoardLeaf extends TextLeaf {
   }
   override destroy(): void {
     this.access.destroy();
+    this.unhearRooms?.();
+    this.unhearRooms = null;
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
