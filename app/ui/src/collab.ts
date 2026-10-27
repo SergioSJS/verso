@@ -66,7 +66,7 @@ const REJOIN_WAITS = [1500, 4000, 10000, 30000, 60000];
  *  live link is), or it never ran because the link was down. How many times
  *  it was asked again, and the timer of the next wait. A join that answered
  *  read_only, a refusal, or that the person turned off is not pending. */
-type Pending = { tries: number; timer: number; logged: boolean };
+type Pending = { tries: number; timer: number; logged: boolean; busy: boolean };
 const pending = new Map<string, Pending>();
 /** What a tab answers when told its join may be asked again: it started a
  *  join, it is busy (unsaved text, a load under way) and is asked again after
@@ -90,7 +90,7 @@ function logInfo(line: string): void {
 }
 
 function markPending(path: string): void {
-  if (!pending.has(path)) pending.set(path, { tries: 0, timer: 0, logged: false });
+  if (!pending.has(path)) pending.set(path, { tries: 0, timer: 0, logged: false, busy: false });
 }
 
 function scheduleJoin(path: string): void {
@@ -114,9 +114,18 @@ function fireJoin(path: string): void {
   if (!roomsOk) return;
   w.tries++;
   const answers = [...retryListeners].map((fn) => fn(path));
+  // A busy sibling (a split view's other tab) is asked again whatever the
+  // others did: when one joins first, the sibling finds its session and
+  // shares it, which ends the path's chain.
+  w.busy = answers.includes("busy");
+  if (w.busy) return scheduleJoin(path);
   if (answers.includes("started")) return;
-  if (answers.includes("busy")) return scheduleJoin(path);
   pending.delete(path);
+}
+
+/** A tab's retry found its file gone: nothing to ask again for it. */
+export function joinGiveUp(path: string): void {
+  if (!pending.get(path)?.busy) joinNotPending(path);
 }
 
 /** A tab's retry stopped before it reached the join (it was busy or the
@@ -140,9 +149,12 @@ function joinNotReady(path: string): void {
 function joinSettled(path: string): void {
   const w = pending.get(path);
   if (!w) return;
+  if (w.logged) logInfo(`collab_join ${path}: joined after ${w.tries} retries`);
+  w.logged = false;
+  // A busy sibling tab still waits to share this room: its ask stays.
+  if (w.busy) return;
   window.clearTimeout(w.timer);
   pending.delete(path);
-  if (w.logged) logInfo(`collab_join ${path}: joined after ${w.tries} retries`);
 }
 
 function joinNotPending(path: string): void {
@@ -739,8 +751,9 @@ async function joinRoomNow<S extends RoomSession>(
   share?: { handlers: CollabHandlers; is: (s: RoomSession) => s is S },
 ): Promise<S | null> {
   if (!(await canCollab())) {
-    // The link is down, or the side keeps no rooms: the way back asks.
-    markPending(path);
+    // The link of a synced folder is down: the way back asks. (A side that
+    // keeps no rooms at all is not a synced one: nothing to ask.)
+    if (await syncedSide()) markPending(path);
     return null;
   }
   const synced = await syncedSide();
