@@ -1158,7 +1158,11 @@ rest below and in `manual-checks.md`.
     — sincronização pausada*; back in another room, the note is read anew
     with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
     online* off, the note leaves the room and, opened again, joins nothing
-    (e2e, `live.spec.mjs`). A property set in the panel of a live note —
+    (e2e, `live.spec.mjs`); in that state the note and the board tabs of a
+    synced folder show *Edição ao vivo desligada nesta pasta* (a button
+    that opens *Ajustes* › *Sincronizar*), gone again when the setting is
+    turned on, never on a server folder or a plain local one
+    (`liveOff.test.mjs`). A property set in the panel of a live note —
     a value, a checkbox — goes into the room beside what another person
     types there, never to the file, which follows the room's save; a
     sticker, a base's cell and a PDF's quote into a live companion note go

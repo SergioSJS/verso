@@ -109,7 +109,7 @@ While sync is connected, a note opened here **joins the same room** as whoever o
 - **Pausing** sync leaves the note *local — sync paused* until you resume.
 - Whoever only **reads** the folder shows up in the note, with their name, and does not type.
 - A change made **outside Verso** (Obsidian, a script) to the open note crosses like any other: it enters the room, or stays in a copy if the room had already saved something else.
-- Do not want to edit together in this folder? In **Settings › Sync**, turn off **Edit notes together while online**: notes go back to being edited only here and cross on save. It is a setting of yours, for this computer — it does not go into the folder.
+- Do not want to edit together in this folder? In **Settings › Sync**, turn off **Edit notes together while online**: notes go back to being edited only here and cross on save. It is a setting of yours, for this computer — it does not go into the folder. With it off, the note and the board say **Live editing is off for this folder**, in a button that opens this setting.
 
 Boards, text files and bases opened here also go live, the same way; attachments cross as files.
 
