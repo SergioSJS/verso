@@ -55,7 +55,8 @@ mod lists;
 pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};
 mod sync;
 pub use sync::{
-    CloudCheck, CloudSettings, CloudStatus, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions,
+    CloudCheck, CloudSettings, CloudStatus, PlaceholderPlan, SyncLogEntry, SyncRefused, SyncStatus,
+    SyncVersions,
 };
 mod picked;
 pub use picked::{

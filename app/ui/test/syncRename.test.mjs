@@ -99,6 +99,7 @@ describe("SyncView invalid file names", () => {
       deletions: 0,
       conflicts: [],
       refused: [{ path: "sub/bad:name.md", reason: "name_invalid", message: null }],
+      cloud_only: [],
       log: [],
     };
     drawSyncOn(box, st, async () => {}, () => null, () => {});

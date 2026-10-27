@@ -202,7 +202,7 @@ export class Core {
   deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
-    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
   }
 
   constructor(
@@ -1018,6 +1018,7 @@ export class Core {
     return_to_main: () => null,
     open_url: () => null,
     fetch_file: () => false,
+    placeholder_plan: () => ({ count: 0, bytes: 0, free: null }),
     open_devtools: () => null,
     web_open: (a) => {
       const label = `web-${this.webViews.size + 1}`;

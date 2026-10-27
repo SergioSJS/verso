@@ -11,27 +11,25 @@
 //! here through `verso-fs`, there through the server's sync commands, in
 //! pieces. The window hears `sync-status`.
 
-use std::collections::HashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use verso_contract::{FolderQuota, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
-use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
+use verso_core::sync::{self as engine, Action, FileState, Files, Seen, remote as rem};
 
 use super::*;
-use crate::dns::SendRetrying;
+use crate::{cloud, dns::SendRetrying};
 
+mod cloud_only;
 pub(crate) mod live;
 mod seat;
 mod transfer;
 pub(crate) mod universo;
-use crate::cloud;
 pub(crate) use transfer::contract_of;
 use transfer::{Gate, Refusal, Side};
-use verso_core::sync::remote as rem;
 
 /// A piece of a file on the wire, read from the disk as it is sent (ADR
 /// 0079 item 12, revised 2026-10-12): the server's.
@@ -574,7 +572,7 @@ fn listed_here(
             path.to_owned(),
             SyncRefused {
                 path: path.to_owned(),
-                reason: reason.to_owned(),
+                reason: cloud_only::reason(reason, base.contains_key(path)).to_owned(),
                 message,
             },
         );
@@ -1196,6 +1194,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         });
     }
     save(ctx, s, &mut state, known);
+    let (apart, cloud_only) = cloud_only::split(apart);
     let conflicts: Vec<String> = ctx
         .service
         .with_key(&s.key, |ws| {
@@ -1218,7 +1217,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             .iter()
             .map(|f| (f.path.clone(), f.reason.clone()))
             .collect();
-        for f in apart.values() {
+        for f in &apart {
             if !before.contains(&(f.path.clone(), f.reason.clone())) {
                 log::write(
                     "WARN",
@@ -1227,7 +1226,8 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 );
             }
         }
-        st.refused = apart.into_values().collect();
+        st.refused = apart;
+        st.cloud_only = cloud_only;
         st.last = Some(log::now());
     });
     Ok(Passed {
