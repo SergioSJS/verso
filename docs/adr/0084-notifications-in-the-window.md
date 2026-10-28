@@ -184,7 +184,17 @@ the same day; each is marked in place (Status).
    - A new Settings section, "Notificações", has one row per kind with
      three values: "Aviso e lista", "Só na lista", "Desligado".
    - **The defaults** `[DECIDED 2026-10-14]`: "Aviso e lista" for every
-     kind.
+     kind. **Amended 2026-10-28** `[DECIDED 2026-10-28]`, the maintainer
+     on someone joining: *"deve notificar, mas sutil, tava um inferno o pop
+     up atrapalhando a barra de digitação do chat e ler as últimas
+     mensagens"*. Presence defaults to "Só na lista": no toast on any
+     screen; the bell's count and the list carry it, and in the place where
+     the person works (the note's or board's presence row) the newcomer's
+     avatar gets a brief ring, still with `prefers-reduced-motion`
+     (no animation, a ring that fades), announced politely ("Ana entrou").
+     The person may set it back to "Aviso e lista"; the system's
+     notification (item 9) follows the kind's value, so a join reaches it
+     only then.
    - Turning a kind off does not silence its state. The status bar still
      says the sync state, and the note still shows its conflict banner.
      Off only means no toast and no line in the list.
