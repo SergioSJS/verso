@@ -1123,3 +1123,50 @@ file must be reopened.
   is not a note; (4) `.excalidraw` counts as a drawing (*Creates boards*),
   `.excalidraw.md` as a note; (5) the rights are one count per player opening
   four switches, not four columns, so the list fits at 390 px.
+
+### As built, where the file goes (2026-10-28, `fix/player-attach-beside`)
+
+- **Contract.** `table_attach(base64, into, sub)`: `sub` is the window's
+  attachments setting. The server (`table_image::attach`) takes the parent
+  folder of `into` joined with `clean_sub(sub)`, so the file lands beside the
+  note or board, in `assets` by default; the subfolder is made by
+  `create_file`. The rules' `Attach` is still judged on `into`; the chat
+  (`table_send_image`) and a board's *Export to folder* keep the table's
+  attachments place. An old window that sends no `sub` gets `assets`.
+- **The new file's access** (the `[PROPOSED]` of item 5, built): before the
+  file is made, in the same server step, it is given as its own set the
+  effective set of `into` (`keep_access`, `access_put`), only inside a table and
+  only when it would not follow that set already; the file is then told to the
+  players as any change of the table. If the write fails, the set is removed.
+- **A name** taken by something the player does not see goes through
+  `Door::guard_names` (the S1–S3 suffix), so `zqsegredo.png` becomes
+  `zqsegredo 2.png` and nothing says why. Tested in `tests_attach_beside.rs`.
+- *Chosen in the code:* (1) `clean_sub` accepts at most 120 bytes and 4
+  segments, refuses an empty or dot-leading segment, a trailing space, a
+  leading slash, a backslash, a control character and `<>:"|?*`, drops one
+  trailing slash, and answers `assets` for anything refused (never an error);
+  (2) the generated name stays `mesa-<stamp>-<id>.<ext>`; (3) a later change of
+  the board's access does not move its images' sets, as for any file with a
+  set of its own; (4) the window's status line ("copiado para <sub>") and its
+  relative link are the game master's own.
+
+**Review fixes (2026-10-28).** A folder name the player chooses would be a
+probe: a create fails differently on a hidden twin, a hidden file or a hidden
+folder, and the path of the answer shows where the file went. So for a table
+player (anyone who is not the game master) the server **ignores `sub`** (the
+contract still carries it, for the game master's own call and for old and new
+windows) and uses the fixed name `assets` beside `into`, the maintainer's own
+words. `Door::dir_clear` judges that folder: it must be new or the one folder
+of that exact name the player sees (it holds something they see, or is a
+table's root) — never a file, a hidden folder, or a twin by case or Unicode
+form — and lie in the same table as `into`. If it is not clear the S1–S3
+silent automatic suffix applies: `assets 2`, `assets 3`… (up to 50), the first
+that is clear, created new; none clear is the one neutral refusal. There is no
+fallback to the table's attachments place on this path. `into` must be an
+existing file of the folder; an absent one or a folder is told with the message
+of a file one may not touch. Any error of the create on this path is one
+message ("the file could not be saved"). A path that already exists is not
+given a set and none is rolled back. The window says the folder really used
+("copiado para ...") from the returned path. The first As-built bullets above,
+which say the file lands in the person's subfolder, hold for the game master
+only.

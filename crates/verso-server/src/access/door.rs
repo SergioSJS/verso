@@ -468,6 +468,80 @@ impl Door {
         Ok(())
     }
 
+    /// Whether `path` is a file of the folder (not a folder, not absent).
+    pub fn is_file(ws: &mut verso_core::Workspace, path: &str) -> bool {
+        let k = campaign::key(path);
+        !ws.is_folder(path)
+            && crate::campaign_serve::all_files(ws)
+                .iter()
+                .any(|f| campaign::key(f) == k)
+    }
+
+    /// Whether a file may be made in `dir` for a player whose file lies in
+    /// the table rooted at `table` without the answer telling anything of
+    /// what the player does not see (ADR 0113 item 5, where the file goes):
+    /// `dir` is in that same table, and each of its folders is either new or
+    /// the one folder of that exact name which the player sees — never a file,
+    /// a hidden folder, or a twin that differs by case or by Unicode form
+    /// (those would fail, or not, by what is hidden). Always true for whom the
+    /// veil does not cover.
+    pub fn dir_clear(&self, ws: &mut verso_core::Workspace, dir: &str, table: &str) -> bool {
+        use unicode_normalization::UnicodeNormalization;
+        let Some(veil) = self.veil.clone().filter(|_| self.veiled()) else {
+            return true;
+        };
+        if !veil.in_table(dir)
+            || veil
+                .table(dir)
+                .is_none_or(|t| campaign::key(&t.root) != campaign::key(table))
+        {
+            return false;
+        }
+        let view = veil.view(&self.asker.account);
+        let files = crate::campaign_serve::all_files(ws);
+        let mut dirs: std::collections::BTreeSet<String> =
+            ws.folders().iter().map(ToString::to_string).collect();
+        for f in &files {
+            let mut up = f.as_str();
+            while let Some((parent, _)) = up.rsplit_once('/') {
+                dirs.insert(parent.to_owned());
+                up = parent;
+            }
+        }
+        let nfc = |s: &str| -> String { s.nfc().collect() };
+        let fold = |s: &str| nfc(s).to_lowercase();
+        let mut prefix = String::new();
+        for seg in dir.split('/').filter(|s| !s.is_empty()) {
+            if !prefix.is_empty() {
+                prefix.push('/');
+            }
+            prefix.push_str(seg);
+            let want = fold(&prefix);
+            if files.iter().any(|f| fold(f) == want) {
+                return false;
+            }
+            let twins: Vec<&String> = dirs.iter().filter(|d| fold(d) == want).collect();
+            match twins.as_slice() {
+                [] => {}
+                [one] if nfc(one) == nfc(&prefix) => {
+                    let seen = veil
+                        .tables
+                        .iter()
+                        .any(|t| campaign::key(&t.root) == campaign::key(&prefix))
+                        || files.iter().any(|f| {
+                            campaign::covers(&prefix, f)
+                                && !crate::campaign_serve::is_hidden_in(ws, &view, f)
+                        });
+                    if !seen {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
     /// What a player is not told of a name (ADR 0113, the maintainer on
     /// 2026-10-24, "sufixo automático"): a name taken by something the
     /// player cannot see is never answered as taken — the next free one is
