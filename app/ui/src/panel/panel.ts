@@ -208,7 +208,17 @@ export class Panel {
         // Only the person's click brings the file down (ADR 0043).
         const down = button("ghost", t.focusesDownloadNow);
         down.id = "focuses-download";
-        down.addEventListener("click", () => void downloadFocusesNow());
+        down.addEventListener("click", () => {
+          if (down.disabled) return;
+          down.disabled = true;
+          banner.setAttribute("aria-busy", "true");
+          down.textContent = t.focusesDownloading;
+          void downloadFocusesNow().finally(() => {
+            down.disabled = false;
+            banner.removeAttribute("aria-busy");
+            down.textContent = t.focusesDownloadNow;
+          });
+        });
         banner.append(" ", down);
       }
       wrap.append(banner);
@@ -308,7 +318,6 @@ export class Panel {
 
       if (focus.paths.length === 0 && !isHome && !isReadOnly) {
         const hint = h("div", "focus-empty-hint", t.focusEmptyHint);
-        hint.style.cssText = "font-size:0.85em;opacity:0.7;padding:2px 8px 6px 28px";
         li.append(hint);
       }
       if (focus.paths.length > 0 && !isHome) {
