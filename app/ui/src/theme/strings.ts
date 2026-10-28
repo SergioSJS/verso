@@ -158,6 +158,16 @@ const pt = {
   },
   gallery: {
     title: "Temas",
+    scope: {
+      label: "O tema vale para",
+      folder: "Só nesta pasta",
+      all: "Padrão para todas as pastas",
+      folderSaid: "O tema de agora em diante é só desta pasta. As outras pastas não mudam.",
+      allSaid: "Esta pasta volta a usar o tema padrão.",
+      dropQ: "Esta pasta tem um tema só dela. Voltar a usar o tema padrão e esquecer o tema desta pasta?",
+      dropYes: "Usar o padrão",
+      dropNo: "Manter",
+    },
     lead: "Clique num tema para usá-lo. Para mudar um, copie-o e edite a cópia: os temas do Verso não se alteram.",
     builtinHeading: "Do Verso",
     mineHeading: "Seus temas",
@@ -354,6 +364,16 @@ const en: typeof pt = {
   },
   gallery: {
     title: "Themes",
+    scope: {
+      label: "The theme applies to",
+      folder: "This folder only",
+      all: "Default for all folders",
+      folderSaid: "From now on the theme is this folder's only. Other folders do not change.",
+      allSaid: "This folder uses the default theme again.",
+      dropQ: "This folder has a theme of its own. Go back to the default theme and forget this folder's?",
+      dropYes: "Use the default",
+      dropNo: "Keep",
+    },
     lead: "Click a theme to use it. To change one, copy it and edit the copy: Verso's own themes never change.",
     builtinHeading: "From Verso",
     mineHeading: "Your themes",

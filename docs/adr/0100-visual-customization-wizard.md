@@ -133,6 +133,12 @@ where an option differs from the one first recommended, the item says so.
    decided otherwise, and 0103 carries a dated note saying so.
    **Confirmed 2026-10-21 (T.1, option A):** the suggestion is only the whole
    theme, written inside `.verso/settings.json`; one place, nothing to follow.
+   **Amended 2026-10-27 by the maintainer (bug list): the choice is per folder
+   and per person; a folder without its own choice uses the person's
+   default.** The person's layer holds the default theme and, apart, the
+   choices made for single folders (by folder key); neither is written into
+   the folder or reaches another person. Accepting the folder's suggestion
+   sets this folder's choice, not the default.
    A path to a `.verso-theme` file inside `.verso/` is not accepted.
 
 5. **Contrast is checked live, and an unreadable screen is undone**

@@ -15,6 +15,7 @@
 import { ask } from "../dialog";
 import { button, h } from "../dom";
 import { icon } from "../icons";
+import { currentFolder } from "../folder";
 import { onFolderLayer } from "../folderLayer";
 import { type Hue, settings } from "../settings";
 import { type CatalogueEntry, loadCatalogue } from "./catalogue";
@@ -23,7 +24,7 @@ import { creditLine } from "./creditLine";
 import { V2 as W2 } from "./moreStrings";
 import { t } from "../strings";
 import {
-  applyTheme, exportTheme, importFile, importText, LOOK_EVENT, lookNow, profilesNow, say, setProfiles, useBuiltin,
+  applyTheme, exportTheme, forThisFolder, useForAll, useForFolder, importFile, importText, LOOK_EVENT, lookNow, profilesNow, say, setProfiles, useBuiltin,
 } from "./actions";
 import { applyLook, measure } from "./apply";
 import { toHex } from "./color";
@@ -321,7 +322,41 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
   more.addEventListener("click", () => deps.openMore(more));
   foot.append(create, importBtn, more, file);
 
-  root.append(h("p", "look-lead", W.gallery.lead), groups, foot, status);
+  // --- whose theme: this folder's or the default (ADR 0100 item 4, 2026-10-27)
+  const scope = h("fieldset", "look-scope");
+  scope.append(h("legend", "", W.gallery.scope.label));
+  const radios: Record<"folder" | "all", HTMLInputElement> = {} as never;
+  for (const which of ["folder", "all"] as const) {
+    const label = h("label", "look-scope-choice");
+    const input = h("input");
+    input.type = "radio";
+    input.name = "look-scope";
+    input.value = which;
+    input.addEventListener("change", () => {
+      void (async () => {
+        if (which === "folder") {
+          useForFolder();
+          announce(W.gallery.scope.folderSaid);
+        } else if (settings.folderThemes?.[currentFolder] && !(await ask(W.gallery.scope.dropQ, { yes: W.gallery.scope.dropYes, no: W.gallery.scope.dropNo }))) {
+          syncScope();
+        } else {
+          useForAll();
+          announce(W.gallery.scope.allSaid);
+        }
+      })();
+    });
+    radios[which] = input;
+    label.append(input, h("span", "", W.gallery.scope[which]));
+    scope.append(label);
+  }
+  const syncScope = (): void => {
+    scope.hidden = !currentFolder;
+    radios.folder.checked = forThisFolder();
+    radios.all.checked = !forThisFolder();
+  };
+  syncScope();
+
+  root.append(h("p", "look-lead", W.gallery.lead), scope, groups, foot, status);
 
   const follow = (): void => {
     if (!root.isConnected) {
@@ -330,6 +365,7 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
       media.removeEventListener("change", follow);
       return;
     }
+    syncScope();
     render();
   };
   const media = window.matchMedia("(prefers-color-scheme: dark)");
