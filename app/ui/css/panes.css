@@ -375,3 +375,14 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .status-keys button::after { content: ""; position: absolute; inset: -5px -2px; }
 /* Kept in the row while hidden: the title's width, and with it where it wraps, must not change on every save. */
 .title-row .dirty-mark.idle, .title-row .save.idle { visibility: hidden; }
+/* The people in the live file, small marks beside "ao vivo" (ADR 0084
+   item 8). A newcomer's mark gets a ring for a moment; with reduced motion
+   the ring is still, and fades. The letter and the colour of the border
+   both come from the person, the ring from the theme's tokens. */
+.live-who { flex: none; margin-left: auto; display: inline-flex; gap: .2rem; align-items: center; }
+.live-who + .live-mark { margin-left: .4rem; }
+.live-who[hidden] { display: none; }
+.live-who-chip { box-sizing: border-box; width: 1.25rem; height: 1.25rem; border-radius: 50%; display: inline-grid; place-items: center; font-size: .66rem; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper-2); border: 2px solid var(--who, var(--brass-ink)); }
+.live-who-chip.is-new { animation: live-who-ring 2.8s ease-out both; }
+@keyframes live-who-ring { 0% { box-shadow: 0 0 0 0 var(--brass-ink); } 12% { box-shadow: 0 0 0 4px var(--brass-ink); } 100% { box-shadow: 0 0 0 4px transparent; } }
+@media (prefers-reduced-motion: reduce) { .live-who-chip.is-new { animation: live-who-fade 2.8s linear both; } @keyframes live-who-fade { 0%, 60% { box-shadow: 0 0 0 3px var(--brass-ink); } 100% { box-shadow: 0 0 0 3px transparent; } } }

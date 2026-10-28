@@ -20,6 +20,7 @@ import { layout } from "../layout/spaces";
 import { opening } from "../opening";
 import type { LiveHolder } from "../roomWrites";
 import { ui } from "../dom";
+import { paintWho } from "./liveWho";
 import { presenceHeard } from "../notify/sources";
 import { bar, say } from "./note/live";
 import type { TextLeaf } from "./textfile";
@@ -101,6 +102,7 @@ export function paintLive(this: TextLeaf): void {
   this.liveMark.hidden = !st;
   this.liveMark.textContent = line;
   this.liveMark.dataset["live"] = st?.kind ?? "";
+  paintWho(this, this.liveMark, st?.kind === "live" ? st.others : []);
   if (this.pane.active !== this || layout().focused !== this.pane) return;
   const b = bar();
   b.hidden = !st;
@@ -112,13 +114,16 @@ export function paintLive(this: TextLeaf): void {
 export function presenceChanged(this: TextLeaf): void {
   const s: RoomSession | null = this.liveSession();
   const now = s?.others() ?? [];
+  let fresh: string[] = [];
   if (s) {
-    for (const line of presenceSaid(this.liveOthers, now, lang(), this.liveWhat())) say(line);
-    // Someone joining is a notification too (ADR 0084 item 7).
-    presenceHeard(this.path, this.liveOthers, now, this.pane.active === this && layout().panes().includes(this.pane));
+    // Someone joining is a notification too (ADR 0084 item 7); said once, as
+    // the news decides, and ringed in the presence row.
+    fresh = presenceHeard(this.path, this.liveOthers, now, this.pane.active === this && layout().panes().includes(this.pane));
+    for (const line of [...presenceSaid([], fresh, lang(), this.liveWhat()), ...presenceSaid(this.liveOthers, now.filter((n) => this.liveOthers.includes(n)), lang(), this.liveWhat())]) say(line);
   }
   this.liveOthers = now;
   this.paintLive();
+  paintWho(this, this.liveMark, now, fresh);
 }
 
 /** Out of the room, the text kept (ADR 0082 item 8): the revision is the
