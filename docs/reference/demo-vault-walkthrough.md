@@ -1634,3 +1634,13 @@ must be a server's, and the person its owner.
    console: nothing red. Level: A; E: every test, in the harness.
 2. Put back what a step changed in the shared settings (the right panel's
    tab, the palette, the theme).
+
+## Theme per folder and per person (ADR 0100 item 4, 2026-10-27)
+
+1. Open two folders in two windows. In window A open Settings › Aparência › Temas:
+   "Só nesta pasta" is selected. Pick another theme: window A changes, window B does not.
+2. Pick "Padrão para todas as pastas" in A (confirm forgetting A's own theme): A follows the
+   default again; B, with no theme of its own, shows the default too.
+3. In B choose "Só nesta pasta" and a theme; A keeps the default.
+4. Accept a folder's suggested theme: it becomes that folder's choice, the default is unchanged.
+5. Another account on the same folder sees its own theme, never this one.
