@@ -14,52 +14,58 @@ await esbuild.build({
 });
 const { PRESENCE_AGAIN_MS, PRESENCE_SETTLE_MS, PresenceNews, concerns } = await import("./.bundles/presenceNews.test-bundle.mjs");
 
-const here = { openFolder: "/mesa", folder: "/mesa", tabShowing: true, windowInFront: true };
+const here = { folder: "/mesa", tabShowing: true, windowInFront: true };
 const MIN = 60_000;
+const verdict = (n, where, path, name, now) => n.verdict(where, path, name, now);
 
-describe("scoping", () => {
-  test("a join in this folder, in the showing tab, in the front window concerns", () => {
+describe("where", () => {
+  test("showing tab in the front window concerns; a hidden tab or a window behind does not", () => {
     assert.equal(concerns(here), true);
-  });
-  test("another folder's join never concerns this window", () => {
-    assert.equal(concerns({ ...here, folder: "/outra" }), false);
-  });
-  test("a tab not showing, or a window behind (nor the system), is not told", () => {
     assert.equal(concerns({ ...here, tabShowing: false }), false);
     assert.equal(concerns({ ...here, windowInFront: false }), false);
   });
-  test("a join that does not concern is not told but is remembered", () => {
+  test("the real decision: toast where looked at, the list elsewhere", () => {
     const n = new PresenceNews();
-    assert.equal(n.joined({ ...here, windowInFront: false }, "a.md", "Ana", 0), false);
-    assert.equal(n.joined(here, "a.md", "Ana", 5 * MIN), false, "seen 5 min ago behind: not news now");
+    assert.equal(verdict(n, here, "a.md", "Ana", 0), "toast");
+    assert.equal(verdict(n, { ...here, tabShowing: false }, "b.md", "Ana", 0), "list", "a hidden tab: the list, no toast");
+    assert.equal(verdict(n, { ...here, windowInFront: false }, "c.md", "Ana", 0), "list", "a window behind: the list and the system, no toast");
+  });
+  test("another folder's sightings are its own", () => {
+    const n = new PresenceNews();
+    assert.equal(verdict(n, here, "a.md", "Ana", 0), "toast");
+    assert.equal(verdict(n, { ...here, folder: "/outra" }, "a.md", "Ana", 1), "toast");
+  });
+  test("a sighting while hidden is not news when the tab shows again", () => {
+    const n = new PresenceNews();
+    verdict(n, { ...here, tabShowing: false }, "a.md", "Ana", 0);
+    assert.equal(verdict(n, here, "a.md", "Ana", 5 * MIN), "none");
   });
 });
 
 describe("rate", () => {
-  test("the first join is news", () => {
-    assert.equal(new PresenceNews().joined(here, "a.md", "Ana", 0), true);
-  });
-  test("a rejoin within the window is not", () => {
+  test("a rejoin within the window is nothing; after it, news again", () => {
     const n = new PresenceNews();
-    assert.equal(n.joined(here, "a.md", "Ana", 0), true);
-    assert.equal(n.joined(here, "a.md", "Ana", 30_000), false);
-    assert.equal(n.joined(here, "a.md", "Ana", 9 * MIN), false);
-  });
-  test("away longer than the window, back is news again", () => {
-    const n = new PresenceNews();
-    n.joined(here, "a.md", "Ana", 0);
-    assert.equal(n.joined(here, "a.md", "Ana", PRESENCE_AGAIN_MS + 1), true);
+    assert.equal(verdict(n, here, "a.md", "Ana", 0), "toast");
+    assert.equal(verdict(n, here, "a.md", "Ana", 30_000), "none");
+    assert.equal(verdict(n, here, "a.md", "Ana", 9 * MIN), "none");
+    assert.equal(verdict(n, here, "a.md", "Ana", 9 * MIN + PRESENCE_AGAIN_MS + 1), "toast");
   });
   test("another person, or another file, is its own news", () => {
     const n = new PresenceNews();
-    n.joined(here, "a.md", "Ana", 0);
-    assert.equal(n.joined(here, "a.md", "Bia", 1), true);
-    assert.equal(n.joined(here, "b.md", "Ana", 1), true);
+    verdict(n, here, "a.md", "Ana", 0);
+    assert.equal(verdict(n, here, "a.md", "Bia", 1), "toast");
+    assert.equal(verdict(n, here, "b.md", "Ana", 1), "toast");
   });
   test("a person flapping every few minutes stays quiet", () => {
     const n = new PresenceNews();
-    n.joined(here, "a.md", "Ana", 0);
-    for (let t = 4 * MIN; t < 60 * MIN; t += 4 * MIN) assert.equal(n.joined(here, "a.md", "Ana", t), false);
+    verdict(n, here, "a.md", "Ana", 0);
+    for (let t = 4 * MIN; t < 60 * MIN; t += 4 * MIN) assert.equal(verdict(n, here, "a.md", "Ana", t), "none");
+  });
+  test("old sightings are forgotten", () => {
+    const n = new PresenceNews();
+    for (let i = 0; i < 50; i++) verdict(n, here, `n${i}.md`, "Ana", 0);
+    verdict(n, here, "z.md", "Ana", PRESENCE_AGAIN_MS + 1);
+    assert.equal(n.heard.size, 1);
   });
 });
 
@@ -68,8 +74,8 @@ describe("already there", () => {
     const n = new PresenceNews();
     n.opened("/mesa", "a.md", 0);
     n.present("/mesa", "a.md", ["Ana"], 0);
-    assert.equal(n.joined(here, "a.md", "Ana", 100), false);
-    assert.equal(n.joined(here, "a.md", "Bia", 100), false, "awareness arriving late, within the settle time");
-    assert.equal(n.joined(here, "a.md", "Caio", PRESENCE_SETTLE_MS + 1), true);
+    assert.equal(verdict(n, here, "a.md", "Ana", 100), "none");
+    assert.equal(verdict(n, here, "a.md", "Bia", 100), "none", "awareness arriving late, within the settle time");
+    assert.equal(verdict(n, here, "a.md", "Caio", PRESENCE_SETTLE_MS + 1), "toast");
   });
 });

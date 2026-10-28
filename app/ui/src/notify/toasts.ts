@@ -56,13 +56,15 @@ function build(): HTMLElement {
   assertive.setAttribute("aria-live", "assertive");
   assertive.setAttribute("aria-atomic", "true");
   assertive.id = "notify-assertive";
-  region.addEventListener("focusin", (e) => {
-    const from = e.relatedTarget;
-    if (from instanceof Element && !region!.contains(from)) focusBefore = from;
-  });
   top = h("section", "notify-toasts notify-toasts-top");
   top.id = "notify-toasts-top";
-  top.setAttribute("aria-label", s.region);
+  top.setAttribute("aria-label", s.regionTop);
+  for (const r of [region, top]) {
+    r.addEventListener("focusin", (e) => {
+      const from = e.relatedTarget;
+      if (from instanceof Element && !region!.contains(from) && !top!.contains(from)) focusBefore = from;
+    });
+  }
   document.body.append(region, top, polite, assertive);
   return region;
 }
@@ -121,7 +123,9 @@ export function dismissAll(): void {
 /** A notification's toast. `run` does what an action names. */
 export function showToast(entry: Pick<Entry, "key" | "level" | "title" | "sentence" | "actions"> & { kind?: string }, run: (a: ActionRef) => void): HTMLElement {
   const s = notifyStrings();
-  const box = entry.kind === "presence" ? (build(), top!) : build();
+  // Ambient news at the top on a desktop; on a phone (ADR 0084 T.6) every
+  // toast is at the bottom, above the keyboard's bar.
+  const box = entry.kind === "presence" && !matchMedia("(max-width: 760px)").matches ? (build(), top!) : build();
   dismissKey(entry.key);
   const el = h("article", "notify-toast");
   el.dataset["level"] = entry.level;

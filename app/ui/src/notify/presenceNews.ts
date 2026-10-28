@@ -21,20 +21,23 @@ export const PRESENCE_AGAIN_MS = 10 * 60_000;
  *  already there, their awareness arriving late, in milliseconds. */
 export const PRESENCE_SETTLE_MS = 5_000;
 
-/** Where a join happened and where the person is looking. */
+/** Where the person is looking when a join is heard. */
 export type JoinWhere = {
-  /** The folder this window has open, and the folder the file belongs to. */
-  openFolder: string;
+  /** The folder this window has open, which holds the file. */
   folder: string;
-  /** Whether the tab that holds the file is the one showing, and the
-   *  window is in front. */
+  /** Whether the tab that holds the file is the one showing: the active
+   *  tab of its pane, in the workspace (Space) on screen. */
   tabShowing: boolean;
   windowInFront: boolean;
 };
 
-/** Whether a join concerns the person looking now. */
-export function concerns(w: JoinWhere): boolean {
-  return w.folder === w.openFolder && w.tabShowing && w.windowInFront;
+/** What a join that is news becomes: a toast where the person looks, else
+ *  the list (and the system's notification, when the window is behind). */
+export type Verdict = "toast" | "list" | "none";
+
+/** Whether a join is seen by the person looking now. */
+export function concerns(w: Pick<JoinWhere, "tabShowing" | "windowInFront">): boolean {
+  return w.tabShowing && w.windowInFront;
 }
 
 export class PresenceNews {
@@ -51,18 +54,24 @@ export class PresenceNews {
     this.bound.set(`${folder}\n${path}`, now);
   }
 
-  /** `name` joined `path`: whether to tell. Told or not, the sighting is
+  /** `name` joined `path`: what it becomes. Told or not, the sighting is
    *  remembered, so that it is not news again until the person has been
-   *  away for PRESENCE_AGAIN_MS. */
-  joined(where: JoinWhere, path: string, name: string, now: number): boolean {
+   *  away for PRESENCE_AGAIN_MS. Entries older than that are forgotten. */
+  verdict(where: JoinWhere, path: string, name: string, now: number): Verdict {
+    this.prune(now);
     const key = PresenceNews.key(where.folder, path, name);
     const last = this.heard.get(key);
     const openedAt = this.bound.get(`${where.folder}\n${path}`);
     const early = openedAt !== undefined && now - openedAt < PRESENCE_SETTLE_MS;
     const again = last !== undefined && now - last < PRESENCE_AGAIN_MS;
     this.heard.set(key, now);
-    if (early || again) return false;
-    return concerns(where);
+    if (early || again) return "none";
+    return concerns(where) ? "toast" : "list";
+  }
+
+  private prune(now: number): void {
+    for (const [k, at] of this.heard) if (now - at >= PRESENCE_AGAIN_MS) this.heard.delete(k);
+    for (const [k, at] of this.bound) if (now - at >= PRESENCE_AGAIN_MS) this.bound.delete(k);
   }
 
   /** The file's people, as they are now, were all present already. */
