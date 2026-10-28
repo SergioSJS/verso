@@ -253,7 +253,11 @@ export class Campaign {
       const access = this.fileAccess(into);
       if (!this.up || !(["png", "jpg", "webp", "gif"].includes(ext) ? access.attach_image : access.attach)) refuse("you may only read this folder");
       this.attached += 1;
-      const path = `attachments/mesa-attach-${this.attached}.${ext}`;
+      // Beside the file it is put into, in the person's subfolder (ADR 0113 item 5, where the file goes); `assets` for a subfolder the server does not accept.
+      const given = String(a["sub"] ?? "");
+      const sub = /^[^./\\][^\\]*$/.test(given) && !given.split("/").some((p) => p === "" || p.startsWith(".")) ? given : "assets";
+      const dir = into.includes("/") ? into.slice(0, into.lastIndexOf("/") + 1) : "";
+      const path = `${dir}${sub}/mesa-attach-${this.attached}.${ext}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"] ?? "") });
       return path;
     };

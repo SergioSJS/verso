@@ -439,6 +439,8 @@ mod tests_access_sync;
 #[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
+mod tests_attach_beside;
+#[cfg(test)]
 mod tests_audience;
 #[cfg(test)]
 mod tests_audience_review;

@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use base64::Engine;
 use serde_json::{Value, json};
+use unicode_normalization::UnicodeNormalization;
 use verso_contract::ContractError;
 use verso_service::Access;
 
@@ -29,6 +30,12 @@ use crate::table::file_ext;
 
 /// The folder's attachments place when the folder names none.
 const PLACE: &str = "attachments";
+
+/// The subfolder beside a note when a window names none the server accepts.
+const DEFAULT_SUB: &str = "assets";
+/// A subfolder's most bytes and segments.
+const SUB_BYTES: usize = 120;
+const SUB_DEPTH: usize = 4;
 
 fn refused(message: &str) -> ContractError {
     ContractError {
@@ -52,7 +59,25 @@ pub async fn send(
     let check = |server: &Server, image: bool| {
         crate::table::may_send_images(server, who, client, table, image)
     };
-    let path = store(server, who, client, (folder, table), data, &check).await?;
+    // Whoever sends it, a table that is a subfolder keeps its images inside
+    // its own folder: where its veil shows them to its players and hides them
+    // from everyone outside it, a closed table included (and where a share
+    // rooted at the table reads them).
+    let s = Arc::clone(server);
+    let f = folder.to_owned();
+    let place = blocking(move || Ok(place_of(&s, &f))).await?;
+    let dir = if table.is_empty() {
+        place
+    } else {
+        format!("{table}/{place}")
+    };
+    let target = Target {
+        folder,
+        table,
+        dir,
+        door: None,
+    };
+    let path = store(server, who, client, &target, data, &check).await?;
     let s = Arc::clone(server);
     let (f, t, account, name) = (
         folder.to_owned(),
@@ -66,16 +91,47 @@ pub async fn send(
     to_value(crate::table::seen(&row, &who.account.id, role, inside))
 }
 
-/// `data` (base64) written into the table's attachments place for a note or
-/// board the person edits (`into`), with no entry in the chat (ADR 0113
-/// item 5, D): the rules' `Attach` on the file, and the same checks of the
-/// bytes, the limit and the folder's quota as an image sent to the chat.
-/// Answers the file's path in the folder.
+/// The subfolder a window names for its attachments (its Settings), as the
+/// server takes it (ADR 0113 item 5, where the file goes): relative, with no
+/// `..` or other hidden segment, no empty one, no backslash or control
+/// character, NFC, of a sane length; anything else is `assets`.
+#[must_use]
+pub fn clean_sub(sub: Option<&str>) -> String {
+    let Some(raw) = sub else {
+        return DEFAULT_SUB.to_owned();
+    };
+    let nfc: String = raw.trim().nfc().collect();
+    let body = nfc.strip_suffix('/').unwrap_or(&nfc);
+    let ok = !body.is_empty()
+        && body.len() <= SUB_BYTES
+        && body.split('/').count() <= SUB_DEPTH
+        && body.split('/').all(|seg| {
+            !seg.is_empty()
+                && !seg.starts_with('.')
+                && !seg.ends_with(' ')
+                && !seg
+                    .chars()
+                    .any(|c| c.is_control() || r#"\<>:"|?*"#.contains(c))
+        });
+    if ok {
+        body.to_owned()
+    } else {
+        DEFAULT_SUB.to_owned()
+    }
+}
+
+/// `data` (base64) written beside the note or board the person edits
+/// (`into`), in its `sub` subfolder, the place the app puts any attachment
+/// of that file (ADR 0113 item 5, where the file goes), with no entry in the
+/// chat. The rules' `Attach` is judged on `into`, and the same checks of the
+/// bytes, the limit and the folder's quota apply as to an image sent to the
+/// chat. The file takes, as its own access, that of `into`. Answers the
+/// file's path as the window knows it.
 pub async fn attach(
     server: &Arc<Server>,
     who: &Arc<Who>,
     client: &str,
-    (data, into): (&str, &str),
+    (data, into, sub): (&str, &str, Option<&str>),
 ) -> Result<Value, ContractError> {
     let door = crate::access::Door::of(server, who, client)?;
     let full = match &door.scope {
@@ -88,13 +144,32 @@ pub async fn attach(
         .and_then(|v| v.table(&full).map(|t| t.root.clone()))
         .unwrap_or_default();
     let folder = door.folder.clone();
+    // Beside the file, in the person's subfolder; confined to the folder (or
+    // the share) like any path a window names.
+    let beside = match into.rsplit_once('/') {
+        Some((dir, _)) => format!("{dir}/{}", clean_sub(sub)),
+        None => clean_sub(sub),
+    };
+    let dir = match &door.scope {
+        Some(s) => s.to_full_write(&beside)?,
+        None => {
+            crate::scope::checked(&beside)?;
+            beside
+        }
+    };
     let check = |_: &Server, image: bool| {
         crate::access::Door::of(server, who, client).is_ok_and(|d| {
             d.may_path(crate::access::Action::Attach { image }, &full)
                 .allowed()
         })
     };
-    let path = store(server, who, client, (&folder, &table), data, &check).await?;
+    let target = Target {
+        folder: &folder,
+        table: &table,
+        dir,
+        door: Some((&door, &full)),
+    };
+    let path = store(server, who, client, &target, data, &check).await?;
     // A window on a share knows the file by its path from the share's root.
     let shown = match &door.scope {
         Some(s) => s.to_rel(&path).unwrap_or(path),
@@ -103,15 +178,30 @@ pub async fn attach(
     to_value(shown)
 }
 
+/// Where a file is made, and what the made file is kept as.
+struct Target<'a> {
+    folder: &'a str,
+    /// The table's root (`""`: the folder is the table, or none holds it):
+    /// whose limit is read.
+    table: &'a str,
+    /// The folder the file is made in, a path of the folder.
+    dir: String,
+    /// A file put into another (`attach`): the person's door, and the path of
+    /// the file it is put into, whose access the new file takes. Also the
+    /// door that keeps a name taken by something hidden from being told.
+    door: Option<(&'a crate::access::Door, &'a str)>,
+}
+
 /// The bytes checked and the file made; its path in the folder.
 async fn store(
     server: &Arc<Server>,
     who: &Arc<Who>,
     client: &str,
-    (folder, table): (&str, &str),
+    target: &Target<'_>,
     data: &str,
     allowed: &(dyn Fn(&Server, bool) -> bool + Sync),
 ) -> Result<String, ContractError> {
+    let (folder, table) = (target.folder, target.table);
     // The table's own limit (ADR 0110, MS.1), its default when the folder
     // is no table. Base64 takes four characters for three bytes: judged
     // before decoding.
@@ -137,32 +227,37 @@ async fn store(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
-    let s = Arc::clone(server);
-    let f = folder.to_owned();
-    let place = blocking(move || Ok(place_of(&s, &f))).await?;
-    // Whoever sends it, a table that is a subfolder keeps its images inside
-    // its own folder: where its veil shows them to its players and hides them
-    // from everyone outside it, a closed table included (and where a share
-    // rooted at the table reads them).
-    let place = if table.is_empty() {
-        place
-    } else {
-        format!("{table}/{place}")
+    let file = match named(data) {
+        Some(n) => n,
+        None => {
+            let id: String = crate::crypto::id()
+                .map_err(verso_service::failed)?
+                .chars()
+                .filter(char::is_ascii_alphanumeric)
+                .take(8)
+                .collect();
+            let stamp: String = crate::log::stamp()
+                .chars()
+                .filter(char::is_ascii_digit)
+                .collect();
+            format!("mesa-{stamp}-{id}.{ext}")
+        }
     };
-    let id: String = crate::crypto::id()
-        .map_err(verso_service::failed)?
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .take(8)
-        .collect();
-    let stamp: String = crate::log::stamp()
-        .chars()
-        .filter(char::is_ascii_digit)
-        .collect();
-    let path = format!("{place}/mesa-{stamp}-{id}.{ext}");
+    let mut path = if target.dir.is_empty() {
+        file
+    } else {
+        format!("{}/{file}", target.dir)
+    };
     // The right depends on what the bytes are: an image, or another file.
     if !allowed(server, image_kind(ext)) {
         return Err(refused("you may only read this folder"));
+    }
+    // A name taken by something the person does not see is never answered as
+    // taken: the next free one is used (the S1–S3 review, `guard_names`).
+    let mut kept = None;
+    if let Some((door, into)) = target.door {
+        path = keep_name(server, door, &key, path).await?;
+        kept = keep_access(server, (folder, &key), door, (into, &path)).await?;
     }
     let made = crate::rpc::folder_run(
         server,
@@ -172,8 +267,91 @@ async fn store(
         (folder, &key),
         json!({ "path": path, "base64": data }),
     )
+    .await;
+    let made = match made {
+        Ok(m) => m,
+        Err(e) => {
+            // The file was not made: nor does its path keep a set of its own.
+            if kept.is_some() {
+                let (s, f, p) = (Arc::clone(server), folder.to_owned(), path.clone());
+                let _ = blocking(move || {
+                    s.db.access_follow(&f, &p).map_err(verso_service::failed)?;
+                    crate::campaign::forget(&s, &f);
+                    Ok(())
+                })
+                .await;
+            }
+            return Err(e);
+        }
+    };
+    let made = made.as_str().map_or(path, str::to_owned);
+    if let Some(before) = kept {
+        crate::campaign_cmds::changed(server, folder, &key, vec![made.clone()], Some(before)).await;
+    }
+    Ok(made)
+}
+
+/// `path` (of the folder), or the next free name when something the person
+/// does not see holds it; the answer never says which.
+async fn keep_name(
+    server: &Arc<Server>,
+    door: &crate::access::Door,
+    key: &str,
+    path: String,
+) -> Result<String, ContractError> {
+    let rel = match &door.scope {
+        Some(s) => s
+            .to_rel(&path)
+            .ok_or_else(|| refused("not a path of this share"))?,
+        None => path.clone(),
+    };
+    let (s, d, k) = (Arc::clone(server), door.clone(), key.to_owned());
+    let args = blocking(move || {
+        let mut a = json!({ "path": rel });
+        s.service.with_key(&k, |ws| {
+            d.guard_names(ws, "create_file", &mut a).map_err(Into::into)
+        })?;
+        Ok(a)
+    })
     .await?;
-    Ok(made.as_str().map_or(path, str::to_owned))
+    let given = args["path"].as_str().unwrap_or_default();
+    match &door.scope {
+        Some(s) => s.to_full_write(given),
+        None => Ok(given.to_owned()),
+    }
+}
+
+/// The access the file put into `into` has, given to `path` as its own set
+/// before the file is made (the sync log then says it with the file): so
+/// that exactly the players who see `into` see the file — a folder's set
+/// over its subfolder neither hides it nor widens it. Only inside a table,
+/// and only when `path` would not follow the same set already. The table as
+/// it was, when a set was written.
+async fn keep_access(
+    server: &Arc<Server>,
+    (folder, _key): (&str, &str),
+    door: &crate::access::Door,
+    (into, path): (&str, &str),
+) -> Result<Option<Arc<crate::campaign::Veil>>, ContractError> {
+    let Some(veil) = door.veil.clone() else {
+        return Ok(None);
+    };
+    if !veil.in_table(into) || !veil.in_table(path) {
+        return Ok(None);
+    }
+    let want = veil.effective_set(into);
+    if veil.effective_set(path) == want {
+        return Ok(None);
+    }
+    let (s, f, p) = (Arc::clone(server), folder.to_owned(), path.to_owned());
+    blocking(move || {
+        s.db.access_put(&f, &p, want)
+            .map_err(verso_service::failed)?;
+        crate::campaign::forget(&s, &f);
+        Ok(())
+    })
+    .await?;
+    Ok(Some(veil))
 }
 
 /// Whether the extension `file_ext` found is an image's.
@@ -192,4 +370,27 @@ fn place_of(server: &Server, folder: &str) -> String {
         .and_then(|f| server.folder_path(&f.dir))
         .and_then(|p| verso_core::attachments_folder(&p))
         .unwrap_or_else(|| PLACE.to_owned())
+}
+
+/// The names the tests give to the files whose bytes they send, so that a
+/// name taken by something hidden can be met: by the base64 sent.
+#[cfg(test)]
+pub(crate) static NAMES: std::sync::Mutex<Vec<(String, String)>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// The name the tests chose for `data`.
+#[cfg(test)]
+fn named(data: &str) -> Option<String> {
+    NAMES
+        .lock()
+        .ok()?
+        .iter()
+        .find(|(d, _)| d == data)
+        .map(|(_, n)| n.clone())
+}
+
+/// Outside the tests a file's name is always generated.
+#[cfg(not(test))]
+fn named(_: &str) -> Option<String> {
+    None
 }
