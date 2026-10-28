@@ -616,11 +616,11 @@ questions that followed, the same day, are quoted below.
      *"2 direitos por jogador"*: create a note, or a board, inside a folder the
      player has *Edits* on. Without the right, *Edits* on the folder lets them
      edit and rename what is in it, not add to it.
-4. `[PROPOSED]` (the author's reading, to confirm): *Creates notes* also covers
+4. `[DECIDED 2026-10-28]` The maintainer: *"essa parte aí eu acho que tá ok"*. *Creates notes* also covers
    a base and a new folder; *Creates boards* also covers a drawing
    (`.excalidraw`). A folder-role editor inside a table (K.1) is a player for
    these rights too: the game master gives them.
-5. `[PROPOSED]` **Migration, nothing lost:** a player who had *Send files* gets
+5. `[DECIDED 2026-10-28]` The maintainer: *"Ganha (como está)"*. **Migration, nothing lost:** a player who had *Send files* gets
    *Images* and *Files*; a player who had *Edits* on any folder of the table
    gets *Creates notes* and *Creates boards*, so no one loses a power they used
    the day before.
