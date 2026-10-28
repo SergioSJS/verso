@@ -82,6 +82,8 @@ type Words = {
   fileAudio: string;
   imageAlt: (who: string) => string;
   imageOpen: string;
+  imageArriving: string;
+  imageAgain: string;
   imageClose: string;
   imageSending: string;
   imageSent: string;
@@ -181,6 +183,8 @@ const pt: Words = {
   fileAudio: "Áudio",
   imageAlt: (who) => `Imagem enviada por ${who}`,
   imageOpen: "Abrir imagem",
+  imageArriving: "chegando…",
+  imageAgain: "tentar de novo",
   imageClose: "Fechar imagem",
   imageSending: "Enviando o arquivo…",
   imageSent: "Arquivo enviado à mesa.",
@@ -279,6 +283,8 @@ const en: Words = {
   fileAudio: "Audio",
   imageAlt: (who) => `Image sent by ${who}`,
   imageOpen: "Open image",
+  imageArriving: "arriving…",
+  imageAgain: "try again",
   imageClose: "Close image",
   imageSending: "Sending the file…",
   imageSent: "File sent to the table.",

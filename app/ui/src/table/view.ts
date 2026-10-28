@@ -27,6 +27,7 @@ import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
 import { tt } from "./strings";
+import { Arrival, watchFile } from "./arrival";
 import { Cards, signature, syncChildren } from "./keep";
 import { afterDraw, anchorTop, atEnd, splitFresh } from "./stick";
 import { ts } from "./trayStrings";
@@ -580,23 +581,66 @@ class TableView {
     img.decoding = "async";
     img.loading = "lazy";
     const path = e.image ?? "";
-    const set = (url: string | null): void => {
-      if (url) {
-        img.src = url;
-        open.addEventListener("click", () => openImage(url, img.alt));
-      } else {
-        open.append(h("span", "table-image-missing", name(path)));
-        img.remove();
-      }
+    const show = (url: string): void => {
+      img.src = url;
+      open.addEventListener("click", () => openImage(url, img.alt));
     };
     open.append(img);
-    if (imageUrls.has(path)) set(imageUrls.get(path) ?? null);
+    if (imageUrls.has(path)) show(imageUrls.get(path) as string);
     else void pictureAddress("", path).then((url) => {
-      imageUrls.set(path, url);
-      set(url);
+      if (url) {
+        imageUrls.set(path, url);
+        show(url);
+      } else waitForPicture(open, img, path, show);
     });
     return open;
   }
+}
+
+/** The file is not here yet (a synced folder brings it a moment after the entry): a placeholder, then the picture in place when it arrives. */
+function waitForPicture(open: HTMLElement, img: HTMLImageElement, path: string, show: (url: string) => void): void {
+  img.remove();
+  const note = h("span", "table-image-missing");
+  note.setAttribute("role", "status");
+  open.append(note);
+  const label = open.getAttribute("aria-label") ?? "";
+  const title = open.title;
+  let gaveUp = false;
+  let unwatch = (): void => {};
+  const a = new Arrival(
+    async () => {
+      const url = await pictureAddress("", path);
+      if (!url) return false;
+      imageUrls.set(path, url);
+      return true;
+    },
+    (phase) => {
+      if (phase === "waiting") {
+        gaveUp = false;
+        note.textContent = tt.imageArriving;
+        open.setAttribute("aria-label", `${tt.imageArriving} ${label}`);
+        open.title = title;
+      } else if (phase === "gave-up") {
+        // The link with the name; a click asks again (a button inside a button would not be valid).
+        gaveUp = true;
+        note.textContent = `${name(path)} · ${tt.imageAgain}`;
+        open.setAttribute("aria-label", `${tt.imageAgain}: ${name(path)}`);
+        open.title = tt.imageAgain;
+      } else {
+        unwatch();
+        note.remove();
+        open.setAttribute("aria-label", label);
+        open.title = title;
+        open.prepend(img);
+        show(imageUrls.get(path) as string);
+      }
+    },
+  );
+  unwatch = watchFile(path, a);
+  open.addEventListener("click", () => {
+    if (gaveUp) a.retry();
+  });
+  a.start();
 }
 
 let view: TableView | null = null;
