@@ -24,11 +24,10 @@ export type Slice = {
   palette?: string;
   look?: Look;
   headingFont?: string;
-  fontSize?: number;
   lookName?: string;
   lookCredit?: InspiredBy;
 };
-export const SLICE_KEYS = ["palette", "look", "headingFont", "fontSize", "lookName", "lookCredit"] as const;
+export const SLICE_KEYS = ["palette", "look", "headingFont", "lookName", "lookCredit"] as const;
 
 /** The part of the settings the scope reads and writes. */
 export type Scoped = Slice & { folderThemes?: Record<string, Slice> };
@@ -41,14 +40,16 @@ export function sliceOf(s: Slice): Slice {
 
 export const sameSlice = (a: Slice, b: Slice): boolean => JSON.stringify(SLICE_KEYS.map((k) => a[k] ?? null)) === JSON.stringify(SLICE_KEYS.map((k) => b[k] ?? null));
 
-/** Put `slice` in the fields of `s`, those it does not hold removed. */
-export function lay(s: Slice, slice: Slice): void {
+/** Put `slice` in the fields of `s`, those it does not hold removed. The
+ *  palette and the heading font a slice lacks are `fallback`'s (the
+ *  default's), never what a folder shown before left. The text size is not
+ *  part of a theme: it stays the person's, global. */
+export function lay(s: Slice, slice: Slice, fallback?: Slice): void {
   for (const k of SLICE_KEYS) {
-    // The palette and the size always have a value: a slice without one leaves the person's.
-    if (slice[k] === undefined) {
-      if (k !== "palette" && k !== "fontSize") delete s[k];
-    }
-    else (s as Record<string, unknown>)[k] = structuredClone(slice[k]);
+    const v = slice[k] ?? (k === "palette" || k === "headingFont" ? fallback?.[k] : undefined);
+    if (v === undefined) {
+      if (k !== "palette") delete s[k];
+    } else (s as Record<string, unknown>)[k] = structuredClone(v);
   }
 }
 
@@ -98,13 +99,16 @@ export function enter(s: Scoped, folder: string): void {
   if (!own) return;
   held = sliceOf(s);
   key = folder;
-  lay(s, own);
+  lay(s, own, held);
 }
 
-/** The person chooses to give `folder` a theme of its own: from now on what
- *  the wizard changes is this folder's. Nothing is written until it changes. */
+/** The person chooses to give `folder` a theme of its own: an entry copying
+ *  the default is stored at once (so the choice survives a reload and a
+ *  second window), and from now on what the wizard changes is this folder's.
+ *  The caller saves the settings. */
 export function startOwn(s: Scoped, folder: string): void {
   if (held || !folder) return;
+  s.folderThemes = { ...(s.folderThemes ?? {}), [folder]: sliceOf(s) };
   held = sliceOf(s);
   key = folder;
 }
@@ -124,7 +128,7 @@ export function persistable<T extends Scoped>(s: T): T {
   if (!held) return s;
   const out = { ...s, folderThemes: { ...(s.folderThemes ?? {}) } } as T;
   const now = sliceOf(s);
-  if (out.folderThemes![key] !== undefined || !sameSlice(now, held)) out.folderThemes![key] = now;
+  out.folderThemes![key] = now;
   lay(out, held);
   if (Object.keys(out.folderThemes!).length === 0) delete out.folderThemes;
   return out;
