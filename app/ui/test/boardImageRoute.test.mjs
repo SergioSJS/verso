@@ -1,0 +1,31 @@
+// Where a new image put on a board is written: a player's goes through the
+// server (Send files), never a write of the folder (ADR 0113 item 5, D).
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import * as esbuild from "esbuild";
+
+await esbuild.build({ entryPoints: ["src/board/imageRoute.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/boardImageRoute.test-bundle.mjs", logLevel: "error" });
+const { imageRoute, imageFileName } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
+
+test("a player who edits the board and may send files: the server writes it", () => {
+  assert.equal(imageRoute("player", true, true, true), "server");
+});
+test("a player without the right to send files is refused, visibly", () => {
+  assert.equal(imageRoute("player", true, true, false), "no-send");
+});
+test("a player who cannot edit the board is refused", () => {
+  assert.equal(imageRoute("player", true, false, true), "no-edit");
+});
+test("the game master, an own folder and a visitor-less folder write as before", () => {
+  assert.equal(imageRoute("master", true, true, true), "folder");
+  assert.equal(imageRoute("own", false, true, false), "folder");
+  assert.equal(imageRoute("player", false, true, false), "folder");
+});
+test("a GIF without a name stays a GIF", () => {
+  assert.equal(imageFileName("", "image/gif"), "image.gif");
+  assert.equal(imageFileName("anim", "image/gif"), "anim.gif");
+  assert.equal(imageFileName("foto.gif", "image/png"), "foto.gif");
+  assert.equal(imageFileName("x", "image/jpeg"), "x.jpg");
+  assert.equal(imageFileName("x", ""), "x.png");
+});

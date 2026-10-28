@@ -24,7 +24,7 @@ import { minimalEdit } from "../edit";
 import { completeMarkdown } from "../editor/complete";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
-import { freeName, textBase64 } from "../files";
+import { freeName, readable, textBase64 } from "../files";
 import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
 import { renderSticker } from "../labels";
@@ -60,7 +60,9 @@ import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
-import { may } from "../access";
+import { atTable, may, seat } from "../access";
+import { a as attachText } from "../attach";
+import { imageRoute } from "../board/imageRoute";
 import { NoteAccess } from "../noteAccess";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
@@ -418,6 +420,28 @@ export class BoardLeaf extends TextLeaf {
       },
       name: () => name(this.path).replace(/\.canvas$/i, ""),
       saveImage: async (file, base64) => {
+        // A player at a table only reads the folder: the server writes a new
+        // image (as for the chat), when the player edits this board and may
+        // send files (ADR 0113 item 5, D).
+        const route = imageRoute(seat(), atTable(), may(this.path, "edit"), may(this.path, "attach"));
+        if (route === "no-edit") {
+          readable(this.path, "edit");
+          return null;
+        }
+        if (route === "no-send") {
+          ui.status.textContent = attachText.noSend;
+          return null;
+        }
+        if (route === "server") {
+          const made = await commands.tableAttach(base64, this.path);
+          if (made.status !== "ok") {
+            fail(made.error);
+            return null;
+          }
+          allFiles.push(made.data);
+          await afterFileChange();
+          return made.data;
+        }
         const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
         const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
         const dot = file.lastIndexOf(".");
@@ -1061,7 +1085,13 @@ export function pictureCopy(src: string): Promise<string | null> {
       const worker = pictureWorker();
       if (!worker) return null;
       try {
-        const blob = await (await fetch(src)).blob();
+        const got = await fetch(src);
+        // A file not arrived yet (sync): not remembered, asked for again.
+        if (!got.ok) {
+          pictureCopies.delete(src);
+          return null;
+        }
+        const blob = await got.blob();
         if (!/^image\/(jpeg|png|webp|bmp|avif)$/.test(blob.type)) return null;
         const id = ++pictureIds;
         const out = await new Promise<Blob | null>((resolve) => {
@@ -1072,6 +1102,7 @@ export function pictureCopy(src: string): Promise<string | null> {
         });
         return out ? URL.createObjectURL(out) : null;
       } catch {
+        pictureCopies.delete(src);
         return null;
       }
     })();

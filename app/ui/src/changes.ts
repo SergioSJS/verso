@@ -121,6 +121,8 @@ export function refreshLists(): void {
   whenNotRenaming(ui.notes, () => void (async () => {
     forgetFiles();
     await listAll();
+    // The lists are read: a board waiting for a picture that arrived by sync can draw it.
+    dispatchEvent(new Event("verso:files-listed"));
     if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
   })());
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") whenNotRenaming(l.el, () => void l.load(l.path));
