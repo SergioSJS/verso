@@ -11,12 +11,14 @@
 import { tell } from "../dialog";
 import { h, ui } from "../dom";
 import { DEFAULTS, type Hue, saveSettings, settings } from "../settings";
+import { currentFolder } from "../folder";
 import { shippedColors } from "./apply";
 import { unreadableIn } from "./edit";
 import { parseThemeText, type Theme, themeFileName, themeText } from "./file";
 import { themeOf, withTheme } from "./look";
 import { importSaid, readProfiles, saveAs, uniqueName, type Profile } from "./profiles";
 import { W } from "./strings";
+import { isOwn, startOwn, stopOwn } from "./scope";
 import { emptyLook, FILE_MOST, type Look } from "./tokens";
 
 export const LOOK_EVENT = "verso:look";
@@ -147,4 +149,23 @@ export function exportTheme(theme: Theme): boolean {
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
   say(W.share.exported(a.download));
   return true;
+}
+
+/** Whether what the wizard changes is the open folder's own theme (true) or the person's default (false). */
+export const forThisFolder = (): boolean => isOwn();
+
+/** From now on the wizard changes this folder's own theme: nothing is kept
+ *  until a change is made, and no other folder moves. */
+export function useForFolder(): boolean {
+  if (!currentFolder) return false;
+  startOwn(settings, currentFolder);
+  told();
+  return true;
+}
+
+/** The folder follows the person's default again; its own choice is forgotten. */
+export function useForAll(): void {
+  stopOwn(settings);
+  saveSettings();
+  told();
 }

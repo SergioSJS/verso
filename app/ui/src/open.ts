@@ -23,7 +23,7 @@ import { askDiscard } from "./leaves/leaf";
 import { panel, ribbon } from "./main";
 import { name } from "./paths";
 import { searchNotes } from "./search";
-import { page, pushWalkRules } from "./settings";
+import { enterFolderTheme, page, pushWalkRules } from "./settings";
 import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
 import { attachFolderLayouts } from "./statblock/folderWire";
@@ -33,6 +33,7 @@ export async function joinAsPopout(): Promise<void> {
   const [folder, target] = await Promise.all([commands.currentFolder(), commands.popoutTarget()]);
   if (folder.status !== "ok" || !folder.data || target.status !== "ok" || !target.data) return;
   setCurrentFolder(folder.data.key);
+  enterFolderTheme();
   setFolderName(folder.data.name);
   ui.folder.textContent = folder.data.name;
   nameFolderButton();
@@ -121,6 +122,7 @@ function tellVolume(info: FolderInfo): void {
 }
 export async function showFolder(info: FolderInfo): Promise<void> {
   setCurrentFolder(info.key);
+  enterFolderTheme();
   setFolderName(info.name);
   // The main window's folder is the one the next launch opens; a window
   // opened later shows a folder of its own (ADR 0065).

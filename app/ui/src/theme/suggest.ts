@@ -14,7 +14,7 @@
 import { changeFolder, folderLayerNow, folderSettingsWritable, onFolderLayer } from "../folderLayer";
 import { currentFolder } from "../folder";
 import { h } from "../dom";
-import { importText, say } from "./actions";
+import { importText, say, useForFolder } from "./actions";
 import { type Theme, themeText } from "./file";
 import { parseThemeText } from "./file";
 import { W } from "./strings";
@@ -84,6 +84,8 @@ function offer(): void {
   use.addEventListener("click", () => {
     remember(s.text, "used");
     hide();
+    // Accepting the suggestion is this folder's choice, never the default's.
+    useForFolder();
     void importText(s.text).then((ok) => {
       if (ok) say(W.banner.used(s.theme.name));
     });

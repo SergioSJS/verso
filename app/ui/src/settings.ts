@@ -14,7 +14,8 @@ import { applyLook } from "./theme/apply";
 import { readLook, readLookCredit } from "./theme/look";
 import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
 import { readProfiles, type Profile } from "./theme/profiles";
-import type { InspiredBy, Look } from "./theme/tokens";
+import { enter, persistable, readFolderThemes, reset, type Slice } from "./theme/scope";
+import { fontAllowed, SIZE_MAX, SIZE_MIN, type InspiredBy, type Look } from "./theme/tokens";
 
 export type { Measure };
 export const page = document.querySelector<HTMLElement>(".work");
@@ -88,6 +89,8 @@ export type Settings = {
   lookName?: string;
   /** The credit of the theme in force, when it was inspired by another (ADR 0109 item 5). */
   lookCredit?: InspiredBy;
+  /** The themes chosen for single folders, by folder key (ADR 0100 item 4, amended 2026-10-27): the person's, never the folder's. A folder without one uses the fields above. */
+  folderThemes?: Record<string, Slice>;
   /** The catalogue themes used lately, newest first (file names; ADR 0109): the gallery keeps them at hand to use and copy. */
   lookRecent?: string[];
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
@@ -253,6 +256,9 @@ export function loadSettings(): void {
       const credit = readLookCredit(parsed.lookCredit);
       if (credit && settings.lookName !== undefined) settings.lookCredit = credit;
       else delete settings.lookCredit;
+      const own = readFolderThemes(parsed.folderThemes, readSlice);
+      if (Object.keys(own).length > 0) settings.folderThemes = own;
+      else delete settings.folderThemes;
       settings.lookRecent = Array.isArray(parsed.lookRecent)
         ? parsed.lookRecent.filter((f: unknown): f is string => typeof f === "string" && /^[a-z0-9][a-z0-9-]*\.verso-theme$/.test(f)).slice(0, 4)
         : [];
@@ -284,6 +290,30 @@ export function loadSettings(): void {
     settings = { ...DEFAULTS };
   }
   sourceNumbersWere = settings.lineNumbersSource;
+  // The open folder's own theme, when it has one, is laid over the default.
+  reset();
+  enter(settings, currentFolder);
+  applySettings();
+}
+/** A folder's theme as the settings file held it: known values only. */
+function readSlice(raw: unknown): Slice | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const out: Slice = {};
+  if (typeof r["palette"] === "string" && (["paper", "sepia", "slate", "moss"] as readonly string[]).includes(r["palette"])) out.palette = r["palette"];
+  if (r["look"] !== undefined) out.look = readLook(r["look"]);
+  if (fontAllowed("--heading-font", r["headingFont"])) out.headingFont = r["headingFont"] as string;
+  if (typeof r["fontSize"] === "number" && r["fontSize"] >= SIZE_MIN && r["fontSize"] <= SIZE_MAX) out.fontSize = Math.round(r["fontSize"]);
+  if (typeof r["lookName"] === "string") {
+    out.lookName = r["lookName"];
+    const credit = readLookCredit(r["lookCredit"]);
+    if (credit) out.lookCredit = credit;
+  }
+  return out;
+}
+/** A folder opened (or closed) in this window: its own theme, if it has one, shows. */
+export function enterFolderTheme(): void {
+  enter(settings, currentFolder);
   applySettings();
 }
 /** Line numbers in Source mode: on a phone (under 760 px) only when the
@@ -300,7 +330,7 @@ export function saveSettings(): void {
   if (sourceNumbersWere !== null && settings.lineNumbersSource !== sourceNumbersWere) settings.lineNumbersSourceChosen = true;
   sourceNumbersWere = settings.lineNumbersSource;
   try {
-    localStorage.setItem("verso.settings", JSON.stringify(settings));
+    localStorage.setItem("verso.settings", JSON.stringify(persistable(settings)));
   } catch {
     // No storage.
   }
