@@ -58,15 +58,15 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
     // What may be made in a folder is what the server said of it (K.6): a
     // right for a player, none outside a table.
     case "create":
-      return file.create_note || file.create_board;
+      return (file.create_note ?? false) || (file.create_board ?? false);
     case "createNote":
-      return file.create_note;
+      return file.create_note ?? false;
     case "createBoard":
-      return file.create_board;
+      return file.create_board ?? false;
     case "attach":
       return file.attach;
     case "attachImage":
-      return file.attach_image;
+      return file.attach_image ?? false;
     case "delete":
     case "move":
       return file.level === "edit" && (!table || master);
