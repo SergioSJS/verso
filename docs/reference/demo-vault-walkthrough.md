@@ -1644,6 +1644,13 @@ must be a server's, and the person its owner.
     another person send one: the log stays, a *New message ↓* button with a count
     appears above the composer and jumps to the end; it goes away at the bottom.
     Also at 390×844. Level: H (E not run on the Mac).
+14. An image arriving late. On a desktop folder synced with a server, have a player
+    in the browser paste an image into the table's chat. In the *Mesa* panel the
+    card shows "arriving…" for a moment and then the picture, without reloading
+    the window and without the other cards blinking. Stop the sync (offline) before
+    the player sends: after about a minute the card is the file name with "try
+    again"; go back online, click it, the picture loads. Level: H (needs a server
+    and a synced desktop; E not run on the Mac).
 
 ## 18b. A focuses file only in the cloud (ADR 0043)
 
