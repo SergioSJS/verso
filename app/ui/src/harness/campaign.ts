@@ -19,6 +19,11 @@ import { allowed, kindOf, type Setting, type Who } from "./accessRules";
 import type { Core } from "./core";
 import { fileExt } from "./table";
 
+/** The four rights of a player (ADR 0113 K.6). */
+type RightName = "images" | "files" | "create_notes" | "create_boards";
+const RIGHTS: readonly RightName[] = ["images", "files", "create_notes", "create_boards"];
+const NO_RIGHTS = { images: false, files: false, creates_notes: false, creates_boards: false };
+
 const LOG_LEAST = 1_000;
 const LOG_MOST = 200_000;
 const IMAGE_LEAST = 1024 * 1024;
@@ -94,20 +99,30 @@ export class Campaign {
     { id: "acc-ana", name: "Ana" },
     { id: "acc-bia", name: "Bia" },
   ];
-  /** The players let send images, as `root` + NUL + account. */
-  private readonly imageGrants = new Set<string>();
-  /** Whether the window's account may send images at the table at `root`
-   *  (the game master always may). */
-  imagesFor(root: string, account = this.account): boolean {
-    return this.viewer === "owner" || this.imageGrants.has(`${root}\0${account}`);
+  /** The rights given, by right: `root` + NUL + account (ADR 0113 K.6). */
+  private readonly grants = new Map<RightName, Set<string>>(RIGHTS.map((r) => [r, new Set<string>()]));
+  /** Whether the window's account has `right` at the table at `root` (the
+   *  game master always has). */
+  rightFor(root: string, right: RightName, account = this.account): boolean {
+    return this.viewer === "owner" || (this.grants.get(right)?.has(`${root}\0${account}`) ?? false);
   }
-  /** Give `account` the permission to send images at `root`, or take it away:
-   *  a window that is that player is told at once, as the server tells it. */
-  grantImages(root: string, account: string, on: boolean): void {
+  /** Whether the window's account may send images at `root`. */
+  imagesFor(root: string, account = this.account): boolean {
+    return this.rightFor(root, "images", account);
+  }
+  /** Give `account` a right at `root`, or take it away: a window that is
+   *  that player is told at once, as the server tells it (images and files
+   *  are told to the chat; the rest asks again what it shows). */
+  grant(root: string, account: string, right: RightName, on: boolean): void {
     const key = `${root}\0${account}`;
-    if (on) this.imageGrants.add(key);
-    else this.imageGrants.delete(key);
-    if (this.viewer === "player" && account === this.account) void emit("table-images", { table: root, images: on });
+    const set = this.grants.get(right);
+    if (on) set?.add(key);
+    else set?.delete(key);
+    if (this.viewer === "player" && account === this.account) void emit("table-images", { table: root, images: this.rightFor(root, "images"), files: this.rightFor(root, "files") });
+  }
+  /** `grant` of the right Images, for a test. */
+  grantImages(root: string, account: string, on: boolean): void {
+    this.grant(root, account, "images", on);
   }
   /** How many files `table_attach` made. */
   private attached = 0;
@@ -123,7 +138,7 @@ export class Campaign {
       const root = this.rootOf(a["root"]);
       this.owner();
       if (root !== "" && !core.folders.has(root)) refuse("no folder there");
-      if (!this.tables.some((t) => t.root === root)) this.tables.push({ root, open: true, log_max: 20000, image_max: 10 * 1024 * 1024, image_players: [], images: true });
+      if (!this.tables.some((t) => t.root === root)) this.tables.push({ root, open: true, log_max: 20000, image_max: 10 * 1024 * 1024, image_players: [], file_players: [], note_players: [], board_players: [], images: true, files: true });
       return this.changed([]);
     };
     h["campaign_unmake"] = (a) => {
@@ -211,13 +226,14 @@ export class Campaign {
     };
     h["table_rights_set"] = (a) => {
       this.owner();
-      if (a["right"] !== "files") refuse("no such right");
+      const right = RIGHTS.find((r) => r === a["right"]);
+      if (!right) refuse("no such right");
       const root = this.rootOf(a["root"]);
       if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
       const accounts = a["accounts"] as string[];
       if (!Array.isArray(accounts) || accounts.length === 0 || accounts.length > 500) refuse("name between 1 and 500 players");
       if (!accounts.every((id) => this.seated().some((p) => p.id === id && (!p.roots || p.roots.length === 0 || p.roots.includes(root))))) refuse("not a player of this table");
-      for (const id of accounts) this.grantImages(root, id, a["on"] === true);
+      for (const id of accounts) this.grant(root, id, right as RightName, a["on"] === true);
       return this.changed([]);
     };
     h["campaign_invite"] = (a) => {
@@ -230,11 +246,12 @@ export class Campaign {
       return { link, expires: 1_900_000_000 };
     };
     h["table_attach"] = (a) => {
-      // Into a note or board the person edits: the vectors' `attach` (ADR 0113 D).
+      // Into a note or board the person edits: the vectors' `attach-image` for an image, `attach` for any other file (ADR 0113 D, K.6).
       const into = String(a["into"] ?? "");
-      if (!this.up || !this.fileAccess(into).attach) refuse("you may only read this folder");
       const ext = fileExt(String(a["base64"] ?? ""));
       if (!ext) refuse("an image, a PDF or an audio file (not SVG, a page or a script)");
+      const access = this.fileAccess(into);
+      if (!this.up || !(["png", "jpg", "webp", "gif"].includes(ext) ? access.attach_image : access.attach)) refuse("you may only read this folder");
       this.attached += 1;
       const path = `attachments/mesa-attach-${this.attached}.${ext}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"] ?? "") });
@@ -301,14 +318,14 @@ export class Campaign {
   private settingFor(path: string, folder = false): Setting {
     const t = this.tableOf(path);
     const kind = path === "" && folder ? "folder" : kindOf(path, folder);
-    if (!t) return { table: "none", source: "nothing", level: "none", kind, right: false, derived: false };
+    if (!t) return { table: "none", source: "nothing", level: "none", kind, rights: NO_RIGHTS, derived: false };
     const found = this.nearest(path);
     return {
       table: t.open ? "open" : "closed",
       source: !found ? "nothing" : found.own ? "file" : "folder",
       level: found ? this.levelIn(found.set, this.account) : "none",
       kind,
-      right: this.imagesFor(t.root),
+      rights: { images: this.rightFor(t.root, "images"), files: this.rightFor(t.root, "files"), creates_notes: this.rightFor(t.root, "create_notes"), creates_boards: this.rightFor(t.root, "create_boards") },
       derived: !noteLike(path),
     };
   }
@@ -320,7 +337,8 @@ export class Campaign {
     const level: AccessLevel = allowed(who, "edit", s) ? "edit" : allowed(who, "see", s) ? "see" : "none";
     const found = this.nearest(path);
     const why: AccessWhy = this.viewer === "owner" ? { kind: "master" } : s.table === "none" ? { kind: "role" } : s.table === "closed" ? { kind: "closed" } : !found ? (s.derived && level !== "none" ? { kind: "derived" } : { kind: "default" }) : found.own ? { kind: "own" } : { kind: "folder", path: found.at };
-    return { level, attach: allowed(who, "attach", s), why };
+    // What can be made is told of a folder only (K.6).
+    return { level, attach: allowed(who, "attach", s), attach_image: allowed(who, "attach-image", s), create_note: folder && allowed(who, "create-note", s), create_board: folder && allowed(who, "create-board", s), why };
   }
 
   private view(set: { whole: AccessLevel; rows: Map<string, AccessLevel> }): AccessSetView {
@@ -534,10 +552,11 @@ export class Campaign {
         return set ? this.seated().filter((p) => (at === "see" ? this.levelIn(set, p.id) !== "none" : this.levelIn(set, p.id) === "edit")).map((p) => p.id) : [];
       };
       const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden", sees: who(n.path, "see"), edits: who(n.path, "edit") })).sort((a, b) => a.path.localeCompare(b.path));
-      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, image_players: this.seated().filter((p) => this.imageGrants.has(`${t.root}\0${p.id}`)).map((p) => p.id) })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
+      const given = (root: string, right: RightName): string[] => this.seated().filter((p) => this.grants.get(right)?.has(`${root}\0${p.id}`)).map((p) => p.id);
+      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, files: true, image_players: given(t.root, "images"), file_players: given(t.root, "files"), note_players: given(t.root, "create_notes"), board_players: given(t.root, "create_boards") })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
     }
     const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, audience: (audOf(n).kind === "table" ? { kind: "table" } : { kind: "players", accounts: [this.account] }) as CampaignAudience, released: true, secret_name: false }));
-    return { viewer: "player", tables: this.tables.map((t) => ({ ...t, images: this.imagesFor(t.root), image_players: [] })), notes, players: [], can_invite: false };
+    return { viewer: "player", tables: this.tables.map((t) => ({ ...t, images: this.rightFor(t.root, "images"), files: this.rightFor(t.root, "files"), image_players: [], file_players: [], note_players: [], board_players: [] })), notes, players: [], can_invite: false };
   }
 
   private changed(paths: string[]): CampaignStatus {

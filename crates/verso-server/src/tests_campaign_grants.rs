@@ -91,9 +91,19 @@ fn a_grant_lets_a_player_edit_one_note_and_nothing_else() {
             )
             .await;
         assert_eq!(denied["err"]["kind"], "refused", "{denied}");
-        // Ana still cannot rename, delete, create, or write another note.
+        // Edits on the note covers renaming it inside its folder (K.6).
+        let renamed = m
+            .ana
+            .call("rename_note", json!({ "from": "Livre.md", "to": "L2.md" }))
+            .await;
+        assert!(renamed.get("ok").is_some(), "{renamed}");
+        let back = m
+            .ana
+            .call("rename_note", json!({ "from": "L2.md", "to": "Livre.md" }))
+            .await;
+        assert!(back.get("ok").is_some(), "{back}");
+        // Ana still cannot delete, create, or write another note.
         for (cmd, args) in [
-            ("rename_note", json!({ "from": "Livre.md", "to": "L2.md" })),
             ("delete_note", json!({ "path": "Livre.md" })),
             (
                 "create_file",

@@ -23,7 +23,7 @@ const pt = {
   tooBig: (name: string, mb: number) => `“${name}” passa de ${mb} MB, o máximo que o servidor recebe de uma vez; nada foi copiado.`,
   notImage: (name: string) => `“${name}” não é uma imagem, um PDF nem um áudio; nada foi copiado.`,
   notImageOnly: (name: string) => `“${name}” não é uma imagem; nada foi copiado.`,
-  noSend: "O mestre ainda não deixou você enviar arquivos.",
+  noSend: "O mestre não te deu o direito de enviar arquivos.",
   unreadable: (name: string) => `Não foi possível ler “${name}”; nada foi copiado.`,
 };
 const en: typeof pt = {
@@ -37,7 +37,7 @@ const en: typeof pt = {
   tooBig: (name, mb) => `“${name}” is over ${mb} MB, the most the server takes at once; nothing was copied.`,
   notImage: (name) => `“${name}” is not an image, a PDF or audio; nothing was copied.`,
   notImageOnly: (name) => `“${name}” is not an image; nothing was copied.`,
-  noSend: "The game master has not let you send files yet.",
+  noSend: "The game master has not given you the right to send files.",
   unreadable: (name) => `“${name}” could not be read; nothing was copied.`,
 };
 export const a = LANG.toLowerCase().startsWith("pt") ? pt : en;

@@ -126,7 +126,10 @@ export class Compose {
     });
     this.attach.addEventListener("click", () => {
       // The system's picker is opened from the click itself, before any await.
-      const picking = pickImages(false, "image/*,application/pdf,audio/*");
+      // Only what the game master let this player send (K.6).
+      const t = this.table();
+      const accept = [t?.canSendImage() ? "image/*" : "", t?.canSendFile() ? "application/pdf,audio/*" : ""].filter(Boolean).join(",");
+      const picking = pickImages(false, accept || "image/*");
       void picking.then((files) => this.stage(files));
     });
     // A phone: the sheet rises above the keyboard while the field has it.
@@ -149,11 +152,12 @@ export class Compose {
   sync(src: TableSource): void {
     const t = isServerTable(src) ? src : null;
     this.tray.sync(src);
-    this.attach.hidden = !t || !t.canSendImage();
+    const mayAttach = !!t && (t.canSendImage() || t.canSendFile());
+    this.attach.hidden = !mayAttach;
     // A phone's field is one line wide: the short hint (the paperclip says images).
     const narrow = window.matchMedia("(max-width: 760px)").matches;
-    this.field.placeholder = t ? (t.canSendImage() && !narrow ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
-    if (!t || !t.canSendImage()) this.dropStaged();
+    this.field.placeholder = t ? (mayAttach && !narrow ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
+    if (!mayAttach) this.dropStaged();
     this.ready();
   }
 
@@ -253,7 +257,7 @@ export class Compose {
   /** Images chosen, pasted or dropped: checked here, then kept in the box as small previews until Enter. */
   async stage(files: readonly File[]): Promise<void> {
     const t = this.table();
-    if (!t || !t.canSendImage()) return;
+    if (!t || !(t.canSendImage() || t.canSendFile())) return;
     for (const file of files) {
       let bytes: Uint8Array;
       try {
@@ -263,6 +267,10 @@ export class Compose {
       }
       const why = checkFile(bytes);
       if (why === "type") return this.fail(tt.imageNotImage);
+      // The right is by what the bytes are: an image is Images, the rest Files (K.6).
+      const image = fileKind(bytes.subarray(0, 16)) === "image";
+      if (image && !t.canSendImage()) return this.fail(tt.noRightImages);
+      if (!image && !t.canSendFile()) return this.fail(tt.noRightFiles);
       if (why === "size") return this.fail(tt.imageTooBig(Math.round(IMAGE_MAX / 1048576)));
       if (why === "empty") return this.fail(tt.imageEmpty);
       this.error.hidden = true;
@@ -311,7 +319,7 @@ export class Compose {
   /** Paste and drop on the panel: images, PDFs and audio, and only where they are taken. */
   takeTransfer(data: DataTransfer | null): boolean {
     const t = this.table();
-    if (!t || !t.canSendImage() || !data) return false;
+    if (!t || !(t.canSendImage() || t.canSendFile()) || !data) return false;
     const files = Array.from(data.files).filter(sendable);
     if (files.length === 0) return false;
     void this.stage(files);

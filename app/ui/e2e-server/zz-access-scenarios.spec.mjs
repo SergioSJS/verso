@@ -263,9 +263,11 @@ async function pickMenu(page, ...labels) {
   for (const name of labels) await menu.getByRole("menuitem", { name, exact: true }).click();
 }
 
-test("d. Ana makes and renames a note in a folder she edits and cannot delete it; a name a hidden file holds gets the silent suffix", async ({ browser, page: gm }, info) => {
+test("d. Ana, given \"Cria notas\", makes and renames a note in a folder she edits and cannot delete it; a name a hidden file holds gets the silent suffix", async ({ browser, page: gm }, info) => {
   const files = { "Diario/Base.md": "# Base\n", "Diario/Zqsombra.md": "# Zqsombra\n\nzqcorposombra\n" };
-  await scenario(browser, gm, info, "criar", files, async ({ folder, ana, bruno, set }) => {
+  await scenario(browser, gm, info, "criar", files, async ({ folder, ana, bruno, set, id }) => {
+    // Edits on a folder renames what is in it; adding to it is a right of its own (ADR 0113 K.6).
+    await invoke(gm, "table_rights_set", { root: "", accounts: [id("Ana")], right: "create_notes", on: true });
     // The folder: the table sees, Ana edits. One file of it is hidden from all.
     await applyFolder(gm, "Diario", [["Toda a mesa", "Vê"], ["Ana", "Edita"]]);
     await gm.keyboard.press("Escape");
@@ -383,7 +385,7 @@ test("e. the game master moves a file with its own access into another folder: i
   });
 });
 
-test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game master and Bruno see its card; without the right she cannot", async ({ browser, page: gm }, info) => {
+test("f. Ana, with \"Arquivos\", sends a PDF to the chat and the game master and Bruno see its card; without the right she cannot", async ({ browser, page: gm }, info) => {
   const files = { "Fichas/Ana.md": "# Ana\n", "Zqsegredo.md": "# Zqsegredo\n\nzqcorpo\n" };
   await scenario(browser, gm, info, "pdf", files, async ({ folder, ana, bruno, set }) => {
     await set(["Fichas/Ana.md"], "none", { Ana: "edit" });
@@ -402,6 +404,7 @@ test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game mas
 
     // Without the right: no button, the paste is not taken, the command is refused.
     await expect(attach).toBeHidden();
+    await dialog.getByRole("button", { name: /^Ana tem \d de 4 direitos/ }).click({ timeout: 15_000 });
     await expect(sw).toBeVisible({ timeout: 15_000 });
     await expect(sw).not.toBeChecked();
     await sendFile(ana.page, a, "plano.pdf", "application/pdf", PDF);
@@ -412,7 +415,7 @@ test("f. Ana, with \"Enviar arquivos\", sends a PDF to the chat and the game mas
 
     // The game master lets her: the button appears, live; her PDF reaches the others as a card.
     await sw.check({ force: true });
-    await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
+    await expect(dialog.locator(".cd-right").filter({ has: sw }).locator(".cd-feedback")).toContainText("Salvo");
     await expect(attach).toBeVisible({ timeout: 15_000 });
     await sendFile(ana.page, a, "plano.pdf", "application/pdf", PDF);
     for (const v of [g, a, b]) await expect(cards(v)).toHaveCount(1, { timeout: 30_000 });

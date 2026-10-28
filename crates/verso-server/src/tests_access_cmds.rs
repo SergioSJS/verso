@@ -218,8 +218,10 @@ fn the_game_master_reads_and_changes_the_access_of_a_file_and_a_folder() {
     });
 }
 
+/// The four rights of a player (ADR 0113 K.6) are given by the one command,
+/// each into its own list, and by the game master alone.
 #[test]
-fn the_right_to_send_files_is_given_by_the_one_command() {
+fn the_four_rights_are_given_by_the_one_command() {
     block_on(async {
         let mut m = mesa().await;
         let ana = m.ana_id.clone();
@@ -239,13 +241,44 @@ fn the_right_to_send_files_is_given_by_the_one_command() {
             )
             .await;
         assert!(refused(&bad), "{bad}");
+        // A new player has none of the four.
+        let none = m.owner.call("campaign_status", json!({})).await;
+        for list in [
+            "image_players",
+            "file_players",
+            "note_players",
+            "board_players",
+        ] {
+            assert_eq!(none["ok"]["tables"][0][list], json!([]), "{list}: {none}");
+        }
+        for (right, list) in [
+            ("images", "image_players"),
+            ("files", "file_players"),
+            ("create_notes", "note_players"),
+            ("create_boards", "board_players"),
+        ] {
+            let done = m
+                .owner
+                .call(
+                    "table_rights_set",
+                    json!({ "root": "", "accounts": [ana], "right": right, "on": true }),
+                )
+                .await;
+            assert_eq!(
+                done["ok"]["tables"][0][list],
+                json!([ana]),
+                "{right}: {done}"
+            );
+        }
+        // Taking one back leaves the others.
         let done = m
             .owner
             .call(
                 "table_rights_set",
-                json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
+                json!({ "root": "", "accounts": [ana], "right": "files", "on": false }),
             )
             .await;
+        assert_eq!(done["ok"]["tables"][0]["file_players"], json!([]), "{done}");
         assert_eq!(
             done["ok"]["tables"][0]["image_players"],
             json!([ana]),
@@ -254,12 +287,12 @@ fn the_right_to_send_files_is_given_by_the_one_command() {
     });
 }
 
-/// A new file into a note the person edits (ADR 0113 item 5, D): the rules'
-/// Attach — the level *edits* on that note and the right to send files — and
-/// the file is the server's, written into the table's attachments place with
-/// no entry in the chat.
+/// A new file into a note the person edits (ADR 0113 item 5, D, K.6): the
+/// rules' Attach — a new image needs the level *edits* on that note and no
+/// right; another file also the right *Files* — and the file is the server's,
+/// written into the table's attachments place with no entry in the chat.
 #[test]
-fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
+fn an_image_put_into_a_note_one_edits_needs_only_the_edit() {
     block_on(async {
         let mut m = mesa().await;
         let ana = m.ana_id.clone();
@@ -280,7 +313,8 @@ fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
             .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
             .await;
         assert!(refused(&no), "{no}");
-        // Edits it, but has no right to send files.
+        // Edits it, with no right at all: the image is written, and the chat
+        // has no entry of it.
         let g = m
             .owner
             .call(
@@ -289,20 +323,6 @@ fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
             )
             .await;
         assert!(g.get("ok").is_some(), "{g}");
-        let no = m
-            .ana
-            .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
-            .await;
-        assert!(refused(&no), "{no}");
-        // Both: the file is written, and the chat has no entry of it.
-        let r = m
-            .owner
-            .call(
-                "table_rights_set",
-                json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
-            )
-            .await;
-        assert!(r.get("ok").is_some(), "{r}");
         let made = m
             .ana
             .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
@@ -316,6 +336,16 @@ fn a_file_put_into_a_note_one_edits_needs_the_edit_and_the_right() {
             0,
             "an attached file is not a message"
         );
+        // The chat is another right: *Images*.
+        let chat = m
+            .ana
+            .call("table_send_image", json!({ "base64": png }))
+            .await;
+        assert!(refused(&chat), "{chat}");
+        // The note says so to the person who edits it.
+        let read = m.ana.call("read_note", json!({ "path": "Livre.md" })).await;
+        assert_eq!(read["ok"]["access"]["attach_image"], true, "{read}");
+        assert_eq!(read["ok"]["access"]["attach"], false, "{read}");
     });
 }
 
@@ -373,10 +403,10 @@ fn a_player_is_told_counts_of_what_it_sees_and_no_email() {
     });
 }
 
-/// *Send files* (ADR 0113 K.4) covers a PDF and audio as it covers an
-/// image: through the chat (a `file` entry) and into a note one edits, with
-/// the same checks, the file always written under the table's attachments
-/// place; and nothing without the right.
+/// *Files* (ADR 0113 K.4, K.6) covers a PDF and audio: through the chat (a
+/// `file` entry) and into a note one edits, with the same checks, the file
+/// always written under the table's attachments place; and nothing without
+/// the right. It is not *Images*: a picture is judged by the other right.
 #[test]
 fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
     use base64::Engine;
@@ -403,7 +433,8 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
             )
             .await;
         assert!(g.get("ok").is_some(), "{g}");
-        // Without the right: nothing, in the chat or in the note.
+        // Without the right: nothing, in the chat or in the note (an image
+        // goes into the note, it needs no right).
         for (what, data) in [("pdf", &pdf), ("audio", &mp3)] {
             let no = m
                 .ana
@@ -427,6 +458,13 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
             )
             .await;
         assert!(given.get("ok").is_some(), "{given}");
+        // *Files* does not carry a picture to the chat: that is *Images*.
+        let png = crate::tests_campaign::PNG;
+        let pic = m
+            .ana
+            .call("table_send_image", json!({ "base64": png }))
+            .await;
+        assert!(refused(&pic), "{pic}");
         // In the chat: a file entry, written under the attachments place.
         for (data, ext) in [(&pdf, ".pdf"), (&mp3, ".mp3"), (&ogg, ".ogg")] {
             let sent = m
@@ -480,7 +518,7 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
     });
 }
 
-/// A name is not a way round *Send files* (ADR 0113 K.4): a player who
+/// A name is not a way round *Images* and *Files* (ADR 0113 K.4, K.6): a player who
 /// makes a note in a folder they edit cannot rename it to a PDF, a page or
 /// an SVG, nor write such a file with `write_text`, whatever the right.
 #[test]
@@ -499,14 +537,16 @@ fn a_player_cannot_make_a_file_by_a_rename_or_a_text_write() {
         assert!(g.get("ok").is_some(), "{g}");
         for right in [false, true] {
             if right {
-                let r = m
-                    .owner
-                    .call(
-                        "table_rights_set",
-                        json!({ "root": "", "accounts": [ana], "right": "files", "on": true }),
-                    )
-                    .await;
-                assert!(r.get("ok").is_some(), "{r}");
+                for given in ["images", "files"] {
+                    let r = m
+                        .owner
+                        .call(
+                            "table_rights_set",
+                            json!({ "root": "", "accounts": [ana], "right": given, "on": true }),
+                        )
+                        .await;
+                    assert!(r.get("ok").is_some(), "{r}");
+                }
             }
             // A note keeps being a note under any name (the core adds .md);
             // a file she was let send keeps its kind: a rename to another

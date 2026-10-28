@@ -71,6 +71,9 @@ export type ScreenStrings = {
   readOnly: string;
   /** Said near an attempt on a note or file the person sees and may not change. */
   readOnlyNote: string;
+  /** Said near an attempt to create where the person edits but was not given the right (ADR 0113 K.6). */
+  noRightNote: string;
+  noRightBoard: string;
   /** The closed lock beside the folder's name. */
   lockName: string;
   copyLink: string;
@@ -128,6 +131,8 @@ const pt: ScreenStrings = {
   rowMore: (name) => `Mais ações: ${name}`,
   readOnly: "Você só lê esta pasta.",
   readOnlyNote: "Você só lê esta nota. O mestre libera a edição.",
+  noRightNote: "O mestre não te deu o direito de criar notas.",
+  noRightBoard: "O mestre não te deu o direito de criar boards.",
   lockName: "Você só lê esta pasta",
   copyLink: "Copiar link",
   linkCopied: "Link copiado.",
@@ -183,6 +188,8 @@ const en: ScreenStrings = {
   rowMore: (name) => `More actions: ${name}`,
   readOnly: "You can only read this folder.",
   readOnlyNote: "You only read this note. The game master gives editing.",
+  noRightNote: "The game master has not given you the right to create notes.",
+  noRightBoard: "The game master has not given you the right to create boards.",
   lockName: "You only read this folder",
   copyLink: "Copy link",
   linkCopied: "Link copied.",

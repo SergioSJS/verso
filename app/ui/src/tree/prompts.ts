@@ -49,7 +49,7 @@ export function renameInline(li: HTMLElement, path: string, folder = false): voi
   input.addEventListener("blur", () => finish(input.value.trim() !== current));
 }
 export function newFolderPrompt(folder: string): void {
-  if (guardCreate(folder)) return;
+  if (guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -89,7 +89,7 @@ export function newFolderPrompt(folder: string): void {
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
 export function newWebPagePrompt(folder?: string): void {
-  if (folder === undefined ? guard() : guardCreate(folder)) return;
+  if (folder === undefined ? guard() : guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -135,7 +135,7 @@ export function newWebPagePrompt(folder?: string): void {
   input.addEventListener("blur", () => finish(false));
 }
 export function newNotePrompt(folder: string): void {
-  if (guardCreate(folder)) return;
+  if (guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");

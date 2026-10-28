@@ -115,7 +115,9 @@ async function mesa(page) {
 
 
 const field = (view) => view.getByRole("textbox", { name: "Mensagem para a mesa" });
-const SWITCH = { name: "Ana pode enviar arquivos" };
+const SWITCH = { name: "Ana pode enviar imagens" };
+/** Ana's count of rights, which opens the four switches (ADR 0113 K.6). */
+const RIGHTS = { name: /^Ana tem \d de 4 direitos/ };
 
 test.use({ actionTimeout: 10_000 });
 
@@ -165,16 +167,18 @@ for (const format of ["member", "share"]) {
       const dialog = gm.locator(".campaign-dialog");
       await expect(dialog).toBeVisible();
       const sw = dialog.getByRole("switch", SWITCH);
+      const feedback = dialog.locator(".cd-right").filter({ has: sw }).locator(".cd-feedback");
 
       await item(1, "off by default: the player has no attach button, the switch is off", async () => {
         await expect(attach).toBeHidden();
+        await dialog.getByRole("button", RIGHTS).click({ timeout: 15_000 });
         await expect(sw).toBeVisible({ timeout: 15_000 });
         await expect(sw).not.toBeChecked();
       });
 
       await item(2, "the game master turns it on -> the attach button appears in the player's window, live", async () => {
         await sw.check({ force: true });
-        await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
+        await expect(feedback).toContainText("Salvo");
         await expect(attach).toBeVisible({ timeout: 15_000 });
       });
 
@@ -201,7 +205,7 @@ for (const format of ["member", "share"]) {
 
       await item(4, "the game master turns it off -> the button goes at once and a send is refused", async () => {
         await sw.uncheck({ force: true });
-        await expect(dialog.getByRole("row").filter({ hasText: "Ana" }).locator(".cd-feedback")).toContainText("Salvo");
+        await expect(feedback).toContainText("Salvo");
         await expect(attach).toBeHidden({ timeout: 15_000 });
         const refused = await ana.page.evaluate(async () => {
           try {

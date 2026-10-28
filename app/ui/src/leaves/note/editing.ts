@@ -350,20 +350,22 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   const said = f.name || opts.name || "";
   // A phone may give no type for a HEIC picture: its extension says.
   if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name) && !(seat() === "player" && sendable(f))) {
-    // Only a player at a table may send a PDF or audio (Send files, K.4).
+    // Only a player at a table may send a PDF or audio (the right Files, K.6).
     ui.status.textContent = seat() === "player" ? a.notImage(said) : a.notImageOnly(said);
     return null;
   }
   // A player at a table puts a new file into a note it edits through the
-  // server, which writes it into the table's place (ADR 0113 item 5, D):
-  // the right to send files, on a note it edits.
+  // server, which writes it into the table's place (ADR 0113 item 5, D, K.6):
+  // an image needs only that it edits the note, another file also the right
+  // Files.
   const player = seat() === "player" && atTable();
   if (player) {
     if (!may(this.path, "edit")) {
       readable(this.path, "edit");
       return null;
     }
-    if (!may(this.path, "attach")) {
+    const image = f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name);
+    if (!may(this.path, image ? "attachImage" : "attach")) {
       ui.status.textContent = a.noSend;
       return null;
     }

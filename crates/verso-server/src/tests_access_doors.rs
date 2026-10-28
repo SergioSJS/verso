@@ -106,6 +106,26 @@ fn an_editor_at_a_table_is_a_player_who_edits_what_they_see() {
             .access_put(&m.id, "Mundo Zq", edit_set())
             .unwrap();
         crate::campaign::forget(&m.r.server, &m.id);
+        // *Edits* on the folder alone adds nothing to it: creating is a right
+        // of its own (K.6).
+        let made = cid
+            .call(
+                "create_note",
+                json!({ "name": "Mundo Zq/Cid", "text": "meu\n" }),
+            )
+            .await;
+        assert!(refused(&made), "{made}");
+        let id =
+            m.r.server
+                .db
+                .account_by_email("cid@casa.lan")
+                .unwrap()
+                .unwrap()
+                .id;
+        m.r.server
+            .db
+            .campaign_right_set(&m.id, "", &[id], crate::access::Right::CreatesNotes, true)
+            .unwrap();
         let made = cid
             .call(
                 "create_note",
