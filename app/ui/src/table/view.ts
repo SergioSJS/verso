@@ -27,6 +27,7 @@ import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
 import { tt } from "./strings";
+import { Cards, signature, syncChildren } from "./keep";
 import { afterDraw, anchorTop, atEnd, splitFresh } from "./stick";
 import { ts } from "./trayStrings";
 import { campaign, isTableRoot, makeTable, tableFor } from "../campaign";
@@ -126,6 +127,8 @@ class TableView {
   private readonly toEnd = button("ghost table-to-end", tt.toEnd, "chevronDown");
   private stuck = true;
   private unseen = 0;
+  private readonly cards = new Cards<HTMLElement>();
+  private readonly pinCards = new Cards<HTMLElement>();
   private newest: number | null = null;
   private fit: ResizeObserver | null = null;
   private known = new Set<string>();
@@ -199,6 +202,8 @@ class TableView {
     this.off?.();
     this.bound = src;
     this.known = new Set();
+    this.cards.clear();
+    this.pinCards.clear();
     this.newest = null;
     this.told = new Set();
     this.first = true;
@@ -363,26 +368,24 @@ class TableView {
       this.hiddenLine.append(tt.hiddenLine, " ", undo);
     }
     this.pins.hidden = pinned.length === 0;
-    this.pinList.replaceChildren(...pinned.map((e) => this.item(e, server)));
+    syncChildren(this.pinList, pinned.map((e) => this.card(this.pinCards, e, server)));
+    this.pinCards.prune(new Set(pinned.map((e) => e.id)));
     this.older.hidden = !server?.more();
     const top = this.list.scrollTop;
     const oldHeight = this.list.scrollHeight;
     const items: HTMLElement[] = [];
     const { news: fresh, older } = splitFresh(entries, this.known, this.newest);
     for (const e of entries) {
-      items.push(this.item(e, server));
+      items.push(this.card(this.cards, e, server));
     }
     if (items.length === 0) {
       // Nothing in the log but pinned entries above it: the pinned list says it all.
       const empty = pinned.length > 0 && !src.hidden() ? [] : [h("li", "table-empty", src.hidden() ? tt.emptyOff : server ? tt.emptyServer : tt.empty)];
       this.list.replaceChildren(...empty);
-    } else this.list.replaceChildren(...items);
+    } else syncChildren(this.list, items);
     // The cards are watched too: one growing late (dice, an image, a font) moves the end while the log follows it.
-    if (this.fit) {
-      this.fit.disconnect();
-      this.fit.observe(this.list);
-      for (const c of Array.from(this.list.children)) this.fit.observe(c);
-    }
+    for (const gone of this.cards.prune(new Set(entries.map((e) => e.id)))) this.fit?.unobserve(gone);
+    if (this.fit) for (const c of items) this.fit.observe(c);
     // Others' news is said once, with their name; the first paint and a
     // hidden or restored log say nothing.
     {
@@ -471,6 +474,11 @@ class TableView {
         return li;
       }),
     );
+  }
+
+  /** The entry's card, the one already drawn while nothing it shows changed. */
+  private card(cards: Cards<HTMLElement>, e: TableEntry, server: ServerTable | null): HTMLElement {
+    return cards.card(e.id, signature(e, `${server ? 1 : 0}|${tt.entryLabel(whoOf(e), saidOf(e))}`), () => this.item(e, server));
   }
 
   private item(e: TableEntry, server: ServerTable | null): HTMLElement {
