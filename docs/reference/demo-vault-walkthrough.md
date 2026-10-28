@@ -1653,6 +1653,9 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
    "Download now" button. Nothing was downloaded yet.
 2. Click it: the status line says it is downloading, then that the focuses
    were read again; the notice goes away (or the make.md focuses appear).
+   If the folder was never asked about keeping focuses the same as make.md's,
+   the question comes up once now. After "no", the notice reads "Focuses kept
+   in Verso only" with a "Change" button that opens Settings › Organizing.
 3. A focus with no folders shows the hint to right-click a folder or file in
    the note list and choose "Add to focus…".
 

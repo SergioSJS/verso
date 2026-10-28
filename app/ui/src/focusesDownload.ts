@@ -33,6 +33,14 @@ export interface DownloadDeps {
   words: { fetching: string; done: string; nothing: string; failed: string };
 }
 
+/** After a download that brought the file down: the person is asked once
+ *  whether the folder keeps its focuses the same as make.md's (ADR 0062 D5)
+ *  when the file is in the known format, sync is not on and they never
+ *  answered. An answer of "no" is kept (asked is true) and not asked again. */
+export function askSyncAfterDownload(s: { outcome: DownloadOutcome; hasFile: boolean; formatKnown: boolean; syncOn: boolean; asked: boolean }): boolean {
+  return s.outcome === "downloaded" && s.hasFile && s.formatKnown && !s.syncOn && !s.asked;
+}
+
 export async function downloadFocusesFile(deps: DownloadDeps): Promise<DownloadOutcome> {
   deps.say(deps.words.fetching);
   let r: FetchResult;
