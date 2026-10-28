@@ -433,7 +433,7 @@ pub async fn command(
         let beside = path.rsplit_once('/').map_or("", |(d, _)| d);
         if !door
             .may(
-                crate::access::Action::Create,
+                crate::access::Action::Create(crate::access::Made::of_path(&path, false)),
                 beside,
                 crate::access::Kind::Folder,
             )

@@ -17,7 +17,8 @@
 //!   *edits* ([`Level`]), set on a file or on a folder, the folder's set
 //!   replacing what is inside it, a file's own set being an exception
 //!   (items 1 and 2);
-//! - the **rights** of a player at a table: today *Send files* (K.4);
+//! - the **rights** of a player at a table: *Images*, *Files*, *Creates
+//!   notes* and *Creates boards* (K.6);
 //! - the **ceiling**: a read token, a phone paired as a reader and a read
 //!   link only remove writing, never change the seat (item 6).
 
@@ -122,12 +123,98 @@ pub struct AccessFacts {
     pub tables: Vec<TableFact>,
     /// The sets, by [`crate::campaign::key`] of the path they are on.
     pub sets: std::sync::Arc<HashMap<String, NodeSet>>,
-    /// Asker may send files, by the table's root (as a key) and the account
-    /// (K.4).
-    pub files_right: HashSet<(String, String)>,
+    /// The rights given to a player, by the table's root (as a key), the
+    /// account and the right (K.6).
+    pub rights: HashSet<(String, String, Right)>,
     /// Paths whose only set is the `none` the migration to schema 20 wrote
     /// for a note the table had hidden: not an exception anyone made.
     pub migrated: std::sync::Arc<HashSet<String>>,
+}
+
+/// A right the game master gives a player at a table (ADR 0113 K.6), all
+/// off for a new player.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Right {
+    /// Send an image to the table's chat.
+    Images,
+    /// Send a file that is not an image to the chat, and put one into a
+    /// file the player edits.
+    Files,
+    /// Create a note (and a base, a folder) in a folder the player edits.
+    CreatesNotes,
+    /// Create a board (and a drawing) in a folder the player edits.
+    CreatesBoards,
+}
+
+impl Right {
+    pub const ALL: [Self; 4] = [
+        Self::Images,
+        Self::Files,
+        Self::CreatesNotes,
+        Self::CreatesBoards,
+    ];
+
+    /// The word the database and the contract keep.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Images => "images",
+            Self::Files => "files",
+            Self::CreatesNotes => "create_notes",
+            Self::CreatesBoards => "create_boards",
+        }
+    }
+
+    /// The right a word names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|r| r.as_str() == s)
+    }
+}
+
+/// What a `Create` makes: the right it needs at a table (K.6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Made {
+    /// A note, a base or a folder (K.6 item 4).
+    Note,
+    /// A board or a drawing (K.6 item 4).
+    Board,
+    /// A new image file made directly in a folder.
+    Image,
+    /// A new file that is no note, board, base or image.
+    File,
+}
+
+impl Made {
+    /// What a new file at `path` is, by its name; `folder` when it is one.
+    #[must_use]
+    pub fn of_path(path: &str, folder: bool) -> Self {
+        if folder {
+            return Self::Note;
+        }
+        let p = path.trim_end_matches(['.', ' ']).to_lowercase();
+        if p.ends_with(".md") || p.ends_with(".base") {
+            Self::Note
+        } else if p.ends_with(".canvas") || p.ends_with(".excalidraw") {
+            Self::Board
+        } else if [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"]
+            .iter()
+            .any(|e| p.ends_with(e))
+        {
+            Self::Image
+        } else {
+            Self::File
+        }
+    }
+
+    fn right(self) -> Right {
+        match self {
+            Self::Note => Right::CreatesNotes,
+            Self::Board => Right::CreatesBoards,
+            Self::Image => Right::Images,
+            Self::File => Right::Files,
+        }
+    }
 }
 
 /// What kind of thing a target is.
@@ -185,11 +272,14 @@ pub enum Action {
     /// Change a note's text, a board's elements, a base's rows, a file's
     /// bytes.
     Edit,
-    /// Put a **new** file into a file the person edits (item 5).
-    Attach,
-    /// Make a file or a folder inside a folder.
-    Create,
-    /// Rename a file inside its folder.
+    /// Put a **new** file into a file the person edits (item 5, K.6): an
+    /// image needs nothing more, another file the right *Files*.
+    Attach {
+        image: bool,
+    },
+    /// Make a file or a folder inside a folder (K.6): a right by what is made.
+    Create(Made),
+    /// Rename a file inside its folder (K.6: *Edits* on the file).
     Rename,
     /// Move into or out of a folder.
     Move,
@@ -206,8 +296,11 @@ pub enum Action {
     },
     /// Clear the table's log.
     Clear,
-    /// Send a file to the table's chat (K.4).
-    SendFile,
+    /// Send a file to the table's chat (K.6): an image needs *Images*,
+    /// another file *Files*.
+    SendFile {
+        image: bool,
+    },
     /// See the secret blocks of a file (0087).
     SeeSecretBlocks,
     /// Change who sees and who edits (the access of a path).
@@ -487,12 +580,12 @@ impl AccessFacts {
             .any(|t| crate::campaign::covers(path, &t.root))
     }
 
-    /// Whether `account` has the right to send files at the table rooted at
-    /// `root` (K.4).
+    /// Whether `account` was given `right` at the table rooted at `root`
+    /// (K.6).
     #[must_use]
-    pub fn may_send_files(&self, root: &str, account: &str) -> bool {
-        self.files_right
-            .contains(&(crate::campaign::key(root), account.to_owned()))
+    pub fn has_right(&self, root: &str, account: &str, right: Right) -> bool {
+        self.rights
+            .contains(&(crate::campaign::key(root), account.to_owned(), right))
     }
 }
 
@@ -542,6 +635,15 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
             needs_write()
         }
     };
+    // A right the game master gave, at this table.
+    let needs = |right: Right| {
+        let root = table.map_or("", |x| x.root.as_str());
+        if f.has_right(root, &who.account, right) {
+            Allow
+        } else {
+            Deny(NoRight)
+        }
+    };
     // The owner of the folder, with a credential that writes, not a phone.
     let owner = || {
         if !master {
@@ -566,23 +668,22 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
             if level >= Level::See { Allow } else { unseen() }
         }
         Edit => edit(level),
-        // A new file into a file the person edits: the level, the credential
-        // and, at a table, the right to send files; the game master and the
-        // folder's editors outside a table need none.
-        Attach => match edit(level) {
-            Allow if in_table && !master => {
-                let root = table.map_or("", |x| x.root.as_str());
-                if f.may_send_files(root, &who.account) {
-                    Allow
-                } else {
-                    Deny(NoRight)
-                }
-            }
+        // A new file into a file the person edits: the level and the
+        // credential; at a table, another file than an image also needs the
+        // right *Files* (K.6). The game master and the folder's editors
+        // outside a table need none.
+        Attach { image } => match edit(level) {
+            Allow if in_table && !master && !image => needs(Right::Files),
             other => other,
         },
-        // Edits on a folder: create and rename inside, never delete, never
-        // move in or out (K.5).
-        Create | Rename => edit(level),
+        // Edits on a folder: rename what is in it with *Edits* on the file,
+        // create what a right allows, never delete, never move in or out
+        // (K.5, K.6).
+        Create(made) => match edit(level) {
+            Allow if in_table && !master => needs(made.right()),
+            other => other,
+        },
+        Rename => edit(level),
         Move | Delete => {
             // A folder above a table, or the table's root, moves or trashes
             // the table with its hidden files: the game master's alone,
@@ -640,7 +741,7 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
                 Deny(NotMaster)
             }
         }
-        SendFile => {
+        SendFile { image } => {
             if seat == Seat::Visitor {
                 Deny(Visitor)
             } else if closed_for_player(f, who, t) {
@@ -650,12 +751,7 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
             } else if master || (!in_table && who.at_least_editor()) {
                 Allow
             } else {
-                let root = table.map_or("", |x| x.root.as_str());
-                if f.may_send_files(root, &who.account) {
-                    Allow
-                } else {
-                    Deny(NoRight)
-                }
+                needs(if image { Right::Images } else { Right::Files })
             }
         }
         // Whoever edits a file sees its secret blocks (0087 item 5); the
@@ -716,7 +812,7 @@ mod tests {
                     .map(|(k, s)| ((*k).to_owned(), s.clone()))
                     .collect(),
             ),
-            files_right: HashSet::new(),
+            rights: HashSet::new(),
             migrated: std::sync::Arc::default(),
         }
     }
@@ -744,17 +840,50 @@ mod tests {
     }
 
     #[test]
-    fn a_folders_edit_is_create_and_rename_never_delete_nor_move() {
-        let f = facts("t", &[("t/places", set(Level::Edit))]);
+    fn a_folders_edit_renames_creates_only_by_a_right_and_never_deletes_nor_moves() {
+        let mut f = facts("t", &[("t/places", set(Level::Edit))]);
         let ana = player(Role::Reader);
         let folder = Target::new("t/places", Kind::Folder);
-        assert_eq!(may(&f, &ana, Action::Create, &folder), Verdict::Allow);
+        let note = Action::Create(Made::Note);
+        let board = Action::Create(Made::Board);
         assert_eq!(may(&f, &ana, Action::Rename, &folder), Verdict::Allow);
+        // No right: edit and rename what is in it, not add to it.
+        assert_eq!(may(&f, &ana, note, &folder), Verdict::Deny(Reason::NoRight));
+        assert_eq!(
+            may(&f, &ana, board, &folder),
+            Verdict::Deny(Reason::NoRight)
+        );
+        f.rights
+            .insert(("t".to_owned(), "ana".to_owned(), Right::CreatesNotes));
+        assert_eq!(may(&f, &ana, note, &folder), Verdict::Allow);
+        assert!(!may(&f, &ana, board, &folder).allowed());
         assert!(!may(&f, &ana, Action::Delete, &folder).allowed());
         assert!(!may(&f, &ana, Action::Move, &folder).allowed());
         // A folder she only sees is a folder she does not create in.
-        let f = facts("t", &[("t/places", set(Level::See))]);
-        assert!(!may(&f, &ana, Action::Create, &folder).allowed());
+        let mut f = facts("t", &[("t/places", set(Level::See))]);
+        f.rights
+            .insert(("t".to_owned(), "ana".to_owned(), Right::CreatesNotes));
+        assert!(!may(&f, &ana, note, &folder).allowed());
+    }
+
+    #[test]
+    fn a_new_image_needs_only_edits_another_file_needs_the_right() {
+        let mut f = facts("t", &[("t/a.md", set(Level::Edit))]);
+        let ana = player(Role::Reader);
+        let a = Target::new("t/a.md", Kind::Note);
+        assert_eq!(
+            may(&f, &ana, Action::Attach { image: true }, &a),
+            Verdict::Allow
+        );
+        assert_eq!(
+            may(&f, &ana, Action::Attach { image: false }, &a),
+            Verdict::Deny(Reason::NoRight)
+        );
+        f.rights
+            .insert(("t".to_owned(), "ana".to_owned(), Right::Files));
+        assert!(may(&f, &ana, Action::Attach { image: false }, &a).allowed());
+        // Renaming a file needs Edits on the file, and nothing else.
+        assert!(may(&f, &ana, Action::Rename, &a).allowed());
     }
 
     #[test]

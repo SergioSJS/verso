@@ -16,7 +16,8 @@
 //! - `campaign_files (folder, path, secret_name)`: what a file keeps that
 //!   is no access (0110 item 7);
 //! - `campaign_rights (folder, root, account, right)`: what a player may
-//!   do at a table, today `files`, *Send files* (K.4).
+//!   do at a table: `images`, `files`, `create_notes`, `create_boards`
+//!   (K.6; schema 21 split `files`, *Send files* of K.4, into the four).
 //!
 //! The old tables (`campaign_notes`, `campaign_audience`,
 //! `campaign_images`) stay for one version, as the migration left them and
@@ -31,7 +32,7 @@ use rusqlite::{Connection, params};
 
 use super::campaign::{Audience, Grant, NoteState, players_logs_begin};
 use super::{Db, R, e};
-use crate::access::{AccessFacts, Level, NodeSet, TableFact};
+use crate::access::{AccessFacts, Level, NodeSet, Right, TableFact};
 
 /// Schema 20: the tables, and the old state carried over (ADR 0113 item I).
 ///
@@ -86,6 +87,48 @@ INSERT INTO campaign_files (folder, path, secret_name)
   SELECT folder, path, 1 FROM campaign_notes WHERE secret_name = 1;
 INSERT INTO campaign_rights (folder, root, account, "right")
   SELECT folder, root, account, 'files' FROM campaign_images;
+"#;
+
+/// Schema 21: *Send files* split into four rights (ADR 0113 K.6), nothing
+/// lost.
+///
+/// - every `files` row stays and gains an `images` row;
+/// - every player of a table who had *Edits* on any **folder** path of it —
+///   a row of the whole table (every player of the folder) or of their own —
+///   gets `create_notes` and `create_boards`; so does a folder-role editor,
+///   who edited every folder they saw. A path is a folder when it is the
+///   folder itself or a table's root, or its last segment has no dot (the
+///   files of a table have an extension).
+///
+/// The table is made again for it can not change its `CHECK`.
+pub(super) const RIGHTS: &str = r#"
+CREATE TABLE campaign_rights_new (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  root TEXT NOT NULL,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  "right" TEXT NOT NULL CHECK ("right" IN ('images', 'files', 'create_notes', 'create_boards')),
+  PRIMARY KEY (folder, root, account, "right")
+);
+INSERT INTO campaign_rights_new (folder, root, account, "right")
+  SELECT folder, root, account, "right" FROM campaign_rights;
+INSERT OR IGNORE INTO campaign_rights_new (folder, root, account, "right")
+  SELECT folder, root, account, 'images' FROM campaign_rights WHERE "right" = 'files';
+INSERT OR IGNORE INTO campaign_rights_new (folder, root, account, "right")
+  SELECT c.folder, c.root, g.account, r.name
+  FROM campaigns c
+  JOIN grants g ON g.folder = c.folder AND g.role <> 'owner'
+  JOIN (SELECT 'create_notes' AS name UNION ALL SELECT 'create_boards') r
+  WHERE g.role = 'editor' OR EXISTS (
+    SELECT 1 FROM campaign_access a
+    WHERE a.folder = c.folder AND a.level = 'edit'
+      AND (a.account IS NULL OR a.account = g.account)
+      AND (c.root = '' OR lower(a.path) = lower(c.root)
+           OR lower(substr(a.path, 1, length(c.root) + 1)) = lower(c.root) || '/')
+      AND (a.path = '' OR lower(a.path) = lower(c.root)
+           OR replace(a.path, rtrim(a.path, replace(a.path, '/', '')), '') NOT GLOB '*.*')
+  );
+DROP TABLE campaign_rights;
+ALTER TABLE campaign_rights_new RENAME TO campaign_rights;
 "#;
 
 fn level_of(word: &str) -> Level {
@@ -172,21 +215,26 @@ pub(super) fn facts_in(conn: &Connection, folder: &str) -> R<AccessFacts> {
             .collect(),
     );
     let mut st = conn
-        .prepare(
-            "SELECT root, account FROM campaign_rights WHERE folder = ?1 AND \"right\" = 'files'",
-        )
+        .prepare("SELECT root, account, \"right\" FROM campaign_rights WHERE folder = ?1")
         .map_err(e)?;
     let rights = st
         .query_map([folder], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
         })
         .map_err(e)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(e)?;
-    for (root, account) in rights {
-        facts
-            .files_right
-            .insert((crate::campaign::key(&root), account));
+    for (root, account, right) in rights {
+        // A word that is none of the four gives nothing.
+        if let Some(right) = Right::parse(&right) {
+            facts
+                .rights
+                .insert((crate::campaign::key(&root), account, right));
+        }
     }
     Ok(facts)
 }
@@ -484,52 +532,66 @@ impl Db {
         tx.commit().map_err(e)
     }
 
-    /// The accounts the table at `root` lets send files.
-    pub fn campaign_images_of(&self, folder: &str, root: &str) -> R<Vec<String>> {
+    /// The accounts the table at `root` gave `right` (K.6).
+    pub fn campaign_right_players(&self, folder: &str, root: &str, right: Right) -> R<Vec<String>> {
         let conn = self.reader();
         let mut st = conn
             .prepare(
                 "SELECT account FROM campaign_rights
-                 WHERE folder = ?1 AND root = ?2 AND \"right\" = 'files' ORDER BY account",
+                 WHERE folder = ?1 AND root = ?2 AND \"right\" = ?3 ORDER BY account",
             )
             .map_err(e)?;
-        st.query_map(params![folder, root], |r| r.get(0))
+        st.query_map(params![folder, root, right.as_str()], |r| r.get(0))
             .map_err(e)?
             .collect::<Result<_, _>>()
             .map_err(e)
     }
 
-    /// Whether `account` was let send files at the table at `root`.
-    pub fn campaign_images_has(&self, folder: &str, root: &str, account: &str) -> R<bool> {
+    /// Whether `account` was given `right` at the table at `root`.
+    pub fn campaign_right_has(
+        &self,
+        folder: &str,
+        root: &str,
+        account: &str,
+        right: Right,
+    ) -> R<bool> {
         self.reader()
             .query_row(
                 "SELECT EXISTS (SELECT 1 FROM campaign_rights
-                 WHERE folder = ?1 AND root = ?2 AND account = ?3 AND \"right\" = 'files')",
-                params![folder, root, account],
+                 WHERE folder = ?1 AND root = ?2 AND account = ?3 AND \"right\" = ?4)",
+                params![folder, root, account, right.as_str()],
                 |r| r.get(0),
             )
             .map_err(e)
     }
 
-    /// The roots of the tables of `folder` where `account` may send files
-    /// (K.4), read now: the rules ask it fresh at every door.
-    pub fn campaign_files_roots(&self, folder: &str, account: &str) -> R<Vec<String>> {
+    /// The rights `account` has at the tables of `folder`, as (root, right),
+    /// read now: the rules ask it fresh at every door.
+    pub fn campaign_rights_of(&self, folder: &str, account: &str) -> R<Vec<(String, Right)>> {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT root FROM campaign_rights
-                 WHERE folder = ?1 AND account = ?2 AND \"right\" = 'files'",
+                "SELECT root, \"right\" FROM campaign_rights
+                 WHERE folder = ?1 AND account = ?2",
             )
             .map_err(e)?;
-        st.query_map(params![folder, account], |r| r.get(0))
+        let rows = st
+            .query_map(params![folder, account], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })
             .map_err(e)?
-            .collect::<Result<_, _>>()
-            .map_err(e)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(e)?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(root, right)| Right::parse(&right).map(|r| (root, r)))
+            .collect())
     }
 
-    /// Whether `account` was let send files at some table of `folder`,
-    /// from the set kept in memory beside the table (no query): what the
-    /// size check before a message is parsed asks.
+    /// Whether `account` was let send a file to a chat (*Images* or *Files*)
+    /// at some table of `folder`, from the set kept in memory beside the
+    /// table (no query): what the size check before a message is parsed
+    /// asks.
     pub fn image_granted(&self, folder: &str, account: &str) -> bool {
         verso_service::lock(&self.images).contains(&(folder.to_owned(), account.to_owned()))
     }
@@ -541,7 +603,8 @@ impl Db {
     pub(super) fn refresh_images(&self, conn: &Connection) {
         let read = || -> rusqlite::Result<std::collections::HashSet<(String, String)>> {
             conn.prepare(
-                "SELECT DISTINCT folder, account FROM campaign_rights WHERE \"right\" = 'files'",
+                "SELECT DISTINCT folder, account FROM campaign_rights
+                 WHERE \"right\" IN ('images', 'files')",
             )?
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect()
@@ -553,25 +616,13 @@ impl Db {
         *verso_service::lock(&self.images) = set;
     }
 
-    /// Whether `account` was let send files at any table of `folder`.
-    pub fn campaign_images_any(&self, folder: &str, account: &str) -> R<bool> {
-        self.reader()
-            .query_row(
-                "SELECT EXISTS (SELECT 1 FROM campaign_rights
-                 WHERE folder = ?1 AND account = ?2 AND \"right\" = 'files')",
-                params![folder, account],
-                |r| r.get(0),
-            )
-            .map_err(e)
-    }
-
-    /// Give `accounts` the right to send files at the table at `root`, or
-    /// take it from them.
-    pub fn campaign_images_set(
+    /// Give `accounts` `right` at the table at `root`, or take it from them.
+    pub fn campaign_right_set(
         &self,
         folder: &str,
         root: &str,
         accounts: &[String],
+        right: Right,
         on: bool,
     ) -> R<()> {
         let mut conn = self.conn();
@@ -580,14 +631,14 @@ impl Db {
             if on {
                 tx.execute(
                     "INSERT OR IGNORE INTO campaign_rights (folder, root, account, \"right\")
-                     VALUES (?1, ?2, ?3, 'files')",
-                    params![folder, root, a],
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![folder, root, a, right.as_str()],
                 )
             } else {
                 tx.execute(
                     "DELETE FROM campaign_rights
-                     WHERE folder = ?1 AND root = ?2 AND account = ?3 AND \"right\" = 'files'",
-                    params![folder, root, a],
+                     WHERE folder = ?1 AND root = ?2 AND account = ?3 AND \"right\" = ?4",
+                    params![folder, root, a, right.as_str()],
                 )
             }
             .map_err(e)?;
