@@ -39,6 +39,8 @@ const DEFAULT_SUB: &str = "assets";
 /// A subfolder's most bytes and segments.
 const SUB_BYTES: usize = 120;
 const SUB_DEPTH: usize = 4;
+/// How many `assets`, `assets 2`… a player is tried with.
+const SUB_TRIES: u32 = 50;
 
 fn refused(message: &str) -> ContractError {
     ContractError {
@@ -124,9 +126,10 @@ pub fn clean_sub(sub: Option<&str>) -> String {
 }
 
 /// `data` (base64) written beside the note or board the person edits
-/// (`into`), in its `sub` subfolder, the place the app puts any attachment
-/// of that file (ADR 0113 item 5, where the file goes), with no entry in the
-/// chat. The rules' `Attach` is judged on `into`, and the same checks of the
+/// (`into`), in `assets` (`assets 2`… when a name is taken by something the
+/// player does not see; the game master's `sub` is honoured), the place the
+/// app puts any attachment of that file (ADR 0113 item 5, where the file
+/// goes), with no entry in the chat. The rules' `Attach` is judged on `into`, and the same checks of the
 /// bytes, the limit and the folder's quota apply as to an image sent to the
 /// chat. The file takes, as its own access, that of `into`. Answers the
 /// file's path as the window knows it.
@@ -147,35 +150,35 @@ pub async fn attach(
         .and_then(|v| v.table(&full).map(|t| t.root.clone()))
         .unwrap_or_default();
     let folder = door.folder.clone();
-    // Beside the file, in the person's subfolder, else in `assets` beside it,
-    // else in the table's attachments place; each confined to the folder (or
-    // the share) like any path a window names. `store` takes the first that
-    // shows nothing of what the person does not see.
+    // Beside the file. A player never names the folder (a name they choose
+    // would be a probe for what they do not see): it is `assets`, else
+    // `assets 2`, `assets 3`… the first that shows nothing of what they do not
+    // see (`store` judges). Whoever is not a player names it in their
+    // Settings, as their own paste does. Confined to the folder (or the
+    // share) like any path a window names.
     let parent = into.rsplit_once('/').map(|(d, _)| d);
     let beside = |sub: &str| match parent {
         Some(d) => format!("{d}/{sub}"),
         None => sub.to_owned(),
     };
+    let names: Vec<String> = if door.veiled() {
+        std::iter::once(DEFAULT_SUB.to_owned())
+            .chain((2..=SUB_TRIES).map(|n| format!("{DEFAULT_SUB} {n}")))
+            .collect()
+    } else {
+        vec![clean_sub(sub)]
+    };
     let mut tries = Vec::new();
-    for sub in [clean_sub(sub), DEFAULT_SUB.to_owned()] {
-        let rel = beside(&sub);
+    for name in names {
+        let rel = beside(&name);
         let dir = match &door.scope {
             Some(s) => s.to_full_write(&rel),
             None => crate::scope::checked(&rel).map(|()| rel),
         };
-        if let Ok(dir) = dir
-            && !tries.contains(&dir)
-        {
+        if let Ok(dir) = dir {
             tries.push(dir);
         }
     }
-    let (s, f) = (Arc::clone(server), folder.clone());
-    let place = blocking(move || Ok(place_of(&s, &f))).await?;
-    let place = if table.is_empty() {
-        place
-    } else {
-        format!("{table}/{place}")
-    };
     let check = |_: &Server, image: bool| {
         crate::access::Door::of(server, who, client).is_ok_and(|d| {
             d.may_path(crate::access::Action::Attach { image }, &full)
@@ -185,7 +188,7 @@ pub async fn attach(
     let target = Target {
         folder: &folder,
         table: &table,
-        dir: Dir::Tries(tries, place),
+        dir: Dir::Tries(tries),
         door: Some((&door, &full)),
     };
     let path = store(server, who, client, &target, data, &check).await?;
@@ -202,9 +205,8 @@ enum Dir {
     /// This one, a path of the folder.
     Fixed(String),
     /// The first of these that shows nothing of what the person does not
-    /// see, else the last (the table's attachments place, which the chat
-    /// uses as it is).
-    Tries(Vec<String>, String),
+    /// see; none of them is refused.
+    Tries(Vec<String>),
 }
 
 /// Where a file is made, and what the made file is kept as.
@@ -278,14 +280,9 @@ async fn store(
     }
     let dir = match (&target.dir, target.door) {
         (Dir::Fixed(d), _) => d.clone(),
-        (Dir::Tries(tries, place), Some((door, into))) => {
+        (Dir::Tries(tries), Some((door, into))) => {
             let (s, d, k) = (Arc::clone(server), door.clone(), key.clone());
-            let (tries, place, into, table) = (
-                tries.clone(),
-                place.clone(),
-                into.to_owned(),
-                table.to_owned(),
-            );
+            let (tries, into, table) = (tries.clone(), into.to_owned(), table.to_owned());
             // The file it is put into is a file of the folder (an absent one
             // and a folder are told as a hidden one is).
             blocking(move || {
@@ -293,15 +290,15 @@ async fn store(
                     if !crate::access::Door::is_file(ws, &into) {
                         return Err(refused(READS).into());
                     }
-                    Ok(tries
+                    tries
                         .into_iter()
                         .find(|t| d.dir_clear(ws, t, &table))
-                        .unwrap_or(place))
+                        .ok_or_else(|| refused("the file could not be saved").into())
                 })
             })
             .await?
         }
-        (Dir::Tries(_, place), None) => place.clone(),
+        (Dir::Tries(_), None) => return Err(refused(READS)),
     };
     let mut path = if dir.is_empty() {
         file
