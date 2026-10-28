@@ -50,6 +50,7 @@ import { embedFrame } from "./web";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { tableKeymap } from "../table";
 import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
@@ -460,7 +461,8 @@ export class BoardLeaf extends TextLeaf {
         this.pendingBoard = null;
         this.setDirty(false);
       }
-      ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+      if (r.data.warnings.length > 0) ui.status.textContent = r.data.warnings.join(" · ");
+      else flashSaved(ui.status, t.saved);
     });
     this.saving = run.catch(() => undefined);
     return run;
@@ -829,7 +831,8 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
   const written = (w: Written, mine: string): void => {
     revision = w.note.revision;
     if (text() === mine) dirty = false;
-    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+    if (w.warnings.length === 0) flashSaved(ui.status, t.saved);
+    else ui.status.textContent = `${t.saved} ${w.warnings.join("; ")}`;
   };
   const refused = async (e: ContractError): Promise<void> => {
     if (e.kind !== "changed") return fail(e);
@@ -849,7 +852,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         if (r.status === "ok") {
           revision = r.data;
           dirty = false;
-          ui.status.textContent = t.saved;
+          flashSaved(ui.status, t.saved);
         } else if (r.error.kind === "changed") await roomConflict();
         else fail(r.error);
         return;

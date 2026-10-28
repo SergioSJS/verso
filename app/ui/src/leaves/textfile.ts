@@ -27,6 +27,7 @@ import { st } from "../screen/strings";
 import { settings, sourceLineNumbers } from "../settings";
 import { name } from "../paths";
 import { t } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { markCurrent } from "../tree/tree";
 import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { htmlModes } from "./frame";
@@ -296,7 +297,7 @@ export class TextLeaf extends Leaf {
         if (r.status === "ok") {
           this.revision = r.data;
           this.setDirty(false);
-          ui.status.textContent = t.saved;
+          flashSaved(ui.status, t.saved);
         } else if (r.error.kind === "changed") await this.roomConflict();
         else fail(r.error);
         return;
@@ -384,7 +385,8 @@ export class TextLeaf extends Leaf {
     this.revision = f.revision;
     this.seen = { revision: f.revision, text: f.text };
     if (this.text() === mine) this.setDirty(false);
-    ui.status.textContent = f.warnings.length > 0 ? f.warnings.join(" · ") : t.saved;
+    if (f.warnings.length > 0) ui.status.textContent = f.warnings.join(" · ");
+    else flashSaved(ui.status, t.saved);
   }
   /** `changed`: nothing was written; the disk's version and the editor's
    *  go on screen until the user decides (invariant 11). */
