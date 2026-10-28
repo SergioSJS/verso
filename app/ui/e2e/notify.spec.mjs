@@ -11,7 +11,7 @@ import { test, expect } from "./fixtures.mjs";
 const PHONE = 760;
 const phone = (page) => page.viewportSize().width < PHONE;
 
-const SYNC = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: "2026-10-14T12:00:00Z", message: null, problem: null, versions: null, revoked: null };
+const SYNC = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: "2026-10-14T12:00:00Z", message: null, problem: null, versions: null, revoked: null, cloud: null };
 const FAILED = { ...SYNC, state: "error", problem: "failed", message: "boom" };
 
 /** Say a sync status as the host would: the event, and the same status as
@@ -368,6 +368,8 @@ test("presence: by default someone joining is in the list and rings in the prese
   await app.quickOpen("Sessao ao vivo");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  // Joins in the first seconds after the tab bound its room are the people who were already there (PRESENCE_SETTLE_MS).
+  await page.waitForTimeout(5_500);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   // No toast anywhere (it covered the chat's box and its last messages); the bell counts it.
   await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
@@ -385,7 +387,8 @@ test("presence: by default someone joining is in the list and rings in the prese
   // The same person coming back within ten minutes is not news again (PRESENCE_AGAIN_MS).
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, com Bia");
-  await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  // The centre was opened (it marks everything read) and nothing new came: the bell stays at none unread.
+  await expect(bell(page)).toHaveAccessibleName("Notificações");
   await expect(page.locator(".live-who-chip.is-new")).toHaveCount(0);
 });
 
@@ -402,6 +405,7 @@ test("presence set back to \"Aviso e lista\": the toast comes back, at the top, 
   await app.quickOpen("Sessao ao vivo");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  await page.waitForTimeout(5_500);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   await expect(toasts(page)).toContainText("Bia entrou na nota");
   await expect(toasts(page)).toContainText("Bia está em Sessao ao vivo com você.");
