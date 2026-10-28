@@ -1644,6 +1644,14 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 3. A focus with no folders shows the hint to right-click a folder or file in
    the note list and choose "Add to focus…".
 
+### Quiet saving and indexing
+
+1. Type in a note with a long title (two lines at a narrow width) and pause:
+   the title does not rewrap, the scroll does not move, no glowing line shows
+   at the top, and "Saved." leaves the status line by itself. Level: A.
+2. Open a large folder: after about a second and a half the progress shows;
+   it goes when the walk is done. Level: A.
+
 ## 19. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
