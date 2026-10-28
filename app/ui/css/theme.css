@@ -135,3 +135,8 @@ details.look-set { display: block; }
 .credit-themes { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
 .credit-theme { display: grid; gap: .05rem; }
 .credit-theme > strong { font-size: .9rem; }
+
+/* Whose theme: this folder's or the default (ADR 0100 item 4, 2026-10-27). */
+.look-scope { display: flex; flex-wrap: wrap; gap: .25rem 1rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+.look-scope legend { padding: 0; margin-bottom: .25rem; font-size: .86rem; color: var(--ink-2); }
+.look-scope-choice { display: inline-flex; align-items: center; gap: .4rem; font-size: .9rem; min-height: 2rem; }
