@@ -210,6 +210,9 @@ impl Syncer {
                         AccessLevel::See
                     },
                     attach: false,
+                    attach_image: false,
+                    create_note: false,
+                    create_board: false,
                     why: if role == "owner" {
                         AccessWhy::Master
                     } else {

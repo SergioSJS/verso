@@ -1255,7 +1255,7 @@ mod per_table {
                 &mut c.owner,
                 10,
                 "table_rights_set",
-                json!({ "root": CRIPTA, "accounts": [bia.id], "right": "files", "on": true }),
+                json!({ "root": CRIPTA, "accounts": [bia.id], "right": "images", "on": true }),
             )
             .await;
             assert!(let_her.get("ok").is_some(), "{let_her}");

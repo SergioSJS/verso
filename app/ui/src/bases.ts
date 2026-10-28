@@ -9,6 +9,7 @@ import { atTable, may, seat } from "./access";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { ask } from "./dialog";
 import { ui } from "./dom";
+import { guardCreate } from "./readerNotice";
 import { fail, nameTaken } from "./errors";
 import { freeName, newNoteWith, saveMarkdownNote, textBase64 } from "./files";
 import { imageUrl } from "./images";
@@ -58,7 +59,7 @@ export function baseHost(): BaseHost {
     remote: () => settings.remoteContent,
     // A reader on a server changes no note from a base (ADR 0076 item 11).
     setProperty: (path, key, value) => (may(path, "edit") ? setNoteProperty(path, key, value) : Promise.resolve(false)),
-    newNote: (folder, props) => (may(folder, "create") ? newNoteWith(folder, props) : Promise.resolve(null)),
+    newNote: (folder, props) => (may(folder, "createNote") ? newNoteWith(folder, props) : Promise.resolve(null)),
     menu: showMenu,
     status: (m) => void (ui.status.textContent = m),
     ask: (m, yes, no) => ask(m, { yes, no }),
@@ -108,6 +109,7 @@ export function baseTemplate(): string {
 }
 /** A new `.base` file in `folder`, opened. */
 export async function newBase(folder: string): Promise<void> {
+  if (guardCreate(folder, undefined, "note")) return;
   const path = freeName(folder, t.untitled, ".base");
   const r = await commands.createFile(path, textBase64(baseTemplate()));
   if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);

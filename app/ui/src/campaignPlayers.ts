@@ -2,22 +2,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The players' access table (ADR 0110; ADR 0107 item 3 as amended
-// 2026-10-24): a real table of the people at the table, one row each, with
-// columns for what they can do — Jogador (avatar, name, a dot while they
-// are at the table), Vê (how many notes are released to them, opening the
-// list), Edita (how many they edit, the same) and Imagens, a switch the
-// game master turns to let that player send images to the chat. The header
-// holds a "todos" box for the Imagens column, mixed when the players differ.
-// A switch saves at once and says so beside itself. On a phone each row
-// becomes a card with the same controls. The rows are kept between the
+// The players' access table (ADR 0110; ADR 0113 K.6): a real table of the
+// people at the table, one row each, with columns for what they can do —
+// Jogador (avatar, name, a dot while they are at the table), Vê (how many
+// notes are released to them, opening the list), Edita (how many they edit,
+// the same) and Direitos, how many of the four rights the game master gave
+// them (Imagens, Arquivos, Cria notas, Cria boards), opening four switches.
+// Under the table, a switch per right for everyone, mixed when the players
+// differ. A switch saves at once and says so beside itself. On a phone each
+// row becomes a card with the same controls. The rows are kept between the
 // server's news, only updated, so a focus, an open list or an answer beside
 // a switch is not lost to a repaint.
 
 import { segmented } from "./accessControl";
 import { setPlayerLevel } from "./accessDialog";
-import type { CampaignPlayer } from "./bindings";
-import { campaign, noteAudience, setImages } from "./campaign";
+import type { CampaignPlayer, CampaignTable } from "./bindings";
+import { campaign, noteAudience, setRight, type RightName } from "./campaign";
 import { feedback, follow, hueOf, noteLink, onlineIds, tableAt, under } from "./campaignParts";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
@@ -58,14 +58,22 @@ export function playersAt(root: string): CampaignPlayer[] {
 
 type Kind = "sees" | "edits";
 
+/** The four rights of a player (ADR 0113 K.6), in the order they are shown. */
+const RIGHTS: readonly RightName[] = ["images", "files", "create_notes", "create_boards"];
+
+/** The accounts of the table that were given `right`. */
+function givenTo(t: CampaignTable | undefined, right: RightName): string[] {
+  if (!t) return [];
+  return (right === "images" ? t.image_players : right === "files" ? t.file_players : right === "create_notes" ? t.note_players : t.board_players) ?? [];
+}
+
 /** One number per block, for the ids that tie a count to its list: a root may hold spaces, which an IDREF cannot. */
 let blocks = 0;
 
 type Row = {
   tr: HTMLTableRowElement;
   detail: HTMLTableRowElement;
-  update(p: CampaignPlayer, online: boolean, granted: boolean): void;
-  readonly switch: HTMLInputElement;
+  update(p: CampaignPlayer, online: boolean, granted: ReadonlySet<RightName>): void;
 };
 
 /** The game master's players table for the table at `root`. */
@@ -94,36 +102,39 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     c.setAttribute("role", "columnheader");
     return c;
   };
-  const imagesHead = th("", "cd-col-images");
-  // The header's name is the column's, not the box's and its answer's.
-  imagesHead.setAttribute("aria-label", cp.colImages);
-  const imagesLabel = h("span", "cd-col-label", cp.colImages);
-  const all = h("input", "cd-all");
-  all.type = "checkbox";
-  all.id = `cd-all-${uid}`;
-  all.setAttribute("aria-label", cp.imagesAll);
-  all.title = cp.imagesAll;
-  const allText = h("label", "cd-all-text", cp.imagesAllShort);
-  allText.htmlFor = all.id;
-  const allFb = feedback();
-  imagesHead.append(imagesLabel, h("span", "cd-all-box"));
-  imagesHead.querySelector(".cd-all-box")?.append(all, allText, allFb.el);
-  hr.append(th(cp.colPlayer, "cd-col-player"), th(cp.colSees, "cd-col-sees", "eye"), th(cp.colEdits, "cd-col-edits", "edit"), imagesHead);
+  hr.append(th(cp.colPlayer, "cd-col-player"), th(cp.colSees, "cd-col-sees", "eye"), th(cp.colEdits, "cd-col-edits", "edit"), th(cp.colRights, "cd-col-rights", "shield"));
   head.append(hr);
   const body = h("tbody");
   body.setAttribute("role", "rowgroup");
   table.append(head, body);
-  const hint = h("p", "cd-hint cd-images-hint", cp.imagesHint);
   const empty = h("p", "share-empty", cp.noPlayers);
-  wrap.append(table, empty, hint);
+
+  // A switch per right for everyone, under the table: mixed when the
+  // players differ (the header's old "todos" box, once per right).
+  const everyone = h("fieldset", "cd-rights-all");
+  everyone.append(h("legend", "cd-rights-all-title", cp.rightsAll));
+  const alls = new Map<RightName, { box: HTMLInputElement; fb: ReturnType<typeof feedback> }>();
+  for (const right of RIGHTS) {
+    const label = h("label", "cd-all-row");
+    const box = h("input", "cd-all");
+    box.type = "checkbox";
+    box.dataset["key"] = `all:${right}`;
+    box.setAttribute("aria-label", cp.rights[right].all);
+    const fb = feedback();
+    label.append(box, h("span", "cd-all-text", cp.rights[right].label), fb.el);
+    everyone.append(label);
+    alls.set(right, { box, fb });
+  }
+  const hint = h("p", "cd-hint cd-images-hint", cp.rightsHint);
+  wrap.append(table, empty, everyone, hint);
 
   const rows = new Map<string, Row>();
   const open = new Set<string>();
 
-  const save = async (ids: string[], on: boolean, done: string, fb: ReturnType<typeof feedback>, undo: () => void): Promise<void> => {
-    const ok = await setImages(root, ids, on, done);
+  const save = async (right: RightName, ids: string[], on: boolean, done: string, fb: ReturnType<typeof feedback>, undo: () => void): Promise<void> => {
+    const ok = await setRight(root, ids, right, on, done);
     if (ok) {
-      fb.say(cp.imagesSaved);
+      fb.say(cp.rightsSaved);
       return;
     }
     undo();
@@ -179,39 +190,64 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     const sees = counter("sees");
     const edits = counter("edits");
 
-    const imagesTd = h("td", "cd-images");
-    imagesTd.setAttribute("role", "cell");
-    imagesTd.dataset["label"] = cp.colImages;
-    const sw = h("label", "switch big");
-    const box = h("input");
-    box.type = "checkbox";
-    box.setAttribute("role", "switch");
-    box.setAttribute("aria-label", cp.imagesOne(p.name));
-    sw.append(box, h("span", "switch-track"));
-    const fb = feedback();
-    imagesTd.append(sw, fb.el);
-    box.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape") e.stopPropagation();
-    });
-    box.addEventListener("change", () => {
-      const want = box.checked;
-      box.disabled = true;
-      void save([p.id], want, want ? cp.imagesOn(p.name) : cp.imagesOff(p.name), fb, () => {
-        box.checked = !want;
-      }).then(() => {
-        box.disabled = false;
-        box.focus();
+    // The rights: a count that opens, under the row, one labelled switch per right.
+    const rightsTd = h("td", "cd-num cd-rights");
+    rightsTd.setAttribute("role", "cell");
+    rightsTd.dataset["label"] = cp.colRights;
+    const rightsBtn = h("button", "cd-count-btn");
+    rightsBtn.type = "button";
+    rightsBtn.dataset["key"] = `rights:${p.id}`;
+    const rg = icon("shield", "");
+    rg.classList.add("cd-count-icon");
+    rightsBtn.append(rg, h("span", "cd-count-n"));
+    rightsBtn.setAttribute("aria-controls", detailId);
+    rightsTd.append(rightsBtn);
+    const rightsSec = h("div", "cd-detail-list cd-rights-list");
+    const rightsTitle = h("strong", "", "");
+    rightsSec.append(rightsTitle);
+    const boxes = new Map<RightName, HTMLInputElement>();
+    for (const right of RIGHTS) {
+      const line = h("div", "cd-right");
+      const lab = h("label", "cd-right-label");
+      const sw = h("span", "switch big");
+      const box = h("input");
+      box.type = "checkbox";
+      box.setAttribute("role", "switch");
+      box.dataset["key"] = `${right}:${p.id}`;
+      sw.append(box, h("span", "switch-track"));
+      const fb = feedback();
+      lab.append(sw, h("span", "cd-right-text", cp.rights[right].label));
+      line.append(lab, fb.el);
+      line.append(h("p", "cd-hint cd-right-hint", cp.rights[right].hint));
+      rightsSec.append(line);
+      boxes.set(right, box);
+      box.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") e.stopPropagation();
       });
-    });
+      box.addEventListener("change", () => {
+        const want = box.checked;
+        box.disabled = true;
+        void save(right, [p.id], want, want ? cp.rights[right].on(p.name) : cp.rights[right].off(p.name), fb, () => {
+          box.checked = !want;
+        }).then(() => {
+          box.disabled = false;
+          box.focus();
+        });
+      });
+    }
 
     const listFor = (kind: Kind): string[] => (kind === "sees" ? seenBy(root, p.id) : editedBy(root, p.id));
+    const lists = { sees: h("div", "cd-detail-list"), edits: h("div", "cd-detail-list") };
+    detailCell.append(lists.sees, lists.edits, rightsSec);
     const paintDetail = (): void => {
-      const lines: HTMLElement[] = [];
+      let any = false;
       for (const kind of ["sees", "edits"] as Kind[]) {
-        if (!open.has(`${kind}:${p.id}`)) continue;
+        const sec = lists[kind];
+        const shown = open.has(`${kind}:${p.id}`);
+        sec.hidden = !shown;
+        if (!shown) continue;
+        any = true;
         const list = listFor(kind);
-        const sec = h("div", "cd-detail-list");
-        sec.append(h("strong", "", kind === "sees" ? cp.seesOf(p.name) : cp.editsOf(p.name)));
         const ul = h("ul", "cd-note-list");
         if (list.length === 0) ul.append(h("li", "cd-hint", cp.noNotes));
         for (const path of list) {
@@ -225,15 +261,19 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
           li.append(seg.el);
           ul.append(li);
         }
-        sec.append(ul);
-        lines.push(sec);
+        sec.replaceChildren(h("strong", "", kind === "sees" ? cp.seesOf(p.name) : cp.editsOf(p.name)), ul);
       }
-      detailCell.replaceChildren(...lines);
-      detail.hidden = lines.length === 0;
+      const rightsShown = open.has(`rights:${p.id}`);
+      rightsSec.hidden = !rightsShown;
+      rightsTitle.textContent = cp.rightsOf(p.name);
+      detail.hidden = !any && !rightsShown;
     };
-    for (const [kind, c] of [["sees", sees], ["edits", edits]] as [Kind, typeof sees][]) {
-      c.btn.addEventListener("click", () => {
-        const key = `${kind}:${p.id}`;
+    for (const [key, btn] of [
+      [`sees:${p.id}`, sees.btn],
+      [`edits:${p.id}`, edits.btn],
+      [`rights:${p.id}`, rightsBtn],
+    ] as [string, HTMLButtonElement][]) {
+      btn.addEventListener("click", () => {
         if (open.has(key)) open.delete(key);
         else open.add(key);
         paint();
@@ -251,18 +291,20 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
       paintDetail();
     };
 
-    tr.append(who, sees.td, edits.td, imagesTd);
+    tr.append(who, sees.td, edits.td, rightsTd);
     return {
       tr,
       detail,
-      switch: box,
       update(player, online, granted) {
         nameLine.textContent = player.name;
         dot.hidden = !online;
-        box.setAttribute("aria-label", cp.imagesOne(player.name));
-        if (!box.disabled) {
-          box.checked = granted;
+        for (const [right, box] of boxes) {
+          box.setAttribute("aria-label", cp.rights[right].one(player.name));
+          if (!box.disabled) box.checked = granted.has(right);
         }
+        rightsBtn.querySelector(".cd-count-n")!.textContent = `${granted.size}/${RIGHTS.length}`;
+        rightsBtn.setAttribute("aria-expanded", String(open.has(`rights:${p.id}`)));
+        rightsBtn.setAttribute("aria-label", cp.rightsToggle(player.name, granted.size, RIGHTS.length));
         paintCounts();
       },
     };
@@ -271,7 +313,7 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
   const paint = (): void => {
     const on = onlineIds(root);
     const players = playersAt(root).slice().sort((a, b) => byName(a.name, b.name));
-    const granted = new Set(tableAt(root)?.image_players ?? []);
+    const given = new Map(RIGHTS.map((r) => [r, new Set(givenTo(tableAt(root), r))] as const));
     const keep = document.activeElement instanceof HTMLElement ? (document.activeElement.dataset["key"] ?? null) : null;
     empty.hidden = players.length > 0;
     table.hidden = players.length === 0;
@@ -288,34 +330,37 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
         row = make(p);
         rows.set(p.id, row);
       }
-      row.update(p, on.has(p.id), granted.has(p.id));
+      row.update(p, on.has(p.id), new Set(RIGHTS.filter((r) => given.get(r)?.has(p.id))));
       // In name order, without touching a row that is already in place.
       const at = body.children[i * 2];
       if (at !== row.tr) body.insertBefore(row.tr, at ?? null);
       const next = body.children[i * 2 + 1];
       if (next !== row.detail) body.insertBefore(row.detail, next ?? null);
     });
-    const n = players.filter((p) => granted.has(p.id)).length;
-    if (!all.disabled) {
-      all.checked = players.length > 0 && n === players.length;
-      all.indeterminate = n > 0 && n < players.length;
+    for (const [right, { box }] of alls) {
+      const n = players.filter((p) => given.get(right)?.has(p.id)).length;
+      if (box.disabled) continue;
+      box.checked = players.length > 0 && n === players.length;
+      box.indeterminate = n > 0 && n < players.length;
     }
     if (keep) wrap.querySelector<HTMLElement>(`[data-key="${keep}"]`)?.focus();
   };
 
-  all.addEventListener("change", () => {
-    const want = all.checked;
-    all.indeterminate = false;
-    all.disabled = true;
-    const ids = playersAt(root).map((p) => p.id);
-    void save(ids, want, want ? cp.imagesAllOn : cp.imagesAllOff, allFb, () => {
-      all.checked = !want;
-    }).then(() => {
-      all.disabled = false;
-      paint();
-      all.focus();
+  for (const [right, { box, fb }] of alls) {
+    box.addEventListener("change", () => {
+      const want = box.checked;
+      box.indeterminate = false;
+      box.disabled = true;
+      const ids = playersAt(root).map((p) => p.id);
+      void save(right, ids, want, want ? cp.rights[right].allOn : cp.rights[right].allOff, fb, () => {
+        box.checked = !want;
+      }).then(() => {
+        box.disabled = false;
+        paint();
+        box.focus();
+      });
     });
-  });
+  }
 
   follow(wrap, paint);
   let off: (() => void) | null = null;

@@ -1349,4 +1349,4 @@ them; if they still happen, a step that makes them happen is enough.
   working in the second, no "joined" notice, toast or system notification
   appears for the first folder's note, and none covers the table's chat in
   the first (macOS, Windows, Linux; the web has one folder per page).
-- [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player without "Send files" gets the notice (macOS, Windows, Linux).
+- [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).

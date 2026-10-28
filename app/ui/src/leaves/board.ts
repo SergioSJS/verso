@@ -25,6 +25,7 @@ import { completeMarkdown } from "../editor/complete";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
 import { freeName, readable, textBase64 } from "../files";
+import { guardCreate } from "../readerNotice";
 import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
 import { renderSticker } from "../labels";
@@ -421,9 +422,9 @@ export class BoardLeaf extends TextLeaf {
       name: () => name(this.path).replace(/\.canvas$/i, ""),
       saveImage: async (file, base64) => {
         // A player at a table only reads the folder: the server writes a new
-        // image (as for the chat), when the player edits this board and may
-        // send files (ADR 0113 item 5, D).
-        const route = imageRoute(seat(), atTable(), may(this.path, "edit"), may(this.path, "attach"));
+        // image (as for the chat), when the player edits this board; an image
+        // needs no other right (ADR 0113 item 5, D, K.6).
+        const route = imageRoute(seat(), atTable(), may(this.path, "edit"), may(this.path, "attachImage"));
         if (route === "no-edit") {
           readable(this.path, "edit");
           return null;
@@ -1302,6 +1303,7 @@ export function isExcalidrawDrawing(text: string): boolean {
 
 /** A new board in `folder`, empty, opened. */
 export async function newBoard(folder: string): Promise<void> {
+  if (guardCreate(folder, undefined, "board")) return;
   const path = freeName(folder, t.untitled, ".canvas");
   const text = await commands.boardText(JSON.stringify({ nodes: [], edges: [] }));
   if (text.status !== "ok") return fail(text.error);

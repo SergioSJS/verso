@@ -760,7 +760,12 @@ pub async fn command(
             let sc = scope.clone();
             let mut joined =
                 blocking(move || join(&s, (&f, &t), &account, role, sc.as_deref())).await?;
-            joined.images = door.may(Action::SendFile, &table, Kind::Table).allowed();
+            joined.images = door
+                .may(Action::SendFile { image: true }, &table, Kind::Table)
+                .allowed();
+            joined.files = door
+                .may(Action::SendFile { image: false }, &table, Kind::Table)
+                .allowed();
             to_value(joined)
         }
         "table_leave" => {
@@ -855,8 +860,14 @@ pub async fn command(
         "table_send_image" => {
             // As a member: the share only bounds what is seen. The file is
             // kept inside the table's own folder, whoever sends it.
-            // ADR 0107 item 3 as amended 2026-10-24 (`may_send_images`).
-            if !door.may(Action::SendFile, &table, Kind::Table).allowed() {
+            // ADR 0107 item 3 as amended 2026-10-24 (`may_send_images`). Which
+            // right it takes — *Images* or *Files* — depends on the bytes, and
+            // is judged again once they are known (`table_image::send`).
+            let (image, other) = (
+                door.may(Action::SendFile { image: true }, &table, Kind::Table),
+                door.may(Action::SendFile { image: false }, &table, Kind::Table),
+            );
+            if !image.allowed() && !other.allowed() {
                 return Err(refused("you may only read this folder"));
             }
             let data: String = arg(&args, "base64")?;
@@ -1055,16 +1066,26 @@ fn join(
         more,
         roster: roster(server, folder, table),
         images: false,
+        files: false,
     })
 }
 
 /// Whether this window may send a file to `table` (ADR 0107 item 3 as
-/// amended 2026-10-24, ADR 0113 K.4), the one rule the send, the join and
-/// the status share: the rules' `SendFile`. The table is the one the window
-/// is at: a share only bounds what is seen.
-pub(crate) fn may_send_images(server: &Server, who: &Who, client: &str, table: &str) -> bool {
-    crate::access::Door::of(server, who, client)
-        .is_ok_and(|door| door.may(Action::SendFile, table, Kind::Table).allowed())
+/// amended 2026-10-24, ADR 0113 K.6): an image by *Images*, any other file
+/// by *Files* — the one rule the send, the join and the status share: the
+/// rules' `SendFile`. The table is the one the window is at: a share only
+/// bounds what is seen.
+pub(crate) fn may_send_images(
+    server: &Server,
+    who: &Who,
+    client: &str,
+    table: &str,
+    image: bool,
+) -> bool {
+    crate::access::Door::of(server, who, client).is_ok_and(|door| {
+        door.may(Action::SendFile { image }, table, Kind::Table)
+            .allowed()
+    })
 }
 
 /// The permission to send images changed for `accounts` at `table`: their
@@ -1084,15 +1105,30 @@ pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accoun
     };
     for client in clients {
         let on_share = viewer_of(server, &client, folder).is_some_and(|v| v.2.is_some());
+        // One lock for both answers: a second `lock` in the same statement
+        // would wait for the first.
+        let (images, files) = lock(&server.clients)
+            .get(&client)
+            .map_or((false, false), |c| {
+                let ask = |image| {
+                    crate::access::may_client(
+                        server,
+                        c,
+                        Action::SendFile { image },
+                        table,
+                        Kind::Table,
+                    )
+                };
+                (ask(true), ask(false))
+            });
         let payload = TableImages {
             table: if on_share {
                 String::new()
             } else {
                 table.to_owned()
             },
-            images: lock(&server.clients).get(&client).is_some_and(|c| {
-                crate::access::may_client(server, c, Action::SendFile, table, Kind::Table)
-            }),
+            images,
+            files,
         };
         server.push(
             std::slice::from_ref(&client),

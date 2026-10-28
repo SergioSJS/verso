@@ -115,6 +115,14 @@ fn schema_19() -> Connection {
     conn
 }
 
+/// Schema 20: the database as it was before the four rights (ADR 0113 K.6).
+fn schema_20() -> Connection {
+    let conn = schema_19();
+    conn.execute_batch(&format!("{} PRAGMA user_version = 20;", access::ACCESS))
+        .unwrap();
+    conn
+}
+
 const PLAYERS: [&str; 3] = ["a", "b", "c"];
 
 fn seed(conn: &Connection) {
@@ -479,4 +487,100 @@ fn an_explicit_none_on_a_migrated_path_is_no_longer_migrated() {
         facts.migrated
     );
     assert!(facts.sets.contains_key("fechada.md"));
+}
+
+/// Schema 21 (ADR 0113 K.6): *Send files* becomes four rights and no one
+/// loses a power they used the day before. A `files` row stays and gains
+/// `images`; a player with *Edits* on a **folder** of a table — their own row
+/// or the whole table's — gets *Creates notes* and *Creates boards* there; so
+/// does a folder-role editor. *Edits* on a file does not.
+#[test]
+fn schema_21_splits_send_files_and_keeps_what_players_could_do() {
+    let conn = schema_20();
+    seed(&conn);
+    let at = now();
+    for p in ["d", "e", "g"] {
+        conn.execute(
+            "INSERT INTO accounts (id, email, email_fold, name, lang, admin, may_create, created)
+             VALUES (?1, ?2, ?2, ?1, 'pt', 0, 0, ?3)",
+            params![p, format!("{p}@x"), at],
+        )
+        .unwrap();
+    }
+    conn.execute_batch(&format!(
+        "INSERT INTO shares (id, folder, path, created) VALUES ('s1', 'f', 'Sala', {at});
+         INSERT INTO share_grants (share, account, role) VALUES ('s1', 'd', 'editor'), ('s1', 'e', 'reader');
+         INSERT INTO grants (folder, account, role) VALUES ('f', 'g', 'reader');
+         INSERT INTO campaign_access (folder, path, account, level) VALUES
+           ('f', 'Sala/Cenas', 'e', 'edit'),
+           ('f', 'Mesa/Atos 1.5', 'g', 'edit'),
+           ('f', 'Mesa/Atos 1.5/x.md', NULL, 'see');
+         INSERT INTO campaigns (folder, root, created) VALUES ('f', 'Mesa', {at}), ('f', 'Sala', {at});
+         INSERT INTO grants (folder, account, role) VALUES ('f', 'a', 'reader'), ('f', 'b', 'reader'), ('f', 'c', 'editor');
+         INSERT INTO campaign_access (folder, path, account, level) VALUES
+           ('f', 'Mesa/Cenas', 'a', 'edit'),
+           ('f', 'Mesa/Livre.md', 'b', 'edit'),
+           ('f', 'Mesa/Mapas.v2', 'b', 'see'),
+           ('f', 'Sala', NULL, 'edit');
+         INSERT INTO campaign_rights (folder, root, account, \"right\") VALUES ('f', 'Mesa', 'a', 'files'), ('f', 'Sala', 'c', 'files');"
+    ))
+    .unwrap();
+    let db = Db::from(conn).unwrap();
+    let got = |root: &str, account: &str| -> Vec<String> {
+        let mut v: Vec<String> = db
+            .conn()
+            .prepare(
+                "SELECT \"right\" FROM campaign_rights WHERE folder = 'f' AND root = ?1 AND account = ?2 ORDER BY \"right\"",
+            )
+            .unwrap()
+            .query_map(params![root, account], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        v.sort();
+        v
+    };
+    // a: had Send files at Mesa and Edits on its folder Cenas: all four.
+    assert_eq!(
+        got("Mesa", "a"),
+        ["create_boards", "create_notes", "files", "images"]
+    );
+    // b: Edits on a file, Sees a folder: nothing is added.
+    assert!(got("Mesa", "b").is_empty());
+    // c: a folder-role editor edited every folder it saw.
+    assert_eq!(got("Mesa", "c"), ["create_boards", "create_notes"]);
+    // The whole table at Edits on the folder Sala: every player of the folder.
+    assert_eq!(got("Sala", "a"), ["create_boards", "create_notes"]);
+    assert_eq!(got("Sala", "b"), ["create_boards", "create_notes"]);
+    assert_eq!(
+        got("Sala", "c"),
+        ["create_boards", "create_notes", "files", "images"]
+    );
+    // People who come in through a share only: an editor, and a reader with
+    // Edits on a folder of the table.
+    assert_eq!(got("Sala", "d"), ["create_boards", "create_notes"]);
+    assert_eq!(got("Sala", "e"), ["create_boards", "create_notes"]);
+    assert!(got("Mesa", "d").is_empty() && got("Mesa", "e").is_empty());
+    // A folder with a dot in its name is a folder when something lies under it.
+    assert_eq!(got("Mesa", "g"), ["create_boards", "create_notes"]);
+    // The new words are the only ones the table takes.
+    let conn = db.conn();
+    assert!(
+        conn.execute(
+            "INSERT INTO campaign_rights (folder, root, account, \"right\") VALUES ('f', 'Mesa', 'b', 'dice')",
+            [],
+        )
+        .is_err()
+    );
+    drop(conn);
+    // What the rules read, and the admission before a message is parsed.
+    let facts = db.access_facts("f").unwrap();
+    assert!(facts.has_right("Mesa", "a", crate::access::Right::CreatesBoards));
+    assert!(!facts.has_right("Mesa", "b", crate::access::Right::CreatesNotes));
+    assert!(db.image_granted("f", "a"));
+    let version: i64 = db
+        .conn()
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, 21);
 }

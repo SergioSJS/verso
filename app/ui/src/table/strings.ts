@@ -88,6 +88,9 @@ type Words = {
   imageSending: string;
   imageSent: string;
   imageNotImage: string;
+  /** Said when a file is picked, pasted or dropped without the right for what it is (ADR 0113 K.6). */
+  noRightImages: string;
+  noRightFiles: string;
   imageTooBig: (mb: number) => string;
   imageEmpty: string;
   imageUnreadable: string;
@@ -189,6 +192,8 @@ const pt: Words = {
   imageSending: "Enviando o arquivo…",
   imageSent: "Arquivo enviado à mesa.",
   imageNotImage: "Isso não é um arquivo que a mesa aceite (imagem, PDF ou áudio); nada foi enviado.",
+  noRightImages: "O mestre não te deu o direito de enviar imagens; nada foi enviado.",
+  noRightFiles: "O mestre não te deu o direito de enviar arquivos; nada foi enviado.",
   imageTooBig: (mb) => `O arquivo passa de ${mb} MB, o máximo da mesa; nada foi enviado.`,
   imageEmpty: "O arquivo está vazio; nada foi enviado.",
   imageUnreadable: "Não foi possível ler o arquivo; nada foi enviado.",
@@ -289,6 +294,8 @@ const en: Words = {
   imageSending: "Sending the file…",
   imageSent: "File sent to the table.",
   imageNotImage: "That is not a file the table takes (an image, a PDF or audio); nothing was sent.",
+  noRightImages: "The game master has not given you the right to send images; nothing was sent.",
+  noRightFiles: "The game master has not given you the right to send files; nothing was sent.",
   imageTooBig: (mb) => `The file is over ${mb} MB, the table's most; nothing was sent.`,
   imageEmpty: "The file is empty; nothing was sent.",
   imageUnreadable: "The file could not be read; nothing was sent.",

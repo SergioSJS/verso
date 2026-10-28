@@ -47,12 +47,22 @@ pub enum AccessWhy {
 }
 
 /// What the person asking may do with a file, answered with every read and
-/// on each entry of a listing. `attach` is whether they may put a new file
-/// into it (the right to send files, on a file they edit).
+/// on each entry of a listing. `attach_image` is whether they may put a new
+/// image into it (*Edits* on the file, ADR 0113 K.6), `attach` a new file
+/// that is not an image (*Edits* and the right *Files*). For a folder,
+/// `create_note` and `create_board` say whether they may create a note (a
+/// base, a folder) or a board (a drawing) in it: *Edits* on the folder and
+/// the right *Creates notes* or *Creates boards*.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FileAccess {
     pub level: AccessLevel,
     pub attach: bool,
+    #[serde(default)]
+    pub attach_image: bool,
+    #[serde(default)]
+    pub create_note: bool,
+    #[serde(default)]
+    pub create_board: bool,
     pub why: AccessWhy,
 }
 

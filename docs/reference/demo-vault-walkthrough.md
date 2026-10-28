@@ -1622,12 +1622,17 @@ must be a server's, and the person its owner.
 8. The tree's marks. A hidden note has a padlock beside it; a note a player
    edits has a pencil. Inside a table a player does not see the folder's own
    padlock. Level: H (by hand; no E yet).
-9. Sending files. In the Table window, the *Enviar arquivos* switch of one
-   player is off by default; turn it on, and as that player (a second account)
-   the attach and paste controls appear at once, without a reload. The player
-   sends an image, a PDF and an audio file in the table's chat; each one lands in
-   the table's attachments folder. Turn the switch off: the controls go. Level:
-   H; A with two accounts.
+9. The four rights (ADR 0113 K.6). In the Table window, the players list has a
+   *Direitos* count per player, `0/4` for a new player; its button opens four
+   switches under the row: *Imagens*, *Arquivos*, *Cria notas*, *Cria boards*,
+   all off, each saving at once ("Salvo"); under the table a box per right for
+   everyone, mixed when the players differ. On a phone each target is 44 px and
+   nothing scrolls sideways. As that player (a second account): with *Imagens*
+   the attach and paste controls appear at once, without a reload, and an image
+   goes to the chat; a PDF or an audio file there says "O mestre não te deu o
+   direito de enviar arquivos; nada foi enviado." until *Arquivos* is on (and
+   then it lands in the table's attachments folder). Turn the rights off: the
+   controls go. Level: H; A with two accounts.
 10. A player who *Edits* a note. As that player, drag a roll or a chat message
     from the *Mesa* panel onto the note's text: a line shows where it lands, and
     one ⌘Z takes it back. An image does not drag; use the message's ⋯.
@@ -1636,8 +1641,13 @@ must be a server's, and the person its owner.
     the other players see the move live. The locked cards of files the player
     does not see stay locked cards. Level: H; A with two
     accounts.
-12. A player who *Edits* a folder. As that player, *New note* and *Rename* are
-    offered in the folder; *Delete* and moving files are not. Level: H (by hand;
+12. A player who *Edits* a folder. As that player, *Rename* is offered on what is
+    in it; *Delete* and moving files are not. *New note*, *New folder* and *New
+    base* appear only with *Cria notas*, *New board* only with *Cria boards*
+    (a keyboard shortcut for the missing one says "O mestre não te deu o
+    direito de criar boards." where the player is). A player who *Edits* a file
+    (no right at all) pastes an image into it and renames it; a PDF needs
+    *Arquivos*. Level: H (by hand;
     no E yet).
 13. The table's log end. In the *Mesa* panel, send a message: the log scrolls so the
     whole new card, border included, is above the composer. Scroll up, have
@@ -1696,6 +1706,6 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 ## A player's image on a board (2026-10-28)
 
 1. On a shared table, as a player who may edit the board "Board do grupo" but only reads the folder, paste, drop or choose an image on the board: it appears at once and for the game master too, with no reload; the server logs no "you may only read this folder".
-2. Take the "Send files" right away from that player: pasting an image now says "O mestre ainda não deixou você enviar arquivos." and nothing is written.
+2. A player who edits the board needs no right for a new image (ADR 0113 K.6): pasting an image works with every right off. Taking *Edits* from the board makes pasting say that the player only reads it, and nothing is written.
 3. Drop a GIF file (and paste one copied as a file): the card keeps animating. (A GIF copied with the browser's "Copy image" is turned into a PNG by the browser before Verso sees it; drag the file instead.)
 4. As the game master, with the player's image sent while the file is still on its way by sync: the card fills in by itself within seconds.

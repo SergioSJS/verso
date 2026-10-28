@@ -49,7 +49,9 @@ pub async fn send(
 ) -> Result<Value, ContractError> {
     // The permission may have been taken back while the bytes were on their
     // way: judged again right before the file is written.
-    let check = |server: &Server| crate::table::may_send_images(server, who, client, table);
+    let check = |server: &Server, image: bool| {
+        crate::table::may_send_images(server, who, client, table, image)
+    };
     let path = store(server, who, client, (folder, table), data, &check).await?;
     let s = Arc::clone(server);
     let (f, t, account, name) = (
@@ -86,9 +88,11 @@ pub async fn attach(
         .and_then(|v| v.table(&full).map(|t| t.root.clone()))
         .unwrap_or_default();
     let folder = door.folder.clone();
-    let check = |_: &Server| {
-        crate::access::Door::of(server, who, client)
-            .is_ok_and(|d| d.may_path(crate::access::Action::Attach, &full).allowed())
+    let check = |_: &Server, image: bool| {
+        crate::access::Door::of(server, who, client).is_ok_and(|d| {
+            d.may_path(crate::access::Action::Attach { image }, &full)
+                .allowed()
+        })
     };
     let path = store(server, who, client, (&folder, &table), data, &check).await?;
     // A window on a share knows the file by its path from the share's root.
@@ -106,7 +110,7 @@ async fn store(
     client: &str,
     (folder, table): (&str, &str),
     data: &str,
-    allowed: &(dyn Fn(&Server) -> bool + Sync),
+    allowed: &(dyn Fn(&Server, bool) -> bool + Sync),
 ) -> Result<String, ContractError> {
     // The table's own limit (ADR 0110, MS.1), its default when the folder
     // is no table. Base64 takes four characters for three bytes: judged
@@ -156,7 +160,8 @@ async fn store(
         .filter(char::is_ascii_digit)
         .collect();
     let path = format!("{place}/mesa-{stamp}-{id}.{ext}");
-    if !allowed(server) {
+    // The right depends on what the bytes are: an image, or another file.
+    if !allowed(server, image_kind(ext)) {
         return Err(refused("you may only read this folder"));
     }
     let made = crate::rpc::folder_run(
@@ -169,6 +174,11 @@ async fn store(
     )
     .await?;
     Ok(made.as_str().map_or(path, str::to_owned))
+}
+
+/// Whether the extension `file_ext` found is an image's.
+fn image_kind(ext: &str) -> bool {
+    matches!(ext, "png" | "jpg" | "gif" | "webp")
 }
 
 /// The folder's attachments place: Obsidian's setting for it when the

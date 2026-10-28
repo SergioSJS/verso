@@ -21,17 +21,29 @@ pub struct CampaignTable {
     pub open: bool,
     /// The table log's ceiling (1,000 to 200,000 entries; MS.1).
     pub log_max: u32,
-    /// The file size limit, in bytes (1 to 30 MB; MS.1): any file *Send files* carries.
+    /// The file size limit, in bytes (1 to 30 MB; MS.1): any file *Images* or *Files* carries.
     pub image_max: u32,
-    /// To the game master: the players this table lets *Send files* — images,
-    /// PDF, audio — to its chat and into the notes they edit (ADR 0113 K.4).
-    /// Empty to a player.
+    /// To the game master: the players this table lets send an image to its
+    /// chat (the right *Images*, ADR 0113 K.6). Empty to a player.
     #[serde(default)]
     pub image_players: Vec<String>,
-    /// Whether this account may send files at the table: always the
-    /// game master, a player only when it was given the permission.
+    /// To the game master: the players given *Files* — a file that is not an
+    /// image, to the chat and into the files they edit (K.6).
+    #[serde(default)]
+    pub file_players: Vec<String>,
+    /// To the game master: the players given *Creates notes* (K.6).
+    #[serde(default)]
+    pub note_players: Vec<String>,
+    /// To the game master: the players given *Creates boards* (K.6).
+    #[serde(default)]
+    pub board_players: Vec<String>,
+    /// Whether this account may send an image at the table: always the
+    /// game master, a player only when it was given the right.
     #[serde(default)]
     pub images: bool,
+    /// Whether this account may send a file that is not an image.
+    #[serde(default)]
+    pub files: bool,
 }
 
 /// Who may edit a note besides the game master (ADR 0110 item 5).
