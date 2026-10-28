@@ -106,18 +106,22 @@ function when(stamp: string): string {
 /* ---------- Presence: someone joins the note being edited ---------- */
 
 /** The people in a live file changed (leaves/note/live.ts, textLive.ts,
- *  boardLive.ts): each who joined is said; leaving is not notified — the
- *  live state says it — but makes the next join news again. */
+ *  boardLive.ts): each who joined is news once (presenceNews.ts): a toast where
+ *  the person looks, the list (and the system's, behind) elsewhere. Leaving
+ *  is not notified — the live state says it. */
 export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): void {
   const s = notifyStrings();
   const key = (name: string) => `presence:${currentFolder}:${path}:${name}`;
   const at = Date.now();
   for (const name of now) {
     if (before.includes(name)) continue;
-    const where = { openFolder: currentFolder, folder: currentFolder, tabShowing: showing, windowInFront: inFront() };
-    if (!news.joined(where, path, name, at)) continue;
+    const verdict = news.verdict({ folder: currentFolder, tabShowing: showing, windowInFront: inFront() }, path, name, at);
+    if (verdict === "none") continue;
     notify({
       kind: "presence",
+      // A join nobody is looking at is in the list (and the system's, when
+      // the window is behind), without a toast.
+      toast: verdict === "toast",
       key: key(name),
       // The time in the state: the same person is news again only after
       // PRESENCE_AGAIN_MS, which `news` decided.

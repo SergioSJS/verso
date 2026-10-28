@@ -115,7 +115,7 @@ export function presenceChanged(this: TextLeaf): void {
   if (s) {
     for (const line of presenceSaid(this.liveOthers, now, lang(), this.liveWhat())) say(line);
     // Someone joining is a notification too (ADR 0084 item 7).
-    presenceHeard(this.path, this.liveOthers, now, this.pane.active === this);
+    presenceHeard(this.path, this.liveOthers, now, this.pane.active === this && layout().panes().includes(this.pane));
   }
   this.liveOthers = now;
   this.paintLive();

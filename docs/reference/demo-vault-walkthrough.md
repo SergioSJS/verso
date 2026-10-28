@@ -835,13 +835,17 @@ point 13).
     above it and its action works. On a phone the toasts are at the bottom,
     above the bottom bar and the keyboard's bar, the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
     toasts" and "toasts sit above Settings" (phone and tablet too).
-11a. Someone joining a note, board or file (2026-10-27): told once, in the
-    window in front and on the tab that shows the file, at the top of the
-    window (never over the table's chat and its box, nor the typing line;
-    at 390x844 too). The same person back within ten minutes — the link
+11a. Someone joining a note or text file (2026-10-27; a board does not
+    announce, its live line says who is there): the toast shows once, in the
+    window in front and on the tab that shows the file (in the current
+    Space), at the top of the window on a desktop (never over the table's
+    chat and its box, nor the typing line); at 390x844 it stays at the
+    bottom above the keyboard's bar (T.6). A join not looked at is in the
+    bell's list without a toast, and goes to the system when the window is
+    behind and they are on. The same person back within ten minutes — the link
     dropped and returned, the note went local and came back — says
     nothing; people already in the note when it opens say nothing. A
-    window on another folder, or behind, says nothing. Level: H (unit:
+    window on another folder, or behind, shows no toast. Level: H (unit:
     `presenceNews.test.mjs`); E: `notify.spec.mjs`, "presence".
 12. The bell, before "Relatar problema" (on a phone, at the top of the
     pane): named "Notificações" or "n notificações não lidas"; it opens

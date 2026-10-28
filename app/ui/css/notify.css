@@ -76,7 +76,6 @@
      keyboard and its bar when they show (--keyboard, screen/keyboard.ts) —
      never over the first line of the note or the board. */
   .notify-toasts { top: auto; bottom: max(calc(53px + env(safe-area-inset-bottom) + 8px), calc(var(--keyboard, 0px) + 8px)); left: 16px; right: 16px; width: auto; }
-  .notify-toasts-top { top: calc(56px + env(safe-area-inset-top)); bottom: auto; }
   .notify-action, .notify-toast-close, .notify-centre-head button { min-height: 40px; }
 }
 
