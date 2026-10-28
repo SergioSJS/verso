@@ -159,7 +159,24 @@ chose where the maintainer was not asked is marked *chosen in the code*.
    links the existing file, nothing is uploaded. Widened the same day to every
    kind of file and renamed **Send files** (K.4). **Amended 2026-10-28 (K.6):**
    a new image in a note or board needs only *Edits*; the chat's image right
-   is *Images* again, apart from *Files*.
+   is *Images* again, apart from *Files*. **Amended 2026-10-28 (where the
+   file goes):** the maintainer: *"A imagem que o jogador põe no board deve ir
+   para a pasta de assets referente àquele board. Se o board está dentro de uma
+   pasta, dentro daquela pasta vai ter uma pasta assets, onde vai ter a imagem
+   que ele colou. Essa é a regra geral da aplicação, não deveria ser diferente
+   aqui."* `[DECIDED 2026-10-28]` A new file a player puts into a note or board
+   goes where the app puts any attachment of that file — the file's own folder,
+   then the person's attachments subfolder (Settings, `assets` by default) — as
+   the game master's own paste does; only the chat keeps the table's
+   attachments place. The server checks the subfolder it is given (relative,
+   no `..`, no hidden segment; `assets` otherwise) and a name taken by a file
+   the player does not see gets the silent suffix (S1–S3 review).
+   `[PROPOSED]` (the author's reading, to confirm): the new file takes, as its
+   own set, the access of the file it was put into, so the players who see
+   that board see its image and no one else — a folder's set over `assets/`
+   would otherwise hide the image of a board that is an exception. A player's
+   *Export to folder* of a board still goes to the table's attachments
+   (the maintainer, 2026-10-28: *"sim"*).
 
 6. **The game master's own read-only credential; exceptions downwards.**
    Taken as recommended, with the maintainer's general approval of the
