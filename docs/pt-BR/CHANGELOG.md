@@ -132,6 +132,7 @@ versão de teste.
 
 ### Corrigido
 
+- **As Configurações fecham pelo canto superior direito** (o mantenedor, 2026-10-27): o × ficava ao lado da busca, dentro da coluna das seções; agora fica no canto superior direito da janela, onde se procura o fechar de um diálogo (no celular, à direita da busca, 44 px).
 - **Um tema escuro escolhido para uma pasta não escurece mais as outras janelas** (o mantenedor, 2026-10-27, ao testar o tema por pasta): o modo claro/escuro tinha ficado fora do tema da pasta, e um tema do catálogo de um lado só trocava todas as janelas para esse lado. O modo agora faz parte da escolha da pasta; uma pasta escolhida antes fica com o modo do padrão.
 - O registro da mesa não pisca mais quando uma rolagem chega com a barra de rolagem no meio: cada entrada mantém o cartão já desenhado, então só o novo é acrescentado e as imagens e os outros cartões não são tocados.
 - **Digitar enquanto outra pessoa edita a mesma nota não quebra mais a alça do bloco** (o mantenedor, 2026-10-27): a alça ao lado de um bloco guardava a posição em que foi mostrada; duas mudanças antes de ela se redesenhar (uma delas de quem edita junto) a faziam ler um lugar de um texto que já não existia, e o editor registrava "CodeMirror plugin crashed". Agora ela acompanha cada mudança na hora.
