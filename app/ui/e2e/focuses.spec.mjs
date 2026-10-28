@@ -485,10 +485,10 @@ test("iCloud placeholder .waypoints.json.icloud displays unavailable banner", as
   await app.key("Mod+Alt+ArrowRight");
   await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
 
-  // Read-only banner displayed with cloud / iCloud explanation
+  // The file is only in the cloud: the banner says so and offers the download (fix/focus-placeholder).
   const banner = app.page.locator(".focuses-banner");
   await expect(banner).toBeVisible();
-  await expect(banner).toContainText("iCloud");
+  await expect(banner).toContainText("na nuvem");
 });
 
 test("local focuses survive enabling sync with make.md when choosing Manter local", async ({ app }) => {
@@ -621,9 +621,8 @@ test("duplicate focus names in waypoints.json are treated as known format (D6)",
   await app.key("Mod+Alt+ArrowRight");
   await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
 
-  // Should NOT display "formato desconhecido" banner
-  const banner = app.page.locator(".focuses-banner");
-  await expect(banner).not.toContainText("formato desconhecido");
+  // A known format shows no banner at all (3c0c5ca7 removed the unasked-folder notice too).
+  await expect(app.page.locator(".focuses-banner")).toHaveCount(0);
 
   // Dup item is visible
   await expect(app.page.locator('.focus-item[data-focus-name="Dup"]').first()).toBeVisible();
