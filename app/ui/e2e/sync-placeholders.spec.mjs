@@ -27,7 +27,8 @@ test("the card downloads the files only in the cloud, saying the size first", as
   const go = page.getByRole("button", { name: /^Baixar 3 arquivos \(9 MB\)$/ });
   await expect(go).toBeVisible();
   await go.click();
-  const said = page.locator(".sync-download .sync-live");
+  // Every file came down, so the placeholder block is gone: the run's outcome is said by the card itself (syncView ranNote), outside .sync-download.
+  const said = page.locator(".sync-live");
   await expect(said).toContainText("3 arquivos baixados");
   expect((await app.calls("fetch_file")).length).toBe(3);
   expect((await app.calls("folder_sync_now")).length).toBe(1);
