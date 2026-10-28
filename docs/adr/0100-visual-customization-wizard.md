@@ -138,7 +138,9 @@ where an option differs from the one first recommended, the item says so.
    default.** The person's layer holds the default theme and, apart, the
    choices made for single folders (by folder key); neither is written into
    the folder or reaches another person. Accepting the folder's suggestion
-   sets this folder's choice, not the default.
+   sets this folder's choice, not the default. A folder's choice includes
+   the light/dark mode (a theme of one side switches the window to that
+   side); the text size stays the person's, for every folder.
    A path to a `.verso-theme` file inside `.verso/` is not accepted.
 
 5. **Contrast is checked live, and an unreadable screen is undone**

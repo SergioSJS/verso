@@ -133,6 +133,7 @@ test release.
 
 ### Fixed
 
+- **A dark theme chosen for one folder no longer turns the other windows dark** (the maintainer, 2026-10-27, after testing the theme per folder): the light/dark mode was left out of a folder's theme, so a catalogue theme of one side switched every window to that side. The mode is now part of the folder's choice; a folder chosen before keeps the default's mode.
 - The table's log no longer blinks when a roll arrives while you are scrolled up: each entry keeps the card already drawn, so only the new one is added and the pictures and the other cards are left alone.
 - **Typing while someone else edits the same note no longer crashes the block handle** (the maintainer, 2026-10-27): the handle beside a block kept the position it was shown at; two changes before it redrew (one of them a collaborator's) made it read a place of a text that was gone, and the editor logged "CodeMirror plugin crashed". It now follows every change at once.
 - The table's log no longer cuts the border of the last message. Sending a message or a roll scrolls the log fully to the end, also after the dice or an image settle; when you have scrolled up, a new message does not pull you down and a "New message ↓" button (with a count) jumps to the end.
