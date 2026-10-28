@@ -1345,3 +1345,7 @@ them; if they still happen, a step that makes them happen is enough.
   (undid nothing — fixed); and the unfinished sentence on selecting text
   with images (an SVG with no size of its own was an empty line in
   Editar — fixed).
+- [ ] Two windows on two folders (one synced, with a person in the browser):
+  working in the second, no "joined" notice, toast or system notification
+  appears for the first folder's note, and none covers the table's chat in
+  the first (macOS, Windows, Linux; the web has one folder per page).

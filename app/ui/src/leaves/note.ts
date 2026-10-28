@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { liveOffNotice } from "../liveOff";
+import { presenceOpened } from "../notify/presence";
 import { openSettingsSection } from "../dialogs/sync";
 import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
@@ -980,6 +981,7 @@ export class NoteLeaf extends Leaf {
     }
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
+    if (shared) presenceOpened(path, this.liveOthers);
     this.show(note.data);
     watch.step("render");
     this.paintLive();
@@ -1003,6 +1005,7 @@ export class NoteLeaf extends Leaf {
     const sel = this.editor.state.selection.main;
     this.collab = room;
     this.liveOthers = room.others();
+    presenceOpened(note.path, this.liveOthers);
     this.eol = room.crlf ? "\r\n" : "\n";
     this.readOnly = !may(note.path, "edit") || room.reader;
     this.editor.setState(this.editorState(room.initial(), room.extension()));

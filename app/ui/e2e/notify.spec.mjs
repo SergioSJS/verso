@@ -23,7 +23,7 @@ async function say(app, status) {
   await app.emit("sync-status", status);
 }
 
-const toasts = (page) => page.locator("#notify-toasts .notify-toast");
+const toasts = (page) => page.locator("#notify-toasts .notify-toast, #notify-toasts-top .notify-toast");
 const bell = (page) => page.locator(phone(page) ? ".notify-bell-phone" : ".notify-bell-bar");
 
 async function openCentre(app) {
@@ -375,8 +375,13 @@ test("presence: someone joining the note is said; leaving is not, and makes the 
   const centre = await openCentre(app);
   await expect(centre.locator(".notify-item")).toHaveCount(1);
   await page.keyboard.press("Escape");
+  // The same person coming back within ten minutes is not news again (PRESENCE_AGAIN_MS).
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
+  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, com Bia");
   await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  // Presence sits at the top, never over the table's chat and its box at the bottom right.
+  const box = await page.locator("#notify-toasts-top").boundingBox();
+  expect(box === null || box.y < 200).toBe(true);
 });
 
 test("the system's notifications: off at first; refused goes back to off and says why; granted, sent only while the window is behind; a click opens the centre on it", async ({ app, page }) => {

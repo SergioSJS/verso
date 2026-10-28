@@ -37,6 +37,7 @@ import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
 import { readerWatch } from "../readerNotice";
 import * as textLive from "./textLive";
+import { presenceOpened } from "../notify/presence";
 
 /* A text file that is not a note: shown in the source editor, read-only. */
 /* Any text file that is not a note — .txt, .json, .csv, .canvas… —
@@ -238,6 +239,7 @@ export class TextLeaf extends Leaf {
     this.seen = { revision: r.data.revision, text: r.data.text };
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
+    if (shared) presenceOpened(this.path, this.liveOthers);
     this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11), or a
     // reader of a synced folder, present and not typing (ADR 0082 item 4).

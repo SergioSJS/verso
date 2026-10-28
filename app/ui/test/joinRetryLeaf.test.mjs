@@ -18,7 +18,7 @@ const stub = {
     build.onResolve({ filter: /^@tauri-apps\/api\/(core|event|webviewWindow)$/ }, (a) => ({ path: a.path, namespace: "stub" }));
     // What the tab leans on that is not the unit (the board's own module,
     // the layout, the status line): played here by name.
-    build.onResolve({ filter: /^(\.\/board|\.\/note\/live|\.\.\/layout\/spaces|\.\.\/opening|\.\.\/dom|\.\.\/errors|\.\.\/access)$/ }, (a) => (a.importer.endsWith("leaves/boardLive.ts") ? { path: a.path, namespace: "stub" } : undefined));
+    build.onResolve({ filter: /^(\.\/board|\.\/note\/live|\.\.\/layout\/spaces|\.\.\/opening|\.\.\/dom|\.\.\/errors|\.\.\/access|\.\.\/notify\/presence)$/ }, (a) => (a.importer.endsWith("leaves/boardLive.ts") ? { path: a.path, namespace: "stub" } : undefined));
     build.onLoad({ filter: /.*/, namespace: "stub" }, (a) => ({
       contents:
         a.path === "@tauri-apps/api/core"
@@ -39,6 +39,8 @@ const stub = {
                         ? "export const fail = (e) => { throw new Error(JSON.stringify(e)); };"
                         : a.path === "../access"
                           ? "export const may = () => true;"
+                          : a.path === "../notify/presence"
+                            ? "export const presenceOpened = () => {};"
                 : "export const getCurrentWebviewWindow = () => ({ label: 'w' });",
       loader: "js",
       resolveDir: process.cwd(),
