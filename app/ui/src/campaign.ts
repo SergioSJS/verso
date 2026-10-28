@@ -203,10 +203,14 @@ export async function setTable(root: string, change: { open?: boolean; logMax?: 
   return run(() => commands.campaignSettings(root, change.open ?? null, change.logMax ?? null, change.imageMax ?? null), done);
 }
 
-/** Let some players of the table at `root` send files (images, PDF, audio) to
- *  its chat and into the notes they edit, or take it from them (ADR 0113 K.4). */
-export async function setImages(root: string, accounts: string[], on: boolean, done: string): Promise<boolean> {
-  return run(() => commands.tableRightsSet(root, accounts, "files", on), done);
+/** One of the four rights of a player (ADR 0113 K.6): send an image to the
+ *  chat, send a file that is not an image (and put one into a file they
+ *  edit), create notes, create boards. */
+export type RightName = "images" | "files" | "create_notes" | "create_boards";
+
+/** Give some players of the table at `root` a right, or take it from them. */
+export async function setRight(root: string, accounts: string[], right: RightName, on: boolean, done: string): Promise<boolean> {
+  return run(() => commands.tableRightsSet(root, accounts, right, on), done);
 }
 
 type Kind = "folder" | "note" | "board" | string;

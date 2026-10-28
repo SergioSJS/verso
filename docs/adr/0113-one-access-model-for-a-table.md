@@ -157,7 +157,9 @@ chose where the maintainer was not asked is marked *chosen in the code*.
    file, as for the chat). Dragging an image **already in the folder** — from the
    chat, from the tree — into a note the player edits needs only **Edits**: it
    links the existing file, nothing is uploaded. Widened the same day to every
-   kind of file and renamed **Send files** (K.4).
+   kind of file and renamed **Send files** (K.4). **Amended 2026-10-28 (K.6):**
+   a new image in a note or board needs only *Edits*; the chat's image right
+   is *Images* again, apart from *Files*.
 
 6. **The game master's own read-only credential; exceptions downwards.**
    Taken as recommended, with the maintainer's general approval of the
@@ -232,15 +234,16 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | See an attachment | role ≥ reader | yes | table open ∧ the attachment's level ≥ see (K.3) | same, by the *Whole table* rows |
 | See secret blocks (0087) | role ≥ editor | yes | Edit(file) (0087 item 5; the dialog warns, F) | no |
 | Edit (a note's text, a board's elements, a base's rows, a file's bytes) | role ≥ editor ∧ cap Write | cap Write | cap Write ∧ (level = edit, or role editor ∧ level ≥ see, K.1) | no |
-| Attach (a **new** file into a file the person edits) | role ≥ editor ∧ cap Write | cap Write | Edit(target) ∧ right *Send files* ∧ cap Write (item 5, K.4) | no |
+| Attach (a **new** file into a file the person edits) | role ≥ editor ∧ cap Write | cap Write | image: Edit(target) ∧ cap Write; other: Edit(target) ∧ right *Files* ∧ cap Write (K.6) | no |
 | Link something already seen (drag from the chat, the tree) | = Edit(target) | = Edit(target) | = Edit(target), no further right (item 5) | no |
-| Create, Rename (inside a folder) | role ≥ editor ∧ cap Write | cap Write | Edit(folder) ∧ cap Write (K.5); a new file takes the folder's access | no |
+| Create (inside a folder) | role ≥ editor ∧ cap Write | cap Write | Edit(folder) ∧ right *Creates notes* or *Creates boards* by kind ∧ cap Write (K.6); a new file takes the folder's access | no |
+| Rename (same folder) | role ≥ editor ∧ cap Write | cap Write | Edit(file) ∧ cap Write (K.6) | no |
 | Move (into or out of a folder) | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
 | Delete | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
 | Say, Roll, RollSecret | — | yes | yes (table open) | no |
 | See others' secret rolls | — | yes | no (an editor neither, item 3) | no |
 | Delete an entry, clear the table | — | yes | only their own message or file | no |
-| SendFile (chat) | — | cap Write | right *Send files* ∧ cap Write (K.4) | no |
+| SendFile (chat) | — | cap Write | image: right *Images*; other: right *Files*; ∧ cap Write (K.6) | no |
 | ManageAccess, ManageTable | — | cap Write ∧ not a phone (as built) | no | no |
 | Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4) | owner | no | no |
 
@@ -574,7 +577,8 @@ choice.
    note or board the player edits. This widens item 5 and 0107 item 3 (the chat
    carries files, not only images). `[PROPOSED]`: the chat shows a file that is
    not an image as a card with its name, kind and size; the table's limit keeps
-   its value and is named *file size limit*.
+   its value and is named *file size limit*. **Amended 2026-10-28 (K.6):**
+   *Send files* is split into *Images* and *Files*.
 5. **Edits on a folder for a player.** `[DECIDED 2026-10-24]` The maintainer:
    *"Cria e renomeia, não apaga"* (creates and renames, does not delete). A
    player with *Edits* on a folder **may create** files inside it — a new file
@@ -582,7 +586,50 @@ choice.
    player **may not delete**, and **moving a file into or out of a folder stays
    the game master's**. This gives 0110 item 6 (MC.3 = A) its way: a folder the
    game master releases as *Edits* is the players' place for their own boards
-   and notes.
+   and notes. **Amended 2026-10-28 (K.6):** creating needs a right of its own,
+   and renaming needs *Edits* on the file, not on the folder.
+
+### K.6 Amended 2026-10-28: what Edits covers, and four rights per player
+
+The maintainer, after the live test (2026-10-28): *"Editar tudo inserir
+imagens, alterar o texto, apagar texto, renomear arquivo. Só não pode apagar.
+Arquivo movido leva a permissão. Arquivos não imagem podem ser inseridos, mas
+o mestre deve dar permissão, imagem separado de outros arquivos. Criação de
+notas, boards deveriam ser permissões à parte."* His answers to the three
+questions that followed, the same day, are quoted below.
+
+1. **Edits covers the whole file but its deletion.** `[DECIDED 2026-10-28]` A
+   player with *Edits* on a file changes its text or elements, puts a **new
+   image** into it (the server writes the image, item 5, with the same checks
+   as the chat), and **renames** it inside its folder. They never delete it.
+2. **A move stays the game master's; a moved file takes its access.**
+   `[DECIDED 2026-10-28]` *"Só o mestre"*: a rename into another folder is a
+   move, and K.5 holds. K.2 holds.
+3. **Four rights per player, all off for a new player.** `[DECIDED 2026-10-28]`
+   They live in the Table window's players list (F), where *Send files* was:
+   - **Images** (*Imagens*), *"Direito 'Imagens'"*: send an image to the
+     table's chat.
+   - **Files** (*Arquivos*): send a file that is not an image (PDF, audio,
+     other kinds; the checks of K.4) to the chat **and** put one into a file the
+     player edits.
+   - **Creates notes** (*Cria notas*) and **Creates boards** (*Cria boards*),
+     *"2 direitos por jogador"*: create a note, or a board, inside a folder the
+     player has *Edits* on. Without the right, *Edits* on the folder lets them
+     edit and rename what is in it, not add to it.
+4. `[PROPOSED]` (the author's reading, to confirm): *Creates notes* also covers
+   a base and a new folder; *Creates boards* also covers a drawing
+   (`.excalidraw`). A folder-role editor inside a table (K.1) is a player for
+   these rights too: the game master gives them.
+5. `[PROPOSED]` **Migration, nothing lost:** a player who had *Send files* gets
+   *Images* and *Files*; a player who had *Edits* on any folder of the table
+   gets *Creates notes* and *Creates boards*, so no one loses a power they used
+   the day before.
+
+In B: *Attach* of an image is `Edit(target) ∧ cap Write`; of another file
+`Edit(target) ∧ right Files ∧ cap Write`. *Create* is `Edit(folder) ∧ right
+Creates notes|boards (by kind) ∧ cap Write`. *Rename* is `Edit(file) ∧ cap
+Write`, the same folder only. *SendFile* (chat) is right *Images* for an image,
+*Files* otherwise.
 
 ## Consequences
 
@@ -1026,3 +1073,36 @@ Not done, said: (1) the scenarios skip the phone project; (2) the PDF leaf and
 split panes are not exercised; (3) the desktop synced window is not checked
 for the live unshare; (4) a tab unshared stays neutral if access returns; the
 file must be reopened.
+
+### As built, K.6 (2026-10-28, `feat/rights-split`)
+
+- **Rules.** `Action::Attach { image }`, `Action::Create(Made)` (`Note`, `Board`,
+  `Image`, `File`) and `Action::SendFile { image }` replace the three actions
+  that took one right; `Rename` is `Edit` on the file. `Right` is the four
+  rights (`images`, `files`, `create_notes`, `create_boards`); `AccessFacts`
+  holds them by table root and account. The matrix of `vectors.rs` asks all
+  sixteen combinations of the four rights against its hand-written
+  expectation, and `app/ui/test/access-vectors.json` is generated from it; the
+  window's `access.test.mjs` and the harness read the same file.
+- **Database.** Schema 20 → 21 (`RIGHTS` in `db/access.rs`): `campaign_rights`
+  is made again, because its `CHECK` could not change. Every `files` row stays
+  and gains `images`; a player with *Edits* on a folder path of a table (their
+  own row or the whole table's) and every folder-role editor get
+  `create_notes` and `create_boards`. Test: `schema_21_splits_send_files_and_keeps_what_players_could_do`.
+- **Contract.** `FileAccess` gains `attach_image`, `create_note`, `create_board`
+  (the last two told of a folder only); `TableJoin`/`TableImages` gain `files`;
+  `CampaignTable` gains `file_players`, `note_players`, `board_players` and
+  `files`; `table_rights_set` takes any of the four words.
+- **Window.** The players list has a *Direitos* count per player opening four
+  labelled switches, and a box per right for everyone; refusals say which right
+  is missing near the attempt.
+- *Chosen in the code:* (1) a folder-role editor at the migration gets both
+  creating rights on every table of its folder; (2) a path is a folder at the
+  migration when it is the folder, a table's root, its last segment has no
+  dot, or another stored path (access or file rows) lies under it, so
+  `Mapas.v2` counts; the players it reaches are the folder's non-owner grants
+  and the people of shares that cover the table or lie inside it; (3) creating an image or another file directly in a folder (`create_file`)
+  needs *Images* or *Files* by its name; a text write never makes a file that
+  is not a note; (4) `.excalidraw` counts as a drawing (*Creates boards*),
+  `.excalidraw.md` as a note; (5) the rights are one count per player opening
+  four switches, not four columns, so the list fits at 390 px.

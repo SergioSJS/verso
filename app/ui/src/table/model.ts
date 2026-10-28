@@ -192,7 +192,10 @@ export interface ServerTable extends TableSource {
   clear(keepPinned: boolean): Promise<string | null>;
   /** The next typed `/r` and the dice button roll "to the owner" (a note's die never does). */
   secret: boolean;
+  /** Whether this window may send an image to the table (the right Images, ADR 0113 K.6). */
   canSendImage(): boolean;
+  /** Whether it may send a file that is not an image (the right Files, K.6). */
+  canSendFile(): boolean;
   canClear(): boolean;
   /** Whether this window may delete `e` (its author, or an owner; never a roll). */
   canDelete(e: TableEntry): boolean;

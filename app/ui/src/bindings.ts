@@ -1484,19 +1484,29 @@ export type CampaignTable = {
 	open: boolean,
 	/**  The table log's ceiling (1,000 to 200,000 entries; MS.1). */
 	log_max: number,
-	/**  The file size limit, in bytes (1 to 30 MB; MS.1): any file *Send files* carries. */
+	/**  The file size limit, in bytes (1 to 30 MB; MS.1): any file *Images* or *Files* carries. */
 	image_max: number,
 	/**
-	 *  To the game master: the players this table lets *Send files* — images,
-	 *  PDF, audio — to its chat and into the notes they edit (ADR 0113 K.4).
-	 *  Empty to a player.
+	 *  To the game master: the players this table lets send an image to its
+	 *  chat (the right *Images*, ADR 0113 K.6). Empty to a player.
 	 */
 	image_players?: string[],
 	/**
-	 *  Whether this account may send files at the table: always the
-	 *  game master, a player only when it was given the permission.
+	 *  To the game master: the players given *Files* — a file that is not an
+	 *  image, to the chat and into the files they edit (K.6).
+	 */
+	file_players?: string[],
+	/**  To the game master: the players given *Creates notes* (K.6). */
+	note_players?: string[],
+	/**  To the game master: the players given *Creates boards* (K.6). */
+	board_players?: string[],
+	/**
+	 *  Whether this account may send an image at the table: always the
+	 *  game master, a player only when it was given the right.
 	 */
 	images?: boolean,
+	/**  Whether this account may send a file that is not an image. */
+	files?: boolean,
 };
 
 /**
@@ -1984,12 +1994,19 @@ export type ErrorKind =
 
 /**
  *  What the person asking may do with a file, answered with every read and
- *  on each entry of a listing. `attach` is whether they may put a new file
- *  into it (the right to send files, on a file they edit).
+ *  on each entry of a listing. `attach_image` is whether they may put a new
+ *  image into it (*Edits* on the file, ADR 0113 K.6), `attach` a new file
+ *  that is not an image (*Edits* and the right *Files*). For a folder,
+ *  `create_note` and `create_board` say whether they may create a note (a
+ *  base, a folder) or a board (a drawing) in it: *Edits* on the folder and
+ *  the right *Creates notes* or *Creates boards*.
  */
 export type FileAccess = {
 	level: AccessLevel,
 	attach: boolean,
+	attach_image?: boolean,
+	create_note?: boolean,
+	create_board?: boolean,
 	why: AccessWhy,
 };
 
@@ -3708,12 +3725,13 @@ export type TableEntry = {
 };
 
 /**
- *  The right to send files changed for this account (event
+ *  A right to send to the chat changed for this account (event
  *  `table-images`): told to its windows at the table at once.
  */
 export type TableImages = {
 	table: string,
 	images: boolean,
+	files?: boolean,
 };
 
 /**
@@ -3731,10 +3749,15 @@ export type TableJoin = {
 	more: boolean,
 	roster: TableMember[],
 	/**
-	 *  Whether this account may send a file to the table: an owner always, a
-	 *  player when the game master gave it *Send files* (ADR 0113 K.4).
+	 *  Whether this account may send an image to the table: an owner always,
+	 *  a player when the game master gave it *Images* (ADR 0113 K.6).
 	 */
 	images?: boolean,
+	/**
+	 *  Whether this account may send a file that is not an image: an owner
+	 *  always, a player when given *Files* (K.6).
+	 */
+	files?: boolean,
 };
 
 /**  Who is at the table: one per account, however many windows. */

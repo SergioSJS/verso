@@ -57,7 +57,7 @@ function place(el: HTMLElement, at: Attempt): void {
 /** The person tried to change something this folder does not let them.
  *  Says so near `at`, unless it said so a moment ago (or `force`: the lock
  *  was clicked, which asks for the words). Answers whether it spoke. */
-export function readerAttempt(at?: Attempt, force = false, path?: string | null): boolean {
+export function readerAttempt(at?: Attempt, force = false, path?: string | null, said?: string): boolean {
   const now = performance.now();
   if (!force && now - lastShown < QUIET_MS) return false;
   lastShown = now;
@@ -70,7 +70,7 @@ export function readerAttempt(at?: Attempt, force = false, path?: string | null)
   // A file the person sees and may not change is named for what it is: a
   // note, not the folder ("Você só lê esta nota").
   const seen = path ? fileAccess(path)?.level === "see" : false;
-  box.replaceChildren(h("span", "reader-notice-text", seen ? st.readOnlyNote : st.readOnly));
+  box.replaceChildren(h("span", "reader-notice-text", said ?? (seen ? st.readOnlyNote : st.readOnly)));
   place(box, at);
   box.hidden = false;
   clearTimeout(hideTimer);
@@ -90,9 +90,12 @@ export function guard(path?: string | null, at?: Attempt): boolean {
 /** `readerAttempt` when making something in `folder` is refused; answers
  *  whether it is. It asks the folder that was chosen — a player of a table
  *  edits the folder they were given, not the root's (ADR 0113 K.5). */
-export function guardCreate(folder: string, at?: Attempt): boolean {
-  if (may(folder, "create")) return false;
-  readerAttempt(at, false, null);
+export function guardCreate(folder: string, at?: Attempt, what: "any" | "note" | "board" = "any"): boolean {
+  if (may(folder, what === "note" ? "createNote" : what === "board" ? "createBoard" : "create")) return false;
+  // A folder the person edits, where the right to create this was not given
+  // (K.6), is not a folder they only read: the words say which right.
+  const missing = what !== "any" && may(folder, "rename");
+  readerAttempt(at, missing, null, missing ? (what === "note" ? st.noRightNote : st.noRightBoard) : undefined);
   return true;
 }
 

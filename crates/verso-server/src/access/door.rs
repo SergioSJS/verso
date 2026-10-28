@@ -17,7 +17,7 @@ use std::sync::Arc;
 use serde_json::Value;
 use verso_contract::ContractError;
 
-use super::{AccessFacts, Action, Asker, Cap, Kind, Seat, Target, Verdict, may};
+use super::{AccessFacts, Action, Asker, Cap, Kind, Made, Seat, Target, Verdict, may};
 use crate::auth::Who;
 use crate::campaign::{self, Veil};
 use crate::db::Role;
@@ -271,18 +271,20 @@ impl Door {
                 self.write_verdict(&path)
             }
             "create_note" => match args["name"].as_str() {
-                Some(n) => self.create_in(&Self::note_path(&self.full(n))),
+                Some(n) => self.create_in(&Self::note_path(&self.full(n)), false),
                 None => return Err(crate::rpc::refused(READS)),
             },
+            // A new folder is covered by *Creates notes* (K.6 item 4).
             "create_folder" => match path_of("path") {
-                Some(p) => self.create_in(&p),
+                Some(p) => self.create_in(&p, true),
                 None => return Err(crate::rpc::refused(READS)),
             },
-            // A new file that is not a note, a board or a base is a file
-            // sent (ADR 0113 K.4): at a table, by a player, it needs the
-            // right to send files (its bytes are judged by `check_bytes`).
+            // A new file: a note, base, board or drawing by *Creates notes* or
+            // *Creates boards*; any other is a file sent (K.6), at a table, by
+            // a player, by *Images* or *Files* (its bytes are judged by
+            // `check_bytes`).
             "create_file" => match path_of("path") {
-                Some(p) => and(self.create_in(&p), self.may_send_new(&p)),
+                Some(p) => self.create_in(&p, false),
                 None => return Err(crate::rpc::refused(READS)),
             },
             "rename_note" | "rename_entry" => match (path_of("from"), path_of("to")) {
@@ -290,9 +292,9 @@ impl Door {
                     let to = Self::rename_target(&from, to);
                     let (a, b) = (Self::parent(&from), Self::parent(&to));
                     if a == b {
-                        // A rename inside a folder: the player sees the file
-                        // and edits the folder (K.5). A table's root, or a
-                        // folder above one, is the game master's.
+                        // A rename inside a folder: the player edits the
+                        // file (K.6). A table's root, or a folder above one,
+                        // is the game master's.
                         self.rename_in_place(&from, &to)
                     } else {
                         // Out of one folder into another: a move. Into a table
@@ -407,7 +409,7 @@ impl Door {
             {
                 return Verdict::Deny(super::Reason::NoRight);
             }
-            self.create_in(path)
+            self.create_in(path, false)
         } else {
             self.may_path(Action::Edit, path)
         }
@@ -428,27 +430,11 @@ impl Door {
         if self.seat() != Seat::Master && self.facts.table_of(path).is_some() {
             return Verdict::Deny(super::Reason::NotMaster);
         }
-        self.create_in(path)
-    }
-
-    /// A new file at `path` that is no note, board or base, made by a
-    /// player at a table: the right to send files (K.4).
-    fn may_send_new(&self, path: &str) -> Verdict {
-        let Some(table) = self.facts.table_of(path) else {
-            return Verdict::Allow;
-        };
-        if self.seat() == Seat::Master || Kind::of_path(path).is_note_like() {
-            return Verdict::Allow;
-        }
-        if self.facts.may_send_files(&table.root, &self.asker.account) {
-            Verdict::Allow
-        } else {
-            Verdict::Deny(super::Reason::NoRight)
-        }
+        self.create_in(path, false)
     }
 
     /// The bytes of a new file a player makes at a table are judged as
-    /// those sent to the chat are (K.4): an image, a PDF or audio by its
+    /// those sent to the chat are (K.4, K.6): an image, a PDF or audio by its
     /// first bytes (`table::file_ext`), at most the table's limit, under a
     /// name whose extension says the same — never an SVG, a page or a
     /// script.
@@ -459,7 +445,10 @@ impl Door {
         let Some(table) = self.facts.table_of(&path) else {
             return Ok(());
         };
-        if self.seat() == Seat::Master || Kind::of_path(&path).is_note_like() {
+        // A note, a base, a board or a drawing is not a file sent.
+        if self.seat() == Seat::Master
+            || matches!(Made::of_path(&path, false), Made::Note | Made::Board)
+        {
             return Ok(());
         }
         let limit = campaign::image_limit(server, &self.folder, &table.root);
@@ -641,14 +630,13 @@ impl Door {
         out
     }
 
-    /// A rename of `from` inside its folder: the person sees the file and
-    /// edits the folder (K.5); a table's root, or a folder above one, is the
-    /// game master's.
+    /// A rename of `from` inside its folder: the person edits the file
+    /// (K.6); a table's root, or a folder above one, is the game master's.
     fn rename_in_place(&self, from: &str, to: &str) -> Verdict {
         if self.seat() != Seat::Master && self.facts.holds_table(from) {
             return Verdict::Deny(super::Reason::NotMaster);
         }
-        // A name is no way round *Send files* (K.4): at a table, a file
+        // A name is no way round *Images* or *Files* (K.6): at a table, a file
         // keeps its kind — the same extension, or both the same sort of
         // note — so a sent PNG is never served as a page, an SVG or a PDF.
         if self.seat() != Seat::Master && self.facts.table_of(to).is_some() && !same_kind(from, to)
@@ -657,7 +645,7 @@ impl Door {
         }
         and(
             self.may_path(Action::See, from),
-            self.may(Action::Rename, &Self::parent(from), Kind::Folder),
+            self.may_path(Action::Rename, from),
         )
     }
 
@@ -680,12 +668,19 @@ impl Door {
         }
         let path = self.full(given);
         let kind = Kind::of_path(&path);
-        self.create_in(&path).allowed() && kind.is_note_like() && kind != Kind::Board
+        self.create_in(&path, false).allowed() && kind.is_note_like() && kind != Kind::Board
     }
 
-    fn create_in(&self, path: &str) -> Verdict {
-        let folder = Self::parent(path);
-        self.may(Action::Create, &folder, Kind::Folder)
+    /// A new file (or `folder`) at `path`: the folder is one the person
+    /// edits and, at a table, they were given the right for what is made
+    /// (K.6).
+    fn create_in(&self, path: &str, folder: bool) -> Verdict {
+        let parent = Self::parent(path);
+        self.may(
+            Action::Create(Made::of_path(path, folder)),
+            &parent,
+            Kind::Folder,
+        )
     }
 }
 
@@ -810,16 +805,16 @@ fn facts_for(server: &Server, folder: &str, veil: Option<&Veil>, account: &str) 
         return AccessFacts::default();
     };
     let mut facts = (**veil.facts()).clone();
-    facts.files_right.clear();
+    facts.rights.clear();
     // A failed read gives no right: nobody is admitted on a guess.
-    for root in server
+    for (root, right) in server
         .db
-        .campaign_files_roots(folder, account)
+        .campaign_rights_of(folder, account)
         .unwrap_or_default()
     {
         facts
-            .files_right
-            .insert((campaign::key(&root), account.to_owned()));
+            .rights
+            .insert((campaign::key(&root), account.to_owned(), right));
     }
     facts
 }
@@ -853,9 +848,15 @@ impl Door {
     pub fn file_access(&self, path: &str, kind: Kind, derived: bool) -> verso_contract::FileAccess {
         let t = Target::new(path, kind).derived(derived);
         let (level, why) = self.facts.level(&self.asker, &t);
+        let ask = |a: Action| may(&self.facts, &self.asker, a, &t).allowed();
+        // What can be made is told of a folder only (K.6).
+        let folder = matches!(kind, Kind::Folder | Kind::Table);
         verso_contract::FileAccess {
             level: level_out(level),
-            attach: may(&self.facts, &self.asker, Action::Attach, &t).allowed(),
+            attach: ask(Action::Attach { image: false }),
+            attach_image: ask(Action::Attach { image: true }),
+            create_note: folder && ask(Action::Create(Made::Note)),
+            create_board: folder && ask(Action::Create(Made::Board)),
             why: why_out(&why),
         }
     }

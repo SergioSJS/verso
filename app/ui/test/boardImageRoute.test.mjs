@@ -1,5 +1,5 @@
 // Where a new image put on a board is written: a player's goes through the
-// server (Send files), never a write of the folder (ADR 0113 item 5, D).
+// server, never a write of the folder (ADR 0113 item 5, D); a new image needs only Edits on the board (K.6).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,10 +8,10 @@ import * as esbuild from "esbuild";
 await esbuild.build({ entryPoints: ["src/board/imageRoute.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/boardImageRoute.test-bundle.mjs", logLevel: "error" });
 const { imageRoute, imageFileName } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
 
-test("a player who edits the board and may send files: the server writes it", () => {
+test("a player who edits the board: the server writes the new image", () => {
   assert.equal(imageRoute("player", true, true, true), "server");
 });
-test("a player without the right to send files is refused, visibly", () => {
+test("a player who may not attach (a path the server did not describe) is refused, visibly", () => {
   assert.equal(imageRoute("player", true, true, false), "no-send");
 });
 test("a player who cannot edit the board is refused", () => {

@@ -343,7 +343,7 @@ fn schema_17_keeps_a_released_note_the_whole_tables_and_a_hidden_one_hidden() {
         .conn()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 20);
+    assert_eq!(version, 21);
 }
 
 /// An audience is the table's, a set of its players or nobody; a grant
@@ -488,26 +488,52 @@ fn schema_19_keeps_the_image_permission_off_until_given_and_follows_the_table() 
     ))
     .unwrap();
     let db = Db::from(conn).unwrap();
-    assert!(!db.campaign_images_has("f", "Mesa", "a").unwrap());
+    assert!(
+        !db.campaign_right_has("f", "Mesa", "a", crate::access::Right::Images)
+            .unwrap()
+    );
     let a = ["a".to_owned()];
-    db.campaign_images_set("f", "Mesa", &a, true).unwrap();
-    db.campaign_images_set("f", "Mesa", &a, true).unwrap();
-    assert_eq!(db.campaign_images_of("f", "Mesa").unwrap(), ["a"]);
-    assert!(db.campaign_images_any("f", "a").unwrap());
+    db.campaign_right_set("f", "Mesa", &a, crate::access::Right::Images, true)
+        .unwrap();
+    db.campaign_right_set("f", "Mesa", &a, crate::access::Right::Images, true)
+        .unwrap();
+    assert_eq!(
+        db.campaign_right_players("f", "Mesa", crate::access::Right::Images)
+            .unwrap(),
+        ["a"]
+    );
+    assert!(db.image_granted("f", "a"));
     // The table's folder renamed: the permission goes with it.
     db.campaign_move("f", "Mesa", "Sala").unwrap();
-    assert!(db.campaign_images_has("f", "Sala", "a").unwrap());
-    assert!(!db.campaign_images_has("f", "Mesa", "a").unwrap());
-    db.campaign_images_set("f", "Sala", &a, false).unwrap();
-    assert!(!db.campaign_images_any("f", "a").unwrap());
+    assert!(
+        db.campaign_right_has("f", "Sala", "a", crate::access::Right::Images)
+            .unwrap()
+    );
+    assert!(
+        !db.campaign_right_has("f", "Mesa", "a", crate::access::Right::Images)
+            .unwrap()
+    );
+    db.campaign_right_set("f", "Sala", &a, crate::access::Right::Images, false)
+        .unwrap();
+    assert!(!db.image_granted("f", "a"));
     // Unmade, or deleted, it is gone.
-    db.campaign_images_set("f", "Sala", &a, true).unwrap();
+    db.campaign_right_set("f", "Sala", &a, crate::access::Right::Images, true)
+        .unwrap();
     db.campaign_drop("f", "Sala").unwrap();
-    assert!(db.campaign_images_of("f", "Sala").unwrap().is_empty());
+    assert!(
+        db.campaign_right_players("f", "Sala", crate::access::Right::Images)
+            .unwrap()
+            .is_empty()
+    );
     db.campaign_make("f", "Outra").unwrap();
-    db.campaign_images_set("f", "Outra", &a, true).unwrap();
+    db.campaign_right_set("f", "Outra", &a, crate::access::Right::Images, true)
+        .unwrap();
     db.campaign_deleted("f", "Outra").unwrap();
-    assert!(db.campaign_images_of("f", "Outra").unwrap().is_empty());
+    assert!(
+        db.campaign_right_players("f", "Outra", crate::access::Right::Images)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 /// Schema 18: a table made before the players' logs were their own has no

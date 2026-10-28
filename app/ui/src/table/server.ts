@@ -88,6 +88,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   let secret = false;
   // The game master's permission to send images, for a player (ADR 0107 item 3 as amended 2026-10-24).
   let images = false;
+  let files = false;
   const offs: (() => void)[] = [];
   // The table the events are for: the one asked until the join names it.
   let at: string | null = deps.table;
@@ -194,8 +195,9 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
       tell();
     }),
     api.listen<TableImages>("table-images", (p) => {
-      if (!mine(p.table) || images === p.images) return;
+      if (!mine(p.table) || (images === p.images && files === (p.files ?? p.images))) return;
       images = p.images;
+      files = p.files ?? p.images;
       tell();
     }),
     api.listen<TableRoster>("table-roster", (r) => {
@@ -220,6 +222,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   you = joined.data.you;
   role = joined.data.role === "owner" || joined.data.role === "reader" ? joined.data.role : "editor";
   images = joined.data.images ?? role !== "reader";
+  files = joined.data.files ?? images;
   members = joined.data.roster.map(memberOf);
   hasMore = joined.data.more;
   for (const w of joined.data.entries) ingest(w, false);
@@ -331,6 +334,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
     },
     // The server says it at the join and when it changes (the rules' `SendFile`).
     canSendImage: () => images,
+    canSendFile: () => files,
     canClear: () => role === "owner",
     making,
     canDelete: (e) => role === "owner" || ((e.kind === "say" || e.kind === "image" || e.kind === "file") && e.mine),
