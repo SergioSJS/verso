@@ -11,7 +11,7 @@ import { onFolderLayer } from "../folderLayer";
 import { calendarPeriods } from "../periodic/notes";
 import { openSettingsSection } from "../dialogs/sync";
 import { button, el, h, ui } from "../dom";
-import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, isSyncFocusesAsked, promptSyncFocusesIfNeeded, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, isSyncFocusesAsked, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, showStickerPicker } from "../labels";
@@ -228,17 +228,13 @@ export class Panel {
         }
       }
       wrap.append(banner);
-    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
-      // "Never answered" is not "answered no": the first asks, the second
-      // says where the focuses are and lets the person change it.
-      const asked = isSyncFocusesAsked();
-      const note = h("div", "focuses-banner", asked ? t.syncFocusesOffBanner : t.syncFocusesUnasked);
-      const change = button("ghost", asked ? t.syncFocusesChange : t.syncFocusesDecide);
+    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses() && isSyncFocusesAsked()) {
+      // A folder never asked shows nothing: the question comes by itself
+      // when the file is read (and right after it is downloaded).
+      const note = h("div", "focuses-banner", t.syncFocusesOffBanner);
+      const change = button("ghost", t.syncFocusesChange);
       change.id = "focuses-sync-change";
-      change.addEventListener("click", () => {
-        if (asked) openSettingsSection("organizing");
-        else void promptSyncFocusesIfNeeded().then(() => panel.refresh());
-      });
+      change.addEventListener("click", () => openSettingsSection("organizing"));
       note.append(" ", change);
       wrap.append(note);
     }
