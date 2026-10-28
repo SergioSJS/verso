@@ -75,6 +75,23 @@ export function readFolderThemes(raw: unknown, readOne: (v: unknown) => Slice | 
 let held: Slice | null = null; // the person's default, while the folder's own is laid over
 let key = ""; // the folder whose own choice is laid over, "" when none
 
+/** The person's default as last read or saved while no folder choice is laid
+ *  over: what a theme change is measured against. */
+let baseline: Slice | null = null;
+/** The folder for which the person picked "Default for all folders": its
+ *  changes go to the default, not to the folder. Kept in this window only. */
+let defaultFor = "";
+
+/** Whether theme changes in `folder` are the folder's own: it has its own
+ *  choice, or the person has not picked the default for it (a folder open
+ *  and a change made is the folder's; ADR 0100 item 4, 2026-10-27). */
+export const forFolder = (folder: string): boolean => held !== null || (folder !== "" && defaultFor !== folder);
+
+/** The person picked "Default for all folders" for `folder`. */
+export function chooseDefault(folder: string): void {
+  defaultFor = folder;
+}
+
 /** Whether the theme in force is this folder's own choice. */
 export const isOwn = (): boolean => held !== null;
 
@@ -82,6 +99,7 @@ export const isOwn = (): boolean => held !== null;
 export function reset(): void {
   held = null;
   key = "";
+  baseline = null;
 }
 
 /** Lift a folder's own choice off `s`, the default back in its fields. */
@@ -95,8 +113,12 @@ export function leave(s: Scoped): void {
  *  has one, is laid over the default. Other folders are not touched. */
 export function enter(s: Scoped, folder: string): void {
   leave(s);
+  if (defaultFor !== folder) defaultFor = "";
   const own = folder ? s.folderThemes?.[folder] : undefined;
-  if (!own) return;
+  if (!own) {
+    baseline = sliceOf(s);
+    return;
+  }
   held = sliceOf(s);
   key = folder;
   lay(s, own, held);
@@ -108,6 +130,7 @@ export function enter(s: Scoped, folder: string): void {
  *  The caller saves the settings. */
 export function startOwn(s: Scoped, folder: string): void {
   if (held || !folder) return;
+  defaultFor = "";
   s.folderThemes = { ...(s.folderThemes ?? {}), [folder]: sliceOf(s) };
   held = sliceOf(s);
   key = folder;
@@ -119,6 +142,29 @@ export function stopOwn(s: Scoped): void {
   if (key && s.folderThemes) delete s.folderThemes[key];
   leave(s);
   if (s.folderThemes && Object.keys(s.folderThemes).length === 0) delete s.folderThemes;
+}
+
+/** A theme change made while a folder is open and no choice of its own is
+ *  laid over becomes that folder's own choice (unless the person picked the
+ *  default for it): the entry is stored with the new theme, the default
+ *  stays what it was. Called before every save, so that every path that
+ *  writes the theme fields lands in the folder, not in the default. */
+export function adopt(s: Scoped, folder: string): void {
+  if (held || !folder) return;
+  const now = sliceOf(s);
+  if (defaultFor === folder || baseline === null || sameSlice(now, baseline)) {
+    baseline = now;
+    return;
+  }
+  s.folderThemes = { ...(s.folderThemes ?? {}), [folder]: now };
+  held = baseline;
+  key = folder;
+}
+
+/** The text a save writes to storage. */
+export function toStorage(s: Scoped, folder: string): string {
+  adopt(s, folder);
+  return JSON.stringify(persistable(s));
 }
 
 /** What goes to storage: the default's fields hold the default, the folder's
