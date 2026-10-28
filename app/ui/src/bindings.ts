@@ -429,6 +429,14 @@ export const commands = {
 	setFolderNoteName: (name: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_folder_note_name", { name })),
 	/**  Read focuses from `.space/waypoints.json` in the open folder (ADR 0062). */
 	getFocuses: () => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("get_focuses")),
+	/**
+	 *  Bring `.space/waypoints.json` down from the cloud because the person
+	 *  clicked "Download now" (ADR 0043, amended on 2026-10-27): true when it was
+	 *  fetched, false when there was nothing to fetch. No path crosses the
+	 *  contract (a hidden entry never does, ADR 0026); the file is named here.
+	 *  Off the main thread and outside the folder's lock, like `fetch_file`.
+	 */
+	fetchFocusesFile: () => typedError<boolean, ContractError>(__TAURI_INVOKE("fetch_focuses_file")),
 	/**  Write focuses to `.space/waypoints.json` in the open folder (ADR 0062). */
 	setFocuses: (focuses: Focus_Deserialize[], stamp: string | null, baseFocuses: Focus_Deserialize[] | null) => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("set_focuses", { focuses, stamp, baseFocuses })),
 	/**  Whether focuses can be synced to `.space/waypoints.json` (ADR 0062). */
@@ -3200,7 +3208,8 @@ export type PlaceholderPlan = {
 	bytes: number | null,
 	/**
 	 *  The bytes the disk under the folder can still take; `None` when the
-	 *  system would not say (the download then goes without the check).
+	 *  system would not say (the window then refuses to download: it
+	 *  cannot tell the files fit).
 	 */
 	free: number | null,
 };

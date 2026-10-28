@@ -8,8 +8,6 @@
  * the focuses are read again. A failure is said, never swallowed. No window
  * state in here: the caller hands in what it does, so this runs headless. */
 
-export const WAYPOINTS_PATH = ".space/waypoints.json";
-
 export type DownloadOutcome = "downloaded" | "nothing" | "failed";
 
 interface FetchResult {
@@ -19,7 +17,9 @@ interface FetchResult {
 }
 
 export interface DownloadDeps {
-  fetchFile: (path: string) => Promise<FetchResult>;
+  /** The one command that fetches the focuses file; it names no path (a
+   *  hidden entry never crosses the contract, ADR 0026). */
+  fetchFile: () => Promise<FetchResult>;
   /** Read the focuses again from the core; true when they still report the
    *  file as only in the cloud (a server-synced folder answers "nothing to
    *  fetch" whatever the file is). */
@@ -37,7 +37,7 @@ export async function downloadFocusesFile(deps: DownloadDeps): Promise<DownloadO
   deps.say(deps.words.fetching);
   let r: FetchResult;
   try {
-    r = await deps.fetchFile(WAYPOINTS_PATH);
+    r = await deps.fetchFile();
   } catch (e) {
     deps.say(deps.words.failed);
     deps.fail(e);

@@ -845,7 +845,7 @@ pub(crate) async fn command(
         // The computer's own history's retention (ADR 0091 item 8): a
         // server keeps its folders' by VERSO_HISTORY_DAYS and the console.
         "set_history_days" => Ok(Value::Null),
-        "fetch_file" => Ok(Value::Bool(false)),
+        "fetch_file" | "fetch_focuses_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll"
         | "collab_oracle" => {

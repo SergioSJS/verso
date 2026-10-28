@@ -792,6 +792,7 @@ macro_rules! commands_for {
                 set_walk_rules,
                 set_folder_note_name,
                 get_focuses::<$runtime>,
+                fetch_focuses_file::<$runtime>,
                 set_focuses::<$runtime>,
                 can_sync_focuses::<$runtime>,
                 set_sync_focuses::<$runtime>,
