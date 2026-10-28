@@ -108,16 +108,22 @@ function when(stamp: string): string {
 /** The people in a live file changed (leaves/note/live.ts, textLive.ts,
  *  boardLive.ts): each who joined is news once (presenceNews.ts): a toast where
  *  the person looks, the list (and the system's, behind) elsewhere. Leaving
- *  is not notified — the live state says it. */
-export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): void {
+ *  is not notified — the live state says it.
+ *
+ *  Presence is "Só na lista" until the person chooses otherwise (item 8,
+ *  amended 2026-10-28): then the join is a line in the list and no toast.
+ *  Returns the newcomers that are news and not turned off: the leaf rings
+ *  their mark in the presence row and says them once (liveWho.ts). */
+export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): string[] {
   const s = notifyStrings();
   const key = (name: string) => `presence:${currentFolder}:${path}:${name}`;
   const at = Date.now();
+  const fresh: string[] = [];
   for (const name of now) {
     if (before.includes(name)) continue;
     const verdict = news.verdict({ folder: currentFolder, tabShowing: showing, windowInFront: inFront() }, path, name, at);
     if (verdict === "none") continue;
-    notify({
+    const out = notify({
       kind: "presence",
       // A join nobody is looking at is in the list (and the system's, when
       // the window is behind), without a toast.
@@ -131,7 +137,9 @@ export function presenceHeard(path: string, before: readonly string[], now: read
       sentence: s.joinedWhy(name, noteName(path)),
       actions: [{ label: s.openNote, act: "note", arg: path }],
     });
+    if (out.said === "toast" || out.said === "list") fresh.push(name);
   }
+  return fresh;
 }
 
 /* ---------- Updates: one notification per version ---------- */

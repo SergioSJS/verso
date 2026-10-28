@@ -24,8 +24,10 @@ export const MODES: readonly Mode[] = ["toast", "list", "off"];
 /** Every kind's default (decided 2026-10-14): "Aviso e lista". */
 export const DEFAULT_MODE: Mode = "toast";
 /** The kinds that start otherwise: the table's news is "Desligado" until
- *  the person turns it on (ADR 0107 item 13). */
-export const KIND_DEFAULT: Partial<Record<Kind, Mode>> = { table: "off" };
+ *  the person turns it on (ADR 0107 item 13); someone joining is "Só na
+ *  lista", never a toast over the chat's box (ADR 0084 item 8, amended
+ *  2026-10-28). Only a stored choice overrides them. */
+export const KIND_DEFAULT: Partial<Record<Kind, Mode>> = { table: "off", presence: "list" };
 
 /** An action a notification offers: its words, and what it does by name
  *  (the list outlives the page, a function does not). */
