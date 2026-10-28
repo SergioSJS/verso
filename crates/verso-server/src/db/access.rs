@@ -96,9 +96,11 @@ INSERT INTO campaign_rights (folder, root, account, "right")
 /// - every player of a table who had *Edits* on any **folder** path of it —
 ///   a row of the whole table (every player of the folder) or of their own —
 ///   gets `create_notes` and `create_boards`; so does a folder-role editor,
-///   who edited every folder they saw. A path is a folder when it is the
-///   folder itself or a table's root, or its last segment has no dot (the
-///   files of a table have an extension).
+///   who edited every folder they saw. The players are the folder's
+///   non-owner grants and the people of the shares that cover the table or
+///   lie inside it. A path is a folder when it is the folder itself or a
+///   table's root, or its last segment has no dot, or another stored path
+///   lies under it (`Mapas.v2`).
 ///
 /// The table is made again for it can not change its `CHECK`.
 pub(super) const RIGHTS: &str = r#"
@@ -114,18 +116,34 @@ INSERT INTO campaign_rights_new (folder, root, account, "right")
 INSERT OR IGNORE INTO campaign_rights_new (folder, root, account, "right")
   SELECT folder, root, account, 'images' FROM campaign_rights WHERE "right" = 'files';
 INSERT OR IGNORE INTO campaign_rights_new (folder, root, account, "right")
-  SELECT c.folder, c.root, g.account, r.name
-  FROM campaigns c
-  JOIN grants g ON g.folder = c.folder AND g.role <> 'owner'
+  WITH people AS (
+    SELECT c.folder AS folder, c.root AS root, g.account AS account, g.role AS role
+    FROM campaigns c JOIN grants g ON g.folder = c.folder AND g.role <> 'owner'
+    UNION
+    SELECT c.folder, c.root, sg.account, sg.role
+    FROM campaigns c
+    JOIN shares s ON s.folder = c.folder
+    JOIN share_grants sg ON sg.share = s.id
+    WHERE (s.path = '' OR c.root = '' OR lower(s.path) = lower(c.root)
+           OR lower(substr(s.path, 1, length(c.root) + 1)) = lower(c.root) || '/'
+           OR lower(substr(c.root, 1, length(s.path) + 1)) = lower(s.path) || '/')
+      AND NOT EXISTS (SELECT 1 FROM grants o WHERE o.folder = c.folder AND o.account = sg.account AND o.role = 'owner')
+  )
+  SELECT g.folder, g.root, g.account, r.name
+  FROM people g
   JOIN (SELECT 'create_notes' AS name UNION ALL SELECT 'create_boards') r
   WHERE g.role = 'editor' OR EXISTS (
     SELECT 1 FROM campaign_access a
-    WHERE a.folder = c.folder AND a.level = 'edit'
+    WHERE a.folder = g.folder AND a.level = 'edit'
       AND (a.account IS NULL OR a.account = g.account)
-      AND (c.root = '' OR lower(a.path) = lower(c.root)
-           OR lower(substr(a.path, 1, length(c.root) + 1)) = lower(c.root) || '/')
-      AND (a.path = '' OR lower(a.path) = lower(c.root)
-           OR replace(a.path, rtrim(a.path, replace(a.path, '/', '')), '') NOT GLOB '*.*')
+      AND (g.root = '' OR lower(a.path) = lower(g.root)
+           OR lower(substr(a.path, 1, length(g.root) + 1)) = lower(g.root) || '/')
+      AND (a.path = '' OR lower(a.path) = lower(g.root)
+           OR replace(a.path, rtrim(a.path, replace(a.path, '/', '')), '') NOT GLOB '*.*'
+           OR EXISTS (SELECT 1 FROM campaign_access b WHERE b.folder = a.folder
+                      AND substr(b.path, 1, length(a.path) + 1) = a.path || '/')
+           OR EXISTS (SELECT 1 FROM campaign_files f WHERE f.folder = a.folder
+                      AND substr(f.path, 1, length(a.path) + 1) = a.path || '/'))
   );
 DROP TABLE campaign_rights;
 ALTER TABLE campaign_rights_new RENAME TO campaign_rights;

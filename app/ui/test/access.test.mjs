@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import * as esbuild from "esbuild";
 
 await esbuild.build({ entryPoints: ["src/accessCore.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/accessCore.test-bundle.mjs", logLevel: "error" });
-const { decide } = await import("./.bundles/accessCore.test-bundle.mjs");
+const { decide, mayImportFiles } = await import("./.bundles/accessCore.test-bundle.mjs");
 
 const vectors = JSON.parse(readFileSync(new URL("./access-vectors.json", import.meta.url), "utf8"));
 const whoIndex = (name) => vectors.who.findIndex((w) => w.name === name);
@@ -119,5 +119,15 @@ describe("a path the server did not describe", () => {
     assert.equal(decide(caps("master", true, "read"), null, "edit"), false);
     assert.equal(decide({ ...caps("master", true), syncedReader: true }, { level: "edit", attach: true, attach_image: true, create_note: true, create_board: true, why: { kind: "master" } }, "edit"), false);
     assert.equal(decide({ ...caps("master", true), syncedReader: true }, { level: "edit", attach: true, attach_image: true, create_note: true, create_board: true, why: { kind: "master" } }, "see"), true);
+  });
+});
+
+describe("Import files", () => {
+  test("a player at a table imports only with a right to put files in; anyone else as before", () => {
+    assert.equal(mayImportFiles(true, [{ images: false, files: false }]), false);
+    assert.equal(mayImportFiles(true, []), false);
+    assert.equal(mayImportFiles(true, [{ images: true }]), true);
+    assert.equal(mayImportFiles(true, [{ images: false }, { files: true }]), true);
+    assert.equal(mayImportFiles(false, []), true);
   });
 });

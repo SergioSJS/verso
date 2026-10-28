@@ -6,7 +6,8 @@ import { newBase } from "./bases";
 import { importFiles } from "./importFiles";
 import { imp } from "./importStrings";
 import { commands } from "./bindings";
-import { may } from "./access";
+import { may, tableViewer } from "./access";
+import { mayImportFiles } from "./accessCore";
 import { can, host, noteAddress } from "./can";
 import { narrow } from "./chrome";
 import { h, ui } from "./dom";
@@ -30,7 +31,7 @@ import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
-import { campaignEntryItems, accessSelectionItems } from "./campaign";
+import { campaign, campaignEntryItems, accessSelectionItems } from "./campaign";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -220,7 +221,7 @@ export function createMenuItems(folder = ""): MenuItem[] {
     ...(boards ? [[boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"] as MenuItem] : []),
     ...(notes ? [[t.newWebPage, () => newWebPagePrompt(folder), "globe"] as MenuItem] : []),
     // Files from the system through its picker, for whoever cannot drag (A11Y.10).
-    [imp.command, () => void importFiles(folder), "copy"],
+    ...(mayImportFiles(tableViewer() === "player", campaign().tables) ? [[imp.command, () => void importFiles(folder), "copy"] as MenuItem] : []),
   ];
   return items;
 }

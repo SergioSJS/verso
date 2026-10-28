@@ -72,3 +72,9 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
       return file.level === "edit" && (!table || master);
   }
 }
+
+/** Whether "Import files" is offered: anyone who may create, but a player at a table only with a right to put
+ *  files in (Images or Files, as the server told it of the tables) — an import is made of files that are no notes. */
+export function mayImportFiles(playerAtTable: boolean, tables: readonly { images?: boolean; files?: boolean }[]): boolean {
+  return !playerAtTable || tables.some((t) => t.images === true || t.files === true);
+}

@@ -499,8 +499,23 @@ fn schema_21_splits_send_files_and_keeps_what_players_could_do() {
     let conn = schema_20();
     seed(&conn);
     let at = now();
+    for p in ["d", "e", "g"] {
+        conn.execute(
+            "INSERT INTO accounts (id, email, email_fold, name, lang, admin, may_create, created)
+             VALUES (?1, ?2, ?2, ?1, 'pt', 0, 0, ?3)",
+            params![p, format!("{p}@x"), at],
+        )
+        .unwrap();
+    }
     conn.execute_batch(&format!(
-        "INSERT INTO campaigns (folder, root, created) VALUES ('f', 'Mesa', {at}), ('f', 'Sala', {at});
+        "INSERT INTO shares (id, folder, path, created) VALUES ('s1', 'f', 'Sala', {at});
+         INSERT INTO share_grants (share, account, role) VALUES ('s1', 'd', 'editor'), ('s1', 'e', 'reader');
+         INSERT INTO grants (folder, account, role) VALUES ('f', 'g', 'reader');
+         INSERT INTO campaign_access (folder, path, account, level) VALUES
+           ('f', 'Sala/Cenas', 'e', 'edit'),
+           ('f', 'Mesa/Atos 1.5', 'g', 'edit'),
+           ('f', 'Mesa/Atos 1.5/x.md', NULL, 'see');
+         INSERT INTO campaigns (folder, root, created) VALUES ('f', 'Mesa', {at}), ('f', 'Sala', {at});
          INSERT INTO grants (folder, account, role) VALUES ('f', 'a', 'reader'), ('f', 'b', 'reader'), ('f', 'c', 'editor');
          INSERT INTO campaign_access (folder, path, account, level) VALUES
            ('f', 'Mesa/Cenas', 'a', 'edit'),
@@ -541,6 +556,13 @@ fn schema_21_splits_send_files_and_keeps_what_players_could_do() {
         got("Sala", "c"),
         ["create_boards", "create_notes", "files", "images"]
     );
+    // People who come in through a share only: an editor, and a reader with
+    // Edits on a folder of the table.
+    assert_eq!(got("Sala", "d"), ["create_boards", "create_notes"]);
+    assert_eq!(got("Sala", "e"), ["create_boards", "create_notes"]);
+    assert!(got("Mesa", "d").is_empty() && got("Mesa", "e").is_empty());
+    // A folder with a dot in its name is a folder when something lies under it.
+    assert_eq!(got("Mesa", "g"), ["create_boards", "create_notes"]);
     // The new words are the only ones the table takes.
     let conn = db.conn();
     assert!(

@@ -1098,8 +1098,10 @@ file must be reopened.
   is missing near the attempt.
 - *Chosen in the code:* (1) a folder-role editor at the migration gets both
   creating rights on every table of its folder; (2) a path is a folder at the
-  migration when it is the folder, a table's root, or its last segment has no
-  dot; (3) creating an image or another file directly in a folder (`create_file`)
+  migration when it is the folder, a table's root, its last segment has no
+  dot, or another stored path (access or file rows) lies under it, so
+  `Mapas.v2` counts; the players it reaches are the folder's non-owner grants
+  and the people of shares that cover the table or lie inside it; (3) creating an image or another file directly in a folder (`create_file`)
   needs *Images* or *Files* by its name; a text write never makes a file that
   is not a note; (4) `.excalidraw` counts as a drawing (*Creates boards*),
   `.excalidraw.md` as a note; (5) the rights are one count per player opening
