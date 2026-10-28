@@ -20,6 +20,8 @@ in the real app.
 
 ## Not yet checked
 
+- **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
+
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
 ### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
 

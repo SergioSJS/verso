@@ -6,6 +6,9 @@ import { commands, type Focus, type FocusesSummary, type ReadOnlyReasonCode } fr
 import { can, loadCan } from "./can";
 import { ask, promptText } from "./dialog";
 import { ui } from "./dom";
+import { isTransport } from "./errorKinds";
+import { fail } from "./errors";
+import { downloadFocusesFile } from "./focusesDownload";
 import { currentFolder } from "./folder";
 import { notesHeadingReset, notesHeadingText, panel } from "./main";
 import { saveSettings, settings } from "./settings";
@@ -431,4 +434,20 @@ export async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promi
     await saveFocuses();
     panel.refresh();
   }
+}
+
+/** The person's click on "Download now" in the banner of a focuses file that
+ *  is only in the cloud (ADR 0043): the one thing that brings it down. */
+export async function downloadFocusesNow(): Promise<void> {
+  await downloadFocusesFile({
+    fetchFile: (path) => commands.fetchFile(path),
+    reload: () => loadFocuses(true),
+    say: (text) => {
+      ui.status.textContent = text;
+    },
+    fail: (e) => fail(e as Parameters<typeof fail>[0]),
+    isCloudFailure: (e) => (e as { kind?: string } | null)?.kind === "unavailable" && !isTransport(e as Parameters<typeof isTransport>[0]),
+    words: { fetching: t.focusesDownloading, done: t.focusesDownloaded, nothing: t.focusesNothingToDownload, failed: t.focusesDownloadFailed },
+  });
+  panel.refresh();
 }
