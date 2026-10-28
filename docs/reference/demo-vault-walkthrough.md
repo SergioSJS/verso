@@ -1637,6 +1637,11 @@ must be a server's, and the person its owner.
    direito de enviar arquivos; nada foi enviado." until *Arquivos* is on (and
    then it lands in the table's attachments folder). Turn the rights off: the
    controls go. Level: H; A with two accounts.
+   A player who *Edits* a board in a folder pastes a new image on it: the file
+   lands in `assets` beside the board (whatever Settings > Files and links
+   says), not in the table's attachments folder; the game master and the
+   players who see the board see the image, a player who does not see the board
+   does not, and the chat's images still go to the table's attachments folder.
 10. A player who *Edits* a note. As that player, drag a roll or a chat message
     from the *Mesa* panel onto the note's text: a line shows where it lands, and
     one ⌘Z takes it back. An image does not drag; use the message's ⋯.

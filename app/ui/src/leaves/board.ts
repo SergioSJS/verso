@@ -63,7 +63,7 @@ import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
 import { atTable, may, seat } from "../access";
 import { a as attachText } from "../attach";
-import { imageRoute } from "../board/imageRoute";
+import { attachSub, imageRoute } from "../board/imageRoute";
 import { NoteAccess } from "../noteAccess";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
@@ -433,8 +433,10 @@ export class BoardLeaf extends TextLeaf {
           ui.status.textContent = attachText.noSend;
           return null;
         }
+        const sub = attachSub(settings.attachments);
         if (route === "server") {
-          const made = await commands.tableAttach(base64, this.path);
+          // Beside the board, in the same subfolder as anyone's paste (ADR 0113 item 5, where the file goes).
+          const made = await commands.tableAttach(base64, this.path, sub);
           if (made.status !== "ok") {
             fail(made.error);
             return null;
@@ -443,7 +445,6 @@ export class BoardLeaf extends TextLeaf {
           await afterFileChange();
           return made.data;
         }
-        const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
         const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
         const dot = file.lastIndexOf(".");
         const r = await commands.createFile(freeName(folder, file.slice(0, dot), file.slice(dot)), base64);

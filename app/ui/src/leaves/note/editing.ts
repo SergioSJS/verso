@@ -18,6 +18,7 @@ import { type Block, type Edit as BlockEdit, type TurnKind, blockLink, blocksOfS
 import { blocksOf } from "../../blocks/view";
 import { startCompletion } from "@codemirror/autocomplete";
 import { a, pickImages, touchScreen } from "../../attach";
+import { attachSub, usedFolder } from "../../board/imageRoute";
 import { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } from "../../attachName";
 import { atTable, may, seat } from "../../access";
 import { host } from "../../can";
@@ -387,7 +388,7 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
     ui.status.textContent = a.unreadable(shown);
     return null;
   }
-  const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+  const sub = attachSub(settings.attachments);
   const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
   if (player) return this.attachThroughServer(b64, shown, sub);
   // Another window or device may take the name between the choosing and the
@@ -419,10 +420,11 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   return r.data;
 }
 
-/** The server writes the file of a player (`table_attach`) and the embed
- *  that names it is written at the caret. */
+/** The server writes the file of a player (`table_attach`) beside the note,
+ *  in the same attachments subfolder the game master's paste uses, and the
+ *  embed that names it is written at the caret. */
 export async function attachThroughServer(this: NoteLeaf, b64: string, shown: string, sub: string): Promise<string | null> {
-  const r = await commands.tableAttach(b64, this.path);
+  const r = await commands.tableAttach(b64, this.path, sub);
   if (r.status !== "ok") {
     fail(r.error);
     return null;
@@ -435,7 +437,7 @@ export async function attachThroughServer(this: NoteLeaf, b64: string, shown: st
     selection: { anchor: pos + target.length + 5 },
     annotations: Transaction.userEvent.of("input"),
   });
-  ui.status.textContent = a.done(shown, sub);
+  ui.status.textContent = a.done(shown, usedFolder(this.path, r.data));
   await afterFileChange();
   return r.data;
 }

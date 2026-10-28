@@ -659,7 +659,11 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ("table_history", r#"{"before":null,"limit":null}"#, false),
     ("table_say", r#"{"text":"oi"}"#, false),
     ("table_send_image", r#"{"base64":""}"#, false),
-    ("table_attach", r#"{"base64":"","into":"a.md"}"#, false),
+    (
+        "table_attach",
+        r#"{"base64":"","into":"a.md","sub":"assets"}"#,
+        false,
+    ),
     (
         "table_roll",
         r#"{"notation":"1d6","source":null,"path":null,"secret":null,"styles":null}"#,
