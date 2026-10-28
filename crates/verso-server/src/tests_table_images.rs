@@ -143,7 +143,7 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
             "{given}"
         );
         let told = event_named(&mut ana, "table-images").await;
-        assert_eq!(told, json!({ "table": "", "images": true }));
+        assert_eq!(told, json!({ "table": "", "images": true, "files": false }));
         let mine = call(&mut ana, 6, "campaign_status", json!({})).await;
         assert_eq!(mine["ok"]["tables"][0]["images"], true, "{mine}");
         let sent = call(&mut ana, 7, "table_send_image", json!({ "base64": png() })).await;
@@ -176,7 +176,10 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
             "{taken}"
         );
         let told = event_named(&mut ana, "table-images").await;
-        assert_eq!(told, json!({ "table": "", "images": false }));
+        assert_eq!(
+            told,
+            json!({ "table": "", "images": false, "files": false })
+        );
         let no = call(&mut ana, 9, "table_send_image", json!({ "base64": png() })).await;
         assert_eq!(no["err"]["kind"], "refused", "{no}");
         assert_eq!(r.server.db.table_count(&c.folder, "").unwrap(), 1);
@@ -218,7 +221,7 @@ fn a_player_on_a_share_sends_images_as_a_member_does() {
         let given = grant(&mut c.owner, 3, "Cripta", &c.ana_id, true).await;
         assert!(given.get("ok").is_some(), "{given}");
         let told = event_named(&mut ana, "table-images").await;
-        assert_eq!(told, json!({ "table": "", "images": true }));
+        assert_eq!(told, json!({ "table": "", "images": true, "files": false }));
         let sent = call(&mut ana, 4, "table_send_image", json!({ "base64": png() })).await;
         assert_eq!(sent["ok"]["kind"], "image", "{sent}");
         let path = sent["ok"]["image"].as_str().unwrap().to_owned();
@@ -237,7 +240,7 @@ fn a_player_on_a_share_sends_images_as_a_member_does() {
         assert!(taken.get("ok").is_some(), "{taken}");
         assert_eq!(
             event_named(&mut ana, "table-images").await,
-            json!({ "table": "", "images": false })
+            json!({ "table": "", "images": false, "files": false })
         );
         let no = call(&mut ana, 5, "table_send_image", json!({ "base64": png() })).await;
         assert!(err_of(&no).contains("only read"), "{no}");
