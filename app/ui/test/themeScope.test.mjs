@@ -195,3 +195,30 @@ test("opening a folder and saving something else stores no folder choice", async
   a.save();
   assert.equal(JSON.parse(storage.text).folderThemes, undefined);
 });
+
+test("two windows: a dark catalogue theme chosen in window A on folder X does not turn window B on folder Y dark", async () => {
+  // As the maintainer saw it (2026-10-27): A picked a dark theme, the
+  // catalogue switched the mode to dark, and B — a light theme — went dark.
+  const { a, b, storage } = await windows("P", "Q", { ...person(), theme: "light" });
+  a.load();
+  b.load();
+  a.s.lookName = "Ayu Mirage";
+  a.s.theme = "dark";
+  a.save();
+  b.load();
+  assert.equal(b.s.theme, "light", "B keeps its mode");
+  assert.equal(b.s.lookName, "Mine");
+  assert.equal(JSON.parse(storage.text).theme, "light", "the default's mode stays");
+  assert.equal(JSON.parse(storage.text).folderThemes.P.theme, "dark");
+  b.save();
+  a.load();
+  assert.equal(a.s.theme, "dark", "A, reloaded, still shows its folder's mode");
+});
+
+test("a folder's choice stored before the mode was part of a theme takes the default's mode", () => {
+  S.reset();
+  const s = { ...person(), theme: "light", folderThemes: { a: { palette: "moss" } } };
+  S.enter(s, "a");
+  assert.equal(s.theme, "light");
+  assert.equal(s.palette, "moss");
+});
