@@ -134,6 +134,7 @@ versão de teste.
 
 ### Corrigido
 
+- **O navegador pega um build novo do servidor na hora** (o mantenedor, 2026-10-28, depois que o navegador de uma jogadora manteve a janela antiga mesmo recarregando): o cache offline tinha o nome só da versão, e um servidor atualizado com a mesma versão seguia servindo o `web.js` do primeiro build para sempre (o cache pula o que já guarda). Agora o cache tem o nome da versão e do hash do próprio build: um build novo é um cache novo, e o antigo é apagado.
 - **As Configurações fecham pelo canto superior direito** (o mantenedor, 2026-10-27): o × ficava ao lado da busca, dentro da coluna das seções; agora fica no canto superior direito da janela, onde se procura o fechar de um diálogo (no celular, à direita da busca, 44 px).
 - **Um tema escuro escolhido para uma pasta não escurece mais as outras janelas** (o mantenedor, 2026-10-27, ao testar o tema por pasta): o modo claro/escuro tinha ficado fora do tema da pasta, e um tema do catálogo de um lado só trocava todas as janelas para esse lado. O modo agora faz parte da escolha da pasta; uma pasta escolhida antes fica com o modo do padrão.
 - O registro da mesa não pisca mais quando uma rolagem chega com a barra de rolagem no meio: cada entrada mantém o cartão já desenhado, então só o novo é acrescentado e as imagens e os outros cartões não são tocados.
