@@ -15,7 +15,7 @@ import { readLook, readLookCredit } from "./theme/look";
 import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
 import { readProfiles, type Profile } from "./theme/profiles";
 import { enter, persistable, readFolderThemes, reset, type Slice } from "./theme/scope";
-import { fontAllowed, SIZE_MAX, SIZE_MIN, type InspiredBy, type Look } from "./theme/tokens";
+import { fontAllowed, type InspiredBy, type Look } from "./theme/tokens";
 
 export type { Measure };
 export const page = document.querySelector<HTMLElement>(".work");
@@ -294,6 +294,8 @@ export function loadSettings(): void {
   reset();
   enter(settings, currentFolder);
   applySettings();
+  // The window's theme panel shows whose theme is in force: it asks again.
+  dispatchEvent(new Event("verso:look"));
 }
 /** A folder's theme as the settings file held it: known values only. */
 function readSlice(raw: unknown): Slice | null {
@@ -303,7 +305,6 @@ function readSlice(raw: unknown): Slice | null {
   if (typeof r["palette"] === "string" && (["paper", "sepia", "slate", "moss"] as readonly string[]).includes(r["palette"])) out.palette = r["palette"];
   if (r["look"] !== undefined) out.look = readLook(r["look"]);
   if (fontAllowed("--heading-font", r["headingFont"])) out.headingFont = r["headingFont"] as string;
-  if (typeof r["fontSize"] === "number" && r["fontSize"] >= SIZE_MIN && r["fontSize"] <= SIZE_MAX) out.fontSize = Math.round(r["fontSize"]);
   if (typeof r["lookName"] === "string") {
     out.lookName = r["lookName"];
     const credit = readLookCredit(r["lookCredit"]);

@@ -1638,9 +1638,10 @@ must be a server's, and the person its owner.
 ## Theme per folder and per person (ADR 0100 item 4, 2026-10-27)
 
 1. Open two folders in two windows. In window A open Settings › Aparência › Temas:
-   "Só nesta pasta" is selected. Pick another theme: window A changes, window B does not.
+   "Padrão para todas as pastas" is selected (no choice of A's own yet). Select "Só nesta pasta", then pick another theme: window A changes, window B does not. The text size stays the same in both.
 2. Pick "Padrão para todas as pastas" in A (confirm forgetting A's own theme): A follows the
    default again; B, with no theme of its own, shows the default too.
 3. In B choose "Só nesta pasta" and a theme; A keeps the default.
 4. Accept a folder's suggested theme: it becomes that folder's choice, the default is unchanged.
-5. Another account on the same folder sees its own theme, never this one.
+5. The same shared folder on a second device of the same person may carry its own choice there (the choice is keyed by the folder's key on that device).
+6. Another account on the same folder sees its own theme, never this one.

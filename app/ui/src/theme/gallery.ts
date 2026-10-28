@@ -349,8 +349,6 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     label.append(input, h("span", "", W.gallery.scope[which]));
     scope.append(label);
   }
-  /** A folder is open: the choice goes to it unless the person picks the default. */
-  if (currentFolder) useForFolder();
   const syncScope = (): void => {
     scope.hidden = !currentFolder;
     radios.folder.checked = forThisFolder();

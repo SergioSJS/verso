@@ -154,11 +154,12 @@ export function exportTheme(theme: Theme): boolean {
 /** Whether what the wizard changes is the open folder's own theme (true) or the person's default (false). */
 export const forThisFolder = (): boolean => isOwn();
 
-/** From now on the wizard changes this folder's own theme: nothing is kept
- *  until a change is made, and no other folder moves. */
+/** From now on the wizard changes this folder's own theme: a copy of the default is kept
+ *  for it, and no other folder moves. */
 export function useForFolder(): boolean {
   if (!currentFolder) return false;
   startOwn(settings, currentFolder);
+  saveSettings();
   told();
   return true;
 }
