@@ -28,6 +28,9 @@ use crate::rpc::{blocking, to_value};
 use crate::state::Server;
 use crate::table::file_ext;
 
+/// What is told of a path or a right the person has none of.
+const READS: &str = "you may only read this folder";
+
 /// The folder's attachments place when the folder names none.
 const PLACE: &str = "attachments";
 
@@ -74,7 +77,7 @@ pub async fn send(
     let target = Target {
         folder,
         table,
-        dir,
+        dir: Dir::Fixed(dir),
         door: None,
     };
     let path = store(server, who, client, &target, data, &check).await?;
@@ -144,18 +147,34 @@ pub async fn attach(
         .and_then(|v| v.table(&full).map(|t| t.root.clone()))
         .unwrap_or_default();
     let folder = door.folder.clone();
-    // Beside the file, in the person's subfolder; confined to the folder (or
-    // the share) like any path a window names.
-    let beside = match into.rsplit_once('/') {
-        Some((dir, _)) => format!("{dir}/{}", clean_sub(sub)),
-        None => clean_sub(sub),
+    // Beside the file, in the person's subfolder, else in `assets` beside it,
+    // else in the table's attachments place; each confined to the folder (or
+    // the share) like any path a window names. `store` takes the first that
+    // shows nothing of what the person does not see.
+    let parent = into.rsplit_once('/').map(|(d, _)| d);
+    let beside = |sub: &str| match parent {
+        Some(d) => format!("{d}/{sub}"),
+        None => sub.to_owned(),
     };
-    let dir = match &door.scope {
-        Some(s) => s.to_full_write(&beside)?,
-        None => {
-            crate::scope::checked(&beside)?;
-            beside
+    let mut tries = Vec::new();
+    for sub in [clean_sub(sub), DEFAULT_SUB.to_owned()] {
+        let rel = beside(&sub);
+        let dir = match &door.scope {
+            Some(s) => s.to_full_write(&rel),
+            None => crate::scope::checked(&rel).map(|()| rel),
+        };
+        if let Ok(dir) = dir
+            && !tries.contains(&dir)
+        {
+            tries.push(dir);
         }
+    }
+    let (s, f) = (Arc::clone(server), folder.clone());
+    let place = blocking(move || Ok(place_of(&s, &f))).await?;
+    let place = if table.is_empty() {
+        place
+    } else {
+        format!("{table}/{place}")
     };
     let check = |_: &Server, image: bool| {
         crate::access::Door::of(server, who, client).is_ok_and(|d| {
@@ -166,7 +185,7 @@ pub async fn attach(
     let target = Target {
         folder: &folder,
         table: &table,
-        dir,
+        dir: Dir::Tries(tries, place),
         door: Some((&door, &full)),
     };
     let path = store(server, who, client, &target, data, &check).await?;
@@ -178,14 +197,24 @@ pub async fn attach(
     to_value(shown)
 }
 
+/// The folder a file is made in.
+enum Dir {
+    /// This one, a path of the folder.
+    Fixed(String),
+    /// The first of these that shows nothing of what the person does not
+    /// see, else the last (the table's attachments place, which the chat
+    /// uses as it is).
+    Tries(Vec<String>, String),
+}
+
 /// Where a file is made, and what the made file is kept as.
 struct Target<'a> {
     folder: &'a str,
     /// The table's root (`""`: the folder is the table, or none holds it):
     /// whose limit is read.
     table: &'a str,
-    /// The folder the file is made in, a path of the folder.
-    dir: String,
+    /// The folder the file is made in.
+    dir: Dir,
     /// A file put into another (`attach`): the person's door, and the path of
     /// the file it is put into, whose access the new file takes. Also the
     /// door that keeps a name taken by something hidden from being told.
@@ -243,15 +272,42 @@ async fn store(
             format!("mesa-{stamp}-{id}.{ext}")
         }
     };
-    let mut path = if target.dir.is_empty() {
-        file
-    } else {
-        format!("{}/{file}", target.dir)
-    };
     // The right depends on what the bytes are: an image, or another file.
     if !allowed(server, image_kind(ext)) {
-        return Err(refused("you may only read this folder"));
+        return Err(refused(READS));
     }
+    let dir = match (&target.dir, target.door) {
+        (Dir::Fixed(d), _) => d.clone(),
+        (Dir::Tries(tries, place), Some((door, into))) => {
+            let (s, d, k) = (Arc::clone(server), door.clone(), key.clone());
+            let (tries, place, into, table) = (
+                tries.clone(),
+                place.clone(),
+                into.to_owned(),
+                table.to_owned(),
+            );
+            // The file it is put into is a file of the folder (an absent one
+            // and a folder are told as a hidden one is).
+            blocking(move || {
+                s.service.with_key(&k, |ws| {
+                    if !crate::access::Door::is_file(ws, &into) {
+                        return Err(refused(READS).into());
+                    }
+                    Ok(tries
+                        .into_iter()
+                        .find(|t| d.dir_clear(ws, t, &table))
+                        .unwrap_or(place))
+                })
+            })
+            .await?
+        }
+        (Dir::Tries(_, place), None) => place.clone(),
+    };
+    let mut path = if dir.is_empty() {
+        file
+    } else {
+        format!("{dir}/{file}")
+    };
     // A name taken by something the person does not see is never answered as
     // taken: the next free one is used (the S1–S3 review, `guard_names`).
     let mut kept = None;
@@ -281,7 +337,13 @@ async fn store(
                 })
                 .await;
             }
-            return Err(e);
+            // What a create says depends on what the person does not see
+            // (a twin, a file where a folder goes): one answer for all.
+            return Err(if target.door.is_some() {
+                refused("the file could not be saved")
+            } else {
+                e
+            });
         }
     };
     let made = made.as_str().map_or(path, str::to_owned);
@@ -329,7 +391,7 @@ async fn keep_name(
 /// it was, when a set was written.
 async fn keep_access(
     server: &Arc<Server>,
-    (folder, _key): (&str, &str),
+    (folder, key): (&str, &str),
     door: &crate::access::Door,
     (into, path): (&str, &str),
 ) -> Result<Option<Arc<crate::campaign::Veil>>, ContractError> {
@@ -341,6 +403,17 @@ async fn keep_access(
     }
     let want = veil.effective_set(into);
     if veil.effective_set(path) == want {
+        return Ok(None);
+    }
+    // A path that is a file already keeps what it has: nothing is overwritten
+    // here, nor rolled back later.
+    let (s, k, p) = (Arc::clone(server), key.to_owned(), path.to_owned());
+    if blocking(move || {
+        s.service
+            .with_key(&k, |ws| Ok(crate::access::Door::is_file(ws, &p)))
+    })
+    .await?
+    {
         return Ok(None);
     }
     let (s, f, p) = (Arc::clone(server), folder.to_owned(), path.to_owned());

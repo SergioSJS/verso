@@ -1149,3 +1149,19 @@ file must be reopened.
   the board's access does not move its images' sets, as for any file with a
   set of its own; (4) the window's status line ("copiado para <sub>") and its
   relative link are the game master's own.
+
+**Review fixes (2026-10-28).** The subfolder must not tell a player what it
+does not see (a create fails differently on a hidden twin, a hidden file or a
+hidden folder). `Door::dir_clear` therefore judges every folder of the target
+path: each must be new or the one folder of that exact name which the player
+sees (it holds something the player sees, or is a table's root) — never a file,
+a hidden folder, or a twin by case or Unicode form — and the target must lie
+in the same table as `into`. The server tries, in order: the sub beside `into`;
+`assets` beside `into`; the table's attachments place (the chat's, used as it
+is). It chose the fallback over a refusal because the player keeps the image;
+what remains, that the folder of the answer differs, is the same trade as the
+S1–S3 suffix. `into` must be an existing file of the folder; an absent one or a
+folder is told with the message of a file one may not touch. Any error of the
+create on this path is one message ("the file could not be saved"). A path
+that already exists is not given a set and none is rolled back. The window says
+the folder really used ("copiado para ...") from the returned path.

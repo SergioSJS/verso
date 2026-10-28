@@ -18,7 +18,7 @@ import { type Block, type Edit as BlockEdit, type TurnKind, blockLink, blocksOfS
 import { blocksOf } from "../../blocks/view";
 import { startCompletion } from "@codemirror/autocomplete";
 import { a, pickImages, touchScreen } from "../../attach";
-import { attachSub } from "../../board/imageRoute";
+import { attachSub, usedFolder } from "../../board/imageRoute";
 import { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } from "../../attachName";
 import { atTable, may, seat } from "../../access";
 import { host } from "../../can";
@@ -437,7 +437,7 @@ export async function attachThroughServer(this: NoteLeaf, b64: string, shown: st
     selection: { anchor: pos + target.length + 5 },
     annotations: Transaction.userEvent.of("input"),
   });
-  ui.status.textContent = a.done(shown, sub);
+  ui.status.textContent = a.done(shown, usedFolder(this.path, r.data));
   await afterFileChange();
   return r.data;
 }
