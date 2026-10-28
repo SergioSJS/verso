@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { presenceOpened } from "../notify/sources";
 import { liveOffNotice } from "../liveOff";
+import { presenceOpened } from "../notify/presence";
 import { openSettingsSection } from "../dialogs/sync";
 import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
