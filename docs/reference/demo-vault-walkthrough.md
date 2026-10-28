@@ -1627,6 +1627,11 @@ must be a server's, and the person its owner.
 12. A player who *Edits* a folder. As that player, *New note* and *Rename* are
     offered in the folder; *Delete* and moving files are not. Level: H (by hand;
     no E yet).
+13. The table's log end. In the *Mesa* panel, send a message: the log scrolls so the
+    whole new card, border included, is above the composer. Scroll up, have
+    another person send one: the log stays, a *New message ↓* button with a count
+    appears above the composer and jumps to the end; it goes away at the bottom.
+    Also at 390×844. Level: H (E not run on the Mac).
 
 ## 19. The end
 
