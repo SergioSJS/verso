@@ -15,6 +15,10 @@ import { BoardHost, CardEditing } from "./types";
 import { ext, IMAGE, kindOf } from "../paths";
 import { sharpFactor } from "./sharp";
 
+/** How many times, and how long apart (times the try), a picture that failed to load is asked for again. */
+const PICTURE_RETRIES = 4;
+const PICTURE_RETRY_MS = 1500;
+
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open
  *  and swap are in the top-right tools while it is selected). */
@@ -163,6 +167,18 @@ export function Card({
   // A picture card draws the picture's copy, in its turn, and the original
   // over it for a close view (`cardPicture`): undefined while it waits.
   const [copy, setCopy] = useState<string | null | undefined>(undefined);
+  // A picture that another person put on the board can reach the room before
+  // its file reaches this folder by sync: it fails to load once. It is tried
+  // again a few times, each later than the last (the window's own signal of
+  // arrived files draws the card again at once), without drawing the scene.
+  const [tries, setTries] = useState(0);
+  const retryTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(retryTimer.current), []);
+  const failedToLoad = useCallback((): void => {
+    if (tries >= PICTURE_RETRIES) return;
+    window.clearTimeout(retryTimer.current);
+    retryTimer.current = window.setTimeout(() => setTries((n) => n + 1), PICTURE_RETRY_MS * (tries + 1));
+  }, [tries]);
   useEffect(() => {
     if (!picture || tiled || mapPending) return;
     let gone = false;
@@ -174,7 +190,7 @@ export function Card({
       gone = true;
       cancel();
     };
-  }, [picture, tiled, mapPending, id, file, host, draw]);
+  }, [picture, tiled, mapPending, id, file, host, draw, tries]);
   // Drawn once, in its turn, and kept wherever the view goes: only a
   // change of the note, or of the folder, draws it again.
   useEffect(() => {
@@ -308,7 +324,7 @@ export function Card({
             <div className="board-crop-inner" style={{ left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }}>
               {/* The whole picture is what is laid out larger (and rasterised): the factor is bounded by its full width. */}
               <Sharp factor={cropSharp} w={cropView ? cropView.w / crop.w : 0} h={cropView ? cropView.h / crop.h : 0}>
-                <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
+                <img key={tries} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
               </Sharp>
               {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
             </div>
@@ -317,7 +333,7 @@ export function Card({
       ) : (
         <div className="board-card-image" data-path={file}>
           <Sharp factor={sharp} w={Number(node.width) || 250} h={Number(node.height) || 250}>
-            <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
+            <img key={tries} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} />
           </Sharp>
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>

@@ -524,7 +524,9 @@ function Board({
     addEventListener("verso:sync-state", again);
     addEventListener("verso:role", again);
     addEventListener("verso:can-changed", again);
+    addEventListener("verso:files-listed", again);
     return () => {
+      removeEventListener("verso:files-listed", again);
       removeEventListener("verso:sync-state", again);
       removeEventListener("verso:role", again);
       removeEventListener("verso:can-changed", again);

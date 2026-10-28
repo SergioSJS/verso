@@ -1685,3 +1685,10 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 4. Accept a folder's suggested theme: it becomes that folder's choice, the default is unchanged.
 5. The same shared folder on a second device of the same person may carry its own choice there (the choice is keyed by the folder's key on that device).
 6. Another account on the same folder sees its own theme, never this one.
+
+## A player's image on a board (2026-10-28)
+
+1. On a shared table, as a player who may edit the board "Board do grupo" but only reads the folder, paste, drop or choose an image on the board: it appears at once and for the game master too, with no reload; the server logs no "you may only read this folder".
+2. Take the "Send files" right away from that player: pasting an image now says "O mestre ainda não deixou você enviar arquivos." and nothing is written.
+3. Drop a GIF file (and paste one copied as a file): the card keeps animating. (A GIF copied with the browser's "Copy image" is turned into a PNG by the browser before Verso sees it; drag the file instead.)
+4. As the game master, with the player's image sent while the file is still on its way by sync: the card fills in by itself within seconds.

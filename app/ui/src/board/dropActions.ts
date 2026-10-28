@@ -10,6 +10,7 @@
 
 import type { ClipboardEvent, DragEvent, RefObject } from "react";
 import { viewportCoordsToSceneCoords } from "@excalidraw/excalidraw";
+import { imageFileName } from "./imageRoute";
 import { mapAt } from "./maps";
 import { type CanvasNode, type El, newNode } from "./model";
 import { ext, IMAGE } from "../paths";
@@ -106,7 +107,7 @@ export function dropActions({ api, host, center, add, byId, pin, stair, touched 
           r.onerror = () => reject(r.error);
           r.readAsDataURL(f);
         });
-        const path = await host.saveImage(f.name.includes(".") ? f.name : `${f.name}.png`, base64);
+        const path = await host.saveImage(imageFileName(f.name, f.type), base64);
         if (path) await addPath(path, clientX, clientY, st.next++);
       }
     } finally {
