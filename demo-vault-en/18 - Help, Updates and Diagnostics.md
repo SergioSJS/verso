@@ -24,13 +24,13 @@ How to keep Verso up to date, report a problem and see what happens inside.
 
 ## Notifications
 
-What changes without you asking appears in a notice in the bottom right corner (on a phone, at the top): sync that dropped and sync that came back, the connection to the server, a conflict copy, a folder shared with you or a revoked share, a new version, a folder close to its quota, items leaving the trash within 3 days, someone joining the note you are editing. Each change is said **once**; an information notice goes away after 6 seconds, a warning or error stays until you close it (`Esc` closes the one that has focus) or until the state returns. What you did — save, move, rename — is still said in the status bar, not here.
+What changes without you asking appears in a notice in the bottom right corner (on a phone, at the top): sync that dropped and sync that came back, the connection to the server, a conflict copy, a folder shared with you or a revoked share, a new version, a folder close to its quota, items leaving the trash within 3 days, someone joining the note you are editing (this one starts as **list only**, with no notice: the bell counts it and the mark of whoever joined, beside "live", gets a brief ring). Each change is said **once**; an information notice goes away after 6 seconds, a warning or error stays until you close it (`Esc` closes the one that has focus) or until the state returns. What you did — save, move, rename — is still said in the status bar, not here.
 
 - **The bell**, in the status bar before **Report a problem** (on a phone, at the top of the panel), counts what you have not seen. Click it — or use **Notifications** in the palette (`⌘⇧P`) — to open the list: newest first, with the time, the folder when it is not this window's, and what you can do. Opening marks everything as seen; **Clear** empties it. The list stays on this computer (up to 100, for 30 days), and does not go to your account.
 - **Settings › Notifications**: for each kind, **Notice and list**, **List only** or **Off**. Turning it off does not hide the state: the status bar still tells you about sync, and the note about the conflict.
 - **Also in the system's notifications** starts off. In the browser, turning it on asks for permission; if refused, the option goes back to off and says why. On the desktop nothing is asked: the system's notification settings decide, and the option says where they are. When on, whatever is in **Notice and list** also appears in the system's notifications while the window is behind others, minimized or on another tab.
 
-Try it: open **Settings › Notifications**, put **Presence** on **List only** and watch the choice be kept; then open the bell.
+Try it: open **Settings › Notifications**, put **Presence** on **Notice and list** to see the notice when someone joins, or leave it on **List only** (the start) and see only the bell; then open the bell.
 
 ---
 
