@@ -966,3 +966,5 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .font-sample-frame .font-sample-body { margin: 0; padding: .6rem .9rem; box-sizing: border-box; transform-origin: top left; }
 .font-sample-body > :first-child { margin-top: 0; }
 .font-sample-body > :last-child { margin-bottom: 0; }
+
+.focus-empty-hint { font-size: 0.85em; opacity: 0.7; padding: 2px 8px 6px 28px; }

@@ -1368,6 +1368,20 @@ export class Core {
     },
     ...this.clouds.handlers(),
     ...this.cloudFiles.handlers(), // ADR 0043
+    // The older `.Name.ext.icloud` stand-in: fetching brings its content down
+    // as the file (the harness keeps the content in the stand-in).
+    fetch_file: (a) => {
+      const path = a["path"] as string;
+      const slash = path.lastIndexOf("/");
+      const standIn = `${path.slice(0, slash + 1)}.${path.slice(slash + 1)}.icloud`;
+      const held = this.files.get(standIn);
+      if (held) {
+        this.files.delete(standIn);
+        this.put(path, held.bytes);
+        return true;
+      }
+      return this.cloudFiles.handlers()["fetch_file"]!(a);
+    },
     ...this.bin.handlers(),
     ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).

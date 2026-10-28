@@ -1633,6 +1633,17 @@ must be a server's, and the person its owner.
     appears above the composer and jumps to the end; it goes away at the bottom.
     Also at 390×844. Level: H (E not run on the Mac).
 
+## 18b. A focuses file only in the cloud (ADR 0043)
+
+With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
+
+1. Open the Focuses tab: the notice says the file is in the cloud, with a
+   "Download now" button. Nothing was downloaded yet.
+2. Click it: the status line says it is downloading, then that the focuses
+   were read again; the notice goes away (or the make.md focuses appear).
+3. A focus with no folders shows the hint to right-click a folder or file in
+   the note list and choose "Add to focus…".
+
 ## 19. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
