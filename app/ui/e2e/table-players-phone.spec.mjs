@@ -61,47 +61,52 @@ for (const theme of ["light", "dark"]) {
       localStorage.setItem("verso.settings", JSON.stringify({ ...s, theme: th }));
     }, theme);
     const dialog = await owner(app);
-    const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar arquivos` });
+    // K.6: the switches (Imagens, Arquivos, Cria notas, Cria boards) open under the player's row, from the count of rights.
+    const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar imagens` });
+    const rightsOf = (name) => dialog.getByRole("button", { name: new RegExp(`^${name} tem \\d de 4 direitos`) });
+    await rightsOf("Bia").click();
     await sw("Bia").check({ force: true });
-    await expect(dialog.getByRole("switch", { name: "Bia pode enviar arquivos" })).toBeChecked();
+    await expect(dialog.getByRole("switch", { name: "Bia pode enviar imagens" })).toBeChecked();
     if (SHOTS && /^(chromium|phone-webkit)$/.test(info.project.name) && (theme === "light" || phone(page))) {
       await page.waitForTimeout(300);
       await page.screenshot({ path: `${SHOTS}/${PFX}-jogadores-${phone(page) ? "telefone" : "desktop"}-${theme}.png` });
     }
     if (process.env.SHOT_ONLY || !phone(page)) return;
     const t = dialog.getByRole("table", { name: "Jogadores da mesa e o que cada um pode fazer" });
+    // The switches are folded again, so the list of players is what is measured.
+    await rightsOf("Bia").click();
+    await expect(dialog.getByText("Direitos de Bia")).toBeHidden();
     const rows = t.locator("tr.cd-player");
     await expect(rows).toHaveCount(3);
     const boxes = await rows.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: r.height }; }));
     for (const b of boxes) expect(b.h).toBeLessThanOrEqual(64);
     const card = await dialog.locator(".cd-access").evaluate((el) => ({ over: el.scrollHeight - el.clientHeight, h: el.getBoundingClientRect().height }));
     expect(card.over).toBeLessThanOrEqual(0);
-    expect(card.h).toBeLessThan(3 * 64 + 90);
-    // One row each: the name, the two counts and the switch share a line.
+    // The players' list stays as slim as before K.6 (the box per right for everyone sits under it, outside the bound).
+    expect((await t.boundingBox()).height).toBeLessThan(3 * 64 + 90);
+    // One row each: the name, the two counts and the count of rights share a line.
     const line = await rows.first().evaluate((tr) => {
       const mid = (s) => { const r = tr.querySelector(s).getBoundingClientRect(); return r.top + r.height / 2; };
-      return [mid(".cd-avatar"), mid(".cd-count-btn"), mid(".switch")];
+      return [mid(".cd-avatar"), mid(".cd-count-btn"), mid(".cd-count-btn[data-key^='rights:']")];
     });
     expect(Math.max(...line) - Math.min(...line)).toBeLessThan(8);
     // Named counts and switch, still opening the lists; 44 px targets.
     await expect(t.getByRole("button", { name: "Bia vê 3 notas; mostrar a lista" })).toBeVisible();
     await expect(t.getByRole("button", { name: "Bia edita 1 nota; mostrar a lista" })).toBeVisible();
-    for (const name of [/^Bia vê/, /^Bia edita/]) {
+    for (const name of [/^Bia vê/, /^Bia edita/, /^Bia tem/]) {
       const b = await t.getByRole("button", { name }).boundingBox();
       expect(b.height).toBeGreaterThanOrEqual(44);
       expect(b.width).toBeGreaterThanOrEqual(44);
     }
-    const sb = await sw("Bia").boundingBox();
-    expect(sb.height).toBeGreaterThanOrEqual(44);
-    // The header: the "Todos" box sits over the switch column and under the heading, not on it.
-    const head = await dialog.locator(".cd-players-title, #cd-players-title").first().boundingBox();
-    const all = await dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" }).boundingBox();
-    expect(all.y).toBeGreaterThanOrEqual(head.y + head.height - 1);
-    expect(Math.abs(all.x + all.width / 2 - (sb.x + sb.width / 2))).toBeLessThan(60);
+    await rightsOf("Caio").click();
+    const sb = await dialog.locator(".cd-right-label:visible").first().boundingBox();
+    expect(sb.height).toBeGreaterThanOrEqual(43);
+    // A box per right for everyone, "Todos podem enviar imagens", is reachable.
+    await expect(dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" })).toBeVisible();
     // "Salvo" moves nothing: the rows' tops are the same with it shown and gone.
     await sw("Caio").check({ force: true });
     const during = await rows.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-    await expect(dialog.locator(".cd-feedback:not(:empty)").first()).toBeVisible();
+    await expect(dialog.locator(".cd-feedback:not(:empty):visible").first()).toBeVisible();
     await expect(dialog.locator(".cd-feedback:not(:empty)")).toHaveCount(0, { timeout: 6000 });
     const after = await rows.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
     expect(after).toEqual(during);

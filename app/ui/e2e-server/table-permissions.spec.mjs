@@ -167,7 +167,7 @@ for (const format of ["member", "share"]) {
       const dialog = gm.locator(".campaign-dialog");
       await expect(dialog).toBeVisible();
       const sw = dialog.getByRole("switch", SWITCH);
-      const feedback = dialog.locator(".cd-right").filter({ has: sw }).locator(".cd-feedback");
+      const feedback = dialog.locator(".cd-right").filter({ has: gm.getByRole("switch", SWITCH) }).locator(".cd-feedback");
 
       await item(1, "off by default: the player has no attach button, the switch is off", async () => {
         await expect(attach).toBeHidden();

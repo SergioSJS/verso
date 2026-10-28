@@ -245,7 +245,11 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
         const sec = lists[kind];
         const shown = open.has(`${kind}:${p.id}`);
         sec.hidden = !shown;
-        if (!shown) continue;
+        if (!shown) {
+          // A closed list keeps nothing of the last time it was open.
+          sec.replaceChildren();
+          continue;
+        }
         any = true;
         const list = listFor(kind);
         const ul = h("ul", "cd-note-list");
