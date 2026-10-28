@@ -551,7 +551,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-side { flex: none; width: 15.5rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem 0; background: var(--paper-2); border-right: 1px solid var(--hair); min-height: 0; overflow: hidden; }
 .settings-top { flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .8rem; }
 .settings-top .settings-search { flex: 1; min-width: 0; }
-.settings-close { flex: none; }
+.settings-close { position: absolute; top: .6rem; right: .6rem; z-index: 2; }
 .settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--control-line); border-radius: 999px; background: var(--paper); color: var(--ink); }
 .settings-search:focus { outline: none; border-color: var(--brass-ink); }
 .settings-nav { display: flex; flex-direction: column; gap: .1rem; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem 0 .8rem; scrollbar-width: thin; }
@@ -573,7 +573,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-nav-item[aria-current="true"] .icon { color: var(--seal); }
 .settings-nav-item:hover { background: var(--paper-3); color: var(--ink); }
 .settings-nav-item[aria-current="true"] { background: var(--seal-wash); color: var(--seal); }
-.settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 2rem 2rem; }
+.settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 3.2rem 2rem 2rem; }
 .settings-back { display: none; }
 .settings-title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0 0 .6rem; }
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
@@ -794,7 +794,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 @media (min-width: 761px) and (max-width: 920px) {
   .settings-side { width: 13rem; }
-  .settings-body { padding: 1rem 1.25rem 2rem; }
+  .settings-body { padding: 1rem 3rem 2rem 1.25rem; }
 }
 
 /* A phone: the sections become a row above the page, scrolled sideways. */
@@ -821,8 +821,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
     border-bottom: 1px solid var(--hair);
     gap: .4rem;
   }
+  /* Room at the right of the search for the close, in the corner above it. */
   .settings-top {
-    padding: 0;
+    padding: 0 52px 0 0;
   }
   /* A list first, a page after a tap, with a way back (iOS, Android). */
   .settings-nav {
@@ -850,7 +851,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
     font-size: 1rem;
   }
   .settings-nav-item .icon { width: 18px; height: 18px; }
-  .settings-close { min-width: 44px; min-height: 44px; }
+  .settings-close { min-width: 44px; min-height: 44px; top: .45rem; right: .5rem; }
   .settings-body {
     padding: 1rem 1rem 2.5rem;
   }
