@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 await esbuild.build({ entryPoints: ["src/board/imageRoute.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/boardImageRoute.test-bundle.mjs", logLevel: "error" });
-const { imageRoute, imageFileName } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
+const { imageRoute, imageFileName, attachSub } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
 
 test("a player who edits the board: the server writes the new image", () => {
   assert.equal(imageRoute("player", true, true, true), "server");
@@ -39,4 +39,9 @@ test("a real name with a known extension stays; an unknown 'extension' is not on
   assert.equal(imageFileName("foto.jpeg", "image/jpeg"), "foto.jpeg");
   assert.equal(imageFileName("mapa.PNG", "image/png"), "mapa.PNG");
   assert.equal(imageFileName("photo.v2", "image/gif"), "photo.v2.gif");
+});
+test("the subfolder sent with a player's new file is the setting, as the paste of anyone uses it", () => {
+  assert.equal(attachSub("assets"), "assets");
+  assert.equal(attachSub("  /fotos/mesa/ "), "fotos/mesa");
+  assert.equal(attachSub(""), "");
 });

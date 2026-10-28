@@ -11,6 +11,13 @@
 //    reaches the board as an element through the room, by element;
 //  - anyone else: the file is made in the folder beside the board, as before.
 
+/** The attachments subfolder the window sends with a player's new file
+ *  (`table_attach`) and uses for its own paste: the setting without the slashes
+ *  at either end; the server falls back to `assets` for one it does not accept. */
+export function attachSub(setting: string): string {
+  return setting.trim().replace(/^\/+|\/+$/g, "");
+}
+
 export type ImageRoute = "folder" | "server" | "no-edit" | "no-send";
 
 export function imageRoute(seat: string, atTable: boolean, mayEdit: boolean, maySend: boolean): ImageRoute {

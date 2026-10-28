@@ -707,8 +707,10 @@ pub async fn command(
     if cmd == "table_attach" {
         let data: String = arg(&args, "base64")?;
         let into: String = arg(&args, "into")?;
+        let sub: Option<String> = arg(&args, "sub")?;
         pace(&s, client)?;
-        return crate::table_image::attach(server, who, client, (&data, &into)).await;
+        return crate::table_image::attach(server, who, client, (&data, &into, sub.as_deref()))
+            .await;
     }
     // The table the call is for: the one it names (a real table of the
     // folder, ADR 0107 as amended 2026-10-23), the folder's default for an

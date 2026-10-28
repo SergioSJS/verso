@@ -328,7 +328,7 @@ fn an_image_put_into_a_note_one_edits_needs_only_the_edit() {
             .call("table_attach", json!({ "base64": png, "into": "Livre.md" }))
             .await;
         let path = made["ok"].as_str().unwrap_or_default().to_owned();
-        assert!(path.starts_with("attachments/mesa-"), "{made}");
+        assert!(path.starts_with("assets/mesa-"), "{made}");
         let files = m.owner.call("list_files", json!({})).await;
         assert!(files.to_string().contains(&path), "{files}");
         assert_eq!(
@@ -480,14 +480,14 @@ fn send_files_covers_a_pdf_and_audio_in_the_chat_and_in_a_note() {
             let files = m.owner.call("list_files", json!({})).await;
             assert!(files.to_string().contains(path), "{files}");
         }
-        // Into the note she edits: the same place.
+        // Into the note she edits: beside it, in `assets`.
         let made = m
             .ana
             .call("table_attach", json!({ "base64": pdf, "into": "Livre.md" }))
             .await;
         let path = made["ok"].as_str().unwrap_or_default();
         assert!(
-            path.starts_with("attachments/mesa-") && path.ends_with(".pdf"),
+            path.starts_with("assets/mesa-") && path.ends_with(".pdf"),
             "{made}"
         );
         // The same checks: a page is no file, whatever it is called.

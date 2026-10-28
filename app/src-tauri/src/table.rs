@@ -79,13 +79,14 @@ pub fn table_send_image(
     Err(no_table())
 }
 
-/// An image (base64) written into the table's attachments place for a note
-/// or board the person edits, with no entry in the chat (ADR 0113 D); the
-/// file's path.
+/// A file (base64) written beside the note or board the person edits
+/// (`into`), in its `sub` subfolder (the window's attachments setting;
+/// `assets` when the server does not accept it), with no entry in the chat
+/// (ADR 0113 item 5, D); the file's path.
 #[tauri::command]
 #[specta::specta]
-pub fn table_attach(base64: String, into: String) -> Result<String, ContractError> {
-    let _ = (base64, into);
+pub fn table_attach(base64: String, into: String, sub: String) -> Result<String, ContractError> {
+    let _ = (base64, into, sub);
     Err(no_table())
 }
 
