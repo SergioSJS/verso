@@ -23,6 +23,7 @@ import { fail } from "../errors";
 import { leavesOf } from "../layout/spaces";
 import { opening } from "../opening";
 import { boardText, t } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { ui } from "../dom";
 import type { BoardLeaf } from "./board";
 import { loadBoardModule } from "./board";
@@ -323,7 +324,7 @@ export async function saveInRoom(this: BoardLeaf): Promise<void> {
     if (r.status === "ok") {
       this.holdRevision(r.data);
       this.setDirty(false);
-      ui.status.textContent = t.saved;
+      flashSaved(ui.status, t.saved);
       return;
     }
     if (r.error.kind === "changed") return this.boardConflict();

@@ -373,3 +373,5 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .pill-x::after { left: -5px; transform: translateY(-50%); }
 /* The status bar's text buttons are wide enough; only the height grows. */
 .status-keys button::after { content: ""; position: absolute; inset: -5px -2px; }
+/* Kept in the row while hidden: the title's width, and with it where it wraps, must not change on every save. */
+.title-row .dirty-mark.idle, .title-row .save.idle { visibility: hidden; }

@@ -56,6 +56,7 @@ import { settings, sourceLineNumbers } from "../settings";
 import { giveBack } from "../side";
 import { SlashMenu } from "../slash";
 import { boardText, LOCALE, t, typedText } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { markCurrent } from "../tree/tree";
 import { KeptCard } from "./board";
 import { ConflictBanner, GoneBanner, keepCopy } from "./conflict";
@@ -464,8 +465,11 @@ export class NoteLeaf extends Leaf {
   declare attachThroughServer: typeof editing.attachThroughServer;
   override setDirty(d: boolean): void {
     super.setDirty(d);
-    this.dirtyMark.hidden = !d;
-    this.saveButton.hidden = !d;
+    // Out of sight, not out of the row: a Save button that came and went
+    // with every pause in typing made a long title wrap and unwrap, and the
+    // sheet's scroll moved with it.
+    this.dirtyMark.classList.toggle("idle", !d);
+    this.saveButton.classList.toggle("idle", !d);
   }
   setMode(mode: Mode): void {
     if (mode !== this.mode && this.cards.size > 0) {
@@ -1235,7 +1239,7 @@ export class NoteLeaf extends Leaf {
         if (r.status === "ok") {
           this.revision = r.data;
           this.setDirty(false);
-          ui.status.textContent = t.saved;
+          flashSaved(ui.status, t.saved);
         } else if (r.error.kind === "changed") await this.collabConflict();
         else if (r.error.kind === "not_found") this.goneOnSave(r.error);
         else fail(r.error);
@@ -1281,7 +1285,8 @@ export class NoteLeaf extends Leaf {
     if (this.editorText() === mine) this.setDirty(false);
     // A statblock that inherits from this note draws again (ADR 0099 item 1).
     refreshBestiary();
-    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+    if (w.warnings.length === 0) flashSaved(ui.status, t.saved);
+    else ui.status.textContent = `${t.saved} ${w.warnings.join("; ")}`;
   }
   /** A write refused. `changed`: the file moved on since it was read
    *  (invariant 11) — nothing was written, and both versions go on screen
