@@ -20,6 +20,7 @@ import { Leaf } from "./leaves/leaf";
 import { NoteLeaf } from "./leaves/note";
 import { panel } from "./main";
 import { name } from "./paths";
+import { filesArrived } from "./table/arrival";
 import { searchNotes } from "./search";
 import { t } from "./strings";
 import { listAll } from "./tree/tree";
@@ -81,6 +82,8 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
     ui.status.textContent = t.movedElsewhere(moved.map((m) => `${name(m.from)} → ${name(m.to)}`).join(", "));
   }
   const changed = new Set([...change.changed, ...change.removed]);
+  // A picture of the table waiting for its file (it comes by sync after the entry) asks again.
+  filesArrived(change.changed);
   // The folder's settings changed outside this window — another window,
   // sync, another program (ADR 0070): read again.
   let named = false;
