@@ -111,8 +111,8 @@ export class SettingsDialog {
     const top = h("div", "settings-top");
     top.append(this.search);
     side.append(top, this.nav);
-    // In the box's top right corner, where a dialog's close is looked for.
-    this.box.append(side, this.body, close);
+    // In the box's top right corner, where a dialog's close is looked for (first in the DOM: reached early by Tab).
+    this.box.append(close, side, this.body);
     this.frame = wireFrame(this.box, this.el, side);
 
     this.el.append(this.box);

@@ -221,7 +221,7 @@ export class Panel {
           });
         });
         banner.append(" ", down);
-        if (focusesDownloadFailed) {
+        if (focusesDownloadFailed()) {
           const bad = h("div", "focuses-download-error", t.focusesDownloadFailed);
           bad.setAttribute("role", "alert");
           banner.append(bad);

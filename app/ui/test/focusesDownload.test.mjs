@@ -82,3 +82,17 @@ describe("askSyncAfterDownload", async () => {
     assert.equal(askSyncAfterDownload({ ...base, hasFile: false }), false);
   });
 });
+
+describe("folderFlag", () => {
+  test("a failed download is remembered for its folder only", async () => {
+    const out2 = await esbuild.build({ entryPoints: ["src/focusesDownload.ts"], bundle: true, write: false, format: "esm", platform: "node" });
+    const { folderFlag } = await import(`data:text/javascript;base64,${Buffer.from(out2.outputFiles[0].text).toString("base64")}`);
+    const f = folderFlag();
+    assert.equal(f.get("/a"), false);
+    f.set("/a", true);
+    assert.equal(f.get("/a"), true);
+    assert.equal(f.get("/b"), false);
+    f.set("/a", false);
+    assert.equal(f.get("/a"), false);
+  });
+});

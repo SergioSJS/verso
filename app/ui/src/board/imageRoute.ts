@@ -19,12 +19,18 @@ export function imageRoute(seat: string, atTable: boolean, mayEdit: boolean, may
   return maySend ? "server" : "no-send";
 }
 
+const KNOWN = /\.(png|jpe?g|gif|webp|avif|bmp|svg|tiff?|heic|ico|mp3|wav|ogg|m4a|flac|aac|pdf)$/i;
+// What a browser names a pasted or dropped picture it has no name for: a name that says nothing, whatever its extension.
+const GENERIC = /^(image|blob)?(\.png)?$/i;
+
 /** The name a file put on the board is given when the browser names it
  *  nothing, or a generic `image.png`: the extension follows the bytes' own
- *  type (a GIF stays a GIF), never a fixed `.png`. */
+ *  type (a GIF stays a GIF), never a fixed `.png`. A real name with a known
+ *  image, sound or PDF extension stays as it is (`photo.v2` has none). */
 export function imageFileName(name: string, type: string): string {
-  if (/\.[A-Za-z0-9]{2,5}$/.test(name)) return name;
+  if (!GENERIC.test(name) && KNOWN.test(name)) return name;
   const kind = type.split("/")[1]?.split("+")[0]?.toLowerCase() ?? "";
   const ext = kind === "jpeg" ? "jpg" : /^(png|gif|webp|avif|bmp|jpg|svg)$/.test(kind) ? kind : "png";
-  return `${name || "image"}.${ext}`;
+  const base = GENERIC.test(name) ? "image" : name;
+  return `${base}.${ext}`;
 }
