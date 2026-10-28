@@ -27,7 +27,7 @@ import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
 import { tt } from "./strings";
-import { afterDraw, atEnd } from "./stick";
+import { afterDraw, anchorTop, atEnd, splitFresh } from "./stick";
 import { ts } from "./trayStrings";
 import { campaign, isTableRoot, makeTable, tableFor } from "../campaign";
 import { tableAt } from "../campaignParts";
@@ -126,6 +126,7 @@ class TableView {
   private readonly toEnd = button("ghost table-to-end", tt.toEnd, "chevronDown");
   private stuck = true;
   private unseen = 0;
+  private newest: number | null = null;
   private fit: ResizeObserver | null = null;
   private known = new Set<string>();
   private told = new Set<string>();
@@ -198,6 +199,7 @@ class TableView {
     this.off?.();
     this.bound = src;
     this.known = new Set();
+    this.newest = null;
     this.told = new Set();
     this.first = true;
     this.off = src.onChange(() => {
@@ -364,10 +366,10 @@ class TableView {
     this.pinList.replaceChildren(...pinned.map((e) => this.item(e, server)));
     this.older.hidden = !server?.more();
     const top = this.list.scrollTop;
-    const fresh: TableEntry[] = [];
+    const oldHeight = this.list.scrollHeight;
     const items: HTMLElement[] = [];
+    const { news: fresh, older } = splitFresh(entries, this.known, this.newest);
     for (const e of entries) {
-      if (!this.known.has(e.id)) fresh.push(e);
       items.push(this.item(e, server));
     }
     if (items.length === 0) {
@@ -375,6 +377,12 @@ class TableView {
       const empty = pinned.length > 0 && !src.hidden() ? [] : [h("li", "table-empty", src.hidden() ? tt.emptyOff : server ? tt.emptyServer : tt.empty)];
       this.list.replaceChildren(...empty);
     } else this.list.replaceChildren(...items);
+    // The cards are watched too: one growing late (dice, an image, a font) moves the end while the log follows it.
+    if (this.fit) {
+      this.fit.disconnect();
+      this.fit.observe(this.list);
+      for (const c of Array.from(this.list.children)) this.fit.observe(c);
+    }
     // Others' news is said once, with their name; the first paint and a
     // hidden or restored log say nothing.
     {
@@ -391,10 +399,11 @@ class TableView {
     const wasFirst = this.first;
     this.first = false;
     this.known = new Set([...entries, ...pinned].map((e) => e.id));
+    this.newest = entries.reduce((m, e) => Math.max(m, e.at), this.newest ?? 0) || this.newest;
     const next = afterDraw({ stuck: this.stuck, mine: !wasFirst && fresh.some((e) => e.mine && e.elsewhere !== true), fresh: fresh.length, unseen: this.unseen });
     if (next.follow) this.scrollEnd();
     else {
-      this.list.scrollTop = top;
+      this.list.scrollTop = older.length > 0 ? anchorTop(oldHeight, top, this.list.scrollHeight) : top;
       this.unseen = next.unseen;
       this.stuck = false;
       this.paintToEnd();
