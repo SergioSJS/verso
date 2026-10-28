@@ -962,6 +962,24 @@ impl Root {
         ops::read_waypoints(&self.path)
     }
 
+    /// `.space/waypoints.json`, when its content is only in the cloud in the
+    /// dataless form, so the person's click can fetch it (ADR 0043, amended
+    /// on 2026-10-27). It is named here and not by a path: a hidden entry
+    /// never crosses the contract as one. `None` for a file on disk, an
+    /// absent one and the older `.Name.ext.icloud` form.
+    pub fn waypoints_placeholder(&self) -> Result<Option<Placeholder>, ReadError> {
+        let path = crate::on_disk(&self.path, Path::new(ops::WAYPOINTS_PATH));
+        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
+        match std::fs::metadata(&target) {
+            Ok(meta) if !meta.is_dir() && placeholder::is_dataless(&meta) => {
+                Ok(Some(Placeholder::new(target)))
+            }
+            Ok(_) => Ok(None),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(ReadError::Io(e)),
+        }
+    }
+
     /// Replace `.space/waypoints.json` atomically, checking that the file on
     /// disk is the one that was read (`expected`, Invariant 11; ADR 0062 D7).
     pub fn write_waypoints(
