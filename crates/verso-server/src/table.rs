@@ -1105,30 +1105,30 @@ pub(crate) fn tell_images(server: &Server, (folder, table): (&str, &str), accoun
     };
     for client in clients {
         let on_share = viewer_of(server, &client, folder).is_some_and(|v| v.2.is_some());
+        // One lock for both answers: a second `lock` in the same statement
+        // would wait for the first.
+        let (images, files) = lock(&server.clients)
+            .get(&client)
+            .map_or((false, false), |c| {
+                let ask = |image| {
+                    crate::access::may_client(
+                        server,
+                        c,
+                        Action::SendFile { image },
+                        table,
+                        Kind::Table,
+                    )
+                };
+                (ask(true), ask(false))
+            });
         let payload = TableImages {
             table: if on_share {
                 String::new()
             } else {
                 table.to_owned()
             },
-            images: lock(&server.clients).get(&client).is_some_and(|c| {
-                crate::access::may_client(
-                    server,
-                    c,
-                    Action::SendFile { image: true },
-                    table,
-                    Kind::Table,
-                )
-            }),
-            files: lock(&server.clients).get(&client).is_some_and(|c| {
-                crate::access::may_client(
-                    server,
-                    c,
-                    Action::SendFile { image: false },
-                    table,
-                    Kind::Table,
-                )
-            }),
+            images,
+            files,
         };
         server.push(
             std::slice::from_ref(&client),

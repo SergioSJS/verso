@@ -69,7 +69,7 @@ When the name is already a spoiler: right-click the hidden note › **Secret nam
 
 By default players only read. Right-click a note › **Editable by** picks **nobody**, **the group** (every player edits: the group's note) or **one player** (their sheet). The player who edits the note sees it too (they join those who see it; **the group** makes it a note of the whole table), and whoever edits it reads it **whole**, with its secret blocks and links as you wrote them: if there is a secret in it, do not give it to anyone.
 
-Nobody but you renames, deletes or creates notes or files; the server checks this at every door (the window, the editing room, the synced device).
+Whoever edits a file renames it inside its folder and puts images into it; creating notes and boards depends on the rights below; nobody but you deletes or moves files. The server checks this at every door (the window, the editing room, the synced device).
 
 ---
 
@@ -82,9 +82,20 @@ The **Players** card is a **table**, one row per player, with columns for what e
 | **Player** | the avatar, the name and a green dot while they are at the table |
 | **Sees** | how many notes are released to them; click the number to open the list, each note a link |
 | **Edits** | how many notes they may edit (given in **Editable by**); click to see which |
-| **Images** | a **switch**: turn it on and they can paste or attach images in the [[31 - The Table|Table]]'s chat |
+| **Rights** | how many of the four rights you gave them; click the number to open the **four switches** |
 
-By default a player only reads and types text in the chat: the **Images** switch starts **off** and you turn it on, one player at a time, or with the **Everyone** box in the column's header, which shows "mixed" when the players differ. The switch saves at once and says **Saved** beside itself; a screen reader reads "Ana can send images". On or off, the player's window learns it **at once**: the attach button, paste and drop appear or go, with no reload. The server writes the image, into the table's attachments folder, with the usual checks (PNG, JPEG, WebP or GIF by the bytes, never SVG, the table's size limit, the folder's quota); it makes no difference whether the player came in through a share or is a member of the folder. You, the folder's owner, and editors always can. On a phone each player becomes a card with the same controls, no sideways scroll. All of it by keyboard: Tab, Space on the switch, Enter on a number.
+By default a player only reads and types text in the chat: the four rights start **off** and you turn them on, one player at a time, or with each right's **Everyone** box just under the table, which shows "mixed" when the players differ:
+
+| Right | What they can then do |
+|---|---|
+| **Images** | send an image to the [[31 - The Table|Table]]'s chat |
+| **Files** | send PDFs, audio and other files that are not images, to the chat and into a file they edit |
+| **Creates notes** | create notes, bases and folders inside a folder they edit |
+| **Creates boards** | create boards and drawings inside a folder they edit |
+
+**Editing** a file already covers the rest, with no right at all: the player puts a **new image** into it (the server writes the file, with the usual checks) and **renames** it inside its folder. They never delete, and moving a file to another folder stays yours; a moved file keeps the access it had. Editing a **folder** without **Creates notes** or **Creates boards** is editing and renaming what is in it, not adding to it; when the player tries, the window says which right is missing ("The game master has not given you the right to create boards.").
+
+Each switch saves at once and says **Saved** beside itself; a screen reader reads "Ana can create notes". On or off, the player's window learns it **at once**: the attach button, paste and drop appear or go, with no reload. The server writes the file, into the table's attachments folder, with the usual checks (the type by the bytes, never SVG, a page or a script, the table's size limit, the folder's quota); it makes no difference whether the player came in through a share or is a member of the folder. You, the folder's owner, can always do everything. On a phone each player is a slim row, and the rights open under it, no sideways scroll. All of it by keyboard: Tab, Space on a switch, Enter on a number.
 
 ---
 

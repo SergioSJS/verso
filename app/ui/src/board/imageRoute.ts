@@ -7,7 +7,7 @@
 //
 //  - a player at a table: never a write of the folder (they only read it);
 //    the server writes the file (`table_attach`, as for the chat) when the
-//    player edits the board and has the right to send files; the image then
+//    player edits the board (a new image needs no other right, K.6); the image then
 //    reaches the board as an element through the room, by element;
 //  - anyone else: the file is made in the folder beside the board, as before.
 

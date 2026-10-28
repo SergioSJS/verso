@@ -83,7 +83,7 @@ const styles = { 1: { body: "#112233", number: "#ffffff", outline: "#000000", te
 const wire = (id, over = {}) => ({ table: "", id: String(id), kind: "say", by: "Bia", by_id: "acc-bia", at: `2026-10-22T12:00:${String(id % 60).padStart(2, "0")}Z`, path: null, pinned: false, secret: false, roll: null, draw: null, text: `msg ${id}`, image: null, ...over });
 const rollWire = (id, over = {}) => wire(id, { kind: "roll", text: null, roll: { notation: "1d20+3", source: null, terms: [{ sign: 1, sides: 20, fudge: false, kept: [14], dropped: [] }], modifier: 3, total: 17, by: "Bia", at: "2026-10-22T12:00:00Z", styles }, ...over });
 
-function fake({ role = "editor", entries = [], more = false, roster, joinFails = false, table = "", images } = {}) {
+function fake({ role = "editor", entries = [], more = false, roster, joinFails = false, table = "", images, files } = {}) {
   const calls = [];
   /** The table each command named, in order. */
   const named = [];
@@ -95,7 +95,7 @@ function fake({ role = "editor", entries = [], more = false, roster, joinFails =
       calls.push(["join", color, st]);
       named.push(tb);
       if (joinFails) return ok(null).then(() => ({ status: "error", error: { kind: "refused", message: "the table is a server's" } }));
-      return ok({ table, you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }], ...(images === undefined ? {} : { images }) });
+      return ok({ table, you: "acc-ana", role, entries, more, roster: roster ?? [{ name: "Ana", by_id: "acc-ana", color: "#b5651d", styles: null }], ...(images === undefined ? {} : { images }), ...(files === undefined ? {} : { files }) });
     },
     leave: (tb) => (calls.push(["leave"]), named.push(tb), ok(null)),
     look: (color, st, tb) => (calls.push(["look", color, st]), named.push(tb), ok(null)),
@@ -519,6 +519,24 @@ test("a player sends images when the game master lets it, told live; an older se
   // A server that does not say: a reader does not, an editor does.
   assert.equal((await m.openServerTable(fake({ role: "reader" }).deps)).canSendImage(), false);
   assert.equal((await m.openServerTable(fake({ role: "editor" }).deps)).canSendImage(), true);
+});
+
+test("Images and Files are two rights: told apart at the join and live (ADR 0113 K.6)", async () => {
+  const f = fake({ role: "reader", images: false, files: false });
+  const t = await m.openServerTable(f.deps);
+  assert.equal(t.canSendImage() || t.canSendFile(), false);
+  let heard = 0;
+  t.onChange(() => heard++);
+  f.fire("table-images", { table: "", images: true, files: false });
+  assert.deepEqual([t.canSendImage(), t.canSendFile()], [true, false]);
+  f.fire("table-images", { table: "", images: true, files: true });
+  assert.deepEqual([t.canSendImage(), t.canSendFile()], [true, true]);
+  f.fire("table-images", { table: "", images: false, files: true });
+  assert.deepEqual([t.canSendImage(), t.canSendFile()], [false, true]);
+  assert.equal(heard, 3);
+  // At the join: only the files.
+  const g = await m.openServerTable(fake({ role: "reader", images: false, files: true }).deps);
+  assert.deepEqual([g.canSendImage(), g.canSendFile()], [false, true]);
 });
 
 test("a file of the chat is an entry that can be dragged as a link; a masked secret holds nothing to drag", () => {

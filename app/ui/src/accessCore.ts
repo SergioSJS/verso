@@ -11,7 +11,20 @@
 
 import type { FileAccess, FolderAccess } from "./bindings";
 
-export type Action = "see" | "edit" | "attach" | "create" | "rename" | "delete" | "move";
+export type Action =
+  | "see"
+  | "edit"
+  /** A new file that is not an image into a file the person edits (the right Files, ADR 0113 K.6). */
+  | "attach"
+  /** A new image into a file the person edits: Edits alone. */
+  | "attachImage"
+  /** Anything made in a folder: a note or a board (K.6). */
+  | "create"
+  | "createNote"
+  | "createBoard"
+  | "rename"
+  | "delete"
+  | "move";
 
 /** What the window knows besides the server's answers. */
 export type Ctx = {
@@ -40,11 +53,20 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
   }
   switch (action) {
     case "edit":
-    case "create":
     case "rename":
       return file.level === "edit";
+    // What may be made in a folder is what the server said of it (K.6): a
+    // right for a player, none outside a table.
+    case "create":
+      return file.create_note || file.create_board;
+    case "createNote":
+      return file.create_note;
+    case "createBoard":
+      return file.create_board;
     case "attach":
       return file.attach;
+    case "attachImage":
+      return file.attach_image;
     case "delete":
     case "move":
       return file.level === "edit" && (!table || master);

@@ -1073,3 +1073,34 @@ Not done, said: (1) the scenarios skip the phone project; (2) the PDF leaf and
 split panes are not exercised; (3) the desktop synced window is not checked
 for the live unshare; (4) a tab unshared stays neutral if access returns; the
 file must be reopened.
+
+### As built, K.6 (2026-10-28, `feat/rights-split`)
+
+- **Rules.** `Action::Attach { image }`, `Action::Create(Made)` (`Note`, `Board`,
+  `Image`, `File`) and `Action::SendFile { image }` replace the three actions
+  that took one right; `Rename` is `Edit` on the file. `Right` is the four
+  rights (`images`, `files`, `create_notes`, `create_boards`); `AccessFacts`
+  holds them by table root and account. The matrix of `vectors.rs` asks all
+  sixteen combinations of the four rights against its hand-written
+  expectation, and `app/ui/test/access-vectors.json` is generated from it; the
+  window's `access.test.mjs` and the harness read the same file.
+- **Database.** Schema 20 → 21 (`RIGHTS` in `db/access.rs`): `campaign_rights`
+  is made again, because its `CHECK` could not change. Every `files` row stays
+  and gains `images`; a player with *Edits* on a folder path of a table (their
+  own row or the whole table's) and every folder-role editor get
+  `create_notes` and `create_boards`. Test: `schema_21_splits_send_files_and_keeps_what_players_could_do`.
+- **Contract.** `FileAccess` gains `attach_image`, `create_note`, `create_board`
+  (the last two told of a folder only); `TableJoin`/`TableImages` gain `files`;
+  `CampaignTable` gains `file_players`, `note_players`, `board_players` and
+  `files`; `table_rights_set` takes any of the four words.
+- **Window.** The players list has a *Direitos* count per player opening four
+  labelled switches, and a box per right for everyone; refusals say which right
+  is missing near the attempt.
+- *Chosen in the code:* (1) a folder-role editor at the migration gets both
+  creating rights on every table of its folder; (2) a path is a folder at the
+  migration when it is the folder, a table's root, or its last segment has no
+  dot; (3) creating an image or another file directly in a folder (`create_file`)
+  needs *Images* or *Files* by its name; a text write never makes a file that
+  is not a note; (4) `.excalidraw` counts as a drawing (*Creates boards*),
+  `.excalidraw.md` as a note; (5) the rights are one count per player opening
+  four switches, not four columns, so the list fits at 390 px.

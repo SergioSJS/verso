@@ -132,8 +132,10 @@ export class Table {
   private styles: DiceStyles | null = null;
   /** The roots of the folder's tables (the campaign's); none: the folder alone. */
   roots: () => string[] = () => [];
-  /** Whether the game master let this window send images at the table at `root` (the campaign's). */
+  /** Whether the game master let this window send images at the table at `root` (the campaign's, the right Images). */
   mayImage: (root: string) => boolean = () => false;
+  /** Whether it let it send a file that is not an image (the right Files, ADR 0113 K.6). */
+  mayFile: (root: string) => boolean = () => false;
 
   /** The table a call without one goes to: the shortest-rooted. */
   defaultRoot(): string {
@@ -196,7 +198,7 @@ export class Table {
       const latest = unpinned.slice(-JOIN_ENTRIES);
       const keep = new Set([...pinned, ...latest].map((r) => r.id));
       const entries = rows.filter((r) => keep.has(r.id));
-      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root), images: this.role !== "reader" || this.mayImage(root) };
+      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root), images: this.role !== "reader" || this.mayImage(root), files: this.role !== "reader" || this.mayFile(root) };
     };
     h["table_leave"] = (a) => {
       // A table named leaves that one; none named, every table.
@@ -235,10 +237,13 @@ export class Table {
     };
     h["table_send_image"] = (a) => {
       const root = need(a["table"]);
-      if (this.role === "reader" && !this.mayImage(root)) refuse("you may only read this folder");
+      if (this.role === "reader" && !this.mayImage(root) && !this.mayFile(root)) refuse("you may only read this folder");
       paced();
       const kind = fileExt(String(a["base64"] ?? ""));
       if (!kind) refuse("an image, a PDF or an audio file (not SVG, a page or a script)");
+      // The right is by what the bytes are: an image is Images, the rest Files (K.6).
+      const image = ["png", "jpg", "webp", "gif"].includes(kind);
+      if (this.role === "reader" && !(image ? this.mayImage(root) : this.mayFile(root))) refuse("you may only read this folder");
       // A file is a file of the folder, written as any file a window creates.
       const path = `attachments/mesa-${this.seq + 1}.${kind}`;
       core.handlers["create_file"]?.({ path, base64: String(a["base64"]) });

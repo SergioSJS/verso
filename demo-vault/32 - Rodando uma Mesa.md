@@ -73,7 +73,7 @@ Por padrão as jogadoras só leem o que está em **Vê** para elas. Em **Acesso�
 
 Quem edita pode **arrastar qualquer rolagem ou mensagem** do chat da [[31 - A Mesa|Mesa]] para dentro da nota, e o mesmo num board, onde o cartão entra como texto. Um jogador que edita um board edita **ao vivo**, e vê só o que lhe é permitido: os cartões de arquivos que ele não vê aparecem trancados.
 
-Quem edita uma **pasta** da mesa edita tudo o que ela vê ali dentro e pode **criar** e **renomear** notas e arquivos, mas **não apaga** nem move. Ninguém além de você apaga; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
+Quem edita uma **pasta** da mesa edita tudo o que ela vê ali dentro e **renomeia** o que há nela; **criar** notas e boards depende dos direitos abaixo. Quem edita um arquivo também coloca imagens nele. Ninguém além de você apaga ou move; o servidor confere isso em cada porta (a janela, a sala de edição, o aparelho sincronizado).
 
 ---
 
@@ -86,9 +86,20 @@ O cartão **Jogadores** é uma **tabela**, uma linha por jogadora, com colunas p
 | **Jogador** | o avatar, o nome e um ponto verde enquanto ela está na mesa |
 | **Vê** | quantas notas estão liberadas para ela; clique no número para abrir a lista, com cada nota como link |
 | **Edita** | quantas notas ela pode editar (as que você marcou com **Edita** em **Acesso…**); clique para ver quais |
-| **Enviar arquivos** | uma **chave**: liga, e ela passa a poder enviar imagens, PDF e áudio no chat da [[31 - A Mesa|Mesa]] |
+| **Direitos** | quantos dos quatro direitos você deu a ela; clique no número para abrir as **quatro chaves** |
 
-Por padrão a jogadora só lê e escreve texto no chat: a chave **Enviar arquivos** começa **desligada** e é você quem liga, uma jogadora de cada vez, ou a caixa **Todos** no cabeçalho da coluna, que fica "mista" quando as jogadoras diferem. A chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode enviar arquivos". Ligada ou desligada, a janela da jogadora fica sabendo **na hora**: o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar. Quem envia o arquivo é o servidor, na pasta de anexos da mesa, com as mesmas conferências de sempre (o tipo do arquivo, o limite de tamanho da mesa, a cota da pasta); tanto faz a jogadora ter entrado por um compartilhamento ou ser membro da pasta. Você, dona da pasta, e quem edita sempre podem. No celular cada jogadora vira um cartão com os mesmos controles, sem rolar para o lado. Tudo pelo teclado: Tab, Espaço na chave, Enter no número.
+Por padrão a jogadora só lê e escreve texto no chat: os quatro direitos começam **desligados** e é você quem liga, uma jogadora de cada vez, ou pela caixa **Todos** de cada direito, logo abaixo da tabela, que fica "mista" quando as jogadoras diferem:
+
+| Direito | O que ela passa a poder |
+|---|---|
+| **Imagens** | enviar uma imagem para o chat da [[31 - A Mesa|Mesa]] |
+| **Arquivos** | enviar PDF, áudio e outros arquivos que não são imagem, para o chat e para dentro de um arquivo que ela edita |
+| **Cria notas** | criar notas, bases e pastas dentro de uma pasta que ela edita |
+| **Cria boards** | criar boards e desenhos dentro de uma pasta que ela edita |
+
+**Editar** um arquivo já cobre o resto, sem direito nenhum: a jogadora coloca uma **imagem nova** nele (o servidor grava o arquivo, com as conferências de sempre) e o **renomeia** dentro da pasta. Ela nunca apaga, e mover um arquivo para outra pasta continua sendo só seu; o arquivo movido leva o acesso que tinha. Editar uma **pasta** sem **Cria notas** nem **Cria boards** é editar e renomear o que há nela, não acrescentar; quando a jogadora tenta, a janela diz qual direito falta ("O mestre não te deu o direito de criar boards.").
+
+Cada chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode criar notas". Ligada ou desligada, a janela da jogadora fica sabendo **na hora**: o botão de anexar, o colar e o soltar aparecem ou somem, sem recarregar. Quem grava o arquivo é o servidor, na pasta de anexos da mesa, com as conferências de sempre (o tipo do arquivo pelos bytes, nunca SVG, página ou script, o limite de tamanho da mesa, a cota da pasta); tanto faz a jogadora ter entrado por um compartilhamento ou ser membro da pasta. Você, dona da pasta, sempre pode tudo. No celular cada jogadora é uma linha enxuta, e os direitos abrem embaixo dela, sem rolar para o lado. Tudo pelo teclado: Tab, Espaço na chave, Enter no número.
 
 ---
 

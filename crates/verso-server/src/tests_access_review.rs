@@ -39,6 +39,21 @@ async fn editor(m: &Mesa) -> Win {
     w
 }
 
+/// The game master lets the editor create notes at the table (ADR 0113 K.6).
+fn let_create(m: &Mesa) {
+    let id =
+        m.r.server
+            .db
+            .account_by_email("cid@casa.lan")
+            .unwrap()
+            .unwrap()
+            .id;
+    m.r.server
+        .db
+        .campaign_right_set(&m.id, "", &[id], crate::access::Right::CreatesNotes, true)
+        .unwrap();
+}
+
 /// The whole folder is the editor's to make and rename in, but the Barão
 /// stays hidden to everyone, by a set of its own.
 async fn open_root_hide_baron(m: &mut Mesa) {
@@ -154,6 +169,7 @@ fn a_name_taken_by_something_hidden_is_never_answered_as_taken() {
         let mut m = mesa().await;
         open_root_hide_baron(&mut m).await;
         let mut cid = editor(&m).await;
+        let_create(&m);
         // "Barão Zq" is there, hidden: the player is given the next free name.
         let made = cid
             .call(
@@ -282,7 +298,7 @@ fn a_new_file_that_is_not_a_note_is_a_file_sent_and_needs_the_right() {
             .owner
             .call(
                 "table_rights_set",
-                json!({ "root": "", "accounts": [editor_id], "right": "files", "on": true }),
+                json!({ "root": "", "accounts": [editor_id], "right": "images", "on": true }),
             )
             .await;
         assert!(r.get("ok").is_some(), "{r}");
@@ -396,6 +412,7 @@ fn a_write_to_a_hidden_name_is_answered_as_a_write_to_a_free_one_and_never_overw
         let mut m = mesa().await;
         open_root_hide_baron(&mut m).await;
         let mut cid = editor(&m).await;
+        let_create(&m);
         let hidden = cid
             .call(
                 "write_note",

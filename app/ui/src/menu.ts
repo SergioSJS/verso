@@ -204,13 +204,21 @@ export function createMenuItems(folder = ""): MenuItem[] {
   // Who makes nothing in a folder is offered nothing there (ADR 0076 item
   // 11; ADR 0113: the folder's own access, K.5 for a player).
   if (!may(folder, "create")) return [];
+  // A note, a base, a folder and a web page by the right to create notes; a
+  // board by the right to create boards; a world makes both (ADR 0113 K.6).
+  const notes = may(folder, "createNote");
+  const boards = may(folder, "createBoard");
   const items: MenuItem[] = [
-    [t.newHere, () => newNotePrompt(folder), "plus"],
-    [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
-    ...(hasCapability("campaignBundles") ? [[t.newWorld, () => void showWorldWizard(folder), "world"] as MenuItem] : []),
-    [t.newBase, () => void newBase(folder), "calendar"],
-    [boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"],
-    [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
+    ...(notes
+      ? [
+          [t.newHere, () => newNotePrompt(folder), "plus"] as MenuItem,
+          [t.newFolder, () => newFolderPrompt(folder), "folderPlus"] as MenuItem,
+        ]
+      : []),
+    ...(notes && boards && hasCapability("campaignBundles") ? [[t.newWorld, () => void showWorldWizard(folder), "world"] as MenuItem] : []),
+    ...(notes ? [[t.newBase, () => void newBase(folder), "calendar"] as MenuItem] : []),
+    ...(boards ? [[boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"] as MenuItem] : []),
+    ...(notes ? [[t.newWebPage, () => newWebPagePrompt(folder), "globe"] as MenuItem] : []),
     // Files from the system through its picker, for whoever cannot drag (A11Y.10).
     [imp.command, () => void importFiles(folder), "copy"],
   ];

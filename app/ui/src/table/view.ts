@@ -172,7 +172,7 @@ class TableView {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();
     });
     this.el.addEventListener("dragover", (e) => {
-      if (isServerTable(tableSource()) && (tableSource() as ServerTable).canSendImage() && e.dataTransfer?.types.includes("Files")) e.preventDefault();
+      if (isServerTable(tableSource()) && ((tableSource() as ServerTable).canSendImage() || (tableSource() as ServerTable).canSendFile()) && e.dataTransfer?.types.includes("Files")) e.preventDefault();
     });
     this.el.addEventListener("drop", (e) => {
       if (this.compose.takeTransfer(e.dataTransfer)) e.preventDefault();

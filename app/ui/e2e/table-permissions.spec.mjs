@@ -1,9 +1,10 @@
-// The players' access table of the table's window (ADR 0110; ADR 0107 item 3
-// as amended 2026-10-24): a real table with the columns Jogador, Vê, Edita
-// and Imagens, a switch per player that saves at once, a "todos" box in the
-// header that is mixed when the players differ, the lists behind the counts,
-// the keyboard, a card per player on a phone; and the player's window
-// learning the permission live (the attach button appears and goes). The
+// The players' access table of the table's window (ADR 0110; ADR 0113 K.6):
+// a real table with the columns Jogador, Vê, Edita and Direitos; the count of
+// rights opens, under the row, four switches (Imagens, Arquivos, Cria notas,
+// Cria boards) that save at once; under the table a "todos" box per right that
+// is mixed when the players differ; the lists behind the counts, the
+// keyboard, a card per player on a phone; and the player's window learning
+// the permission live (the attach button appears and goes). The
 // server's commands are played by the harness (`src/harness/campaign.ts`);
 // the server's own rules are tried in `crates/verso-server/src/tests_table_images.rs`.
 
@@ -65,20 +66,20 @@ async function owner(app) {
 
 const grid = (dialog) => dialog.getByRole("table", { name: "Jogadores da mesa e o que cada um pode fazer" });
 
-test("the players are a table with columns, and a switch per player saves at once @layout", async ({ app }, info) => {
+/** The count of rights of a player, which opens the four switches. */
+const rightsBtn = (dialog, name) => dialog.getByRole("button", { name: new RegExp(`^${name} tem \\d de 4 direitos`) });
+/** A player's switch for a right: "imagens", "arquivos", "criar notas", "criar boards". */
+const sw = (dialog, name, what = "enviar imagens") => dialog.getByRole("switch", { name: `${name} pode ${what}` });
+
+test("the players are a table with columns, and the rights of each save at once @layout", async ({ app }, info) => {
   const dialog = await owner(app);
   const t = grid(dialog);
   await expect(t).toBeVisible();
-  // Real column and row headers.
-  // (A phone draws a card per player and keeps only the Images header, with its box.)
-  if (!phone(app.page)) {
-    for (const col of ["Jogador", "Vê", "Edita", /Enviar arquivos/]) await expect(t.getByRole("columnheader", { name: col })).toBeVisible();
-  } else {
-    await expect(t.locator(".cd-col-images")).toBeVisible();
-    await expect(dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" })).toBeVisible();
+  // Real column and row headers (a phone keeps the icons, and the name for readers).
+  for (const col of ["Jogador", "Vê", "Edita", "Direitos"]) {
+    if (phone(app.page) && col === "Jogador") continue;
+    await expect(t.getByRole("columnheader", { name: col })).toBeVisible();
   }
-  // The header's name is the column's, not the box's and its answer's.
-  await expect(t.locator(".cd-col-images")).toHaveAccessibleName("Enviar arquivos");
   const rows = t.getByRole("row").filter({ has: app.page.getByRole("rowheader") });
   await expect(rows).toHaveCount(3);
   await expect(t.getByRole("rowheader", { name: /^Bia/ })).toBeVisible();
@@ -95,33 +96,43 @@ test("the players are a table with columns, and a switch per player saves at onc
   await bia.getByRole("button", { name: /^Bia vê/ }).click();
   await expect(dialog.getByText("Notas que Bia vê")).toHaveCount(0);
 
-  // Off by default: nobody sends images until the game master says.
-  const sw = (name) => dialog.getByRole("switch", { name: `${name} pode enviar arquivos` });
-  await expect(sw("Bia")).not.toBeChecked();
-  await expect(sw("Caio")).not.toBeChecked();
+  // Every right starts off: nobody sends or creates anything until the game master says.
+  await expect(bia.getByRole("button", { name: "Bia tem 0 de 4 direitos; mostrar a lista" })).toHaveText("0/4");
+  await bia.getByRole("button", { name: /^Bia tem/ }).click();
+  await expect(dialog.getByText("Direitos de Bia")).toBeVisible();
+  for (const what of ["enviar imagens", "enviar arquivos", "criar notas", "criar boards"]) await expect(sw(dialog, "Bia", what)).not.toBeChecked();
   await shot(app.page, info, `114-depois-acesso-jogadores-${tag(app.page)}-claro`);
-  // It saves at once and says so beside the switch; the call names the table and the player.
-  await sw("Bia").check({ force: true });
-  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "files", on: true }]);
-  await expect(sw("Bia")).toBeChecked();
-  await expect(bia.locator(".cd-feedback")).toHaveText("Salvo");
-  await expect(app.page.locator("#status")).toHaveText("Bia pode enviar arquivos agora.");
-  await expect(sw("Caio")).not.toBeChecked();
-  // The header box is mixed while the players differ; ticking it gives everyone, unticking takes it from everyone.
-  const all = dialog.getByRole("checkbox", { name: "Todos podem enviar arquivos" });
+  // It saves at once and says so beside the switch; the call names the table, the player and the right.
+  await sw(dialog, "Bia").check({ force: true });
+  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "images", on: true }]);
+  await expect(sw(dialog, "Bia")).toBeChecked();
+  await expect(dialog.locator(".cd-right").filter({ has: sw(dialog, "Bia") }).locator(".cd-feedback")).toHaveText("Salvo");
+  await expect(app.page.locator("#status")).toHaveText("Bia pode enviar imagens agora.");
+  await expect(bia.getByRole("button", { name: /^Bia tem/ })).toHaveText("1/4");
+  // The four rights are four calls of one command.
+  await sw(dialog, "Bia", "enviar arquivos").check({ force: true });
+  await sw(dialog, "Bia", "criar notas").check({ force: true });
+  await sw(dialog, "Bia", "criar boards").check({ force: true });
+  await expect.poll(async () => (await app.calls("table_rights_set")).map((c) => c.right)).toEqual(["images", "files", "create_notes", "create_boards"]);
+  await expect(bia.getByRole("button", { name: /^Bia tem/ })).toHaveText("4/4");
+  await sw(dialog, "Bia", "criar boards").uncheck({ force: true });
+  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-bia"], right: "create_boards", on: false });
+  // Under the table, a box per right for everyone: mixed while the players differ; ticking it gives everyone, unticking takes it from everyone.
+  const all = dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" });
   await expect(all).toHaveJSProperty("indeterminate", true);
   await all.check({ force: true });
-  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], right: "files", on: true });
-  await expect(sw("Caio")).toBeChecked();
-  await expect(sw("Dora")).toBeChecked();
+  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-bia", "acc-caio", "acc-dora"], right: "images", on: true });
   await expect(all).toBeChecked();
   await expect(all).toHaveJSProperty("indeterminate", false);
-  await expect(app.page.locator("#status")).toHaveText("Todos os jogadores podem enviar arquivos.");
+  await expect(app.page.locator("#status")).toHaveText("Todos os jogadores podem enviar imagens.");
   await shot(app.page, info, `115-depois-acesso-jogadores-imagens-${tag(app.page)}-claro`);
-  await sw("Caio").uncheck({ force: true });
-  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-caio"], right: "files", on: false });
+  const caio = rows.filter({ hasText: "Caio" });
+  await caio.getByRole("button", { name: /^Caio tem/ }).click();
+  await expect(sw(dialog, "Caio")).toBeChecked();
+  await sw(dialog, "Caio").uncheck({ force: true });
+  await expect.poll(async () => (await app.calls("table_rights_set")).at(-1)).toEqual({ root: "", accounts: ["acc-caio"], right: "images", on: false });
   await expect(all).toHaveJSProperty("indeterminate", true);
-  await expect(app.page.locator("#status")).toHaveText("Caio não envia mais arquivos.");
+  await expect(app.page.locator("#status")).toHaveText("Caio não envia mais imagens.");
   // No sideways scroll anywhere, on a phone least of all.
   const wide = await app.page.evaluate(() => {
     const d = document.querySelector(".campaign-dialog");
@@ -130,37 +141,44 @@ test("the players are a table with columns, and a switch per player saves at onc
   expect(wide[0]).toBeLessThanOrEqual(0);
   expect(wide[1]).toBeLessThanOrEqual(0);
   if (phone(app.page)) {
-    // A card per player: the name above, the three labelled controls under it.
+    // A slim row per player; the switches open under it, each a 44 px target.
     const box = await rows.first().boundingBox();
     const dlg = await dialog.boundingBox();
     expect(box.width).toBeLessThanOrEqual(dlg.width);
-    await expect(sw("Bia")).toBeVisible();
+    await expect(sw(dialog, "Bia")).toBeVisible();
+    const label = await dialog.locator(".cd-right-label").first().boundingBox();
+    expect(label.height).toBeGreaterThanOrEqual(43);
   }
 });
 
 test("the keyboard reaches every control of the table and the dark theme reads", async ({ app }, info) => {
   test.skip(phone(app.page), "a finger has no keys");
   const dialog = await owner(app);
-  const sw = dialog.getByRole("switch", { name: "Bia pode enviar arquivos" });
-  await sw.focus();
-  await expect(sw).toBeFocused();
+  // The count of rights opens with Enter; Tab goes to the first switch, which Space turns on.
+  const count = rightsBtn(dialog, "Bia");
+  await count.focus();
+  await app.page.keyboard.press("Enter");
+  await expect(count).toHaveAttribute("aria-expanded", "true");
+  await app.page.keyboard.press("Tab");
+  const first = sw(dialog, "Bia");
+  await expect(first).toBeFocused();
   await app.page.keyboard.press("Space");
-  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "files", on: true }]);
+  await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "images", on: true }]);
   // The focus stays on the switch after it saves, to carry on.
-  await expect(sw).toBeFocused();
-  // Tab goes on to the next player's counts and switch, in reading order.
+  await expect(first).toBeFocused();
+  // Tab goes on through the other three switches to the next player's counts, in reading order.
   const seen = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     await app.page.keyboard.press("Tab");
     seen.push(await app.page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent ?? ""));
   }
   expect(seen.some((s) => /Caio vê/.test(s))).toBe(true);
   // The count opens its list with Enter and the list's link is reachable.
-  const count = dialog.getByRole("button", { name: /^Caio vê/ });
-  await count.focus();
+  const sees = dialog.getByRole("button", { name: /^Caio vê/ });
+  await sees.focus();
   await app.page.keyboard.press("Enter");
-  await expect(count).toHaveAttribute("aria-expanded", "true");
-  await expect(count).toBeFocused();
+  await expect(sees).toHaveAttribute("aria-expanded", "true");
+  await expect(sees).toBeFocused();
   await app.page.keyboard.press("Tab");
   await expect(dialog.getByText("Notas que Caio vê")).toBeVisible();
   await app.page.emulateMedia({ colorScheme: "dark" });
@@ -178,10 +196,11 @@ test("a refused change puts the switch back and says why", async ({ app }) => {
       throw { kind: "refused", message: "not a player of this table" };
     };
   });
-  const sw = dialog.getByRole("switch", { name: "Dora pode enviar arquivos" });
+  await rightsBtn(dialog, "Dora").click();
+  const dora = sw(dialog, "Dora");
   app.expected.push(/refused: not a player of this table/);
-  await sw.click({ force: true });
-  await expect(sw).not.toBeChecked();
+  await dora.click({ force: true });
+  await expect(dora).not.toBeChecked();
   await expect(dialog.locator(".cd-feedback.is-bad").first()).toContainText("Não deu certo");
 });
 
