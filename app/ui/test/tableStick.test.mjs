@@ -28,3 +28,24 @@ test("scrolled up, what the person just sent is followed anyway", () => {
 test("scrolled up with nothing new changes nothing", () => {
   assert.deepEqual(s.afterDraw({ stuck: false, mine: false, fresh: 0, unseen: 2 }), { follow: false, unseen: 2 });
 });
+
+test("history loaded above is neither news nor counted; newer entries are", () => {
+  const known = new Set(["b", "c"]);
+  const r = s.splitFresh([{ id: "a", at: 1 }, { id: "b", at: 2 }, { id: "c", at: 3 }, { id: "d", at: 4 }], known, 3);
+  assert.deepEqual(r.older.map((e) => e.id), ["a"]);
+  assert.deepEqual(r.news.map((e) => e.id), ["d"]);
+});
+
+test("an old entry of mine does not follow or count when scrolled up", () => {
+  const r = s.splitFresh([{ id: "a", at: 1, mine: true }], new Set(["c"]), 3);
+  assert.deepEqual(s.afterDraw({ stuck: false, mine: r.news.some((e) => e.mine), fresh: r.news.length, unseen: 0 }), { follow: false, unseen: 0 });
+});
+
+test("with nothing known yet every entry is news", () => {
+  assert.equal(s.splitFresh([{ id: "a", at: 1 }], new Set(), null).news.length, 1);
+});
+
+test("the reading position keeps its distance from the end when entries are added above", () => {
+  assert.equal(s.anchorTop(1000, 100, 1400), 500);
+  assert.equal(s.anchorTop(1000, 0, 1000), 0);
+});

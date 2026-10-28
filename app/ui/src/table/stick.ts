@@ -18,3 +18,21 @@ export function afterDraw(s: { stuck: boolean; mine: boolean; fresh: number; uns
   if (s.stuck || s.mine) return { follow: true, unseen: 0 };
   return { follow: false, unseen: s.unseen + s.fresh };
 }
+
+/** Split the entries not seen before into those newer than the newest already known (news) and older ones
+ *  (history loaded above: neither followed nor counted). With nothing known yet, all are news. */
+export function splitFresh<T extends { id: string; at: number }>(entries: readonly T[], known: Set<string>, newest: number | null): { news: T[]; older: T[] } {
+  const news: T[] = [];
+  const older: T[] = [];
+  for (const e of entries) {
+    if (known.has(e.id)) continue;
+    if (newest !== null && e.at < newest) older.push(e);
+    else news.push(e);
+  }
+  return { news, older };
+}
+
+/** The scroll position that keeps what the person reads in place after entries were added above it. */
+export function anchorTop(oldHeight: number, oldTop: number, newHeight: number): number {
+  return Math.max(0, newHeight - (oldHeight - oldTop));
+}
