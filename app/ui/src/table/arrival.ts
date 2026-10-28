@@ -24,6 +24,8 @@ export class Arrival {
   private asked = 0;
   private timer: unknown = null;
   private busy = false;
+  /** Bumped by every start: an ask that was out when it changed is ignored when it returns (no second timer chain). */
+  private round = 0;
 
   constructor(
     private readonly ask: () => Promise<boolean>,
@@ -33,13 +35,16 @@ export class Arrival {
 
   /** Begin waiting: the first wait is scheduled, nothing is asked at once (the caller just found it missing). */
   start(): void {
+    this.round += 1;
+    this.busy = false;
     this.phase = "waiting";
     this.asked = 0;
     this.onPhase("waiting");
     this.schedule();
   }
 
-  /** The folder says the file changed: ask now (a no-op once found or given up, or while an ask is out). */
+  /** The folder says the file changed: ask now (a no-op once found, or while an ask is out). After giving up the
+   *  watch is passive: one ask, no timers, and a file that is here moves the card to found. */
   arrived(): Promise<void> {
     return this.try();
   }
@@ -67,7 +72,9 @@ export class Arrival {
   }
 
   private async try(): Promise<void> {
-    if (this.phase !== "waiting" || this.busy) return;
+    if (this.phase === "found" || this.busy) return;
+    const round = this.round;
+    const passive = this.phase === "gave-up";
     this.busy = true;
     this.stop();
     let here = false;
@@ -76,13 +83,16 @@ export class Arrival {
     } catch {
       here = false;
     }
+    if (round !== this.round) return;
     this.busy = false;
-    if (this.phase !== "waiting") return;
+    if ((this.phase as Phase) === "found") return;
     if (here) {
+      this.stop();
       this.phase = "found";
       this.onPhase("found");
       return;
     }
+    if (passive) return;
     this.asked += 1;
     this.schedule();
   }
