@@ -109,9 +109,10 @@ export class SettingsDialog {
     close.append(icon("close"));
     close.addEventListener("click", () => this.hide());
     const top = h("div", "settings-top");
-    top.append(this.search, close);
+    top.append(this.search);
     side.append(top, this.nav);
-    this.box.append(side, this.body);
+    // In the box's top right corner, where a dialog's close is looked for.
+    this.box.append(side, this.body, close);
     this.frame = wireFrame(this.box, this.el, side);
 
     this.el.append(this.box);
