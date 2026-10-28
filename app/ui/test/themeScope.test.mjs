@@ -142,3 +142,56 @@ test("a folder's choice lacking a palette or heading font gets the default's, no
   assert.equal(s.headingFont, "mono");
   assert.equal(s.lookName, "B");
 });
+
+// --- two windows sharing one storage (the `storage` event reloads the other)
+for (const w of ["A", "B"]) {
+  await esbuild.build({ entryPoints: ["./src/theme/scope.ts"], bundle: true, format: "esm", platform: "node", outfile: `test/.bundles/themeScope${w}.test-bundle.mjs`, logLevel: "error" });
+}
+function windows(folderA, folderB, start) {
+  const storage = { text: JSON.stringify(start) };
+  const make = async (name, folder) => {
+    const mod = await import(`./.bundles/themeScope${name}.test-bundle.mjs`);
+    const win = { mod, folder, s: null };
+    win.load = () => { win.s = JSON.parse(storage.text); mod.reset(); mod.enter(win.s, win.folder); };
+    win.save = () => { storage.text = mod.toStorage(win.s, win.folder); };
+    win.load();
+    return win;
+  };
+  return Promise.all([make("A", folderA), make("B", folderB)]).then(([a, b]) => ({ a, b, storage }));
+}
+
+test("two windows: a change in window A on folder X (This folder only) leaves window B on folder Y alone", async () => {
+  const { a, b } = await windows("X", "Y", person());
+  assert.equal(a.mod.forFolder("X"), true, "This folder only is the preselected choice");
+  a.s.palette = "moss"; // any path that writes the theme fields, then saves
+  a.s.look = { light: { "--paper": "#ffffff" }, dark: {} };
+  a.save();
+  b.load(); // the storage event reaches B
+  assert.equal(b.s.palette, "slate");
+  assert.equal(b.s.look.light["--paper"], "#eeeeee");
+  b.save(); // B saving back must not carry A's look to the default
+  a.load();
+  assert.equal(a.s.palette, "moss", "A keeps its own after B saved");
+  b.load();
+  assert.equal(b.s.palette, "slate");
+});
+
+test("two windows: with the default picked, the change reaches the folder without a choice, not the one that has its own", async () => {
+  const { a, b, storage } = await windows("X", "Y", { ...person(), folderThemes: { Y: { palette: "sepia" } } });
+  a.mod.chooseDefault("X");
+  a.s.palette = "moss";
+  a.save();
+  assert.equal(JSON.parse(storage.text).palette, "moss");
+  assert.equal(JSON.parse(storage.text).folderThemes.X, undefined);
+  b.load();
+  assert.equal(b.s.palette, "sepia", "Y has its own choice");
+  const c = JSON.parse(storage.text);
+  assert.equal(c.folderThemes.Y.palette, "sepia");
+});
+
+test("opening a folder and saving something else stores no folder choice", async () => {
+  const { a, storage } = await windows("X", "Y", person());
+  a.s.someOtherSetting = 1;
+  a.save();
+  assert.equal(JSON.parse(storage.text).folderThemes, undefined);
+});

@@ -14,7 +14,7 @@ import { applyLook } from "./theme/apply";
 import { readLook, readLookCredit } from "./theme/look";
 import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
 import { readProfiles, type Profile } from "./theme/profiles";
-import { enter, persistable, readFolderThemes, reset, type Slice } from "./theme/scope";
+import { enter, readFolderThemes, reset, toStorage, type Slice } from "./theme/scope";
 import { fontAllowed, type InspiredBy, type Look } from "./theme/tokens";
 
 export type { Measure };
@@ -331,7 +331,7 @@ export function saveSettings(): void {
   if (sourceNumbersWere !== null && settings.lineNumbersSource !== sourceNumbersWere) settings.lineNumbersSourceChosen = true;
   sourceNumbersWere = settings.lineNumbersSource;
   try {
-    localStorage.setItem("verso.settings", JSON.stringify(persistable(settings)));
+    localStorage.setItem("verso.settings", toStorage(settings, currentFolder));
   } catch {
     // No storage.
   }
