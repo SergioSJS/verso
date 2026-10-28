@@ -10,7 +10,7 @@ import { dailyNote, dailyPath } from "../daily";
 import { onFolderLayer } from "../folderLayer";
 import { calendarPeriods } from "../periodic/notes";
 import { button, el, h, ui } from "../dom";
-import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, showStickerPicker } from "../labels";
@@ -220,6 +220,11 @@ export class Panel {
           });
         });
         banner.append(" ", down);
+        if (focusesDownloadFailed) {
+          const bad = h("div", "focuses-download-error", t.focusesDownloadFailed);
+          bad.setAttribute("role", "alert");
+          banner.append(bad);
+        }
       }
       wrap.append(banner);
     } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {

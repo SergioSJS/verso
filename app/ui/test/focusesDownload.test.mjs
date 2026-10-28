@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 const out = await esbuild.build({ entryPoints: ["src/focusesDownload.ts"], bundle: true, write: false, format: "esm", platform: "node" });
-const { downloadFocusesFile, WAYPOINTS_PATH } = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
+const { downloadFocusesFile } = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
 
 const words = { fetching: "baixando", done: "baixado", nothing: "ja estava", failed: "falhou" };
 function deps(fetchFile, cloud = true, still = false) {
@@ -15,7 +15,7 @@ function deps(fetchFile, cloud = true, still = false) {
   return {
     log,
     d: {
-      fetchFile: async (p) => (log.push(["fetch", p]), fetchFile(p)),
+      fetchFile: async () => (log.push(["fetch"]), fetchFile()),
       reload: async () => (log.push(["reload"]), still),
       say: (t) => void log.push(["say", t]),
       fail: (e) => void log.push(["fail", e]),
@@ -29,7 +29,7 @@ describe("downloadFocusesFile", () => {
   test("downloads the focuses file, reads the focuses again and says so", async () => {
     const { d, log } = deps(async () => ({ status: "ok", data: true }));
     assert.equal(await downloadFocusesFile(d), "downloaded");
-    assert.deepEqual(log, [["say", "baixando"], ["fetch", WAYPOINTS_PATH], ["reload"], ["say", "baixado"]]);
+    assert.deepEqual(log, [["say", "baixando"], ["fetch"], ["reload"], ["say", "baixado"]]);
   });
   test("a file that was no longer a placeholder: focuses re-read, said", async () => {
     const { d, log } = deps(async () => ({ status: "ok", data: false }));

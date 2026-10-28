@@ -92,7 +92,12 @@ fn refused(message: &str) -> ContractError {
 pub fn allowed(cmd: &str) -> bool {
     matches!(
         cmd,
-        "open_server_folder" | "reopen_folder" | "capabilities" | "fetch_file" | "embed_frameable"
+        "open_server_folder"
+            | "reopen_folder"
+            | "capabilities"
+            | "fetch_file"
+            | "fetch_focuses_file"
+            | "embed_frameable"
     ) || OWN.contains(&cmd)
         || QUIET.contains(&cmd)
         || (ops::access(cmd) == Some(Access::Read)
@@ -557,7 +562,7 @@ async fn handle(
             Ok(info.get("index").cloned().unwrap_or(Value::Null))
         }
         c if QUIET.contains(&c) => Ok(Value::Null),
-        "fetch_file" | "embed_frameable" => Ok(Value::Bool(false)),
+        "fetch_file" | "fetch_focuses_file" | "embed_frameable" => Ok(Value::Bool(false)),
         _ => {
             // A link to one note follows the note as it is now.
             if scope.guard.as_ref().is_some_and(|g| g.only.is_some()) {

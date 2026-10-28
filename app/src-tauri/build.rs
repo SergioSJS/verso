@@ -74,6 +74,7 @@ fn main() {
         "set_walk_rules",
         "set_folder_note_name",
         "get_focuses",
+        "fetch_focuses_file",
         "set_focuses",
         "can_sync_focuses",
         "set_sync_focuses",

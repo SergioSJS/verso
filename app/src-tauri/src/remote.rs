@@ -89,6 +89,7 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "set_walk_rules"
                 | "set_folder_note_name"
                 | "fetch_file"
+                | "fetch_focuses_file"
                 | "collab_join"
                 | "collab_update"
                 | "collab_awareness"
