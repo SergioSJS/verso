@@ -66,6 +66,8 @@ export function blockHandles(opts: BlockHandleOptions) {
       readonly frame = el("div", "cm-block-outline");
       readonly line = el("div", "cm-block-drop");
       block: Block | null = null;
+      /** Where `block` starts in the document as it is now. */
+      at: number | null = null;
       /** An empty line under the pointer: the `+` alone, for a new block. */
       empty: number | null = null;
       dragging = false;
@@ -142,6 +144,7 @@ export function blockHandles(opts: BlockHandleOptions) {
         const lb = view.lineBlockAt(at);
         const top = lb.top + view.documentTop - dom.top;
         this.block = null;
+        this.at = null;
         this.empty = at;
         this.box.style.top = `${top + lb.height / 2 - 11}px`;
         this.box.style.left = `${content.left - dom.left - 48}px`;
@@ -171,6 +174,7 @@ export function blockHandles(opts: BlockHandleOptions) {
         const r = this.rect(b);
         if (!r) return this.hide();
         this.block = b;
+        this.at = b.start;
         this.empty = null;
         this.grip.hidden = false;
         const view = this.view;
@@ -192,6 +196,7 @@ export function blockHandles(opts: BlockHandleOptions) {
 
       hide(): void {
         this.block = null;
+        this.at = null;
         this.empty = null;
         this.box.hidden = true;
         this.frame.hidden = true;
@@ -286,11 +291,18 @@ export function blockHandles(opts: BlockHandleOptions) {
       }
 
       update(u: ViewUpdate): void {
-        if (this.dragging || !this.block) return;
+        // Every change is mapped at once, dragging or not: a second change
+        // before the frame below runs (a collaborator's typing) would
+        // otherwise map a position of a document that is gone.
+        if (u.docChanged) {
+          if (this.at !== null) this.at = u.changes.mapPos(this.at, 1);
+          if (this.empty !== null) this.empty = u.changes.mapPos(this.empty, -1);
+        }
+        if (this.dragging || !this.block || this.at === null) return;
         if (!u.docChanged && !u.geometryChanged && !u.viewportChanged) return;
         // The block under the handle may have moved or gone. The layout is
         // read after the update, as CodeMirror requires.
-        const pos = u.changes.mapPos(this.block.start, 1);
+        const pos = this.at;
         window.cancelAnimationFrame(this.refreshFrame);
         this.refreshFrame = window.requestAnimationFrame(() => {
           if (this.dragging) return;
