@@ -106,7 +106,7 @@ test("the players are a table with columns, and the rights of each save at once 
   await sw(dialog, "Bia").check({ force: true });
   await expect.poll(() => app.calls("table_rights_set")).toEqual([{ root: "", accounts: ["acc-bia"], right: "images", on: true }]);
   await expect(sw(dialog, "Bia")).toBeChecked();
-  await expect(dialog.locator(".cd-right").filter({ has: sw(dialog, "Bia") }).locator(".cd-feedback")).toHaveText("Salvo");
+  await expect(dialog.locator(".cd-right").filter({ has: app.page.getByRole("switch", { name: "Bia pode enviar imagens" }) }).locator(".cd-feedback")).toHaveText("Salvo");
   await expect(app.page.locator("#status")).toHaveText("Bia pode enviar imagens agora.");
   await expect(bia.getByRole("button", { name: /^Bia tem/ })).toHaveText("1/4");
   // The four rights are four calls of one command.

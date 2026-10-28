@@ -415,7 +415,7 @@ test("f. Ana, with \"Arquivos\", sends a PDF to the chat and the game master and
 
     // The game master lets her: the button appears, live; her PDF reaches the others as a card.
     await sw.check({ force: true });
-    await expect(dialog.locator(".cd-right").filter({ has: sw }).locator(".cd-feedback")).toContainText("Salvo");
+    await expect(dialog.locator(".cd-right").filter({ has: gm.getByRole("switch", { name: "Ana pode enviar arquivos" }) }).locator(".cd-feedback")).toContainText("Salvo");
     await expect(attach).toBeVisible({ timeout: 15_000 });
     await sendFile(ana.page, a, "plano.pdf", "application/pdf", PDF);
     for (const v of [g, a, b]) await expect(cards(v)).toHaveCount(1, { timeout: 30_000 });
