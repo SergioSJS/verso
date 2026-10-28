@@ -302,6 +302,7 @@ function readSlice(raw: unknown): Slice | null {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
   const out: Slice = {};
+  if (r["theme"] === "auto" || r["theme"] === "light" || r["theme"] === "dark") out.theme = r["theme"];
   if (typeof r["palette"] === "string" && (["paper", "sepia", "slate", "moss"] as readonly string[]).includes(r["palette"])) out.palette = r["palette"];
   if (r["look"] !== undefined) out.look = readLook(r["look"]);
   if (fontAllowed("--heading-font", r["headingFont"])) out.headingFont = r["headingFont"] as string;

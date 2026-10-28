@@ -21,13 +21,16 @@ import type { InspiredBy } from "./tokens";
 
 /** The fields that make up a theme in the person's settings. */
 export type Slice = {
+  /** Light, dark or the system's: part of a theme, since a theme of one
+   *  side switches the window to that side (useCatalogue.ts). */
+  theme?: string;
   palette?: string;
   look?: Look;
   headingFont?: string;
   lookName?: string;
   lookCredit?: InspiredBy;
 };
-export const SLICE_KEYS = ["palette", "look", "headingFont", "lookName", "lookCredit"] as const;
+export const SLICE_KEYS = ["theme", "palette", "look", "headingFont", "lookName", "lookCredit"] as const;
 
 /** The part of the settings the scope reads and writes. */
 export type Scoped = Slice & { folderThemes?: Record<string, Slice> };
@@ -41,14 +44,14 @@ export function sliceOf(s: Slice): Slice {
 export const sameSlice = (a: Slice, b: Slice): boolean => JSON.stringify(SLICE_KEYS.map((k) => a[k] ?? null)) === JSON.stringify(SLICE_KEYS.map((k) => b[k] ?? null));
 
 /** Put `slice` in the fields of `s`, those it does not hold removed. The
- *  palette and the heading font a slice lacks are `fallback`'s (the
- *  default's), never what a folder shown before left. The text size is not
- *  part of a theme: it stays the person's, global. */
+ *  mode, the palette and the heading font a slice lacks are `fallback`'s
+ *  (the default's), never what a folder shown before left. The text size is
+ *  not part of a theme: it stays the person's, global. */
 export function lay(s: Slice, slice: Slice, fallback?: Slice): void {
   for (const k of SLICE_KEYS) {
-    const v = slice[k] ?? (k === "palette" || k === "headingFont" ? fallback?.[k] : undefined);
+    const v = slice[k] ?? (k === "theme" || k === "palette" || k === "headingFont" ? fallback?.[k] : undefined);
     if (v === undefined) {
-      if (k !== "palette") delete s[k];
+      if (k !== "palette" && k !== "theme") delete s[k];
     } else (s as Record<string, unknown>)[k] = structuredClone(v);
   }
 }
