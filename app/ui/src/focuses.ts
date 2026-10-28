@@ -441,7 +441,10 @@ export async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promi
 export async function downloadFocusesNow(): Promise<void> {
   await downloadFocusesFile({
     fetchFile: (path) => commands.fetchFile(path),
-    reload: () => loadFocuses(true),
+    reload: async () => {
+      await loadFocuses(true);
+      return focusesSummary?.read_only_code === "cloud_placeholder";
+    },
     say: (text) => {
       ui.status.textContent = text;
     },

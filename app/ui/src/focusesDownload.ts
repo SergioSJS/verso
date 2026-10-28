@@ -20,8 +20,10 @@ interface FetchResult {
 
 export interface DownloadDeps {
   fetchFile: (path: string) => Promise<FetchResult>;
-  /** Read the focuses again from the core. */
-  reload: () => Promise<void>;
+  /** Read the focuses again from the core; true when they still report the
+   *  file as only in the cloud (a server-synced folder answers "nothing to
+   *  fetch" whatever the file is). */
+  reload: () => Promise<boolean>;
   /** Say it in the status line. */
   say: (text: string) => void;
   /** Say an error the way the window says any (a connection that failed). */
@@ -46,7 +48,11 @@ export async function downloadFocusesFile(deps: DownloadDeps): Promise<DownloadO
     else deps.fail(r.error);
     return "failed";
   }
-  await deps.reload();
+  const stillCloud = await deps.reload();
+  if (stillCloud) {
+    deps.say(deps.words.failed);
+    return "failed";
+  }
   deps.say(r.data ? deps.words.done : deps.words.nothing);
   return r.data ? "downloaded" : "nothing";
 }

@@ -10,13 +10,13 @@ const out = await esbuild.build({ entryPoints: ["src/focusesDownload.ts"], bundl
 const { downloadFocusesFile, WAYPOINTS_PATH } = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
 
 const words = { fetching: "baixando", done: "baixado", nothing: "ja estava", failed: "falhou" };
-function deps(fetchFile, cloud = true) {
+function deps(fetchFile, cloud = true, still = false) {
   const log = [];
   return {
     log,
     d: {
       fetchFile: async (p) => (log.push(["fetch", p]), fetchFile(p)),
-      reload: async () => void log.push(["reload"]),
+      reload: async () => (log.push(["reload"]), still),
       say: (t) => void log.push(["say", t]),
       fail: (e) => void log.push(["fail", e]),
       isCloudFailure: () => cloud,
@@ -36,6 +36,11 @@ describe("downloadFocusesFile", () => {
     assert.equal(await downloadFocusesFile(d), "nothing");
     assert.deepEqual(log.at(-1), ["say", "ja estava"]);
     assert.ok(log.some((l) => l[0] === "reload"));
+  });
+  test("a reload that still reports the cloud placeholder is a failure, not 'already here'", async () => {
+    const { d, log } = deps(async () => ({ status: "ok", data: false }), true, true);
+    assert.equal(await downloadFocusesFile(d), "failed");
+    assert.deepEqual(log.at(-1), ["say", "falhou"]);
   });
   test("the cloud not giving the file is said visibly and nothing is re-read", async () => {
     const { d, log } = deps(async () => ({ status: "error", error: { kind: "unavailable" } }));
