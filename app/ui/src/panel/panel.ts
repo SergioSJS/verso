@@ -9,8 +9,9 @@ import { bookmarks } from "../bookmarks";
 import { dailyNote, dailyPath } from "../daily";
 import { onFolderLayer } from "../folderLayer";
 import { calendarPeriods } from "../periodic/notes";
+import { openSettingsSection } from "../dialogs/sync";
 import { button, el, h, ui } from "../dom";
-import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, isSyncFocusesAsked, promptSyncFocusesIfNeeded, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, showStickerPicker } from "../labels";
@@ -228,7 +229,18 @@ export class Panel {
       }
       wrap.append(banner);
     } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
-      wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
+      // "Never answered" is not "answered no": the first asks, the second
+      // says where the focuses are and lets the person change it.
+      const asked = isSyncFocusesAsked();
+      const note = h("div", "focuses-banner", asked ? t.syncFocusesOffBanner : t.syncFocusesUnasked);
+      const change = button("ghost", asked ? t.syncFocusesChange : t.syncFocusesDecide);
+      change.id = "focuses-sync-change";
+      change.addEventListener("click", () => {
+        if (asked) openSettingsSection("organizing");
+        else void promptSyncFocusesIfNeeded().then(() => panel.refresh());
+      });
+      note.append(" ", change);
+      wrap.append(note);
     }
     const header = h("div", "focuses-header");
     header.append(h("span", "focuses-title", t.focusesTab));
