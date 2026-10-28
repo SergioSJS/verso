@@ -45,6 +45,19 @@ async fn board(m: &mut Mesa, path: &str, change: Value) {
     assert!(set.get("ok").is_some(), "{set}");
 }
 
+/// A file of the game master's that only Ana sees, so that its folder is
+/// one she sees too.
+async fn shown_to_ana(m: &mut Mesa, path: &str, tag: &str) {
+    hidden_file(m, path, tag).await;
+    let ana = m.ana_id.clone();
+    let see = json!({ "kind": "set", "set": { "whole": "none", "rows": [{ "account": ana, "level": "see" }] }, "secret_name": null });
+    let set = m
+        .owner
+        .call("access_set", json!({ "paths": [path], "change": see }))
+        .await;
+    assert!(set.get("ok").is_some(), "{set}");
+}
+
 async fn files(w: &mut crate::tests_campaign::Win) -> Vec<String> {
     strings(&w.call("list_files", json!({})).await["ok"])
 }
@@ -226,6 +239,7 @@ fn a_name_taken_by_a_hidden_file_gets_the_suffix_and_the_answer_does_not_say_whi
         assert!(secret.get("ok").is_some(), "{secret}");
         let walked = m.owner.call("reindex", json!({})).await;
         assert!(walked.get("ok").is_some(), "{walked}");
+        shown_to_ana(&mut m, "Cofre/assets/vista.png", "vis").await;
         let data = picture("clash");
         crate::table_image::NAMES
             .lock()
@@ -286,6 +300,7 @@ fn the_new_file_has_the_access_of_the_board_it_was_put_into() {
             )
             .await;
         assert!(set.get("ok").is_some(), "{set}");
+        shown_to_ana(&mut m, "Cofre/assets/vista.png", "vis").await;
         let made = m
             .ana
             .call(
@@ -333,5 +348,189 @@ fn the_new_file_has_the_access_of_the_board_it_was_put_into() {
             !bia.contains(&"Cofre/assets/velho.png".to_owned()),
             "{bia:?}"
         );
+    });
+}
+
+async fn attach(m: &mut Mesa, tag: &str, into: &str, sub: &str) -> Value {
+    m.ana
+        .call(
+            "table_attach",
+            json!({ "base64": picture(tag), "into": into, "sub": sub }),
+        )
+        .await
+}
+
+fn made(v: &Value) -> String {
+    v["ok"].as_str().unwrap_or_default().to_owned()
+}
+
+async fn hidden_file(m: &mut Mesa, path: &str, tag: &str) {
+    let r = m
+        .owner
+        .call(
+            "create_file",
+            json!({ "path": path, "base64": picture(tag) }),
+        )
+        .await;
+    assert!(r.get("ok").is_some(), "{r}");
+    let walked = m.owner.call("reindex", json!({})).await;
+    assert!(walked.get("ok").is_some(), "{walked}");
+}
+
+/// The subfolder is the person's to name, not an oracle for what they do not
+/// see: a name that is, twins or sits under something hidden falls back
+/// (beside the file in `assets`, else the table's attachments place), and no
+/// answer names the hidden thing.
+#[test]
+fn a_subfolder_that_meets_something_hidden_falls_back_and_tells_nothing() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        board(&mut m, "Cofre/Mapa.canvas", edit_for(&ana)).await;
+        // A hidden folder twin by case, a hidden folder twin by Unicode form,
+        // a hidden file used as a folder, a hidden folder of the exact name.
+        hidden_file(&mut m, "Cofre/assets/velho.png", "h1").await;
+        hidden_file(&mut m, "Cofre/cafe\u{301}2/x.png", "h2").await;
+        hidden_file(&mut m, "Cofre/Mapa2.canvas.bak", "h3").await;
+        hidden_file(&mut m, "Cofre/Quarto/x.png", "h4").await;
+        hidden_file(&mut m, "Cofre/Lista", "h5").await;
+        for (tag, sub) in [
+            ("q1", "ASSETS"),
+            ("q2", "assets"),
+            ("q3", "café2"),
+            ("q4", "quarto"),
+            ("q5", "Quarto"),
+            ("q6", "Lista"),
+            ("q7", "Quarto/fotos"),
+        ] {
+            let r = attach(&mut m, tag, "Cofre/Mapa.canvas", sub).await;
+            let used = made(&r);
+            // `assets` is itself hidden: the table's attachments place.
+            assert!(used.starts_with("attachments/mesa-"), "{sub}: {r}");
+            for secret in [
+                "velho", "Quarto", "quarto", "café", "cafe", "Lista", "exists", "twin",
+            ] {
+                assert!(!r.to_string().contains(secret), "{sub}: {secret} in {r}");
+            }
+        }
+        // Only `assets` hidden away from the one asked: `assets` beside the
+        // file is the second try; here it is hidden, so a hidden `Quarto`
+        // asked for alone also ends in the table's place (checked above). With
+        // a visible `assets` the fall back is beside the file.
+        hidden_file(&mut m, "Cofre2/Mapa.canvas", "h6").await;
+        let set = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Cofre2/Mapa.canvas"], "change": edit_for(&ana) }),
+            )
+            .await;
+        assert!(set.get("ok").is_some(), "{set}");
+        hidden_file(&mut m, "Cofre2/Quarto/x.png", "h7").await;
+        let r = attach(&mut m, "q8", "Cofre2/Mapa.canvas", "quarto").await;
+        assert!(made(&r).starts_with("Cofre2/assets/mesa-"), "{r}");
+    });
+}
+
+#[test]
+fn with_nothing_hidden_the_names_asked_for_are_used() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        board(&mut m, "Cofre/Mapa.canvas", edit_for(&ana)).await;
+        // Nothing hidden: the names asked for are used, as asked.
+        for (tag, sub) in [
+            ("p1", "ASSETS"),
+            ("p2", "cafe\u{301}"),
+            ("p3", "Mapa2.canvas"),
+        ] {
+            let r = attach(&mut m, tag, "Cofre/Mapa.canvas", sub).await;
+            let want: String = sub.chars().collect::<String>();
+            let used = made(&r);
+            assert!(
+                used.starts_with("Cofre/")
+                    && used.contains("/mesa-")
+                    && !used.starts_with("Cofre/assets/"),
+                "{want}: {r}"
+            );
+        }
+    });
+}
+
+#[test]
+fn a_subfolder_that_is_another_table_or_a_gm_only_folder_falls_back() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        board(&mut m, "Cofre/Mapa.canvas", edit_for(&ana)).await;
+        // A folder the player sees nothing in: the game master's.
+        hidden_file(&mut m, "Cofre/Mestre/notas.png", "g1").await;
+        let r = attach(&mut m, "g2", "Cofre/Mapa.canvas", "Mestre").await;
+        assert!(made(&r).starts_with("Cofre/assets/mesa-"), "{r}");
+        // A table of its own inside the folder is another table.
+        hidden_file(&mut m, "Cofre/Outra/n.png", "g3").await;
+        let t = m
+            .owner
+            .call("campaign_make", json!({ "root": "Cofre/Outra" }))
+            .await;
+        assert!(t.get("ok").is_some(), "{t}");
+        let r = attach(&mut m, "g4", "Cofre/Mapa.canvas", "Outra").await;
+        assert!(made(&r).starts_with("Cofre/assets/mesa-"), "{r}");
+    });
+}
+
+#[test]
+fn an_absent_file_or_a_folder_is_told_as_a_file_one_may_not_touch() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        board(&mut m, "Cofre/Mapa.canvas", edit_for(&ana)).await;
+        let hidden = attach(&mut m, "n0", "Barão Zq.md", "assets").await;
+        assert!(hidden.get("err").is_some(), "{hidden}");
+        for into in ["Cofre", "Cofre/Nada.canvas", "Nada.md"] {
+            let r = attach(&mut m, "n1", into, "assets").await;
+            assert_eq!(r["err"], hidden["err"], "{into}: {r}");
+        }
+    });
+}
+
+#[test]
+fn a_path_that_exists_keeps_its_set_and_the_create_fails_with_one_message() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        board(&mut m, "Cofre/Mapa.canvas", edit_for(&ana)).await;
+        hidden_file(&mut m, "Cofre/assets/vista.png", "e1").await;
+        let see = json!({ "kind": "set", "set": { "whole": "none", "rows": [{ "account": ana, "level": "see" }] }, "secret_name": null });
+        let set = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Cofre/assets/vista.png"], "change": see }),
+            )
+            .await;
+        assert!(set.get("ok").is_some(), "{set}");
+        let before = m
+            .owner
+            .call("access_get", json!({ "paths": ["Cofre/assets/vista.png"] }))
+            .await;
+        let data = picture("e2");
+        crate::table_image::NAMES
+            .lock()
+            .unwrap()
+            .push((data.clone(), "vista.png".to_owned()));
+        let r = m
+            .ana
+            .call(
+                "table_attach",
+                json!({ "base64": data, "into": "Cofre/Mapa.canvas", "sub": "assets" }),
+            )
+            .await;
+        assert_eq!(r["err"]["message"], "the file could not be saved", "{r}");
+        let after = m
+            .owner
+            .call("access_get", json!({ "paths": ["Cofre/assets/vista.png"] }))
+            .await;
+        assert_eq!(before["ok"], after["ok"], "its set was not touched");
     });
 }

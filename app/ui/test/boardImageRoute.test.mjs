@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 await esbuild.build({ entryPoints: ["src/board/imageRoute.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/boardImageRoute.test-bundle.mjs", logLevel: "error" });
-const { imageRoute, imageFileName, attachSub } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
+const { imageRoute, imageFileName, attachSub, usedFolder } = await import("./.bundles/boardImageRoute.test-bundle.mjs");
 
 test("a player who edits the board: the server writes the new image", () => {
   assert.equal(imageRoute("player", true, true, true), "server");
@@ -44,4 +44,9 @@ test("the subfolder sent with a player's new file is the setting, as the paste o
   assert.equal(attachSub("assets"), "assets");
   assert.equal(attachSub("  /fotos/mesa/ "), "fotos/mesa");
   assert.equal(attachSub(""), "");
+});
+test("the status names the folder the server really used", () => {
+  assert.equal(usedFolder("Cofre/Mapa.canvas", "Cofre/fotos/mesa/x.png"), "fotos/mesa");
+  assert.equal(usedFolder("Cofre/Mapa.canvas", "attachments/x.png"), "attachments");
+  assert.equal(usedFolder("Livre.md", "assets/x.png"), "assets");
 });
