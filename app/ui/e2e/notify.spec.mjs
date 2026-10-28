@@ -196,9 +196,10 @@ test("each kind as chosen: Só na lista lists without a toast; Desligado neither
   await notifySettings(app);
   const rows = page.locator(".settings-body .setting");
   await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Mesa", "Som da Mesa", "Volume do som da Mesa", "Também nas notificações do sistema"]);
-  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13);
-  // the Mesa's chime is a sound, not a kind, and starts as the soft one.
-  const first = { Mesa: "off", "Som da Mesa": "soft" };
+  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13), and
+  // Presença, "Só na lista" (ADR 0084 item 8, 2026-10-28); the Mesa's chime is a sound, not a kind,
+  // and starts as the soft one.
+  const first = { Mesa: "off", Presença: "list", "Som da Mesa": "soft" };
   for (const s of await rows.locator("select").all()) await expect(s).toHaveValue(first[await s.evaluate((el) => el.closest(".setting")?.querySelector(".setting-title")?.textContent ?? "")] ?? "toast");
   const sync = page.getByRole("combobox", { name: "Sincronização" });
   await sync.selectOption("list");
@@ -357,7 +358,7 @@ test("the trash: entries leaving within 3 days said at the folder's opening, onc
   await expect(page.locator(".settings-title")).toHaveText("Lixeira");
 });
 
-test("presence: someone joining the note is said; leaving is not, and makes the next join news", async ({ app, page }) => {
+test("presence: by default someone joining is in the list and rings in the presence row, with no toast; leaving is not told", async ({ app, page }) => {
   const NOTE = "Sessao ao vivo.md";
   await app.open();
   await page.evaluate(() => (window.__harness.rooms.up = true));
@@ -368,17 +369,42 @@ test("presence: someone joining the note is said; leaving is not, and makes the 
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
-  await expect(toasts(page)).toContainText("Bia entrou na nota");
-  await expect(toasts(page)).toContainText("Bia está em Sessao ao vivo com você.");
+  // No toast anywhere (it covered the chat's box and its last messages); the bell counts it.
+  await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  await expect(toasts(page)).toHaveCount(0);
+  // The newcomer's mark in the presence row is ringed for a moment, and the line is said once.
+  await expect(page.locator(".live-who-chip.is-new:visible")).toHaveCount(1);
+  await expect(page.locator("#status")).toHaveText("Bia entrou na nota.");
+  await expect(page.locator(".live-who-chip.is-new")).toHaveCount(0, { timeout: 6000 });
   await page.evaluate((n) => window.__harness.rooms.absent(n, "Bia"), NOTE);
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
   const centre = await openCentre(app);
+  await expect(centre.locator(".notify-item")).toContainText("Bia entrou na nota");
   await expect(centre.locator(".notify-item")).toHaveCount(1);
   await page.keyboard.press("Escape");
   // The same person coming back within ten minutes is not news again (PRESENCE_AGAIN_MS).
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, com Bia");
   await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  await expect(page.locator(".live-who-chip.is-new")).toHaveCount(0);
+});
+
+test("presence set back to \"Aviso e lista\": the toast comes back, at the top, with the ring", async ({ app, page }) => {
+  const NOTE = "Sessao ao vivo.md";
+  await app.open();
+  await notifySettings(app);
+  await page.getByRole("combobox", { name: "Presença" }).selectOption("toast");
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => (window.__harness.rooms.up = true));
+  await say(app, SYNC);
+  await app.writeOutside(NOTE, "# Sessao\n\num\n");
+  await app.folderChanged([NOTE], true);
+  await app.quickOpen("Sessao ao vivo");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
+  await expect(toasts(page)).toContainText("Bia entrou na nota");
+  await expect(toasts(page)).toContainText("Bia está em Sessao ao vivo com você.");
   // Presence sits at the top, never over the table's chat and its box at the bottom right.
   const box = await page.locator("#notify-toasts-top").boundingBox();
   expect(box === null || box.y < 200).toBe(true);
