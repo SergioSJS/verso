@@ -24,7 +24,7 @@ use verso_contract::{
 };
 use verso_service::lock;
 
-use crate::access::{Action, Door, Kind};
+use crate::access::{Action, Door, Kind, Right};
 use crate::auth::Who;
 use crate::campaign;
 use crate::db::{Audience, Grant, Role};
@@ -207,16 +207,16 @@ pub async fn command(
             events = lost;
         }
         "table_rights_set" => {
-            // `files` is the one right so far (ADR 0113 K.4): the permission
-            // to send files.
-            let right: String = arg(&args, "right")?;
-            if right != "files" {
+            // One of the four rights of a player (ADR 0113 K.6): `images`,
+            // `files`, `create_notes`, `create_boards`.
+            let word: String = arg(&args, "right")?;
+            let Some(right) = crate::access::Right::parse(&word) else {
                 return Err(refused("no such right"));
-            }
+            };
             let given = json!({
-                "root": args["root"], "accounts": args["accounts"], "images": args["on"],
+                "root": args["root"], "accounts": args["accounts"], "on": args["on"],
             });
-            subject = Some(permission(server, &folder, &given).await?);
+            subject = Some(permission(server, &folder, &given, right).await?);
         }
         "campaign_invite" => return invite(server, who, &folder, &args).await,
         _ => return Err(refused("no such command")),
@@ -351,19 +351,20 @@ async fn settings(server: &Arc<Server>, folder: &str, args: &Value) -> Result<()
     Ok(())
 }
 
-/// The permission to send images to the table's chat, given to some of its
-/// players or taken from them (ADR 0107 item 3 as amended 2026-10-24). Only
-/// the table's players: the game masters always may. Told at once to the
-/// windows concerned. Answers whom it was about, for the audit log:
-/// `images:on:<accounts>` or `images:off:<accounts>`.
+/// A right of the table, given to some of its players or taken from them
+/// (ADR 0107 item 3 as amended 2026-10-24, ADR 0113 K.6). Only the table's
+/// players: the game masters always may. Told at once to the windows
+/// concerned. Answers whom it was about, for the audit log:
+/// `<right>:on:<accounts>` or `<right>:off:<accounts>`.
 async fn permission(
     server: &Arc<Server>,
     folder: &str,
     args: &Value,
+    right: crate::access::Right,
 ) -> Result<String, ContractError> {
     let root = root_arg(args)?;
     let accounts: Vec<String> = arg(args, "accounts")?;
-    let images: bool = arg(args, "images")?;
+    let images: bool = arg(args, "on")?;
     if accounts.is_empty() || accounts.len() > 500 {
         return Err(refused("name between 1 and 500 players"));
     }
@@ -383,14 +384,15 @@ async fn permission(
         if !a.iter().all(|x| players.iter().any(|p| &p.id == x)) {
             return Err(refused("not a player of this table"));
         }
-        s.db.campaign_images_set(&f, &r, &a, images)
+        s.db.campaign_right_set(&f, &r, &a, right, images)
             .map_err(failed)?;
         crate::table::tell_images(&s, (&f, &r), &a);
         Ok(())
     })
     .await?;
     Ok(format!(
-        "images:{}:{}",
+        "{}:{}:{}",
+        right.as_str(),
         if images { "on" } else { "off" },
         accounts.join(",")
     ))
@@ -638,7 +640,11 @@ fn table_of(t: &crate::db::Campaign) -> CampaignTable {
         log_max: u32::try_from(t.log_max).unwrap_or(u32::MAX),
         image_max: u32::try_from(t.image_max).unwrap_or(u32::MAX),
         image_players: Vec::new(),
+        file_players: Vec::new(),
+        note_players: Vec::new(),
+        board_players: Vec::new(),
         images: true,
+        files: true,
     }
 }
 
@@ -738,12 +744,18 @@ async fn status(
                 tables: veil
                     .tables
                     .iter()
-                    .map(|t| CampaignTable {
-                        image_players: s
-                            .db
-                            .campaign_images_of(&folder, &t.root)
-                            .unwrap_or_default(),
-                        ..table_of(t)
+                    .map(|t| {
+                        let who = |right| {
+                            s.db.campaign_right_players(&folder, &t.root, right)
+                                .unwrap_or_default()
+                        };
+                        CampaignTable {
+                            image_players: who(Right::Images),
+                            file_players: who(Right::Files),
+                            note_players: who(Right::CreatesNotes),
+                            board_players: who(Right::CreatesBoards),
+                            ..table_of(t)
+                        }
                     })
                     .collect(),
                 notes,
@@ -774,7 +786,12 @@ async fn status(
                 }?;
                 Some(CampaignTable {
                     root,
-                    images: door.may(Action::SendFile, &t.root, Kind::Table).allowed(),
+                    images: door
+                        .may(Action::SendFile { image: true }, &t.root, Kind::Table)
+                        .allowed(),
+                    files: door
+                        .may(Action::SendFile { image: false }, &t.root, Kind::Table)
+                        .allowed(),
                     ..table_of(t)
                 })
             })

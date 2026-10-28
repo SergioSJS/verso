@@ -93,7 +93,7 @@ async fn grant(owner: &mut Socket, id: u64, root: &str, account: &str, on: bool)
         owner,
         id,
         "table_rights_set",
-        json!({ "root": root, "accounts": [account], "right": "files", "on": on }),
+        json!({ "root": root, "accounts": [account], "right": "images", "on": on }),
     )
     .await
 }
@@ -127,7 +127,7 @@ fn a_member_player_sends_images_only_when_the_game_master_lets_it() {
         assert!(
             !r.server
                 .db
-                .campaign_images_has(&c.folder, "", &c.ana_id)
+                .campaign_right_has(&c.folder, "", &c.ana_id, crate::access::Right::Images)
                 .unwrap()
         );
         // Only a player of the table can be given it.
@@ -251,7 +251,7 @@ fn a_player_on_a_share_sends_images_as_a_member_does() {
         assert!(
             !r.server
                 .db
-                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .campaign_right_has(&c.folder, "Cripta", &c.ana_id, crate::access::Right::Images)
                 .unwrap()
         );
     });
@@ -484,7 +484,7 @@ fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
         assert!(
             r.server
                 .db
-                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .campaign_right_has(&c.folder, "Cripta", &c.ana_id, crate::access::Right::Images)
                 .unwrap()
         );
         // Someone else stays on the share, so that it outlives her seat.
@@ -497,7 +497,7 @@ fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
         assert!(
             !r.server
                 .db
-                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .campaign_right_has(&c.folder, "Cripta", &c.ana_id, crate::access::Right::Images)
                 .unwrap()
         );
         assert!(!r.server.db.image_granted(&c.folder, &c.ana_id));
@@ -509,7 +509,7 @@ fn the_permission_goes_with_the_seat_at_that_table_and_not_another_tables() {
         assert!(
             !r.server
                 .db
-                .campaign_images_has(&c.folder, "Cripta", &c.ana_id)
+                .campaign_right_has(&c.folder, "Cripta", &c.ana_id, crate::access::Right::Images)
                 .unwrap()
         );
     });
@@ -548,7 +548,13 @@ fn the_admission_set_follows_every_way_a_permission_goes() {
         for ((email, id), root) in people.iter().zip(roots) {
             r.server
                 .db
-                .campaign_images_set(&c.folder, root, std::slice::from_ref(id), true)
+                .campaign_right_set(
+                    &c.folder,
+                    root,
+                    std::slice::from_ref(id),
+                    crate::access::Right::Images,
+                    true,
+                )
                 .unwrap();
             windows.push(open(&r, email, "uma senha longa", &c.folder).await);
         }
@@ -582,7 +588,13 @@ fn the_admission_set_follows_every_way_a_permission_goes() {
         // The folder deleted: nothing is left.
         r.server
             .db
-            .campaign_images_set(&c.folder, "", std::slice::from_ref(&c.ana_id), true)
+            .campaign_right_set(
+                &c.folder,
+                "",
+                std::slice::from_ref(&c.ana_id),
+                crate::access::Right::Images,
+                true,
+            )
             .unwrap();
         assert!(r.server.db.image_granted(&c.folder, &c.ana_id));
         r.server.db.forget_folder(&c.folder).unwrap();

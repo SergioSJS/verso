@@ -6,7 +6,7 @@
 //! vectors it writes.
 //!
 //! Every combination of role x credential x table state x where the level
-//! comes from x level x kind x right *Send files* x action is asked of
+//! comes from x level x kind x the four rights x action is asked of
 //! [`may`], and the answer is compared with one written by hand
 //! ([`expected`]): a second statement of the ADR's rules in the ADR's own
 //! words (section B), not a copy of the function. The same product, with
@@ -23,7 +23,8 @@
 use std::collections::BTreeMap;
 
 use super::rules::{
-    AccessFacts, Action, Asker, Cap, Kind, Level, NodeSet, TableFact, Target, Verdict, may,
+    AccessFacts, Action, Asker, Cap, Kind, Level, Made, NodeSet, Right, TableFact, Target, Verdict,
+    may,
 };
 use crate::db::Role;
 
@@ -268,11 +269,15 @@ fn path_of(kind: Kind) -> &'static str {
     }
 }
 
-const ACTIONS: [Action; 23] = [
+const ACTIONS: [Action; 28] = [
     Action::See,
     Action::Edit,
-    Action::Attach,
-    Action::Create,
+    Action::Attach { image: true },
+    Action::Attach { image: false },
+    Action::Create(Made::Note),
+    Action::Create(Made::Board),
+    Action::Create(Made::Image),
+    Action::Create(Made::File),
     Action::Rename,
     Action::Move,
     Action::Delete,
@@ -297,7 +302,8 @@ const ACTIONS: [Action; 23] = [
         roll: true,
     },
     Action::Clear,
-    Action::SendFile,
+    Action::SendFile { image: true },
+    Action::SendFile { image: false },
     Action::SeeSecretBlocks,
     Action::ManageAccess,
     Action::ManageTable,
@@ -310,8 +316,12 @@ fn action_name(a: Action) -> String {
     match a {
         Action::See => "see",
         Action::Edit => "edit",
-        Action::Attach => "attach",
-        Action::Create => "create",
+        Action::Attach { image: true } => "attach-image",
+        Action::Attach { image: false } => "attach",
+        Action::Create(Made::Note) => "create-note",
+        Action::Create(Made::Board) => "create-board",
+        Action::Create(Made::Image) => "create-image",
+        Action::Create(Made::File) => "create-file",
         Action::Rename => "rename",
         Action::Move => "move",
         Action::Delete => "delete",
@@ -327,7 +337,8 @@ fn action_name(a: Action) -> String {
             );
         }
         Action::Clear => "clear",
-        Action::SendFile => "send-file",
+        Action::SendFile { image: true } => "send-image",
+        Action::SendFile { image: false } => "send-file",
         Action::SeeSecretBlocks => "see-secret-blocks",
         Action::ManageAccess => "manage-access",
         Action::ManageTable => "manage-table",
@@ -338,6 +349,38 @@ fn action_name(a: Action) -> String {
     .to_owned()
 }
 
+/// Which of the four rights (K.6) Ana was given at the table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+struct Rights {
+    images: bool,
+    files: bool,
+    notes: bool,
+    boards: bool,
+}
+
+impl Rights {
+    /// Every one of the sixteen combinations.
+    fn all() -> Vec<Self> {
+        (0..16)
+            .map(|n| Self {
+                images: n & 1 != 0,
+                files: n & 2 != 0,
+                notes: n & 4 != 0,
+                boards: n & 8 != 0,
+            })
+            .collect()
+    }
+
+    fn has(self, right: Right) -> bool {
+        match right {
+            Right::Images => self.images,
+            Right::Files => self.files,
+            Right::CreatesNotes => self.notes,
+            Right::CreatesBoards => self.boards,
+        }
+    }
+}
+
 /// One cell of the matrix, apart from who asks and what.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Setting {
@@ -345,7 +388,7 @@ struct Setting {
     source: Source,
     level: Level,
     kind: Kind,
-    right: bool,
+    rights: Rights,
     derived: bool,
 }
 
@@ -413,8 +456,10 @@ impl Setting {
                     .insert(at(self.kind).to_owned(), whole(self.level));
             }
         }
-        if self.right {
-            f.files_right.insert(("t".to_owned(), ANA.to_owned()));
+        for right in Right::ALL {
+            if self.rights.has(right) {
+                f.rights.insert(("t".to_owned(), ANA.to_owned(), right));
+            }
         }
         (f, path)
     }
@@ -431,7 +476,7 @@ impl Setting {
                     source: Source::Nothing,
                     level: Level::None,
                     kind,
-                    right: false,
+                    rights: Rights::default(),
                     derived,
                 });
                 for table in [TableState::Open, TableState::Closed] {
@@ -441,13 +486,13 @@ impl Setting {
                             if source == Source::Nothing && level != Level::None {
                                 continue;
                             }
-                            for right in [false, true] {
+                            for rights in Rights::all() {
                                 out.push(Self {
                                     table,
                                     source,
                                     level,
                                     kind,
-                                    right,
+                                    rights,
                                     derived,
                                 });
                             }
@@ -514,10 +559,13 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
     let closed_to_player = s.table == TableState::Closed && !p.master();
     let level = level_of(p, s);
     let w = p.writes();
-    // The right to send files holds at the table, for a player.
-    // The right is Ana's: another player has none.
-    let right = s.right && !p.other;
-    let sends = p.master() || (!in_table && p.editor_or_more()) || right;
+    // The rights hold at the table, for a player. They are Ana's: another
+    // player has none.
+    let right = |r: Right| s.rights.has(r) && !p.other;
+    let sends = |r: Right| p.master() || (!in_table && p.editor_or_more()) || right(r);
+    // What a player makes or attaches at a table needs a right; the game
+    // master and a folder's editor outside a table need none.
+    let granted = |r: Right| !in_table || p.master() || right(r);
     match action {
         // See a file or folder: the table open and the level at least see.
         Action::See => {
@@ -528,11 +576,22 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
             }
         }
         Action::Edit => w && level == Level::Edit,
-        // A new file into a file the person edits: and, for a player, the
-        // right.
-        Action::Attach => w && level == Level::Edit && (!in_table || p.master() || right),
-        // Create and rename inside a folder one edits (K.5).
-        Action::Create | Action::Rename => w && level == Level::Edit,
+        // A new image into a file the person edits: nothing more; another
+        // file, for a player, the right *Files* (K.6).
+        Action::Attach { image: true } => w && level == Level::Edit,
+        Action::Attach { image: false } => w && level == Level::Edit && granted(Right::Files),
+        // Create inside a folder one edits: the right for what is made.
+        // Rename: *Edits* on the file (K.6).
+        Action::Create(made) => {
+            let r = match made {
+                Made::Note => Right::CreatesNotes,
+                Made::Board => Right::CreatesBoards,
+                Made::Image => Right::Images,
+                Made::File => Right::Files,
+            };
+            w && level == Level::Edit && granted(r)
+        }
+        Action::Rename => w && level == Level::Edit,
         // Move and delete: the game master, or the folder's editor outside
         // a table; a player of a table never (K.5).
         Action::Move | Action::Delete => {
@@ -548,7 +607,10 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
         Action::DeleteEntry { own, roll } => {
             p.has_role() && !p.link && ((!closed_to_player && own && !roll) || (p.master() && w))
         }
-        Action::SendFile => p.has_role() && !p.link && !closed_to_player && w && sends,
+        Action::SendFile { image } => {
+            let r = if image { Right::Images } else { Right::Files };
+            p.has_role() && !p.link && !closed_to_player && w && sends(r)
+        }
         // Whoever edits sees the secret blocks; the game master of a table
         // sees them whatever the credential.
         Action::SeeSecretBlocks => {
@@ -565,10 +627,10 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
     }
 }
 
-fn answer(p: Person, s: Setting, a: Action) -> bool {
-    let (facts, path) = s.facts();
+fn answer(p: Person, s: Setting, built: &(AccessFacts, &'static str), a: Action) -> bool {
+    let (facts, path) = built;
     let t = Target::new(path, s.kind).derived(s.derived);
-    may(&facts, &p.who(), a, &t) == Verdict::Allow
+    may(facts, &p.who(), a, &t) == Verdict::Allow
 }
 
 #[test]
@@ -578,6 +640,7 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
     let mut wrong: Vec<String> = Vec::new();
     let mut cells = 0_usize;
     for s in &settings {
+        let built = s.facts();
         for a in ACTIONS {
             // The table's own actions are asked of the table; a file's of a
             // file; the ones that name no path (a level) of either.
@@ -589,7 +652,7 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
                     | Action::SeeSecretRolls
                     | Action::DeleteEntry { .. }
                     | Action::Clear
-                    | Action::SendFile
+                    | Action::SendFile { .. }
                     | Action::ManageAccess
                     | Action::ManageTable
                     | Action::Share
@@ -601,7 +664,7 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
             }
             for p in &people {
                 cells += 1;
-                let (got, want) = (answer(*p, *s, a), expected(*p, *s, a));
+                let (got, want) = (answer(*p, *s, &built, a), expected(*p, *s, a));
                 if got != want && wrong.len() < 20 {
                     wrong.push(format!(
                         "{} / {:?} / {} -> got {got}, the ADR says {want}",
@@ -622,15 +685,20 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
     );
 }
 
-/// The dimensions an answer depends on, with their values.
-type Needed = (Option<Kind>, Option<bool>, Option<bool>);
+/// The dimensions an answer depends on, with their values: the kind, the
+/// four rights, whether a file the person sees shows it.
+type Needed = (Option<Kind>, [Option<bool>; 4], Option<bool>);
 
 /// The dimensions of a cell an answer may depend on, besides who asks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Dims {
     kind: bool,
-    right: bool,
+    rights: [bool; 4],
     derived: bool,
+}
+
+fn right_bits(r: Rights) -> [bool; 4] {
+    [r.images, r.files, r.notes, r.boards]
 }
 
 /// The vectors: per action, table state, source and level, the answers of
@@ -644,7 +712,7 @@ fn vectors() -> String {
         "  \"doc\": \"ADR 0113 section A and B. Generated by crates/verso-server/src/access/vectors.rs; ",
         "regenerate with VERSO_WRITE_VECTORS=1 cargo test -p verso-server access::vectors. ",
         "A case is a table state (none: the path is in no table; open; closed), where the level comes from ",
-        "(source) and its level, then a kind, whether the person has the right to send files (right), ",
+        "(source) and its level, then a kind, which of the four rights of ADR 0113 K.6 the person has (images, files, creates_notes, creates_boards), ",
         "whether a file the person sees shows the attachment or folder (derived), and an action; ",
         "allow holds one letter per entry of who, in order: y allowed, n refused. A key a case does not name is one ",
         "the answer does not depend on. Sources: nothing = no set on the path nor above it; file = the file's ",
@@ -676,6 +744,7 @@ fn vectors() -> String {
     type Key = (usize, TableState, Source, Level);
     let mut groups: BTreeMap<Key, Vec<(Setting, String)>> = BTreeMap::new();
     for s in &settings {
+        let built = s.facts();
         for (i, a) in ACTIONS.iter().enumerate() {
             let table_action = matches!(
                 a,
@@ -685,7 +754,7 @@ fn vectors() -> String {
                     | Action::SeeSecretRolls
                     | Action::DeleteEntry { .. }
                     | Action::Clear
-                    | Action::SendFile
+                    | Action::SendFile { .. }
                     | Action::ManageAccess
                     | Action::ManageTable
                     | Action::Share
@@ -697,7 +766,7 @@ fn vectors() -> String {
             }
             let row: String = people
                 .iter()
-                .map(|p| if answer(*p, *s, *a) { 'y' } else { 'n' })
+                .map(|p| if answer(*p, *s, &built, *a) { 'y' } else { 'n' })
                 .collect();
             groups
                 .entry((i, s.table, s.source, s.level))
@@ -707,11 +776,11 @@ fn vectors() -> String {
     }
     let mut cases: Vec<String> = Vec::new();
     for ((i, table, source, level), cells) in &groups {
-        // Which of kind, right, derived change the answers: a dimension is
-        // needed when, holding the others, two values give two rows.
+        // Which of kind, the rights, derived change the answers: a dimension
+        // is needed when, holding the others, two values give two rows.
         let mut needed = Dims {
             kind: false,
-            right: false,
+            rights: [false; 4],
             derived: false,
         };
         for (a, ra) in cells {
@@ -719,12 +788,14 @@ fn vectors() -> String {
                 if ra == rb {
                     continue;
                 }
-                let diff = (a.kind != b.kind, a.right != b.right, a.derived != b.derived);
+                let (ba, bb) = (right_bits(a.rights), right_bits(b.rights));
+                let changed: Vec<usize> = (0..4).filter(|i| ba[*i] != bb[*i]).collect();
+                let (kind, derived) = (a.kind != b.kind, a.derived != b.derived);
                 // Differ in exactly one dimension: that one matters.
-                match diff {
-                    (true, false, false) => needed.kind = true,
-                    (false, true, false) => needed.right = true,
-                    (false, false, true) => needed.derived = true,
+                match (kind, changed.as_slice(), derived) {
+                    (true, [], false) => needed.kind = true,
+                    (false, [i], false) => needed.rights[*i] = true,
+                    (false, [], true) => needed.derived = true,
                     _ => {}
                 }
             }
@@ -732,9 +803,10 @@ fn vectors() -> String {
         let mut seen: BTreeMap<Needed, &str> = BTreeMap::new();
         let mut order: Vec<Needed> = Vec::new();
         for (s, row) in cells {
+            let bits = right_bits(s.rights);
             let k = (
                 needed.kind.then_some(s.kind),
-                needed.right.then_some(s.right),
+                std::array::from_fn(|i| needed.rights[i].then_some(bits[i])),
                 needed.derived.then_some(s.derived),
             );
             match seen.get(&k) {
@@ -761,8 +833,13 @@ fn vectors() -> String {
             if let Some(kind) = k.0 {
                 c.push_str(&format!(", \"kind\": \"{}\"", kind_name(kind)));
             }
-            if let Some(r) = k.1 {
-                c.push_str(&format!(", \"right\": {r}"));
+            for (key, value) in ["images", "files", "creates_notes", "creates_boards"]
+                .iter()
+                .zip(k.1)
+            {
+                if let Some(r) = value {
+                    c.push_str(&format!(", \"{key}\": {r}"));
+                }
             }
             if let Some(d) = k.2 {
                 c.push_str(&format!(", \"derived\": {d}"));

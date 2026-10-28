@@ -66,8 +66,8 @@ pub use door::{
 };
 mod rules;
 pub use rules::{
-    AccessFacts, Action, Asker, Cap, Kind, Level, NodeSet, Reason, Seat, TableFact, Target,
-    Verdict, Why, may,
+    AccessFacts, Action, Asker, Cap, Kind, Level, Made, NodeSet, Reason, Right, Seat, TableFact,
+    Target, Verdict, Why, may,
 };
 
 #[cfg(test)]

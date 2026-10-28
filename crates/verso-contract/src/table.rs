@@ -100,18 +100,24 @@ pub struct TableJoin {
     pub entries: Vec<TableEntry>,
     pub more: bool,
     pub roster: Vec<TableMember>,
-    /// Whether this account may send a file to the table: an owner always, a
-    /// player when the game master gave it *Send files* (ADR 0113 K.4).
+    /// Whether this account may send an image to the table: an owner always,
+    /// a player when the game master gave it *Images* (ADR 0113 K.6).
     #[serde(default)]
     pub images: bool,
+    /// Whether this account may send a file that is not an image: an owner
+    /// always, a player when given *Files* (K.6).
+    #[serde(default)]
+    pub files: bool,
 }
 
-/// The right to send files changed for this account (event
+/// A right to send to the chat changed for this account (event
 /// `table-images`): told to its windows at the table at once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TableImages {
     pub table: String,
     pub images: bool,
+    #[serde(default)]
+    pub files: bool,
 }
 
 /// A page of older entries (`table_history`), oldest first.
