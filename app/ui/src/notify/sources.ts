@@ -23,7 +23,7 @@ import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
 import { showTable } from "../table/show";
 import { notify, onAct, settle, stateOf } from "./index";
-import { PresenceNews } from "./presenceNews";
+import { news } from "./presence";
 import { inFront } from "./system";
 import { notifyStrings } from "./strings";
 
@@ -129,15 +129,6 @@ export function presenceHeard(path: string, before: readonly string[], now: read
     });
   }
 }
-
-/** A tab bound its file's room: the people in it are not joining. */
-export function presenceOpened(path: string, names: readonly string[]): void {
-  const at = Date.now();
-  news.opened(currentFolder, path, at);
-  news.present(currentFolder, path, names, at);
-}
-
-const news = new PresenceNews();
 
 /* ---------- Updates: one notification per version ---------- */
 

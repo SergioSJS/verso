@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { presenceOpened } from "../notify/sources";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
@@ -37,6 +36,7 @@ import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
 import { readerWatch } from "../readerNotice";
 import * as textLive from "./textLive";
+import { presenceOpened } from "../notify/presence";
 
 /* A text file that is not a note: shown in the source editor, read-only. */
 /* Any text file that is not a note — .txt, .json, .csv, .canvas… —

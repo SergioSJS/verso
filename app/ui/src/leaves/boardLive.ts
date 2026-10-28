@@ -11,7 +11,6 @@
 // changes. On a synced folder the board goes local and back as a note does
 // (items 8 and 9), and says so in words (item 14).
 
-import { presenceOpened } from "../notify/sources";
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
 import { may } from "../access";
@@ -23,6 +22,7 @@ import { patchFromCanvas } from "../board/roomModel";
 import { fail } from "../errors";
 import { leavesOf } from "../layout/spaces";
 import { opening } from "../opening";
+import { presenceOpened } from "../notify/presence";
 import { boardText, t } from "../strings";
 import { ui } from "../dom";
 import type { BoardLeaf } from "./board";
