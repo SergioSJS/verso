@@ -34,10 +34,11 @@ indexed.
 
 ## Decision
 
-Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
-`[PROPOSED]` are the author's recommendation.
+Status **Accepted (2026-10-28)** *(history: Proposed until then)*. Items
+marked `[OPEN]` are the maintainer's; items marked `[PROPOSED]` were the
+author's recommendation, accepted as built on 2026-10-28.
 
-1. **A swatch beside a colour code.** `[PROPOSED]` A small square in the
+1. **A swatch beside a colour code.** `[DECIDED 2026-10-28 — accepted as built]` A small square in the
    colour, before the code, drawn by the window only; the file is untouched
    (invariant 7). It has a thin border so a colour close to the page still
    shows, and a chequerboard under a colour with transparency.
@@ -63,7 +64,7 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
      stays a tag; the swatch sits beside it.
    - **C — Only in code and property values.**
 
-4. **A click adjusts the colour.** `[PROPOSED]` In the editor (Live and
+4. **A click adjusts the colour.** `[DECIDED 2026-10-28 — accepted as built]` In the editor (Live and
    Source), a click on the swatch opens a colour picker; the chosen colour
    is written back in the same format the code had (hex stays hex, with or
    without alpha as it was; `rgb()` stays `rgb()`), as an ordinary edit of
@@ -83,16 +84,16 @@ Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items marked
      but it has no alpha and looks different on each system and in the
      browser.
 
-6. **A feature switch.** `[PROPOSED]` "Amostras de cor" / "Colour swatches"
+6. **A feature switch.** `[DECIDED 2026-10-28 — accepted as built]` "Amostras de cor" / "Colour swatches"
    in Settings › Features, in the general group
    ([0103](0103-feature-presets-and-capability-flags.md)), on by default.
 
-7. **Bounds.** `[PROPOSED]` Swatches are drawn only for the visible part of
+7. **Bounds.** `[DECIDED 2026-10-28 — accepted as built]` Swatches are drawn only for the visible part of
    a long note (as the editor's other decorations are); a note with
    thousands of codes stays fast.
 
 8. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-   `[PROPOSED]` The swatch is not the only carrier of the information (the
+   `[DECIDED 2026-10-28 — accepted as built]` The swatch is not the only carrier of the information (the
    code stays readable); its accessible name gives the code; pt-BR and
    English.
 
@@ -114,7 +115,10 @@ property values (item 3); the system's colour picker (item 5).
 
 ## Status
 
-Proposed (2026-10-22). Items 2, 3 and 5 decided by the maintainer the
+**Accepted (2026-10-28).** The maintainer, 2026-10-28, on ADRs 0108 and 0109:
+*"Aceitar as duas"*. The remaining `[PROPOSED]` items are accepted as built.
+
+Proposed (2026-10-22), until then. Items 2, 3 and 5 decided by the maintainer the
 same day; the items marked `[PROPOSED]` stay the author's until accepted.
 Being built; waits for a reading by the other model.
 

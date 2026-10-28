@@ -64,7 +64,8 @@ not whole notes.
 
 ## Decision
 
-Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
+Status **Accepted (2026-10-28)** for phase 1 (as built); phase 2 is scheduled
+for V1, not built. *(History, until 2026-10-28: Proposed.)* `[DECIDED]` items are the maintainer's words above;
 `[OPEN]` items are his to answer; `[PROPOSED]` items are the author's.
 
 1. **A table is a campaign folder.** `[DECIDED 2026-10-22]` One context:
@@ -82,7 +83,7 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    account on the server (of another table) accepts the link with that
    account, signed in or signing in on the invitation's page
    ([0074](0074-accounts-and-access-on-the-server.md) item 4); no second
-   account. `[PROPOSED]` Players join as readers by
+   account. `[DECIDED 2026-10-28 — accepted as built]` Players join as readers by
    default; per-note editing is item 5.
 
 3. **Open or closed.** `[DECIDED]` The game master sets the table open or
@@ -139,7 +140,7 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    a um jogador" action.
 
 6. **Players' boards.** `[DECIDED]` (*"montando um board de relacionamento,
-   arrastando as notas que eles têm acesso e criando laços"*). `[PROPOSED]`
+   arrastando as notas que eles têm acesso e criando laços"*). `[DECIDED 2026-10-28 — accepted as built]`
    A players' area in the table folder (a subfolder "Jogadores" /
    "Players", writable by the group) holds boards and notes the players
    make; on a board they drag the notes they can see as cards and draw
@@ -160,13 +161,13 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
      revelado") — the player knows something is there. _(recommended as the
      default)_
    - **C — Redacted ("▒▒▒▒")** — for when the name itself is a spoiler.
-   `[PROPOSED]` B by default; the game master gets C for a given link by
+   `[DECIDED 2026-10-28 — accepted as built]` B by default; the game master gets C for a given link by
    writing it with alias text (`[[A traição do barão|um rumor]]` shows "um
    rumor 🔒") or by marking a hidden note "nome secreto" so every link to it
    is redacted. When a note is released, links to it work for everyone.
 
 8. **The table dashboard.** `[DECIDED]` (*"ela vira modo dashboard de
-   mesa"*). `[PROPOSED]` Opening a table folder shows a dashboard — its home
+   mesa"*). `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. Opening a table folder shows a dashboard — its home
    page: the table (0107) log and input, who is present, open/closed, the
    next session, the released notes (newest first), each player's sheet, the
    group's note and board, quick dice/oracle; and, for the game master only,
@@ -174,12 +175,12 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
    the players list. Players see the player half.
 
 9. **"Show to the table".** `[DECIDED]` (author's addition, accepted)
-   `[PROPOSED]` The game master pushes a released note, image or map to
+   `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. The game master pushes a released note, image or map to
    every player's screen at once (a card over the window, dismissible), as
    Foundry's "show players". Pushing a hidden note releases it first, after
    asking.
 
-10. **Sessions.** `[DECIDED]` (addition, accepted) `[PROPOSED]` "Abrir
+10. **Sessions.** `[DECIDED]` (addition, accepted) `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. "Abrir
     sessão" / "Encerrar sessão": opening creates the session note
     (`Sessões/Sessão N — <data>.md`, from the campaign bundle's template if
     one exists — [0098](0098-world-and-campaign-wizard-template-bundles.md))
@@ -187,7 +188,7 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
     session's rolls and messages to the session note as a recap the game
     master edits before writing.
 
-11. **"New" notices.** `[DECIDED]` (addition, accepted) `[PROPOSED]` When a
+11. **"New" notices.** `[DECIDED]` (addition, accepted) `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. When a
     note is released, players at the table get a notice ("Novo: Diário do
     farol foi revelado") through [0084](0084-notifications-in-the-window.md),
     and a "Novidades" list on the dashboard.
@@ -202,29 +203,39 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
     a clue only one character got, and for each player's sheet released only
     to its owner. Nothing separate is built for it.
 
-13. **"See as player".** `[DECIDED]` (addition, accepted) `[PROPOSED]` The
+13. **"See as player".** `[DECIDED]` (addition, accepted) `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. The
     game master previews the table exactly as one chosen player sees it
     (extends today's "Ver como leitor").
 
 14. **Maps with secret pins.** `[DECIDED]` (addition, accepted)
-    `[PROPOSED]` On a table, [0090](0090-maps-on-the-board.md)'s secret pins
+    `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. On a table, [0090](0090-maps-on-the-board.md)'s secret pins
     are revealed one by one like notes.
 
-15. **Who is the game master.** `[PROPOSED]` The folder's owner(s): two game
+15. **Who is the game master.** `[DECIDED 2026-10-28 — accepted as built]` The folder's owner(s): two game
     masters are two owners. No new role now; a "mestre" role comes when a
     case needs one that an owner cannot be.
 
-16. **Later, not now.** `[PROPOSED]` Initiative tracker, fog of war on maps,
+16. **Later, not now.** `[DECIDED 2026-10-28 — accepted as built]` Initiative tracker, fog of war on maps,
     a game master's private table — each in its own ADR when asked for.
 
-17. **Phases.** `[PROPOSED]` Phase 1: make a table, invitation, release/hide
+17. **Phases.** `[DECIDED 2026-10-28 — accepted as built]` Phase 1: make a table, invitation, release/hide
     notes (server-enforced everywhere), link rendering (item 7), per-note
     grants (item 5), open/closed. Phase 2: dashboard, show to the table,
     sessions, "new" notices, journals, see as player, players' boards area,
     map pins.
 
+    **Decided 2026-10-28.** The maintainer, asked what to do with the phase 2
+    that is not built: *"Fase 2 entra na V1"*. Phase 1 is accepted as built;
+    phase 2 (the dashboard, show to the table, sessions, "new" notices, see as
+    player, the players' boards area, map pins — the journal is item 12's
+    amendment, nothing separate) is in V1 scope and is a roadmap row
+    ([V.43](../roadmap.md)). Which design details of phase 2 are accepted: none
+    beyond being in V1; the phase 2 items above keep their `[PROPOSED]` text. Phase 1
+    items (1, 6, 7, 15–19) were marked accepted as built the same day; items 4,
+    5 and 12 stay as 0113 left them.
+
 18. **Security** ([0083](0083-security-hardening-of-universo.md)).
-    `[PROPOSED]` Hidden notes are filtered on the server for every read path
+    `[DECIDED 2026-10-28 — accepted as built]` Hidden notes are filtered on the server for every read path
     a player has (list, read, search, graph, backlinks, tags, index, sync to
     a device, room join, file URLs, attachments of a hidden note, board
     cards' file references, the table's note links): a test per path, as
@@ -232,7 +243,7 @@ Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
     folder's share.
 
 19. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-    `[PROPOSED]` The lock and redaction have text alternatives ("link para
+    `[DECIDED 2026-10-28 — accepted as built]` The lock and redaction have text alternatives ("link para
     uma nota ainda não revelada"); the dashboard is a page with headings and
     landmarks; pt-BR and English.
 
@@ -261,11 +272,16 @@ uma campanha e uma pasta seria o mesmo contexto"*).
 seat, access per path (any file and folder), rights per player. Items 4, 5 and
 12 as amended and the permission parts below are read through it.
 
-Proposed (2026-10-22). The maintainer's words above decide the direction
-and items 1–6, 8–14 in substance; open: what "closed" means (item 3), the
+**Accepted (2026-10-28) for phase 1** (as built; 0113 supersedes items 4, 5, 12
+and "Chosen in the code" (2) as stated at the top and above). **Phase 2 is not
+built and is scheduled for V1** (*"Fase 2 entra na V1"*, 2026-10-28; roadmap row
+[V.43](../roadmap.md)); its design details stay `[PROPOSED]`. The root-only chip
+the maintainer rejected stays rejected.
+
+*History (2026-10-22):* Proposed. The maintainer's words above decide the direction
+and items 1–6, 8–14 in substance; open then: what "closed" means (item 3), the
 default visibility (item 4), the players' boards (item 6), the link rendering
-(item 7). Not built. Waits for those answers and a reading by the other
-model.
+(item 7); those were answered next. Not built then.
 
 Answered 2026-10-22 (`~/Projects/person/apps/verso-decisoes-0110-mesa-campanha-2026-10-22.md`):
 MC.1 = A, MC.2 = A (hidden until released), MC.3 = A, MC.4 = B. On the table
@@ -274,7 +290,7 @@ log's ceiling of [0107](0107-the-table-a-shared-roll-and-chat-log.md) (MS.1):
 ceiling (20,000 entries) and the image size limit become settings of each
 table, set by its game master, the built values as defaults.
 
-*Phase 1 built (2026-10-22), branch `feat/campaign-table`; see "As built" below. The ADR stays Proposed: the other model has not read it, and the questions listed under "Chosen in the code" are the maintainer's.*
+*Phase 1 built (2026-10-22), branch `feat/campaign-table`; see "As built" below. The ADR stayed Proposed then; phase 1 was accepted as built on 2026-10-28 (see above).*
 
 ## As built (phase 1, 2026-10-22)
 
@@ -283,7 +299,8 @@ invitation, release and hide, the veil on every read path, the links drawn as
 text, per-note grants, open and closed, the table's limits. Phase 2 (the
 dashboard, show to the table, sessions, notices, journals, "see as player",
 the players' boards area, map pins) is not. Where the code had to choose, the
-choice is listed last, for the maintainer to confirm or change.
+choice is listed last, for the maintainer to confirm or change
+(accepted as built, 2026-10-28; see "Status").
 
 - **Where.** `crates/verso-server/src/campaign.rs` (the tables' state, the
   veil, who is a player), `campaign_serve.rs` (what a player is served),
@@ -380,7 +397,7 @@ choice is listed last, for the maintainer to confirm or change.
   the link to copy.
 - **Tutorial**: note 32 of the demo vault, "Rodando uma Mesa" / "Running a
   Table", a card on the tour, a line in the welcome note's map.
-- **Chosen in the code, for the maintainer to confirm or change.** (1) A link
+- **Chosen in the code** *(accepted as built 2026-10-28, except (2), superseded by 0113)*. (1) A link
   with no alias shows the **name as the game master wrote it**, with the lock
   ("Barão 🔒"); item 7 says "the text with a lock", and a path is never sent,
   but the name is. If the name should never cross, the answer is C for every
@@ -434,7 +451,7 @@ connection reaches the windows that asked the status.
   the link down or the sync paused the status is "none" (not an error), the
   rows of the game master's menu are not offered, and the window asks the shares
   and the status again when the state changes back.
-- **Chosen in the code, for the maintainer to confirm.** (1) The rows are the
+- **Chosen in the code** *(accepted as built 2026-10-28)*. (1) The rows are the
   owner's of a synced folder, as `share_list` says (the shares are asked of the
   server with the device's token, as before). (2) A folder synced from a share
   has no tables to make, as a window on a share has none.
