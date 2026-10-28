@@ -11,6 +11,7 @@
 // changes. On a synced folder the board goes local and back as a note does
 // (items 8 and 9), and says so in words (item 14).
 
+import { presenceOpened } from "../notify/sources";
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
 import { may } from "../access";
@@ -136,6 +137,7 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string,
   this.room = room;
   if (room) room.changed = () => this.roomChanged();
   this.liveOthers = room?.others() ?? [];
+  if (room) presenceOpened(this.path, this.liveOthers);
   if (was || room) this.unmountBoard();
   this.paintLive();
 }

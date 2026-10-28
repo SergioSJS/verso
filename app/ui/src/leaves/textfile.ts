@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { presenceOpened } from "../notify/sources";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
@@ -237,6 +238,7 @@ export class TextLeaf extends Leaf {
     this.seen = { revision: r.data.revision, text: r.data.text };
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
+    if (shared) presenceOpened(this.path, this.liveOthers);
     this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11), or a
     // reader of a synced folder, present and not typing (ADR 0082 item 4).
