@@ -132,6 +132,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Um tema escuro escolhido para uma pasta não escurece mais as outras janelas** (o mantenedor, 2026-10-27, ao testar o tema por pasta): o modo claro/escuro tinha ficado fora do tema da pasta, e um tema do catálogo de um lado só trocava todas as janelas para esse lado. O modo agora faz parte da escolha da pasta; uma pasta escolhida antes fica com o modo do padrão.
 - O registro da mesa não pisca mais quando uma rolagem chega com a barra de rolagem no meio: cada entrada mantém o cartão já desenhado, então só o novo é acrescentado e as imagens e os outros cartões não são tocados.
 - **Digitar enquanto outra pessoa edita a mesma nota não quebra mais a alça do bloco** (o mantenedor, 2026-10-27): a alça ao lado de um bloco guardava a posição em que foi mostrada; duas mudanças antes de ela se redesenhar (uma delas de quem edita junto) a faziam ler um lugar de um texto que já não existia, e o editor registrava "CodeMirror plugin crashed". Agora ela acompanha cada mudança na hora.
 - O registro da mesa não corta mais a borda da última mensagem. Enviar uma mensagem ou uma rolagem leva o registro até o fim, também depois que os dados ou uma imagem se ajeitam; com a rolagem para cima, uma mensagem nova não puxa para baixo e o botão "Nova mensagem ↓" (com contagem) leva ao fim.
