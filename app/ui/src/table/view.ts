@@ -27,6 +27,7 @@ import { chooseTable, pick } from "./pick";
 import { onSourceChange, tableOnScreen, tableSource } from "./record";
 import { tableLabel } from "./which";
 import { tt } from "./strings";
+import { afterDraw, anchorTop, atEnd, splitFresh } from "./stick";
 import { ts } from "./trayStrings";
 import { campaign, isTableRoot, makeTable, tableFor } from "../campaign";
 import { tableAt } from "../campaignParts";
@@ -124,6 +125,9 @@ class TableView {
   private readonly said = h("div", "sr-only table-said");
   private readonly toEnd = button("ghost table-to-end", tt.toEnd, "chevronDown");
   private stuck = true;
+  private unseen = 0;
+  private newest: number | null = null;
+  private fit: ResizeObserver | null = null;
   private known = new Set<string>();
   private told = new Set<string>();
   private first = true;
@@ -135,7 +139,19 @@ class TableView {
     this.said.setAttribute("role", "status");
     this.said.setAttribute("aria-live", "polite");
     this.toEnd.hidden = true;
-    this.toEnd.addEventListener("click", () => this.scrollEnd());
+    this.toEnd.type = "button";
+    this.toEnd.addEventListener("click", () => {
+      this.scrollEnd();
+      this.list.focus({ preventScroll: true });
+    });
+    this.list.tabIndex = -1;
+    // A card grows after it is drawn (dice, images, fonts): while following the end, the end follows it.
+    if (typeof ResizeObserver === "function") {
+      this.fit = new ResizeObserver(() => {
+        if (this.stuck && this.el.isConnected) this.list.scrollTop = this.list.scrollHeight;
+      });
+      this.fit.observe(this.list);
+    }
     this.wireRoster();
     this.pinList.setAttribute("aria-label", tt.pinnedLabel);
     const pinHead = h("h3", "table-pins-head", tt.pinnedHeading);
@@ -158,8 +174,9 @@ class TableView {
       if (this.compose.takeTransfer(e.dataTransfer)) e.preventDefault();
     });
     this.list.addEventListener("scroll", () => {
-      this.stuck = this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 24;
-      this.toEnd.hidden = this.stuck;
+      this.stuck = atEnd(this.list);
+      if (this.stuck) this.unseen = 0;
+      this.paintToEnd();
     });
     // The folder became a table, or stopped being one (campaign.ts setStatus): the button follows.
     addEventListener("verso:campaign-status", () => {
@@ -182,6 +199,7 @@ class TableView {
     this.off?.();
     this.bound = src;
     this.known = new Set();
+    this.newest = null;
     this.told = new Set();
     this.first = true;
     this.off = src.onChange(() => {
@@ -192,7 +210,20 @@ class TableView {
   private scrollEnd(): void {
     this.list.scrollTop = this.list.scrollHeight;
     this.stuck = true;
-    this.toEnd.hidden = true;
+    this.unseen = 0;
+    this.paintToEnd();
+    // Once more after layout settles (late card sizes), so the whole last card, border included, is in view.
+    requestAnimationFrame(() => {
+      if (this.stuck) this.list.scrollTop = this.list.scrollHeight;
+    });
+  }
+
+  /** The way back to the end: shown when the person is above it, with how many entries came meanwhile. */
+  private paintToEnd(): void {
+    this.toEnd.hidden = this.stuck;
+    const label = this.unseen > 0 ? tt.newBelow(this.unseen) : tt.toEnd;
+    this.toEnd.replaceChildren(icon("chevronDown", ""), label);
+    this.toEnd.setAttribute("aria-label", label);
   }
 
   /** Draw into `body`, keeping the list (and its scroll) when already there. */
@@ -335,10 +366,10 @@ class TableView {
     this.pinList.replaceChildren(...pinned.map((e) => this.item(e, server)));
     this.older.hidden = !server?.more();
     const top = this.list.scrollTop;
-    const fresh: TableEntry[] = [];
+    const oldHeight = this.list.scrollHeight;
     const items: HTMLElement[] = [];
+    const { news: fresh, older } = splitFresh(entries, this.known, this.newest);
     for (const e of entries) {
-      if (!this.known.has(e.id)) fresh.push(e);
       items.push(this.item(e, server));
     }
     if (items.length === 0) {
@@ -346,6 +377,12 @@ class TableView {
       const empty = pinned.length > 0 && !src.hidden() ? [] : [h("li", "table-empty", src.hidden() ? tt.emptyOff : server ? tt.emptyServer : tt.empty)];
       this.list.replaceChildren(...empty);
     } else this.list.replaceChildren(...items);
+    // The cards are watched too: one growing late (dice, an image, a font) moves the end while the log follows it.
+    if (this.fit) {
+      this.fit.disconnect();
+      this.fit.observe(this.list);
+      for (const c of Array.from(this.list.children)) this.fit.observe(c);
+    }
     // Others' news is said once, with their name; the first paint and a
     // hidden or restored log say nothing.
     {
@@ -359,12 +396,17 @@ class TableView {
         requestAnimationFrame(() => (this.said.textContent = text));
       }
     }
+    const wasFirst = this.first;
     this.first = false;
     this.known = new Set([...entries, ...pinned].map((e) => e.id));
-    if (this.stuck) this.scrollEnd();
+    this.newest = entries.reduce((m, e) => Math.max(m, e.at), this.newest ?? 0) || this.newest;
+    const next = afterDraw({ stuck: this.stuck, mine: !wasFirst && fresh.some((e) => e.mine && e.elsewhere !== true), fresh: fresh.length, unseen: this.unseen });
+    if (next.follow) this.scrollEnd();
     else {
-      this.list.scrollTop = top;
-      this.toEnd.hidden = false;
+      this.list.scrollTop = older.length > 0 ? anchorTop(oldHeight, top, this.list.scrollHeight) : top;
+      this.unseen = next.unseen;
+      this.stuck = false;
+      this.paintToEnd();
     }
     if (tableOnScreen()) src.markSeen();
   }

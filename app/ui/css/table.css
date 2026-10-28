@@ -28,7 +28,7 @@
 .table-unhide { color: var(--seal); text-decoration: underline; border: 0; padding: 0 .2rem; min-height: 0; }
 .table-hide:disabled { opacity: .5; cursor: default; }
 .table-note, .table-make-note, .table-hidden { margin: 0; font-size: .75rem; color: var(--ink-3); line-height: 1.35; }
-.table-log { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+.table-log { list-style: none; margin: 0; padding: 0 0 3px; scroll-padding-bottom: 3px; outline: none; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
 .table-empty { color: var(--ink-3); font-size: .85rem; padding: .6rem .2rem; line-height: 1.4; }
 .table-entry { position: relative; padding: .4rem 2rem .4rem .55rem; border: 1px solid var(--hair); border-radius: 7px; background: var(--paper); font-size: .85rem; }
 .table-entry.mine { background: var(--seal-wash); border-color: color-mix(in oklch, var(--seal) 30%, var(--hair)); }
@@ -47,7 +47,7 @@
 .table-row, .table-label { color: var(--ink-2); }
 .table-label { font-weight: 600; }
 .table-roll { color: var(--ink-3); font-family: var(--mono); font-size: .75rem; }
-.table-to-end { align-self: center; font-size: .75rem; color: var(--seal); padding: .15rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); }
+.table-to-end { flex: none; display: inline-flex; align-items: center; gap: .3rem; align-self: center; font-size: .75rem; color: var(--seal); padding: .15rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); }
 /* The unread count: on the Mesa tab and on the buttons that open the right panel. */
 body[data-table-unread] .right-tab[data-tab="table"],
 body[data-table-unread] #toggle-right,

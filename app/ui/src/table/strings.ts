@@ -40,6 +40,7 @@ type Words = {
   dropped: string;
   total: string;
   toEnd: string;
+  newBelow: (n: number) => string;
   // The server's table (ADR 0107 phase 2).
   roster: string;
   rosterLabel: string;
@@ -139,6 +140,7 @@ const pt: Words = {
   dropped: "descartado",
   total: "total",
   toEnd: "Ir para o fim",
+  newBelow: (n) => (n === 1 ? "Nova mensagem ↓" : `${n} novas mensagens ↓`),
   roster: "Na mesa agora",
   rosterLabel: "Quem está na mesa",
   rosterSummary: (names) => `${names.length} ${names.length === 1 ? "pessoa" : "pessoas"} na mesa: ${names.join(", ")}`,
@@ -236,6 +238,7 @@ const en: Words = {
   dropped: "dropped",
   total: "total",
   toEnd: "Jump to the end",
+  newBelow: (n) => (n === 1 ? "New message ↓" : `${n} new messages ↓`),
   roster: "At the table now",
   rosterLabel: "Who is at the table",
   rosterSummary: (names) => `${names.length} ${names.length === 1 ? "person" : "people"} at the table: ${names.join(", ")}`,
