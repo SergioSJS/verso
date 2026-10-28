@@ -5,6 +5,7 @@
 import { type IndexProgress } from "./bindings";
 import { ui } from "./dom";
 import { t } from "./strings";
+import { SLOW_WALK_MS, walkIsSlow } from "./quietStatus";
 
 export let indexProgressTimer: number | null = null;
 /** What the status bar said before a walk's progress took it, and the
@@ -24,7 +25,41 @@ function counted(p: IndexProgress): boolean {
   const v = p as { current?: unknown; total?: unknown };
   return typeof v.current === "number" && typeof v.total === "number";
 }
+/** When the walk now running began, and the latest progress it reported:
+ *  a walk is a show only once it is slow (a save indexes one note, many
+ *  times an hour, and that is not worth a glowing line). */
+let walkStart: number | null = null;
+let latest: IndexProgress | null = null;
+let slowTimer: number | null = null;
+let shown = false;
 export function handleIndexProgress(p: IndexProgress): void {
+  if (p.phase === "done") {
+    if (slowTimer !== null) clearTimeout(slowTimer);
+    slowTimer = null;
+    walkStart = null;
+    latest = null;
+    if (!shown) return;
+    shown = false;
+    paint(p);
+    return;
+  }
+  const now = Date.now();
+  if (walkStart === null) walkStart = now;
+  latest = p;
+  if (!shown && !walkIsSlow(walkStart, now)) {
+    // Events can be sparse (one slow file): look again when it has earned it.
+    if (slowTimer === null) {
+      slowTimer = window.setTimeout(() => {
+        slowTimer = null;
+        if (walkStart !== null && latest) { shown = true; paint(latest); }
+      }, SLOW_WALK_MS - (now - walkStart));
+    }
+    return;
+  }
+  shown = true;
+  paint(p);
+}
+function paint(p: IndexProgress): void {
   if (indexProgressTimer) {
     clearTimeout(indexProgressTimer);
     indexProgressTimer = null;
