@@ -18,7 +18,7 @@ import { parseThemeText, type Theme, themeFileName, themeText } from "./file";
 import { themeOf, withTheme } from "./look";
 import { importSaid, readProfiles, saveAs, uniqueName, type Profile } from "./profiles";
 import { W } from "./strings";
-import { isOwn, startOwn, stopOwn } from "./scope";
+import { chooseDefault, forFolder, startOwn, stopOwn } from "./scope";
 import { emptyLook, FILE_MOST, type Look } from "./tokens";
 
 export const LOOK_EVENT = "verso:look";
@@ -152,7 +152,7 @@ export function exportTheme(theme: Theme): boolean {
 }
 
 /** Whether what the wizard changes is the open folder's own theme (true) or the person's default (false). */
-export const forThisFolder = (): boolean => isOwn();
+export const forThisFolder = (): boolean => forFolder(currentFolder);
 
 /** From now on the wizard changes this folder's own theme: a copy of the default is kept
  *  for it, and no other folder moves. */
@@ -167,6 +167,7 @@ export function useForFolder(): boolean {
 /** The folder follows the person's default again; its own choice is forgotten. */
 export function useForAll(): void {
   stopOwn(settings);
+  chooseDefault(currentFolder);
   saveSettings();
   told();
 }

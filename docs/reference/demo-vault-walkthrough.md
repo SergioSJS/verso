@@ -1674,9 +1674,10 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 ## Theme per folder and per person (ADR 0100 item 4, 2026-10-27)
 
 1. Open two folders in two windows. In window A open Settings › Aparência › Temas:
-   "Padrão para todas as pastas" is selected (no choice of A's own yet). Select "Só nesta pasta", then pick another theme: window A changes, window B does not. The text size stays the same in both.
-2. Pick "Padrão para todas as pastas" in A (confirm forgetting A's own theme): A follows the
-   default again; B, with no theme of its own, shows the default too.
+   "Só nesta pasta" is selected (opening the panel stores nothing). Pick another theme: window A changes, window B (another folder) does not, in the gallery, the theme builder and the suggestion banner alike. The text size stays the same in both.
+2. Pick "Padrão para todas as pastas" in A (confirm forgetting A's own theme), then a theme: the
+   default changes, so B, with no theme of its own, shows it too (this pick is remembered by the
+   window until the folder changes or the app restarts).
 3. In B choose "Só nesta pasta" and a theme; A keeps the default.
 4. Accept a folder's suggested theme: it becomes that folder's choice, the default is unchanged.
 5. The same shared folder on a second device of the same person may carry its own choice there (the choice is keyed by the folder's key on that device).
