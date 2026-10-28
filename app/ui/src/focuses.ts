@@ -8,7 +8,7 @@ import { ask, promptText } from "./dialog";
 import { ui } from "./dom";
 import { isTransport } from "./errorKinds";
 import { fail } from "./errors";
-import { askSyncAfterDownload, downloadFocusesFile } from "./focusesDownload";
+import { askSyncAfterDownload, downloadFocusesFile, folderFlag } from "./focusesDownload";
 import { currentFolder } from "./folder";
 import { notesHeadingReset, notesHeadingText, panel } from "./main";
 import { saveSettings, settings } from "./settings";
@@ -440,7 +440,8 @@ export async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promi
  *  is only in the cloud (ADR 0043): the one thing that brings it down. */
 /** Whether the last click on "Download now" failed: the banner keeps saying
  *  so (the status line alone is easy to miss). */
-export let focusesDownloadFailed = false;
+const downloadFailed = folderFlag();
+export const focusesDownloadFailed = (): boolean => downloadFailed.get(currentFolder);
 export async function downloadFocusesNow(): Promise<void> {
   const outcome = await downloadFocusesFile({
     fetchFile: () => commands.fetchFocusesFile(),
@@ -455,7 +456,7 @@ export async function downloadFocusesNow(): Promise<void> {
     isCloudFailure: (e) => (e as { kind?: string } | null)?.kind === "unavailable" && !isTransport(e as Parameters<typeof isTransport>[0]),
     words: { fetching: t.focusesDownloading, done: t.focusesDownloaded, nothing: t.focusesNothingToDownload, failed: t.focusesDownloadFailed },
   });
-  focusesDownloadFailed = outcome === "failed";
+  downloadFailed.set(currentFolder, outcome === "failed");
   panel.refresh();
   // The folder was never asked (the file was out of reach): ask now, once.
   if (askSyncAfterDownload({ outcome, hasFile: focusesSummary?.has_file ?? false, formatKnown: focusesSummary?.format_known ?? false, syncOn: getSyncFocuses(), asked: isSyncFocusesAsked() })) {

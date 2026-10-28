@@ -128,8 +128,8 @@ class TableView {
   private readonly toEnd = button("ghost table-to-end", tt.toEnd, "chevronDown");
   private stuck = true;
   private unseen = 0;
-  private readonly cards = new Cards<HTMLElement>();
-  private readonly pinCards = new Cards<HTMLElement>();
+  private readonly cards = new Cards<HTMLElement>(releasePictures);
+  private readonly pinCards = new Cards<HTMLElement>(releasePictures);
   private newest: number | null = null;
   private fit: ResizeObserver | null = null;
   private known = new Set<string>();
@@ -598,6 +598,13 @@ class TableView {
 }
 
 /** The file is not here yet (a synced folder brings it a moment after the entry): a placeholder, then the picture in place when it arrives. */
+const releasers = new WeakMap<Element, () => void>();
+/** Release the waiting pictures inside a card the log lets go. */
+export function releasePictures(card: Element): void {
+  releasers.get(card)?.();
+  for (const open of card.querySelectorAll(".table-image")) releasers.get(open)?.();
+}
+
 function waitForPicture(open: HTMLElement, img: HTMLImageElement, path: string, show: (url: string) => void): void {
   img.remove();
   const note = h("span", "table-image-missing");
@@ -628,6 +635,7 @@ function waitForPicture(open: HTMLElement, img: HTMLImageElement, path: string, 
         open.title = tt.imageAgain;
       } else {
         unwatch();
+        releasers.delete(open);
         note.remove();
         open.setAttribute("aria-label", label);
         open.title = title;
@@ -637,6 +645,11 @@ function waitForPicture(open: HTMLElement, img: HTMLImageElement, path: string, 
     },
   );
   unwatch = watchFile(path, a);
+  // The card is let go by the log (pruned, replaced, cleared): no more watching, no more timers.
+  releasers.set(open, () => {
+    unwatch();
+    a.stop();
+  });
   open.addEventListener("click", () => {
     if (gaveUp) a.retry();
   });
