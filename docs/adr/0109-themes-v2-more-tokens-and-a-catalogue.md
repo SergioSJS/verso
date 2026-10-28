@@ -75,20 +75,26 @@ specification is used without being taken again from its source.
 
 ## Decision
 
-Status **Proposed**. `[DECIDED]` items are the maintainer's words above;
-`[OPEN]` items are his to answer; `[PROPOSED]` items are the author's
-recommendation.
+Status **Accepted (2026-10-28)** *(history: Proposed until then)*.
+`[DECIDED]` items are the maintainer's words above; `[OPEN]` items are his to
+answer; items marked `[PROPOSED]` were the author's recommendation, accepted as
+built on 2026-10-28.
 
 1. **"More themes…" opens the full list.** `[DECIDED 2026-10-22]` Settings ›
    Appearance › Themes keeps its short gallery; a button **"Mais temas…"** /
    **"More themes…"** opens a window listing every theme Verso ships, the
-   catalogue included. `[PROPOSED]` The window has a search field, filters
+   catalogue included. `[DECIDED 2026-10-28 — accepted as built]` The window has a search field, filters
    (light / dark / both; style: tonal, flat, cards), cards drawn with each
    theme's own tokens as the gallery's are, and the credit line of each; a
    click applies the theme as a gallery card does; on the phone it is a full
    screen with a back control.
 
 2. **More tokens, in the theme and in the builder.** `[DECIDED 2026-10-22]`
+   *(Note, 2026-10-28: the structural keys listed in option A below are the
+   first decision's. The decided set is the one in the "Status" section's later
+   paragraphs — "Decided 2026-10-22, later" (TM.4 = B) and "after the
+   horizontal rule" — which makes **sixteen structural keys**. The text below is
+   kept as history.)*
    in direction (his words above); how far `[DECIDED 2026-10-22]`: option
    A (TM.1, the maintainer marked the recommended option):
    - **A — The specification's `tokensVersion: 2`:** the 7 base colours,
@@ -102,18 +108,18 @@ recommendation.
    - **C — A shorter set:** headings as one colour, code, and the semantic
      colours.
 
-3. **Contrast covers the new tokens.** `[PROPOSED]` The floor (3:1, undone
+3. **Contrast covers the new tokens.** `[DECIDED 2026-10-28 — accepted as built]` The floor (3:1, undone
    or refused) and the warning (4.5:1) extend to code text on code
    background and to each heading colour on the page; a catalogue theme that
    fails the floor is corrected before it ships (the nearest colour that
    passes), and the correction is said in its credit line.
 
-4. **The builder shows the new tokens.** `[PROPOSED]` Grouped — Base,
+4. **The builder shows the new tokens.** `[DECIDED 2026-10-28 — accepted as built]` Grouped — Base,
    Headings, Code, Callout colours, Structure — each group folded until
    opened, with the live preview and the contrast warnings as today; on the
    phone, one group at a time.
 
-5. **A credit for a theme inspired by another.** `[PROPOSED]` An optional
+5. **A credit for a theme inspired by another.** `[DECIDED 2026-10-28 — accepted as built]` An optional
    `inspiredBy` object in the file — `theme`, `author`, `repoUrl`,
    `license`, bounded strings, `https` only, never fetched — shown under the
    card and in the builder ("Inspirado em Minimal, de Steph Ango (MIT)"),
@@ -146,14 +152,14 @@ recommendation.
      ITS "WotC D&D" variant; "LYT" is renamed). _(recommended)_
    - **B — Verso's own names for all,** the original only in the credit.
 
-8. **Where the catalogue lives.** `[PROPOSED]` As `.verso-theme` files
+8. **Where the catalogue lives.** `[DECIDED 2026-10-28 — accepted as built]` As `.verso-theme` files
    shipped with the window (read like an imported theme, so a shipped theme
    is never more powerful than one a person imports), each with its source
    URL, licence and the commit or version its colours were taken from, listed
    in `docs/reference/` and on the Credits page.
 
 9. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-   `[PROPOSED]` The window is a dialog with a heading, its search labelled,
+   `[DECIDED 2026-10-28 — accepted as built]` The window is a dialog with a heading, its search labelled,
    its cards buttons with the theme's name and mode; the contrast rules of
    item 3 hold for every shipped theme; pt-BR and English.
 
@@ -177,7 +183,10 @@ answers, not an alternative that was weighed.
 
 ## Status
 
-Proposed (2026-10-22). Items 2, 6 and 7 decided by the maintainer the same
+**Accepted (2026-10-28).** The maintainer, 2026-10-28, on ADRs 0108 and 0109:
+*"Aceitar as duas"*. The remaining `[PROPOSED]` items are accepted as built.
+
+Proposed (2026-10-22), until then. Items 2, 6 and 7 decided by the maintainer the same
 day (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
 options A); the `[PROPOSED]` items stay the author's until accepted. Being
 built; waits for a reading by the other model.

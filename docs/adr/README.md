@@ -88,7 +88,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0022](0022-target-platforms-macos-first.md) | Target platforms and macOS first | Accepted; revised 2026-10-12 |
 | [0023](0023-stack-core-and-editor.md) | Stack: Rust, Tauri v2, CodeMirror 6, SQLite with FTS5 | Accepted |
 | [0024](0024-board-excalidraw.md) | Board: Excalidraw as a free annotation layer | Accepted; persistence in 0057 |
-| [0025](0025-own-server-and-mobile-pwa.md) | Own server (`verso serve`) and initial mobile as a web client | Proposed; superseded by 0073 |
+| [0025](0025-own-server-and-mobile-pwa.md) | Own server (`verso serve`) and initial mobile as a web client | Items 1–2 accepted by 0073 (2026-10-09); item 3 superseded there |
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted; revised 2026-10-09 |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Accepted (2026-10-12) |
 | [0028](0028-crate-structure.md) | Crate structure | Accepted; two server crates (2026-10-09) |
@@ -128,12 +128,12 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0104](0104-external-cloud-storage-transports-and-quotas.md) | Sync with a cloud the person already has: WebDAV, S3, Dropbox, OneDrive and Google Drive, through the sync of ADR 0079 | Accepted (2026-10-21) |
 | [0105](0105-read-links-without-an-account.md) | Read links without an account: a folder or one note of a UniVerso, open to whoever holds the link | Accepted (2026-10-21) |
 | [0106](0106-structured-data-as-a-diagram.md) | Structured data as a diagram: JSON, YAML and more formats drawn as boxes to move, fold and follow back to the text | Accepted (2026-10-21) |
-| [0107](0107-the-table-a-shared-roll-and-chat-log.md) | The table: one log of everyone's rolls and messages, beside the notes | Proposed (2026-10-21) |
-| [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Proposed (2026-10-22) |
-| [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Proposed (2026-10-22) |
-| [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Proposed (2026-10-22); superseded in part by 0113 |
+| [0107](0107-the-table-a-shared-roll-and-chat-log.md) | The table: one log of everyone's rolls and messages, beside the notes | Accepted (2026-10-28) |
+| [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Accepted (2026-10-28) |
+| [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Accepted (2026-10-28) |
+| [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Accepted (2026-10-28) for phase 1; phase 2 scheduled for V1, not built; superseded in part by 0113 |
 | [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
-| [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Proposed (2026-10-23) |
+| [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Accepted in part (2026-10-28): items 1–3; not built |
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24) |
 
 ### Dialect, engineering and roadmap

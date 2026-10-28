@@ -7,7 +7,8 @@
   (I did not set a password): the app had been linked by the device code, and
   the account's password was one a test setup had set and kept in a file. The
   assistant recommended a proposal to confirm on the device instead.
-- Written by Sonnet 5.5 at the session's request. Proposed; nothing is built.
+- Written by Sonnet 5.5 at the session's request. Accepted in part (2026-10-28):
+  items 1–3; nothing is built.
   To be read by the other model before it is accepted.
 - Related: [0083](0083-security-hardening-of-universo.md) (items 4, 6 and 17:
   token revocation, the fresh proof, the device page's typed code),
@@ -51,9 +52,10 @@ and left the OS prompt "possible later".
 
 ## Decision
 
-Everything below is a proposal. Nothing is decided.
+Items 1–3 were decided by the maintainer on 2026-10-28 (see "Status"); the
+rest below is still a proposal or `[OPEN]`. Nothing is built.
 
-1. **`[OPEN]` What a desktop app linked by the device flow uses to prove.**
+1. **`[DECIDED 2026-10-28]` = (b).** What a desktop app linked by the device flow uses to prove.**
    - (a) The account password, as today. Works everywhere; a dead end for a
      person who never set one.
    - (b) The OS's own check, then a device-bound proof to the server. The
@@ -73,7 +75,7 @@ Everything below is a proposal. Nothing is decided.
      Linux host with no OS check). On Linux with no polkit agent the app falls
      back to (a). (c) stays an option for later; it is not discarded.
 
-2. **`[OPEN]` What the server accepts as a fresh proof, for how long, on which
+2. **`[DECIDED 2026-10-28]`** = a single-use 60-second challenge, valid for 10 minutes, on the same routes as 0083 item 6. What the server accepts as a fresh proof, for how long, on which
    routes.**
    - A device proof is: the server issues a single-use challenge bound to the
      session (a random value with a short expiry, for example 60 seconds);
@@ -96,7 +98,7 @@ Everything below is a proposal. Nothing is decided.
      key later. *Recommendation:* yes, on the next proof by password, with a
      visible line saying so.
 
-3. **`[OPEN]` Browser windows.**
+3. **`[DECIDED 2026-10-28]` = (a), browser windows unchanged.** Browser windows.
    - (a) Unchanged: password, or a passkey where the person added one.
    - (b) Promote WebAuthn passkeys as the proof people are offered first.
    - *Recommendation:* (a) now; (b) is a separate decision, later. The
@@ -172,7 +174,22 @@ browser (item 3 (b)) are options left open, not discarded.
 
 ## Status
 
-**Proposed (2026-10-23).** Written by Sonnet 5.5 at the request of the
-session. Items 1 to 3, 5 and 6 are `[OPEN]` for the maintainer, each with a
-recommendation; item 4 is the assistant's analysis and decides nothing.
-Nothing is built.
+**Accepted in part (2026-10-28): items 1–3; not built.**
+
+The maintainer, 2026-10-28, item 1: *"(b) Touch ID/Hello + chave"*, with the
+option text he chose: *"Verificação do sistema + chave por aparelho; desafio de
+60 s, vale 10 min; navegador sem mudança. Construir depois dos bloqueios da V1."*
+So item 1 = (b); item 2 = a single-use 60-second challenge, a 10-minute window
+and the same routes as [0083](0083-security-hardening-of-universo.md) item 6
+(what the ADR recommended and what the chosen option names); item 3 = (a),
+browser windows unchanged. **Build order:** after the V1 blocking items
+(roadmap row [V.44](../roadmap.md)).
+
+Still open, not answered: whether a device linked before this exists is offered
+a key later (item 2's sub-item), item 5 (contract, crates, dependencies,
+guardrail) and item 6 (accessibility and languages). Item 4 is the assistant's
+analysis and decides nothing. Nothing is built.
+
+*History (2026-10-23):* **Proposed.** Written by Sonnet 5.5 at the request of
+the session. Items 1 to 3, 5 and 6 were `[OPEN]` for the maintainer, each with
+a recommendation.
