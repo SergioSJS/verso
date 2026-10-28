@@ -5,7 +5,7 @@
 import { type IndexProgress } from "./bindings";
 import { ui } from "./dom";
 import { t } from "./strings";
-import { SLOW_WALK_MS, walkIsSlow } from "./quietStatus";
+import { SLOW_WALK_MS, newWalk, restorable, walkIsSlow } from "./quietStatus";
 
 export let indexProgressTimer: number | null = null;
 /** What the status bar said before a walk's progress took it, and the
@@ -15,7 +15,7 @@ export let indexProgressTimer: number | null = null;
 let before: string | null = null;
 let ours = "";
 function say(text: string): void {
-  if (before === null) before = ui.status.textContent ?? "";
+  if (before === null) before = restorable(ui.status.textContent ?? "");
   ours = text;
   ui.status.textContent = text;
 }
@@ -32,18 +32,29 @@ let walkStart: number | null = null;
 let latest: IndexProgress | null = null;
 let slowTimer: number | null = null;
 let shown = false;
+let lastEvent: number | null = null;
 export function handleIndexProgress(p: IndexProgress): void {
   if (p.phase === "done") {
     if (slowTimer !== null) clearTimeout(slowTimer);
     slowTimer = null;
     walkStart = null;
     latest = null;
+    lastEvent = null;
     if (!shown) return;
     shown = false;
     paint(p);
     return;
   }
   const now = Date.now();
+  if (newWalk(lastEvent, now)) {
+    // The last walk ended without a `done` (an error, a folder closed): this
+    // one starts fresh, quiet again.
+    if (slowTimer !== null) clearTimeout(slowTimer);
+    slowTimer = null;
+    walkStart = now;
+    shown = false;
+  }
+  lastEvent = now;
   if (walkStart === null) walkStart = now;
   latest = p;
   if (!shown && !walkIsSlow(walkStart, now)) {
