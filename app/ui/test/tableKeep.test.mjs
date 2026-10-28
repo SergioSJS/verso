@@ -74,3 +74,16 @@ test("syncChildren removes what is gone and puts older cards above", () => {
   k.syncChildren(p, [a, b, c]);
   assert.deepEqual(p.kids.map((n) => n.name), ["a", "b", "c"]);
 });
+
+test("every card the log lets go is released: replaced, pruned and cleared", () => {
+  const dropped = [];
+  const c = new k.Cards((n) => dropped.push(n));
+  const a = c.card("1", "s1", () => ({ n: 1 }));
+  const b = c.card("1", "s2", () => ({ n: 2 }));
+  assert.deepEqual(dropped, [a]);
+  const x = c.card("2", "s", () => ({ n: 3 }));
+  c.prune(new Set(["2"]));
+  assert.deepEqual(dropped, [a, b]);
+  c.clear();
+  assert.deepEqual(dropped, [a, b, x]);
+});

@@ -64,3 +64,17 @@ export async function downloadFocusesFile(deps: DownloadDeps): Promise<DownloadO
   deps.say(r.data ? deps.words.done : deps.words.nothing);
   return r.data ? "downloaded" : "nothing";
 }
+
+/** A flag that belongs to one folder: read for another folder, it is false (the banner of a failed download
+ *  must not follow the person to a folder where nothing was tried). */
+export function folderFlag(): { set(folder: string, value: boolean): void; get(folder: string): boolean } {
+  let folder: string | null = null;
+  let on = false;
+  return {
+    set(f, value) {
+      folder = f;
+      on = value;
+    },
+    get: (f) => on && folder === f,
+  };
+}

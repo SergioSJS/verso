@@ -11,10 +11,14 @@ export const signature = (e: unknown, extra: string): string => JSON.stringify([
 export class Cards<N> {
   private readonly held = new Map<string, { sig: string; node: N }>();
 
+  /** `onDrop` hears every node the log lets go (replaced, pruned, cleared): it releases what the card holds (watchers, timers). */
+  constructor(private readonly onDrop: (node: N) => void = () => {}) {}
+
   /** The card for `id`: the one kept when its signature is unchanged, else a new one from `make`. */
   card(id: string, sig: string, make: () => N): N {
     const kept = this.held.get(id);
     if (kept && kept.sig === sig) return kept.node;
+    if (kept) this.onDrop(kept.node);
     const node = make();
     this.held.set(id, { sig, node });
     return node;
@@ -26,6 +30,7 @@ export class Cards<N> {
     for (const [id, k] of this.held) {
       if (!ids.has(id)) {
         gone.push(k.node);
+        this.onDrop(k.node);
         this.held.delete(id);
       }
     }
@@ -33,6 +38,7 @@ export class Cards<N> {
   }
 
   clear(): void {
+    for (const k of this.held.values()) this.onDrop(k.node);
     this.held.clear();
   }
 }

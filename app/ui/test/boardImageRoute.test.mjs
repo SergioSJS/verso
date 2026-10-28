@@ -29,3 +29,14 @@ test("a GIF without a name stays a GIF", () => {
   assert.equal(imageFileName("x", "image/jpeg"), "x.jpg");
   assert.equal(imageFileName("x", ""), "x.png");
 });
+test("a generic browser name takes the extension of the bytes' type", () => {
+  assert.equal(imageFileName("image.png", "image/gif"), "image.gif");
+  assert.equal(imageFileName("image", "image/webp"), "image.webp");
+  assert.equal(imageFileName("blob", "image/jpeg"), "image.jpg");
+  assert.equal(imageFileName("image.png", "image/png"), "image.png");
+});
+test("a real name with a known extension stays; an unknown 'extension' is not one", () => {
+  assert.equal(imageFileName("foto.jpeg", "image/jpeg"), "foto.jpeg");
+  assert.equal(imageFileName("mapa.PNG", "image/png"), "mapa.PNG");
+  assert.equal(imageFileName("photo.v2", "image/gif"), "photo.v2.gif");
+});

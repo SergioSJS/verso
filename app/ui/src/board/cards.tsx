@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { nextPictureWait, pictureShouldRestart } from "./pictureRetry";
 import { type CSSProperties, type JSX, memo, type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CARD_COMMAND } from "./command";
 import { mapStrings } from "./mapStrings";
@@ -14,10 +15,6 @@ import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
 import { ext, IMAGE, kindOf } from "../paths";
 import { sharpFactor } from "./sharp";
-
-/** How many times, and how long apart (times the try), a picture that failed to load is asked for again. */
-const PICTURE_RETRIES = 4;
-const PICTURE_RETRY_MS = 1500;
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open
@@ -172,13 +169,34 @@ export function Card({
   // again a few times, each later than the last (the window's own signal of
   // arrived files draws the card again at once), without drawing the scene.
   const [tries, setTries] = useState(0);
+  // A picture that gave up (or is waiting for its next try) is `broken`; the window's signal of listed files
+  // (`tick`) then draws it again from the start, once per signal, and a change of the file starts over too.
+  const [epoch, setEpoch] = useState(0);
+  const broken = useRef(false);
   const retryTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(retryTimer.current), []);
   const failedToLoad = useCallback((): void => {
-    if (tries >= PICTURE_RETRIES) return;
+    broken.current = true;
+    const wait = nextPictureWait(tries);
+    if (wait === null) return;
     window.clearTimeout(retryTimer.current);
-    retryTimer.current = window.setTimeout(() => setTries((n) => n + 1), PICTURE_RETRY_MS * (tries + 1));
+    retryTimer.current = window.setTimeout(() => setTries((n) => n + 1), wait);
   }, [tries]);
+  const pictureLoaded = useCallback((): void => {
+    broken.current = false;
+  }, []);
+  useEffect(() => {
+    if (!picture || !pictureShouldRestart(broken.current)) return;
+    window.clearTimeout(retryTimer.current);
+    broken.current = false;
+    setTries(0);
+    setEpoch((n) => n + 1);
+  }, [tick]);
+  useEffect(() => {
+    window.clearTimeout(retryTimer.current);
+    broken.current = false;
+    setTries(0);
+  }, [file]);
   useEffect(() => {
     if (!picture || tiled || mapPending) return;
     let gone = false;
@@ -190,7 +208,7 @@ export function Card({
       gone = true;
       cancel();
     };
-  }, [picture, tiled, mapPending, id, file, host, draw, tries]);
+  }, [picture, tiled, mapPending, id, file, host, draw, tries, epoch]);
   // Drawn once, in its turn, and kept wherever the view goes: only a
   // change of the note, or of the folder, draws it again.
   useEffect(() => {
@@ -324,7 +342,7 @@ export function Card({
             <div className="board-crop-inner" style={{ left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }}>
               {/* The whole picture is what is laid out larger (and rasterised): the factor is bounded by its full width. */}
               <Sharp factor={cropSharp} w={cropView ? cropView.w / crop.w : 0} h={cropView ? cropView.h / crop.h : 0}>
-                <img key={tries} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
+                <img key={`${epoch}-${tries}`} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} onLoad={(e) => { pictureLoaded(); setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 }); }} />
               </Sharp>
               {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
             </div>
@@ -333,7 +351,7 @@ export function Card({
       ) : (
         <div className="board-card-image" data-path={file}>
           <Sharp factor={sharp} w={Number(node.width) || 250} h={Number(node.height) || 250}>
-            <img key={tries} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} />
+            <img key={`${epoch}-${tries}`} src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onError={failedToLoad} onLoad={pictureLoaded} />
           </Sharp>
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>
