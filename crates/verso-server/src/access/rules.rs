@@ -185,6 +185,12 @@ pub enum Made {
     File,
 }
 
+/// A path's name as the kinds read it: no trailing dots or spaces (a system
+/// drops them), lowercase.
+fn name_key(path: &str) -> String {
+    path.trim_end_matches(['.', ' ']).to_lowercase()
+}
+
 impl Made {
     /// What a new file at `path` is, by its name; `folder` when it is one.
     #[must_use]
@@ -192,7 +198,7 @@ impl Made {
         if folder {
             return Self::Note;
         }
-        let p = path.trim_end_matches(['.', ' ']).to_lowercase();
+        let p = name_key(path);
         if p.ends_with(".md") || p.ends_with(".base") {
             Self::Note
         } else if p.ends_with(".canvas") || p.ends_with(".excalidraw") {
@@ -243,7 +249,7 @@ impl Kind {
     /// The kind a path's name says (a folder is told by the caller).
     #[must_use]
     pub fn of_path(path: &str) -> Self {
-        let p = path.trim_end_matches(['.', ' ']).to_lowercase();
+        let p = name_key(path);
         if p.ends_with(".md") {
             Self::Note
         } else if p.ends_with(".canvas") {
