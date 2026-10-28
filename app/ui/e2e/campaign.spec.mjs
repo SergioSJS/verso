@@ -151,7 +151,13 @@ test("the table's window: a switch that saves at once, cards, limits under Advan
   // The players the server counts, with what is granted to them.
   const grid = dialog.getByRole("table", { name: "Jogadores da mesa e o que cada um pode fazer" });
   await expect(grid).toContainText("Bia");
-  await expect(grid.getByRole("switch", { name: "Bia pode enviar arquivos" })).not.toBeChecked();
+  // K.6: four rights per player, all off for a new one, behind a count that opens the switches.
+  const rights = grid.getByRole("button", { name: "Bia tem 0 de 4 direitos; mostrar a lista" });
+  await expect(rights).toHaveText("0/4");
+  await rights.click();
+  for (const what of ["enviar imagens", "enviar arquivos", "criar notas", "criar boards"]) {
+    await expect(grid.getByRole("switch", { name: `Bia pode ${what}` })).not.toBeChecked();
+  }
   // Release everything asks first.
   await dialog.getByRole("button", { name: "Liberar tudo" }).click();
   await expect(dialog.getByText(/Liberar todas as notas desta mesa agora\?/)).toBeVisible();
