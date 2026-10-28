@@ -8,7 +8,7 @@ import { ask, promptText } from "./dialog";
 import { ui } from "./dom";
 import { isTransport } from "./errorKinds";
 import { fail } from "./errors";
-import { downloadFocusesFile } from "./focusesDownload";
+import { askSyncAfterDownload, downloadFocusesFile } from "./focusesDownload";
 import { currentFolder } from "./folder";
 import { notesHeadingReset, notesHeadingText, panel } from "./main";
 import { saveSettings, settings } from "./settings";
@@ -457,4 +457,9 @@ export async function downloadFocusesNow(): Promise<void> {
   });
   focusesDownloadFailed = outcome === "failed";
   panel.refresh();
+  // The folder was never asked (the file was out of reach): ask now, once.
+  if (askSyncAfterDownload({ outcome, hasFile: focusesSummary?.has_file ?? false, formatKnown: focusesSummary?.format_known ?? false, syncOn: getSyncFocuses(), asked: isSyncFocusesAsked() })) {
+    await promptSyncFocusesIfNeeded();
+    panel.refresh();
+  }
 }

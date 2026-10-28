@@ -64,3 +64,21 @@ describe("downloadFocusesFile", () => {
     assert.deepEqual(log, []);
   });
 });
+
+describe("askSyncAfterDownload", async () => {
+  const { askSyncAfterDownload } = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
+  const base = { outcome: "downloaded", hasFile: true, formatKnown: true, syncOn: false, asked: false };
+  test("asks once when the file came down in the known format and the folder was never asked", () => {
+    assert.equal(askSyncAfterDownload(base), true);
+  });
+  test("never asks again after an answer, yes or no", () => {
+    assert.equal(askSyncAfterDownload({ ...base, asked: true }), false);
+    assert.equal(askSyncAfterDownload({ ...base, asked: true, syncOn: true }), false);
+  });
+  test("does not ask when nothing came down, the format is unknown or it failed", () => {
+    assert.equal(askSyncAfterDownload({ ...base, outcome: "failed" }), false);
+    assert.equal(askSyncAfterDownload({ ...base, outcome: "nothing" }), false);
+    assert.equal(askSyncAfterDownload({ ...base, formatKnown: false }), false);
+    assert.equal(askSyncAfterDownload({ ...base, hasFile: false }), false);
+  });
+});
