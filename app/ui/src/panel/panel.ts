@@ -10,7 +10,7 @@ import { dailyNote, dailyPath } from "../daily";
 import { onFolderLayer } from "../folderLayer";
 import { calendarPeriods } from "../periodic/notes";
 import { button, el, h, ui } from "../dom";
-import { activeFocusItem, addFocusPrompt, deleteFocus, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, showStickerPicker } from "../labels";
@@ -203,7 +203,25 @@ export class Panel {
     if (focusesConflictBanner) {
       wrap.append(h("div", "focuses-banner error", focusesConflictBanner));
     } else if (focusesSummary?.has_file && !focusesSummary.format_known) {
-      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason)));
+      const banner = h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason));
+      if (focusesSummary.read_only_code === "cloud_placeholder") {
+        // Only the person's click brings the file down (ADR 0043).
+        const down = button("ghost", t.focusesDownloadNow);
+        down.id = "focuses-download";
+        down.addEventListener("click", () => {
+          if (down.disabled) return;
+          down.disabled = true;
+          banner.setAttribute("aria-busy", "true");
+          down.textContent = t.focusesDownloading;
+          void downloadFocusesNow().finally(() => {
+            down.disabled = false;
+            banner.removeAttribute("aria-busy");
+            down.textContent = t.focusesDownloadNow;
+          });
+        });
+        banner.append(" ", down);
+      }
+      wrap.append(banner);
     } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
       wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
     }
@@ -298,6 +316,10 @@ export class Panel {
       row.append(stkBtn, nameBtn, actions);
       li.append(row);
 
+      if (focus.paths.length === 0 && !isHome && !isReadOnly) {
+        const hint = h("div", "focus-empty-hint", t.focusEmptyHint);
+        li.append(hint);
+      }
       if (focus.paths.length > 0 && !isHome) {
         const pathsUl = h("ul", "focus-paths-list");
         for (const p of focus.paths) {
