@@ -135,6 +135,7 @@ test release.
 
 ### Fixed
 
+- **A browser picks up a new server build at once** (the maintainer, 2026-10-28, after a player's browser kept the old window through reloads): the offline cache was named by the version only, and a server redeployed under the same version kept serving the first build's `web.js` forever (the cache skips what it already holds). The cache is now named by the version and the build's own hash, so a new build is a new cache and the old one is dropped.
 - **The settings close in the top right corner** (the maintainer, 2026-10-27): the × sat beside the search, inside the sections column; it is now in the window's top right corner, where a dialog's close is looked for (on a phone, at the right of the search, 44 px).
 - **A dark theme chosen for one folder no longer turns the other windows dark** (the maintainer, 2026-10-27, after testing the theme per folder): the light/dark mode was left out of a folder's theme, so a catalogue theme of one side switched every window to that side. The mode is now part of the folder's choice; a folder chosen before keeps the default's mode.
 - The table's log no longer blinks when a roll arrives while you are scrolled up: each entry keeps the card already drawn, so only the new one is added and the pictures and the other cards are left alone.
