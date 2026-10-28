@@ -13,7 +13,7 @@ await esbuild.build({
   outfile: "test/.bundles/quietStatus.test-bundle.mjs",
   logLevel: "error",
 });
-const { walkIsSlow, flashSaved, SLOW_WALK_MS, SAVED_FADE_MS } = await import("./.bundles/quietStatus.test-bundle.mjs");
+const { walkIsSlow, flashSaved, restorable, newWalk, WALK_IDLE_MS, SLOW_WALK_MS, SAVED_FADE_MS } = await import("./.bundles/quietStatus.test-bundle.mjs");
 
 describe("a walk is shown only when slow", () => {
   test("a one-note walk after a save stays out of sight", () => {
@@ -43,5 +43,28 @@ describe("Saved. fades", () => {
     status.textContent = "Error: the disk is full";
     run();
     assert.equal(status.textContent, "Error: the disk is full");
+  });
+});
+
+describe("review fixes", () => {
+  test("a newer Saved. cancels the older fade", () => {
+    const status = { textContent: "" };
+    const timers = new Map(); let n = 0;
+    const set = (fn) => { timers.set(++n, fn); return n; };
+    const clear = (h) => timers.delete(h);
+    flashSaved(status, "Saved.", set, clear);
+    flashSaved(status, "Saved.", set, clear);
+    assert.equal(timers.size, 1);
+    assert.equal(timers.has(1), false);
+  });
+  test("a transient Saved. is not given back after a walk", () => {
+    assert.equal(restorable("Salvo."), "");
+    assert.equal(restorable("Saved."), "");
+    assert.equal(restorable("3 hits"), "3 hits");
+  });
+  test("a walk after silence is a new walk, even without done", () => {
+    assert.equal(newWalk(null, 0), true);
+    assert.equal(newWalk(1000, 1000 + WALK_IDLE_MS), false);
+    assert.equal(newWalk(1000, 1001 + WALK_IDLE_MS), true);
   });
 });
