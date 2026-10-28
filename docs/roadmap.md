@@ -94,3 +94,8 @@ Features deliberately deferred until after the V1 release:
 3. **End-to-end encryption** as an opt-in for single-user servers ([ADR 0073](adr/0073-self-hosted-server-first.md)).
 4. **Remote MCP server over the network** ([ADR 0045](adr/0045-server-and-mcp-security.md), [ADR 0073](adr/0073-self-hosted-server-first.md)).
 5. **Agent writing directly to notes with diff** ([ADR 0018](adr/0018-llm-native-mcp-in-core.md)).
+6. **Import from and export to Notion and Obsidian** (maintainer's idea, 2026-10-28; no ADR yet, nothing decided). The point is trust: a person can try Verso and leave the way they came. Proposed order, still to be decided:
+   1. An Obsidian compatibility report. A folder already opens as it is (boards are `.canvas`, bases are `.base`), so the report only lists what Obsidian will show as plain text (dice, statblocks, oracles, table and chat).
+   2. Import from a Notion export zip (Markdown & CSV, no API token). It strips the ID suffix from names, turns encoded links into `[[ ]]`, and makes each database a folder of notes plus a `.base`. The `obsidianmd/obsidian-importer` plugin (MIT) may be studied ([ADR 0009](adr/0009-external-constraints.md)).
+   3. Export to a zip that Notion's own importer reads, only if someone asks for it.
+   `[OPEN]`: the phase; what Notion toggles and columns become; whether an import may merge into an existing folder.
