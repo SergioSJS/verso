@@ -23,6 +23,8 @@ import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
 import { showTable } from "../table/show";
 import { notify, onAct, settle, stateOf } from "./index";
+import { news } from "./presence";
+import { inFront } from "./system";
 import { notifyStrings } from "./strings";
 
 const DAY_MS = 86_400_000;
@@ -104,24 +106,32 @@ function when(stamp: string): string {
 /* ---------- Presence: someone joins the note being edited ---------- */
 
 /** The people in a live file changed (leaves/note/live.ts, textLive.ts,
- *  boardLive.ts): each who joined is said; leaving is not notified — the
- *  live state says it — but makes the next join news again. */
-export function presenceHeard(path: string, before: readonly string[], now: readonly string[]): void {
+ *  boardLive.ts): each who joined is news once (presenceNews.ts): a toast where
+ *  the person looks, the list (and the system's, behind) elsewhere. Leaving
+ *  is not notified — the live state says it. */
+export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): void {
   const s = notifyStrings();
   const key = (name: string) => `presence:${currentFolder}:${path}:${name}`;
+  const at = Date.now();
   for (const name of now) {
     if (before.includes(name)) continue;
+    const verdict = news.verdict({ folder: currentFolder, tabShowing: showing, windowInFront: inFront() }, path, name, at);
+    if (verdict === "none") continue;
     notify({
       kind: "presence",
+      // A join nobody is looking at is in the list (and the system's, when
+      // the window is behind), without a toast.
+      toast: verdict === "toast",
       key: key(name),
-      state: "in",
+      // The time in the state: the same person is news again only after
+      // PRESENCE_AGAIN_MS, which `news` decided.
+      state: `in:${at}`,
       level: "info",
       title: s.joined(name),
       sentence: s.joinedWhy(name, noteName(path)),
       actions: [{ label: s.openNote, act: "note", arg: path }],
     });
   }
-  for (const name of before) if (!now.includes(name)) settle(key(name), "out");
 }
 
 /* ---------- Updates: one notification per version ---------- */

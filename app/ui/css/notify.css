@@ -12,6 +12,8 @@
 /* Bottom right, above the status bar; above the overlays, which never make
    them inert. The newest is on top: each is added first. */
 .notify-toasts { position: fixed; z-index: 2000; right: max(1rem, env(safe-area-inset-right)); bottom: 2.6rem; display: flex; flex-direction: column; gap: .5rem; width: min(22rem, calc(100vw - 32px)); pointer-events: none; }
+/* Someone joining is ambient news: at the top, below the window's bars, where the table's chat and its box (bottom right) and the typing line (bottom) are not. */
+.notify-toasts-top { top: 3.2rem; bottom: auto; }
 .notify-toast { pointer-events: auto; display: flex; flex-direction: column; gap: .2rem; padding: .55rem .6rem .6rem .8rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-left: 4px solid var(--brass); border-radius: 10px; box-shadow: 0 14px 36px -12px oklch(0% 0 0 / .35); font-size: .84rem; animation: notify-in .22s var(--ease-out); }
 .notify-toast[data-level="warning"] { border-left-color: var(--brass-ink); }
 .notify-toast[data-level="error"] { border-left-color: var(--seal); }

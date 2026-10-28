@@ -22,6 +22,7 @@ import { patchFromCanvas } from "../board/roomModel";
 import { fail } from "../errors";
 import { leavesOf } from "../layout/spaces";
 import { opening } from "../opening";
+import { presenceOpened } from "../notify/presence";
 import { boardText, t } from "../strings";
 import { flashSaved } from "../quietStatus";
 import { ui } from "../dom";
@@ -137,6 +138,7 @@ export async function joinBoardRoom(this: BoardLeaf, path: string, text: string,
   this.room = room;
   if (room) room.changed = () => this.roomChanged();
   this.liveOthers = room?.others() ?? [];
+  if (room) presenceOpened(this.path, this.liveOthers);
   if (was || room) this.unmountBoard();
   this.paintLive();
 }
