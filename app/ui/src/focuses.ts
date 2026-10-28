@@ -438,9 +438,12 @@ export async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promi
 
 /** The person's click on "Download now" in the banner of a focuses file that
  *  is only in the cloud (ADR 0043): the one thing that brings it down. */
+/** Whether the last click on "Download now" failed: the banner keeps saying
+ *  so (the status line alone is easy to miss). */
+export let focusesDownloadFailed = false;
 export async function downloadFocusesNow(): Promise<void> {
-  await downloadFocusesFile({
-    fetchFile: (path) => commands.fetchFile(path),
+  const outcome = await downloadFocusesFile({
+    fetchFile: () => commands.fetchFocusesFile(),
     reload: async () => {
       await loadFocuses(true);
       return focusesSummary?.read_only_code === "cloud_placeholder";
@@ -452,5 +455,6 @@ export async function downloadFocusesNow(): Promise<void> {
     isCloudFailure: (e) => (e as { kind?: string } | null)?.kind === "unavailable" && !isTransport(e as Parameters<typeof isTransport>[0]),
     words: { fetching: t.focusesDownloading, done: t.focusesDownloaded, nothing: t.focusesNothingToDownload, failed: t.focusesDownloadFailed },
   });
+  focusesDownloadFailed = outcome === "failed";
   panel.refresh();
 }

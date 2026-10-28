@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-focuses-file"
+description = "Enables the fetch_focuses_file command without any pre-configured scope."
+commands.allow = ["fetch_focuses_file"]
+
+[[permission]]
+identifier = "deny-fetch-focuses-file"
+description = "Denies the fetch_focuses_file command without any pre-configured scope."
+commands.deny = ["fetch_focuses_file"]

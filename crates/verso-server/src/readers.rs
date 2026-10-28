@@ -63,6 +63,7 @@ pub const SERVER_READS: &[(&str, &str)] = &[
         "nothing: the desktop sync's (ADR 0093 item 12), a no-op here",
     ),
     ("fetch_file", "nothing"),
+    ("fetch_focuses_file", "nothing"),
     (
         "collab_join",
         "a note with a secret block: its projection's own document",

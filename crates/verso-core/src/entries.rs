@@ -454,6 +454,14 @@ impl Workspace {
         self.root.placeholder(handle).map_err(CoreError::Read)
     }
 
+    /// The make.md focuses file (`.space/waypoints.json`), when its content
+    /// is only in the cloud, for the window to fetch on the person's click
+    /// (ADR 0043, amended on 2026-10-27). Named without a path: `placeholder`
+    /// refuses it, as it refuses every hidden entry.
+    pub fn waypoints_placeholder(&self) -> Result<Option<verso_fs::Placeholder>, CoreError> {
+        self.root.waypoints_placeholder().map_err(CoreError::Read)
+    }
+
     /// The bytes the disk under the folder can still take: what a download
     /// from the cloud is checked against before it starts (ADR 0043,
     /// decided on 2026-10-27).
