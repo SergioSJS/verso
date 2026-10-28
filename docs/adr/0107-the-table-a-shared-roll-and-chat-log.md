@@ -59,10 +59,11 @@ kept and where.
 
 ## Decision
 
-Status **Proposed**. Items marked `[OPEN]` are the maintainer's; items
-marked `[PROPOSED]` are the author's recommendation, not decided.
+Status **Accepted (2026-10-28)**. *(History, until 2026-10-28: Proposed.)*
+Items marked `[OPEN]` are the maintainer's; items marked `[PROPOSED]` were the
+author's recommendation, accepted as built on 2026-10-28 (see "Status").
 
-1. **The table.** `[PROPOSED]` A panel named **Mesa** / **Table** shows
+1. **The table.** `[DECIDED 2026-10-28 — accepted as built]` A panel named **Mesa** / **Table** shows
    one log: every roll, random-table roll and oracle draw made by anyone
    at the same table, in the order the server received them, each with
    the roller's name (stamped by the server, as presence is), the time
@@ -120,7 +121,7 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    `table-images`; see [0110](0110-a-table-is-a-campaign-folder.md) "As
    built (who may send images, 2026-10-24)".
 
-4. **Rolling from the table.** `[PROPOSED]` The table's input rolls when
+4. **Rolling from the table.** `[DECIDED 2026-10-28 — accepted as built]` The table's input rolls when
    the text is a dice notation after `/r` (`/r 1d20+3`), or from a dice
    button beside it, through the same command as a note's roll, so the
    server draws the number (0088 item 4). A random table or an oracle is
@@ -156,7 +157,7 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
      server through `verso-fs`; it travels with the folder and its sync,
      and is rewritten on every entry.
 
-6. **Clearing.** `[PROPOSED]` As Rolai: **"Ocultar daqui pra trás"** /
+6. **Clearing.** `[DECIDED 2026-10-28 — accepted as built]` As Rolai: **"Ocultar daqui pra trás"** /
    **"Hide up to here"** hides the log in your window only, can be undone,
    and is cut at the server's time of the last entry shown, never the
    local clock; **"Limpar a mesa"** / **"Clear the table"** empties it for
@@ -177,13 +178,13 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
    server decides who receives it from the folder's roles, never from
    the window. A secret roll falls in 3D only on the screens that see it.
 
-8. **Who is at the table.** `[PROPOSED]` The panel's top shows who is
+8. **Who is at the table.** `[DECIDED 2026-10-28 — accepted as built]` The panel's top shows who is
    there now (names stamped by the server, the same colours as their
    cursors). A reader of the folder is at the table and may roll, as 0088
    decided for a note (D2–D11), and may write messages (the author's
    recommendation; item 3 decided messages, not who writes them).
 
-9. **Where the table exists.** `[PROPOSED]` On a UniVerso folder, in the
+9. **Where the table exists.** `[DECIDED 2026-10-28 — accepted as built]` On a UniVerso folder, in the
    browser and in the desktop app connected to it; in a synced folder
    while the server is reachable, as a note joins its room under
    [0082](0082-live-co-editing-of-a-synced-folder.md); on a desktop
@@ -221,7 +222,7 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
     in 3D", on (option A; B was only your own rolls in 3D).
 
 12. **Bounds and hostile input** ([0083](0083-security-hardening-of-universo.md)).
-    `[PROPOSED]` A message is at most 500 characters and plain text; the
+    `[DECIDED 2026-10-28 — accepted as built]` A message is at most 500 characters and plain text; the
     server refuses anything longer before it is relayed; messages are
     paced per connection like the REST routes (a burst, then 429-like
     refusal); the log held per table and per window is bounded; the
@@ -229,17 +230,17 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
     written to the server's log.
 
 13. **Notifications** ([0084](0084-notifications-in-the-window.md)).
-    `[PROPOSED]` With the panel closed, its button shows a count of
+    `[DECIDED 2026-10-28 — accepted as built]` With the panel closed, its button shows a count of
     unseen entries. A new kind, **"Mesa"** / **"Table"**, sends an
     operating-system notification for a message or roll by someone
     else, off by default.
 
 14. **A feature switch** ([0103](0103-feature-presets-and-capability-flags.md)).
-    `[PROPOSED]` "Mesa" / "Table" in the RPG and tabletop group of
+    `[DECIDED 2026-10-28 — accepted as built]` "Mesa" / "Table" in the RPG and tabletop group of
     Settings › Features, on by default where dice are on. Off: no panel,
     no button; rolls in notes behave as today.
 
-15. **Contract and tests.** `[PROPOSED]` New commands (join a table,
+15. **Contract and tests.** `[DECIDED 2026-10-28 — accepted as built]` New commands (join a table,
     say, clear) and events (an entry, a roster change, a clear) defined
     in Rust and generated for the window (invariant 3); the window reaches
     the table only through them (rule 1). Tests: the server relays one
@@ -249,7 +250,7 @@ marked `[PROPOSED]` are the author's recommendation, not decided.
     an end-to-end test with two windows in the browser harness.
 
 16. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
-    `[PROPOSED]` The log is a list with a polite live region; an entry by
+    `[DECIDED 2026-10-28 — accepted as built]` The log is a list with a polite live region; an entry by
     someone else is announced with their name (0088 item 8); the input
     has a label; a key focuses the table's input; pt-BR and English.
 
@@ -691,10 +692,32 @@ folder's log its numbers" (each table has its own numbers now).
 
 ## Status
 
+**Accepted (2026-10-28).** The maintainer, 2026-10-28, asked what to do with
+this ADR's `[PROPOSED]` items and the "Chosen in the code, for the maintainer
+to confirm" lists, and answered *"Aceitar como construída"*: every item still
+marked `[PROPOSED]` and every such list is accepted as built. The markers on
+the Decision items were changed to `[DECIDED 2026-10-28 — accepted as built]`;
+the lists in the "As built" sections and the dated sections are left as
+written.
+
+**Superseded within (kept as history, not deleted):**
+- (a) Item 3, "A reader, who writes no file, sends no image": changed by this
+  ADR's own amendment of 2026-10-24 (item 3, "Amendment: the game master lets a
+  player send"), then by [0113](0113-one-access-model-for-a-table.md) (*Send
+  files*, then K.6: the *Images* and *Files* rights).
+- (b) The fixed 10 MB image limit and the 20,000-entry ceiling ("Chosen in the
+  code" 1 and 3): now per-table settings, see "Limits and rules per table" in
+  "Decision (one log per table, 2026-10-23)" and the "Revised (2026-10-22)"
+  paragraph below.
+- (c) Item 2, "the folder shares one table / one per folder": each table has its
+  own log, see "Decision (one log per table, 2026-10-23)" and its closing
+  paragraph ("This **supersedes** the sentences above and in the 'As built'
+  sections that make the log one per folder").
+
 *Superseded in part (2026-10-24) by [0113](0113-one-access-model-for-a-table.md):* the images right of item 3's
 amendment is now *Send files*.
 
-Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
+Accepted (2026-10-28); was Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
 maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
 outside the repository); the three questions those answers opened —
 where an image goes (item 3), where the log is saved (item 5), deleting
