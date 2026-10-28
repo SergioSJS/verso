@@ -28,6 +28,9 @@ export const LEVEL_ICON: Record<Level, string> = { info: "info", success: "check
 type Shown = { el: HTMLElement; key: string; timer: number; left: number; since: number; paused: boolean };
 
 let region: HTMLElement | null = null;
+/** Where ambient news sits: at the top, never over the table's chat and its
+ *  box, nor the line being typed at the bottom of the window. */
+let top: HTMLElement | null = null;
 let polite: HTMLElement | null = null;
 let assertive: HTMLElement | null = null;
 const shown: Shown[] = [];
@@ -57,7 +60,10 @@ function build(): HTMLElement {
     const from = e.relatedTarget;
     if (from instanceof Element && !region!.contains(from)) focusBefore = from;
   });
-  document.body.append(region, polite, assertive);
+  top = h("section", "notify-toasts notify-toasts-top");
+  top.id = "notify-toasts-top";
+  top.setAttribute("aria-label", s.region);
+  document.body.append(region, top, polite, assertive);
   return region;
 }
 
@@ -115,7 +121,7 @@ export function dismissAll(): void {
 /** A notification's toast. `run` does what an action names. */
 export function showToast(entry: Pick<Entry, "key" | "level" | "title" | "sentence" | "actions"> & { kind?: string }, run: (a: ActionRef) => void): HTMLElement {
   const s = notifyStrings();
-  const box = build();
+  const box = entry.kind === "presence" ? (build(), top!) : build();
   dismissKey(entry.key);
   const el = h("article", "notify-toast");
   el.dataset["level"] = entry.level;

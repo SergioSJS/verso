@@ -23,6 +23,8 @@ import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
 import { showTable } from "../table/show";
 import { notify, onAct, settle, stateOf } from "./index";
+import { PresenceNews } from "./presenceNews";
+import { inFront } from "./system";
 import { notifyStrings } from "./strings";
 
 const DAY_MS = 86_400_000;
@@ -106,23 +108,36 @@ function when(stamp: string): string {
 /** The people in a live file changed (leaves/note/live.ts, textLive.ts,
  *  boardLive.ts): each who joined is said; leaving is not notified — the
  *  live state says it — but makes the next join news again. */
-export function presenceHeard(path: string, before: readonly string[], now: readonly string[]): void {
+export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): void {
   const s = notifyStrings();
   const key = (name: string) => `presence:${currentFolder}:${path}:${name}`;
+  const at = Date.now();
   for (const name of now) {
     if (before.includes(name)) continue;
+    const where = { openFolder: currentFolder, folder: currentFolder, tabShowing: showing, windowInFront: inFront() };
+    if (!news.joined(where, path, name, at)) continue;
     notify({
       kind: "presence",
       key: key(name),
-      state: "in",
+      // The time in the state: the same person is news again only after
+      // PRESENCE_AGAIN_MS, which `news` decided.
+      state: `in:${at}`,
       level: "info",
       title: s.joined(name),
       sentence: s.joinedWhy(name, noteName(path)),
       actions: [{ label: s.openNote, act: "note", arg: path }],
     });
   }
-  for (const name of before) if (!now.includes(name)) settle(key(name), "out");
 }
+
+/** A tab bound its file's room: the people in it are not joining. */
+export function presenceOpened(path: string, names: readonly string[]): void {
+  const at = Date.now();
+  news.opened(currentFolder, path, at);
+  news.present(currentFolder, path, names, at);
+}
+
+const news = new PresenceNews();
 
 /* ---------- Updates: one notification per version ---------- */
 
