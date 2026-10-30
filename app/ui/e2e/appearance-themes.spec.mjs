@@ -121,7 +121,11 @@ test("a click uses a theme at once, no reload, and the mark moves", async ({ app
   await expect.poll(() => palette(app.page)).toBe("sepia");
   await expect(gallery.getByRole("button", { name: "Sépia, tema do Verso, ativo" })).toHaveAttribute("aria-pressed", "true");
   await expect(gallery.getByRole("button", { name: "Papel, tema do Verso" })).toHaveAttribute("aria-pressed", "false");
-  expect((await stored(app.page)).palette).toBe("sepia");
+  // With a folder open the choice is the folder's own, per folder and per
+  // person (ADR 0100 item 4, 2026-10-27): the person's default is not moved.
+  const settings = await stored(app.page);
+  expect(Object.values(settings.folderThemes ?? {}).map((t) => t.palette)).toEqual(["sepia"]);
+  expect(settings.palette ?? "paper").toBe("paper");
   // The focus stays on the card that was used.
   await expect(pick(app.page, "Sépia")).toBeFocused();
 });
