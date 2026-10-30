@@ -79,6 +79,8 @@ mod sync_io;
 mod views;
 use entries::*;
 pub use mentions::{Mention, Mentions};
+mod loose;
+pub use loose::{LOOSE_MAX_BYTES, Loose, LooseReadOnly};
 /// The one projection a UniVerso serves a reader of a note (ADR 0087),
 /// for every exit of the server that serves one.
 pub mod secret {
