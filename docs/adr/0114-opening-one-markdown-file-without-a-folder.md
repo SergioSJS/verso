@@ -125,13 +125,14 @@ does not claim it ([0009](0009-external-constraints.md)).
 
 ## Decision (proposed)
 
-Nothing below is decided. Items marked `[OPEN]` carry options and a
+Decided 2026-10-30 (see Status): every question below was answered with its
+recommendation. Items marked `[DECIDED 2026-10-30]` carried options and a
 recommendation; the rest is the author's proposal as a whole.
 
 ### A. Registration: a handler, never the default by itself
 
 1. **Verso declares itself an editor of `.md` and `.markdown`** — only
-   these two; `.txt` and other text is not Verso's (`[OPEN]` Q13).
+   these two; `.txt` and other text is not Verso's (`[DECIDED 2026-10-30]` Q13).
 2. **macOS:** `bundle.fileAssociations` in `tauri.macos.conf.json`:
    `ext: ["md", "markdown"]`, `mimeType: "text/markdown"`, `name:
    "Markdown"`, `role: "Editor"`, `rank: "Alternate"`, `contentTypes:
@@ -140,7 +141,7 @@ recommendation; the rest is the author's proposal as a whole.
    the two extensions and the MIME type) in `app/src-tauri/Info.plist`, so
    systems before 27 know the type. `Alternate` leaves any app that owns
    or defaults the type ahead of Verso; the person promotes Verso in Get
-   Info (`[OPEN]` Q7).
+   Info (`[DECIDED 2026-10-30]` Q7).
 3. **Windows:** *not* through `bundle.fileAssociations` (it would take the
    default where none was chosen, with an unversioned class). An NSIS hook
    (`NSIS_HOOK_POSTINSTALL`), under `SHCTX` so it follows the
@@ -152,7 +153,7 @@ recommendation; the rest is the author's proposal as a whole.
    and `.markdown` → the ProgID) and `Software\RegisteredApplications\Verso`
    → that path; then `SHChangeNotify(SHCNE_ASSOCCHANGED)`.
    `NSIS_HOOK_PREUNINSTALL` removes exactly those keys. The `.md` key's
-   default value is never written (`[OPEN]` Q6).
+   default value is never written (`[DECIDED 2026-10-30]` Q6).
 4. **Linux:** `bundle.fileAssociations` with `mimeType: "text/markdown"` in
    `tauri.linux.conf.json`, so the `.desktop` says `MimeType=text/markdown;`;
    the distributions' `desktop-file-utils` trigger refreshes the MIME cache
@@ -165,7 +166,7 @@ recommendation; the rest is the author's proposal as a whole.
    button through `ms-settings:defaultapps`; `xdg-mime default` or the file
    manager) — the how-to lives in the tutorial too (ADR 0058). A macOS API
    that asks the person (`NSWorkspace.setDefaultApplication`, macOS 12+) is
-   a later option, not discarded (`[OPEN]` Q12).
+   a later option, not discarded (`[DECIDED 2026-10-30]` Q12).
 
 ### B. How a file reaches the app, on three systems
 
@@ -187,14 +188,14 @@ recommendation; the rest is the author's proposal as a whole.
    2. the file lies inside a folder Verso **knows but has not open** (an
       index sidecar exists for an ancestor) → opened loose (iii), with a
       one-line offer "This file belongs to *Nome*, a folder you have opened
-      before — open the folder?" (`[OPEN]` Q3);
+      before — open the folder?" (`[DECIDED 2026-10-30]` Q3);
    3. otherwise → the **loose-files window**: the one such window of the
-      app if it exists (a new tab), else a new one (`[OPEN]` Q1).
+      app if it exists (a new tab), else a new one (`[DECIDED 2026-10-30]` Q1).
 8. **`verso nota.md`** on the command line opens the file by the same rule
    as `verso <folder>`: a first argument naming an existing `.md` file,
    and `verso open <file>` as the escape hatch; on macOS through
    `open -a Verso <file>` as for a folder. A one-line revision of
-   [0042](0042-open-from-command-line.md) in the same PR (`[OPEN]` Q8).
+   [0042](0042-open-from-command-line.md) in the same PR (`[DECIDED 2026-10-30]` Q8).
 
 ### C. The loose-files window
 
@@ -231,7 +232,7 @@ recommendation; the rest is the author's proposal as a whole.
     says so (`goneOutside` today), with **"Save here again"** (creates the
     file at the same name, refusing if something reappeared there) and
     **"Save a copy…"** (the system's save dialog, at the entry edge)
-    (`[OPEN]` Q10). A cloud placeholder (iCloud, OneDrive) is brought
+    (`[DECIDED 2026-10-30]` Q10). A cloud placeholder (iCloud, OneDrive) is brought
     down first, as ADR 0043 does for an opened note; a file the provider
     cannot serve is an error, never an empty note.
 12. **Read-only files.** A file the person cannot write (permissions, a
@@ -239,8 +240,8 @@ recommendation; the rest is the author's proposal as a whole.
     the status line and the editor locked, and offers "Save a copy…".
 13. **Huge files.** Above a bound the window shows the file read-only in
     Source with a line saying why; the bound is the folder's own note bound
-    where one exists, else fixed in the build (`[OPEN]` Q9).
-14. **Links and embeds** (`[OPEN]` Q2, Q5):
+    where one exists, else fixed in the build (`[DECIDED 2026-10-30]` Q9).
+14. **Links and embeds** (`[DECIDED 2026-10-30]` Q2, Q5):
     - `![[img.png]]`, `![](img.png)`, `![[doc.pdf]]`: resolved against the
       parent directory only — the name as written, a sub-path without `..`,
       no walk, no listing — read-only, for attachment kinds (image, PDF,
@@ -264,7 +265,7 @@ recommendation; the rest is the author's proposal as a whole.
     sidecar to be found by). **Recent files:** File › Open Recent gains a
     "Files" group, up to ten, kept host side as the folder recents are
     (paths stay on the host; the menu carries labels), a file that is gone
-    removed when picked (`[OPEN]` Q4).
+    removed when picked (`[DECIDED 2026-10-30]` Q4).
 
 ### D. Architecture: a scoped root, no new edge
 
@@ -422,7 +423,13 @@ recommendation; the rest is the author's proposal as a whole.
 
 ## Status
 
-**Proposed** (2026-10-30). Written by Fable 5.1 from the maintainer's
+**Accepted (2026-10-30), all 13 questions as recommended; being built.**
+The maintainer, shown the 13 recommendations with "Se concordar com tudo,
+responda 'sim para todas'", answered *"sim"* and then asked *"e a
+implementação que pedi?"*: built now, ahead of item Q11's "after the V1
+blockers" (the maintainer's call, 2026-10-30).
+
+*Before:* **Proposed** (2026-10-30). Written by Fable 5.1 from the maintainer's
 request and the session's sketch. Items 1–30 are a proposal; the questions
 below are `[OPEN]` for the maintainer, each with a recommendation. The
 roadmap lists it as a proposal under "After V1"; pulling it into V1 is the
