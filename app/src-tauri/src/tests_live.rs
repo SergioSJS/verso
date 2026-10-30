@@ -1166,7 +1166,10 @@ fn a_join_in_a_folder_of_500_notes_is_prompt() {
         worst = worst.max(took);
         cmd(&d, "collab_leave", json!({ "path": path })).unwrap();
     }
-    assert!(worst < Duration::from_millis(300), "joined in {worst:?}");
+    // A generous bound (a loaded Windows VM runs the whole suite at once):
+    // before the fix a join sat out the sync's pauses for seconds. That a
+    // join ends the settling pause exactly is the `settle_*` tests' job.
+    assert!(worst < Duration::from_millis(2000), "joined in {worst:?}");
 }
 
 /// A note changed on this device a moment before its tab joins: the join
@@ -1193,8 +1196,45 @@ fn a_join_after_a_local_change_does_not_wait_out_the_settling_pause() {
     let took = t.elapsed();
     d.s.stop();
     assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
-    assert!(took < Duration::from_millis(300), "joined in {took:?}");
+    // Generous (see `a_join_in_a_folder_of_500_notes_is_prompt`): the exact
+    // property is in `settle_is_skipped_only_while_a_join_waits`.
+    assert!(took < Duration::from_millis(1500), "joined in {took:?}");
     let doc = doc();
     apply(&doc, &joined["update"]);
     assert!(text_of(&doc).contains("de novo"), "{}", text_of(&doc));
+}
+
+/// A hurry nobody was waiting for leaves nothing behind: the next, unrelated
+/// settling pause is whole (a rename done by another program as a delete
+/// and a create settles into one pass).
+#[test]
+fn a_stray_hurry_does_not_shorten_the_next_settling_pause() {
+    let live = live::Live::default();
+    live.hurry();
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_millis(300)));
+    assert!(
+        t.elapsed() >= Duration::from_millis(290),
+        "paused {:?}",
+        t.elapsed()
+    );
+}
+
+/// While a join waits the pause is skipped, and it is whole again once the
+/// join has ended.
+#[test]
+fn settle_is_skipped_only_while_a_join_waits() {
+    let live = live::Live::default();
+    let waiting = live.wait_for_pass();
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_secs(5)));
+    assert!(
+        t.elapsed() < Duration::from_secs(2),
+        "paused {:?}",
+        t.elapsed()
+    );
+    drop(waiting);
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_millis(300)));
+    assert!(t.elapsed() >= Duration::from_millis(290));
 }

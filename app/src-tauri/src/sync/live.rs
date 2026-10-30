@@ -15,7 +15,7 @@
 //! sent nor a conflict (items 6 and 9).
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use super::*;
 
@@ -27,6 +27,10 @@ const CATCH_UP: Duration = Duration::from_secs(5);
 const REJOIN: Duration = Duration::from_secs(4);
 /// How often a wait looks again.
 const LOOK: Duration = Duration::from_millis(20);
+/// After this long a wait looks less often (`LOOK_SLOW`): each look reads
+/// and hashes the note.
+const LOOK_FAST_FOR: Duration = Duration::from_secs(1);
+const LOOK_SLOW: Duration = Duration::from_millis(100);
 /// A join slower than this is said in the log, with its stages.
 const SLOW_JOIN: Duration = Duration::from_millis(300);
 
@@ -54,6 +58,21 @@ pub(crate) struct Live {
     kept: Mutex<HashMap<String, Kept>>,
     /// A clock for [`Kept`]: which came first.
     tick: AtomicU64,
+    /// Joins waiting for the pass on their note right now.
+    joins_waiting: AtomicUsize,
+    /// Tells the loop in its settling pause that a join is waiting. No
+    /// permit is kept: a hurry nobody was waiting for must not shorten a
+    /// later, unrelated pause.
+    hurry: tokio::sync::Notify,
+}
+
+/// A join waiting for the pass on its note; counted while it lives.
+pub(crate) struct WaitingJoin<'a>(&'a AtomicUsize);
+
+impl Drop for WaitingJoin<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 /// What a note's tab and its room left, kept past the room made again from
@@ -96,6 +115,27 @@ fn unavailable(message: &str) -> Value {
 }
 
 impl Live {
+    /// A join starts waiting for the pass on its note.
+    pub(crate) fn wait_for_pass(&self) -> WaitingJoin<'_> {
+        self.joins_waiting.fetch_add(1, Ordering::SeqCst);
+        WaitingJoin(&self.joins_waiting)
+    }
+
+    /// A join asks the loop to end its pause now.
+    pub(crate) fn hurry(&self) {
+        self.hurry.notify_waiters();
+    }
+
+    /// The pause that lets a burst of local changes settle before the next
+    /// pass: skipped, or ended at once, only while a join is waiting for
+    /// that pass (a count, not a stored permit).
+    pub(crate) async fn settle(&self, pause: Duration) {
+        if self.joins_waiting.load(Ordering::SeqCst) > 0 {
+            return;
+        }
+        tokio::select! { () = tokio::time::sleep(pause) => {}, () = self.hurry.notified() => {} }
+    }
+
     /// The sync's link is up: every held note comes back into its room.
     pub(crate) fn connected(&self, remote: Arc<remote::Remote>) {
         *lock(&self.link) = Some(remote);
@@ -298,7 +338,9 @@ async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
     if !s.may_send(ctx.config.as_deref(), path) {
         return;
     }
-    let deadline = tokio::time::Instant::now() + CATCH_UP;
+    let started = tokio::time::Instant::now();
+    let deadline = started + CATCH_UP;
+    let _waiting = s.live.wait_for_pass();
     let mut asked = false;
     let mut looks = 0u32;
     while !tokio::task::block_in_place(|| settled(ctx, s, path)) {
@@ -309,7 +351,7 @@ async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
         // The pass runs now, not after the pause that lets a burst settle;
         // asked again every 200 ms while the text has not crossed.
         if looks.is_multiple_of(10) {
-            s.hurry.notify_one();
+            s.live.hurry();
         }
         looks += 1;
         if tokio::time::Instant::now() >= deadline {
@@ -322,7 +364,14 @@ async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
             );
             return;
         }
-        tokio::time::sleep(LOOK).await;
+        // Each look reads and hashes the note: after the first second a
+        // slower look, so a big note is not read fifty times a second.
+        tokio::time::sleep(if started.elapsed() > LOOK_FAST_FOR {
+            LOOK_SLOW
+        } else {
+            LOOK
+        })
+        .await;
     }
 }
 

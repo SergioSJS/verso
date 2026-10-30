@@ -1169,7 +1169,10 @@ fn a_note_growing_past_the_cap_is_dropped_from_the_index_not_reported_gone() {
         ws.search("palavracresce", 10).unwrap().is_empty(),
         "row removed"
     );
-    assert!(vault.path().join("cresce.md").exists());
+    assert!(
+        ws.entries().iter().any(|e| e.path == "cresce.md"),
+        "still listed"
+    );
 
     // Small again: indexed again, still never gone.
     std::fs::write(
