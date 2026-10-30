@@ -20,6 +20,7 @@ pub(crate) const COMMAND_PREFIX: &str = "verso-cmd-";
 pub(crate) enum Own {
     NewWindow,
     OpenFolder,
+    OpenFile,
     OpenRecent,
     CloseTab,
     CloseWindow,
@@ -75,6 +76,7 @@ pub(crate) fn sections() -> Vec<(&'static str, Vec<Row>)> {
                 O(Own::NewWindow),
                 Sep,
                 O(Own::OpenFolder),
+                O(Own::OpenFile),
                 O(Own::OpenRecent),
                 c("import-files"),
                 c("open-sync"),
@@ -356,6 +358,7 @@ pub(crate) fn word(lang: &str, key: &str) -> &'static str {
         "settings" => ("Ajustes…", "Settings…"),
         "new-window" => ("Nova janela", "New Window"),
         "open-folder" => ("Abrir pasta…", "Open Folder…"),
+        "open-file" => ("Abrir arquivo…", "Open File…"),
         "open-recent" => ("Abrir recente", "Open Recent"),
         "close-tab" => ("Fechar aba", "Close Tab"),
         "close-window" => ("Fechar janela", "Close Window"),
@@ -423,6 +426,7 @@ fn own_id(own: Own) -> (&'static str, Option<&'static str>) {
     match own {
         Own::NewWindow => ("new-window", None),
         Own::OpenFolder => ("open-folder", None),
+        Own::OpenFile => ("open-file", None),
         Own::OpenRecent => ("open-recent", None),
         Own::CloseTab => ("close-tab", None),
         Own::CloseWindow => ("close-window", None),

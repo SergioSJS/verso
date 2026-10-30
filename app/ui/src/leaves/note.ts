@@ -14,6 +14,8 @@ import { lineNumbers } from "@codemirror/view";
 import { EditorView } from "codemirror";
 import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
+import { isLoose, looseInfo, looseReadOnlyReason, looseSaveAgain, looseSaveCopy, openSiblingFrom } from "../loose";
+import { ls } from "../looseStrings";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
 import { may } from "../access";
@@ -143,7 +145,7 @@ export class NoteLeaf extends Leaf {
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the
    *  person saves it again or closes the tab without it. */
-  readonly goneBanner = new GoneBanner(() => void this.saveAgain(), () => void this.closeWithoutSaving());
+  readonly goneBanner = new GoneBanner(() => void this.saveAgain(), () => void this.closeWithoutSaving(), () => void looseSaveCopy(this.path, this.editorText()));
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -698,6 +700,22 @@ export class NoteLeaf extends Leaf {
     }
 
     const to = this.resolve(notePart);
+    // A file opened without its folder (ADR 0114 item 14): a sibling note
+    // of that name opens as a tab of its own; none, and the link says so.
+    if (isLoose()) {
+      void (async () => {
+        const name = to ? await openSiblingFrom(this.path, to) : null;
+        if (name) {
+          const leaf = openIn(this.pane, name);
+          if (headingPart && leaf) jumpToHeading(leaf, headingPart);
+          return;
+        }
+        const r = await commands.resolveAttachment(this.path, notePart);
+        if (r.status === "ok" && r.data) openIn(this.pane, r.data);
+        else ui.status.textContent = ls.noSibling;
+      })();
+      return;
+    }
     if (to) {
       const leaf = openIn(this.pane, to);
       if (headingPart && leaf) jumpToHeading(leaf, headingPart);
@@ -1129,7 +1147,9 @@ export class NoteLeaf extends Leaf {
     // A reader of a synced folder is present in the room, not typing
     // (ADR 0082 item 4).
     // A note granted to the player is its to write (ADR 0110 item 5).
-    this.readOnly = this.mixedEol || !may(note.path, "edit") || (this.collab?.reader ?? false);
+    this.readOnly = this.mixedEol || !may(note.path, "edit") || (this.collab?.reader ?? false) || looseReadOnlyReason(note.path) !== null;
+    // A loose file above the bound is shown in Source (ADR 0114 item 13).
+    if (looseInfo(note.path)?.read_only === "too_large" && this.mode !== "source") this.mode = "source";
     this.loadFoldsFor(note.path);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
@@ -1328,7 +1348,7 @@ export class NoteLeaf extends Leaf {
     const said = host() === "server" ? t.goneUnsavedElsewhere : t.goneUnsaved;
     this.conflict.hide();
     if (!this.gone) this.markGone();
-    this.goneBanner.show(said);
+    this.goneBanner.show(said, isLoose());
     this.paintFlags();
     failSaid(said, e);
   }
@@ -1339,7 +1359,10 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async () => {
       if (!this.note || !this.goneBanner.up) return;
       const mine = this.editorText();
-      const r = await commands.createNote(this.path, mine);
+      // A loose file is made again at its name by the host (ADR 0114 item 11).
+      const r = isLoose()
+        ? await looseSaveAgain(this.path, mine).then((w) => (w.status === "ok" ? { status: "ok" as const, data: w.data.note } : w))
+        : await commands.createNote(this.path, mine);
       if (r.status !== "ok") {
         if (r.error.kind !== "exists") return fail(r.error);
         const fresh = await opening.readNote(this.path);

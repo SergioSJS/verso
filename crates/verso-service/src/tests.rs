@@ -407,3 +407,231 @@ fn the_computers_history_records_each_commands_writes_and_restores() {
         .unwrap_err();
     assert_eq!(none.kind, ErrorKind::Refused);
 }
+
+/// A folder written by "another program": a workspace of its own on the
+/// same directory, with its index in a temporary place of its own.
+fn outsider(dir: &std::path::Path) -> (tempfile::TempDir, Workspace) {
+    let config = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::open(dir, Some(config.path())).unwrap();
+    ws.index().unwrap();
+    (config, ws)
+}
+
+/// One file opened without a folder (ADR 0114 items 18, 19, 22, 29): the
+/// window reads and writes it, nothing of the folder is reachable, and
+/// what crosses carries no path.
+#[test]
+fn a_loose_file_answers_its_own_commands_and_refuses_the_folders() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_c, mut other) = outsider(dir.path());
+    other.create_folder("Pasta com espaço/sub").unwrap();
+    other
+        .create_note(
+            "Pasta com espaço/sub/Nota avulsa",
+            "# Avulsa\n\n[[Vizinha]] e [[Longe]]\n",
+        )
+        .unwrap();
+    other
+        .create_note("Pasta com espaço/sub/Vizinha", "# Vizinha\n")
+        .unwrap();
+    let nested = dir.path().join("Pasta com espaço").join("sub");
+    let config = tempfile::tempdir().unwrap();
+    let service = Service::new(Some(config.path().to_owned()));
+    let info = service
+        .open_loose(
+            "w",
+            &nested.join("Nota avulsa.md"),
+            Some("Conhecida".to_owned()),
+        )
+        .unwrap();
+    assert_eq!(info.name, "Nota avulsa.md");
+    assert_eq!(info.place, "sub");
+    assert_eq!(info.known_folder.as_deref(), Some("Conhecida"));
+    assert!(info.read_only.is_none());
+    // No absolute path, no `..`, no separator crosses (rule 4).
+    for field in [&info.name, &info.key, &info.place] {
+        assert!(
+            !field.contains('/') && !field.contains('\\') && !field.contains(".."),
+            "{field}"
+        );
+    }
+    assert!(info.key.chars().all(|c| c.is_alphanumeric() || c == '-'));
+    assert!(service.is_loose("w"));
+    assert_eq!(service.loose_window().as_deref(), Some("w"));
+    assert!(service.folder_of("w").is_none());
+    // The same file again is the same tab.
+    let again = service
+        .open_loose("w", &nested.join("Nota avulsa.md"), None)
+        .unwrap();
+    assert_eq!(again.name, info.name);
+    assert_eq!(service.loose_files("w").len(), 1);
+    // Its own commands, by name as the window sends them.
+    let read = service
+        .dispatch(
+            "w",
+            "read_note",
+            serde_json::json!({"path": "Nota avulsa.md"}),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(read["path"], "Nota avulsa.md");
+    assert_eq!(read["headings"][0]["text"], "Avulsa");
+    let revision = read["revision"].as_str().unwrap().to_owned();
+    let written = service
+        .dispatch(
+            "w",
+            "write_note",
+            serde_json::json!({"path": "Nota avulsa.md", "text": "# Mudou\n", "revision": revision}),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(written["note"]["text"], "# Mudou\n");
+    assert_eq!(
+        other
+            .read_note("Pasta com espaço/sub/Nota avulsa.md")
+            .unwrap()
+            .text,
+        "# Mudou\n"
+    );
+    // Links resolve to a sibling by one stat, or stay unresolved.
+    let links = service
+        .dispatch("w", "links", serde_json::json!({"path": "Nota avulsa.md"}))
+        .unwrap()
+        .unwrap();
+    assert!(links.as_array().unwrap().is_empty());
+    let fresh = other
+        .read_note("Pasta com espaço/sub/Nota avulsa.md")
+        .unwrap();
+    other
+        .write_note(
+            "Pasta com espaço/sub/Nota avulsa.md",
+            "[[Vizinha]] e [[Longe]]\n",
+            &fresh.revision,
+        )
+        .unwrap();
+    let links = service
+        .dispatch("w", "links", serde_json::json!({"path": "Nota avulsa.md"}))
+        .unwrap()
+        .unwrap();
+    assert_eq!(links[0]["resolved"], "Vizinha.md");
+    assert!(links[1]["resolved"].is_null());
+    // Every folder command is refused — not "no folder", a refusal.
+    for name in [
+        "list_notes",
+        "search",
+        "list_entries",
+        "create_note",
+        "rename_entry",
+        "delete_entry",
+        "backlinks",
+        "graph",
+        "list_tags",
+    ] {
+        let r = service
+            .dispatch("w", name, serde_json::json!({"path": "x", "name": "x", "text": "", "words": "a", "limit": 1, "kinds": []}))
+            .unwrap();
+        let e = r.unwrap_err();
+        assert_eq!(e.kind, ErrorKind::Refused, "{name}: {e:?}");
+        assert!(
+            e.message.contains("without its folder"),
+            "{name}: {}",
+            e.message
+        );
+    }
+    assert_eq!(service.reindex("w").unwrap_err().kind, ErrorKind::Refused);
+    assert_eq!(
+        service.with("w", |_| Ok(())).unwrap_err().kind,
+        ErrorKind::Refused
+    );
+    // A sibling opens as a file of its own in the same window.
+    let sibling = service
+        .open_sibling("w", "Nota avulsa.md", "Vizinha")
+        .unwrap();
+    assert_eq!(sibling.name, "Vizinha.md");
+    assert_eq!(service.loose_files("w").len(), 2);
+    assert!(
+        service
+            .open_sibling("w", "Nota avulsa.md", "Longe")
+            .is_err()
+    );
+    assert!(service.open_sibling("w", "Nota avulsa.md", "../x").is_err());
+    // Nothing was written beside the files (the outsider lists the folder),
+    // and nothing in the service's configuration directory.
+    other.index().unwrap();
+    let mut names: Vec<String> = other
+        .entries()
+        .iter()
+        .map(|e| e.path.clone())
+        .filter(|p| p.starts_with("Pasta com espaço/sub/"))
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            "Pasta com espaço/sub/Nota avulsa.md",
+            "Pasta com espaço/sub/Vizinha.md"
+        ]
+    );
+    assert!(verso_core::recent_folders(Some(config.path())).is_empty());
+    // Closing a tab lets the file go; the last one makes the client plain.
+    service.close_loose("w", "Vizinha.md");
+    assert_eq!(service.loose_files("w").len(), 1);
+    service.close_loose("w", "Nota avulsa.md");
+    assert!(!service.is_loose("w"));
+    assert_eq!(
+        service
+            .dispatch("w", "list_notes", serde_json::Value::Null)
+            .unwrap()
+            .unwrap_err()
+            .kind,
+        ErrorKind::NoFolder
+    );
+}
+
+/// A change made outside reaches the client as a `folder-changed` of the
+/// file's key (ADR 0114 item 11), the file among `removed` when it went.
+#[test]
+fn a_loose_file_changed_outside_is_told_to_its_window() {
+    struct Heard(Mutex<Vec<FolderChanged>>);
+    impl Events for Heard {
+        fn progress(&self, _: &[String], _: &IndexProgress) {}
+        fn folder_changed(&self, clients: &[String], c: &FolderChanged) {
+            assert_eq!(clients, ["w"]);
+            lock(&self.0).push(c.clone());
+        }
+        fn log(&self, _: &str, _: &str) {}
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let (_c, mut other) = outsider(dir.path());
+    let a = other.create_note("a", "a").unwrap();
+    let b = other.create_note("b", "b").unwrap();
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    let heard = Arc::new(Heard(Mutex::new(Vec::new())));
+    service.set_events(heard.clone());
+    let info = service
+        .open_loose("w", &dir.path().join("a.md"), None)
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(800));
+    other.write_note("b.md", "b mudou", &b.revision).unwrap();
+    other.write_note("a.md", "a mudou", &a.revision).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline && lock(&heard.0).is_empty() {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let first = lock(&heard.0).first().cloned().expect("a batch");
+    assert_eq!(first.key, info.key);
+    assert_eq!(first.changed, ["a.md"]);
+    assert!(first.removed.is_empty());
+    other.rename_entry("a.md", "c.md").unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline
+        && !lock(&heard.0).iter().any(|c| !c.removed.is_empty())
+    {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert!(
+        lock(&heard.0).iter().any(|c| c.removed == ["a.md"]),
+        "{:?}",
+        lock(&heard.0)
+    );
+}

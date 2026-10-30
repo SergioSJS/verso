@@ -1721,3 +1721,14 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 2. A player who edits the board needs no right for a new image (ADR 0113 K.6): pasting an image works with every right off. Taking *Edits* from the board makes pasting say that the player only reads it, and nothing is written.
 3. Drop a GIF file (and paste one copied as a file): the card keeps animating. (A GIF copied with the browser's "Copy image" is turned into a PNG by the browser before Verso sees it; drag the file instead.)
 4. As the game master, with the player's image sent while the file is still on its way by sync: the card fills in by itself within seconds.
+
+## A file opened without its folder (ADR 0114, note 33, 2026-10-30)
+
+1. In a terminal, `verso ~/Downloads/nota.md` (or `open -a "Verso Beta" nota.md`, a double-click in Finder with Verso chosen under Open with, or File › Open File…): the app opens the file in a window with no tree, no ribbon and no search; the bar above the tabs says `nota.md · em Downloads` and has **Abrir a pasta inteira no Verso**; the right panel keeps the outline only; the palette lists no new note, no graph, no bin. Level: A; E: `loose.spec.mjs`, the window with `?loose=1`.
+2. Edit a line: the file on disk changes and nothing appears beside it (no `.verso`, no index sidecar for `~/Downloads` under the configuration directory). Level: A; E: `loose.spec.mjs` (the file in memory); `crates/verso-fs/tests/scope.rs` and `crates/verso-core/tests/loose.rs` (nothing beside the file).
+3. Open a second `.md` from another folder: a second tab of the same window; `cargo`-style folder commands typed into the palette are refused with "not available for a file opened without its folder". Level: A; E: `loose.spec.mjs`; `app/src-tauri/src/tests.rs` (`a_file_handed_to_the_running_app_opens_in_the_loose_window`).
+4. A `[[Vizinha]]` whose note is beside the file opens as a tab; `[[Longe]]` says there is no note of that name and creates nothing; `![[foto.png]]` beside the file shows; `![[Vizinha]]` is drawn as a link. Level: A; E: `loose.spec.mjs`.
+5. `chmod 444 nota.md` and open it: read only with the reason above the text and the editor locked; a 9 MiB file opens in Source, read only. Level: A; E: `loose.spec.mjs` (`?ro=permissions`, `?ro=too_large`).
+6. Delete the file in Finder while open: the tab keeps the text with **Gravar aqui de novo** and **Salvar uma cópia…**; the first makes the file again, the second opens the system's save dialog. Level: A.
+7. **Abrir a pasta inteira no Verso**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before shows "Este arquivo fica em …" with **Abrir a pasta**. Level: A; E: `loose.spec.mjs` (`?known=1`).
+8. Settings › Arquivos e links › **Abrir arquivos .md com o Verso por padrão**: the gesture of this system; on Windows the button opens Default apps. Level: A.

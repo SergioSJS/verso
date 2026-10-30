@@ -89,7 +89,7 @@ pub(super) fn app_with(
 }
 
 /// The app as it stands before its setup made the main window.
-fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
+pub(super) fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     let config = tempfile::tempdir().unwrap();
     let app = mock_builder()
         .plugin(navigation_guard())
@@ -107,7 +107,7 @@ fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     app
 }
 
-fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+pub(super) fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
     app_with(None)
 }
 
@@ -130,7 +130,7 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
     folder_handed(app.handle(), vault.path().to_path_buf());
     assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
 
-    let info = call(&webview, "open_initial", json!({})).unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap()["info"].clone();
     assert_eq!(
         info["name"],
         vault.path().file_name().unwrap().to_str().unwrap()
@@ -153,7 +153,7 @@ fn a_folder_handed_before_the_main_window_is_opened_by_it_alone() {
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
         .build()
         .unwrap();
-    let info = call(&webview, "open_initial", json!({})).unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap()["info"].clone();
     assert_eq!(
         info["name"],
         vault.path().file_name().unwrap().to_str().unwrap()
@@ -189,7 +189,7 @@ fn a_second_launch_hands_its_folder_to_the_running_app() {
         parent.path().to_string_lossy().into_owned(),
     );
     assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
-    let info = call(&webview, "open_initial", json!({})).unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap()["info"].clone();
     assert_eq!(info["name"], "Cofre");
     // Launched again with no folder: nothing is handed.
     second_launch(app.handle(), vec!["verso-app".into()], String::new());
@@ -209,7 +209,7 @@ fn two_folders_handed_at_once_are_both_opened() {
     folder_handed(app.handle(), one.path().to_path_buf());
     folder_handed(app.handle(), two.path().to_path_buf());
     assert_eq!(lock(&app.state::<App>().initial_folder).len(), 2);
-    let first = call(&webview, "open_initial", json!({})).unwrap();
+    let first = call(&webview, "open_initial", json!({})).unwrap()["info"].clone();
     assert_eq!(
         first["name"],
         one.path().file_name().unwrap().to_str().unwrap()
@@ -268,7 +268,7 @@ fn a_change_made_outside_reaches_the_windows() {
     app.listen_any("folder-changed", move |event| {
         let _ = tx.send(serde_json::from_str(event.payload()).unwrap());
     });
-    let info = call(&main, "open_initial", json!({})).unwrap();
+    let info = call(&main, "open_initial", json!({})).unwrap()["info"].clone();
     // What the system still had to say about the folder's creation.
     while rx.recv_timeout(Duration::from_millis(700)).is_ok() {}
 
@@ -314,7 +314,7 @@ fn one_batch_is_told_once_whatever_the_windows() {
     let vault = tempfile::tempdir().unwrap();
     let _uma = note(vault.path(), "Uma.md", "# Uma\n");
     let (app, main) = app_with(Some(vault.path().to_path_buf()));
-    let info = call(&main, "open_initial", json!({})).unwrap();
+    let info = call(&main, "open_initial", json!({})).unwrap()["info"].clone();
     for label in ["note-0", "note-1"] {
         tauri::WebviewWindowBuilder::new(&app, label, Default::default())
             .build()
@@ -425,7 +425,7 @@ fn the_commands_answer_through_the_contract() {
 
     // The command line's folder opens once; what crosses is a name
     // and a key, never the path (rule 4).
-    let info = call(&webview, "open_initial", json!({})).unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap()["info"].clone();
     assert_eq!(info["index"]["indexed"], 2, "{info}");
     assert_eq!(
         info["name"],
@@ -585,7 +585,7 @@ fn switching_folders_is_refused_from_a_note_window_and_while_its_folder_has_one(
     assert_eq!(from_popout["kind"], "refused", "{from_popout}");
     // The main window opens its folder; a note of it in a window of its
     // own (as `open_window` binds one) keeps the main window on it.
-    let key = call(&main, "open_initial", json!({})).unwrap()["key"]
+    let key = call(&main, "open_initial", json!({})).unwrap()["info"]["key"]
         .as_str()
         .unwrap()
         .to_owned();

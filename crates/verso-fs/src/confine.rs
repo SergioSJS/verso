@@ -61,6 +61,10 @@ pub enum ConfinementError {
     /// contract as its own kind, `ErrorKind::CaseTwin`, which the window
     /// says in the person's language and sync lists as a name taken.
     CaseTwin,
+    /// On a root opened for one file (ADR 0114 item 16), a path that is
+    /// neither that file nor an attachment it may read beside itself: a
+    /// sibling note, any new name, anything to list or move.
+    OutOfScope,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -80,6 +84,7 @@ impl std::fmt::Display for ConfinementError {
             Self::CaseTwin => {
                 "a name that differs only in case (or in how its accents are encoded) from another entry of its folder (a Mac or Windows keeps the two as one file)"
             }
+            Self::OutOfScope => "a path outside the one file this window shows",
         };
         write!(
             f,

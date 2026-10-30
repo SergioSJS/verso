@@ -20,6 +20,20 @@ in the real app.
 
 ## Not yet checked
 
+### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
+
+Per system — the double-click itself cannot run in the browser harness; each line on macOS, Windows (VM 103) and Linux (VM 104):
+
+- [ ] **Open with** (A): right-click a `.md` in Finder / Explorer / Nautilus: Verso is offered under "Open with" (not as the default); choosing it opens the file in the loose-files window with no tree, the bar naming the file and its folder.
+- [ ] **Double-click, app not running and running** (A): with Verso chosen as the app for `.md`, a double-click launches the app on the file alone (no empty window beside it); with the app running, the file is a new tab of the loose window, brought forward; a file inside a folder a window shows opens in that window instead.
+- [ ] **Dock, Finder's "Open with" and `open -a`** (A, macOS): drag a `.md` onto the Dock icon; `open -a "Verso Beta" nota.md`; `verso nota.md` in a terminal — all three the same window; several files dropped at once each get a tab.
+- [ ] **Names with spaces and accents** (A): `Minha nota ção.md` in a folder `Pasta com espaço`: opens, is saved, the bar shows the names right; on Windows also a path with `%20` from "Open with".
+- [ ] **A file only in iCloud / OneDrive** (A): an evicted `.md` opens (brought down first); the older `.Name.md.icloud` marker is refused in words; a `.txt` says it is not Markdown and nothing opens.
+- [ ] **Nothing beside the file** (A): after editing, `ls -la ~/Downloads` shows no `.verso`, `.trash` or temporary; the configuration directory gains no index for Downloads; `recent-files.json` lists the file.
+- [ ] **Make Verso the default** (A): Get Info › Change All (macOS); Settings › Default apps with the Settings button (Windows); `xdg-mime default verso-app.desktop text/markdown` (Linux, after a `.deb`/`.rpm` install; the AppImage only once integrated) — then a double-click opens Verso. The installer never made it the default by itself. Uninstalling on Windows removes `Verso.Markdown.1` and the registration (`check-windows.sh`).
+- [ ] **Open the whole folder** (A): the bar's button, the confirmation, the folder opened as a normal window; the loose window keeps its file.
+- [ ] **Deleted while open** (A): remove the file in the file manager: "Gravar aqui de novo" makes it again; "Salvar uma cópia…" opens the system's save dialog and writes there.
+
 - **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
 
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.

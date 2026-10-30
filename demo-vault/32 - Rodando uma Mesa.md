@@ -109,4 +109,4 @@ Em **Avançado: limites da mesa** (recolhido; cada campo salva ao sair dele ou c
 
 ---
 
-Volte a [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[33 - Abrir um Arquivo Avulso]], volte a [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].

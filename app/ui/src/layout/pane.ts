@@ -535,6 +535,9 @@ export class Pane {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
     if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
+    // A tab closed for good: what holds files by their tabs hears it (a
+    // file opened without its folder is let go, ADR 0114).
+    if (!moving && leaf.path) dispatchEvent(new CustomEvent("verso:tab-closed", { detail: leaf.path }));
     this.leaves.splice(i, 1);
     this.refreshNav();
     leaf.tab.remove();

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { sh } from "../../shareStrings";
+import { isLoose } from "../../loose";
 import { ensureSyntaxTree, foldAll, syntaxTree, unfoldAll } from "@codemirror/language";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, embeddedBase, liveBases } from "../../bases";
@@ -712,6 +713,20 @@ export function dress(this: NoteLeaf, forPath: string, root: ParentNode = this.p
     const raw = span.dataset["target"] ?? "";
     const to = this.resolve(raw);
     if (!to || !to.endsWith(".md") || to === this.path) continue;
+    // A file opened without its folder: a note embed is drawn as a link,
+    // never inlined — reading siblings unasked is reading the directory
+    // (ADR 0114 item 14).
+    if (isLoose()) {
+      const a = h("a", "wikilink embed-as-link", raw);
+      a.dataset["target"] = raw;
+      a.href = "#";
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.follow(raw);
+      });
+      span.replaceWith(a);
+      continue;
+    }
     // A web note embedded is its page, not its (empty) text: the same
     // direct, sandboxed frame an <iframe> gets, gate included.
     const webUrl = webNotes.get(to);

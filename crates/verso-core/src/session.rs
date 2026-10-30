@@ -145,3 +145,44 @@ mod tests {
         assert_eq!(folder_for_key(&key, at), None, "{gone:?} is gone");
     }
 }
+
+/// The most files remembered as recent (ADR 0114 Q4: ten).
+const MOST_FILES: usize = 10;
+
+/// The files opened without a folder lately, freshest first: paths at the
+/// edge, for the host's menu; never for a window (rule 4).
+#[must_use]
+pub fn recent_files(config: Option<&Path>) -> Vec<PathBuf> {
+    let Ok(dir) = dir(config) else {
+        return Vec::new();
+    };
+    sidecar::read_recent_files(&dir)
+        .into_iter()
+        .filter(|p| p.is_absolute())
+        .take(MOST_FILES)
+        .collect()
+}
+
+/// `path` was just opened: first of the recents, the list kept to
+/// [`MOST_FILES`].
+pub fn remember_recent_file(config: Option<&Path>, path: &Path) -> Result<(), CoreError> {
+    let dir = dir(config)?;
+    let mut files: Vec<PathBuf> = recent_files(config)
+        .into_iter()
+        .filter(|p| p != path)
+        .collect();
+    files.insert(0, path.to_path_buf());
+    files.truncate(MOST_FILES);
+    sidecar::write_recent_files(&dir, &files).map_err(CoreError::Sidecar)
+}
+
+/// `path` is gone (picked from the menu and not there): dropped from the
+/// recents.
+pub fn forget_recent_file(config: Option<&Path>, path: &Path) -> Result<(), CoreError> {
+    let dir = dir(config)?;
+    let files: Vec<PathBuf> = recent_files(config)
+        .into_iter()
+        .filter(|p| p != path)
+        .collect();
+    sidecar::write_recent_files(&dir, &files).map_err(CoreError::Sidecar)
+}

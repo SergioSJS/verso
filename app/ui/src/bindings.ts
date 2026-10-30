@@ -41,35 +41,15 @@ export const commands = {
 	 */
 	reopenFolder: (key: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("reopen_folder", { key })),
 	/**
-	 *  Open, once, the folder handed to the app — named on the command line
-	 *  (`verso-app <folder>`) or, on macOS, sent by an open event
-	 *  (`folder_handed`); `None` afterwards and when there was none. The UI
-	 *  calls it at start-up, before falling back to the last folder it
-	 *  remembers, and again when the host says a folder was handed to the app
-	 *  while it ran.
+	 *  Open, once, what was handed to the app — a folder named on the command
+	 *  line (`verso-app <folder>`) or, on macOS, sent by an open event
+	 *  (`folder_handed`), or a Markdown file (ADR 0114: `Opened::File`);
+	 *  `None` afterwards and when there was none. The UI calls it at
+	 *  start-up, before falling back to the last folder it remembers, and
+	 *  again when the host says a folder or a file was handed to the app while
+	 *  it ran. The loose-files window takes files only, never a folder.
 	 */
-	openInitial: () => typedError<{
-	/**  The folder's own name (its last path component), for display. */
-	name: string,
-	/**
-	 *  An opaque, stable name for the folder that carries no path — the
-	 *  stem of its index file's name under the configuration directory:
-	 *  letters, digits and `-`. What a UI keeps its per-folder state
-	 *  under, and what `reopen_folder` takes to open the folder again.
-	 */
-	key: string,
-	index: IndexSummary,
-	/**
-	 *  The name of the folder's file system when changes made there by
-	 *  other programs may show late: a volume without the exclusive rename
-	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
-	 *  2026-10-12), where a file Verso creates or moves is named by a
-	 *  link, whose later removal by another program the system may not
-	 *  report. Verso's own writes are as safe as anywhere. The UI says it
-	 *  once per folder, in the user's language (ADR 0035).
-	 */
-	late_outside_changes?: string | null,
-} | null, ContractError>(__TAURI_INVOKE("open_initial")),
+	openInitial: () => typedError<{ kind: "folder"; info: FolderInfo } | { kind: "file"; info: LooseFileInfo_Serialize } | null, ContractError>(__TAURI_INVOKE("open_initial")),
 	/**  Every note the index knows, by path relative to the folder. */
 	listNotes: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_notes")),
 	/**
@@ -222,6 +202,59 @@ export const commands = {
 	 */
 	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("current_folder")),
+	/**
+	 *  The files this window shows without a folder, for a window that joins
+	 *  or reloads (ADR 0114 item 9); empty for a folder's window.
+	 */
+	looseFiles: () => typedError<LooseFileInfo_Serialize[], ContractError>(__TAURI_INVOKE("loose_files")),
+	/**  The tab of `name` closed: the file is let go. */
+	looseClose: (name: string) => typedError<null, ContractError>(__TAURI_INVOKE("loose_close", { name })),
+	/**
+	 *  "Open the whole folder in Verso" (item 9), or the folder opened before
+	 *  that the file lies in (item 7 ii, `known`): opened as a handed folder
+	 *  is — in the window that shows it, an empty one, or a new one (ADR 0065
+	 *  item 4). The path never crosses: the window names the file, the host
+	 *  has its folder.
+	 */
+	openFolderOfFile: (name: string, known: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("open_folder_of_file", { name, known })),
+	/**
+	 *  A sibling note the file `from` links to, opened as a tab of its own in
+	 *  this window (item 14): `not_found` when nothing of that name is beside it.
+	 */
+	openSibling: (from: string, target: string) => typedError<LooseFileInfo_Serialize, ContractError>(__TAURI_INVOKE("open_sibling", { from, target })),
+	/**
+	 *  "Save here again" (item 11): the file made again at its name after it
+	 *  was deleted or moved outside; `exists` when something reappeared there.
+	 */
+	looseSaveAgain: (name: string, text: string) => typedError<Written_Serialize, ContractError>(__TAURI_INVOKE("loose_save_again", { name, text })),
+	/**
+	 *  "Save a copy…" (items 11 and 12): the system's save dialog, at the
+	 *  entry edge; the text written there atomically, never over what stands
+	 *  there. `false` when the person cancelled.
+	 */
+	looseSaveCopy: (name: string, text: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("loose_save_copy", { name, text })),
+	/**
+	 *  File › Open File… from the window: the picker, then the file handed
+	 *  over as a double-click is.
+	 */
+	pickFile: () => typedError<null, ContractError>(__TAURI_INVOKE("pick_file")),
+	/**
+	 *  The files opened without a folder lately (Q4), for the window's own
+	 *  menu on Windows and Linux: names and places, and an index into the
+	 *  host's list; never a path.
+	 */
+	recentFiles: () => typedError<RecentFile[], ContractError>(__TAURI_INVOKE("recent_files")),
+	/**
+	 *  A recent file picked from the window's menu: handed over as a
+	 *  double-click is; one that is gone leaves the list (Q4).
+	 */
+	openRecentFile: (index: number) => typedError<null, ContractError>(__TAURI_INVOKE("open_recent_file", { index })),
+	/**
+	 *  Settings › "To open .md files with Verso by default" (item 5, Q12): on
+	 *  Windows, the system's Default apps page; elsewhere the line says the
+	 *  gesture and there is nothing to open.
+	 */
+	openDefaultApps: () => typedError<null, ContractError>(__TAURI_INVOKE("open_default_apps")),
 	/**
 	 *  The app's version and the commit it was built from (ADR 0051), for the
 	 *  settings. Host-only, like `open_url`: nothing of the folder.
@@ -1538,7 +1571,33 @@ export type Can =
 /**  The account is the server's admin: the admin page. */
 "admin" | 
 /**  Several people editing one note at once (ADR 0073 item 7). */
-"collab";
+"collab" | 
+/**
+ *  The side shows a folder, with its index: the tree, the graph, the
+ *  bases, the tags, the files. Absent for one file opened without a
+ *  folder (ADR 0114 items 18 and 25), as are the rest below.
+ */
+"index" | 
+/**  Full-text search over the folder. */
+"search" | 
+/**  Backlinks and unlinked mentions. */
+"backlinks" | 
+/**  New notes, files and folders. */
+"create" | 
+/**  Renaming and moving entries. */
+"rename" | 
+/**  Deleting entries (into the bin). */
+"delete" | 
+/**  The folder's bin (ADR 0080). */
+"trash" | 
+/**  Version history (ADR 0091). */
+"history" | 
+/**  Sync with a server or a cloud (ADR 0079, ADR 0104). */
+"sync" | 
+/**  The table: rolls and chat (ADR 0107). */
+"table" | 
+/**  Boards and drawings (ADR 0057). */
+"board";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 
@@ -2741,6 +2800,79 @@ export type LocalServerStatus = {
 	dropped: string[],
 };
 
+/**  One file the loose-files window shows (ADR 0114 item 18). */
+export type LooseFileInfo = LooseFileInfo_Serialize | LooseFileInfo_Deserialize;
+
+/**  One file the loose-files window shows (ADR 0114 item 18). */
+export type LooseFileInfo_Deserialize = {
+	/**
+	 *  The file's name with its extension, as the window names the tab
+	 *  and asks for the note (`read_note`, `write_note`): a second file of
+	 *  the same name in the same window is told apart by a numbered name
+	 *  (`nota (2).md`), never by a path.
+	 */
+	name: string,
+	/**
+	 *  An opaque, stable name for the file that carries no path — letters,
+	 *  digits and `-`, as `FolderInfo::key` — what the window keeps its
+	 *  state under and what the `folder-changed` event names.
+	 */
+	key: string,
+	/**
+	 *  The parent folder's own name, as a label beside the title: never
+	 *  its path.
+	 */
+	place: string,
+	/**  Why the file is read only, when it is. */
+	read_only?: ReadOnlyReason | null,
+	/**
+	 *  The file's size in bytes (saturated at 4 GiB; such a file is read
+	 *  only anyway).
+	 */
+	size: number,
+	/**
+	 *  The name of a folder Verso has opened before that this file lies
+	 *  in, when there is one (ADR 0114 item 7 ii, Q3): the window offers
+	 *  to open it. Never its path.
+	 */
+	known_folder?: string | null,
+};
+
+/**  One file the loose-files window shows (ADR 0114 item 18). */
+export type LooseFileInfo_Serialize = {
+	/**
+	 *  The file's name with its extension, as the window names the tab
+	 *  and asks for the note (`read_note`, `write_note`): a second file of
+	 *  the same name in the same window is told apart by a numbered name
+	 *  (`nota (2).md`), never by a path.
+	 */
+	name: string,
+	/**
+	 *  An opaque, stable name for the file that carries no path — letters,
+	 *  digits and `-`, as `FolderInfo::key` — what the window keeps its
+	 *  state under and what the `folder-changed` event names.
+	 */
+	key: string,
+	/**
+	 *  The parent folder's own name, as a label beside the title: never
+	 *  its path.
+	 */
+	place: string,
+	/**  Why the file is read only, when it is. */
+	read_only?: ReadOnlyReason | null,
+	/**
+	 *  The file's size in bytes (saturated at 4 GiB; such a file is read
+	 *  only anyway).
+	 */
+	size: number,
+	/**
+	 *  The name of a folder Verso has opened before that this file lies
+	 *  in, when there is one (ADR 0114 item 7 ii, Q3): the window offers
+	 *  to open it. Never its path.
+	 */
+	known_folder?: string | null,
+};
+
 /**  The tiles of a map's picture. */
 export type MapInfo = {
 	state: MapState,
@@ -3062,6 +3194,24 @@ export type ObsidianPeriodic = {
 };
 
 /**
+ *  What the app was handed and opened: a folder, as always, or one file
+ *  (ADR 0114 item 18).
+ */
+export type Opened = Opened_Serialize | Opened_Deserialize;
+
+/**
+ *  What the app was handed and opened: a folder, as always, or one file
+ *  (ADR 0114 item 18).
+ */
+export type Opened_Deserialize = { kind: "folder"; info: FolderInfo } | { kind: "file"; info: LooseFileInfo_Deserialize };
+
+/**
+ *  What the app was handed and opened: a folder, as always, or one file
+ *  (ADR 0114 item 18).
+ */
+export type Opened_Serialize = { kind: "folder"; info: FolderInfo } | { kind: "file"; info: LooseFileInfo_Serialize };
+
+/**
  *  What a window asks the server of a room to draw for the oracle (ADR
  *  0102 item 5): the window sends what it draws from, the server draws —
  *  its generator, never the window's — and the room hears the result.
@@ -3294,8 +3444,37 @@ export type ReadLinks = {
 	links: ReadLinkInfo[],
 };
 
+/**
+ *  Why a loose file opens for reading only (ADR 0114 items 12 and 13).
+ *  A file that mixes line endings, or whose bytes are not UTF-8, is said
+ *  by the note's own text as in a folder.
+ */
+export type ReadOnlyReason = 
+/**
+ *  The file or its folder cannot be written by this person:
+ *  permissions, a locked file, a read-only volume.
+ */
+"permissions" | 
+/**
+ *  Above the bound a loose file is edited under (8 MiB, as built;
+ *  Q9): shown in Source, read only.
+ */
+"too_large";
+
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
+
+/**
+ *  A file opened without a folder lately (ADR 0114 item 15, Q4), for the
+ *  window's own menu on Windows and Linux: its name, where it sits (the
+ *  shortened label `RecentFolder::place` uses) and its place in the host's
+ *  list, which `open_recent_file` takes back. Never a path.
+ */
+export type RecentFile = {
+	index: number,
+	name: string,
+	place: string,
+};
 
 /**
  *  A folder of this computer opened before, for the folder switcher's

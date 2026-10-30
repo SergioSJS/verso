@@ -1,0 +1,90 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// The words of a file opened without a folder (ADR 0114 item 27), in
+// pt-BR and EN (ADR 0035), as the share strings are kept beside theirs.
+
+import { LANG } from "./strings";
+
+const pt = {
+  in: (place: string) => `em ${place}`,
+  bar: "Arquivo avulso",
+  openWhole: "Abrir a pasta inteira no Verso",
+  openWholeAsk: (folder: string) => `Abrir a pasta “${folder}” no Verso? Ela passa a ser indexada e aparece na árvore, com busca e links entre as notas; um índice é guardado fora dela.`,
+  openWholeYes: "Abrir a pasta",
+  knownFolder: (folder: string) => `Este arquivo fica em “${folder}”, uma pasta que você já abriu.`,
+  knownOpen: "Abrir a pasta",
+  readOnlyPermissions: "Só leitura: o sistema não deixa gravar este arquivo (permissões, arquivo bloqueado ou volume só de leitura). Use “Salvar uma cópia…”.",
+  readOnlyTooLarge: "Só leitura: o arquivo passa de 8 MiB e é mostrado no modo Fonte. Use “Salvar uma cópia…” para editar uma cópia.",
+  saveAgain: "Gravar aqui de novo",
+  saveCopy: "Salvar uma cópia…",
+  savedAgain: "Arquivo gravado de novo no mesmo lugar.",
+  copySaved: "Cópia salva.",
+  copyCancelled: "Nada salvo.",
+  noSibling: "Não há nota com esse nome ao lado deste arquivo. Abra a pasta inteira para seguir links.",
+  handedOther: (name: string) => `“${name}” não é uma pasta nem um arquivo Markdown (.md): nada foi aberto.`,
+  handedMissing: (name: string) => `“${name}” não existe mais: nada foi aberto.`,
+  handedPlaceholder: (name: string) => `“${name}” está só na nuvem, numa forma que o Verso não consegue baixar: nada foi aberto.`,
+  handedUnreadable: (name: string) => `“${name}” não pôde ser lido: nada foi aberto.`,
+  moveToWindow: "Mover para nova janela",
+  defaultTitle: "Abrir arquivos .md com o Verso por padrão",
+  defaultMac: "O Verso aparece em “Abrir com” de qualquer arquivo .md. Para ser o padrão: no Finder, selecione um arquivo .md, Obter Informações › Abrir com › Verso › Alterar tudo.",
+  defaultWindows: "O Verso aparece em “Abrir com” de qualquer arquivo .md. Para ser o padrão: Ajustes › Aplicativos › Aplicativos padrão, escolha o Verso para .md e .markdown.",
+  defaultLinux: "O Verso aparece em “Abrir com” de qualquer arquivo .md. Para ser o padrão: no gerenciador de arquivos, Abrir com › Verso, marcando como padrão; ou no terminal: xdg-mime default verso-app.desktop text/markdown.",
+  defaultButton: "Abrir Aplicativos padrão",
+  recentFiles: "Arquivos",
+};
+
+const en: typeof pt = {
+  in: (place: string) => `in ${place}`,
+  bar: "Single file",
+  openWhole: "Open the whole folder in Verso",
+  openWholeAsk: (folder: string) => `Open the folder “${folder}” in Verso? It will be indexed and shown as a tree, with search and links between notes; an index is kept outside it.`,
+  openWholeYes: "Open the folder",
+  knownFolder: (folder: string) => `This file is in “${folder}”, a folder you have opened before.`,
+  knownOpen: "Open the folder",
+  readOnlyPermissions: "Read only: the system does not let this file be written (permissions, a locked file or a read-only volume). Use “Save a copy…”.",
+  readOnlyTooLarge: "Read only: the file is over 8 MiB and is shown in Source. Use “Save a copy…” to edit a copy.",
+  saveAgain: "Save here again",
+  saveCopy: "Save a copy…",
+  savedAgain: "File saved again in the same place.",
+  copySaved: "Copy saved.",
+  copyCancelled: "Nothing saved.",
+  noSibling: "There is no note of that name beside this file. Open the whole folder to follow links.",
+  handedOther: (name: string) => `“${name}” is neither a folder nor a Markdown file (.md): nothing was opened.`,
+  handedMissing: (name: string) => `“${name}” is not there any more: nothing was opened.`,
+  handedPlaceholder: (name: string) => `“${name}” is only in the cloud, in a form Verso cannot download: nothing was opened.`,
+  handedUnreadable: (name: string) => `“${name}” could not be read: nothing was opened.`,
+  moveToWindow: "Move to new window",
+  defaultTitle: "Open .md files with Verso by default",
+  defaultMac: "Verso is offered under “Open with” for any .md file. To make it the default: in Finder, select an .md file, Get Info › Open with › Verso › Change All.",
+  defaultWindows: "Verso is offered under “Open with” for any .md file. To make it the default: Settings › Apps › Default apps, choose Verso for .md and .markdown.",
+  defaultLinux: "Verso is offered under “Open with” for any .md file. To make it the default: in the file manager, Open With › Verso, set as default; or in a terminal: xdg-mime default verso-app.desktop text/markdown.",
+  defaultButton: "Open Default apps",
+  recentFiles: "Files",
+};
+
+export const ls = LANG.toLowerCase().startsWith("pt") ? pt : en;
+
+/** The Settings line's words for this system (ADR 0114 item 5, Q12). */
+export function defaultAppDesc(platform: { mac: boolean; windows: boolean }): string {
+  if (platform.mac) return ls.defaultMac;
+  if (platform.windows) return ls.defaultWindows;
+  return ls.defaultLinux;
+}
+
+/** What the window says when the system handed something it does not
+ *  open (ADR 0114 item 6): by the kind the host classified. */
+export function handedRefusedText(kind: string, name: string): string {
+  switch (kind) {
+    case "missing":
+      return ls.handedMissing(name);
+    case "placeholder":
+      return ls.handedPlaceholder(name);
+    case "unreadable":
+      return ls.handedUnreadable(name);
+    default:
+      return ls.handedOther(name);
+  }
+}
