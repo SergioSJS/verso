@@ -47,15 +47,15 @@
 - Status in the briefing: not present; on acceptance.
 - Revisions: 2026-10-12 — the maintainer's answers to the five questions
   the building raised (Status), each recorded in its item, dated: items
-  4, 8 and 11. Two of them, both in item 11, are decided and not built
-  yet; one, in item 8, was being built that night.
+  4, 8 and 11. Two of them, both in item 11, were decided and are now built (2026-10-12);
+  the one in item 8 was built that night.
   2026-10-21 — items 4 ("links anyone may open: not now") and 17 ("a single
   document: not in the first version") are revised by
   [0105](0105-read-links-without-an-account.md), Accepted that day: a read
   link without an account on a folder or on one note, off on a new server;
   sharing one note **to write** stays as item 17 left it.
-  2026-10-21 (review of the afternoon batch, **awaiting the maintainer**,
-  question T.9 of the decisions list of the afternoon; nothing decided here)
+  2026-10-21 (review of the afternoon batch; answered 2026-10-22, below,
+  question T.9 of the decisions list of the afternoon; the answer is below)
   — item 5 says "names and keys, no path", and the folder switcher now shows a
   `place` label per recent folder: the last two components of its parent
   folder, never absolute, never `..` (see the same-date line in
@@ -64,7 +64,7 @@
   2026-10-22 — the maintainer answered T.9 and T.10 of the afternoon list.
   T.9, option A: the `place` label is accepted as a display label, recorded in
   [0026](0026-core-ui-contract-inviolable-rules.md) (rule 4); item 5's text is
-  unchanged. T.10, option A (**being built**): the folder switcher gets an ×
+  unchanged. T.10, option A (built): the folder switcher gets an ×
   on a recent folder that **hides it from the list** (nothing is deleted), and
   Settings gets "Mostrar pastas ocultas" (show hidden folders) to bring them
   back.
@@ -151,11 +151,11 @@ carried a recommendation; the maintainer decided. Open items answered
    behind the same check.
 3. **What a share is named**, for the receiver: the shared folder's name
    and the owner's — "Campanha (Sérgio)". Only the last component crosses:
-   the owner's path above it is theirs. `[OPEN]`: whether the owner may
+   the owner's path above it is theirs. `[DECIDED 2026-10-10]`: whether the owner may
    give a share a name of its own. Recommended: no, in the first version
    — decided 2026-10-10: no name of its own in the first version.
 4. **Who shares, with whom.** The **owner** of the folder shares; an
-   editor does not, and a receiver does not re-share (`[OPEN]`;
+   editor does not, and a receiver does not re-share (`[DECIDED 2026-10-10]`;
    recommended so, as the audit log then has one author per share —
    decided 2026-10-10: only the owner shares; a receiver does not
    re-share). The
@@ -164,7 +164,7 @@ carried a recommendation; the maintainer decided. Open items answered
    4's invitation, which already carries a folder and a role, carries a
    path too, so "invite a player to the campaign's folder" is one link.
    Links that anyone holding them may open are not in this ADR
-   (`[OPEN]`, for when asked; a server of private notes starts without
+   (`[DECIDED 2026-10-10]`, for when asked; a server of private notes starts without
    them — decided 2026-10-10: not now). *(Decided 2026-10-12, Revisions:
    only the admin invites a person who has no account.)*
 5. **Where it appears.** A section **"Shared with me"** — *Compartilhados
@@ -237,7 +237,7 @@ carried a recommendation; the maintainer decided. Open items answered
     already in the note's text, written by the owner, and nothing more
     crosses — not whether it exists, not its path, not its content. An
     embed of a note or an image outside the share shows the same words in
-    its place. `[OPEN]`: a shared folder whose notes embed attachments
+    its place. `[DECIDED 2026-10-10]`: a shared folder whose notes embed attachments
     kept outside it — Obsidian's default attachment folder at the vault's
     root is the common case — shows those words where the pictures
     should be. Recommended: when sharing, the owner is told which
@@ -339,7 +339,7 @@ carried a recommendation; the maintainer decided. Open items answered
     has no folder for its attachments, no place for a new note, syncs as
     a folder with one file, and shows "not in what was shared with you"
     on every link out. The maintainer said optional and only if cheap; the
-    server's part is cheap and the window's is not. `[OPEN]`; recommended:
+    server's part is cheap and the window's is not. `[DECIDED 2026-10-10]`; recommended:
     **not in the first version**, the model leaving the door open, and a
     read-only share of one note first if it is asked for — decided
     2026-10-10: not in the first version.
@@ -380,7 +380,7 @@ carried a recommendation; the maintainer decided. Open items answered
   file's changes** — who changed what, when, and bringing a version back —
   on top of the change log of [0079](0079-sync-a-local-folder-with-a-server.md)
   item 4, which today records hashes and actors and keeps no bytes.
-  `[OPEN]`, recorded here so that it is not forgotten (*"não esquece"*);
+  Taken up by [0091](0091-version-history.md) (accepted 2026-10-14); recorded here so that it is not forgotten (*"não esquece"*);
   it is the rest of 0073's "history, attribution and recovery of another
   member's change", and it gets an ADR of its own.
 
@@ -407,7 +407,7 @@ carried a recommendation; the maintainer decided. Open items answered
 **Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
 read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
 accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
-the recommendations). The history of a file's changes stays `[OPEN]` on
+the recommendations). The history of a file's changes went to [0091](0091-version-history.md), accepted 2026-10-14, on
 purpose, for its own ADR.
 
 **Built on the night of 2026-10-11 to 12** (9e725c2, 4c49939, 7a648e0,
@@ -446,4 +446,4 @@ changes (Consequences).
 Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 each `[OPEN]` of items 3, 4, 6, 11 and 17 decided as recommended, in
 place, and item 5 gaining the folder switcher, built with this ADR. The
-history of a file's changes stays `[OPEN]`, for its own ADR.
+history of a file's changes went to its own ADR, [0091](0091-version-history.md).
