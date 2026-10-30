@@ -635,3 +635,40 @@ fn a_loose_file_changed_outside_is_told_to_its_window() {
         lock(&heard.0)
     );
 }
+
+/// A picture of another note's folder is never served to a note that does
+/// not cite it (ADR 0114 Q5): each session serves only what its own text
+/// cites, from its own parent.
+#[test]
+fn a_loose_note_never_reads_the_pictures_of_another_notes_folder() {
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    std::fs::write(one.path().join("a.md"), "sem imagem\n").unwrap();
+    std::fs::write(one.path().join("so-de-a.png"), b"A").unwrap();
+    std::fs::write(two.path().join("b.md"), "![[b.png]]\n").unwrap();
+    std::fs::write(two.path().join("b.png"), b"B").unwrap();
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    service
+        .open_loose("w", &one.path().join("a.md"), None)
+        .unwrap();
+    service
+        .open_loose("w", &two.path().join("b.md"), None)
+        .unwrap();
+    for (note, expected) in [("a.md", None), ("b.md", Some("b.png"))] {
+        let r = service
+            .dispatch("w", "read_note", serde_json::json!({"path": note}))
+            .unwrap();
+        r.unwrap();
+        let r = service
+            .dispatch(
+                "w",
+                "resolve_attachment",
+                serde_json::json!({"source": note, "target": expected.unwrap_or("so-de-a.png")}),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(r.as_str(), expected, "{note}");
+    }
+    assert_eq!(service.loose_attachment("w", "b.png").unwrap(), b"B");
+    assert!(service.loose_attachment("w", "so-de-a.png").is_err());
+}
