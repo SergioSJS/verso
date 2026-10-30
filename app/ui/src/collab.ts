@@ -846,14 +846,23 @@ async function visitRoom(path: string): Promise<VisitedRoom | null> {
   if (sessions.has(path)) return null;
   const r = await commands.collabJoin(path);
   // A file whose line ends are mixed is in no room: written as before.
-  if (r.status !== "ok" || r.data.read_only) return null;
+  if (r.status !== "ok" || joinsNothing(r.data)) return null;
+  // A reader is in the room now (the server has put it there): it reads,
+  // so the visit has no edit to make, and leaves.
   // A board's room takes elements, not text (boardRoom.ts).
-  if (r.data.kind !== "text") {
+  if (r.data.read_only || r.data.kind !== "text") {
     void commands.collabLeave(path);
     return null;
   }
   const doc = new Y.Doc();
-  Y.applyUpdate(doc, fromB64(r.data.update), REMOTE);
+  try {
+    Y.applyUpdate(doc, fromB64(r.data.update), REMOTE);
+  } catch (e) {
+    // Joined, so left in every path.
+    doc.destroy();
+    void commands.collabLeave(path);
+    throw e;
+  }
   const text = doc.getText("verso");
   const before = Y.encodeStateVector(doc);
   let left = false;
