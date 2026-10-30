@@ -135,6 +135,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
 | [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Accepted in part (2026-10-28): items 1–3; not built |
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24) |
+| [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Proposed (2026-10-30); 13 `[OPEN]` questions, each with a recommendation |
 
 ### Dialect, engineering and roadmap
 
