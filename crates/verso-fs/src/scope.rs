@@ -265,6 +265,12 @@ impl Root {
         let scope = self.scope.as_ref()?;
         let path = on_disk(&self.path, scope);
         let target = placeholder::follow(&path).unwrap_or(path);
+        // The directory's mode bits say "nobody may write" on Unix only; on
+        // Windows the READONLY attribute of a directory is a marker (Explorer
+        // sets it on Documents and Pictures) that stops no write, so it is
+        // not read. Whether the directory takes a new file is asked for real
+        // by [`Root::scoped_dir_writable`], when a save is about to be made.
+        #[cfg(unix)]
         if let Ok(meta) = std::fs::metadata(&self.path)
             && meta.permissions().readonly()
         {
@@ -286,6 +292,25 @@ impl Root {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => Some(ReadOnlyWhy::Permissions(e.kind().to_string())),
         }
+    }
+
+    /// Whether the parent directory takes a new file, asked for real: the
+    /// atomic save writes a temporary file there and renames it over the
+    /// file, so a file that can be written in a directory that cannot is
+    /// not editable. A temporary of a name no sweep takes for a writer's is
+    /// created and removed at once, never left. Called when a save is about
+    /// to be made, not at every command.
+    pub fn scoped_dir_writable(&self) -> Result<(), std::io::Error> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static N: AtomicU64 = AtomicU64::new(0);
+        let name = format!(
+            ".verso-tmp-probe-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::Relaxed)
+        );
+        let probe = self.path.join(name);
+        std::fs::File::create_new(&probe)?;
+        std::fs::remove_file(&probe)
     }
 
     /// The scoped file's length in bytes, following a symlink, without

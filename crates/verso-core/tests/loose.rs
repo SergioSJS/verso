@@ -266,3 +266,43 @@ fn a_write_to_a_read_only_file_is_refused_by_the_core() {
     )
     .unwrap();
 }
+
+/// A file the user may write in a directory only a group may write in: the
+/// mode bits of the directory are not all zero, yet the save (temporary file
+/// + rename) cannot be made. The core asks the directory for real.
+#[cfg(unix)]
+#[test]
+fn a_directory_that_takes_no_new_file_refuses_the_write_before_the_save() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, mut loose) = loose();
+    let note = loose.read("Lista.md").unwrap();
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o575)).unwrap();
+    let probe = loose.write("Lista.md", "novo\n", &note.revision);
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o755)).unwrap();
+    if fs::File::create(dir.path().join("probe")).is_ok() && probe.is_ok() {
+        return; // running as root: the mode bits stop nothing.
+    }
+    let err = probe.unwrap_err();
+    assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
+    // The probe left nothing behind.
+    let _ = fs::remove_file(dir.path().join("probe"));
+    assert_eq!(names(dir.path()), ["Lista.md", "Outra.md", "foto.png"]);
+}
+
+/// Explorer marks Documents, Pictures and folders with a `desktop.ini` with
+/// the READONLY attribute; it stops no write and is not a reason.
+#[cfg(windows)]
+#[test]
+fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
+    let (dir, mut loose) = loose();
+    let mut perms = fs::metadata(dir.path()).unwrap().permissions();
+    perms.set_readonly(true);
+    fs::set_permissions(dir.path(), perms.clone()).unwrap();
+    let ro = loose.read_only();
+    let note = loose.read("Lista.md").unwrap();
+    let wrote = loose.write("Lista.md", "novo\n", &note.revision);
+    perms.set_readonly(false);
+    fs::set_permissions(dir.path(), perms).unwrap();
+    assert_eq!(ro, None);
+    wrote.unwrap();
+}

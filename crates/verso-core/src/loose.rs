@@ -164,7 +164,9 @@ impl Loose {
             Some(LooseReadOnly::Permissions(why)) => {
                 Err(CoreError::Loose(format!("the file is read only: {why}")))
             }
-            None => Ok(()),
+            None => self.root.scoped_dir_writable().map_err(|e| {
+                CoreError::Loose(format!("the file's folder cannot be written: {}", e.kind()))
+            }),
         }
     }
 
