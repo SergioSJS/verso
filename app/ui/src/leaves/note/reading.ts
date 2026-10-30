@@ -28,7 +28,7 @@ import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
 import { headingVisibility, setHeadingFolded } from "./folds";
-import { apply, crossesBlocks, describes, keepAnchor, plan, scrollAnchor, snapshot } from "./reconcile";
+import { apply, crossesBlocks, describes, keepAnchor, modeOfSig, plan, scrollAnchor, snapshot } from "./reconcile";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
 import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
@@ -509,7 +509,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   const html = withNoteLinks(reader?.html ?? note.html, note.path);
   const sig = `${note.path}\n${reader ? "r" : "n"}${this.readOnly ? "o" : "w"}\n${html}`;
   const text = reader?.text ?? note.text;
-  const whole = !force && sameNote && describes(this.blocks, this.preview);
+  const whole = !force && sameNote && modeOfSig(sig) === modeOfSig(this.paintedSig) && describes(this.blocks, this.preview);
   if (whole && sig === this.paintedSig) {
     // Nothing the view shows changed: nothing is touched.
     if (this.shownText !== note.text) {
@@ -552,10 +552,14 @@ export function paintBlocks(this: NoteLeaf, path: string, html: string, sig: str
   // What wiring left of the new blocks, one for one (a block a wire replaced
   // by a card is that block's place); anything else and the view is drawn whole.
   const made = Array.from(wrap.childNodes);
-  if (made.length !== p.fresh.length) return false;
+  if (made.length !== p.fresh.length) {
+    // The embeds still on their way belong to blocks that are not used.
+    wrap.dataset["abandoned"] = "1";
+    return false;
+  }
   let at = 0;
   const next = p.next.map((b) => ({ key: b.key, node: b.fresh ? made[at++]! : b.node }));
-  const anchor = scrollAnchor(this.sheet, this.preview);
+  const anchor = scrollAnchor(this.sheet, this.preview, new Set(p.next.filter((b) => !b.fresh).map((b) => b.node)));
   apply(this.preview, next, p.removed);
   this.blocks = next;
   this.applyReadingFolds(this.preview, made);
@@ -1052,7 +1056,7 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       void this.paintPreview();
     });
   }
-  if (this.path !== forPath) return;
+  if (this.path !== forPath || root.dataset["abandoned"]) return;
   for (const span of spans) {
     const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
     const rel = found.get(spec.file);

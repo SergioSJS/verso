@@ -91,11 +91,16 @@ impl Workspace {
                     });
                     // A note past the cap is a file to sync, not text to
                     // index: never read here, and the row of a smaller
-                    // version it had goes (`INDEX_MOST`).
+                    // version it had goes (`INDEX_MOST`). The file is still
+                    // there: present, so that it is not reported gone (the
+                    // history would record a deletion of a file on disk).
+                    present.insert(relative.clone());
                     if entry.len > INDEX_MOST {
+                        if self.index.remove(&relative).map_err(CoreError::Index)? {
+                            report.removed += 1;
+                        }
                         continue;
                     }
-                    present.insert(relative.clone());
                     // Modified time and length the index holds, from long
                     // enough before the last complete run began
                     // (`Index::complete`): unchanged, and not read again
