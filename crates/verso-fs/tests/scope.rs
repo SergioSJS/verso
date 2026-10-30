@@ -283,3 +283,25 @@ fn the_watch_reports_the_file_and_not_its_siblings() {
     assert!(!seen.contains(&PathBuf::from("outra.md")), "{seen:?}");
     assert!(!seen.contains(&PathBuf::from("sub/nova.md")), "{seen:?}");
 }
+
+/// Explorer marks Documents, Pictures and folders with a `desktop.ini` with
+/// the READONLY attribute; it stops no write and is not a reason (moved here
+/// from verso-core's loose tests: only this crate touches the disk).
+#[cfg(windows)]
+#[test]
+fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
+    let (dir, mut root) = loose();
+    let was = fs::metadata(dir.path()).unwrap().permissions();
+    let mut marked = was.clone();
+    marked.set_readonly(true);
+    fs::set_permissions(dir.path(), marked).unwrap();
+    let why = root.scoped_read_only();
+    let h = root.scoped_file().unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let wrote = root.write(h, b"# Nota\n\nnovo\n", &stamp);
+    // Back as it was (not `set_readonly(false)`, which on Unix would open
+    // it to everyone).
+    fs::set_permissions(dir.path(), was).unwrap();
+    assert!(why.is_none(), "{why:?}");
+    wrote.unwrap();
+}
