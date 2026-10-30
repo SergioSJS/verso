@@ -18,6 +18,7 @@
 // saves on this computer, and comes back into the room when the link does
 // (`verso:sync-state`, from the status the sync says).
 
+import { joinsNothing } from "./joinAnswer";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Prec, type Extension } from "@codemirror/state";
@@ -309,7 +310,7 @@ export abstract class RoomSession {
 
   constructor(
     readonly path: string,
-    joined: { update: string; revision: string; user: string; epoch: string },
+    joined: { update: string; revision: string; user: string; epoch: string; read_only?: boolean },
     first: CollabHandlers,
     synced = false,
   ) {
@@ -319,6 +320,7 @@ export abstract class RoomSession {
     Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
     this.revision = joined.revision;
     this.epoch = joined.epoch;
+    this.readerRoom = joined.read_only === true;
     this.person = joined.user;
     this.awareness = new Awareness(this.doc);
     this.outbox = this.queue();
@@ -439,8 +441,11 @@ export abstract class RoomSession {
   /** The person only reads the folder on the server: present in the
    *  room, not typing (ADR 0082 item 4). */
   get reader(): boolean {
-    return this.synced && syncState?.role === "reader" && !syncedMay(this.path);
+    return this.readerRoom || (this.synced && syncState?.role === "reader" && !syncedMay(this.path));
   }
+  /** The server said, at the join, that this person may not type in the
+   *  note (ADR 0113 `may`): in the room to follow it, read-only. */
+  private readonly readerRoom: boolean;
 
   /** The names of the others in the note now, each once. */
   others(): string[] {
@@ -507,7 +512,7 @@ export abstract class RoomSession {
     // A synced note whose link is not ready (the status says connected a
     // moment before the host's live link is) stays local and asks again.
     if (this.synced && r.status !== "ok" && r.error.kind === "unavailable") return this.rejoinLater();
-    if (r.status !== "ok" || r.data.read_only) return this.handlers.closed();
+    if (r.status !== "ok" || joinsNothing(r.data)) return this.handlers.closed();
     if (r.data.epoch === this.epoch) {
       Y.applyUpdate(this.doc, fromB64(r.data.update), REMOTE);
       this.live = true;
@@ -585,7 +590,7 @@ export abstract class RoomSession {
     }
     // Never left rejoining: the way out is the old one (the board read anew).
     if (this.closedLocally) return;
-    if (!joined || joined.status !== "ok" || joined.data.read_only) {
+    if (!joined || joined.status !== "ok" || joinsNothing(joined.data)) {
       this.rejoining = false;
       this.leave();
       this.handlers.closed("lost");
@@ -777,7 +782,7 @@ async function joinRoomNow<S extends RoomSession>(
     else joinNotPending(path);
     return null;
   }
-  if (r.data.read_only) {
+  if (joinsNothing(r.data)) {
     joinNotPending(path);
     return null;
   }

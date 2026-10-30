@@ -47,7 +47,8 @@ import { formatUnderCaret, tableKeymap, template as tableTemplate } from "../../
 import { sendable } from "../../table/send";
 import { focusedAlign, focusTableCell, tableAction, tableHasFocus } from "../../tableEditor";
 import { Mode, NoteLeaf } from "../note";
-import { fromDisk, readOnlyText } from "../text";
+import { fromDisk } from "../text";
+import { readOnlyText } from "../readOnlyText";
 import { readerWatch } from "../../readerNotice";
 
 export function modeButton(this: NoteLeaf, mode: Mode, ic: string, label: string): HTMLButtonElement {

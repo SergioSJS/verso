@@ -27,6 +27,27 @@ use crate::state::Server;
 /// ADR 0113, so that the window's notices and the tests keep their words.
 const READS: &str = "you may only read this folder";
 
+/// What the window gets when the refused write is a creation, a rename, a
+/// move or a delete: the right it lacks, not "only read" (a player may edit
+/// a file and still not make, move or delete one, ADR 0113 K.6). The
+/// window says each in its own language (`errors.ts`); none names a file,
+/// so a hidden one is not told by them.
+pub const NO_CREATE: &str = "you may not create files here";
+pub const NO_RENAME: &str = "you may not rename this";
+pub const NO_MOVE: &str = "you may not move this";
+pub const NO_DELETE: &str = "you may not delete this";
+
+/// The refusal of the write `name`: the right it needed.
+fn refusal_of(name: &str) -> &'static str {
+    match name {
+        "create_note" | "create_folder" | "create_file" => NO_CREATE,
+        "rename_note" | "rename_entry" => NO_RENAME,
+        "move_entries" => NO_MOVE,
+        "delete_note" | "delete_entry" => NO_DELETE,
+        _ => READS,
+    }
+}
+
 /// The window behind a request, as the rules need it.
 #[derive(Clone)]
 pub struct Door {
@@ -335,7 +356,21 @@ impl Door {
         if verdict.allowed() {
             Ok(())
         } else {
-            Err(crate::rpc::refused(READS))
+            {
+                // A rename into another folder is a move.
+                let moved = matches!(name, "rename_note" | "rename_entry")
+                    && match (path_of("from"), path_of("to")) {
+                        (Some(from), Some(to)) => {
+                            Self::parent(&from) != Self::parent(&Self::rename_target(&from, to))
+                        }
+                        _ => false,
+                    };
+                Err(crate::rpc::refused(if moved {
+                    NO_MOVE
+                } else {
+                    refusal_of(name)
+                }))
+            }
         }
     }
 

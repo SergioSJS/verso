@@ -20,6 +20,18 @@ export const STATE = new Set(["not_found", "not_on_phone", "phone_reads"]);
  *  item 12): said in the window's own sentence, an answer, not a fault. */
 export const PHONE = new Set(["not_on_phone", "phone_reads"]);
 
+/** The refusals the server words by the right a person lacks (ADR 0113
+ *  K.6): its English text, never shown as it is, to the string that says
+ *  it in the interface's language. A refusal not here keeps the generic
+ *  sentence of its kind. */
+export const REFUSALS: Record<string, "errReadOnly" | "errNoCreate" | "errNoRename" | "errNoMove" | "errNoDelete"> = {
+  "you may only read this folder": "errReadOnly",
+  "you may not create files here": "errNoCreate",
+  "you may not rename this": "errNoRename",
+  "you may not move this": "errNoMove",
+  "you may not delete this": "errNoDelete",
+};
+
 /** A failure of the connection itself — the web bridge's "no connection,
  *  trying again" (`transport: true`) — comes with the kind `unavailable`
  *  that the core also gives a file still in the cloud (ADR 0043). It is
