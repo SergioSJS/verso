@@ -10,7 +10,7 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: 'export { readOnlyText } from "./src/leaves/text"; export { ySyncAnnotation } from "y-codemirror.next"; export { EditorState } from "@codemirror/state"; export { joinsNothing } from "./src/joinAnswer";',
+    contents: 'export { readOnlyText } from "./src/leaves/readOnlyText"; export { ySyncAnnotation } from "y-codemirror.next"; export { EditorState } from "@codemirror/state"; export { joinsNothing } from "./src/joinAnswer";',
     resolveDir: ".",
     loader: "ts",
   },
