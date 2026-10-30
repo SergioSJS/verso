@@ -109,6 +109,13 @@ pub struct Veil {
     /// The attachments a released note opens; made on first need, from
     /// the folder itself (`campaign_serve::opened`).
     files: OnceLock<HashSet<String>>,
+    /// What each note or board of the folder opens (the attachments it
+    /// links or embeds), by path: read from the file once per veil of the
+    /// folder's state, for every viewer's view of it. It depends on the
+    /// file alone, never on who looks; the viewer only chooses which notes
+    /// count (`campaign_serve::opened`). A change of the folder's files
+    /// makes the veil again, and this with it.
+    opens: Arc<Mutex<HashMap<String, Arc<HashSet<String>>>>>,
     viewer: Viewer,
     /// Whether the players of the folder each have a sync log of their
     /// own (`campaign_epoch`).
@@ -230,6 +237,7 @@ impl Veil {
             lang: self.lang.clone(),
             images: Arc::clone(&self.images),
             files: OnceLock::new(),
+            opens: Arc::clone(&self.opens),
             viewer,
             restricted: self.restricted,
             unreadable: self.unreadable,
@@ -370,6 +378,20 @@ impl Veil {
 
     /// The attachments released notes link or embed, built by `make` the
     /// first time they are asked for.
+    /// What the note or board at `path` opens, read by `make` the first
+    /// time and kept for this state of the folder.
+    pub fn opens_of(
+        &self,
+        path: &str,
+        make: impl FnOnce() -> HashSet<String>,
+    ) -> Arc<HashSet<String>> {
+        if let Some(found) = lock(&self.opens).get(path) {
+            return Arc::clone(found);
+        }
+        let made = Arc::new(make());
+        Arc::clone(lock(&self.opens).entry(path.to_owned()).or_insert(made))
+    }
+
     pub fn files_with(&self, make: impl FnOnce() -> HashSet<String>) -> &HashSet<String> {
         self.files.get_or_init(make)
     }
@@ -749,6 +771,7 @@ pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>
         lang,
         images: Arc::new(images),
         files: OnceLock::new(),
+        opens: Arc::default(),
         viewer: Viewer::Public,
         restricted,
         unreadable: false,
@@ -785,6 +808,7 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
         lang: "en".to_owned(),
         images: Arc::new(HashSet::new()),
         files: OnceLock::new(),
+        opens: Arc::default(),
         viewer: Viewer::Public,
         restricted: true,
         unreadable: true,

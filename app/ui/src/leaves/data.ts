@@ -33,6 +33,8 @@ export function dataModes(leaf: Leaf, on: "text" | "diagram"): HTMLElement {
     const b = h("button");
     b.type = "button";
     b.append(icon(ic), h("span", "", label));
+      b.setAttribute("aria-label", label);
+      b.title = label;
     b.setAttribute("aria-pressed", String(face === on));
     b.dataset["mode"] = face;
     b.addEventListener("click", () => {

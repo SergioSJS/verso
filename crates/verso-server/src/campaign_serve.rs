@@ -62,39 +62,44 @@ pub fn opened<'v>(ws: &mut Workspace, veil: &'v Veil) -> &'v HashSet<String> {
             .filter(|p| note_like(p) && veil.in_table(p) && !veil.hides_note(p))
             .collect();
         for path in released {
-            let Ok(bytes) = ws.read_file(&path) else {
-                continue;
-            };
-            if bytes.len() > 4 * 1024 * 1024 {
-                continue;
-            }
-            let text = String::from_utf8_lossy(&bytes).into_owned();
-            let mut reached: Vec<String> = Vec::new();
-            if is_board(&path) {
-                for (file, words) in board_refs(&text) {
-                    if let Some(f) = file
-                        && let Some(r) = ws.reached_exact(&f)
-                    {
-                        reached.push(r);
-                    }
-                    for t in campaign_text::targets(&words) {
-                        reached.extend(ws.reached_path(&path, &t));
-                    }
-                }
-            } else if is_note(&path) {
-                for t in campaign_text::targets(&text) {
-                    reached.extend(ws.reached_path(&path, &t));
-                }
-            }
-            out.extend(
-                reached
-                    .into_iter()
-                    .filter(|r| !note_like(r))
-                    .map(|r| key(&r)),
-            );
+            let reached = veil.opens_of(&path, || opens_of_file(ws, &path));
+            out.extend(reached.iter().cloned());
         }
         out
     })
+}
+
+/// The attachments the note or board at `path` links or embeds, by key.
+fn opens_of_file(ws: &mut Workspace, path: &str) -> HashSet<String> {
+    let Ok(bytes) = ws.read_file(path) else {
+        return HashSet::new();
+    };
+    if bytes.len() > 4 * 1024 * 1024 {
+        return HashSet::new();
+    }
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let mut reached: Vec<String> = Vec::new();
+    if is_board(path) {
+        for (file, words) in board_refs(&text) {
+            if let Some(f) = file
+                && let Some(r) = ws.reached_exact(&f)
+            {
+                reached.push(r);
+            }
+            for t in campaign_text::targets(&words) {
+                reached.extend(ws.reached_path(path, &t));
+            }
+        }
+    } else if is_note(path) {
+        for t in campaign_text::targets(&text) {
+            reached.extend(ws.reached_path(path, &t));
+        }
+    }
+    reached
+        .into_iter()
+        .filter(|r| !note_like(r))
+        .map(|r| key(&r))
+        .collect()
 }
 
 /// Every file of the folder (not a folder), as the index and the last walk

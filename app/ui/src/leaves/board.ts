@@ -141,6 +141,8 @@ export class BoardLeaf extends TextLeaf {
       b.type = "button";
       b.dataset["face"] = face;
       b.append(icon(ic), h("span", "", label));
+      b.setAttribute("aria-label", label);
+      b.title = label;
       b.addEventListener("click", () => void this.setFace(face));
       return b;
     };

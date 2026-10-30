@@ -306,9 +306,22 @@ impl Rooms {
             .filter(|((k, p), _)| !(k == key && p == path))
             .map(|(_, r)| Arc::clone(r))
             .collect();
+        // A room busy at this moment is not waited for: another window's
+        // join of a big board holds its room for tens of milliseconds, and
+        // every join of every note beside it queued behind that. The limit
+        // is a guard against a window that opens a hundred notes, not an
+        // exact count: a room busy now is at most missed by this one ask
+        // (the next sees it), so the overshoot is bounded by the rooms
+        // in the middle of an operation.
         rooms
             .iter()
-            .filter(|r| lock(r).clients.contains(client))
+            .filter(|r| match r.try_lock() {
+                Ok(room) => room.clients.contains(client),
+                Err(std::sync::TryLockError::Poisoned(p)) => {
+                    p.into_inner().clients.contains(client)
+                }
+                Err(std::sync::TryLockError::WouldBlock) => false,
+            })
             .count()
     }
 

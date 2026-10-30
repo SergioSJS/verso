@@ -23,6 +23,8 @@ export function htmlModes(leaf: Leaf, on: "page" | "source"): HTMLElement {
     const b = h("button");
     b.type = "button";
     b.append(icon(ic), h("span", "", label));
+    b.setAttribute("aria-label", label);
+    b.title = label;
     b.setAttribute("aria-pressed", String(face === on));
     b.addEventListener("click", () => {
       if (face !== on) void leaf.pane.swap(leaf, face === "page" ? new FrameLeaf(leaf.pane) : new TextLeaf(leaf.pane));

@@ -1,7 +1,8 @@
 /* ---------- A board (ADR 0057): Excalidraw fills the tab; Verso draws each node inside it ---------- */
 .leaf.board-face .sheet { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .leaf.board-face .flags:empty { display: none; }
-.board-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* The board's own layers stay inside it: a phone's side drawer is over the board, tools and all. */
+.board-host { flex: 1; min-height: 0; display: flex; flex-direction: column; isolation: isolate; }
 .board-host[hidden] { display: none; }
 .board-mount, .board-root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .board-root { position: relative; }

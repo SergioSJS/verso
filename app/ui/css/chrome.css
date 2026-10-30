@@ -2,6 +2,14 @@
 .status-bar { display: flex; align-items: center; gap: 1rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-top: 1px solid var(--hair); font-size: .76rem; color: var(--ink-3); min-height: 1.9rem; min-width: 0; overflow: hidden; }
 .status-bar .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-keys { margin-left: auto; flex: none; }
+/* The bar's toggles and its bug button are the way back to the side bars: never
+   squeezed, never clipped (2026-10-30: at a narrow width the right bar's toggle
+   went past the bar's end). What else the bar holds shrinks first, cut with an
+   ellipsis, and the least useful goes, by the window's width. */
+.status-bar > .bar-toggle { flex: none; }
+.status-bar > :not(.bar-toggle):not(.status-keys):not(.status) { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+@container (max-width: 760px) { .status-bar .status-words, .status-bar .status-live { display: none; } }
+@container (max-width: 560px) { .status-bar .index-progress-label, .status-bar .status-keys { display: none; } }
 @container (max-width: 820px) { .status-keys button:not([data-cmd="palette"]) { display: none; } }
 @container (max-width: 520px) { .status-words { display: none; } }
 .status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
