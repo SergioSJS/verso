@@ -103,7 +103,13 @@ impl Workspace {
         report: &mut IndexReport,
     ) -> Result<bool, CoreError> {
         let is_note = entry.kind == EntryKind::Note;
-        if is_note || is_canvas(relative) {
+        if is_note && entry.len > crate::indexing::INDEX_MOST {
+            // Past the cap: not read, not indexed; a row of a smaller
+            // version goes (`INDEX_MOST`).
+            if self.index.remove(relative).map_err(CoreError::Index)? {
+                report.removed += 1;
+            }
+        } else if is_note || is_canvas(relative) {
             match self.root.read(entry.handle) {
                 Ok((bytes, stamp)) => {
                     let stamp = note_stamp(&stamp);

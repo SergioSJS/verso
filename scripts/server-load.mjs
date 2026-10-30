@@ -48,12 +48,26 @@ const RECORD = !argv.includes("--no-record");
 // JSON header's length in four bytes, the header, the bytes); 1, as
 // base64 inside the JSON.
 const SYNC = Number(arg("sync", "2"));
-const ACCOUNTS = (arg("accounts", "") || "").split(",").filter(Boolean).map((s) => {
+// Night-round options (ADR 0079 stress of a small server): the accounts from a
+// JSON file ({accounts:[{email,password}]}) so no password is in a command line;
+// `--pull user@host:/dir` copies the folder's directory from the server before
+// the byte-for-byte check (the script runs on another machine than the server);
+// `--big-mb`/`--big-pct` set the big files' size and share; `--burst` makes most
+// steps new small files.
+const PULL = arg("pull", "");
+const BIG_BYTES = Number(arg("big-mb", "2")) * 1_000_000;
+const BIG_PCT = Number(arg("big-pct", "5")) / 100;
+const BIG_EXT = arg("big-ext", "md");
+const BURST = argv.includes("--burst");
+const ACCOUNTS_FILE = arg("accounts-file", "");
+const ACCOUNTS = (ACCOUNTS_FILE
+  ? JSON.parse(readFileSync(ACCOUNTS_FILE, "utf8")).accounts.map((a) => `${a.email}:${a.password}`).join(",")
+  : arg("accounts", "") || "").split(",").filter(Boolean).map((s) => {
   const at = s.indexOf(":");
   return [s.slice(0, at), s.slice(at + 1)];
 });
-const PREFIX = `carga-${Date.now()}`;
-if (!FOLDER || !DISK || ACCOUNTS.length === 0) {
+const PREFIX = `carga-${Date.now()}-${process.pid}`;
+if (!FOLDER || !(DISK || PULL) || ACCOUNTS.length === 0) {
   console.error("usage: node scripts/server-load.mjs --folder <id> --disk <dir> --accounts email:pw[,…] [--devices 40] [--seconds 60]");
   process.exit(2);
 }
@@ -183,12 +197,17 @@ class Device {
     const r = Math.random();
     const mine = [...this.own.entries()].filter(([, h]) => h !== null);
     const pick = () => mine[Math.floor(Math.random() * mine.length)];
-    if (r < 0.25) {
+    if (BURST && r < 0.85 && !(r < 0.1)) {
+      const path = `${PREFIX}/dev-${this.i}/b-${++this.seq}.md`;
+      const res = await this.put("put_burst", path, Buffer.from(`# rajada ${this.seq} do aparelho ${this.i}\n${randomBytes(40).toString("hex")}\n`), null);
+      if (res.ok) this.own.set(path, res.hash);
+    } else if (r < 0.25) {
       const m = await this.timed("changes", "sync_changes", { since: this.cursor });
       if (m.ok) this.cursor = m.ok.head;
     } else if (r < 0.45 || mine.length === 0) {
-      const path = `${PREFIX}/dev-${this.i}/n-${++this.seq}.md`;
-      const size = Math.random() < 0.05 ? 2_000_000 : 200 + Math.floor(Math.random() * 4000);
+      const big = Math.random() < BIG_PCT;
+      const path = `${PREFIX}/dev-${this.i}/n-${++this.seq}.${big ? BIG_EXT : "md"}`;
+      const size = big ? BIG_BYTES : 200 + Math.floor(Math.random() * 4000);
       const data = Buffer.concat([Buffer.from(`# Nota ${this.seq} do aparelho ${this.i}\n\n`), randomBytes(size)]);
       const res = await this.put("put_new", path, data, null);
       if (res.ok) this.own.set(path, res.hash);
@@ -269,11 +288,16 @@ async function main() {
     latency[op] = { n: a.length, p50: round(pct(a, 50)), p90: round(pct(a, 90)), p95: round(pct(a, 95)), p99: round(pct(a, 99)), max: round(a.at(-1)) };
   }
   const problems = [];
+  let DISKDIR = DISK;
+  if (PULL) {
+    DISKDIR = join(os.tmpdir(), `server-load-pull-${process.pid}`);
+    execSync(`mkdir -p ${DISKDIR} && rsync -a -e "ssh -o StrictHostKeyChecking=no" ${PULL}/${PREFIX}/ ${DISKDIR}/${PREFIX}/`, { stdio: "inherit" });
+  }
   let files = 0;
   let deletions = 0;
   for (const d of devices) {
     for (const [path, hash] of d.own) {
-      const file = join(DISK, path);
+      const file = join(DISKDIR, path);
       if (hash === null) {
         if (existsSync(file)) problems.push(`${path}: deleted, still there`);
         else deletions++;
@@ -282,7 +306,7 @@ async function main() {
       else files++;
     }
   }
-  const hotFile = join(DISK, PREFIX, "quente.md");
+  const hotFile = join(DISKDIR, PREFIX, "quente.md");
   const hotNow = existsSync(hotFile) ? sha(readFileSync(hotFile)) : null;
   const hotLast = hot.sort((a, b) => a.at - b.at).at(-1)?.hash ?? null;
   if (hot.length && hotNow !== hotLast) problems.push("quente.md: not the last version accepted");
