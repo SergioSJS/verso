@@ -48,4 +48,4 @@ The installer registers Verso as **an** app that opens `.md` and `.markdown`, an
 
 ---
 
-Go back to [[32 - Running a Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go on to [[34 - UniVerso on a Free Oracle Server]], go back to [[32 - Running a Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

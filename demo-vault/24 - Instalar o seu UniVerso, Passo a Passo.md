@@ -16,6 +16,9 @@ Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcio
 > [!WARNING] O Verso está em testes
 > Ainda **não há um download público**: o repositório do Verso é privado enquanto o app amadurece, e os comandos abaixo baixam o programa de lá com um **token** do GitHub que o mantenedor lhe dá. Sem esse acesso, ainda não dá para instalar. Os comandos são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1** e conferidos passo a passo, em 2026-10-15, numa máquina Ubuntu 26.04 de 1 núcleo e 1 GB com a **0.8.2-beta.1** (o Caminho 1 inteiro; o Caminho 2 com a imagem montada à mão). O que ficou sem rodar num navegador de verdade: o HTTPS com nome ou Tailscale, o app de desktop e o celular. Se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
 
+> [!TIP] Nunca montou um servidor?
+> A nota [[34 - UniVerso num Servidor Grátis da Oracle]] é o roteiro com o **menu do instalador** (`sh universo.sh`): HTTPS com um nome grátis e o primeiro admin em poucos passos, numa máquina grátis da Oracle. O que está abaixo é o caminho manual.
+
 > [!NOTE] O caminho mais curto
 > Cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração que aparece no log. **Sem HTTPS, sem nome, sem proxy.** O HTTPS é um passo opcional, depois, para liberar o modo offline e as notificações (seção 5). Isso vale a partir da versão que vem depois da 0.8.2-beta.1; as anteriores recusam entrar por HTTP vindo de outra máquina.
 

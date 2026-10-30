@@ -388,3 +388,22 @@ turns the update check off (item 7). *(Accepted on 2026-10-12, as built:
 - **Swap is a file, `/swapfile`**, 1 GB for up to 1 GB of memory and 2 GB
   above, `vm.swappiness=10` in `/etc/sysctl.d/99-universo.conf`; refused on
   a file system that cannot hold one (btrfs, ZFS) with the reason.
+- **`VERSO_TRUSTED_PROXY` is left empty by `https`.** The proposal said "as
+  server-install.md requires"; the guide (section 8) says the default, empty,
+  already believes a proxy on the same machine, which is where Caddy runs, so
+  the script writes only `VERSO_PUBLIC_URL`. A value would replace that list,
+  not add to it.
+- **`--yes` never makes a swap file or picks a name.** It answers yes to the
+  "go on?" questions of a script, but making swap (a change to the whole
+  machine) is offered only to a person, and `https --yes` without
+  `--domain`, `--free-name` or `--duckdns` stops and says which to give.
+- **The menu runs each step by running the script again** as a subcommand
+  (`sh universo.sh <step>`), so a step that fails ends that step and returns
+  to the menu, and the menu can never do what a command cannot.
+- **Tests:** `scripts/check-installer.sh` (also `check-linux.sh --installer`),
+  in an Ubuntu 24.04 container under systemd with a `.deb` laid out from the
+  server image's binary. Caddy's own repository is reached for real; Let's
+  Encrypt is not (Caddy's internal CA stands in, `UNIVERSO_CADDY_TLS=internal`,
+  a test-only variable), so the real issuance, DuckDNS with a live token and
+  an Oracle machine remain manual checks (`docs/reference/manual-checks.md`).
+
