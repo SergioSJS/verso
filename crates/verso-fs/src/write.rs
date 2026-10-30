@@ -182,10 +182,8 @@ pub(crate) fn write_atomically(
     let checked = check(path, expected)?;
     // No stem from the target's name: a long note name must stay writable
     // (NAME_MAX is 255). Dot-prefixed, so a walk never lists it.
-    let temp = checked.dir.join(format!(
-        ".verso-tmp-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
+    let temp = checked.dir.join(crate::sweep::temp_name(
+        COUNTER.fetch_add(1, Ordering::Relaxed),
     ));
     // Created with the original's mode from the first instant: a 0600
     // note is never visible as 0644 under the temporary name.
