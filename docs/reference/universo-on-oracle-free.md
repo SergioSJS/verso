@@ -94,6 +94,25 @@ the next boot:
 sh universo.sh firewall
 ```
 
+### The guided way (2026-10-30)
+
+Everything in sections 3 to 5 is also one menu: `sh universo.sh` (arrow keys
+with `whiptail`, which Ubuntu carries, else a numbered list) offers install,
+the machine's firewall, HTTPS, the first admin, backup, update, status and a
+support report, each said and confirmed before it runs. On the 1 GB shape
+`install` first offers a swap file; on Oracle, `install` and `firewall`
+print the VCN steps of section 2. `sh universo.sh https` takes your own
+domain, a free name made from the machine's address (`150-230-1-2.sslip.io`,
+nothing to buy), or DuckDNS, and `sh universo.sh admin` makes the first
+admin with a hidden password, so the commands of sections 4 and 5 are only
+the by-hand version. The tutorial for a first-timer is note 34 of the demo
+vault; what each guided command does is in [the install
+guide](server-install.md), "The installer script". The guided parts were
+tested in an Ubuntu 24.04 container under systemd
+(`scripts/check-installer.sh`), with Caddy's internal certificate authority
+standing in for Let's Encrypt; not on an Oracle machine, and Let's Encrypt
+itself was not reached.
+
 ## 4. HTTPS with Caddy
 
 UniVerso works over plain HTTP, but offline mode, notifications and passkeys need HTTPS, and a public address should have it. Caddy, in

@@ -110,6 +110,9 @@
   parent such as `/DATA` hands every other app's root-owned files in it to uid
   1000. The entrypoint says in the log how many entries it handed over, so a
   mount that is too wide shows.
+  2026-10-30 — the installer becomes guided, for laypeople on a weak free
+  VPS; eight proposals approved by the maintainer (*"top, mete bronca"*),
+  recorded in "Amendment 2026-10-30" at the end of this file.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's
@@ -296,3 +299,111 @@ as a subcommand of `verso` (item 1), a folder's id (item 3) and the TLS
 variables (item 6). Proposed with the implementation: the variable that
 turns the update check off (item 7). *(Accepted on 2026-10-12, as built:
 `VERSO_UPDATE_CHECK`.)*
+
+## Amendment 2026-10-30 — the guided installer
+
+- Source: the maintainer, in session on 2026-10-30, wanting
+  `packaging/server/universo.sh` friendly for laypeople following a video
+  on a weak free VPS (Oracle Cloud's free tier: often no Docker, 1 GB of
+  memory, x86 or Ampere ARM64), inspired by the Foundry VTT scripts of
+  [Mestre Digital](https://github.com/brunocalado/mestre-digital) (MIT;
+  ideas only, no code copied). He was shown eight proposals and approved
+  them: *"top, mete bronca"*.
+- Scope: the installer script and its tutorial. Nothing in the server, the
+  contract or the packages changes.
+
+### `[DECIDED 2026-10-30]`
+
+1. **A guided menu.** `sh universo.sh` with no argument opens a menu (pt-BR
+   or EN by `LANG`, as today): install, HTTPS, first admin, backup, update,
+   status, support, uninstall. Arrow keys with `whiptail` when the machine
+   has it (Debian and Ubuntu ship it), else a numbered menu with `read`; a
+   clear confirmation before each step. Every menu action is also a plain
+   subcommand, scriptable, with `--yes` for no questions.
+2. **HTTPS in one step.** `universo.sh https` installs Caddy from its own
+   signed repository (apt or dnf; never `trusted=yes`), asks for the domain,
+   writes a Caddyfile that reverse-proxies to UniVerso (WebSocket included),
+   lets Caddy obtain the certificate, writes `VERSO_PUBLIC_URL` (and
+   `VERSO_TRUSTED_PROXY` where the install guide requires it) into
+   `/etc/universo/universo.env`, restarts the service and checks that
+   `https://<domain>` answers, explaining a failure in words (port 80 or 443
+   closed, DNS not pointing here, rate limit).
+3. **HTTPS without buying a domain.** An IP-based name (sslip.io or nip.io
+   style, `150-230-1-2.sslip.io`) or DuckDNS (asks for the token, installs
+   its updater as a systemd timer). The default is chosen by the public
+   facts, recorded below.
+4. **The first admin by the script.** It asks the e-mail and the password
+   (typed twice, hidden, never echoed or logged), makes the admin through
+   the server's own mechanism and prints the sign-in link.
+5. **Care for a weak VPS.** Swap made (by memory: only when it is 2 GB or
+   less and there is no swap; asked first; persistent in `/etc/fstab`;
+   sane swappiness). Oracle Cloud detected (DMI or metadata): the script
+   prints the step-by-step to open 80 and 443 in the VCN's security list and
+   fixes the Ubuntu image's iptables INPUT rules (persisted with
+   `netfilter-persistent`), the latter only when asked, through the
+   existing `firewall` command.
+6. **Optional automatic backup and update.** A daily backup (keeping N) and
+   a weekly update as systemd timers, offered in the menu, **off by
+   default**; `universo.sh schedule status|off`.
+7. **`universo.sh support`.** Collects version, OS, architecture, memory
+   and disk, the service's state, the last ~200 log lines, the settings'
+   names without the value of anything secret, the firewall's state and
+   Caddy's, into a text file and standard output, ready to paste, and says
+   plainly that it holds no password or token.
+8. **A tutorial for laypeople** in both demo vaults: create the VM on
+   Oracle's free tier, connect by SSH, fetch the script, run the menu, HTTPS
+   with a free name, the first admin, open on the phone.
+
+### As built (choices the maintainer did not make, with the reason)
+
+- **Default free name: sslip.io, with nip.io as the automatic second try.**
+  Checked on 2026-10-30. `sslip.io` and `nip.io` are **not** on the Public
+  Suffix List (the list, `publicsuffix.org/list/public_suffix_list.dat`,
+  has `duckdns.org` and neither of those), so all their users share
+  Let's Encrypt's per-registered-domain limit of 50 certificates a week
+  (<https://letsencrypt.org/docs/rate-limits/>); the sslip.io page
+  (<https://sslip.io>) says Let's Encrypt "graciously bumped our limit from
+  50 to 250,000", asks anyone rate-limited to try nip.io, and says neither
+  issues a wildcard. Even so, a limit can bite on the day: the script
+  tries sslip.io, and if the certificate is refused for the limit, offers
+  nip.io (a different registered domain). **DuckDNS is on the list**, so
+  each of its names has a limit of its own, and its name survives a change
+  of IP; it needs an account and a token, so it is the second choice, not
+  the first, for a layperson. The IP in the name is the server's public
+  address: it is public by nature, and anyone who knows the name knows it.
+- **First admin through the settings file, not a new command.** The server
+  has no command that creates an account (only `admin reset`, which resets
+  one), and this round changes no server code. The script writes
+  `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD_FILE` (a file readable by
+  root and the `universo` group only, never an argument or a log line),
+  restarts the service, reads the journal for the line that says the admin
+  was made, then **removes both variables and the file**. With an account
+  already there, the server ignores them and the script says so and points
+  to `reset-admin`.
+- **Timers are `universo-backup.timer` and `universo-update.timer`**, each
+  running `universo.sh backup` / `update` through a small unit written to
+  `/etc/systemd/system`; backups keep the last 7 by default
+  (`--keep N`). The update timer never installs a version it cannot verify:
+  it runs the same checks as `update`.
+- **Swap is a file, `/swapfile`**, 1 GB for up to 1 GB of memory and 2 GB
+  above, `vm.swappiness=10` in `/etc/sysctl.d/99-universo.conf`; refused on
+  a file system that cannot hold one (btrfs, ZFS) with the reason.
+- **`VERSO_TRUSTED_PROXY` is left empty by `https`.** The proposal said "as
+  server-install.md requires"; the guide (section 8) says the default, empty,
+  already believes a proxy on the same machine, which is where Caddy runs, so
+  the script writes only `VERSO_PUBLIC_URL`. A value would replace that list,
+  not add to it.
+- **`--yes` never makes a swap file or picks a name.** It answers yes to the
+  "go on?" questions of a script, but making swap (a change to the whole
+  machine) is offered only to a person, and `https --yes` without
+  `--domain`, `--free-name` or `--duckdns` stops and says which to give.
+- **The menu runs each step by running the script again** as a subcommand
+  (`sh universo.sh <step>`), so a step that fails ends that step and returns
+  to the menu, and the menu can never do what a command cannot.
+- **Tests:** `scripts/check-installer.sh` (also `check-linux.sh --installer`),
+  in an Ubuntu 24.04 container under systemd with a `.deb` laid out from the
+  server image's binary. Caddy's own repository is reached for real; Let's
+  Encrypt is not (Caddy's internal CA stands in, `UNIVERSO_CADDY_TLS=internal`,
+  a test-only variable), so the real issuance, DuckDNS with a live token and
+  an Oracle machine remain manual checks (`docs/reference/manual-checks.md`).
+

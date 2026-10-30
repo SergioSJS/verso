@@ -1732,3 +1732,14 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 6. Delete the file in Finder while open: the tab keeps the text with **Gravar aqui de novo** and **Salvar uma cópia…**; the first makes the file again, the second opens the system's save dialog. Level: A.
 7. **Abrir a pasta inteira no Verso**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before shows "Este arquivo fica em …" with **Abrir a pasta**. Level: A; E: `loose.spec.mjs` (`?known=1`).
 8. Settings › Arquivos e links › **Abrir arquivos .md com o Verso por padrão**: the gesture of this system; on Windows the button opens Default apps. Level: A.
+
+## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
+
+On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 34:
+
+1. `curl -fsSLO https://versomd.com/universo.sh && sh universo.sh`: the menu opens, with arrows when `whiptail` is there and a numbered list otherwise, in the language of `LANG`; `0` or Quit leaves. Declining a step ("Go on?" with `n`) runs nothing. Level: A; E: `scripts/check-installer.sh` (menu driven by a script, both languages, a declined step).
+2. Option 1, Install: on a 1 GB machine it offers a swap file first; after the install it prints the short "back in the menu" lines, and on Oracle the VCN steps. Level: A (swap and install through the .deb: `scripts/check-installer.sh`; a real Oracle machine: manual).
+3. Option 2, HTTPS, with the free name: the certificate arrives, `https://<ip-with-dashes>.sslip.io` opens the sign-in page on the phone. With a port closed on purpose (Oracle's security list), the message says the port is closed, in words. Level: A, on a machine with a public address; Let's Encrypt itself is not reached by the automated check (Caddy's internal CA stands in).
+4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
+5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
+
