@@ -107,6 +107,10 @@ struct Filter {
     /// it — FSEvents reports real paths, so `/tmp/x` comes back as
     /// `/private/tmp/x`.
     roots: Vec<PathBuf>,
+    /// A root for one file (ADR 0114 item 11): only that name passes —
+    /// editors save by replacing the file, so the parent is watched, not
+    /// the inode — and the watch is not recursive.
+    scope: Option<PathBuf>,
     ignored: Vec<PathBuf>,
     /// Absolute directories whose events are dropped, in both forms too.
     excluded: Vec<PathBuf>,
@@ -168,6 +172,13 @@ impl Filter {
             }
         }
         if self.ignored.iter().any(|i| out == *i || out.starts_with(i)) {
+            return None;
+        }
+        // A root for one file: only that name is a change of it (a
+        // placeholder's form already folded to the name above).
+        if let Some(scope) = &self.scope
+            && out != *scope
+        {
             return None;
         }
         Some(Some(out))
@@ -318,16 +329,19 @@ pub(crate) fn start(
     rules: crate::WalkRules,
     excluded: &[PathBuf],
     quiet: Duration,
+    scope: Option<PathBuf>,
     on_change: impl FnMut(Changes) + Send + 'static,
 ) -> Result<Watch, std::io::Error> {
+    let recursive = scope.is_none();
     let filter = Filter {
         roots: both_forms(root),
         ignored,
         excluded: excluded.iter().flat_map(|x| both_forms(x)).collect(),
         builtin_ignores: rules.builtin_ignores,
+        scope,
     };
     let (tx, rx) = mpsc::channel();
-    let watcher = native_or_polled(root, &tx, None)?;
+    let watcher = native_or_polled(root, &tx, None, recursive)?;
     let scanned = crate::server::network_file_system(root);
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = Arc::clone(&stop);
@@ -349,7 +363,13 @@ fn native_or_polled(
     root: &Path,
     tx: &mpsc::Sender<notify::Result<Event>>,
     poll: Option<Duration>,
+    recursive: bool,
 ) -> Result<Box<dyn notify::Watcher + Send>, std::io::Error> {
+    let mode = if recursive {
+        RecursiveMode::Recursive
+    } else {
+        RecursiveMode::NonRecursive
+    };
     // The receiving thread is gone once the watch stopped: nothing to hand
     // an event to, and nothing to report it to.
     let handler = |tx: mpsc::Sender<notify::Result<Event>>| {
@@ -363,7 +383,7 @@ fn native_or_polled(
     let networked = crate::server::network_file_system(root).is_some();
     if poll.is_none() && !networked {
         let native = notify::recommended_watcher(handler(tx.clone())).and_then(|mut w| {
-            w.watch(root, RecursiveMode::Recursive)?;
+            w.watch(root, mode)?;
             Ok(w)
         });
         match native {
@@ -375,9 +395,7 @@ fn native_or_polled(
     let config = notify::Config::default().with_poll_interval(poll.unwrap_or(POLL_EVERY));
     let mut polled =
         notify::PollWatcher::new(handler(tx.clone()), config).map_err(without_paths)?;
-    polled
-        .watch(root, RecursiveMode::Recursive)
-        .map_err(without_paths)?;
+    polled.watch(root, mode).map_err(without_paths)?;
     Ok(Box::new(polled))
 }
 
@@ -433,6 +451,7 @@ mod tests {
             ignored: ignored.iter().map(PathBuf::from).collect(),
             excluded: vec![PathBuf::from(format!("{root}/Library/verso"))],
             builtin_ignores: true,
+            scope: None,
         }
     }
 
@@ -442,7 +461,8 @@ mod tests {
     fn a_polled_watch_sees_a_new_file() {
         let dir = tempfile::tempdir().unwrap();
         let (tx, rx) = mpsc::channel();
-        let _watcher = native_or_polled(dir.path(), &tx, Some(Duration::from_millis(100))).unwrap();
+        let _watcher =
+            native_or_polled(dir.path(), &tx, Some(Duration::from_millis(100)), true).unwrap();
         std::thread::sleep(Duration::from_millis(300));
         let file = tempfile::Builder::new()
             .prefix("nova")
