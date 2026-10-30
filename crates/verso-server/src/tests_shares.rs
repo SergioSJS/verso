@@ -1285,3 +1285,43 @@ fn a_link_outside_the_share_and_an_unresolved_one_cross_alike() {
         says_nothing_outside(&links);
     });
 }
+
+/// `collab_join` tells the truth about who may type (night device test,
+/// 2026-10-30): the reader of a share is answered `read_only: true` — its
+/// window opens read-only — though it is in the room, with the note's
+/// text; the editor of the same note is answered `false`.
+#[test]
+fn a_join_tells_a_reader_it_is_read_only_and_an_editor_it_is_not() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, _owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let joined = w.call("collab_join", json!({ "path": "Outra.md" })).await;
+        assert_eq!(joined["ok"]["read_only"], true, "{joined}");
+        // Still in the room, to follow it: the note's text and a room.
+        assert_ne!(joined["ok"]["update"], "", "{joined}");
+        assert_ne!(joined["ok"]["epoch"], "", "{joined}");
+        // The editor of the same share is told it may type.
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let editor = shared["id"].as_str().unwrap().to_owned();
+        let (mut e, _) = Win::open(&r, &ana, &editor).await;
+        let joined = e.call("collab_join", json!({ "path": "Outra.md" })).await;
+        assert_eq!(joined["ok"]["read_only"], false, "{joined}");
+    });
+}
