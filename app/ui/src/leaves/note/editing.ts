@@ -55,6 +55,8 @@ export function modeButton(this: NoteLeaf, mode: Mode, ic: string, label: string
   const b = h("button");
   b.type = "button";
   b.append(icon(ic), h("span", "", label));
+  b.setAttribute("aria-label", label);
+  b.title = label;
   b.addEventListener("click", () => {
     // A mode is a way to show the text: a drawing shown gives way to it.
     if (this.drawingShown) this.setDrawingShown(false);

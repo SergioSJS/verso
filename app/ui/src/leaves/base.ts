@@ -33,6 +33,8 @@ export class BaseLeaf extends TextLeaf {
       b.type = "button";
       b.dataset["face"] = face;
       b.append(icon(ic), h("span", "", label));
+      b.setAttribute("aria-label", label);
+      b.title = label;
       b.addEventListener("click", () => this.setFace(face));
       return b;
     };

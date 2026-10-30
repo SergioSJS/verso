@@ -330,7 +330,10 @@ export class NoteLeaf extends Leaf {
 
     const titleRow = h("div", "title-row");
     this.liveMark.hidden = true;
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
+    // The tools are one group: wrapped under a narrow title, they stay together, at the right.
+    const tools = h("span", "title-tools");
+    tools.append(this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, tools);
     this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;

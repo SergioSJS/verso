@@ -1165,8 +1165,11 @@ rest below and in `manual-checks.md`.
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
-    a note opened in *Editar* says *ao vivo, só você* beside its title and
-    in the status bar; another person in it is named (*ao vivo, com Bia*)
+    a note opened in *Editar* says *ao vivo, só você* beside its title (a
+    dot, the words in its tip and to a screen reader) and in the status bar;
+    each other person in it is a mark with their initial, named on hover
+    or tap (*ao vivo, com Bia* in the dot's tip); more than three marks
+    become two and a *+N*
     and their text arrives; what is typed goes to the room, never to the
     file, which follows the room's save; the link dropped, the note says
     *local — sem conexão*, keeps its text and saves it here; back, *A nota
