@@ -1110,3 +1110,36 @@ fn a_picked_file_is_copied_in_pieces_listed_and_never_overwrites() {
     ));
     assert!(ws.read_file("outro.pdf").is_err());
 }
+
+/// A note past the index's cap (16 MB) is never read and parsed by the walk,
+/// the narrow run or a sync write: a server of 1 GB was killed by 60 MB
+/// "notes" (night round 2026-10-30). It stays a file in the listing, is not
+/// searchable, and the row of a smaller version it replaced goes.
+#[test]
+fn a_note_past_the_index_cap_is_not_indexed() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let mut big = b"palavraenorme ".to_vec();
+    big.resize(17 * 1024 * 1024, b'x');
+    let _small = note(vault.path(), "pequena.md", "# Pequena\n\npalavrapequena\n");
+    let _big = bytes(vault.path(), "grande.md", &big);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavrapequena", 10).unwrap().len(), 1);
+    assert!(ws.search("palavraenorme", 10).unwrap().is_empty());
+    assert!(
+        ws.entries().iter().any(|e| e.path == "grande.md"),
+        "still listed"
+    );
+
+    // A small version indexed, then replaced by a huge one on the disk: the
+    // walk drops its row.
+    std::fs::write(vault.path().join("troca.md"), "# Troca\n\npalavratroca\n").unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavratroca", 10).unwrap().len(), 1);
+    let mut huge = b"palavratroca ".to_vec();
+    huge.resize(17 * 1024 * 1024, b'y');
+    std::fs::write(vault.path().join("troca.md"), &huge).unwrap();
+    ws.index().unwrap();
+    assert!(ws.search("palavratroca", 10).unwrap().is_empty());
+}
