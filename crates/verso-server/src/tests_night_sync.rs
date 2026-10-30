@@ -474,3 +474,74 @@ fn night_rooms_long() {
     });
     println!("night rooms: done");
 }
+
+/// Night round 2026-10-30: five people typing in turn never left a pause of
+/// 900 ms, so the room never wrote the file (4 minutes on disk at 5 bytes).
+/// A room writes at least every few seconds while edits keep coming.
+#[test]
+fn a_note_edited_without_a_pause_is_still_written() {
+    use base64::Engine;
+    use yrs::updates::decoder::Decode;
+    use yrs::{GetString, Text, Transact};
+    crate::tests::block_on(async {
+        let r = crate::tests::start().await;
+        let b = crate::tests::sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = crate::tests::folder_id(&r, &b).await;
+        let mut one = crate::tests::connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        let mut two = crate::tests::connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        for ws in [&mut one, &mut two] {
+            crate::tests::next(ws).await;
+            crate::tests::call(ws, 1, "open_server_folder", json!({ "id": id })).await;
+        }
+        let joined =
+            crate::tests::call(&mut one, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        crate::tests::call(&mut two, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(joined["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(crate::collab::TEXT);
+        // An edit every 300 ms for ten seconds: never a pause of 900 ms.
+        let mut saved = false;
+        for n in 0..34 {
+            let typed = {
+                let mut txn = doc.transact_mut();
+                let len = text.get_string(&txn).encode_utf16().count() as u32;
+                text.insert(&mut txn, len, &format!("linha {n}\n"));
+                txn.encode_update_v1()
+            };
+            let update = base64::engine::general_purpose::STANDARD.encode(typed);
+            let sent = crate::tests::call(
+                &mut one,
+                10 + n,
+                "collab_update",
+                json!({ "path": "Sessao.md", "update": update }),
+            )
+            .await;
+            assert!(sent.get("ok").is_some(), "{sent}");
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            // Window two's events: a save tells the file was written.
+            while let Ok(Some(Ok(tokio_tungstenite::tungstenite::Message::Text(t)))) =
+                tokio::time::timeout(
+                    std::time::Duration::from_millis(1),
+                    futures_util::StreamExt::next(&mut two),
+                )
+                .await
+            {
+                let v: Value = serde_json::from_str(&t).unwrap();
+                saved |= v["event"] == "collab-saved";
+            }
+        }
+        assert!(saved, "ten seconds of steady typing and no write");
+    });
+}
