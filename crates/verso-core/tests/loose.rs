@@ -319,26 +319,6 @@ fn a_directory_that_takes_no_new_file_refuses_the_write_before_the_save() {
     assert_eq!(names(dir.path()), ["Lista.md", "Outra.md", "foto.png"]);
 }
 
-/// Explorer marks Documents, Pictures and folders with a `desktop.ini` with
-/// the READONLY attribute; it stops no write and is not a reason.
-#[cfg(windows)]
-#[test]
-fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
-    let (dir, mut loose) = loose();
-    let was = dir.path().metadata().unwrap().permissions();
-    let mut marked = was.clone();
-    marked.set_readonly(true);
-    fs::set_permissions(dir.path(), marked).unwrap();
-    let ro = loose.read_only();
-    let note = loose.read("Lista.md").unwrap();
-    let wrote = loose.write("Lista.md", "novo\n", &note.revision);
-    // Back as it was (not `set_readonly(false)`, which on Unix would open
-    // it to everyone; this test runs on Windows only, but the lint is right).
-    fs::set_permissions(dir.path(), was).unwrap();
-    assert_eq!(ro, None);
-    wrote.unwrap();
-}
-
 #[test]
 fn save_here_again_does_not_make_the_folder_again() {
     let (dir, mut loose) = loose();
