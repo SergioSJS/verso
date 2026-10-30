@@ -206,10 +206,6 @@ test("a synced folder's board is live: what is drawn goes to the room, which wri
   expect(await app.calls("write_board")).toHaveLength(0);
   await page.evaluate((n) => window.__harness.rooms.save(n), BOARD);
   await expect.poll(async () => cardY(app, await app.file(BOARD), "b")).toBeGreaterThan(50);
-  // Sync brings the room's save down and the host tells the window the file
-  // changed (the harness writes it without the event): the board's revision
-  // follows the file, so going local later finds nothing to settle.
-  await app.folderChanged([BOARD]);
 
   // The link drops: the board goes local, said in words, and what is
   // drawn now is saved on this computer.

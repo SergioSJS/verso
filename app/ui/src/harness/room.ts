@@ -141,7 +141,11 @@ export class Rooms {
         this.core.writeOutside(path, laid);
       }
     } else this.core.writeOutside(path, room.doc.getText("verso").toString());
-    room.revision = `r${Date.now()}`;
+    // The revision the room wrote is the file's own, as the server's is once
+    // sync has brought the file down: a board holding it can read the text
+    // at that revision and judge later outside news against it.
+    const written = this.core.handlers[room.board ? "read_text" : "read_note"]!({ path }) as NoteText;
+    room.revision = written.revision;
     void emit("collab-saved", { path, revision: room.revision });
     return room.revision;
   }
