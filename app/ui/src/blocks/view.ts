@@ -13,6 +13,7 @@
 
 import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
+import { posAt } from "../editor/posAt";
 import { pointerDrag } from "../bases/drag";
 import { allowed, blockAt, blocksOfSelection, depthOf, frontmatterEnd, gapsOf, moveBlocks, outline, type Block, type Container, type Target } from "./model";
 
@@ -126,7 +127,8 @@ export function blockHandles(opts: BlockHandleOptions) {
         window.clearTimeout(this.hideTimer);
         if (this.box.contains(e.target as Node)) return;
         const content = this.view.contentDOM.getBoundingClientRect();
-        const pos = this.view.posAtCoords({ x: content.left + 8, y: e.clientY }, false);
+        const pos = posAt(this.view, { x: content.left + 8, y: e.clientY }, false);
+        if (pos === null) return this.hide();
         const block = blockAt(blocksOf(this.view.state), this.view.state.doc, pos);
         if (block) return this.show(block);
         // An empty line, outside the frontmatter: the `+` alone, as Notion

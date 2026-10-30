@@ -10,6 +10,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
+import { posAt } from "../editor/posAt";
 import type { NoteLeaf } from "../leaves/note";
 import { frontmatterEnd } from "../live/frontmatter";
 import { placeBlock, type Container, type Placement } from "./place";
@@ -39,7 +40,7 @@ export function placementAt(view: EditorView, block: string, x: number, y: numbe
     const rect = el.getBoundingClientRect();
     return placeBlock(view.state.doc, pos, block, containerAt(view, pos), y > rect.top + rect.height / 2);
   }
-  const pos = view.posAtCoords({ x, y }, false);
+  const pos = posAt(view, { x, y }, false);
   if (pos === null) return null;
   const box = view.lineBlockAt(pos);
   return placeBlock(view.state.doc, pos, block, containerAt(view, pos), y > view.documentTop + box.top + box.height / 2);
