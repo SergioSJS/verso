@@ -104,3 +104,25 @@ test("a writer still sends its state on a rejoin (control)", async () => {
   assert.equal(calls.filter((x) => x === "collab_update").length, 1);
   s.leave();
 });
+
+test("a reader's visit leaves the room it was put in", async () => {
+  const v = await c.roomSide.visit("v.md");
+  assert.equal(v, null);
+  assert.equal(calls.filter((x) => x === "collab_leave").length, 1, "left");
+});
+
+test("a visit to a file in no room (mixed line ends) has nothing to leave", async () => {
+  epoch = "";
+  const v = await c.roomSide.visit("m.md");
+  assert.equal(v, null);
+  assert.equal(calls.filter((x) => x === "collab_leave").length, 0);
+});
+
+test("a writer's visit still works and leaves once", async () => {
+  readOnly = false;
+  const v = await c.roomSide.visit("x.md");
+  assert.ok(v);
+  assert.equal(v.text(), "um\n");
+  await v.leave();
+  assert.equal(calls.filter((x) => x === "collab_leave").length, 1);
+});
