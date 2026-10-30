@@ -44,6 +44,12 @@
 # and starts the same binary under packaging/server/universo.service in a
 # Debian container running systemd — the package's layout laid by hand, not
 # a .deb made by nfpm. `--image` runs that step alone.
+#
+# Then the guided installer (scripts/check-installer.sh): universo.sh's menu,
+# HTTPS with Caddy, the first admin, the support report, swap, the backup and
+# update timers and the Oracle Cloud help, in an Ubuntu container under
+# systemd, with a .deb laid out from the image step's server binary.
+# `--installer` runs it alone.
 set -euo pipefail
 
 if [ "${1:-}" = "--universo-sh" ]; then
@@ -388,6 +394,11 @@ script_test() {
   docker run --rm -v "$PWD":/src:ro debian:12-slim bash /src/scripts/check-linux.sh --universo-sh
 }
 
+installer_test() {
+  printf '\n== the guided installer under systemd: menu, HTTPS, first admin, support, swap, timers (ADR 0075, 2026-10-30)\n'
+  bash scripts/check-installer.sh
+}
+
 if [ "${1:-}" = "--inside" ]; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq >/dev/null
@@ -421,6 +432,10 @@ if [ "${1:-}" = "--script" ]; then
   script_test
   exit 0
 fi
+if [ "${1:-}" = "--installer" ]; then
+  installer_test
+  exit 0
+fi
 if [ "${1:-}" = "--image" ]; then
   [ -f app/ui/dist/web.html ] || { echo "no UI build with web.html: cd app/ui && npm run build"; exit 1; }
   image_test
@@ -450,3 +465,4 @@ docker run --rm \
   rust:1-bookworm bash scripts/check-linux.sh --inside
 script_test
 image_test
+installer_test
