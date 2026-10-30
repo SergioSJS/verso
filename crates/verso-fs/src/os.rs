@@ -165,6 +165,11 @@ pub(crate) fn rename_unless_changed(
     to: &Path,
     unchanged: impl Fn() -> bool,
 ) -> std::io::Result<bool> {
+    // Asked before the first try too, as on Unix: the write and `fsync` of
+    // the temporary file since the check are the window of an outside writer.
+    if !unchanged() {
+        return Ok(false);
+    }
     // A read-only target is refused for good, not held: no waiting.
     if std::fs::symlink_metadata(to).is_ok_and(|m| m.is_file() && m.permissions().readonly()) {
         return std::fs::rename(from, to).map(|()| true);
@@ -272,6 +277,22 @@ mod tests {
 
     fn temp_dir() -> tempfile::TempDir {
         tempfile::tempdir().unwrap()
+    }
+
+    /// The question is asked before the first try, on every system: a target
+    /// that changed since the check is not renamed over (invariant 11). On
+    /// Windows it was asked only after a held try.
+    #[test]
+    fn a_changed_target_is_not_renamed_over_at_the_first_try() {
+        let dir = temp_dir();
+        let (from, to) = (dir.path().join("tmp"), dir.path().join("n.md"));
+        std::fs::write(&from, "ours").unwrap();
+        std::fs::write(&to, "theirs").unwrap();
+        assert!(!rename_unless_changed(&from, &to, || false).unwrap());
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "theirs");
+        assert!(from.exists(), "the temporary file is the caller's to remove");
+        assert!(rename_unless_changed(&from, &to, || true).unwrap());
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "ours");
     }
 
     #[test]
