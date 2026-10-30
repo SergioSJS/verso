@@ -57,7 +57,7 @@ await esbuild.build({
 });
 globalThis.window ??= globalThis;
 globalThis.addEventListener ??= () => {};
-globalThis.document ??= { documentElement: { lang: "pt-BR" }, getElementById: () => null, querySelector: () => null, createElement: () => ({ style: {}, classList: { add() {}, toggle() {} }, append() {}, setAttribute() {} }) };
+globalThis.document ??= { documentElement: { lang: "pt-BR", style: {} }, getElementById: () => null, querySelector: () => null, createElement: () => ({ style: {}, classList: { add() {}, toggle() {} }, append() {}, setAttribute() {} }) };
 const b = await import("./.bundles/boardLeafLocal.test-bundle.mjs");
 
 const el = (id, x = 0, extra = {}) => ({ id, type: "freedraw", x, y: 0, width: 5, height: 5, isDeleted: false, version: 1, versionNonce: 7, index: `a${id}`, groupIds: [], frameId: null, ...extra });
