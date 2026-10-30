@@ -434,3 +434,65 @@ fn a_window_link_is_relative_without_a_public_address_and_whole_with_one() {
         "https://mesa.casa/invite/abc"
     );
 }
+
+/// A refusal says what is refused (night device test, 2026-10-30): a
+/// player who edits a note is not told "you may only read this folder" when
+/// a create, a delete or a move is refused, nor when a rename of a note
+/// they do not edit is.
+#[test]
+fn a_refused_create_delete_move_and_rename_say_what_is_refused() {
+    block_on(async {
+        let mut m = mesa().await;
+        let ana = m.ana_id.clone();
+        let g = m
+            .owner
+            .call(
+                "campaign_grant",
+                json!({ "path": "Livre.md", "grant": { "kind": "player", "account": ana } }),
+            )
+            .await;
+        assert!(g.get("ok").is_some(), "{g}");
+        for (cmd, args, says) in [
+            (
+                "create_note",
+                json!({ "name": "Nova", "text": "x" }),
+                "you may not create files here",
+            ),
+            (
+                "create_file",
+                json!({ "path": "Anexos/n.png", "base64": PNG }),
+                "you may not create files here",
+            ),
+            (
+                "delete_note",
+                json!({ "path": "Livre.md" }),
+                "you may not delete this",
+            ),
+            (
+                "delete_entry",
+                json!({ "path": "Livre.md" }),
+                "you may not delete this",
+            ),
+            (
+                "move_entries",
+                json!({ "folder": "Anexos", "paths": ["Livre.md"] }),
+                "you may not move this",
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Aberta.md", "to": "Outra.md" }),
+                "you may not rename this",
+            ),
+        ] {
+            let r = m.ana.call(cmd, args).await;
+            assert_eq!(r["err"]["kind"], "refused", "{cmd}: {r}");
+            assert_eq!(r["err"]["message"], says, "{cmd}: {r}");
+        }
+        // Typing in a note she does not edit is still "only read".
+        let c = m
+            .ana
+            .call("collab_join", json!({ "path": "Aberta.md" }))
+            .await;
+        assert!(c.get("ok").is_some(), "{c}");
+    });
+}
