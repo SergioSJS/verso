@@ -264,6 +264,7 @@ updateLeavesLineNumbers = () => {
           l.applyLineNumbers();
           if (l.mode === "preview") {
             l.previewStale = true;
+            l.forcePaint = true;
             l.paintPreview();
           }
         } else if (l instanceof TextLeaf) {
