@@ -151,6 +151,14 @@ pub(crate) struct TargetLock(PathBuf);
 
 impl TargetLock {
     fn take(target: &Path) -> Self {
+        // Keyed by the real folder: two spellings of one parent (a symlink,
+        // a case difference) are one writer. The target itself may not
+        // exist yet, so its parent is what is resolved.
+        let target = &match (target.parent(), target.file_name()) {
+            (Some(parent), Some(name)) => std::fs::canonicalize(parent)
+                .map_or_else(|_| target.to_path_buf(), |real| real.join(name)),
+            _ => target.to_path_buf(),
+        };
         let mut held = WRITING
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
