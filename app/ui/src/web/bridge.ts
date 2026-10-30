@@ -392,14 +392,17 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     }
     case "open_initial": {
       if (!folderId || openedOnce) return done(null);
-      return done(await openFolder(folderId).catch(() => {
+      const info = await openFolder(folderId).catch(() => {
         // A folder of the address one may no longer enter: the start page,
         // with no role.
         folderId = null;
         remember(null);
         setRole(null);
         return null;
-      }));
+      });
+      // The contract's answer names what was opened (ADR 0114): in a
+      // browser it is always a folder of the server, never a loose file.
+      return done(info ? { kind: "folder", info } : null);
     }
     case "open_window":
       window.open(`/?folder=${encodeURIComponent(folderId ?? "")}&note=${encodeURIComponent(String(a.path ?? ""))}`, "_blank");
