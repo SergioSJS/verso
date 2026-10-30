@@ -409,6 +409,9 @@ test("an admin ends another account's sessions and tokens from its page", async 
   await settled(lost);
   // Its page in the console: the session listed, ended with a confirm.
   await page.goto("/admin/accounts");
+  // The list is paged and sorted by name, and this server has met many
+  // accounts by now: the account is found by the console's own search.
+  await page.getByRole("searchbox", { name: "Buscar por nome ou e-mail" }).fill(email);
   await page.locator(".console-table a", { hasText: `Perdido ${project}` }).click();
   await expect(page.getByRole("heading", { name: `Perdido ${project}`, level: 1 })).toBeVisible();
   await expect(page.locator(".console-list li")).toHaveCount(1);
