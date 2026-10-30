@@ -200,7 +200,7 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   is the surprise this avoids. Every other dot-leading component stays refused,
   as above.
 
-**`[OPEN]` — the code contradicts this group, recorded on 2026-09-29.**
+**The code contradicted this group (recorded on 2026-09-29, then `[OPEN]`; decided the same day, below).**
 Commit `e5754b0` ("ignore build dirs") implemented, in
 `crates/verso-fs/src/walk.rs`, both things this ADR's Discarded alternatives
 set aside:

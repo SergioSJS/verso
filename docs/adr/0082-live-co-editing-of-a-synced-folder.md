@@ -189,7 +189,7 @@ carried a recommendation; the maintainer decided. Open items answered
    local, item 9), and when the link drops (item 9). Whether the window is
    focused does not matter: a tab behind another stays in its room and
    receives the others' edits, as a browser tab behind another does.
-   `[OPEN]`: whether a note joins **on open**, or only **when someone else
+   `[DECIDED 2026-10-10]`: whether a note joins **on open**, or only **when someone else
    is already in it**. Recommended: **on open**. Joining later would mean
    switching the tab from local autosave into a room in the middle of
    typing, with unsaved local text — item 7's hard case, happening
@@ -306,7 +306,7 @@ carried a recommendation; the maintainer decided. Open items answered
     into the room needs the base's bytes for a three-way merge, which is
     the later work of Consequences.
 12. **Rooms are for notes.** A `.md` file with one kind of line end joins;
-    nothing else does. The board's co-editing stays `[OPEN]` in
+    nothing else does. The board's co-editing was `[OPEN]` (decided and built 2026-10-12, see below) in
     [0073](0073-self-hosted-server-first.md) item 7 (left open on
     2026-10-10); boards, bases,
     canvases, attachments and the folder's settings cross by sync as
@@ -385,7 +385,7 @@ carried a recommendation; the maintainer decided. Open items answered
     dropped; your text is saved on this computer"). The folder's Sync
     section in Settings shows the same state and holds item 15's setting.
     pt-BR and English throughout.
-15. **On by default.** `[OPEN]`: whether live co-editing is on for every
+15. **On by default.** `[DECIDED 2026-10-10]`: whether live co-editing is on for every
     synced folder, or opt-in. Recommended: **on**, with a setting per
     synced folder, "Edit notes together while online" — *Editar notas
     junto enquanto online* — in the folder's Sync section, off meaning the
@@ -477,7 +477,7 @@ carried a recommendation; the maintainer decided. Open items answered
 **Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
 read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
 accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
-the recommendations). The board's co-editing stays `[OPEN]` on purpose
+the recommendations). The board's co-editing stayed `[OPEN]` on purpose (decided and built 2026-10-12, below)
 (item 12); merge by block of offline edits stays later, for its own ADR.
 
 **Built on the night of 2026-10-11 to 12** (f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12); [0073](0073-self-hosted-server-first.md) item 7 and
@@ -515,7 +515,7 @@ PDF's quote make to a live note go through the room — decided, built
 and the room writes the file; with them the other writes of a property
 that are not keystrokes — a sticker, a colour or a cover, a base's cell,
 the tree's label and order; a note that is not live is written as
-before; and the board's co-editing stays `[OPEN]` (item 12).
+before; and the board's co-editing was decided and built that evening (item 12).
 
 *(History, before the acceptance above:)* Proposed on 2026-10-10. The
 maintainer approved the direction in session;
@@ -528,6 +528,6 @@ block of offline edits (Consequences).
 
 Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 item 5 and item 15 decided as recommended, in place; the board's
-co-editing stays `[OPEN]` (item 12, [0073](0073-self-hosted-server-first.md)
+co-editing was `[OPEN]`, decided and built 2026-10-12 (item 12, [0073](0073-self-hosted-server-first.md)
 item 7); merge by block of offline edits stays later, for its own ADR, as
 it needs the base's bytes (Consequences).
