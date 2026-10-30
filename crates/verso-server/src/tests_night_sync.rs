@@ -45,7 +45,7 @@ impl Rng {
     }
 }
 
-async fn window(r: &Running, b: &Browser, id: &str) -> Socket {
+pub(crate) async fn window(r: &Running, b: &Browser, id: &str) -> Socket {
     let mut ws = connect(r, Some(&b.cookie), Some(&r.origin()), None)
         .await
         .unwrap();
@@ -240,17 +240,17 @@ fn night_sync_long() {
 
 // ---------------------------------------------------------------- rooms
 
-struct Win {
-    ws: Socket,
-    doc: Doc,
-    n: u64,
-    mine: Vec<String>,
-    deleted: Vec<String>,
-    pending: Vec<Vec<u8>>,
-    online: bool,
+pub(crate) struct Win {
+    pub(crate) ws: Socket,
+    pub(crate) doc: Doc,
+    pub(crate) n: u64,
+    pub(crate) mine: Vec<String>,
+    pub(crate) deleted: Vec<String>,
+    pub(crate) pending: Vec<Vec<u8>>,
+    pub(crate) online: bool,
 }
 
-fn new_doc() -> Doc {
+pub(crate) fn new_doc() -> Doc {
     Doc::with_options(yrs::Options {
         offset_kind: yrs::OffsetKind::Utf16,
         ..Default::default()
@@ -258,11 +258,11 @@ fn new_doc() -> Doc {
 }
 
 impl Win {
-    async fn call(&mut self, cmd: &str, args: Value) -> Value {
+    pub(crate) async fn call(&mut self, cmd: &str, args: Value) -> Value {
         self.n += 1;
         call(&mut self.ws, self.n, cmd, args).await
     }
-    async fn join(&mut self, path: &str) -> String {
+    pub(crate) async fn join(&mut self, path: &str) -> String {
         let j = self.call("collab_join", json!({ "path": path })).await;
         let update = STANDARD
             .decode(j["ok"]["update"].as_str().unwrap())
@@ -273,7 +273,7 @@ impl Win {
             .unwrap();
         j["ok"]["epoch"].as_str().unwrap().to_owned()
     }
-    async fn push(&mut self, path: &str, update: &[u8]) {
+    pub(crate) async fn push(&mut self, path: &str, update: &[u8]) {
         let a = self
             .call(
                 "collab_update",
@@ -282,7 +282,7 @@ impl Win {
             .await;
         assert!(a.get("ok").is_some(), "{a}");
     }
-    fn text(&self) -> String {
+    pub(crate) fn text(&self) -> String {
         self.doc
             .get_or_insert_text(collab::TEXT)
             .get_string(&self.doc.transact())

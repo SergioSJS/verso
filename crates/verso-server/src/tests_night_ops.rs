@@ -292,3 +292,271 @@ fn night_ops_long() {
     });
     println!("night ops: done");
 }
+
+// ------------------------------------------------------------- sizes
+
+/// Several devices send a file of more than two pieces to one name at the
+/// same time, while others send many small files: the big name ends as
+/// exactly one device's whole body (the hash it announced), never a mix of
+/// pieces, every small file lands, and the log names them all.
+async fn run_sizes(seed: u64) {
+    use crate::sync::PIECE;
+    use crate::tests_sync::send;
+    let r = start().await;
+    let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+    let id = folder_id(&r, &b).await;
+    let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
+    let bodies: Vec<Vec<u8>> = (0..3)
+        .map(|d| {
+            let mut v = Vec::new();
+            let len = 2 * PIECE + 1000 + rng.below(PIECE);
+            let mut x = d as u64 + 1;
+            while v.len() < len {
+                x = x.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+                v.extend_from_slice(format!("{x:016x}\n").as_bytes());
+            }
+            v.truncate(len);
+            v
+        })
+        .collect();
+    let mut big = Vec::new();
+    for _ in 0..bodies.len() {
+        big.push(window(&r, &b, &id).await);
+    }
+    let mut small = Vec::new();
+    for _ in 0..3 {
+        small.push(window(&r, &b, &id).await);
+    }
+    let bigs = join_all(
+        big.into_iter()
+            .zip(&bodies)
+            .map(|(mut ws, body)| async move {
+                let a = send(&mut ws, 100, "Grande.md", body, None).await;
+                a.get("ok").is_some()
+            }),
+    );
+    let smalls = join_all(small.into_iter().enumerate().map(|(d, mut ws)| async move {
+        let mut done = 0;
+        for k in 0..60 {
+            let name = format!("pequenas/d{d}-{k}.md");
+            let a = send(
+                &mut ws,
+                100 + 10 * k as u64,
+                &name,
+                format!("# {d}-{k}\n").as_bytes(),
+                None,
+            )
+            .await;
+            assert_eq!(a["ok"]["done"], true, "{a}");
+            done += 1;
+        }
+        done
+    }));
+    let (won, made) = tokio::join!(bigs, smalls);
+    assert_eq!(made.iter().sum::<usize>(), 180);
+    assert_eq!(
+        won.iter().filter(|w| **w).count(),
+        1,
+        "seed {seed}: one body wins a new name: {won:?}"
+    );
+    let mut me = window(&r, &b, &id).await;
+    let mut n = 500;
+    let files = files_of(&mut me, &mut n).await;
+    let (_, hash) = files
+        .iter()
+        .find(|(p, _)| p == "Grande.md")
+        .cloned()
+        .unwrap();
+    let winner = bodies.iter().position(|b| sha256(b) == hash);
+    assert_eq!(
+        winner,
+        won.iter().position(|w| *w),
+        "seed {seed}: the big file is not the winner's body"
+    );
+    assert_eq!(
+        files
+            .iter()
+            .filter(|(p, _)| p.starts_with("pequenas/"))
+            .count(),
+        180
+    );
+}
+
+#[test]
+fn night_big_bodies_to_one_name_never_mix_while_small_files_all_land() {
+    block_on(async {
+        for seed in 1..=2 {
+            run_sizes(seed).await;
+        }
+    });
+}
+
+// ------------------------------------------------- a room and a device
+
+/// A window typing in a note's room while a device puts the same note: an
+/// accepted put and a typed line are on the disk or in the note's history —
+/// unless the people in the room chose the other side of a conflict, which
+/// is the one way the server drops a typed line (ADR 0073 item 7, shown to
+/// them as a choice). After the choice the room and the disk agree.
+async fn run_room_and_device(seed: u64, ops: usize) {
+    use crate::collab;
+    use crate::tests_night_sync::{Win, new_doc, window as win_socket};
+    use crate::tests_sync::send;
+    use yrs::{GetString, Text, Transact};
+    let r = start().await;
+    let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+    let id = folder_id(&r, &b).await;
+    let path = "Sessao.md";
+    let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
+    let mut w = Win {
+        ws: win_socket(&r, &b, &id).await,
+        doc: new_doc(),
+        n: 1,
+        mine: vec![],
+        deleted: vec![],
+        pending: vec![],
+        online: true,
+    };
+    w.join(path).await;
+    let mut dev = window(&r, &b, &id).await;
+    let mut n = 100;
+    let mut typed: Vec<String> = Vec::new();
+    let mut lines: Vec<String> = Vec::new();
+    let mut discarded: Vec<String> = Vec::new();
+    let mut unsaved: Vec<String> = Vec::new();
+    let mut conflict = false;
+    for k in 0..ops {
+        match rng.below(6) {
+            0 | 1 => {
+                let token = format!("T{seed}-{k}\n");
+                let text = w.doc.get_or_insert_text(collab::TEXT);
+                let u = {
+                    let mut txn = w.doc.transact_mut();
+                    let end = text.get_string(&txn).encode_utf16().count() as u32;
+                    text.insert(&mut txn, end, &token);
+                    txn.encode_update_v1()
+                };
+                w.push(path, &u).await;
+                typed.push(token.clone());
+                unsaved.push(token);
+            }
+            2 | 3 => {
+                let base = hash_of(&mut dev, &mut n, path).await;
+                let (bytes, _) = {
+                    n += 1;
+                    let a = call(
+                        &mut dev,
+                        n,
+                        "sync_read",
+                        json!({ "path": path, "offset": 0 }),
+                    )
+                    .await;
+                    (
+                        STANDARD
+                            .decode(a["ok"]["data"].as_str().unwrap_or(""))
+                            .unwrap_or_default(),
+                        (),
+                    )
+                };
+                let line = format!("D{seed}-{k}\n");
+                let mut new = bytes;
+                new.extend_from_slice(line.as_bytes());
+                let a = send(&mut dev, n + 10, path, &new, base.as_deref()).await;
+                n += 100;
+                if a.get("ok").is_some() {
+                    lines.push(line);
+                    // The room hears it on the next question; a conflict is
+                    // only what a room with unsaved lines says.
+                    if !unsaved.is_empty() {
+                        conflict = true;
+                    }
+                }
+            }
+            4 => {
+                let saved = w.call("collab_save", json!({ "path": path })).await;
+                if saved.get("ok").is_some() {
+                    unsaved.clear();
+                    conflict = false;
+                } else {
+                    assert_eq!(saved["err"]["kind"], "changed", "seed {seed}: {saved}");
+                }
+            }
+            _ => {
+                if conflict && rng.below(2) == 0 {
+                    let keep = ["disk", "mine"][rng.below(2)];
+                    let a = w
+                        .call("collab_resolve", json!({ "path": path, "keep": keep }))
+                        .await;
+                    assert!(a.get("ok").is_some(), "seed {seed}: {a}");
+                    if keep == "disk" {
+                        discarded.append(&mut unsaved);
+                    }
+                    unsaved.clear();
+                    conflict = false;
+                }
+            }
+        }
+    }
+    // The end: the people choose "mine" if they are in a conflict, then
+    // everything is written and the room closes.
+    let saved = w.call("collab_save", json!({ "path": path })).await;
+    if saved.get("ok").is_none() {
+        let a = w
+            .call("collab_resolve", json!({ "path": path, "keep": "mine" }))
+            .await;
+        assert!(a.get("ok").is_some(), "seed {seed}: {a}");
+    }
+    let room = w.text();
+    w.call("collab_leave", json!({ "path": path })).await;
+    let disk = r.campanha_text(path);
+    // The history: every text the note ever had.
+    let mut ws = win_socket(&r, &b, &id).await;
+    let list = call(&mut ws, 2, "history_list", json!({ "path": path })).await;
+    let mut ever = disk.clone();
+    for v in list["ok"]["versions"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+    {
+        let t = call(
+            &mut ws,
+            3,
+            "history_read",
+            json!({ "path": path, "id": v["id"] }),
+        )
+        .await;
+        ever.push_str(t["ok"]["text"].as_str().unwrap_or(""));
+        ever.push('\u{0}');
+    }
+    for t in typed.iter().filter(|t| !discarded.contains(t)) {
+        assert!(
+            ever.contains(t.as_str()),
+            "seed {seed}: typed {t:?} is on the disk nowhere nor in the history\ndisk {disk:?}\nroom {room:?}"
+        );
+    }
+    for l in &lines {
+        assert!(
+            ever.contains(l.as_str()),
+            "seed {seed}: accepted {l:?} is on the disk nowhere nor in the history\ndisk {disk:?}"
+        );
+    }
+}
+
+#[test]
+fn night_a_room_and_a_device_on_one_note_lose_nothing_but_by_choice() {
+    block_on(async {
+        for seed in 1..=4 {
+            run_room_and_device(seed, 24).await;
+        }
+    });
+}
+
+#[test]
+#[ignore = "long: run with --ignored"]
+fn night_room_and_device_long() {
+    block_on(async {
+        for seed in 1..=60 {
+            run_room_and_device(seed, 40).await;
+        }
+    });
+}
