@@ -27,11 +27,15 @@ import { allFolders, listAll } from "../tree/tree";
 import { mentionsSection } from "./mentions";
 import { TabStrip } from "./tabStrip";
 import { historyButton } from "../dialogs/history";
-import { rightShown } from "../chrome";
+import { narrow, rightShown } from "../chrome";
+import { gate } from "./gate";
 import { tableOn } from "../table/record";
 import { tt } from "../table/strings";
 import { watchUnread } from "../table/unread";
 import { paintTable } from "../table/view";
+
+const leafIds = new WeakMap<Leaf, number>();
+let leafSeq = 0;
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
 export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses" | "table";
@@ -43,6 +47,9 @@ export class Panel {
   private strip: TabStrip;
   leaf: Leaf | null = null;
   tagsCache: { name: string; notes: string[] }[] = [];
+  /** The panel is drawn only while it is on screen: collapsed (or closed, on a phone), a change only marks it stale and the next opening draws once. */
+  private readonly gate = gate(rightShown, () => this.draw());
+  private outlineKey = "";
   constructor() {
     const defs: [PanelTab, string, string][] = [
       ["outline", "outline", t.outline],
@@ -107,6 +114,8 @@ export class Panel {
       // No storage.
     }
     this.markTabs();
+    addEventListener("verso:table-visibility", () => this.gate.reveal());
+    narrow.addEventListener("change", () => this.gate.reveal());
     // The Mesa tab exists only while the table does (ADR 0107 item 14).
     addEventListener("verso:features-changed", () => this.followTable());
     watchUnread(() => tableOn() && this.current === "table" && rightShown());
@@ -362,7 +371,14 @@ export class Panel {
     this.body.replaceChildren(wrap);
   }
   paint(): void {
+    this.gate.draw();
+  }
+  private draw(): void {
     const leaf = this.leaf;
+    const outlineKey = this.current === "outline" && leaf ? `${leafIds.get(leaf) ?? leafIds.set(leaf, ++leafSeq).get(leaf)}|${JSON.stringify(leaf.headings())}` : "";
+    // An outline that is the same list of headings stays as it is (a save that touched no heading redraws nothing).
+    if (outlineKey && outlineKey === this.outlineKey && this.body.firstElementChild?.classList.contains("panel-list")) return;
+    this.outlineKey = outlineKey;
     this.painted++;
     // No note open: the tabs say what the panel holds, and the body why it
     // is empty, not a blank column.

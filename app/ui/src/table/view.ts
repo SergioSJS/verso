@@ -36,6 +36,7 @@ import { tableAt } from "../campaignParts";
 import { openCampaignDialog } from "../campaignDialog";
 import { cp } from "../campaignStrings";
 import { mayShare } from "../shares";
+import { gate } from "../panel/gate";
 
 /** A colour as the server checked it (`#rrggbb`), or none: nothing else reaches a style. */
 const safeColour = (c: string): string => (/^#[0-9a-f]{6}$/i.test(c) ? c : "");
@@ -137,6 +138,12 @@ class TableView {
   private first = true;
   private off: (() => void) | null = null;
   private bound: TableSource | null = null;
+  private rosterKey = "";
+  /** Drawn only while the Mesa tab is on screen, once per frame; hidden, it only notes it is stale. */
+  private readonly gate = gate(
+    () => this.el.isConnected && tableOnScreen(),
+    (late) => this.render(late),
+  );
 
   constructor() {
     this.list.setAttribute("aria-label", tt.log);
@@ -188,12 +195,14 @@ class TableView {
     });
     // The panel is at another table, or the folder's tables changed.
     addEventListener("verso:table-pick", () => {
-      if (this.el.isConnected) this.render();
+      if (this.el.isConnected) this.gate.poke();
     });
+    // The panel opened, or the Mesa tab was chosen: what changed meanwhile is drawn once.
+    addEventListener("verso:table-visibility", () => this.gate.reveal());
     // A source replaced (the server's table joined, or left): drawn again at once.
     onSourceChange(() => {
       this.bind();
-      if (this.el.isConnected) this.render();
+      if (this.el.isConnected) this.gate.poke();
     });
   }
 
@@ -209,7 +218,7 @@ class TableView {
     this.told = new Set();
     this.first = true;
     this.off = src.onChange(() => {
-      if (this.el.isConnected) this.render();
+      if (this.el.isConnected) this.gate.poke();
     });
   }
 
@@ -236,7 +245,7 @@ class TableView {
   mount(body: HTMLElement): void {
     this.bind();
     if (this.el.parentElement !== body || body.childElementCount !== 1) body.replaceChildren(this.el);
-    this.render();
+    this.gate.now();
   }
 
   private async loadOlder(): Promise<void> {
@@ -329,7 +338,7 @@ class TableView {
     }
   }
 
-  private render(): void {
+  private render(late = false): void {
     this.paintTitle();
     const src = tableSource();
     const server = isServerTable(src) ? src : null;
@@ -393,7 +402,7 @@ class TableView {
       // Said once: another's news when it arrives, and a same-account entry of another device when it BECOMES news (it may be painted held, before).
       const others = [...entries, ...pinned].filter((e) => !this.told.has(e.id) && ((fresh.includes(e) && isNews(e)) || e.elsewhere === true));
       for (const e of others) this.told.add(e.id);
-      const last = this.first ? undefined : others[others.length - 1];
+      const last = this.first || late ? undefined : others[others.length - 1];
       if (last) {
         this.said.textContent = "";
         const text = announce(last);
@@ -461,6 +470,10 @@ class TableView {
     if (!server) return;
     const members = server.roster();
     this.rosterCount.textContent = String(members.length);
+    // Presence events come in bursts; the same people are the same list.
+    const key = members.map((m) => `${m.name}\u0000${m.color ?? ""}`).join("\u0001");
+    if (key === this.rosterKey && this.rosterList.childElementCount === members.length) return;
+    this.rosterKey = key;
     const names = members.map((m) => m.name);
     this.rosterButton.setAttribute("aria-label", tt.rosterSummary(names));
     this.rosterList.replaceChildren(
