@@ -339,14 +339,25 @@ fn merge(old: Option<&Json>, new: Json) -> Json {
         (Some(Json::Array(old_items)), Json::Array(new_items)) => {
             let id = |v: &Json| v.get("id").and_then(Json::as_str).map(str::to_owned);
             let by_id = new_items.iter().all(|v| id(v).is_some());
+            // The first old item of each id, found once (a board of a few
+            // hundred cards must not cost a scan of the old list per item).
+            let mut first: std::collections::HashMap<&str, &Json> =
+                std::collections::HashMap::new();
+            if by_id {
+                for o in old_items {
+                    if let Some(i) = o.get("id").and_then(Json::as_str) {
+                        first.entry(i).or_insert(o);
+                    }
+                }
+            }
             Json::Array(
                 new_items
                     .into_iter()
                     .enumerate()
                     .map(|(i, item)| {
                         let counterpart = if by_id {
-                            let wanted = id(&item);
-                            old_items.iter().find(|o| id(o) == wanted)
+                            let wanted = item.get("id").and_then(Json::as_str);
+                            wanted.and_then(|w| first.get(w).copied())
                         } else {
                             old_items.get(i)
                         };
@@ -364,11 +375,15 @@ fn merge(old: Option<&Json>, new: Json) -> Json {
 /// included: a save changes only what the user changed (decided on
 /// 2026-10-01, review `board.md` §6 item 5). `-0` is written `0`.
 fn round_geometry(root: &mut Json, old: &Json) {
-    let id = |v: &Json| v.get("id").and_then(Json::as_str).map(str::to_owned);
-    let old_nodes: Vec<&Json> = match old.get("nodes") {
-        Some(Json::Array(items)) => items.iter().collect(),
-        _ => Vec::new(),
-    };
+    // The first old node of each id.
+    let mut old_nodes: std::collections::HashMap<&str, &Json> = std::collections::HashMap::new();
+    if let Some(Json::Array(items)) = old.get("nodes") {
+        for o in items {
+            if let Some(i) = o.get("id").and_then(Json::as_str) {
+                old_nodes.entry(i).or_insert(o);
+            }
+        }
+    }
     let Json::Object(entries) = root else {
         return;
     };
@@ -376,12 +391,10 @@ fn round_geometry(root: &mut Json, old: &Json) {
         return;
     };
     for node in nodes {
-        let before = id(node).and_then(|i| {
-            old_nodes
-                .iter()
-                .find(|o| id(o).as_deref() == Some(&i))
-                .copied()
-        });
+        let before = node
+            .get("id")
+            .and_then(Json::as_str)
+            .and_then(|i| old_nodes.get(i).copied());
         let Json::Object(fields) = node else {
             continue;
         };
@@ -882,5 +895,45 @@ mod tests {
                 "\"x\":13,\"y\":0,\"width\":10"
             )
         );
+    }
+
+    #[test]
+    fn merging_a_big_board_does_not_scan_the_old_list_per_card() {
+        // 6000 cards: a scan of the old list per card (with an owned id per
+        // step) is tens of millions of allocations, seconds in a debug build.
+        let body = |shift: i32| {
+            let nodes: Vec<String> = (0..6000)
+                .map(|i| {
+                    format!(
+                        "{{\"id\":\"n{i}\",\"type\":\"text\",\"text\":\"c{i}\",\"x\":{},\"y\":0.5,\"width\":10,\"height\":10}}",
+                        i + shift
+                    )
+                })
+                .collect();
+            format!("{{\"nodes\":[{}],\"edges\":[]}}", nodes.join(","))
+        };
+        let old = Canvas::parse(&body(0)).unwrap();
+        let new = Canvas::parse(&body(1)).unwrap();
+        let start = std::time::Instant::now();
+        let written = old.merged(new.root).write();
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(3),
+            "{:?}",
+            start.elapsed()
+        );
+        // Matched by id: the card whose x moved by one is the moved one,
+        // the fraction the file had (`y`) kept as written.
+        assert!(written.contains("\"id\":\"n5999\""));
+        assert!(written.contains("\"x\":6000,"));
+        assert!(written.contains("\"y\":0.5"));
+    }
+
+    #[test]
+    fn the_first_old_card_of_an_id_is_the_one_a_save_matches() {
+        let read = r#"{"nodes":[{"id":"a","x":1.5,"y":0,"width":1,"height":1},{"id":"a","x":2.5,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        let old = Canvas::parse(read).unwrap();
+        let sent = r#"{"nodes":[{"id":"a","x":1.5,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        let written = old.merged(Canvas::parse(sent).unwrap().root).write();
+        assert!(written.contains("\"x\":1.5"), "{written}");
     }
 }

@@ -235,6 +235,18 @@ fn bound(v: &Value, gone: &BTreeSet<String>) -> Option<Value> {
 /// (`None`: they do).
 #[must_use]
 pub fn see(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>) -> Sight {
+    see_as(entries, lock, true)
+}
+
+/// [`see`] for the classes alone (`Sight::class`, `Sight::shut`): the
+/// elements' shown text is not made. For a board judged only to say what each
+/// id is to the player, as a file's cards are.
+#[must_use]
+pub fn classes_of(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>) -> Sight {
+    see_as(entries, lock, false)
+}
+
+fn see_as(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>, want_shown: bool) -> Sight {
     // Taken apart; an entry that is no element of its key is read as none,
     // and its id is not shown at all (fails closed).
     let mut parsed: Vec<(&str, &str, Value)> = Vec::new();
@@ -303,11 +315,15 @@ pub fn see(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>) -> Sight {
         if gone.contains(*id) {
             continue;
         }
-        let shown = match file_of(v).and_then(lock) {
-            Some(text) => {
-                sight.class.insert((*id).to_owned(), Class::Locked);
-                marker(v, &text, &gone)
-            }
+        let locked = file_of(v).and_then(lock);
+        if locked.is_some() {
+            sight.class.insert((*id).to_owned(), Class::Locked);
+        }
+        if !want_shown {
+            continue;
+        }
+        let shown = match locked {
+            Some(text) => marker(v, &text, &gone),
             None => {
                 let mut v = v.clone();
                 if let Some(b) = bound(&v, &gone) {
@@ -359,7 +375,7 @@ pub fn entries_of_canvas(canvas: &Value) -> Entries {
 /// card. The text of every other node is whole.
 #[must_use]
 pub fn shape_canvas(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> Value {
-    let sight = see(&entries_of_canvas(canvas), lock);
+    let sight = classes_of(&entries_of_canvas(canvas), lock);
     shape_canvas_seen(canvas, &sight, lock)
 }
 
@@ -418,10 +434,23 @@ pub fn shaped_text(whole: &str, lock: &dyn Fn(&str) -> Option<String>) -> String
     else {
         return EMPTY.to_owned();
     };
-    let shaped = shape_canvas(&value, lock);
-    match Canvas::parse(&shaped.to_string()) {
+    laid_over(&canvas, &shape_canvas(&value, lock))
+}
+
+/// [`shaped_text`] for a canvas already shaped: `shaped` is
+/// `shape_canvas(whole)` for the `lock` of the asker, the board judged once.
+#[must_use]
+pub fn shaped_text_from(whole: &str, shaped: &Value) -> String {
+    match verso_core::canvas::Canvas::parse(whole) {
+        Ok(canvas) => laid_over(&canvas, shaped),
+        Err(_) => "{\"nodes\":[],\"edges\":[]}\n".to_owned(),
+    }
+}
+
+fn laid_over(canvas: &verso_core::canvas::Canvas, shaped: &Value) -> String {
+    match verso_core::canvas::Canvas::parse(&shaped.to_string()) {
         Ok(new) => canvas.merged(new.root).write(),
-        Err(_) => EMPTY.to_owned(),
+        Err(_) => "{\"nodes\":[],\"edges\":[]}\n".to_owned(),
     }
 }
 
@@ -437,7 +466,7 @@ pub fn revision_of(shaped: &str) -> String {
 /// open to the player: a locked card, a secret pin, or something that
 /// touches one.
 fn shared_id_hides(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> bool {
-    let whole = see(&entries_of_canvas(canvas), lock);
+    let whole = classes_of(&entries_of_canvas(canvas), lock);
     let hidden: BTreeSet<&str> = whole
         .class
         .iter()
@@ -487,7 +516,7 @@ fn shared_id_hides(canvas: &Value, lock: &dyn Fn(&str) -> Option<String>) -> boo
                 _ => v.clone(),
             };
             let alone: Entries = [(format!("{i}\n0\n0"), wrapped.to_string())].into();
-            let own = see(&alone, lock);
+            let own = classes_of(&alone, lock);
             if hidden.contains(i)
                 || own.class.get(i) != Some(&Class::Open)
                 || refs(&wrapped).iter().any(|r| hidden.contains(r))
@@ -521,7 +550,7 @@ pub fn lay_over(
     if shared_id_hides(disk, lock) {
         return None;
     }
-    let before = see(&entries_of_canvas(disk), lock);
+    let before = classes_of(&entries_of_canvas(disk), lock);
     let mut out = disk.clone();
     let id = |v: &Value| v.get("id").and_then(Value::as_str).map(str::to_owned);
     let lists: [(&str, &str); 3] = [("nodes", ""), ("edges", ""), ("verso", "drawing")];
@@ -586,7 +615,7 @@ pub fn lay_over(
     }
     // The net: nothing the window sent changed what an element is to the
     // player, and a file card of theirs names a file they see.
-    let after = see(&entries_of_canvas(&out), lock);
+    let after = classes_of(&entries_of_canvas(&out), lock);
     for (i, c) in &after.class {
         match before.class.get(i) {
             Some(was) if was != c => return None,
