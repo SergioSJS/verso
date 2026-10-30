@@ -43,7 +43,7 @@ fn refusal_of(name: &str) -> &'static str {
         "create_note" | "create_folder" | "create_file" => NO_CREATE,
         "rename_note" | "rename_entry" => NO_RENAME,
         "move_entries" => NO_MOVE,
-        "delete_note" | "delete_entry" | "remove_folder_data" => NO_DELETE,
+        "delete_note" | "delete_entry" => NO_DELETE,
         _ => READS,
     }
 }
