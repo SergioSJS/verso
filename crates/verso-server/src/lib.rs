@@ -477,6 +477,8 @@ mod tests_http;
 #[cfg(test)]
 mod tests_invite_join;
 #[cfg(test)]
+mod tests_join_big;
+#[cfg(test)]
 mod tests_join_speed;
 #[cfg(test)]
 mod tests_map_tiles;
