@@ -79,6 +79,10 @@
 }
 .sheet:hover .note-add-cover-btn { opacity: 1; }
 .note-add-cover-btn:hover { color: var(--ink); border-color: var(--brass); }
+/* In a note it is one of the title's tools, icon alone, so it holds no band above the title. */
+.title-tools > .note-add-cover-btn { margin: 0; border: 0; padding: .15rem; }
+.title-tools > .note-add-cover-btn > span { display: none; }
+.title-tools > .note-add-cover-btn[hidden] { display: none; }
 .note-sticker-btn {
   display: inline-flex; align-items: center; justify-content: center; background: transparent;
   border: none; cursor: pointer; border-radius: 6px; padding: 2px; margin-right: 6px; vertical-align: middle;

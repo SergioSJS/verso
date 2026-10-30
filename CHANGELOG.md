@@ -143,6 +143,7 @@ test release.
 
 ### Fixed
 
+- **The head of a note, board, base, data or page tab is compact** (the maintainer, 2026-10-30): the modes (Reading / Edit / Source…) are one small segmented control on the same row as the place, right-aligned — icons alone when the pane is under 560 px — instead of a row of big buttons; the title follows closely with no empty band above it, and its tools sit at the end of its line or wrap under it without adding height.
 - **The reading view follows a change of role at once**: when a person's right to edit is taken away (or given), the task boxes of the note change with it instead of keeping the old behaviour until the text changes; the reading position stays on a block that remains, and embeds are not built for blocks that were not used.
 - **A note opened while a change is waiting to cross no longer shortens a later, unrelated pause of the sync**, so a rename made by another program is not seen as a deletion followed by a creation.
 - **A person who only reads a note stays in its room when the connection comes back**: it no longer reloads the editor and shows a false "could not be kept" line at every reconnection, and a reader's quick background visit to a note no longer leaves a phantom member in the room.
