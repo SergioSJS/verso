@@ -323,3 +323,25 @@ fn save_here_again_does_not_make_the_folder_again() {
     assert!(!sub.exists());
     let _ = &mut loose;
 }
+
+#[cfg(unix)]
+#[test]
+fn the_permission_probe_is_kept_until_the_file_is_known_to_have_changed() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, loose) = loose();
+    assert!(loose.read_only().is_none());
+    fs::set_permissions(
+        dir.path().join("Lista.md"),
+        fs::Permissions::from_mode(0o444),
+    )
+    .unwrap();
+    // Kept: the disk is not asked again by every command.
+    assert!(loose.read_only().is_none());
+    loose.refresh();
+    assert!(loose.read_only().is_some());
+    fs::set_permissions(
+        dir.path().join("Lista.md"),
+        fs::Permissions::from_mode(0o644),
+    )
+    .unwrap();
+}
