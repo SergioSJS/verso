@@ -8,6 +8,10 @@
   English, but with native pt-BR" / "pode nascer em inglês, mas com pt-BR
   nativo"; confirmed as English source, pt-BR mirror). Decision and Status
   filled in place.
+  2026-10-29 — revised by the maintainer in session (*"pode ser"*, to the
+  proposal to stop paying twice for every changelog line): the entries under
+  `## Unreleased` are written in English only; the pt-BR twin gets them,
+  translated, when a version is cut (item 2a).
   2026-10-24 — revised by the maintainer in session: internal engineering
   documentation (`CLAUDE.md`, `docs/adr/`, `docs/spec/`, `docs/reference/`,
   `docs/review/`, `docs/roadmap.md`, `docs/BRIEFING.md`,
@@ -37,6 +41,11 @@ pt-BR mirror to public/community documents:
    `CHANGELOG.md`, `SECURITY.md`) have a mandatory **equivalent pt-BR version**
    in `docs/pt-BR/` with the same file name and heading structure. A PR that
    changes one of these documents must update its twin in `docs/pt-BR/`.
+   2a. **Except the changelog's unreleased section** (2026-10-29): entries
+   under `## Unreleased` in `CHANGELOG.md` are English only; `## Não lançado`
+   in `docs/pt-BR/CHANGELOG.md` keeps its heading and is filled, translated,
+   in the PR that cuts the version (`scripts/release.mjs prepare`). The
+   heading structure of both files stays the same.
 3. **Internal engineering documentation** (`CLAUDE.md`, `docs/adr/`,
    `docs/spec/`, `docs/reference/`, `docs/review/`, `docs/roadmap.md`,
    `docs/BRIEFING.md`, `.github/pull_request_template.md`) is maintained in
@@ -72,4 +81,5 @@ pt-BR mirror to public/community documents:
 
 Accepted (2026-09-21); revised 2026-10-24 (English only for internal engineering
 docs; pt-BR mirror for `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and
-`SECURITY.md`).
+`SECURITY.md`); revised 2026-10-29 (unreleased changelog entries English
+only, translated when a version is cut).

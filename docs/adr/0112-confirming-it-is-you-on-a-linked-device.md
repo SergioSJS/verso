@@ -70,6 +70,9 @@ rest below is still a proposal or `[OPEN]`. Nothing is built.
    - (c) Approve on another already-signed-in device (push-style): the sensitive
      action waits, a signed-in device shows "Was it you?". Needs a second
      device online.
+   - `[DECIDED 2026-10-29]` (a) stays as the fallback: the maintainer, asked
+     whether the password stays when there is no Touch ID or Windows Hello:
+     *"pq não?"* (why not?).
    - *Recommendation:* **(b), with (a) always available as a fallback**
      (a person without a keychain key, a device linked before this exists, a
      Linux host with no OS check). On Linux with no polkit agent the app falls

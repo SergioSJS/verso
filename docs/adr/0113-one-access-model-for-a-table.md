@@ -171,8 +171,10 @@ chose where the maintainer was not asked is marked *chosen in the code*.
    attachments place. The server checks the subfolder it is given (relative,
    no `..`, no hidden segment; `assets` otherwise) and a name taken by a file
    the player does not see gets the silent suffix (S1–S3 review).
-   `[PROPOSED]` (the author's reading, to confirm): the new file takes, as its
-   own set, the access of the file it was put into, so the players who see
+   `[DECIDED 2026-10-29]` (the maintainer: *"a nota deveria receber o acesso
+   de onde ele ta colocando uai"*, the image takes the access of where it is
+   put): the new file takes, as its own set, the access of the file it was
+   put into, so the players who see
    that board see its image and no one else — a folder's set over `assets/`
    would otherwise hide the image of a board that is an exception. A player's
    *Export to folder* of a board still goes to the table's attachments
