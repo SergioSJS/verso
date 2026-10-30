@@ -19,7 +19,7 @@ use tokio_tungstenite::tungstenite::Message;
 use crate::tests_campaign::{Win, mesa};
 
 /// One thread for everything: what the 1-core host has.
-fn one_thread<F: std::future::Future>(f: F) -> F::Output {
+pub(crate) fn one_thread<F: std::future::Future>(f: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

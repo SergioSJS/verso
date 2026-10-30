@@ -300,7 +300,7 @@ fn disk_classes(
         .ok()
         .filter(Value::is_object)
         .unwrap_or_else(|| json!({ "nodes": [], "edges": [] }));
-    let sight = board_sight::see(&board_sight::entries_of_canvas(&canvas), lock);
+    let sight = board_sight::classes_of(&board_sight::entries_of_canvas(&canvas), lock);
     let shaped = board_sight::shape_canvas_seen(&canvas, &sight, lock);
     (shaped, sight.class)
 }
@@ -380,7 +380,9 @@ fn make(
             file_names_in(json, &mut names);
         }
         file_names_in(&base, &mut names);
-        file_names_in(&file.text, &mut names);
+        if base != file.text {
+            file_names_in(&file.text, &mut names);
+        }
         let told: HashMap<String, Option<String>> = {
             let locks = Locks::new(ws, &veil).within(scope);
             names
@@ -418,7 +420,18 @@ fn make(
         Some(t) => t.clone(),
         None => Some(crate::campaign_text::locked_card(&veil.lang)),
     };
-    let shown = board_sight::shaped_text(&file.text, &plain);
+    // The room's base is nearly always the file as it is: when it is, and
+    // the window opened no share (so `lock` and `plain` tell the same of
+    // every name), the board was just judged and is not judged again.
+    let same = scope.is_none()
+        && (base == file.text
+            || matches!((serde_json::from_str::<Value>(&base), serde_json::from_str::<Value>(&file.text)),
+                (Ok(a), Ok(b)) if a.is_object() && a == b));
+    let shown = if same {
+        board_sight::shaped_text_from(&file.text, &shaped)
+    } else {
+        board_sight::shaped_text(&file.text, &plain)
+    };
     if let Some(scope) = scope {
         share_board::canvas_out(
             scope,
