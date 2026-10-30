@@ -446,4 +446,34 @@ mod tests {
         assert!(!is_attachment_name(Path::new("outra.md")));
         assert!(!is_attachment_name(Path::new("dados.json")));
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_path_is_told_by_where_it_really_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        std::fs::create_dir(&real).unwrap();
+        std::fs::write(real.join("n.md"), "x").unwrap();
+        std::os::unix::fs::symlink(&real, dir.path().join("alias")).unwrap();
+        let canon = canonical_path(&real.join("n.md"));
+        assert_eq!(canonical_path(&dir.path().join("alias/n.md")), canon);
+        assert_eq!(canonical_path(&real.join("../real/./n.md")), canon);
+        // A file that is not there keeps its name after the real folder.
+        assert_eq!(
+            canonical_path(&dir.path().join("alias/../real/gone.md")),
+            canonical_path(&real).join("gone.md")
+        );
+        let root = canonical_path(&real);
+        assert_eq!(strip_root(&canon, &root), Some(PathBuf::from("n.md")));
+        assert_eq!(strip_root(&root, &canon), None);
+        assert_eq!(
+            strip_root(&canon, &canonical_path(dir.path().join("x").as_path())),
+            None
+        );
+        #[cfg(target_os = "macos")]
+        {
+            let upper = PathBuf::from(canon.parent().unwrap().to_string_lossy().to_uppercase());
+            assert_eq!(strip_root(&canon, &upper), Some(PathBuf::from("n.md")));
+        }
+    }
 }

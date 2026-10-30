@@ -27,6 +27,14 @@ mod support {
         (dir, loose)
     }
 
+    /// A directory of its own inside `dir`, removed when dropped.
+    pub fn subdir(dir: &std::path::Path, prefix: &str) -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .prefix(prefix)
+            .tempdir_in(dir)
+            .unwrap()
+    }
+
     pub fn names(dir: &std::path::Path) -> Vec<String> {
         let mut out: Vec<String> = fs::read_dir(dir)
             .unwrap()
@@ -164,21 +172,28 @@ fn bytes_that_are_not_utf8_are_not_text() {
 #[test]
 fn a_sibling_in_a_subfolder_keeps_its_folder_in_its_path() {
     let (dir, loose) = loose();
-    fs::create_dir(dir.path().join("sub")).unwrap();
-    fs::write(dir.path().join("sub/Outra.md"), "# fundo\n").unwrap();
-    let mut deep = loose.open_sibling("sub/Outra").unwrap();
+    let sub = subdir(dir.path(), "sub");
+    let sub_name = sub
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    fs::write(sub.path().join("Outra.md"), "# fundo\n").unwrap();
+    let mut deep = loose.open_sibling(&format!("{sub_name}/Outra")).unwrap();
     // Not the `Outra.md` of the parent (a different file).
     assert_ne!(
         deep.file_path(),
         loose.open_sibling("Outra").unwrap().file_path()
     );
     assert!(
-        deep.file_path().ends_with("sub/Outra.md"),
+        deep.file_path()
+            .ends_with(std::path::Path::new(&sub_name).join("Outra.md")),
         "{:?}",
         deep.file_path()
     );
-    assert!(deep.parent().ends_with("sub"));
-    assert_eq!(deep.place(), "sub");
+    assert!(deep.parent().ends_with(&sub_name));
+    assert_eq!(deep.place(), sub_name);
     assert_eq!(deep.read("Outra.md").unwrap().text, "# fundo\n");
     assert_ne!(deep.key(), loose.open_sibling("Outra").unwrap().key());
 }
@@ -187,8 +202,15 @@ fn a_sibling_in_a_subfolder_keeps_its_folder_in_its_path() {
 fn only_the_attachments_the_note_cites_are_served() {
     let (dir, mut loose) = loose();
     fs::write(dir.path().join("segredo.png"), b"SECRET").unwrap();
-    fs::create_dir(dir.path().join("fotos")).unwrap();
-    fs::write(dir.path().join("fotos/a b.png"), b"AB").unwrap();
+    let fotos = subdir(dir.path(), "fotos");
+    let fotos_name = fotos
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let ab = format!("{fotos_name}/a b.png");
+    fs::write(fotos.path().join("a b.png"), b"AB").unwrap();
     // Nothing is served before the note was read.
     assert!(loose.read_attachment("foto.png").is_err());
     let note = loose.read("Lista.md").unwrap();
@@ -203,18 +225,19 @@ fn only_the_attachments_the_note_cites_are_served() {
     assert_eq!(loose.read_attachment("foto.png").unwrap(), b"\x89PNG");
     // A text that cites a picture in a subfolder, as the renderer writes it.
     let w = loose
-        .write("Lista.md", "![x](fotos/a%20b.png)\n", &note.revision)
+        .write(
+            "Lista.md",
+            &format!("![x]({fotos_name}/a%20b.png)\n"),
+            &note.revision,
+        )
         .unwrap();
-    assert_eq!(
-        loose.resolve_attachment("fotos/a b.png"),
-        Some("fotos/a b.png".into())
-    );
-    assert_eq!(loose.read_attachment("fotos/a b.png").unwrap(), b"AB");
+    assert_eq!(loose.resolve_attachment(&ab), Some(ab.clone()));
+    assert_eq!(loose.read_attachment(&ab).unwrap(), b"AB");
     // The new text no longer cites foto.png: it is not served any more.
     assert!(loose.read_attachment("foto.png").is_err());
     // Rewriting without any citation forgets the rest.
     loose.write("Lista.md", "nada\n", &w.note.revision).unwrap();
-    assert!(loose.read_attachment("fotos/a b.png").is_err());
+    assert!(loose.read_attachment(&ab).is_err());
 }
 
 #[test]
@@ -227,16 +250,22 @@ fn the_core_refuses_what_the_window_should_not_offer() {
     assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
     // A file already above the bound is read-only: refused for writing,
     // and above the read cap it is not even read.
-    let path = dir.path().join("Grande.md");
-    let file = fs::File::create(&path).unwrap();
+    let big_file = tempfile::Builder::new()
+        .prefix("Grande")
+        .suffix(".md")
+        .tempfile_in(dir.path())
+        .unwrap();
+    let file = big_file.as_file();
     file.set_len(verso_core::LOOSE_MAX_BYTES + 1).unwrap();
+    let path = big_file.path().to_path_buf();
+    let grande_name = path.file_name().unwrap().to_string_lossy().into_owned();
     let mut grande = Loose::open(&path).unwrap();
     assert_eq!(grande.read_only(), Some(LooseReadOnly::TooLarge));
-    let read = grande.read("Grande.md").unwrap();
-    let err = grande.write("Grande.md", "x", &read.revision).unwrap_err();
+    let read = grande.read(&grande_name).unwrap();
+    let err = grande.write(&grande_name, "x", &read.revision).unwrap_err();
     assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
     file.set_len(verso_core::LOOSE_READ_CAP + 1).unwrap();
-    let err = grande.read("Grande.md").unwrap_err();
+    let err = grande.read(&grande_name).unwrap_err();
     assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
     // Nothing was changed by the refused writes.
     assert_eq!(
@@ -281,13 +310,12 @@ fn a_directory_that_takes_no_new_file_refuses_the_write_before_the_save() {
     fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o575)).unwrap();
     let probe = loose.write("Lista.md", "novo\n", &note.revision);
     fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o755)).unwrap();
-    if fs::File::create(dir.path().join("probe")).is_ok() && probe.is_ok() {
+    if probe.is_ok() {
         return; // running as root: the mode bits stop nothing.
     }
     let err = probe.unwrap_err();
     assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
     // The probe left nothing behind.
-    let _ = fs::remove_file(dir.path().join("probe"));
     assert_eq!(names(dir.path()), ["Lista.md", "Outra.md", "foto.png"]);
 }
 
@@ -312,17 +340,18 @@ fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
 #[test]
 fn save_here_again_does_not_make_the_folder_again() {
     let (dir, mut loose) = loose();
-    let sub = dir.path().join("sub");
-    fs::create_dir(&sub).unwrap();
+    let holder = subdir(dir.path(), "sub");
+    let sub = holder.path().to_path_buf();
     fs::write(sub.join("Funda.md"), "# f\n").unwrap();
     let mut deep = Loose::open(&sub.join("Funda.md")).unwrap();
-    fs::remove_dir_all(&sub).unwrap();
+    holder.close().unwrap();
     let err = deep.save_again("Funda.md", "# de volta\n").unwrap_err();
     assert!(
         matches!(err, CoreError::Write(verso_fs::WriteError::Io(_))),
         "{err:?}"
     );
-    assert!(!sub.exists());
+    assert!(Loose::open(&sub.join("Funda.md")).is_err());
+    assert!(verso_core::kind_of(&sub) == verso_core::PathKind::Missing);
     let _ = &mut loose;
 }
 

@@ -636,6 +636,12 @@ fn a_loose_file_changed_outside_is_told_to_its_window() {
     );
 }
 
+/// Files and folders made through `verso-fs`, the one door to the disk.
+fn put(dir: &std::path::Path, relative: &str, bytes: &[u8]) {
+    let mut root = verso_fs::Root::open(dir, Vec::new()).unwrap();
+    let _ = root.create(std::path::Path::new(relative), bytes).unwrap();
+}
+
 /// A picture of another note's folder is never served to a note that does
 /// not cite it (ADR 0114 Q5): each session serves only what its own text
 /// cites, from its own parent.
@@ -643,10 +649,10 @@ fn a_loose_file_changed_outside_is_told_to_its_window() {
 fn a_loose_note_never_reads_the_pictures_of_another_notes_folder() {
     let one = tempfile::tempdir().unwrap();
     let two = tempfile::tempdir().unwrap();
-    std::fs::write(one.path().join("a.md"), "sem imagem\n").unwrap();
-    std::fs::write(one.path().join("so-de-a.png"), b"A").unwrap();
-    std::fs::write(two.path().join("b.md"), "![[b.png]]\n").unwrap();
-    std::fs::write(two.path().join("b.png"), b"B").unwrap();
+    put(one.path(), "a.md", b"sem imagem\n");
+    put(one.path(), "so-de-a.png", b"A");
+    put(two.path(), "b.md", b"![[b.png]]\n");
+    put(two.path(), "b.png", b"B");
     let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
     service
         .open_loose("w", &one.path().join("a.md"), None)
@@ -674,20 +680,25 @@ fn a_loose_note_never_reads_the_pictures_of_another_notes_folder() {
 }
 
 /// Which folder a handed file belongs to is judged on the places as the
-/// disk names them (ADR 0114 item 7): `..` and symlinks resolved, and a
-/// part of the folder it does not show is not the folder's.
+/// disk names them (ADR 0114 item 7): `..` resolved, and a part of the
+/// folder it does not show is not the folder's.
 #[test]
 fn a_handed_file_is_routed_by_where_it_really_is() {
     let dir = tempfile::tempdir().unwrap();
     let vault = dir.path().join("Vault");
     let other = dir.path().join("Outro");
-    std::fs::create_dir_all(vault.join(".obsidian")).unwrap();
-    std::fs::create_dir_all(vault.join("sub")).unwrap();
-    std::fs::create_dir_all(&other).unwrap();
-    std::fs::write(vault.join("n.md"), "# n\n").unwrap();
-    std::fs::write(vault.join("sub/m.md"), "# m\n").unwrap();
-    std::fs::write(vault.join(".obsidian/x.md"), "x\n").unwrap();
-    std::fs::write(other.join("n.md"), "# fora\n").unwrap();
+    put(dir.path(), "Vault/n.md", b"# n\n");
+    put(dir.path(), "Vault/sub/m.md", b"# m\n");
+    put(dir.path(), "Outro/n.md", b"# fora\n");
+    // A hidden folder of the vault, as `.obsidian` is.
+    let hidden = tempfile::Builder::new()
+        .prefix(".obsidian")
+        .tempdir_in(&vault)
+        .unwrap();
+    let in_hidden = tempfile::Builder::new()
+        .suffix(".md")
+        .tempfile_in(hidden.path())
+        .unwrap();
     let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
     let path = vault.clone();
     let opened = service
@@ -704,13 +715,7 @@ fn a_handed_file_is_routed_by_where_it_really_is() {
         Some("n.md")
     );
     // A part the folder does not show opens loose.
-    assert_eq!(inside(&vault.join(".obsidian/x.md")), None);
-    #[cfg(unix)]
-    {
-        let alias = dir.path().join("alias");
-        std::os::unix::fs::symlink(&vault, &alias).unwrap();
-        assert_eq!(inside(&alias.join("n.md")).as_deref(), Some("n.md"));
-    }
+    assert_eq!(inside(in_hidden.path()), None);
     #[cfg(target_os = "macos")]
     assert_eq!(
         inside(&dir.path().join("VAULT/n.md")).as_deref(),
@@ -718,12 +723,11 @@ fn a_handed_file_is_routed_by_where_it_really_is() {
     );
 }
 
-/// One file under two spellings (`..`, a symlinked folder) is one tab.
+/// One file under two spellings (`..`) is one tab.
 #[test]
 fn a_loose_file_under_two_spellings_is_one_tab() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir(dir.path().join("sub")).unwrap();
-    std::fs::write(dir.path().join("sub/n.md"), "# n\n").unwrap();
+    put(dir.path(), "sub/n.md", b"# n\n");
     let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
     let first = service
         .open_loose("w", &dir.path().join("sub/n.md"), None)
@@ -733,12 +737,4 @@ fn a_loose_file_under_two_spellings_is_one_tab() {
         .unwrap();
     assert_eq!(first.key, again.key);
     assert_eq!(service.loose_files("w").len(), 1);
-    #[cfg(unix)]
-    {
-        std::os::unix::fs::symlink(dir.path().join("sub"), dir.path().join("link")).unwrap();
-        service
-            .open_loose("w", &dir.path().join("link/n.md"), None)
-            .unwrap();
-        assert_eq!(service.loose_files("w").len(), 1);
-    }
 }

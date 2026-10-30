@@ -158,10 +158,10 @@ impl Loose {
     pub fn read_only(&self) -> Option<LooseReadOnly> {
         let cached = self.permissions.lock().map_or(None, |p| p.clone());
         let why = cached.unwrap_or_else(|| {
-            let why = match self.root.scoped_read_only() {
-                Some(ReadOnlyWhy::Permissions(why)) => Some(why),
-                None => None,
-            };
+            let why = self
+                .root
+                .scoped_read_only()
+                .map(|ReadOnlyWhy::Permissions(why)| why);
             if let Ok(mut p) = self.permissions.lock() {
                 *p = Some(why.clone());
             }
