@@ -46,6 +46,7 @@ mod obsidian;
 mod ops;
 mod os;
 mod placeholder;
+mod scope;
 pub mod server;
 mod settings;
 mod single;
@@ -83,6 +84,9 @@ pub use jail::resolves_within;
 pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
+pub use scope::{
+    NOTE_EXTENSIONS, PathKind, ReadOnlyWhy, is_attachment_name, is_note_name, kind_of,
+};
 pub use settings::{DATA_DIRS, SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
 pub use staged::Staged;
@@ -266,6 +270,10 @@ pub struct Root {
     /// with members other than the owner (the maintainer's answer H of
     /// 2026-10-09).
     links_inside: bool,
+    /// The one file this root is for, when it was opened by
+    /// [`Root::open_file`] (ADR 0114): its name relative to the root, the
+    /// parent directory. Everything else is out of scope (`scope.rs`).
+    scope: Option<PathBuf>,
     /// Handle index → path relative to the root, and the reverse.
     table: Vec<PathBuf>,
     by_path: HashMap<PathBuf, u32>,
@@ -370,6 +378,7 @@ impl Root {
             ignored,
             rules: WalkRules::default(),
             links_inside: false,
+            scope: None,
             table: Vec::new(),
             by_path: HashMap::new(),
             journal: journal::Journal::default(),
@@ -486,6 +495,11 @@ impl Root {
     /// are refused or become one name.
     pub fn confine(&self, relative: &Path) -> Result<PathBuf, ConfinementError> {
         let relative = confine::confine(relative)?;
+        // The one file a scoped root is for, whatever its name (ADR 0114).
+        if self.scope.as_deref() == Some(relative.as_path()) {
+            return Ok(relative);
+        }
+        self.in_scope(&relative)?;
         // The placeholder name form outranks the hidden rule here as in the
         // walk (ADR 0043), so a walked placeholder can be named again. The
         // folder's settings directory, `.verso/`, and its plain entries are
@@ -516,6 +530,10 @@ impl Root {
     /// order (sorted by name at each level), with the problems met on the
     /// way. Symlinks are followed (ADR 0044).
     pub fn walk(&mut self) -> Walk {
+        // A root for one file lists nothing (ADR 0114 item 16).
+        if self.scope.is_some() {
+            return Walk::default();
+        }
         walk::walk(self)
     }
 
@@ -637,6 +655,9 @@ impl Root {
     /// names are hidden); this says they are there.
     pub fn temporaries(&self) -> std::io::Result<Vec<PathBuf>> {
         let mut out = Vec::new();
+        if self.scope.is_some() {
+            return Ok(out);
+        }
         let mut stack = vec![PathBuf::new()];
         while let Some(rel) = stack.pop() {
             for entry in std::fs::read_dir(on_disk(&self.path, &rel))? {
@@ -663,6 +684,7 @@ impl Root {
     /// is refused now rather than after the last piece (ADR 0043).
     pub fn stage(&self, relative: &Path) -> Result<Staged, WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        self.scoped_write(&relative)?;
         let path = on_disk(&self.path, &relative);
         if placeholder::stands_in(&path).map_err(WriteError::Io)? {
             return Err(WriteError::Placeholder);
@@ -700,6 +722,7 @@ impl Root {
         relative: &Path,
         staged: Staged,
     ) -> Result<(Handle, OpReport), WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&relative, None)?;
         let report = staged.create_at(&on_disk(&self.path, &relative))?;
@@ -723,6 +746,7 @@ impl Root {
         source: &Path,
         max: u64,
     ) -> Result<(Handle, OpReport), ImportError> {
+        self.no_scoped()?;
         let confined = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&confined, None)?;
         if ops::occupied(&on_disk(&self.path, &confined)).map_err(WriteError::Io)? {
@@ -743,6 +767,7 @@ impl Root {
         staged: Staged,
         expected: &Stamp,
     ) -> Result<WriteReport, WriteError> {
+        self.scoped_write_handle(handle)?;
         let path = self
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
@@ -791,6 +816,7 @@ impl Root {
         content: &[u8],
         expected: &Stamp,
     ) -> Result<WriteReport, WriteError> {
+        self.scoped_write_handle(handle)?;
         let path = self
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
@@ -811,6 +837,7 @@ impl Root {
         relative: &Path,
         content: &[u8],
     ) -> Result<(Handle, OpReport), WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&relative, None)?;
         let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
@@ -822,6 +849,7 @@ impl Root {
     /// Create a folder (and its parents) inside the root, confined, each
     /// new directory synced into the one it hangs from.
     pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&relative, None)?;
         let report = ops::create_directory(&on_disk(&self.path, &relative))?;
@@ -833,6 +861,7 @@ impl Root {
     /// root itself. Sync leaves no empty folder behind a move or a deletion
     /// that came from another device (ADR 0079).
     pub fn remove_empty_dir(&self, relative: &Path) -> Result<bool, WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         if relative.as_os_str().is_empty() {
             return Ok(false);
@@ -860,6 +889,7 @@ impl Root {
     /// that appears at the destination meanwhile is replaced; a directory
     /// or a symlink is renamed.
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
+        self.no_scoped()?;
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
         self.new_names(&to, Some(&from))?;
@@ -893,6 +923,7 @@ impl Root {
             self.rules,
             excluded,
             quiet,
+            self.scope.clone(),
             on_change,
         )
     }
@@ -900,6 +931,7 @@ impl Root {
     /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping
     /// its relative path. Returns where it went, relative to the root.
     pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         let done = ops::trash(&self.path, &relative)?;
         self.journal
@@ -916,6 +948,7 @@ impl Root {
     /// Remove an entry of `.trash/` for good (ADR 0080 items 3 and 7):
     /// only a path under the bin, a symlink removed as itself.
     pub fn purge_trash(&self, relative: &Path) -> Result<(), WriteError> {
+        self.no_scoped()?;
         trashbin::purge(&self.path, relative)
     }
 
@@ -927,6 +960,7 @@ impl Root {
     /// entry of its folder (spec Q8), which the caller takes for a name
     /// taken and restores beside.
     pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
+        self.no_scoped()?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
         self.new_names(&to, None)?;
         let report = trashbin::restore(&self.path, from, &to)?;
@@ -942,6 +976,7 @@ impl Root {
     /// puts an entry back into: one that only a case twin stands for on
     /// Linux cannot be helped by a name beside.
     pub fn check_new_folder(&self, relative: &Path) -> Result<(), WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         if std::fs::metadata(on_disk(&self.path, &relative)).is_ok_and(|m| m.is_dir()) {
             return Ok(());
@@ -952,6 +987,7 @@ impl Root {
     /// Copy the file at `relative` into `.trash/` before a write replaces
     /// it (ADR 0080 item 12); returns where the copy went.
     pub fn keep_in_trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
+        self.no_scoped()?;
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         trashbin::keep_copy(&self.path, &relative)
     }
@@ -987,6 +1023,7 @@ impl Root {
         content: &[u8],
         expected: &Stamp,
     ) -> Result<WriteReport, WriteError> {
+        self.no_scoped()?;
         ops::write_waypoints(&self.path, content, expected)
     }
 
