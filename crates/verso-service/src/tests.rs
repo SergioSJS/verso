@@ -672,3 +672,73 @@ fn a_loose_note_never_reads_the_pictures_of_another_notes_folder() {
     assert_eq!(service.loose_attachment("w", "b.png").unwrap(), b"B");
     assert!(service.loose_attachment("w", "so-de-a.png").is_err());
 }
+
+/// Which folder a handed file belongs to is judged on the places as the
+/// disk names them (ADR 0114 item 7): `..` and symlinks resolved, and a
+/// part of the folder it does not show is not the folder's.
+#[test]
+fn a_handed_file_is_routed_by_where_it_really_is() {
+    let dir = tempfile::tempdir().unwrap();
+    let vault = dir.path().join("Vault");
+    let other = dir.path().join("Outro");
+    std::fs::create_dir_all(vault.join(".obsidian")).unwrap();
+    std::fs::create_dir_all(vault.join("sub")).unwrap();
+    std::fs::create_dir_all(&other).unwrap();
+    std::fs::write(vault.join("n.md"), "# n\n").unwrap();
+    std::fs::write(vault.join("sub/m.md"), "# m\n").unwrap();
+    std::fs::write(vault.join(".obsidian/x.md"), "x\n").unwrap();
+    std::fs::write(other.join("n.md"), "# fora\n").unwrap();
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    let path = vault.clone();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    let inside = |p: &std::path::Path| service.folder_containing(p).map(|(_, r)| r);
+    assert_eq!(inside(&vault.join("sub/m.md")).as_deref(), Some("sub/m.md"));
+    // `..` is resolved: this file is in `Outro`, not in `Vault`.
+    assert_eq!(inside(&vault.join("../Outro/n.md")), None);
+    // And the other way: a `..` that comes back in.
+    assert_eq!(
+        inside(&other.join("../Vault/n.md")).as_deref(),
+        Some("n.md")
+    );
+    // A part the folder does not show opens loose.
+    assert_eq!(inside(&vault.join(".obsidian/x.md")), None);
+    #[cfg(unix)]
+    {
+        let alias = dir.path().join("alias");
+        std::os::unix::fs::symlink(&vault, &alias).unwrap();
+        assert_eq!(inside(&alias.join("n.md")).as_deref(), Some("n.md"));
+    }
+    #[cfg(target_os = "macos")]
+    assert_eq!(
+        inside(&dir.path().join("VAULT/n.md")).as_deref(),
+        Some("n.md")
+    );
+}
+
+/// One file under two spellings (`..`, a symlinked folder) is one tab.
+#[test]
+fn a_loose_file_under_two_spellings_is_one_tab() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("sub")).unwrap();
+    std::fs::write(dir.path().join("sub/n.md"), "# n\n").unwrap();
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    let first = service
+        .open_loose("w", &dir.path().join("sub/n.md"), None)
+        .unwrap();
+    let again = service
+        .open_loose("w", &dir.path().join("sub/../sub/./n.md"), None)
+        .unwrap();
+    assert_eq!(first.key, again.key);
+    assert_eq!(service.loose_files("w").len(), 1);
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(dir.path().join("sub"), dir.path().join("link")).unwrap();
+        service
+            .open_loose("w", &dir.path().join("link/n.md"), None)
+            .unwrap();
+        assert_eq!(service.loose_files("w").len(), 1);
+    }
+}

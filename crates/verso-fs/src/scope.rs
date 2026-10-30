@@ -113,6 +113,87 @@ pub fn kind_of(path: &Path) -> PathKind {
     }
 }
 
+/// `path` as the disk names the place: absolute, `.` and `..` resolved,
+/// every symlink followed, on Windows without the `\\?\` prefix. When the
+/// path does not exist, its nearest existing ancestor is canonicalized and
+/// the rest is appended after a lexical normalization (a `..` cannot
+/// climb above what exists). The entry edge asks here, so that
+/// `/tmp/x/../y.md` and `/private/tmp/y.md` are one file (ADR 0114 item 7).
+#[must_use]
+pub fn canonical_path(path: &Path) -> PathBuf {
+    let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    if let Ok(real) = std::fs::canonicalize(&absolute) {
+        return plain(real);
+    }
+    // Lexical normalization of the missing tail.
+    let mut kept: Vec<std::ffi::OsString> = Vec::new();
+    let mut base = PathBuf::new();
+    for c in absolute.components() {
+        match c {
+            Component::Prefix(_) | Component::RootDir => base.push(c.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                kept.pop();
+            }
+            Component::Normal(n) => kept.push(n.to_owned()),
+        }
+    }
+    let mut out = base.clone();
+    let mut tail = Vec::new();
+    for n in kept {
+        if tail.is_empty() {
+            let next = out.join(&n);
+            if next.exists() {
+                out = next;
+                continue;
+            }
+        }
+        tail.push(n);
+    }
+    let mut out = std::fs::canonicalize(&out).map_or(out, plain);
+    out.extend(tail);
+    out
+}
+
+/// A Windows verbatim path (`\\?\C:\x`) as the plain one (`C:\x`).
+fn plain(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    if let Some(rest) = path.to_str().and_then(|s| s.strip_prefix(r"\\?\"))
+        && rest.as_bytes().get(1) == Some(&b':')
+    {
+        return PathBuf::from(rest);
+    }
+    path
+}
+
+/// Whether two names of one path component are the same on this system:
+/// case-insensitive where the usual volumes are (macOS, Windows).
+fn same_component(a: &std::ffi::OsStr, b: &std::ffi::OsStr) -> bool {
+    if a == b {
+        return true;
+    }
+    cfg!(any(target_os = "macos", windows))
+        && match (a.to_str(), b.to_str()) {
+            (Some(a), Some(b)) => a.to_lowercase() == b.to_lowercase(),
+            _ => false,
+        }
+}
+
+/// `path` relative to `root`, both canonical ([`canonical_path`]); the
+/// components compare case-insensitively on macOS and Windows. `None` when
+/// `path` is not inside `root`.
+#[must_use]
+pub fn strip_root(path: &Path, root: &Path) -> Option<PathBuf> {
+    let mut rest = path.components();
+    for r in root.components() {
+        let p = rest.next()?;
+        if !same_component(p.as_os_str(), r.as_os_str()) {
+            return None;
+        }
+    }
+    Some(rest.as_path().to_path_buf())
+}
+
 /// Why a scoped file opens for reading only (ADR 0114 items 12 and 13).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReadOnlyWhy {

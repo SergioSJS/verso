@@ -78,8 +78,11 @@ impl Loose {
     /// Open the file at `path` (the entry edge): its parent as a scoped
     /// root. Nothing is read yet.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let root = Root::open_file(path).map_err(CoreError::Folder)?;
-        let path = std::path::absolute(path).map_err(CoreError::Folder)?;
+        // The place as the disk names it: `..`, symlinks (a linked file is
+        // its target, not a way to write through a name) and, on macOS and
+        // Windows, the volume's own spelling: one file is one path.
+        let path = verso_fs::canonical_path(path);
+        let root = Root::open_file(&path).map_err(CoreError::Folder)?;
         Ok(Self::new(root, path))
     }
 
@@ -366,7 +369,7 @@ impl Loose {
             .map_err(CoreError::Folder)?;
         // The path keeps the sub folders (`sub/outra.md`), not only the
         // scoped name: two files of one name in two folders stay two files.
-        let path = std::path::absolute(self.parent().join(relative)).map_err(CoreError::Folder)?;
+        let path = verso_fs::canonical_path(&self.parent().join(relative));
         Ok(Self::new(root, path))
     }
 
