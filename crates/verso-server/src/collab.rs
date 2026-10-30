@@ -40,6 +40,10 @@ use crate::state::Server;
 
 /// How long a room waits after the last edit before it writes.
 const QUIET: Duration = Duration::from_millis(900);
+/// The longest a room keeps edits unwritten while people keep typing: a note
+/// edited without a pause of [`QUIET`] (several people in turn) is still
+/// written this often, so a server that dies loses seconds, not the session.
+const LONGEST: Duration = Duration::from_secs(5);
 /// How long a room outlives a connection that dropped, so that a window
 /// coming back finds it and sends what it typed meanwhile.
 const GRACE: Duration = Duration::from_secs(120);
@@ -886,10 +890,11 @@ pub fn awareness(
 fn schedule(server: &Arc<Server>, room: Arc<Mutex<Room>>) {
     let server = Arc::clone(server);
     tokio::spawn(async move {
+        let began = Instant::now();
         loop {
             tokio::time::sleep(QUIET).await;
             let wait = QUIET.saturating_sub(lock(&room).edited.elapsed());
-            if wait.is_zero() {
+            if wait.is_zero() || began.elapsed() >= LONGEST {
                 break;
             }
         }
