@@ -45,9 +45,8 @@
   2026-10-22 — the maintainer answered the decisions list of the afternoon of
   2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`) on 2026-10-22:
   (a) T.1, option A: the Fractal credit **stays CC BY 4.0**, as the SRD's text
-  says (item 6b). The authors' answer is still not on record, and the SRD's
-  badge still shows BY-SA (`docs/reference/statblock-sources.md` 3.10); item
-  6b's clause that it is changed if the authors' answer changes stands. (b)
+  says (item 6b); 2026-10-29 the maintainer closed it for good: the licence
+  is CC BY 4.0, with no open question left about it. (b)
   T.4, option A: the attribute names on the Vampire and Cyberpunk sheets
   (`strength`, `INT`) **stay as the note's data keys, in English, for now**;
   translating them needs a new feature (a label per key) that was not chosen
@@ -191,11 +190,9 @@ written in the item, with no words of his own); nothing is left
      (Meio-Orc)"*), Ironsworn/Starforged's open
      parts (CC BY 4.0),
      Cairn and Old Dragon 2e (CC BY-SA 4.0: field names only, no text);
-   - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0 by its SRD's
-     text, whose badge shows BY-SA — to be confirmed with the authors; field
-     names only either way; `[DECIDED 2026-10-21]` (0099.6b, option A) it
-     stays built in, field names only, credited "CC BY 4.0 as the SRD's
-     text says", and is changed if the authors' answer changes it): a character (reserves, up to twelve facts that break and mend,
+   - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0;
+     `[DECIDED 2026-10-21]` (0099.6b, option A), closed 2026-10-29: it
+     stays built in, field names only, credited CC BY 4.0): a character (reserves, up to twelve facts that break and mend,
      XP) and a **challenge** whose obstacles may each be a `[[link]]` to
      another challenge's note — a campaign, its arcs and its episodes as one
      tree the graph already draws;

@@ -89,7 +89,7 @@ This is the state recorded by ADR 0099 item 6 on 2026-10-20; the paragraphs of s
 | Mausritter | CC BY 4.0 + Third Party Licence | Built in |
 | Blades in the Dark | CC BY 3.0 | Built in |
 | Fate Accelerated and Fate Condensed | CC BY 3.0 (or OGL) | Built in |
-| Fractal RPG | CC BY 4.0 by its text (the badge shows BY-SA) | Built in |
+| Fractal RPG | CC BY 4.0 | Built in |
 | Old Dragon 2e | CC BY-SA 4.0 | Built in, field names only |
 | Tormenta20 | Licença Aberta da Jambô v1.0 (PC sheets only) | Not built in (imported) |
 | Pathfinder 2e Remaster | ORC | Built in |
@@ -267,8 +267,8 @@ Each section lists, in this order: the licence, whether it ships, the credit lin
 
 ### 3.10 Fractal RPG (Igor Téuri and Walter Licínio), SRD v1.0.3
 
-- **Licence.** Read from the official SRD v1.0.3 (the PDF the maintainer gave, 2026-10-20) **[OFFICIAL]**. The text says "Creative Commons Attribution 4.0 License" (CC BY 4.0); the badge image shows BY-SA. The two disagree; the text is followed unless the authors say otherwise, and the maintainer can ask Igor. "Fractal" is a trademark of Dados Críticos (https://linktr.ee/dadoscriticos); the "FEITO PARA FRACTAL" mark may be used as extra credit. Authors: Igor Téuri and Walter Licínio (design, edition); Érika Brandão (visual identity).
-- **Credit decision (2026-10-22, T.1 of the afternoon list, option A).** The maintainer kept the credit as **CC BY 4.0**, as the SRD's text says. The authors' answer about the badge (BY-SA) is not on record; if it arrives and differs, the credit changes (ADR 0099 item 6b).
+- **Licence.** Read from the official SRD v1.0.3 (the PDF the maintainer gave, 2026-10-20) **[OFFICIAL]**. The text says "Creative Commons Attribution 4.0 License": CC BY 4.0. "Fractal" is a trademark of Dados Críticos (https://linktr.ee/dadoscriticos); the "FEITO PARA FRACTAL" mark may be used as extra credit. Authors: Igor Téuri and Walter Licínio (design, edition); Érika Brandão (visual identity).
+- **Credit decision (2026-10-22, T.1 of the afternoon list, option A; closed 2026-10-29).** The maintainer: the licence is **CC BY 4.0**. No open question remains.
 - **Ships (ADR 0099 item 6).** Built in
 - **Credit line.** Required line (SRD p. 4): "Esse trabalho é compatível com Fractal, de Igor Téuri e Walter Licínio, desenvolvido sob licença Creative Commons Attribution 4.0 License." + https://fractal-system.itch.io/pt-br
 - **Character sheet, in display order.**
@@ -718,7 +718,6 @@ These are recorded, not resolved; the maintainer decides (rule zero of CLAUDE.md
 
 - Item 6 lists Vampire among the games that are imported, and also marks "the World of Darkness 5th-edition games under Paradox's Dark Pack" `[PROPOSED]` as built in. Sections 3.23 to 3.25 give the Dark Pack evidence for both readings.
 - Item 6 names "D&D 5e SRD 5.2"; the research read both SRD 5.1 and SRD 5.2.1, with separate credit lines (3.2).
-- Item 6 says Fractal is "CC BY 4.0 by its SRD's text"; the SRD's badge image shows BY-SA (3.10). The authors have not been asked.
 - Item 6 names Starfinder 2e among the built-in layouts; the research verified its creature statblock but not its character sheet (3.30), so a built-in Starfinder 2e layout has no verified character sheet to be built from.
 - The Year Zero Engine generic layout (3.16), a Powered by the Apocalypse generic layout (3.4) and Mothership (3.15) are not named in item 6. This file records no decision about them.
 - Cairn and Old Dragon 2e: item 6 says "field names only, no text"; sections 3.6 and 3.11 list the field names and also, in places, short descriptive phrases of the source (for example Cairn's trait names). A layout takes the names, not the phrases.
