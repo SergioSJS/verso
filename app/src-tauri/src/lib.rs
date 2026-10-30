@@ -65,6 +65,7 @@ mod reach;
 mod recover;
 mod release_sums;
 mod remote;
+mod remote_abilities;
 #[cfg(target_os = "linux")]
 mod resolv_conf;
 mod secrets;
