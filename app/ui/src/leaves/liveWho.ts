@@ -12,7 +12,7 @@ import { h } from "../dom";
 import { presenceColor } from "../collab";
 import { initial, RING_MS, Ringing } from "./whoRing";
 
-type Row = { el: HTMLElement; ringing: Ringing; others: readonly string[]; timer: number };
+type Row = { el: HTMLElement; ringing: Ringing; others: readonly string[]; timer: number; key: string };
 const rows = new WeakMap<object, Row>();
 
 function rowOf(owner: object, mark: HTMLElement): Row {
@@ -20,7 +20,7 @@ function rowOf(owner: object, mark: HTMLElement): Row {
   if (!r) {
     const el = h("span", "live-who");
     mark.before(el);
-    r = { el, ringing: new Ringing(), others: [], timer: 0 };
+    r = { el, ringing: new Ringing(), others: [], timer: 0, key: "\u0000" };
     rows.set(owner, r);
   }
   return r;
@@ -28,6 +28,10 @@ function rowOf(owner: object, mark: HTMLElement): Row {
 
 function draw(r: Row, now: number): void {
   const ringed = r.ringing.active(now);
+  // The same people with the same rings are the same marks (presence arrives in bursts).
+  const key = r.others.map((n) => (ringed.has(n) ? `*${n}` : n)).join("\u0001");
+  if (key === r.key) return;
+  r.key = key;
   r.el.hidden = r.others.length === 0;
   r.el.replaceChildren(
     ...r.others.map((name) => {
