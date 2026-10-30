@@ -149,6 +149,16 @@ pub const EDIT: &[&str] = &[
 /// not make the laptop fetch an address on the network for a phone), the
 /// folder's own settings and rules, emptying the bin, deleting history.
 pub const REFUSED: &[&str] = &[
+    "loose_close", // ADR 0114: host-side loose-files window of the laptop
+    "loose_files", // ADR 0114: host-side loose-files window of the laptop
+    "loose_save_again", // ADR 0114: writes beside a file of the laptop's disk
+    "loose_save_copy", // ADR 0114: writes to a place of the laptop's disk
+    "open_default_apps", // ADR 0114: opens the laptop's system settings
+    "open_folder_of_file", // ADR 0114: opens a folder of the laptop's disk
+    "open_recent_file", // ADR 0114: opens a file of the laptop's disk
+    "open_sibling", // ADR 0114: opens a file of the laptop's disk outside the served folders
+    "pick_file", // ADR 0114: the laptop's file picker
+    "recent_files", // ADR 0114: lists the laptop's recent files
     "agent_visible",
     "set_agent_visible",
     "check_for_updates",
