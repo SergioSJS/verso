@@ -171,13 +171,11 @@ fn what_is_neither_folder_nor_markdown_is_refused_in_words() {
     assert_eq!(files.load(std::sync::atomic::Ordering::SeqCst), 1);
     let opened = call(&webview, "open_initial", json!({})).unwrap();
     assert_eq!(opened["kind"], "file");
-    let url = format!(
-        "file://{}",
-        dir.path()
-            .join("Nota.md")
-            .to_string_lossy()
-            .replace(' ', "%20")
-    );
+    // The system's own form of the address: `file:///C:/…` on Windows,
+    // `file:///tmp/…` elsewhere, spaces as %20.
+    let url = tauri::Url::from_file_path(dir.path().join("Nota.md"))
+        .unwrap()
+        .to_string();
     second_launch(app.handle(), vec!["verso-app".into(), url], String::new());
     assert_eq!(files.load(std::sync::atomic::Ordering::SeqCst), 2);
     let again = call(&webview, "open_initial", json!({})).unwrap();
