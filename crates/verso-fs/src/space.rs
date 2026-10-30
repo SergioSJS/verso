@@ -13,6 +13,14 @@ use std::path::Path;
 /// The bytes a user of this account can still write on the file system
 /// `dir` is on.
 pub(crate) fn free_bytes(dir: &Path) -> std::io::Result<u64> {
+    // Windows answers for a path that does not exist (the volume's room);
+    // a folder that is not there has no room to count, on every system.
+    if !dir.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "no such folder",
+        ));
+    }
     fs4::available_space(dir)
 }
 

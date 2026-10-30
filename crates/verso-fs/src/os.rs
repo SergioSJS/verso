@@ -414,6 +414,11 @@ mod tests {
             let mut held = held;
             std::thread::sleep(std::time::Duration::from_millis(100));
             held.write_all(b"theirs, longer").unwrap();
+            // Still held a moment after the write, as a program saving
+            // and then closing is: the question asked while it holds the
+            // file sees the change (dropping at once raced the question
+            // on a busy machine, 2026-10-30).
+            std::thread::sleep(std::time::Duration::from_millis(100));
             drop(held);
         });
         let still = || std::fs::metadata(&to).is_ok_and(|m| m.len() == len);
