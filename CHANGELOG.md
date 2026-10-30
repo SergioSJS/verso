@@ -109,6 +109,7 @@ test release.
 
 ### Changed
 
+- **The status bar no longer shows the ⌘E edit hint** (the maintainer, 2026-10-30: not useful); ⌘E still switches a note between reading and editing.
 - **A panel that is not on screen no longer redraws** (night 2026-10-30, measured on the Windows app: the hidden Table list was rebuilt 594 times in 186 s, the collapsed right panel about 66 times in 3 minutes): the right panel and the Table tab only note that they are stale while collapsed and draw once, from the current state, when opened; on screen, a burst of presence events is one drawing per frame; the outline and the roster and live-who marks are kept when nothing in them changed. What is announced is unchanged.
 
 - **Someone joining the note you are editing no longer pops up over the table's chat** (the maintainer, 2026-10-28: "it should notify, but subtly"; [ADR 0084](docs/adr/0084-notifications-in-the-window.md) item 8): *Settings › Notifications › Presence* now starts at *List only* — no toast on any screen; the bell counts the join and the list says it. In the note or board itself, the newcomer's mark beside *live* gets a brief ring (still, fading, with reduced motion) and a screen reader hears "Ana joined the note." once. Set Presence back to *Notice and list* for the toast (and the system's notification) as before; a choice you already made is kept.
