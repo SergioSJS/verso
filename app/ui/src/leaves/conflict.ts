@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands, type ContractError } from "../bindings";
+import { ls } from "../looseStrings";
 import { conflictName } from "../dialogs/conflictNames";
 import { diffNode } from "../diff";
 import { button, h, ui } from "../dom";
@@ -100,18 +101,29 @@ export class GoneBanner {
   readonly el = h("div", "conflict gone-banner");
   private readonly said = h("p", "");
   up = false;
-  constructor(onSaveAgain: () => void, onClose: () => void) {
+  private readonly copy: HTMLButtonElement | null;
+  constructor(onSaveAgain: () => void, onClose: () => void, onSaveCopy?: () => void) {
     const again = button("ghost", t.saveAgain);
     again.addEventListener("click", onSaveAgain);
     const close = button("ghost danger", t.closeWithoutSaving);
     close.addEventListener("click", onClose);
     const actions = h("div", "conflict-actions");
-    actions.append(again, close);
+    actions.append(again);
+    // A file opened without its folder also offers the system's save
+    // dialog (ADR 0114 item 11, "Save a copy…").
+    this.copy = onSaveCopy ? button("ghost", ls.saveCopy) : null;
+    if (this.copy) {
+      this.copy.addEventListener("click", onSaveCopy ?? (() => {}));
+      this.copy.hidden = true;
+      actions.append(this.copy);
+    }
+    actions.append(close);
     this.el.append(this.said, actions);
     this.el.hidden = true;
   }
-  show(sentence: string): void {
+  show(sentence: string, withCopy = false): void {
     this.up = true;
+    if (this.copy) this.copy.hidden = !withCopy;
     this.said.textContent = sentence;
     this.el.hidden = false;
     this.el.scrollIntoView({ block: "start" });

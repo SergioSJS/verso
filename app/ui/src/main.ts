@@ -78,6 +78,8 @@ import { TextLeaf } from "./leaves/textfile";
 import { embedViews, syncEmbedViews, syncWebViews, watchEmbedLayout, webLeaves } from "./leaves/web";
 import { createMenuItems, menu, MenuItem, menuKeydown, showMenu, trackMenuPointer } from "./menu";
 import { joinAsPopout, openFolderBy, openFolderDialog, showFolder } from "./open";
+import { handedRefused, isLoose, looseChangedOutside, openOpened, rejoinLoose } from "./loose";
+import { handedRefusedText } from "./looseStrings";
 import { folderNoteOf, pushFolderNoteName } from "./organize/folderNotes";
 import { orderMenuItems, orderModeChanged, paintOrderToggle } from "./organize/order";
 import { FocusSwitcher } from "./panel/focusSwitcher";
@@ -677,7 +679,17 @@ if (!popout) void listen<[string, string]>("open-note", (e) => {
  * keeps it and names the window with no folder that takes it; that window
  * opens it. */
 if (!popout) void listen<string>("folder-handed", (e) => {
-  if (e.payload === getCurrentWindow().label) void openFolderBy(() => commands.openInitial());
+  if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
+});
+/* A Markdown file handed to the app (ADR 0114 item 7): the host names the
+ * loose-files window, which opens it as a tab. */
+if (!popout) void listen<string>("file-handed", (e) => {
+  if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
+});
+/* Something handed that is neither a folder nor a Markdown file (ADR 0114
+ * item 6): said in words, the window stays as it was. */
+if (!popout) void listen<[string, string, string]>("handed-refused", (e) => {
+  if (e.payload[0] === getCurrentWindow().label) handedRefused(e.payload[1], e.payload[2], handedRefusedText);
 });
 /* The app menu (File › Open Folder…, Settings… ⌘,): the host names the
  * window in focus, which answers as its own button and command do. */
@@ -776,7 +788,7 @@ export function runEditCommand(command: string): void {
 }
 /** The input types text is typed in, which take the web view's Undo. */
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
-void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+void listen<FolderChanged>("folder-changed", (e) => void (isLoose() ? looseChangedOutside(e.payload) : changedOutside(e.payload)));
 hearAccess();
 hearCampaign();
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
@@ -804,8 +816,11 @@ export const started: Promise<void> = (async () => {
   // window joins it rather than open another.
   const open = await commands.currentFolder();
   if (open.status === "ok" && open.data) return void (await showFolder(open.data));
-  // `verso <folder>` on the command line wins over the last folder.
-  if (await openFolderBy(() => commands.openInitial())) return;
+  // A reload of the loose-files window finds its files still open.
+  if (await rejoinLoose()) return;
+  // `verso <folder>` (or a Markdown file, ADR 0114) on the command line
+  // wins over the last folder.
+  if (await openOpened(() => commands.openInitial())) return;
   // A window opened later starts on the start page, to open a folder of
   // its own (ADR 0065): the last folder is the main window's.
   if (secondary) return;

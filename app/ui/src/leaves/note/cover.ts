@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Transaction } from "@codemirror/state";
+import { looseReadOnlyReason } from "../../loose";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { afterFileChange } from "../../changes";
 import { minimalEdit } from "../../edit";
@@ -253,6 +254,10 @@ export function paintFlags(this: NoteLeaf): void {
   // A folder one only reads says so by the lock beside its name (ADR 0076
   // item 11), not by a line under every title.
   if (this.mixedEol) flags.push(t.mixedEol);
+  // A loose file the system will not let be written, or above the bound
+  // (ADR 0114 items 12 and 13): its reason, above the text.
+  const looseWhy = note ? looseReadOnlyReason(note.path) : null;
+  if (looseWhy) flags.push(looseWhy);
   // On a server a note also goes on another device that syncs the folder.
   // A save that found it gone says so above the text, with what to do.
   if (this.gone && !this.goneBanner.up) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);
