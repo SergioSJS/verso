@@ -214,3 +214,55 @@ fn only_the_attachments_the_note_cites_are_served() {
     loose.write("Lista.md", "nada\n", &w.note.revision).unwrap();
     assert!(loose.read_attachment("fotos/a b.png").is_err());
 }
+
+#[test]
+fn the_core_refuses_what_the_window_should_not_offer() {
+    let (dir, mut loose) = loose();
+    let note = loose.read("Lista.md").unwrap();
+    // A text above the bound is refused, whatever the window did.
+    let big = "x".repeat((verso_core::LOOSE_MAX_BYTES + 1) as usize);
+    let err = loose.write("Lista.md", &big, &note.revision).unwrap_err();
+    assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
+    // A file already above the bound is read-only: refused for writing,
+    // and above the read cap it is not even read.
+    let path = dir.path().join("Grande.md");
+    let file = fs::File::create(&path).unwrap();
+    file.set_len(verso_core::LOOSE_MAX_BYTES + 1).unwrap();
+    let mut grande = Loose::open(&path).unwrap();
+    assert_eq!(grande.read_only(), Some(LooseReadOnly::TooLarge));
+    let read = grande.read("Grande.md").unwrap();
+    let err = grande.write("Grande.md", "x", &read.revision).unwrap_err();
+    assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
+    file.set_len(verso_core::LOOSE_READ_CAP + 1).unwrap();
+    let err = grande.read("Grande.md").unwrap_err();
+    assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
+    // Nothing was changed by the refused writes.
+    assert_eq!(
+        fs::read_to_string(dir.path().join("Lista.md"))
+            .unwrap()
+            .len(),
+        note.text.len()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_write_to_a_read_only_file_is_refused_by_the_core() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, mut loose) = loose();
+    let note = loose.read("Lista.md").unwrap();
+    fs::set_permissions(
+        dir.path().join("Lista.md"),
+        fs::Permissions::from_mode(0o444),
+    )
+    .unwrap();
+    let err = loose
+        .write("Lista.md", "novo\n", &note.revision)
+        .unwrap_err();
+    assert!(matches!(err, CoreError::Loose(_)), "{err:?}");
+    fs::set_permissions(
+        dir.path().join("Lista.md"),
+        fs::Permissions::from_mode(0o644),
+    )
+    .unwrap();
+}
