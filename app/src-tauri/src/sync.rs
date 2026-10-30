@@ -81,6 +81,8 @@ pub(crate) struct Syncer {
     /// 0104).
     pub(crate) cloud: Option<engine::Cloud>,
     wake: tokio::sync::Notify,
+    /// A join waits for the pass on its note: ends the settling pause.
+    hurry: tokio::sync::Notify,
     /// The person asked for a pass (Sync now): a server out of reach is
     /// tried at once, and its wait starts over.
     asked: AtomicBool,
@@ -144,6 +146,7 @@ impl Syncer {
             folder: state.folder.clone(),
             cloud: state.cloud.clone(),
             wake: tokio::sync::Notify::new(),
+            hurry: tokio::sync::Notify::new(),
             asked: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             paused: AtomicBool::new(state.paused),
@@ -1478,12 +1481,8 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             // A burst of changes settles before the next pass; a cloud's
             // calls are dearer than a server's, so it settles longer (ADR
             // 0104 item 8: each local change, debounced).
-            tokio::time::sleep(Duration::from_millis(if s.cloud.is_some() {
-                2000
-            } else {
-                500
-            }))
-            .await;
+            let settle = Duration::from_millis(if s.cloud.is_some() { 2000 } else { 500 });
+            tokio::select! { () = tokio::time::sleep(settle) => {}, () = s.hurry.notified() => {} }
         }
         // The live notes go local (ADR 0082 item 8).
         s.live.lost();

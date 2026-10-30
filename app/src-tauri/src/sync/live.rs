@@ -26,7 +26,9 @@ const CATCH_UP: Duration = Duration::from_secs(5);
 /// (item 9); one that does not is taken to have left.
 const REJOIN: Duration = Duration::from_secs(4);
 /// How often a wait looks again.
-const LOOK: Duration = Duration::from_millis(50);
+const LOOK: Duration = Duration::from_millis(20);
+/// A join slower than this is said in the log, with its stages.
+const SLOW_JOIN: Duration = Duration::from_millis(300);
 
 /// The live notes of one synced folder.
 #[derive(Default)]
@@ -243,8 +245,25 @@ async fn join(
     window: &str,
     path: &str,
 ) -> Result<Value, Value> {
+    let began = tokio::time::Instant::now();
     catch_up(ctx, s, path).await;
+    let caught = began.elapsed();
     let mut answer = remote.call("collab_join", json!({ "path": path })).await?;
+    // Said when slow, with where the time went on this side of the window:
+    // the wait for the pass, and the server's answer.
+    let total = began.elapsed();
+    if total >= SLOW_JOIN {
+        log::write(
+            "INFO",
+            "sync",
+            &format!(
+                "live: join of {path} took {} ms (wait for the pass {} ms, server {} ms)",
+                total.as_millis(),
+                caught.as_millis(),
+                (total - caught).as_millis()
+            ),
+        );
+    }
     // A file whose line ends are mixed: shown read-only, in no room (no
     // epoch). A reader is read-only too but in the room, with its epoch
     // (night round 2026-10-30): its window follows the room's text.
@@ -281,11 +300,18 @@ async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
     }
     let deadline = tokio::time::Instant::now() + CATCH_UP;
     let mut asked = false;
+    let mut looks = 0u32;
     while !tokio::task::block_in_place(|| settled(ctx, s, path)) {
         if !asked {
             s.touched([path.to_owned()]);
             asked = true;
         }
+        // The pass runs now, not after the pause that lets a burst settle;
+        // asked again every 200 ms while the text has not crossed.
+        if looks.is_multiple_of(10) {
+            s.hurry.notify_one();
+        }
+        looks += 1;
         if tokio::time::Instant::now() >= deadline {
             log::write(
                 "WARN",

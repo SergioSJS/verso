@@ -1123,3 +1123,78 @@ proptest! {
         run(&ops);
     }
 }
+
+/// Opening a note of a folder of 500 notes, with sync settled, joins its
+/// room in a moment: the join waits for nothing but the server's answer
+/// (night round 2026-10-30: 1–2 s on an idle server).
+#[test]
+fn a_join_in_a_folder_of_500_notes_is_prompt() {
+    let bodies: Vec<(String, String)> = (0..500)
+        .map(|i| {
+            (
+                format!("Nota {i:03}.md"),
+                format!("# Nota {i}\n\nTexto {i}\n"),
+            )
+        })
+        .collect();
+    let refs: Vec<(&str, &str)> = bodies
+        .iter()
+        .map(|(n, t)| (n.as_str(), t.as_str()))
+        .collect();
+    let r = serve(&refs);
+    let d = device(&r, &r.owner, &[]);
+    let mut l = kept(&d);
+    for _ in 0..20 {
+        on(&d, &mut l);
+        if files(&d).len() == 500 {
+            break;
+        }
+    }
+    assert_eq!(files(&d).len(), 500);
+    // A reconnection, as an app start makes it: the link new, the first
+    // pass not yet run.
+    drop_link(&d, l);
+    let _l = kept(&d);
+    let mut worst = Duration::ZERO;
+    for i in [7, 123, 499] {
+        let path = format!("Nota {i:03}.md");
+        let t = std::time::Instant::now();
+        let joined = cmd(&d, "collab_join", json!({ "path": path })).unwrap();
+        let took = t.elapsed();
+        eprintln!("join {path}: {took:?}");
+        assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
+        worst = worst.max(took);
+        cmd(&d, "collab_leave", json!({ "path": path })).unwrap();
+    }
+    assert!(worst < Duration::from_millis(300), "joined in {worst:?}");
+}
+
+/// A note changed on this device a moment before its tab joins: the join
+/// waits for the pass that sends the text, and that pass does not wait out
+/// the pause that lets a burst of changes settle (500 ms).
+#[test]
+fn a_join_after_a_local_change_does_not_wait_out_the_settling_pause() {
+    let r = serve(&[(NOTE, "# Sessao\n")]);
+    let d = device(&r, &r.owner, &[]);
+    tauri::async_runtime::spawn(sync::run(Arc::clone(&d.ctx), Arc::clone(&d.s)));
+    // In step, and the loop in its pause after the pass.
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    while text(&d, NOTE).is_none() {
+        assert!(std::time::Instant::now() < deadline, "the note never came");
+        sleep(Duration::from_millis(50));
+    }
+    sleep(Duration::from_millis(700));
+    write(&d, NOTE, b"# Sessao\n\nescrito aqui\n");
+    // The watcher's wake has been taken and the pause is on.
+    sleep(Duration::from_millis(100));
+    write(&d, NOTE, b"# Sessao\n\nescrito aqui, de novo\n");
+    let t = std::time::Instant::now();
+    let joined = cmd(&d, "collab_join", json!({ "path": NOTE })).unwrap();
+    let took = t.elapsed();
+    d.s.stop();
+    assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
+    assert!(took < Duration::from_millis(300), "joined in {took:?}");
+    let doc = doc();
+    apply(&doc, &joined["update"]);
+    assert!(text_of(&doc).contains("de novo"), "{}", text_of(&doc));
+}
