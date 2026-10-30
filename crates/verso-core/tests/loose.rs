@@ -306,3 +306,20 @@ fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
     assert_eq!(ro, None);
     wrote.unwrap();
 }
+
+#[test]
+fn save_here_again_does_not_make_the_folder_again() {
+    let (dir, mut loose) = loose();
+    let sub = dir.path().join("sub");
+    fs::create_dir(&sub).unwrap();
+    fs::write(sub.join("Funda.md"), "# f\n").unwrap();
+    let mut deep = Loose::open(&sub.join("Funda.md")).unwrap();
+    fs::remove_dir_all(&sub).unwrap();
+    let err = deep.save_again("Funda.md", "# de volta\n").unwrap_err();
+    assert!(
+        matches!(err, CoreError::Write(verso_fs::WriteError::Io(_))),
+        "{err:?}"
+    );
+    assert!(!sub.exists());
+    let _ = &mut loose;
+}

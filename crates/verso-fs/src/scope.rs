@@ -417,6 +417,14 @@ impl Root {
             .scope
             .clone()
             .ok_or(WriteError::Confined(ConfinementError::OutOfScope))?;
+        // Only where the file stood: a folder renamed, moved or deleted is
+        // not made again (Save a copy… is the way out).
+        if !std::fs::metadata(&self.path).is_ok_and(|m| m.is_dir()) {
+            return Err(WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "the file's folder is gone",
+            )));
+        }
         let report = crate::ops::create_atomically(&on_disk(&self.path, &scope), content)?;
         Ok((self.intern(scope), report))
     }
