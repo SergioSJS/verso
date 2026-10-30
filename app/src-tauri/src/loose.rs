@@ -20,6 +20,17 @@ pub(crate) fn path_from_arg(arg: &str, cwd: &Path) -> PathBuf {
         // `file:///Users/x/n.md`, `file://localhost/Users/x/n.md` and, on
         // Windows, `file:///C:/x/n.md`.
         let rest = rest.strip_prefix("localhost").unwrap_or(rest);
+        // A query or a fragment is not part of the name (a `?` or `#` in a
+        // name is written `%3F` and `%23`, decoded below).
+        let rest = rest.split(['?', '#']).next().unwrap_or(rest);
+        // `file://server/share/n.md` names a network share on Windows.
+        #[cfg(windows)]
+        if !rest.starts_with('/') && !rest.is_empty() {
+            return PathBuf::from(format!(
+                r"\\{}",
+                verso_service::files::percent_decode(rest).replace('/', "\\")
+            ));
+        }
         let decoded = verso_service::files::percent_decode(rest);
         #[cfg(windows)]
         let decoded = decoded
@@ -684,6 +695,20 @@ mod tests {
         assert_eq!(
             path_from_arg("file://localhost/Users/ana/n.md", cwd),
             PathBuf::from("/Users/ana/n.md")
+        );
+        // A query and a fragment are not the name; an encoded `#` is.
+        assert_eq!(
+            path_from_arg("file:///Users/ana/n.md?x=1#top", cwd),
+            PathBuf::from("/Users/ana/n.md")
+        );
+        assert_eq!(
+            path_from_arg("file:///Users/ana/a%23b.md", cwd),
+            PathBuf::from("/Users/ana/a#b.md")
+        );
+        #[cfg(windows)]
+        assert_eq!(
+            path_from_arg("file://servidor/share/n.md", cwd),
+            PathBuf::from(r"\\servidor\share\n.md")
         );
         #[cfg(windows)]
         assert_eq!(

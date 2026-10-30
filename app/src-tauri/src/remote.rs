@@ -71,6 +71,16 @@ pub(crate) fn with_app_abilities(caps: &mut Value) {
             can.push(json!(ability));
         }
     }
+    // A window on a server's folder is a folder window. A server older than
+    // ADR 0114 does not say so (it never had a loose session), and the
+    // window would hide the tree, the search and the bin: the folder's
+    // abilities are the default here.
+    for ability in verso_contract::Can::FOLDER {
+        let ability = json!(ability);
+        if !can.contains(&ability) {
+            can.push(ability);
+        }
+    }
 }
 
 /// The commands a window on a server's folder sends to the server; every
