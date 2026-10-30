@@ -23,6 +23,10 @@ use crate::{CoreError, NoteText, Written, properties, revision, typed};
 /// number): 8 MiB.
 pub const LOOSE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 
+/// The bound above which a loose file is not even read: a file this large
+/// is no note, and reading it whole would exhaust the host's memory.
+pub const LOOSE_READ_CAP: u64 = 64 * 1024 * 1024;
+
 /// Why a loose file opens for reading only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LooseReadOnly {
@@ -145,6 +149,25 @@ impl Loose {
         }
     }
 
+    /// Refuse a write the window should not have offered: the file is read
+    /// only (permissions, too large) or the new text is above the bound.
+    fn check_writable(&self, new_len: usize) -> Result<(), CoreError> {
+        if new_len as u64 > LOOSE_MAX_BYTES {
+            return Err(CoreError::Loose(
+                "the text is too large to be saved".to_owned(),
+            ));
+        }
+        match self.read_only() {
+            Some(LooseReadOnly::TooLarge) => Err(CoreError::Loose(
+                "the file is too large to be edited here".to_owned(),
+            )),
+            Some(LooseReadOnly::Permissions(why)) => {
+                Err(CoreError::Loose(format!("the file is read only: {why}")))
+            }
+            None => Ok(()),
+        }
+    }
+
     /// The file's length in bytes; 0 when it cannot be told.
     #[must_use]
     pub fn size(&self) -> u64 {
@@ -196,6 +219,11 @@ impl Loose {
     /// 0043); bytes that are not UTF-8 are `NotText`.
     pub fn read(&mut self, as_path: &str) -> Result<NoteText, CoreError> {
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
+        if self.root.scoped_len().is_ok_and(|len| len > LOOSE_READ_CAP) {
+            return Err(CoreError::Loose(
+                "the file is too large to be opened as a note".to_owned(),
+            ));
+        }
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         self.remember(&text);
@@ -212,6 +240,7 @@ impl Loose {
         text: &str,
         revision: &str,
     ) -> Result<Written, CoreError> {
+        self.check_writable(text.len())?;
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
         let expected = crate::Workspace::decode_revision(revision)?;
         let report = self
@@ -240,6 +269,11 @@ impl Loose {
     /// outside (item 11, "Save here again"): `Write(Exists)` when
     /// something reappeared there.
     pub fn save_again(&mut self, as_path: &str, text: &str) -> Result<Written, CoreError> {
+        if text.len() as u64 > LOOSE_MAX_BYTES {
+            return Err(CoreError::Loose(
+                "the text is too large to be saved".to_owned(),
+            ));
+        }
         let (handle, report) = self
             .root
             .create_scoped(text.as_bytes())
