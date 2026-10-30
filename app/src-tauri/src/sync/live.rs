@@ -245,8 +245,10 @@ async fn join(
 ) -> Result<Value, Value> {
     catch_up(ctx, s, path).await;
     let mut answer = remote.call("collab_join", json!({ "path": path })).await?;
-    // A file whose line ends are mixed: shown read-only, in no room.
-    if answer["read_only"] == true {
+    // A file whose line ends are mixed: shown read-only, in no room (no
+    // epoch). A reader is read-only too but in the room, with its epoch
+    // (night round 2026-10-30): its window follows the room's text.
+    if answer["read_only"] == true && answer["epoch"].as_str().is_none_or(str::is_empty) {
         return Ok(answer);
     }
     let epoch = answer["epoch"].as_str().unwrap_or_default().to_owned();

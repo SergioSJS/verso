@@ -95,8 +95,19 @@ struct Tab {
 impl Tab {
     /// The note opened: into its room (item 5).
     fn open(d: &Device) -> Tab {
+        Tab::joined(d, false)
+    }
+
+    /// The note opened by someone who only reads it: in its room all the
+    /// same, told it is read-only (night round 2026-10-30: the server said
+    /// `false` to a reader, whose editor then took no room text).
+    fn open_reading(d: &Device) -> Tab {
+        Tab::joined(d, true)
+    }
+
+    fn joined(d: &Device, read_only: bool) -> Tab {
         let joined = cmd(d, "collab_join", json!({ "path": NOTE })).unwrap();
-        assert_eq!(joined["read_only"], false, "{joined}");
+        assert_eq!(joined["read_only"], read_only, "{joined}");
         let doc = doc();
         apply(&doc, &joined["update"]);
         Tab {
@@ -531,7 +542,7 @@ fn a_reader_is_present_in_the_room_and_writes_nothing() {
     let mut l = kept(&reader);
     on(&reader, &mut l);
     let mut c = browser(&r);
-    let t = Tab::open(&reader);
+    let t = Tab::open_reading(&reader);
     assert!(reader.s.live.holds(NOTE));
     // Present: the cursor and the name reach the others…
     cmd(
@@ -570,7 +581,7 @@ fn a_roll_in_a_synced_note_is_the_servers_and_every_window_hears_it() {
     let mut l = kept(&reader);
     on(&reader, &mut l);
     let c = browser(&r);
-    let _t = Tab::open(&reader);
+    let _t = Tab::open_reading(&reader);
     tauri::async_runtime::block_on(live::command(
         &reader.ctx,
         &reader.s,
