@@ -17,7 +17,7 @@ import { fail, nameTaken } from "./errors";
 import { focusesList, saveFocuses } from "./focuses";
 import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
-import { images } from "./images";
+import { forgetDrawn, images } from "./images";
 import { Pane } from "./layout/pane";
 import { dropLimitMb } from "./attachName";
 import { settings } from "./settings";
@@ -155,6 +155,7 @@ export function pathsRemoved(path: string): void {
  *  file existed appears once it does). */
 export function forgetFiles(): void {
   images.clear();
+  forgetDrawn();
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf) l.editor.dispatch({ effects: redraw.of(null) });
 }
 export let untitledN = 0;

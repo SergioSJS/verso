@@ -13,7 +13,7 @@ import { type CardEditing } from "../../board/types";
 import { button, h, ui } from "../../dom";
 import { allEntries, webNotes } from "../../folder";
 import { icon } from "../../icons";
-import { decodedAddress, noteImages } from "../../images";
+import { decodedAddress, drawnBefore, drawnNow, noteImages } from "../../images";
 import { renderSticker } from "../../labels";
 import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
@@ -936,12 +936,36 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
   const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
   const targets = new Set(spans.map((e) => parsePdfSpec(e.dataset["target"] ?? "").file));
   const found = new Map<string, string | null>();
+  // What the last drawing found stands in at once — nothing is awaited when
+  // all of it is known, so the embeds are back in the very frame the text is
+  // (no blank picture, no collapsed height at every redraw). The core is
+  // asked anyway; an answer that differs draws the note again.
+  const known = new Set<string>();
+  for (const target of targets) {
+    const before = drawnBefore("embed", source, target);
+    if (before !== undefined) {
+      found.set(target, before);
+      known.add(target);
+    }
+  }
+  const ask = async (target: string): Promise<string | null> => {
+    const r = await commands.resolveAttachment(source, target);
+    const rel = r.status === "ok" ? r.data : null;
+    if (r.status === "ok") drawnNow("embed", source, target, rel);
+    return rel;
+  };
   await Promise.all(
-    Array.from(targets).map(async (target) => {
-      const r = await commands.resolveAttachment(source, target);
-      found.set(target, r.status === "ok" ? r.data : null);
-    }),
+    Array.from(targets)
+      .filter((target) => !known.has(target))
+      .map(async (target) => void found.set(target, await ask(target))),
   );
+  if (known.size > 0) {
+    void Promise.all(Array.from(known, async (target) => [target, await ask(target)] as const)).then((answers) => {
+      if (this.path !== forPath || this.destroyed || !answers.some(([target, rel]) => rel !== found.get(target))) return;
+      this.previewStale = true;
+      void this.paintPreview();
+    });
+  }
   if (this.path !== forPath) return;
   for (const span of spans) {
     const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
