@@ -142,6 +142,11 @@ test release.
 
 ### Fixed
 
+- **The reading view follows a change of role at once**: when a person's right to edit is taken away (or given), the task boxes of the note change with it instead of keeping the old behaviour until the text changes; the reading position stays on a block that remains, and embeds are not built for blocks that were not used.
+- **A note opened while a change is waiting to cross no longer shortens a later, unrelated pause of the sync**, so a rename made by another program is not seen as a deletion followed by a creation.
+- **A person who only reads a note stays in its room when the connection comes back**: it no longer reloads the editor and shows a false "could not be kept" line at every reconnection, and a reader's quick background visit to a note no longer leaves a phantom member in the room.
+- **A note that grows past the 16 MiB index limit is no longer recorded as deleted in the folder's history**; it just leaves the search index.
+- **Windows asks whether a note changed on disk before the first rename of a save, as the other systems do**, and two windows reaching one folder by different spellings no longer overwrite each other's saves.
 - **Opening a note of a synced folder no longer waits out the sync's settling pause** (night round 2026-10-30, a note opened 1–2 s late on an idle server): a join that waits for the pass on a note changed here a moment before now ends the half-second pause that lets a burst of changes settle, and looks every 20 ms instead of 50; a join slower than 300 ms is said in the log with where the time went (the wait for the pass, the server's answer).
 - **A note with pictures no longer flashes in the reading view while others type in it** (the maintainer, 2026-10-30): the reading view is drawn again at every save of the shared note, and each picture waited for the core to say where its file is, so every redraw left a blank frame and a collapsed height (a layout shift of 0.11 each, measured on the real server). The pictures a note drew before are now put back in the same frame, and the core's answer only confirms them or changes them.
 - **A reader's editor shows a note's new text from the disk too** (night round, 2026-10-30): outside a room, a read-only editor refused the disk's new text as it refused typing, so a reader on a synced folder kept the old text until reopening.

@@ -8,10 +8,12 @@
 //! read. What one asserts: the file is never torn (every read is whole
 //! lines, from the first to the last), no temporary file is left, a write
 //! that returned `Ok` replaced exactly the content it read, and a refusal
-//! leaves the file as the other writer made it. Lost updates between two
-//! writers inside the check-and-rename window are *counted*, not asserted
-//! absent: the optimistic check is not a lock (ADR 0029), which is why
-//! the server takes its own per folder (`one_at_a_time`).
+//! leaves the file as the other writer made it. Writers of one process
+//! never lose an update to each other: `TargetLock` serialises the check
+//! and the rename of one target, and the test asserts `lost == 0`. Another
+//! program writing the same file is only caught by the stamp checks, which
+//! the optimistic check is (ADR 0029): the server also takes its own lock
+//! per folder (`one_at_a_time`).
 
 #[cfg(test)]
 mod racing {
@@ -96,4 +98,63 @@ fn racing_writers_never_tear_the_file_and_leave_nothing_behind() {
         lost, 0,
         "{lost} of {tried} accepted writes were replaced unseen"
     );
+}
+
+/// Two `Root`s reaching one folder by different spellings (a symlinked
+/// parent) are one writer to the lock too: no accepted write is lost.
+#[cfg(unix)]
+#[test]
+fn roots_spelling_one_folder_differently_do_not_lose_each_others_writes() {
+    use std::path::Path;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use verso_fs::{Root, WriteError};
+
+    let mut lost = 0;
+    for seed in 0..5 {
+        let base = tempfile::tempdir().unwrap();
+        let real = base.path().join("real");
+        std::fs::create_dir(&real).unwrap();
+        let alias = base.path().join("alias");
+        std::os::unix::fs::symlink(&real, &alias).unwrap();
+        std::fs::write(real.join("nota.md"), "w0 start\n").unwrap();
+        let accepted = std::sync::Mutex::new(Vec::<String>::new());
+        let ok = AtomicUsize::new(0);
+        std::thread::scope(|s| {
+            for w in 0..4 {
+                let (accepted, ok) = (&accepted, &ok);
+                let dir = if w % 2 == 0 {
+                    real.clone()
+                } else {
+                    alias.clone()
+                };
+                s.spawn(move || {
+                    let mut root = Root::open(&dir, vec![]).unwrap();
+                    let h = root.handle(Path::new("nota.md")).unwrap();
+                    for k in 0..60 {
+                        let (bytes, stamp) = root.read(h).unwrap();
+                        let line = format!("w{w} s{seed} k{k}\n");
+                        let mut new = bytes.clone();
+                        new.extend_from_slice(line.as_bytes());
+                        match root.write(h, &new, &stamp) {
+                            Ok(_) => {
+                                ok.fetch_add(1, Ordering::SeqCst);
+                                accepted.lock().unwrap().push(line);
+                            }
+                            Err(WriteError::Changed { .. }) => {}
+                            Err(e) => panic!("{e:?}"),
+                        }
+                    }
+                });
+            }
+        });
+        let text = std::fs::read_to_string(real.join("nota.md")).unwrap();
+        lost += accepted
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| !text.contains(l.as_str()))
+            .count();
+        assert!(ok.load(Ordering::SeqCst) > 0);
+    }
+    assert_eq!(lost, 0, "{lost} accepted writes were replaced unseen");
 }

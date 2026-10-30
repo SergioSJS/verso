@@ -112,9 +112,12 @@ export function apply(root: HTMLElement, next: readonly { node: Node }[], remove
 
 /** The block at the top of the sheet and how far down it starts, so that
  *  what is put in above it does not move what the person is reading. */
-export function scrollAnchor(sheet: HTMLElement, root: HTMLElement): { node: Element; top: number } | null {
+export function scrollAnchor(sheet: HTMLElement, root: HTMLElement, kept?: ReadonlySet<Node>): { node: Element; top: number } | null {
   const edge = sheet.getBoundingClientRect().top;
   for (const node of Array.from(root.children)) {
+    // A block about to be replaced cannot hold the place: the first one
+    // that stays does.
+    if (kept && !kept.has(node)) continue;
     const r = node.getBoundingClientRect();
     if (r.bottom > edge) return { node, top: r.top };
   }
@@ -126,4 +129,11 @@ export function keepAnchor(sheet: HTMLElement, anchor: { node: Element; top: num
   if (!anchor || !anchor.node.isConnected) return;
   const moved = anchor.node.getBoundingClientRect().top - anchor.top;
   if (Math.abs(moved) >= 1) sheet.scrollTop += moved;
+}
+
+/** The mode part of a drawing's signature (`path\nXY\nhtml`): reader view
+ *  and read-only. Blocks kept from a drawing in another mode would keep the
+ *  affordances (task boxes) of that one, so a change of mode draws whole. */
+export function modeOfSig(sig: string): string {
+  return sig.split("\n", 3)[1] ?? "";
 }
