@@ -123,7 +123,14 @@ pub(crate) async fn collab_command(
                 held.as_ref(),
             )?)
         }
-        "collab_join" => to_value(crate::collab::join(&s, (&c, !whole), &key, &path, &user)?),
+        "collab_join" => {
+            let mut joined = crate::collab::join(&s, (&c, !whole), &key, &path, &user)?;
+            // Whoever the rules (ADR 0113 `may`) do not let edit this note
+            // is told so: the window opens read-only, in the room, to follow
+            // it. Its updates are refused above all the same.
+            joined.read_only |= !writes;
+            to_value(joined)
+        }
         "collab_update" => {
             let update: String = arg(&args, "update")?;
             crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
