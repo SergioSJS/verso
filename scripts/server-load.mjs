@@ -57,6 +57,7 @@ const SYNC = Number(arg("sync", "2"));
 const PULL = arg("pull", "");
 const BIG_BYTES = Number(arg("big-mb", "2")) * 1_000_000;
 const BIG_PCT = Number(arg("big-pct", "5")) / 100;
+const BIG_EXT = arg("big-ext", "md");
 const BURST = argv.includes("--burst");
 const ACCOUNTS_FILE = arg("accounts-file", "");
 const ACCOUNTS = (ACCOUNTS_FILE
@@ -204,8 +205,9 @@ class Device {
       const m = await this.timed("changes", "sync_changes", { since: this.cursor });
       if (m.ok) this.cursor = m.ok.head;
     } else if (r < 0.45 || mine.length === 0) {
-      const path = `${PREFIX}/dev-${this.i}/n-${++this.seq}.md`;
-      const size = Math.random() < BIG_PCT ? BIG_BYTES : 200 + Math.floor(Math.random() * 4000);
+      const big = Math.random() < BIG_PCT;
+      const path = `${PREFIX}/dev-${this.i}/n-${++this.seq}.${big ? BIG_EXT : "md"}`;
+      const size = big ? BIG_BYTES : 200 + Math.floor(Math.random() * 4000);
       const data = Buffer.concat([Buffer.from(`# Nota ${this.seq} do aparelho ${this.i}\n\n`), randomBytes(size)]);
       const res = await this.put("put_new", path, data, null);
       if (res.ok) this.own.set(path, res.hash);
