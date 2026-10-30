@@ -64,6 +64,8 @@ pub use picked::{
 };
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
+mod loose;
+pub use loose::{LooseFileInfo, Opened, ReadOnlyReason, RecentFile};
 mod history;
 pub use history::{
     AuthorKind, HistoryListing, VersionAuthor, VersionEntry, VersionKind, VersionRestored,
@@ -670,6 +672,49 @@ pub enum Can {
     Admin,
     /// Several people editing one note at once (ADR 0073 item 7).
     Collab,
+    /// The side shows a folder, with its index: the tree, the graph, the
+    /// bases, the tags, the files. Absent for one file opened without a
+    /// folder (ADR 0114 items 18 and 25), as are the rest below.
+    Index,
+    /// Full-text search over the folder.
+    Search,
+    /// Backlinks and unlinked mentions.
+    Backlinks,
+    /// New notes, files and folders.
+    Create,
+    /// Renaming and moving entries.
+    Rename,
+    /// Deleting entries (into the bin).
+    Delete,
+    /// The folder's bin (ADR 0080).
+    Trash,
+    /// Version history (ADR 0091).
+    History,
+    /// Sync with a server or a cloud (ADR 0079, ADR 0104).
+    Sync,
+    /// The table: rolls and chat (ADR 0107).
+    Table,
+    /// Boards and drawings (ADR 0057).
+    Board,
+}
+
+impl Can {
+    /// What a side that shows a whole folder can do, and a side that shows
+    /// one file cannot (ADR 0114 items 18 and 25): every host that opens
+    /// folders adds all of these.
+    pub const FOLDER: &[Can] = &[
+        Can::Index,
+        Can::Search,
+        Can::Backlinks,
+        Can::Create,
+        Can::Rename,
+        Can::Delete,
+        Can::Trash,
+        Can::History,
+        Can::Sync,
+        Can::Table,
+        Can::Board,
+    ];
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

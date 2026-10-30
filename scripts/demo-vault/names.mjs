@@ -43,6 +43,7 @@ export const NAMES = {
   "30 - Amostras de Cor.md": "30 - Colour Swatches.md",
   "31 - A Mesa.md": "31 - The Table.md",
   "32 - Rodando uma Mesa.md": "32 - Running a Table.md",
+  "33 - Abrir um Arquivo Avulso.md": "33 - Open a Single File.md",
   "Tour do Verso.canvas": "Verso Tour.canvas",
   "Treino do Board.canvas": "Board Training.canvas",
   "Board de Demonstração.canvas": "Demo Board.canvas",

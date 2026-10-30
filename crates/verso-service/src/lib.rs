@@ -33,10 +33,12 @@ use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 pub mod convert;
 pub mod files;
 pub mod history;
+pub mod loose;
 pub mod ops;
 pub mod reader;
 pub mod trash;
 
+pub use loose::not_available;
 pub use ops::{Access, OpError};
 
 /// What the service tells the clients, through whatever carries it: Tauri's
@@ -88,7 +90,7 @@ impl Opened {
 }
 
 #[derive(Default)]
-struct Sessions {
+pub(crate) struct Sessions {
     /// Folder key → its session.
     by_key: HashMap<String, Arc<Mutex<Session>>>,
     /// Client → the key of the folder it shows.
@@ -120,6 +122,9 @@ pub struct Service {
     /// computer's name for its versions and the days they are kept; `None`
     /// on a server, which keeps its own.
     history: Mutex<Option<(String, u32)>>,
+    /// The files shown without a folder, by the client that shows them
+    /// (ADR 0114 item 19; `loose.rs`).
+    loose: Mutex<loose::LooseWindows>,
 }
 
 /// Lock a mutex, poisoned or not: a panic in an earlier command must not
@@ -252,6 +257,7 @@ impl Service {
             folder_note_name: Mutex::new(String::new()),
             events: RwLock::new(Arc::new(Silent)),
             history: Mutex::new(None),
+            loose: Mutex::new(loose::LooseWindows::default()),
         })
     }
 
@@ -403,6 +409,8 @@ impl Service {
     pub fn attach(&self, client: &str, opened: Opened) -> (FolderInfo, Option<CatchUp>) {
         let info = opened.session.info.clone();
         let missed = opened.missed;
+        // A window that showed loose files shows a folder now (ADR 0114).
+        self.release_loose(client);
         {
             let mut sessions = lock(&self.sessions);
             release(&mut sessions, client);
@@ -543,6 +551,11 @@ impl Service {
         client: &str,
         f: F,
     ) -> Result<T, ContractError> {
+        // A window of files without a folder has no folder to ask (ADR
+        // 0114 item 19): refused, not "no folder is open".
+        if self.is_loose(client) {
+            return Err(not_available());
+        }
         let session = self.session_of(client).ok_or_else(no_folder)?;
         let asked = std::time::Instant::now();
         let mut session = lock(&session);
@@ -599,6 +612,12 @@ impl Service {
         args: serde_json::Value,
     ) -> Option<Result<serde_json::Value, ContractError>> {
         ops::access(name)?;
+        if self.is_loose(client) {
+            return Some(
+                self.loose_dispatch(client, name, &args)
+                    .unwrap_or_else(|| Err(not_available())),
+            );
+        }
         Some(self.with(client, |ws| {
             ops::dispatch(ws, name, args).unwrap_or_else(|| Err(OpError::unknown(name)))
         }))
@@ -624,6 +643,32 @@ impl Service {
     #[must_use]
     pub fn open_folders(&self) -> usize {
         lock(&self.sessions).by_key.len()
+    }
+
+    /// The open folder `path` (absolute, at the host's edge) lies in, when
+    /// one does: its key and the path relative to it, `/`-joined (ADR 0114
+    /// item 7 i). The deepest folder when one is open inside another.
+    #[must_use]
+    pub fn folder_containing(&self, path: &Path) -> Option<(String, String)> {
+        let sessions = self.all_sessions();
+        let mut best: Option<(usize, String, String)> = None;
+        for session in sessions {
+            let session = lock(&session);
+            let folder = session.workspace.folder();
+            if let Ok(rel) = path.strip_prefix(folder) {
+                let relative = rel
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                let depth = folder.components().count();
+                if relative.is_empty() || best.as_ref().is_some_and(|(d, _, _)| *d >= depth) {
+                    continue;
+                }
+                best = Some((depth, session.workspace.key(), relative));
+            }
+        }
+        best.map(|(_, key, relative)| (key, relative))
     }
 
     /// The key of the folder `client` shows.
@@ -676,6 +721,7 @@ impl Service {
     /// client shows it.
     pub fn release(&self, client: &str) {
         release(&mut lock(&self.sessions), client);
+        self.release_loose(client);
     }
 
     /// The folder `client` shows, for a client that joins a session and
@@ -690,6 +736,9 @@ impl Service {
     /// Refresh the index of the folder `client` shows: only what changed
     /// is re-read.
     pub fn reindex(&self, client: &str) -> Result<IndexSummary, ContractError> {
+        if self.is_loose(client) {
+            return Err(not_available());
+        }
         let (clients, session) = {
             let sessions = lock(&self.sessions);
             let key = sessions.clients.get(client).ok_or_else(no_folder)?;
@@ -898,7 +947,7 @@ pub struct CatchUp {
     missed: Arc<AtomicBool>,
 }
 
-fn release(sessions: &mut Sessions, client: &str) {
+pub(crate) fn release(sessions: &mut Sessions, client: &str) {
     if let Some(key) = sessions.clients.remove(client)
         && !sessions.clients.values().any(|k| *k == key)
     {

@@ -429,6 +429,20 @@ responda 'sim para todas'", answered *"sim"* and then asked *"e a
 implementação que pedi?"*: built now, ahead of item Q11's "after the V1
 blockers" (the maintainer's call, 2026-10-30).
 
+**As built (2026-10-30, branch `feat/single-file`)** — details the record left to the build, no new decisions:
+
+- *Item 6 and item 11, a cloud placeholder.* A dataless file (iCloud, OneDrive's on-demand form) with the `.md` extension is a regular file to the classification and opens; its read brings it down as a folder's note does. Only the older `.Name.md.icloud` marker, which a read cannot fetch, is refused in words at the edge.
+- *Item 7 iii, which window.* The loose-files window is the one showing files, else the one just picked or made for a file; with none, a window of the app that shows nothing (the start page) takes the file, as it takes a handed folder; only then a new window is made. At a launch by double-click the main window opens it.
+- *Item 9, the pane's row.* The file's name, its parent's name and "Open the whole folder in Verso" sit on one bar above the panes (the popout bar's place), following the active tab. The confirmation is the window's `ask` dialog, which takes focus. The folder opens as a handed folder does (ADR 0065): in the window that shows it, an empty one, or a new one; the loose window keeps its files.
+- *Item 10, temporaries.* A scoped root sweeps nothing: a temporary file is not named after its target, so "a leftover of this very file" cannot be told from a sibling's without listing the parent, which the scope forbids. A leftover of a crashed write of a loose file stays, hidden, until the parent is opened as a folder.
+- *Item 13, the bound.* 8 MiB (`verso_core::LOOSE_MAX_BYTES`); no folder note bound exists to prefer.
+- *Item 14, links.* `links` for a loose note resolves each target by one `stat` of a sibling's name when the note is drawn (never a listing), so a resolved link is drawn as one; the click opens the sibling as a scope of its own.
+- *Item 15, recents.* `<config>/recent-files.json`, ten paths, host side; the macOS menu lists them under the folders in Open Recent, the Windows and Linux window menu through `recent_files` (index, name, place; never a path).
+- *Item 18, names in the window.* A second file of the same name in the same window is named `nota (2).md` there; the real name stays in the bar's label and on disk.
+- *Item 18, `Can`.* `Can::FOLDER` names the eleven capabilities a loose window lacks (index, search, backlinks, create, rename, delete, trash, history, sync, table, board); the server and the desktop grant them for every folder; a loose window also lacks `reveal` and `copy_path`. Strings live in `app/ui/src/looseStrings.ts` (pt-BR and EN), beside the other per-feature sets.
+- *Item 3, Windows.* One ProgID per channel (`Verso.Markdown.1`, `Verso.Markdown.Beta.1`) and one registration (`Software\Verso`, `Software\VersoBeta`), so the beta and the release install side by side. Untested on a real Windows and Linux in this round: the coordinator's `check-windows.sh` and the Linux VM.
+- *Q1, "Move to new window".* Not built in this round: a loose tab has no "move to new window" yet (the popout flow needs a folder session). Recorded as a gap, not a decision.
+
 *Before:* **Proposed** (2026-10-30). Written by Fable 5.1 from the maintainer's
 request and the session's sketch. Items 1–30 are a proposal; the questions
 below are `[OPEN]` for the maintainer, each with a recommendation. The

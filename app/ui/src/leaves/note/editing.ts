@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { indentWithTab } from "@codemirror/commands";
+import { looseReadOnlyReason } from "../../loose";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { foldEffect, syntaxHighlighting, unfoldEffect } from "@codemirror/language";
 import { foldedCount } from "./folds";
@@ -293,7 +294,7 @@ export function insertTable(this: NoteLeaf): void {
 export function insertImageMenu(this: NoteLeaf, anchor: HTMLElement): void {
   if (!readable(this.path, "edit")) return;
   if (this.readOnly) {
-    ui.status.textContent = t.readOnly;
+    ui.status.textContent = looseReadOnlyReason(this.path) ?? t.readOnly;
     return;
   }
   const phone = touchScreen();

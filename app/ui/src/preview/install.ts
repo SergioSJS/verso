@@ -13,6 +13,7 @@
 // what lies there with `preview.pointAt` and `preview.press`.
 
 import { ui } from "../dom";
+import { isLoose } from "../loose";
 import { linkAt, type LinkAt } from "../editor/linkCard";
 import { layout, openNote } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
@@ -28,7 +29,9 @@ export const card = new PreviewCard({ card: pv.card, loading: pv.loading, clickO
 export const preview = new HoverPreview({
   card,
   fill: fillPreview,
-  enabled: () => settings.hoverPreview !== false,
+  // Off for a file opened without its folder: reading siblings on a hover
+  // is reading the directory unasked (ADR 0114 item 14).
+  enabled: () => settings.hoverPreview !== false && !isLoose(),
   label: cardLabel,
   nothing: () => (ui.status.textContent = pv.noLink),
 });

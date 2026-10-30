@@ -18,6 +18,7 @@ import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
+import { fail } from "../errors";
 import { hasHostZoom, zoomWords } from "../zoom";
 import { zoomControl } from "../zoomControl";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
@@ -30,6 +31,7 @@ import { ps } from "../periodic/strings";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
+import { defaultAppDesc, ls as looseWords } from "../looseStrings";
 import { paneToOpenIn, spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, ribbon, updateController } from "../main";
@@ -829,6 +831,14 @@ export class SettingsDialog {
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
+    // Verso as the app for .md files (ADR 0114 item 5, Q12): the gesture of
+    // this system; on Windows a button to its Default apps page.
+    if (can("local_folders")) add("files", looseWords.defaultTitle, defaultAppDesc({ mac: !WINDOWS && !LINUX, windows: WINDOWS }), () => {
+      if (!WINDOWS) return null;
+      const b = h("button", "update-btn-secondary", looseWords.defaultButton);
+      b.addEventListener("click", () => void commands.openDefaultApps().then((r) => r.status !== "ok" && fail(r.error)));
+      return b;
+    });
     // The daily notes' folder is the folder's now, with the other periods
     // (ADR 0093 item 4); without a folder open, this machine's, as before.
     if (!currentFolder) add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));

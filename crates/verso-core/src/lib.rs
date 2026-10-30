@@ -37,8 +37,8 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
 pub use sync_io::Hashed;
 pub use verso_fs::{
-    Changes, ConfinementError, Mark, PickedError, Placeholder, ReadError, Staged, WalkRules, Watch,
-    WriteError, check_picked, read_picked,
+    Changes, ConfinementError, Mark, PathKind, PickedError, Placeholder, ReadError, Staged,
+    WalkRules, Watch, WriteError, check_picked, kind_of, read_picked,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
@@ -79,6 +79,8 @@ mod sync_io;
 mod views;
 use entries::*;
 pub use mentions::{Mention, Mentions};
+mod loose;
+pub use loose::{LOOSE_MAX_BYTES, Loose, LooseReadOnly};
 /// The one projection a UniVerso serves a reader of a note (ADR 0087),
 /// for every exit of the server that serves one.
 pub mod secret {

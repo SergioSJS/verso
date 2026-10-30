@@ -76,6 +76,11 @@ pub(crate) const NEW_WINDOW: &str = "verso-new-window";
 #[cfg(target_os = "macos")]
 pub(crate) const OPEN_FOLDER: &str = "verso-open-folder";
 
+/// The id of "Open File…" (ADR 0114 item 20): the system's picker for one
+/// Markdown file, run by the host.
+#[cfg(target_os = "macos")]
+pub(crate) const OPEN_FILE: &str = "verso-open-file";
+
 /// The id of "Settings…" (⌘,), which the main window answers.
 #[cfg(target_os = "macos")]
 pub(crate) const SETTINGS: &str = "verso-settings";
@@ -135,6 +140,11 @@ pub(crate) const CLOSE_WINDOW: &str = "verso-close-window";
 #[cfg(target_os = "macos")]
 pub(crate) const RECENT_PREFIX: &str = "verso-recent-";
 
+/// The id prefix of the "Open Recent" items that are files (ADR 0114 Q4):
+/// `verso-recent-file-<i>`, an index into `App::menu_recent_files`.
+#[cfg(target_os = "macos")]
+pub(crate) const RECENT_FILE_PREFIX: &str = "verso-recent-file-";
+
 /// The menu's words in the window's language (`menu_spec::word`).
 #[cfg(target_os = "macos")]
 fn menu_label(lang: &str, key: &str) -> &'static str {
@@ -163,8 +173,19 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
         let mut keep = lock(&state.menu_recents);
         keep.clear();
         keep.extend(recents.iter().take(9).cloned());
-        (lang, keep.clone(), lock(&state.menu_state).clone())
+        // And the files opened without a folder (ADR 0114 Q4), a group
+        // under the folders.
+        let files = verso_core::session::recent_files(state.service.config());
+        let mut keep_files = lock(&state.menu_recent_files);
+        keep_files.clear();
+        keep_files.extend(files.iter().cloned());
+        (
+            lang,
+            (keep.clone(), keep_files.clone()),
+            lock(&state.menu_state).clone(),
+        )
     };
+    let (recents, recent_files) = recents;
     let l = |key: &str| menu_label(&lang, key);
     let quit = MenuItem::with_id(app, QUIT, l("quit"), true, Some("CmdOrCtrl+Q"))?;
     let verso = Submenu::with_items(
@@ -226,12 +247,49 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
             None::<&str>,
         )?);
     }
-    let recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
+    let mut recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
         .iter()
         .map(|i| i as &dyn tauri::menu::IsMenuItem<R>)
         .collect();
-    let open_recent =
-        Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
+    let mut file_items: Vec<MenuItem<R>> = Vec::new();
+    for (i, file) in recent_files.iter().enumerate() {
+        let name = file
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let place = file
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let text = if place.is_empty() {
+            name
+        } else {
+            format!("{name} ({place})")
+        };
+        file_items.push(MenuItem::with_id(
+            app,
+            format!("{RECENT_FILE_PREFIX}{i}"),
+            text,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let between = PredefinedMenuItem::separator(app)?;
+    if !recents.is_empty() && !file_items.is_empty() {
+        recent_refs.push(&between);
+    }
+    recent_refs.extend(
+        file_items
+            .iter()
+            .map(|i| i as &dyn tauri::menu::IsMenuItem<R>),
+    );
+    let open_recent = Submenu::with_items(
+        app,
+        l("open-recent"),
+        !recents.is_empty() || !recent_files.is_empty(),
+        &recent_refs,
+    )?;
     let mut menus: Vec<Submenu<R>> = vec![verso];
     for (key, rows) in menu_spec::sections() {
         let title = menu_spec::title(&lang, key);
@@ -260,6 +318,13 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
                     l("open-folder"),
                     true,
                     Some("CmdOrCtrl+Shift+O"),
+                )?),
+                Row::Own(Own::OpenFile) => Box::new(MenuItem::with_id(
+                    app,
+                    OPEN_FILE,
+                    l("open-file"),
+                    true,
+                    None::<&str>,
                 )?),
                 Row::Own(Own::OpenRecent) => Box::new(open_recent.clone()),
                 Row::Own(Own::CloseTab) => Box::new(MenuItem::with_id(

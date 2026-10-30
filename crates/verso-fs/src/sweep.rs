@@ -90,6 +90,12 @@ impl Root {
     /// not followed. A file that cannot be removed now stays, for the next
     /// opening.
     pub fn sweep_temporaries(&self) -> std::io::Result<usize> {
+        // A root for one file lists nothing of its parent (ADR 0114 item
+        // 10): a temporary file is not named after its target, so none can
+        // be told to be this file's; nothing is swept.
+        if self.scope().is_some() {
+            return Ok(0);
+        }
         let mine = token();
         let mut removed = 0;
         let mut stack = vec![(PathBuf::new(), 0usize)];

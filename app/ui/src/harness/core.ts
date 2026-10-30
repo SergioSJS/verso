@@ -62,6 +62,9 @@ import type {
   FolderSettings, FolderBlocks, BlockKind,
   SyncStatus,
   FileAccess,
+  LooseFileInfo,
+  Opened,
+  RecentFile,
 } from "../bindings";
 import { Bin } from "./trash";
 import { Clouds } from "./cloud";
@@ -896,8 +899,20 @@ export class Core {
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),
-    open_initial: () => this.folderInfo(),
+    open_initial: (): Opened => ({ kind: "folder", info: this.folderInfo() }),
     current_folder: () => this.folderInfo(),
+    // A file opened without its folder (ADR 0114): none in a folder's
+    // window; `?loose=1` (src/harness.ts) stands for that window.
+    loose_files: (): LooseFileInfo[] => [],
+    loose_close: () => null,
+    open_folder_of_file: () => null,
+    open_sibling: () => refuse("not_found", "no such note beside this file"),
+    loose_save_again: () => refuse("refused", "not a file opened without its folder"),
+    loose_save_copy: () => false,
+    pick_file: () => null,
+    recent_files: (): RecentFile[] => [],
+    open_recent_file: () => null,
+    open_default_apps: () => refuse("refused", "the default app for .md is set in the system, not from here"),
     list_notes: () => this.notes(),
     notes_of_type: (a) => {
       const key = this.typeKey(String(a["name"]));

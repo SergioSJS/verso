@@ -287,14 +287,14 @@ mod tests {
         let _a = crate::tests::note(one.path(), "A.md", "# A\n");
         let _b = crate::tests::note(two.path(), "B.md", "# B\n");
         let (app, main) = crate::tests::app_with(Some(one.path().to_path_buf()));
-        let key_a = crate::tests::call(&main, "open_initial", json!({})).unwrap()["key"]
+        let key_a = crate::tests::call(&main, "open_initial", json!({})).unwrap()["info"]["key"]
             .as_str()
             .unwrap()
             .to_owned();
         // Main shows a folder, so the handed one gets a window of its own.
         let second = a_window_for(&app, two.path());
         let second_label = second.label().to_owned();
-        let key_b = crate::tests::call(&second, "open_initial", json!({})).unwrap()["key"]
+        let key_b = crate::tests::call(&second, "open_initial", json!({})).unwrap()["info"]["key"]
             .as_str()
             .unwrap()
             .to_owned();
@@ -375,7 +375,7 @@ mod tests {
             .find(|l| l != "main")
             .map(|l| app.get_webview_window(&l).unwrap())
             .unwrap();
-        let key = crate::tests::call(&other, "open_initial", json!({})).unwrap()["key"]
+        let key = crate::tests::call(&other, "open_initial", json!({})).unwrap()["info"]["key"]
             .as_str()
             .unwrap()
             .to_owned();
@@ -398,7 +398,7 @@ mod tests {
         let _b = crate::tests::note(two.path(), "B.md", "# B\n");
         let (app, main) = crate::tests::app_with(Some(one.path().to_path_buf()));
         let first =
-            crate::tests::call(&main, "open_initial", serde_json::json!({})).unwrap()["key"]
+            crate::tests::call(&main, "open_initial", serde_json::json!({})).unwrap()["info"]["key"]
                 .as_str()
                 .unwrap()
                 .to_owned();
@@ -410,7 +410,7 @@ mod tests {
         );
         assert!(app.get_webview_window("main").is_some());
         let second =
-            crate::tests::call(&other, "open_initial", serde_json::json!({})).unwrap()["key"]
+            crate::tests::call(&other, "open_initial", serde_json::json!({})).unwrap()["info"]["key"]
                 .as_str()
                 .unwrap()
                 .to_owned();

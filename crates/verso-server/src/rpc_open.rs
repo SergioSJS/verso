@@ -186,6 +186,8 @@ pub(super) async fn record_space(server: &Arc<Server>, client: &str) {
 
 pub(super) fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
     let mut can = vec![Can::Account, Can::Collab];
+    // A server serves folders, never one file (ADR 0114 item 19).
+    can.extend_from_slice(Can::FOLDER);
     // Who the person is here, and what the ceiling of the credential is:
     // the rules' answer (ADR 0113), the window's one source.
     let door = crate::access::Door::of(server, who, client).ok();
