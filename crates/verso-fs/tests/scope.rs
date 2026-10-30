@@ -303,5 +303,5 @@ fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
     // it to everyone).
     fs::set_permissions(dir.path(), was).unwrap();
     assert!(why.is_none(), "{why:?}");
-    wrote.unwrap();
+    let _report = wrote.unwrap();
 }
