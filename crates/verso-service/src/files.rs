@@ -25,7 +25,9 @@ pub struct Served {
 #[must_use]
 pub fn percent_decode(s: &str) -> String {
     fn hex(b: u8) -> Option<u8> {
-        char::from(b).to_digit(16).and_then(|d| u8::try_from(d).ok())
+        char::from(b)
+            .to_digit(16)
+            .and_then(|d| u8::try_from(d).ok())
     }
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
