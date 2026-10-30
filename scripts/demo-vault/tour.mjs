@@ -355,6 +355,7 @@ const STOPS = [
     cards: [
       ["n-servidor", "23 - Verso num Servidor.md", 420],
       ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
+      ["n-oracle", "34 - UniVerso num Servidor Grátis da Oracle.md", 420],
       ["n-nuvem", "29 - Sincronizar com uma Nuvem.md", 420],
       ["n-rodar", "32 - Rodando uma Mesa.md", 420],
     ],
@@ -363,7 +364,7 @@ const STOPS = [
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
       "Botão direito numa pasta › Tornar esta pasta uma mesa: convida as jogadoras só para ela, cada nota fica oculta até você liberar, e um link para o que ainda não apareceu chega com um cadeado. " +
-      "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup. " +
+      "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh). " +
       "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 29 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
   },
   {

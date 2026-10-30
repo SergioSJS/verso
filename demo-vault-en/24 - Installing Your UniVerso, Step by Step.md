@@ -16,6 +16,9 @@ This note takes you, with no rush, from an empty machine to a working **UniVerso
 > [!WARNING] Verso is in testing
 > There is **no public download** yet: Verso's repository is private while the app matures, and the commands below fetch the program from there with a GitHub **token** that the maintainer gives you. Without that access, you cannot install yet. The commands are the ones in the project's reference guide (`docs/reference/server-hands-on.md`), written from version **0.8.0-beta.1** and checked step by step, on 2026-10-15, on an Ubuntu 26.04 machine with 1 core and 1 GB, running **0.8.2-beta.1** (all of Path 1; Path 2 with the image built by hand). What was left unrun in a real browser: HTTPS with a name or Tailscale, the desktop app and the phone. If something does not match, go to [[#If something goes wrong]] and tell the maintainer.
 
+> [!TIP] Never set up a server?
+> The note [[34 - UniVerso on a Free Oracle Server]] is the route with the **installer's menu** (`sh universo.sh`): HTTPS with a free name and the first admin in a few steps, on a free Oracle machine. What is below is the manual road.
+
 > [!NOTE] The shortest path
 > Paste the compose file, open `http://<machine IP>:7340` and use the setup link that shows up in the log. **No HTTPS, no name, no proxy.** HTTPS is an optional step, later, to unlock offline mode and notifications (section 5). This holds from the version after 0.8.2-beta.1; earlier ones refuse to let you in over HTTP from another machine.
 
