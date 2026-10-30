@@ -489,6 +489,18 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         "updates",
         "devtools",
         "local_folders",
+        // An old server never says it: a folder window by default.
+        "index",
+        "search",
+        "backlinks",
+        "create",
+        "rename",
+        "delete",
+        "trash",
+        "history",
+        "sync",
+        "table",
+        "board",
     ] {
         assert!(can.contains(&kept), "{kept} in {can:?}");
     }
@@ -497,5 +509,5 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 7);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 7 + 11);
 }

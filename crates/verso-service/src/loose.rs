@@ -149,11 +149,15 @@ impl Service {
     /// Whether `client` already shows the file at `path`: its name there.
     #[must_use]
     pub fn loose_name_of(&self, client: &str, path: &Path) -> Option<String> {
+        let path = verso_core::canonical_path(path);
         let loose = lock(&self.loose);
         let files = loose.by_client.get(client)?;
         files
             .iter()
-            .find(|(_, s)| lock(s).loose.file_path() == path)
+            .find(|(_, s)| {
+                verso_core::strip_root(&path, lock(s).loose.file_path())
+                    .is_some_and(|rest| rest.as_os_str().is_empty())
+            })
             .map(|(name, _)| name.clone())
     }
 
@@ -266,6 +270,7 @@ impl Service {
             let gone = {
                 let mut s = lock(&session);
                 let gone = !s.loose.exists();
+                s.loose.refresh();
                 // The file's size and whether it can be written may have
                 // changed with it.
                 s.info = info_of(&s.loose, &name, s.info.known_folder.clone());
