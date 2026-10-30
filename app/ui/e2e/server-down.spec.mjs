@@ -56,7 +56,7 @@ test("Sync this folder with the server down says so where the button is, and tri
 test("a synced folder whose server does not answer says so in the status bar and the section", async ({ app, page }) => {
   await app.open();
   await signedIn(app);
-  const status = { key: "harness", on: true, server: "http://localhost:7351", folder: "f1", folder_name: "Campanha", role: "editor", state: "offline", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: "localhost:7351", problem: "unreachable", versions: null, revoked: null };
+  const status = { key: "harness", on: true, server: "http://localhost:7351", folder: "f1", folder_name: "Campanha", role: "editor", state: "offline", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: null, message: "localhost:7351", problem: "unreachable", versions: null, revoked: null, cloud: null };
   await page.evaluate((st) => {
     window.__harness.core.handlers.folder_sync = () => st;
   }, status);
