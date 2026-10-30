@@ -38,7 +38,7 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 pub use sync_io::Hashed;
 pub use verso_fs::{
     Changes, ConfinementError, Mark, PathKind, PickedError, Placeholder, ReadError, Staged,
-    WalkRules, Watch, WriteError, check_picked, kind_of, read_picked,
+    WalkRules, Watch, WriteError, canonical_path, check_picked, kind_of, read_picked, strip_root,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 

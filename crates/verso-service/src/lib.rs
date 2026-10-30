@@ -652,23 +652,33 @@ impl Service {
     /// item 7 i). The deepest folder when one is open inside another.
     #[must_use]
     pub fn folder_containing(&self, path: &Path) -> Option<(String, String)> {
+        // Both sides as the disk names them: `..` resolved, symlinks
+        // followed (`/tmp` is `/private/tmp`), case folded where the
+        // volumes are insensitive.
+        let path = verso_core::canonical_path(path);
         let sessions = self.all_sessions();
         let mut best: Option<(usize, String, String)> = None;
         for session in sessions {
             let session = lock(&session);
-            let folder = session.workspace.folder();
-            if let Ok(rel) = path.strip_prefix(folder) {
-                let relative = rel
-                    .components()
-                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
-                    .collect::<Vec<_>>()
-                    .join("/");
-                let depth = folder.components().count();
-                if relative.is_empty() || best.as_ref().is_some_and(|(d, _, _)| *d >= depth) {
-                    continue;
-                }
-                best = Some((depth, session.workspace.key(), relative));
+            let folder = verso_core::canonical_path(session.workspace.folder());
+            let Some(rel) = verso_core::strip_root(&path, &folder) else {
+                continue;
+            };
+            let relative = rel
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            let depth = folder.components().count();
+            if relative.is_empty() || best.as_ref().is_some_and(|(d, _, _)| *d >= depth) {
+                continue;
             }
+            // A part of the folder it does not show (`.obsidian`, `.trash`,
+            // an ignored path) is not a note of it: the file opens loose.
+            if session.workspace.confined(&relative).is_err() {
+                continue;
+            }
+            best = Some((depth, session.workspace.key(), relative));
         }
         best.map(|(_, key, relative)| (key, relative))
     }

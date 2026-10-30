@@ -61,7 +61,7 @@ fn say_refused<R: tauri::Runtime>(app: &tauri::AppHandle<R>, kind: &str, path: &
 /// Markdown file as a loose file; anything else is said and the window
 /// stays as it was (ADR 0114 item 6).
 pub(crate) fn path_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, path: PathBuf) {
-    let path = std::path::absolute(&path).unwrap_or(path);
+    let path = verso_core::canonical_path(&path);
     match verso_core::kind_of(&path) {
         verso_core::PathKind::Directory => hand_over(app, Handed::Path(path)),
         verso_core::PathKind::MarkdownFile => file_handed(app, path),
@@ -176,11 +176,12 @@ pub(crate) fn left<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
 /// A folder opened before that `path` lies in, the deepest (item 7 ii):
 /// its path, at the edge.
 pub(crate) fn known_folder_of(config: Option<&Path>, path: &Path) -> Option<PathBuf> {
+    let path = verso_core::canonical_path(path);
     verso_core::recent_folders(config)
         .into_iter()
         .filter(|folder| {
-            path.strip_prefix(folder)
-                .is_ok_and(|r| !r.as_os_str().is_empty())
+            verso_core::strip_root(&path, &verso_core::canonical_path(folder))
+                .is_some_and(|r| !r.as_os_str().is_empty())
         })
         .max_by_key(|folder| folder.components().count())
 }
