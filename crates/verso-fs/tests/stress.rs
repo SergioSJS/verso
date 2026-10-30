@@ -8,10 +8,12 @@
 //! read. What one asserts: the file is never torn (every read is whole
 //! lines, from the first to the last), no temporary file is left, a write
 //! that returned `Ok` replaced exactly the content it read, and a refusal
-//! leaves the file as the other writer made it. Lost updates between two
-//! writers inside the check-and-rename window are *counted*, not asserted
-//! absent: the optimistic check is not a lock (ADR 0029), which is why
-//! the server takes its own per folder (`one_at_a_time`).
+//! leaves the file as the other writer made it. Writers of one process
+//! never lose an update to each other: `TargetLock` serialises the check
+//! and the rename of one target, and the test asserts `lost == 0`. Another
+//! program writing the same file is only caught by the stamp checks, which
+//! the optimistic check is (ADR 0029): the server also takes its own lock
+//! per folder (`one_at_a_time`).
 
 #[cfg(test)]
 mod racing {
