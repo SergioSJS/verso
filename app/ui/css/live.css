@@ -181,9 +181,17 @@
   vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
 }
 .editor .cm-line.cm-lp-ordered .cm-lp-order-mark {
+  /* As wide as its digits (tabular: one `ch` each) plus the dot and the
+     gap, never under 1.5em; it reaches left into the indent, so `12.`
+     never breaks across two lines and every item's text starts at the
+     same place. */
+  --lp-order-w: max(1.5em, calc(var(--lp-order-digits, 1) * 1ch + 0.75em));
   display: inline-block;
-  width: 1.5em;
-  margin-left: -1.5em;
+  width: var(--lp-order-w);
+  margin-left: calc(-1 * var(--lp-order-w));
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
   padding-right: 0.35em;
   text-align: right;
   box-sizing: border-box;
