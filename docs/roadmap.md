@@ -60,7 +60,7 @@ ADRs 0098 to 0103 were first written by another AI marked Accepted with no accep
 | V.36 | The graph asks before creating the note of an unresolved node | spec Q14 | Built |
 | V.37 | Theme-builder window & Themes v2: ~45 tokens and a built-in catalogue | [0100](adr/0100-visual-customization-wizard.md) item 2, [0109](adr/0109-themes-v2-more-tokens-and-a-catalogue.md) | Built |
 | V.38 | Dialect: `tags: 2024` is the tag "2024"; `...` does not close the frontmatter | spec Q24 | Built |
-| V.39 | World of Darkness and Cyberpunk RED layouts; notices on the Credits page only | [0099](adr/0099-visual-markdown-statblocks-and-cards.md) item 6 | Built 2026-10-21; the cards' one-line pointer to Credits awaits the maintainer (S.3b-bis) |
+| V.39 | World of Darkness and Cyberpunk RED layouts; notices on the Credits page only | [0099](adr/0099-visual-markdown-statblocks-and-cards.md) item 6 | Built 2026-10-21; the cards keep their one-line pointer to Credits (S.3b-bis, option A, decided 2026-10-22) |
 | V.40 | Desktop sync with a cloud the person already has: WebDAV, S3, Dropbox, OneDrive, Google Drive | [0104](adr/0104-external-cloud-storage-transports-and-quotas.md) | Part 1 (WebDAV, S3) built; OAuth providers wait for developer accounts (C.1) |
 | V.41 | Colour swatches for colour codes (`#rgb`, `rgb()`, `hsl()`, `oklch()`) | [0108](adr/0108-colour-swatches-for-colour-codes.md) | Built |
 | V.42 | The Table: shared roll and chat log, campaign folder, online tunnel, and unified table access model | [0107](adr/0107-the-table-a-shared-roll-and-chat-log.md), [0110](adr/0110-a-table-is-a-campaign-folder.md) (phase 1), [0111](adr/0111-online-mode-a-table-from-this-app-through-a-tunnel.md), [0113](adr/0113-one-access-model-for-a-table.md) | Built |
@@ -90,7 +90,7 @@ The following items gate the official release of V1 (they do not block local com
 Features deliberately deferred until after the V1 release:
 
 1. **Third-party plugin system and compatibility shim** ([ADR 0016](adr/0016-plugins-execution-and-capabilities.md), [ADR 0017](adr/0017-plugins-format-shim-loading.md), [ADR 0047](adr/0047-plugin-api-open-questions.md)).
-2. **Cloud storage transports via vendor API** (Google Drive, OneDrive, Dropbox — [ADR 0073](adr/0073-self-hosted-server-first.md), [ADR 0104](adr/0104-external-cloud-storage-transports-and-quotas.md)). WebDAV and S3 are in Phase 4 (V.29).
+2. ~~Cloud storage transports via vendor API~~: moved into V1 as V.40 by [ADR 0104](adr/0104-external-cloud-storage-transports-and-quotas.md) item 1 (decided 2026-10-21); this line contradicted it until 2026-10-29.
 3. **End-to-end encryption** as an opt-in for single-user servers ([ADR 0073](adr/0073-self-hosted-server-first.md)).
 4. **Remote MCP server over the network** ([ADR 0045](adr/0045-server-and-mcp-security.md), [ADR 0073](adr/0073-self-hosted-server-first.md)).
 5. **Agent writing directly to notes with diff** ([ADR 0018](adr/0018-llm-native-mcp-in-core.md)).
