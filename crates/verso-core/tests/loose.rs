@@ -157,3 +157,25 @@ fn bytes_that_are_not_utf8_are_not_text() {
     let mut loose = Loose::open(&dir.path().join("bin.md")).unwrap();
     assert!(matches!(loose.read("bin.md"), Err(CoreError::NotText)));
 }
+
+#[test]
+fn a_sibling_in_a_subfolder_keeps_its_folder_in_its_path() {
+    let (dir, loose) = loose();
+    fs::create_dir(dir.path().join("sub")).unwrap();
+    fs::write(dir.path().join("sub/Outra.md"), "# fundo\n").unwrap();
+    let mut deep = loose.open_sibling("sub/Outra").unwrap();
+    // Not the `Outra.md` of the parent (a different file).
+    assert_ne!(
+        deep.file_path(),
+        loose.open_sibling("Outra").unwrap().file_path()
+    );
+    assert!(
+        deep.file_path().ends_with("sub/Outra.md"),
+        "{:?}",
+        deep.file_path()
+    );
+    assert!(deep.parent().ends_with("sub"));
+    assert_eq!(deep.place(), "sub");
+    assert_eq!(deep.read("Outra.md").unwrap().text, "# fundo\n");
+    assert_ne!(deep.key(), loose.open_sibling("Outra").unwrap().key());
+}

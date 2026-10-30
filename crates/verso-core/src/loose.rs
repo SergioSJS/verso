@@ -265,14 +265,23 @@ impl Loose {
     /// Open the sibling note `target` names as a scope of its own.
     pub fn open_sibling(&self, target: &str) -> Result<Self, CoreError> {
         let target = target.split(['#', '|']).next().unwrap_or_default().trim();
+        let relative = self
+            .root
+            .sibling_note(Path::new(target))
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "no such note beside this file",
+                )
+            })
+            .map_err(CoreError::Folder)?;
         let root = self
             .root
             .open_sibling(Path::new(target))
             .map_err(CoreError::Folder)?;
-        let path = self
-            .parent()
-            .join(root.scope().map(Path::to_path_buf).unwrap_or_default());
-        let path = std::path::absolute(path).map_err(CoreError::Folder)?;
+        // The path keeps the sub folders (`sub/outra.md`), not only the
+        // scoped name: two files of one name in two folders stay two files.
+        let path = std::path::absolute(self.parent().join(relative)).map_err(CoreError::Folder)?;
         Ok(Self { root, path })
     }
 
