@@ -164,30 +164,33 @@
    its own, so what does not fit goes to the next row, right-aligned — and each
    child may shrink below its content. Where the pane is narrow, the modes
    keep their icons alone (below). */
-.leaf-head { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .8rem; min-width: 0; max-width: 100%; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+.leaf-head { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; min-width: 0; max-width: 100%; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
 .leaf-head > * { min-width: 0; max-width: 100%; }
 /* Tight: the leading crumbs slide out to the left under a fade; the
  * current folder stays readable at the right. */
-.crumbs { flex: 1 1 8rem; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
+.crumbs { flex: 1 1 3rem; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
 /* A spacer that takes the free room, so the crumbs sit left when they fit
  * and spill left, under the fade, when they do not. */
 .crumbs::after { content: ""; flex: 1 1 0; min-width: 0; }
 .modes { flex: none; margin-left: auto; }
 .crumbs span { color: var(--ink-2); }
 .crumbs span:last-child { color: var(--ink); }
-.modes { display: inline-flex; gap: .1rem; font-size: .8rem; }
-.modes button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .55rem; border-radius: 5px; color: var(--ink-2); }
-.modes button:hover { color: var(--ink); background: var(--paper-3); }
-.modes button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
-/* A pane under 760 px keeps the modes' icons alone (their names are the
-   buttons' accessible names and tips); where the modes have a row of their
-   own on a phone (screen.css) the words come back. */
-@container pane (max-width: 760px) { .leaf-head .modes button > span:not(.icon) { display: none; } }
-@container pane (max-width: 520px) { .leaf-head:not(:has(> .modes ~ .modes)) > .modes button > span:not(.icon) { display: inline; } }
+/* The modes are one segmented control on the place's own row (2026-10-30, the
+   maintainer: "muito espaço vazio"): small, tight, right-aligned; the place
+   gives way to it, with an ellipsis, never the other way round. Under 560 px
+   of pane the segments keep their icons alone (the names are the buttons'
+   accessible names and tips). */
+.modes { display: inline-flex; gap: 1px; padding: 2px; border-radius: 7px; background: var(--paper-3); font-size: .78rem; }
+.modes button { display: inline-flex; align-items: center; gap: .3rem; height: 24px; padding: 0 .5rem; border-radius: 5px; color: var(--ink-2); white-space: nowrap; }
+.modes button:hover { color: var(--ink); background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.modes button[aria-pressed="true"] { color: var(--seal); background: var(--paper); box-shadow: 0 0 0 1px var(--hair); }
+.modes button .icon { width: 14px; height: 14px; }
+@container pane (max-width: 560px) { .leaf-head .modes button > span:not(.icon) { display: none; } .modes button { padding: 0 .4rem; } }
+@media (pointer: coarse) { .modes button { height: 32px; min-width: 36px; justify-content: center; } }
 .iconic { display: inline-flex; padding: .3rem; }
 .icon { flex: none; }
 
-.sheet { flex: 1; min-height: 0; overflow: auto; padding: .6rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
+.sheet { flex: 1; min-height: 0; overflow: auto; padding: .2rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
 /* Blocks in Edit mode (ADR 0061): a note's sheet keeps a margin for the
    + and the ⋮⋮ beside each block, in every mode, so its text stands at
    the same place in Reading and in Edit. */
@@ -227,11 +230,13 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
-.title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; margin-top: .4rem; min-width: 0; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .6rem; margin-top: 0; min-width: 0; }
 /* The title keeps room to read (a word of its own width); the tools wrap under it, right-aligned, rather than squeeze it to a letter wide. */
 .title-row > * { min-width: 0; max-width: 100%; }
 .title-row > .note-title { flex: 1 1 12ch; }
-.title-tools { flex: 0 1 auto; margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .2rem .4rem; min-width: 0; }
+.title-tools { flex: 0 1 auto; margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 .3rem; min-width: 0; }
+/* Compact for a pointer: the tools add no height to the title's line. */
+@media (pointer: fine) { .title-tools .star { padding: .15rem; } }
 .title-tools > .live-who, .title-tools > .live-mark, .title-tools > .live-off-notice { margin-left: 0; }
 .note-title { flex: 1; min-width: 0; overflow-wrap: anywhere; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }

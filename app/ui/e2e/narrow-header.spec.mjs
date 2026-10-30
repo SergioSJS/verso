@@ -77,6 +77,16 @@ for (const width of [1440, 1073, 900, 761]) {
       }
       await page.waitForTimeout(300);
       await inColumn(page);
+      if (file === NOTE) {
+        // Compact: the place and the modes share one short row, and the title follows closely.
+        const head = await boxOf(page.locator(".leaf-head:visible").first());
+        const title = await boxOf(page.locator(".note-title:visible").first());
+        expect(head.height, "head row height").toBeLessThanOrEqual(40);
+        expect(title.y - (head.y + head.height), "gap from the head to the title").toBeLessThanOrEqual(24);
+        const crumbs = await boxOf(page.locator(".leaf-head:visible .crumbs").first());
+        const modes = await boxOf(page.locator(".leaf-head:visible .modes").first());
+        expect(Math.abs(crumbs.y + crumbs.height / 2 - (modes.y + modes.height / 2)), "crumbs and modes on one row").toBeLessThan(14);
+      }
       for (const id of ["toggle-side", "toggle-right"]) {
         const b = page.locator(`#${id}`);
         await expect(b).toBeVisible();
