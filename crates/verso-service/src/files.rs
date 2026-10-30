@@ -9,6 +9,7 @@
 //! `verso://`, the server under `/f/`; what each answers is decided here,
 //! apart from the transport, so the rules are tested directly.
 
+use verso_contract::ContractError;
 use verso_contract::ErrorKind;
 use verso_core::Workspace;
 
@@ -176,6 +177,41 @@ pub fn serve(
             }
         }
         Err(e) => refused_read(e, headers),
+    }
+}
+
+/// Serve bytes read elsewhere — an attachment beside a file opened without
+/// a folder (ADR 0114 item 14) — under the same policy as [`serve`]: a
+/// note's name is refused, a failed read answered as a refusal.
+pub fn serve_bytes(
+    bytes: Result<Vec<u8>, ContractError>,
+    allowed: bool,
+    relative: &str,
+    policy: &Policy<'_>,
+) -> Served {
+    let mut headers = base_headers(policy);
+    if !allowed {
+        return refuse(403, "not a view of this app", headers);
+    }
+    if relative.to_lowercase().ends_with(".md") {
+        return refuse(403, "a note is read through read_note", headers);
+    }
+    match bytes {
+        Ok(body) => {
+            headers.push(("Content-Type", mime_of(relative).to_owned()));
+            Served {
+                status: 200,
+                headers,
+                body,
+            }
+        }
+        Err(e) => {
+            let status = match e.kind {
+                ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
+                _ => 500,
+            };
+            refuse(status, &e.message, headers)
+        }
     }
 }
 
