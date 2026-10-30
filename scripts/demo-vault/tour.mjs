@@ -154,12 +154,16 @@ const STOPS = [
     heading: "📁 Arquivos",
     color: ORANGE,
     canvasColor: "2",
-    cards: [["n-arquivos", "14 - Arquivos e Pastas.md", 640]],
+    cards: [
+      ["n-arquivos", "14 - Arquivos e Pastas.md", 420],
+      ["n-avulso", "33 - Abrir um Arquivo Avulso.md", 420],
+    ],
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
       "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
       "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias; " +
-      "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão.",
+      "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão. " +
+      "Dois cliques num .md abrem o arquivo sozinho, sem pasta e sem nada escrito ao lado; a faixa acima das abas leva à pasta inteira.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },

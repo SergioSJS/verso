@@ -25,6 +25,11 @@
 - Revisions: 2026-10-08 — **decided by the maintainer**: with the app
   running, `verso <folder>` opens the folder in a window of its own; one app
   per user on every system (Status).
+- Revisions: 2026-10-30 — **decided by the maintainer** ([ADR 0114](0114-opening-one-markdown-file-without-a-folder.md)
+  Q8): a first argument that names an existing Markdown file (`.md`,
+  `.markdown`) opens that file without its folder, by the same rule as a
+  folder, and `verso open <file>` is the escape hatch; the usage error now
+  reads "no folder or Markdown file by that name".
 
 ## Context
 
