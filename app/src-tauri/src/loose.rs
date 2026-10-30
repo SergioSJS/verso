@@ -342,6 +342,9 @@ pub(crate) fn second_launch<R: tauri::Runtime>(
 /// later opens it at start-up. What is not a folder fails there, as a
 /// command-line argument would. A second launch on any system (the
 /// single-instance plugin, `second_launch`) hands its folder here too.
+/// Only macOS hands a folder by an open event; the tests hand one on every
+/// system.
+#[cfg(any(target_os = "macos", test))]
 pub(crate) fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     hand_over(app, Handed::Path(folder));
 }
