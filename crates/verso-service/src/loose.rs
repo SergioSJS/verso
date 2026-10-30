@@ -185,7 +185,8 @@ impl Service {
                 .ok_or_else(|| no_such_file(&name));
         }
         let loose = Loose::open(path).map_err(crate::convert)?;
-        self.release(client);
+        // The folder it showed, if any, is left; its other files stay.
+        crate::release(&mut lock(&self.sessions), client);
         Ok(self.add_loose(client, loose, known_folder))
     }
 

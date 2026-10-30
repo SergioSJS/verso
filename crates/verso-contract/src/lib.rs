@@ -65,7 +65,7 @@ pub use picked::{
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod loose;
-pub use loose::{LooseFileInfo, Opened, ReadOnlyReason};
+pub use loose::{LooseFileInfo, Opened, ReadOnlyReason, RecentFile};
 mod history;
 pub use history::{
     AuthorKind, HistoryListing, VersionAuthor, VersionEntry, VersionKind, VersionRestored,

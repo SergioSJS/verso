@@ -72,7 +72,9 @@ pub(crate) async fn new_window<R: tauri::Runtime>(
     } else {
         None
     };
-    open_folder_window(&app, key).map_err(|e| failed(e.to_string()))
+    open_folder_window(&app, key)
+        .map(|_| ())
+        .map_err(|e| failed(e.to_string()))
 }
 
 /// A window of a folder: `key` the folder it joins, bound before the
@@ -80,12 +82,13 @@ pub(crate) async fn new_window<R: tauri::Runtime>(
 pub(crate) fn open_folder_window<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     key: Option<String>,
-) -> tauri::Result<()> {
+) -> tauri::Result<String> {
     let n = WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let label = format!("window-{n}");
     if let Some(key) = key {
         app.state::<App>().service.bind(&label, &key);
     }
+    let made = label.clone();
     // From the main window's configuration, under its own label: the same
     // size, and on macOS the same title bar, whose buttons only a window's
     // configuration places (tauri.macos.conf.json; ADR 0072).
@@ -102,7 +105,7 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
     open_frameless(
         tauri::WebviewWindowBuilder::from_config(app, &config)?.on_download(on_download),
     )?;
-    Ok(())
+    Ok(made)
 }
 
 /// A window's size, fitted to a screen's work area — the screen less its

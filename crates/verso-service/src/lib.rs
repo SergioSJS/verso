@@ -90,7 +90,7 @@ impl Opened {
 }
 
 #[derive(Default)]
-struct Sessions {
+pub(crate) struct Sessions {
     /// Folder key → its session.
     by_key: HashMap<String, Arc<Mutex<Session>>>,
     /// Client → the key of the folder it shows.
@@ -645,6 +645,32 @@ impl Service {
         lock(&self.sessions).by_key.len()
     }
 
+    /// The open folder `path` (absolute, at the host's edge) lies in, when
+    /// one does: its key and the path relative to it, `/`-joined (ADR 0114
+    /// item 7 i). The deepest folder when one is open inside another.
+    #[must_use]
+    pub fn folder_containing(&self, path: &Path) -> Option<(String, String)> {
+        let sessions = self.all_sessions();
+        let mut best: Option<(usize, String, String)> = None;
+        for session in sessions {
+            let session = lock(&session);
+            let folder = session.workspace.folder();
+            if let Ok(rel) = path.strip_prefix(folder) {
+                let relative = rel
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                let depth = folder.components().count();
+                if relative.is_empty() || best.as_ref().is_some_and(|(d, _, _)| *d >= depth) {
+                    continue;
+                }
+                best = Some((depth, session.workspace.key(), relative));
+            }
+        }
+        best.map(|(_, key, relative)| (key, relative))
+    }
+
     /// The key of the folder `client` shows.
     #[must_use]
     pub fn folder_of(&self, client: &str) -> Option<String> {
@@ -921,7 +947,7 @@ pub struct CatchUp {
     missed: Arc<AtomicBool>,
 }
 
-fn release(sessions: &mut Sessions, client: &str) {
+pub(crate) fn release(sessions: &mut Sessions, client: &str) {
     if let Some(key) = sessions.clients.remove(client)
         && !sessions.clients.values().any(|k| *k == key)
     {

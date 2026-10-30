@@ -35,7 +35,7 @@ use verso_contract::{
     FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
     FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
     Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
-    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw,
+    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw,
     Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
@@ -55,6 +55,7 @@ mod framing;
 mod history;
 mod local_server;
 mod log;
+mod loose;
 mod menu;
 mod menu_spec;
 mod notes;
@@ -90,6 +91,7 @@ use focuses::*;
 use folder_layer::*;
 use history::*;
 use local_server::*;
+use loose::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -112,6 +114,13 @@ pub struct App {
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
     initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// Markdown files handed to the app (ADR 0114 item 6) and not yet
+    /// opened by the loose-files window: paths at the entry edge.
+    initial_file: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// The loose-files window (ADR 0114 item 7 iii, Q1): the one window
+    /// whose tabs are files opened without a folder — picked or made for a
+    /// file before it shows one, and known to the service once it does.
+    loose_window: Mutex<Option<String>>,
     /// The folders of servers the windows showed when the app quit, waiting
     /// for a window to open them (`session::restore`): address and folder.
     /// `open_initial` takes them after the folders of this computer.
@@ -160,6 +169,10 @@ pub struct App {
     /// menu is macOS's; elsewhere the field would sit unread.
     #[cfg(target_os = "macos")]
     menu_recents: Mutex<Vec<PathBuf>>,
+    /// The files behind the menu's "Open Recent" (ADR 0114 Q4): item
+    /// `verso-recent-file-<i>` opens `menu_recent_files[i]`.
+    #[cfg(target_os = "macos")]
+    menu_recent_files: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
     /// What the window pushed for the menu: its features, keys and the
@@ -180,10 +193,18 @@ impl App {
     /// line named, if anything.
     #[must_use]
     pub fn new(initial: Option<PathBuf>) -> Self {
+        // `verso-app <path>`: a Markdown file is a loose file (ADR 0114
+        // item 6); anything else is opened as a folder, and what is not
+        // one fails there, in words, as before.
+        let (folders, files): (Vec<PathBuf>, Vec<PathBuf>) = initial
+            .into_iter()
+            .partition(|p| verso_core::kind_of(p) != verso_core::PathKind::MarkdownFile);
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
-            initial_folder: Mutex::new(initial.into_iter().collect()),
+            initial_folder: Mutex::new(folders.into_iter().collect()),
+            initial_file: Mutex::new(files.into_iter().collect()),
+            loose_window: Mutex::new(None),
             initial_server: Mutex::new(std::collections::VecDeque::new()),
             quitting: std::sync::atomic::AtomicBool::new(false),
             pending_servers: Mutex::new(std::collections::HashMap::new()),
@@ -198,6 +219,8 @@ impl App {
             framed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
+            #[cfg(target_os = "macos")]
+            menu_recent_files: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
             menu_state: Mutex::new(MenuState::default()),
             started: std::sync::atomic::AtomicBool::new(false),
@@ -322,6 +345,7 @@ async fn install<R: tauri::Runtime>(
     resume(app, &info.key);
     // A window is named after its folder (ADR 0065).
     let _ = window.set_title(&format!("{} — Verso", info.name));
+    loose::left(app, window.label());
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
     if let Some(catch_up) = catch_up {
@@ -384,21 +408,29 @@ async fn reopen_folder<R: tauri::Runtime>(
     install(&app, &window, move |config| Workspace::reopen(&key, config)).await
 }
 
-/// Open, once, the folder handed to the app — named on the command line
-/// (`verso-app <folder>`) or, on macOS, sent by an open event
-/// (`folder_handed`); `None` afterwards and when there was none. The UI
-/// calls it at start-up, before falling back to the last folder it
-/// remembers, and again when the host says a folder was handed to the app
-/// while it ran.
+/// Open, once, what was handed to the app — a folder named on the command
+/// line (`verso-app <folder>`) or, on macOS, sent by an open event
+/// (`folder_handed`), or a Markdown file (ADR 0114: `Opened::File`);
+/// `None` afterwards and when there was none. The UI calls it at
+/// start-up, before falling back to the last folder it remembers, and
+/// again when the host says a folder or a file was handed to the app while
+/// it ran. The loose-files window takes files only, never a folder.
 #[tauri::command]
 #[specta::specta]
 async fn open_initial<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
-) -> Result<Option<FolderInfo>, ContractError> {
+) -> Result<Option<Opened>, ContractError> {
     may_switch(&app, &window)?;
-    let path = lock(&app.state::<App>().initial_folder).pop_front();
+    let path = if loose::is_loose_window(&app, window.label()) {
+        None
+    } else {
+        lock(&app.state::<App>().initial_folder).pop_front()
+    };
     let Some(path) = path else {
+        if let Some(file) = loose::open_initial_file(&app, &window).await {
+            return file.map(Some);
+        }
         // A server's folder the last session had open (`session::restore`).
         let server = lock(&app.state::<App>().initial_server).pop_front();
         if let Some((url, folder)) = server {
@@ -410,7 +442,7 @@ async fn open_initial<R: tauri::Runtime>(
                 lock(&app.state::<App>().pending_servers).insert(label, key);
                 session::remember(&app);
             }
-            return opened.map(Some);
+            return opened.map(Some).map(|o| o.map(Opened::Folder));
         }
         // Told, but the folder was taken by another window: not opening.
         lock(&app.state::<App>().opening).remove(window.label());
@@ -418,7 +450,7 @@ async fn open_initial<R: tauri::Runtime>(
     };
     install(&app, &window, move |config| Workspace::open(&path, config))
         .await
-        .map(Some)
+        .map(|info| Some(Opened::Folder(info)))
 }
 
 /// The app's version and the commit it was built from (ADR 0051), for the
@@ -589,6 +621,13 @@ fn capabilities<R: tauri::Runtime>(
     if live.is_some() {
         can.push(Can::Collab);
     }
+    // A window of files without a folder has no index, no tree, no bin, no
+    // sync (ADR 0114 items 18 and 25); every other window shows a folder.
+    if app.state::<App>().service.is_loose(window.label()) {
+        can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
+    } else {
+        can.extend_from_slice(Can::FOLDER);
+    }
     // A folder of this computer alone is the person's own: no seat to tell.
     // A synced one carries the server's answer for it (ADR 0113 S8), the
     // last one while the server is out of reach.
@@ -757,6 +796,16 @@ macro_rules! commands_for {
                 graph::<$runtime>,
                 graph_unresolved::<$runtime>,
                 current_folder::<$runtime>,
+                loose_files::<$runtime>,
+                loose_close::<$runtime>,
+                open_folder_of_file::<$runtime>,
+                open_sibling::<$runtime>,
+                loose_save_again::<$runtime>,
+                loose_save_copy::<$runtime>,
+                pick_file::<$runtime>,
+                recent_files,
+                open_recent_file::<$runtime>,
+                open_default_apps,
                 app_info,
                 device_name,
                 set_device_name::<$runtime>,
@@ -1013,13 +1062,14 @@ impl<R: tauri::Runtime> Drop for Opening<R> {
 /// are its command line, a relative folder read from its own directory.
 fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
     // The first argument, as `main` reads its own (main.rs).
-    let folder = argv
+    let handed = argv
         .get(1)
         .filter(|a| !a.starts_with("--"))
-        .map(|a| std::path::Path::new(&cwd).join(a));
+        .map(|a| loose::path_from_arg(a, std::path::Path::new(&cwd)));
     log::write("INFO", "host", "launched again: handed to the running app");
-    match folder {
-        Some(folder) => folder_handed(app, std::path::absolute(&folder).unwrap_or(folder)),
+    match handed {
+        // A folder, or a Markdown file (ADR 0114 item 6).
+        Some(path) => loose::path_handed(app, path),
         None => {
             // A window of a folder (the main one first), never a note's
             // popout or a web page's.
@@ -1067,6 +1117,11 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             let _ = open_folder_window(app, None);
         } else if id == OPEN_FOLDER {
             let _ = app.emit("menu-open-folder", folder_window_in_focus(app));
+        } else if id == OPEN_FILE {
+            // File › Open File… (ADR 0114 item 20): the picker, then the
+            // file handed over as a double-click is.
+            let parent = focused_window(app);
+            loose::pick_file_and_hand(app, parent.as_ref());
         } else if id == SETTINGS {
             let _ = app.emit("menu-settings", folder_window_in_focus(app));
         } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
@@ -1126,6 +1181,15 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                 .and_then(|i| lock(&app.state::<App>().menu_recents).get(i).cloned());
             if let Some(folder) = folder {
                 folder_handed(app, folder);
+            }
+        } else if let Some(index) = id.strip_prefix(RECENT_FILE_PREFIX) {
+            // A recent file (ADR 0114 Q4): handed over as a double-click is.
+            let file = index
+                .parse::<usize>()
+                .ok()
+                .and_then(|i| lock(&app.state::<App>().menu_recent_files).get(i).cloned());
+            if let Some(file) = file {
+                loose::path_handed(app, file);
             }
         }
     });
@@ -1268,6 +1332,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().service.release(label);
             files::drop_picks(label);
             remote::release(app, label);
+            loose::window_gone(app, label);
             settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
@@ -1287,8 +1352,10 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         }
         #[cfg(target_os = "macos")]
         tauri::RunEvent::Opened { urls } => {
-            if let Some(folder) = urls.iter().find_map(|u| u.to_file_path().ok()) {
-                folder_handed(app, folder);
+            // Each file or folder in order (ADR 0114 item 6): several
+            // files dropped on the icon at once each take their path.
+            for path in urls.iter().filter_map(|u| u.to_file_path().ok()) {
+                loose::path_handed(app, path);
             }
         }
         _ => {}
@@ -1400,6 +1467,9 @@ fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
                     && remote::of(app, l).is_none()
                     && !lock(&state.pending_servers).contains_key(l)
                     && !opening.contains(l)
+                    // The loose-files window keeps its files (ADR 0114).
+                    && !state.service.is_loose(l)
+                    && lock(&state.loose_window).as_deref() != Some(l.as_str())
             })
             .collect();
         labels.sort_by_key(|l| (l != "main", l.clone()));

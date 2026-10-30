@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-loose-save-again"
+description = "Enables the loose_save_again command without any pre-configured scope."
+commands.allow = ["loose_save_again"]
+
+[[permission]]
+identifier = "deny-loose-save-again"
+description = "Denies the loose_save_again command without any pre-configured scope."
+commands.deny = ["loose_save_again"]

@@ -67,6 +67,13 @@
         },
         {
           "feature": null,
+          "id": "open-file",
+          "key": null,
+          "kind": "own",
+          "label": "Open File…"
+        },
+        {
+          "feature": null,
           "id": "open-recent",
           "key": null,
           "kind": "own",
@@ -766,6 +773,13 @@
           "key": null,
           "kind": "own",
           "label": "Abrir pasta…"
+        },
+        {
+          "feature": null,
+          "id": "open-file",
+          "key": null,
+          "kind": "own",
+          "label": "Abrir arquivo…"
         },
         {
           "feature": null,

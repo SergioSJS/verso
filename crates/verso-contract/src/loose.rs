@@ -62,3 +62,14 @@ pub struct LooseFileInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub known_folder: Option<String>,
 }
+
+/// A file opened without a folder lately (ADR 0114 item 15, Q4), for the
+/// window's own menu on Windows and Linux: its name, where it sits (the
+/// shortened label `RecentFolder::place` uses) and its place in the host's
+/// list, which `open_recent_file` takes back. Never a path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecentFile {
+    pub index: u32,
+    pub name: String,
+    pub place: String,
+}
