@@ -443,6 +443,16 @@ blockers" (the maintainer's call, 2026-10-30).
 - *Item 3, Windows.* One ProgID per channel (`Verso.Markdown.1`, `Verso.Markdown.Beta.1`) and one registration (`Software\Verso`, `Software\VersoBeta`), so the beta and the release install side by side. Untested on a real Windows and Linux in this round: the coordinator's `check-windows.sh` and the Linux VM.
 - *Q1, "Move to new window".* Not built in this round: a loose tab has no "move to new window" yet (the popout flow needs a folder session). Recorded as a gap, not a decision.
 
+**As built, review fixes (2026-10-30, branch `fix/loose-review`)** — behaviour now as decided, no new decisions:
+
+- *Q5, attachments.* The core serves only an attachment the note's current text cites: `resolve_attachment` admits a target only when the text read or written last contains it (as written, `%20`, or percent-encoded), and `read_attachment` serves only what was admitted and is still cited; a new read or write forgets the rest. Each session serves its own parent's files only; one session never answers for another's. When two open notes cite the same relative name from different folders, `verso://` carries no note name, so the first note in the window that cites it answers.
+- *Item 12, read only.* Mode bits of the file and, on Unix, of the directory give the reason at open; on Windows the READONLY attribute of a directory is not read (Explorer sets it on Documents and Pictures). Whether the directory takes a new file is asked for real — a temporary created and removed at once — when a save is about to be made. The permission probe is kept until the file changes (a write, or a watch batch).
+- *Items 12 and 13, the core refuses too.* `write`, `write_note` and `save_again` refuse a text above 8 MiB and a file that is read only; a file above 64 MiB (`LOOSE_READ_CAP`) is not read at all.
+- *Item 7, routing.* A handed file and each open folder are compared as the disk names them (`..` and symlinks resolved, case folded on macOS and Windows); a file in a part of a folder it does not show (`.obsidian`, `.trash`, ignored paths) opens loose. A file is opened under its canonical path, so a symlinked file is its target and one file under two spellings is one tab.
+- *Item 14, siblings.* A sibling in a subfolder (`[[sub/outra]]`) keeps its folder in its path (dedupe, "Open the whole folder", the key).
+- *Item 11.* "Save here again" does not make a vanished folder again.
+- *Open, not built.* A temporary file left by a crash stays (item 10); `open_recent_file` still takes the list position (a contract change); a dataless attachment is not brought down.
+
 *Before:* **Proposed** (2026-10-30). Written by Fable 5.1 from the maintainer's
 request and the session's sketch. Items 1–30 are a proposal; the questions
 below are `[OPEN]` for the maintainer, each with a recommendation. The

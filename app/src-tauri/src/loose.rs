@@ -20,6 +20,17 @@ pub(crate) fn path_from_arg(arg: &str, cwd: &Path) -> PathBuf {
         // `file:///Users/x/n.md`, `file://localhost/Users/x/n.md` and, on
         // Windows, `file:///C:/x/n.md`.
         let rest = rest.strip_prefix("localhost").unwrap_or(rest);
+        // A query or a fragment is not part of the name (a `?` or `#` in a
+        // name is written `%3F` and `%23`, decoded below).
+        let rest = rest.split(['?', '#']).next().unwrap_or(rest);
+        // `file://server/share/n.md` names a network share on Windows.
+        #[cfg(windows)]
+        if !rest.starts_with('/') && !rest.is_empty() {
+            return PathBuf::from(format!(
+                r"\\{}",
+                verso_service::files::percent_decode(rest).replace('/', "\\")
+            ));
+        }
         let decoded = verso_service::files::percent_decode(rest);
         #[cfg(windows)]
         let decoded = decoded
@@ -61,7 +72,7 @@ fn say_refused<R: tauri::Runtime>(app: &tauri::AppHandle<R>, kind: &str, path: &
 /// Markdown file as a loose file; anything else is said and the window
 /// stays as it was (ADR 0114 item 6).
 pub(crate) fn path_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, path: PathBuf) {
-    let path = std::path::absolute(&path).unwrap_or(path);
+    let path = verso_core::canonical_path(&path);
     match verso_core::kind_of(&path) {
         verso_core::PathKind::Directory => hand_over(app, Handed::Path(path)),
         verso_core::PathKind::MarkdownFile => file_handed(app, path),
@@ -176,11 +187,12 @@ pub(crate) fn left<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
 /// A folder opened before that `path` lies in, the deepest (item 7 ii):
 /// its path, at the edge.
 pub(crate) fn known_folder_of(config: Option<&Path>, path: &Path) -> Option<PathBuf> {
+    let path = verso_core::canonical_path(path);
     verso_core::recent_folders(config)
         .into_iter()
         .filter(|folder| {
-            path.strip_prefix(folder)
-                .is_ok_and(|r| !r.as_os_str().is_empty())
+            verso_core::strip_root(&path, &verso_core::canonical_path(folder))
+                .is_some_and(|r| !r.as_os_str().is_empty())
         })
         .max_by_key(|folder| folder.components().count())
 }
@@ -683,6 +695,20 @@ mod tests {
         assert_eq!(
             path_from_arg("file://localhost/Users/ana/n.md", cwd),
             PathBuf::from("/Users/ana/n.md")
+        );
+        // A query and a fragment are not the name; an encoded `#` is.
+        assert_eq!(
+            path_from_arg("file:///Users/ana/n.md?x=1#top", cwd),
+            PathBuf::from("/Users/ana/n.md")
+        );
+        assert_eq!(
+            path_from_arg("file:///Users/ana/a%23b.md", cwd),
+            PathBuf::from("/Users/ana/a#b.md")
+        );
+        #[cfg(windows)]
+        assert_eq!(
+            path_from_arg("file://servidor/share/n.md", cwd),
+            PathBuf::from(r"\\servidor\share\n.md")
         );
         #[cfg(windows)]
         assert_eq!(

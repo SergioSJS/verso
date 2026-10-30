@@ -85,7 +85,8 @@ pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use scope::{
-    NOTE_EXTENSIONS, PathKind, ReadOnlyWhy, is_attachment_name, is_note_name, kind_of,
+    NOTE_EXTENSIONS, PathKind, ReadOnlyWhy, canonical_path, is_attachment_name, is_note_name,
+    kind_of, strip_root,
 };
 pub use settings::{DATA_DIRS, SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;

@@ -635,3 +635,106 @@ fn a_loose_file_changed_outside_is_told_to_its_window() {
         lock(&heard.0)
     );
 }
+
+/// Files and folders made through `verso-fs`, the one door to the disk.
+fn put(dir: &std::path::Path, relative: &str, bytes: &[u8]) {
+    let mut root = verso_fs::Root::open(dir, Vec::new()).unwrap();
+    let _ = root.create(std::path::Path::new(relative), bytes).unwrap();
+}
+
+/// A picture of another note's folder is never served to a note that does
+/// not cite it (ADR 0114 Q5): each session serves only what its own text
+/// cites, from its own parent.
+#[test]
+fn a_loose_note_never_reads_the_pictures_of_another_notes_folder() {
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    put(one.path(), "a.md", b"sem imagem\n");
+    put(one.path(), "so-de-a.png", b"A");
+    put(two.path(), "b.md", b"![[b.png]]\n");
+    put(two.path(), "b.png", b"B");
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    service
+        .open_loose("w", &one.path().join("a.md"), None)
+        .unwrap();
+    service
+        .open_loose("w", &two.path().join("b.md"), None)
+        .unwrap();
+    for (note, expected) in [("a.md", None), ("b.md", Some("b.png"))] {
+        let r = service
+            .dispatch("w", "read_note", serde_json::json!({"path": note}))
+            .unwrap();
+        r.unwrap();
+        let r = service
+            .dispatch(
+                "w",
+                "resolve_attachment",
+                serde_json::json!({"source": note, "target": expected.unwrap_or("so-de-a.png")}),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(r.as_str(), expected, "{note}");
+    }
+    assert_eq!(service.loose_attachment("w", "b.png").unwrap(), b"B");
+    assert!(service.loose_attachment("w", "so-de-a.png").is_err());
+}
+
+/// Which folder a handed file belongs to is judged on the places as the
+/// disk names them (ADR 0114 item 7): `..` resolved, and a part of the
+/// folder it does not show is not the folder's.
+#[test]
+fn a_handed_file_is_routed_by_where_it_really_is() {
+    let dir = tempfile::tempdir().unwrap();
+    let vault = dir.path().join("Vault");
+    let other = dir.path().join("Outro");
+    put(dir.path(), "Vault/n.md", b"# n\n");
+    put(dir.path(), "Vault/sub/m.md", b"# m\n");
+    put(dir.path(), "Outro/n.md", b"# fora\n");
+    // A hidden folder of the vault, as `.obsidian` is.
+    let hidden = tempfile::Builder::new()
+        .prefix(".obsidian")
+        .tempdir_in(&vault)
+        .unwrap();
+    let in_hidden = tempfile::Builder::new()
+        .suffix(".md")
+        .tempfile_in(hidden.path())
+        .unwrap();
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    let path = vault.clone();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    let inside = |p: &std::path::Path| service.folder_containing(p).map(|(_, r)| r);
+    assert_eq!(inside(&vault.join("sub/m.md")).as_deref(), Some("sub/m.md"));
+    // `..` is resolved: this file is in `Outro`, not in `Vault`.
+    assert_eq!(inside(&vault.join("../Outro/n.md")), None);
+    // And the other way: a `..` that comes back in.
+    assert_eq!(
+        inside(&other.join("../Vault/n.md")).as_deref(),
+        Some("n.md")
+    );
+    // A part the folder does not show opens loose.
+    assert_eq!(inside(in_hidden.path()), None);
+    #[cfg(target_os = "macos")]
+    assert_eq!(
+        inside(&dir.path().join("VAULT/n.md")).as_deref(),
+        Some("n.md")
+    );
+}
+
+/// One file under two spellings (`..`) is one tab.
+#[test]
+fn a_loose_file_under_two_spellings_is_one_tab() {
+    let dir = tempfile::tempdir().unwrap();
+    put(dir.path(), "sub/n.md", b"# n\n");
+    let service = Service::new(Some(tempfile::tempdir().unwrap().path().to_owned()));
+    let first = service
+        .open_loose("w", &dir.path().join("sub/n.md"), None)
+        .unwrap();
+    let again = service
+        .open_loose("w", &dir.path().join("sub/../sub/./n.md"), None)
+        .unwrap();
+    assert_eq!(first.key, again.key);
+    assert_eq!(service.loose_files("w").len(), 1);
+}

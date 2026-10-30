@@ -23,6 +23,10 @@ use crate::{CoreError, NoteText, Written, properties, revision, typed};
 /// number): 8 MiB.
 pub const LOOSE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 
+/// The bound above which a loose file is not even read: a file this large
+/// is no note, and reading it whole would exhaust the host's memory.
+pub const LOOSE_READ_CAP: u64 = 64 * 1024 * 1024;
+
 /// Why a loose file opens for reading only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LooseReadOnly {
@@ -38,6 +42,34 @@ pub struct Loose {
     /// The file, absolute: for the host, which opens its parent as a
     /// folder on request (item 9); it never crosses the contract.
     path: PathBuf,
+    /// The text last read or written: what "cited" is judged against.
+    text: String,
+    /// The attachments the note's current text cites that were admitted:
+    /// the target as written -> the name relative to the parent. Only
+    /// these are served (ADR 0114 Q5); a new read or write forgets those
+    /// the new text no longer cites.
+    cited: std::collections::HashMap<String, String>,
+    /// What the permission probe said, kept until [`Loose::refresh`]: the
+    /// probe opens the file, which on a network volume or under an
+    /// antivirus is not free, and every command asks.
+    permissions: std::sync::Mutex<Option<Option<String>>>,
+}
+
+/// Whether `text` cites `target`: as written, with spaces as `%20`, or
+/// percent-encoded the way the renderer writes an address.
+fn cites(text: &str, target: &str) -> bool {
+    if text.contains(target) || text.contains(&target.replace(' ', "%20")) {
+        return true;
+    }
+    let mut encoded = String::new();
+    for b in target.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~' | b'/') {
+            encoded.push(char::from(b));
+        } else {
+            encoded.push_str(&format!("%{b:02X}"));
+        }
+    }
+    text.contains(&encoded)
 }
 
 impl std::fmt::Debug for Loose {
@@ -50,9 +82,38 @@ impl Loose {
     /// Open the file at `path` (the entry edge): its parent as a scoped
     /// root. Nothing is read yet.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let root = Root::open_file(path).map_err(CoreError::Folder)?;
-        let path = std::path::absolute(path).map_err(CoreError::Folder)?;
-        Ok(Self { root, path })
+        // The place as the disk names it: `..`, symlinks (a linked file is
+        // its target, not a way to write through a name) and, on macOS and
+        // Windows, the volume's own spelling: one file is one path.
+        let path = verso_fs::canonical_path(path);
+        let root = Root::open_file(&path).map_err(CoreError::Folder)?;
+        Ok(Self::new(root, path))
+    }
+
+    fn new(root: Root, path: PathBuf) -> Self {
+        Self {
+            root,
+            path,
+            text: String::new(),
+            cited: std::collections::HashMap::new(),
+            permissions: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// Forget what was probed about permissions: the file changed (a write,
+    /// a change made outside), so the next question asks the disk again.
+    pub fn refresh(&self) {
+        if let Ok(mut p) = self.permissions.lock() {
+            *p = None;
+        }
+    }
+
+    /// Remember `text` as the note's current text: an admitted attachment
+    /// it no longer cites is forgotten.
+    fn remember(&mut self, text: &str) {
+        text.clone_into(&mut self.text);
+        let text = &self.text;
+        self.cited.retain(|target, _| cites(text, target));
     }
 
     /// The file, absolute: the host's, never the window's (rule 4).
@@ -95,12 +156,47 @@ impl Loose {
     /// Why the file is read only now, if it is (items 12 and 13).
     #[must_use]
     pub fn read_only(&self) -> Option<LooseReadOnly> {
-        if let Some(ReadOnlyWhy::Permissions(why)) = self.root.scoped_read_only() {
+        let cached = self.permissions.lock().map_or(None, |p| p.clone());
+        let why = cached.unwrap_or_else(|| {
+            let why = self
+                .root
+                .scoped_read_only()
+                .map(|ReadOnlyWhy::Permissions(why)| why);
+            if let Ok(mut p) = self.permissions.lock() {
+                *p = Some(why.clone());
+            }
+            why
+        });
+        if let Some(why) = why {
             return Some(LooseReadOnly::Permissions(why));
         }
         match self.root.scoped_len() {
             Ok(len) if len > LOOSE_MAX_BYTES => Some(LooseReadOnly::TooLarge),
             _ => None,
+        }
+    }
+
+    /// Refuse a write the window should not have offered: the file is read
+    /// only (permissions, too large) or the new text is above the bound.
+    fn check_writable(&self, new_len: usize) -> Result<(), CoreError> {
+        if new_len as u64 > LOOSE_MAX_BYTES {
+            return Err(CoreError::Loose(
+                "the text is too large to be saved".to_owned(),
+            ));
+        }
+        // A write is rare: ask the disk again rather than trust a probe
+        // that a change made outside may have outdated.
+        self.refresh();
+        match self.read_only() {
+            Some(LooseReadOnly::TooLarge) => Err(CoreError::Loose(
+                "the file is too large to be edited here".to_owned(),
+            )),
+            Some(LooseReadOnly::Permissions(why)) => {
+                Err(CoreError::Loose(format!("the file is read only: {why}")))
+            }
+            None => self.root.scoped_dir_writable().map_err(|e| {
+                CoreError::Loose(format!("the file's folder cannot be written: {}", e.kind()))
+            }),
         }
     }
 
@@ -155,8 +251,14 @@ impl Loose {
     /// 0043); bytes that are not UTF-8 are `NotText`.
     pub fn read(&mut self, as_path: &str) -> Result<NoteText, CoreError> {
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
+        if self.root.scoped_len().is_ok_and(|len| len > LOOSE_READ_CAP) {
+            return Err(CoreError::Loose(
+                "the file is too large to be opened as a note".to_owned(),
+            ));
+        }
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
+        self.remember(&text);
         Ok(Self::note_text(as_path, text, revision::encode(&stamp)))
     }
 
@@ -170,6 +272,7 @@ impl Loose {
         text: &str,
         revision: &str,
     ) -> Result<Written, CoreError> {
+        self.check_writable(text.len())?;
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
         let expected = crate::Workspace::decode_revision(revision)?;
         let report = self
@@ -183,6 +286,8 @@ impl Loose {
                 _ => revision::impossible(),
             },
         };
+        self.remember(text);
+        self.refresh();
         let mut warnings = report.warnings();
         if report.wrote_through_symlink_to.is_some() {
             warnings.push("written through a symlink".to_owned());
@@ -197,6 +302,11 @@ impl Loose {
     /// outside (item 11, "Save here again"): `Write(Exists)` when
     /// something reappeared there.
     pub fn save_again(&mut self, as_path: &str, text: &str) -> Result<Written, CoreError> {
+        if text.len() as u64 > LOOSE_MAX_BYTES {
+            return Err(CoreError::Loose(
+                "the text is too large to be saved".to_owned(),
+            ));
+        }
         let (handle, report) = self
             .root
             .create_scoped(text.as_bytes())
@@ -208,6 +318,8 @@ impl Loose {
                 _ => revision::impossible(),
             },
         };
+        self.remember(text);
+        self.refresh();
         Ok(Written {
             note: Self::note_text(as_path, text.to_owned(), revision::encode(&stamp)),
             warnings: report.warnings(),
@@ -224,22 +336,27 @@ impl Loose {
             return None;
         }
         let relative = Path::new(target);
-        if !verso_fs::is_attachment_name(relative) {
+        if !verso_fs::is_attachment_name(relative) || !cites(&self.text, target) {
             return None;
         }
         let handle = self.root.handle(relative).ok()?;
         self.root.length_and_time(handle).ok()?;
-        Some(
-            self.root
-                .confine(relative)
-                .ok()?
-                .to_string_lossy()
-                .replace('\\', "/"),
-        )
+        let found = self
+            .root
+            .confine(relative)
+            .ok()?
+            .to_string_lossy()
+            .replace('\\', "/");
+        self.cited.insert(target.to_owned(), found.clone());
+        Some(found)
     }
 
-    /// The bytes of an attachment [`Loose::resolve_attachment`] admitted.
+    /// The bytes of an attachment [`Loose::resolve_attachment`] admitted and
+    /// the note's current text still cites; any other is refused.
     pub fn read_attachment(&mut self, relative: &str) -> Result<Vec<u8>, CoreError> {
+        if !self.cited.values().any(|c| c == relative) {
+            return Err(CoreError::Confined(verso_fs::ConfinementError::OutOfScope));
+        }
         let relative = Path::new(relative);
         if !verso_fs::is_attachment_name(relative) {
             return Err(CoreError::Confined(verso_fs::ConfinementError::OutOfScope));
@@ -265,15 +382,24 @@ impl Loose {
     /// Open the sibling note `target` names as a scope of its own.
     pub fn open_sibling(&self, target: &str) -> Result<Self, CoreError> {
         let target = target.split(['#', '|']).next().unwrap_or_default().trim();
+        let relative = self
+            .root
+            .sibling_note(Path::new(target))
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "no such note beside this file",
+                )
+            })
+            .map_err(CoreError::Folder)?;
         let root = self
             .root
             .open_sibling(Path::new(target))
             .map_err(CoreError::Folder)?;
-        let path = self
-            .parent()
-            .join(root.scope().map(Path::to_path_buf).unwrap_or_default());
-        let path = std::path::absolute(path).map_err(CoreError::Folder)?;
-        Ok(Self { root, path })
+        // The path keeps the sub folders (`sub/outra.md`), not only the
+        // scoped name: two files of one name in two folders stay two files.
+        let path = verso_fs::canonical_path(&self.parent().join(relative));
+        Ok(Self::new(root, path))
     }
 
     /// The links of the note, each resolved to a sibling note by one

@@ -38,7 +38,7 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 pub use sync_io::Hashed;
 pub use verso_fs::{
     Changes, ConfinementError, Mark, PathKind, PickedError, Placeholder, ReadError, Staged,
-    WalkRules, Watch, WriteError, check_picked, kind_of, read_picked,
+    WalkRules, Watch, WriteError, canonical_path, check_picked, kind_of, read_picked, strip_root,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
@@ -80,7 +80,7 @@ mod views;
 use entries::*;
 pub use mentions::{Mention, Mentions};
 mod loose;
-pub use loose::{LOOSE_MAX_BYTES, Loose, LooseReadOnly};
+pub use loose::{LOOSE_MAX_BYTES, LOOSE_READ_CAP, Loose, LooseReadOnly};
 /// The one projection a UniVerso serves a reader of a note (ADR 0087),
 /// for every exit of the server that serves one.
 pub mod secret {
@@ -219,6 +219,10 @@ pub enum CoreError {
     /// A folder data file (`.verso/layouts/`, `.verso/bundles/`) cannot be
     /// read or written as asked: a bad id, too large, not a JSON object.
     FolderData(String),
+    /// A file opened without its folder is refused what the folder would
+    /// allow (ADR 0114 items 12 and 13): too large, or read only; the
+    /// reason, in the message.
+    Loose(String),
 }
 
 impl std::fmt::Display for CoreError {
@@ -242,6 +246,7 @@ impl std::fmt::Display for CoreError {
             Self::Client(m) => write!(f, "MCP client: {m}"),
             Self::FolderSettings(m) => write!(f, "folder settings: {m}"),
             Self::FolderData(m) => write!(f, "folder data: {m}"),
+            Self::Loose(m) => write!(f, "{m}"),
         }
     }
 }

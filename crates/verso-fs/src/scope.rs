@@ -113,6 +113,87 @@ pub fn kind_of(path: &Path) -> PathKind {
     }
 }
 
+/// `path` as the disk names the place: absolute, `.` and `..` resolved,
+/// every symlink followed, on Windows without the `\\?\` prefix. When the
+/// path does not exist, its nearest existing ancestor is canonicalized and
+/// the rest is appended after a lexical normalization (a `..` cannot
+/// climb above what exists). The entry edge asks here, so that
+/// `/tmp/x/../y.md` and `/private/tmp/y.md` are one file (ADR 0114 item 7).
+#[must_use]
+pub fn canonical_path(path: &Path) -> PathBuf {
+    let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    if let Ok(real) = std::fs::canonicalize(&absolute) {
+        return plain(real);
+    }
+    // Lexical normalization of the missing tail.
+    let mut kept: Vec<std::ffi::OsString> = Vec::new();
+    let mut base = PathBuf::new();
+    for c in absolute.components() {
+        match c {
+            Component::Prefix(_) | Component::RootDir => base.push(c.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                kept.pop();
+            }
+            Component::Normal(n) => kept.push(n.to_owned()),
+        }
+    }
+    let mut out = base.clone();
+    let mut tail = Vec::new();
+    for n in kept {
+        if tail.is_empty() {
+            let next = out.join(&n);
+            if next.exists() {
+                out = next;
+                continue;
+            }
+        }
+        tail.push(n);
+    }
+    let mut out = std::fs::canonicalize(&out).map_or(out, plain);
+    out.extend(tail);
+    out
+}
+
+/// A Windows verbatim path (`\\?\C:\x`) as the plain one (`C:\x`).
+fn plain(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    if let Some(rest) = path.to_str().and_then(|s| s.strip_prefix(r"\\?\"))
+        && rest.as_bytes().get(1) == Some(&b':')
+    {
+        return PathBuf::from(rest);
+    }
+    path
+}
+
+/// Whether two names of one path component are the same on this system:
+/// case-insensitive where the usual volumes are (macOS, Windows).
+fn same_component(a: &std::ffi::OsStr, b: &std::ffi::OsStr) -> bool {
+    if a == b {
+        return true;
+    }
+    cfg!(any(target_os = "macos", windows))
+        && match (a.to_str(), b.to_str()) {
+            (Some(a), Some(b)) => a.to_lowercase() == b.to_lowercase(),
+            _ => false,
+        }
+}
+
+/// `path` relative to `root`, both canonical ([`canonical_path`]); the
+/// components compare case-insensitively on macOS and Windows. `None` when
+/// `path` is not inside `root`.
+#[must_use]
+pub fn strip_root(path: &Path, root: &Path) -> Option<PathBuf> {
+    let mut rest = path.components();
+    for r in root.components() {
+        let p = rest.next()?;
+        if !same_component(p.as_os_str(), r.as_os_str()) {
+            return None;
+        }
+    }
+    Some(rest.as_path().to_path_buf())
+}
+
 /// Why a scoped file opens for reading only (ADR 0114 items 12 and 13).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReadOnlyWhy {
@@ -265,6 +346,12 @@ impl Root {
         let scope = self.scope.as_ref()?;
         let path = on_disk(&self.path, scope);
         let target = placeholder::follow(&path).unwrap_or(path);
+        // The directory's mode bits say "nobody may write" on Unix only; on
+        // Windows the READONLY attribute of a directory is a marker (Explorer
+        // sets it on Documents and Pictures) that stops no write, so it is
+        // not read. Whether the directory takes a new file is asked for real
+        // by [`Root::scoped_dir_writable`], when a save is about to be made.
+        #[cfg(unix)]
         if let Ok(meta) = std::fs::metadata(&self.path)
             && meta.permissions().readonly()
         {
@@ -286,6 +373,25 @@ impl Root {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => Some(ReadOnlyWhy::Permissions(e.kind().to_string())),
         }
+    }
+
+    /// Whether the parent directory takes a new file, asked for real: the
+    /// atomic save writes a temporary file there and renames it over the
+    /// file, so a file that can be written in a directory that cannot is
+    /// not editable. A temporary of a name no sweep takes for a writer's is
+    /// created and removed at once, never left. Called when a save is about
+    /// to be made, not at every command.
+    pub fn scoped_dir_writable(&self) -> Result<(), std::io::Error> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static N: AtomicU64 = AtomicU64::new(0);
+        let name = format!(
+            ".verso-tmp-probe-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::Relaxed)
+        );
+        let probe = self.path.join(name);
+        std::fs::File::create_new(&probe)?;
+        std::fs::remove_file(&probe)
     }
 
     /// The scoped file's length in bytes, following a symlink, without
@@ -311,6 +417,14 @@ impl Root {
             .scope
             .clone()
             .ok_or(WriteError::Confined(ConfinementError::OutOfScope))?;
+        // Only where the file stood: a folder renamed, moved or deleted is
+        // not made again (Save a copy… is the way out).
+        if !std::fs::metadata(&self.path).is_ok_and(|m| m.is_dir()) {
+            return Err(WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "the file's folder is gone",
+            )));
+        }
         let report = crate::ops::create_atomically(&on_disk(&self.path, &scope), content)?;
         Ok((self.intern(scope), report))
     }
@@ -331,5 +445,35 @@ mod tests {
         assert!(is_attachment_name(Path::new("docs/manual.pdf")));
         assert!(!is_attachment_name(Path::new("outra.md")));
         assert!(!is_attachment_name(Path::new("dados.json")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_path_is_told_by_where_it_really_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        std::fs::create_dir(&real).unwrap();
+        std::fs::write(real.join("n.md"), "x").unwrap();
+        std::os::unix::fs::symlink(&real, dir.path().join("alias")).unwrap();
+        let canon = canonical_path(&real.join("n.md"));
+        assert_eq!(canonical_path(&dir.path().join("alias/n.md")), canon);
+        assert_eq!(canonical_path(&real.join("../real/./n.md")), canon);
+        // A file that is not there keeps its name after the real folder.
+        assert_eq!(
+            canonical_path(&dir.path().join("alias/../real/gone.md")),
+            canonical_path(&real).join("gone.md")
+        );
+        let root = canonical_path(&real);
+        assert_eq!(strip_root(&canon, &root), Some(PathBuf::from("n.md")));
+        assert_eq!(strip_root(&root, &canon), None);
+        assert_eq!(
+            strip_root(&canon, &canonical_path(dir.path().join("x").as_path())),
+            None
+        );
+        #[cfg(target_os = "macos")]
+        {
+            let upper = PathBuf::from(canon.parent().unwrap().to_string_lossy().to_uppercase());
+            assert_eq!(strip_root(&canon, &upper), Some(PathBuf::from("n.md")));
+        }
     }
 }
