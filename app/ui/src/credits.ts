@@ -318,8 +318,7 @@ export const SYSTEMS: SystemNotice[] = [
     id: "fractal",
     name: "Fractal",
     licence: "CC BY 4.0",
-    // TODO-VERIFY: the SRD's text says CC BY 4.0, its badge shows BY-SA;
-    // pending the authors (ADR 0099 item 6).
+    // CC BY 4.0, as the SRD says (the maintainer, 2026-10-22 and 2026-10-29).
     lines: ["Esse trabalho é compatível com Fractal, de Igor Téuri e Walter Licínio, desenvolvido sob licença Creative Commons Attribution 4.0 License."],
     link: "https://fractal-system.itch.io/pt-br",
   },
