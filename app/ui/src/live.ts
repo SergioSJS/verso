@@ -407,7 +407,11 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               hide(line.from, Math.min(mark.to + 1, line.to));
             } else if (isOrdered && mark) {
               if (mark.from > line.from) hide(line.from, mark.from);
-              out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-order-mark" }) });
+              // Its digits size the mark (`12.`, `100)`): it grows to the left
+              // and the text after it stays where a `1.` item's text is.
+              const digits = Math.max(1, mark.to - mark.from - 1);
+              const attributes = { style: `--lp-order-digits: ${digits};` };
+              out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-order-mark", attributes }) });
             }
           }
         } else if (name === "Link" && !shown) {
