@@ -7,7 +7,7 @@ import { test, expect } from "./fixtures.mjs";
 
 const NOTE = "Sessao ao vivo.md";
 
-const SYNCED = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: "2026-10-11T12:00:00Z", message: null, problem: null, versions: null, revoked: null };
+const SYNCED = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: "2026-10-11T12:00:00Z", message: null, problem: null, versions: null, revoked: null, cloud: null };
 
 /** Say a status as the sync would: the event, and the same status as the
  *  answer to `folder_sync` (see sync.spec.mjs). */

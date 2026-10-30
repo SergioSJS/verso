@@ -81,8 +81,11 @@ test("a click uses the theme at once and the mark moves; Copiar keeps a copy wit
   const side = dracula.values.dark ?? dracula.values.light;
   expect(await page.evaluate(() => document.documentElement.style.getPropertyValue("--paper"))).toContain(side["--paper"].toLowerCase());
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("verso.settings")));
-  expect(stored.lookName).toBe("Dracula");
-  expect(stored.lookCredit.theme).toBe("Dracula");
+  // A folder is open: the choice is the folder's own (ADR 0100 item 4, 2026-10-27).
+  const own = Object.values(stored.folderThemes ?? {});
+  expect(own.map((t) => t.lookName)).toEqual(["Dracula"]);
+  expect(own[0].lookCredit.theme).toBe("Dracula");
+  expect(stored.lookName).toBeUndefined();
   // Another one: the mark moves.
   await card(dialog, "Nord").locator(".theme-pick").click();
   await expect(card(dialog, "Nord").locator(".theme-pick")).toHaveAttribute("aria-pressed", "true");
