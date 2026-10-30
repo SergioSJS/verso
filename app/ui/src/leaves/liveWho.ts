@@ -12,6 +12,20 @@ import { h } from "../dom";
 import { presenceColor } from "../collab";
 import { initial, RING_MS, Ringing } from "./whoRing";
 
+/** How many people's marks are drawn; the others are one "+N" mark. */
+export const WHO_SHOWN = 3;
+
+/** The state's mark beside the people: while live, only a dot — the words
+ *  ("ao vivo, com Ana e Bia") stay for a screen reader and the tip, the
+ *  people's own marks carrying the names; any other state (local, no
+ *  connection) is said in words, truncated to the room there is. */
+export function paintMark(mark: HTMLElement, line: string, kind: string): void {
+  mark.dataset["live"] = kind;
+  mark.title = line;
+  if (kind === "live") mark.replaceChildren(h("span", "sr-only", line));
+  else mark.textContent = line;
+}
+
 type Row = { el: HTMLElement; ringing: Ringing; others: readonly string[]; timer: number; key: string };
 const rows = new WeakMap<object, Row>();
 
@@ -33,17 +47,30 @@ function draw(r: Row, now: number): void {
   if (key === r.key) return;
   r.key = key;
   r.el.hidden = r.others.length === 0;
+  const shown = r.others.length > WHO_SHOWN ? r.others.slice(0, WHO_SHOWN - 1) : r.others;
+  const rest = r.others.slice(shown.length);
+  const mark = (name: string, text: string, tip: string, fresh: boolean): HTMLElement => {
+    const chip = h("span", "live-who-chip", text);
+    chip.style.setProperty("--who", presenceColor(name));
+    // The name on hover; on a phone, which has no hover, a tap shows it for a moment.
+    chip.title = tip;
+    chip.dataset["tip"] = tip;
+    // The words are in the live mark's text; the marks only repeat them.
+    chip.setAttribute("aria-hidden", "true");
+    if (fresh) chip.classList.add("is-new");
+    chip.addEventListener("click", () => tipFor(chip));
+    return chip;
+  };
   r.el.replaceChildren(
-    ...r.others.map((name) => {
-      const chip = h("span", "live-who-chip", initial(name));
-      chip.style.setProperty("--who", presenceColor(name));
-      chip.title = name;
-      // The words are in the live line beside; the mark only repeats them.
-      chip.setAttribute("aria-hidden", "true");
-      if (ringed.has(name)) chip.classList.add("is-new");
-      return chip;
-    }),
+    ...shown.map((name) => mark(name, initial(name), name, ringed.has(name))),
+    ...(rest.length > 0 ? [mark(rest[0] ?? "", `+${rest.length}`, rest.join(", "), rest.some((n) => ringed.has(n)))] : []),
   );
+}
+
+/** A tapped mark names its person for a moment (a phone has no hover). */
+function tipFor(chip: HTMLElement): void {
+  chip.classList.add("show-tip");
+  window.setTimeout(() => chip.classList.remove("show-tip"), 2500);
 }
 
 /** Draw the people of `owner`'s live file beside `mark`; `fresh` are the
