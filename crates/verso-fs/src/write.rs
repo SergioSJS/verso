@@ -136,6 +136,44 @@ impl WriteReport {
 
 pub(crate) static COUNTER: AtomicU32 = AtomicU32::new(0);
 
+/// The targets this process is writing right now. Two writers of one
+/// process (two windows of the app on one folder, two `Root`s) check and
+/// rename in turn, never inside each other's check-to-rename window, which
+/// the `fsync` between the two makes milliseconds wide: measured on
+/// 2026-10-30 (`tests/stress.rs`), 4 racing writers lost 58% of their
+/// accepted writes to each other. Another program writing the same file is
+/// still only caught by the checks of [`check`] and [`put_over`].
+static WRITING: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+static WRITING_FREED: std::sync::Condvar = std::sync::Condvar::new();
+
+/// A target held for writing; let go when dropped.
+pub(crate) struct TargetLock(PathBuf);
+
+impl TargetLock {
+    fn take(target: &Path) -> Self {
+        let mut held = WRITING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while held.iter().any(|p| p == target) {
+            held = WRITING_FREED
+                .wait(held)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        held.push(target.to_path_buf());
+        Self(target.to_path_buf())
+    }
+}
+
+impl Drop for TargetLock {
+    fn drop(&mut self) {
+        let mut held = WRITING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        held.retain(|p| *p != self.0);
+        WRITING_FREED.notify_all();
+    }
+}
+
 pub(crate) fn write_atomically(
     path: &Path,
     content: &[u8],
@@ -171,6 +209,8 @@ pub(crate) struct Checked {
     pub(crate) dir: PathBuf,
     pub(crate) original: std::fs::Metadata,
     report: WriteReport,
+    /// Held until the rename is done.
+    _held: TargetLock,
 }
 
 /// The checks before a write touches anything: not a placeholder (ADR
@@ -194,6 +234,7 @@ pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError
     }
     // The name as the disk holds it, which the rename over the file keeps.
     let target = os::kept_spelling(followed.clone());
+    let held = TargetLock::take(&target);
     if followed != path {
         // What the report names is where the write lands, respelled.
         report.wrote_through_symlink_to = Some(target.clone());
@@ -225,6 +266,7 @@ pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError
         dir,
         original,
         report,
+        _held: held,
     })
 }
 
@@ -244,6 +286,7 @@ pub(crate) fn put_over(
         dir,
         original,
         mut report,
+        _held,
     } = checked;
     // Everything up to and including the rename: a failure here leaves the
     // original untouched and removes the temporary file.
