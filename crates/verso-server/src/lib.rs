@@ -483,6 +483,8 @@ mod tests_map_tiles;
 #[cfg(test)]
 mod tests_mentions;
 #[cfg(test)]
+mod tests_night_sync;
+#[cfg(test)]
 mod tests_offline;
 #[cfg(test)]
 mod tests_pieces;
