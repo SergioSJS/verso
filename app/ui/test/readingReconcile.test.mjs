@@ -11,7 +11,7 @@ for (const k of ["document", "Node", "Element", "HTMLElement", "MutationObserver
   Object.defineProperty(globalThis, k, { value: win[k], configurable: true, writable: true });
 }
 await esbuild.build({ entryPoints: ["src/leaves/note/reconcile.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/readingReconcile.test-bundle.mjs", logLevel: "error" });
-const { snapshot, describes, plan, apply, crossesBlocks, scrollAnchor, keepAnchor } = await import("./.bundles/readingReconcile.test-bundle.mjs");
+const { snapshot, describes, plan, apply, crossesBlocks, scrollAnchor, keepAnchor, modeOfSig } = await import("./.bundles/readingReconcile.test-bundle.mjs");
 
 const nodes = (html) => {
   const d = document.createElement("div");
@@ -181,4 +181,21 @@ test("the sheet stays where the reader was when blocks are put in above", () => 
   top = 340;
   keepAnchor(sheet, { node: { isConnected: false, getBoundingClientRect: () => ({ top: 0 }) }, top: 0 });
   assert.equal(sheet.scrollTop, 740, "an anchor that left the page changes nothing");
+});
+
+test("the anchor is the first block that stays, not one about to be replaced", () => {
+  const sheet = { scrollTop: 0, getBoundingClientRect: () => ({ top: 0 }) };
+  const replaced = { getBoundingClientRect: () => ({ top: 10, bottom: 30 }) };
+  const kept = { getBoundingClientRect: () => ({ top: 40, bottom: 60 }) };
+  const root = { children: [replaced, kept] };
+  assert.equal(scrollAnchor(sheet, root).node, replaced, "without a kept set: the first visible");
+  assert.equal(scrollAnchor(sheet, root, new Set([kept])).node, kept);
+});
+
+test("a change of mode (reader view, read-only) is told by the signature", () => {
+  const sig = (mode, html) => `a.md\n${mode}\n${html}`;
+  assert.equal(modeOfSig(sig("nw", "<p>x</p>\n<p>y</p>")), "nw");
+  assert.notEqual(modeOfSig(sig("nw", "<p>x</p>")), modeOfSig(sig("no", "<p>x</p>")));
+  assert.notEqual(modeOfSig(sig("nw", "x")), modeOfSig(sig("rw", "x")));
+  assert.equal(modeOfSig(""), "", "nothing painted yet");
 });
