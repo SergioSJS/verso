@@ -550,7 +550,7 @@ test("a phone with every drawer closed has no shadow on its edges and no empty t
   if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/closed-${process.env.SHOT_TAG ?? "after"}-390.png` });
 });
 
-test("a phone's note row: the place has its own row, the fold button is whole and clear of the bell, tabs are 44 px @layout", async ({ app, page }) => {
+test("a phone's note row: the place and the modes share one compact row, the fold button is whole and clear of the bell, tabs are 44 px @layout", async ({ app, page }) => {
   await app.open();
   if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
   await app.quickOpen("01 - Guia");
@@ -560,8 +560,11 @@ test("a phone's note row: the place has its own row, the fold button is whole an
   // The box includes 2rem of fade at its start (a negative margin): the place itself starts inside the screen.
   expect(crumbs.x + 32).toBeGreaterThanOrEqual(0);
   expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(vw + 1);
-  expect(crumbs.width).toBeGreaterThan(vw * 0.8);
-  expect(modes.y).toBeGreaterThanOrEqual(crumbs.y + crumbs.height - 1);
+  // One row (2026-10-30, the maintainer): the place gives way to the segmented modes, which stay whole.
+  expect(modes.x + modes.width).toBeLessThanOrEqual(vw + 1);
+  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(modes.x + 1 + 32);
+  expect(modes.y).toBeLessThan(crumbs.y + crumbs.height);
+  expect(modes.height).toBeLessThanOrEqual(44);
   const fold = await page.locator(".pane-fold").first().boundingBox();
   const bell = await page.locator(".notify-bell-phone").first().boundingBox();
   expect(fold.width).toBeGreaterThanOrEqual(44);

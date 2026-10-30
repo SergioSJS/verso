@@ -16,12 +16,6 @@
   .pane-tools > .pane-fold { display: inline-flex; }
   .tab { max-width: 18ch; }
   .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
-  /* The place has a row of its own: the modes never push it off the edge.
-     Not on a board, whose head holds two sets of modes: three rows there
-     left too little board, and a tap meant for the board missed it. */
-  .leaf-head:not(:has(> .modes ~ .modes)) > .crumbs { flex: 1 1 100%; }
-  .leaf-head:not(:has(> .modes ~ .modes)) > .modes { flex: 1 1 100%; flex-wrap: wrap; }
-  .leaf-head:not(:has(> .modes ~ .modes)) > .modes > button { flex: 1 1 auto; justify-content: center; min-height: 40px; }
   .sheet, .leaf-head { padding-left: .7rem; padding-right: .7rem; }
   .prop { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) auto; }
   .folder-cols, .folder-items.list .item { grid-template-columns: minmax(0, 1fr) 5rem 5rem; }

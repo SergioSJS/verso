@@ -322,6 +322,8 @@ export class NoteLeaf extends Leaf {
     this.addCoverBtn.hidden = true;
     this.addCoverBtn.type = "button";
     this.addCoverBtn.append(icon("image"), h("span", "", t.addCover));
+    this.addCoverBtn.title = t.addCover;
+    this.addCoverBtn.setAttribute("aria-label", t.addCover);
     this.addCoverBtn.addEventListener("click", () => this.promptCover());
 
     this.stickerBtn.type = "button";
@@ -332,12 +334,12 @@ export class NoteLeaf extends Leaf {
     this.liveMark.hidden = true;
     // The tools are one group: wrapped under a narrow title, they stay together, at the right.
     const tools = h("span", "title-tools");
-    tools.append(this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
+    tools.append(this.addCoverBtn, this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
     titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, tools);
     this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
+    sheet.append(this.coverBox, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
