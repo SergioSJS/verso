@@ -142,6 +142,8 @@ test release.
 
 ### Fixed
 
+- **The reading view follows a change of role at once**: when a person's right to edit is taken away (or given), the task boxes of the note change with it instead of keeping the old behaviour until the text changes; the reading position stays on a block that remains, and embeds are not built for blocks that were not used.
+- **A note opened while a change is waiting to cross no longer shortens a later, unrelated pause of the sync**, so a rename made by another program is not seen as a deletion followed by a creation.
 - **A person who only reads a note stays in its room when the connection comes back**: it no longer reloads the editor and shows a false "could not be kept" line at every reconnection, and a reader's quick background visit to a note no longer leaves a phantom member in the room.
 - **A note that grows past the 16 MiB index limit is no longer recorded as deleted in the folder's history**; it just leaves the search index.
 - **Windows asks whether a note changed on disk before the first rename of a save, as the other systems do**, and two windows reaching one folder by different spellings no longer overwrite each other's saves.
