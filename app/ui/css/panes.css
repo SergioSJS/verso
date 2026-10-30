@@ -159,20 +159,31 @@
 
 .pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+/* The head never paints outside its pane (2026-10-30, a board's head ran under
+   the side bars): it wraps instead of overflowing — the place keeps a width of
+   its own, so what does not fit goes to the next row, right-aligned — and each
+   child may shrink below its content. Where the pane is narrow, the modes
+   keep their icons alone (below). */
+.leaf-head { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .8rem; min-width: 0; max-width: 100%; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+.leaf-head > * { min-width: 0; max-width: 100%; }
 /* Tight: the leading crumbs slide out to the left under a fade; the
  * current folder stays readable at the right. */
-.crumbs { flex: 1 1 0; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
+.crumbs { flex: 1 1 8rem; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
 /* A spacer that takes the free room, so the crumbs sit left when they fit
  * and spill left, under the fade, when they do not. */
 .crumbs::after { content: ""; flex: 1 1 0; min-width: 0; }
-.modes { flex: none; }
+.modes { flex: none; margin-left: auto; }
 .crumbs span { color: var(--ink-2); }
 .crumbs span:last-child { color: var(--ink); }
 .modes { display: inline-flex; gap: .1rem; font-size: .8rem; }
 .modes button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .55rem; border-radius: 5px; color: var(--ink-2); }
 .modes button:hover { color: var(--ink); background: var(--paper-3); }
 .modes button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+/* A pane under 760 px keeps the modes' icons alone (their names are the
+   buttons' accessible names and tips); where the modes have a row of their
+   own on a phone (screen.css) the words come back. */
+@container pane (max-width: 760px) { .leaf-head .modes button > span:not(.icon) { display: none; } }
+@container pane (max-width: 520px) { .leaf-head:not(:has(> .modes ~ .modes)) > .modes button > span:not(.icon) { display: inline; } }
 .iconic { display: inline-flex; padding: .3rem; }
 .icon { flex: none; }
 
@@ -216,13 +227,20 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
-.title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
+.title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; margin-top: .4rem; min-width: 0; }
+/* The title keeps room to read (a word of its own width); the tools wrap under it, right-aligned, rather than squeeze it to a letter wide. */
+.title-row > * { min-width: 0; max-width: 100%; }
+.title-row > .note-title { flex: 1 1 12ch; }
+.title-tools { flex: 0 1 auto; margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .2rem .4rem; min-width: 0; }
+.title-tools > .live-who, .title-tools > .live-mark, .title-tools > .live-off-notice { margin-left: 0; }
 .note-title { flex: 1; min-width: 0; overflow-wrap: anywhere; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
 /* A synced folder's note, live in the server's room or local (ADR 0082
    item 14): said in words; the dot only repeats them. */
-.live-mark { flex: none; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.live-mark { flex: 0 1 auto; min-width: 0; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Live, the mark is the dot alone: the words are for a screen reader and its tip. */
+.live-mark[data-live="live"] { flex: none; }
 .live-mark[data-live="live"]::before, .status-live[data-live="live"]::before { content: "● "; color: var(--brass-ink); }
 .live-off-notice { flex: 0 1 auto; margin-left: auto; padding: .1rem .4rem; font: inherit; font-size: .78rem; color: var(--ink-3); background: none; border: 1px dashed var(--ink-3); border-radius: 5px; cursor: pointer; text-align: left; }
 .live-off-notice:hover { color: var(--ink); }
@@ -379,10 +397,14 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
    item 8). A newcomer's mark gets a ring for a moment; with reduced motion
    the ring is still, and fades. The letter and the colour of the border
    both come from the person, the ring from the theme's tokens. */
-.live-who { flex: none; margin-left: auto; display: inline-flex; gap: .2rem; align-items: center; }
+.live-who { flex: none; margin-left: auto; display: inline-flex; align-items: center; }
 .live-who + .live-mark { margin-left: .4rem; }
 .live-who[hidden] { display: none; }
-.live-who-chip { box-sizing: border-box; width: 1.25rem; height: 1.25rem; border-radius: 50%; display: inline-grid; place-items: center; font-size: .66rem; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper-2); border: 2px solid var(--who, var(--brass-ink)); }
+.live-who-chip { position: relative; box-sizing: border-box; min-width: 1.25rem; padding: 0 .15rem; height: 1.25rem; border-radius: 999px; display: inline-grid; place-items: center; font-size: .66rem; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper-2); border: 2px solid var(--who, var(--brass-ink)); }
+/* Marks overlap, a little each, so that six people are not six widths. */
+.live-who-chip + .live-who-chip { margin-left: -.35rem; }
+.live-who-chip { cursor: default; }
+.live-who-chip.show-tip::after { content: attr(data-tip); position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; padding: .2rem .5rem; border-radius: 6px; font-size: .74rem; font-weight: 500; white-space: nowrap; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); box-shadow: 0 4px 14px oklch(0% 0 0 / .18); pointer-events: none; }
 .live-who-chip.is-new { animation: live-who-ring 2.8s ease-out both; }
 @keyframes live-who-ring { 0% { box-shadow: 0 0 0 0 var(--brass-ink); } 12% { box-shadow: 0 0 0 4px var(--brass-ink); } 100% { box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .live-who-chip.is-new { animation: live-who-fade 2.8s linear both; } @keyframes live-who-fade { 0%, 60% { box-shadow: 0 0 0 3px var(--brass-ink); } 100% { box-shadow: 0 0 0 3px transparent; } } }
