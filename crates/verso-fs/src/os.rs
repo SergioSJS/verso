@@ -140,13 +140,22 @@ pub(crate) fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
 /// [`rename`], asking `unchanged` before each new try whether `to` is still
 /// the file the caller checked (invariant 11): a program that held it may
 /// have written it before letting go. `Ok(false)` when it was not: nothing
-/// was renamed. On Unix the rename is tried once, so never asked.
+/// was renamed. On Unix the rename is tried once, asked just before it:
+/// the check at the start of a write is followed by the temporary file's
+/// write and `fsync` (milliseconds), in which another writer's rename
+/// would otherwise be replaced unseen (night round of 2026-10-29: 58% of
+/// the writes of four racing writers, measured in `tests/stress.rs`). What
+/// remains is the instant between this question and the rename; closing
+/// it takes a lock, which a file of the user's cannot be made to carry.
 #[cfg(unix)]
 pub(crate) fn rename_unless_changed(
     from: &Path,
     to: &Path,
-    _unchanged: impl Fn() -> bool,
+    unchanged: impl Fn() -> bool,
 ) -> std::io::Result<bool> {
+    if !unchanged() {
+        return Ok(false);
+    }
     std::fs::rename(from, to).map(|()| true)
 }
 

@@ -351,16 +351,14 @@ async fn run_room(seed: u64, wins: usize, ops: usize, leave_all: bool) {
         all.push(w);
     }
     for k in 0..ops {
-        for i in 0..all.len() {
+        for (i, w) in all.iter_mut().enumerate() {
             let roll = rng.below(100);
-            if roll < 8 && all[i].online {
+            if roll < 8 && w.online {
                 // Gone: what it types now waits.
-                let w = &mut all[i];
                 w.call("collab_leave", json!({ "path": path })).await;
                 w.online = false;
-            } else if roll < 20 && !all[i].online {
+            } else if roll < 20 && !w.online {
                 // Back: join, then its whole state (what it typed offline).
-                let w = &mut all[i];
                 assert_eq!(
                     w.join(path).await,
                     epoch,
@@ -374,11 +372,11 @@ async fn run_room(seed: u64, wins: usize, ops: usize, leave_all: bool) {
                 w.pending.clear();
                 w.online = true;
             } else {
-                let u = all[i].edit(i, k, &mut rng);
-                if all[i].online {
-                    all[i].push(path, &u).await;
+                let u = w.edit(i, k, &mut rng);
+                if w.online {
+                    w.push(path, &u).await;
                 } else {
-                    all[i].pending.push(u);
+                    w.pending.push(u);
                 }
             }
         }

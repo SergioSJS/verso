@@ -31,6 +31,14 @@ impl Rng {
     }
 }
 
+/// Whether the folder holds `path` (read through `verso-fs`).
+fn there(r: &crate::tests::Running, path: &str) -> bool {
+    verso_fs::Root::open(r.campanha(), Vec::new()).is_ok_and(|mut root| {
+        root.handle(std::path::Path::new(path))
+            .is_ok_and(|h| root.read(h).is_ok())
+    })
+}
+
 fn ok(v: &Value) -> bool {
     v.get("ok").is_some()
 }
@@ -227,14 +235,11 @@ async fn run(seed: u64, rounds: usize) {
     // Nothing was deleted, moved or taken: the notes are there, the intruder's names are not.
     let aberta = ["Aberta.md", "Aberta2.md"]
         .iter()
-        .filter(|p| m.r.campanha().join(p).exists())
+        .filter(|p| there(&m.r, p))
         .count();
     assert_eq!(aberta, 1, "seed {seed}: Aberta is gone or doubled");
     for p in ["Livre.md", "Barão Zq.md", "Mundo Zq/Cripta Zq.md"] {
-        assert!(
-            m.r.campanha().join(p).exists(),
-            "seed {seed}: {p} is gone from the folder"
-        );
+        assert!(there(&m.r, p), "seed {seed}: {p} is gone from the folder");
     }
     let listed = m.owner.call("list_notes", json!({})).await;
     let all = listed.to_string();
