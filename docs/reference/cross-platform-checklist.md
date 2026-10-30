@@ -83,3 +83,14 @@
 | a `?` in a git pathspec | read as a wildcard | `':(literal)path'` |
 | `cmd /C echo {line}>file` | a line ending in a digit makes `1>` a redirection | `(echo {line})>file` |
 | a test that bounds a time by an absolute limit (`verso-dialect`'s `pathological_inputs_stay_linear`, 5 s) | the Windows VM under load crossed 5 s | bound linearity by a ratio, time(2N)/time(N) ≤ 2.5, not an absolute time (decided 2026-10-10; the code change is a commit of its own; its retry on a loaded machine — a unit over the bound measured again, up to three attempts, failing only if every one is over, 7729940 — accepted by the maintainer on 2026-10-12) |
+
+## 6. A file handed to the app (ADR 0114 item 30)
+
+| Habit | What happened or would | Instead |
+|---|---|---|
+| reading `argv[1]` as a path | "Open with" on Windows may pass a `file://` URL with `%20`; a name with spaces must stay one argument | `loose::path_from_arg` (URL or path, relative to the second launch's cwd); the NSIS command quotes `"%1"` |
+| a `\\?\` or UNC path handed on Windows | `Path::parent`/`file_name` still work; `strip_prefix` against an open folder may not match the other spelling | compare normalized absolute paths; a miss opens the file loose, never wrong |
+| `file://` from the macOS open event | `to_file_path` percent-decodes; names come NFD from the system | the key hashes the path as given; the name shown is the system's |
+| `.MD` on a case-folding disk | classified by the folded extension | `verso_fs::is_note_name` folds; a sibling link stats the name as written |
+| a loose file on exFAT | no exclusive rename (ADR 0048 revised 2026-10-12): the create by link falls back | the same `verso-fs` create/write as a folder's |
+| the generated `.desktop` on Linux | without `%U`/`%F` in `Exec` no file reaches `argv` | verify on the built package (Linux VM) before trusting the registration |

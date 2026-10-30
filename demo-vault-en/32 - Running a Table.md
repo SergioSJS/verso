@@ -105,4 +105,4 @@ Under **Advanced: the table's limits** (folded; each field saves when you leave 
 
 ---
 
-Go back to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go on to [[33 - Open a Single File]], go back to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

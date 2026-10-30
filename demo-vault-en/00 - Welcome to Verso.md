@@ -81,6 +81,7 @@ Explore the modules below to see each feature in detail:
 30. [[30 - Colour Swatches]] — A small square of the colour beside `#1d9e75`, `rgb()` and `hsl()`; a click in the editor opens the picker, and the code comes back in the same format.
 31. [[31 - The Table]] — One log of every roll, table roll and oracle question, with who made it and from which note, in the right panel; other people's rolls arrive with their names.
 32. [[32 - Running a Table]] — A campaign folder on a UniVerso: inviting the players, notes hidden until you release them, links to what has not appeared yet drawn with a padlock, who edits what, and the table's limits.
+33. [[33 - Open a Single File]] — A double-click on an `.md` opens the file alone, with no folder, in a window with no tree or index and nothing written beside it; and how to make Verso the default app for `.md` on each system.
 
 ---
 
