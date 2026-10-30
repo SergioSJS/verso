@@ -36,6 +36,7 @@ import { createNote, renameNote } from "../files";
 import { calm } from "../format";
 import { icon } from "../icons";
 import { imageUrl, pictureAddress } from "../images";
+import type { Block } from "./note/reconcile";
 import { comboOf, prettyKeys } from "../keys";
 import { Pane } from "../layout/pane";
 import { crumbsFor, crumbsNav, layout, openIn, openNote, persistSoon } from "../layout/spaces";
@@ -238,6 +239,13 @@ export class NoteLeaf extends Leaf {
    *  its HTML changed, and only once it is seen. */
   private drawn = "";
   previewStale = false;
+  /** Set where the reading view must be rebuilt although the HTML is the same
+   *  (settings, a picture that now resolves elsewhere); see `paintPreview`. */
+  forcePaint = false;
+  /** The top-level blocks of the reading view as last drawn, and what that
+   *  drawing was made from (`reconcile.ts`). */
+  blocks: Block[] | null = null;
+  paintedSig = "";
   mode: Mode = settings.defaultMode;
   revision = "";
   /** Deleted or moved outside the app (`markGone`), until the note is
@@ -1208,6 +1216,8 @@ export class NoteLeaf extends Leaf {
     }, 400);
   }
   declare paintPreview: typeof reading.paintPreview;
+  declare paintBlocks: typeof reading.paintBlocks;
+  declare paintWhole: typeof reading.paintWhole;
   declare relink: typeof reading.relink;
   declare dressLinks: typeof reading.dressLinks;
   declare resolve: typeof reading.resolve;

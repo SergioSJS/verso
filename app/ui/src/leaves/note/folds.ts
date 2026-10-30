@@ -92,10 +92,15 @@ export function nameReadingFolds(root: HTMLElement): void {
 }
 
 /** Put the note's folds on the reading view drawn in `root`. */
-export function applyReadingFolds(this: NoteLeaf, root: HTMLElement): void {
+export function applyReadingFolds(this: NoteLeaf, root: HTMLElement, fresh?: readonly Node[]): void {
   nameReadingFolds(root);
   const parents = new Set<HTMLElement>();
-  for (const el of root.querySelectorAll<HTMLElement>("[data-fold-key]")) {
+  // Drawn block by block (`reconcile.ts`): only the new blocks get their folds
+  // put on; the ones kept have theirs. The sections are covered again whole.
+  const scope = fresh
+    ? fresh.flatMap((n) => (n instanceof HTMLElement ? [...(n.matches("[data-fold-key]") ? [n] : []), ...n.querySelectorAll<HTMLElement>("[data-fold-key]")] : []))
+    : Array.from(root.querySelectorAll<HTMLElement>("[data-fold-key]"));
+  for (const el of scope) {
     const key = el.dataset["foldKey"] ?? "";
     if (!this.folds.has(key)) continue;
     if (isHeading(el)) {
@@ -110,7 +115,8 @@ export function applyReadingFolds(this: NoteLeaf, root: HTMLElement): void {
     }
   }
   for (const p of parents) headingVisibility(p);
-  this.rememberCallouts(root);
+  if (fresh) headingVisibility(root);
+  else this.rememberCallouts(root);
 }
 
 /** A callout opened or closed is kept: the names of the closed ones (`c`)
