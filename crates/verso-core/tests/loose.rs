@@ -325,14 +325,16 @@ fn a_directory_that_takes_no_new_file_refuses_the_write_before_the_save() {
 #[test]
 fn the_readonly_attribute_of_a_directory_is_not_a_reason_on_windows() {
     let (dir, mut loose) = loose();
-    let mut perms = fs::metadata(dir.path()).unwrap().permissions();
-    perms.set_readonly(true);
-    fs::set_permissions(dir.path(), perms.clone()).unwrap();
+    let was = dir.path().metadata().unwrap().permissions();
+    let mut marked = was.clone();
+    marked.set_readonly(true);
+    fs::set_permissions(dir.path(), marked).unwrap();
     let ro = loose.read_only();
     let note = loose.read("Lista.md").unwrap();
     let wrote = loose.write("Lista.md", "novo\n", &note.revision);
-    perms.set_readonly(false);
-    fs::set_permissions(dir.path(), perms).unwrap();
+    // Back as it was (not `set_readonly(false)`, which on Unix would open
+    // it to everyone; this test runs on Windows only, but the lint is right).
+    fs::set_permissions(dir.path(), was).unwrap();
     assert_eq!(ro, None);
     wrote.unwrap();
 }
