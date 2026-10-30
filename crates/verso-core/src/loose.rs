@@ -49,6 +49,10 @@ pub struct Loose {
     /// these are served (ADR 0114 Q5); a new read or write forgets those
     /// the new text no longer cites.
     cited: std::collections::HashMap<String, String>,
+    /// What the permission probe said, kept until [`Loose::refresh`]: the
+    /// probe opens the file, which on a network volume or under an
+    /// antivirus is not free, and every command asks.
+    permissions: std::sync::Mutex<Option<Option<String>>>,
 }
 
 /// Whether `text` cites `target`: as written, with spaces as `%20`, or
@@ -92,6 +96,15 @@ impl Loose {
             path,
             text: String::new(),
             cited: std::collections::HashMap::new(),
+            permissions: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// Forget what was probed about permissions: the file changed (a write,
+    /// a change made outside), so the next question asks the disk again.
+    pub fn refresh(&self) {
+        if let Ok(mut p) = self.permissions.lock() {
+            *p = None;
         }
     }
 
@@ -143,7 +156,18 @@ impl Loose {
     /// Why the file is read only now, if it is (items 12 and 13).
     #[must_use]
     pub fn read_only(&self) -> Option<LooseReadOnly> {
-        if let Some(ReadOnlyWhy::Permissions(why)) = self.root.scoped_read_only() {
+        let cached = self.permissions.lock().map_or(None, |p| p.clone());
+        let why = cached.unwrap_or_else(|| {
+            let why = match self.root.scoped_read_only() {
+                Some(ReadOnlyWhy::Permissions(why)) => Some(why),
+                None => None,
+            };
+            if let Ok(mut p) = self.permissions.lock() {
+                *p = Some(why.clone());
+            }
+            why
+        });
+        if let Some(why) = why {
             return Some(LooseReadOnly::Permissions(why));
         }
         match self.root.scoped_len() {
@@ -160,6 +184,9 @@ impl Loose {
                 "the text is too large to be saved".to_owned(),
             ));
         }
+        // A write is rare: ask the disk again rather than trust a probe
+        // that a change made outside may have outdated.
+        self.refresh();
         match self.read_only() {
             Some(LooseReadOnly::TooLarge) => Err(CoreError::Loose(
                 "the file is too large to be edited here".to_owned(),
@@ -260,6 +287,7 @@ impl Loose {
             },
         };
         self.remember(text);
+        self.refresh();
         let mut warnings = report.warnings();
         if report.wrote_through_symlink_to.is_some() {
             warnings.push("written through a symlink".to_owned());
@@ -291,6 +319,7 @@ impl Loose {
             },
         };
         self.remember(text);
+        self.refresh();
         Ok(Written {
             note: Self::note_text(as_path, text.to_owned(), revision::encode(&stamp)),
             warnings: report.warnings(),

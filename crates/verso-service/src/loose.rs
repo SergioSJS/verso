@@ -270,6 +270,7 @@ impl Service {
             let gone = {
                 let mut s = lock(&session);
                 let gone = !s.loose.exists();
+                s.loose.refresh();
                 // The file's size and whether it can be written may have
                 // changed with it.
                 s.info = info_of(&s.loose, &name, s.info.known_folder.clone());
