@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Annotation, EditorState, type Extension } from "@codemirror/state";
+import { ySyncAnnotation } from "y-codemirror.next";
 
 /** A text's one line separator, or null when it mixes them (CRLF and
  *  LF, or a lone CR). The editor splits on any of them and the save joins
@@ -14,7 +15,13 @@ export function lineSeparator(text: string): string | null {
 }
 /** Such a file is shown and never edited: no keystroke, no panel, no
  *  task or paste changes it, so nothing converts it (invariant 8). */
-export const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
+export const readOnlyText: Extension = [
+  EditorState.readOnly.of(true),
+  // Nothing typed, pasted or run gets through. The room's own text coming
+  // in (yCollab's remote sync) does: a reader's editor follows the room like
+  // the reading view follows the file, not the join-time snapshot.
+  EditorState.changeFilter.of((tr) => tr.annotation(ySyncAnnotation) !== undefined),
+];
 /** Marks the edit that brings in the disk's text after a change made
  *  outside the app (`NoteLeaf.recheck`): it leaves the tab saved, and ⌘Z
  *  undoes it like any edit. */
