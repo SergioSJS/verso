@@ -13,7 +13,28 @@
         "dragDropEnabled": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "trafficLightPosition": { "x": 17, "y": 17 }
+        "trafficLightPosition": {
+          "x": 17,
+          "y": 17
+        }
+      }
+    ]
+  },
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown",
+        "description": "Markdown document",
+        "mimeType": "text/markdown",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "net.daringfireball.markdown"
+        ]
       }
     ]
   }
