@@ -30,6 +30,7 @@ import { altTap, sectionForKey, splitMnemonic, visibleEntries } from "./winMenuM
 const ALIAS: Record<string, string> = {
   "new-window": "new-window",
   "open-folder": "open-folder",
+  "open-file": "open-file",
   "close-tab": "close-tab",
   devtools: "open-console",
   settings: "settings",
@@ -240,13 +241,23 @@ async function load(): Promise<Row[]> {
   const enabled = new Set(allCommands().map((c) => c.id));
   const keyed = menuKeys(allCommands(true), keyOf);
   recentList = await commands.recentFolders().catch(() => []);
-  const recents = (): Row[] =>
-    recentList.slice(0, 9).map((f) => ({
+  // And the files opened without a folder (ADR 0114 Q4), under the folders.
+  const recentFiles = await commands.recentFiles().then((r) => (r.status === "ok" ? r.data : [])).catch(() => []);
+  const recents = (): Row[] => [
+    ...recentList.slice(0, 9).map((f): Row => ({
       label: f.place ? `${f.name} (${f.place})` : f.name,
       keys: "",
       enabled: true,
       run: () => void openFolderBy(() => commands.reopenFolder(f.key)),
-    }));
+    })),
+    ...(recentList.length > 0 && recentFiles.length > 0 ? [{ sep: true } as Row] : []),
+    ...recentFiles.map((f): Row => ({
+      label: f.place ? `${f.name} (${f.place})` : f.name,
+      keys: "",
+      enabled: true,
+      run: () => void commands.openRecentFile(f.index),
+    })),
+  ];
   return sections.map((s) => ({ label: s.title, mnemonic: s.mnemonic, keys: "", enabled: true, children: () => rowsOf(s.items, enabled, keyed, async () => recents()) }));
 }
 

@@ -175,3 +175,23 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-a
   .select-mode li > button.row::after, .select-mode summary::after { forced-color-adjust: none; border-color: CanvasText; background: Canvas; }
   .select-mode li > button.row.selected::after, .select-mode summary.selected::after { background-color: Highlight; }
 }
+
+/* ---------- A file opened without its folder (ADR 0114 items 9 and 21) ---------- */
+/* The loose-files window draws no tree, no ribbon and no folder tools: the
+   capabilities say the side cannot (`cannot-*`), and the window's own class
+   hides what is the folder's by shape. One way back stays visible: the bar
+   above the panes, with "Open the whole folder in Verso". */
+.loose .side, .loose #side-divider, .loose .ribbon, .loose #toggle-side, .loose .status-keys [data-cmd="new"], .loose .status-keys [data-cmd="space"] { display: none; }
+html.loose body, html.loose body.no-side { grid-template-columns: 0 0 0 1fr 0 var(--right-w, min(320px, 34vw)); }
+html.loose body.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
+html.loose .work { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "loose" "spaces" "notices" "panes" "status" "bar"; }
+.loose .right-tabs [data-tab="backlinks"], .loose .right-tabs [data-tab="tags"], .loose .right-tabs [data-tab="bookmarks"], .loose .right-tabs [data-tab="focuses"], .loose .right-tabs [data-tab="calendar"], .loose .right-tabs [data-tab="table"] { display: none; }
+.loose .pane-new, .loose .folder-button .folder-switch { display: none; }
+.loose-bar { grid-area: loose; display: flex; align-items: center; gap: .6rem; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); background: var(--paper-2); font-size: .82rem; min-width: 0; flex-wrap: wrap; }
+.loose-bar[hidden] { display: none; }
+.loose-name { font-weight: 600; }
+.loose-place { color: var(--ink-3); }
+.loose-known { display: inline-flex; align-items: center; gap: .4rem; }
+.loose-open-folder { margin-left: auto; }
+.cannot-index .ribbon-item[data-id="graph"], .cannot-index .ribbon-item[data-id="search"], .cannot-search .search-box, .cannot-backlinks .right-tabs [data-tab="backlinks"], .cannot-trash .ribbon-item[data-id="trash"], .cannot-table .right-tabs [data-tab="table"], .cannot-history .history-btn { display: none; }
+.embed-as-link { font-style: italic; }

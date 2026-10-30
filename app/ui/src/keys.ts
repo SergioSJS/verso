@@ -265,6 +265,8 @@ export function allCommands(all = false): Command[] {
     { id: "follow-link", label: t.followLink, need: Boolean(note && note.mode !== "preview"), editorOnly: true, run: () => note?.followLinkAtCaret() },
     { id: "block-copy-link", label: t.blocks.copyLink, need: Boolean(live), editorOnly: true, run: () => live?.copyBlockLink() },
     { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
+    // One Markdown file, without its folder (ADR 0114 item 20).
+    { id: "open-file", label: t.openFile, need: can("local_folders"), run: () => void commands.pickFile().then((r) => r.status !== "ok" && fail(r.error)) },
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },

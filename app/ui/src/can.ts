@@ -22,9 +22,14 @@ import { commands, type Can, type Capabilities, type FolderAccess, type Host } f
 import { forgetCapabilities } from "./collab";
 import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
 
+/** What a side that shows a whole folder can do, and one that shows a file
+ *  opened without its folder cannot (ADR 0114 items 18 and 25): absent
+ *  there, so the window draws no tree, search, graph, bin, sync or table. */
+export const FOLDER_CAN: Can[] = ["index", "search", "backlinks", "create", "rename", "delete", "trash", "history", "sync", "table", "board"];
+
 const DESKTOP: Capabilities = {
   host: "desktop",
-  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
   latency_ms: null,
 };
 
