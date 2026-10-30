@@ -39,7 +39,7 @@
   `rpg` preset, which [0103](0103-feature-presets-and-capability-flags.md)
   removed, and gave an absolute path on the maintainer's computer). Stays
   Proposed until item 3 is closed. 2026-10-21, later — item 3 decided by the
-  maintainer (0101.1c, option A); **Accepted**, being built.
+  maintainer (0101.1c, option A); **Accepted**; built (roadmap V.29).
   2026-10-21, evening — the maintainer found the dice far too big and
   asked for Rolai's appearance settings (*"o dado 3d está gigantesco,
   onde estão as configurações do dado? tema, textura, tamanho, cor da

@@ -128,7 +128,7 @@
   grace passed, the server restarted), ends in a conflict copy beside the
   server's version; a reader is present in the room, with cursor and
   name, and its edits are refused. The item's words are unchanged; the
-  board's co-editing stays `[OPEN]` (0082 item 12).
+  board's co-editing was `[OPEN]` then (decided 2026-10-12 evening, below).
   2026-10-12 (evening) — item 7: **the board's co-editing is decided and
   built** ([0082](0082-live-co-editing-of-a-synced-folder.md) item 12; the
   maintainer, *"Deveria estar"*), and with it every text file's: a board is
@@ -447,7 +447,7 @@ the date; what stays `[OPEN]` is listed in the Status.
    over a relay, not Yjs; the reconciliation is exported by the package, the
    relay lives in its app — and a
    `.canvas` holds typed relations ([0057](0057-board-json-canvas.md)): the
-   board's co-editing is `[OPEN]`. [0021](0021-sync-automerge-layered-config.md)
+   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](0021-sync-automerge-layered-config.md)
    is proposed to be revised in two ways: Yjs in place of Automerge, and a
    CRDT as the mechanism of a live session, never the stored form of a
    note; the file is. *(Revised so on 2026-10-09, a Revisions line there.)*
@@ -518,8 +518,8 @@ the date; what stays `[OPEN]` is listed in the Status.
     every screen ([0076](0076-the-window-on-every-screen.md), built before
     the server's window ships); and simultaneous editing of notes (item 7)
     → sync for the desktop's local folders → the PWA offline → the user's
-    bucket → native mobile if needed. The board's co-editing stays
-    `[OPEN]`.
+    bucket → native mobile if needed. The board's co-editing was
+    `[OPEN]` (decided and built 2026-10-12, item 7 Revisions).
     *(The order as first recorded, a recommendation: the Linux app → the
     server with accounts, roles and the contract over the wire, the desktop
     app connecting to it online (no sync yet), the watcher's per-batch
