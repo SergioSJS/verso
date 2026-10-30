@@ -356,6 +356,13 @@ export abstract class RoomSession {
     const color = presenceColor(this.person);
     this.awareness.setLocalStateField("user", { name: this.person, color, colorLight: `${color}33` });
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
+      // A reader's document never sends: whatever lands in it from this
+      // window (the disk's text through `fromDisk`) is noted, so the
+      // rejoin remakes the editor from the room instead of keeping it.
+      if (origin !== REMOTE && this.reader) {
+        this.readerTouched = true;
+        return;
+      }
       // Local: kept in the document, sent whole when the tab is back.
       if (origin === REMOTE || this.closedLocally || !this.live || this.rejoining) return;
       this.outbox.push(update);
@@ -376,6 +383,9 @@ export abstract class RoomSession {
       this.handlers.presence?.();
     });
   }
+
+  /** A reader's document took a change of this window's own. */
+  private readerTouched = false;
 
   /** Between a refusal and the room's state coming in: nothing is sent. */
   protected rejoining = false;
@@ -398,6 +408,7 @@ export abstract class RoomSession {
     Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
     this.revision = joined.revision;
     this.epoch = joined.epoch;
+    this.readerTouched = false;
     this.awareness = new Awareness(this.doc);
     this.outbox = this.queue();
     this.wire();
@@ -513,13 +524,17 @@ export abstract class RoomSession {
     // moment before the host's live link is) stays local and asks again.
     if (this.synced && r.status !== "ok" && r.error.kind === "unavailable") return this.rejoinLater();
     if (r.status !== "ok" || joinsNothing(r.data)) return this.handlers.closed();
-    if (r.data.epoch === this.epoch) {
+    // A reader whose document took the disk's text meanwhile is not kept.
+    const touched = this.reader && this.readerTouched;
+    if (r.data.epoch === this.epoch && !touched) {
       Y.applyUpdate(this.doc, fromB64(r.data.update), REMOTE);
       this.live = true;
       this.retries = 0;
       this.why = null;
-      // After whatever this window still had on its way.
-      this.outbox.push(Y.encodeStateAsUpdate(this.doc));
+      // After whatever this window still had on its way. A reader has
+      // nothing on its way: the room refuses its updates, which would end
+      // its stay in the room at every reconnection.
+      if (!this.reader) this.outbox.push(Y.encodeStateAsUpdate(this.doc));
       this.revision = r.data.revision;
       // This window's cursor and name, to the others again.
       const me = this.awareness.getLocalState();
@@ -530,6 +545,12 @@ export abstract class RoomSession {
     // A synced folder's note keeps every version: the tab's text is in the
     // local file, which sync compares from its base (item 9).
     if (this.synced && this.handlers.anew) return this.handlers.anew();
+    // Nothing of the reader's was typed: the editor is remade, no line.
+    if (touched) {
+      this.leave();
+      this.handlers.closed();
+      return;
+    }
     const fresh = new Y.Doc();
     Y.applyUpdate(fresh, fromB64(r.data.update));
     const same = this.sameAs(fresh);
