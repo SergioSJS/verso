@@ -31,6 +31,9 @@ ETC_DIR=/etc/universo
 DATA_ROOT=/var/lib/universo
 SERVICE=universo
 DOCS=https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
+# This file, for the steps of the menu and the timers, which run it again.
+SELF=$0
+YES=0
 
 case "${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}" in
   pt*) PT=1 ;;
@@ -132,7 +135,7 @@ Commands:
   status            The service's state, version, address, data sizes and
                     the last 5 lines of its log.
   logs [-f]         The service's log (journalctl -u universo); -f follows.
-  backup [DIR] [--encrypt | --passphrase] [--to-stdout]
+  backup [DIR] [--encrypt | --passphrase] [--to-stdout] [--keep N]
                     Stops the service briefly, packs data, folders and
                     settings into a timestamped .tar.gz in DIR
                     (/var/backups/universo by default), starts it again.
@@ -154,6 +157,32 @@ Commands:
                     A lost admin password: prints a link to use once.
   firewall          Opens ports 80 and 443 (ufw, firewalld or iptables).
                     Only when asked.
+  menu              What `sh universo.sh` with no command opens: a guided menu
+                    (arrow keys with whiptail when the machine has it, else a
+                    numbered list) that runs the commands below, asking before
+                    each step. Every step is also a command here.
+  https [--domain NAME | --free-name sslip.io|nip.io | --duckdns NAME [--token-file F]]
+      HTTPS in one step: installs Caddy from its own signed repository,
+      writes the site, gets the certificate from Let's Encrypt, sets
+      VERSO_PUBLIC_URL, restarts and checks https://NAME answers, saying in
+      words what is wrong when it does not. With no name given it asks:
+      your domain, a free name made from this machine's address (sslip.io;
+      nothing to buy), or a free DuckDNS name (a token; a timer keeps it
+      pointing here).
+  admin [--email E] [--password-file F]
+      Makes the first admin: asks the e-mail and the password (typed twice,
+      hidden), and prints the sign-in address. Only on a server with no
+      account yet; it never keeps the password.
+  swap [--dry-run]  For a machine of 2 GB or less without swap: makes a
+                    swap file (1 or 2 GB, in /etc/fstab, swappiness 10),
+                    after asking.
+  schedule status | backup [--keep N] | update | off [backup|update]
+                    A daily backup (the last N kept, 7 by default) and a
+                    weekly update, as systemd timers. Off unless you turn
+                    them on.
+  support           A report to paste when asking for help: versions, the
+                    machine, the service, the log and the settings, with no
+                    password or token in it. Saved in /tmp too.
   help              This help.
 
 Options:
@@ -167,6 +196,8 @@ Options:
   --no-signature    Without the release's signature, relies on the sha256 GitHub
                     published (it proves the file, not who made it).
                     Without it, a missing signature is an error.
+  --yes, -y         Answers yes to every question (for a script). Never
+                    chooses a swap file or a name for you.
   --insecure-no-verify
                     Installs without checking a signature or checksum.
                     Dangerous.
@@ -186,7 +217,7 @@ need_root() {
   if command -v sudo >/dev/null 2>&1; then
     step "This needs root: running it again with sudo." \
          "Isto precisa de root: rodando de novo com sudo."
-    exec sudo --preserve-env=GITHUB_TOKEN,LANG,LC_ALL,LC_MESSAGES sh "$0" "$@"
+    exec sudo --preserve-env=GITHUB_TOKEN,LANG,LC_ALL,LC_MESSAGES,UNIVERSO_GUIDED sh "$0" "$@"
   fi
   die "This needs root. Run it as root (su -c 'sh universo.sh ...')." \
       "Isto precisa de root. Rode como root (su -c 'sh universo.sh ...')."
@@ -257,7 +288,14 @@ running_version() {
 TMPD=
 # A restore's staging directory, inside the place it restores to.
 STAGE=
-cleanup() { [ -z "$TMPD" ] || rm -rf "$TMPD"; [ -z "$STAGE" ] || rm -rf "$STAGE"; }
+TTY_SAVED=
+cleanup() {
+  [ -z "$TMPD" ] || rm -rf "$TMPD"
+  [ -z "$STAGE" ] || rm -rf "$STAGE"
+  # A password being typed (ask_secret) and an admin half made are put right.
+  [ -z "$TTY_SAVED" ] || stty "$TTY_SAVED" </dev/tty 2>/dev/null || :
+  admin_clean
+}
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
@@ -329,14 +367,14 @@ check_url() {
 }
 
 # ask PROMPT: reads one line from the terminal (or stdin when there is
-# none) into ANSWER; empty at the end of input.
+# none) into ANSWER; empty, and a failing status, at the end of input.
 ask() {
   printf '%s' "$1"
   ANSWER=
   if (exec </dev/tty) 2>/dev/null; then
-    IFS= read -r ANSWER </dev/tty || ANSWER=
+    IFS= read -r ANSWER </dev/tty || { ANSWER=; return 1; }
   else
-    IFS= read -r ANSWER || ANSWER=
+    IFS= read -r ANSWER || { ANSWER=; return 1; }
   fi
 }
 
@@ -851,6 +889,8 @@ cmd_install() {
   [ -z "$old" ] || die "UniVerso $old is already installed. To change version: sh universo.sh update. To change the address: edit $ENV_FILE, then sudo systemctl restart universo." \
                        "O UniVerso $old já está instalado. Para mudar de versão: sh universo.sh update. Para mudar o endereço: edite o $ENV_FILE e sudo systemctl restart universo."
   [ -z "$URL" ] || check_url "$URL"
+  # A small machine without swap: offered first (asked; never under --yes).
+  [ "$YES" = 1 ] || offer_swap
   if [ -n "$PKGFILE" ]; then local_package "$PKGFILE"; else fetch_package "$VERSION"; fi
   verify
   MODE=new
@@ -867,7 +907,7 @@ cmd_install() {
     info "VERSO_PUBLIC_URL is already $current in $ENV_FILE: kept." \
          "O VERSO_PUBLIC_URL já é $current no $ENV_FILE: mantido."
   else
-    if [ -z "$URL" ]; then
+    if [ -z "$URL" ] && [ "$GUIDED" = 0 ] && [ "$YES" = 0 ]; then
       echo
       t "Optional: the https address people will type in the browser (for example
 https://notes.example.com). HTTP works without it; HTTPS turns on offline mode
@@ -894,7 +934,11 @@ e as notificações. Enter deixa vazio, e você define depois no $ENV_FILE."
                                            "O systemd não conseguiu ligá-lo: sudo journalctl -u universo -n 50 diz por quê."
   wait_up
   info "Installed: $(running_version)." "Instalado: $(running_version)."
-  next_steps
+  if [ "$GUIDED" = 1 ]; then guided_next; else next_steps; fi
+  if oracle_detect; then
+    echo
+    oracle_help
+  fi
 }
 
 cmd_update() {
@@ -1250,6 +1294,23 @@ pack() {
   [ ! -e "$TMPD/tar-failed" ]
 }
 
+# prune_backups DIR N: keeps the N newest backups made by this script in DIR
+# (their names start with the time), deletes the older ones. Only plain files
+# with this script's names; a link is never followed or removed.
+prune_backups() {
+  n=$2
+  case "$n" in ''|*[!0-9]*|0) return 0 ;; esac
+  for f in "$1"/universo-backup-*; do
+    [ -f "$f" ] && [ ! -L "$f" ] && printf '%s\n' "${f##*/}"
+  done | grep -E '^universo-backup-[0-9]{8}-[0-9]{6}-.{6}\.tar\.gz(\.age)?$' | sort -r | tail -n +$((n + 1)) \
+    | while IFS= read -r old; do
+        if [ -f "$1/$old" ] && [ ! -L "$1/$old" ]; then
+          rm -f -- "$1/$old"
+          info "Removed the older backup $old (keeping the last $n)." "Removi o backup mais antigo $old (guardando os últimos $n)."
+        fi
+      done
+}
+
 cmd_backup() {
   [ "$KEYGEN" = 1 ] && { cmd_keygen; return; }
   if [ "$TO_STDOUT" = 1 ]; then
@@ -1345,6 +1406,7 @@ EOF
     systemctl start "$SERVICE" || warn "It did not start: sudo journalctl -u universo -n 50" "Ele não ligou: sudo journalctl -u universo -n 50"
     trap cleanup EXIT
   fi
+  if [ "$TO_STDOUT" = 0 ] && [ -n "$KEEP" ]; then prune_backups "$dir" "$KEEP"; fi
   if [ "$TO_STDOUT" = 1 ]; then
     size=
     restore_file=FILE
@@ -1516,6 +1578,13 @@ cmd_firewall() {
          "Nenhum ufw ou firewalld ativo: abrindo 80 e 443 com iptables."
     iptables_open iptables
     command -v ip6tables >/dev/null 2>&1 && iptables_open ip6tables
+    if ! command -v netfilter-persistent >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1 \
+      && confirm "Install iptables-persistent so the rules survive a reboot?" "Instalar o iptables-persistent para as regras sobreviverem a um reinício?"; then
+      # Its questions (save the current rules?) are answered no: the next step saves them.
+      printf 'iptables-persistent iptables-persistent/autosave_v4 boolean false\niptables-persistent iptables-persistent/autosave_v6 boolean false\n' | debconf-set-selections 2>/dev/null || :
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent >/dev/null \
+        || warn "Could not install iptables-persistent (above)." "Não consegui instalar o iptables-persistent (acima)."
+    fi
     if command -v netfilter-persistent >/dev/null 2>&1; then
       step "Saving the rules for the next boot: netfilter-persistent save." \
            "Salvando as regras para a próxima partida: netfilter-persistent save."
@@ -1530,6 +1599,7 @@ cmd_firewall() {
          "Nenhum firewall encontrado nesta máquina (ufw, firewalld, iptables): nada a abrir aqui."
   fi
   echo
+  if oracle_detect; then oracle_help; return 0; fi
   t "On a cloud the provider's firewall is separate and must be opened too.
 On Oracle Cloud: Console › Networking › Virtual cloud networks › your VCN ›
 Security Lists › Default Security List › Add Ingress Rules: source
@@ -1542,6 +1612,918 @@ Security Lists › Default Security List › Add Ingress Rules: origem
 A porta 7340 fica fechada: o Caddy chega nela nesta máquina."
 }
 
+# --- the guided parts (ADR 0075, amendment of 2026-10-30) --------------------
+# A menu over the commands below, HTTPS in one step, the first admin, a swap
+# file for a small machine, the daily backup and weekly update timers, and a
+# report to paste when asking for help. The ideas of a menu and of Caddy in
+# front come from the Foundry VTT scripts of Mestre Digital (MIT,
+# https://github.com/brunocalado/mestre-digital); no code was copied.
+
+SCHED_LIB=/usr/local/lib/universo
+SYSTEMD_DIR=${SYSTEMD_DIR:-/etc/systemd/system}
+CADDY_DIR=${CADDY_DIR:-/etc/caddy}
+DMI_DIR=${DMI_DIR:-/sys/class/dmi/id}
+MEMINFO=${MEMINFO:-/proc/meminfo}
+SWAPFILE=${SWAPFILE:-/swapfile}
+
+# svc_restart: restarts UniVerso. A few restarts within seconds (a refused
+# setting, then the fix) would trip systemd's start limit, so the counter is
+# cleared first.
+svc_restart() {
+  systemctl reset-failed "$SERVICE" 2>/dev/null || :
+  systemctl restart "$SERVICE"
+}
+
+# confirm EN PT: a yes/no question. --yes answers yes; with nothing to read
+# (no terminal, empty input) the answer is no.
+confirm() {
+  [ "$YES" = 1 ] && return 0
+  ask "$(t "$1 [y/N] " "$2 [s/N] ")" || return 1
+  case "$ANSWER" in
+    [yYsS]|[yY][eE][sS]|[sS][iI][mM]) return 0 ;;
+  esac
+  return 1
+}
+
+# ask_secret PROMPT: as ask, but what is typed is not shown on the screen
+# (with no terminal it is read from standard input, for a pipe).
+ask_secret() {
+  printf '%s' "$1"
+  ANSWER=
+  if (exec </dev/tty) 2>/dev/null; then
+    TTY_SAVED=$(stty -g </dev/tty 2>/dev/null) || TTY_SAVED=
+    stty -echo </dev/tty 2>/dev/null
+    IFS= read -r ANSWER </dev/tty || ANSWER=
+    if [ -n "$TTY_SAVED" ]; then stty "$TTY_SAVED" </dev/tty 2>/dev/null; else stty echo </dev/tty 2>/dev/null; fi
+    TTY_SAVED=
+    printf '\n'
+  else
+    IFS= read -r ANSWER || { ANSWER=; return 1; }
+  fi
+}
+
+# --- the menu ----------------------------------------------------------------
+
+# menu_list: key|English|Português, in the order a first install goes.
+menu_list() {
+  cat <<'EOF'
+install|1. Install UniVerso|1. Instalar o UniVerso
+https|2. HTTPS: a safe address (free name or your domain)|2. HTTPS: um endereço seguro (nome grátis ou seu domínio)
+admin|3. Make the first admin (your account)|3. Criar o primeiro admin (a sua conta)
+backup|4. Back up now|4. Fazer backup agora
+update|5. Update to the latest version|5. Atualizar para a versão mais nova
+status|6. Status: is it running?|6. Estado: está rodando?
+support|7. Support: a report to paste when asking for help|7. Suporte: um relatório para colar ao pedir ajuda
+swap|8. Swap: help a small machine (1 GB of memory)|8. Swap: ajudar uma máquina pequena (1 GB de memória)
+firewall|9. Open ports 80 and 443 on this machine|9. Abrir as portas 80 e 443 nesta máquina
+schedule|10. Automatic backup and update (off by default)|10. Backup e atualização automáticos (desligados por padrão)
+uninstall|11. Uninstall|11. Desinstalar
+quit|0. Quit|0. Sair
+EOF
+}
+
+# menu_about KEY: what the step does, said before it runs.
+menu_about() {
+  case "$1" in
+    install) t "Downloads the latest UniVerso, checks its signature and installs it as a service." \
+               "Baixa o UniVerso mais novo, confere a assinatura e instala como serviço." ;;
+    https) t "Installs Caddy (from its own signed repository), gets a certificate and puts the server behind https://. Needs ports 80 and 443 open." \
+              "Instala o Caddy (do repositório assinado dele), obtém um certificado e põe o servidor atrás de https://. Precisa das portas 80 e 443 abertas." ;;
+    admin) t "Asks an e-mail and a password (typed twice, hidden) and makes the first admin account." \
+              "Pergunta um e-mail e uma senha (digitada duas vezes, escondida) e cria a conta do primeiro admin." ;;
+    backup) t "Stops the server for a moment and packs data, notes and settings into a file in /var/backups/universo." \
+              "Para o servidor por um instante e empacota dados, notas e configurações num arquivo em /var/backups/universo." ;;
+    update) t "Downloads the latest version, checks it and installs it over this one; settings and data are kept." \
+              "Baixa a versão mais nova, confere e instala por cima desta; configurações e dados ficam." ;;
+    status) t "Shows whether the server runs, its version, address and sizes. Changes nothing." \
+              "Mostra se o servidor roda, a versão, o endereço e os tamanhos. Não muda nada." ;;
+    support) t "Collects a report (versions, memory, log, settings without secrets) to paste when asking for help. Changes nothing." \
+               "Junta um relatório (versões, memória, log, configurações sem segredos) para colar ao pedir ajuda. Não muda nada." ;;
+    swap) t "Makes a swap file so a machine with little memory does not run out. Asks first." \
+            "Cria um arquivo de swap para uma máquina com pouca memória não ficar sem. Pergunta antes." ;;
+    firewall) t "Opens ports 80 and 443 in this machine's firewall (ufw, firewalld or iptables)." \
+                "Abre as portas 80 e 443 no firewall desta máquina (ufw, firewalld ou iptables)." ;;
+    schedule) t "Turns on, or off, a daily backup and a weekly update, as systemd timers." \
+                "Liga, ou desliga, um backup diário e uma atualização semanal, como timers do systemd." ;;
+    uninstall) t "Removes the program; your data and settings stay unless you also ask to purge." \
+                 "Remove o programa; seus dados e configurações ficam, a menos que você peça também a remoção total." ;;
+  esac
+}
+
+# menu_choose: CHOICE = a key of menu_list ("quit" at the end of the input).
+menu_choose() {
+  CHOICE=
+  if [ -t 0 ] && [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && command -v whiptail >/dev/null 2>&1; then
+    set --
+    while IFS='|' read -r key en pt; do
+      [ "$key" != quit ] || continue
+      if [ "$PT" = 1 ]; then set -- "$@" "$key" "$pt"; else set -- "$@" "$key" "$en"; fi
+    done <<EOF
+$(menu_list)
+EOF
+    CHOICE=$(whiptail --title UniVerso --cancel-button "$(t Quit Sair)" \
+      --menu "$(t 'What do you want to do? (arrows and Enter)' 'O que você quer fazer? (setas e Enter)')" 24 78 12 "$@" 3>&1 1>&2 2>&3) || CHOICE=quit
+    return 0
+  fi
+  echo
+  t "UniVerso, the Verso server" "UniVerso, o servidor do Verso"
+  menu_list | while IFS='|' read -r key en pt; do
+    if [ "$PT" = 1 ]; then printf '  %s\n' "$pt"; else printf '  %s\n' "$en"; fi
+  done
+  while :; do
+    ask "$(t "Type a number (0 quits): " "Digite um número (0 sai): ")" || { CHOICE=quit; return 0; }
+    n=${ANSWER%.}
+    case "$n" in
+      '') continue ;;
+      0|q|Q|quit|sair) CHOICE=quit; return 0 ;;
+    esac
+    CHOICE=$(menu_list | awk -F'|' -v n="$n" '$1 == n || index($2, n ". ") == 1 { print $1; exit }')
+    [ -n "$CHOICE" ] && return 0
+    t "Not an option: $n" "Não é uma opção: $n"
+  done
+}
+
+cmd_menu() {
+  [ -f "$SELF" ] && [ -r "$SELF" ] || die "The menu runs this file again for each step, so it needs to be a file: download it first (curl -fsSLO https://versomd.com/universo.sh) and run: sh universo.sh" \
+                                         "O menu roda este arquivo de novo a cada passo, então ele precisa ser um arquivo: baixe antes (curl -fsSLO https://versomd.com/universo.sh) e rode: sh universo.sh"
+  while :; do
+    menu_choose
+    case "$CHOICE" in quit|'') break ;; esac
+    echo
+    label=$(menu_list | awk -F'|' -v k="$CHOICE" -v p="$PT" '$1 == k { print (p == 1 ? $3 : $2) }')
+    step "$label" "$label"
+    about=$(menu_about "$CHOICE")
+    info "$about" "$about"
+    if confirm "Go on?" "Continuar?"; then
+      case "$CHOICE" in
+        schedule) menu_schedule ;;
+        uninstall) UNIVERSO_GUIDED=1 sh "$SELF" uninstall || : ;;
+        *) UNIVERSO_GUIDED=1 sh "$SELF" "$CHOICE" || : ;;
+      esac
+    else
+      t "Skipped." "Pulado."
+    fi
+    ask "$(t "Press Enter to go back to the menu. " "Enter para voltar ao menu. ")" || break
+  done
+}
+
+menu_schedule() {
+  sh "$SELF" schedule status || :
+  echo
+  t "  1) daily backup on    2) weekly update on    3) both off    0) back" \
+    "  1) backup diário ligado    2) atualização semanal ligada    3) tudo desligado    0) voltar"
+  ask "$(t "Number: " "Número: ")" || return 0
+  case "$ANSWER" in
+    1) sh "$SELF" schedule backup || : ;;
+    2) sh "$SELF" schedule update || : ;;
+    3) sh "$SELF" schedule off || : ;;
+  esac
+}
+
+# After an install made from the menu: what comes next, in a few lines.
+guided_next() {
+  echo
+  t "UniVerso is running, for now only on this machine. Back in the menu:
+  2. HTTPS gives it a safe address you can open on your phone.
+  3. The first admin makes your account.
+(Or by hand: sh universo.sh https, then sh universo.sh admin.)" \
+    "O UniVerso está rodando, por enquanto só nesta máquina. De volta ao menu:
+  2. HTTPS dá a ele um endereço seguro, que você abre no celular.
+  3. O primeiro admin cria a sua conta.
+(Ou à mão: sh universo.sh https, depois sh universo.sh admin.)"
+}
+
+# --- a small or Oracle machine ------------------------------------------------
+
+mem_kb() { awk '/^MemTotal:/ { print $2; exit }' "$MEMINFO" 2>/dev/null; }
+
+SWAPS=${SWAPS:-/proc/swaps}
+has_swap() { [ "$(awk 'NR > 1' "$SWAPS" 2>/dev/null | wc -l)" -gt 0 ]; }
+
+# swap_mb: the size to make: 1 GB for a machine of about 1 GB, 2 GB above.
+swap_mb() {
+  if [ "${1:-0}" -le 1300000 ]; then echo 1024; else echo 2048; fi
+}
+
+low_memory() { [ "${1:-0}" -gt 0 ] && [ "$1" -le 2300000 ]; }
+
+# oracle_detect: this machine is an Oracle Cloud one (DMI says so).
+oracle_detect() {
+  for f in chassis_asset_tag sys_vendor board_vendor; do
+    case "$(cat "$DMI_DIR/$f" 2>/dev/null)" in
+      *[Oo]racle*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+oracle_help() {
+  t "This machine is on Oracle Cloud. Two firewalls stand between the internet and
+UniVerso, and both must let ports 80 and 443 in:
+  1. Oracle's, outside the machine (you do this in the browser, once):
+     - Console menu > Networking > Virtual cloud networks > your network (VCN)
+     - Subnets > your public subnet > Security > Default Security List
+     - Add Ingress Rules: Source CIDR 0.0.0.0/0, IP protocol TCP,
+       Destination port range 80,443 > Add.
+     (Port 22, SSH, is already there. Do not open 7340: Caddy reaches it
+     on this machine.)
+  2. The machine's own, which Oracle's Ubuntu images close with iptables
+     rules: sh universo.sh firewall opens 80 and 443 and keeps them across
+     reboots (netfilter-persistent)." \
+    "Esta máquina está na Oracle Cloud. Dois firewalls ficam entre a internet e o
+UniVerso, e os dois precisam deixar entrar as portas 80 e 443:
+  1. O da Oracle, fora da máquina (você faz no navegador, uma vez):
+     - Menu do Console > Networking > Virtual cloud networks > a sua rede (VCN)
+     - Subnets > a sua subnet pública > Security > Default Security List
+     - Add Ingress Rules: Source CIDR 0.0.0.0/0, IP protocol TCP,
+       Destination port range 80,443 > Add.
+     (A porta 22, SSH, já está lá. Não abra a 7340: o Caddy chega nela
+     dentro desta máquina.)
+  2. O da própria máquina, que as imagens Ubuntu da Oracle fecham com regras
+     de iptables: sh universo.sh firewall abre a 80 e a 443 e as mantém depois
+     de reiniciar (netfilter-persistent)."
+}
+
+# swap_plan KB: prints why not (and returns 1), or sets SWAP_MB.
+swap_plan() {
+  kb=$1
+  if [ -z "$kb" ] || [ "$kb" -le 0 ]; then
+    t "Could not read this machine's memory." "Não consegui ler a memória desta máquina."; return 1
+  fi
+  if ! low_memory "$kb"; then
+    t "This machine has $((kb / 1024)) MB of memory: a swap file is only made for 2 GB or less." \
+      "Esta máquina tem $((kb / 1024)) MB de memória: o arquivo de swap só é criado para 2 GB ou menos."; return 1
+  fi
+  if has_swap; then
+    t "There is swap already: nothing to do." "Já há swap: nada a fazer."; return 1
+  fi
+  SWAP_MB=$(swap_mb "$kb")
+  fstype=$(stat -f -c %T "$(dirname "$SWAPFILE")" 2>/dev/null || echo unknown)
+  case "$fstype" in
+    btrfs|zfs) t "The disk is $fstype, where a plain swap file does not work: nothing was made." \
+                 "O disco é $fstype, onde um arquivo de swap simples não funciona: nada foi criado."; return 1 ;;
+  esac
+  free_mb=$(df -Pm "$(dirname "$SWAPFILE")" | awk 'NR == 2 { print $4 }')
+  if [ "${free_mb:-0}" -lt $((SWAP_MB + 1024)) ]; then
+    t "Only ${free_mb:-0} MB free on the disk: a swap of $SWAP_MB MB would leave too little. Free space first." \
+      "Só ${free_mb:-0} MB livres no disco: um swap de $SWAP_MB MB deixaria pouco. Libere espaço antes."; return 1
+  fi
+  return 0
+}
+
+swap_make() {
+  step "Making $SWAPFILE of $SWAP_MB MB." "Criando $SWAPFILE de $SWAP_MB MB."
+  rm -f "$SWAPFILE"
+  (umask 077; fallocate -l "${SWAP_MB}M" "$SWAPFILE" 2>/dev/null || dd if=/dev/zero of="$SWAPFILE" bs=1M count="$SWAP_MB" status=none) \
+    || die "Could not write $SWAPFILE." "Não consegui gravar $SWAPFILE."
+  chmod 600 "$SWAPFILE"
+  mkswap "$SWAPFILE" >/dev/null || die "mkswap failed." "O mkswap falhou."
+  swapon "$SWAPFILE" || { rm -f "$SWAPFILE"; die "swapon failed (the machine may not allow swap, as some containers do)." \
+                                                "O swapon falhou (a máquina pode não permitir swap, como alguns contêineres)."; }
+  grep -qs "^${SWAPFILE}[[:space:]]" /etc/fstab || printf '%s none swap sw 0 0\n' "$SWAPFILE" >> /etc/fstab
+  mkdir -p /etc/sysctl.d
+  printf 'vm.swappiness=10\n' > /etc/sysctl.d/99-universo.conf
+  sysctl -q -w vm.swappiness=10 >/dev/null 2>&1 || :
+  step "Swap on, kept across reboots (/etc/fstab), swappiness 10." \
+       "Swap ligado, mantido depois de reiniciar (/etc/fstab), swappiness 10."
+}
+
+cmd_swap() {
+  kb=$(mem_kb)
+  swap_plan "$kb" || return 0
+  t "Memory: $((kb / 1024)) MB, no swap. Plan: a $SWAP_MB MB file at $SWAPFILE, in /etc/fstab, swappiness 10.
+Swap is slow disk used as memory; it keeps the server from being killed when memory runs out." \
+    "Memória: $((kb / 1024)) MB, sem swap. Plano: um arquivo de $SWAP_MB MB em $SWAPFILE, no /etc/fstab, swappiness 10.
+Swap é disco lento usado como memória; evita que o servidor seja morto quando a memória acaba."
+  if [ "$DRYRUN" = 1 ]; then
+    t "(--dry-run: nothing was changed. It would run: fallocate -l ${SWAP_MB}M $SWAPFILE; chmod 600; mkswap; swapon; an /etc/fstab line; vm.swappiness=10.)" \
+      "(--dry-run: nada foi mudado. Rodaria: fallocate -l ${SWAP_MB}M $SWAPFILE; chmod 600; mkswap; swapon; uma linha no /etc/fstab; vm.swappiness=10.)"
+    return 0
+  fi
+  confirm "Make it?" "Criar?" || { t "Nothing was made." "Nada foi criado."; return 0; }
+  swap_make
+}
+
+# At the start of an install, on a small machine without swap, asks.
+offer_swap() {
+  kb=$(mem_kb)
+  low_memory "$kb" && ! has_swap || return 0
+  echo
+  t "This machine has about $((kb / 1024)) MB of memory and no swap. Installing and running on that can fail
+for lack of memory. A swap file avoids that." \
+    "Esta máquina tem uns $((kb / 1024)) MB de memória e nenhum swap. Instalar e rodar assim pode falhar
+por falta de memória. Um arquivo de swap evita isso."
+  cmd_swap
+}
+
+# --- HTTPS ------------------------------------------------------------------
+
+public_ip() {
+  if [ -n "${UNIVERSO_PUBLIC_IP:-}" ]; then printf '%s\n' "$UNIVERSO_PUBLIC_IP"; return 0; fi
+  for u in https://api.ipify.org https://ipv4.icanhazip.com https://ifconfig.me/ip; do
+    ip=$(curl -4 -fsS --max-time 8 "$u" 2>/dev/null | tr -d ' \r\n') || continue
+    case "$ip" in ''|*[!0-9.]*) continue ;; esac
+    printf '%s\n' "$ip"
+    return 0
+  done
+  return 1
+}
+
+# valid_name NAME: a host name with letters, digits, dots and hyphens.
+valid_name() {
+  case "$1" in
+    ''|*[!A-Za-z0-9.-]*|.*|*.|*..*|-*|*-.*|*.-*) return 1 ;;
+    *.*) return 0 ;;
+  esac
+  return 1
+}
+
+dns_ips() { getent ahostsv4 "$1" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' '; }
+
+caddy_present() { command -v caddy >/dev/null 2>&1 && systemctl cat caddy.service >/dev/null 2>&1; }
+
+# Caddy from its own repository, signed: the key is fetched, kept in a
+# keyring that only that source may use (signed-by), never trusted=yes.
+caddy_install_official() {
+  if [ "$PM" = deb ]; then
+    step "Adding Caddy's official repository (signed: dl.cloudsmith.io/public/caddy/stable)." \
+         "Adicionando o repositório oficial do Caddy (assinado: dl.cloudsmith.io/public/caddy/stable)."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq >/dev/null || :
+    apt-get install -y -qq curl gnupg ca-certificates apt-transport-https >/dev/null \
+      || die "Could not install curl and gnupg (above)." "Não consegui instalar curl e gnupg (acima)."
+    make_tmp
+    curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key -o "$TMPD/caddy.key" \
+      || die "Could not download Caddy's signing key. Is this machine online?" \
+             "Não consegui baixar a chave de assinatura do Caddy. Esta máquina está online?"
+    gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg "$TMPD/caddy.key" \
+      || die "gpg could not read Caddy's key." "O gpg não conseguiu ler a chave do Caddy."
+    [ -s /usr/share/keyrings/caddy-stable-archive-keyring.gpg ] || die "Caddy's key is empty." "A chave do Caddy está vazia."
+    chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    printf 'deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main\n' \
+      > /etc/apt/sources.list.d/caddy-stable.list
+    apt-get update -qq >/dev/null || die "apt could not read Caddy's repository (above)." "O apt não conseguiu ler o repositório do Caddy (acima)."
+    step "Installing Caddy." "Instalando o Caddy."
+    apt-get install -y -qq caddy >/dev/null || die "apt could not install Caddy (above)." "O apt não conseguiu instalar o Caddy (acima)."
+  else
+    step "Enabling Caddy's official repository (COPR @caddy/caddy, signed by COPR) and installing Caddy." \
+         "Ativando o repositório oficial do Caddy (COPR @caddy/caddy, assinado pelo COPR) e instalando o Caddy."
+    dnf install -y -q dnf-plugins-core >/dev/null 2>&1 || dnf install -y -q dnf5-plugins >/dev/null 2>&1 || :
+    if dnf copr enable -y @caddy/caddy >/dev/null 2>&1 && dnf install -y -q caddy; then
+      :
+    else
+      die "dnf could not install Caddy from its repository. By hand: $(dnf_install caddy || :)" \
+          "O dnf não conseguiu instalar o Caddy do repositório dele. À mão: $(dnf_install caddy || :)"
+    fi
+  fi
+}
+
+# explain_caddy: reads Caddy's log and says in words what went wrong.
+# Returns 2 for a rate limit.
+explain_caddy() {
+  log=$(journalctl -u caddy --no-pager -n 200 2>/dev/null)
+  if printf '%s' "$log" | grep -qiE 'rateLimited|too many certificates|rate limit'; then
+    t "Let's Encrypt refused for now: too many certificates were asked for this name or domain recently (a rate limit).
+With a free shared name (sslip.io), other people's requests count too. Try again in a while, or use another name:
+sh universo.sh https --free-name nip.io, or your own domain." \
+      "O Let's Encrypt recusou por agora: pediram certificados demais para este nome ou domínio há pouco (um limite de uso).
+Num nome grátis compartilhado (sslip.io), os pedidos de outras pessoas contam também. Tente de novo daqui a um tempo, ou use outro nome:
+sh universo.sh https --free-name nip.io, ou o seu domínio."
+    return 2
+  fi
+  if printf '%s' "$log" | grep -qiE 'NXDOMAIN|no valid A records|DNS problem|could not resolve|no such host'; then
+    t "The name does not point to this machine yet (DNS). At your domain's provider, the A record must be this
+machine's public address; it can take minutes to spread. Check with: getent hosts $DOMAIN" \
+      "O nome ainda não aponta para esta máquina (DNS). No provedor do seu domínio, o registro A deve ser o endereço
+público desta máquina; pode levar minutos para se espalhar. Confira com: getent hosts $DOMAIN"
+  elif printf '%s' "$log" | grep -qiE 'Timeout during connect|Connection refused|connection reset|i/o timeout|no route to host|firewall'; then
+    t "Let's Encrypt could not reach this machine on port 80 (or 443): a firewall is closed. On a cloud, the provider's
+firewall (Oracle: the VCN's security list) and this machine's both must allow 80 and 443. Here: sh universo.sh firewall" \
+      "O Let's Encrypt não conseguiu chegar nesta máquina pela porta 80 (ou 443): há um firewall fechado. Numa nuvem, o
+firewall do provedor (Oracle: a security list da VCN) e o desta máquina precisam liberar 80 e 443. Aqui: sh universo.sh firewall"
+  elif printf '%s' "$log" | grep -qiE 'unauthorized|invalid response|404|403'; then
+    t "Let's Encrypt reached an address, but not this Caddy: the name probably points to another machine, or something
+else answers on port 80. Check the DNS record and what listens on port 80 (ss -ltnp)." \
+      "O Let's Encrypt chegou num endereço, mas não neste Caddy: o nome provavelmente aponta para outra máquina, ou outra
+coisa responde na porta 80. Confira o registro DNS e o que escuta na porta 80 (ss -ltnp)."
+  else
+    t "Caddy's last log lines (sudo journalctl -u caddy) may say why:" "As últimas linhas do log do Caddy (sudo journalctl -u caddy) podem dizer por quê:"
+    printf '%s\n' "$log" | tail -n 8 | sed 's/^/  /'
+  fi
+  return 1
+}
+
+# https_try DOMAIN: Caddy for DOMAIN, the certificate, the address in the
+# settings, the check. 0 good, 2 a rate limit, 1 anything else.
+https_try() {
+  DOMAIN=$1
+  port=$(listen_port)
+  mkdir -p "$CADDY_DIR/Caddyfile.d"
+  tlsline=
+  [ -z "${UNIVERSO_CADDY_TLS:-}" ] || tlsline="	tls $UNIVERSO_CADDY_TLS
+"
+  printf '# Written by universo.sh https. UniVerso behind Caddy; WebSocket passes as is.\n%s {\n%s	reverse_proxy 127.0.0.1:%s\n}\n' \
+    "$DOMAIN" "$tlsline" "$port" > "$CADDY_DIR/Caddyfile.d/universo.caddyfile"
+  if ! grep -qs 'import  *Caddyfile.d/' "$CADDY_DIR/Caddyfile" 2>/dev/null; then
+    printf '\nimport Caddyfile.d/*.caddyfile\n' >> "$CADDY_DIR/Caddyfile"
+  fi
+  step "Checking Caddy's configuration." "Conferindo a configuração do Caddy."
+  caddy validate --config "$CADDY_DIR/Caddyfile" --adapter caddyfile >/dev/null 2>&1 \
+    || { caddy validate --config "$CADDY_DIR/Caddyfile" --adapter caddyfile 2>&1 | tail -n 5 >&2
+         die "Caddy does not accept the configuration (above). The site is in $CADDY_DIR/Caddyfile.d/universo.caddyfile." \
+             "O Caddy não aceitou a configuração (acima). O site está em $CADDY_DIR/Caddyfile.d/universo.caddyfile."; }
+  if systemctl is-active --quiet caddy; then systemctl reload caddy || systemctl restart caddy
+  else systemctl enable --now caddy; fi
+  step "Waiting for the certificate (up to 2 minutes): Caddy asks Let's Encrypt, which calls back on port 80." \
+       "Esperando o certificado (até 2 minutos): o Caddy pede ao Let's Encrypt, que chama de volta na porta 80."
+  insecure=-sS
+  [ -z "${UNIVERSO_VERIFY_INSECURE:-}" ] || insecure=-ksS
+  i=0 ok=0
+  while [ "$i" -lt 24 ]; do
+    if curl $insecure -o /dev/null --max-time 8 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" 2>/dev/null; then ok=1; break; fi
+    i=$((i + 1))
+    sleep 5
+  done
+  if [ "$ok" = 0 ]; then
+    warn "No certificate yet for $DOMAIN." "Ainda sem certificado para $DOMAIN."
+    explain_caddy
+    return $?
+  fi
+  info "The certificate works." "O certificado funciona."
+  step "Writing VERSO_PUBLIC_URL=https://$DOMAIN into $ENV_FILE and restarting UniVerso." \
+       "Gravando VERSO_PUBLIC_URL=https://$DOMAIN no $ENV_FILE e reiniciando o UniVerso."
+  env_set VERSO_PUBLIC_URL "https://$DOMAIN"
+  svc_restart || die "systemd could not restart it: sudo journalctl -u universo -n 50 says why." \
+                                      "O systemd não conseguiu reiniciá-lo: sudo journalctl -u universo -n 50 diz por quê."
+  wait_up
+  code=000
+  i=0
+  while [ "$i" -lt 10 ]; do
+    code=$(curl $insecure -o /dev/null -w '%{http_code}' --max-time 8 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" 2>/dev/null) || code=000
+    case "$code" in 2*|3*) break ;; esac
+    i=$((i + 1))
+    sleep 2
+  done
+  case "$code" in
+    2*|3*) ;;
+    *) warn "https://$DOMAIN answered $code through Caddy, not 200: sudo journalctl -u universo -n 30 and -u caddy say why." \
+            "https://$DOMAIN respondeu $code pelo Caddy, e não 200: sudo journalctl -u universo -n 30 e -u caddy dizem por quê."
+       return 1 ;;
+  esac
+  if ! curl $insecure -o /dev/null --max-time 10 "https://$DOMAIN/" 2>/dev/null; then
+    warn "From this machine, https://$DOMAIN does not answer by its public address (some clouds do not loop back to themselves). Try it from your phone or computer." \
+         "Desta máquina, https://$DOMAIN não responde pelo endereço público (algumas nuvens não voltam para si mesmas). Teste no celular ou no computador."
+  fi
+  return 0
+}
+
+duckdns_setup() {
+  sub=$1
+  tokfile=$ETC_DIR/duckdns.token
+  if [ -n "$DUCK_TOKEN_FILE" ]; then
+    token=$(head -n 1 "$DUCK_TOKEN_FILE")
+  else
+    t "DuckDNS (https://www.duckdns.org): sign in there, make the name '$sub', and copy your token from the top of the page." \
+      "DuckDNS (https://www.duckdns.org): entre lá, crie o nome '$sub' e copie o seu token, no alto da página."
+    ask_secret "$(t "Token (typed hidden): " "Token (digitado escondido): ")" || :
+    token=$ANSWER
+  fi
+  case "$token" in
+    '') die "No token." "Sem token." ;;
+    *[!A-Za-z0-9-]*) die "That does not look like a DuckDNS token (letters, digits and hyphens)." "Isso não parece um token do DuckDNS (letras, números e hifens)." ;;
+  esac
+  mkdir -p "$ETC_DIR"
+  (umask 077; printf '%s\n' "$token" > "$tokfile")
+  chmod 600 "$tokfile"
+  mkdir -p "$SCHED_LIB"
+  cat > "$SCHED_LIB/duckdns-update.sh" <<EOF
+#!/bin/sh
+# Tells DuckDNS this machine's address for $sub (written by universo.sh https).
+# The token is read from $tokfile and given to curl on its standard input,
+# never on a command line.
+answer=\$(printf 'url = "https://www.duckdns.org/update?domains=$sub&ip=&token=%s"\n' "\$(head -n 1 $tokfile)" | curl -fsS -K - --max-time 20)
+[ "\$answer" = OK ] || { echo "DuckDNS answered: \$answer" >&2; exit 1; }
+EOF
+  chmod 700 "$SCHED_LIB/duckdns-update.sh"
+  step "Telling DuckDNS this machine's address." "Contando ao DuckDNS o endereço desta máquina."
+  "$SCHED_LIB/duckdns-update.sh" || die "DuckDNS did not accept it: check the name and the token." \
+                                        "O DuckDNS não aceitou: confira o nome e o token."
+  cat > "$SYSTEMD_DIR/universo-duckdns.service" <<EOF
+[Unit]
+Description=Tell DuckDNS this machine's address (UniVerso)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$SCHED_LIB/duckdns-update.sh
+EOF
+  cat > "$SYSTEMD_DIR/universo-duckdns.timer" <<EOF
+[Unit]
+Description=Keep the DuckDNS name pointing here (UniVerso)
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now universo-duckdns.timer >/dev/null 2>&1 || warn "Could not start the DuckDNS timer." "Não consegui ligar o timer do DuckDNS."
+  info "A timer keeps $sub.duckdns.org pointing here (every 5 minutes)." \
+       "Um timer mantém $sub.duckdns.org apontando para cá (a cada 5 minutos)."
+}
+
+cmd_https() {
+  detect_arch
+  detect_pm
+  [ -n "$(installed_version)" ] || die "UniVerso is not installed here: sh universo.sh install" "O UniVerso não está instalado aqui: sh universo.sh install"
+  mode=$HTTPS_MODE
+  if [ -z "$mode" ] && [ -z "$DOMAIN_ARG" ]; then
+    if [ "$YES" = 1 ]; then
+      die "Which name? Give --domain notes.example.com, or --free-name sslip.io, or --duckdns NAME." \
+          "Qual nome? Dê --domain notas.exemplo.com, ou --free-name sslip.io, ou --duckdns NOME."
+    fi
+    echo
+    t "Which address will people open?
+  1) A free name made from this machine's address (sslip.io), nothing to buy or sign up for. Recommended to start.
+  2) My own domain (its DNS record must already point to this machine).
+  3) A free DuckDNS name (an account and a token at duckdns.org; keeps working if the address changes)." \
+      "Qual endereço as pessoas vão abrir?
+  1) Um nome grátis feito do endereço desta máquina (sslip.io), nada a comprar nem cadastrar. Recomendado para começar.
+  2) O meu próprio domínio (o registro DNS dele já deve apontar para esta máquina).
+  3) Um nome grátis do DuckDNS (precisa de conta e token em duckdns.org; continua valendo se o endereço mudar)."
+    ask "$(t "Number [1]: " "Número [1]: ")" || die "Nothing to read: give --domain, --free-name or --duckdns." "Nada para ler: dê --domain, --free-name ou --duckdns."
+    case "${ANSWER:-1}" in
+      1) mode=sslip.io ;;
+      2) mode=domain ;;
+      3) mode=duckdns ;;
+      *) die "Not an option." "Não é uma opção." ;;
+    esac
+  fi
+  [ -z "$mode" ] && { [ -n "$DOMAIN_ARG" ] && mode=domain || mode=sslip.io; }
+  ip=$(public_ip) || ip=
+  case "$mode" in
+    sslip.io|nip.io)
+      [ -n "$ip" ] || die "Could not find this machine's public address (no answer from api.ipify.org). Use --domain with a name that points here." \
+                          "Não consegui descobrir o endereço público desta máquina (sem resposta do api.ipify.org). Use --domain com um nome que aponte para cá."
+      DOMAIN=$(printf '%s' "$ip" | tr . -).$mode
+      info "This machine's public address is $ip, so its name is $DOMAIN (the name itself carries the address; anyone who knows the name knows it)." \
+           "O endereço público desta máquina é $ip, então o nome dela é $DOMAIN (o próprio nome carrega o endereço; quem sabe o nome sabe o endereço)." ;;
+    duckdns)
+      sub=$DUCK_NAME
+      if [ -z "$sub" ]; then ask "$(t "Your DuckDNS name (the part before .duckdns.org): " "O seu nome no DuckDNS (a parte antes de .duckdns.org): ")" || :; sub=$ANSWER; fi
+      sub=${sub%.duckdns.org}
+      case "$sub" in ''|*[!a-z0-9-]*) die "A DuckDNS name has lowercase letters, digits and hyphens." "Um nome do DuckDNS tem letras minúsculas, números e hifens." ;; esac
+      DOMAIN=$sub.duckdns.org ;;
+    domain)
+      DOMAIN=$DOMAIN_ARG
+      if [ -z "$DOMAIN" ]; then ask "$(t "Your domain (for example notes.example.com): " "O seu domínio (por exemplo notas.exemplo.com): ")" || :; DOMAIN=$ANSWER; fi
+      DOMAIN=${DOMAIN#https://}; DOMAIN=${DOMAIN%/}
+      valid_name "$DOMAIN" || die "That is not a domain name: $DOMAIN" "Isso não é um nome de domínio: $DOMAIN" ;;
+    *) die "Unknown name type: $mode" "Tipo de nome desconhecido: $mode" ;;
+  esac
+  # Ports 80/443 held by something else would stop the certificate.
+  other=$(ss -H -ltnp 2>/dev/null | awk '$4 ~ /:(80|443)$/' | grep -v '"caddy"' || :)
+  if [ -n "$other" ]; then
+    warn "Another program already listens on port 80 or 443, so Caddy cannot use it:" \
+         "Outro programa já escuta na porta 80 ou 443, então o Caddy não pode usá-la:"
+    printf '%s\n' "$other" | sed 's/^/    /' >&2
+    die "Stop it (for example sudo systemctl disable --now apache2 nginx) and run again." \
+        "Pare-o (por exemplo sudo systemctl disable --now apache2 nginx) e rode de novo."
+  fi
+  if [ "$mode" = duckdns ]; then
+    duckdns_setup "$sub"
+  fi
+  if [ -n "$ip" ] && [ -z "${UNIVERSO_CADDY_TLS:-}" ]; then
+    seen=$(dns_ips "$DOMAIN")
+    case " $seen" in
+      *" $ip "*) info "DNS: $DOMAIN points to $ip, this machine." "DNS: $DOMAIN aponta para $ip, esta máquina." ;;
+      *) t "DNS: $DOMAIN points to ${seen:-nothing yet}, and this machine's public address is $ip." \
+           "DNS: $DOMAIN aponta para ${seen:-nada ainda}, e o endereço público desta máquina é $ip." >&2
+         confirm "Try anyway? (the certificate will fail until the name points here)" "Tentar assim mesmo? (o certificado falha até o nome apontar para cá)" \
+           || die "Nothing was changed. Point the name at $ip and run again." "Nada foi mudado. Aponte o nome para $ip e rode de novo." ;;
+    esac
+  fi
+  echo
+  t "Ports 80 and 443 must reach this machine (Let's Encrypt calls back on 80). If this is a cloud machine and
+nothing answers, see: sh universo.sh firewall" \
+    "As portas 80 e 443 precisam chegar nesta máquina (o Let's Encrypt chama de volta na 80). Se for uma máquina
+de nuvem e nada responder, veja: sh universo.sh firewall"
+  oracle_detect && oracle_help
+  confirm "Set up HTTPS for https://$DOMAIN now?" "Configurar o HTTPS de https://$DOMAIN agora?" || die "Nothing was changed." "Nada foi mudado."
+  caddy_present || caddy_install_official
+  rc=0
+  https_try "$DOMAIN" || rc=$?
+  if [ "$rc" = 2 ] && [ "$mode" = sslip.io ]; then
+    if confirm "Try the same address under nip.io (another registered domain, its own limit)?" "Tentar o mesmo endereço sob nip.io (outro domínio registrado, com limite próprio)?"; then
+      DOMAIN=$(printf '%s' "$ip" | tr . -).nip.io
+      rc=0
+      https_try "$DOMAIN" || rc=$?
+    fi
+  fi
+  [ "$rc" = 0 ] || die "HTTPS is not working yet (above). Fix that and run sh universo.sh https again: it picks up where it is." \
+                       "O HTTPS ainda não funciona (acima). Corrija e rode sh universo.sh https de novo: ele continua de onde está."
+  echo
+  t "Done. UniVerso answers at: https://$DOMAIN
+Next: the first admin (sh universo.sh admin), then open that address on your phone.
+VERSO_TRUSTED_PROXY stays empty: the default already believes a proxy on this machine (guide, section 8)." \
+    "Pronto. O UniVerso responde em: https://$DOMAIN
+Agora: o primeiro admin (sh universo.sh admin) e depois abra esse endereço no celular.
+O VERSO_TRUSTED_PROXY fica vazio: o padrão já aceita um proxy nesta máquina (manual, seção 8)."
+}
+
+# --- the first admin ------------------------------------------------------------
+
+ADMIN_DIRTY=0
+admin_clean() {
+  [ "$ADMIN_DIRTY" = 1 ] || return 0
+  ADMIN_DIRTY=0
+  rm -f "$ETC_DIR/admin-password" "$ETC_DIR/admin-password.tmp"
+  env_set VERSO_ADMIN_EMAIL "" 2>/dev/null || :
+  env_set VERSO_ADMIN_PASSWORD_FILE "" 2>/dev/null || :
+}
+
+cmd_admin() {
+  detect_arch
+  detect_pm
+  [ -n "$(installed_version)" ] || die "UniVerso is not installed here: sh universo.sh install" "O UniVerso não está instalado aqui: sh universo.sh install"
+  [ -z "$(env_get VERSO_ADMIN_PASSWORD)" ] && [ -z "$(env_get VERSO_ADMIN_PASSWORD_FILE)" ] \
+    || die "$ENV_FILE already holds an admin password (VERSO_ADMIN_PASSWORD or _FILE). Remove those lines, restart the service, and run again; or use: sh universo.sh reset-admin" \
+           "O $ENV_FILE já guarda uma senha de admin (VERSO_ADMIN_PASSWORD ou _FILE). Tire essas linhas, reinicie o serviço e rode de novo; ou use: sh universo.sh reset-admin"
+  email=$EMAIL
+  if [ -z "$email" ]; then ask "$(t "The admin's e-mail: " "O e-mail do admin: ")" || :; email=$ANSWER; fi
+  case "$email" in
+    *@*.*) ;;
+    *) die "That is not an e-mail address: $email" "Isso não é um endereço de e-mail: $email" ;;
+  esac
+  case "$email" in *[!A-Za-z0-9@._+-]*) die "The e-mail has a character it cannot have." "O e-mail tem um caractere que não pode ter." ;; esac
+  if [ -n "$PWFILE" ]; then
+    pw=$(head -n 1 "$PWFILE") || die "Could not read $PWFILE." "Não consegui ler $PWFILE."
+  else
+    t "The password: 12 characters at least, not a common one, not the e-mail. Nothing is shown as you type,
+and it is never written in a log or on a command line." \
+      "A senha: 12 caracteres ou mais, que não seja comum, nem o e-mail. Nada aparece enquanto você digita,
+e ela nunca vai para um log nem para uma linha de comando."
+    ask_secret "$(t "Password: " "Senha: ")" || :
+    pw=$ANSWER
+    ask_secret "$(t "Password again: " "Senha de novo: ")" || :
+    [ "$ANSWER" = "$pw" ] || die "The two passwords differ: nothing was changed." "As duas senhas são diferentes: nada foi mudado."
+  fi
+  [ "${#pw}" -ge 12 ] || die "The password has fewer than 12 characters." "A senha tem menos de 12 caracteres."
+  [ "$pw" != "$email" ] || die "The password cannot be the e-mail." "A senha não pode ser o e-mail."
+  case "$pw" in *'
+'*) die "The password cannot have a line break." "A senha não pode ter quebra de linha." ;; esac
+  pwfile=$ETC_DIR/admin-password
+  ADMIN_DIRTY=1
+  # A file only root and the universo group read; the password goes into it
+  # by printf, a shell builtin, so no process lists it.
+  (umask 077; printf '%s' "$pw" > "$pwfile.tmp")
+  pw=
+  chown root:universo "$pwfile.tmp" 2>/dev/null || :
+  chmod 640 "$pwfile.tmp"
+  mv "$pwfile.tmp" "$pwfile"
+  env_set VERSO_ADMIN_EMAIL "$email"
+  env_set VERSO_ADMIN_PASSWORD_FILE "$pwfile"
+  since=$(date '+%Y-%m-%d %H:%M:%S')
+  step "Restarting UniVerso: on its start it makes the admin, once (the password goes through a file, removed right after)." \
+       "Reiniciando o UniVerso: ao ligar ele cria o admin, uma vez (a senha passa por um arquivo, removido logo depois)."
+  svc_restart || :
+  result=
+  i=0
+  while [ "$i" -lt 40 ]; do
+    log=$(journalctl -u "$SERVICE" --since "$since" --no-pager 2>/dev/null)
+    case "$log" in
+      *"first admin was made"*) result=made; break ;;
+      *"are ignored"*) result=exists; break ;;
+      *"VERSO_ADMIN_"*"Error"*|*"VERSO_ADMIN_PASSWORD:"*|*"VERSO_ADMIN_EMAIL:"*) result=refused; break ;;
+    esac
+    i=$((i + 1))
+    sleep 1
+  done
+  reason=$(printf '%s\n' "${log:-}" | grep -E 'VERSO_ADMIN_(PASSWORD|EMAIL)' | tail -n 1)
+  admin_clean
+  case "$result" in
+    made)
+      wait_up
+      url=$(env_get VERSO_PUBLIC_URL)
+      echo
+      t "The admin $email exists. The password file and the two settings were removed from $ETC_DIR." \
+        "O admin $email foi criado. O arquivo da senha e as duas configurações foram removidos de $ETC_DIR."
+      if [ -n "$url" ]; then
+        t "Sign in at: $url/" "Entre em: $url/"
+        t "On the phone: open that address and sign in with the e-mail and password; then Settings > Servers in the app." \
+          "No celular: abra esse endereço e entre com o e-mail e a senha; depois Ajustes > Servidores no app."
+      else
+        t "Sign in at: http://127.0.0.1:$(listen_port)/ (from your computer, through SSH: ssh -L $(listen_port):127.0.0.1:$(listen_port) <this machine>).
+For an address the phone can open: sh universo.sh https" \
+          "Entre em: http://127.0.0.1:$(listen_port)/ (do seu computador, por SSH: ssh -L $(listen_port):127.0.0.1:$(listen_port) <esta máquina>).
+Para um endereço que o celular abra: sh universo.sh https"
+      fi ;;
+    exists)
+      die "This server already has accounts, so no new admin was made (the server reads these settings only when it has none). A lost password: sh universo.sh reset-admin $email" \
+          "Este servidor já tem contas, então nenhum admin novo foi criado (o servidor só lê essas configurações quando não tem nenhuma). Senha perdida: sh universo.sh reset-admin $email" ;;
+    *)
+      svc_restart || :
+      die "The server refused the admin: ${reason:-no answer in 40 seconds (sudo journalctl -u universo -n 30)}" \
+          "O servidor recusou o admin: ${reason:-sem resposta em 40 segundos (sudo journalctl -u universo -n 30)}" ;;
+  esac
+}
+
+# --- timers: a daily backup, a weekly update ----------------------------------
+
+sched_state() {
+  if [ -f "$SYSTEMD_DIR/universo-$1.timer" ]; then
+    if systemctl is-enabled --quiet "universo-$1.timer" 2>/dev/null; then
+      next=$(systemctl list-timers "universo-$1.timer" --no-pager 2>/dev/null | awk 'NR == 2 { print $1, $2 }')
+      t "  $1: ON (next: ${next:-?})" "  $1: LIGADO (próximo: ${next:-?})"
+    else
+      t "  $1: unit present but not enabled" "  $1: unidade presente, mas não habilitada"
+    fi
+  else
+    t "  $1: off" "  $1: desligado"
+  fi
+}
+
+sched_on() {
+  what=$1
+  [ -d /run/systemd/system ] || die "systemd is not running here, so there are no timers." "O systemd não está rodando aqui, então não há timers."
+  [ -f "$SELF" ] && [ -r "$SELF" ] || die "A timer runs a copy of this file: download it first (curl -fsSLO https://versomd.com/universo.sh)." \
+                                          "Um timer roda uma cópia deste arquivo: baixe antes (curl -fsSLO https://versomd.com/universo.sh)."
+  mkdir -p "$SCHED_LIB" /var/backups/universo
+  chmod 700 /var/backups/universo
+  cp "$SELF" "$SCHED_LIB/universo.sh"
+  chmod 755 "$SCHED_LIB/universo.sh"
+  keep=${KEEP:-7}
+  bk="/bin/sh $SCHED_LIB/universo.sh backup /var/backups/universo --keep $keep"
+  case "$what" in
+    backup)
+      desc="Daily backup of UniVerso (the last $keep kept)"; when='*-*-* 03:30:00'
+      exec_lines="ExecStart=$bk" ;;
+    update)
+      desc="Weekly update of UniVerso (a backup first)"; when='Sun *-*-* 04:30:00'
+      exec_lines="ExecStart=$bk
+ExecStart=/bin/sh $SCHED_LIB/universo.sh update" ;;
+  esac
+  cat > "$SYSTEMD_DIR/universo-$what.service" <<EOF
+[Unit]
+Description=$desc
+After=network-online.target
+
+[Service]
+Type=oneshot
+$exec_lines
+EOF
+  cat > "$SYSTEMD_DIR/universo-$what.timer" <<EOF
+[Unit]
+Description=$desc
+
+[Timer]
+OnCalendar=$when
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now "universo-$what.timer" >/dev/null || die "systemd could not start the timer." "O systemd não conseguiu ligar o timer."
+  step "The $what timer is on." "O timer de $what está ligado."
+  if [ "$what" = backup ]; then
+    t "  A copy every day around 03:30 in /var/backups/universo, the last $keep kept. It is on THIS machine:
+  copy backups off it too (scp, rclone), or a lost machine loses them." \
+      "  Uma cópia por dia, perto das 03:30, em /var/backups/universo, as últimas $keep guardadas. Fica NESTA máquina:
+  copie os backups para fora também (scp, rclone), ou uma máquina perdida perde-os."
+  else
+    t "  Every Sunday around 04:30: a backup, then the update to the latest release (checked as always).
+  While the repository is private it needs GITHUB_TOKEN: without it the update fails and says so." \
+      "  Todo domingo perto das 04:30: um backup e depois a atualização para a release mais nova (conferida como sempre).
+  Enquanto o repositório for privado precisa do GITHUB_TOKEN: sem ele a atualização falha e avisa."
+  fi
+}
+
+sched_off() {
+  for w in "$@"; do
+    [ -f "$SYSTEMD_DIR/universo-$w.timer" ] || continue
+    systemctl disable --now "universo-$w.timer" >/dev/null 2>&1 || :
+    rm -f "$SYSTEMD_DIR/universo-$w.timer" "$SYSTEMD_DIR/universo-$w.service"
+    step "The $w timer is off." "O timer de $w está desligado."
+  done
+  systemctl daemon-reload 2>/dev/null || :
+  if [ ! -f "$SYSTEMD_DIR/universo-backup.timer" ] && [ ! -f "$SYSTEMD_DIR/universo-update.timer" ] \
+    && [ ! -f "$SYSTEMD_DIR/universo-duckdns.timer" ]; then
+    rm -f "$SCHED_LIB/universo.sh"
+  fi
+}
+
+cmd_schedule() {
+  # shellcheck disable=SC2086 # the words of the command, split on purpose.
+  set -- $SCHED_ARGS
+  action=${1:-status}
+  case "$action" in
+    status)
+      t "Automatic tasks (all off unless shown):" "Tarefas automáticas (todas desligadas, salvo as mostradas):"
+      sched_state backup
+      sched_state update ;;
+    backup|update) sched_on "$action" ;;
+    off)
+      if [ -n "${2:-}" ]; then
+        case "$2" in backup|update) sched_off "$2" ;; *) die "Off which? backup or update (or neither, for both)." "Desligar qual? backup ou update (ou nenhum, para os dois)." ;; esac
+      else
+        sched_off backup update
+      fi ;;
+    *) die "schedule takes: status, backup, update, off [backup|update]." "schedule aceita: status, backup, update, off [backup|update]." ;;
+  esac
+}
+
+# --- support: a report to paste ---------------------------------------------------
+
+# support_redact: what is not for others' eyes taken out of the text read:
+# anything =valued that looks like a token, password, secret, key or code;
+# long random-looking strings; e-mail addresses.
+support_redact() {
+  sed -E \
+    -e 's/([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][A-Za-z]*|[Ss][Ee][Cc][Rr][Ee][Tt]|[Kk][Ee][Yy]|[Cc][Oo][Dd][Ee]|[Ii][Nn][Vv][Ii][Tt][Ee])=[^ &"]+/\1=<hidden>/g' \
+    -e 's/(Bearer|Basic) [A-Za-z0-9._~+\/=-]+/\1 <hidden>/g' \
+    -e 's/[A-Za-z0-9_-]{32,}/<hidden>/g' \
+    -e 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<e-mail>/g'
+}
+
+support_env() {
+  [ -r "$ENV_FILE" ] || { t "(no $ENV_FILE)" "(sem $ENV_FILE)"; return 0; }
+  awk '
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      i = index($0, "="); if (i == 0) next
+      n = substr($0, 1, i - 1); v = substr($0, i + 1)
+      if (n ~ /PASS|TOKEN|SECRET|KEY|SMTP|CREDENTIAL|URL_WITH/ ) print n "=" (v == "" ? "(empty)" : "<hidden>")
+      else print n "=" (v == "" ? "(empty)" : v)
+    }' "$ENV_FILE"
+}
+
+support_report() {
+  echo "UniVerso support report - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+  t "This report holds no password and no token: settings with those words are shown without their value, and the log is
+cleaned of tokens, long random strings and e-mail addresses. It does hold this machine's public name or address and
+sizes. Read it before pasting." \
+    "Este relatório não contém senha nem token: as configurações com essas palavras aparecem sem o valor, e o log é
+limpo de tokens, textos aleatórios longos e endereços de e-mail. Ele contém o nome ou endereço público desta máquina e
+tamanhos. Leia antes de colar."
+  echo
+  echo "== UniVerso"
+  echo "version: $(running_version || echo '-') | package: $(installed_version 2>/dev/null || echo '-')"
+  echo "service: $(systemctl is-active "$SERVICE" 2>/dev/null) / $(systemctl is-enabled "$SERVICE" 2>/dev/null)"
+  echo "answers: $(curl -fsSk -o /dev/null -w '%{http_code}' --max-time 5 "$(local_url)" 2>/dev/null || echo no)"
+  echo
+  echo "== system"
+  # shellcheck disable=SC1090
+  [ -r "$OS_RELEASE" ] && echo "os: $(. "$OS_RELEASE" && echo "${PRETTY_NAME:-?}")"
+  echo "kernel: $(uname -srm)"
+  echo "virtualization: $(systemd-detect-virt 2>/dev/null || echo ?)"
+  oracle_detect && echo "cloud: Oracle Cloud"
+  echo "memory:"; free -m 2>/dev/null | sed 's/^/  /'
+  echo "swap:"; (swapon --show 2>/dev/null || cat /proc/swaps 2>/dev/null) | sed 's/^/  /'
+  echo "disk:"; df -h / "$DATA_ROOT" 2>/dev/null | sed 's/^/  /'
+  echo "uptime: $(uptime 2>/dev/null)"
+  echo
+  echo "== settings ($ENV_FILE; secrets without value)"
+  support_env
+  echo
+  echo "== listening ports"
+  ss -ltn 2>/dev/null | sed 's/^/  /'
+  echo
+  echo "== firewall"
+  if command -v ufw >/dev/null 2>&1; then echo "ufw: $(ufw status 2>/dev/null | head -n 1)"; fi
+  if command -v firewall-cmd >/dev/null 2>&1; then echo "firewalld: $(firewall-cmd --state 2>&1 | head -n 1)"; fi
+  if command -v iptables >/dev/null 2>&1; then echo "iptables INPUT:"; iptables -S INPUT 2>&1 | head -n 15 | sed 's/^/  /'; fi
+  echo
+  echo "== Caddy"
+  if command -v caddy >/dev/null 2>&1; then
+    echo "caddy: $(caddy version 2>/dev/null | head -n 1) / $(systemctl is-active caddy 2>/dev/null)"
+    site=$CADDY_DIR/Caddyfile.d/universo.caddyfile
+    if [ -r "$site" ]; then echo "$site:"; sed 's/^/  /' "$site"; fi
+    journalctl -u caddy --no-pager -n 25 2>/dev/null | support_redact | sed 's/^/  /'
+  else
+    echo "caddy: not installed"
+  fi
+  echo
+  echo "== timers"
+  systemctl list-timers 'universo-*' --no-pager 2>/dev/null | sed 's/^/  /'
+  echo
+  echo "== UniVerso log (last 200 lines)"
+  journalctl -u "$SERVICE" --no-pager -n 200 -o short-iso 2>/dev/null | support_redact
+}
+
+cmd_support() {
+  stamp=$(date +%Y%m%d-%H%M%S)
+  out=${SUPPORT_OUT:-/tmp/universo-support-$stamp.txt}
+  support_report 2>&1 | tee "$out"
+  echo
+  t "Saved in $out. It has no password and no token (see the top). Paste it where you ask for help." \
+    "Salvo em $out. Não tem senha nem token (veja o alto). Cole onde você pedir ajuda."
+}
+
 # --- arguments --------------------------------------------------------------
 
 # Sourced by scripts/check-linux.sh's test with UNIVERSO_SH_FUNCTIONS=1: the
@@ -1551,22 +2533,37 @@ if [ "${UNIVERSO_SH_FUNCTIONS:-}" = 1 ]; then
   return 0 2>/dev/null || exit 0
 fi
 
-[ "$#" -gt 0 ] || { usage; exit 1; }
 for a in "$@"; do
   case "$a" in -h|--help) usage; exit 0 ;; esac
 done
+[ "$#" -gt 0 ] || set -- menu
+case "$1" in -y|--yes) set -- menu "$@" ;; esac
 CMD=$1
 case "$CMD" in
   help|-h|--help) usage; exit 0 ;;
-  install|update|uninstall|status|logs|backup|restore|reset-admin|firewall) need_root "$@" ;;
+  menu|install|update|uninstall|status|logs|backup|restore|reset-admin|firewall|https|admin|swap|schedule|support) need_root "$@" ;;
   *) t "Unknown command: $CMD" "Comando desconhecido: $CMD" >&2; usage >&2; exit 1 ;;
 esac
 shift
 
+GUIDED=${UNIVERSO_GUIDED:-0} DRYRUN=0 KEEP='' HTTPS_MODE='' DOMAIN_ARG='' DUCK_NAME='' DUCK_TOKEN_FILE='' PWFILE='' SCHED_ARGS=''
 VERSION='' PKGFILE='' URL='' INSECURE=0 NOSIG=0 PURGE=0 FOLLOW=0 BACKUP_DIR='' EMAIL=
 ENCRYPT=0 PASSPHRASE=0 KEYGEN=0 TO_STDOUT=0 IDENTITY='' RESTORE_FILE='' RESTORE_TO=''
 while [ "$#" -gt 0 ]; do
+  case "$1" in -y|--yes) YES=1; shift; continue ;; esac
   case "$CMD:$1" in
+    https:--domain) [ "$#" -ge 2 ] || die "--domain needs a name." "--domain precisa de um nome."; HTTPS_MODE=domain; DOMAIN_ARG=$2; shift ;;
+    https:--free-name) [ "$#" -ge 2 ] || die "--free-name needs sslip.io or nip.io." "--free-name precisa de sslip.io ou nip.io."
+      case "$2" in sslip.io|nip.io) HTTPS_MODE=$2 ;; *) die "--free-name takes sslip.io or nip.io." "--free-name aceita sslip.io ou nip.io." ;; esac; shift ;;
+    https:--duckdns) [ "$#" -ge 2 ] || die "--duckdns needs your DuckDNS name." "--duckdns precisa do seu nome no DuckDNS."; HTTPS_MODE=duckdns; DUCK_NAME=$2; shift ;;
+    https:--token-file) [ "$#" -ge 2 ] || die "--token-file needs a file." "--token-file precisa de um arquivo."; DUCK_TOKEN_FILE=$2; shift ;;
+    admin:--email) [ "$#" -ge 2 ] || die "--email needs an address." "--email precisa de um endereço."; EMAIL=$2; shift ;;
+    admin:--password-file) [ "$#" -ge 2 ] || die "--password-file needs a file." "--password-file precisa de um arquivo."; PWFILE=$2; shift ;;
+    swap:--dry-run) DRYRUN=1 ;;
+    schedule:--keep|backup:--keep) [ "$#" -ge 2 ] || die "--keep needs a number." "--keep precisa de um número."
+      case "$2" in ''|*[!0-9]*|0) die "--keep takes a number of backups, 1 or more." "--keep aceita um número de backups, 1 ou mais." ;; esac; KEEP=$2; shift ;;
+    schedule:-*) die "Unknown option for schedule: $1" "Opção desconhecida para schedule: $1" ;;
+    schedule:*) SCHED_ARGS="$SCHED_ARGS $1" ;;
     install:--version|update:--version) [ "$#" -ge 2 ] || die "--version needs a value." "--version precisa de um valor."; VERSION=$2; shift ;;
     install:--package|update:--package) [ "$#" -ge 2 ] || die "--package needs a file." "--package precisa de um arquivo."; PKGFILE=$2; shift ;;
     install:--url) [ "$#" -ge 2 ] || die "--url needs an address." "--url precisa de um endereço."; URL=$2; shift ;;
@@ -1601,4 +2598,10 @@ case "$CMD" in
   restore) cmd_restore ;;
   reset-admin) cmd_reset_admin ;;
   firewall) cmd_firewall ;;
+  menu) cmd_menu ;;
+  https) cmd_https ;;
+  admin) cmd_admin ;;
+  swap) cmd_swap ;;
+  schedule) cmd_schedule ;;
+  support) cmd_support ;;
 esac

@@ -1364,3 +1364,5 @@ them; if they still happen, a step that makes them happen is enough.
   appears for the first folder's note, and none covers the table's chat in
   the first (macOS, Windows, Linux; the web has one folder per page).
 - [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
+- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
+

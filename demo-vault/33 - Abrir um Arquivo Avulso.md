@@ -48,4 +48,4 @@ O instalador registra o Verso como **um** app que abre `.md` e `.markdown`, e nu
 
 ---
 
-Volte a [[32 - Rodando uma Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[34 - UniVerso num Servidor Grátis da Oracle]], volte a [[32 - Rodando uma Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
