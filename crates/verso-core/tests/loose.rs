@@ -148,6 +148,8 @@ fn a_file_without_write_permission_opens_read_only() {
         fs::Permissions::from_mode(0o644),
     )
     .unwrap();
+    // The watch tells the session the file changed.
+    loose.refresh();
     assert!(loose.read_only().is_none());
 }
 
