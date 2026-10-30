@@ -1055,40 +1055,6 @@ impl<R: tauri::Runtime> Drop for Opening<R> {
     }
 }
 
-/// The app launched again while it runs — `verso <folder>`, which starts
-/// `verso-app <folder>`, or the app's icon: the running app takes the
-/// folder into a window of its own (`folder_handed`, ADR 0065), or, with
-/// none, brings a window forward. The second process exits; its arguments
-/// are its command line, a relative folder read from its own directory.
-fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
-    // The first argument, as `main` reads its own (main.rs).
-    let handed = argv
-        .get(1)
-        .filter(|a| !a.starts_with("--"))
-        .map(|a| loose::path_from_arg(a, std::path::Path::new(&cwd)));
-    log::write("INFO", "host", "launched again: handed to the running app");
-    match handed {
-        // A folder, or a Markdown file (ADR 0114 item 6).
-        Some(path) => loose::path_handed(app, path),
-        None => {
-            // A window of a folder (the main one first), never a note's
-            // popout or a web page's.
-            let windows = app.windows();
-            let window = windows.get("main").or_else(|| {
-                windows
-                    .iter()
-                    .filter(|(l, _)| l.starts_with("window-"))
-                    .min_by_key(|(l, _)| l.as_str())
-                    .map(|(_, w)| w)
-            });
-            if let Some(w) = window {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
-            }
-        }
-    }
-}
-
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     // Before any TLS: the sync's WebSocket, the server calls, the updater.
@@ -1362,144 +1328,6 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
     }
 }
 
-/// macOS hands the app a folder by an open event — `open -a Verso
-/// <folder>`, which is how `verso <folder>` starts the installed app —
-/// both when it launches the app and when the app is already running; the
-/// folder never reaches the command line, and before this it was lost on
-/// a running app (`docs/review/phase-2.md`, reading 3, finding 20). It
-/// takes the command line's place: the main window, if it is up, is told
-/// to open it (`open_initial`, after saving its tabs), and one that starts
-/// later opens it at start-up. What is not a folder fails there, as a
-/// command-line argument would. A second launch on any system (the
-/// single-instance plugin, `second_launch`) hands its folder here too.
-fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
-    hand_over(app, Handed::Path(folder));
-}
-
-/// What is handed to the app to open in a window: a folder of this
-/// computer, a path at the edge, or a folder of a server (address, folder).
-pub(crate) enum Handed {
-    Path(PathBuf),
-    Server(String, String),
-}
-
-/// The window of a folder (the main one first) that already shows the
-/// folder `key`, on this computer or on a server, or waits for the server
-/// that will show it.
-fn window_showing<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Option<String> {
-    let state = app.state::<App>();
-    let mut labels: Vec<String> = app
-        .windows()
-        .into_keys()
-        .filter(|l| l == "main" || l.starts_with("window-"))
-        .filter(|l| match remote::of(app, l) {
-            Some(r) => session::server_key(&r.url, &r.folder) == key,
-            None => {
-                state.service.folder_of(l).as_deref() == Some(key)
-                    || lock(&state.pending_servers).get(l).map(String::as_str) == Some(key)
-            }
-        })
-        .collect();
-    labels.sort_by_key(|l| (l != "main", l.clone()));
-    labels.into_iter().next()
-}
-
-fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
-    // A folder a window already shows is that window's to bring forward: a
-    // second window on it, or the one that shows another folder swapped
-    // for it, is never what handing a folder to the running app means.
-    let key = match &handed {
-        Handed::Path(folder) => verso_core::folder_key(folder),
-        Handed::Server(url, folder) => session::server_key(url, folder),
-    };
-    if let Some(label) = window_showing(app, &key)
-        && let Some(w) = app.get_window(&label)
-    {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-        return;
-    }
-    // Folders wait in line: two handed before a window took the first
-    // (`verso a; verso b`) are both opened, never one lost.
-    let waiting = {
-        let state = app.state::<App>();
-        let mut queue = lock(&state.initial_folder);
-        let mut servers = lock(&state.initial_server);
-        let waiting = !queue.is_empty() || !servers.is_empty();
-        match handed {
-            Handed::Path(folder) => queue.push_back(folder),
-            Handed::Server(url, folder) => servers.push_back((url, folder)),
-        }
-        waiting
-    };
-    // Handed before the setup made the main window (macOS's open event
-    // at launch): the main window, made next, opens it at start-up — a
-    // window made here as well left an empty "Verso" beside the folder's.
-    if !app
-        .state::<App>()
-        .started
-        .load(std::sync::atomic::Ordering::SeqCst)
-        && app.get_window("main").is_none()
-    {
-        log::write(
-            "INFO",
-            "host",
-            "a folder handed at launch: the main window opens it",
-        );
-        return;
-    }
-    // A window of the app that shows no folder takes it; with none — or
-    // when that window has a folder waiting for it already — a new window
-    // does, which opens it as it starts (ADR 0065).
-    let empty = if waiting {
-        None
-    } else {
-        let state = app.state::<App>();
-        let opening = lock(&state.opening);
-        let mut labels: Vec<String> = app
-            .windows()
-            .into_keys()
-            .filter(|l| {
-                (l == "main" || l.starts_with("window-"))
-                    && state.service.folder_of(l).is_none()
-                    // A window on a server's folder, or waiting for the
-                    // server's, shows a folder though the service has none.
-                    && remote::of(app, l).is_none()
-                    && !lock(&state.pending_servers).contains_key(l)
-                    && !opening.contains(l)
-                    // The loose-files window keeps its files (ADR 0114).
-                    && !state.service.is_loose(l)
-                    && lock(&state.loose_window).as_deref() != Some(l.as_str())
-            })
-            .collect();
-        labels.sort_by_key(|l| (l != "main", l.clone()));
-        labels.into_iter().next()
-    };
-    match empty {
-        Some(label) => {
-            if let Some(w) = app.get_window(&label) {
-                let _ = w.set_focus();
-            }
-            // Told: it opens the folder now, and is not handed another.
-            lock(&app.state::<App>().opening).insert(label.clone());
-            let _ = app.emit("folder-handed", label);
-        }
-        None => {
-            let _ = open_folder_window(app, None);
-        }
-    }
-}
-
-/// The window of a folder that has the focus, for the menu's items that
-/// act on one: the main window when none of them has it.
-#[cfg(target_os = "macos")]
-fn folder_window_in_focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
-    focused_window(app)
-        .map(|w| w.label().to_owned())
-        .filter(|l| l == "main" || l.starts_with("window-"))
-        .unwrap_or_else(|| "main".to_owned())
-}
-
 /// Ask the app's own windows to save their tabs and close themselves;
 /// with none left, exit. A window that shows a web page holds nothing to
 /// save and never answers, so it is closed here: left open, it would keep
@@ -1533,6 +1361,8 @@ mod tests_live;
 mod tests_live_table;
 #[cfg(test)]
 mod tests_local;
+#[cfg(test)]
+mod tests_loose;
 #[cfg(test)]
 mod tests_notify;
 #[cfg(test)]
