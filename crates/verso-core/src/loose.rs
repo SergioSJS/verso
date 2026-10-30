@@ -276,6 +276,69 @@ impl Loose {
         Ok(Self { root, path })
     }
 
+    /// The links of the note, each resolved to a sibling note by one
+    /// `stat` when one of that name is there (item 14), unresolved
+    /// otherwise; a note embed resolves as a link does and is drawn as one,
+    /// never inlined. An attachment's embed is `resolve_attachment`'s.
+    pub fn links(&mut self, as_path: &str) -> Result<Vec<verso_index::Link>, CoreError> {
+        let note = self.read(as_path)?;
+        let document = verso_dialect::parse(&note.text);
+        let mut out = Vec::new();
+        for l in &document.links {
+            out.push(verso_index::Link {
+                embed: false,
+                target: l.target.clone(),
+                heading: l.heading.clone(),
+                block: l.block.clone(),
+                alias: l.alias.clone(),
+                line: l.pos.line,
+                col: l.pos.col,
+                resolved: self.sibling_note(&l.target),
+                relation: None,
+            });
+        }
+        for e in &document.embeds {
+            out.push(verso_index::Link {
+                embed: true,
+                target: e.target.clone(),
+                heading: e.heading.clone(),
+                block: e.block.clone(),
+                alias: e.alias.clone(),
+                line: e.pos.line,
+                col: e.pos.col,
+                resolved: self.sibling_note(&e.target),
+                relation: None,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Whether the file is still there (a watch's batch asks): `false`
+    /// once it was deleted or moved outside.
+    #[must_use]
+    pub fn exists(&self) -> bool {
+        !matches!(
+            self.root.scoped_len(),
+            Err(verso_fs::ReadError::Io(ref e)) if e.kind() == std::io::ErrorKind::NotFound
+        )
+    }
+
+    /// Save `text` as a new file at `path` — the system's save dialog's
+    /// answer, on the host's side (item 11, "Save a copy…") — through
+    /// `verso-fs`, atomically, never replacing what stands there.
+    pub fn save_copy_at(path: &Path, text: &str) -> Result<(), CoreError> {
+        let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
+            return Err(CoreError::Folder(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "the chosen place has no folder",
+            )));
+        };
+        let mut root = Root::open(parent, Vec::new()).map_err(CoreError::Folder)?;
+        root.create(Path::new(name), text.as_bytes())
+            .map(|_| ())
+            .map_err(CoreError::Write)
+    }
+
     /// Watch the file for changes made outside (item 11): the parent
     /// directory, not recursive, events filtered to this name.
     pub fn watch(
