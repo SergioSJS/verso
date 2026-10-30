@@ -28,6 +28,7 @@ import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
 import { headingVisibility, setHeadingFolded } from "./folds";
+import { apply, crossesBlocks, describes, keepAnchor, plan, scrollAnchor, snapshot } from "./reconcile";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
 import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
@@ -60,6 +61,7 @@ export function repaint(this: NoteLeaf): void {
   this.embedCache.clear();
   this.editor.dispatch({ effects: redraw.of(null) });
   this.previewStale = true;
+  this.forcePaint = true;
   if (this.mode === "preview") this.paintPreview();
 }
 
@@ -382,9 +384,9 @@ export function wireBlockquoteFolds(this: NoteLeaf, root: HTMLElement): void {
 }
 
 export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: string): void {
-  for (const old of root.querySelectorAll(".preview-line-num")) {
-    old.remove();
-  }
+  // The numbers already there stay when they still say the same line: a
+  // block that did not change is not touched.
+  const keep = new Set<Element>();
   const lines = text.split("\n");
   const elements = Array.from(root.querySelectorAll<HTMLElement>(
     "h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, table, .callout, .embed-base, .embed-pdf"
@@ -450,12 +452,18 @@ export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: 
     }
     if (matchedLine > 0) {
       // Also what a change of mode keeps in view (`topLine`).
-      el.dataset["line"] = String(matchedLine);
-      const num = h("span", "preview-line-num", String(matchedLine));
-      num.setAttribute("aria-hidden", "true");
-      el.prepend(num);
+      if (el.dataset["line"] !== String(matchedLine)) el.dataset["line"] = String(matchedLine);
+      const there = Array.from(el.children).find((c) => c.classList.contains("preview-line-num"));
+      if (there && there.textContent === String(matchedLine) && el.firstChild === there) keep.add(there);
+      else {
+        const num = h("span", "preview-line-num", String(matchedLine));
+        num.setAttribute("aria-hidden", "true");
+        el.prepend(num);
+        keep.add(num);
+      }
     }
   }
+  for (const old of Array.from(root.querySelectorAll(".preview-line-num"))) if (!keep.has(old)) old.remove();
 }
 
 export function foldAllHeadings(this: NoteLeaf, fold: boolean): void {
@@ -474,7 +482,10 @@ export function foldAllHeadings(this: NoteLeaf, fold: boolean): void {
   }
 }
 
-/** Draw the reading view from the note, if it changed since it was drawn. */
+/** Draw the reading view from the note, if it changed since it was drawn.
+ *  The same HTML drawn again touches nothing; changed HTML replaces only the
+ *  blocks that differ (`reconcile.ts`); what is read across blocks, a new
+ *  note, or a setting that changes how everything is drawn, rebuilds the whole. */
 export async function paintPreview(this: NoteLeaf): Promise<void> {
   const note = this.note;
   if (!this.previewStale || !note) return;
@@ -482,6 +493,8 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     return;
   }
   this.previewStale = false;
+  const force = this.forcePaint;
+  this.forcePaint = false;
   // The keyboard keeps its place through a redraw — a task checked, the
   // note read again: the focus goes back to the same task, the same link,
   // or what stands at the same place among what the note draws.
@@ -489,8 +502,78 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
   // The same note drawn again keeps its callouts as the user left them.
   const sameNote = this.shownPath === note.path;
+  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
+  // the core, read-only.
+  this.readerView.offer(note.path, note.text);
+  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  const html = withNoteLinks(reader?.html ?? note.html, note.path);
+  const sig = `${note.path}\n${reader ? "r" : "n"}${this.readOnly ? "o" : "w"}\n${html}`;
+  const text = reader?.text ?? note.text;
+  const whole = !force && sameNote && describes(this.blocks, this.preview);
+  if (whole && sig === this.paintedSig) {
+    // Nothing the view shows changed: nothing is touched.
+    if (this.shownText !== note.text) {
+      this.shownText = note.text;
+      this.wireReadingLineNumbers(this.preview, text);
+    }
+    return;
+  }
+  if (whole && this.paintBlocks(note.path, html, sig, text, reader !== null, key)) return;
+  this.paintWhole(note.path, html, sig, text, reader !== null, key, sameNote);
+}
+
+/** Only the blocks that differ, in place. False when the change reaches
+ *  across blocks and the whole view must be drawn instead. */
+export function paintBlocks(this: NoteLeaf, path: string, html: string, sig: string, text: string, reader: boolean, key: ReturnType<typeof focusKey> | null): boolean {
+  const old = this.blocks;
+  if (!old) return false;
+  const scratch = document.createElement("div");
+  setHtml(scratch, html);
+  const p = plan(old, Array.from(scratch.childNodes));
+  if (crossesBlocks(p.fresh, p.removed, (code) => isStatblockCode(code as HTMLElement))) return false;
+  const wrap = document.createElement("div");
+  wrap.append(...p.fresh);
+  wireCallouts(wrap, [], this);
+  keyLinks(wrap);
+  typeset(wrap);
+  void this.embedImages(path, wrap);
+  void noteImages(wrap, path);
+  if (!reader) this.wireTasks(wrap);
+  this.dressLinks(path, wrap);
+  this.wireMermaidBlocks(wrap);
+  wireRollBlocks(wrap, this.path, ROLL_HOST);
+  this.wireCodeBlocks(wrap);
+  wireSwatches(wrap);
+  wireDice(wrap, { path: () => this.path, follow: (target) => this.follow(target) });
+  this.wirePreviewImages(wrap);
+  this.wireHeadingFolds(wrap);
+  this.wireListFolds(wrap);
+  this.wireBlockquoteFolds(wrap);
+  // What wiring left of the new blocks, one for one (a block a wire replaced
+  // by a card is that block's place); anything else and the view is drawn whole.
+  const made = Array.from(wrap.childNodes);
+  if (made.length !== p.fresh.length) return false;
+  let at = 0;
+  const next = p.next.map((b) => ({ key: b.key, node: b.fresh ? made[at++]! : b.node }));
+  const anchor = scrollAnchor(this.sheet, this.preview);
+  apply(this.preview, next, p.removed);
+  this.blocks = next;
+  this.applyReadingFolds(this.preview, made);
+  this.wireReadingLineNumbers(this.preview, text);
+  keepAnchor(this.sheet, anchor);
+  this.paintedSig = sig;
+  this.shownText = this.note?.text ?? this.shownText;
+  if (this.readingSearch?.isOpen) this.readingSearch.find();
+  if (key && !(document.activeElement instanceof HTMLElement && this.preview.contains(document.activeElement) && document.activeElement !== this.preview)) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
+  return true;
+}
+
+/** The whole reading view, built again. */
+export function paintWhole(this: NoteLeaf, path: string, html: string, sig: string, text: string, reader: boolean, key: ReturnType<typeof focusKey> | null, sameNote: boolean): void {
+  const note = this.note;
+  if (!note) return;
   const open = sameNote ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
-  this.shownPath = note.path;
+  this.shownPath = path;
   for (const card of this.cards) {
     card.destroy();
   }
@@ -500,25 +583,22 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     if (e instanceof BaseView) liveBases.delete(e);
   }
   this.embeds = [];
-  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
-  // the core, read-only.
-  this.readerView.offer(note.path, note.text);
-  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
   // The same note drawn again stays where the person was reading: taking
   // the old blocks out lets WebKit drop the sheet's scroll to the top.
   const kept = sameNote && this.preview.childElementCount > 0 ? this.sheet.scrollTop : null;
-  setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
+  setHtml(this.preview, html);
+  const snap = snapshot(this.preview);
   if (kept !== null && this.sheet.scrollTop !== kept) this.sheet.scrollTop = kept;
   wireCallouts(this.preview, open, this);
   keyLinks(this.preview);
   this.shownText = note.text;
   this.gatherFootnotes();
   typeset(this.preview);
-  this.mountBases(note.path);
-  void this.embedImages(note.path);
-  void noteImages(this.preview, note.path);
+  this.mountBases(path);
+  void this.embedImages(path);
+  void noteImages(this.preview, path);
   if (!reader) this.wireTasks();
-  this.dressLinks(note.path);
+  this.dressLinks(path);
   if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
   this.wireStatblocks(this.preview);
@@ -531,7 +611,12 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
   this.applyReadingFolds(this.preview);
-  this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
+  this.wireReadingLineNumbers(this.preview, text);
+  // Wiring puts a card where a code block stood, one for one: the blocks keep
+  // their places. Footnotes gathered, or anything else, and the next drawing is whole too.
+  const nodes = this.preview.childNodes;
+  this.blocks = nodes.length === snap.length ? snap.map((b, i) => ({ key: b.key, node: nodes[i]! })) : null;
+  this.paintedSig = sig;
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
 }
@@ -556,8 +641,8 @@ export async function relink(this: NoteLeaf, path: string): Promise<void> {
 
 /** The reading view's links marked when nothing answers them, embedded
  *  notes filled in. */
-export function dressLinks(this: NoteLeaf, path: string): void {
-  for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
+export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this.preview): void {
+  for (const a of root.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
     const target = a.dataset["target"] ?? "";
     const to = this.resolve(target);
     a.classList.toggle("unresolved", to === null);
@@ -591,7 +676,7 @@ export function dressLinks(this: NoteLeaf, path: string): void {
       }
     }
   }
-  this.dress(path);
+  this.dress(path, root);
 }
 
 /** Where a link target goes: the index's answer, else the same rule
@@ -610,16 +695,16 @@ export function isOutside(this: NoteLeaf, target: string): boolean {
   return this.outside.has(key) || this.outside.has(target.toLowerCase());
 }
 
-export function dress(this: NoteLeaf, forPath: string): void {
+export function dress(this: NoteLeaf, forPath: string, root: ParentNode = this.preview): void {
   // An embed of what was not shared shows the same words in its place.
-  for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed")) {
+  for (const span of root.querySelectorAll<HTMLElement>("span.embed")) {
     const raw = span.dataset["target"] ?? "";
     if (this.resolve(raw) !== null || !this.isOutside(raw)) continue;
     const said = h("span", "embed-outside", sh.notShared);
     said.dataset["target"] = raw;
     span.replaceWith(said);
   }
-  for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
+  for (const span of root.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
     const raw = span.dataset["target"] ?? "";
     const to = this.resolve(raw);
     if (!to || !to.endsWith(".md") || to === this.path) continue;
@@ -855,10 +940,10 @@ export function gatherFootnotes(this: NoteLeaf): void {
 
 /** The task checkboxes the core numbered (`data-task-line`, the line of
  *  the `[ ]` in the file); any other checkbox stays inert. */
-export function wireTasks(this: NoteLeaf): void {
+export function wireTasks(this: NoteLeaf, root: ParentNode = this.preview): void {
   // Named by its item's own words (not its sub-items'): reached with
   // Tab, a box said only "checkbox".
-  for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+  for (const box of root.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
     const li = box.closest("li");
     if (li) {
       li.classList.add("task-item");
@@ -868,7 +953,7 @@ export function wireTasks(this: NoteLeaf): void {
     if (label) box.setAttribute("aria-label", label);
   }
   if (this.readOnly) return;
-  for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+  for (const box of root.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
     const line = Number(box.dataset["taskLine"]);
     if (!Number.isInteger(line) || line < 1) continue;
     box.disabled = false;
@@ -963,6 +1048,7 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
     void Promise.all(Array.from(known, async (target) => [target, await ask(target)] as const)).then((answers) => {
       if (this.path !== forPath || this.destroyed || !answers.some(([target, rel]) => rel !== found.get(target))) return;
       this.previewStale = true;
+      this.forcePaint = true;
       void this.paintPreview();
     });
   }
