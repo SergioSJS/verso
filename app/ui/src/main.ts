@@ -177,16 +177,13 @@ document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
   const pane = layout().focused ?? layout().panes()[0];
-  const leaf = layout().activeLeaf;
   switch (b.dataset["cmd"]) {
     case "new": void newUntitled(pane ?? paneToOpenIn()); break;
-    case "edit": if (leaf instanceof NoteLeaf) leaf.toggleMode(); break;
     case "split": if (pane) layout().split(pane, "row"); break;
     case "space": newSpace(); break;
     case "palette": paletteDialog.show(); break;
   }
 });
-el("keys-edit").textContent = t.keysEdit;
 el("keys-split").textContent = t.keysSplit;
 el("keys-space").textContent = t.keysSpace;
 /** The ribbon, once built (the toggles repaint it; they run before it exists). */
