@@ -122,7 +122,11 @@ fn roots_spelling_one_folder_differently_do_not_lose_each_others_writes() {
         std::thread::scope(|s| {
             for w in 0..4 {
                 let (accepted, ok) = (&accepted, &ok);
-                let dir = if w % 2 == 0 { real.clone() } else { alias.clone() };
+                let dir = if w % 2 == 0 {
+                    real.clone()
+                } else {
+                    alias.clone()
+                };
                 s.spawn(move || {
                     let mut root = Root::open(&dir, vec![]).unwrap();
                     let h = root.handle(Path::new("nota.md")).unwrap();

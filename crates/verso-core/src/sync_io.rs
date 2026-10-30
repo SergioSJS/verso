@@ -250,7 +250,9 @@ impl Workspace {
         };
         // The index follows what it knows, a note's text and a board's
         // links, read back once in place: notes and boards are text.
-        if is_note(&key) && stamp.as_ref().map_or(staged_len, |s| s.len) > crate::indexing::INDEX_MOST {
+        if is_note(&key)
+            && stamp.as_ref().map_or(staged_len, |s| s.len) > crate::indexing::INDEX_MOST
+        {
             // Past the cap (`INDEX_MOST`): synced as a file, never read
             // back and parsed here; a row of a smaller version goes.
             self.index.remove(&key).map_err(CoreError::Index)?;

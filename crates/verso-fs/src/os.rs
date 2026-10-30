@@ -290,7 +290,10 @@ mod tests {
         std::fs::write(&to, "theirs").unwrap();
         assert!(!rename_unless_changed(&from, &to, || false).unwrap());
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "theirs");
-        assert!(from.exists(), "the temporary file is the caller's to remove");
+        assert!(
+            from.exists(),
+            "the temporary file is the caller's to remove"
+        );
         assert!(rename_unless_changed(&from, &to, || true).unwrap());
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "ours");
     }

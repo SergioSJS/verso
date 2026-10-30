@@ -1151,7 +1151,11 @@ fn a_note_past_the_index_cap_is_not_indexed() {
 fn a_note_growing_past_the_cap_is_dropped_from_the_index_not_reported_gone() {
     let vault = tempfile::tempdir().unwrap();
     let config = tempfile::tempdir().unwrap();
-    std::fs::write(vault.path().join("cresce.md"), "# Cresce\n\npalavracresce\n").unwrap();
+    std::fs::write(
+        vault.path().join("cresce.md"),
+        "# Cresce\n\npalavracresce\n",
+    )
+    .unwrap();
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
     assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
@@ -1161,11 +1165,18 @@ fn a_note_growing_past_the_cap_is_dropped_from_the_index_not_reported_gone() {
     std::fs::write(vault.path().join("cresce.md"), &huge).unwrap();
     let r = ws.index().unwrap();
     assert!(r.gone.is_empty(), "the file exists: {r:?}");
-    assert!(ws.search("palavracresce", 10).unwrap().is_empty(), "row removed");
+    assert!(
+        ws.search("palavracresce", 10).unwrap().is_empty(),
+        "row removed"
+    );
     assert!(vault.path().join("cresce.md").exists());
 
     // Small again: indexed again, still never gone.
-    std::fs::write(vault.path().join("cresce.md"), "# Cresce\n\npalavracresce\n").unwrap();
+    std::fs::write(
+        vault.path().join("cresce.md"),
+        "# Cresce\n\npalavracresce\n",
+    )
+    .unwrap();
     let r = ws.index().unwrap();
     assert!(r.gone.is_empty(), "{r:?}");
     assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
