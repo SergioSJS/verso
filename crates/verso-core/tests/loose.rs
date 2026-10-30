@@ -93,6 +93,7 @@ fn the_note_is_read_with_its_headings_blocks_and_properties_and_written_back() {
 #[test]
 fn attachments_and_sibling_notes_are_reached_by_name_only() {
     let (_dir, mut loose) = loose();
+    loose.read("Lista.md").unwrap();
     assert_eq!(
         loose.resolve_attachment("foto.png|200"),
         Some("foto.png".to_owned())
@@ -178,4 +179,38 @@ fn a_sibling_in_a_subfolder_keeps_its_folder_in_its_path() {
     assert_eq!(deep.place(), "sub");
     assert_eq!(deep.read("Outra.md").unwrap().text, "# fundo\n");
     assert_ne!(deep.key(), loose.open_sibling("Outra").unwrap().key());
+}
+
+#[test]
+fn only_the_attachments_the_note_cites_are_served() {
+    let (dir, mut loose) = loose();
+    fs::write(dir.path().join("segredo.png"), b"SECRET").unwrap();
+    fs::create_dir(dir.path().join("fotos")).unwrap();
+    fs::write(dir.path().join("fotos/a b.png"), b"AB").unwrap();
+    // Nothing is served before the note was read.
+    assert!(loose.read_attachment("foto.png").is_err());
+    let note = loose.read("Lista.md").unwrap();
+    // Cited (`![[foto.png]]`): admitted and served; not cited: neither.
+    assert_eq!(loose.resolve_attachment("segredo.png"), None);
+    assert!(loose.read_attachment("segredo.png").is_err());
+    assert!(loose.read_attachment("fotos/a b.png").is_err());
+    assert_eq!(
+        loose.resolve_attachment("foto.png"),
+        Some("foto.png".into())
+    );
+    assert_eq!(loose.read_attachment("foto.png").unwrap(), b"\x89PNG");
+    // A text that cites a picture in a subfolder, as the renderer writes it.
+    let w = loose
+        .write("Lista.md", "![x](fotos/a%20b.png)\n", &note.revision)
+        .unwrap();
+    assert_eq!(
+        loose.resolve_attachment("fotos/a b.png"),
+        Some("fotos/a b.png".into())
+    );
+    assert_eq!(loose.read_attachment("fotos/a b.png").unwrap(), b"AB");
+    // The new text no longer cites foto.png: it is not served any more.
+    assert!(loose.read_attachment("foto.png").is_err());
+    // Rewriting without any citation forgets the rest.
+    loose.write("Lista.md", "nada\n", &w.note.revision).unwrap();
+    assert!(loose.read_attachment("fotos/a b.png").is_err());
 }

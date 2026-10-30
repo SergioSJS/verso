@@ -38,6 +38,30 @@ pub struct Loose {
     /// The file, absolute: for the host, which opens its parent as a
     /// folder on request (item 9); it never crosses the contract.
     path: PathBuf,
+    /// The text last read or written: what "cited" is judged against.
+    text: String,
+    /// The attachments the note's current text cites that were admitted:
+    /// the target as written -> the name relative to the parent. Only
+    /// these are served (ADR 0114 Q5); a new read or write forgets those
+    /// the new text no longer cites.
+    cited: std::collections::HashMap<String, String>,
+}
+
+/// Whether `text` cites `target`: as written, with spaces as `%20`, or
+/// percent-encoded the way the renderer writes an address.
+fn cites(text: &str, target: &str) -> bool {
+    if text.contains(target) || text.contains(&target.replace(' ', "%20")) {
+        return true;
+    }
+    let mut encoded = String::new();
+    for b in target.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~' | b'/') {
+            encoded.push(char::from(b));
+        } else {
+            encoded.push_str(&format!("%{b:02X}"));
+        }
+    }
+    text.contains(&encoded)
 }
 
 impl std::fmt::Debug for Loose {
@@ -52,7 +76,24 @@ impl Loose {
     pub fn open(path: &Path) -> Result<Self, CoreError> {
         let root = Root::open_file(path).map_err(CoreError::Folder)?;
         let path = std::path::absolute(path).map_err(CoreError::Folder)?;
-        Ok(Self { root, path })
+        Ok(Self::new(root, path))
+    }
+
+    fn new(root: Root, path: PathBuf) -> Self {
+        Self {
+            root,
+            path,
+            text: String::new(),
+            cited: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Remember `text` as the note's current text: an admitted attachment
+    /// it no longer cites is forgotten.
+    fn remember(&mut self, text: &str) {
+        text.clone_into(&mut self.text);
+        let text = &self.text;
+        self.cited.retain(|target, _| cites(text, target));
     }
 
     /// The file, absolute: the host's, never the window's (rule 4).
@@ -157,6 +198,7 @@ impl Loose {
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
+        self.remember(&text);
         Ok(Self::note_text(as_path, text, revision::encode(&stamp)))
     }
 
@@ -183,6 +225,7 @@ impl Loose {
                 _ => revision::impossible(),
             },
         };
+        self.remember(text);
         let mut warnings = report.warnings();
         if report.wrote_through_symlink_to.is_some() {
             warnings.push("written through a symlink".to_owned());
@@ -208,6 +251,7 @@ impl Loose {
                 _ => revision::impossible(),
             },
         };
+        self.remember(text);
         Ok(Written {
             note: Self::note_text(as_path, text.to_owned(), revision::encode(&stamp)),
             warnings: report.warnings(),
@@ -224,22 +268,27 @@ impl Loose {
             return None;
         }
         let relative = Path::new(target);
-        if !verso_fs::is_attachment_name(relative) {
+        if !verso_fs::is_attachment_name(relative) || !cites(&self.text, target) {
             return None;
         }
         let handle = self.root.handle(relative).ok()?;
         self.root.length_and_time(handle).ok()?;
-        Some(
-            self.root
-                .confine(relative)
-                .ok()?
-                .to_string_lossy()
-                .replace('\\', "/"),
-        )
+        let found = self
+            .root
+            .confine(relative)
+            .ok()?
+            .to_string_lossy()
+            .replace('\\', "/");
+        self.cited.insert(target.to_owned(), found.clone());
+        Some(found)
     }
 
-    /// The bytes of an attachment [`Loose::resolve_attachment`] admitted.
+    /// The bytes of an attachment [`Loose::resolve_attachment`] admitted and
+    /// the note's current text still cites; any other is refused.
     pub fn read_attachment(&mut self, relative: &str) -> Result<Vec<u8>, CoreError> {
+        if !self.cited.values().any(|c| c == relative) {
+            return Err(CoreError::Confined(verso_fs::ConfinementError::OutOfScope));
+        }
         let relative = Path::new(relative);
         if !verso_fs::is_attachment_name(relative) {
             return Err(CoreError::Confined(verso_fs::ConfinementError::OutOfScope));
@@ -282,7 +331,7 @@ impl Loose {
         // The path keeps the sub folders (`sub/outra.md`), not only the
         // scoped name: two files of one name in two folders stay two files.
         let path = std::path::absolute(self.parent().join(relative)).map_err(CoreError::Folder)?;
-        Ok(Self { root, path })
+        Ok(Self::new(root, path))
     }
 
     /// The links of the note, each resolved to a sibling note by one
