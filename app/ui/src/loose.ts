@@ -110,7 +110,11 @@ function enterLoose(): void {
     open.addEventListener("click", () => void openWholeFolder(false));
     bar.append(barName, barPlace, barKnown, open);
     document.querySelector(".work")?.prepend(bar);
-    document.getElementById("panes")?.addEventListener("focusin", paintBar);
+    const panes = document.getElementById("panes");
+    panes?.addEventListener("focusin", paintBar);
+    // A tab clicked, or a link followed: the active file changes after
+    // the click lands.
+    panes?.addEventListener("click", () => window.setTimeout(paintBar, 0));
   }
   bar.hidden = false;
 }
@@ -171,6 +175,7 @@ export async function openSiblingFrom(from: string, target: string): Promise<str
     return null;
   }
   files.set(r.data.name, r.data);
+  window.setTimeout(paintBar, 0);
   return r.data.name;
 }
 

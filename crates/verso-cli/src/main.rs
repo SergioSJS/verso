@@ -110,11 +110,15 @@ fn parse(args: &[OsString]) -> (Options, Result<Command, Msg>) {
     parse_with(args, names_a_directory)
 }
 
-/// Whether a path names an existing directory, asked of `verso-fs`: the
-/// one crate that touches the disk (ADR 0026 rule 5), whose `Root::open`
-/// is the entry edge where a path string is accepted. Nothing is read.
+/// Whether a path names something the app opens — an existing directory,
+/// or a Markdown file, opened without its folder (ADR 0114 item 8, the
+/// one-line revision of ADR 0042) — asked of `verso-fs`: the one crate
+/// that touches the disk (ADR 0026 rule 5), whose `Root::open` and
+/// `kind_of` are the entry edge where a path string is accepted. Nothing
+/// is read.
 fn names_a_directory(path: &Path) -> bool {
     verso_fs::Root::open(path, Vec::new()).is_ok()
+        || verso_fs::kind_of(path) == verso_fs::PathKind::MarkdownFile
 }
 
 /// [`parse`] with the disk stood in for: `is_dir` says whether a first
@@ -1270,11 +1274,24 @@ mod tests {
                 folder: dir.path().to_path_buf()
             }
         );
-        // A file is not a folder, and neither is a path to nowhere.
+        // A file that is not Markdown is not a folder, and neither is a
+        // path to nowhere; a `.md` file opens, without its folder (ADR
+        // 0114 item 8).
         let file = file.path().to_string_lossy().into_owned();
         assert_eq!(
             parse(&args(&[&file])).1.unwrap_err(),
             Msg::UnknownSubcommand(file)
+        );
+        let note = tempfile::Builder::new()
+            .prefix("Nota")
+            .suffix(".md")
+            .tempfile_in(dir.path())
+            .unwrap();
+        assert_eq!(
+            parse(&args(&[note.path().to_str().unwrap()])).1.unwrap(),
+            Command::Open {
+                folder: note.path().to_path_buf()
+            }
         );
         let missing = dir.path().join("nao-existe").to_string_lossy().into_owned();
         assert_eq!(
