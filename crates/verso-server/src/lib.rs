@@ -485,6 +485,8 @@ mod tests_mentions;
 #[cfg(test)]
 mod tests_night_access;
 #[cfg(test)]
+mod tests_night_ops;
+#[cfg(test)]
 mod tests_night_sync;
 #[cfg(test)]
 mod tests_offline;
