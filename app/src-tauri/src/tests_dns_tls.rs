@@ -111,6 +111,15 @@ fn the_certificate_is_checked_for_the_urls_name_not_for_the_address() {
     // A certificate that is not for the name fails the handshake, not the
     // TCP connection: the other address is still worth trying.
     assert!(!dns::tcp_level(&e));
+    release(port, server);
+}
+
+/// Wait for a one-shot server whose client may never have reached it: a
+/// connection of our own, closed at once, ends a wait in `accept` (the run
+/// hung there on Windows, 2026-10-30, only among the other tests), and a
+/// server already done finds nobody listening.
+fn release(port: u16, server: std::thread::JoinHandle<()>) {
+    drop(std::net::TcpStream::connect(("127.0.0.1", port)));
     let _ = server.join();
 }
 
@@ -237,7 +246,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_eq!(wrong.err().map(|e| e.kind), Some(ErrorKind::Unreachable));
-    let _ = server.join();
+    release(port, server);
 
     // The server's own 401 over wss: "sign in again", the dial ends.
     let (l, port) = bind();
@@ -251,7 +260,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_eq!(refused.err().map(|e| e.kind), Some(ErrorKind::Refused));
-    let _ = server.join();
+    release(port, server);
 
     // Over ws://, the JSON the server writes is the server's 401 …
     let (l, port) = bind();
@@ -265,7 +274,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_eq!(refused.err().map(|e| e.kind), Some(ErrorKind::Refused));
-    let _ = server.join();
+    release(port, server);
 
     // … but a router's basic-auth page is not: no "sign in again", and the
     // address is passed over, not remembered.
@@ -280,7 +289,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_ne!(router.err().map(|e| e.kind), Some(ErrorKind::Refused));
-    let _ = server.join();
+    release(port, server);
 
     // … nor is a JSON 401 from something else that happens to say `error`.
     let (l, port) = bind();
@@ -294,7 +303,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_ne!(nas.err().map(|e| e.kind), Some(ErrorKind::Refused));
-    let _ = server.join();
+    release(port, server);
 
     // The server's 401 is known by its header even when the body has not
     // arrived by the time the headers are read.
@@ -318,7 +327,7 @@ async fn ws_open_cases() {
     )
     .await;
     assert_eq!(late.err().map(|e| e.kind), Some(ErrorKind::Refused));
-    let _ = server.join();
+    release(port, server);
 }
 
 /// A TLS handshake that fails at the first address (a certificate for another
