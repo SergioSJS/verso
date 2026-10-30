@@ -1143,3 +1143,30 @@ fn a_note_past_the_index_cap_is_not_indexed() {
     ws.index().unwrap();
     assert!(ws.search("palavratroca", 10).unwrap().is_empty());
 }
+
+/// A note that grows past the cap between two full walks is still on the
+/// disk: its row goes, but it is not reported gone (the history would record
+/// a deletion of a file that exists, and clients would be told `removed`).
+#[test]
+fn a_note_growing_past_the_cap_is_dropped_from_the_index_not_reported_gone() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    std::fs::write(vault.path().join("cresce.md"), "# Cresce\n\npalavracresce\n").unwrap();
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
+
+    let mut huge = b"palavracresce ".to_vec();
+    huge.resize(17 * 1024 * 1024, b'y');
+    std::fs::write(vault.path().join("cresce.md"), &huge).unwrap();
+    let r = ws.index().unwrap();
+    assert!(r.gone.is_empty(), "the file exists: {r:?}");
+    assert!(ws.search("palavracresce", 10).unwrap().is_empty(), "row removed");
+    assert!(vault.path().join("cresce.md").exists());
+
+    // Small again: indexed again, still never gone.
+    std::fs::write(vault.path().join("cresce.md"), "# Cresce\n\npalavracresce\n").unwrap();
+    let r = ws.index().unwrap();
+    assert!(r.gone.is_empty(), "{r:?}");
+    assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
+}
