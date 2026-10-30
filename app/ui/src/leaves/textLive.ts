@@ -20,7 +20,7 @@ import { layout } from "../layout/spaces";
 import { opening } from "../opening";
 import type { LiveHolder } from "../roomWrites";
 import { ui } from "../dom";
-import { paintWho } from "./liveWho";
+import { paintMark, paintWho } from "./liveWho";
 import { presenceHeard } from "../notify/sources";
 import { bar, say } from "./note/live";
 import type { TextLeaf } from "./textfile";
@@ -100,8 +100,7 @@ export function paintLive(this: TextLeaf): void {
   const st = this.liveState();
   const line = st ? liveLine(st, lang()) : "";
   this.liveMark.hidden = !st;
-  this.liveMark.textContent = line;
-  this.liveMark.dataset["live"] = st?.kind ?? "";
+  paintMark(this.liveMark, line, st?.kind ?? "");
   paintWho(this, this.liveMark, st?.kind === "live" ? st.others : []);
   if (this.pane.active !== this || layout().focused !== this.pane) return;
   const b = bar();
