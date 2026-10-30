@@ -8,6 +8,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, embeddedBase, liveBases } from "../../bases";
 import { BaseView, type BaseSource } from "../../bases/view";
 import { commands } from "../../bindings";
+import { posAt } from "../../editor/posAt";
 import { type CardEditing } from "../../board/types";
 import { button, h, ui } from "../../dom";
 import { allEntries, webNotes } from "../../folder";
@@ -892,7 +893,7 @@ export function insertReference(this: NoteLeaf, path: string, x: number, y: numb
     }
     this.setMode("live");
   }
-  const pos = this.editor.posAtCoords({ x, y }) ?? fallbackPos ?? this.editor.state.doc.length;
+  const pos = posAt(this.editor, { x, y }) ?? fallbackPos ?? this.editor.state.doc.length;
   this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length }, scrollIntoView: true });
   this.editor.focus();
 }

@@ -22,6 +22,7 @@ import { promptText } from "../dialog";
 import { h, ui } from "../dom";
 import { minimalEdit } from "../edit";
 import { completeMarkdown } from "../editor/complete";
+import { posAt } from "../editor/posAt";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
 import { freeName, readable, textBase64 } from "../files";
@@ -1001,7 +1002,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
       void ready.then(() => {
         if (!view || gone) return;
         view.focus();
-        const at = view.posAtCoords({ x, y });
+        const at = posAt(view, { x, y });
         view.dispatch({ selection: { anchor: at ?? view.state.doc.length } });
       });
     },
