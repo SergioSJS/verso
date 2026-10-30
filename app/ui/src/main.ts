@@ -49,6 +49,7 @@ import { installServerTable } from "./table/join";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
+import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
@@ -204,26 +205,19 @@ document.addEventListener("dragover", (e) => {
   folder?.classList.add("drop");
 });
 document.addEventListener("dragleave", () => clearDropHints());
-document.addEventListener("drop", (e) => {
-  e.preventDefault();
-  const files = e.dataTransfer?.files ?? null;
-  if (!files || files.length === 0) return;
-  // A theme file dropped anywhere on the window (ADR 0100 item 6).
-  const theme = [...files].find((f) => f.name.toLowerCase().endsWith(".verso-theme"));
-  if (theme) {
-    void importFile(theme);
-    return;
-  }
-  const at = e.target as HTMLElement;
-  if (at.closest(".side")) {
-    void copyFilesInto(at.closest<HTMLElement>("[data-folder]")?.dataset["folder"] ?? "", files);
-    return;
-  }
-  const leafEl = at.closest<HTMLElement>(".leaf");
-  const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
-  if (leaf instanceof NoteLeaf) leaf.takeFiles(files, e);
-  else ui.status.textContent = t.pasteHint;
-});
+document.addEventListener("drop", (e) =>
+  windowDrop(e, {
+    // A theme file dropped anywhere on the window (ADR 0100 item 6).
+    theme: (file) => void importFile(file),
+    folder: (folder, files) => void copyFilesInto(folder, files),
+    leaf: (leafEl, files) => {
+      const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+      if (!(leaf instanceof NoteLeaf)) return "none";
+      return leaf.takeFiles(files, e);
+    },
+    hint: () => void (ui.status.textContent = t.pasteHint),
+  }),
+);
 
 /* A link never takes the app's own page anywhere — the page holds every
  * open tab. A web address opens in the app's browser window; anything
