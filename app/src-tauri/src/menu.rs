@@ -109,8 +109,8 @@ pub(crate) fn page_edit(command: &str) -> String {
 /// The window that has the focus, if one of the app's has it. Every
 /// window, not only the `WebviewWindow`s: one that shows a site inside it
 /// holds child web views and is no longer counted as one, and the menu
-/// went deaf in it — no ⌘W, ⌘Z or console.
-#[cfg(target_os = "macos")]
+/// went deaf in it — no ⌘W, ⌘Z or console. The loose-files routing asks it
+/// on every system (ADR 0114).
 pub(crate) fn focused_window<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<tauri::Window<R>> {
