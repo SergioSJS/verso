@@ -382,6 +382,13 @@ pub struct Known {
     /// Path → version, in step with `files`.
     pub versions: BTreeMap<String, String>,
     pub cursor: Option<String>,
+    /// What the feed said was renamed since this picture began: the name
+    /// there now → the name it had before the first of its renames (a
+    /// chain followed back). A plan follows these as renames, whatever the
+    /// bytes did since ([`super::plan_moved`]; ADR 0079, decided
+    /// 2026-10-31); a full listing knows none. [`Known::settle`] lets go of
+    /// those the base no longer needs.
+    pub moved: BTreeMap<String, String>,
 }
 
 impl Known {
@@ -436,6 +443,37 @@ impl Known {
     pub fn remove(&mut self, path: &str) -> Option<(FileState, Option<String>)> {
         let version = self.versions.remove(path);
         self.files.remove(path).map(|f| (f, version))
+    }
+
+    /// The renames a pass has carried out, or no longer can, let go: kept
+    /// only while the base still knows the old name (under either Unicode
+    /// form, spec Q7) and not the new one.
+    pub fn settle(&mut self, base: &BTreeMap<String, String>) {
+        let knows = |p: &str| {
+            base.contains_key(p) || {
+                let name = super::folded_form(p);
+                base.keys().any(|k| super::folded_form(k) == name)
+            }
+        };
+        self.moved.retain(|to, from| knows(from) && !knows(to));
+    }
+
+    /// A rename the feed told: `to` holds what was `from`, and what `from`
+    /// had been renamed from before, if anything — in `moved`, or set
+    /// aside by the deletion the log writes just before a rename's new name
+    /// (`gone`).
+    fn renamed(&mut self, from: &str, to: &str, gone: &mut BTreeMap<String, String>) {
+        let origin = self
+            .moved
+            .remove(from)
+            .or_else(|| gone.remove(from))
+            .unwrap_or_else(|| from.to_owned());
+        if origin == to {
+            // Renamed back: no rename left.
+            self.moved.remove(to);
+        } else {
+            self.moved.insert(to.to_owned(), origin);
+        }
     }
 }
 
@@ -513,11 +551,20 @@ pub fn refresh(
             device: entry.device.clone(),
         })
     };
+    // Renamed names gone in this listing, until a rename takes them on.
+    let mut gone: BTreeMap<String, String> = BTreeMap::new();
     for change in &listing.changes {
         match change {
             Change::Present(entry) => named.push(learn(entry, &mut next)?),
             Change::Gone { path, by, device } => {
                 next.remove(path);
+                // What a rename brought here is gone again — unless it is
+                // renamed on (the log writes a rename as the old name's
+                // deletion, then the new name's file): set aside until the
+                // listing's end.
+                if let Some(origin) = next.moved.remove(path) {
+                    gone.insert(path.clone(), origin);
+                }
                 named.push(Who {
                     path: path.clone(),
                     by: by.clone(),
@@ -526,6 +573,7 @@ pub fn refresh(
             }
             Change::Renamed { from, entry } => {
                 next.remove(from);
+                next.renamed(from, &entry.path, &mut gone);
                 named.push(learn(entry, &mut next)?);
             }
         }

@@ -121,6 +121,35 @@ pub(super) fn held_refused(h: &engine::Held) -> SyncRefused {
 /// with no batch of the watcher to say so (C13, C17) — brings the listing
 /// up to date now, as that batch would, so the pass asked for at once
 /// sees the folder as it is, not the file once more (F22).
+/// A file moved here by sync: the windows of the folder hear where it
+/// went, as after a rename made in the window, so that a tab of it follows
+/// it (`changes.ts`, `moved`) instead of finding its file gone — a rename
+/// made on the server arrives as one (ADR 0079, decided 2026-10-31).
+fn moved_here(ctx: &Ctx, s: &Syncer, from: &str, to: &str) {
+    let windows = ctx.service.clients_of(&s.key);
+    let Some(index) = windows
+        .first()
+        .and_then(|w| ctx.service.current_folder(w))
+        .map(|f| f.index)
+    else {
+        return;
+    };
+    let changed = verso_contract::FolderChanged {
+        key: s.key.clone(),
+        changed: vec![to.to_owned()],
+        removed: vec![from.to_owned()],
+        moved: vec![verso_contract::Moved {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        }],
+        listing: true,
+        index,
+    };
+    if let Ok(payload) = serde_json::to_value(&changed) {
+        (ctx.told)(&windows, "folder-changed", &payload);
+    }
+}
+
 fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
     match e.kind {
         ErrorKind::NotFound => {
@@ -680,6 +709,7 @@ impl Side<'_> {
                 }
                 state.seen.remove(from);
                 s.crossed(ctx, "renamed_here", to, Some(from));
+                moved_here(ctx, s, from, to);
             }
             Action::Conflict { path, copy, .. } => {
                 // The server's version first: it takes the name, or, when
