@@ -23,8 +23,10 @@ import { t } from "./strings";
 
 type Frame = "mac" | "windows";
 
-/** The bars of the top row that may reach the reserved corner. */
-const BARS = ".ribbon, .side-head, .spaces, .tabs, .right-tabs";
+/** The bars of the top row that may reach the reserved corner: in the
+ *  window of a file opened without its folder (ADR 0114), the bar above
+ *  the tabs is that row. */
+const BARS = ".ribbon, .side-head, .spaces, .tabs, .right-tabs, .loose-bar";
 /** How far down the corner goes: the top row's height (2.45rem — a pane's
  *  tab bar, or the spaces bar when there are two workspaces, given the same
  *  height when framed — which follows the font size of the settings), where

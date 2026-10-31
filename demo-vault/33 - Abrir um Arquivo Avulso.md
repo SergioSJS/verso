@@ -22,7 +22,7 @@ Um `.md` na pasta Downloads, na Mesa, anexado a uma mensagem: dois cliques, leia
 
 Se o arquivo está **dentro de uma pasta que uma janela já mostra**, ele abre como aba daquela janela. Senão, abre na janela de arquivos avulsos — uma só por app; cada arquivo vira uma aba, e a faixa acima das abas mostra o nome do arquivo e a pasta onde ele está.
 
-Se ele está dentro de uma pasta que você **já abriu antes** no Verso, a faixa diz isso e oferece **Abrir a pasta**.
+Se ele está dentro de uma pasta que você **já abriu antes** no Verso, a faixa ganha um botão com o nome dela — **Abrir “Notas”**, por exemplo — que abre essa pasta sem perguntar de novo. Quando essa pasta é a própria pasta do arquivo, é o único botão.
 
 ## O que a janela faz e não faz
 
@@ -36,7 +36,7 @@ Se ele está dentro de uma pasta que você **já abriu antes** no Verso, a faixa
 
 ## Voltar para a pasta
 
-A faixa tem **Abrir a pasta inteira no Verso**: depois de uma confirmação que diz o nome da pasta, ela abre como uma pasta normal — indexada, com árvore, busca, links e tudo o mais — numa janela sua. É a única porta de volta, e está sempre à vista.
+A faixa tem **Abrir a pasta inteira**: depois de uma confirmação que diz o nome da pasta, ela abre como uma pasta normal — indexada, com árvore, busca, links e tudo o mais — numa janela sua. É a porta de volta, e está sempre à vista, numa linha só, mesmo com a janela estreita (os nomes longos encurtam com reticências). A faixa é a linha de cima da janela: no macOS ela começa depois dos três botões da janela, e arrastá-la move a janela. Como a janela tem um arquivo só, ela não mostra o caminho de pastas acima da nota, nem dividir, nem histórico de versões.
 
 ## Fazer do Verso o app padrão de `.md`
 

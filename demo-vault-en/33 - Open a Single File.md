@@ -22,7 +22,7 @@ An `.md` in Downloads, on the Desktop, attached to a message: double-click, read
 
 If the file lies **inside a folder a window already shows**, it opens as a tab of that window. Otherwise it opens in the loose-files window — one per app; each file is a tab, and the bar above the tabs names the file and the folder it sits in.
 
-If it lies inside a folder you **have opened before** in Verso, the bar says so and offers **Open the folder**.
+If it lies inside a folder you **have opened before** in Verso, the bar gains a button named after that folder — **Open “Notes”**, say — which opens it without asking again. When that folder is the file's own, it is the only button.
 
 ## What the window does and does not do
 
@@ -36,7 +36,7 @@ If it lies inside a folder you **have opened before** in Verso, the bar says so 
 
 ## Back to the folder
 
-The bar has **Open the whole folder in Verso**: after a confirmation that names the folder, it opens as a normal folder — indexed, with the tree, search, links and all the rest — in a window of its own. It is the one way back, and it is always in view.
+The bar has **Open the whole folder**: after a confirmation that names the folder, it opens as a normal folder — indexed, with the tree, search, links and all the rest — in a window of its own. It is the way back, and it is always in view, on one line even in a narrow window (long names shorten with an ellipsis). The bar is the window's top row: on macOS it starts after the window's three buttons, and dragging it moves the window. As the window holds one file, it shows no folder path above the note, no split and no version history.
 
 ## Making Verso the default app for `.md`
 

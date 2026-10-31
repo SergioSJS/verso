@@ -6,7 +6,8 @@
 // or more Markdown files opened without a folder, each a tab named by its
 // file name, with no tree, no search, no graph, no bin — the capabilities
 // say the side cannot (ADR 0027), and `cannot-*` classes hide the parts —
-// and one visible way back, "Open the whole folder in Verso". Every path
+// and one visible way back, "Open the whole folder", on the bar that is the
+// window's top row (kept clear of the window's buttons, frame.ts). Every path
 // stays on the host: the window knows a name, a key and a place label.
 
 import { commands, type ContractError, type FolderChanged, type LooseFileInfo, type Opened } from "./bindings";
@@ -19,6 +20,7 @@ import { currentFolder, setCurrentFolder, setFolderName } from "./folder";
 import { icon } from "./icons";
 import { layout, newSpace, openNote, setCurrent, spaces } from "./layout/spaces";
 import { ls } from "./looseStrings";
+import { refreshFrame } from "./frame";
 import { flash } from "./notify";
 import { openFolderBy, showFolder } from "./open";
 import { page } from "./settings";
@@ -31,7 +33,8 @@ const files = new Map<string, LooseFileInfo>();
 let bar: HTMLElement | null = null;
 let barName: HTMLElement | null = null;
 let barPlace: HTMLElement | null = null;
-let barKnown: HTMLElement | null = null;
+let barKnown: HTMLButtonElement | null = null;
+let barWhole: HTMLButtonElement | null = null;
 
 /** Whether this window is the loose-files window. */
 export function isLoose(): boolean {
@@ -87,10 +90,6 @@ export async function showLooseFile(info: LooseFileInfo): Promise<void> {
   openNote(info.name, false);
   paintBar();
   document.title = `${info.name} — Verso`;
-  if (info.known_folder) {
-    // One line, not a dialog: the person asked for the file (Q3).
-    offerKnown(info);
-  }
 }
 
 function enterLoose(): void {
@@ -105,26 +104,41 @@ function enterLoose(): void {
   setCurrent(null);
   newSpace();
   dispatchEvent(new Event("verso:folder-shown"));
-  if (!bar) {
-    bar = h("div", "loose-bar");
-    bar.setAttribute("role", "region");
-    bar.setAttribute("aria-label", ls.bar);
-    bar.append(icon("file", ls.bar));
-    barName = h("span", "loose-name");
-    barPlace = h("span", "loose-place");
-    barKnown = h("span", "loose-known");
-    barKnown.hidden = true;
-    const open = button("ghost loose-open-folder", ls.openWhole);
-    open.addEventListener("click", () => void openWholeFolder(false));
-    bar.append(barName, barPlace, barKnown, open);
-    document.querySelector(".work")?.prepend(bar);
-    const panes = document.getElementById("panes");
-    panes?.addEventListener("focusin", paintBar);
-    // A tab clicked, or a link followed: the active file changes after
-    // the click lands.
-    panes?.addEventListener("click", () => window.setTimeout(paintBar, 0));
-  }
+  if (!bar) bar = makeBar();
   bar.hidden = false;
+  // The bar is the window's top row: kept clear of the window's buttons
+  // and dragging the window, as a folder window's tab bar is (frame.ts).
+  refreshFrame();
+}
+
+/** The bar above the tabs, the window's top row: the file's name and its
+ *  folder, then the way back — one button, or two when a folder opened
+ *  before holds the file and is not the file's own folder. One line that
+ *  never wraps: the names give way first, with an ellipsis; the buttons
+ *  stay, their whole words in their names and tooltips. */
+function makeBar(): HTMLElement {
+  const el = h("div", "loose-bar");
+  el.setAttribute("role", "region");
+  el.setAttribute("aria-label", ls.bar);
+  const id = h("span", "loose-id");
+  barName = h("span", "loose-name");
+  barPlace = h("span", "loose-place");
+  id.append(icon("note"), barName, barPlace);
+  barKnown = button("ghost loose-known", "");
+  barKnown.hidden = true;
+  barKnown.addEventListener("click", () => void openWholeFolder(true));
+  // Its words, and a folder for a narrow window beside the other button.
+  barWhole = button("ghost loose-open-folder", ls.openWhole, "folderOpen");
+  barWhole.append(h("span", "loose-label", ls.openWhole));
+  barWhole.addEventListener("click", () => void openWholeFolder(false));
+  el.append(id, barKnown, barWhole);
+  document.querySelector(".work")?.prepend(el);
+  const panes = document.getElementById("panes");
+  panes?.addEventListener("focusin", paintBar);
+  // A tab clicked, or a link followed: the active file changes after
+  // the click lands.
+  panes?.addEventListener("click", () => window.setTimeout(paintBar, 0));
+  return el;
 }
 
 /** The window shows a folder now (a folder handed, or picked): the loose
@@ -135,26 +149,30 @@ export function leaveLoose(): void {
   if (bar) bar.hidden = true;
   ui.search.disabled = false;
   dispatchEvent(new Event("verso:folder-shown"));
+  refreshFrame();
 }
 
-/** The bar names the active file and where it sits (item 9). */
+/** The bar names the active file and where it sits (item 9), and offers
+ *  a folder opened before that holds it (item 7 ii, Q3) as one button
+ *  named after that folder. When that folder bears the name of the file's
+ *  own folder it is that folder, and the one button is the way back. */
 function paintBar(): void {
-  if (!bar || !barName || !barPlace) return;
+  if (!bar || !barName || !barPlace || !barKnown || !barWhole) return;
   const active = layout().activeLeaf?.path ?? [...files.keys()][0] ?? "";
   const info = files.get(active) ?? [...files.values()][0];
   if (!info) return;
-  barName.textContent = info.name;
-  barPlace.textContent = ls.in(info.place);
-}
-
-function offerKnown(info: LooseFileInfo): void {
-  if (!barKnown || !info.known_folder) return;
-  const folder = info.known_folder;
-  barKnown.replaceChildren(h("span", "", ls.knownFolder(folder)));
-  const open = button("ghost", ls.knownOpen);
-  open.addEventListener("click", () => void openWholeFolder(true, info.name));
-  barKnown.append(open);
-  barKnown.hidden = false;
+  barName.textContent = barName.title = info.name;
+  barPlace.textContent = barPlace.title = ls.in(info.place);
+  const known = info.known_folder ?? null;
+  barKnown.hidden = known === null;
+  if (known !== null) {
+    barKnown.textContent = ls.knownOpen(known);
+    barKnown.title = ls.knownOpenDesc(known);
+    barKnown.setAttribute("aria-label", ls.knownOpenDesc(known));
+  }
+  barWhole.hidden = known !== null && known === info.place;
+  barWhole.title = ls.openWholeDesc(info.place);
+  barWhole.setAttribute("aria-label", ls.openWholeDesc(info.place));
 }
 
 /** "Open the whole folder in Verso" (item 9): a confirmation that names

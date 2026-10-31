@@ -14,6 +14,7 @@
 
 import { commands, type ContractError, type HistoryListing, type VersionAuthor, type VersionEntry } from "../bindings";
 import { may } from "../access";
+import { can } from "../can";
 import { afterFileChange } from "../changes";
 import { ask } from "../dialog";
 import { diffLines, diffNode } from "../diff";
@@ -27,9 +28,10 @@ import { asDialog, closed, opened } from "./a11y";
 import { historyStrings } from "./historyStrings";
 
 
-/** Whether this window may open a file's history now. */
+/** Whether this window may open a file's history now: the side keeps
+ *  history (not a file opened without its folder, ADR 0114 item 25). */
 export function historyFor(path: string | null | undefined): path is string {
-  return Boolean(path) && may(path as string, "edit") && hasHistory(path as string);
+  return Boolean(path) && can("history") && may(path as string, "edit") && hasHistory(path as string);
 }
 
 function size(bytes: number): string {
