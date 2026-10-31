@@ -24,7 +24,9 @@ export type Action =
   | "createBoard"
   | "rename"
   | "delete"
-  | "move";
+  | "move"
+  /** The folder's bin: seen and restored from by anyone who may change the folder (ADR 0080 item 7) — not a delete. */
+  | "trash";
 
 /** What the window knows besides the server's answers. */
 export type Ctx = {
@@ -46,9 +48,14 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
   const master = ctx.folder?.seat === "master";
   // A player of a table never deletes nor moves (ADR 0113 K.5).
   const table = ctx.folder?.table === true;
+  // Only the folder's owner deletes, outside a table too (ADR 0113 section
+  // B, amended 2026-10-31: "apenas o dono da pasta pode apagar"); a folder of
+  // this computer alone (no server's model) is the person's own.
+  const owner = ctx.folder === null || master;
   if (!file) {
     // A path no answer carried: the whole folder's own, which the game
     // master (or a folder with no table) writes by the side's capability.
+    if (action === "delete") return owner && ctx.canWrite;
     return (ctx.folder === null || !table || master) && ctx.canWrite;
   }
   switch (action) {
@@ -68,7 +75,9 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
     case "attachImage":
       return file.attach_image ?? false;
     case "delete":
+      return file.level === "edit" && owner;
     case "move":
+    case "trash":
       return file.level === "edit" && (!table || master);
   }
 }

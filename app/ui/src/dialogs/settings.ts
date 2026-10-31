@@ -176,7 +176,7 @@ export class SettingsDialog {
       { id: "files", label: t.sFiles, icon: "folder", category: "editor" },
       { id: "organizing", label: t.sOrganizing, icon: "folder", category: "editor" },
       ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar", category: "editor" as const }] : []),
-      ...(currentFolder && may("", "delete") ? [{ id: "trash", label: trashStrings().section, icon: "trash", category: "editor" as const }] : []),
+      ...(currentFolder && may("", "trash") ? [{ id: "trash", label: trashStrings().section, icon: "trash", category: "editor" as const }] : []),
       { id: "board", label: boardText.sBoard, icon: "board", category: "editor" },
 
       // 3. RPG & Mesa Solo / RPG & Solo Play
@@ -609,7 +609,7 @@ export class SettingsDialog {
     }
     // The trash beside the folder's space, not counted in it (ADR 0080
     // items 4 and 8), and the way into it.
-    if (currentFolder && may("", "delete")) {
+    if (currentFolder && may("", "trash")) {
       add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
     }
     // How long this computer keeps versions (ADR 0091 item 8): the
@@ -855,7 +855,7 @@ export class SettingsDialog {
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders")) out.push({ section: "localserver", title: localStrings().title, desc: "", node: () => localServerBody((a, b, c) => this.item(a, b, c)) });
-    if (currentFolder && may("", "delete")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
+    if (currentFolder && may("", "trash")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     if (this.offlineHere()) out.push({ section: "sync", title: offlineWords().title, desc: offlineWords().desc, node: () => offlineBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => cliControl(this.ctx()));
