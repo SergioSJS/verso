@@ -48,6 +48,11 @@ Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed pack
 - **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
 
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
+### The tree's folder row with a mouse, and a note above 16 MiB (B15, B7, 2026-10-31)
+
+- [ ] **The folder button, by hand** (A): on the installed app with a mouse, a click on a folder's name opens/closes it; the small folder button at the row's end appears on hover, opens the folder's page, and appears when reached with Tab; it looks right on every theme (contrast of the faint icon).
+- [ ] **A real 17 MiB note** (A): in an opened folder, the notice shows above the text; search does not find a word inside it; the app stays responsive while it opens.
+
 ### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
 
 - [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.

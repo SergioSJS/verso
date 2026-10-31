@@ -8,7 +8,7 @@ import { MAC, WINDOWS } from "./platform";
 
 /* ---------- Strings ---------- */
 export type Strings = Record<
-  | "open" | "reindex" | "search" | "clearSearch" | "stickerSearch" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
+  | "open" | "reindex" | "search" | "clearSearch" | "stickerSearch" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "pastIndex" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists"
   | "keepBoth" | "conflictPendingBoth" | "thisComputer" | "saveAgain" | "closeWithoutSaving" | "goneUnsaved" | "goneUnsavedElsewhere" | "gonePending" | "planRetryNothing"
@@ -146,7 +146,7 @@ export type Strings = Record<
 export const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", clearSearch: "Limpar a busca", stickerSearch: "Buscar figurinhas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
-  unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
+  unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", pastIndex: "Esta nota passa de 16 MiB e fica fora do índice: a busca e os backlinks não a veem (ela continua sincronizando como arquivo).", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
   scanningVault: "Escaneando arquivos…",
   indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
   indexingUncounted: (file) => `Indexando…${file ? ` · ${file}` : ""}`,
@@ -335,7 +335,7 @@ export const pt: Strings = {
 export const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", clearSearch: "Clear the search", stickerSearch: "Search stickers", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
-  unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
+  unverified: "Last known version: the file was a placeholder when indexed.", pastIndex: "This note is over 16 MiB and stays out of the index: search and backlinks do not see it (it still syncs as a file).", noNotes: "Empty folder.", line: "line", error: "Error",
   scanningVault: "Scanning files…",
   indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
   indexingUncounted: (file) => `Indexing…${file ? ` · ${file}` : ""}`,
