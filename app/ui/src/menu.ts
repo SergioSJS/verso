@@ -42,6 +42,8 @@ import { hasCapability } from "./capabilities";
 import { showWorldWizard } from "./dialogs/worldWizard";
 import { listAll } from "./tree/tree";
 import { clearSelection, enterSelectMode } from "./tree/selection";
+import { openTerminal, terminalOn } from "./terminal/open";
+import { tw } from "./terminal/strings";
 
 export function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
@@ -58,7 +60,11 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
   // The first list holds what is used most; the rest sits in groups, as
   // submenus (2026-10-21: the file menu had thirty loose rows).
   const items: MenuItem[] = folder
-    ? [[t.openFolderPage, () => openFolder(path), "folderOpen"]]
+    ? [
+        [t.openFolderPage, () => openFolder(path), "folderOpen"],
+        // A terminal started in this folder (ADR 0115 item 9, Q2).
+        ...(terminalOn() ? [[tw.here, () => void openTerminal(path), "terminal"] as MenuItem] : []),
+      ]
     : [
         [st.open, () => openNote(path, false), "note"],
         [t.openInNewTab, () => openNote(path, false, true), "tab"],

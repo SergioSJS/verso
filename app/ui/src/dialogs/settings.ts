@@ -60,6 +60,7 @@ import { agentVisibleControl, cliControl, mcpArgs, mcpControl, snippet } from ".
 import { wireFrame } from "./settings/frame";
 import { fs } from "../featureStrings";
 import { featureItems, offNotice } from "./settings/featureItems";
+import { terminalItems } from "../terminal/settingsItems";
 import { oracleItems } from "./settings/oracleItems";
 import { statblockItems } from "./settings/statblockItems";
 import { creditsItems } from "./settings/creditsItems";
@@ -189,7 +190,7 @@ export class SettingsDialog {
       ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe", category: "system" as const }] : []),
-      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
+      ...(can("agents") || can("terminal") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
     ];
   }
@@ -876,8 +877,11 @@ export class SettingsDialog {
       add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => snippet(code("verso", guess), (st) => code(st.command, st.server)));
       add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
-    // The command line and the agents only where the side has them.
-    return can("agents") ? out : out.filter((o) => o.section !== "cli");
+    // The command line and the agents only where the side has them; the
+    // terminal where it has one (ADR 0115 item 6: a server's folder too).
+    const kept = can("agents") ? out : out.filter((o) => o.section !== "cli");
+    if (can("terminal")) kept.push(...terminalItems(this.ctx(), () => this.hide()));
+    return kept;
   }
   private hotkeyControl(id: string, label: string): HTMLElement {
     const wrap = h("span", "hotkey");

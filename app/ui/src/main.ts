@@ -49,6 +49,7 @@ import { installSources } from "./notify/sources";
 import { installServerTable } from "./table/join";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
+import { mayEndTerminals, pushSwitch } from "./terminal/open";
 import { copyFilesInto, newUntitled } from "./files";
 import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
@@ -287,6 +288,8 @@ const repaintNotes = (): void => {
   }
 };
 window.addEventListener("verso:features-changed", repaintNotes);
+// The terminal's switch (ADR 0115 item 7): the host is told; off, its tabs close.
+window.addEventListener("verso:features-changed", () => void pushSwitch());
 // "Data diagram" switched (ADR 0106 item 12): the open tabs follow at once.
 window.addEventListener("verso:features-changed", () => {
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of [...p.leaves]) syncDataView(l);
@@ -591,6 +594,8 @@ window.addEventListener("focus", () => {
  * cannot be saved (a conflict waiting, a write refused) keeps the window
  * open unless the user says to let it go. */
 void getCurrentWindow().onCloseRequested(async (e) => {
+  // A terminal running a program is asked about first (ADR 0115 item 13).
+  if (!(await mayEndTerminals())) return e.preventDefault();
   const all = spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves));
   const unsaved = await flushed(all);
   if (unsaved.length === 0) return;
@@ -602,6 +607,7 @@ void getCurrentWindow().onCloseRequested(async (e) => {
  * window to save first. This one saves its tabs and closes itself — or
  * stays, when text could not be saved and the user keeps it. */
 void listen("quit-requested", async () => {
+  if (!(await mayEndTerminals())) return;
   const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
   if (unsaved.length > 0) {
     const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
@@ -758,6 +764,12 @@ export function runEditCommand(command: string): void {
   // entered again, ADR 0057) nor a change that came from the disk.
   const cm = active instanceof HTMLElement ? active.closest<HTMLElement>(".cm-editor") : null;
   const view = cm ? EditorView.findFromDOM(cm) : null;
+  // A terminal has no undo; Select All selects what it shows (ADR 0115).
+  const terminal = layout().activeLeaf;
+  if (terminal?.kind === "terminal" && active instanceof HTMLElement && terminal.el.contains(active)) {
+    if (command === "select-all") (terminal as unknown as { selectAll(): void }).selectAll();
+    return;
+  }
   if (view) {
     (command === "undo" ? undo : command === "redo" ? redo : selectAll)(view);
     return;
@@ -812,7 +824,9 @@ export const started: Promise<void> = (async () => {
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
-  await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
+  // The host knows the terminal's switch before a restored tab asks for one.
+  const terminalPushed = loadCan().then(() => pushSwitch());
+  await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed, terminalPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

@@ -103,10 +103,11 @@ describe("Features switches (ADR 0103)", () => {
     invoked.length = 0;
   });
 
-  test("by default every feature is on, but the 3D dice (ADR 0101 item 7)", () => {
-    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), id !== "dice3d", id);
+  test("by default every feature is on, but the 3D dice (ADR 0101 item 7) and the terminal (ADR 0115 Q5)", () => {
+    const off = (id) => id === "dice3d" || id === "terminal";
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), !off(id), id);
     m.settings.features = undefined;
-    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), id !== "dice3d", `${id} with nothing stored`);
+    for (const id of FEATURE_IDS) assert.equal(hasCapability(id), !off(id), `${id} with nothing stored`);
     assert.equal(hasCapability("not-a-feature"), true);
   });
 
@@ -121,8 +122,8 @@ describe("Features switches (ADR 0103)", () => {
     assert.equal(m.shortcutFeatures("everything", { ...allOn(), dice3d: true }).dice3d, true);
     // From "Writing only", "Everything" says it does not turn 3D on, and does not.
     m.settings.features = allOff();
-    assert.equal(m.shortcutKeepsOff("everything").length, 1);
-    assert.match(m.shortcutKeepsOff("everything")[0], /3D/);
+    assert.equal(m.shortcutKeepsOff("everything").length, 2);
+    assert.ok(m.shortcutKeepsOff("everything").some((n) => /3D/.test(n)));
     assert.deepEqual(m.shortcutKeepsOff("writing"), []);
     assert.equal(shortcutChanges("everything").on.some((n) => /3D/.test(n)), false);
     applyShortcut("everything");
@@ -131,10 +132,23 @@ describe("Features switches (ADR 0103)", () => {
     // Turned on by hand, it stays through "Everything", and "Writing only" turns it off.
     setFeature("dice3d", true);
     assert.equal(currentShortcut(), "everything");
-    assert.deepEqual(m.shortcutKeepsOff("everything"), []);
+    assert.equal(m.shortcutKeepsOff("everything").some((n) => /3D/.test(n)), false);
     applyShortcut("writing");
     assert.equal(hasCapability("dice3d"), false);
     assert.deepEqual(m.settings.features, allOff());
+  });
+
+  test("the terminal: off until an explicit true; 'Everything' never turns it on, 'Writing only' turns it off (ADR 0115 Q5)", () => {
+    for (const odd of [undefined, null, 1, "true", {}]) assert.equal(readFeatures({ terminal: odd }).terminal, false, String(odd));
+    assert.equal(readFeatures({ terminal: true }).terminal, true);
+    m.settings.features = allOff();
+    applyShortcut("everything");
+    assert.equal(hasCapability("terminal"), false);
+    setFeature("terminal", true);
+    assert.equal(hasCapability("terminal"), true);
+    assert.equal(currentShortcut(), "everything");
+    applyShortcut("writing");
+    assert.equal(hasCapability("terminal"), false);
   });
 
   test("hasCapability follows each switch alone", () => {
@@ -243,10 +257,10 @@ describe("The Features settings page", () => {
       const boxes = [...node.querySelectorAll("input[type=checkbox]")];
       total += boxes.length;
       for (const box of boxes) {
-        // Every switch is on but the 3D dice, off by default.
+        // Every switch is on but the 3D dice and the terminal, off by default.
         const label = document.getElementById(box.getAttribute("aria-labelledby"));
         const desc = document.getElementById(box.getAttribute("aria-describedby"));
-        assert.equal(box.checked, !/Dados 3D|3D dice/.test(label.textContent), label.textContent);
+        assert.equal(box.checked, !/Dados 3D|3D dice|Terminal/.test(label.textContent), label.textContent);
         assert.ok(desc.textContent.length > 10, "each switch says what it adds");
       }
     }

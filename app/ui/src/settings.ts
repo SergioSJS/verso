@@ -13,6 +13,7 @@ import { t } from "./strings";
 import { applyLook } from "./theme/apply";
 import { readLook, readLookCredit } from "./theme/look";
 import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
+import { readPrefs, type TerminalPrefs } from "./terminal/prefs";
 import { readProfiles, type Profile } from "./theme/profiles";
 import { enter, readFolderThemes, reset, toStorage, type Slice } from "./theme/scope";
 import { fontAllowed, type InspiredBy, type Look } from "./theme/tokens";
@@ -159,6 +160,8 @@ export type Settings = {
   /** The table's chime for another person's message or roll (ADR 0107, 2026-10-23): "off", "soft" (the default), "bell" or "pop"; its volume 0-100. */
   tableChime?: "off" | "soft" | "bell" | "pop";
   tableVolume?: number;
+  /** The embedded terminal's own settings (ADR 0115): this device only. */
+  terminal?: TerminalPrefs;
 };
 export const DEFAULTS: Settings = {
   features: allOn(),
@@ -285,6 +288,7 @@ export function loadSettings(): void {
       if (typeof settings.others3d !== "boolean") delete settings.others3d;
       if (!["off", "soft", "bell", "pop"].includes(settings.tableChime as string)) delete settings.tableChime;
       if (typeof settings.tableVolume !== "number" || !Number.isFinite(settings.tableVolume)) delete settings.tableVolume;
+      if (parsed.terminal !== undefined) settings.terminal = readPrefs(parsed.terminal);
     }
   } catch {
     settings = { ...DEFAULTS };

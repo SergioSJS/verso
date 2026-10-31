@@ -1,0 +1,20 @@
+/* The embedded terminal's tab (ADR 0115 items 9, 12 and 24): a bar with
+   where the shell runs and its tools, the lines it says once, and the
+   terminal itself, whose colours are the page's tokens (terminal/palette.ts)
+   and whose font is the editor's monospace stack. xterm.js's own sheet is
+   loaded with its chunk (dist/terminal/xterm.css). */
+.terminal-leaf { background: var(--paper); }
+.terminal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; padding: .35rem clamp(.6rem, 1.4vw, 1rem); border-bottom: 1px solid var(--hair); font-size: .82rem; color: var(--ink-2); }
+.terminal-where { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.terminal-tool { font-size: .8rem; }
+.terminal-lines:empty { display: none; }
+.terminal-line { margin: 0; padding: .4rem clamp(.6rem, 1.4vw, 1rem); font-size: .82rem; color: var(--ink-2); background: var(--brass-wash); border-bottom: 1px solid var(--hair); }
+.terminal-line button { margin-left: .4rem; }
+.terminal-host { flex: 1; min-height: 0; min-width: 0; padding: .35rem .2rem .2rem .55rem; font-family: var(--mono); background: var(--paper); position: relative; }
+.terminal-host .xterm { height: 100%; }
+/* A visible ring while the terminal has the keyboard. */
+.terminal-host:focus-within { outline: 2px solid var(--brass-ink); outline-offset: -2px; border-radius: 3px; }
+.terminal-host .load-failure { margin: 1rem; }
+.terminal-tools { display: flex; flex-direction: column; align-items: flex-start; gap: .4rem; }
+.terminal-tools-list { display: flex; flex-wrap: wrap; gap: .3rem; }
+.terminal-tools-list:empty { display: none; }

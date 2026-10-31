@@ -57,6 +57,7 @@ const pt: Words = {
     colorSwatches: "Amostras de cor",
     dice3d: "Dados 3D",
     table: "Mesa",
+    terminal: "Terminal",
   },
   descs: {
     diceRolling: "Um `dice:` numa nota vira um botão que rola; também liga o comando \"Rolar dados…\" e os botões de dados dentro das fichas.",
@@ -68,6 +69,7 @@ const pt: Words = {
     colorSwatches: "Um código de cor numa nota (#1d9e75, rgb(29 158 117), hsl(…)) ganha um quadradinho da cor ao lado; no editor, um clique nele abre um seletor de cor que reescreve o código. Um #código solto no texto que o Verso lê como etiqueta (#bada55) continua etiqueta e não ganha quadradinho; dentro de um código, `#bada55`, ganha.",
     dice3d: "Ao rolar um dado, dados 3D caem na tela antes de o resultado aparecer; o resultado já foi sorteado, a animação só o mostra. Fica desligado mesmo no atalho \"Tudo\" (pesa na bateria) e nunca anima se o sistema pede menos movimento. Os dados ficam na mesa até você mexer em algo (um clique fora dos botões, Esc ou a próxima rolagem).",
     table: "Um painel \"Mesa\" no painel da direita com todas as rolagens, sorteios de tabela e perguntas ao oráculo desta pasta, quem fez cada uma e de qual nota. Precisa de Dados ligado. Desligado, não há painel nem botão e as rolagens nas notas funcionam como sempre.",
+    terminal: "Um terminal deste computador numa aba, aberto na raiz da pasta, onde você roda o Claude Code, o Gemini CLI e outras ferramentas de linha de comando. Fica desligado até você ligar, mesmo no atalho \"Tudo\". O que um programa rodado nele escreve nos arquivos aparece no histórico de versões e pode ser desfeito.",
   },
   on: "ligado",
   off: "desligado",
@@ -108,6 +110,7 @@ const en: Words = {
     colorSwatches: "Colour swatches",
     dice3d: "3D dice",
     table: "Table",
+    terminal: "Terminal",
   },
   descs: {
     diceRolling: "A `dice:` in a note becomes a button that rolls; also turns on the \"Roll dice…\" command and the dice buttons inside statblocks.",
@@ -119,6 +122,7 @@ const en: Words = {
     colorSwatches: "A colour code in a note (#1d9e75, rgb(29 158 117), hsl(…)) gets a small square of its colour beside it; in the editor, a click on it opens a colour picker that rewrites the code. A bare #code in text that Verso reads as a tag (#bada55) stays a tag and gets no square; inside code, `#bada55`, it does.",
     dice3d: "Rolling a die drops 3D dice on the screen before the result shows; the result is already drawn, the animation only stages it. It stays off even with the \"Everything\" shortcut (it is heavy on the battery) and never animates when the system asks for less motion. The dice stay on the table until you touch something (a click away from the buttons, Esc or the next roll).",
     table: "A \"Table\" panel in the right panel with every roll, random-table roll and oracle question of this folder, who made each one and from which note. Needs Dice on. Off, there is no panel and no button, and rolls in notes work as they always did.",
+    terminal: "A terminal of this computer in a tab, opened at the folder's root, where you run Claude Code, Gemini CLI and other command-line tools. It stays off until you turn it on, even with the \"Everything\" shortcut. What a program run in it writes to the files shows in the version history and can be undone.",
   },
   on: "on",
   off: "off",

@@ -55,6 +55,8 @@ import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts
 import { previewUnderCursor } from "./preview/install";
 import { pv } from "./preview/strings";
 import { collapseAll } from "./tree/tree";
+import { openTerminal, terminalOn } from "./terminal/open";
+import { tw } from "./terminal/strings";
 import { hasHostZoom, zoomIn, zoomLabels, zoomOut, zoomReset } from "./zoom";
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
@@ -273,6 +275,8 @@ export function allCommands(all = false): Command[] {
     { id: "import-files", label: imp.command, need: hasFolder, run: () => void importFiles(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
+    // A terminal at the folder's root (ADR 0115 item 9), where the side has one and it is on.
+    { id: "new-terminal", label: tw.newTerminal, need: terminalOn(), run: () => void openTerminal("") },
     // ADR 0106: the diagram as it is arranged, written as a new board.
     { id: "diagram-save-board", label: dgw.saveBoard, need: leaf instanceof DataLeaf, run: () => leaf instanceof DataLeaf && leaf.saveBoard() },
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
