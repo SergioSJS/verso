@@ -904,7 +904,7 @@ point 13).
    with Esc: nothing changes. Level: H (the drag: E, `labels.spec.mjs`,
    "note cover banner displays and drag repositioning updates banner_y"; the
    keys: by hand).
-4. A folder's page: its folder note on top, a table of its items below. In
+4. A folder's page (opened from the button at the end of the folder's row): its folder note on top, a table of its items below. In
    a folder with no folder note, "Criar nota da pasta". The folder note is
    no row of the tree; the folder's menu, "Abrir nota da pasta", opens it
    (E: `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
@@ -987,9 +987,11 @@ hand, on a phone and an iPad, the server's window in the browser.
    on its name, not only the arrow — opens or closes it; the row is 44 px
    tall; the small folder button at the row's end opens the folder's page
    (named "Abrir a página da pasta", a Tab stop of its own); a long press
-   opens the row's menu, whose first item is the same. With a mouse: the
-   arrow toggles, the name opens the page, no button. Level: H (a phone);
-   E: `tree-folder-tap.spec.mjs`.
+   opens the row's menu, whose first item is the same. With a mouse
+   (since 2026-10-31, B15): a click anywhere on the row, the name as much as
+   the arrow, toggles it; the same button shows at the row's end on hover
+   and on focus (a Tab stop that shows itself when reached) and opens the
+   page. Level: H (a phone); E: `tree-folder-tap.spec.mjs` (both).
 3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
    help speaks of the pinch; two fingers zoom it. Level: H; E:
    `responsive.spec.mjs`, "the graph" (two tests).
@@ -1757,9 +1759,13 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 6. Delete the file in Finder while open: the tab keeps the text with **Gravar aqui de novo** and **Salvar uma cópia…**; the first makes the file again, the second opens the system's save dialog. Level: A.
 7. **Abrir a pasta inteira**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before (e.g. `~/Downloads/verso-vault-test/projetos/projetos.md`) shows one more button named after that folder, **Abrir “verso-vault-test”**, which opens it without a confirmation; when that folder is the file's own, it is the only button. In a narrow window, the whole folder's button is a folder mark (its tooltip says the words). Level: A; E: `loose.spec.mjs` (`?known=1`).
 8. Settings › Arquivos e links › **Abrir arquivos .md com o Verso por padrão**: the gesture of this system; on Windows the button opens Default apps. Level: A.
-9. A data file (ADR 0114 items 31–33, 2026-10-31): `open -a "Verso Beta" ~/Downloads/inventario.json` (or Open with › Verso on a `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv`): the loose window opens it **in the diagram**, the bar with the diagram's icon and the file's name; the diagram's menu has no **Salvar como board…**. **Texto** shows the text; edit a value and the file on disk changes, nothing beside it; back on **Diagrama**, the box shows the new value. Change the file in another editor while the text tab is open with nothing typed: the text follows; with something typed, the conflict banner. Level: A; E: `loose.spec.mjs` (`?loose=1&file=Inventário.json`, `&file=config.yaml`); `app/src-tauri/src/tests_loose.rs` (`a_data_file_handed_opens_loose_and_is_read_and_written_as_text`).
+9. A data file (ADR 0114 items 31–34, 2026-10-31): `verso ~/Downloads/inventario.json` (item 34, the command line) or File › Open File… (the picker lists `.json`, `.yaml`, `.yml`, `.toml`, `.xml` and `.csv` beside Markdown; E: the host's tests, `cargo test -p verso-app` and `-p verso-cli`), or `open -a "Verso Beta" ~/Downloads/inventario.json` (or Open with › Verso on a `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv`): the loose window opens it **in the diagram**, the bar with the diagram's icon and the file's name; the diagram's menu has no **Salvar como board…**. **Texto** shows the text; edit a value and the file on disk changes, nothing beside it; back on **Diagrama**, the box shows the new value. Change the file in another editor while the text tab is open with nothing typed: the text follows; with something typed, the conflict banner. Level: A; E: `loose.spec.mjs` (`?loose=1&file=Inventário.json`, `&file=config.yaml`); `app/src-tauri/src/tests_loose.rs` (`a_data_file_handed_opens_loose_and_is_read_and_written_as_text`).
 10. A `.json` that does not parse (`{ "a": [1, 2`) opens as its text, with the diagram's line above it ("O texto não é válido: … Aberto como texto."); with Ajustes › Aplicação › Recursos › **Diagrama de dados** off, any data file opens as text. Level: A; E: `loose.spec.mjs` (`&file=quebrado.json`).
 11. A `.txt` handed the same way says it is not a file Verso opens and nothing opens. Level: A; E: `tests_loose.rs`.
+
+## A note above 16 MiB (spec Q17, 2026-10-31)
+
+1. Put a Markdown file of more than 16 MiB (e.g. `head -c 17000000 /dev/zero | tr '\0' a > Grande.md`, one long line is enough) in the folder and open it: above the text a line says the note is over 16 MiB and out of the index, so search and backlinks do not see it; a normal note shows no such line. Level: H; E: `big-note-notice.spec.mjs`; the core's side (`INDEX_MOST`) is in `verso-core`'s tests.
 
 ## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
 

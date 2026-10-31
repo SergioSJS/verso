@@ -22,10 +22,10 @@ Welcome to projects folder note.
   await app.writeOutside(itemNote, "# Task 1\nDetails here.\n");
   await app.folderChanged([folderNote, itemNote], true);
 
-  // Click on folder label to open folder leaf
+  // Click the button at the folder row's end to open the folder leaf
   const summary = app.page.locator('#notes summary[data-folder="Projects"]');
   await expect(summary).toBeVisible();
-  const label = summary.locator(".folder-label");
+  const label = summary.locator("button.folder-page");
   await label.click();
 
   // Folder leaf is active
@@ -94,7 +94,7 @@ test("a folder page's right click offers what the tree's does, with icons", asyn
   await app.open();
   await app.writeOutside("Pasta/Item.md", "# Item\n");
   await app.folderChanged(["Pasta/Item.md"], true);
-  await app.page.locator('#notes summary[data-folder="Pasta"] .folder-label').click();
+  await app.page.locator('#notes summary[data-folder="Pasta"] button.folder-page').click();
   const leaf = app.page.locator(".leaf:not([hidden])").filter({ has: app.page.locator(".folder-tools") });
   await expect(leaf).toBeVisible();
   // Off the items: the folder's own menu.
@@ -112,7 +112,7 @@ test("a folder page's right click offers what the tree's does, with icons", asyn
 
 test("a PDF shows its first page in a folder's view", async ({ app }) => {
   await app.open();
-  await app.page.locator('#notes summary[data-folder="assets"] .folder-label').click();
+  await app.page.locator('#notes summary[data-folder="assets"] button.folder-page').click();
   const leaf = app.page.locator(".leaf:not([hidden])").filter({ has: app.page.locator(".folder-tools") });
   await leaf.locator(".folder-tools button[title='Miniaturas']").click();
   const pdf = leaf.locator(".item.kind-pdf .thumb");

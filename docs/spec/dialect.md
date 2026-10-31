@@ -1489,6 +1489,11 @@ Raised while writing this spec. All of them need an answer before
   `[OPEN]`: opening above a ceiling as plain text, the per-file timeout of the
   index, a line's length, and the short ADR with their values. A fixture of
   the ceiling, if one is wanted, is drafted and approved separately; none is.
+  **As built (2026-10-31), the notice:** the window draws it above the note's
+  text (`pastIndexCeiling` in `app/ui/src/indexLimit.ts`, flag `pastIndex`),
+  from the text the core read whole: its UTF-8 length against the same 16 MiB
+  as `INDEX_MOST`. No contract field carries it, so there is no contract
+  change; a file opened without its folder has no index and shows none.
 
 ### Gaps raised in the Phase 0 review
 

@@ -92,7 +92,7 @@ The file tree is a single stop of `Tab`: it remembers the item you were on, so `
 
 ## Folder View
 
-The little arrow beside a folder opens and closes it in the tree. Verso remembers which folders you left open: when you open the app again, the tree comes back as it was. In a large folder, the first-level folders start closed, so the tree does not draw thousands of rows at once.
+A click anywhere on a folder's row opens and closes it in the tree (the little arrow does the same); the folder's page opens from the small folder button at the end of the row. Verso remembers which folders you left open: when you open the app again, the tree comes back as it was. In a large folder, the first-level folders start closed, so the tree does not draw thousands of rows at once.
 
 A click on a folder's name opens the folder in a tab: **Thumbnails** or **List**, with the columns **Name**, **Kind**, **Size** and **Modified**. An image appears as a thumbnail, and a PDF shows its first page. A folder can have its own note — `Folder/Folder.md` —, which appears at the top as the **Folder note**; if it does not exist, **Create the folder note** creates it.
 

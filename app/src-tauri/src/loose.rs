@@ -276,8 +276,16 @@ pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &
     left(app, label);
 }
 
-/// The system's file picker for one Markdown file (File › Open File…),
-/// handed over as a double-click is.
+/// What File › Open File… offers (ADR 0114 item 34, 2026-10-31): the
+/// Markdown extensions and the structured-data ones of item 31, as one
+/// filter so that every system shows the same list. Each is one the disk
+/// look ([`verso_core::kind_of`]) opens loose, which a test holds.
+const PICKER_EXTENSIONS: [&str; 8] = [
+    "md", "markdown", "json", "yaml", "yml", "toml", "xml", "csv",
+];
+
+/// The system's file picker for one Markdown or data file (File › Open
+/// File…), handed over as a double-click is.
 pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     parent: Option<&tauri::Window<R>>,
@@ -286,7 +294,7 @@ pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
     let mut dialog = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md", "markdown"]);
+        .add_filter("Markdown, JSON, YAML, TOML, XML, CSV", &PICKER_EXTENSIONS);
     if let Some(parent) = parent {
         dialog = dialog.set_parent(parent);
     }
@@ -742,6 +750,28 @@ mod tests {
             path_from_arg("file:///C:/Users/ana/n.md", cwd),
             PathBuf::from(r"C:\Users\ana\n.md")
         );
+    }
+
+    #[test]
+    fn the_picker_offers_exactly_what_opens_loose() {
+        // Every extension the picker lists is one the disk look sends to
+        // the loose window, and every kind it opens is in the list.
+        let dir = tempfile::tempdir().unwrap();
+        for ext in PICKER_EXTENSIONS {
+            let file = dir.path().join(format!("arquivo.{}", ext.to_uppercase()));
+            std::fs::write(&file, "x").unwrap();
+            let kind = verso_core::kind_of(&file);
+            assert!(
+                matches!(
+                    kind,
+                    verso_core::PathKind::MarkdownFile | verso_core::PathKind::DataFile
+                ),
+                "{ext}: {kind:?}"
+            );
+        }
+        for ext in ["txt", "pdf", "png"] {
+            assert!(!PICKER_EXTENSIONS.contains(&ext));
+        }
     }
 
     #[test]

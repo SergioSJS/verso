@@ -40,6 +40,7 @@ Per system — the double-click itself cannot run in the browser harness; each l
 Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed package (the harness cannot reach the system's "Open with"):
 
 - [ ] **Open with, for each type** (A): right-click a `.json`, a `.yaml` (and a `.yml`), a `.toml`, an `.xml` and a `.csv` in Finder / Explorer / Nautilus: Verso is offered under "Open with", never as the default; choosing it opens the file in the loose window, in the diagram. On macOS `scripts/install-beta.sh` asks Launch Services the same for each kind and fails if Verso is not offered; on an older macOS (before 27) the `.toml` is the one that needs the imported `io.toml` type.
+- [ ] **The command line and the picker** (A, item 34): `verso data.json` (and a `.csv`, `.toml`) opens the loose window on the diagram; `verso nao-existe.json` says "no folder, Markdown file or data file by that name"; File › Open File… lists the eight extensions in the system's dialog (macOS, Windows, Linux's GTK picker) and a `.txt` is not selectable.
 - [ ] **Text and save** (A): **Text** shows the file; an edit is saved in place (atomic; nothing beside it); a change made in another editor is read in, or shows the conflict banner if something was typed; deleting the file while it has unsaved text offers "Save here again" and "Save a copy…" (the save dialog offers the file's own kind, not Markdown).
 - [ ] **A file the diagram cannot read** (A): an invalid `.json` opens as its text with the diagram's line saying why.
 - [ ] **Windows registry** (A): after the install, `HKCU\Software\Classes\.json\OpenWithProgids` (and `.yaml`, `.yml`, `.toml`, `.xml`, `.csv`) list `Verso.Json.1`… (`Verso.Json.Beta.1`… for the beta), the extensions' default values are unchanged, Settings › Default apps lists Verso for each; the uninstaller removes them all (`check-windows.sh`).
@@ -48,6 +49,11 @@ Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed pack
 - **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
 
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
+### The tree's folder row with a mouse, and a note above 16 MiB (B15, B7, 2026-10-31)
+
+- [ ] **The folder button, by hand** (A): on the installed app with a mouse, a click on a folder's name opens/closes it; the small folder button at the row's end appears on hover, opens the folder's page, and appears when reached with Tab; it looks right on every theme (contrast of the faint icon).
+- [ ] **A real 17 MiB note** (A): in an opened folder, the notice shows above the text; search does not find a word inside it; the app stays responsive while it opens.
+
 ### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
 
 - [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.

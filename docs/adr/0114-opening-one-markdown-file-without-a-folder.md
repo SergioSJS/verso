@@ -532,6 +532,14 @@ author's recommendation, accepted with it:
     as a Markdown file ([0042](0042-open-from-command-line.md), Revisions),
     and the picker of *File › Open file…* offers those kinds beside
     Markdown. The "Not built" line above is answered.
+    **As built (2026-10-31).** `names_a_directory` in `verso-cli` accepts
+    `PathKind::DataFile` beside `MarkdownFile` (the same disk look, in
+    `verso-fs`); the app already routed both kinds (`path_handed`). The
+    picker (`pick_file_and_hand`) has one filter, "Markdown, JSON, YAML,
+    TOML, XML, CSV", built from `PICKER_EXTENSIONS`, which a test holds to
+    the kinds the disk look opens loose. The usage error (both languages)
+    and `open`'s "no folder…" line now name "data file" beside Markdown. No
+    contract change.
 
 ### Open questions
 

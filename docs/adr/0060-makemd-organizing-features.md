@@ -53,6 +53,15 @@
   approved as recommended): with a mouse, a click anywhere on a folder's row
   opens or closes the folder, as a tap does, and the button at the row's end
   opens the folder's page; to be built.
+  **As built (2026-10-31):** the label's own click handler (which opened the
+  page with a fine pointer) is gone, so the summary's native toggle takes a
+  click on the whole row; the button (`button.folder-page`, `aria-label`
+  "Abrir a página da pasta") is now drawn for every pointer: on a fine
+  pointer 24 px, at `opacity: 0` until the row is hovered or has focus
+  within (never `display: none`, so it stays a Tab stop and shows when
+  reached), on a coarse pointer 44 px and always shown. `tree-folder-tap`
+  covers both pointers; the specs that opened a folder's page by clicking its
+  name now click the button.
 
 ## Context
 
