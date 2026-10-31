@@ -257,7 +257,7 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | Link something already seen (drag from the chat, the tree) | = Edit(target) | = Edit(target) | = Edit(target), no further right (item 5) | no |
 | Create (inside a folder) | role ≥ editor ∧ cap Write | cap Write | Edit(folder) ∧ right *Creates notes* or *Creates boards* by kind ∧ cap Write (K.6); a new file takes the folder's access | no |
 | Rename (same folder) | role ≥ editor ∧ cap Write | cap Write | Edit(file) ∧ cap Write (K.6) | no |
-| Move (into or out of a folder) | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
+| Move (into or out of a folder) | role ≥ editor ∧ cap Write; out of a shared folder: **owner** ∧ cap Write (amended 2026-10-31, below) | cap Write | no (K.5) | no |
 | Delete | **owner** ∧ cap Write (amended 2026-10-31, below; was role ≥ editor) | cap Write | no (K.5) | no |
 | Say, Roll, RollSecret | — | yes | yes (table open) | no |
 | See others' secret rolls | — | yes | no (an editor neither, item 3) | no |
@@ -274,13 +274,72 @@ keep it, b) make them equal; the recommendation was a — he answered
 otherwise: *"apenas o dono da pasta pode apagar"* (only the folder's owner
 may delete). In a folder or share outside a table, **Delete** needs the
 folder's **owner** role; an editor edits, creates, renames and moves, and
-does not delete. Inside a table the rows above are unchanged. What his answer
-does not reach is `[OPEN]` for him, to be put with the build: a deletion an
-editor's synced device sends ([0079](0079-sync-a-local-folder-with-a-server.md)),
-and a move that takes a file out of a share, which is a deletion for that
-share. The trash's own rules ([0080](0080-the-trash-with-expiry-and-restore.md)
+does not delete. Inside a table the rows above are unchanged. The two cases
+his answer did not reach were put to him with the build, each with a
+recommendation, and he answered *"Seguir sua recomendação"* (follow your
+recommendation), 2026-10-31:
+
+- `[DECIDED 2026-10-31]` **A deletion an editor's synced device sends**
+  ([0079](0079-sync-a-local-folder-with-a-server.md)) is refused by the
+  server, and the file comes back to that device: nothing is lost.
+- `[DECIDED 2026-10-31]` **A move that takes a file out of a shared folder**
+  counts as deleting it for that share, so only the folder's owner makes it.
+
+The trash's own rules ([0080](0080-the-trash-with-expiry-and-restore.md)
 item 7: any writer restores; "delete now" and emptying are the owner's) are
 unchanged.
+
+*As built (2026-10-31, B8).*
+
+- **The one answer.** `access::may` (`rules.rs`) answers `Delete` outside a
+  table with the owner alone (`Deny(NotMaster)` to an editor); `Move` stays
+  an editor's there. The shared vectors (`app/ui/test/access-vectors.json`,
+  regenerated) carry it, so the window's `accessCore.decide` and the harness
+  agree: `delete` needs the owner (or a folder of this computer alone).
+- **The doors.** `delete_note`, `delete_entry` and a device's `sync_delete`
+  ask `may(Delete)`; an editor's refusal outside a table is worded
+  `"only the folder's owner deletes here"` (`NO_DELETE_OWNER`). A move — a
+  rename into another folder, each entry of `move_entries`, a device's
+  `sync_rename` — that takes a path out of a shared folder (inside it, not
+  the shared folder itself, whose share goes with it; to a place outside it)
+  is asked as `may(Delete)` of that path as well (`Door::out_of_share`),
+  refused as `"only the folder's owner moves files out of a shared folder"`
+  (`NO_MOVE_OUT_OF_SHARE`). The folder's shared folders are read for a
+  door only when the person may move and is not the owner; a failed read
+  judges every move out of a folder as one out of a share (closed).
+- **The bin.** Its door asks `may(Edit)` of the folder instead of
+  `may(Delete)`: any writer still sees it and restores (item 7 of 0080,
+  unchanged); purging, emptying and the days stay the owner's.
+- **The window.** No delete is offered to such an editor: the tree's and the
+  folder page's menus, the selection's menu and bar (the bar's *Move* now
+  asks `move`, its bin `delete`), the palette's *Delete*; a key (Delete,
+  ⌘⌫) says why in the notice and the status line (`errOwnerDeletes`, pt-BR
+  and EN). The bin's entries (menu, palette, Settings) ask the new window
+  action `trash`, the old rule. A move out of a share refused by the server
+  is said as `errOwnerMovesOut`.
+- **A synced device** (`sync/transfer.rs`). A deletion the memo does not
+  allow (`delete: false` from `access_get` brief) for a file the device may
+  put is not sent: the server's copy is downloaded back at once and the file
+  is listed once as `owner_deletes`. The same when the server refuses a
+  `sync_delete` with `NO_DELETE_OWNER` (a memo from before the rule). A
+  `sync_rename` refused with `NO_MOVE_OUT_OF_SHARE` puts the file back where
+  it was here (`owner_moves_out`). Neither is a conflict copy nor a retry.
+- **Provisional, for the maintainer** (forced by the code, chosen to lose
+  nothing, `PROPOSED`):
+  1. `remove_folder_data` (a layout or bundle of `.verso/`, through the bin)
+     was already asked as `Delete`: it is now the owner's too, outside a
+     table. An editor still writes over one; renaming a layout (write the
+     new, remove the old) leaves the old one and says why.
+  2. **A contradiction with [0096](0096-this-app-is-a-server.md) item 12**,
+     not settled here: a phone paired to "This app is a server" is an
+     *editor*, never an owner. On a folder served whole it sits as the
+     owner's session (the game master's seat) and still deletes; on a folder
+     served in part it is an editor of a share, and no longer deletes (nor
+     moves out of a nested shared folder). Its owner deletes from the
+     computer.
+  3. The desktop window of a folder synced here offers delete as before (its
+     files carry no server answer, section C "not done" (1)); the deletion
+     then comes back on the next pass, said as `owner_deletes`.
 
 The credential cap is one line: **every writing action needs `cap = Write`**. A
 phone paired as reader, a read token and a read link are `cap = Read`; that is
@@ -1213,7 +1272,8 @@ only.
 
 B8 of the list of 2026-10-31, answered against the recommendation: *"apenas o
 dono da pasta pode apagar"* (only the folder's owner may delete). Section B's
-*Delete* row now reads **owner** outside a table (the amendment under the
-table); to be built. Recorded as an amendment; [the ADR index](README.md)
+*Delete* row now reads **owner** outside a table, and a move out of a
+shared folder is the owner's too (the amendment under the table, with its
+two cases decided the same day and how it was built). Recorded as an amendment; [the ADR index](README.md)
 asks that a change to an Accepted decision be a new ADR superseding it, which
 stays the maintainer's call.

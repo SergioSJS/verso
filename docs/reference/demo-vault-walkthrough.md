@@ -1760,3 +1760,15 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
 5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
 
+
+## Only the folder's owner deletes, outside a table (ADR 0113 B, amended 2026-10-31)
+
+On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 14 and 23:
+
+1. As the editor, right-click a note in the tree: no **Mover para a lixeira**; the selection's menu and the selection bar have **Mover para…** and no bin; the palette has no **Apagar**. Level: A; E: `e2e-server/zz-owner-deletes.spec.mjs`.
+2. As the editor, select a note and press Delete (or ⌘⌫): the notice and the status line say "Só o dono da pasta apaga aqui: nada foi apagado…" (EN: "Only the folder's owner deletes here…"); the note stays. Level: A; E: `zz-owner-deletes.spec.mjs`.
+3. As the editor, rename a note, move it to another folder, create a note: each works. **Abrir a lixeira** is still there, and restores what the owner deleted. Level: A; E: `tests_owner_deletes.rs`.
+4. As the editor, drag a note from `Mesa` to the folder's root: refused, "Tirar um arquivo de uma pasta compartilhada é apagá-lo para quem a recebe…"; moving it inside `Mesa`, or a note into `Mesa`, works. As the owner, the same drag works. Level: A; E: `tests_owner_deletes.rs`.
+5. As the share's receiver (editor of `Mesa`): no delete offered either. Level: A; E: `tests_owner_deletes.rs`.
+6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
+7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
