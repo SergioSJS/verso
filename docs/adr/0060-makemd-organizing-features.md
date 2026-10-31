@@ -37,6 +37,18 @@
   pasta não deveria ficar visível na árvore"). 2026-10-03 — D5's focuses,
   for paths inside the open folder, are decided in
   [ADR 0062](0062-focuses.md), which also makes the one exception to D2.
+  2026-10-30 — **a folder row, on a touch screen (DECIDED).** The
+  maintainer, on his phone: "tem que clicar milimetricamente na setinha"
+  to expand a folder; "a gente vai muito mais expandir e contrair pastas do
+  que abrir a nota da pasta", so the folder's page should open by another
+  gesture — "clicar e segurar, ou … clicar no canto, tivesse um outro
+  botãozinho para poder abrir a nota da pasta". Where the pointer is coarse
+  (the phone and tablet layouts): a tap anywhere on a folder's row expands
+  or collapses it; the folder's page opens from a small button at the row's
+  end ("Abrir a página da pasta") and from the row's menu (a long press, or
+  the "…"). With a fine pointer (mouse) nothing changes: the arrow toggles
+  and the folder's name opens its page. Whether he wants the desktop changed
+  too is not recorded: kept as it was, `[OPEN]` for him.
 
 ## Context
 
