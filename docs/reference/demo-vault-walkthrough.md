@@ -1246,6 +1246,11 @@ rest below and in `manual-checks.md`.
     a note the reader has open, and the reader's tab reads the note again
     without it. A reader's device that syncs the folder holds the note
     without the block, and a change only inside it is no change there.
+    A die inside the block and one in the open with the same code (both
+    `dice: 1d20`): the owner rolls either, and the reader hears neither,
+    nor finds it in the note's rolls on joining again (the roll may be the
+    hidden die's); a code written only in the open is heard (ADR 0088,
+    amendment of 2026-10-31).
     Level: H; R: `tests_secret.rs` (every command of the contract as a
     reader, a live note, sync, a share, a role made reader), the core's
     `tests/workspace/reader.rs`, the index's `tests/secret.rs`, the
@@ -1342,8 +1347,14 @@ the folder `Campanha Fractal/` beside it ([ADR
    the line about the *oficial novato*, which was typed by hand, stays. With
    the caret outside a callout, the button reads *Inserir na nota* and a new
    callout appears at the caret, never inside a quote, a table or a code
-   fence. Level: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
-   `test/oracle.test.mjs`.
+   fence. With two `[!oracle]` callouts in a note, change the second one's
+   text outside Verso (the reading view draws only that callout again):
+   its *Consultar Oráculo* opens with its own question and writes into it,
+   never into the first, and never says the callout moved (ADR 0102,
+   amendment of 2026-10-31: the core numbers each callout's line,
+   `data-oracle-line`). Level: H; E: `oracle.spec.mjs`; U:
+   `test/oracleLocate.test.mjs`, `test/oracle.test.mjs`; R: the dialect's
+   `render.rs`.
 3. The oracle's settings. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*
    opens with one sentence of what the oracle does, *Experimentar o oráculo*
    (the dialog opens over the page) and *Compartilhado com quem abre esta
