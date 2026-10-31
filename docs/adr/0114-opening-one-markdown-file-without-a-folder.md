@@ -485,6 +485,42 @@ author's recommendation, accepted with it:
 33. The checks of item 29 (`scripts/check-file-associations.mjs`) and the
     install checks cover the new types.
 
+*As built (2026-10-31, items 31–33)* — details the amendment left to the build, no new decisions:
+
+- *Item 31, macOS types.* The system's own declarations (this Mac's
+  `CoreTypes.bundle`, macOS 27.2) and Apple's list of system-declared types
+  name `public.json`, `public.yaml`, `public.xml` and
+  `public.comma-separated-values-text`, and no TOML type; `.toml` names
+  `io.toml`, imported in `Info.plist` (after the format's own domain,
+  toml.io; conforming to `public.utf8-plain-text`, extension `toml`, MIME
+  `application/toml`). A name chosen in the build: no TOML identifier is
+  registered anywhere this record found.
+- *Item 31, Windows.* One versioned ProgID per kind and channel
+  (`Verso.Json.1`, `Verso.Yaml.1`, `Verso.Toml.1`, `Verso.Xml.1`,
+  `Verso.Csv.1`; `…Beta.1` for the beta), so a JSON file is not called a
+  "Markdown document" where the person makes Verso its app; `Capabilities`
+  lists every extension.
+- *Item 31, Linux.* `application/json`, `application/yaml` and
+  `application/x-yaml`, `application/toml`, `application/xml` and
+  `text/xml`, `text/csv`.
+- *Item 32.* `verso_fs::PathKind::DataFile` beside `MarkdownFile`; the
+  loose window reads and writes the file through `read_text` and
+  `write_text` (the service's loose dispatch; `Loose::read_text`,
+  `Loose::write_text`, no dialect parse), so the diagram and its text tab
+  are the folder's own, unchanged. The window opens the file in the
+  diagram whatever view was used last for its type in a folder, and does
+  not change that choice; a text the diagram cannot read (not valid, past
+  20 MB, past 200,000 boxes) turns the tab into the text with
+  `DataDiagram.unreadable()`'s words. With the diagram's feature switched
+  off, the file opens as text (ADR 0106 item 12, "off is off"). "Save as
+  board" writes a new file beside the data, so the diagram does not offer
+  it in a loose window. Moves and folds are kept under the file's key.
+  "Save a copy…" filters by the file's own kind.
+- *Not built, for the maintainer.* `verso dados.json` on the command line
+  (item 8 names `.md` only) and File › Open File… (its picker filters
+  Markdown) still take only Markdown; the amendment names "Open with", and
+  widening the other two ways in is left to the maintainer's word.
+
 ### Open questions
 
 | # | Question | Options | Recommendation |
