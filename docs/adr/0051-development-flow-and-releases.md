@@ -222,3 +222,20 @@ modificações até gerar versão, considerando changelog inclusive"*.
 ## Status
 
 Accepted.
+
+**Amendment (2026-10-31): the Mac beta signed with a fixed local
+certificate.** `[DECIDED 2026-10-31, to be built]` The beta that
+`scripts/install-beta.sh` installs is signed ad hoc (Consequences, the
+paragraph of 2026-10-20), so each build is a new app to macOS and the
+permissions it was given (Local Network, files, and the like) are asked
+again. Put to the maintainer as N2 of the list of 2026-10-31 — *"Assinar a
+beta do Mac sempre com um certificado local fixo, para o macOS lembrar as
+permissões. Você roda um comando uma vez e digita a senha"* (always sign the
+Mac beta with a fixed local certificate, so macOS remembers the permissions;
+you run one command once and type the password) — and approved as
+recommended (*"Todo resto pode ir de recomendado e aprovado"*). The script
+signs the beta with a fixed self-signed certificate kept in the maintainer's
+keychain, which he creates once with one keychain command; without it the
+script says so. The release builds stay ad hoc
+([0095](0095-mac-notarization-and-windows-code-signing.md), revised
+2026-10-15); this concerns the beta on this Mac only.

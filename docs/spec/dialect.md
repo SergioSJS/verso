@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.48
+# Verso dialect spec — v0.51
 
-- Version: v0.48 · 2026-10-21
+- Version: v0.51 · 2026-10-31
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -268,7 +268,8 @@ frontmatter:
 - `tags` and `aliases` are recognized by the index; the other keys are preserved
   without interpretation.
 - Accepted form of `tags` (list, space-separated string, both) and of
-  `aliases`: `[OPEN]`.
+  `aliases`: `[OPEN]`. *(2026-10-31: the maintainer keeps it open until a
+  real case asks for it; still `[OPEN]`.)*
 
 ### 5.2 Simple wikilink
 
@@ -847,7 +848,7 @@ behavior is implemented. None of them has an answer in the briefing.
   removed at any depth the reading view draws, with what it holds; a block
   whose end cannot be placed hides through the end of its blockquote (it
   fails closed). Q5's nesting stays `[OPEN]` for the parser that feeds the
-  index. **No fixture yet**: the fixture of this question comes with the
+  index *(as written on 2026-10-14; decided on 2026-10-21 under Q5)*. **No fixture yet**: the fixture of this question comes with the
   PR that builds ADR 0087, drafted by the AI and approved by the
   maintainer there (ADR 0031); no `fixtures/**` file changed with this
   answer. *(v0.42: that PR drafted `fixtures/callout/secret`, whose
@@ -855,6 +856,11 @@ behavior is implemented. None of them has an answer in the briefing.
   inside another callout with the kind in capitals, one in a list item, a
   `[!secrets]` kept — for the maintainer's approval; v0.45: approved on
   2026-10-15.)*
+
+  **Confirmed on 2026-10-31 by the maintainer.** The list of 2026-10-31 put
+  "per-block visibility resolved by `[!secret]`" to him again as a point to
+  accept; he answered *"O restante ta aprovado"* (the rest is approved).
+  Nothing changes: the decision above stands as it is. No fixture changed.
 - **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
@@ -996,6 +1002,16 @@ Raised while writing this spec. All of them need an answer before
   frontmatter, or after a footnote definition, names nothing and the
   paragraph before the definition respectively (footnotes are not enabled
   in the parser).
+
+  **Confirmed on 2026-10-31 by the maintainer**: the four provisional facts
+  of the implementation recorded in v0.30 — a loose item named whole by its
+  first paragraph, "the block before it" at the same depth, a non-id `^word`
+  as a plain paragraph, and the `^id` line inside the item it names — are
+  accepted as they are (*"O restante ta aprovado"*, the rest is approved, to
+  the list of 2026-10-31). They had already been replaced by the observation
+  of v0.31 and the fixtures approved in v0.32, and they agree with the rule
+  above, so this confirms what is decided and changes nothing. No fixture
+  changed.
 - **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
   maintainer.
   Unique per note: a link names the note and the id (`[[nota#^id]]`). With
@@ -1080,6 +1096,13 @@ Raised while writing this spec. All of them need an answer before
   decision, not a provisional fact, and the correction above is answered.
   Fixture `callout/nested` is not touched.
 
+  **Confirmed on 2026-10-31 by the maintainer**: the list of 2026-10-31 put
+  the limit of 32 levels of a callout inside a callout to him again as a
+  point to accept — it read the sentences above that say nesting "stays
+  `[OPEN]`", which are history — and he answered *"O restante ta aprovado"*
+  (the rest is approved). The decision of 2026-10-21 stands; no fixture
+  changed.
+
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `DECIDED` on 2026-10-21 for the index and for embedded HTML; the reading
   view's comments `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
@@ -1120,6 +1143,11 @@ Raised while writing this spec. All of them need an answer before
   question that needs a fixture or an observation of Obsidian closes in full
   only in the PR that adds it, with this section updated in the same PR; none
   is drafted yet.
+
+  **2026-10-31, the maintainer:** embedded HTML **stays `[OPEN]`** beyond the
+  decision above — options B (the index ignores `[[ ]]` in comments and HTML)
+  and C (`<iframe>` allowed with restrictions) — until a real case asks for it
+  (the list of 2026-10-31, answered *"O restante ta aprovado"*). Still open.
 
 - **Q7. Unicode normalization in name comparison.** `DECIDED` on 2026-10-10.
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
@@ -1175,6 +1203,18 @@ Raised while writing this spec. All of them need an answer before
   this. Per invariant 17, a question that needs a fixture or an observation of
   Obsidian closes in full only in the PR that adds it, with this section
   updated in the same PR; none is drafted yet.
+
+  **Confirmed on 2026-10-31 by the maintainer**: renaming a file only in case
+  **stays as it is** (*"O restante ta aprovado"*, to the list of 2026-10-31).
+  What that list called open was already decided: a file renamed to its own
+  name in another case is allowed, a new name differing only in case from
+  another entry of its folder is refused
+  ([ADR 0070](../adr/0070-what-travels-with-the-folder.md) item 3, revised
+  2026-10-12), and resolution ignores case (2026-10-21, above). What is still
+  open around it is elsewhere and unchanged: the tie-break, to be confirmed
+  in the PR that builds it (above), and two names differing only in case on
+  Linux, after V1 ([ADR 0071](../adr/0071-linux-port.md), 0071.case). No
+  fixture changed.
 
 - **Q12. Rule for resolving a link to a file.** **CLOSED on 2026-09-22 by the
   maintainer**, following Obsidian 1.13.7 as observed
@@ -1436,6 +1476,19 @@ Raised while writing this spec. All of them need an answer before
   0037](../adr/0037-base-parser.md)'s. Per invariant 17, a question that needs
   a fixture or an observation of Obsidian closes in full only in the PR that
   adds it, with this section updated in the same PR; none is drafted yet.
+
+  **2026-10-31, the maintainer: one ceiling decided, the rest still open.**
+  To the list of 2026-10-31 he answered that the limits **stay `[OPEN]`**
+  until a real case (*"O restante ta aprovado"*), and, in the same list, B7
+  = a: **a note above 16 MiB stays out of the index** — it is listed and
+  syncs as a file, it is not read, parsed or indexed (built on the night of
+  2026-10-29, `INDEX_MOST` in `verso-core`, after a 60 MB note took the 1 GB
+  server down) — **and the big note shows a notice** that it is not indexed
+  (`[DECIDED 2026-10-31]`, the notice to be built). That answer fixes the
+  index's size ceiling at 16 MiB in place of the 10 MB proposed above. Still
+  `[OPEN]`: opening above a ceiling as plain text, the per-file timeout of the
+  index, a line's length, and the short ADR with their values. A fixture of
+  the ceiling, if one is wanted, is drafted and approved separately; none is.
 
 ### Gaps raised in the Phase 0 review
 
@@ -1783,3 +1836,4 @@ the parser was chosen.
 | v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved, its expectation changed with the code of DL.2 B and its draft mark removed (`1a184eab`). Q14: clicking an unresolved graph node asks before creating the note. |
 | v0.49 | 2026-10-22 | The maintainer's answers of the afternoon list of 2026-10-21: **Q5-bis A** (a plain blockquote inside a callout is no level; a callout inside it is nested), **T.3 A** (`tags`: only non-negative integers), **I-8 A** (`frontmatter/tags-number` reconfirmed as it stands). No fixture changed |
 | v0.50 | 2026-10-22 | §6: one row and an example, the fenced block ```` ```roll ```` — a roll of the Table kept in a note ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block; the maintainer's option A of 2026-10-22). Verso draws a fixed card; Obsidian reads a code block; the parser does not change. No fixture. No question closed. (The header above still reads v0.48 while the history reaches v0.49: a contradiction already in the document, left for the maintainer.) |
+| v0.51 | 2026-10-31 | The maintainer's answers to the list of 2026-10-31 (*"O restante ta aprovado"*). **Confirmed, nothing changed**, since each was already decided and the list had read sentences that are history: Q5's limit of 32 levels of nesting (decided 2026-10-21), Q9's per-block visibility by `[!secret]` (decided 2026-10-14), Q8's case-only rename as it is (ADR 0070 item 3), and Q3's four provisional facts of v0.30 (replaced by the observation of v0.31, closed in v0.32). **Kept `[OPEN]` until a real case**: Q6's embedded HTML beyond its decision (options B and C), Q17's limits, and §5.1's accepted forms of `tags` and `aliases`. **Q17, one ceiling `DECIDED`** (his B7 = a): a note above 16 MiB stays out of the index, syncing as a file, and shows a notice (to be built). No fixture added or changed; a fixture of the ceiling would be approved separately. The header's version, left at v0.48 by v0.49 and v0.50, catches up |

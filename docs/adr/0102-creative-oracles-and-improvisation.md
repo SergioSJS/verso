@@ -236,3 +236,15 @@ maintainer's answers to the review of the first text, and (2026-10-21) for
 the details he decided in the questionnaire.
 
 *Fixed (2026-10-23):* "Consultar Oráculo não ta rolando dado 3d". With 3D dice on ([0101](0101-3d-dice-physics-overlay.md)), asking the oracle now throws the die it drew — the d100 of a question, the die of a table with as many sides as it has entries (a size with no solid, such as 7, has no fall) — through the same `will3d`/`play3d` as any roll, with the sound by the existing rules, and the answer shows when the die rests. The number is drawn first (here, or by the room's server, item 5), so the die only shows it. Idea sparks draw four words, not a number: no die.
+
+**Amendment (2026-10-31): the reading view finds the oracle's callout by its line.**
+`[DECIDED 2026-10-31, to be built]` The Consequences left "an exact source
+line from the renderer" for later, a contract change; reading mode finds a
+callout by its rank among the oracle callouts of the note. Put to the
+maintainer as B1 of the list of 2026-10-31, option a, *"corrigir os dois numa
+mudança de contrato (servidor antes dos apps)"* (fix both in one contract
+change, the server before the apps), and approved as recommended:
+*"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The callout is found by its source line, in the **same contract
+change** as a room's roll landing on its own chip
+([0088](0088-dice-and-random-tables.md), amendment of the same day); the
+server is deployed before the apps.

@@ -521,6 +521,18 @@ author's recommendation, accepted with it:
   Markdown) still take only Markdown; the amendment names "Open with", and
   widening the other two ways in is left to the maintainer's word.
 
+34. **The command line and File › Open file… take the same data files.**
+    `[DECIDED 2026-10-31, to be built]` Put to the maintainer as N1 of the
+    list of 2026-10-31 — the command line (`verso dados.json`) and *File ›
+    Open file…* accept JSON/YAML/TOML/XML/CSV as *Open with* does — and
+    approved as recommended (*"Todo resto pode ir de recomendado e
+    aprovado"*, everything else as recommended and approved): a first
+    argument of `verso` that names an existing `.json`, `.yaml`, `.yml`,
+    `.toml`, `.xml` or `.csv` file opens it as item 32 does, by the same rule
+    as a Markdown file ([0042](0042-open-from-command-line.md), Revisions),
+    and the picker of *File › Open file…* offers those kinds beside
+    Markdown. The "Not built" line above is answered.
+
 ### Open questions
 
 | # | Question | Options | Recommendation |

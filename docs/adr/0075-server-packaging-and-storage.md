@@ -407,3 +407,14 @@ turns the update check off (item 7). *(Accepted on 2026-10-12, as built:
   a test-only variable), so the real issuance, DuckDNS with a live token and
   an Oracle machine remain manual checks (`docs/reference/manual-checks.md`).
 
+
+## Amendment 2026-10-31 — a memory limit on the container
+
+`[DECIDED 2026-10-31, to be built]` On the night of 2026-10-29 a 60 MB note
+took the 1 GB server down by running out of memory; with a limit on the
+container, running out kills the container, which restarts, and not the host.
+Put to the maintainer as B9 of the list of 2026-10-31 — a memory limit on the
+container by default, a) yes (e.g. 768 MB), b) no — and approved as
+recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The compose files and the guided installer set a
+memory limit on the server's container by default, sized to the machine (about
+768 MB on a 1 GB server); the exact rule is the build's, said in its As built.
