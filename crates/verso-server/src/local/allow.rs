@@ -159,6 +159,17 @@ pub const REFUSED: &[&str] = &[
     "open_sibling",        // ADR 0114: opens a file of the laptop's disk outside the served folders
     "pick_file",           // ADR 0114: the laptop's file picker
     "recent_files",        // ADR 0114: lists the laptop's recent files
+    // ADR 0115 items 6 and 23: a shell of the laptop is never run remotely.
+    "set_terminal_enabled",
+    "terminal_attach",
+    "terminal_busy",
+    "terminal_close",
+    "terminal_detect",
+    "terminal_flow",
+    "terminal_install_page",
+    "terminal_open",
+    "terminal_resize",
+    "terminal_write",
     "agent_visible",
     "set_agent_visible",
     "check_for_updates",
