@@ -33,7 +33,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 ## Tocar, Segurar e Arrastar
 
 - **Um toque** abre, como um clique.
-- **Toque numa pasta**, em qualquer ponto da linha, para abrir ou fechar — não precisa acertar a setinha. A página da própria pasta abre pelo **botãozinho de pasta** no fim da linha (ou por **Abrir a página da pasta** no menu dela).
+- **Toque numa pasta**, em qualquer ponto da linha, para abrir ou fechar — não precisa acertar a setinha (com o mouse é igual: um clique na linha). A página da própria pasta abre pelo **botãozinho de pasta** no fim da linha (ou por **Abrir a página da pasta** no menu dela).
 - **Segurar e soltar** é o clique direito: abre o menu de uma linha da árvore, de uma aba ou de um cartão.
 - **Segurar e arrastar** move: uma nota para outra pasta, uma aba, um cartão do kanban. Arrastar sem segurar antes só rola a lista.
 - **Nada só por gesto**: a linha da árvore em foco tem um botão **…** ao lado com o mesmo menu, e cada cartão do kanban tem o seu.

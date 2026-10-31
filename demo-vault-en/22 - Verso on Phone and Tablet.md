@@ -33,7 +33,7 @@ On the tablet (760 to 1180 px) the side bars stay, and the tree's rows are talle
 ## Tap, Hold and Drag
 
 - **A tap** opens, like a click.
-- **Tap a folder's row** anywhere to open or close it — no need to hit the little arrow. The folder's own page opens from the small **folder button** at the end of its row (or from **Open the folder's page** in its menu).
+- **Tap a folder's row** anywhere to open or close it — no need to hit the little arrow (with a mouse it is the same: a click on the row). The folder's own page opens from the small **folder button** at the end of its row (or from **Open the folder's page** in its menu).
 - **Hold and release** is the right click: it opens the menu of a tree row, a tab or a card.
 - **Hold and drag** moves: a note to another folder, a tab, a kanban card. Dragging without holding first just scrolls the list.
 - **Nothing by gesture alone**: the focused tree row has a **…** button beside it with the same menu, and each kanban card has its own.

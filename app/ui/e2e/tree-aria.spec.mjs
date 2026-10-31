@@ -166,7 +166,7 @@ test("the item's menu opens from the keyboard", async ({ app, page }) => {
   await page.keyboard.press("Escape");
 });
 
-test("a click still opens a note and a folder's label its page", async ({ app, page }) => {
+test("a click still opens a note", async ({ app, page }) => {
   await tree(app);
   await file(page, "Gama.md").click();
   await expect(page.locator(".tab", { hasText: "Gama" })).toHaveCount(1);

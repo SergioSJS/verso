@@ -237,7 +237,7 @@ test("the folder's page carries the table strip: state, counts, Acesso…, Convi
   await furnish(app, "?vault=empty&table=owner");
   const page = app.page;
   // A folder that is not a table yet: the same strip, with one call to action.
-  await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  await page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
   const cta = page.locator(".table-card-make");
   await expect(cta).toBeVisible();
   await shot(page, "79-pagina-da-pasta-sem-mesa-claro");
@@ -279,7 +279,7 @@ test("the folder's page carries the table strip: state, counts, Acesso…, Convi
 
 test("a local folder shows no table card; a player sees one read-only line", async ({ app }) => {
   await furnish(app, "?vault=empty");
-  await app.page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  await app.page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
   await expect(app.page.locator(".sheet")).toBeVisible();
   await expect(app.page.locator(".table-card")).toHaveCount(0);
 });
@@ -293,7 +293,7 @@ test("a player sees the table strip as one line: state, who is online and Entrar
     window.__harness.emit("campaign-changed", { paths: [] });
   });
   await app.folderChanged(["Mundo/Cripta.md"], true);
-  await app.page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+  await app.page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
   const card = app.page.locator(".table-card-player");
   await expect(card).toContainText("Mesa");
   await expect(card.locator(".table-strip-state")).toHaveText("Aberta");
