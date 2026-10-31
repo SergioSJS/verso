@@ -168,6 +168,8 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         to: view.viewport.to,
         enter: (node) => {
           if (fmEnd >= 0 && node.from < fmEnd) return node.to > fmEnd ? undefined : false;
+          // A code block holds no inline code: not walked into.
+          if (node.name === "FencedCode" || node.name === "CodeBlock") return false;
           if (node.name !== "InlineCode") return undefined;
           const key = keyOf(doc.sliceString(node.from, node.to));
           if (key !== null) {
@@ -263,7 +265,8 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           // Which of the note's identical codes this is: two dice of the
           // same notation are two dice (dice/card.ts).
           let occ = 0;
-          if (!shown && opts.dice && opts.diceKey) occ = rankOf(node.from, opts.diceKey);
+          // Counted only for a code that is a die: the walk is not made for a note without one.
+          if (!shown && opts.dice && opts.diceKey) occ = opts.diceKey(text) === null ? 0 : rankOf(node.from, opts.diceKey);
           else if (!shown && opts.dice) {
             const before = doc.sliceString(0, node.from);
             for (let at = before.indexOf(text); at >= 0; at = before.indexOf(text, at + text.length)) occ++;
