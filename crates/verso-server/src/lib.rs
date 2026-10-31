@@ -493,6 +493,8 @@ mod tests_night_sync;
 #[cfg(test)]
 mod tests_offline;
 #[cfg(test)]
+mod tests_owner_deletes;
+#[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;

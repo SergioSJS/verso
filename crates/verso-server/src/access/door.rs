@@ -36,6 +36,15 @@ pub const NO_CREATE: &str = "you may not create files here";
 pub const NO_RENAME: &str = "you may not rename this";
 pub const NO_MOVE: &str = "you may not move this";
 pub const NO_DELETE: &str = "you may not delete this";
+/// An editor's delete outside a table: only the folder's owner deletes
+/// there (ADR 0113 section B, amended 2026-10-31). Said apart from
+/// [`NO_DELETE`] so that the window can say why; outside a table nothing is
+/// hidden, so it tells nothing of a file.
+pub const NO_DELETE_OWNER: &str = "only the folder's owner deletes here";
+/// A move that takes a file out of a shared folder: for that share a
+/// deletion, so the folder's owner's alone (ADR 0113 section B, amended
+/// 2026-10-31).
+pub const NO_MOVE_OUT_OF_SHARE: &str = "only the folder's owner moves files out of a shared folder";
 
 /// The refusal of the write `name`: the right it needed.
 fn refusal_of(name: &str) -> &'static str {
@@ -63,6 +72,13 @@ pub struct Door {
     /// notes it sees whole ([`Veil::serves_whole`]).
     editor_live: bool,
     facts: Arc<AccessFacts>,
+    /// The paths of the folder's shared folders, for a move that takes a
+    /// file out of one (for that share a deletion, ADR 0113 section B,
+    /// amended 2026-10-31). Read only for one who may move and is not the
+    /// owner; `None` when the read failed, and then every move out of a
+    /// folder is judged as one out of a share: closed, never open on a
+    /// guess.
+    shared: Option<Arc<Vec<String>>>,
 }
 
 impl Door {
@@ -110,6 +126,15 @@ impl Door {
         let veil = campaign::veil_of(server, &folder);
         let facts = Arc::new(facts_for(server, &folder, veil.as_deref(), &who.account.id));
         let editor_live = veil.is_some() && campaign::is_editor(server, &folder, &who.account.id);
+        let shared = if owner || link || !role.writes() {
+            Some(Arc::new(Vec::new()))
+        } else {
+            server
+                .db
+                .shares_of(&folder)
+                .ok()
+                .map(|all| Arc::new(all.into_iter().map(|s| s.path).collect()))
+        };
         Self {
             asker: Asker {
                 account: who.account.id.clone(),
@@ -134,6 +159,77 @@ impl Door {
             veil,
             editor_live,
             facts,
+            shared,
+        }
+    }
+
+    /// Whether moving `from` to `to` takes it out of a shared folder: `from`
+    /// inside one (not the shared folder itself, whose share goes with it)
+    /// and `to` not.
+    fn leaves_share(&self, from: &str, to: &str) -> bool {
+        let Some(shared) = &self.shared else {
+            return true;
+        };
+        shared.iter().any(|root| {
+            campaign::covers(root, from)
+                && campaign::key(from) != campaign::key(root)
+                && !campaign::covers(root, to)
+        })
+    }
+
+    /// A move of `from` to `to` that takes it out of a shared folder counts
+    /// as deleting it for that share (ADR 0113 section B, amended
+    /// 2026-10-31): asked as a delete, the folder's owner's alone.
+    fn out_of_share(&self, from: &str, to: &str) -> Verdict {
+        if self.leaves_share(from, to) {
+            self.may_path(Action::Delete, from)
+        } else {
+            Verdict::Allow
+        }
+    }
+
+    /// The moves a write `name` makes, each `(from, to)` in the folder's
+    /// paths: a rename into another folder, or each entry of
+    /// `move_entries`.
+    fn moves_of(&self, name: &str, args: &Value) -> Vec<(String, String)> {
+        let path_of = |field: &str| args[field].as_str().map(|g| self.full(g));
+        match name {
+            "rename_note" | "rename_entry" => match (path_of("from"), path_of("to")) {
+                (Some(from), Some(to)) => {
+                    let to = Self::rename_target(&from, to);
+                    if Self::parent(&from) == Self::parent(&to) {
+                        Vec::new()
+                    } else {
+                        vec![(from, to)]
+                    }
+                }
+                _ => Vec::new(),
+            },
+            "move_entries" => {
+                // The folder moved into may be the share's own root, which
+                // `full` (a path to write) does not name.
+                let given = args["folder"].as_str().unwrap_or_default();
+                let into = match &self.scope {
+                    Some(s) => s.to_full(given).unwrap_or_else(|_| given.to_owned()),
+                    None => given.to_owned(),
+                };
+                args["paths"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(|p| {
+                        let from = self.full(p);
+                        let leaf = campaign::key(&from)
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or_default()
+                            .to_owned();
+                        (from, format!("{into}/{leaf}"))
+                    })
+                    .collect()
+            }
+            _ => Vec::new(),
         }
     }
 
@@ -353,8 +449,17 @@ impl Door {
             "remove_folder_data" => self.folder_own(Action::Delete),
             _ => self.folder_own(Action::Edit),
         };
+        // A move out of a shared folder is, for that share, a deletion: the
+        // owner's alone, whatever the move itself allows.
+        let moves_ok = verdict.allowed();
+        let verdict = self
+            .moves_of(name, args)
+            .iter()
+            .fold(verdict, |v, (from, to)| and(v, self.out_of_share(from, to)));
         if verdict.allowed() {
             Ok(())
+        } else if moves_ok {
+            Err(crate::rpc::refused(NO_MOVE_OUT_OF_SHARE))
         } else {
             {
                 // A rename into another folder is a move.
@@ -365,13 +470,33 @@ impl Door {
                         }
                         _ => false,
                     };
+                // A delete an editor may not make outside a table: said as
+                // the owner's, so the window can tell them why.
+                let deleted = match name {
+                    "delete_note" | "delete_entry" => path_of("path"),
+                    "remove_folder_data" => Some(String::new()),
+                    _ => None,
+                };
                 Err(crate::rpc::refused(if moved {
                     NO_MOVE
+                } else if deleted.is_some_and(|p| self.owner_deletes(&p)) {
+                    NO_DELETE_OWNER
                 } else {
                     refusal_of(name)
                 }))
             }
         }
+    }
+
+    /// Whether a delete of `path` is refused to this person only because,
+    /// outside a table, the folder's owner alone deletes (ADR 0113 section
+    /// B, amended 2026-10-31): an editor of the folder or of a share, not
+    /// the owner, and `path` neither in a table nor above one.
+    fn owner_deletes(&self, path: &str) -> bool {
+        self.editor_or_more()
+            && self.seat() != Seat::Master
+            && self.facts.table_of(path).is_none()
+            && !self.facts.holds_table(path)
     }
 
     /// Whether a device may run the sync change `cmd` with `args`, as the

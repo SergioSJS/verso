@@ -123,9 +123,13 @@ fn an_editor_restores_only_the_owner_deletes_for_good_a_reader_sees_none() {
                 .unwrap();
             r.server.db.grant(&id, &a.id, role).unwrap();
         }
+        // The owner deletes (outside a table, the owner alone: ADR 0113
+        // section B, amended 2026-10-31); the editor still has the bin.
+        let mut own = opened(&r, &admin, &id).await;
+        let gone = call(&mut own, 2, "delete_note", json!({ "path": "Sessao.md" })).await;
+        assert!(gone.get("ok").is_some(), "{gone}");
         let ed = sign_in(&r, "ed@casa.lan", "senha muito longa").await;
         let mut ws = opened(&r, &ed, &id).await;
-        call(&mut ws, 2, "delete_note", json!({ "path": "Sessao.md" })).await;
         let list = call(&mut ws, 3, "trash_list", json!({})).await;
         assert_eq!(list["ok"]["can_purge"], false, "{list}");
         assert_eq!(list["ok"]["can_set"], false);

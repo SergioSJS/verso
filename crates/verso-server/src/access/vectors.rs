@@ -592,11 +592,13 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
             w && level == Level::Edit && granted(r)
         }
         Action::Rename => w && level == Level::Edit,
-        // Move and delete: the game master, or the folder's editor outside
-        // a table; a player of a table never (K.5).
-        Action::Move | Action::Delete => {
-            w && p.has_role() && (p.master() || (!in_table && p.editor_or_more()))
-        }
+        // Move: the game master, or the folder's editor outside a table; a
+        // player of a table never (K.5).
+        Action::Move => w && p.has_role() && (p.master() || (!in_table && p.editor_or_more())),
+        // Delete: the folder's owner alone, in a table or outside one
+        // (section B, amended 2026-10-31: "apenas o dono da pasta pode
+        // apagar").
+        Action::Delete => w && p.has_role() && p.master(),
         Action::Say | Action::Roll | Action::RollSecret => {
             p.has_role() && !p.link && !closed_to_player
         }
