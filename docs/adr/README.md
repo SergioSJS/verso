@@ -135,7 +135,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
 | [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Accepted in part (2026-10-28): items 1–3; not built |
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24) |
-| [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status) |
+| [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status); amended 2026-10-31: JSON, YAML, TOML, XML and CSV open in the diagram |
 | [0115](0115-an-embedded-terminal-in-the-desktop-app.md) | An embedded terminal in the desktop app: the person's shell in a pane, for AI command-line tools | Accepted (2026-10-31); into V1 (Q9); Q4 decided as "the app on this computer" |
 
 ### Dialect, engineering and roadmap

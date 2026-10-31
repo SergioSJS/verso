@@ -459,6 +459,32 @@ below are `[OPEN]` for the maintainer, each with a recommendation. The
 roadmap lists it as a proposal under "After V1"; pulling it into V1 is the
 maintainer's call.
 
+### Amendment (2026-10-31): structured data files open too, in the diagram
+
+Source: the maintainer, in session, 2026-10-31: *"Eu consigo fazer o mesmo
+com JSON e YAML? Pra gente usar aquele recurso de blocos maneiro que a gente
+fez?"* (can I do the same with JSON and YAML, to use the block feature we
+made — the diagram of [ADR 0106](0106-structured-data-as-a-diagram.md)).
+Offered: `.json`/`.yaml`/`.yml` as recommended, or those plus the other
+formats the diagram reads; **chosen: "plus toml/xml/csv"**. The rest is the
+author's recommendation, accepted with it:
+
+31. **Verso is offered under "Open with" for `.json`, `.yaml`, `.yml`,
+    `.toml`, `.xml` and `.csv`** on the three systems, exactly as for `.md`
+    (items 2–4): an alternative application, rank Alternate on macOS (with
+    the system's types — `public.json`, `public.yaml`, `public.xml`,
+    `public.comma-separated-values-text`, and an imported type for TOML if
+    the system declares none), the MIME types on Linux, `OpenWithProgids`
+    on Windows; never the default by itself, never the extension's default
+    value written.
+32. **Such a file opens in the loose window in the diagram of ADR 0106**, with
+    the switch to its text the diagram already has; the text is editable and
+    saved as a loose `.md` is (items 10–17: the same scope, the same atomic
+    write and optimistic check). A file the diagram cannot read opens as text
+    with the diagram's own message.
+33. The checks of item 29 (`scripts/check-file-associations.mjs`) and the
+    install checks cover the new types.
+
 ### Open questions
 
 | # | Question | Options | Recommendation |
