@@ -12,6 +12,14 @@
         "mimeType": "text/markdown",
         "role": "Editor"
       }
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/verso.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/verso.desktop"
+      }
+    }
   }
 }

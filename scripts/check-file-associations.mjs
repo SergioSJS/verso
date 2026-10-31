@@ -6,7 +6,8 @@
 //           Editor, rank Alternate, the system's Markdown type;
 //           Info.plist imports that type (older systems).
 //   Linux   tauri.linux.conf.json  mimeType text/markdown, so the generated
-//           .desktop says MimeType=text/markdown; (the built package is the
+//           .desktop says MimeType=text/markdown, and its template
+//           (linux/verso.desktop) Exec=… %F, so the file reaches argv; (the built package is the
 //           Linux VM's check, scripts/check-linux-vm.sh).
 //   Windows no fileAssociations in tauri.conf.json / tauri.windows.conf.json
 //           (Tauri's would write the .md default value); the NSIS hook
@@ -49,6 +50,16 @@ try {
   const linux = json("tauri.linux.conf.json");
   const assoc = linux.bundle?.fileAssociations ?? [];
   if (!assoc.some((a) => a.mimeType === "text/markdown")) problems.push("Linux: no fileAssociations entry with mimeType text/markdown");
+  // Tauri's own .desktop says `Exec=verso-app`, with no field code: a file
+  // manager's "Open with" then starts the app with no file in argv (seen on
+  // Ubuntu, 2026-10-31). The package's template carries %F.
+  for (const kind of ["deb", "rpm"]) {
+    const t = linux.bundle?.linux?.[kind]?.desktopTemplate;
+    if (!t) { problems.push(`Linux: no bundle.linux.${kind}.desktopTemplate (Tauri's default Exec carries no %F)`); continue; }
+    const text = read(t);
+    if (!/^Exec=\{\{exec\}\} %[FU]$/m.test(text)) problems.push(`Linux: ${t} must say Exec={{exec}} %F`);
+    if (!/^MimeType=\{\{mime_type\}\}$/m.test(text)) problems.push(`Linux: ${t} must carry MimeType={{mime_type}}`);
+  }
 } catch (e) {
   problems.push(`Linux: ${e.message}`);
 }

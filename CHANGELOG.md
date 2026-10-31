@@ -147,6 +147,7 @@ test release.
 
 ### Fixed
 
+- **On Linux, "Open with › Verso" opens the file**: the package's menu entry started Verso without passing the file (its `Exec` line had no `%F`); the Debian and RPM packages now carry their own entry that passes it, and a check keeps it so.
 - **A server no longer reads freed memory on a crafted live-editing update** (fuzz target `note`, 2026-10-31): an update whose run of a client starts past what the room holds of that client is refused before the Yjs library reads it. No window sends one; together with an update over the gap it made the library read a run it had freed.
 - **A version Verso wrote is no longer labelled "made outside Verso" when the file watcher saw the file first** (Windows check, 2026-10-31): the same bytes recorded by a known author within ten seconds of the watcher's guess take the version over.
 - **The web window on a phone that asked for the desktop site no longer looks broken** (the maintainer, 2026-10-30, Chrome on Android: *"ficou tudo cagado"*): the layout stays the desktop's, but the window scales itself up to be read and tapped (a zoom to about 450 CSS px, side bar narrower, the right panel a sheet over the page, dialogs sized to what is shown), the status bar's icons and the bell share one line, and a window with no folder open draws no empty band above its centred lesson.
