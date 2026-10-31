@@ -287,9 +287,10 @@ one — not consulted, and nothing of Obsidian's internals is claimed
     0054 says.
 23. **Never remote.** The capability, the commands and the PTY exist in the
     desktop host alone. A terminal on a server's folder — through the web
-    window, through a desktop window on a remote folder — is remote code
-    execution and stays After V1 under its own security ADR (roadmap item
-    7). `[OPEN]` Q4.
+    window, or run by the server — is remote code execution and stays After V1
+    under its own security ADR (roadmap item 7). A desktop window on a
+    server's folder still has the terminal, on this computer, in the home
+    directory (Q4, decided 2026-10-31).
 
 **E. Cross-platform** (the checklist's §3 and §4)
 
@@ -392,9 +393,33 @@ until the maintainer chooses.
 
 ## Status
 
-**Proposed** (2026-10-31). Item 1 is the maintainer's decision; items 2–24
-are the author's proposal. The questions below are `[OPEN]`, each with a
-recommendation, for the maintainer. Whether the feature enters V1 is Q9.
+**Accepted** (2026-10-31). Item 1 is the maintainer's decision; items 2–24
+were the author's proposal, accepted the same day with the answers below.
+The questions are kept as they were put, with what was decided.
+
+**Decided by the maintainer, 2026-10-31** (in pt-BR, in session):
+
+- **Q1 (a)** a tab: *"Prefiro como aba, a pessoa move pra onde quiser"*.
+- **Q2 (a)** the root of the folder of the window: *"Raiz da pasta da janela
+  aberta"*.
+- **Q3 (a)** buttons that detect installed AI CLIs: *"nem todo mundo decorou
+  os comandos, eu sempre esqueço do antigravity"*.
+- **Q4 — neither (a) nor (b) as written; the rule is "the app on this
+  computer"**: *"se eu tenho uma pasta syncada com servidor eu não
+  conseguiria usar o terminal? isso é ruim, tem que conseguir, pré-requisito
+  é estar usando aplicativo local"*. So: the terminal exists in every window
+  of the desktop app. A folder of this computer — a synced one included, it
+  is files on this disk (ADR 0079) — opens it at the folder's root. A desktop
+  window on a server's folder with no copy here opens it in the person's home
+  directory, with one line saying the folder is not on this computer. The
+  shell always runs on this computer; the server and the web window never
+  have the capability (item 23 stands for them).
+- **Q5 (b)** off by default, a switch in Settings › Features: the maintainer
+  asked what the switch was for, was told it shows or hides the terminal, and
+  had said "habilita" from the start; recorded by the author, to be revisited
+  if the maintainer says otherwise.
+- **Q6 (a)**, **Q7 (a)**, **Q8 (a)**: *"ok"*.
+- **Q9 (b)** into V1, now: *"resolver tudo agora"*.
 
 ### Open questions
 

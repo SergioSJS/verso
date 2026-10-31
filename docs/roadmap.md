@@ -67,6 +67,7 @@ ADRs 0098 to 0103 were first written by another AI marked Accepted with no accep
 | V.45 | Online mode: a table from this app through a tunnel | [0111](adr/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Not built (accepted 2026-10-23; its first step is item 12's spike). Until 2026-10-30 this row was folded into V.42 as Built, which it never was |
 | V.43 | 0110 phase 2: game master's dashboard, show to the table, sessions, "new" notices, see as player, players' boards area, map pins | [0110](adr/0110-a-table-is-a-campaign-folder.md) items 8–11, 13, 14, 17 | Not built (in V1 scope, decided 2026-10-28) |
 | V.44 | 0112: confirm it is you on a linked device with the OS check and a per-device key (items 1–3 decided 2026-10-28) | [0112](adr/0112-confirming-it-is-you-on-a-linked-device.md) | Not built; after the V1 blocking items |
+| V.46 | An embedded terminal in the desktop app, for AI command-line tools (a tab; off by default; on this computer only) | [0115](adr/0115-an-embedded-terminal-in-the-desktop-app.md) | Not built (accepted 2026-10-31, into V1) |
 
 ### What blocks V1 release
 
