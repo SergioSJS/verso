@@ -534,8 +534,18 @@ describe("review I5: YAML aliases resolve in linear time", () => {
     // resolution made 10x the aliases cost ~100x.
     const doc = (n) => "base: &a x\nlist:\n" + "  - *a\n".repeat(n);
     D.parse(doc(2_000), "yaml"); // warm the parser up
-    const [, small] = ms(() => D.parse(doc(10_000), "yaml"));
-    const [t, large] = ms(() => D.parse(doc(100_000), "yaml"));
+    // The fastest of three runs each: a single run caught a load spike on a
+    // busy machine (2026-10-31: 10k 87 ms, 100k 3130 ms); the bound is unchanged.
+    const best = (n) => {
+      let out = null;
+      for (let i = 0; i < 3; i++) {
+        const [r, took] = ms(() => D.parse(doc(n), "yaml"));
+        if (!out || took < out[1]) out = [r, took];
+      }
+      return out;
+    };
+    const [, small] = best(10_000);
+    const [t, large] = best(100_000);
     assert.equal(t.error, null);
     assert.equal(t.nodes[1].rows[0].text, "*a = x");
     assert.ok(large < Math.max(small, 1) * 35, `10k: ${small} ms, 100k: ${large} ms`);
