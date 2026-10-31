@@ -413,3 +413,15 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .live-who-chip.is-new { animation: live-who-ring 2.8s ease-out both; }
 @keyframes live-who-ring { 0% { box-shadow: 0 0 0 0 var(--brass-ink); } 12% { box-shadow: 0 0 0 4px var(--brass-ink); } 100% { box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .live-who-chip.is-new { animation: live-who-fade 2.8s linear both; } @keyframes live-who-fade { 0%, 60% { box-shadow: 0 0 0 3px var(--brass-ink); } 100% { box-shadow: 0 0 0 3px transparent; } } }
+
+/* No folder open: the pane shows the lesson alone, centred in the room the
+   window has, and the workspace bar above it has nothing to hold — an empty
+   band is not drawn. */
+.work.empty .spaces { display: none; }
+.work.empty .panes { min-height: 0; }
+.work.empty .lesson { max-width: min(40ch, 100%); box-sizing: border-box; }
+/* A lone pane with no tab holds no leaf: its bar would be a band of tools
+   for nothing. The phone's waits for the first tab (screen.css); so does the
+   desktop site on a phone, where the strip is squeezed to a row of "··". Not
+   on the desktop: in a framed window that row is the window's own buttons. */
+html.desk-on-phone .panes:not(.many) .pane:not(:has(.tab)) > .tabs { display: none; }

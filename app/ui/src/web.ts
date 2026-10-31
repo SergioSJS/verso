@@ -22,11 +22,13 @@ import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
+import { watchDeskOnPhone } from "./deskOnPhone";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
 // meanwhile is kept and made once the switcher is wired (the button shows
 // it is busy until then).
+watchDeskOnPhone();
 const openHeld = holdClicks(document.getElementById("open"));
 
 /** The window of a read link (ADR 0105): no account, no offline copy, no
