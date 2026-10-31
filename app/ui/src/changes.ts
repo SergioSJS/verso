@@ -141,7 +141,7 @@ export async function recheckAll(changed: ReadonlySet<string> | "all" | null): P
 /** What happened to the notes on screen, said once on the status line
  *  (announced): read again, both versions shown, gone — named, so that a
  *  tab in the background is not missed. */
-export function tellOutcomes(outcomes: Outcome[]): void {
+export function tellOutcomes(outcomes: { leaf: { path: string }; outcome: Outcome["outcome"] }[]): void {
   const names = (kind: Outcome["outcome"]) => [...new Set(outcomes.filter((o) => o.outcome === kind).map((o) => name(o.leaf.path)))];
   const read = names("read");
   const conflict = names("conflict");

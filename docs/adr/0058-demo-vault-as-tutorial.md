@@ -203,6 +203,9 @@ over; option B, equal keys, was not chosen.) **(E.1b, option A) the English
 screenshots are made when the interface stabilises, before V1**: the three
 server captures, the SVGs and the example PDF show the interface in
 Portuguese in both vaults today. Roadmap V.31.
+`[DECIDED 2026-10-31]` (B6 of the list of 2026-10-31, option a, approved as
+recommended: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved)): the English screenshots are made **by an automatic
+script in Docker**, not by hand near V1 (option b); E.1b's "before V1" stands.
 
 ### Amendment (2026-10-31): the site's wiki is made from the demo vaults
 

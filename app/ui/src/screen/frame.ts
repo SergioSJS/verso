@@ -17,6 +17,7 @@ import { button, h, ui } from "../dom";
 import { newUntitled } from "../files";
 import { icon } from "../icons";
 import { layout, paneToOpenIn, spaces } from "../layout/spaces";
+import { isLoose } from "../loose";
 import { NoteLeaf } from "../leaves/note";
 import { TextLeaf } from "../leaves/textfile";
 import { paletteDialog, ribbon, settingsDialog } from "../main";
@@ -56,10 +57,10 @@ function buildBar(): void {
       showSide();
       ui.search.focus();
       ui.search.select();
-    }, "bar-folder"),
-    verb(st.barNew, "plus", () => void newUntitled(paneToOpenIn()), "bar-folder bar-write"),
+    }, "bar-folder bar-search"),
+    verb(st.barNew, "plus", () => void newUntitled(paneToOpenIn()), "bar-folder bar-write bar-new"),
     back,
-    verb(st.barCommands, "command", () => paletteDialog.show(), "bar-folder"),
+    verb(st.barCommands, "command", () => paletteDialog.show(), "bar-folder bar-commands"),
     verb(st.barPanel, "panelRight", () => toggleRight(), "bar-right"),
   );
   // The panel at the right (backlinks, outline, tags…) opens from here on
@@ -75,10 +76,12 @@ function buildBar(): void {
   addEventListener("verso:folder-shown", paintReadOnly);
 }
 
-/** What the bar can do now: a folder open, a step back to take. */
+/** What the bar can do now: a folder open, a step back to take. A file
+ *  opened without its folder has the palette (ADR 0114); the bar's files,
+ *  search and new note are not drawn there (css/screen.css). */
 function paintBar(): void {
   const none = ui.search.disabled;
-  for (const b of bar.querySelectorAll<HTMLButtonElement>(".bar-folder")) b.disabled = none;
+  for (const b of bar.querySelectorAll<HTMLButtonElement>(".bar-folder")) b.disabled = none && !(isLoose() && b.classList.contains("bar-commands"));
   back.disabled = !(layout().focused ?? layout().panes()[0])?.canGo(-1);
 }
 

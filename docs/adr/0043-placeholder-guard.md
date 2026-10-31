@@ -263,3 +263,8 @@ placeholders (download from the card, evicted-and-synced not pending,
 eviction never deletes): decided on 2026-10-27.
 
 *2026-10-21* — `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the remaining providers (Dropbox, Google Drive, macOS's own) are handled each when its platform arrives or someone needs it, as this Status already says; a real Windows placeholder has still to be observed.
+
+*2026-10-31* — the other placeholder providers (Dropbox, Google Drive on
+macOS) out of V1: put to the maintainer in the list of 2026-10-31 and not
+accepted; to be discussed with the maintainer on 2026-11-02. Unchanged
+meanwhile.

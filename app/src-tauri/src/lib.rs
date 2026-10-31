@@ -198,12 +198,12 @@ impl App {
     /// line named, if anything.
     #[must_use]
     pub fn new(initial: Option<PathBuf>) -> Self {
-        // `verso-app <path>`: a Markdown file is a loose file (ADR 0114
-        // item 6); anything else is opened as a folder, and what is not
-        // one fails there, in words, as before.
+        // `verso-app <path>`: a Markdown file, or a data file (ADR 0114
+        // items 6 and 32), is a loose file; anything else is opened as a
+        // folder, and what is not one fails there, in words, as before.
         let (folders, files): (Vec<PathBuf>, Vec<PathBuf>) = initial
             .into_iter()
-            .partition(|p| verso_core::kind_of(p) != verso_core::PathKind::MarkdownFile);
+            .partition(|p| !verso_core::kind_of(p).opens_loose());
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),

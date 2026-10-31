@@ -5,6 +5,7 @@
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView } from "codemirror";
+import { isLoose } from "./loose";
 import { insertBase, newBase } from "./bases";
 import { importFiles } from "./importFiles";
 import { imp } from "./importStrings";
@@ -376,7 +377,9 @@ const WRITES = new Set([
  *  side can do it, and a phone shows more than one pane at a time. */
 function possible(id: string): boolean {
   if (WRITES.has(id)) return may("", "create");
-  if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
+  // The window of a file opened without its folder is one pane (ADR 0114 item 9).
+  if (id === "split-right" || id === "split-down") return !narrow.matches && !isLoose();
+  if (id === "maximize") return !narrow.matches;
   if (id === "new-window" || id === "new-window-here") return can("windows");
   if (id === "open-console") return can("devtools") && !narrow.matches;
   if (id === "zoom-in" || id === "zoom-out" || id === "zoom-reset") return hasHostZoom();

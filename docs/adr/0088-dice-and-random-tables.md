@@ -166,3 +166,16 @@ reused (item 5), the roller without a note (item 6), and whether
 primitives satisfy [0036](0036-tabletop-rpg-support.md)'s Consequences.
 
 *Added (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". The editor's `/` menu gets **Dice roll** (keywords dice, dado, roll, rolar, d20), shown only while the Dice feature is on: it inserts an inline `` `dice: 1d20` `` with the notation selected, so the person types over it.
+
+**Amendment (2026-10-31): a roll heard in a room lands on its own chip.**
+`[DECIDED 2026-10-31, to be built]` Item 4's room roll carries no place in
+the note, so a roll by another person lands on the first chip with the same
+notation (the bow and the dagger both `1d20+6`;
+[review 2026-10-23](../review/2026-10-23-table-three-devices.md) finding 4,
+fixed then for one's own rolls only). Put to the maintainer as B1 of the list
+of 2026-10-31, option a, *"corrigir os dois numa mudança de contrato (servidor
+antes dos apps)"* (fix both in one contract change, the server before the
+apps), and approved as recommended: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The room's roll carries the
+chip's place, in the **same contract change** as the oracle's callout found
+by its line ([0102](0102-creative-oracles-and-improvisation.md), amendment of
+the same day); the server is deployed before the apps.

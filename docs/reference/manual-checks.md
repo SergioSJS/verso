@@ -48,7 +48,18 @@ Per system — the double-click itself cannot run in the browser harness; each l
 - [ ] **Nothing beside the file** (A): after editing, `ls -la ~/Downloads` shows no `.verso`, `.trash` or temporary; the configuration directory gains no index for Downloads; `recent-files.json` lists the file.
 - [ ] **Make Verso the default** (A): Get Info › Change All (macOS); Settings › Default apps with the Settings button (Windows); `xdg-mime default verso-app.desktop text/markdown` (Linux, after a `.deb`/`.rpm` install; the AppImage only once integrated) — then a double-click opens Verso. The installer never made it the default by itself. Uninstalling on Windows removes `Verso.Markdown.1` and the registration (`check-windows.sh`).
 - [ ] **Open the whole folder** (A): the bar's button, the confirmation, the folder opened as a normal window; the loose window keeps its file.
+- [ ] **The bar and the window's buttons** (A, 2026-10-31): macOS — the bar's file icon and name start right of the three real window buttons and sit on their line; dragging the bar's empty part moves the window, a double click zooms it, its buttons still click; full screen leaves no gap. Windows / Linux — the bar ends left of minimise/maximise/close and right of the menu button. Shrink the window to its minimum: one line, nothing under the buttons. A file in a folder opened before (`~/Downloads/verso-vault-test/projetos/projetos.md`) shows **Abrir “verso-vault-test”** beside **Abrir a pasta inteira**. The harness only simulates the frame (`&frame=mac|windows`).
 - [ ] **Deleted while open** (A): remove the file in the file manager: "Gravar aqui de novo" makes it again; "Salvar uma cópia…" opens the system's save dialog and writes there.
+
+### A data file opened without its folder (ADR 0114 items 31–33, 2026-10-31)
+
+Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed package (the harness cannot reach the system's "Open with"):
+
+- [ ] **Open with, for each type** (A): right-click a `.json`, a `.yaml` (and a `.yml`), a `.toml`, an `.xml` and a `.csv` in Finder / Explorer / Nautilus: Verso is offered under "Open with", never as the default; choosing it opens the file in the loose window, in the diagram. On macOS `scripts/install-beta.sh` asks Launch Services the same for each kind and fails if Verso is not offered; on an older macOS (before 27) the `.toml` is the one that needs the imported `io.toml` type.
+- [ ] **Text and save** (A): **Text** shows the file; an edit is saved in place (atomic; nothing beside it); a change made in another editor is read in, or shows the conflict banner if something was typed; deleting the file while it has unsaved text offers "Save here again" and "Save a copy…" (the save dialog offers the file's own kind, not Markdown).
+- [ ] **A file the diagram cannot read** (A): an invalid `.json` opens as its text with the diagram's line saying why.
+- [ ] **Windows registry** (A): after the install, `HKCU\Software\Classes\.json\OpenWithProgids` (and `.yaml`, `.yml`, `.toml`, `.xml`, `.csv`) list `Verso.Json.1`… (`Verso.Json.Beta.1`… for the beta), the extensions' default values are unchanged, Settings › Default apps lists Verso for each; the uninstaller removes them all (`check-windows.sh`).
+- [ ] **Linux MIME types** (A): the installed `.desktop` says `MimeType=text/markdown;application/json;application/yaml;application/x-yaml;application/toml;application/xml;text/xml;text/csv;` and `Exec=… %F`; `xdg-mime query default application/json` is unchanged by the install.
 
 - **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
 

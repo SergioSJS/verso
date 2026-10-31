@@ -728,6 +728,16 @@ pub(crate) fn read_text<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<TextFile, ContractError> {
+    // A file opened without a folder answers from its own scope (ADR 0114
+    // item 32: a data file's text tab and its diagram read it here).
+    if let Some(answer) = via_loose(
+        &state,
+        &window,
+        "read_text",
+        serde_json::json!({ "path": path }),
+    ) {
+        return answer;
+    }
     with(&state, &window, |ws| ops::read_text(ws, path))
 }
 
@@ -743,6 +753,16 @@ pub(crate) fn write_text<R: tauri::Runtime>(
     text: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
+    // A loose file's text tab: written atomically over the revision read,
+    // within the file's own scope (ADR 0114 items 10 and 32).
+    if let Some(answer) = via_loose(
+        &state,
+        &window,
+        "write_text",
+        serde_json::json!({ "path": path, "text": text, "revision": revision }),
+    ) {
+        return answer;
+    }
     let (p, t) = (path.clone(), text.clone());
     let written = with(&state, &window, |ws| {
         ops::write_text(ws, path, text, revision)

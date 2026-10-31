@@ -352,6 +352,12 @@ as written. Sizes: S is hours, M a day or two, L more.
       mailbox does not exist yet; the maintainer will create it.** The
       point stays `[OPEN]` until he confirms it exists — until then the
       `security.txt` promises an address nobody reads.
+      `[DECIDED 2026-10-31]` (B2 of the list of 2026-10-31, option a,
+      approved as recommended: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved)): *"você cria o endereço e me
+      passa"* — the maintainer creates the address and sends it; the
+      `security.txt` and `SECURITY.md` stay (option b, taking the file down
+      until then, not chosen), and **only the announcement waits** on the
+      address existing. The address the files name follows what he sends.
 
 16. **The outside reading, and the sanitizer's cross-review** (F9). Before
     the announcement: `app/ui/src/sanitize.ts` read by the model that did
@@ -1036,3 +1042,6 @@ reading of the sanitizer with its suite run in WebKit and Chromium. Not
 in these merges: item 18's measurement and item 19's hostile lab.
 Outside this round: item 16's pentest by a person outside the project, a
 condition of the announcement.
+
+**2026-10-31.** Item 15's contact decided (B2 = a): the maintainer creates
+the address and sends it; only the announcement waits on it.

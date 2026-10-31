@@ -35,6 +35,72 @@
         "contentTypes": [
           "net.daringfireball.markdown"
         ]
+      },
+      {
+        "ext": [
+          "json"
+        ],
+        "name": "JSON",
+        "description": "JSON file",
+        "mimeType": "application/json",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "public.json"
+        ]
+      },
+      {
+        "ext": [
+          "yaml",
+          "yml"
+        ],
+        "name": "YAML",
+        "description": "YAML file",
+        "mimeType": "application/yaml",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "public.yaml"
+        ]
+      },
+      {
+        "ext": [
+          "toml"
+        ],
+        "name": "TOML",
+        "description": "TOML file",
+        "mimeType": "application/toml",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "io.toml"
+        ]
+      },
+      {
+        "ext": [
+          "xml"
+        ],
+        "name": "XML",
+        "description": "XML file",
+        "mimeType": "application/xml",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "public.xml"
+        ]
+      },
+      {
+        "ext": [
+          "csv"
+        ],
+        "name": "CSV",
+        "description": "CSV file",
+        "mimeType": "text/csv",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": [
+          "public.comma-separated-values-text"
+        ]
       }
     ]
   }

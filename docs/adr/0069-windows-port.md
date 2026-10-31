@@ -373,7 +373,8 @@ refuses to rename a folder while any file in it is open. (On macOS, since
   no API that Windows 11 alone has, WebView2 installed by the installer
   where it is missing, and every `cfg(windows)` choice checked against
   Windows 10's documentation. The first Windows beta may ship before
-  Windows 10 is run; the release notes say so.
+  Windows 10 is run; the release notes say so. *(2026-10-31: the machine is
+  made now, Status.)*
 - **Asked by the maintainer on 2026-10-08**: what had to be fixed for the
   first Windows build is written down where agents read it, so that work
   done on the Mac is right on Windows the first time ("tomar nota de todos
@@ -443,3 +444,12 @@ until its pull request: what the directory `fsync` means on Windows
 9).)* Decided on 2026-10-08: the
 configuration location, `%LOCALAPPDATA%\verso` (item 9, the choice left to
 the port); OneDrive's placeholder handled as iCloud's (item 9, ADR 0043).
+
+**Decided (2026-10-31): Windows 10 gets its virtual machine now.**
+`[DECIDED 2026-10-31, to be done]` Put to the maintainer as B5 of the list of
+2026-10-31 — Windows 10 has never been run; a) the author makes a Windows 10
+virtual machine and tests there, b) Windows 10 leaves the promise — and
+approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). Item 1 stands (Windows 10 and 11): a
+second virtual machine on the Proxmox host runs Windows 10, and the port's
+checks run on it as on the Windows 11 one (the Consequences' "the machine
+comes later" of 2026-10-07 ends).

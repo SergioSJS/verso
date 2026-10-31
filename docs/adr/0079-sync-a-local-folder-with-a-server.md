@@ -332,3 +332,12 @@ its size": the 1 GiB limit, accepted by the maintainer that day, is item
 Fable 5.1 on 2026-10-10/11, in the sync campaign's session; its final
 report, `verso-sync-campaign/relatorio-final.md`, is outside the
 repository)*.
+
+**Decided (2026-10-31): a rename made on the server arrives as a rename.**
+`[DECIDED 2026-10-31, to be built]` A rename made on the server (a window of
+the server) reached the Mac as a deletion and a creation, the old file going
+to the trash. Item 10 states the rename going up; the answer states it coming
+down. Put to the maintainer as B12 of the list of 2026-10-31 — a) fix it so
+it arrives as a rename, b) accept it — and approved as recommended, a:
+*"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). A rename in the server's change log is applied on the device as
+one rename, never as a delete and a create.

@@ -297,3 +297,15 @@ quota); and where a deletion carried out by sync goes on the computer
 Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 each `[OPEN]` decided as recommended, in place (items 3, 4, 8 and 9), and
 item 12 added, the mitigation of 0079's known limit.
+
+**Decided (2026-10-31): the server's trash gets an age and size cap.**
+`[DECIDED 2026-10-31, to be built]` The server's `.trash/` grows with files
+replaced again and again (item 12's replaced versions). Put to the maintainer
+as B11 of the list of 2026-10-31 — a) a cap by age or size (e.g. 30 days), b)
+leave it — and approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). Item 3's retention (30
+days by default) already caps by age; what the answer adds is that the
+server's trash is kept under a cap by **size** as well, the oldest entries
+going first, with the replaced versions of item 12 under both caps. The size
+and how it relates to item 8 (the oldest expiring early when the trash alone
+passes the quota) are the build's, said in its As built. Read by the author as
+above; the answer's words were only "age/size (e.g. 30 days)".

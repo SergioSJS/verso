@@ -9,14 +9,17 @@
 //! revision — is built here from the parse alone, with `stale` and
 //! `unverified` false (there is no index to be behind); the write checks
 //! the stamp the read returned (invariant 11) through `verso-fs` as a
-//! folder's does.
+//! folder's does. A structured-data file (`.json`, `.yaml`, `.toml`,
+//! `.xml`, `.csv`; item 32, amended 2026-10-31) is the same scope, read
+//! and written as text ([`Loose::read_text`], [`Loose::write_text`]) for
+//! the diagram of ADR 0106 and its text tab: no dialect parse.
 
 use std::path::{Path, PathBuf};
 
 use verso_fs::{ReadOnlyWhy, Root};
 use verso_index::{Block, Heading};
 
-use crate::{CoreError, NoteText, Written, properties, revision, typed};
+use crate::{CoreError, NoteText, TextFile, Written, properties, revision, typed};
 
 /// The bound above which a loose file is shown read only, in Source (ADR
 /// 0114 item 13, Q9: no folder bound exists, so the build names the
@@ -250,16 +253,34 @@ impl Loose {
     /// window: a placeholder is `Read(Unavailable)`, never empty text (ADR
     /// 0043); bytes that are not UTF-8 are `NotText`.
     pub fn read(&mut self, as_path: &str) -> Result<NoteText, CoreError> {
+        let (text, revision) = self.read_raw()?;
+        Ok(Self::note_text(as_path, text, revision))
+    }
+
+    /// The file's text and revision, named `as_path` for the window, with
+    /// no parse: what a text tab and the diagram read (item 32).
+    pub fn read_text(&mut self, as_path: &str) -> Result<TextFile, CoreError> {
+        let (text, revision) = self.read_raw()?;
+        Ok(TextFile {
+            path: as_path.to_owned(),
+            text,
+            revision,
+            warnings: Vec::new(),
+        })
+    }
+
+    /// The file's text as it is on disk now, and its revision.
+    fn read_raw(&mut self) -> Result<(String, String), CoreError> {
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
         if self.root.scoped_len().is_ok_and(|len| len > LOOSE_READ_CAP) {
             return Err(CoreError::Loose(
-                "the file is too large to be opened as a note".to_owned(),
+                "the file is too large to be opened here".to_owned(),
             ));
         }
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         self.remember(&text);
-        Ok(Self::note_text(as_path, text, revision::encode(&stamp)))
+        Ok((text, revision::encode(&stamp)))
     }
 
     /// Write `text` over the file `revision` describes, atomically (item
@@ -272,6 +293,37 @@ impl Loose {
         text: &str,
         revision: &str,
     ) -> Result<Written, CoreError> {
+        let (revision, warnings) = self.write_raw(text, revision)?;
+        Ok(Written {
+            note: Self::note_text(as_path, text.to_owned(), revision),
+            warnings,
+        })
+    }
+
+    /// [`Loose::write`] for a text tab (item 32): the same atomic write
+    /// over the revision read, answered as text, with no parse.
+    pub fn write_text(
+        &mut self,
+        as_path: &str,
+        text: &str,
+        revision: &str,
+    ) -> Result<TextFile, CoreError> {
+        let (revision, warnings) = self.write_raw(text, revision)?;
+        Ok(TextFile {
+            path: as_path.to_owned(),
+            text: text.to_owned(),
+            revision,
+            warnings,
+        })
+    }
+
+    /// Write `text` over the file `revision` describes: the new revision
+    /// and what the write could not preserve.
+    fn write_raw(
+        &mut self,
+        text: &str,
+        revision: &str,
+    ) -> Result<(String, Vec<String>), CoreError> {
         self.check_writable(text.len())?;
         let handle = self.root.scoped_file().map_err(CoreError::Confined)?;
         let expected = crate::Workspace::decode_revision(revision)?;
@@ -292,10 +344,7 @@ impl Loose {
         if report.wrote_through_symlink_to.is_some() {
             warnings.push("written through a symlink".to_owned());
         }
-        Ok(Written {
-            note: Self::note_text(as_path, text.to_owned(), revision::encode(&stamp)),
-            warnings,
-        })
+        Ok((revision::encode(&stamp), warnings))
     }
 
     /// The file made again at its name after it was deleted or moved

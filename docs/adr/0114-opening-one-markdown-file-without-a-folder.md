@@ -459,6 +459,80 @@ below are `[OPEN]` for the maintainer, each with a recommendation. The
 roadmap lists it as a proposal under "After V1"; pulling it into V1 is the
 maintainer's call.
 
+### Amendment (2026-10-31): structured data files open too, in the diagram
+
+Source: the maintainer, in session, 2026-10-31: *"Eu consigo fazer o mesmo
+com JSON e YAML? Pra gente usar aquele recurso de blocos maneiro que a gente
+fez?"* (can I do the same with JSON and YAML, to use the block feature we
+made — the diagram of [ADR 0106](0106-structured-data-as-a-diagram.md)).
+Offered: `.json`/`.yaml`/`.yml` as recommended, or those plus the other
+formats the diagram reads; **chosen: "plus toml/xml/csv"**. The rest is the
+author's recommendation, accepted with it:
+
+31. **Verso is offered under "Open with" for `.json`, `.yaml`, `.yml`,
+    `.toml`, `.xml` and `.csv`** on the three systems, exactly as for `.md`
+    (items 2–4): an alternative application, rank Alternate on macOS (with
+    the system's types — `public.json`, `public.yaml`, `public.xml`,
+    `public.comma-separated-values-text`, and an imported type for TOML if
+    the system declares none), the MIME types on Linux, `OpenWithProgids`
+    on Windows; never the default by itself, never the extension's default
+    value written.
+32. **Such a file opens in the loose window in the diagram of ADR 0106**, with
+    the switch to its text the diagram already has; the text is editable and
+    saved as a loose `.md` is (items 10–17: the same scope, the same atomic
+    write and optimistic check). A file the diagram cannot read opens as text
+    with the diagram's own message.
+33. The checks of item 29 (`scripts/check-file-associations.mjs`) and the
+    install checks cover the new types.
+
+*As built (2026-10-31, items 31–33)* — details the amendment left to the build, no new decisions:
+
+- *Item 31, macOS types.* The system's own declarations (this Mac's
+  `CoreTypes.bundle`, macOS 27.2) and Apple's list of system-declared types
+  name `public.json`, `public.yaml`, `public.xml` and
+  `public.comma-separated-values-text`, and no TOML type; `.toml` names
+  `io.toml`, imported in `Info.plist` (after the format's own domain,
+  toml.io; conforming to `public.utf8-plain-text`, extension `toml`, MIME
+  `application/toml`). A name chosen in the build: no TOML identifier is
+  registered anywhere this record found.
+- *Item 31, Windows.* One versioned ProgID per kind and channel
+  (`Verso.Json.1`, `Verso.Yaml.1`, `Verso.Toml.1`, `Verso.Xml.1`,
+  `Verso.Csv.1`; `…Beta.1` for the beta), so a JSON file is not called a
+  "Markdown document" where the person makes Verso its app; `Capabilities`
+  lists every extension.
+- *Item 31, Linux.* `application/json`, `application/yaml` and
+  `application/x-yaml`, `application/toml`, `application/xml` and
+  `text/xml`, `text/csv`.
+- *Item 32.* `verso_fs::PathKind::DataFile` beside `MarkdownFile`; the
+  loose window reads and writes the file through `read_text` and
+  `write_text` (the service's loose dispatch; `Loose::read_text`,
+  `Loose::write_text`, no dialect parse), so the diagram and its text tab
+  are the folder's own, unchanged. The window opens the file in the
+  diagram whatever view was used last for its type in a folder, and does
+  not change that choice; a text the diagram cannot read (not valid, past
+  20 MB, past 200,000 boxes) turns the tab into the text with
+  `DataDiagram.unreadable()`'s words. With the diagram's feature switched
+  off, the file opens as text (ADR 0106 item 12, "off is off"). "Save as
+  board" writes a new file beside the data, so the diagram does not offer
+  it in a loose window. Moves and folds are kept under the file's key.
+  "Save a copy…" filters by the file's own kind.
+- *Not built, for the maintainer.* `verso dados.json` on the command line
+  (item 8 names `.md` only) and File › Open File… (its picker filters
+  Markdown) still take only Markdown; the amendment names "Open with", and
+  widening the other two ways in is left to the maintainer's word.
+
+34. **The command line and File › Open file… take the same data files.**
+    `[DECIDED 2026-10-31, to be built]` Put to the maintainer as N1 of the
+    list of 2026-10-31 — the command line (`verso dados.json`) and *File ›
+    Open file…* accept JSON/YAML/TOML/XML/CSV as *Open with* does — and
+    approved as recommended (*"Todo resto pode ir de recomendado e
+    aprovado"*, everything else as recommended and approved): a first
+    argument of `verso` that names an existing `.json`, `.yaml`, `.yml`,
+    `.toml`, `.xml` or `.csv` file opens it as item 32 does, by the same rule
+    as a Markdown file ([0042](0042-open-from-command-line.md), Revisions),
+    and the picker of *File › Open file…* offers those kinds beside
+    Markdown. The "Not built" line above is answered.
+
 ### Open questions
 
 | # | Question | Options | Recommendation |
