@@ -12,7 +12,8 @@
 // of the text. The idea of the box-and-line view is JSON Crack's.
 
 import { button, h } from "../dom";
-import { type MenuItem, showMenu } from "../menu";
+import { icon } from "../icons";
+import { group, type MenuItem, showMenu } from "../menu";
 import { buildBox, type BoxMarks } from "./boxes";
 import { curve, edgeEnds, type Layout } from "./layout";
 import { locate, MAX_BYTES, type Format, pathOf, rowPath, type Tree } from "./model";
@@ -61,6 +62,10 @@ export class DataDiagram {
   private readonly hint = h("p", "dg-hint");
   private readonly levels = h("select", "dg-levels");
   private readonly dirButton = h("button", "ghost dg-dir");
+  private readonly hintClose = h("button", "ghost dg-hint-close");
+  private readonly hintText = h("span", "dg-hint-text");
+  private compact = false;
+  private hintSeen = false;
 
   model: DiagramModel | null = null;
   /** Why nothing is drawn: the text past the size limit, or more boxes than are drawn. */
@@ -110,12 +115,88 @@ export class DataDiagram {
     this.note.setAttribute("role", "status");
     this.error.hidden = true;
     const coarse = window.matchMedia?.("(pointer: coarse)");
-    this.hint.textContent = coarse?.matches ? dgw.hintTouch : dgw.hint;
+    this.hintText.textContent = coarse?.matches ? dgw.hintTouch : dgw.hint;
+    this.hintClose.type = "button";
+    this.hintClose.append(icon("close", dgw.hintDismiss));
+    this.hintClose.title = dgw.hintDismiss;
+    this.hintClose.setAttribute("aria-label", dgw.hintDismiss);
+    this.hintClose.addEventListener("click", () => this.dismissHint());
+    this.hint.append(this.hintText, this.hintClose);
     this.buildBar();
     this.el.append(this.bar, this.error, this.stage, this.note, this.hint);
     this.wire();
-    this.resizer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.schedule());
+    this.resizer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      this.checkCompact();
+      this.schedule();
+    });
     this.resizer?.observe(this.stage);
+    this.resizer?.observe(this.el);
+  }
+
+  /* ---------- Narrow panes: one slim row ---------- */
+
+  /** A narrow pane (a phone, a thin split) gets icons and an overflow menu; a card on a board keeps its own small bar. */
+  private checkCompact(): void {
+    const w = this.el.clientWidth;
+    if (w === 0) return;
+    const on = w < 560 && !this.el.closest(".board-card-dg");
+    if (on === this.compact) return;
+    this.compact = on;
+    this.el.classList.toggle("dg-compact", on);
+    if (!on) this.el.classList.remove("dg-searching");
+    this.paintHint();
+  }
+
+  private paintHint(): void {
+    if (!this.compact) {
+      this.hint.hidden = false;
+      this.hintText.textContent = window.matchMedia?.("(pointer: coarse)")?.matches ? dgw.hintTouch : dgw.hint;
+      return;
+    }
+    this.hintText.textContent = dgw.hintShort;
+    let seen = this.hintSeen;
+    try {
+      seen = seen || localStorage.getItem("verso.dg.hintSeen") === "1";
+    } catch {
+      /* storage blocked: the tip shows until dismissed in this window */
+    }
+    this.hint.hidden = seen;
+  }
+
+  private dismissHint(): void {
+    this.hintSeen = true;
+    try {
+      localStorage.setItem("verso.dg.hintSeen", "1");
+    } catch {
+      /* storage blocked */
+    }
+    this.hint.hidden = true;
+  }
+
+  private openSearch(on: boolean): void {
+    this.el.classList.toggle("dg-searching", on);
+    if (on) this.focusSearch();
+    else {
+      this.search.value = "";
+      this.runSearch();
+    }
+  }
+
+  private overflow(anchor: HTMLElement): void {
+    const r = anchor.getBoundingClientRect();
+    const levels: MenuItem[] = [];
+    for (let i = 1; i <= 6; i++) levels.push([dgw.level(i), () => this.setBase({ kind: "depth", depth: i })]);
+    const lr = (this.model?.dir ?? "lr") === "lr";
+    const items: MenuItem[] = [
+      [dgw.foldAll, () => this.setBase({ kind: "depth", depth: 1 }), "collapse"],
+      [dgw.unfoldAll, () => this.setBase({ kind: "depth", depth: Number.MAX_SAFE_INTEGER }), "expand"],
+      group(dgw.levelMenu, "outline", levels),
+      [`${dgw.direction}: ${lr ? dgw.topToBottom : dgw.leftToRight}`, () => this.toggleDirection(), "sort"],
+      [dgw.arrange, () => this.rearrange(), "refresh"],
+    ];
+    if (this.host.saveBoard) items.push([dgw.saveBoard, () => this.host.saveBoard?.(), "board"]);
+    items.push([dgw.hintShow, () => { this.hintSeen = false; try { localStorage.removeItem("verso.dg.hintSeen"); } catch { /* storage blocked */ } this.hint.hidden = false; }, "info"]);
+    showMenu(r.right, r.bottom + 4, items, dgw.moreActions);
   }
 
   /* ---------- The toolbar ---------- */
@@ -151,7 +232,11 @@ export class DataDiagram {
     prev.addEventListener("click", () => this.step(-1));
     const next = button("ghost", dgw.next, "chevronDown");
     next.addEventListener("click", () => this.step(1));
-    find.append(this.search, prev, next, this.count);
+    const searchBtn = button("ghost dg-c-only dg-search-open", dgw.searchOpen, "search");
+    searchBtn.addEventListener("click", () => this.openSearch(true));
+    const searchX = button("ghost dg-c-only dg-search-close", dgw.searchClose, "close");
+    searchX.addEventListener("click", () => this.openSearch(false));
+    find.append(this.search, prev, next, this.count, searchX);
 
     const text = (label: string, run: () => void, cls = "ghost"): HTMLButtonElement => {
       const b = h("button", cls, label);
@@ -179,20 +264,37 @@ export class DataDiagram {
     zoomOut.addEventListener("click", () => this.zoomBy(1 / 1.25));
     const zoomIn = button("ghost", dgw.zoomIn, "zoomIn");
     zoomIn.addEventListener("click", () => this.zoomBy(1.25));
-    const fit = text(dgw.fit, () => this.fit());
+    const wide = (b: HTMLElement): HTMLElement => {
+      b.classList.add("dg-w-only");
+      return b;
+    };
+    const fit = wide(text(dgw.fit, () => this.fit()));
+    const fitIcon = button("ghost dg-c-only", dgw.fit, "fitPage");
+    fitIcon.addEventListener("click", () => this.fit());
+    const more = button("ghost dg-c-only dg-overflow", dgw.moreActions, "more");
+    more.setAttribute("aria-haspopup", "menu");
+    more.addEventListener("click", () => this.overflow(more));
+    this.levels.classList.add("dg-w-only");
+    this.dirButton.classList.add("dg-w-only");
     const row = h("div", "dg-actions");
     row.append(
-      text(dgw.foldAll, () => this.setBase({ kind: "depth", depth: 1 })),
-      text(dgw.unfoldAll, () => this.setBase({ kind: "depth", depth: Number.MAX_SAFE_INTEGER })),
+      wide(text(dgw.foldAll, () => this.setBase({ kind: "depth", depth: 1 }))),
+      wide(text(dgw.unfoldAll, () => this.setBase({ kind: "depth", depth: Number.MAX_SAFE_INTEGER }))),
       this.levels,
       this.dirButton,
-      text(dgw.arrange, () => this.rearrange()),
+      wide(text(dgw.arrange, () => this.rearrange())),
       zoomOut,
       zoomIn,
       fit,
+      fitIcon,
     );
-    if (this.host.saveBoard) row.append(text(dgw.saveBoard, () => this.host.saveBoard?.()));
-    this.bar.append(find, row);
+    if (this.host.saveBoard) row.append(wide(text(dgw.saveBoard, () => this.host.saveBoard?.())));
+    row.append(more);
+    this.bar.append(searchBtn, find, row);
+    // An icon-only button is named on itself (title and aria-label), not only on its drawing.
+    for (const b of this.bar.querySelectorAll("button")) {
+      if (!b.textContent?.trim() && b.title) b.setAttribute("aria-label", b.title);
+    }
     this.paintDirection();
   }
 
