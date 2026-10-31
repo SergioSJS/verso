@@ -983,6 +983,13 @@ hand, on a phone and an iPad, the server's window in the browser.
    again, both panes are back. A pane under 520 px folds its tools into "…",
    which reaches "Ações da aba…". Level: H; E: `responsive.spec.mjs`, "a
    split layout on a phone" and "a pane under 520 px".
+2a. The tree on a finger (ADR 0060, 2026-10-30): a tap on a folder's row —
+   on its name, not only the arrow — opens or closes it; the row is 44 px
+   tall; the small folder button at the row's end opens the folder's page
+   (named "Abrir a página da pasta", a Tab stop of its own); a long press
+   opens the row's menu, whose first item is the same. With a mouse: the
+   arrow toggles, the name opens the page, no button. Level: H (a phone);
+   E: `tree-folder-tap.spec.mjs`.
 3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
    help speaks of the pinch; two fingers zoom it. Level: H; E:
    `responsive.spec.mjs`, "the graph" (two tests).
