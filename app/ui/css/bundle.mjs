@@ -6,6 +6,7 @@
 //   node css/bundle.mjs <out file>
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { deskCopy } from "./deskUnits.mjs";
 
 const ui = new URL("..", import.meta.url);
 const out = process.argv[2];
@@ -14,4 +15,4 @@ const index = readFileSync(new URL("style.css", ui), "utf8");
 const parts = [...index.matchAll(/^@import "\.\/(css\/[a-z-]+\.css)";$/gm)].map((m) => m[1]);
 if (parts.length === 0) throw new Error("style.css imports no part");
 const css = parts.map((p) => readFileSync(new URL(p, ui), "utf8").replaceAll("url(../fonts/", "url(fonts/")).join("");
-writeFileSync(out, css);
+writeFileSync(out, `${css}\n/* The viewport units, again for a phone shown the desktop site (css/deskUnits.mjs). */\n${deskCopy(css)}`);
