@@ -18,7 +18,7 @@ No Verso, as conexões entre notas são cidadãs de primeira classe. Este guia d
 ## 1. Tipos de Wikilinks
 
 ### Link Direto
-No modo **Leitura**, um clique segue o link. No modo **Editar**, o clique põe o cursor no link, para editá-lo — `⌘` + clique o segue.
+No modo **Leitura**, um clique segue o link. No modo **Editar**, o clique põe o cursor no link, para editá-lo — `⌘` + clique o segue, e `⌥ Enter` (`Alt + Enter`) abre o link sob o cursor — um `[[link]]`, um `![[embed]]`, um link `[texto](endereço)` ou um endereço solto — sem o mouse. Está na paleta como **Abrir link sob o cursor**.
 
 Link para uma nota existente pelo nome. Ao digitar `[[`, o Verso sugere as notas e os arquivos da pasta, o mais parecido primeiro; `[[Nota#` sugere os títulos daquela nota, e `[[#` os títulos desta. O formato do link inserido segue **Ajustes › Arquivos e links › Formato de novo link** (o mais curto possível, relativo à nota, ou a partir da raiz da pasta).
 - [[00 - Bem-vindo ao Verso]]
@@ -94,7 +94,9 @@ Quem só lê uma pasta num servidor vê a lista, sem os botões.
 
 ### Sugestões enquanto escrevo
 
-Em **Ajustes › Editor**, **Sugerir links enquanto escrevo** (desligado por padrão) faz o Verso oferecer o link no instante em que você acaba de digitar o nome inteiro de uma nota, ou um dos apelidos dela: junto ao cursor aparece `Ligar a [[Nome]]`. **Tab** ou **Enter** aceitam e escrevem o link (`[[Nome]]`, ou `[[Nome|texto]]` quando o que você digitou é outra caixa ou um apelido); **Esc**, ou seguir escrevendo, dispensam — o texto nunca muda sozinho, e um nome dispensado não volta a ser oferecido no mesmo parágrafo. No celular o aviso é um botão para tocar. Nunca aparece dentro de código, de um link ou do cabeçalho de propriedades, nunca oferece a própria nota, e as listas **Pastas ignoradas** e **Nomes ignorados** tiram do caminho o que for ruído, como nomes que são palavras comuns.
+Em **Ajustes › Editor**, **Sugerir links enquanto escrevo** (desligado por padrão) faz o Verso oferecer o link enquanto você escreve. Digite o começo de um nome — por padrão três letras ou mais, numa palavra que começa com maiúscula ou número, como `Por`, `Porto C` ou `2026` (para as notas com data) — e uma lista mostra até cinco notas (e apelidos) da pasta que começam assim; as **setas** escolhem, **Tab** ou **Enter** aceitam e escrevem o link sobre o que você digitou, **Esc** dispensa a lista para aquela palavra. Se você digitar o nome inteiro, junto ao cursor aparece `Ligar a [[Nome]]`, que fica mesmo depois de um espaço ou uma vírgula, até a próxima palavra começar; **Tab** ou **Enter** escrevem o link (`[[Nome]]`, ou `[[Nome|texto]]` quando o que você digitou é outra caixa ou um apelido). Duas opções logo abaixo ajustam isso: **Letras para sugerir** (de 1 a 10; com 2, `Po` já lista) e **Só em palavras com maiúscula ou número** (desligada, `porto ci` também lista Porto Cinzento — com mais ruído). O texto nunca muda sozinho. No celular o aviso é um botão para tocar. Nunca aparece dentro de código, de um link ou do cabeçalho de propriedades, nunca oferece a própria nota, e as listas **Pastas ignoradas** e **Nomes ignorados** tiram do caminho o que for ruído, como nomes que são palavras comuns.
+
+Outro caminho, ligado por padrão (**Citar uma nota com @**, no mesmo lugar): digite `@` no começo de uma palavra e a mesma lista de notas do `[[` se abre; continue digitando para filtrar e escolha uma nota — o `@` e o que veio depois viram `[[Nome]]` (ou `[[Nome|texto]]`). **Esc** deixa o texto como você digitou. Não abre em `fulano@email`, nem em código, links, fórmulas ou tags.
 
 Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[14 - Arquivos e Pastas]]).
 

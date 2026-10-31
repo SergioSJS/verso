@@ -30,18 +30,21 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabRoll,
-    CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
-    FocusesSummary, FolderChanged, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
-    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
-    MovedEntries, NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed,
-    UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, BlockKind, Can, Capabilities, CliState, CollabJoin,
+    CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
+    FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
+    FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
+    Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
+    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw,
+    Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
+mod campaign;
 mod cli;
+mod cloud;
 mod device;
 mod discover;
 mod dns;
@@ -52,17 +55,25 @@ mod framing;
 mod history;
 mod local_server;
 mod log;
+mod loose;
 mod menu;
+mod menu_spec;
 mod notes;
 mod protocol;
 mod reach;
+#[cfg(any(target_os = "linux", test))]
+mod recover;
 mod release_sums;
 mod remote;
+mod remote_abilities;
 #[cfg(target_os = "linux")]
 mod resolv_conf;
+mod secrets;
+mod session;
 mod shares;
 mod sync;
 mod sync_commands;
+mod table;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
@@ -73,6 +84,7 @@ mod web_clip;
 mod windows;
 use boards::*;
 use cli::*;
+use cloud::*;
 use device::*;
 use discover::*;
 use files::*;
@@ -80,6 +92,7 @@ use focuses::*;
 use folder_layer::*;
 use history::*;
 use local_server::*;
+use loose::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -102,6 +115,26 @@ pub struct App {
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
     initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// Markdown files handed to the app (ADR 0114 item 6) and not yet
+    /// opened by the loose-files window: paths at the entry edge.
+    initial_file: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// The loose-files window (ADR 0114 item 7 iii, Q1): the one window
+    /// whose tabs are files opened without a folder — picked or made for a
+    /// file before it shows one, and known to the service once it does.
+    loose_window: Mutex<Option<String>>,
+    /// The folders of servers the windows showed when the app quit, waiting
+    /// for a window to open them (`session::restore`): address and folder.
+    /// `open_initial` takes them after the folders of this computer.
+    initial_server: Mutex<std::collections::VecDeque<(String, String)>>,
+    /// The app is quitting (⌘Q, the updater's restart): the windows that
+    /// close with it are not windows the person closed, and the set the
+    /// next start reopens keeps them (`session`).
+    quitting: std::sync::atomic::AtomicBool,
+    /// Windows handed a server's folder that could not be opened (the
+    /// server is down for a moment, as when an update restarts both): the
+    /// window label → the folder's key. The key stays in the set the next
+    /// start reopens until the person closes the window (`session`).
+    pub(crate) pending_servers: Mutex<std::collections::HashMap<String, String>>,
     /// Windows told a folder (`folder_handed`) and not done opening it:
     /// one is not handed another while it installs the first.
     opening: Mutex<std::collections::HashSet<String>>,
@@ -114,6 +147,11 @@ pub struct App {
     pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
     /// The folders that sync with a server, by key: their tasks (ADR 0079).
     pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
+    /// The system's keychain, where the secrets of a cloud are kept (ADR
+    /// 0104 item 14).
+    pub(crate) secrets: Arc<dyn secrets::Secrets>,
+    /// A cloud just checked and not yet started, by folder key.
+    pub(crate) pending_clouds: cloud::Pending,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. The gate in
     /// the window is what asks, and this list is its record on this side.
@@ -132,8 +170,15 @@ pub struct App {
     /// menu is macOS's; elsewhere the field would sit unread.
     #[cfg(target_os = "macos")]
     menu_recents: Mutex<Vec<PathBuf>>,
+    /// The files behind the menu's "Open Recent" (ADR 0114 Q4): item
+    /// `verso-recent-file-<i>` opens `menu_recent_files[i]`.
+    #[cfg(target_os = "macos")]
+    menu_recent_files: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
+    /// What the window pushed for the menu: its features, keys and the
+    /// commands that can run now (`menu_spec::MenuState`).
+    menu_state: Mutex<MenuState>,
     /// Set once the setup made the main window. On macOS the folder of
     /// `open -a Verso <folder>` arrives as an open event before the setup
     /// runs (tao hands `application:openURLs:` over before the launch
@@ -149,20 +194,36 @@ impl App {
     /// line named, if anything.
     #[must_use]
     pub fn new(initial: Option<PathBuf>) -> Self {
+        // `verso-app <path>`: a Markdown file is a loose file (ADR 0114
+        // item 6); anything else is opened as a folder, and what is not
+        // one fails there, in words, as before.
+        let (folders, files): (Vec<PathBuf>, Vec<PathBuf>) = initial
+            .into_iter()
+            .partition(|p| verso_core::kind_of(p) != verso_core::PathKind::MarkdownFile);
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
-            initial_folder: Mutex::new(initial.into_iter().collect()),
+            initial_folder: Mutex::new(folders.into_iter().collect()),
+            initial_file: Mutex::new(files.into_iter().collect()),
+            loose_window: Mutex::new(None),
+            initial_server: Mutex::new(std::collections::VecDeque::new()),
+            quitting: std::sync::atomic::AtomicBool::new(false),
+            pending_servers: Mutex::new(std::collections::HashMap::new()),
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
             syncs: Mutex::new(std::collections::HashMap::new()),
+            secrets: Arc::new(secrets::Keychain),
+            pending_clouds: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             frame_verdicts: Mutex::new(std::collections::HashMap::new()),
             framed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
+            #[cfg(target_os = "macos")]
+            menu_recent_files: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
+            menu_state: Mutex::new(MenuState::default()),
             started: std::sync::atomic::AtomicBool::new(false),
             local_server: local_server::LocalSlot::default(),
         }
@@ -285,6 +346,7 @@ async fn install<R: tauri::Runtime>(
     resume(app, &info.key);
     // A window is named after its folder (ADR 0065).
     let _ = window.set_title(&format!("{} — Verso", info.name));
+    loose::left(app, window.label());
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
     if let Some(catch_up) = catch_up {
@@ -299,6 +361,8 @@ async fn install<R: tauri::Runtime>(
     // The folder just opened is the freshest recent: the menu learns.
     #[cfg(target_os = "macos")]
     refresh_menu(app);
+    // The next start brings this window back (ADR 0065).
+    session::remember(app);
     Ok(info)
 }
 
@@ -345,27 +409,49 @@ async fn reopen_folder<R: tauri::Runtime>(
     install(&app, &window, move |config| Workspace::reopen(&key, config)).await
 }
 
-/// Open, once, the folder handed to the app — named on the command line
-/// (`verso-app <folder>`) or, on macOS, sent by an open event
-/// (`folder_handed`); `None` afterwards and when there was none. The UI
-/// calls it at start-up, before falling back to the last folder it
-/// remembers, and again when the host says a folder was handed to the app
-/// while it ran.
+/// Open, once, what was handed to the app — a folder named on the command
+/// line (`verso-app <folder>`) or, on macOS, sent by an open event
+/// (`folder_handed`), or a Markdown file (ADR 0114: `Opened::File`);
+/// `None` afterwards and when there was none. The UI calls it at
+/// start-up, before falling back to the last folder it remembers, and
+/// again when the host says a folder or a file was handed to the app while
+/// it ran. The loose-files window takes files only, never a folder.
 #[tauri::command]
 #[specta::specta]
 async fn open_initial<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
-) -> Result<Option<FolderInfo>, ContractError> {
+) -> Result<Option<Opened>, ContractError> {
     may_switch(&app, &window)?;
-    let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
+    let path = if loose::is_loose_window(&app, window.label()) {
+        None
+    } else {
+        lock(&app.state::<App>().initial_folder).pop_front()
+    };
+    let Some(path) = path else {
+        if let Some(file) = loose::open_initial_file(&app, &window).await {
+            return file.map(Some);
+        }
+        // A server's folder the last session had open (`session::restore`).
+        let server = lock(&app.state::<App>().initial_server).pop_front();
+        if let Some((url, folder)) = server {
+            let label = window.label().to_owned();
+            let key = session::server_key(&url, &folder);
+            let opened = remote::server_open(app.clone(), window, url, folder).await;
+            if opened.is_err() {
+                // Kept in the set: the server may be back by the next start.
+                lock(&app.state::<App>().pending_servers).insert(label, key);
+                session::remember(&app);
+            }
+            return opened.map(Some).map(|o| o.map(Opened::Folder));
+        }
         // Told, but the folder was taken by another window: not opening.
         lock(&app.state::<App>().opening).remove(window.label());
         return Ok(None);
     };
     install(&app, &window, move |config| Workspace::open(&path, config))
         .await
-        .map(Some)
+        .map(|info| Some(Opened::Folder(info)))
 }
 
 /// The app's version and the commit it was built from (ADR 0051), for the
@@ -388,6 +474,7 @@ fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), Contra
     // exit, and the new process, finding the old one still holding it,
     // would hand itself over and exit — and then the old one exits too.
     tauri_plugin_single_instance::destroy(&app);
+    session::quitting(&app);
     app.restart();
 }
 
@@ -535,10 +622,24 @@ fn capabilities<R: tauri::Runtime>(
     if live.is_some() {
         can.push(Can::Collab);
     }
+    // A window of files without a folder has no index, no tree, no bin, no
+    // sync (ADR 0114 items 18 and 25); every other window shows a folder.
+    if app.state::<App>().service.is_loose(window.label()) {
+        can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
+    } else {
+        can.extend_from_slice(Can::FOLDER);
+    }
+    // A folder of this computer alone is the person's own: no seat to tell.
+    // A synced one carries the server's answer for it (ADR 0113 S8), the
+    // last one while the server is out of reach.
+    let access = sync_commands::synced_of(&app, window.label())
+        .and_then(|s| s.seat())
+        .and_then(|v| serde_json::from_value(v).ok());
     Ok(Capabilities {
         host: Host::Desktop,
         can,
         latency_ms: live,
+        access,
     })
 }
 
@@ -638,8 +739,21 @@ fn collab_roll(
     path: String,
     notation: String,
     source: Option<String>,
+    styles: Option<verso_contract::DiceStyles>,
+    secret: Option<bool>,
+    occurrence: Option<u32>,
 ) -> Result<DiceRoll, ContractError> {
-    let _ = (path, notation, source);
+    let _ = (path, notation, source, styles, secret, occurrence);
+    Err(not_here())
+}
+
+/// An oracle question, spark or table drawn in the note's room by the
+/// server, heard by the others in it (ADR 0102 item 5): on a server, or a
+/// synced folder's link, only; here the window draws itself.
+#[tauri::command]
+#[specta::specta]
+fn collab_oracle(path: String, ask: OracleAsk) -> Result<OracleDraw, ContractError> {
+    let _ = (path, ask);
     Err(not_here())
 }
 
@@ -665,6 +779,9 @@ macro_rules! commands_for {
                 write_note::<$runtime>,
                 create_note::<$runtime>,
                 create_file::<$runtime>,
+                pick_files::<$runtime>,
+                create_picked::<$runtime>,
+                take_dropped::<$runtime>,
                 create_folder::<$runtime>,
                 delete_note::<$runtime>,
                 rename_note::<$runtime>,
@@ -675,9 +792,21 @@ macro_rules! commands_for {
                 list_tags::<$runtime>,
                 read_file_text::<$runtime>,
                 list_entries::<$runtime>,
+                list_block_ids::<$runtime>,
                 list_web_notes::<$runtime>,
                 graph::<$runtime>,
+                graph_unresolved::<$runtime>,
                 current_folder::<$runtime>,
+                loose_files::<$runtime>,
+                loose_close::<$runtime>,
+                open_folder_of_file::<$runtime>,
+                open_sibling::<$runtime>,
+                loose_save_again::<$runtime>,
+                loose_save_copy::<$runtime>,
+                pick_file::<$runtime>,
+                recent_files,
+                open_recent_file::<$runtime>,
+                open_default_apps,
                 app_info,
                 device_name,
                 set_device_name::<$runtime>,
@@ -686,6 +815,7 @@ macro_rules! commands_for {
                 return_to_main::<$runtime>,
                 open_url::<$runtime>,
                 fetch_file::<$runtime>,
+                placeholder_plan::<$runtime>,
                 open_devtools::<$runtime>,
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
@@ -712,15 +842,24 @@ macro_rules! commands_for {
                 set_walk_rules,
                 set_folder_note_name,
                 get_focuses::<$runtime>,
+                fetch_focuses_file::<$runtime>,
                 set_focuses::<$runtime>,
                 can_sync_focuses::<$runtime>,
                 set_sync_focuses::<$runtime>,
                 get_folder_settings::<$runtime>,
                 set_folder_settings::<$runtime>,
                 get_obsidian_periodic::<$runtime>,
+                list_folder_data::<$runtime>,
+                read_folder_data::<$runtime>,
+                write_folder_data::<$runtime>,
+                remove_folder_data::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
+                set_menu_commands::<$runtime>,
+                set_menu_enabled::<$runtime>,
+                menu_sections,
+                quit_app::<$runtime>,
                 reindex::<$runtime>,
                 capabilities::<$runtime>,
                 folder_space::<$runtime>,
@@ -733,6 +872,32 @@ macro_rules! commands_for {
                 collab_present,
                 collab_canvas,
                 collab_roll,
+                collab_oracle,
+                table::table_join,
+                table::table_leave,
+                table::table_look,
+                table::table_history,
+                table::table_say,
+                table::table_send_image,
+                table::table_attach,
+                table::table_roll,
+                table::table_pin,
+                table::table_delete,
+                table::table_clear,
+                campaign::campaign_status,
+                campaign::campaign_make,
+                campaign::campaign_unmake,
+                campaign::campaign_settings,
+                campaign::campaign_release,
+                campaign::campaign_release_all,
+                campaign::campaign_audience,
+                campaign::campaign_access,
+                campaign::campaign_secret_name,
+                campaign::campaign_grant,
+                campaign::campaign_invite,
+                campaign::access_get,
+                campaign::access_set,
+                campaign::table_rights_set,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
@@ -741,6 +906,7 @@ macro_rules! commands_for {
                 server_create_folder::<$runtime>,
                 server_open::<$runtime>,
                 server_retry::<$runtime>,
+                window_server::<$runtime>,
                 discover_servers_start,
                 discover_servers_list,
                 discover_servers_stop,
@@ -748,6 +914,10 @@ macro_rules! commands_for {
                 share_grant::<$runtime>,
                 share_revoke::<$runtime>,
                 share_attachments::<$runtime>,
+                read_link_list::<$runtime>,
+                read_link_secrets::<$runtime>,
+                read_link_create::<$runtime>,
+                read_link_revoke::<$runtime>,
                 server_prove::<$runtime>,
                 recent_folders,
                 local_server_status::<$runtime>,
@@ -775,6 +945,10 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                sync_rights::<$runtime>,
+                folder_sync_cloud_check::<$runtime>,
+                folder_sync_cloud_start::<$runtime>,
+                folder_sync_cloud_cancel::<$runtime>,
                 note_made_from_template::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
@@ -803,11 +977,23 @@ macro_rules! commands_for {
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
+            .typ::<verso_contract::FilesDropped>()
+            .typ::<verso_contract::FilesOver>()
             .typ::<UpdateProgress>()
             .typ::<IndexProgress>()
             .typ::<CollabUpdate>()
             .typ::<CollabState>()
             .typ::<CollabRoll>()
+            .typ::<CollabOracle>()
+            .typ::<verso_contract::TableEntry>()
+            .typ::<verso_contract::TableMember>()
+            .typ::<verso_contract::TableRoster>()
+            .typ::<verso_contract::TableImages>()
+            .typ::<verso_contract::TablePinned>()
+            .typ::<verso_contract::TableRemoved>()
+            .typ::<verso_contract::TableCleared>()
+            .typ::<verso_contract::CampaignChanged>()
+            .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
             .typ::<verso_contract::ServerBack>()
@@ -870,39 +1056,6 @@ impl<R: tauri::Runtime> Drop for Opening<R> {
     }
 }
 
-/// The app launched again while it runs — `verso <folder>`, which starts
-/// `verso-app <folder>`, or the app's icon: the running app takes the
-/// folder into a window of its own (`folder_handed`, ADR 0065), or, with
-/// none, brings a window forward. The second process exits; its arguments
-/// are its command line, a relative folder read from its own directory.
-fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
-    // The first argument, as `main` reads its own (main.rs).
-    let folder = argv
-        .get(1)
-        .filter(|a| !a.starts_with("--"))
-        .map(|a| std::path::Path::new(&cwd).join(a));
-    log::write("INFO", "host", "launched again: handed to the running app");
-    match folder {
-        Some(folder) => folder_handed(app, std::path::absolute(&folder).unwrap_or(folder)),
-        None => {
-            // A window of a folder (the main one first), never a note's
-            // popout or a web page's.
-            let windows = app.windows();
-            let window = windows.get("main").or_else(|| {
-                windows
-                    .iter()
-                    .filter(|(l, _)| l.starts_with("window-"))
-                    .min_by_key(|(l, _)| l.as_str())
-                    .map(|(_, w)| w)
-            });
-            if let Some(w) = window {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
-            }
-        }
-    }
-}
-
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     // Before any TLS: the sync's WebSocket, the server calls, the updater.
@@ -913,6 +1066,14 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     // folder over and exits before anything else of it starts.
     let builder =
         tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
+    // A web process that dies leaves the Linux window white for good: watch
+    // each webview once, from its first page load (src/recover.rs).
+    #[cfg(target_os = "linux")]
+    let builder = builder.on_page_load(|webview, payload| {
+        if payload.event() == tauri::webview::PageLoadEvent::Started {
+            recover::hook(webview);
+        }
+    });
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
         let id = event.id().as_ref();
@@ -923,6 +1084,11 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             let _ = open_folder_window(app, None);
         } else if id == OPEN_FOLDER {
             let _ = app.emit("menu-open-folder", folder_window_in_focus(app));
+        } else if id == OPEN_FILE {
+            // File › Open File… (ADR 0114 item 20): the picker, then the
+            // file handed over as a double-click is.
+            let parent = focused_window(app);
+            loose::pick_file_and_hand(app, parent.as_ref());
         } else if id == SETTINGS {
             let _ = app.emit("menu-settings", folder_window_in_focus(app));
         } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
@@ -956,12 +1122,22 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                 if is_app_view(w.label()) {
                     let _ = app.emit("menu-close-tab", w.label().to_owned());
                 } else {
+                    session::closing(w.label(), "the Close Tab menu item on a page window");
                     let _ = w.close();
                 }
             }
         } else if id == CLOSE_WINDOW {
             if let Some(w) = focused_window(app) {
+                session::closing(w.label(), "the Close Window menu item");
                 let _ = w.close();
+            }
+        } else if let Some(command) = id.strip_prefix(menu_spec::COMMAND_PREFIX) {
+            // An item of the window's own commands: the focused window
+            // runs the same command the palette runs.
+            if let Some(w) = focused_window(app)
+                && is_app_view(w.label())
+            {
+                let _ = app.emit("menu-command", (w.label().to_owned(), command.to_owned()));
             }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
@@ -972,6 +1148,15 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                 .and_then(|i| lock(&app.state::<App>().menu_recents).get(i).cloned());
             if let Some(folder) = folder {
                 folder_handed(app, folder);
+            }
+        } else if let Some(index) = id.strip_prefix(RECENT_FILE_PREFIX) {
+            // A recent file (ADR 0114 Q4): handed over as a double-click is.
+            let file = index
+                .parse::<usize>()
+                .ok()
+                .and_then(|i| lock(&app.state::<App>().menu_recent_files).get(i).cloned());
+            if let Some(file) = file {
+                loose::path_handed(app, file);
             }
         }
     });
@@ -1029,6 +1214,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             app.state::<App>()
                 .started
                 .store(true, std::sync::atomic::Ordering::SeqCst);
+            // The folder windows the last session had open (ADR 0065).
+            session::restore(app.handle());
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -1071,15 +1258,48 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
                 app.windows().len()
             ),
         ),
+        // Files dragged in from the system's file manager (T.11): the host
+        // gets the paths, the window the names and where they fell.
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::DragDrop(drag),
+            ..
+        } => files::dragged(app, label, drag),
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { .. },
+            ..
+        } => session::closing(
+            label,
+            "a close request (the frame's button or the system's)",
+        ),
         tauri::RunEvent::WindowEvent {
             label,
             event: tauri::WindowEvent::Destroyed,
             ..
         } => {
-            log::write("INFO", "host", &format!("window closed: {label}"));
+            #[cfg(target_os = "linux")]
+            recover::forget(label);
+            {
+                let state = app.state::<App>();
+                let showed = state.service.folder_of(label).is_some()
+                    || remote::of(app, label).is_some()
+                    || lock(&state.pending_servers).contains_key(label);
+                let quitting = state.quitting.load(std::sync::atomic::Ordering::SeqCst);
+                log::write(
+                    "INFO",
+                    "host",
+                    &session::close_line(label, showed, quitting),
+                );
+            }
+            // A window the person closed does not come back at the next
+            // start; one that closed with the app does (`session`).
+            session::window_gone(app, label);
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            files::drop_picks(label);
             remote::release(app, label);
+            loose::window_gone(app, label);
             settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
@@ -1099,93 +1319,14 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         }
         #[cfg(target_os = "macos")]
         tauri::RunEvent::Opened { urls } => {
-            if let Some(folder) = urls.iter().find_map(|u| u.to_file_path().ok()) {
-                folder_handed(app, folder);
+            // Each file or folder in order (ADR 0114 item 6): several
+            // files dropped on the icon at once each take their path.
+            for path in urls.iter().filter_map(|u| u.to_file_path().ok()) {
+                loose::path_handed(app, path);
             }
         }
         _ => {}
     }
-}
-
-/// macOS hands the app a folder by an open event — `open -a Verso
-/// <folder>`, which is how `verso <folder>` starts the installed app —
-/// both when it launches the app and when the app is already running; the
-/// folder never reaches the command line, and before this it was lost on
-/// a running app (`docs/review/phase-2.md`, reading 3, finding 20). It
-/// takes the command line's place: the main window, if it is up, is told
-/// to open it (`open_initial`, after saving its tabs), and one that starts
-/// later opens it at start-up. What is not a folder fails there, as a
-/// command-line argument would. A second launch on any system (the
-/// single-instance plugin, `second_launch`) hands its folder here too.
-fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
-    // Folders wait in line: two handed before a window took the first
-    // (`verso a; verso b`) are both opened, never one lost.
-    let waiting = {
-        let state = app.state::<App>();
-        let mut queue = lock(&state.initial_folder);
-        let waiting = !queue.is_empty();
-        queue.push_back(folder);
-        waiting
-    };
-    // Handed before the setup made the main window (macOS's open event
-    // at launch): the main window, made next, opens it at start-up — a
-    // window made here as well left an empty "Verso" beside the folder's.
-    if !app
-        .state::<App>()
-        .started
-        .load(std::sync::atomic::Ordering::SeqCst)
-        && app.get_window("main").is_none()
-    {
-        log::write(
-            "INFO",
-            "host",
-            "a folder handed at launch: the main window opens it",
-        );
-        return;
-    }
-    // A window of the app that shows no folder takes it; with none — or
-    // when that window has a folder waiting for it already — a new window
-    // does, which opens it as it starts (ADR 0065).
-    let empty = if waiting {
-        None
-    } else {
-        let state = app.state::<App>();
-        let opening = lock(&state.opening);
-        let mut labels: Vec<String> = app
-            .windows()
-            .into_keys()
-            .filter(|l| {
-                (l == "main" || l.starts_with("window-"))
-                    && state.service.folder_of(l).is_none()
-                    && !opening.contains(l)
-            })
-            .collect();
-        labels.sort_by_key(|l| (l != "main", l.clone()));
-        labels.into_iter().next()
-    };
-    match empty {
-        Some(label) => {
-            if let Some(w) = app.get_window(&label) {
-                let _ = w.set_focus();
-            }
-            // Told: it opens the folder now, and is not handed another.
-            lock(&app.state::<App>().opening).insert(label.clone());
-            let _ = app.emit("folder-handed", label);
-        }
-        None => {
-            let _ = open_folder_window(app, None);
-        }
-    }
-}
-
-/// The window of a folder that has the focus, for the menu's items that
-/// act on one: the main window when none of them has it.
-#[cfg(target_os = "macos")]
-fn folder_window_in_focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
-    focused_window(app)
-        .map(|w| w.label().to_owned())
-        .filter(|l| l == "main" || l.starts_with("window-"))
-        .unwrap_or_else(|| "main".to_owned())
 }
 
 /// Ask the app's own windows to save their tabs and close themselves;
@@ -1193,6 +1334,7 @@ fn folder_window_in_focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Strin
 /// save and never answers, so it is closed here: left open, it would keep
 /// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    session::quitting(app);
     let mut ours = false;
     for (label, window) in app.windows() {
         if is_app_view(&label) {
@@ -1211,15 +1353,23 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_cloud;
+#[cfg(test)]
 mod tests_dns_tls;
 #[cfg(test)]
 mod tests_live;
 #[cfg(test)]
+mod tests_live_table;
+#[cfg(test)]
 mod tests_local;
+#[cfg(test)]
+mod tests_loose;
 #[cfg(test)]
 mod tests_notify;
 #[cfg(test)]
 mod tests_periodic;
+#[cfg(test)]
+mod tests_pick;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]
@@ -1228,3 +1378,7 @@ mod tests_shares;
 mod tests_sync;
 #[cfg(test)]
 mod tests_sync1;
+#[cfg(test)]
+mod tests_sync_access;
+#[cfg(test)]
+mod tests_sync_data;

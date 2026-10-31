@@ -172,6 +172,56 @@ pub(crate) fn write_servers(config: &Path, servers: &Servers) -> std::io::Result
     std::fs::rename(&temporary, config.join("servers.json"))
 }
 
+/// The folders the windows showed at the last remembering
+/// (`<config>/open-windows.json`, `0600`): none when the file is missing or
+/// does not read.
+pub(crate) fn read_open_windows(config: &Path) -> Vec<String> {
+    #[derive(Deserialize)]
+    struct Windows {
+        #[serde(default)]
+        windows: Vec<String>,
+    }
+    std::fs::read_to_string(config.join("open-windows.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Windows>(&text).ok())
+        .map(|w| w.windows)
+        .unwrap_or_default()
+}
+
+/// Written as the other files of the configuration directory are: a
+/// temporary of this process's own, a chmod to `0600`, a rename.
+pub(crate) fn write_open_windows(config: &Path, windows: &[String]) -> std::io::Result<()> {
+    let temporary = temporary(config, "open-windows.json");
+    let body = serde_json::to_vec_pretty(&serde_json::json!({ "windows": windows }))?;
+    std::fs::write(&temporary, body)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, config.join("open-windows.json"))
+}
+
+/// The files opened without a folder lately (ADR 0114 item 15, Q4):
+/// `<config>/recent-files.json`, paths at the edge, read by the host for
+/// its File › Open Recent menu and never sent to a window.
+pub(crate) fn read_recent_files(config: &Path) -> Vec<PathBuf> {
+    #[derive(Deserialize)]
+    struct Files {
+        #[serde(default)]
+        files: Vec<PathBuf>,
+    }
+    std::fs::read_to_string(config.join("recent-files.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Files>(&text).ok())
+        .map(|f| f.files)
+        .unwrap_or_default()
+}
+
+pub(crate) fn write_recent_files(config: &Path, files: &[PathBuf]) -> std::io::Result<()> {
+    let temporary = temporary(config, "recent-files.json");
+    let body = serde_json::to_vec_pretty(&serde_json::json!({ "files": files }))?;
+    std::fs::write(&temporary, body)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, config.join("recent-files.json"))
+}
+
 /// A synced folder's state (ADR 0079 item 3): `<config>/sync-<key>.json`,
 /// `0600` as the index, beside the folder's index and never in the folder.
 /// None when the file is missing or does not read: the folder then syncs

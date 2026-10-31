@@ -12,7 +12,7 @@
 import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
-import { currentFolderId, startBridge } from "./web/bridge";
+import { currentFolderId, startBridge, startVisitorBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { ensureClipboard } from "./web/clipboard";
@@ -22,14 +22,52 @@ import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
+import { watchDeskOnPhone } from "./deskOnPhone";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
 // meanwhile is kept and made once the switcher is wired (the button shows
 // it is busy until then).
+watchDeskOnPhone();
 const openHeld = holdClicks(document.getElementById("open"));
 
+/** The window of a read link (ADR 0105): no account, no offline copy, no
+ *  sync — the page the address names, asked of the server and shown only
+ *  when the link opens (and its passphrase, if any, was proved). */
+async function visitor(token: string): Promise<void> {
+  const { readLinkGate, endedPage, rw } = await import("./web/readLink");
+  const gate = await readLinkGate(token);
+  if (!gate) return;
+  document.documentElement.dataset.host = "server";
+  document.documentElement.dataset.visitor = "link";
+  startVisitorBridge(token, endedPage);
+  addEventListener("verso:role", (e) => (document.documentElement.dataset.role = (e as CustomEvent<string | null>).detail ?? ""));
+  // A link to one note opens that note: there is nothing else to choose.
+  // Heard before the window starts, which shows the folder as it does.
+  const { note } = gate;
+  // The window of a note link is named for the note: the tree must not
+  // take that note for the root's folder note and hide it.
+  if (note) document.documentElement.dataset.visitorNote = "1";
+  const loaded = import("./main");
+  addEventListener(
+    "verso:folder-shown",
+    () => {
+      notice(rw().banner);
+      if (note) void loaded.then((m) => m.openNote(note, false));
+    },
+    { once: true },
+  );
+  await loaded;
+  openHeld();
+}
+
 async function start(): Promise<void> {
+  // A read link's address opens the window for whoever holds it, with no
+  // account to ask for (ADR 0105); nothing of the signed-in flow runs.
+  if (location.pathname.startsWith("/r/")) {
+    const token = decodeURIComponent(location.pathname.slice("/r/".length)).split("/")[0] ?? "";
+    return visitor(token);
+  }
   // Copying works over plain HTTP too, where the browser gives no
   // clipboard of its own (ADR 0073 item 6, amended 2026-10-16).
   ensureClipboard();
@@ -57,7 +95,7 @@ async function start(): Promise<void> {
   }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
-  if (path.startsWith("/invite/")) return invitePage(token("/invite/"));
+  if (path.startsWith("/invite/")) return invitePage(token("/invite/"), s.account);
   if (path.startsWith("/reset/")) return resetPage(token("/reset/"));
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
@@ -114,25 +152,11 @@ async function start(): Promise<void> {
   startBridge(chooseFolder);
   plainHttpNotice();
   plainHttpMark();
-  // "You only read this folder" is said of a folder on screen: when one
-  // is shown with the reader's role, or the role of the one shown becomes
-  // the reader's — never over the start page, before a folder is there.
-  let role: string | null = null;
-  let shown = false;
-  const sayReader = () => {
-    if (shown && role === "reader" && currentFolderId()) notice(w().readOnlyBanner);
-  };
+  // The reader's role is shown by the closed lock beside the folder's name
+  // (screen/frame.ts), not by a line at the top (maintainer, 2026-10-23).
   addEventListener("verso:role", (e) => {
     const next = currentFolderId() ? (e as CustomEvent<string | null>).detail : null;
-    const changed = next !== role;
-    role = next;
-    if (!next) shown = false;
-    document.documentElement.dataset.role = role ?? "";
-    if (changed) sayReader();
-  });
-  addEventListener("verso:folder-shown", () => {
-    shown = true;
-    sayReader();
+    document.documentElement.dataset.role = next ?? "";
   });
   const window_ = await import("./main");
   openHeld();

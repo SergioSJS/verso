@@ -69,13 +69,21 @@ export function paintSelection(): void {
     el.classList.toggle("selected", on);
     if (on) el.setAttribute("aria-selected", "true");
     else el.removeAttribute("aria-selected");
-    // In the selection mode each row is a box, and says so.
-    if (selecting) el.setAttribute("aria-pressed", String(on));
-    else el.removeAttribute("aria-pressed");
+    // In the selection mode every row says whether it is in (a tree item
+    // takes `aria-selected`, not `aria-pressed`).
+    if (!on && selecting) el.setAttribute("aria-selected", "false");
   }
   ui.notes.classList.toggle("selecting", selected.size > 0);
   ui.notes.classList.toggle("select-mode", selecting);
   for (const run of watchers) run();
+}
+
+/** The keyboard's Space: the row joins the selection or leaves it. */
+export function toggleSelected(path: string): void {
+  if (selected.has(path)) selected.delete(path);
+  else selected.add(path);
+  anchor = path;
+  paintSelection();
 }
 
 /** The selected paths, in the tree's order; those not shown last. */

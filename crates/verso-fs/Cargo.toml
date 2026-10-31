@@ -35,6 +35,12 @@ ignore = "0.4"
 # already in the lockfile through verso-index, verso-core and verso-server,
 # same version and licence (MIT OR Apache-2.0).
 unicode-normalization = "0.1"
+# The disk's free space for a download from the cloud (ADR 0043, decided
+# 2026-10-27): `statvfs` and `GetDiskFreeSpaceExW` have no std counterpart
+# and calling them needs `unsafe`, which the workspace forbids; fs4's
+# `available_space` wraps both (on Unix through `rustix`, already in the
+# tree). Replaces nothing of ours. MIT OR Apache-2.0.
+fs4 = "1"
 
 [target.'cfg(windows)'.dependencies]
 # A file's identity (volume serial number and file index) and its hard link

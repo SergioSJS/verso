@@ -102,6 +102,30 @@ pub(crate) fn serve_file<R: tauri::Runtime>(
             );
             return;
         }
+        // A window of files without a folder: an attachment beside one of
+        // them, read only, inside its parent (ADR 0114 item 14).
+        if is_app_view(&label) && state.service.is_loose(&label) {
+            let bytes = state.service.loose_attachment(&label, &relative);
+            let served = files::serve_bytes(
+                bytes,
+                true,
+                &relative,
+                &files::Policy {
+                    csp: FILE_CSP,
+                    cors_origin: origin.as_deref().filter(|o| is_app_origin(o)),
+                },
+            );
+            let mut response = tauri::http::Response::builder().status(served.status);
+            for (name, value) in &served.headers {
+                response = response.header(*name, value);
+            }
+            responder.respond(
+                response
+                    .body(served.body)
+                    .unwrap_or_else(|_| tauri::http::Response::new(Vec::new())),
+            );
+            return;
+        }
         if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
             let placeholder = state
                 .service

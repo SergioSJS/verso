@@ -26,6 +26,16 @@ verso-contract = { path = "../../crates/verso-contract" }
 # The open folders and the contract's commands over them, shared with
 # `verso serve` (ADR 0073 item 2, decided 2026-10-09).
 verso-service = { path = "../../crates/verso-service" }
+# The adapters of sync with a cloud (ADR 0104 item 3, C.17): WebDAV and S3
+# over the remote trait of verso-core. Host-side: neither verso-core nor
+# verso-fs depends on it.
+verso-cloud = { path = "../../crates/verso-cloud" }
+# The secrets of a cloud — a WebDAV password, an S3 secret key — in the
+# system's keychain, never in the folder, the configuration or a log (ADR
+# 0104 item 14, ADR 0019): macOS Keychain, Windows Credential Manager, the
+# Linux Secret Service (MIT OR Apache-2.0). It replaces nothing of ours:
+# the app kept no secret in the system's store before.
+keyring = "4"
 # `unstable`: child web views — a web note shows its page inside its tab
 # (ADR 0049, asked for by the maintainer on 2026-09-23). `devtools`: the
 # window's console in the installed app too, View › Open console (ADR 0051,
@@ -125,8 +135,16 @@ webview2-com = "0.38"
 # bindings Tauri already builds (gtk 0.18.2, MIT); they replace nothing of
 # ours.
 gtk = "0.18"
+# The web process of the window died (src/recover.rs): WebKitGTK's
+# `web-process-terminated` signal, reached through `with_webview`; the
+# binding wry already builds (2.0.2, MIT), at the feature (v2_20) that has
+# the signal. It replaces nothing of ours.
+webkit2gtk = { version = "2", features = ["v2_20"] }
 
 [dev-dependencies]
+# The fakes of a WebDAV server and an S3 service the sync tests run against
+# (ADR 0104, Consequences: no test reaches a real provider).
+verso-cloud = { path = "../../crates/verso-cloud", features = ["fake"] }
 # A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
 # documents, as the window's, and the feature's guardrail is a property
 # test. Both already in the tree, at these versions, through verso-server

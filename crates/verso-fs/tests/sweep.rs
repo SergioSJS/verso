@@ -4,7 +4,8 @@
 
 //! The temporary files a stopped process left behind are removed when a
 //! host opens the folder (`Root::sweep_temporaries`): every
-//! `.verso-tmp-<pid>-<n>` of another process, in the folder, in its
+//! `.verso-tmp-<pid>_<nonce>-<n>` of another incarnation (or the old
+//! `<pid>-<n>` form), in the folder, in its
 //! subfolders, in the settings directory and in the bin; nothing else, and
 //! none of this process's own, which may belong to a write in flight under
 //! another opening of the same folder.
@@ -43,6 +44,10 @@ fn a_stale_temporary_file_is_gone_after_the_opening_and_nothing_else_is() {
         // The bin keeps a deleted folder whole (ADR 0080).
         format!(".trash/Velha/{}", stale(5)),
         format!(".space/{}", stale(6)),
+        // Same pid, another incarnation's nonce (a container restarted
+        // with the same pid), and the old pid-only form with this very pid.
+        format!(".verso-tmp-{}_0123456789abcdef-1", std::process::id()),
+        format!("Pasta/.verso-tmp-{}-2", std::process::id()),
     ];
     let kept = [
         "Nota.md".to_owned(),
@@ -54,9 +59,6 @@ fn a_stale_temporary_file_is_gone_after_the_opening_and_nothing_else_is() {
         ".verso-tmp-abc-1".to_owned(),
         "verso-tmp-12-1".to_owned(),
         format!("Pasta/x{}", stale(7)),
-        // This process's own: a write in flight under another opening.
-        format!(".verso-tmp-{}-8", std::process::id()),
-        format!("Pasta/.verso-tmp-{}-9", std::process::id()),
         // Hidden directories Verso never writes in, and ignored ones.
         format!(".git/{}", stale(10)),
         format!(".obsidian/{}", stale(11)),

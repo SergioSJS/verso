@@ -1,0 +1,25 @@
+name: A sample runner
+role: Sample role
+role_rank: 4
+stats:
+  INT: 6
+  REF: 7
+  DEX: 6
+  TECH: 5
+  COOL: 7
+  WILL: 6
+  MOVE: 5
+  BODY: 6
+  EMP: 5
+  LUCK: 6
+skills_awareness:
+  Perception: 4
+skills_social:
+  Conversation: 3
+hit_points: 30
+hit_points_max: 35
+armor_body: 7
+weapons:
+  - name: A sample weapon
+    desc: 3d6
+notes: A note of our own.

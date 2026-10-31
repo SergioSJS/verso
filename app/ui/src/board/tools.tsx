@@ -38,6 +38,7 @@ export const ICO = {
   insert: "M2.5 3.5h11v9h-11zM2.5 10.5l3-3 2.5 2.5 2-2 3.5 3.5M10.5 6.5h.01",
   note: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3",
   text: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3M6 8h4M6 10.5h4",
+  page: "M2.5 3.5h11v9h-11zM2.5 6h11M4 4.75h.01M5.75 4.75h.01",
   link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
   arrow: "M2 8h9M9 5l3 3-3 3",
   open: "M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5",
@@ -90,6 +91,8 @@ export type InsertProps = {
   addFile: () => void;
   addText: () => void;
   addLink: () => void;
+  /** Put a web page on the board as a live card; absent where the window cannot show one. */
+  addPage?: (() => void) | undefined;
   takeFiles: (files: File[]) => Promise<void>;
   looseOn: boolean;
   toggleLoose: () => void;
@@ -98,7 +101,7 @@ export type InsertProps = {
 /** What Verso puts on a board, behind one button of Excalidraw's toolbar —
  *  where its own image tool would be — as the plugin for Obsidian does: a
  *  menu in Excalidraw's dropdown clothes. */
-export function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, toggleLoose }: InsertProps): JSX.Element {
+export function InsertMenu({ s, addFile, addText, addLink, addPage, takeFiles, looseOn, toggleLoose }: InsertProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -146,6 +149,7 @@ export function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, t
   );
   return (
     <div className="board-insert" ref={box}>
+      <ToolButton label={s.addText} title={s.addTextTitle} onClick={addText} icon={ICO.text} testId="board-tool-textcard" />
       <div className="ToolIcon Shape" title={s.insertTitle}>
         <button
           type="button"
@@ -180,6 +184,7 @@ export function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, t
             {item(s.addFile, s.addFileTitle, ICO.note, "board-tool-file", addFile)}
             {item(s.addText, s.addTextTitle, ICO.text, "board-tool-text", addText)}
             {item(s.addLink, s.addLinkTitle, ICO.link, "board-tool-link", addLink)}
+            {addPage && item(s.addPage, s.addPageTitle, ICO.page, "board-tool-page", addPage)}
             <div className="dropdown-menu-item-separator" />
             {item(s.looseArrows, s.looseArrowsTitle, ICO.arrow, "board-tool-loose", toggleLoose, looseOn)}
           </div>
@@ -194,6 +199,8 @@ export type TopRightProps = {
   insert: JSX.Element | null;
   /** The selected picture card's crop, when one is selected. */
   cropPicture: (() => void) | null;
+  /** The selected link card's "show page" / "show as link" switch. */
+  pageToggle: { on: boolean; run: () => void } | null;
   /** The map and secret tools (ADR 0090), drawn after the crop. */
   maps?: JSX.Element | null;
   selectedNode: El | undefined;
@@ -222,6 +229,7 @@ export function TopRightTools({
   s,
   insert,
   cropPicture,
+  pageToggle,
   maps,
   selectedNode,
   selectedData,
@@ -284,9 +292,10 @@ export function TopRightTools({
           </span>
         )}
       </span>
-      {(openable || ends || file || cropPicture || maps) && <div className="App-toolbar__divider" />}
+      {(openable || ends || file || cropPicture || pageToggle || maps) && <div className="App-toolbar__divider" />}
       {openable && <ToolButton label={s.open} title={s.openTitle} onClick={() => selectedNode && openNode(selectedNode, false)} icon={ICO.open} testId="board-tool-open" />}
       {file && <ToolButton label={s.swap} title={s.swapTitle} onClick={() => selectedNode && selectedData && void relink(selectedNode, selectedData)} icon={ICO.swap} testId="board-tool-swap" />}
+      {pageToggle && <ToolButton label={pageToggle.on ? s.showLink : s.showPage} title={pageToggle.on ? s.showLinkTitle : s.showPageTitle} onClick={pageToggle.run} icon={pageToggle.on ? ICO.link : ICO.page} testId="board-tool-page-toggle" />}
       {cropPicture && <ToolButton label={s.crop} title={s.cropTitle} onClick={cropPicture} icon={ICO.crop} testId="board-tool-crop" />}
       {maps}
       {ends && <ToolButton label={s.promote} title={s.promoteTitle} onClick={() => void promote()} icon={ICO.relation} testId="board-tool-promote" />}

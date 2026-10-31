@@ -14,7 +14,8 @@ import { opening } from "./opening";
 import { name } from "./paths";
 import { openPeriodNote, periodPath, whenOf } from "./periodic/notes";
 import { settings } from "./settings";
-import { t } from "./strings";
+import { fillTemplate } from "./templateFill";
+import { LOCALE, t } from "./strings";
 
 /* ---------- Daily note and templates ---------- */
 export function today(): string {
@@ -59,7 +60,7 @@ export function insertTemplate(): void {
   showMenu(r.left + 40, r.top + 60, tpls.map((p) => [name(p), () => void (async () => {
     const rr = await opening.readNote(p);
     if (rr.status !== "ok") return fail(rr.error);
-    const text = rr.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
+    const text = fillTemplate(rr.data.text, name(leaf.path), new Date(), LOCALE);
     const pos = leaf.editor.state.selection.main.to;
     leaf.setMode("live");
     leaf.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });

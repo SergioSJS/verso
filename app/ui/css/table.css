@@ -1,0 +1,239 @@
+/* The table (ADR 0107): the log of rolls beside the notes. */
+.table-view { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: .35rem; font-family: var(--ui); }
+.right-body:has(> .table-view) { padding-bottom: .5rem; overflow: hidden; }
+.table-title { display: flex; align-items: center; justify-content: space-between; gap: .4rem; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.table-title[hidden], .table-choose[hidden] { display: none; }
+.table-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-choose { display: flex; flex-direction: column; gap: .4rem; }
+.table-choose-head { margin: 0; font-size: .9rem; }
+.table-choose-hint { margin: 0; font-size: .78rem; color: var(--ink-2); }
+.table-choose-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.table-choose-option { display: inline-flex; align-items: center; gap: .4rem; width: 100%; min-height: 2rem; padding: .25rem .6rem; text-align: left; border: 1px solid var(--hair); border-radius: 6px; }
+.table-view.choosing > :not(.table-head):not(.table-choose) { display: none; }
+.table-view.choosing .table-top { display: none; }
+.table-head { display: contents; }
+.table-top { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; container-type: inline-size; }
+.table-top[hidden], .table-win[hidden] { display: none; }
+.table-bar { display: flex; align-items: center; justify-content: flex-end; gap: .4rem; margin-left: auto; }
+.table-win { flex: 0 1 auto; min-width: 0; }
+.table-win-button { display: inline-flex; align-items: center; gap: .35rem; min-height: 1.9rem; padding: .15rem .5rem; font-size: .78rem; color: var(--ink-2); border: 1px solid var(--hair); border-radius: 6px; max-width: 100%; }
+.table-win-button svg { width: 14px; height: 14px; flex: none; }
+.table-win-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 360px) { .table-win-label { display: none; } }
+.tray-roller { flex: 1 0 100%; justify-content: flex-start; margin-top: .25rem; }
+.table-hide { display: inline-flex; align-items: center; gap: .3rem; }
+.table-hide svg { width: 14px; height: 14px; flex: none; }
+@container (max-width: 420px) { .table-hide-label { display: none; } }
+.table-hide, .table-unhide { font-size: .8rem; color: var(--ink-2); padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 5px; min-height: 1.8rem; }
+.table-unhide { color: var(--seal); text-decoration: underline; border: 0; padding: 0 .2rem; min-height: 0; }
+.table-hide:disabled { opacity: .5; cursor: default; }
+.table-note, .table-make-note, .table-hidden { margin: 0; font-size: .75rem; color: var(--ink-3); line-height: 1.35; }
+.table-log { list-style: none; margin: 0; padding: 0 0 3px; scroll-padding-bottom: 3px; outline: none; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+.table-empty { color: var(--ink-3); font-size: .85rem; padding: .6rem .2rem; line-height: 1.4; }
+.table-entry { position: relative; padding: .4rem 2rem .4rem .55rem; border: 1px solid var(--hair); border-radius: 7px; background: var(--paper); font-size: .85rem; }
+.table-entry.mine { background: var(--seal-wash); border-color: color-mix(in oklch, var(--seal) 30%, var(--hair)); }
+.table-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; color: var(--ink-3); font-size: .72rem; }
+.table-who { font-weight: 600; color: var(--ink-2); }
+.table-where { color: var(--seal); text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--seal) 40%, transparent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-size: .72rem; }
+.table-where.plain { color: var(--ink-3); text-decoration: none; }
+.table-body { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .45rem; margin-top: .2rem; }
+.table-notation { font-family: var(--mono); color: var(--ink-2); font-size: .8rem; }
+.table-dice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
+.table-die { display: inline-block; min-width: 1.5em; text-align: center; font: 700 .78rem/1.5 system-ui, sans-serif; border: 1px solid var(--seal); border-radius: 5px; padding: 0 .25em; background: var(--seal); color: var(--paper); }
+.table-die.dropped { opacity: .5; border-style: dashed; background: transparent; color: var(--ink-3); border-color: var(--ink-3); }
+.table-op { color: var(--ink-3); font-size: .8rem; }
+.table-total { font-size: 1.05rem; color: var(--ink); }
+.table-total::before { content: "= "; color: var(--ink-3); font-weight: 400; }
+.table-row, .table-label { color: var(--ink-2); }
+.table-label { font-weight: 600; }
+.table-roll { color: var(--ink-3); font-family: var(--mono); font-size: .75rem; }
+.table-to-end { flex: none; display: inline-flex; align-items: center; gap: .3rem; align-self: center; font-size: .75rem; color: var(--seal); padding: .15rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); }
+/* The unread count: on the Mesa tab and on the buttons that open the right panel. */
+body[data-table-unread] .right-tab[data-tab="table"],
+body[data-table-unread] #toggle-right,
+body[data-table-unread] .bar-right,
+body[data-table-unread] .ribbon-item[data-id="right"] { position: relative; }
+body[data-table-unread] .right-tab[data-tab="table"]::after,
+body[data-table-unread] #toggle-right::after,
+body[data-table-unread] .bar-right::after,
+body[data-table-unread] .ribbon-item[data-id="right"]::after {
+  content: var(--table-unread);
+  position: absolute; top: -.1rem; right: -.1rem; min-width: 1.05rem; height: 1.05rem; padding: 0 .25rem; box-sizing: border-box;
+  border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .65rem/1.05rem var(--ui); text-align: center; pointer-events: none;
+}
+/* The phone: the panel's Mesa tab is a sheet from the bottom (ADR 0107 item 10). */
+@media (max-width: 760px) {
+  /* The sheet takes the height above the bottom bar (the log is what it is for; fix/phone-table-space, 2026-10-24). */
+  body[data-right-tab="table"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body.right-open[data-right-tab="table"] aside.right { transform: none; }
+  /* The sheet and its rows never wider than the screen, closed or open (390 px phones measured 392). */
+  body aside.right, body aside.right > .right-close, body aside.right > .right-tabs, body aside.right > .right-body { box-sizing: border-box; max-width: 100vw; }
+  html { overflow-x: clip; }
+  .table-entry { padding-right: 2.4rem; }
+  .table-hide, .table-unhide { min-height: 2.2rem; }
+  .table-to-end { min-height: 2.2rem; }
+}
+
+/* Phase 2: the server's table (ADR 0107): the roster, the pinned entries, messages, images and the input row. */
+.table-roster { position: relative; flex: none; font-size: .78rem; color: var(--ink-2); }
+.table-roster-button { display: inline-flex; align-items: center; gap: .3rem; height: 1.9rem; padding: 0 .5rem; font: inherit; font-size: .78rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.table-roster-button:hover, .table-roster-button[aria-expanded="true"] { border-color: var(--hair); background: var(--paper); }
+.table-roster-button:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.table-roster-button svg { display: block; width: 14px; height: 14px; }
+.table-roster-list { position: absolute; top: calc(100% + .2rem); left: 0; z-index: 6; list-style: none; margin: 0; padding: .4rem .6rem; min-width: 8rem; max-width: min(18rem, 80vw); display: flex; flex-direction: column; gap: .3rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; box-shadow: 0 6px 18px oklch(0% 0 0 / .18); }
+.table-roster-list[hidden] { display: none; }
+.table-member-name { overflow-wrap: anywhere; }
+.table-roster[hidden], .table-pins[hidden], .table-older[hidden], .table-compose[hidden] { display: none; }
+.table-member { display: inline-flex; align-items: center; gap: .3rem; }
+.table-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--ink-3); flex: none; }
+.table-pins { border: 1px solid color-mix(in oklch, var(--seal) 28%, var(--hair)); border-radius: 8px; padding: .3rem .4rem .4rem; background: var(--seal-wash); max-height: 34%; overflow-y: auto; flex: none; }
+.table-pins-head { margin: 0 0 .25rem; font: 600 .72rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.table-pin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.table-older { align-self: center; font-size: .78rem; color: var(--seal); padding: .15rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); flex: none; }
+.table-menu { position: absolute; top: .25rem; right: .25rem; width: 1.7rem; height: 1.7rem; min-width: 1.7rem; opacity: .6; }
+.table-entry:hover .table-menu, .table-menu:focus-visible { opacity: 1; }
+.table-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; color: var(--ink); }
+.table-link { padding: 0; border: 0; background: none; font: inherit; color: var(--seal); text-decoration: underline; cursor: pointer; }
+.table-masked { color: var(--ink-3); font-style: italic; }
+.table-entry[data-kind="secret"] { background: var(--paper-2); border-style: dashed; }
+.table-secret { font-size: .68rem; padding: 0 .35rem; border: 1px solid var(--hair); border-radius: 999px; color: var(--ink-2); }
+.table-pinned { display: inline-flex; color: var(--seal); }
+.table-pinned svg { width: .8rem; height: .8rem; }
+.table-image { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; max-width: 100%; }
+.table-thumb { display: block; max-width: 100%; max-height: 11rem; border-radius: 6px; border: 1px solid var(--hair); object-fit: contain; background: var(--paper-2); }
+.table-file { display: inline-flex; align-items: center; gap: .45rem; max-width: 100%; min-height: 2.4rem; padding: .3rem .6rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper-2); color: var(--ink); cursor: pointer; text-align: left; }
+.table-file svg { width: 1rem; height: 1rem; flex: none; }
+.table-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-file-kind { flex: none; font-size: .7rem; color: var(--ink-2); }
+.table-chip-file { display: inline-grid; place-items: center; background: var(--paper-2); }
+.table-image-missing { color: var(--ink-3); font-size: .8rem; text-decoration: underline; }
+.table-compose { flex: none; display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; border-top: 1px solid var(--hair); }
+/* One box, as a chat box is (Foundry, Roll20): the images waiting above the text, the actions at its right. */
+.table-box { display: flex; flex-direction: column; box-sizing: border-box; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
+.table-box:focus-within { outline: 2px solid var(--seal); outline-offset: 1px; }
+.table-input { flex: none; width: 100%; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: transparent; border: 0; outline: 0; border-radius: 8px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
+@media (max-width: 760px) { .table-input { --table-lines: 1; max-height: calc(4 * 1.35em + .8rem + 2px); } }
+.table-box-bar { display: flex; align-items: center; gap: .15rem; padding: .1rem .25rem .2rem; }
+.table-box-spacer { flex: 1; }
+.table-box-bar .iconic, .table-box-bar .tray-tool { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.table-box-bar .tray-toggle { display: none; }
+.table-send:disabled { opacity: .45; cursor: default; }
+.table-attach[hidden] { display: none; }
+.table-chips { display: flex; flex-wrap: wrap; gap: .3rem; padding: .35rem .4rem 0; }
+.table-chips[hidden] { display: none; }
+.table-chip { display: inline-flex; align-items: center; gap: .3rem; max-width: 100%; padding: .15rem .15rem .15rem .2rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); font-size: .75rem; color: var(--ink-2); }
+.table-chip-img { width: 2.4rem; height: 2.4rem; object-fit: cover; border-radius: 5px; flex: none; }
+.table-chip-name { min-width: 0; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-chip-remove { width: 1.5rem; height: 1.5rem; min-width: 1.5rem; display: inline-grid; place-items: center; padding: 0; }
+.table-make { display: flex; flex-direction: column; gap: .3rem; align-items: flex-start; }
+.table-make[hidden] { display: none; }
+.table-make-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 2rem; padding: .25rem .7rem; border-radius: 7px; font-size: .82rem; }
+.table-counter { align-self: flex-end; font-size: .75rem; color: var(--ink-3); }
+.table-counter.over { color: var(--danger, #b91c1c); font-weight: 600; }
+.table-compose-error { margin: 0; font-size: .78rem; color: var(--danger, #b91c1c); line-height: 1.35; }
+.table-clear-keep { display: block; margin: -.3rem 0 1rem; font-size: .88rem; }
+.table-lightbox { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; gap: .6rem; align-content: center; background: oklch(0% 0 0 / .78); padding: 1rem; }
+.table-lightbox img { max-width: 94vw; max-height: 82vh; object-fit: contain; border-radius: 6px; background: var(--paper); }
+.table-lightbox-close { color: #fff; border: 1px solid #fff6; border-radius: 7px; padding: .35rem .9rem; }
+@media (max-width: 760px) {
+  /* The sheet rises above the on-screen keyboard while the field has it (screen/viewport.ts). */
+  body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); }
+  .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
+    .table-input { font-size: 16px; }
+  .table-older { min-height: 2.2rem; }
+  .table-roster-button { height: 40px; min-width: 40px; font-size: 14px; }
+}
+@media (max-width: 760px) {
+  .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
+}
+
+/* The dice tray (ADR 0107, "The tray made compact", 2026-10-23): ONE row under the message field, as Foundry's Dice Tray has it. */
+.tray-wrap { position: relative; flex: none; }
+.tray-row { display: flex; align-items: center; gap: .3rem; height: 2.25rem; }
+.tray-scroll { flex: 1; min-width: 0; display: flex; align-items: center; gap: .05rem; height: 100%; overflow: hidden; }
+.tray-die, .tray-tool, .tray-keep { position: relative; flex: none; display: inline-grid; place-items: center; height: 2rem; min-width: 1.45rem; padding: 0 .08rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; font: 700 .72rem var(--mono); -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
+.tray-die:hover, .tray-tool:hover, .tray-keep:hover { border-color: var(--hair); background: var(--paper); }
+.tray-die.active { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
+.tray-keep[aria-pressed="true"] { color: var(--paper); background: var(--seal); border-color: var(--seal); }
+.tray-tool[aria-expanded="true"] { border-color: var(--seal); color: var(--seal); }
+.tray-die:focus-visible, .tray-tool:focus-visible, .tray-keep:focus-visible, .tray-mod:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.tray-die-icon { width: 20px; height: 20px; display: block; }
+.tray-die-text { font: 700 .72rem var(--mono); }
+.tray-tool svg { display: block; }
+.tray-count { position: absolute; top: -.1rem; right: -.1rem; min-width: .95rem; height: .95rem; padding: 0 .2rem; box-sizing: border-box; border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .62rem/.95rem var(--ui); text-align: center; pointer-events: none; }
+.tray-dot { position: absolute; top: .3rem; right: .2rem; width: .45rem; height: .45rem; border-radius: 50%; background: var(--seal); pointer-events: none; }
+.tray-count[hidden], .tray-dot[hidden], .tray-pop[hidden] { display: none; }
+.tray-mod { flex: none; width: 2.2rem; height: 1.75rem; box-sizing: border-box; padding: 0 .2rem; text-align: center; font: inherit; font-family: var(--mono); font-size: .82rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; -moz-appearance: textfield; appearance: textfield; margin: 0 .1rem; }
+.tray-mod::-webkit-outer-spin-button, .tray-mod::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tray-pop { position: absolute; bottom: calc(100% + .25rem); z-index: 5; box-sizing: border-box; max-width: 100%; max-height: min(22rem, 50vh); overflow-y: auto; padding: .4rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; box-shadow: 0 6px 18px oklch(0% 0 0 / .18); }
+/* Who sees the roll: a button with the app's menu behind it, icon and label side by side, as the other controls of the bar. */
+.tray-mode { flex: none; display: inline-flex; align-items: center; gap: .3rem; height: 1.9rem; box-sizing: border-box; padding: 0 .5rem; white-space: nowrap; font: inherit; font-size: .75rem; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.tray-mode-icon { flex: none; display: block; width: 14px; height: 14px; }
+.tray-mode-label { white-space: nowrap; }
+.tray-mode:hover { border-color: var(--hair); background: var(--paper); }
+.tray-mode.secret { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
+.tray-mode[hidden] { display: none; }
+.tray-mode:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.tray-extras { display: flex; align-items: center; gap: .1rem; }
+.tray-more { left: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
+.tray-more[hidden] { display: none; }
+.tray-saved { right: 0; width: min(21rem, 100%); }
+/* Saved rolls (ADR 0107, 2026-10-23): buttons that wrap inside the pop-over of the bookmark. */
+.saved-rolls { display: flex; flex-direction: column; gap: .35rem; }
+.saved-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.saved-which { min-height: 1.9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; }
+.saved-list { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; max-height: 7.5rem; overflow-y: auto; }
+.saved-list[hidden], .saved-empty[hidden], .saved-save[hidden] { display: none; }
+.saved-roll { display: inline-flex; flex-direction: column; align-items: flex-start; max-width: 100%; min-height: 2.2rem; padding: .25rem .6rem; text-align: left; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; font: inherit; font-size: .82rem; }
+.saved-roll:hover { border-color: var(--seal); }
+.saved-roll:focus-visible, .saved-which:focus-visible, .saved-name:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.saved-roll-name { overflow-wrap: anywhere; font-weight: 600; }
+.saved-roll-notation { font: .72rem var(--mono); color: var(--ink-3); }
+.saved-empty { margin: 0; font-size: .76rem; line-height: 1.35; color: var(--ink-3); }
+.saved-save { display: flex; gap: .4rem; align-items: stretch; }
+.saved-name { flex: 1; min-width: 0; box-sizing: border-box; padding: .35rem .5rem; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; }
+@media (max-width: 760px) {
+  /* A phone: the targets are 40 px tall (the icons stay small); the row scrolls sideways inside itself, never the page. */
+  .tray-row { height: 44px; }
+  .table-box-bar .iconic, .table-box-bar .tray-tool { width: 40px; height: 40px; min-width: 40px; }
+  .tray-mode { height: 40px; font-size: 14px; padding: 0 .6rem; }
+  .tray-die, .tray-tool, .tray-keep { height: 40px; min-width: 28px; }
+  .tray-mod { height: 40px; width: 44px; font-size: 16px; }
+  .saved-roll { min-height: 2.75rem; }
+  .saved-which, .saved-save-go { min-height: 2.6rem; }
+  .saved-name { font-size: 16px; min-height: 2.6rem; }
+  .saved-list { max-height: 9rem; }
+  .tray-saved { left: 0; width: auto; }
+}
+
+/* A phone, the Mesa's room (fix/phone-table-space, 2026-10-24): the header is ONE row, the composer ONE line like a chat's,
+   the dice row behind a button that remembers its state. Every control stays, named and 40 px tall. */
+@media (max-width: 760px) {
+  .table-view { gap: .25rem; }
+  .table-head { display: flex; align-items: center; gap: .3rem; min-width: 0; }
+  .table-head .table-title { flex: 1 1 auto; min-width: 0; }
+  .table-head .table-top { flex: 0 0 auto; flex-wrap: nowrap; container-type: normal; margin-left: auto; }
+  .table-top .table-bar { margin-left: 0; }
+  .table-win-label, .table-hide-label { display: none; }
+  .table-win-button, .table-hide { min-width: 40px; min-height: 40px; justify-content: center; }
+  .table-view.choosing .table-head { display: none; }
+  .table-log { gap: .2rem; }
+  .table-entry { padding-top: .25rem; padding-bottom: .25rem; }
+  .table-body { margin-top: .1rem; }
+  .table-compose { gap: .15rem; padding-top: .25rem; }
+  /* The box is a row: the tools, the field, send. The bar dissolves into it; the images wait on a row above. */
+  .table-box { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+  .table-box > .table-chips { flex: 1 0 100%; }
+  .table-box-bar { display: contents; }
+  .table-box-bar > * { order: 1; }
+  .table-box-spacer { display: none; }
+  .table-box > .table-input { order: 2; flex: 1 1 0; width: auto; min-height: 40px; padding-top: .55rem; padding-bottom: .55rem; }
+  .table-box-bar > .table-send { order: 3; }
+  .table-box-bar .iconic, .table-box-bar .tray-tool { width: 36px; height: 40px; min-width: 36px; }
+  .table-box-bar > .table-send { width: 40px; min-width: 40px; margin: 0 .15rem .0 0; align-self: flex-end; }
+  .table-box-bar .tray-mode { height: 40px; width: 36px; padding: 0; justify-content: center; }
+  .table-box-bar .tray-mode-label { display: none; }
+  .table-box-bar .tray-toggle { display: inline-grid; }
+  .tray-toggle[aria-expanded="true"] { color: var(--seal); border-color: var(--seal); background: var(--seal-wash); }
+  .tray-wrap.collapsed > .tray-row { display: none; }
+}

@@ -3,40 +3,68 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands, type NoteText } from "../bindings";
+import { ask } from "../dialog";
 import { button, h } from "../dom";
 import { allNotes } from "../folder";
 import { icon } from "../icons";
 import { calm } from "../format";
 import { Pane } from "../layout/pane";
 import { openNote, persistSoon } from "../layout/spaces";
-import { Kind, name } from "../paths";
+import { tapKind, type Tap } from "./tapKind";
+import { arrowDir, firstCurrent, walk } from "./graphWalk";
+import { createNote } from "../files";
+import { Kind, dirOf, name } from "../paths";
+import { type MissingLink, type MissingNode, isMissingId, missingNodes } from "./graphMissing";
 import { st } from "../screen/strings";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
 
+/** How long typing in the filter must pause before the count is announced. */
+const COUNT_PAUSE_MS = 1000;
+
 /* The graph: every note of the vault and every resolved link, or the
  * neighbourhood of one note to a chosen depth. Force-laid in SVG,
  * zoomed and panned, filtered by name or tag, colored by folder. */
-export type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean };
-export const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true };
-export type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string };
+export type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean; existingOnly: boolean };
+export const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true, existingOnly: true };
+export type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string; missing?: MissingNode };
 export class GraphLeaf extends Leaf {
   readonly kind: Kind = "graph";
   readonly svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   readonly world = document.createElementNS("http://www.w3.org/2000/svg", "g");
   readonly title = h("h1", "note-title");
   readonly count = h("span", "graph-count");
+  /** What a screen reader hears of the count: the same words, a second after
+   *  typing in the filter stops (A11Y.16), not at every key. */
+  private readonly countLive = h("span", "sr-only");
+  private countTimer = 0;
   readonly controls = h("aside", "graph-controls");
   readonly legend = h("div", "graph-legend");
   private opts: GraphOpts = { ...GRAPH_DEFAULTS };
   private edges: [string, string][] = [];
   private tags: { name: string; notes: string[] }[] = [];
+  /** Links no note answers to, asked of the core once the filter that hides
+   *  them is turned off (spec Q14, decision B). */
+  private missingLinks: MissingLink[] | null = null;
+  /** The core would not name missing notes here (a shared folder). */
+  private missingRefused = false;
   private nodes: GNode[] = [];
   private stop: (() => void) | null = null;
   private zoom = 1;
   private pan = { x: 0, y: 0 };
   private held: GNode | null = null;
+  /** The note the arrows are on: kept across redraws, so a click that centres
+   *  the graph (and redraws every node) does not lose the keyboard. */
+  private cur: string | null = null;
+  /** The note the arrows reached, said once to a screen reader. */
+  private readonly curLive = h("span", "sr-only graph-current-live");
+  /** The one control that clears the centre, the filter and the tag. */
+  private readonly showAll = button("ghost graph-show-all", st.graphShowAll);
+  /** The same control inside the controls panel, for where the panel covers the head. */
+  private readonly showAllInPanel = button("ghost graph-show-all in-panel", st.graphShowAll);
+  private filterInput: HTMLInputElement | null = null;
+  private filterClear: HTMLButtonElement | null = null;
   constructor(pane: Pane) {
     super(pane);
     try {
@@ -52,6 +80,20 @@ export class GraphLeaf extends Leaf {
     this.svg.setAttribute("role", "group");
     this.svg.setAttribute("aria-labelledby", this.title.id);
     this.svg.append(this.world);
+    // The graph takes the keys: one Tab stop, focused by a click on the
+    // background or on a note (a click used to leave the focus on a note that
+    // centring then redrew away, so the arrows reached nothing).
+    this.svg.tabIndex = 0;
+    this.svg.addEventListener("keydown", (e) => this.onKey(e));
+    this.svg.addEventListener("pointerdown", () => this.svg.focus({ preventScroll: true }), true);
+    this.svg.addEventListener("focus", () => this.markCurrent(false));
+    this.svg.addEventListener("blur", () => this.dots.forEach((d) => d.unlight()));
+    this.showAll.dataset["role"] = "whole";
+    for (const b of [this.showAll, this.showAllInPanel]) {
+      b.hidden = true;
+      b.addEventListener("click", () => this.clearAll());
+    }
+    this.curLive.setAttribute("role", "status");
     const head = h("div", "graph-head");
     // On a phone, or in a pane under 520 px, the controls are a panel
     // closed by default, opened by this button over the graph (ADR 0076
@@ -67,16 +109,18 @@ export class GraphLeaf extends Leaf {
       const open = body.classList.toggle("controls-open");
       toggle.setAttribute("aria-expanded", String(open));
     });
-    head.append(this.title, this.count, toggle);
-    // How many notes and links the filters leave, announced as they change.
-    this.count.setAttribute("role", "status");
+    head.append(this.title, this.count, this.countLive, this.showAll, toggle);
+    // How many notes and links the filters leave, announced once the typing
+    // pauses; the count drawn changes at once.
+    this.countLive.setAttribute("role", "status");
+    this.count.setAttribute("aria-hidden", "true");
     // The help for the input the screen has: a finger, or a mouse and keys.
     const hint = h("p", "graph-hint");
     const coarse = window.matchMedia("(pointer: coarse)");
     const paintHint = (): void => void (hint.textContent = coarse.matches ? st.graphHintTouch : t.graphHint);
     paintHint();
     coarse.addEventListener("change", paintHint);
-    stage.append(head, this.svg, hint);
+    stage.append(head, this.svg, hint, this.curLive);
     body.append(stage, this.controls);
     this.el.append(top, body);
     this.buildControls();
@@ -90,6 +134,7 @@ export class GraphLeaf extends Leaf {
   }
   private buildControls(): void {
     const c = this.controls;
+    c.append(this.showAllInPanel);
     const field = (label: string, input: HTMLElement) => {
       const l = h("label", "graph-field");
       l.append(h("span", "", label), input);
@@ -102,8 +147,22 @@ export class GraphLeaf extends Leaf {
     filter.setAttribute("aria-label", t.graphFilter);
     filter.value = this.opts.filter;
     filter.addEventListener("input", () => { this.opts.filter = filter.value; this.save(); this.rebuild(); });
-    filter.addEventListener("keydown", (e) => e.stopPropagation());
-    c.append(filter);
+    // Esc in the field clears it; the keys stay the field's, not the window's.
+    filter.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape" && filter.value !== "") { e.preventDefault(); this.clearFilter(); }
+    });
+    this.filterInput = filter;
+    const clearX = button("ghost iconic graph-filter-clear", st.graphClearFilter);
+    clearX.textContent = "×";
+    clearX.setAttribute("aria-label", st.graphClearFilter);
+    clearX.title = st.graphClearFilter;
+    clearX.hidden = filter.value === "";
+    clearX.addEventListener("click", () => { this.clearFilter(); filter.focus(); });
+    this.filterClear = clearX;
+    const wrap = h("div", "graph-filter-wrap");
+    wrap.append(filter, clearX);
+    c.append(wrap);
     const tag = h("select");
     tag.addEventListener("change", () => { this.opts.tag = tag.value; this.save(); this.rebuild(); });
     tag.dataset["role"] = "tag";
@@ -117,15 +176,21 @@ export class GraphLeaf extends Leaf {
     }
     depth.addEventListener("change", () => { this.opts.depth = Number(depth.value); this.save(); void this.load(this.path); });
     field(t.graphDepth, depth).dataset["role"] = "depth";
-    const check = (label: string, key: "orphans" | "colors" | "labels") => {
+    const check = (label: string, key: "orphans" | "colors" | "labels" | "existingOnly") => {
       const box = h("input");
       box.type = "checkbox";
       box.checked = this.opts[key];
-      box.addEventListener("change", () => { this.opts[key] = box.checked; this.save(); this.rebuild(); });
+      box.addEventListener("change", () => {
+        this.opts[key] = box.checked;
+        this.save();
+        if (key === "existingOnly" && !box.checked) void this.askMissing().then(() => this.rebuild());
+        else this.rebuild();
+      });
       const l = h("label", "graph-check");
       l.append(box, h("span", "", label));
       c.append(l);
     };
+    check(st.graphExisting, "existingOnly");
     check(t.graphOrphans, "orphans");
     check(t.graphLabels, "labels");
     check(t.graphColors, "colors");
@@ -150,10 +215,7 @@ export class GraphLeaf extends Leaf {
     zb("zoomIn", t.graphZoomIn, () => this.zoomTo(Math.min(6, this.zoom * 1.25)));
     zb("fitWidth", t.graphFit, () => this.fit());
     c.append(zoomRow);
-    const whole = button("ghost", t.graphWhole);
-    whole.dataset["role"] = "whole";
-    whole.addEventListener("click", () => void this.load(""));
-    c.append(whole, this.legend);
+    c.append(this.legend);
   }
   private wireStage(): void {
     const svg = this.svg;
@@ -255,6 +317,78 @@ export class GraphLeaf extends Leaf {
       svg.addEventListener("pointerup", up);
     });
   }
+  /** The filter text emptied: the graph shows what the centre and the tag leave. */
+  private clearFilter(): void {
+    this.opts.filter = "";
+    if (this.filterInput) this.filterInput.value = "";
+    this.save();
+    this.rebuild();
+  }
+  /** Everything narrowing the view cleared at once: no centre, no filter, no
+   *  tag. The whole vault's graph, as it opens from the ribbon. */
+  private clearAll(): void {
+    this.opts.filter = "";
+    this.opts.tag = "";
+    if (this.filterInput) this.filterInput.value = "";
+    const tagSel = this.controls.querySelector<HTMLSelectElement>('select[data-role="tag"]');
+    if (tagSel) tagSel.value = "";
+    this.save();
+    if (this.path !== "") void this.load("");
+    else this.rebuild();
+    this.svg.focus({ preventScroll: true });
+  }
+  /** The clear control shows whenever a centre, a filter or a tag narrows the view. */
+  private syncClear(): void {
+    const narrowed = this.path !== "" || this.opts.filter.trim() !== "" || this.opts.tag !== "";
+    this.showAll.hidden = !narrowed;
+    this.showAllInPanel.hidden = !narrowed;
+    if (this.filterClear) this.filterClear.hidden = this.opts.filter === "";
+  }
+  /** The arrows, Home and End walk the notes, Enter opens, Shift-Enter centres. */
+  private onKey(e: KeyboardEvent): void {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const dir = arrowDir(e.key);
+    if (dir || e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      const to = dir ? walk(this.nodes, this.cur, dir) : (e.key === "Home" ? this.nodes[0] : this.nodes[this.nodes.length - 1])?.id ?? null;
+      if (to) this.setCurrent(to, true);
+      return;
+    }
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const n = this.nodes.find((x) => x.id === this.cur);
+    if (!n) return;
+    e.preventDefault();
+    this.lastTap = null;
+    if (e.shiftKey && !n.missing) void this.load(n.id);
+    else this.openNode(n);
+  }
+  /** Open the note, or for one that does not exist yet make it, as a click on
+   *  its link in a note does. */
+  private openNode(n: GNode): void {
+    if (n.missing) void this.make(n.missing);
+    else openNote(n.id, false);
+  }
+  /** Make this note the current one: ringed, its neighbours lit, in view, and
+   *  said to a screen reader. */
+  private setCurrent(id: string, say: boolean): void {
+    this.cur = id;
+    this.markCurrent(say);
+    const d = this.dots.find((x) => x.n.id === id);
+    if (d && say) this.reveal(d.n);
+  }
+  private markCurrent(say: boolean): void {
+    let now: { g: SVGGElement; n: GNode; light: () => void } | undefined;
+    for (const d of this.dots) {
+      const on = d.n.id === this.cur;
+      d.g.classList.toggle("current", on);
+      if (on) now = d;
+    }
+    if (now) {
+      this.svg.setAttribute("aria-activedescendant", now.g.id);
+      if (document.activeElement === this.svg) now.light();
+      if (say) this.curLive.textContent = st.graphCurrent(now.n.missing ? now.n.missing.target : name(now.n.id));
+    } else this.svg.removeAttribute("aria-activedescendant");
+  }
   /** Zoom about the middle of the stage. */
   private zoomTo(next: number): void {
     const k = next / this.zoom;
@@ -292,6 +426,7 @@ export class GraphLeaf extends Leaf {
   }
   async load(path: string): Promise<void> {
     this.path = path;
+    if (path !== "") this.cur = path;
     const local = path !== "";
     this.setTitle(local ? `${t.graph}: ${name(path)}` : t.graphWhole);
     this.title.textContent = local ? `${t.graphOf} ${name(path)}` : t.graphWhole;
@@ -312,16 +447,28 @@ export class GraphLeaf extends Leaf {
     }
     const depthField = this.controls.querySelector<HTMLElement>('[data-role="depth"]');
     if (depthField) depthField.hidden = !local;
-    const whole = this.controls.querySelector<HTMLElement>('[data-role="whole"]');
-    if (whole) whole.hidden = !local;
+    this.syncClear();
+    this.missingLinks = null;
+    this.missingRefused = false;
+    if (!this.opts.existingOnly) await this.askMissing();
+    if (this.path !== path) return;
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
     this.rebuild();
     markCurrent();
     persistSoon();
   }
+  /** The links no note answers to, once per load; none when the core will not
+   *  say (a shared folder), so the graph is then the existing files. */
+  private async askMissing(): Promise<void> {
+    if (this.missingLinks) return;
+    const r = await commands.graphUnresolved();
+    this.missingLinks = r.status === "ok" ? r.data : [];
+    this.missingRefused = r.status !== "ok";
+  }
   /** Nodes and edges after the filters, laid out from scratch. */
   private rebuild(): void {
+    this.syncClear();
     const local = this.path !== "";
     const all = new Set(allNotes);
     let keep: Set<string>;
@@ -357,16 +504,27 @@ export class GraphLeaf extends Leaf {
       const inTag = new Set(this.tags.filter((tg) => tg.name === this.opts.tag).flatMap((tg) => tg.notes));
       keep = new Set(Array.from(keep).filter((p) => inTag.has(p) || p === this.path));
     }
-    const edges = this.edges.filter(([a, b]) => keep.has(a) && keep.has(b) && a !== b);
+    const edges: [string, string][] = this.edges.filter(([a, b]) => keep.has(a) && keep.has(b) && a !== b);
     const degree = new Map<string, number>();
     for (const [a, b] of edges) {
       degree.set(a, (degree.get(a) ?? 0) + 1);
       degree.set(b, (degree.get(b) ?? 0) + 1);
     }
+    // Notes that do not exist yet, from the notes the filters kept.
+    let missing: MissingNode[] = [];
+    if (!this.opts.existingOnly && this.missingLinks) {
+      const shaped = missingNodes(this.missingLinks, keep, local ? { depthOf, maxDepth: this.opts.depth } : undefined);
+      missing = shaped.nodes;
+      for (const [a, b] of shaped.edges) {
+        edges.push([a, b]);
+        degree.set(a, (degree.get(a) ?? 0) + 1);
+        degree.set(b, (degree.get(b) ?? 0) + 1);
+      }
+    }
     if (!this.opts.orphans) keep = new Set(Array.from(keep).filter((p) => (degree.get(p) ?? 0) > 0 || p === this.path));
-    const spread = Math.sqrt(keep.size) * 40;
+    const spread = Math.sqrt(keep.size + missing.length) * 40;
     const old = new Map(this.nodes.map((n) => [n.id, n]));
-    this.nodes = Array.from(keep).map((id) => {
+    const real: GNode[] = Array.from(keep).map((id) => {
       const prev = old.get(id);
       return {
         id,
@@ -379,8 +537,20 @@ export class GraphLeaf extends Leaf {
         folder: id.includes("/") ? id.split("/")[0] ?? "" : "",
       };
     });
-    this.count.textContent = t.graphNodes(this.nodes.length, edges.filter(([a, b]) => keep.has(a) && keep.has(b)).length);
-    this.draw(edges.filter(([a, b]) => keep.has(a) && keep.has(b)));
+    const hollow: GNode[] = missing.map((m) => {
+      const prev = old.get(m.id);
+      return { id: m.id, x: prev?.x ?? (Math.random() - 0.5) * spread, y: prev?.y ?? (Math.random() - 0.5) * spread, vx: 0, vy: 0, degree: degree.get(m.id) ?? 0, depth: m.depth, folder: "", missing: m };
+    });
+    this.nodes = [...real, ...hollow];
+    const shown = edges.filter(([a, b]) => (keep.has(a) || isMissingId(a)) && (keep.has(b) || isMissingId(b)));
+    let counted = missing.length > 0 ? st.graphNodesMissing(real.length, shown.length, missing.length) : t.graphNodes(real.length, shown.length);
+    // Every action shows something: the filter turned off in a shared folder says why nothing appeared.
+    if (!this.opts.existingOnly && this.missingRefused) counted += ` · ${st.graphMissingShared}`;
+    this.count.textContent = counted;
+    window.clearTimeout(this.countTimer);
+    if (this.countLive.textContent === "") this.countLive.textContent = counted;
+    else this.countTimer = window.setTimeout(() => void (this.countLive.textContent = counted), COUNT_PAUSE_MS);
+    this.draw(shown);
   }
   private hue(folder: string): number {
     let x = 0;
@@ -405,7 +575,9 @@ export class GraphLeaf extends Leaf {
   private frames = 0;
   private raf = 0;
   private lines: { l: SVGLineElement; a: GNode; b: GNode }[] = [];
-  private dots: { g: SVGGElement; n: GNode }[] = [];
+  private dots: { g: SVGGElement; n: GNode; light: () => void; unlight: () => void }[] = [];
+  /** The last click on a node, kept here because centring redraws the nodes. */
+  private lastTap: Tap = null;
   private draw(edges: [string, string][]): void {
     this.stop?.();
     const NS = "http://www.w3.org/2000/svg";
@@ -426,19 +598,24 @@ export class GraphLeaf extends Leaf {
       (neighbours.get(a.id) ?? neighbours.set(a.id, new Set()).get(a.id)!).add(b.id);
       (neighbours.get(b.id) ?? neighbours.set(b.id, new Set()).get(b.id)!).add(a.id);
     }
-    this.dots = this.nodes.map((n) => {
+    this.dots = this.nodes.map((n, idx) => {
       const g = document.createElementNS(NS, "g");
-      g.setAttribute("class", `node${n.id === this.path ? " center" : ""}`);
+      g.setAttribute("class", `node${n.id === this.path ? " center" : ""}${n.missing ? " missing" : ""}`);
       g.setAttribute("data-id", n.id);
+      g.id = `${this.title.id}-n${idx}`;
       // Its note where the pointer rests, and under a finger held still
-      // (ADR 0085 items 2 and 5).
-      g.setAttribute("data-preview-path", n.id);
-      g.setAttribute("data-preview-press", "");
+      // (ADR 0085 items 2 and 5). A note that does not exist has none.
+      if (!n.missing) {
+        g.setAttribute("data-preview-path", n.id);
+        g.setAttribute("data-preview-press", "");
+      }
       const c = document.createElementNS(NS, "circle");
       c.setAttribute("r", String(this.radius(n)));
-      c.style.fill = this.color(n);
+      // A note that does not exist yet is hollow and dashed (css), not only
+      // another colour (A11Y.12).
+      if (!n.missing) c.style.fill = this.color(n);
       const label = document.createElementNS(NS, "text");
-      label.textContent = name(n.id);
+      label.textContent = n.missing ? n.missing.target : name(n.id);
       label.setAttribute("dy", String(-this.radius(n) - 4));
       if (!this.opts.labels && n.id !== this.path) label.classList.add("quiet");
       g.append(c, label);
@@ -468,31 +645,25 @@ export class GraphLeaf extends Leaf {
         g.addEventListener("pointermove", move);
         g.addEventListener("pointerup", up);
       });
-      g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
-      g.addEventListener("dblclick", () => void this.load(n.id));
-      // From the keyboard: the graph is one Tab stop (the note in its
-      // middle, else the first); the arrows walk the notes, Home and End
-      // reach the ends, Enter opens one and Shift-Enter centers the graph
-      // on it. Every node used to be a Tab stop of its own, hundreds of
-      // them between the note and the graph's controls.
-      g.setAttribute("tabindex", "-1");
-      g.setAttribute("role", "button");
-      g.setAttribute("aria-label", name(n.id));
-      g.addEventListener("keydown", (e) => {
-        const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-        if (step !== 0 || e.key === "Home" || e.key === "End") {
-          e.preventDefault();
-          const all = this.dots.length;
-          const i = this.dots.findIndex((d) => d.g === g);
-          const j = e.key === "Home" ? 0 : e.key === "End" ? all - 1 : (i + step + all) % all;
-          this.dots[j]?.g.focus();
-          return;
-        }
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-        if (e.shiftKey) void this.load(n.id);
-        else openNote(n.id, false);
+      // Open the note, or for one that does not exist yet make it, as a
+      // click on its link in a note does.
+      const open = (): void => this.openNode(n);
+      // A click centres the graph on the note; a second on it, inside the
+      // double-click interval, opens it (a hollow one: makes it). Both mouse
+      // and touch arrive as `click`; a drag does neither.
+      g.addEventListener("click", () => {
+        if (moved) return;
+        this.cur = n.id;
+        this.markCurrent(false);
+        const r = tapKind(this.lastTap, n.id, performance.now());
+        this.lastTap = r.last;
+        if (r.kind === "double") open();
+        else if (!n.missing && n.id !== this.path) void this.load(n.id);
       });
+      // From the keyboard the graph is one Tab stop (its stage, see onKey);
+      // the notes are named and reached through it.
+      g.setAttribute("role", "button");
+      g.setAttribute("aria-label", n.missing ? st.graphMissingNode(n.missing.target) : name(n.id));
       // Its neighbours lit, by the pointer or the keyboard alike.
       const light = () => {
         const near = neighbours.get(n.id) ?? new Set();
@@ -506,17 +677,11 @@ export class GraphLeaf extends Leaf {
       };
       g.addEventListener("mouseenter", light);
       g.addEventListener("mouseleave", unlight);
-      g.addEventListener("focus", () => {
-        // The Tab stop follows the keyboard, and the note is brought into view.
-        for (const d of this.dots) d.g.setAttribute("tabindex", d.g === g ? "0" : "-1");
-        this.reveal(n);
-        light();
-      });
-      g.addEventListener("blur", unlight);
       world.append(g);
-      return { g, n };
+      return { g, n, light, unlight };
     });
-    (this.dots.find((d) => d.n.id === this.path) ?? this.dots[0])?.g.setAttribute("tabindex", "0");
+    this.cur = firstCurrent(this.nodes, this.path, this.cur);
+    this.markCurrent(false);
     this.legend.replaceChildren();
     if (this.opts.colors) {
       const folders = Array.from(new Set(this.nodes.map((n) => n.folder).filter(Boolean))).sort().slice(0, 12);
@@ -528,9 +693,25 @@ export class GraphLeaf extends Leaf {
         this.legend.append(row);
       }
     }
+    if (this.nodes.some((n) => n.missing)) {
+      const row = h("span", "graph-legend-item");
+      const mark = h("span", "graph-legend-dot missing");
+      row.append(mark, h("span", "", st.graphMissingLegend));
+      this.legend.append(row);
+    }
     this.applyView();
     this.frames = 0;
     this.resume();
+  }
+  /** A note that does not exist yet, made — once the person says yes — in the
+   *  folder of the first note that links to it and opened (the way a click on
+   *  its link does). */
+  private async make(m: MissingNode): Promise<void> {
+    // A click, an Enter or a double click on a hollow node is easy to give
+    // by accident: it asks first (G.1b, decided 2026-10-21).
+    if (!(await ask(st.graphMakeAsk(m.target), { yes: st.graphMakeYes, no: t.cancel }))) return;
+    const made = await createNote(dirOf(m.from[0] ?? ""), m.target, this.pane);
+    if (made !== "exists" && this.el.isConnected) void this.load(this.path);
   }
   /** The simulation runs until it settles; any change wakes it. With
    *  reduced motion it settles out of sight and is painted once; only a
@@ -593,6 +774,7 @@ export class GraphLeaf extends Leaf {
     this.stop = () => { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; };
   }
   override destroy(): void {
+    window.clearTimeout(this.countTimer);
     this.stop?.();
   }
 }

@@ -1,0 +1,22 @@
+/* The roll block (ADR 0107, "As built" 2026-10-22): a roll of the table kept in a note, drawn as a fixed card. */
+.rb-card { box-sizing: border-box; margin: .5rem 0; padding: .45rem .7rem; border: 1px solid var(--hair); border-left: 3px solid var(--seal); border-radius: 7px; background: var(--paper-2, var(--paper)); font-family: var(--ui); font-size: .88rem; color: var(--ink); cursor: default; }
+.rb-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; color: var(--ink-3); font-size: .75rem; }
+.rb-who { font-weight: 600; color: var(--ink-2); }
+.rb-where { color: var(--seal); text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--seal) 40%, transparent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.rb-where.plain { color: var(--ink-3); text-decoration: none; cursor: default; }
+.rb-body { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; margin-top: .25rem; }
+.rb-notation { font-family: var(--mono); color: var(--ink-2); font-size: .82rem; }
+.rb-dice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
+.rb-die { display: inline-block; min-width: 1.5em; text-align: center; font: 700 .8rem/1.5 system-ui, sans-serif; border: 1px solid var(--seal); border-radius: 5px; padding: 0 .25em; background: var(--seal); color: var(--paper); }
+.rb-die.dropped { opacity: .5; border-style: dashed; background: transparent; color: var(--ink-3); border-color: var(--ink-3); }
+.rb-op { color: var(--ink-3); font-size: .82rem; }
+.rb-total { font-size: 1.1rem; }
+.rb-total::before { content: "= "; color: var(--ink-3); font-weight: 400; }
+.rb-row, .rb-label { color: var(--ink-2); }
+.rb-label { font-weight: 600; }
+.rb-draw { color: var(--ink-3); font-family: var(--mono); font-size: .75rem; }
+/* The caret that shows where a roll dragged from the table will land. */
+.roll-drop-caret { position: fixed; z-index: 29; height: 2px; background: var(--seal); border-radius: 1px; pointer-events: none; box-shadow: 0 0 0 1px var(--paper); }
+.roll-drop-caret::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--seal); }
+.table-entry.rollable { cursor: grab; }
+.rb-when { word-spacing: .2em; }

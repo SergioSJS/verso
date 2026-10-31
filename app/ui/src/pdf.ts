@@ -10,6 +10,7 @@
 
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
+import { clampPage } from "./pdfSpec";
 import { icon } from "./icons";
 import { note } from "./report";
 import { asset } from "./version";
@@ -101,6 +102,8 @@ export class PdfView {
   private task: PDFDocumentLoadingTask | null = null;
   private doc: PDFDocumentProxy | null = null;
   private token = 0;
+  /** Says the current document is being torn down (see `quietOnTeardown`). */
+  private markGone: (() => void) | null = null;
   private passages: Passage[] = [];
   private pendingPage = 1;
   private fitMode: "page-width" | "page-fit" | null = "page-width";
@@ -182,6 +185,7 @@ export class PdfView {
     });
     this.linkService.setViewer(this.viewer);
     this.eventBus.on("pagesinit", () => {
+      this.pagesReady = true;
       this.laidOut = false;
       this.fitWidth = -1;
       this.layOut();
@@ -205,6 +209,9 @@ export class PdfView {
   }
 
   private laidOut = false;
+  /** pdf.js has the document's pages (`pagesinit`): before that it has
+   *  none, and any page number is "not a valid page" (console error). */
+  private pagesReady = false;
   private fitWidth = -1;
   private fitFrame = 0;
   /** Whether the reader is on screen: pdf.js scrolls to a page when it
@@ -216,13 +223,14 @@ export class PdfView {
   /** The first fit and page once shown, and a fit again when the width
    *  changed. */
   private layOut(): void {
-    if (!this.doc || !this.shown()) return;
+    if (!this.doc || !this.pagesReady || !this.shown()) return;
     const width = this.container.clientWidth;
     if (!this.laidOut) {
       this.laidOut = true;
       this.fitWidth = width;
       this.viewer.currentScaleValue = this.fitMode ?? "page-width";
-      if (this.pendingPage > 1) this.viewer.currentPageNumber = this.pendingPage;
+      const page = clampPage(this.pendingPage, this.viewer.pagesCount || this.doc.numPages);
+      if (page > 1) this.viewer.currentPageNumber = page;
       this.setCurrent(this.viewer.currentPageNumber);
       return;
     }
@@ -248,6 +256,7 @@ export class PdfView {
       const doc = await task.promise;
       if (token !== this.token) return void task.destroy();
       this.doc = doc;
+      this.markGone = quietOnTeardown(doc);
       this.total.textContent = `${this.opts.strings.of} ${doc.numPages}`;
       this.pageInput.max = String(doc.numPages);
       this.viewer.setDocument(doc);
@@ -269,7 +278,7 @@ export class PdfView {
   }
 
   get page(): number {
-    return this.viewer.currentPageNumber || 1;
+    return this.pagesReady ? this.viewer.currentPageNumber || 1 : 1;
   }
 
   private setCurrent(n: number): void {
@@ -281,7 +290,7 @@ export class PdfView {
     if (!this.doc) return;
     const page = Math.max(1, Math.min(this.doc.numPages, Math.round(n)));
     // Not shown yet: the page is where it opens once it is.
-    if (!this.laidOut) this.pendingPage = page;
+    if (!this.laidOut || !this.pagesReady) this.pendingPage = page;
     else this.viewer.currentPageNumber = page;
   }
 
@@ -417,9 +426,14 @@ export class PdfView {
   }
 
   private destroyDoc(): void {
+    // Before the destroy: the page requests it fails are then not told.
+    this.markGone?.();
+    this.markGone = null;
     void this.task?.destroy();
     this.task = null;
     this.doc = null;
+    this.pagesReady = false;
+    this.laidOut = false;
     const highlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights;
     if (highlights) for (const k of Array.from(highlights.keys())) if (k.startsWith("verso-quote-")) highlights.delete(k);
   }
@@ -429,6 +443,27 @@ export class PdfView {
     this.destroyDoc();
     this.viewer.cleanup();
   }
+}
+
+/** pdf.js's viewer asks for every page of the document after the first
+ *  paints and, when one request fails, writes `console.error` ("Unable to
+ *  get page N to initialize viewer: Transport destroyed"). Closing the PDF
+ *  or leaving its note meanwhile destroys the document and fails them, so
+ *  a page request that fails after the returned function is called stays
+ *  pending instead: nothing is logged and no page of the old document is
+ *  ever handed to a view that now shows another. Pending, never settled,
+ *  it holds nothing once the viewer lets go of it. */
+function quietOnTeardown(doc: PDFDocumentProxy): () => void {
+  let gone = false;
+  const getPage = doc.getPage.bind(doc);
+  doc.getPage = (n: number) =>
+    getPage(n).then(
+      (page) => (gone ? new Promise<never>(() => {}) : page),
+      (e: unknown) => (gone ? new Promise<never>(() => {}) : Promise.reject(e)),
+    );
+  return () => {
+    gone = true;
+  };
 }
 
 /** A PDF's first page as a picture `width` CSS pixels wide — the cover a

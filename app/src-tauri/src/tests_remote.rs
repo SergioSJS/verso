@@ -193,6 +193,16 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
     );
     let caps = call(&main, "capabilities", json!({})).unwrap();
     assert_eq!(caps["host"], "server");
+    // The server's folder, with this app's own abilities beside it.
+    let has = |what: &str| caps["can"].as_array().unwrap().iter().any(|c| c == what);
+    assert!(
+        has("write") && has("windows") && has("updates") && has("local_folders"),
+        "{caps}"
+    );
+    assert!(
+        !has("reveal") && !has("copy_path") && !has("agents"),
+        "{caps}"
+    );
     // How far the server is, measured on this side.
     assert!(caps["latency_ms"].is_u64(), "{caps}");
     let note = call(&main, "read_note", json!({ "path": "Sessao.md" })).unwrap();
@@ -456,4 +466,48 @@ fn a_new_server_folder_takes_a_free_name_and_the_first_sync_into_it_only_uploads
     let b = device_at(&r.url, id, &r.owner, &[]);
     sync(&b);
     assert_eq!(text(&b, "Notas/Ideia.md").as_deref(), Some("# Ideia\n"));
+}
+
+/// A reader of a server's folder, in a window of the desktop app: no
+/// `write` (the server's word), and the app's own abilities kept.
+#[test]
+fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
+    let mut caps = json!({ "host": "server", "can": ["account", "collab"], "latency_ms": null });
+    remote::with_app_abilities(&mut caps);
+    let can: Vec<&str> = caps["can"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect();
+    assert_eq!(caps["host"], "server");
+    for kept in [
+        "account",
+        "collab",
+        "windows",
+        "web_views",
+        "updates",
+        "devtools",
+        "local_folders",
+        // An old server never says it: a folder window by default.
+        "index",
+        "search",
+        "backlinks",
+        "create",
+        "rename",
+        "delete",
+        "trash",
+        "history",
+        "sync",
+        "table",
+        "board",
+    ] {
+        assert!(can.contains(&kept), "{kept} in {can:?}");
+    }
+    for gone in ["write", "reveal", "copy_path", "agents"] {
+        assert!(!can.contains(&gone), "{gone} in {can:?}");
+    }
+    // Asked twice, nothing is added twice.
+    remote::with_app_abilities(&mut caps);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 7 + 11);
 }

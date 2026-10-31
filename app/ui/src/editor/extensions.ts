@@ -14,6 +14,7 @@ import { icon } from "../icons";
 import { editorKeepsInView, tooltipSpace } from "../screen/keyboard";
 import { CustomSearchPanel, searchStrings } from "../searchPanel";
 import { settings } from "../settings";
+import { mentionDismissal } from "./mentionDismiss";
 import { WIKILINK_BEFORE } from "./wikilinkBefore";
 
 export const baseEditorExtensions: Extension = [
@@ -36,6 +37,7 @@ export const baseEditorExtensions: Extension = [
   syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
   bracketMatching(),
   closeBrackets(),
+  mentionDismissal,
   autocompletion(),
   // The suggestions inside what the screen shows, and the cursor above
   // the on-screen keyboard (ADR 0076 item 7).

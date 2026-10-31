@@ -21,7 +21,10 @@ import { settings } from "../settings";
 import { t } from "../strings";
 import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
+import { showTable } from "../table/show";
 import { notify, onAct, settle, stateOf } from "./index";
+import { news } from "./presence";
+import { inFront } from "./system";
 import { notifyStrings } from "./strings";
 
 const DAY_MS = 86_400_000;
@@ -103,24 +106,40 @@ function when(stamp: string): string {
 /* ---------- Presence: someone joins the note being edited ---------- */
 
 /** The people in a live file changed (leaves/note/live.ts, textLive.ts,
- *  boardLive.ts): each who joined is said; leaving is not notified — the
- *  live state says it — but makes the next join news again. */
-export function presenceHeard(path: string, before: readonly string[], now: readonly string[]): void {
+ *  boardLive.ts): each who joined is news once (presenceNews.ts): a toast where
+ *  the person looks, the list (and the system's, behind) elsewhere. Leaving
+ *  is not notified — the live state says it.
+ *
+ *  Presence is "Só na lista" until the person chooses otherwise (item 8,
+ *  amended 2026-10-28): then the join is a line in the list and no toast.
+ *  Returns the newcomers that are news and not turned off: the leaf rings
+ *  their mark in the presence row and says them once (liveWho.ts). */
+export function presenceHeard(path: string, before: readonly string[], now: readonly string[], showing = true): string[] {
   const s = notifyStrings();
   const key = (name: string) => `presence:${currentFolder}:${path}:${name}`;
+  const at = Date.now();
+  const fresh: string[] = [];
   for (const name of now) {
     if (before.includes(name)) continue;
-    notify({
+    const verdict = news.verdict({ folder: currentFolder, tabShowing: showing, windowInFront: inFront() }, path, name, at);
+    if (verdict === "none") continue;
+    const out = notify({
       kind: "presence",
+      // A join nobody is looking at is in the list (and the system's, when
+      // the window is behind), without a toast.
+      toast: verdict === "toast",
       key: key(name),
-      state: "in",
+      // The time in the state: the same person is news again only after
+      // PRESENCE_AGAIN_MS, which `news` decided.
+      state: `in:${at}`,
       level: "info",
       title: s.joined(name),
       sentence: s.joinedWhy(name, noteName(path)),
       actions: [{ label: s.openNote, act: "note", arg: path }],
     });
+    if (out.said === "toast" || out.said === "list") fresh.push(name);
   }
-  for (const name of before) if (!now.includes(name)) settle(key(name), "out");
+  return fresh;
 }
 
 /* ---------- Updates: one notification per version ---------- */
@@ -219,6 +238,7 @@ export function installSources(): void {
   const s = notifyStrings();
   onAct("settings", (section) => settingsDialog.show(section));
   onAct("note", (path) => path && void openNote(path, false));
+  onAct("table", () => showTable());
   onAct("update-settings", () => settingsDialog.show("general"));
   onAct("update-download", () => {
     settingsDialog.show("general");

@@ -215,7 +215,38 @@ todas (Recomendado)", accepting the author's recommendation for each.
   text and links, and every note read from disk is read again on the next
   walk.
 
+**Syncing a folder with placeholders. Decided by the maintainer on
+2026-10-27**, in session ("claro, pode fazer"), after syncing an Obsidian
+folder to the server listed 188 files as "not on this computer" with no way
+to bring them down from inside Verso. Three items, accepted together:
+
+- **(a) Downloading from the sync card, on the user's click.** The "waiting
+  for you" card of placeholders gets a button, "Download N files (X MB)". It
+  fetches through the same step as opening a file (above: off the main
+  thread, outside the folder's lock, every read still refusing a placeholder),
+  one file at a time, with progress and a way to stop. It says the total size
+  first and refuses to start when the disk's free space does not hold it with
+  a margin. A file that cannot be brought down (no connection, the older
+  `.Name.ext.icloud` form, the provider has no content) stays in the card with
+  its reason; it never becomes an empty file. Sync itself still never fetches:
+  "Nothing else fetches" above holds for the walk, the index, the watcher and
+  every sync pass.
+- **(b) An evicted file already on the server is not pending.** A placeholder
+  whose path sync has a base for (it crossed before, and the provider sent it
+  back to the cloud) is not listed as waiting for the user: the server holds
+  its copy, and nothing is asked of the user. The card says it apart, quietly
+  ("N files are only in the cloud; the server has them"). A placeholder sync
+  never sent stays pending, with the button of (a).
+- **(c) Eviction never deletes.** A file synced and then sent back to the
+  cloud by the provider is never a deletion on the server, nor a change sent
+  up; a change made to it elsewhere waits on the server until the file is
+  back on this computer. A test holds this.
+
 ## Discarded alternatives
+
+- Fetching every placeholder as part of a sync pass (2026-10-27): it fills
+  the disk unasked, spends a metered link, and fights "Optimize Mac Storage",
+  which sends the files back to the cloud again.
 
 - Treating an unreadable file as absent — that is the behavior that causes the
   loss recorded in §16.1.
@@ -227,4 +258,8 @@ forms, checked before the file is opened); for Windows' cloud attributes,
 OneDrive's among them, on 2026-10-08; `[OPEN]` for the other providers,
 each one when its platform arrives or a user needs it. Opening a file in the
 window fetches it: decided on 2026-09-30; what opening covers, and the index
-across a version: decided on 2026-10-01.
+across a version: decided on 2026-10-01. Syncing a folder with
+placeholders (download from the card, evicted-and-synced not pending,
+eviction never deletes): decided on 2026-10-27.
+
+*2026-10-21* — `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the remaining providers (Dropbox, Google Drive, macOS's own) are handled each when its platform arrives or someone needs it, as this Status already says; a real Windows placeholder has still to be observed.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-campaign-invite"
+description = "Enables the campaign_invite command without any pre-configured scope."
+commands.allow = ["campaign_invite"]
+
+[[permission]]
+identifier = "deny-campaign-invite"
+description = "Denies the campaign_invite command without any pre-configured scope."
+commands.deny = ["campaign_invite"]

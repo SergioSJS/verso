@@ -43,3 +43,13 @@ disallowed_methods = "forbid"
 # release by then, reconsider (ADR 0029, exception policy).
 [patch.crates-io]
 pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev = "c51a2a4cd8ed07a4b1467cc546edcc51eff40703" }
+
+# The password hash compiled with optimisations in debug builds too: Argon2 is
+# slow on purpose through its parameters (memory and passes), which stay the
+# same; an unoptimised build only made the server's tests many times slower
+# (13 minutes on Windows, 2026-10-22) and protected nothing. Verso's own code
+# keeps the debug profile.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3

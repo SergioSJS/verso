@@ -15,6 +15,7 @@ import {
   setSearchQuery,
 } from "@codemirror/search";
 import { icon } from "./icons";
+import { LOCALE } from "./strings";
 
 export interface SearchStrings {
   find: string;
@@ -31,25 +32,48 @@ export interface SearchStrings {
   noHits: string;
   hits: (current: number, total: number) => string;
   toggleReplace: string;
+  badRegex: string;
 }
 
+const PT_SEARCH: SearchStrings = {
+  find: "Localizar…",
+  replace: "Substituir…",
+  next: "Próxima (Enter)",
+  previous: "Anterior (Shift+Enter)",
+  all: "Selecionar todas as ocorrências",
+  matchCase: "Diferenciar maiúsculas/minúsculas (Alt+C)",
+  byWord: "Palavra inteira (Alt+W)",
+  regexp: "Expressão regular (Alt+R)",
+  replaceOne: "Substituir",
+  replaceAll: "Todas",
+  close: "Fechar (Esc)",
+  noHits: "Nenhum resultado",
+  hits: (cur, tot) => `${cur} de ${tot}`,
+  toggleReplace: "Alternar substituição",
+  badRegex: "Regex inválido",
+};
+
+const EN_SEARCH: SearchStrings = {
+  find: "Find…",
+  replace: "Replace…",
+  next: "Next (Enter)",
+  previous: "Previous (Shift+Enter)",
+  all: "Select all matches",
+  matchCase: "Match case (Alt+C)",
+  byWord: "Whole word (Alt+W)",
+  regexp: "Regular expression (Alt+R)",
+  replaceOne: "Replace",
+  replaceAll: "All",
+  close: "Close (Esc)",
+  noHits: "No results",
+  hits: (cur, tot) => `${cur} of ${tot}`,
+  toggleReplace: "Toggle replace",
+  badRegex: "Invalid regex",
+};
+
+/** The in-note search panel's words, in the window's language (ADR 0035). */
 export function searchStrings(): SearchStrings {
-  return {
-    find: "Localizar…",
-    replace: "Substituir…",
-    next: "Próxima (Enter)",
-    previous: "Anterior (Shift+Enter)",
-    all: "Selecionar todas as ocorrências",
-    matchCase: "Diferenciar maiúsculas/minúsculas (Alt+C)",
-    byWord: "Palavra inteira (Alt+W)",
-    regexp: "Expressão regular (Alt+R)",
-    replaceOne: "Substituir",
-    replaceAll: "Todas",
-    close: "Fechar (Esc)",
-    noHits: "Nenhum resultado",
-    hits: (cur, tot) => `${cur} de ${tot}`,
-    toggleReplace: "Alternar substituição",
-  };
+  return LOCALE.startsWith("pt") ? PT_SEARCH : EN_SEARCH;
 }
 
 function createBtn(
@@ -522,7 +546,7 @@ export class ReadingSearch {
         re = new RegExp(isWord ? `\\b${escaped}\\b` : escaped, isCase ? "g" : "gi");
       }
     } catch {
-      this.countBadge.textContent = "Regex inválido";
+      this.countBadge.textContent = this.strings.badRegex;
       this.countBadge.classList.add("no-hits");
       clearReadingHighlights();
       return;

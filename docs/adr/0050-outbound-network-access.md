@@ -38,7 +38,7 @@
   DNS servers** for that server's name and tries the other addresses they
   give, the name and the scheme unchanged; and a Verso server **announces
   itself** by mDNS by default when it listens beyond loopback
-  (`VERSO_ANNOUNCE=off` stops it).
+  (`VERSO_ANNOUNCE=off` stops it). 2026-10-21 — revised by [0104](0104-external-cloud-storage-transports-and-quotas.md): a cloud provider the person connected is polled without a click (a new reach, like 0055's update check, 0073's server, 0096/0097's local server); the core still reaches no network — the adapters live on the desktop host's side (0104 item 3).
 
 ## Context
 
@@ -92,6 +92,8 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
   before the setting existed and as Obsidian loads remote images. The
   maintainer asked for the setting without naming a default; the default is
   the author's, and the maintainer may choose off.
+  `[DECIDED 2026-10-21]` (the maintainer's mark, option A): **on**, as it is;
+  the same as Obsidian, and turning it off is a click in Settings.
 
 ## Discarded alternatives
 

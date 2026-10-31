@@ -1,0 +1,22 @@
+{
+  "verso-theme": 1,
+  "name": "Noite lisa de teste",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "values": {
+    "dark": {
+      "--paper": "#101114",
+      "--paper-2": "#101114",
+      "--hair": "#2f3138",
+      "--ink": "#dcdcdc",
+      "--ink-2": "#a8a8a8",
+      "--seal": "#7cc4ff",
+      "--brass-ink": "#cfcfcf",
+      "--code-paper": "#1a1c21"
+    },
+    "surface-mode": "flat",
+    "heading-style": "accent-bar",
+    "tag-style": "minimal",
+    "radius": "sharp"
+  }
+}

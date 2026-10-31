@@ -69,6 +69,7 @@ pub fn note_out(t: verso_core::NoteText) -> NoteText {
             .collect(),
         text: t.text,
         revision: t.revision,
+        access: None,
         headings: t
             .headings
             .into_iter()
@@ -188,6 +189,7 @@ pub fn text_out(t: verso_core::TextFile) -> TextFile {
         text: t.text,
         revision: t.revision,
         warnings: t.warnings,
+        access: None,
     }
 }
 

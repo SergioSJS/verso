@@ -3,13 +3,16 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { loadShares } from "./shares";
+import { loadCampaign } from "./campaign";
 import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
 import { button, h, ui } from "./dom";
 import { flash } from "./notify";
+import { isTableClosed } from "./errorKinds";
 import { fail } from "./errors";
+import { showTableClosed } from "./tableClosed";
 import { forgetFiles } from "./files";
 import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
@@ -20,21 +23,26 @@ import { askDiscard } from "./leaves/leaf";
 import { panel, ribbon } from "./main";
 import { name } from "./paths";
 import { searchNotes } from "./search";
-import { page, pushWalkRules } from "./settings";
+import { enterFolderTheme, page, pushWalkRules } from "./settings";
 import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
+import { attachFolderLayouts } from "./statblock/folderWire";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
   const [folder, target] = await Promise.all([commands.currentFolder(), commands.popoutTarget()]);
   if (folder.status !== "ok" || !folder.data || target.status !== "ok" || !target.data) return;
   setCurrentFolder(folder.data.key);
+  enterFolderTheme();
   setFolderName(folder.data.name);
   ui.folder.textContent = folder.data.name;
   nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
   await loadFolderLayer();
+  // A popped-out window shows no folder ("verso:folder-shown"): its cards'
+  // layouts are read here.
+  void attachFolderLayouts();
   loadBookmarks();
   await loadFocuses();
   await listAll();
@@ -76,6 +84,13 @@ export async function openFolderBy(
   const r = await run();
   if (r.status !== "ok") {
     ui.status.textContent = "";
+    // A closed table is a state to wait out, said where the folder would be
+    // (tableClosed.ts), not a fault: no ERROR in the log.
+    if (isTableClosed(r.error)) {
+      showTableClosed(() => openFolderBy(run, true, null), currentFolder !== "");
+      said?.(r.error);
+      return false;
+    }
     // A note window names notes by path: the host will not switch the
     // folder under it, and says so.
     if (r.error.kind === "refused" && r.error.message.includes("note windows")) ui.status.textContent = t.closeNoteWindows;
@@ -107,6 +122,7 @@ function tellVolume(info: FolderInfo): void {
 }
 export async function showFolder(info: FolderInfo): Promise<void> {
   setCurrentFolder(info.key);
+  enterFolderTheme();
   setFolderName(info.name);
   // The main window's folder is the one the next launch opens; a window
   // opened later shows a folder of its own (ADR 0065).
@@ -156,6 +172,8 @@ async function showListsAndTabs(info: FolderInfo): Promise<void> {
   // Whether the person owns it on a server, and what of it is shared
   // (ADR 0081 item 7).
   void loadShares();
+  // The folder's tables, and which notes are released (ADR 0110).
+  void loadCampaign();
   let restored = false;
   try {
     const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);

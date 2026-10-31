@@ -12,6 +12,8 @@
 /* Bottom right, above the status bar; above the overlays, which never make
    them inert. The newest is on top: each is added first. */
 .notify-toasts { position: fixed; z-index: 2000; right: max(1rem, env(safe-area-inset-right)); bottom: 2.6rem; display: flex; flex-direction: column; gap: .5rem; width: min(22rem, calc(100vw - 32px)); pointer-events: none; }
+/* Someone joining is ambient news: at the top, below the window's bars, where the table's chat and its box (bottom right) and the typing line (bottom) are not. */
+.notify-toasts-top { top: 3.2rem; bottom: auto; }
 .notify-toast { pointer-events: auto; display: flex; flex-direction: column; gap: .2rem; padding: .55rem .6rem .6rem .8rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-left: 4px solid var(--brass); border-radius: 10px; box-shadow: 0 14px 36px -12px oklch(0% 0 0 / .35); font-size: .84rem; animation: notify-in .22s var(--ease-out); }
 .notify-toast[data-level="warning"] { border-left-color: var(--brass-ink); }
 .notify-toast[data-level="error"] { border-left-color: var(--seal); }
@@ -64,16 +66,16 @@
 @media (max-width: 760px) {
   /* The bell at the top of the pane, at the right end of its first row —
      the failed line's when it shows, the tab bar's otherwise — taking no
-     row of its own: a phone's height is the text's. The toasts at the top,
+     row of its own: a phone's height is the text's. The toasts at the bottom,
      the whole width but the margins. */
   .work-notices { position: relative; }
   .work-notices > :not(.notify-bell-phone) { padding-right: 48px; }
-  .notify-bell-phone { display: inline-flex; position: absolute; top: 0; right: 0; z-index: 6; align-items: center; justify-content: center; min-width: 44px; height: 2.45rem; color: var(--ink-2); background: var(--paper-2); }
+  .notify-bell-phone { display: inline-flex; position: absolute; top: 0; right: 0; z-index: 6; align-items: center; justify-content: center; min-width: 44px; height: 44px; color: var(--ink-2); background: var(--paper-2); }
   .notify-bell-phone .notify-count { top: .25rem; right: .3rem; }
-  .pane .tabs { padding-right: 48px; }
-  .notify-toasts { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; left: 16px; right: 16px; width: auto; }
-  .notify-toast { animation-name: notify-in-top; }
-  @keyframes notify-in-top { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  /* At the bottom (T.6, 2026-10-22): above the bottom bar, and above the
+     keyboard and its bar when they show (--keyboard, screen/keyboard.ts) —
+     never over the first line of the note or the board. */
+  .notify-toasts { top: auto; bottom: max(calc(53px + env(safe-area-inset-bottom) + 8px), calc(var(--keyboard, 0px) + 8px)); left: 16px; right: 16px; width: auto; }
   .notify-action, .notify-toast-close, .notify-centre-head button { min-height: 40px; }
 }
 

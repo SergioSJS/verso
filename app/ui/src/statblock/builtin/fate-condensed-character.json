@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "fate-condensed-character",
+  "name": {
+    "pt": "Fate Condensed — Personagem",
+    "en": "Fate Condensed — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem (CC BY 3.0): nomes e ordem dos campos.",
+    "en": "A character sheet (CC BY 3.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Fate Condensed, getting started",
+      "url": "https://fate-srd.com/fate-condensed/getting-started"
+    },
+    {
+      "label": "Fate Condensed, being the GM",
+      "url": "https://fate-srd.com/fate-condensed/being-game-master"
+    },
+    {
+      "label": "Fate SRD licensing (CC BY 3.0)",
+      "url": "https://fate-srd.com/official-licensing-fate"
+    }
+  ],
+  "profile": "fate",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"aspects","properties":["high_concept","trouble","relationship"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"high-concept","properties":["high_concept"],"label":{"pt":"High Concept","en":"High Concept"},"hideWhenEmpty":true},{"type":"property","id":"trouble","properties":["trouble"],"label":{"pt":"Trouble","en":"Trouble"},"hideWhenEmpty":true},{"type":"property","id":"relationship","properties":["relationship"],"label":{"pt":"Relationship","en":"Relationship"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"free-aspects","properties":["aspects"],"label":{"pt":"Aspects","en":"Aspects"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true,"rule":true},
+    {"type":"group","id":"tokens","properties":["refresh","fate_points"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"refresh","properties":["refresh"],"label":{"pt":"Refresh","en":"Refresh"},"hideWhenEmpty":true},{"type":"property","id":"fate-points","properties":["fate_points"],"label":{"pt":"Fate points","en":"Fate points"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"stunts","properties":["stunts"],"label":{"pt":"Stunts","en":"Stunts"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"stress","properties":["stress_physical","stress_physical_max","stress_mental","stress_mental_max","consequence_mild","consequence_moderate","consequence_severe"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"stress-physical","properties":["stress_physical","stress_physical_max"],"label":{"pt":"Physical stress","en":"Physical stress"},"hideWhenEmpty":true,"current":"stress_physical","max":"stress_physical_max","style":"boxes"},{"type":"tracker","id":"stress-mental","properties":["stress_mental","stress_mental_max"],"label":{"pt":"Mental stress","en":"Mental stress"},"hideWhenEmpty":true,"current":"stress_mental","max":"stress_mental_max","style":"boxes"},{"type":"property","id":"mild","properties":["consequence_mild"],"label":{"pt":"Mild consequence (2)","en":"Mild consequence (2)"},"hideWhenEmpty":true},{"type":"property","id":"moderate","properties":["consequence_moderate"],"label":{"pt":"Moderate consequence (4)","en":"Moderate consequence (4)"},"hideWhenEmpty":true},{"type":"property","id":"severe","properties":["consequence_severe"],"label":{"pt":"Severe consequence (6)","en":"Severe consequence (6)"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 4dF","en":"Roll 4dF"},"inputs":{}}
+  ]
+}

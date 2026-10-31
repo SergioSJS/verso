@@ -49,6 +49,8 @@ async function signedIn(page) {
   const res = await enter(page);
   expect(res.status()).toBe(200);
   await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  // The page landed on asks the server before it is left (see `settled` in server.spec.mjs).
+  await page.waitForLoadState("networkidle", { timeout: 30_000 });
 }
 
 /** A folder of the admin's own, made through the server's API. */
@@ -240,6 +242,8 @@ async function elsewhere(browser) {
   await other.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
   expect((await enter(other)).status()).toBe(200);
   await other.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  // The page landed on asks the server before it is left (see `settled` in server.spec.mjs).
+  await other.waitForLoadState("networkidle", { timeout: 30_000 });
   return { page: other, close: () => context.close() };
 }
 
@@ -557,6 +561,8 @@ test("the server ending the session deletes the copy at the device's next connec
   await second.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
   expect((await enter(second)).status()).toBe(200);
   await second.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  // The page landed on asks the server before it is left (see `settled` in server.spec.mjs).
+  await second.waitForLoadState("networkidle", { timeout: 30_000 });
   const ended = await second.evaluate(async () => {
     const state = await (await fetch("/api/state")).json();
     const res = await fetch("/api/me/sessions/others", { method: "DELETE", headers: { "x-verso-csrf": state.csrf } });

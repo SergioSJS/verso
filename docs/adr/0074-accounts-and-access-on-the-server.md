@@ -38,7 +38,7 @@
   device's name, kept with its session, may be set by the person in
   Settings › Servers, the system's name by default — the maintainer's
   *"Sim para todos"* of that evening, recorded in
-  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8).
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): the device token moves from `servers.json` to the system's keychain (to be built). 2026-10-23 — item 4: an account that already exists accepts an invitation with the account it has (signed in, one button; not signed in, the sign-in fields on the invitation's page, then the join; an invitation made for an e-mail serves that account only; what the account already has is never lowered) — the maintainer: *"recebi um convite para entrar numa mesa nova e fui tentar entrar com a Ana e deu que o usuário já existia com esse e-mail... não tem fluxo de usuário igual aceitar convite de mesa diferente?"*.
 
 ## Context
 

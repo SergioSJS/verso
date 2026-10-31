@@ -110,3 +110,5 @@ schema, the note is plain Markdown. The row above keeps the briefing's words;
 Proposed. The daily note and templates: accepted on 2026-09-23 (Decision).
 The typed note: accepted on 2026-09-24, in [0052](0052-typed-note.md). The
 typed relation: decided on 2026-09-30, in [0057](0057-board-json-canvas.md).
+
+*2026-10-21* — the maintainer marked options in the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **0014.a** `[DECIDED 2026-10-21]` (option A) provenance (author, model, when) in the frontmatter waits for after V1 and needs an ADR of its own (opt-in, personal data); **0014.b** `[DECIDED 2026-10-21]` (option A) the catalog's line "stable block ID" is accepted (`^id` works and is decided in spec Q3, Q4, Q21); **0014.c** `[DECIDED 2026-10-21]` (option A) the daily note and templates need no ADR of their own here: periodic notes are covered by [0093](0093-periodic-notes.md) and the templates already built.

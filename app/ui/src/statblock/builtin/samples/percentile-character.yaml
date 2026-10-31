@@ -1,0 +1,13 @@
+name: Nadia Orlov
+description: A sample investigator of our own.
+characteristics:
+  strength: 50
+  dexterity: 65
+  intelligence: 75
+hp: 11
+hp_max: 12
+skills:
+  library use: 60
+  spot hidden: 45
+possessions:
+  - A notebook

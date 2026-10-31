@@ -69,4 +69,4 @@ A **estrela** ao lado do título de uma nota a põe nos favoritos. Acima do tít
 
 ---
 
-Siga para [[13 - Abas, Painéis, Áreas e Janelas]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].
+Siga para [[13 - Abas, Painéis, Espaços de Trabalho e Janelas]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

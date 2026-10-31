@@ -13,7 +13,7 @@ await esbuild.build({
   outfile: "test/.bundles/attachName.test-bundle.mjs",
   logLevel: "error",
 });
-const { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } = await import("./.bundles/attachName.test-bundle.mjs");
+const { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES, importSetting, importLimitMb, dropLimitMb } = await import("./.bundles/attachName.test-bundle.mjs");
 
 describe("The name of an attached image", () => {
   test("is kept as it came when nothing holds it", () => {
@@ -61,5 +61,47 @@ describe("A camera's photo", () => {
 describe("The bound on an image sent to a server", () => {
   test("as base64 it fits a message of 48 MiB with room to spare", () => {
     assert.ok(Math.ceil((MAX_IMAGE_BYTES * 4) / 3) < 48 * 1024 * 1024 - 1024 * 1024);
+  });
+});
+
+describe("review M13: names Windows would refuse or rewrite", () => {
+  test("a trailing dot or space is dropped", () => {
+    assert.equal(fitName("capa.png."), "capa.png");
+    assert.equal(fitName("capa. . "), "capa");
+    assert.equal(freeAttachment("a", "capa.png. ", new Set()), "a/capa.png");
+  });
+  test("a reserved device name gets an underscore, with any extension and in any case", () => {
+    for (const [name, want] of [["con.txt", "con_.txt"], ["CON", "CON_"], ["Nul.PNG", "Nul_.PNG"], ["com1.png", "com1_.png"], ["LPT9.tar.gz", "LPT9_.tar.gz"], ["aux", "aux_"], ["prn.md", "prn_.md"]]) {
+      assert.equal(freeAttachment("", name, new Set()), want, name);
+    }
+  });
+  test("names that only resemble a reserved one stay", () => {
+    for (const name of ["console.png", "com10.png", "com0.png", "lpt.png", "nulo.png", "aux x.png"]) assert.equal(freeAttachment("", name, new Set()), name);
+  });
+  test("the underscore name still collides on its own terms", () => {
+    assert.equal(freeAttachment("", "con.txt", new Set(["con_.txt"])), "con_ (2).txt");
+  });
+});
+
+describe("The size limit of an imported file (I.1b)", () => {
+  test("the setting is a whole number of megabytes between 1 and 1024; 32 for what is not a number", () => {
+    assert.equal(importSetting(200), 200);
+    assert.equal(importSetting(0), 1);
+    assert.equal(importSetting(5000), 1024);
+    assert.equal(importSetting(12.6), 13);
+    assert.equal(importSetting(undefined), 32);
+    assert.equal(importSetting(Number.NaN), 32);
+  });
+
+  test("Import files takes the setting on this computer's folder and at most 32 MB on a server's", () => {
+    assert.equal(importLimitMb(200, false), 200);
+    assert.equal(importLimitMb(200, true), 32);
+    assert.equal(importLimitMb(8, true), 8);
+  });
+
+  test("a drop never goes past what a message carries, since its bytes cross as base64", () => {
+    assert.equal(dropLimitMb(200, false), 32);
+    assert.equal(dropLimitMb(8, false), 8);
+    assert.equal(dropLimitMb(200, true), 32);
   });
 });

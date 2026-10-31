@@ -33,10 +33,12 @@ use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 pub mod convert;
 pub mod files;
 pub mod history;
+pub mod loose;
 pub mod ops;
 pub mod reader;
 pub mod trash;
 
+pub use loose::not_available;
 pub use ops::{Access, OpError};
 
 /// What the service tells the clients, through whatever carries it: Tauri's
@@ -88,7 +90,7 @@ impl Opened {
 }
 
 #[derive(Default)]
-struct Sessions {
+pub(crate) struct Sessions {
     /// Folder key → its session.
     by_key: HashMap<String, Arc<Mutex<Session>>>,
     /// Client → the key of the folder it shows.
@@ -120,6 +122,9 @@ pub struct Service {
     /// computer's name for its versions and the days they are kept; `None`
     /// on a server, which keeps its own.
     history: Mutex<Option<(String, u32)>>,
+    /// The files shown without a folder, by the client that shows them
+    /// (ADR 0114 item 19; `loose.rs`).
+    loose: Mutex<loose::LooseWindows>,
 }
 
 /// Lock a mutex, poisoned or not: a panic in an earlier command must not
@@ -156,7 +161,9 @@ pub fn convert(e: CoreError) -> ContractError {
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
-        CoreError::FolderSettings(_) => ErrorKind::Refused,
+        CoreError::FolderSettings(_) | CoreError::FolderData(_) | CoreError::Loose(_) => {
+            ErrorKind::Refused
+        }
         _ => ErrorKind::Failed,
     };
     ContractError {
@@ -252,6 +259,7 @@ impl Service {
             folder_note_name: Mutex::new(String::new()),
             events: RwLock::new(Arc::new(Silent)),
             history: Mutex::new(None),
+            loose: Mutex::new(loose::LooseWindows::default()),
         })
     }
 
@@ -403,6 +411,8 @@ impl Service {
     pub fn attach(&self, client: &str, opened: Opened) -> (FolderInfo, Option<CatchUp>) {
         let info = opened.session.info.clone();
         let missed = opened.missed;
+        // A window that showed loose files shows a folder now (ADR 0114).
+        self.release_loose(client);
         {
             let mut sessions = lock(&self.sessions);
             release(&mut sessions, client);
@@ -538,15 +548,23 @@ impl Service {
     /// answered as `failed`, not propagated: propagated, it would poison
     /// the lock and every later command would fail until restart, with the
     /// user's notes open.
-    pub fn with<T>(
+    pub fn with<T, F: FnOnce(&mut Workspace) -> Result<T, OpError>>(
         &self,
         client: &str,
-        f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
+        f: F,
     ) -> Result<T, ContractError> {
+        // A window of files without a folder has no folder to ask (ADR
+        // 0114 item 19): refused, not "no folder is open".
+        if self.is_loose(client) {
+            return Err(not_available());
+        }
         let session = self.session_of(client).ok_or_else(no_folder)?;
+        let asked = std::time::Instant::now();
         let mut session = lock(&session);
+        let (got, label) = (std::time::Instant::now(), std::any::type_name::<F>());
         let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
         self.history_flush(&mut session.workspace);
+        self.slow_lock(label, got - asked, got.elapsed());
         match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
@@ -560,19 +578,22 @@ impl Service {
     /// Run `f` on folder `key` if it is open, whichever client shows it: a
     /// file of the folder a page asks for outside its connection (the
     /// server's `/f/`). `no_folder` when no client shows it.
-    pub fn with_key<T>(
+    pub fn with_key<T, F: FnOnce(&mut Workspace) -> Result<T, OpError>>(
         &self,
         key: &str,
-        f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
+        f: F,
     ) -> Result<T, ContractError> {
         let session = lock(&self.sessions)
             .by_key
             .get(key)
             .map(Arc::clone)
             .ok_or_else(no_folder)?;
+        let asked = std::time::Instant::now();
         let mut session = lock(&session);
+        let (got, label) = (std::time::Instant::now(), std::any::type_name::<F>());
         let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
         self.history_flush(&mut session.workspace);
+        self.slow_lock(label, got - asked, got.elapsed());
         match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
@@ -593,6 +614,12 @@ impl Service {
         args: serde_json::Value,
     ) -> Option<Result<serde_json::Value, ContractError>> {
         ops::access(name)?;
+        if self.is_loose(client) {
+            return Some(
+                self.loose_dispatch(client, name, &args)
+                    .unwrap_or_else(|| Err(not_available())),
+            );
+        }
         Some(self.with(client, |ws| {
             ops::dispatch(ws, name, args).unwrap_or_else(|| Err(OpError::unknown(name)))
         }))
@@ -618,6 +645,42 @@ impl Service {
     #[must_use]
     pub fn open_folders(&self) -> usize {
         lock(&self.sessions).by_key.len()
+    }
+
+    /// The open folder `path` (absolute, at the host's edge) lies in, when
+    /// one does: its key and the path relative to it, `/`-joined (ADR 0114
+    /// item 7 i). The deepest folder when one is open inside another.
+    #[must_use]
+    pub fn folder_containing(&self, path: &Path) -> Option<(String, String)> {
+        // Both sides as the disk names them: `..` resolved, symlinks
+        // followed (`/tmp` is `/private/tmp`), case folded where the
+        // volumes are insensitive.
+        let path = verso_core::canonical_path(path);
+        let sessions = self.all_sessions();
+        let mut best: Option<(usize, String, String)> = None;
+        for session in sessions {
+            let session = lock(&session);
+            let folder = verso_core::canonical_path(session.workspace.folder());
+            let Some(rel) = verso_core::strip_root(&path, &folder) else {
+                continue;
+            };
+            let relative = rel
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            let depth = folder.components().count();
+            if relative.is_empty() || best.as_ref().is_some_and(|(d, _, _)| *d >= depth) {
+                continue;
+            }
+            // A part of the folder it does not show (`.obsidian`, `.trash`,
+            // an ignored path) is not a note of it: the file opens loose.
+            if session.workspace.confined(&relative).is_err() {
+                continue;
+            }
+            best = Some((depth, session.workspace.key(), relative));
+        }
+        best.map(|(_, key, relative)| (key, relative))
     }
 
     /// The key of the folder `client` shows.
@@ -670,6 +733,7 @@ impl Service {
     /// client shows it.
     pub fn release(&self, client: &str) {
         release(&mut lock(&self.sessions), client);
+        self.release_loose(client);
     }
 
     /// The folder `client` shows, for a client that joins a session and
@@ -684,6 +748,9 @@ impl Service {
     /// Refresh the index of the folder `client` shows: only what changed
     /// is re-read.
     pub fn reindex(&self, client: &str) -> Result<IndexSummary, ContractError> {
+        if self.is_loose(client) {
+            return Err(not_available());
+        }
         let (clients, session) = {
             let sessions = lock(&self.sessions);
             let key = sessions.clients.get(client).ok_or_else(no_folder)?;
@@ -852,6 +919,24 @@ impl Service {
     }
 
     /// Record what the last command wrote in the computer's history.
+    /// A folder's lock waited for or held a long time is said in the log,
+    /// with the work that held it: every command of the folder (a read, a
+    /// join) goes through this one lock, so one slow holder is every
+    /// command's wait (measured live, 2026-10-26).
+    fn slow_lock(&self, label: &str, waited: std::time::Duration, held: std::time::Duration) {
+        const SLOW: std::time::Duration = std::time::Duration::from_millis(250);
+        if waited >= SLOW || held >= SLOW {
+            self.events().log(
+                "WARN",
+                &format!(
+                    "the folder's lock: waited {} ms, held {} ms by {label}",
+                    waited.as_millis(),
+                    held.as_millis()
+                ),
+            );
+        }
+    }
+
     fn history_flush(&self, ws: &mut Workspace) {
         for problem in ws.history_flush() {
             self.events().log("WARN", &problem);
@@ -874,7 +959,7 @@ pub struct CatchUp {
     missed: Arc<AtomicBool>,
 }
 
-fn release(sessions: &mut Sessions, client: &str) {
+pub(crate) fn release(sessions: &mut Sessions, client: &str) {
     if let Some(key) = sessions.clients.remove(client)
         && !sessions.clients.values().any(|k| *k == key)
     {

@@ -59,6 +59,9 @@ fn concurrent_sign_ins_hash_no_more_than_the_places_at_once() {
         .await;
         // Two places, as on the 1-core host, whatever this machine's cores.
         r.server.hashes.narrow(2);
+        // A fast hash would end before the next began and prove nothing:
+        // each one holds its place for a while, so the places are all taken.
+        r.server.hashes.counted.hold_ms.store(40, Ordering::SeqCst);
         let client = reqwest::Client::new();
         let attempts: Vec<_> = (0..50)
             .map(|i| {
@@ -88,6 +91,10 @@ fn concurrent_sign_ins_hash_no_more_than_the_places_at_once() {
         assert!(
             peak <= most,
             "{peak} hashes ran at once; the places are {most}"
+        );
+        assert_eq!(
+            peak, most,
+            "the places were never all taken: the bound is unproven"
         );
         assert!(r.server.hashes.counted.ran.load(Ordering::SeqCst) > 0);
     });

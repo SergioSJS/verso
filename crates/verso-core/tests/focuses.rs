@@ -689,3 +689,28 @@ fn exists(path: &std::path::Path) -> bool {
     };
     command.status().is_ok_and(|s| s.success())
 }
+
+#[test]
+fn the_focuses_file_is_fetched_only_through_its_own_command_never_by_a_path() {
+    // ADR 0043 (2026-10-27) with ADR 0026: a hidden entry never crosses the
+    // contract as a path, so the path route to a placeholder refuses the
+    // focuses file; the one way to its placeholder names no path.
+    let dir = tempdir().unwrap();
+    make_dir(dir.path(), ".space");
+    let mut ws = open_workspace(dir.path());
+    assert!(ws.placeholder(".space/waypoints.json").is_err());
+    // Absent: nothing to fetch.
+    assert!(ws.waypoints_placeholder().unwrap().is_none());
+    // On disk: nothing to fetch either.
+    fs::write(dir.path().join(".space/waypoints.json"), b"[]").unwrap();
+    assert!(ws.waypoints_placeholder().unwrap().is_none());
+}
+
+#[test]
+fn the_older_icloud_stand_in_of_the_focuses_file_cannot_be_fetched_by_reading() {
+    let dir = tempdir().unwrap();
+    make_dir(dir.path(), ".space");
+    fs::write(dir.path().join(".space/.waypoints.json.icloud"), b"").unwrap();
+    let ws = open_workspace(dir.path());
+    assert!(ws.waypoints_placeholder().unwrap().is_none());
+}

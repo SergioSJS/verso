@@ -47,6 +47,15 @@
   maintainer as built and tested, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved); a dated note beside each.
+  2026-10-22 — T.12, option B (the maintainer answered the decisions list of
+  the afternoon of 2026-10-21 (`verso-decisoes-pendentes-2026-10-21-tarde.md`)
+  on 2026-10-22): importing a large file (a 200 MB PDF) is to be read and
+  written **in chunks now**, not held whole in memory before the atomic write;
+  the maintainer chose "Fazer aos pedaços já" (do it in chunks now) over
+  accepting it for the time being. It changes `verso-fs`'s atomic write;
+  **being built**. The write stays atomic under invariant 9 and [ADR
+  0029](0029-guardrails-in-ci.md). See `docs/review/accessibility.md`
+  (A11Y.10).
 
 ## Context
 
@@ -191,7 +200,7 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   is the surprise this avoids. Every other dot-leading component stays refused,
   as above.
 
-**`[OPEN]` — the code contradicts this group, recorded on 2026-09-29.**
+**The code contradicted this group (recorded on 2026-09-29, then `[OPEN]`; decided the same day, below).**
 Commit `e5754b0` ("ignore build dirs") implemented, in
 `crates/verso-fs/src/walk.rs`, both things this ADR's Discarded alternatives
 set aside:

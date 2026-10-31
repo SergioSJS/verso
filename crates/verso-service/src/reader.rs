@@ -43,8 +43,10 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     ("unlinked_mentions", ForReader::Projected),
     ("list_files", ForReader::Same),
     ("list_tags", ForReader::Projected),
+    ("list_block_ids", ForReader::Projected),
     ("list_web_notes", ForReader::Same),
     ("graph", ForReader::Projected),
+    ("graph_unresolved", ForReader::Projected),
     ("list_folders", ForReader::Same),
     ("read_file_text", ForReader::Projected),
     ("resolve_attachment", ForReader::Same),
@@ -63,6 +65,10 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     // Obsidian's daily and periodic notes settings (ADR 0093 item 6): the
     // text of two configuration files, no byte of a note.
     ("get_obsidian_periodic", ForReader::Same),
+    // The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2):
+    // JSON files of its own, no byte of a note.
+    ("list_folder_data", ForReader::Same),
+    ("read_folder_data", ForReader::Same),
 ];
 
 /// How command `name` answers a reader; `None` for one a reader may not
@@ -138,7 +144,14 @@ fn projected(
             ws.reader_unlinked_mentions(&path("path")?)?,
         )),
         "list_tags" => json(ops::tags_out(ws.reader_tags()?)),
+        "list_block_ids" => {
+            let kinds: Vec<verso_contract::BlockKind> = arg(args, name, "kinds")?;
+            json(ops::block_ids_out(
+                ws.reader_block_ids(&ops::kinds_in(&kinds))?,
+            ))
+        }
         "graph" => json(ops::edges_out(ws.reader_graph()?)),
+        "graph_unresolved" => json(ops::missing_out(ws.reader_graph_unresolved()?)),
         "list_entries" => {
             let entries = ws.reader_entries()?;
             json(ops::entries_out(ws, &entries)?)

@@ -20,6 +20,7 @@
 // first picture at its head, the type under it, the declared properties,
 // the note's other keys folded below.
 
+import { propSwatch } from "./colour/prop";
 import type { Label, NoteType, Property, PropertyValue, TypedProperty } from "./bindings";
 import { frontmatterClose, opensWithFence } from "./frontmatter";
 import { icon } from "./icons";
@@ -105,6 +106,8 @@ export type PropsOptions = {
   suggest?: (kind: "link" | "image") => { value: string; label: string }[];
   /** Something to say on the status line. */
   status?: (message: string) => void;
+  /** Whether a colour code as a value shows its colour (ADR 0108); not asked: it does. */
+  swatches?: () => boolean;
 };
 
 /** A label for `lang` among a schema's labels: the language itself, its
@@ -222,6 +225,17 @@ export class PropertiesView {
     if (this.el.contains(document.activeElement)) this.pending = draw;
     else draw();
   }
+  /** Open the new property input, expanding the panel if folded. */
+  addProperty(): void {
+    if (this.readOnly) return;
+    if (this.collapsed) {
+      this.collapsed = false;
+      this.el.classList.remove("collapsed");
+      try { localStorage.setItem("verso.props.collapsed", "false"); } catch {}
+    }
+    const btn = this.el.querySelector<HTMLElement>(".prop-new");
+    if (btn) this.newRow(btn);
+  }
   /** The line above the properties that names the note's type, or says
    *  why its schema types nothing. */
   private typeLine(): HTMLElement | null {
@@ -281,13 +295,14 @@ export class PropertiesView {
       this.paintInfobox(focusKey);
       return;
     }
-    this.el.classList.toggle("collapsed", this.collapsed);
-    this.el.classList.remove("narrow", "expanded");
-    this.el.removeAttribute("role");
-    this.el.removeAttribute("aria-label");
     const rows = this.rows();
     const typeLine = this.typeLine();
     if (typeLine) rows.unshift(typeLine);
+    const empty = this.items.length === 0 && !typeLine;
+    this.el.classList.toggle("collapsed", this.collapsed && !empty);
+    this.el.classList.remove("narrow", "expanded");
+    this.el.removeAttribute("role");
+    this.el.removeAttribute("aria-label");
     const add = h("button", "prop-new");
     add.type = "button";
     add.append(icon("plus"), h("span", "", this.opts.strings.addProperty));
@@ -310,7 +325,7 @@ export class PropertiesView {
       this.el.replaceChildren(...rows, add);
     }
     this.el.hidden = false;
-    this.el.classList.toggle("empty", this.items.length === 0 && !typeLine);
+    this.el.classList.toggle("empty", empty);
     this.focusRow(focusKey);
   }
   private focusRow(focusKey?: string): void {
@@ -416,6 +431,10 @@ export class PropertiesView {
   }
   /** One edit of `key`, against the editor's text now. */
   private edit(key: string, edit: Edit, focus = true): void {
+    // A read-only note (mixed line endings, no write access, a reader) is
+    // never edited through the panel, whatever drew a control for it
+    // (invariants 7 and 8; ADR 0076 item 11).
+    if (this.readOnly) return;
     // A redraw waiting for the focus is older than this edit: the save
     // that follows the edit draws the panel again.
     this.pending = null;
@@ -646,6 +665,8 @@ export class PropertiesView {
           input.blur();
         }
       });
+      // A colour code as the value shows its colour (ADR 0108).
+      if (input.type === "text") value.append(propSwatch(input, { enabled: this.opts.swatches, commit: fixed ? undefined : done }));
       value.append(input);
       if (d && d.kind === "image") {
         value.append(this.suggestFor(input, "image"));
@@ -722,6 +743,7 @@ export class PropertiesView {
     host.append(add);
   }
   private newRow(before: HTMLElement): void {
+    if (this.readOnly) return;
     const row = h("div", "prop kind-new");
     const keyCol = h("span", "prop-key");
     const input = h("input", "prop-input prop-key-input");

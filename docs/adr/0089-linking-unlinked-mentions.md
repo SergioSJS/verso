@@ -20,6 +20,60 @@
   (what a side cannot do is not shown), spec Q7, Q8 and Q12 (names),
   [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-20 — item 5, the suggestion while typing, widened.
+  The maintainer, trying it: *"tem que escrever o exato nome? parcial não
+  lista?"* (does it have to be the exact name? doesn't a partial one
+  list?), then *"nome completo é bem ruim"* (the full name is quite bad),
+  and, between three ways other apps do it, *"eu gosto do 1 e do 2, o 1
+  pq a gente engloba pessoas já acostumadas com notion … converter para
+  [[]] quando usa o @ eu diria que sim. e a opção 2 resolve também, aí se
+  a pessoa apertar esc enquanto digita some a sugestão"* (I like 1 and 2;
+  1 because we take in people used to Notion … converting to [[ ]] when
+  @ is used, I'd say yes; and option 2 also solves it; pressing Esc while
+  typing makes the suggestion go away). `[DECIDED 2026-10-20]`:
+  (a) **`@` opens the note list**, the same list and matching as `[[`'s
+  completion, partial and accent-aware; choosing a note writes
+  `[[Name]]` (or `[[Name|typed]]` as item 2 does) in place of the `@` and
+  what followed it — so the file stays Obsidian's dialect, where `@`
+  means nothing. `[DECIDED 2026-10-21]` (0089.a, "Outra": *"A, mas caso o
+  usuário aperte Esc pra dispensar a janela, ela não deve voltar ao
+  usuário digitar mais caracteres"* — A, but if the user presses Esc to
+  dismiss the window, it must not come back as the user types more
+  characters): on by default (it opens only when asked), **and after Esc
+  has dismissed the `@` list, typing more characters of the same word does
+  not reopen it** (a new `@` does);
+  only at the start of a word (`fulano@mail` never opens it); nothing
+  chosen, the `@` and the text stay as typed; never in code, the
+  frontmatter, a link, math, HTML or a tag.
+  (b) **The suggestion while typing lists partial names**: from the
+  first letters of the words just typed, a short list of the notes (and
+  aliases) whose name starts with them, narrowing as typing goes on;
+  arrows choose, Tab or Enter accepts, Escape dismisses for that word.
+  `[DECIDED 2026-10-21]` (0089.b, option A: as built, off by default):
+  three letters at least, and only for a word that begins
+  with a capital letter — names of places, people and factions do, the
+  common words that made the whole-name rule necessary mostly do not; at
+  most five entries; a whole name typed keeps the chip, which now stays
+  after a space or a punctuation mark until the next word starts. Still
+  off by default, the same setting, the same ignored folders and names.
+  2026-10-20, later — the three letters and the capital letter become the
+  person's settings. The maintainer, trying it: *"você não adicionou
+  número de caracteres pra acionar a busca por notas nesse parâmetro"*
+  (you didn't add a number of characters to trigger the note search in
+  this setting). `[DECIDED 2026-10-20]`: the number of letters before the
+  list appears is a setting beside the suggestion, default 3.
+  `[DECIDED 2026-10-21]` (0089.c, option A): from 1 to 10, default 3; and
+  the capital-letter rule a switch beside it, on by default. A word that begins with a digit counts as a capital
+  one — the maintainer: *"você não considerou notas que começam com número,
+  tipo 2026"* (you didn't consider notes that start with a number, like
+  2026), `[DECIDED 2026-10-20]`.
+  2026-10-21 — the `[PROPOSED]` details above decided by the maintainer's
+  marks in the questionnaire of 2026-10-20 (0089.a to 0089.c), and one
+  more question answered: **0089.a2** `[DECIDED 2026-10-21]`, option A —
+  `@Goblin` typed in full still lists "Goblin Rei" below "Goblin": the
+  exact name first (score 100), names starting with the text next (80),
+  names merely containing it last (40), the same behaviour as the `[[`
+  list, so a longer name can be chosen without deleting anything.
 
 ## Context
 

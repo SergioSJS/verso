@@ -1,7 +1,8 @@
 /* ---------- A board (ADR 0057): Excalidraw fills the tab; Verso draws each node inside it ---------- */
 .leaf.board-face .sheet { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .leaf.board-face .flags:empty { display: none; }
-.board-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* The board's own layers stay inside it: a phone's side drawer is over the board, tools and all. */
+.board-host { flex: 1; min-height: 0; display: flex; flex-direction: column; isolation: isolate; }
 .board-host[hidden] { display: none; }
 .board-mount, .board-root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .board-root { position: relative; }
@@ -74,6 +75,30 @@
 .board-card-pdf-view { position: absolute; inset: 0; display: flex; }
 .board-card-pdf-view .pdf { flex: 1; }
 .board-card-slot:not(.is-active) .board-card-pdf .pdf-bar { display: none; }
+/* A data file's card (ADR 0057 point 10, ADR 0106): its text in the source
+   editor's colours, or its diagram, which takes the pointer only while the
+   card is entered, like a web page. */
+.board-card-modes { flex: none; display: inline-flex; gap: 1px; padding: 1px; border-radius: 6px; background: var(--paper-2); }
+.board-card-mode { width: auto; padding: 0 .4rem; gap: .25rem; font-size: .75rem; }
+.board-card-mode > svg { width: 14px; height: 14px; }
+.board-card-mode[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.board-card-code-box { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.board-card-code { flex: 1; min-height: 0; margin: 0; padding: .4rem .6rem; overflow: hidden; font-family: var(--mono); font-size: .76rem; line-height: 1.45; white-space: pre; tab-size: 2; color: var(--ink); }
+.board-card-slot.is-active .board-card-code { overflow: auto; }
+.board-card-cut { flex: none; margin: 0; padding: .2rem .6rem .4rem; color: var(--ink-3); font-size: .76rem; }
+.board-card-dg { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+.board-card-dg[hidden] { display: none; }
+.board-card-dg-mount { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.board-card-dg .dg { flex: 1; }
+.board-card-dg .dg-stage { min-height: 0; }
+/* The diagram's own bar and hint are tighter on a card, where the diagram is
+   the point; both stay reachable once the card is entered. */
+.board-card-dg .dg-bar { padding: .25rem .5rem; gap: .2rem .5rem; font-size: .76rem; }
+.board-card-dg .dg-search { min-width: 7rem; padding: .2rem .5rem; }
+.board-card-dg .dg-hint { display: none; }
+.board-card-slot.is-active .board-card-dg { pointer-events: auto; }
+.board-card-generic { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; }
+.board-card-ext { font-family: var(--mono); font-size: 1.1rem; color: var(--ink-2); }
 .board-card-missing .board-card-title { text-decoration: line-through; }
 .board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
 
@@ -130,7 +155,7 @@
 .board-outline-toggle { display: flex; align-items: center; gap: .4rem; margin-top: 1rem; color: var(--ink-2); }
 /* A text asked for (dialog.ts, promptText). */
 .prompt-box label { display: block; margin: 0 0 .6rem; font-size: .93rem; line-height: 1.5; }
-.prompt-field { display: block; width: 100%; margin: 0 0 1rem; padding: .45rem .55rem; font: inherit; font-size: .9rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; resize: vertical; }
+.prompt-field { display: block; width: 100%; margin: 0 0 1rem; padding: .45rem .55rem; font: inherit; font-size: .9rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--control-line); border-radius: 6px; resize: vertical; }
 textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 /* A card draws its note as the reading view does, at a card's size. */
 .board-card-body.preview { margin: 0; max-width: none; font-size: .86rem; line-height: 1.5; padding: .45rem .7rem .7rem; }
@@ -180,7 +205,13 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
   font-family: var(--ui);
 }
 .board-root .board-canvas .excalidraw .context-menu { padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; color: var(--ink); }
-.board-root .board-canvas .excalidraw .context-menu-item { padding: .35rem .6rem; border-radius: 5px; color: var(--ink); font-family: var(--ui); }
+.board-root .board-canvas .excalidraw .context-menu-item { padding: .35rem .7rem .35rem 1.9rem; border-radius: 5px; color: var(--ink); font-family: var(--ui); grid-template-columns: 1fr auto; column-gap: 1.5rem; }
+/* The check of a toggle sits in the column the padding reserves, before the label. */
+.board-root .board-canvas .excalidraw .context-menu-item.checkmark::before { left: .7rem; top: 50%; margin: 0; transform: translateY(-50%); color: var(--seal); }
+/* A shortcut is a quiet key at the right edge; an item with none shows nothing. */
+.board-root .board-canvas .excalidraw .context-menu-item .context-menu-item__shortcut { justify-self: end; margin: 0; padding: .05rem .35rem; border-radius: 4px; background: var(--paper-2); color: var(--ink-3); font-family: var(--ui); font-size: .7rem; opacity: 1; white-space: nowrap; }
+.board-root .board-canvas .excalidraw .context-menu-item .context-menu-item__shortcut:empty { display: none; }
+.board-root .board-canvas .excalidraw .context-menu-item:hover .context-menu-item__shortcut { background: transparent; color: var(--seal); }
 .board-root .board-canvas .excalidraw .context-menu-item:hover { background: var(--seal-wash); color: var(--seal); }
 .board-root .board-canvas .excalidraw .context-menu-item:hover .context-menu-item__label { color: var(--seal); }
 .board-root .board-canvas .excalidraw .context-menu-item.dangerous .context-menu-item__label { color: var(--seal); }
@@ -261,3 +292,23 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .load-failure-title { font-family: var(--display); font-size: 1.2rem; color: var(--ink); }
 .load-failure button { margin-top: .6rem; }
 
+/* An SVG picture laid out larger than its card and scaled back, to be drawn sharp at the zoom (board/sharp.ts). */
+.board-svg-fit { position: absolute; left: 0; top: 0; }
+.board-svg-fit > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.board-crop-inner > .board-svg-fit > img { object-fit: fill; }
+
+/* A link card that shows its page (ADR 0057 point 10): a head with the
+   origin, the frame below it as large as the card is. The slot takes the
+   pointer only while the card is entered, so the frame is inert until then
+   and the board's drag and zoom keep the pointer. */
+.board-card-page { padding: 0; gap: 0; flex: 1; min-height: 0; }
+.board-card-page .board-card-head { border-bottom: 1px solid var(--hair); padding: .25rem .35rem .25rem .6rem; }
+.board-card-page-frame { position: relative; flex: 1; min-height: 0; background: #fff; }
+.board-card-page-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.board-card-page-link { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--seal); text-decoration: underline; cursor: pointer; font: inherit; }
+.board-card-press.is-hover { outline: 2px solid var(--seal); outline-offset: 1px; }
+.board-card-page-warn { color: var(--ink); }
+.board-card-gate { display: flex; flex-direction: column; gap: .4rem; overflow: auto; }
+.board-card-gate-actions { display: flex; gap: .5rem; }
+.board-card-slot.is-active .board-card-page-frame > iframe { pointer-events: auto; }
+.board-card-interact[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }

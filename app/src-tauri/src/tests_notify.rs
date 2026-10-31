@@ -47,7 +47,9 @@ fn a_synced_folder_near_its_quota_is_told_to_its_own_windows() {
     // Pushed by the server after the device's write (ADR 0077 item 5).
     let payload = heard(&mut l, "folder-quota");
     sync::tell(&a.ctx, &a.s, "folder-quota", payload);
-    let told = lock(&a.told).clone();
+    // (The seat the first pass asked is said too: not what this is about.)
+    let mut told = lock(&a.told).clone();
+    told.retain(|(_, e, _)| e != "seat-changed");
     assert_eq!(told.len(), 1, "{told:?}");
     let (windows, event, quota) = &told[0];
     assert_eq!(windows, &["w".to_owned()]);

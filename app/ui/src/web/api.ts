@@ -62,6 +62,8 @@ export class ApiError extends Error {
         return s.notEmail;
       case "exists":
         return s.exists;
+      case "wrong_account":
+        return s.wrongAccount;
       case "link_gone":
         return s.linkGone;
       case "csrf":

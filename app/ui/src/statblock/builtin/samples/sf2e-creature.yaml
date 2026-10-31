@@ -1,0 +1,18 @@
+name: Dustback Drifter
+level: 2
+traits: Uncommon, Medium, Beast
+perception: 8
+languages: none
+skills:
+  stealth: 7
+attribute_modifiers: "Str +2, Dex +3"
+ac: 17
+fort: 7
+ref: 9
+will: 5
+hp: 28
+hp_current: 28
+speed: 30 feet
+melee:
+  - name: sting
+    desc: "+9, damage 1d6+4 piercing"

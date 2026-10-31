@@ -18,5 +18,37 @@
     <string>_verso-local._tcp</string>
     <string>_verso._tcp</string>
   </array>
+  <!-- Markdown as a type the system knows (ADR 0114 item 2): since the
+       version-27 systems Markdown has a system-declared type,
+       net.daringfireball.markdown; an older system learns it from this
+       import, so the document type the bundle declares
+       (tauri.macos.conf.json, bundle.fileAssociations: md and markdown,
+       role Editor, rank Alternate) names a type that exists. Verso is
+       offered under "Open with" and never made the default by itself. -->
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>net.daringfireball.markdown</string>
+      <key>UTTypeDescription</key>
+      <string>Markdown document</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.utf8-plain-text</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>md</string>
+          <string>markdown</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>text/markdown</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
 </dict>
 </plist>

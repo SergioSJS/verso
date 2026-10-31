@@ -10,6 +10,9 @@
   licence — `obsidianmd/obsidian-maps`, MIT, for instance — is an
   admissible source, as `obsidian.d.ts` is. Inspecting, decompiling or
   unminifying the app itself stays forbidden.
+  2026-10-21 — the OAuth and quota rows answered for sync by
+  [0104](0104-external-cloud-storage-transports-and-quotas.md) (`drive.file`
+  non-sensitive, PKCE and public clients, per-provider limits).
 
 ## Context
 

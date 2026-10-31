@@ -20,6 +20,71 @@ in the real app.
 
 ## Not yet checked
 
+### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
+
+Per system — the double-click itself cannot run in the browser harness; each line on macOS, Windows (VM 103) and Linux (VM 104):
+
+- [ ] **Open with** (A): right-click a `.md` in Finder / Explorer / Nautilus: Verso is offered under "Open with" (not as the default); choosing it opens the file in the loose-files window with no tree, the bar naming the file and its folder.
+- [ ] **Double-click, app not running and running** (A): with Verso chosen as the app for `.md`, a double-click launches the app on the file alone (no empty window beside it); with the app running, the file is a new tab of the loose window, brought forward; a file inside a folder a window shows opens in that window instead.
+- [ ] **Dock, Finder's "Open with" and `open -a`** (A, macOS): drag a `.md` onto the Dock icon; `open -a "Verso Beta" nota.md`; `verso nota.md` in a terminal — all three the same window; several files dropped at once each get a tab.
+- [ ] **Names with spaces and accents** (A): `Minha nota ção.md` in a folder `Pasta com espaço`: opens, is saved, the bar shows the names right; on Windows also a path with `%20` from "Open with".
+- [ ] **A file only in iCloud / OneDrive** (A): an evicted `.md` opens (brought down first); the older `.Name.md.icloud` marker is refused in words; a `.txt` says it is not Markdown and nothing opens.
+- [ ] **Nothing beside the file** (A): after editing, `ls -la ~/Downloads` shows no `.verso`, `.trash` or temporary; the configuration directory gains no index for Downloads; `recent-files.json` lists the file.
+- [ ] **Make Verso the default** (A): Get Info › Change All (macOS); Settings › Default apps with the Settings button (Windows); `xdg-mime default verso-app.desktop text/markdown` (Linux, after a `.deb`/`.rpm` install; the AppImage only once integrated) — then a double-click opens Verso. The installer never made it the default by itself. Uninstalling on Windows removes `Verso.Markdown.1` and the registration (`check-windows.sh`).
+- [ ] **Open the whole folder** (A): the bar's button, the confirmation, the folder opened as a normal window; the loose window keeps its file.
+- [ ] **Deleted while open** (A): remove the file in the file manager: "Gravar aqui de novo" makes it again; "Salvar uma cópia…" opens the system's save dialog and writes there.
+
+- **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
+
+- [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
+### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
+
+- [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.
+- [ ] **A window closed before quitting stays closed** (A): with the two windows, close one by hand, then ⌘Q and start: only the other one comes back. Closing the last window (which quits on Windows and Linux) brings that one back next time. Repeat on Windows.
+- [ ] **A folder that is gone** (A): rename one of the two folders while the app is closed; the start opens the other window and the log says the first is not reopened; no dialog.
+
+### Sync with a cloud provider (ADR 0104, accepted 2026-10-21; WebDAV and S3 built)
+
+Written ahead of the code. Since 2026-10-21 the WebDAV (Nextcloud) and S3 (AWS, R2, MinIO) checks can be run; the OAuth ones (Dropbox, OneDrive, Google Drive) still cannot. Each needs the installed desktop app and a real account at that provider; nothing here blocks a commit, a merge or a beta. The OAuth providers also wait for the developer accounts the maintainer creates (C.1); WebDAV and S3 come first (C.16). Repeat the list per provider.
+
+- [ ] **Sign-in through the browser** (A): "Sync with…" a Dropbox, OneDrive or Google Drive; the system's browser opens (no embedded view), the consent names only the narrow scope (app folder, `drive.file`), the app comes back signed in, and the listener closes (a second visit to the loopback address gets nothing). Closing the browser tab without consenting leaves the folder unconnected, with a message.
+- [ ] **First sync** (A): with notes on both sides, it shows what it will do (0079 item 11) and what does not apply to a cloud folder; nothing is deleted on either side; the folder appears under `Apps/Verso/<folder>` (or the WebDAV folder, or the bucket prefix).
+- [ ] **A race between two computers** (A): edit the same note on two computers, offline, then reconnect both; no edit is lost: one version keeps the name and the other is a conflict copy named with the device's name. On Google Drive, check the overwritten revision is still in Drive's version history.
+- [ ] **Deletion into the provider's trash** (A): delete a note here; it reaches the provider's trash (Dropbox, OneDrive, Drive), not a permanent deletion; on WebDAV and S3 the window says before connecting that a deletion is final unless the bucket has versioning.
+- [ ] **Disconnect revokes** (A): Disconnect removes the secrets from the system's keychain and the app disappears from the provider's list of connected apps (or the token stops working); the local folder is untouched.
+- [ ] **A Linux without Secret Service** (A): the cloud sync is refused with the reason and how to install a keyring.
+- [ ] **WebDAV and S3** (A): a server without strong ETags or an S3-compatible service without conditional writes is refused at connect with the reason; plain-HTTP WebDAV needs the local-network confirmation.
+- [ ] **WebDAV on Nextcloud** (A): connect, first sync, an edit on each side, a delete; the folder appears where chosen and a deletion is final (said before connecting).
+- [ ] **S3 on AWS, R2 and MinIO** (A): repeat the same list on each; the bucket prefix holds the folder, the probe leaves no `.verso-probe` or `.verso-tmp` object behind, and the HEAD-then-DELETE notice appears on a service that ignores a conditional DELETE.
+- [ ] **A refused service** (A): a WebDAV server without strong ETags, and Backblaze B2 (no conditional writes), are refused at connect with the reason, and nothing is written to the person's storage.
+- [ ] **The keychain, per OS** (A): on macOS the secret is in Keychain Access; on Windows in the Credential Manager; on Linux in the Secret Service (a keyring such as GNOME Keyring). Disconnect removes it; a secret over 2000 bytes is refused with a message; a Linux without a Secret Service is refused with how to install one.
+
+### The data diagram (ADR 0106, feat/datagraph, 2026-10-21)
+
+Needs the installed desktop app on a Mac (and a screen with fingers for the first item); the end-to-end tests are in `app/ui/e2e/datagraph.spec.mjs`, and the harness is not the real web view.
+
+- [ ] **Pinch and wheel in the real web view** (A): over a diagram (the demo's `Dados de Exemplo/npcs-da-campanha.json`), a trackpad's pinch and Ctrl/Cmd with the wheel zoom the diagram and not the window; two fingers on the trackpad move it; on a touch screen two fingers pinch and move it and one finger on a box's title drags the box.
+- [ ] **Drag in WKWebView** (A): a box dragged by its title carries what hangs under it and drops where the pointer is; Alt held while dragging moves the box alone; the pointer leaving the window mid-drag ends the drag cleanly.
+- [ ] **VoiceOver on the tree** (A): Tab into the diagram: it reads a tree, each box with its level and *expandido*/*recolhido*; the arrows walk parent, child and siblings, Enter folds; Alt+Shift+arrows and Alt+arrows move a box and the move is announced on the status line.
+- [ ] **A big file** (A): a JSON of 5 to 20 MB opens as a diagram without freezing the window; fold all, unfold all, search and a drag stay smooth enough to use.
+- [ ] **Save as board in the app** (A): *Salvar como board…* creates the `.canvas` in the chosen folder, opens it, and the cards and lines are where the diagram had them.
+- [ ] **Windows and Linux** (A): the same on the Windows and Linux builds (WebView2, WebKitGTK).
+
+### The RPG round: oracle, statblocks, layout editor, wizard, Credits (ADRs 0098, 0099, 0102, 0103, feat/rpg-tutorial, 2026-10-20)
+
+Needs the installed desktop app on a Mac (and, for the last items, a UniVerso with two windows); the end-to-end tests of this round were written without being run (`oracle`, `statblock`, `layout-editor` and `world-wizard` specs in `app/ui/e2e/`) and the harness is not the real web view.
+
+- [ ] **The window's zoom** (A, ADR 0072 revised 2026-10-20): Cmd/Ctrl `+`, `-` and `0` and a trackpad pinch zoom the whole window from 50 % to 200 % and say "Zoom 120 %"; quit and reopen, and open a second window: the zoom is kept; a pinch over a board, a map, a PDF and the graph still zooms that view, not the window. The webview's zoom cannot be reached by the browser harness.
+- [ ] **The layout editor's drag in WKWebView** (A): in *Settings › RPG & Mesa Solo › Fichas e Templates › Edit* on a layout, drag a block by its handle in the tree: a line shows where it lands, the card on the right does not jitter, the drop moves it; ⌘Z undoes it. Alt+arrows do the same from the keyboard (HTML5 drag is dead in this web view, so this one is a pointer drag: say if it fails).
+- [ ] **The colour pickers and the datalist** (A): in the editor's *Layout* section the colour fields of the appearance open the system's picker and the chosen colour draws the card; the key fields of a block suggest the keys of the layout and of the drawn sheet as you type (the datalist of the web view).
+- [ ] **A tracker's click in Live Preview and in reading** (A): in *Yara do Farol* (`Campanha Fractal/`), a box of *Fôlego* clicked in Editar and in Leitura changes `reserva_2_atual` in Fonte and keeps the keyboard where it was (Tab, the arrows, Home, End); *Quebrado* on a fact strikes it and writes `quebrado: true`; ⌘Z in Editar undoes the write.
+- [ ] **The oracle in a real room, two windows** (A): in a note shared through a UniVerso, opened in two windows (two accounts), *Consultar Oráculo* in one: the other shows a notice with the asker's name and the answer, and the answer line lands once in the note; an oracle question with the server stopped says it was drawn only in this window. Turn *Oráculos* off in one window only: its button goes, the other's stays.
+- [ ] **The server-drawn toast** (A): the notice of a question, a spark and a table draw reads *<name> consultou o oráculo: …* / *sorteou uma faísca* / *sorteou numa tabela*. Say whether it also shows as the system's notification when the window is in the background (ADR 0084).
+- [ ] **Credits' links** (A): *Settings › Application › Credits*: *Abrir* on a work and on the software opens the page in the system's browser, not in a window of the app; no link opens inside the app.
+- [ ] **The tabs' right edge back to normal** (A): with both side bars open and many tabs, the strip's right end shows the last tab whole and the new-tab button, as before the round's CSS changes (`panes.css`, `chrome.css`); a narrow window too.
+- [ ] **"Adicionar propriedade" on a note without frontmatter** (A): open a note that has no frontmatter in Leitura and Editar: the properties header shows *Adicionar propriedade*; click it: a `---` block with the property is written at the top, the rest of the note untouched; ⌘Z takes it back.
+- [ ] **The wizard on a real folder** (A): *Novo projeto a partir de modelo…* with the *Campanha de RPG (Dados Críticos)* bundle on a folder in iCloud/OneDrive: the tree is shown before anything is written; a folder unticked is not on disk afterwards; an existing name is kept, not overwritten, and the report says so.
+
 ### UniVerso found on the network, and a bad DNS survived (ADR 0097, feat/universo-discovery, 2026-10-16)
 
 Needs the installed desktop app and a UniVerso on the home network (the maintainer's ZimaOS); nothing here was run on a real network when it was built.
@@ -375,6 +440,19 @@ in a note long enough to scroll.
   dataless by macOS (*Remove Download* in Finder): the card says *A nota
   só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
   the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **Download from the sync card, on real evicted files** (A, ADR 0043,
+  2026-10-27): on the Mac, a folder in iCloud Drive that syncs with a server,
+  some files sent back to the cloud (*Remove Download* in Finder) that sync
+  never sent. *Settings › Sync* lists them under "files not on this computer
+  yet" with **Download N files (X MB)** and the total is about what Finder
+  shows. Click it: "Downloading 1 of N…" advances, **Stop** ends the run after
+  the file in hand, VoiceOver reads the progress; the files that came down
+  are no longer `dataless` in `ls -lO` and cross on the next pass, and the card
+  says how many came down. With the Wi-Fi off, the files stay in the card with
+  "iCloud or OneDrive did not give the content" and none is a zero-byte file.
+  A file already synced and sent back to the cloud is not in the card: the quiet
+  line "N arquivos estão só na nuvem; o servidor tem a cópia." says so, and the
+  server still has it. `.Name.ext.icloud` stays listed with its reason.
 - [ ] **A PDF and a picture linked** (A): `[[file.pdf]]` and
   `[[picture.png]]` rested on show the PDF (pdf.js in the app's web view)
   and the picture in the card; the console stays clean as the card opens
@@ -556,6 +634,7 @@ in a note long enough to scroll.
 
 ### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
 
+- [ ] **Each dice hit is heard as the die hits** (A, the Mac app, ADR 0101): sound on, the Mac idle for a few minutes (headphones on, Bluetooth too), roll 4d6 from the Table's box with Enter: each hit sounds as its die touches the felt or another die, and nothing sounds after the dice rest. The log's `dice sound:` line says `late=` and `clockRate=` if it did not.
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed
   app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
   code is a die; a click and Enter roll it, the card shows the total and
@@ -1085,8 +1164,8 @@ seen only here. Before the server is announced (ADR 0073 item 6).
   then its "…" ("Mais ações: …"); a double-tap-and-hold on a row opens its
   menu; in Editar, a double tap on a link and the card after the text
   ("Link: …") with Abrir and Editar link; the keyboard's bar named
-  "Ferramentas de escrita"; on a reader's folder, "Você só lê esta pasta"
-  read out.
+  "Ferramentas de escrita"; on a reader's folder, the lock beside the name read out as
+  "Você só lê esta pasta".
 - [ ] **VoiceOver on the iPad**, portrait and landscape: the same; over
   760 px the ribbon and the split panes stay; the graph's controls beside
   it in landscape, behind "Ajustes do grafo" in a pane under 520 px.
@@ -1159,6 +1238,99 @@ in a folder; a board with it, and two notes.
   under each node's `verso` (the re-observation of O4 on the version of the
   day, ADR 0090 Consequences).
 
+### Read links (ADR 0105, feat/read-links, 2026-10-21)
+
+Needs a real UniVerso on a public address behind a proxy (or Tailscale), a
+phone, a second browser that has never signed in to it, and the host's
+shell for the fail2ban and mail lines. The paces, the paths and the
+secrets are in the Rust tests and the server's end-to-end tests; what a
+proxy, a mail server, fail2ban and a thumb do with a link is not.
+
+- [ ] **A link through the proxy**: turn the links on in the console
+  (Server). Make a link to a note that has a secret block, open it on the
+  phone and in the second browser. The page is the reader's view: no
+  secret block, a link to a note outside it as plain text "não
+  compartilhado", the dice roll, nothing can be edited. The address bar
+  shows only `/r/<43 characters>`; the proxy's log shows no query and no
+  note name in the address of the page.
+- [ ] **The address kept private**: follow a web link out of the shared
+  note (a note with `https://` in it); the other site's log, or the
+  browser's developer tools, show no `Referer`. Search the address in a
+  search engine you can query (`site:` of the public host): nothing.
+- [ ] **The passphrase and the host's tools**: make a link with a
+  passphrase; try wrong ones from the phone off the Wi-Fi. `journalctl -u
+  universo` (or `docker logs`) shows one `WARN sign-in failed from
+  <address> for <the owner's masked e-mail>` line each; with fail2ban
+  installed from the package, `fail2ban-client status universo` counts
+  that address and bans it at the jail's limit. The 20th wrong one in an
+  hour mails the owner (needs `VERSO_SMTP_URL`); the 21st does not.
+- [ ] **Revoking, with a real page open**: read a link on the phone, and
+  revoke it from the panel on the computer. The phone's page changes to
+  "O acesso a esta página acabou" within a second, without a reload.
+  Expire one (a date for tomorrow, then move the server's clock, or wait)
+  and see an open page end when it comes.
+- [ ] **Turning the feature off**: with two links open in two browsers,
+  turn the links off in the console; both pages end at once, every
+  address answers "Este link não abre", and turning them on again opens
+  the same addresses.
+- [ ] **A reader's screen reader and keyboard**: on a link's page, move
+  with Tab and the arrows through the tree, open a note, follow a link
+  inside the shared part, reach the plain "(não compartilhado)" text, and
+  hear the page's language (pt-BR and English browsers); the passphrase
+  page announces its error.
+- [ ] **A table of players**: six phones open one link together, each
+  with a dozen pictures. If the pictures fail with 429, the per-link pace
+  (20 a second, 100 at once, ADR 0083 item 7) is too tight for a table:
+  say so, the number is the maintainer's to change.
+
+### One chat per table (feat/table-per-table, 2026-10-23)
+
+Needs a real UniVerso with a folder that has two tables (two subfolders made
+tables), the desktop app on a folder synced with it, and a browser signed in
+as a player. The routing, the migration and the confinement are in the Rust
+tests, the window's unit tests and the end-to-end run; what a long session on
+real devices does is not.
+
+- [ ] **Two tables, two chats**: open the whole folder (two tables
+  *Cripta* and *Sala* in subfolders). Open a note in Cripta: the Table
+  panel's top says *Table: Cripta*. Write a message and roll `/r 1d20`.
+  Open a note in Sala: the top says *Table: Sala* and the message and the
+  roll are not there. Write one there; go back to the Cripta note: only
+  the Cripta's two lines. On the browser (signed in as a second person at
+  the whole folder, in a Sala note), only Sala's line arrives; the other
+  person never hears the Cripta's.
+- [ ] **Who is at each table**: the people icon counts only the people
+  at the table the panel is at. Switch notes between the two tables a few
+  times: the other person's list loses you at one and gains you at the
+  other, with no ghost left behind.
+- [ ] **A note in no table**: open a note outside both tables. The panel
+  lists the two tables (or stays at the last one you chose, with
+  *Switch table* beside the name); choosing one remembers it for the
+  folder after a restart of the app.
+- [ ] **Dice from a note**: roll a `dice:` code inside a Sala note and, in
+  the Cripta note, one more. Each roll lands in its own table's log.
+- [ ] **The synced desktop folder**: on the desktop with the folder synced,
+  repeat the first check. Pause the sync: the panel says the table is
+  unavailable; resume it: the panel joins the table of the open note.
+- [ ] **A player of one table**: invite a player to the Cripta subfolder
+  and open it as that player. The Table panel is the Cripta's chat: the
+  player writes and rolls there, and the game master, from the whole
+  folder, sees the same lines in Cripta. The player never sees Sala's chat.
+  A player invited to a subfolder that is not a table has no Table chat.
+- [ ] **The old log**: on a server that had a shared log before the
+  update, open the folder after it: the old entries are in the folder's
+  first (shortest-named) table, and none is lost.
+
+- [ ] **A synced board while the link drops (fix/board-local-overwrite)**: on
+  the desktop with a synced folder, open a board; stop the server (or turn
+  the network off) until the status says offline; while it is down, have a
+  player draw on the same board through the server's web page, and bring
+  the link back only for sync to write the file (or wait for the next
+  tick), then edit a text on the board in the desktop window: every
+  drawing of the player is still there, and your edit too. With the link
+  back, the tab says "ao vivo" again within a minute and a probe joined to
+  the room hears the desktop's cursor.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers
@@ -1187,3 +1359,10 @@ them; if they still happen, a step that makes them happen is enough.
   (undid nothing — fixed); and the unfinished sentence on selecting text
   with images (an SVG with no size of its own was an empty line in
   Editar — fixed).
+- [ ] Two windows on two folders (one synced, with a person in the browser):
+  working in the second, no "joined" notice, toast or system notification
+  appears for the first folder's note, and none covers the table's chat in
+  the first (macOS, Windows, Linux; the web has one folder per page).
+- [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
+- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
+

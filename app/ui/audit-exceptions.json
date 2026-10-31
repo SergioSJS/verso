@@ -1,10 +1,4 @@
 {
   "policy": "ADR 0083 item 13, as deny.toml's (ADR 0029): an advisory of severity high or critical found by scripts/check-npm-audit.mjs is excepted here only with its id (GHSA-…), a reason with a link, and an expiry date (YYYY-MM-DD); an expired exception fails. Each enters with a justification in its PR.",
-  "exceptions": [
-    {
-      "id": "GHSA-vfj7-8cjw-p6xm",
-      "reason": "braces 3.0.3 (stack exhaustion on deeply nested patterns) reaches the tree only through @excalidraw/excalidraw -> sass -> chokidar, a file watcher no code of the window runs: none of braces, chokidar or sass is in the bundle app/ui/dist (checked 2026-10-13); 3.0.3 is the newest version published and the advisory still covers it. Decided by the maintainer on 2026-10-13 (ADR 0083 item 13). https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "expires": "2027-01-11"
-    }
-  ]
+  "exceptions": []
 }

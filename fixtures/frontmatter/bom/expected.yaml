@@ -1,0 +1,16 @@
+# Construct: a byte order mark before the opening `---`. Spec: §5.1 and Q24 a
+# (decided 2026-10-21: the BOM is accepted; the file is never rewritten,
+# invariant 7). The frontmatter is read as if the file began after the mark.
+frontmatter:
+  tags: [bomtag]
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on
+    `app.metadataCache.getCache(...)`: `frontmatter` is { tags: ["bomtag"] },
+    `frontmatterPosition` line 0 col 0 .. line 2 col 3 (offsets do not count
+    the mark), first section of type "yaml"; `obsidian tags counts` lists
+    #bomtag.

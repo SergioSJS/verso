@@ -7,6 +7,12 @@
   [0050](0050-outbound-network-access.md) (the window's network paths);
   [0026](0026-core-ui-contract-inviolable-rules.md), rule 5
 - Status in the briefing: not present
+- Revisions: 2026-10-21 — two `[OPEN]` items answered by the maintainer's marks
+  in the decisions questionnaire of 2026-10-20 (answered 2026-10-21): the
+  warning at approval time (0056.aviso, option B, not the recommended A) and a
+  page's own links and frames (0056.links, option A). A web page embedded as
+  a card on a board is allowed, reusing this ADR ([0057](0057-board-json-canvas.md),
+  decided the same day).
 - Revisions: 2026-09-29 — confirmed by the maintainer in session
   ("Ratifique o que precisar", answering the list of what was pending): the
   ADR stands Accepted as written. 2026-09-29 — **revised by the maintainer**
@@ -224,10 +230,12 @@ How the author built it under that decision (commit `3629f0c`;
   that does not name the app, is the site's decision, and Obsidian shows the
   same. Observed on 2026-09-29: `rolai.app` sends `X-Frame-Options: DENY`;
   `olddragon.com.br` sends `frame-ancestors 'self' *.owlbear.rodeo`.
-- **`[OPEN]` — a warning at approval time.** When the user approves an
-  origin, the host could send a `HEAD` to the address and warn when the site
-  forbids embedding, so that nobody approves an empty frame. A possible
-  nicety, not decided; it would bring back one request from the host's side.
+- **A warning at approval time.** When the user approves an origin, the host
+  sends a `HEAD` to the address and warns when the site forbids embedding, so
+  that nobody approves an empty frame. It brings back one request from the
+  host's side (the frameability check below already does it, once per
+  origin). `[DECIDED 2026-10-21]` (0056.aviso, **option B**, not the
+  recommended A): **warn at the moment of approval.** To build.
 - **The first embed of every site costs a click**, public sites included,
   and an approval lasts until it is removed in the settings.
 - **The host no longer judges addresses.** The local-network check in the
@@ -356,10 +364,13 @@ How the author built A (`app/src-tauri/src/framing.rs`, `web.rs`,
   the threat model (`docs/reference/threat-model.md`, "A web page embedded
   in a note"), with the reasoning that a framed page cannot reach the app's
   commands.
-- **`[OPEN]`, not decided here.** A page's own links to another origin, and the frames
-  inside it (a video, an advertisement), are refused by the guard and stay
-  blank until the maintainer chooses how to widen it (its cost is the same
-  one: the guard cannot tell a frame from the window).
+- **A page's own links to another origin, and the frames inside it** (a
+  video, an advertisement), are refused by the guard and stay blank (its
+  cost is the same one: the guard cannot tell a frame from the window).
+  `[DECIDED 2026-10-21]` (0056.links, option A): **keep them blocked and show
+  that something was blocked**, without opening a security gap. Allowing a
+  frame after approving its origin would need a new guard and no concrete
+  request exists.
 
 Discarded in this revision: none recorded.
 
@@ -433,7 +444,8 @@ Decision. The mechanism under them is the author's, built under that decision
 and labelled as such above. Confirmed on 2026-09-29 by the maintainer: the
 ADR stands Accepted. Revised on 2026-09-29 by the maintainer, in session:
 point 3, option A, Accepted; the mechanism under it is the author's, and
-supersedes the proxy. One item stays `[OPEN]`: a warning at approval time;
+supersedes the proxy. The one item left `[OPEN]` then, a warning at approval time, was decided on
+2026-10-21 (above);
 the web view's cache after an update was decided on 2026-10-07 (above).
 Revised on 2026-10-14 by the maintainer, in session ("A agora, B depois"):
 embeds are `<iframe>`s when the site allows framing, child web views
@@ -441,3 +453,4 @@ otherwise. Revised again on 2026-10-15, in session (*"A e B juntos"*): the
 child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
 Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
+Decided on 2026-10-21 by the maintainer (D.3 of the decisions list, option A): when the frameability check of a site fails (network down, timed out), the app asks again after **30 seconds**, instead of remembering the failure until the window closes.

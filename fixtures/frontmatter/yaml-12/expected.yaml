@@ -1,0 +1,18 @@
+# Construct: the YAML dialect of the frontmatter. Spec: §5.1 and Q24 b
+# (decided 2026-10-21: YAML 1.2 — `yes` is text, a date is text, nothing
+# converts by itself; a number stays a number).
+frontmatter:
+  tags: [2025, "yes"]
+  flag: "yes"
+  when: "2024-01-02"
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-21, a throwaway folder of the Sandbox vault,
+    public API only (ADR 0009). `obsidian eval` on
+    `app.metadataCache.getCache(...).frontmatter` -> { tags: [2025, "yes"],
+    flag: "yes", when: "2024-01-02" }. Re-observed with this fixture's exact
+    input.md (key `when`) on the same day; the first observation had named the
+    date key `d`.

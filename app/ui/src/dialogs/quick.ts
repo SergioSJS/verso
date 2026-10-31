@@ -68,6 +68,12 @@ export class QuickSwitcher {
       if (e.target === this.el) this.hide();
     });
   }
+  /** What was listed last is forgotten: it is drawn again when the switcher
+   *  opens (a file the person lost sight of is not left in the page). */
+  forget(): void {
+    this.items = [];
+    this.list.replaceChildren();
+  }
   show(query = ""): void {
     opened(this.el);
     this.el.hidden = false;
@@ -120,6 +126,9 @@ export class QuickSwitcher {
         }
         return 0;
       };
+      // The name typed whole comes first: "N" opens N.md, not a longer
+      // name that starts with it and sorts earlier by its folder.
+      if (base === q) return 12;
       if (base.startsWith(q)) return 10;
       if (base.includes(q)) return 6;
       return Math.max(sub(base) * 2, sub(full));

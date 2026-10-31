@@ -61,7 +61,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 10. [[10 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
 11. [[11 - Escrevendo no Editor]] — Os modos Leitura, Editar e Fonte, a barra de formatação, o menu `/` e o salvamento.
 12. [[12 - Busca e Navegação]] — Buscar, abrir pelo nome, trocar texto em todas as notas, backlinks e favoritos.
-13. [[13 - Abas, Painéis, Áreas e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, áreas e janelas.
+13. [[13 - Abas, Painéis, Espaços de Trabalho e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, espaços de trabalho e janelas.
 14. [[14 - Arquivos e Pastas]] — Criar, renomear sem quebrar links, mover, anexar imagens e a lixeira.
 15. [[15 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
 16. [[16 - Páginas Web e HTML]] — Páginas da web guardadas como notas e arquivos HTML.
@@ -70,10 +70,19 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 19. [[19 - Organizando com figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
 20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
 21. [[21 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
-22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, uma área por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
+22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
 23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
 24. [[24 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
 25. [[25 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
+26. [[26 - Fichas]] — Um exemplo de cada layout de ficha `statblock`, com dados e contadores que gravam na nota, e o editor de layouts. Um exemplo completo, o Fractal, está na [[Campanha Fractal/Mundo|Campanha Fractal]].
+27. [[27 - Oráculos e Criação de Mundos]] — O oráculo que escreve a resposta no destaque; as tabelas sorteadas; o assistente de novo projeto com a árvore à vista; e a chave de cada recurso em Ajustes.
+28. [[28 - Dados Estruturados como Diagrama]] — Um arquivo JSON, YAML, TOML, XML ou CSV, ou um bloco de código desses formatos, visto como caixas e linhas para mover, recolher e buscar; só leitura.
+29. [[29 - Sincronizar com uma Nuvem]] — Uma pasta igual a uma pasta de um Nextcloud (WebDAV) ou de um bucket S3 que você já tem, sem servidor: o formulário, a chave de S3 limitada a uma pasta, a senha no chaveiro e o que esperar.
+30. [[30 - Amostras de Cor]] — Um quadradinho da cor ao lado de `#1d9e75`, `rgb()` e `hsl()`; um clique no editor abre o seletor, e o código volta no mesmo formato.
+31. [[31 - A Mesa]] — Um registro de todas as rolagens, sorteios e perguntas ao oráculo, com quem fez e de qual nota, no painel da direita; as de outras pessoas chegam com o nome delas.
+32. [[32 - Rodando uma Mesa]] — Uma pasta de campanha num UniVerso: convidar as jogadoras, notas ocultas até você liberar, links para o que ainda não apareceu com um cadeado, quem edita o quê e os limites da mesa.
+33. [[33 - Abrir um Arquivo Avulso]] — Dois cliques num `.md` abrem o arquivo sozinho, sem pasta, numa janela sem árvore nem índice e sem nada escrito ao lado; e como fazer do Verso o app padrão de `.md` em cada sistema.
+34. [[34 - UniVerso num Servidor Grátis da Oracle]] — O roteiro para quem nunca montou um servidor: uma máquina grátis da Oracle, o menu do instalador, o HTTPS com um nome grátis, o primeiro admin e o celular.
 
 ---
 
@@ -91,7 +100,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 | **Alternar Barra Direita** | `⌘ ⌥ →` | `Ctrl + Alt + →` |
 | **Dividir Painel (Lado a Lado)** | `⌘ \` | `Ctrl + \` |
 | **Alternar Leitura / Edição** | `⌘ E` | `Ctrl + E` |
-| **Nova Área de Trabalho** | `⌘ T` | `Ctrl + T` |
+| **Novo Espaço de Trabalho** | `⌘ T` | `Ctrl + T` |
 | **Localizar e Substituir no Cofre** | `⌘ ⇧ H` | `Ctrl + Shift + H` |
 | **Ajustes** | `⌘ ,` | `Ctrl + ,` |
 

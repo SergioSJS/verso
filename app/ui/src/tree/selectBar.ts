@@ -7,7 +7,7 @@
 // move, bin, copy their paths — and "Done". It stands at the foot of the
 // side panel while the mode lasts.
 
-import { canWrite } from "../can";
+import { may } from "../access";
 import { button, h, ui } from "../dom";
 import { deleteEntries, movePrompt } from "../files";
 import { st } from "../screen/strings";
@@ -28,7 +28,7 @@ function paint(): void {
   const n = selectedPaths().length;
   count.textContent = t.selection.count(n);
   for (const b of [move, copy, bin]) b.disabled = n === 0;
-  for (const b of [move, bin]) b.hidden = !canWrite();
+  for (const b of [move, bin]) b.hidden = !may("", "delete");
 }
 
 export function installSelectBar(): void {

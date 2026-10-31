@@ -338,8 +338,20 @@ export function renderMarkdown(raw: string): string {
     }
     const item = /^(\s*)([-*+]|\d+\.)\s+(.*)$/.exec(line);
     if (item) {
-      const tag = /\d/.test(item[2] ?? "") ? "ol" : "ul";
-      out.push(`<${tag}><li>${formatInline(item[3] ?? "")}</li></${tag}>`);
+      // The items that follow (a blank line between them is a loose list,
+      // still one list) go in one list, as the core's renderer writes it.
+      const run: ListItem[] = [];
+      let at = i;
+      for (;;) {
+        const m = /^(\s*)([-*+]|\d+\.)\s+(.*)$/.exec(lines[at] ?? "");
+        if (m && !/^\s*[-*+]\s+\[[ xX]\]\s/.test(lines[at] ?? "")) {
+          run.push({ indent: (m[1] ?? "").length, marker: m[2] ?? "", text: m[3] ?? "" });
+          i = at;
+          at++;
+        } else if ((lines[at] ?? "").trim() === "" && /^\s*([-*+]|\d+\.)\s+\S/.test(lines[at + 1] ?? "")) at++;
+        else break;
+      }
+      out.push(listHtml(run));
       continue;
     }
     const heading = /^(#{1,6})\s+(.*)$/.exec(line);
@@ -356,6 +368,33 @@ export function renderMarkdown(raw: string): string {
   if (code) out.push(`<pre><code>${escapeHtml(code.lines.join("\n"))}</code></pre>`);
   if (table) out.push("</tbody></table>");
   return out.join("\n");
+}
+
+type ListItem = { indent: number; marker: string; text: string };
+
+/** A run of list items as nested lists: an ordered one starts at its first
+ *  number, and an item indented deeper than the one before opens a list
+ *  inside it. */
+function listHtml(items: ListItem[]): string {
+  let at = 0;
+  const level = (indent: number): string => {
+    const first = items[at];
+    if (!first) return "";
+    const ordered = /\d/.test(first.marker);
+    const tag = ordered ? "ol" : "ul";
+    const start = ordered && parseInt(first.marker, 10) !== 1 ? ` start="${parseInt(first.marker, 10)}"` : "";
+    let body = "";
+    while (at < items.length && (items[at]?.indent ?? 0) >= indent) {
+      const it = items[at] as ListItem;
+      at++;
+      let inner = "";
+      const next = items[at];
+      if (next && next.indent > it.indent) inner = level(next.indent);
+      body += `<li>${formatInline(it.text)}${inner}</li>`;
+    }
+    return `<${tag}${start}>${body}</${tag}>`;
+  };
+  return level(items[0]?.indent ?? 0);
 }
 
 /** A `verso-schema` block at the top level of a note, as the core's

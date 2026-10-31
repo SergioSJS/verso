@@ -47,6 +47,17 @@ async function landed(page) {
   const res = await enter(page);
   expect(res.status()).toBe(200);
   await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+  await settled(page);
+}
+
+/** The page the person landed on has finished loading: its script has
+ *  asked the server who is signed in (`/api/state`) and fetched its chunks.
+ *  A test that goes elsewhere before that cancels those requests, and WebKit
+ *  logs each cancelled fetch as a console error ("Fetch API cannot load ...
+ *  due to access control checks") — the page is not at fault, a person does
+ *  not leave a page in the middle of the first frame. */
+async function settled(page) {
+  await page.waitForLoadState("networkidle", { timeout: 30_000 });
 }
 
 async function signIn(page, email, password) {
@@ -127,8 +138,8 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   await demoRegistered(page);
   await openDemo(page);
   await expect(page.locator("#folder")).toHaveText("Demo");
-  // The owner writes: no reader's line.
-  await expect(page.locator(".read-only-line")).toBeHidden();
+  // The owner writes: no reader's lock.
+  await expect(page.locator("#open .folder-lock")).toBeHidden();
   // A reload comes back to the same folder.
   await page.reload();
   await expect(page.locator("#folder")).toHaveText("Demo");
@@ -148,6 +159,25 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+/** A new account made from an invitation that names no folder. */
+async function bareAccount(admin, browser, email) {
+  await admin.goto("/admin/invitations");
+  const invite = admin.locator(".console-content");
+  await invite.getByLabel("E-mail (opcional)").fill(email);
+  await invite.getByRole("button", { name: "Convidar" }).click();
+  const link = (await invite.locator(".web-snippet .setting-code").first().textContent()) ?? "";
+  expect(link).toContain("/invite/");
+  const ctx = await browser.newContext({ locale: "pt-BR" });
+  const p = await ctx.newPage();
+  await p.goto(link);
+  await p.getByLabel("Nome").fill("Sem pasta");
+  await p.getByLabel("Senha nova").fill("a senha sem pasta");
+  await p.getByRole("button", { name: "Criar conta" }).click();
+  await expect(p).not.toHaveURL(/invite/);
+  await settled(p);
+  return p;
+}
+
 test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
@@ -165,24 +195,31 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const readerErrors = watch(reader);
   await reader.goto(link);
   await expect(reader.getByRole("heading", { name: "Convite" })).toBeVisible();
-  await expect(reader.getByLabel("E-mail")).toHaveValue(email);
+  await expect(reader.locator("form", { hasText: "Senha nova" }).getByLabel("E-mail")).toHaveValue(email);
   await reader.getByLabel("Nome").fill("Leitor");
   await reader.getByLabel("Senha nova").fill("a senha do leitor");
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
-  // No folder yet: the start page says to choose one of the server's
-  // folders, not the desktop's keys, and no role is said.
-  await expect(reader.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
-  await expect(reader.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
-  await expect(reader.locator(".lesson .keys")).toHaveCount(0);
-  await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
-  await expect(reader.locator(".read-only-line")).toBeHidden();
-  await expect(reader.locator("html")).not.toHaveAttribute("data-role", "reader");
-  await openDemo(reader);
+  await settled(reader);
+  // The invitation carried a folder: the new account lands in it (2026-10-23),
+  // not on the empty start page.
+  await expect(reader.locator("#folder")).toHaveText("Demo", { timeout: 30_000 });
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
-  // With the folder on screen, the reader is told once.
-  await expect(reader.locator(".web-notice")).toHaveText("Você só lê esta pasta.");
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  // An account whose invitation carries no folder lands on the start page: it
+  // says to choose one of the server's folders, not the desktop's keys, and no
+  // role is said.
+  const bare = await bareAccount(page, browser, `sem-pasta-${test.info().project.name}@verso.test`);
+  await expect(bare.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
+  await expect(bare.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
+  await expect(bare.locator(".lesson .keys")).toHaveCount(0);
+  await expect(bare.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
+  await expect(bare.locator("#open .folder-lock")).toBeHidden();
+  await expect(bare.locator("html")).not.toHaveAttribute("data-role", "reader");
+  await bare.context().close();
+  // With the folder on screen, the reader has the closed lock beside its name (no banner, no notice).
+  await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
+  await expect(reader.locator("#open .folder-lock")).toHaveAttribute("aria-label", "Você só lê esta pasta");
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   // The invitation is used, by whom.
   await page.goto("/admin/invitations");
   await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
@@ -226,7 +263,7 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   await other.goto(`/?folder=${folder}`);
   await expect(other.locator("#notes")).toContainText(`${name}.md`);
   await showTree(other);
-  await other.locator("#notes").getByRole("button", { name: `${name}.md` }).click();
+  await other.locator("#notes").getByRole("treeitem", { name: `${name}.md` }).click();
   const theirs = other.locator(".cm-content:visible").first();
   // Edit mode in the second window, if it opened in reading.
   if (!(await theirs.isVisible())) await other.getByRole("button", { name: "Editar" }).first().click();
@@ -369,8 +406,12 @@ test("an admin ends another account's sessions and tokens from its page", async 
   await lost.getByLabel("Senha nova").fill("a senha do perdido");
   await lost.getByRole("button", { name: "Criar conta" }).click();
   await expect(lost).not.toHaveURL(/invite/);
+  await settled(lost);
   // Its page in the console: the session listed, ended with a confirm.
   await page.goto("/admin/accounts");
+  // The list is paged and sorted by name, and this server has met many
+  // accounts by now: the account is found by the console's own search.
+  await page.getByRole("searchbox", { name: "Buscar por nome ou e-mail" }).fill(email);
   await page.locator(".console-table a", { hasText: `Perdido ${project}` }).click();
   await expect(page.getByRole("heading", { name: `Perdido ${project}`, level: 1 })).toBeVisible();
   await expect(page.locator(".console-list li")).toHaveCount(1);
@@ -383,8 +424,13 @@ test("an admin ends another account's sessions and tokens from its page", async 
   // the address opened again asks to sign in. The admin's session stays.
   await expect(lost).toHaveURL(/\/signin/, { timeout: 30_000 });
   await lost.waitForLoadState("load");
-  await lost.goto("/");
-  await expect(lost).toHaveURL(/\/signin/);
+  // The window may be told twice (the server's message, then the socket
+  // closing) and land on the sign-in page twice: a goto in between is
+  // interrupted (seen once on the phone project), so it is tried again.
+  await expect(async () => {
+    await lost.goto("/");
+    await expect(lost).toHaveURL(/\/signin/);
+  }).toPass({ timeout: 15_000 });
   await other.close();
   // The log says it, about whom.
   await page.goto("/admin/audit");
@@ -458,7 +504,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
   const tag = test.info().project.name;
-  const email = `ana-${tag}@verso.test`;
+  const email = `ana-shares-${tag}@verso.test`;
   // Ana, invited to no folder.
   await page.goto("/admin/invitations");
   const invite = page.locator(".console-content");
@@ -473,6 +519,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await ana.getByLabel("Senha nova").fill("a senha da ana");
   await ana.getByRole("button", { name: "Criar conta" }).click();
   await expect(ana).not.toHaveURL(/invite/);
+  await settled(ana);
   // The admin shares the folder "Personagens" of Demo with her, editing,
   // from the folder's menu in the tree.
   await openDemo(page);
@@ -708,10 +755,11 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await reader.getByLabel("Senha nova").fill("a senha da leitora");
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
+  await settled(reader);
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The window knows it only reads before anything is starred.
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   const NOTE = "14 - Arquivos e Pastas.md";
   const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^14 - Arquivos e Pastas$/ }) }).locator("button.star");
   await showTree(reader);
@@ -732,7 +780,7 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   // A reload: the star is still there, kept by this browser.
   await reader.reload();
   await expect(reader.locator("#folder")).toHaveText("Demo");
-  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await expect(reader.locator("#open .folder-lock")).toBeVisible();
   await showTree(reader);
   await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
   await expect(star).toBeVisible();
@@ -774,7 +822,7 @@ async function windowOn(page, folder, path) {
   await expect(page.locator("#folder")).toHaveText("Demo");
   await showTree(page);
   await expect(page.locator("#notes")).toContainText(path);
-  await page.locator("#notes").getByRole("button", { name: path }).click();
+  await page.locator("#notes").getByRole("treeitem", { name: path }).click();
 }
 
 /** The board's scene in a window, as a test reads it. */
@@ -800,10 +848,29 @@ async function noCopies(page, stem) {
   return files.filter((f) => f.startsWith(stem) && !/\.(canvas|txt|base)$/.test(f.replace(stem, "")));
 }
 
+/** A phone shows a joined window's "entered the note" toast along the top,
+ *  over the editor's first line and the board's first row, and the emulated
+ *  pointer resting there pauses its clock for good; a click or a drag
+ *  aimed under it never lands. These two tests are about the files and the
+ *  scene, not the toast (the notifications' own tests are in e2e/), so it
+ *  takes no pointer here. */
+async function toastsTakeNoPointer(context) {
+  await context.addInitScript(() => {
+    const style = () => {
+      const s = document.createElement("style");
+      s.textContent = ".notify-toasts, .notify-toasts * { pointer-events: none !important; }";
+      document.documentElement.append(s);
+    };
+    if (document.documentElement) style();
+    else document.addEventListener("DOMContentLoaded", style);
+  });
+}
+
 /** Two cards, as Obsidian writes a canvas. */
 const TWO_CARDS = '{\n\t"nodes":[\n\t\t{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},\n\t\t{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}\n\t],\n\t"edges":[]\n}';
 
 test("two windows on one board: a card moved in one and a text added in the other land in both and in the file", async ({ page }) => {
+  await toastsTakeNoPointer(page.context());
   await page.context().addInitScript(() => {
     window.__VERSO_TEST__ = {};
   });
@@ -876,6 +943,7 @@ test("two windows on one board: a card moved in one and a text added in the othe
 });
 
 test("two windows on a text file and on a base's settings edit them together, and the files follow", async ({ page }) => {
+  await toastsTakeNoPointer(page.context());
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);

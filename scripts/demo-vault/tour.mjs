@@ -129,7 +129,7 @@ const STOPS = [
     cards: [["n-busca", "12 - Busca e Navegação.md", 640]],
     tip:
       "Buscar nas notas aceita tag:, path: e file:. Localizar e substituir no cofre (⌘⇧H) mostra cada mudança antes de gravar. " +
-      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→) tem backlinks, tags e favoritos.",
+      "‹ e › — ou ⌘[ e ⌘] — voltam por onde você passou; o painel da direita (⌘⌥→, ou o botão da barra de status) tem backlinks, tags e favoritos.",
     extra(b, x, y, f) {
       keys(b, "d-busca", x + 740, y + 160, [[["⌘", "K"], "buscar nas notas"], [["⌘", "P"], "abrir pelo nome"], [["⌘", "⇧", "P"], "todos os comandos"], [["⌘", "⇧", "H"], "trocar em tudo"]], f);
     },
@@ -140,12 +140,12 @@ const STOPS = [
     heading: "🪟 Abas e janelas",
     color: BLUE,
     canvasColor: "5",
-    cards: [["n-abas", "13 - Abas, Painéis, Áreas e Janelas.md", 640]],
+    cards: [["n-abas", "13 - Abas, Painéis, Espaços de Trabalho e Janelas.md", 640]],
     tip:
       "Um clique abre uma aba de pré-visualização, em itálico; um duplo clique a mantém. Arraste uma aba até a borda de um painel para dividir. " +
-      "Áreas guardam conjuntos de abas; Nova janela abre outra janela, e uma nota pode ganhar uma janela só dela.",
+      "Espaços de trabalho guardam conjuntos de abas; Nova janela abre outra janela, e uma nota pode ganhar uma janela só dela.",
     extra(b, x, y, f) {
-      keys(b, "d-abas", x + 740, y + 160, [[["⌘", "\\"], "dividir ao lado"], [["⌘", "T"], "nova área"], [["⌘", "⇧", "T"], "reabrir a aba"], [["⌘", "W"], "fechar a aba"], [["⌘", "R"], "recarregar a janela"]], f);
+      keys(b, "d-abas", x + 740, y + 160, [[["⌘", "\\"], "dividir ao lado"], [["⌘", "T"], "novo espaço de trabalho"], [["⌘", "⇧", "T"], "reabrir a aba"], [["⌘", "W"], "fechar a aba"], [["⌘", "R"], "recarregar a janela"]], f);
     },
   },
   {
@@ -154,12 +154,16 @@ const STOPS = [
     heading: "📁 Arquivos",
     color: ORANGE,
     canvasColor: "2",
-    cards: [["n-arquivos", "14 - Arquivos e Pastas.md", 640]],
+    cards: [
+      ["n-arquivos", "14 - Arquivos e Pastas.md", 420],
+      ["n-avulso", "33 - Abrir um Arquivo Avulso.md", 420],
+    ],
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
       "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
       "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias; " +
-      "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão.",
+      "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão. " +
+      "Dois cliques num .md abrem o arquivo sozinho, sem pasta e sem nada escrito ao lado; a faixa acima das abas leva à pasta inteira.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },
@@ -232,7 +236,7 @@ const STOPS = [
     color: GREEN,
     canvasColor: "4",
     cards: [["n-ajustes", "15 - Ajustes, Aparência e Atalhos.md", 640]],
-    tip: "⌘, abre os Ajustes: tema, paleta, fontes, idioma, as pastas do cofre e, em Atalhos, a tecla de cada comando — troque a que quiser.",
+    tip: "⌘, abre os Ajustes: tema, paleta, fontes, idioma, as pastas do cofre e, em Atalhos, a tecla de cada comando — troque a que quiser. Em Aparência, a galeria de temas troca o visual com um clique; Copiar e Editar abrem o Construtor de tema, que muda as cores ao vivo, e dá para importar e exportar temas .verso-theme.",
     extra(b, x, y, f) {
       b.write("d-paletas", x + 740, y + 150, "as quatro paletas", { size: 32, color: GREY, frame: f });
       const palettes = [
@@ -339,8 +343,8 @@ const STOPS = [
     canvasColor: "5",
     cards: [["n-celular", "22 - Verso no Celular e no Tablet.md", 640]],
     tip:
-      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. " +
-      "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
+      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
+      "Tocar numa pasta a abre ou fecha, e a página dela abre pelo botão no fim da linha. Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
   },
   {
     id: "servidor",
@@ -351,12 +355,17 @@ const STOPS = [
     cards: [
       ["n-servidor", "23 - Verso num Servidor.md", 420],
       ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
+      ["n-oracle", "34 - UniVerso num Servidor Grátis da Oracle.md", 420],
+      ["n-nuvem", "29 - Sincronizar com uma Nuvem.md", 420],
+      ["n-rodar", "32 - Rodando uma Mesa.md", 420],
     ],
     tip:
       "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
-      "Para montar o seu, a nota 25 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup.",
+      "Botão direito numa pasta › Tornar esta pasta uma mesa: convida as jogadoras só para ela, cada nota fica oculta até você liberar, e um link para o que ainda não apareceu chega com um cadeado. " +
+      "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh). " +
+      "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 29 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
   },
   {
     id: "dados",
@@ -364,12 +373,37 @@ const STOPS = [
     heading: "🎲 Dados e tabelas sorteadas",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-dados", "25 - Dados e Tabelas Sorteadas.md", 640]],
+    cards: [
+      ["n-dados", "25 - Dados e Tabelas Sorteadas.md", 600],
+      ["n-diagrama", "28 - Dados Estruturados como Diagrama.md", 600],
+      ["n-cores", "30 - Amostras de Cor.md", 600],
+      ["n-mesa", "31 - A Mesa.md", 600],
+    ],
     tip:
+      "Um arquivo JSON, YAML, TOML, XML ou CSV tem o seletor Texto | Diagrama: caixas para mover, recolher e buscar, sem tocar no arquivo. " +
       "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
       "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
-      "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como.",
+      "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como. " +
+      "Um código de cor — `#1d9e75`, `rgb()`, `hsl()` — ganha um quadradinho da cor, e no editor um clique nele abre o seletor. " +
+      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor.",
+  },
+  {
+    id: "mundos-rpg",
+    label: "Mundos e RPG",
+    heading: "⚔️ Fichas, oráculos e campanhas",
+    color: VIOLET,
+    canvasColor: "6",
+    cards: [
+      ["n-mundos", "26 - Fichas.md", 600],
+      ["n-oraculo", "27 - Oráculos e Criação de Mundos.md", 600],
+      ["n-fractal", "Campanha Fractal/Mundo.md", 600],
+    ],
+    tip:
+      "Um bloco ```statblock desenha uma ficha com o layout que você escolhe com `layout:`; os dados rolam num clique, e os contadores gravam o número na nota. O editor de layout fica em Ajustes › RPG & Mesa Solo › Fichas e Templates. " +
+      "Um callout > [!oracle] responde perguntas de sim/não com chances e faíscas, e a resposta é escrita no destaque; repetir a pergunta acumula respostas. " +
+      "O assistente de novo projeto mostra a árvore antes de escrever e deixa desmarcar o que você não quer. Em Ajustes › RPG & Mesa Solo › Dados e RPG, cada ferramenta tem a sua chave. " +
+      "À direita, uma campanha de exemplo do Fractal: o mundo, uma ficha, três Desafios encaixados e o diário de uma sessão com o oráculo.",
   },
 ];
 
@@ -379,8 +413,7 @@ function at(i) {
 }
 
 /** The board. */
-export function tour() {
-  const b = new Board();
+export function tour(b = new Board()) {
   const numbers = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
   STOPS.forEach((s, i) => {
     const [x, y] = at(i);

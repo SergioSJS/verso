@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
+import { mayHere } from "../access";
 import { can, canWrite, host, noteAddress } from "../can";
 import { stopped } from "../changes";
 import { narrow } from "../chrome";
@@ -17,7 +18,12 @@ import { BaseLeaf } from "../leaves/base";
 import { BoardLeaf } from "../leaves/board";
 import { FolderLeaf } from "../leaves/folderView";
 import { FrameLeaf } from "../leaves/frame";
+import { type BlockSource, DataLeaf, diagramFormat } from "../leaves/data";
+import { typeKey } from "../datagraph/model";
+import { lastView } from "../datagraph/store";
 import { GraphLeaf } from "../leaves/graph";
+import { ThemeLeaf } from "../leaves/theme";
+import type { BuildSpec } from "../theme/builder";
 import { ImageLeaf } from "../leaves/image";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
@@ -43,8 +49,17 @@ export class Pane {
   readonly tools = h("div", "pane-tools");
   readonly body = h("div", "pane-body");
   readonly empty = h("div", "pane-empty");
+  /** Stops the empty hint following the pointer kind; set when the pane is built. */
+  private stopEmptyHint: () => void = () => {};
+  /** The pane left the layout: what it listens to on the page goes. */
+  dispose(): void {
+    this.stopEmptyHint();
+  }
   readonly leaves: Leaf[] = [];
   readonly tabsDivider = h("div", "tabs-divider");
+  /** With the tab bar hidden, a phone has nothing to open its menu from: a
+   *  thin named strip says where the bar went and brings it back. */
+  readonly restoreBar = h("div", "tabs-restore");
   active: Leaf | null = null;
   vertical = false;
   tabsHidden = false;
@@ -59,6 +74,7 @@ export class Pane {
   private trailAt = -1;
   /** The trail itself is moving the pane: what follows is not recorded. */
   private navigating = false;
+  private readonly orient = button("ghost iconic", t.verticalTabs, "vtabs");
   private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
   private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
   /** On a phone a split layout shows one pane at a time: this names which,
@@ -112,7 +128,7 @@ export class Pane {
     this.body.addEventListener("dblclick", (e) => {
       if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
     });
-    const orient = button("ghost iconic", t.verticalTabs, "vtabs");
+    const orient = this.orient;
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
     const plus = button("ghost iconic pane-new", t.newNote, "plus");
     keyHint(plus, t.newNote, "new-note");
@@ -144,16 +160,28 @@ export class Pane {
       if ((e.target as HTMLElement).closest(".tab")) return;
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
-        ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+        ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
         ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
         [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
       ]);
     });
-    this.empty.append(icon("outline"), h("p", "", t.emptyPane));
+    // Dragging a tab here is for a mouse: a phone or a finger on the screen is told only to pick a file.
+    const hint = h("p", "", t.emptyPane);
+    const touch = window.matchMedia("(pointer: coarse)");
+    const say = () => void (hint.textContent = touch.matches ? t.emptyPaneTouch : t.emptyPane);
+    say();
+    touch.addEventListener("change", say);
+    this.stopEmptyHint = () => touch.removeEventListener("change", say);
+    this.empty.append(icon("outline"), hint);
     this.body.append(this.empty);
-    this.el.append(this.tabs, this.tabsDivider, this.body);
+    const restore = h("button", "ghost tabs-restore-button");
+    restore.type = "button";
+    restore.append(icon("tab"), h("span", "", t.showTabs));
+    restore.addEventListener("click", () => this.setTabsHidden(false));
+    this.restoreBar.append(restore);
+    this.el.append(this.tabs, this.restoreBar, this.tabsDivider, this.body);
     this.el.addEventListener("mousedown", () => layout().focus(this));
   }
   setTabsHidden(hidden: boolean): void {
@@ -181,7 +209,10 @@ export class Pane {
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
+      // A data file opens as the diagram when that was the view last used for its type (ADR 0106 item 9).
+      const type = kind === "text" && diagramFormat(path) !== null ? typeKey(path) : null;
+      if (type && lastView(type) === "diagram") leaf = new DataLeaf(this);
+      else leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
       this.place(leaf, preview);
       void leaf.load(path);
@@ -190,6 +221,25 @@ export class Pane {
     // A new tab names its file only once it is read: the trail takes the
     // place asked for.
     this.mark(path, leaf.kind);
+    return leaf;
+  }
+  /** A file as its diagram, in a tab of its own (a tab that was a diagram, brought back). */
+  openDiagram(path: string): Leaf {
+    let leaf = this.leaves.find((l) => l.path === path);
+    if (!leaf) {
+      leaf = new DataLeaf(this);
+      remember(path);
+      this.place(leaf, false);
+      void leaf.load(path);
+    }
+    this.activate(leaf, false);
+    return leaf;
+  }
+  /** A block of code of a note as a diagram, read-only, in a tab of this pane. */
+  openBlockDiagram(block: BlockSource): Leaf {
+    const leaf = new DataLeaf(this, block);
+    this.insert(leaf);
+    this.activate(leaf, true);
     return leaf;
   }
   openGraph(path: string): Leaf {
@@ -201,6 +251,19 @@ export class Pane {
     }
     this.activate(leaf, false);
     return leaf;
+  }
+  /** The theme builder (ADR 0100), in a tab of this pane: one at a time. */
+  openTheme(spec: BuildSpec): Leaf {
+    let leaf = this.layoutLeaves().find((l) => l.kind === "theme");
+    if (!leaf) {
+      leaf = new ThemeLeaf(this, spec);
+      this.insert(leaf);
+    }
+    leaf.pane.activate(leaf, true);
+    return leaf;
+  }
+  private layoutLeaves(): Leaf[] {
+    return layout().panes().flatMap((p) => p.leaves);
   }
   openFolder(path: string, preview = false): Leaf {
     let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
@@ -217,6 +280,12 @@ export class Pane {
     this.vertical = v;
     this.el.classList.toggle("vertical", v);
     this.tabList.setAttribute("aria-orientation", v ? "vertical" : "horizontal");
+    const word = v ? t.horizontalTabs : t.verticalTabs;
+    this.orient.title = word;
+    this.orient.replaceChildren(icon("vtabs", word));
+    // The tools come first in the column, on screen and in the focus order.
+    if (v) this.tabs.insertBefore(this.tools, this.tabList);
+    else this.tabs.append(this.tools);
     persistSoon();
   }
   /** The tab bar from the keyboard, as a tablist answers (WAI-ARIA
@@ -264,8 +333,10 @@ export class Pane {
       })(), "maximize"] as MenuItem] : []),
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      ...(leaf.kind === "theme" ? [] : [
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      ] as MenuItem[]),
       ...(splits ? [
         [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"] as MenuItem,
         [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"] as MenuItem,
@@ -309,7 +380,7 @@ export class Pane {
     showMenu(x, y, [
       ...(this.canGo(-1) ? [[t.navBack, () => this.go(-1), "chevronLeft"] as MenuItem] : []),
       ...(this.canGo(1) ? [[t.navForward, () => this.go(1), "chevron"] as MenuItem] : []),
-      ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+      ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
       ...(active ? [[st.tabActions, () => {
         const r = active.tab.getBoundingClientRect();
         this.tabMenu(active, r.left + 12, r.bottom);
@@ -464,6 +535,9 @@ export class Pane {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
     if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
+    // A tab closed for good: what holds files by their tabs hears it (a
+    // file opened without its folder is let go, ADR 0114).
+    if (!moving && leaf.path) dispatchEvent(new CustomEvent("verso:tab-closed", { detail: leaf.path }));
     this.leaves.splice(i, 1);
     this.refreshNav();
     leaf.tab.remove();

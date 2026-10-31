@@ -13,6 +13,8 @@
 		{"id":"l-buscar","type":"group","x":1500,"y":3300,"width":1300,"height":900,"label":"11 · Buscar e exportar"},
 		{"id":"l-arquivo","type":"group","x":3000,"y":3300,"width":1300,"height":900,"label":"12 · O board e o arquivo"},
 		{"id":"l-mapas","type":"group","x":0,"y":4400,"width":1300,"height":900,"label":"13 · Mapas"},
+		{"id":"l-paginas","type":"group","x":1500,"y":4400,"width":1300,"height":900,"label":"14 · Páginas da web"},
+		{"id":"l-dados","type":"group","x":3000,"y":4400,"width":1300,"height":900,"label":"15 · Arquivos de dados"},
 		{"id":"n-beta","type":"file","file":"projetos/Projeto Beta.md","x":2220,"y":1270,"width":260,"height":300},
 		{"id":"n-pesquisa","type":"file","file":"projetos/Pesquisa e Descobertas.md","x":2520,"y":1620,"width":260,"height":300},
 		{"id":"n-maca","type":"text","text":"🍎 Maçã","x":3730,"y":1240,"width":180,"height":60,"color":"1"},
@@ -22,7 +24,18 @@
 		{"id":"n-alpha","type":"file","file":"projetos/Projeto Alpha.md","x":720,"y":3470,"width":260,"height":300},
 		{"id":"n-beta-2","type":"file","file":"projetos/Projeto Beta.md","x":1020,"y":3820,"width":260,"height":300},
 		{"id":"n-desenho","type":"file","file":"Desenho do Excalidraw.excalidraw.md","x":3720,"y":3460,"width":540,"height":340},
-		{"id":"n-mapa-imagem","type":"file","file":"assets/porto-cinzento.svg","x":720,"y":4560,"width":540,"height":400}
+		{"id":"n-mapa-imagem","type":"file","file":"assets/porto-cinzento.svg","x":720,"y":4560,"width":540,"height":400},
+		{
+			"id":"n-pagina",
+			"type":"link",
+			"url":"https://example.com/",
+			"x":2220,
+			"y":4560,
+			"width":540,
+			"height":420,
+			"verso":{"page":true}
+		},
+		{"id":"n-dados","type":"file","file":"Dados de Exemplo/npcs-da-campanha.json","x":3720,"y":4560,"width":540,"height":460}
 	],
 	"edges":[],
 	"verso":{
@@ -75,7 +88,7 @@
 			},
 			{"id":"d-selecionar-desafio-t","type":"text","x":1555,"y":750,"width":550,"height":60,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-selecionar","text":"Desafio: alinhe os três quadrados pelo topo e deixe o mesmo espaço entre eles.","originalText":"Desafio: alinhe os três quadrados pelo topo e deixe o mesmo espaço entre eles.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-selecionar-desafio","lineHeight":1.25},
 			{"id":"d-desenhar-titulo","type":"text","x":3040,"y":36,"width":266.2,"height":55,"strokeColor":"#2f9e44","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-desenhar","text":"✏️ Desenhar","originalText":"✏️ Desenhar","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-desenhar-texto","type":"text","x":3040,"y":120,"width":580,"height":291.6,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-desenhar","text":"Cada ferramenta da barra de cima tem a sua tecla: 1 seleção, 2 retângulo, 3 losango, 4 elipse, 5 flecha, 6 linha, 7 lápis, 8 texto, 0 borracha. H é a mão.\n• ⇧ enquanto desenha faz quadrado e círculo perfeitos.\n• O cadeado (Q) mantém a ferramenta depois de desenhar.\n• Duplo clique no vazio escreve um texto.","originalText":"Cada ferramenta da barra de cima tem a sua tecla: 1 seleção, 2 retângulo, 3 losango, 4 elipse, 5 flecha, 6 linha, 7 lápis, 8 texto, 0 borracha. H é a mão.\n• ⇧ enquanto desenha faz quadrado e círculo perfeitos.\n• O cadeado (Q) mantém a ferramenta depois de desenhar.\n• Duplo clique no vazio escreve um texto.","fontSize":24,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{"id":"d-desenhar-texto","type":"text","x":3040,"y":120,"width":580,"height":356.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-desenhar","text":"Cada ferramenta da barra de cima tem a sua tecla: 1 seleção, 2 retângulo, 3 losango, 4 elipse, 5 flecha, 6 linha, 7 lápis, 8 texto, 0 borracha. H é a mão.\n• ⇧ enquanto desenha faz quadrado e círculo perfeitos.\n• O cadeado (Q) mantém a ferramenta depois de desenhar.\n• Duplo clique no vazio põe um cartão de texto (Markdown); o texto solto do Excalidraw é a tecla T.","originalText":"Cada ferramenta da barra de cima tem a sua tecla: 1 seleção, 2 retângulo, 3 losango, 4 elipse, 5 flecha, 6 linha, 7 lápis, 8 texto, 0 borracha. H é a mão.\n• ⇧ enquanto desenha faz quadrado e círculo perfeitos.\n• O cadeado (Q) mantém a ferramenta depois de desenhar.\n• Duplo clique no vazio põe um cartão de texto (Markdown); o texto solto do Excalidraw é a tecla T.","fontSize":24,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{
 				"id":"d-desenhar-desafio",
 				"type":"rectangle",
@@ -327,8 +340,54 @@
 				]
 			},
 			{"id":"d-mapas-desafio-t","type":"text","x":55,"y":5120,"width":550,"height":120,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-mapas","text":"Desafio: faça da imagem um mapa, fixe a nota Porto Cinzento nele, aproxime e afaste (o alfinete não cresce) e pare o ponteiro sobre ele.","originalText":"Desafio: faça da imagem um mapa, fixe a nota Porto Cinzento nele, aproxime e afaste (o alfinete não cresce) e pare o ponteiro sobre ele.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-mapas-desafio","lineHeight":1.25},
+			{"id":"d-paginas-titulo","type":"text","x":1540,"y":4436,"width":387.2,"height":55,"strokeColor":"#1971c2","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"🌐 Páginas da web","originalText":"🌐 Páginas da web","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-paginas-texto","type":"text","x":1540,"y":4520,"width":580,"height":583.2,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"Um cartão pode mostrar uma página da web viva, de um site que você permitiu.\n• Inserir › Página web…: cole o endereço (https://…). Na primeira vez o Verso pergunta se pode mostrar aquele site, e avisa antes se ele proíbe ser incorporado.\n• Um link comum vira página com Mostrar página, nas ferramentas do canto; Mostrar como link desfaz.\n• A página só recebe o mouse depois que você a entra: clique no meio do cartão, ou no botão Interagir com a página. Para sair, clique fora, ou use o botão Sair, ou Esc com o foco no cabeçalho do cartão.\n• Se o site proíbe ser incorporado, o cartão mostra isso e um link para abrir numa aba.\n• O arquivo guarda um cartão de link comum do JSON Canvas: o Obsidian mostra o endereço.","originalText":"Um cartão pode mostrar uma página da web viva, de um site que você permitiu.\n• Inserir › Página web…: cole o endereço (https://…). Na primeira vez o Verso pergunta se pode mostrar aquele site, e avisa antes se ele proíbe ser incorporado.\n• Um link comum vira página com Mostrar página, nas ferramentas do canto; Mostrar como link desfaz.\n• A página só recebe o mouse depois que você a entra: clique no meio do cartão, ou no botão Interagir com a página. Para sair, clique fora, ou use o botão Sair, ou Esc com o foco no cabeçalho do cartão.\n• Se o site proíbe ser incorporado, o cartão mostra isso e um link para abrir numa aba.\n• O arquivo guarda um cartão de link comum do JSON Canvas: o Obsidian mostra o endereço.","fontSize":24,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{
+				"id":"d-paginas-desafio",
+				"type":"rectangle",
+				"x":1540,
+				"y":5100,
+				"width":580,
+				"height":160,
+				"strokeColor":"#f08c00",
+				"backgroundColor":"#ffec99",
+				"fillStyle":"solid",
+				"strokeWidth":1,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"l-paginas",
+				"boundElements":[
+					{"id":"d-paginas-desafio-t","type":"text"}
+				]
+			},
+			{"id":"d-paginas-desafio-t","type":"text","x":1555,"y":5120,"width":550,"height":120,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"Desafio: permita o site do cartão, entre na página, role nela e saia com o botão Sair. Depois troque para Mostrar como link e volte.","originalText":"Desafio: permita o site do cartão, entre na página, role nela e saia com o botão Sair. Depois troque para Mostrar como link e volte.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-paginas-desafio","lineHeight":1.25},
+			{"id":"d-dados-titulo","type":"text","x":3040,"y":4436,"width":459.8,"height":55,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"🧮 Arquivos de dados","originalText":"🧮 Arquivos de dados","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-dados-texto","type":"text","x":3040,"y":4520,"width":580,"height":680.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"Um arquivo JSON, YAML, TOML, XML ou CSV da pasta mostra o conteúdo no cartão, nunca uma caixa vazia.\n• Arraste o arquivo da árvore para o board, ou use Nota ou arquivo da pasta…: o cartão nasce mostrando o texto, colorido como no editor.\n• No cabeçalho, Texto | Diagrama troca a vista: o Diagrama desenha as caixas e linhas do arquivo (precisa do recurso Diagrama de dados ligado em Ajustes › Recursos; desligado, só o texto).\n• O diagrama só recebe o mouse depois que você o entra: clique no botão Interagir com o diagrama. Aí mova, dobre e dê zoom nele; Esc, ou o botão Sair, devolvem o board.\n• Abrir leva o arquivo para a aba, na vista que o cartão mostra. O cartão segue o arquivo quando ele muda, e só lê: nunca o grava.\n• Um arquivo grande mostra só os primeiros 64 KB, com reticências. O cartão guarda a vista na chave verso do canvas: o Obsidian a ignora.","originalText":"Um arquivo JSON, YAML, TOML, XML ou CSV da pasta mostra o conteúdo no cartão, nunca uma caixa vazia.\n• Arraste o arquivo da árvore para o board, ou use Nota ou arquivo da pasta…: o cartão nasce mostrando o texto, colorido como no editor.\n• No cabeçalho, Texto | Diagrama troca a vista: o Diagrama desenha as caixas e linhas do arquivo (precisa do recurso Diagrama de dados ligado em Ajustes › Recursos; desligado, só o texto).\n• O diagrama só recebe o mouse depois que você o entra: clique no botão Interagir com o diagrama. Aí mova, dobre e dê zoom nele; Esc, ou o botão Sair, devolvem o board.\n• Abrir leva o arquivo para a aba, na vista que o cartão mostra. O cartão segue o arquivo quando ele muda, e só lê: nunca o grava.\n• Um arquivo grande mostra só os primeiros 64 KB, com reticências. O cartão guarda a vista na chave verso do canvas: o Obsidian a ignora.","fontSize":24,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{
+				"id":"d-dados-desafio",
+				"type":"rectangle",
+				"x":3040,
+				"y":5100,
+				"width":580,
+				"height":160,
+				"strokeColor":"#f08c00",
+				"backgroundColor":"#ffec99",
+				"fillStyle":"solid",
+				"strokeWidth":1,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"l-dados",
+				"boundElements":[
+					{"id":"d-dados-desafio-t","type":"text"}
+				]
+			},
+			{"id":"d-dados-desafio-t","type":"text","x":3055,"y":5120,"width":550,"height":120,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"Desafio: troque o cartão para Diagrama, entre nele, arraste o fundo para mover o diagrama e saia com Esc. Depois volte para Texto.","originalText":"Desafio: troque o cartão para Diagrama, entre nele, arraste o fundo para mover o diagrama e saia com Esc. Depois volte para Texto.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-dados-desafio","lineHeight":1.25},
 			{"id":"d-titulo","type":"text","x":0,"y":-560,"width":990,"height":150,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Treino do Board","originalText":"Treino do Board","fontSize":120,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-sub","type":"text","x":6,"y":-390,"width":1320,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"13 lições de Excalidraw: leia à esquerda, pratique à direita","originalText":"13 lições de Excalidraw: leia à esquerda, pratique à direita","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-sub","type":"text","x":6,"y":-390,"width":1320,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"15 lições de Excalidraw: leia à esquerda, pratique à direita","originalText":"15 lições de Excalidraw: leia à esquerda, pratique à direita","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-como","type":"text","x":1800,"y":-560,"width":1500,"height":75.6,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Cada quadro é uma lição. Este board é seu para bagunçar: ⌘Z desfaz e ⌘⇧Z refaz.\nPara ir a uma lição, abra o Sumário, no alto à direita, e clique nela. ⇧1 mostra tudo de novo.","originalText":"Cada quadro é uma lição. Este board é seu para bagunçar: ⌘Z desfaz e ⌘⇧Z refaz.\nPara ir a uma lição, abra o Sumário, no alto à direita, e clique nela. ⇧1 mostra tudo de novo.","fontSize":28,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-andar-atalhos","type":"text","x":720,"y":80,"width":316.8,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-andar","text":"atalhos para andar","originalText":"atalhos para andar","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{
@@ -1056,6 +1115,10 @@
 			},
 			{"id":"d-map-w","type":"text","x":720,"y":4480,"width":369.6,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-mapas","text":"faça disto um mapa 🗺️","originalText":"faça disto um mapa 🗺️","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-map-nota","type":"text","x":720,"y":5020,"width":508.2,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-mapas","text":"e fixe nele a nota Porto Cinzento","originalText":"e fixe nele a nota Porto Cinzento","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-pag-w","type":"text","x":2220,"y":4480,"width":457.6,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"uma página dentro do board","originalText":"uma página dentro do board","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-pag-nota","type":"text","x":2220,"y":5030,"width":569.8,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"troque o endereço pelo de um site seu","originalText":"troque o endereço pelo de um site seu","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-dad-w","type":"text","x":3720,"y":4480,"width":528,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"um arquivo de dados num cartão","originalText":"um arquivo de dados num cartão","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-dad-nota","type":"text","x":3720,"y":5070,"width":662.2,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"troque o arquivo por outro: Trocar arquivo…","originalText":"troque o arquivo por outro: Trocar arquivo…","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-tesouro","type":"text","x":4140,"y":790,"width":88,"height":20,"strokeColor":"#e67700","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-desenhar","text":"🗝️ tesouro","originalText":"🗝️ tesouro","fontSize":16,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-estrela","type":"text","x":4420,"y":5360,"width":44,"height":100,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"⭐","originalText":"⭐","fontSize":80,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-estrela-w","type":"text","x":4530,"y":5385,"width":158.4,"height":45,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"achou! 🎉","originalText":"achou! 🎉","fontSize":36,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25}

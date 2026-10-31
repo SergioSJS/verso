@@ -37,4 +37,4 @@ None recorded in the briefing.
 
 ## Status
 
-Proposed.
+Proposed. `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the multi-root workspace comes after V1; the resolution of links across roots is open and V1 works with one folder.

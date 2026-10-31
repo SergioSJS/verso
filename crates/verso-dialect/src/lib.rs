@@ -54,7 +54,7 @@ pub use schema::{
     Layout, PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty,
 };
 pub use secret::{Secrets, is_secret_kind, project, project_line};
-pub use tags::{BodyTag, body_tags};
+pub use tags::{BodyTag, body_tags, frontmatter_tag};
 
 /// Everything the parser found in one note, in document order per list.
 ///
@@ -192,4 +192,13 @@ pub struct Callout {
     pub span: Span,
     /// Position of the `>` of the first line.
     pub pos: Pos,
+    /// How many callouts enclose it, itself included: 1 for a callout that
+    /// is in no other, 2 for one inside that, up to [`MAX_CALLOUT_DEPTH`]
+    /// (spec Q5; the reading view's limit).
+    pub depth: u32,
 }
+
+/// How many callouts deep a callout is recognized, inside other callouts.
+/// A blockquote past it stays a blockquote, as the reading view draws it
+/// (spec Q5, decided 2026-10-21).
+pub const MAX_CALLOUT_DEPTH: u32 = 32;

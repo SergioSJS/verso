@@ -7,10 +7,11 @@
 // (ADR 0069, item 8).
 
 import { test, expect } from "./fixtures.mjs";
+import { pickMenu } from "./menuPath.mjs";
 
 async function folderMenu(app, folder, item) {
   await app.page.locator(`#notes summary[data-folder="${folder}"]`).click({ button: "right" });
-  await app.page.locator('.menu:not([hidden]) button[role="menuitem"]', { hasText: item }).click();
+  await pickMenu(app.page, "Novo", item);
 }
 
 async function withFolder(app) {

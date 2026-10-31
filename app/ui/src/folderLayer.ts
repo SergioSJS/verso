@@ -10,6 +10,7 @@
 // machine kept for the folder move in. Which value applies is
 // `organize/layerRules.ts`'s.
 
+import { may, onAccess } from "./access";
 import { commands, type FolderLayer, type FolderSettings } from "./bindings";
 import { can, canWrite, loadCan, onCan } from "./can";
 import { fail } from "./errors";
@@ -79,24 +80,15 @@ function machine(): Machine {
   };
 }
 
-/** A synced folder in which the person only reads on the server
- *  (`verso:sync-state`, sync.ts): what they change in its layer here would
- *  be refused there. */
-let syncedReader = false;
-addEventListener("verso:sync-state", (e) => {
-  const next = (e as CustomEvent<{ on: boolean; role: string }>).detail;
-  const now = Boolean(next?.on) && next?.role === "reader";
-  if (now === syncedReader) return;
-  syncedReader = now;
-  told();
-});
-// The person's role changed (can.ts): the bookmarks that apply may too.
+// The person's role changed, or the folder is synced where they only read
+// (access.ts): the bookmarks that apply may change too.
 onCan(() => told());
+onAccess(() => told());
 
 /** Whether the person may change the folder's layer: not a reader of a
  *  server's folder, in its window or synced here. */
 function accountWrites(): boolean {
-  return canWrite() && !syncedReader;
+  return may("", "create");
 }
 
 /** The values that apply to the open folder now, and from which layer. */
@@ -159,7 +151,7 @@ export async function loadFolderLayer(): Promise<void> {
   const m = machine();
   if (layer && shouldMove(layer, m, movedBefore(), accountWrites()) && !(await readerNow())) {
     const w = await commands.setFolderSettings(firstWrite(layer, m, {
-      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null,
+      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null, recommended_theme: null,
     }), null);
     if (w.status === "ok") {
       layer = w.data;
@@ -206,6 +198,8 @@ async function write(make: (now: Effective) => Partial<FolderSettings>, again: b
     ignore_build_dirs: part.ignore_build_dirs ?? null,
     respect_gitignore: part.respect_gitignore ?? null,
     periodic: part.periodic ?? null,
+    oracle: part.oracle ?? null,
+    recommended_theme: part.recommended_theme ?? null,
   };
   const r = await commands.setFolderSettings(firstWrite(layer, machine(), change), layer.exists ? layer.revision : null);
   if (r.status === "ok") {

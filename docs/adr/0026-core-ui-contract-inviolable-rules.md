@@ -32,6 +32,24 @@
   maintainer as built and tested, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved); a dated note beside each.
+  2026-10-21 (review of the afternoon batch, **awaiting the maintainer**,
+  question T.9 of the decisions list of the afternoon; nothing decided here)
+  — the folder switcher shows each recent folder with a `place` label, the
+  last two components of its parent folder (`~/…/Documents/obsidian`,
+  `…/Volumes/Disco`; `RecentFolder::place` in `crates/verso-contract`). Rule
+  4's letter holds (never absolute, never `..`) and it is a label, not a
+  capability; but [0081](0081-sharing-between-people-on-one-universo.md)
+  item 5 says "names and keys, no path" and carries no revision line for it.
+  Whether the label is accepted as a reading of rule 4 is his to say.
+  2026-10-22 — T.9, option A, answering the line of 2026-10-21 above: the
+  maintainer accepted the folder switcher's `place` as a **display label** and
+  asked for it to be recorded here. Rule 4's letter is unchanged and this is
+  the reading: a shortened label such as `~/Documents` or
+  `~/…/Dropbox/antigo`, shown beside a recent folder only to tell folders of
+  the same name apart, is not a path that crosses the contract. It is never an
+  absolute path, never contains `..`, is no capability, and is not accepted
+  back as input. Option B (only the parent folder's name, without `~`) was not
+  chosen.
 
 ## Context
 

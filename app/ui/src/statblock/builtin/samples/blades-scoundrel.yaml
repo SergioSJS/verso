@@ -1,0 +1,30 @@
+name: Corvin Mace
+playbook: Lurk
+alias: Wick
+look: Soot-gray coat, no hat
+heritage: Akoros
+background: Underworld
+vice: Gambling
+purveyor: A card room by the docks
+hunt: 1
+study: 1
+survey: 2
+tinker: 0
+finesse: 1
+prowl: 3
+skirmish: 0
+wreck: 0
+attune: 0
+command: 0
+consort: 1
+sway: 1
+stress: 2
+stress_max: 9
+trauma: none
+harm_1: ""
+healing_clock: 0
+coin: 2
+special_abilities:
+  - Our own note on an ability
+items:
+  - A fine lockpick set

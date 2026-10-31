@@ -323,7 +323,7 @@ jobs:
       - name: fuzz the server's inputs for 60 seconds each
         working-directory: crates/verso-server
         run: |
-          for target in request unframe note board presence host size; do
+          for target in request unframe note board presence host size link; do
             mkdir -p fuzz/corpus/$target
             cargo +nightly fuzz run -O --target x86_64-unknown-linux-gnu $target fuzz/corpus/$target fuzz/seeds-$target -- -max_total_time=60 -max_len=65536 -timeout=20
           done
@@ -336,6 +336,7 @@ jobs:
             crates/verso-dialect/fuzz/artifacts
             crates/verso-server/fuzz/artifacts
           if-no-files-found: ignore
+          retention-days: 14
 
   bench:
     name: benchmark on main (ADR 0029, feature 5)

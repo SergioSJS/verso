@@ -43,14 +43,14 @@ const center = async (locator) => {
   return [b.x + b.width / 2, b.y + b.height / 2];
 };
 
-test("the frame follows the screen: a phone's bar of five verbs, the desktop's ribbon and status bar @layout", async ({ app, page }) => {
+test("the frame follows the screen: a phone's bar of six verbs, the desktop's ribbon and status bar @layout", async ({ app, page }) => {
   await app.open();
   const width = page.viewportSize().width;
   if (phone(page)) {
     await expect(page.locator(".ribbon")).toBeHidden();
     await expect(page.locator(".status-bar")).toBeHidden();
     const items = page.locator(".bottom-bar .bottom-bar-item");
-    await expect(items).toHaveCount(5);
+    await expect(items).toHaveCount(6);
     for (const b of await items.all()) {
       const box = await b.boundingBox();
       expect(Math.round(box.height), "a target of 44 px at least").toBeGreaterThanOrEqual(44);
@@ -116,11 +116,11 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   const switcher = page.locator(".pane.focused .pane-switch");
   await expect(switcher).toBeVisible();
   await expect(switcher).toHaveText("2/2");
-  await expect(switcher).toHaveAttribute("aria-label", "Área 2 de 2");
+  await expect(switcher).toHaveAttribute("aria-label", "Painel 2 de 2");
   await switcher.click();
   const menu = page.locator(".menu:not([hidden])");
   await expect(menu.getByRole("menuitem")).toHaveCount(2);
-  await menu.getByRole("menuitem", { name: /Área 1: 01 - Guia/ }).click();
+  await menu.getByRole("menuitem", { name: /Painel 1: 01 - Guia/ }).click();
   await expect(page.locator(".pane:visible")).toHaveCount(1);
   await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
   // On a phone the split commands are absent: from the palette and from a tab.
@@ -306,11 +306,12 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   };
   await menuOf(row("01 - Guia de Markdown e Sintaxe.md"));
   const menu = page.locator(".menu:not([hidden])");
+  await menu.getByRole("menuitem", { name: "Organizar", exact: true }).click();
   await menu.getByRole("menuitem", { name: "Selecionar" }).click();
   await expect(page.locator("#notes.select-mode")).toHaveCount(1);
-  await expect(row("01 - Guia de Markdown e Sintaxe.md")).toHaveAttribute("aria-pressed", "true");
+  await expect(row("01 - Guia de Markdown e Sintaxe.md")).toHaveAttribute("aria-selected", "true");
   await row("03 - Propriedades e Metadados.md").click();
-  await expect(row("03 - Propriedades e Metadados.md")).toHaveAttribute("aria-pressed", "true");
+  await expect(row("03 - Propriedades e Metadados.md")).toHaveAttribute("aria-selected", "true");
   const bar = page.locator(".select-bar");
   await expect(bar).toBeVisible();
   await expect(bar).toContainText("2");
@@ -320,7 +321,27 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await bar.getByRole("button", { name: "Concluir" }).click();
   await expect(bar).toBeHidden();
   await expect(page.locator("#notes.select-mode")).toHaveCount(0);
-  // A tap opens a preview tab; "Keep open" in its menu keeps it.
+  // A tap opens a preview tab; "Keep open" in its menu keeps it. The bar
+  // leaving gives the list its height back and the rows settle (the scroll
+  // clamps): a press and a lift on two different rows make no click, as
+  // seen in WebKit on 1 run of 45. Click once the row stands still.
+  await row("02 - Links, Âncoras e Notas Incorporadas.md").scrollIntoViewIfNeeded();
+  await row("02 - Links, Âncoras e Notas Incorporadas.md").evaluate(
+    (el) =>
+      new Promise((done) => {
+        let last = "";
+        let still = 0;
+        const look = () => {
+          const r = el.getBoundingClientRect();
+          const now = `${r.top}/${r.left}/${r.height}`;
+          still = now === last ? still + 1 : 0;
+          last = now;
+          if (still >= 10) done(undefined);
+          else requestAnimationFrame(look);
+        };
+        look();
+      }),
+  );
   await row("02 - Links, Âncoras e Notas Incorporadas.md").click();
   await expect(page.locator(".tab.preview")).toHaveCount(1);
   await menuOf(page.locator(".tab.preview"));
@@ -443,25 +464,38 @@ test("line numbers in Source: a desktop's default, off on a phone unless the per
   await expect(gutter.first()).toBeVisible();
 });
 
-test("the settings' sections on a phone: opened straight to one, its tab is in view, not Geral's @layout", async ({ app, page }) => {
+test("the settings on a phone: a list of the groups, a page after a tap, a way back; opened straight to a section it shows the page @layout", async ({ app, page }) => {
   await app.open();
   // A folder that syncs: its state, wherever the window shows it, opens
-  // the settings straight to Sincronizar — the last of the row.
+  // the settings straight to Sincronizar.
   const off = await page.evaluate(() => window.__harness.core.sync);
   await app.emit("sync-status", { ...off, on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "owner", state: "synced" });
   await page.locator("#sync-state").evaluate((b) => b.click());
-  await expect(page.locator('.settings-nav-item[aria-current="true"]')).toHaveText("Sincronizar");
-  const inView = () =>
-    page.locator(".settings-nav").evaluate((n) => {
-      const tab = n.querySelector('[aria-current="true"]');
-      if (!tab) return false;
-      const row = n.getBoundingClientRect();
-      const box = tab.getBoundingClientRect();
-      return box.left >= row.left - 1 && box.right <= row.right + 1;
-    });
-  await expect.poll(inView).toBe(true);
-  // The page itself never scrolls sideways for it.
-  expect(await page.evaluate(() => document.scrollingElement.scrollLeft)).toBe(0);
+  const back = page.locator(".settings-back");
+  if ((page.viewportSize()?.width ?? 1500) > 760) {
+    await expect(page.locator('.settings-nav-item[aria-current="true"]')).toHaveText("Sincronizar");
+    await expect(back).toBeHidden();
+    return;
+  }
+  // Straight to the page: its title, the way back, no row of tabs.
+  await expect(page.locator(".settings-title")).toHaveText("Sincronizar");
+  await expect(page.locator(".settings-nav")).toBeHidden();
+  await expect(back).toBeVisible();
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await back.click();
+  // The list: every group named, every page a row of 44 px or more, the page not shown.
+  await expect(page.locator(".settings-body")).toBeHidden();
+  await expect(page.locator(".settings-nav-group-header")).not.toHaveCount(0);
+  const rows = page.locator(".settings-nav-item");
+  for (const h of await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(Math.round(h)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= document.scrollingElement.clientWidth)).toBe(true);
+  // A tap opens the page; the search shows its results over the list.
+  await rows.nth(1).click();
+  await expect(page.locator(".settings-title")).toBeVisible();
+  await back.click();
+  await page.locator(".settings-search").fill("idioma");
+  await expect(page.locator(".settings-body")).toBeVisible();
+  await expect(page.locator(".settings-nav")).toBeHidden();
 });
 
 // Android keyboards (Gboard, Samsung) type through composition: the `[[` that
@@ -504,3 +538,61 @@ for (const [title, steps] of [
     expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
   });
 }
+
+test("a phone with every drawer closed has no shadow on its edges and no empty tab row @layout", async ({ app, page }) => {
+  await app.open();
+  if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
+  await page.evaluate(() => document.body.classList.remove("side-open", "right-open"));
+  for (const sel of ["aside.side", "aside.right"]) {
+    expect(await page.locator(sel).evaluate((e) => getComputedStyle(e).boxShadow)).toBe("none");
+  }
+  if ((await page.locator(".pane .tab").count()) === 0) await expect(page.locator(".pane .tabs")).toBeHidden();
+  if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/closed-${process.env.SHOT_TAG ?? "after"}-390.png` });
+});
+
+test("a phone's note row: the place and the modes share one compact row, the fold button is whole and clear of the bell, tabs are 44 px @layout", async ({ app, page }) => {
+  await app.open();
+  if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
+  await app.quickOpen("01 - Guia");
+  const crumbs = await page.locator(".leaf-head .crumbs").first().boundingBox();
+  const modes = await page.locator(".leaf-head .modes").first().boundingBox();
+  const vw = page.viewportSize().width;
+  // The box includes 2rem of fade at its start (a negative margin): the place itself starts inside the screen.
+  expect(crumbs.x + 32).toBeGreaterThanOrEqual(0);
+  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(vw + 1);
+  // One row (2026-10-30, the maintainer): the place gives way to the segmented modes, which stay whole.
+  expect(modes.x + modes.width).toBeLessThanOrEqual(vw + 1);
+  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(modes.x + 1 + 32);
+  expect(modes.y).toBeLessThan(crumbs.y + crumbs.height);
+  expect(modes.height).toBeLessThanOrEqual(44);
+  const fold = await page.locator(".pane-fold").first().boundingBox();
+  const bell = await page.locator(".notify-bell-phone").first().boundingBox();
+  expect(fold.width).toBeGreaterThanOrEqual(44);
+  expect(fold.x + fold.width).toBeLessThanOrEqual(bell.x + 1);
+  expect(bell.height).toBeGreaterThanOrEqual(44);
+  expect((await page.locator(".pane .tabs").first().boundingBox()).height).toBeGreaterThanOrEqual(44);
+  expect(await page.locator(".pane-fold").first().getAttribute("title")).toBeTruthy();
+});
+
+test("a phone's search: a 44 px field, a long name beside its icon, a title without .md, a snippet as plain text; the palette has no key hints @layout", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Um nome de arquivo muito longo para caber numa gaveta de celular inteira.md", "---\ntitle: Dragão\n---\n\nO **dragão** dorme no [[Porto]].\n");
+  await tree(app);
+  const search = page.locator("#search");
+  await search.fill("dorme");
+  const row = page.locator('#notes li[data-path^="Um nome de arquivo"] > button.row');
+  await expect(row).toBeVisible();
+  await expect(row.locator(".row-name")).not.toContainText(".md");
+  const snippet = await row.locator(".snippet").innerText();
+  expect(snippet).not.toMatch(/\*\*|title:|---|\[\[/);
+  await expect(row.locator(".snippet mark")).toHaveCount(1);
+  const icon = await row.locator(".icon").first().boundingBox();
+  const label = await row.locator(".row-name").boundingBox();
+  expect(Math.abs(icon.y + icon.height / 2 - (label.y + label.height / 2))).toBeLessThan(12);
+  if (phone(page)) expect((await search.boundingBox()).height).toBeGreaterThanOrEqual(43);
+  await search.fill("");
+  await app.key("Mod+Shift+p");
+  await expect(page.locator(".palette .quick-list li").first()).toBeVisible();
+  await expect(page.locator(".palette .quick-list kbd")).toHaveCount(phone(page) ? 0 : await page.locator(".palette .quick-list kbd").count());
+  if (phone(page)) await expect(page.locator(".palette .quick-list li", { hasText: /console/i })).toHaveCount(0);
+});

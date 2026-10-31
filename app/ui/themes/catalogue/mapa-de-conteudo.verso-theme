@@ -1,0 +1,51 @@
+{
+  "verso-theme": 1,
+  "name": "Mapa de Conteúdo",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "LYT Mode",
+    "author": "Nick Milo",
+    "repoUrl": "https://github.com/nickmilo/LYT-Mode",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#2d3039",
+      "--paper-2": "#1e1f24",
+      "--hair": "#646464",
+      "--ink": "#b9c3df",
+      "--ink-2": "#a0a7bb",
+      "--seal": "#b9c3df",
+      "--brass-ink": "#d9d617",
+      "--code-paper": "#23242a",
+      "--code-ink": "#b9c3df",
+      "--h1-color": "#d9d617",
+      "--h2-color": "#b894ff",
+      "--h3-color": "#0dc8f2",
+      "--h4-color": "#72d5a5",
+      "--h5-color": "#b9c3df",
+      "--h6-color": "#9fa7bc",
+      "--red": "#fb464c",
+      "--orange": "#e9973f",
+      "--yellow": "#e0de71",
+      "--green": "#44cf6e",
+      "--cyan": "#53dfdd",
+      "--blue": "#027aff",
+      "--purple": "#a882ff",
+      "--pink": "#fa99cd"
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "--mono": "mono",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "sharp",
+    "heading-weight": "bold",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "hr-style": "thin"
+  }
+}

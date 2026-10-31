@@ -1,0 +1,7 @@
+name: A sample antagonist
+difficulty: 3
+pools:
+  physical: 5
+  social: 3
+  mental: 4
+notes: A note of our own, not a book's.

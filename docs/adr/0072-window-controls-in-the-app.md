@@ -14,6 +14,17 @@
   [0069](0069-windows-port.md) (Windows), [0071](0071-linux-port.md)
   (Linux), [0035](0035-cross-cutting-requirements.md) (accessibility).
 - Status in the briefing: not present
+- Revisions: 2026-10-20 — the window's zoom. The maintainer: *"por que
+  ctrl+scroll ou command + e - não arrumam o zoom?"* (why don't
+  ctrl+scroll or command + and - change the zoom?). `[DECIDED 2026-10-20]`:
+  Cmd/Ctrl `+` and `-` and Ctrl with the wheel (a trackpad's pinch) zoom
+  the whole window, as Obsidian and a browser do; Cmd/Ctrl `0` returns to
+  100 %. `[DECIDED 2026-10-21]` (0072.z, option A: approved as built, in
+  `zoomCore.ts` and `zoom.ts`): 50 % to 200 % in steps of 10 %; kept per device (it
+  depends on the screen), not with the account; over a board, a map, a PDF
+  or the graph the pinch and Ctrl with the wheel keep zooming that view;
+  in the browser version the browser's own zoom applies and Verso does
+  not take the keys.
 
 ## Context
 
@@ -143,3 +154,44 @@ port") is met by the port (ADR 0071): on Linux a folder's window has no
 system title bar either, and the app draws minimize, maximize and close at
 the top right, as on Windows. The window is built hidden and shown once
 built, because KDE's KWin otherwise kept its own bar.
+
+As built 2026-10-22: the top row no longer follows the font size setting
+(2.45rem of a root that no longer changes); the font size now sizes the notes'
+text only (see ADR 0100, as-built note of the same day). Recorded, not decided.
+
+Decided 2026-10-22 by the maintainer: (1) the font size sizes the notes only
+(*"deveria ser"*), so the top row keeps its own size; (2) the macOS menu bar's
+tabletop menu is named "RPG" (*"pode ser RPG mesmo"*); (3) Windows and Linux get
+a menu like Obsidian's "Obsidian frame" — a menu button in the window's corner
+opening the same menus as the Mac bar, Alt and Alt+letter opening them — (*"como
+é o Obsidian no Windows e no Linux? Poderíamos seguir similar"*); being built.
+
+As built 2026-10-22 (item 3 above): the menu button (☰, "Menu") sits in the
+window's top-left corner on Windows and Linux, over the ribbon's width, which
+starts below it as on the Mac. It opens the Mac bar's menus from the same
+spec (`menu_spec.rs`, exposed as the `menu_sections` command): File, Edit,
+View, Go, RPG, Window, Help, each row with its key (Ctrl for ⌘), the rows of
+a feature that is off left out, the rows the palette cannot run grey, and
+Settings… and Quit at the end of File (the Mac has them in the app menu).
+Items run the palette's command. Alt alone opens it; Alt and the underlined
+letter opens one (pt: A E V I R J U; en: F E V G R W H, chosen so that no
+letter repeats and none is a key the window binds with Alt alone). Not built:
+a menu in the browser window or on a phone. Recorded, not decided.
+
+**The right panel's tab bar, on Windows and Linux (2026-10-23).** The
+maintainer, from the Windows app: *"no windows os botões no topo tão bem ruim
+e encavalado. deveria ter opção de reordenar com drag and drop como noutras
+partes do sistema"*. The bar of the right panel's tabs reached the corner of
+the app's own buttons and its tabs shrank one against the other. Decided in
+the code, to confirm: a tab keeps its size (2.25rem) and its gap; the room
+the bar has is what is left of the row after the corner (`frame.ts` pushes
+the bar clear of it sideways, and the right bar is never sent down for want
+of room); the tabs that do not fit leave the bar for a **⋯** button ("More
+panel tabs") that lists them, and the chosen tab always stays in the bar. The
+person reorders the tabs by dragging them along the bar (a pointer drag, as
+the ribbon's: HTML5 drag and drop is dead in the WKWebView), by **Alt+←/→**
+on a focused tab, or from the tab's menu (**Move left / Move right**); the
+order is kept in the window's storage (`verso.rightTabOrder`) and a tab newer
+than the saved order goes where it stands among the defaults
+(`app/ui/src/panel/tabStrip.ts`; tried in `e2e/right-tabs.spec.mjs` with the
+Windows frame and platform emulated).

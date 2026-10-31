@@ -55,14 +55,16 @@ function showHelp(opener: HTMLElement): void {
   close.focus();
 }
 
+// localStorage is per origin: dismissed once for this server, not for every session.
 const SEEN = "verso.plainHttp.seen";
 
-/** Once a session, a small notice at the top of the window, closable;
- *  closed, its line stays in the settings where each feature lives. */
+/** A slim bar in the work area's own notices row (the panes shrink, nothing
+ *  is covered), closable; closed, it stays closed for this server, and the
+ *  status bar's mark and the settings' lines keep saying it. */
 export function plainHttpNotice(): void {
   if (!plainHttp()) return;
   try {
-    if (sessionStorage.getItem(SEEN)) return;
+    if (localStorage.getItem(SEEN)) return;
   } catch {
     // No storage: said at each start, which is the safe side.
   }
@@ -71,12 +73,25 @@ export function plainHttpNotice(): void {
   close.addEventListener("click", () => {
     bar.remove();
     try {
-      sessionStorage.setItem(SEEN, "1");
+      localStorage.setItem(SEEN, "1");
     } catch {
       // Gone for as long as this page lives.
     }
   });
-  document.body.append(bar);
+  place(bar, 0);
+}
+
+/** Into the work area's notices row once the window has drawn it (the
+ *  folder's page comes after this is called). Never into the page's body:
+ *  there a flow bar breaks the window's layout (seen live 2026-10-26);
+ *  with no row after 10 s, the status bar's mark says it alone. */
+function place(bar: HTMLElement, tries: number): void {
+  const row = document.querySelector(".work-notices");
+  if (row) {
+    row.append(bar);
+    return;
+  }
+  if (tries < 100) setTimeout(() => place(bar, tries + 1), 100);
 }
 
 /** A mark that stays in the status bar while the page is on plain HTTP

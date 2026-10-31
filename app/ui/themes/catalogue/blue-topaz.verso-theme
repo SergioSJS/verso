@@ -1,0 +1,60 @@
+{
+  "verso-theme": 1,
+  "name": "Blue Topaz",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Blue Topaz",
+    "author": "whyt-byte & Pkmer",
+    "repoUrl": "https://github.com/pkm-er/Blue-Topaz_Obsidian-css",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#ffffff",
+      "--paper-2": "#fcfcfc",
+      "--hair": "#dddddd",
+      "--ink": "#0e0e0e",
+      "--ink-2": "#7f7f7f",
+      "--seal": "#2f93e4",
+      "--brass-ink": "#08377d",
+      "--code-paper": "#e6e6e6",
+      "--code-ink": "#000000",
+      "--h1-color": "#08377d",
+      "--h2-color": "#004fa8",
+      "--h3-color": "#0e63b9",
+      "--h4-color": "#3482c5",
+      "--h5-color": "#4e99e0",
+      "--h6-color": "#5399db"
+    },
+    "dark": {
+      "--paper": "#202020",
+      "--paper-2": "#151515",
+      "--hair": "#343434",
+      "--ink": "#c6c6c6",
+      "--ink-2": "#8a8a8a",
+      "--seal": "#2d82cd",
+      "--brass-ink": "#96c22e",
+      "--code-paper": "#111111",
+      "--code-ink": "#d0d0d0",
+      "--h1-color": "#96c22e",
+      "--h2-color": "#4cb148",
+      "--h3-color": "#3abbbb",
+      "--h4-color": "#75a2e6",
+      "--h5-color": "#b296f3",
+      "--h6-color": "#eaa5f8"
+    },
+    "--heading-font": "editorial",
+    "--book": "editorial",
+    "--mono": "mono",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "outline",
+    "radius": "soft",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "panel",
+    "callout-style": "title-bar",
+    "hr-style": "line"
+  }
+}

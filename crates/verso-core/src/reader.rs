@@ -260,6 +260,20 @@ impl Workspace {
         let revision = self.reader_revision(&path, &shown, &stamp)?;
         // Every position from the projection itself, never the index's: a
         // block made secret since the last index run is not named.
+        self.note_over(path, shown, revision, (stale, unverified))
+    }
+
+    /// The note `path` as a text `shown` makes it: its HTML, headings,
+    /// ids, properties and type all from `shown`, never the index's. A
+    /// reader's projection, and what the table's veil leaves of it (ADR
+    /// 0110 item 4, [`Self::note_as_veiled`]).
+    fn note_over(
+        &self,
+        path: String,
+        shown: String,
+        revision: String,
+        (stale, unverified): (bool, bool),
+    ) -> Result<NoteText, CoreError> {
         let document = verso_dialect::parse(&shown);
         let html = verso_dialect::to_html_with(&shown, &document);
         let schema_blocks = document.schemas.iter().map(typed::notice).collect();
@@ -299,6 +313,36 @@ impl Workspace {
             text: shown,
             path,
         })
+    }
+
+    /// `note` as a player of a table is served it: the same note over the
+    /// text `shown`, which the table's veil made (links to notes not yet
+    /// released drawn as text, ADR 0110 item 7). Everything derived from
+    /// the text is derived again from `shown`.
+    pub fn note_as_veiled(&self, note: NoteText, shown: String) -> Result<NoteText, CoreError> {
+        let flags = (note.stale, note.unverified);
+        self.note_over(note.path, shown, note.revision, flags)
+    }
+
+    /// The path `target`, written in the note at `source` as a link or an
+    /// embed, reaches now: a note by the index's rule, else a file (spec
+    /// Q12). `None` when it reaches nothing.
+    #[must_use]
+    pub fn reached_path(&self, source: &str, target: &str) -> Option<String> {
+        self.reach(source, target)
+            .ok()
+            .flatten()
+            .map(|r| r.path().to_owned())
+    }
+
+    /// The path a board's `file` node reaches: the one at that path from
+    /// the root (ADR 0057).
+    #[must_use]
+    pub fn reached_exact(&self, target: &str) -> Option<String> {
+        self.reach_exact(target)
+            .ok()
+            .flatten()
+            .map(|r| r.path().to_owned())
     }
 
     /// [`Self::read_text`] as a reader receives it: a note's projection, a
@@ -386,9 +430,27 @@ impl Workspace {
             .map_err(CoreError::Index)
     }
 
+    /// [`Self::block_ids`] as a reader asks it: no block inside a secret
+    /// block (ADR 0087).
+    pub fn reader_block_ids(
+        &self,
+        kinds: &[crate::IndexBlockKind],
+    ) -> Result<crate::IndexBlockList, CoreError> {
+        self.index
+            .reader_folder_blocks(kinds)
+            .map_err(CoreError::Index)
+    }
+
     /// [`Self::graph`] as a reader asks it.
     pub fn reader_graph(&self) -> Result<Vec<(String, String)>, CoreError> {
         self.index.reader_graph().map_err(CoreError::Index)
+    }
+
+    /// [`Self::graph_unresolved`] as a reader asks it: without a link
+    /// inside a secret block.
+    pub fn reader_graph_unresolved(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let links = self.index.reader_all_links().map_err(CoreError::Index)?;
+        Ok(self.missing_of(links))
     }
 
     /// [`Self::tags`] as a reader asks it.

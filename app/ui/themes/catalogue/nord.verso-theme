@@ -1,0 +1,50 @@
+{
+  "verso-theme": 1,
+  "name": "Nord",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Nord",
+    "author": "Sven Greb (Arctic Ice Studio)",
+    "repoUrl": "https://github.com/nordtheme/nord",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#2e3440",
+      "--paper-2": "#3b4252",
+      "--hair": "#434c5e",
+      "--ink": "#d8dee9",
+      "--ink-2": "#6f7d98",
+      "--seal": "#88c0d0",
+      "--brass-ink": "#81a1c1",
+      "--code-paper": "#3b4252",
+      "--code-ink": "#e5e9f0",
+      "--h1-color": "#bf616a",
+      "--h2-color": "#ebcb8b",
+      "--h3-color": "#a3be8c",
+      "--h4-color": "#b48ead",
+      "--h5-color": "#8fbcbb",
+      "--h6-color": "#81a1c1",
+      "--red": "#bf616a",
+      "--orange": "#d08770",
+      "--yellow": "#ebcb8b",
+      "--green": "#a3be8c",
+      "--cyan": "#8fbcbb",
+      "--blue": "#81a1c1",
+      "--purple": "#b48ead"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "--mono": "mono",
+    "font-size": 16,
+    "table-style": "striped",
+    "tag-style": "pill",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "hr-style": "line"
+  }
+}

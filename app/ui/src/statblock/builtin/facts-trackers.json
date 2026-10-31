@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "facts-trackers",
+  "name": { "pt": "Fatos e contadores", "en": "Facts and trackers" },
+  "description": {
+    "pt": "Para qualquer sistema: um nome, o que é, uma descrição, uma lista de fatos e contadores de vida, estresse e relógio. Rola só os dados escritos como dados (2d6, 1d10+2).",
+    "en": "For any system: a name, what it is, a description, a list of facts, and trackers for health, stress and a clock. It rolls only dice written as dice (2d6, 1d10+2)."
+  },
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    { "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b", "template": "$1" }
+  ],
+  "appearance": {},
+  "blocks": [
+    { "type": "inline", "id": "top", "properties": [], "rule": true, "nested": [
+      { "type": "group", "id": "titles", "properties": ["name", "type"], "nested": [
+        { "type": "heading", "id": "name", "properties": ["name"], "size": 1, "fallback": "" },
+        { "type": "subheading", "id": "kind", "properties": ["type"], "hideWhenEmpty": true, "separator": ", " }
+      ] },
+      { "type": "image", "id": "image", "properties": ["image"], "hideWhenEmpty": true }
+    ] },
+    { "type": "text", "id": "description", "properties": ["description"], "hideWhenEmpty": true, "dice": true },
+    { "type": "group", "id": "trackers", "properties": ["health", "health_max", "stress", "stress_max", "clock", "clock_size"], "hideWhenEmpty": true, "rule": true, "nested": [
+      { "type": "tracker", "id": "health", "properties": ["health", "health_max"], "label": { "pt": "Vida", "en": "Health" }, "hideWhenEmpty": true, "current": "health", "max": "health_max", "style": "number" },
+      { "type": "tracker", "id": "stress", "properties": ["stress", "stress_max"], "label": { "pt": "Estresse", "en": "Stress" }, "hideWhenEmpty": true, "current": "stress", "max": "stress_max", "style": "boxes" },
+      { "type": "tracker", "id": "clock", "properties": ["clock", "clock_size"], "label": { "pt": "Relógio", "en": "Clock" }, "hideWhenEmpty": true, "current": "clock", "max": "clock_size", "style": "boxes" }
+    ] },
+    { "type": "traits", "id": "facts", "properties": ["facts"], "label": { "pt": "Fatos", "en": "Facts" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "actions", "properties": ["actions"], "label": { "pt": "Ações", "en": "Actions" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "text", "id": "notes", "properties": ["notes"], "label": { "pt": "Notas", "en": "Notes" }, "hideWhenEmpty": true, "dice": true }
+  ]
+}

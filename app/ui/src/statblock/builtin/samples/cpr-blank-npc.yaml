@@ -1,0 +1,12 @@
+name: A sample NPC
+stats:
+  REF: 6
+  DEX: 6
+  BODY: 6
+hit_points: 25
+hit_points_max: 25
+armor_body: 4
+weapons:
+  - name: A sample weapon
+    desc: 2d6
+notes: A note of our own.

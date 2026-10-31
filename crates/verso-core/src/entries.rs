@@ -39,6 +39,22 @@ impl Workspace {
             .into_owned())
     }
 
+    /// [`Self::entry_key`] for a path something is to be written, created
+    /// or moved at: the folder's data directories, `.verso/layouts/` and
+    /// `.verso/bundles/`, are written only through the four folder data
+    /// commands, which check the id, the kind's bound and that the text is
+    /// one JSON object (ADR 0099 item 2, ADR 0098 item 2). Sync writes them
+    /// by `write_bytes`, which does not come through here.
+    pub(crate) fn write_key(&self, path: &str) -> Result<String, CoreError> {
+        let key = self.entry_key(path)?;
+        if crate::folder_data::in_data_dir(&key) {
+            return Err(CoreError::FolderData(format!(
+                "{key} is written through the folder data commands only"
+            )));
+        }
+        Ok(key)
+    }
+
     /// Where an entry is on disk, for the host to hand to the system's
     /// file manager. The one absolute path that leaves this crate besides
     /// [`Self::folder`]; it goes to the operating system, never across
@@ -62,7 +78,7 @@ impl Workspace {
     /// knew. An attachment's linkers are the notes whose embeds name it.
     pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
         let old = self.entry_key(from)?;
-        let new = self.entry_key(to)?;
+        let new = self.write_key(to)?;
         // Inside the folder's settings directory a move is the file's
         // alone, never a note's nor the index's; into or out of it, none
         // (ADR 0070).
@@ -109,7 +125,7 @@ impl Workspace {
         let dest = if folder.is_empty() {
             String::new()
         } else {
-            self.entry_key(folder)?
+            self.write_key(folder)?
         };
         let mut keys = Vec::new();
         for p in paths {
@@ -286,9 +302,56 @@ impl Workspace {
         self.index.web_notes().map_err(CoreError::Index)
     }
 
+    /// Every `^id` block of the folder's notes of the given kinds (all
+    /// when none is given), bounded: what the oracle looks for tables in.
+    pub fn block_ids(
+        &self,
+        kinds: &[crate::IndexBlockKind],
+    ) -> Result<crate::IndexBlockList, CoreError> {
+        self.index.folder_blocks(kinds).map_err(CoreError::Index)
+    }
+
     /// Every resolved link of the vault, source then target: the graph.
     pub fn graph(&self) -> Result<Vec<(String, String)>, CoreError> {
         self.index.graph().map_err(CoreError::Index)
+    }
+
+    /// Every link no note and no file answers to, as a pair of the note it
+    /// is written in and the name it points at: what the graph can show as
+    /// notes that do not exist yet (spec Q14, decision B). Once per note and
+    /// name, a name spelled several ways shown under its smallest spelling.
+    /// An empty target (`[[#Heading]]`) and one that cannot name a note
+    /// (`[[nota/]]`) are no missing note.
+    pub fn graph_unresolved(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let links = self.index.all_links().map_err(CoreError::Index)?;
+        Ok(self.missing_of(links))
+    }
+
+    pub(crate) fn missing_of(&self, links: Vec<verso_index::VaultLink>) -> Vec<(String, String)> {
+        let mut spelling: std::collections::BTreeMap<String, String> = Default::default();
+        let mut pairs: std::collections::BTreeSet<(String, String)> = Default::default();
+        for l in links {
+            let Some(key) = verso_index::target_key(&l.target).filter(|k| !k.is_empty()) else {
+                continue;
+            };
+            if l.resolved.is_some() || self.resolve_file(&l.from, &l.target).is_some() {
+                continue;
+            }
+            let shown = spelling
+                .entry(key.clone())
+                .or_insert_with(|| l.target.clone());
+            if l.target < *shown {
+                *shown = l.target.clone();
+            }
+            pairs.insert((l.from, key));
+        }
+        pairs
+            .into_iter()
+            .map(|(from, key)| {
+                let target = spelling.get(&key).cloned().unwrap_or_default();
+                (from, target)
+            })
+            .collect()
     }
 
     /// Every tag of the vault with its notes (frontmatter and `#tag`).
@@ -389,6 +452,21 @@ impl Workspace {
             .map_err(CoreError::Confined)?;
         let handle = self.root.handle(&confined).map_err(CoreError::Confined)?;
         self.root.placeholder(handle).map_err(CoreError::Read)
+    }
+
+    /// The make.md focuses file (`.space/waypoints.json`), when its content
+    /// is only in the cloud, for the window to fetch on the person's click
+    /// (ADR 0043, amended on 2026-10-27). Named without a path: `placeholder`
+    /// refuses it, as it refuses every hidden entry.
+    pub fn waypoints_placeholder(&self) -> Result<Option<verso_fs::Placeholder>, CoreError> {
+        self.root.waypoints_placeholder().map_err(CoreError::Read)
+    }
+
+    /// The bytes the disk under the folder can still take: what a download
+    /// from the cloud is checked against before it starts (ADR 0043,
+    /// decided on 2026-10-27).
+    pub fn free_space(&self) -> Result<u64, CoreError> {
+        self.root.free_space().map_err(CoreError::Folder)
     }
 
     /// The bytes of a file of the folder that is not a note (an image,

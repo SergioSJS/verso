@@ -94,6 +94,16 @@ point 13).
    Caught: an import that wrote nothing said "imported" and left no trace;
    a folder imported from an older demo never got the tutorial's new
    sections ("0 created, 28 kept").
+4. With the window in English, import into an empty folder. Expect: the
+   English vault of `demo-vault-en/` (file names such as `00 - Welcome to
+   Verso.md` and `Verso Tour.canvas`) plus the shared `assets/` of
+   `demo-vault/`, no Portuguese note; the English welcome note opens, the
+   tour opens with its stops in English, and a translated note opens from it.
+   The palette's "Import the demo content in Portuguese (Português)" writes
+   the Portuguese vault instead (and, in a Portuguese window, "Importar cofre
+   de exemplo em inglês (English)" the English one). Level: S (`node
+   scripts/demo-vault.mjs check` holds the two vaults as twins), H; E:
+   `demo-vault-en.spec.mjs`.
 
 ## 2. The tour
 
@@ -257,8 +267,19 @@ point 13).
     Tab or Enter writes the link, Esc or typing on dismisses it and the name
     is not offered again in that paragraph; nothing shows inside code, a
     link or the properties header, nor for the note itself; on a phone the
-    chip is tapped. Level: S, U (`test/linkSuggest.test.mjs`, with the
-    10,000-note benchmark), H; E: `typing-links.spec.mjs`.
+    chip is tapped. Revised 2026-10-20: typing the start of a name (three
+    letters, a capital first word: "Por", "Porto C") lists up to five notes
+    and aliases that begin with it, arrows choose, Tab or Enter writes the
+    link over the typed words, Esc dismisses the list for that word; the
+    whole-name chip stays after a space or a comma until the next word
+    starts, and Tab then links the name without the space. And, on by
+    default (Settings › Editor › "Citar uma nota com @"), `@` at the start
+    of a word opens the `[[` note list: choosing writes `[[Name]]` over the
+    `@` and what was typed, Esc leaves the text, `fulano@mail` and code,
+    links, math and tags never open it; the `[[` list wins over the `@`
+    list, which wins over the partial list. Level: S, U
+    (`test/linkSuggest.test.mjs`, `test/linkSuggestPartial.test.mjs`, with
+    the 10,000-note benchmark), H; E: `typing-links.spec.mjs`.
 15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
     "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
     total, each die and what was added in a card beside it, with "Rolar de
@@ -485,6 +506,25 @@ point 13).
    `crates/verso-server/src/tests_history.rs` (the server's: roles, rooms,
    renames, the console); A: the history file outside the folder and a
    room's restore in two browsers (`manual-checks.md`).
+13. The folder switcher (the button with the folder's name): each recent
+    folder but the open one has a **×**, named "Ocultar “<name>” da lista"
+    (a 44 px target on a phone); it takes the folder off the list, says so
+    in a notice with the way back, and nothing is deleted. Closed and
+    opened again it stays off. *Settings › Files and links › Show hidden
+    folders* brings them all back. Level: H; E: `folder-switcher-hide.spec.mjs`
+    (also at a phone's and a tablet's size); U: `hiddenFolders.test.mjs`;
+    A (the real folder list of the app).
+14. Drag a file from the Finder or Explorer onto the tree, a folder in it
+    and its empty part: in the desktop app the folder under the pointer
+    is marked while the drag is over it, the file is copied in by the app
+    itself (up to *Settings › Files and links › Largest imported file*, a
+    200 MB PDF with the limit raised) and the status line says it, a name
+    taken getting `(2)`; a file past the limit is named. A file dropped on a
+    note's text or on a board is taken in as before (32 MB). Level: A (the
+    real drag on macOS and Windows: Tauri's drag-and-drop events replace
+    the page's drop there); H for the window's side; E: `drop-host.spec.mjs`
+    (the harness plays the host); S: `app/src-tauri/src/tests_pick.rs`
+    (the host keeps the paths, the window gets names).
 
 ## 7. The web
 
@@ -538,6 +578,13 @@ point 13).
    a drag writes nothing. Level: H; E: `board-file.spec.mjs`.
 8. A card moved and the move undone (⌘Z) before the save: the tab closes
    clean, nothing written. Level: H; E: `board-file.spec.mjs`.
+9. A Markdown text card (ADR 0057, 2026-10-23): the toolbar's *Text card*
+   button, and a double click (a double tap on a phone) on an empty spot of
+   the board, ask for a text and add a card there; a `dice:` code in it is a
+   die. A double click on a card still edits that card; with *Settings ›
+   Board › Double click on the board creates* on *Drawn text* an empty spot
+   writes Excalidraw's drawn text; a reader's double click does nothing.
+   Level: H; E: `board-text-card.spec.mjs`.
 
 ## 9. The practice board
 
@@ -631,6 +678,45 @@ point 13).
     H (the pins, the tools, the tiles on the harness's tile answers, the
     reader's board on its projection), A (the real tiles, the real server,
     a phone); E: `maps.spec.mjs`.
+13. Lesson 14, a web page on a card (ADR 0057 point 10, ADR 0056): the
+    card of `example.com` asks first ("Permitir sempre"); the click checks
+    the site, and a site that forbids framing says so in the card before it
+    is approved ("Permitir mesmo assim" goes on). Approved, the page shows
+    in a frame below a head with the origin; the board's drag and zoom keep
+    the pointer until the card is entered (a click in its middle, or the
+    "Interagir com a página" button), then the page scrolls and takes the
+    clicks; "Sair da página", a click outside, or Esc with the focus on the
+    head returns to the board. "Inserir › Página web…" asks for an address
+    and adds a `link` node with `verso.page`; a plain link card is switched
+    with "Mostrar página" / "Mostrar como link". A site that refuses shows
+    "Este site não permite ser incorporado" and a link to a tab; the native
+    clipped web view is never used in a board. The image export draws the
+    card as its box with the origin. In a note: approving a site that
+    forbids framing shows the warning first, worded for what this system
+    does with it. Level: H (the card, the warning, the file), A (the frame
+    inside the board's zoom and the card's clipping in WKWebView, WebView2
+    and WebKitGTK; the real headers of a real site); E:
+    `board-web-card.spec.mjs`, `web-embed.spec.mjs`.
+
+14. Lesson 15, a data file on a card (ADR 0057 point 10, ADR 0106, ADR
+    0103): the card of `npcs-da-campanha.json` shows the file's text, in the
+    source editor's colours, scrollable once the card is entered; nothing
+    is an empty box (a sound, an `.html`, a board or a base on a card says
+    what it is). "Texto | Diagrama" in the head switches to the boxes and
+    lines; the choice is `verso.view` on the node and survives closing the
+    board, the data file is never written. The diagram takes the pointer
+    only when entered ("Interagir com o diagrama"): a drag on its
+    background pans it and the card stays; Esc, "Sair do diagrama" or a
+    click outside returns to the board. "Abrir" opens the file's tab in the
+    view the card shows. The card follows the file when it changes on disk.
+    A file over 64 KB shows its first 64 KB and an ellipsis; over 20 MB or
+    200,000 boxes the diagram says why and the text shows. With "Diagrama
+    de dados" off the card is text only and has no toggle (the node keeps
+    its view). The image export draws the card as its box with the name and
+    the first lines of text. A `.yaml` has both views too. Level: H, A (the
+    real drag in the board's zoom, WKWebView, WebView2 and WebKitGTK); E:
+    `board-data-card.spec.mjs`; U: `board.test.mjs` (the mode, the 64 KB
+    cut).
 
 ## 10. Settings, help, the command line
 
@@ -639,11 +725,40 @@ point 13).
    button — verso.exe comes with the app) and the MCP snippets, which show
    the command the host would write; without Claude Desktop, "Baixar o
    Claude Desktop" opens its download page in the browser; Aparência's
-   *Tom do escuro* changes the dark theme's paper (Suave, Profundo,
+   *Tom do escuro* (under *Temas*, beside the theme mode and above the cards) changes the dark theme's paper (Suave, Profundo,
    Penumbra), and the ribbon's buttons each have a switch, the gear none.
    Level: H; E: `settings.spec.mjs`, the sections and Aparência;
    `dark-tone.spec.mjs`, every palette and tone at 4.5:1 or more;
-   `ribbon.spec.mjs`, a hidden button brought back.
+   `ribbon.spec.mjs`, a hidden button brought back. Aparência's
+   *Temas* gallery (ADR 0100): four cards of Verso's (Papel, Sépia,
+   Ardósia, Musgo), each a tiny page in that theme's own colours, the one in
+   use marked; a click (or Tab and Space) uses a theme at once; *Copiar*
+   makes "Cópia de …"; Verso's own have no *Editar*; *Editar* on one's own
+   opens the *Construtor de tema* in a tab, the settings page stepping
+   aside: a colour typed in changes the sample and the window at once, a
+   low-contrast one warns, one under 3:1 is undone with a message,
+   *Restaurar padrão* puts the draft back by keyboard; *Cancelar* (or
+   closing the tab and *Descartar*) puts the look back, *Salvar tema* keeps
+   it, and the settings page returns on the theme's card with the focus
+   there; a theme exported from its card and imported again (the button, or
+   the file dropped on the window) as it was; `assets/temas/Pergaminho.verso-theme`
+   applies; a hostile file is refused with the reason; a folder's
+   suggested theme is offered, shown as a card, and never applied by itself.
+   Level: H, A (the real file save: the host's download; the builder's tab
+   in the phone layout); E: `appearance-themes.spec.mjs`.
+   Second step (ADR 0109): *Mais temas…*, under the gallery, opens a dialog
+   with Verso's four and the catalogue's, a labelled search (name or author),
+   filters by Modo and Superfície, each card drawn with the theme's own tokens
+   and with its credit and link (Flexoki's names stephango.com/flexoki as a
+   link); a click uses the theme (a theme of one side takes Verso's mode to it,
+   said in the status), *Copiar* keeps the credit, Escape closes only the
+   dialog, a full screen with *Voltar* on a phone; *Créditos e agradecimentos*
+   lists the catalogue from the files' own credits; the *Construtor de tema*
+   groups Base (open), Títulos, Código, Cores das callouts and Estrutura, one at
+   a time on a phone, the sample page showing h1 to h6, code, a table, a tag and
+   a callout of each colour; a heading colour under 3:1 is undone. A version 1
+   theme looks exactly as before. E: `more-themes.spec.mjs`,
+   `themes-v2-builder.spec.mjs`, `themes-v2.spec.mjs`.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;
@@ -717,9 +832,25 @@ point 13).
     6 s unless the pointer is over it; a warning stays; the keyboard
     reaches a toast and Escape closes it, the focus going back where it
     was; a toast never takes the focus. With Settings open a toast stays
-    above it and its action works. On a phone the toasts are at the top,
-    the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
+    above it and its action works. On a phone the toasts are at the bottom,
+    above the bottom bar and the keyboard's bar, the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
     toasts" and "toasts sit above Settings" (phone and tablet too).
+11a. Someone joining a note or text file (2026-10-27; amended 2026-10-28:
+    the maintainer, "it should notify, but subtly"; a board's live line says
+    who is there): Presença starts at "Só na lista", so no toast on any
+    screen (it covered the table chat's box and last messages). The bell
+    counts the join and the list says it; beside "ao vivo" in the note the
+    newcomer's mark gets a ring for about 3 s (still and fading under
+    reduced motion), and the status line says "Bia entrou na nota." once.
+    Set Presença to "Aviso e lista" and the toast is back as before: in the
+    window in front and on the tab that shows the file, at the top on a
+    desktop (never over the chat's box nor the typing line), at the bottom
+    above the keyboard's bar on a phone (T.6), and the system's notification
+    when the window is behind and they are on. The same person back within
+    ten minutes says nothing (no ring either); people already in the note
+    when it opens say nothing. On 390x844 the bell does not cover the chat's
+    composer. Level: H (unit: `presenceNews.test.mjs`, `whoRing.test.mjs`,
+    `notify.test.mjs`); E: `notify.spec.mjs`, "presence".
 12. The bell, before "Relatar problema" (on a phone, at the top of the
     pane): named "Notificações" or "n notificações não lidas"; it opens
     the centre, as the palette's "Notificações" does — newest first, each
@@ -789,9 +920,9 @@ point 13).
    `Pasta/README.md` the folder's note — its sticker shows on the folder's
    row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names
    the note a folder's labels come from".
-6. Order and pins: "Mover para cima" on a row writes the folder note's
+6. Order and pins: "Organizar › Mover para cima" on a row writes the folder note's
    `order:`; "Fixar na pasta" writes `pinned:` and puts the row first;
-   "Desafixar da pasta" takes it out; "Ordem alfabética" in a folder's
+   "Desafixar da pasta" takes it out; "Organizar › Ordem alfabética" in a folder's
    menu, or the button beside "Arquivos", sorts the whole tree by name and "Ordem personalizada" brings every
    `order:` back, untouched; dragging a root note writes the root's note, named
    after the open folder. In a folder with no folder note, the first of
@@ -809,7 +940,7 @@ point 13).
    `Crew/Crew.md`, and its open tab follows. Level: H; E:
    `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
    its open tab follows".
-8. "Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
+8. "Organizar › Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
    ocultos da árvore" lists it, and "Mostrar" brings it back. Level: H; E:
    `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
    in settings restores it".
@@ -826,7 +957,7 @@ point 13).
 11. Focuses (ADR 0062): the right panel's "Focos" tab lists every focus, with
     Início first. Choosing a focus shows the file tree from its paths, and the
     heading shows the active focus (e.g. `ARQUIVOS · Projetos`). The context menu
-    on a tree item offers "Criar foco aqui" and "Adicionar ao foco…". "Trocar foco"
+    on a tree item offers "Organizar › Criar foco aqui" and "Organizar › Adicionar ao foco…". "Trocar foco"
     in the command palette switches focuses. If `.space/waypoints.json` is present
     and sync is enabled, changes write back preserving untouched bytes; if disabled
     or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
@@ -852,6 +983,13 @@ hand, on a phone and an iPad, the server's window in the browser.
    again, both panes are back. A pane under 520 px folds its tools into "…",
    which reaches "Ações da aba…". Level: H; E: `responsive.spec.mjs`, "a
    split layout on a phone" and "a pane under 520 px".
+2a. The tree on a finger (ADR 0060, 2026-10-30): a tap on a folder's row —
+   on its name, not only the arrow — opens or closes it; the row is 44 px
+   tall; the small folder button at the row's end opens the folder's page
+   (named "Abrir a página da pasta", a Tab stop of its own); a long press
+   opens the row's menu, whose first item is the same. With a mouse: the
+   arrow toggles, the name opens the page, no button. Level: H (a phone);
+   E: `tree-folder-tap.spec.mjs`.
 3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
    help speaks of the pinch; two fingers zoom it. Level: H; E:
    `responsive.spec.mjs`, "the graph" (two tests).
@@ -937,7 +1075,7 @@ rest below and in `manual-checks.md`.
    `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
    in another browser creates the account, opens the folder, and the window
-   says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the
+   shows a closed lock beside the folder's name (*Você só lê esta pasta*); the invitation shows *usado* and by whom; the
    link a second time is gone (e2e-server, "an invited reader").
 4. One note in two windows: what one types appears in the other, and a
    third window reads it from the disk (e2e-server, "two windows edit one
@@ -1034,8 +1172,11 @@ rest below and in `manual-checks.md`.
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
-    a note opened in *Editar* says *ao vivo, só você* beside its title and
-    in the status bar; another person in it is named (*ao vivo, com Bia*)
+    a note opened in *Editar* says *ao vivo, só você* beside its title (a
+    dot, the words in its tip and to a screen reader) and in the status bar;
+    each other person in it is a mark with their initial, named on hover
+    or tap (*ao vivo, com Bia* in the dot's tip); more than three marks
+    become two and a *+N*
     and their text arrives; what is typed goes to the room, never to the
     file, which follows the room's save; the link dropped, the note says
     *local — sem conexão*, keeps its text and saves it here; back, *A nota
@@ -1043,7 +1184,11 @@ rest below and in `manual-checks.md`.
     — sincronização pausada*; back in another room, the note is read anew
     with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
     online* off, the note leaves the room and, opened again, joins nothing
-    (e2e, `live.spec.mjs`). A property set in the panel of a live note —
+    (e2e, `live.spec.mjs`); in that state the note and the board tabs of a
+    synced folder show *Edição ao vivo desligada nesta pasta* (a button
+    that opens *Ajustes* › *Sincronizar*), gone again when the setting is
+    turned on, never on a server folder or a plain local one
+    (`liveOff.test.mjs`). A property set in the panel of a live note —
     a value, a checkbox — goes into the room beside what another person
     types there, never to the file, which follows the room's save; a
     sticker, a base's cell and a PDF's quote into a live companion note go
@@ -1148,9 +1293,465 @@ rest below and in `manual-checks.md`.
     real network, the checks in `manual-checks.md`. Level: H for the list,
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
-## 14. The end
+17. Files only in the cloud, downloaded from the sync card ([ADR
+    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 23,
+    section *Syncing a folder from this computer*): *Settings › Sync* lists
+    files not on this computer yet with *Baixar N arquivos (X MB)*; the size
+    is said before anything starts; a disk without room (or whose room cannot
+    be told) refuses, with the message, and downloads nothing; while it runs
+    *Baixando 12 de N…* is announced and *Parar* ends the run after the file
+    in hand; files that cannot come down stay listed with their reason and
+    the older `.Name.ext.icloud` form is listed as not downloadable from
+    here; a file already synced and sent back to the cloud is not in the card
+    but in the quiet line *estão só na nuvem; o servidor tem a cópia*. By
+    machine: `app/ui/e2e/sync-placeholders.spec.mjs` (the harness answers
+    `placeholder_plan` and `fetch_file`), `app/ui/test/syncPlaceholders.test.mjs`
+    and the Rust tests of `sync/cloud_only.rs` and `tests_sync1.rs`; by hand,
+    on real evicted iCloud files, the check in `manual-checks.md`. Level: H
+    for the card, A for iCloud; R: `scripts/demo-vault.mjs check` for the
+    note.
+
+## 14. Features, oracle, sheets and worlds (notes 26 and 27, the Fractal campaign)
+
+Open note 26 (*Fichas*, the sheets) and note 27 (*Oráculos e Criação de Mundos*,
+the features, the oracle and the wizard) in Leitura, in a folder that has the
+demo content. The steps below follow them (1 to 3 in note 27, 4 to 6 in note 26); the Fractal campaign is
+the folder `Campanha Fractal/` beside it ([ADR
+0098](../adr/0098-world-and-campaign-wizard-template-bundles.md), [ADR
+0099](../adr/0099-visual-markdown-statblocks-and-cards.md), [ADR
+0102](../adr/0102-creative-oracles-and-improvisation.md), [ADR
+0103](../adr/0103-feature-presets-and-capability-flags.md)).
+
+1. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* lists five switches, *Dados*, *Tabelas
+   sorteadas*, *Oráculos*, *Fichas* and *Assistente de mundo e campanha*, all
+   on; the shortcuts *Tudo* and *Só escrita* are in *Aplicação* › *Recursos*; the old "Modo de Uso" is
+   nowhere. *Só escrita* first says what it will turn off and does nothing on
+   *Cancelar*. Turn *Oráculos* off, close Settings: the `[!oracle]` callout of
+   the note is drawn with no *Consultar Oráculo* button, and ⌘⇧P offers no
+   *Oráculo (sim/não e faíscas)…*. Turn it on: the button is back. No file
+   changed (note 27 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
+   (the switch), `statblock.spec.mjs` and `world-wizard.spec.mjs` (the
+   others); U: `test/capabilities.test.mjs`.
+2. The oracle in the note. In the callout of note 27 *A patrulha da guarda ouviu o
+   barulho da invasão?* click *Consultar Oráculo*: the dialog opens with the
+   question filled in, three tabs (*Sim ou Não*, *Faíscas*, *Tabelas*) and the
+   five odds as a radio group. *Consultar* shows one of the six answers with
+   the d100; *Gravar no callout* writes one line into the callout and closes.
+   Again, same question: a second line below the first. Edit the question's
+   words in the dialog and consult: the lines the oracle wrote are replaced,
+   the line about the *oficial novato*, which was typed by hand, stays. With
+   the caret outside a callout, the button reads *Inserir na nota* and a new
+   callout appears at the caret, never inside a quote, a table or a code
+   fence. Level: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
+   `test/oracle.test.mjs`.
+3. The oracle's settings. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*
+   opens with one sentence of what the oracle does, *Experimentar o oráculo*
+   (the dialog opens over the page) and *Compartilhado com quem abre esta
+   pasta* — no file path anywhere. The odds are five bars split in the six
+   answers, with a legend; picking the style *Ironsworn* saves it at once in
+   the folder's settings and the bars lose their "mas…" parts; *Desfazer*
+   brings *Equilibrado* back. In *Ajustar à mão…*, setting *Quase certo*'s
+   *Não* to 3 shows *faltam 3%* and saves nothing; making the row 100 saves
+   it and the style reads *Personalizado*; *Voltar ao padrão* restores the
+   table. *Faíscas de ideias* has no language switch: off, its preview shows
+   the window's language (*Descobrir* in Portuguese, *Discover* in English);
+   *Usar minhas próprias palavras* turns the four lists into chips — Enter
+   adds (a comma list adds each), × or Delete removes, the last word of a
+   list stays and says why — each change saved by itself; *Voltar às
+   palavras do Verso* turns it off. *Nova tabela* writes a note holding a
+   list with a `^id` (the text shown first), and the oracle's *Tabelas* tab
+   then lists it with the note it comes from. Where the folder is only read
+   the page says why and every control is disabled. All of it holds at
+   340 px and in dark. In a room on a server the draw is the server's and
+   another window sees a notice with the asker's name. Level: H (the room:
+   the harness plays the server, `src/harness/room.ts`); E:
+   `oracle-settings.spec.mjs`; U: `test/oracleData.test.mjs`; the real room,
+   in `manual-checks.md`.
+4. Statblocks. Note 26 holds one card for each built-in layout (34), none with
+   an error badge, and `tutorial-sheets.spec.mjs` counts them. In the *Criatura
+   d20* card the dice (`+4 to hit`, `4 (1d4 + 2)`) roll with a click, the card says the
+   result and the note in Fonte is unchanged; the *PV atuais* buttons − and +
+   change `hp_current` and nothing else of the block. In the *Fatos e
+   contadores* card: a box of *estresse* or *relógio* marks up to it, clicking the
+   last one clears it; Tab, the arrows, Home and End work the group. *Ver
+   código* / *Ver ficha* switches in both views. Turn *Fichas* off: every
+   block is code. Level: H; E: `statblock.spec.mjs`; U:
+   `test/statblock.test.mjs`, `test/statblockRender.test.mjs`.
+5. Layouts. *Ajustes* › *RPG & Mesa Solo* › *Fichas e Templates* lists the
+   built-in layouts (the open systems, *Fractal — Personagem*, *Fractal —
+   Desafio*, and the generic ones) as *Embutido*. *Editar* on one copies it
+   into the folder, says so at the top of the editor, and shows the tree of
+   blocks beside the card drawn from a sample. *Adicionar bloco* lists the
+   types with a line each; a *Texto* block with a fixed text shows in the
+   card at once; *Salvar* writes `.verso/layouts/<id>.json` and the list now
+   shows the copy as *Da pasta*. Closing with unsaved changes asks first.
+   Moving a block by drag or Alt+arrows and ⌘Z: by hand (`manual-checks.md`).
+   Level: H; E: `layout-editor.spec.mjs`; U: `test/statblockEditor.test.mjs`,
+   `test/statblockFolder.test.mjs`.
+6. The Fractal campaign (`Campanha Fractal/Mundo`, opened from the card on the
+   tour or from note 26). The first line is Fractal's credit, word for word as
+   *Créditos e agradecimentos* has it. *Yara do Farol*: a click on a box of
+   *Fôlego* changes `reserva_2_atual` in Fonte and nothing else; *Quebrado* on
+   a fact strikes it, writes `quebrado: true` and moves the count (*N de 3
+   quebrados*); *Rolar (Fractal)* asks for the facts that apply and shows the
+   result as the system reads it. *Desafio - A Maré Sem Fim*: its first
+   obstacle is a link to *Arco - O Farol Apagado*, whose second is a link to
+   *Episódio - A Luz Estranha*; each link opens its note, and the graph shows
+   the three as a chain. *Sessão 01*: two oracle callouts with answers that
+   piled up; *Consultar Oráculo* on one adds a line and keeps the hand-written
+   ones. Level: H; E: `statblock.spec.mjs` (the card and its two writes);
+   S: `scripts/demo-vault.mjs check` (the links).
+7. The project wizard. ⌘⇧P › *Novo projeto a partir de modelo…* (or the create
+   menu): a name, a folder, four bundles, a preview that lists folders and
+   files. *Criar estrutura* writes nothing and shows *Confira o que será
+   criado*: every folder and file with a box and a name. Untick a folder and
+   the files inside it go with it; untick a note; *Criar agora* creates only
+   what is ticked and reports it; the first note opens. With *Assistente de
+   mundo e campanha* off, the command is gone. *Gerador com IA*: *Copiar
+   System Prompt para IA* copies and sends nothing; a bad pasted JSON answers
+   with the fault and *Copiar pedido de correção para a IA*. A valid pasted JSON,
+   *Validar e Importar*, becomes a card and the file `.verso/bundles/<id>.json`;
+   pasting it again keeps it under a new id and says so; with the window in
+   English the four built-in bundles list and create English folder and note
+   names (*Sessions*, *Templates/Session Log*); close the wizard and
+   open it again: the cards are still there (read from the folder). Level: H; E:
+   `world-wizard.spec.mjs`; U: `test/bundles.test.mjs`, `test/bundleStore.test.mjs`.
+8. *Ajustes* › *Aplicação* › *Créditos e agradecimentos*: the people and
+   works the app starts from, the notices of the shipped layouts and the open
+   software, each with *Abrir* that opens its site in the browser. Level: H
+   (the page); A (the link opening in the system's browser); U:
+   `test/credits.test.mjs`.
+
+## 15. Structured data as a diagram (note 28, the sample files)
+
+Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
+`Dados de Exemplo/` in a folder that has the demo content ([ADR
+0106](../adr/0106-structured-data-as-a-diagram.md)).
+
+1. `npcs-da-campanha.json` opens as text, with *Texto | Diagrama* at the top of
+   the tab. *Diagrama* draws boxes and lines: the root, *npcs* with its three
+   people, each with *itens* and *segredo*, and *locais*. A cut value has a
+   *…* that shows all of it; Esc closes. *Texto* brings the editor back, and
+   the file on disk is as it was (nothing is ever written by the diagram).
+   Level: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs`.
+2. Drag a box by its title: what hangs under it goes along; with Alt held,
+   only the box. Close the tab, open the file again as a diagram: the boxes
+   stand where they were put. *Arrumar de novo* puts them back. Level: H; E:
+   `datagraph.spec.mjs`.
+3. Fold a branch with its arrow or Enter: the box says *3 itens* or *6
+   chaves* and what hung under it is gone; *Recolher tudo*, *Expandir tudo*
+   and *Expandir até o nível…* do the same for all. Search *revelada*: the
+   match inside a folded branch opens the way to it; Enter and Shift+Enter
+   go on and back, Esc clears. Level: H; E: `datagraph.spec.mjs`.
+   On a phone (390 wide) the toolbar is one row of icons (search, zoom out,
+   zoom in, fit, "…"); the "…" menu holds *Recolher tudo*, *Expandir tudo*,
+   *Expandir até o nível…*, direction, *Arrumar de novo*, *Salvar como
+   board…*; the search opens over the row; the one-line hint is dismissed
+   for good. Level: H; E: `datagraph-phone.spec.mjs`.
+4. Open the same file in a second pane (⌘\) as text and click a box: its range
+   is selected in the text; put the caret in the text and the box holding it
+   is marked; type a letter and the diagram follows after a pause; break the
+   JSON and the last diagram stays under a line with the error and *Ir ao
+   erro*, which goes to the place. Level: H; E: `datagraph.spec.mjs`.
+5. By keyboard only: Tab into the diagram, ↓ ↑ between siblings, ← to the
+   parent, → to the first child, Enter or Space folds, Alt+arrows moves the
+   box, T goes to the text, / to the search. A screen reader reads a tree,
+   with levels and *expandido*/*recolhido* (VoiceOver: by hand,
+   `manual-checks.md`). Level: H; E: `datagraph.spec.mjs`.
+6. Right-click a row: *Copiar caminho* gives `$.npcs[0].itens`, *Copiar valor*
+   the value. Level: H; E: `datagraph.spec.mjs`.
+7. `npcs-da-campanha.yaml`: two roots (*#1*, *#2*, a second document), a
+   dashed line from `conhece: *aliados` to the box marked `&aliados`.
+   Level: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs` (a file built
+   to expand into millions of values draws a few boxes).
+8. Note 28's own ```json block: *Ver como diagrama* on the block opens its
+   diagram in a tab beside, read-only, without the text switch. Level: H; E:
+   `datagraph.spec.mjs`.
+9. *Salvar como board…* (the bar, or ⌘⇧P): a dialog with the name, the folder
+   and *O board terá N cartões de texto e M linhas*; *Criar board* writes the
+   `.canvas` and opens it. Level: H; E: `datagraph.spec.mjs`.
+10. *Ajustes* › *Aplicação* › *Recursos* › *Diagrama de dados* off: no
+    *Texto | Diagrama* on a new tab and no button on the blocks; no file
+    changed. On: back. Level: H; E: `datagraph.spec.mjs`.
+11. A trackpad's pinch or Ctrl with the wheel zooms the diagram (not the
+    window); two fingers on a screen pinch and move it. Level: H (the wheel);
+    the fingers by hand.
+
+## 16. Colour swatches (note 30)
+
+Open note 30 (*Colour Swatches*) in a folder that has the demo content
+([ADR 0108](../adr/0108-colour-swatches-for-colour-codes.md)).
+
+1. *Leitura*: a small square of the colour before each code of the note, in
+   inline code, in the code block and in the table; none beside a bare
+   `#abc`-style tag in text; none inside `[[nota#abc]]`. A click on a square
+   opens nothing. The file on disk is as it was. Level: H; E:
+   `swatches.spec.mjs`; U: `test/colour.test.mjs`.
+2. *Editar* and *Fonte*: click the square of `#1d9e75` (or Tab to it and
+   Enter): the picker opens below it, inside the window, with the code at the
+   top, the saturation and brightness square, the opacity strip and the hue
+   strip. Drag and let go: only the code's characters change, in the same
+   format (hex case and digits, `rgb()` with spaces or commas, `hsl()`);
+   ⌘Z puts the original back; Esc closes it and puts the code back. Level: H;
+   E: `swatches.spec.mjs`.
+3. By keyboard only: Tab goes round the three controls, the arrows adjust
+   (Shift for bigger steps), Enter applies and closes. VoiceOver reads each
+   control by name (by hand, `manual-checks.md`). Level: H; E:
+   `swatches.spec.mjs`.
+4. On a phone's width the picker stays inside the screen. Level: H; E:
+   `swatches.spec.mjs` (`@layout`).
+5. *Ajustes* › *Aplicação* › *Recursos* › *Amostras de cor* off: no square
+   anywhere, no file changed. On: back. Level: H; E: `swatches.spec.mjs`.
+
+## 17. The table (note 31)
+
+Open note 31 (*The Table*) in a folder that has the demo content
+([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md), phase 1).
+
+1. Open the right panel, tab *Mesa* (the *Table*): empty, with the line that
+   says it is this window's and not kept. Roll `dice: 1d20+3` in the note,
+   a table's `dice:` and the palette's *Rolar dados…*: three lines, oldest
+   first, each with *Você*, the time, the note (a link that opens it; the
+   roller has none), the notation, a chip per die and the total. The note on
+   disk is as it was. Level: H; E: `table.spec.mjs`; U: `test/tableLog.test.mjs`.
+2. On a board, a `dice:` in a text card rolls at rest: a line with the board's
+   name. Level: H; E: `table.spec.mjs`.
+3. In a shared note (a UniVerso), another person rolls: with the panel
+   closed, the *Mesa* tab, the right panel's buttons and the phone's *Painel*
+   show a count; open it: the count is gone, the line has their name, a screen
+   reader says "Bia rolou: …" once (the panel's own region; the note's is
+   quiet). The rolls the room held when the note was opened are there, not
+   counted. Level: H (the room is the harness's); E: `table.spec.mjs`. By hand
+   on a real server: two windows, `manual-checks.md`.
+4. *Ocultar daqui pra trás* empties the list in this window only, *Mostrar de
+   volta* brings it back; a roll made after the hiding is shown. Level: H; E:
+   `table.spec.mjs`.
+5. *Adicionar à nota…* on a line: pick a note, read the sentence that will be
+   written, *Cancelar* writes nothing, *Adicionar* appends one line after a
+   blank one (who, time, link to the note, notation and total); a note that
+   changed meanwhile is refused. Level: H; E: `table.spec.mjs`.
+6. A roll heard with the roller's dice (`styles`) draws its chips in them; a
+   malformed style falls back field by field. With the 3D dice on, a room
+   roll falls in 3D; *Mostrar em 3D as rolagens dos outros* off, it does not.
+   Level: H; E: `table.spec.mjs`. Falling in the roller's dice waits for the
+   server to send them (phase 2).
+7. *Ajustes* › *RPG & Mesa Solo* › *Dados e RPG* › *Mesa* off: no tab, no
+   button, no count; the dice roll as before. On: back. Level: H; E:
+   `table.spec.mjs`.
+8. On a phone's width, *Painel* › *Mesa* opens a sheet from the bottom, resting
+   on the bottom bar, that never scrolls the page sideways; the add button is
+   at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
+9. Saved rolls (note 31, *Saved rolls*): in the dice row under the message
+   field, the bookmark button opens a pop-over; *Escolher nota…*, pick a note
+   with two lines like ``- Ataque da Bia: `dice: 1d20+7` ``: two buttons, named
+   *Ataque da Bia* and the other line's text. Click one: the pop-over closes,
+   the message field holds `/r 1d20+7` and nothing is rolled; step the modifier
+   and press the dice button. Open the bookmark again, type a name, press
+   *Salvar*: one line is appended to the note, a button appears. On a server as
+   a reader there is no *Salvar*; as a player with a note granted to that player
+   alone, the pop-over names it by itself. On a phone's width the pop-over stays
+   inside the window and each button is at least 44 px. Level: H; E:
+   `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
+10. The dice row (note 31, *Composing a roll*): under the message field there is
+    one row, about one button tall: d4 d6 d8 d10 d12 d20, the dots, a number
+    field showing 0, KH, KL, the bookmark and the dice button. Click the d6
+    twice and the d20 once: the field reads `/r 2d6+1d20`, badges show 2 and 1,
+    nothing is rolled. Right click the d6: `/r 1d6+1d20`. KH: `/r 1d6+1d20`
+    becomes two dice each with `kh1` (`/r 2d6kh1+2d20kh1`), KH lights; KH again
+    undoes it. The dots open d2 d3 d66 d100 dF; Escape closes them. Type
+    `/r 3d8+2` in the field: the d8 badge says 3 and the number field 2. Press
+    the dice button: one roll in the log and the field empty; at a server the
+    button reads *Rolar em segredo* while *Secreta* is on. In the message
+    field, `Shift+Enter` breaks the line and `Enter` sends; the log shows both
+    lines. On a phone's width the row fits (it may scroll inside itself, never
+    the page) and its buttons are at least 40 px tall. Level: H; E:
+    `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
+11. The message box (note 31, *Everyone's table, on a UniVerso*): the foot of the panel
+    is ONE box — no notation field, no row of image / dice / Secreta buttons.
+    The field starts three lines tall (two on a phone) and grows to eight.
+    The paperclip picks an image; a screenshot or an image copied and pasted
+    with `Ctrl+V` / `⌘V`, right click › *Colar* or a long press › *Colar* on a
+    phone, or dropped on the panel, waits in the box as a thumbnail with an
+    ×; `Enter` sends the image and then the text. A GIF stays animated in the
+    log; 10 MB and the type are checked when it is pasted. A reader has no
+    paperclip. The selector in the dice row (*Pública* / *Secreta*) makes the
+    next roll secret. As the owner of a server's folder that is not a table,
+    the panel shows *Tornar esta pasta uma mesa*; after it, *Abrir a janela da
+    Mesa*; in a folder only on this computer, one line says why there is no
+    table. Level: H (the real app's paste menu is H only); E:
+    `table2.spec.mjs`, `campaign.spec.mjs` (`@layout`).
+
+## 18. Running a table (note 32)
+
+Open note 32 (*Running a Table*) in a folder that has the demo content
+([ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md), phase 1). The folder
+must be a server's, and the person its owner.
+
+1. Right-click a folder › *Tornar esta pasta uma mesa*: the *Mesa* dialog
+   opens, the status line says the folder became a table, the folder has the
+   table mark, and every note under it has the padlock "Oculta da mesa". On a
+   folder of this computer alone the row is not there. Level: H; E:
+   `campaign.spec.mjs`.
+2. Right-click a hidden note › *Acesso…*: the table has a *Whole table* row and
+   one row per player, each *Does not see*, *Sees* or *Edits*. *Whole table* ›
+   *Sees* releases the note to everyone and the padlock goes; setting one player
+   to *Sees* releases it to them alone (the others never see it), and a player
+   set to *Edits* is added to those who see it, with a warning if the note has
+   secret blocks. With several notes selected, *Access for N files…* sets them
+   at once. On a folder of the table, *Acesso…* applies to everything inside it
+   (the footer has *Cancel* / *Apply* and says *Changes N files*). Each row is
+   one compact select; a note saves at once and the footer says *Salvo ✓* with
+   *Desfazer*. Level: H; E: `campaign.spec.mjs`, `audience.spec.mjs`,
+   `access-dialog.spec.mjs`.
+   Inside a note of the table, the users icon beside the star lists who sees
+   it: hover, tap, or Tab + Enter; Esc closes; on a phone it is a bottom sheet.
+   Level: H; E: `audience.spec.mjs`.
+3. In the dialog: *Mesa aberta* off and on; *Convidar jogadores* › *Gerar link*
+   shows a link to copy (single use, 7 days); *Liberar tudo* asks first; the
+   limits take 1,000 to 200,000 entries and 1 to 30 MB and refuse the rest;
+   *Desfazer mesa* asks first. Level: H; E: `campaign.spec.mjs`. The invitation
+   itself, with the fresh proof, is the server's: A.
+4. Right-click a note › *Acesso…* › *Edits* on a player's row (or on *Whole
+   table*); right-click a hidden note › *Acesso…* › *Nome secreto* (in *More
+   options*). Level: H; E: `campaign.spec.mjs`.
+5. As a player (a second account, the invitation's link): the tree has only
+   the released notes; a link to a hidden note reads "texto 🔒", with an alias
+   "apelido 🔒", a secret name ▒▒▒▒, an embed "🔒 (ainda não revelado)"; the
+   quick switcher does not find a hidden note; a note granted to the player can
+   be typed in, the others refuse it. Level: H; E: `campaign.spec.mjs`. With
+   the real server: A, and every read path is tried in
+   `crates/verso-server/src/tests_campaign.rs` (U).
+6. Close the table (*Mesa aberta* off) with a player inside: the player's
+   window leaves the folder, and opening it again answers "a mesa está
+   fechada"; the owner enters. Level: U (`tests_campaign.rs`); A with two
+   accounts.
+7. The dialog's exceptions. Right-click a folder › *Acesso…*: set *Whole table*
+   to *Sees*, then *Apply*; the footer says how many files change. Then set one
+   file inside the folder to *Edits* for a player: the folder's dialog has the
+   line *1 file with own access · View*, which opens a second view with a
+   search and *↺ Follow* on each row; the button returns it to the folder's
+   access and the list empties. After a change of the folder, the dialog asks
+   *Keep* (default) or *Follow the folder in all*; *Follow the folder in all*
+   in the second view asks first. Level: H; E: `access-dialog.spec.mjs`.
+   Folder page strip: under the folder's title, *MESA ● Aberta · N players · N
+   online* with *Access…*, *Invite*, *Open the Table* and the gear (the *Mesa
+   aberta* switch is in the settings); a player sees one line and *Join the
+   Table*. Level: H; E: `campaign.spec.mjs`. A file moved into the folder
+   from elsewhere keeps its own access and is listed as an exception. Level: H.
+8. The tree's marks. A hidden note has a padlock beside it; a note a player
+   edits has a pencil. Inside a table a player does not see the folder's own
+   padlock. Level: H (by hand; no E yet).
+9. The four rights (ADR 0113 K.6). In the Table window, the players list has a
+   *Direitos* count per player, `0/4` for a new player; its button opens four
+   switches under the row: *Imagens*, *Arquivos*, *Cria notas*, *Cria boards*,
+   all off, each saving at once ("Salvo"); under the table a box per right for
+   everyone, mixed when the players differ. On a phone each target is 44 px and
+   nothing scrolls sideways. As that player (a second account): with *Imagens*
+   the attach and paste controls appear at once, without a reload, and an image
+   goes to the chat; a PDF or an audio file there says "O mestre não te deu o
+   direito de enviar arquivos; nada foi enviado." until *Arquivos* is on (and
+   then it lands in the table's attachments folder). Turn the rights off: the
+   controls go. Level: H; A with two accounts.
+   A player who *Edits* a board in a folder pastes a new image on it: the file
+   lands in `assets` beside the board (whatever Settings > Files and links
+   says), not in the table's attachments folder; the game master and the
+   players who see the board see the image, a player who does not see the board
+   does not, and the chat's images still go to the table's attachments folder.
+10. A player who *Edits* a note. As that player, drag a roll or a chat message
+    from the *Mesa* panel onto the note's text: a line shows where it lands, and
+    one ⌘Z takes it back. An image does not drag; use the message's ⋯.
+    Level: H; A with two accounts.
+11. A player who *Edits* a board. As that player, move a card the player may see:
+    the other players see the move live. The locked cards of files the player
+    does not see stay locked cards. Level: H; A with two
+    accounts.
+12. A player who *Edits* a folder. As that player, *Rename* is offered on what is
+    in it; *Delete* and moving files are not. *New note*, *New folder* and *New
+    base* appear only with *Cria notas*, *New board* only with *Cria boards*
+    (a keyboard shortcut for the missing one says "O mestre não te deu o
+    direito de criar boards." where the player is). A player who *Edits* a file
+    (no right at all) pastes an image into it and renames it; a PDF needs
+    *Arquivos*. Level: H (by hand;
+    no E yet).
+13. The table's log end. In the *Mesa* panel, send a message: the log scrolls so the
+    whole new card, border included, is above the composer. Scroll up, have
+    another person send one: the log stays, a *New message ↓* button with a count
+    appears above the composer and jumps to the end; it goes away at the bottom.
+    Also at 390×844. Level: H (E not run on the Mac).
+14. An image arriving late. On a desktop folder synced with a server, have a player
+    in the browser paste an image into the table's chat. In the *Mesa* panel the
+    card shows "arriving…" for a moment and then the picture, without reloading
+    the window and without the other cards blinking. Stop the sync (offline) before
+    the player sends: after about a minute the card is the file name with "try
+    again"; go back online, click it, the picture loads. Level: H (needs a server
+    and a synced desktop; E not run on the Mac).
+
+## 18b. A focuses file only in the cloud (ADR 0043)
+
+With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
+
+1. Open the Focuses tab: the notice says the file is in the cloud, with a
+   "Download now" button. Nothing was downloaded yet.
+2. Click it: the status line says it is downloading, then that the focuses
+   were read again; the notice goes away (or the make.md focuses appear).
+   If the folder was never asked about keeping focuses the same as make.md's,
+   the question comes up once now. After "no", the notice reads "Focuses kept
+   in Verso only" with a "Change" button that opens Settings › Organizing.
+3. A focus with no folders shows the hint to right-click a folder or file in
+   the note list and choose "Add to focus…".
+
+### Quiet saving and indexing
+
+1. Type in a note with a long title (two lines at a narrow width) and pause:
+   the title does not rewrap, the scroll does not move, no glowing line shows
+   at the top, and "Saved." leaves the status line by itself. Level: A.
+2. Open a large folder: after about a second and a half the progress shows;
+   it goes when the walk is done. Level: A.
+
+## 19. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.
 2. Put back what a step changed in the shared settings (the right panel's
    tab, the palette, the theme).
+
+## Theme per folder and per person (ADR 0100 item 4, 2026-10-27)
+
+1. Open two folders in two windows. In window A open Settings › Aparência › Temas:
+   "Só nesta pasta" is selected (opening the panel stores nothing). Pick another theme: window A changes, window B (another folder) does not, in the gallery, the theme builder and the suggestion banner alike. The text size stays the same in both.
+2. Pick "Padrão para todas as pastas" in A (confirm forgetting A's own theme), then a theme: the
+   default changes, so B, with no theme of its own, shows it too (this pick is remembered by the
+   window until the folder changes or the app restarts).
+3. In B choose "Só nesta pasta" and a theme; A keeps the default.
+4. Accept a folder's suggested theme: it becomes that folder's choice, the default is unchanged.
+5. The same shared folder on a second device of the same person may carry its own choice there (the choice is keyed by the folder's key on that device).
+6. Another account on the same folder sees its own theme, never this one.
+
+## A player's image on a board (2026-10-28)
+
+1. On a shared table, as a player who may edit the board "Board do grupo" but only reads the folder, paste, drop or choose an image on the board: it appears at once and for the game master too, with no reload; the server logs no "you may only read this folder".
+2. A player who edits the board needs no right for a new image (ADR 0113 K.6): pasting an image works with every right off. Taking *Edits* from the board makes pasting say that the player only reads it, and nothing is written.
+3. Drop a GIF file (and paste one copied as a file): the card keeps animating. (A GIF copied with the browser's "Copy image" is turned into a PNG by the browser before Verso sees it; drag the file instead.)
+4. As the game master, with the player's image sent while the file is still on its way by sync: the card fills in by itself within seconds.
+
+## A file opened without its folder (ADR 0114, note 33, 2026-10-30)
+
+1. In a terminal, `verso ~/Downloads/nota.md` (or `open -a "Verso Beta" nota.md`, a double-click in Finder with Verso chosen under Open with, or File › Open File…): the app opens the file in a window with no tree, no ribbon and no search; the bar above the tabs says `nota.md · em Downloads` and has **Abrir a pasta inteira no Verso**; the right panel keeps the outline only; the palette lists no new note, no graph, no bin. Level: A; E: `loose.spec.mjs`, the window with `?loose=1`.
+2. Edit a line: the file on disk changes and nothing appears beside it (no `.verso`, no index sidecar for `~/Downloads` under the configuration directory). Level: A; E: `loose.spec.mjs` (the file in memory); `crates/verso-fs/tests/scope.rs` and `crates/verso-core/tests/loose.rs` (nothing beside the file).
+3. Open a second `.md` from another folder: a second tab of the same window; `cargo`-style folder commands typed into the palette are refused with "not available for a file opened without its folder". Level: A; E: `loose.spec.mjs`; `app/src-tauri/src/tests.rs` (`a_file_handed_to_the_running_app_opens_in_the_loose_window`).
+4. A `[[Vizinha]]` whose note is beside the file opens as a tab; `[[Longe]]` says there is no note of that name and creates nothing; `![[foto.png]]` beside the file shows; `![[Vizinha]]` is drawn as a link. Level: A; E: `loose.spec.mjs`.
+5. `chmod 444 nota.md` and open it: read only with the reason above the text and the editor locked; a 9 MiB file opens in Source, read only. Level: A; E: `loose.spec.mjs` (`?ro=permissions`, `?ro=too_large`).
+6. Delete the file in Finder while open: the tab keeps the text with **Gravar aqui de novo** and **Salvar uma cópia…**; the first makes the file again, the second opens the system's save dialog. Level: A.
+7. **Abrir a pasta inteira no Verso**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before shows "Este arquivo fica em …" with **Abrir a pasta**. Level: A; E: `loose.spec.mjs` (`?known=1`).
+8. Settings › Arquivos e links › **Abrir arquivos .md com o Verso por padrão**: the gesture of this system; on Windows the button opens Default apps. Level: A.
+
+## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
+
+On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 34:
+
+1. `curl -fsSLO https://versomd.com/universo.sh && sh universo.sh`: the menu opens, with arrows when `whiptail` is there and a numbered list otherwise, in the language of `LANG`; `0` or Quit leaves. Declining a step ("Go on?" with `n`) runs nothing. Level: A; E: `scripts/check-installer.sh` (menu driven by a script, both languages, a declined step).
+2. Option 1, Install: on a 1 GB machine it offers a swap file first; after the install it prints the short "back in the menu" lines, and on Oracle the VCN steps. Level: A (swap and install through the .deb: `scripts/check-installer.sh`; a real Oracle machine: manual).
+3. Option 2, HTTPS, with the free name: the certificate arrives, `https://<ip-with-dashes>.sslip.io` opens the sign-in page on the phone. With a port closed on purpose (Oracle's security list), the message says the port is closed, in words. Level: A, on a machine with a public address; Let's Encrypt itself is not reached by the automated check (Caddy's internal CA stands in).
+4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
+5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
+

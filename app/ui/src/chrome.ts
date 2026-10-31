@@ -6,7 +6,7 @@ import { importDemoVault } from "./demo";
 import { el, h, ui } from "./dom";
 import { refreshFrame } from "./frame";
 import { icon } from "./icons";
-import { keyOf, prettyKeys } from "./keys";
+import { keyOf, prettyKeys, withKeys } from "./keys";
 import { ribbon } from "./main";
 import { openFolderDialog } from "./open";
 import { page } from "./settings";
@@ -35,8 +35,19 @@ export function rightShown(): boolean {
  *  ribbon under the pointer, whose click would be lost. */
 export function paintExpanded(): void {
   refreshFrame();
+  // The table's unread count follows whether the right panel is on screen (ADR 0107 item 13).
+  dispatchEvent(new Event("verso:table-visibility"));
   toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
-  toggleRightButton.setAttribute("aria-expanded", String(rightShown()));
+  const shown = rightShown();
+  // Named for what a press does now, with its keys: "Mostrar painel da
+  // direita (⌘⌥→)". The same name on every control that toggles it.
+  const verbLabel = shown ? t.hideRight : t.showRight;
+  for (const b of [toggleRightButton, ...document.querySelectorAll<HTMLElement>(".bar-right")]) {
+    b.setAttribute("aria-expanded", String(shown));
+    b.dataset["label"] = verbLabel;
+    b.title = withKeys(verbLabel, keyOf("toggle-right"));
+    b.setAttribute("aria-label", verbLabel);
+  }
   ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));
   ui.ribbon.querySelector('[data-id="right"]')?.setAttribute("aria-expanded", String(rightShown()));
 }
@@ -100,6 +111,41 @@ export function lesson(): void {
 export const sideDivider = el<HTMLDivElement>("side-divider");
 /** A divider moved from the keyboard: focusable, the arrow keys change the
  *  width `prop` by 16 px within its bounds. */
+/** A bar's divider dragged by the pointer: `width(x)` turns the pointer's x into
+ *  the bar's width, shown while it moves and handed to `done` when it ends.
+ *  While it runs no text is selected under the pointer (a press on the divider
+ *  would begin a selection through the log or the page, and the web view then
+ *  takes the pointer from the drag: the bar stopped following it on the Table's
+ *  tab), and the drag ends however the pointer goes — released, taken back by
+ *  the system, or lost — so no listener stays behind to follow a hovering
+ *  pointer. */
+export function dragResize(d: HTMLElement, prop: string, width: (x: number) => number, done: (w: number) => void): void {
+  d.addEventListener("mousedown", (e) => e.preventDefault());
+  d.addEventListener("pointerdown", (down) => {
+    if (down.button !== 0) return;
+    d.setPointerCapture(down.pointerId);
+    document.body.classList.add("resizing");
+    getSelection()?.removeAllRanges();
+    let last = width(down.clientX);
+    const move = (ev: PointerEvent): void => {
+      last = width(ev.clientX);
+      document.body.style.setProperty(prop, `${last}px`);
+    };
+    const end = (): void => {
+      d.removeEventListener("pointermove", move);
+      d.removeEventListener("pointerup", end);
+      d.removeEventListener("pointercancel", end);
+      d.removeEventListener("lostpointercapture", end);
+      document.body.classList.remove("resizing");
+      done(last);
+    };
+    d.addEventListener("pointermove", move);
+    d.addEventListener("pointerup", end);
+    d.addEventListener("pointercancel", end);
+    d.addEventListener("lostpointercapture", end);
+  });
+}
+
 export function arrowResize(d: HTMLElement, prop: string, current: () => number, sign: 1 | -1, done?: (w: number) => void): void {
   d.tabIndex = 0;
   d.setAttribute("aria-label", t.resizeKeys);

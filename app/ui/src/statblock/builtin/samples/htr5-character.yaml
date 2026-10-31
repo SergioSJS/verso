@@ -1,0 +1,30 @@
+name: Maren Oyelaran
+concept: A sample of our own
+creed: Sample creed
+cell: The sample cell
+drive: Sample drive
+attributes_physical:
+  strength: 2
+  dexterity: 2
+  stamina: 3
+attributes_social:
+  charisma: 2
+  manipulation: 2
+  composure: 3
+attributes_mental:
+  intelligence: 3
+  wits: 2
+  resolve: 3
+skills_mental:
+  investigation: 3
+edges:
+  - A sample edge
+desperation: 2
+desperation_max: 5
+danger: 1
+health: 6
+health_superficial: 1
+health_aggravated: 0
+willpower: 6
+willpower_superficial: 0
+willpower_aggravated: 0

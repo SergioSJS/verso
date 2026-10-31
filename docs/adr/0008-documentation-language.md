@@ -8,6 +8,16 @@
   English, but with native pt-BR" / "pode nascer em inglês, mas com pt-BR
   nativo"; confirmed as English source, pt-BR mirror). Decision and Status
   filled in place.
+  2026-10-29 — revised by the maintainer in session (*"pode ser"*, to the
+  proposal to stop paying twice for every changelog line): the entries under
+  `## Unreleased` are written in English only; the pt-BR twin gets them,
+  translated, when a version is cut (item 2a).
+  2026-10-24 — revised by the maintainer in session: internal engineering
+  documentation (`CLAUDE.md`, `docs/adr/`, `docs/spec/`, `docs/reference/`,
+  `docs/review/`, `docs/roadmap.md`, `docs/BRIEFING.md`,
+  `.github/pull_request_template.md`) is kept in English only; the mandatory
+  pt-BR mirror in `docs/pt-BR/` is scoped to public and community-facing
+  documents (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`).
 
 ## Context
 
@@ -23,62 +33,53 @@ duplicated documentation.
 
 ## Decision
 
-Decided by the maintainer on 2026-09-21: **English is the source; pt-BR is a
-first-class mirror.**
+Decided by the maintainer on 2026-09-21, and revised on 2026-10-24 to scope the
+pt-BR mirror to public/community documents:
 
-1. Every repository document (ADR, spec, roadmap, `CLAUDE.md`, reviews, PR
-   template, `README`, `CONTRIBUTING`) **is born in English**, at the canonical
-   path (`docs/adr/`, `docs/spec/`, `CLAUDE.md`, ...).
-2. Every document has an **equivalent pt-BR version** in `docs/pt-BR/`, with the
-   same folder structure and the same file name. "Native" means written by
-   someone who writes pt-BR, not machine translation, and complete: a PR that
-   changes a document changes both sides, or it does not merge.
-3. File names are in English on both sides; the ADR number is the identity. The
-   current files are renamed to an English slug.
-4. Single exception: `docs/BRIEFING.md` is a historical document, written in
-   pt-BR before the repository. The original stays in `docs/pt-BR/BRIEFING.md`
-   and is the version that rules in case of divergence; `docs/BRIEFING.md` is
-   the translation. Every other document has English as the source.
-5. Commit messages, PR descriptions and issues: English.
-6. The product remains pt-BR and EN
-   ([0035](0035-cross-cutting-requirements.md)); that is another decision and
-   does not change.
+1. **English is the canonical language** for all repository documentation.
+2. **Public and community-facing documents** (`README.md`, `CONTRIBUTING.md`,
+   `CHANGELOG.md`, `SECURITY.md`) have a mandatory **equivalent pt-BR version**
+   in `docs/pt-BR/` with the same file name and heading structure. A PR that
+   changes one of these documents must update its twin in `docs/pt-BR/`.
+   2a. **Except the changelog's unreleased section** (2026-10-29): entries
+   under `## Unreleased` in `CHANGELOG.md` are English only; `## Não lançado`
+   in `docs/pt-BR/CHANGELOG.md` keeps its heading and is filled, translated,
+   in the PR that cuts the version (`scripts/release.mjs prepare`). The
+   heading structure of both files stays the same.
+3. **Internal engineering documentation** (`CLAUDE.md`, `docs/adr/`,
+   `docs/spec/`, `docs/reference/`, `docs/review/`, `docs/roadmap.md`,
+   `docs/BRIEFING.md`, `.github/pull_request_template.md`) is maintained in
+   **English only**, avoiding token and maintenance duplication across 100+
+   engineering files.
+4. Commit messages, PR descriptions and issues: English.
+5. The product remains pt-BR and EN
+   ([0035](0035-cross-cutting-requirements.md)); that is a product requirement
+   and does not change.
 
 ## Consequences
 
-- Maintaining two languages doubles the cost of every ADR and of every change to
-  the spec. The maintainer accepted the cost in exchange for contribution reach
-  ([0001](0001-open-tool-no-company.md)) without losing the language in which they
-  thinks about the project.
-- **Migration:** the existing documents are translated into English and moved to
-  the canonical paths; the current pt-BR becomes the mirror in `docs/pt-BR/`.
-  Item 0.12 of the roadmap, inside Phase 0. Translation author: Opus 5;
-  reviewer: Fable 5.1 ([0032](0032-author-and-reviewer-roles.md)).
-- **Mechanical verification:** a script in CI checks that each canonical `.md`
-  has its twin in `docs/pt-BR/` and vice versa, and that the two have the same
-  heading structure — the same sequence of heading levels; the heading text
-  differs by language and is not compared. It comes in as a workspace guardrail in item 0.11
-  ([0029](0029-guardrails-in-ci.md)). Equivalent content is human review;
-  presence and structure are CI.
-- Relative links work on both sides without adjustment, because the structure
-  and the names are the same: `../adr/0005-license.md` resolves both from
-  `docs/spec/` and from `docs/pt-BR/spec/`.
-- The repository can open when the migration is finished and the availability of
-  the name has been verified ([0007](0007-private-repo-until-license.md),
-  [0004](0004-project-name-verso.md)).
+- Maintaining two languages for internal ADRs, specs and reference notes doubled
+  the context and output cost for AI coding sessions across 80,000+ lines of
+  Markdown. Scoping `docs/pt-BR/` to the four public-facing documents keeps the
+  project accessible in Portuguese while freeing engineering sessions from
+  translating internal specs and checklists.
+- **Mechanical verification (`scripts/check-docs-mirror.sh`):** CI checks that
+  each of the four mirrored public documents (`README.md`, `CONTRIBUTING.md`,
+  `CHANGELOG.md`, `SECURITY.md`) has its twin in `docs/pt-BR/` with the same
+  heading structure and equivalent links, that `docs/pt-BR/` holds no orphan
+  files, and that every relative link in all tracked Markdown files resolves
+  ([0029](0029-guardrails-in-ci.md)).
 
 ## Discarded alternatives
 
 - pt-BR only — discarded: it restricts who contributes.
-- English only, with no mirror — discarded by the maintainer: pt-BR is the
-  language in which the project was thought out and in which they read it.
-- pt-BR as the source with English as the mirror — discarded: the document the
-  community reads first should be the one that is born first.
-- English only for what is public (README, CONTRIBUTING), the rest in pt-BR —
-  discarded: ADRs and spec are what a contributor needs to read in order to
-  propose a change.
+- Full mirror of all internal engineering documents in `docs/pt-BR/` — used from
+  2026-09-21 to 2026-10-24; retired by the maintainer on 2026-10-24 because it
+  doubled documentation volume and degraded AI coding sessions.
 
 ## Status
 
-Accepted. English source, pt-BR mirror. Decided by the maintainer on
-2026-09-21.
+Accepted (2026-09-21); revised 2026-10-24 (English only for internal engineering
+docs; pt-BR mirror for `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md` and
+`SECURITY.md`); revised 2026-10-29 (unreleased changelog entries English
+only, translated when a version is cut).

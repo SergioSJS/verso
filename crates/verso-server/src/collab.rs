@@ -40,6 +40,10 @@ use crate::state::Server;
 
 /// How long a room waits after the last edit before it writes.
 const QUIET: Duration = Duration::from_millis(900);
+/// The longest a room keeps edits unwritten while people keep typing: a note
+/// edited without a pause of [`QUIET`] (several people in turn) is still
+/// written this often, so a server that dies loses seconds, not the session.
+const LONGEST: Duration = Duration::from_secs(5);
 /// How long a room outlives a connection that dropped, so that a window
 /// coming back finds it and sends what it typed meanwhile.
 const GRACE: Duration = Duration::from_secs(120);
@@ -47,7 +51,9 @@ const GRACE: Duration = Duration::from_secs(120);
 pub const ROLLS_KEPT: usize = 20;
 #[path = "collab_dice.rs"]
 mod rolls;
-pub use rolls::roll;
+pub use rolls::{Opts as RollOpts, oracle, roll};
+#[path = "collab_players.rs"]
+pub(crate) mod players;
 #[path = "collab_readers.rs"]
 pub(crate) mod readers;
 #[path = "collab_restore.rs"]
@@ -300,9 +306,22 @@ impl Rooms {
             .filter(|((k, p), _)| !(k == key && p == path))
             .map(|(_, r)| Arc::clone(r))
             .collect();
+        // A room busy at this moment is not waited for: another window's
+        // join of a big board holds its room for tens of milliseconds, and
+        // every join of every note beside it queued behind that. The limit
+        // is a guard against a window that opens a hundred notes, not an
+        // exact count: a room busy now is at most missed by this one ask
+        // (the next sees it), so the overshoot is bounded by the rooms
+        // in the middle of an operation.
         rooms
             .iter()
-            .filter(|r| lock(r).clients.contains(client))
+            .filter(|r| match r.try_lock() {
+                Ok(room) => room.clients.contains(client),
+                Err(std::sync::TryLockError::Poisoned(p)) => {
+                    p.into_inner().clients.contains(client)
+                }
+                Err(std::sync::TryLockError::WouldBlock) => false,
+            })
             .count()
     }
 
@@ -320,13 +339,27 @@ impl Rooms {
 /// readers served its projection (ADR 0087), who hear nothing of its
 /// document (`collab_readers.rs`).
 fn tell(server: &Server, room: &Room, except: Option<&str>, message: &serde_json::Value) {
-    let to: Vec<String> = room
+    // A window in a board's shadow hears the room's document only through
+    // its shadow (`collab_players.rs`); the rest it hears, but for the hash
+    // of the file, which is the whole file's.
+    let doc = matches!(
+        message["event"].as_str(),
+        Some("collab-update" | "collab-awareness" | "collab-saved")
+    );
+    let (shadowed, whole): (Vec<String>, Vec<String>) = room
         .clients
         .iter()
         .filter(|c| Some(c.as_str()) != except && !room.readers.hides(c))
         .cloned()
-        .collect();
-    server.push(&to, message);
+        .partition(|c| room.readers.shadowed(c));
+    server.push(&whole, message);
+    if !doc && !shadowed.is_empty() {
+        let mut cut = message.clone();
+        if let Some(p) = cut["payload"].as_object_mut() {
+            p.remove("hash");
+        }
+        server.push(&shadowed, &cut);
+    }
 }
 
 fn event(name: &str, path: &str, field: &str, value: &serde_json::Value) -> serde_json::Value {
@@ -418,6 +451,61 @@ pub fn join(
     }
 }
 
+/// The room of `path` in folder `key`, made from the disk when it is the
+/// first window in it.
+fn room_for(
+    server: &Arc<Server>,
+    key: &str,
+    path: &str,
+) -> Result<Option<Arc<Mutex<Room>>>, ContractError> {
+    let kind = kind_of(path);
+    Ok(Some(match server.rooms.get(key, path) {
+        Some(room) => room,
+        None => {
+            let note = read(server, key, path)?;
+            // The file as found, when its history has nothing yet: what
+            // the room's first save can be undone to (ADR 0091).
+            crate::history::seen(server, key, path, &note.text);
+            let (doc, crlf, saved, board) = if kind == Kind::Board {
+                // Drawn in by the first window to join (collab_board.rs).
+                let doc = crate::collab_board::new_doc(&note.text);
+                let board = crate::collab_board::Board::of(&doc);
+                (doc, false, String::new(), board)
+            } else {
+                let Some((text, crlf)) = normalized(&note.text) else {
+                    return Ok(None);
+                };
+                let doc = holding(new_doc(), &text);
+                let size = crate::collab_board::Board::measured(&doc);
+                (doc, crlf, text, size)
+            };
+            let room = Arc::new(Mutex::new(Room {
+                key: key.to_owned(),
+                path: path.to_owned(),
+                kind,
+                doc,
+                crlf,
+                revision: note.revision,
+                saved,
+                conflict: false,
+                edited: Instant::now(),
+                scheduled: false,
+                clients: HashSet::new(),
+                epoch: crate::crypto::id().map_err(verso_service::failed)?,
+                claims: crate::presence::Claims::new(),
+                writers: crate::writers::Writers::new(),
+                board,
+                rolls: std::collections::VecDeque::new(),
+                readers: readers::Readers::default(),
+                authors: Vec::new(),
+            }));
+            let mut map = lock(&server.rooms.map);
+            // Two windows joining at once: the first room made stays.
+            Arc::clone(map.entry((key.to_owned(), path.to_owned())).or_insert(room))
+        }
+    }))
+}
+
 /// The rooms one window may be in at once: the notes and boards a window
 /// shows side by side, with room. Each room holds a document of up to
 /// `collab_board::ROOM_MOST`; a connection that joined every note of a
@@ -451,62 +539,34 @@ fn join_room(
     } else {
         CollabKind::Text
     };
-    let room = match server.rooms.get(key, path) {
-        Some(room) => room,
-        None => {
-            let note = read(server, key, path)?;
-            // The file as found, when its history has nothing yet: what
-            // the room's first save can be undone to (ADR 0091).
-            crate::history::seen(server, key, path, &note.text);
-            let (doc, crlf, saved, board) = if kind == Kind::Board {
-                // Drawn in by the first window to join (collab_board.rs).
-                let doc = crate::collab_board::new_doc(&note.text);
-                let board = crate::collab_board::Board::of(&doc);
-                (doc, false, String::new(), board)
-            } else {
-                let Some((text, crlf)) = normalized(&note.text) else {
-                    return Ok(CollabJoin {
-                        kind: wire,
-                        update: String::new(),
-                        // A reader is not told the file's (ADR 0087).
-                        revision: if reader { String::new() } else { note.revision },
-                        read_only: true,
-                        crlf: false,
-                        user: user.to_owned(),
-                        epoch: String::new(),
-                        rolls: Vec::new(),
-                    });
-                };
-                let doc = holding(new_doc(), &text);
-                let size = crate::collab_board::Board::measured(&doc);
-                (doc, crlf, text, size)
-            };
-            let room = Arc::new(Mutex::new(Room {
-                key: key.to_owned(),
-                path: path.to_owned(),
-                kind,
-                doc,
-                crlf,
-                revision: note.revision,
-                saved,
-                conflict: false,
-                edited: Instant::now(),
-                scheduled: false,
-                clients: HashSet::new(),
-                epoch: crate::crypto::id().map_err(verso_service::failed)?,
-                claims: crate::presence::Claims::new(),
-                writers: crate::writers::Writers::new(),
-                board,
-                rolls: std::collections::VecDeque::new(),
-                readers: readers::Readers::default(),
-                authors: Vec::new(),
-            }));
-            let mut map = lock(&server.rooms.map);
-            // Two windows joining at once: the first room made stays.
-            Arc::clone(map.entry((key.to_owned(), path.to_owned())).or_insert(room))
-        }
+    let Some(room) = room_for(server, key, path)? else {
+        // A text whose line ends are mixed: shown read-only, never shared.
+        let note = read(server, key, path)?;
+        return Ok(CollabJoin {
+            kind: wire,
+            update: String::new(),
+            // A reader is not told the file's (ADR 0087).
+            revision: if reader { String::new() } else { note.revision },
+            read_only: true,
+            crlf: false,
+            user: user.to_owned(),
+            epoch: String::new(),
+            rolls: Vec::new(),
+        });
     };
     let mut r = lock(&room);
+    // A player of a table is asked again under the room's lock: what the
+    // command saw may have changed, and a release or a hide that closed the
+    // room's windows has run or will run after this window is in it.
+    let reader = match readers::admitted(server, (client, reader), key, path) {
+        Ok(reader) => reader,
+        Err(e) => {
+            // A room made for a window that is not let in is not kept.
+            drop(r);
+            leave(server, client, key, path);
+            return Err(e);
+        }
+    };
     // A reader of a note with secret blocks joins its projection's own
     // document (ADR 0087 item 4).
     if reader && let Some(joined) = readers::join(server, &mut r, client, user)? {
@@ -553,6 +613,17 @@ pub fn update(
     let mut r = lock(&room);
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
+    }
+    if r.readers.shadowed(client) {
+        // A player in a board's shadow: judged by element.
+        if players::update(server, &mut r, (client, account), &bytes)? {
+            r.edited = Instant::now();
+            if !r.scheduled && !r.conflict && r.waiting() {
+                r.scheduled = true;
+                schedule(server, Arc::clone(&room));
+            }
+        }
+        return Ok(());
     }
     let who = crate::writers::Writer {
         connection: client,
@@ -605,6 +676,7 @@ pub fn update(
         Some(client),
         &event("collab-update", path, "update", &json!(update)),
     );
+    players::sync(server, &mut r);
     r.edited = Instant::now();
     // A board's change that is no one's edit — drawn in, measured again —
     // leaves nothing to write (invariant 7).
@@ -637,10 +709,16 @@ pub(crate) fn readable_vector(bytes: &[u8]) -> Result<(), ContractError> {
     }
 }
 
-/// A window's update, decoded once it is [`readable`].
+/// A window's update, decoded once it is [`readable`]. `yrs` asserts as it
+/// decodes (a client past 53 bits, `block.rs:92`, where debug assertions
+/// are on: the tests and the fuzz targets): a panic is a refusal, like any
+/// bytes it cannot read, and the room — which holds nothing of it yet —
+/// stays as it was.
 pub(crate) fn decode(bytes: &[u8]) -> Result<Update, ContractError> {
     readable(bytes)?;
-    Update::decode_v1(bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))
+    std::panic::catch_unwind(|| Update::decode_v1(bytes))
+        .map_err(|_| refused("an update the room cannot read"))?
+        .map_err(|e| refused(&format!("not a Yjs update: {e}")))
 }
 
 /// A window's update `bytes`, decoded, taken into a room's document: a
@@ -686,15 +764,32 @@ pub(crate) fn take(
 /// holds only those the room made. Another window's items are not judged:
 /// a connection's updates can reach the room in the other order, a
 /// deletion before the insert it deletes.
+///
+/// Nor an item of any client that starts past what the room holds of that
+/// client (the fuzz target `note` under `-O`, 2026-10-31,
+/// `seeds-note/a-run-past-the-clients-clock.bin`): a connection's updates
+/// reach the room in order, so a window's run always starts where the
+/// room's knowledge of its client ends, or before. `yrs` 0.28 took such a
+/// run in instead of keeping it aside, and an update that then covered
+/// the gap made it splice a run it had freed (AddressSanitizer's
+/// heap-use-after-free) — refused before `yrs` reads it.
 fn ahead_of_room(doc: &Doc, update: &Update) -> bool {
     let own = doc.client_id();
-    let made = doc.transact().state_vector().get(&own);
+    let held = doc.transact().state_vector();
+    let made = held.get(&own);
     let past = |set: &yrs::IdSet| {
         set.iter()
             .find(|(c, _)| **c == own)
             .is_some_and(|(_, ranges)| ranges.iter().any(|r| r.end > made))
     };
-    past(update.delete_set()) || past(&update.insertions(true))
+    let gap = update.insertions(true).iter().any(|(c, ranges)| {
+        ranges
+            .iter()
+            .map(|r| r.start)
+            .min()
+            .is_some_and(|start| start > held.get(c))
+    });
+    past(update.delete_set()) || past(&update.insertions(true)) || gap
 }
 
 /// What a room answers when `yrs` panicked on what a window sent (ADR
@@ -812,6 +907,7 @@ pub fn awareness(
     let stamped =
         crate::presence::stamped(&bytes, who, claims, clients).map_err(|e| refused(&e))?;
     let stamped = readers::presence(server, &r, who.client, stamped);
+    players::presence(server, &r, who.client, &stamped);
     tell(
         server,
         &r,
@@ -824,10 +920,11 @@ pub fn awareness(
 fn schedule(server: &Arc<Server>, room: Arc<Mutex<Room>>) {
     let server = Arc::clone(server);
     tokio::spawn(async move {
+        let began = Instant::now();
         loop {
             tokio::time::sleep(QUIET).await;
             let wait = QUIET.saturating_sub(lock(&room).edited.elapsed());
-            if wait.is_zero() {
+            if wait.is_zero() || began.elapsed() >= LONGEST {
                 break;
             }
         }
@@ -875,6 +972,12 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
         u64::try_from(bytes.len()).unwrap_or(u64::MAX),
     )?;
     let revision = r.revision.clone();
+    // What the file holds once written, said with the save (below): a
+    // synced device knows it for its own room's save (ADR 0082 item 9).
+    let hash = {
+        let on_disk: &[u8] = bytes.as_ref();
+        crate::sync::sha256(on_disk)
+    };
     let written = write_file(server, &r, bytes, revision);
     match written {
         Ok(revision) => {
@@ -904,6 +1007,8 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                         None,
                         &event("collab-update", &path, "update", &json!(b64(&update))),
                     );
+                    r.board.whole_saved = players::whole_edits(&r.doc, &r.writers);
+                    players::sync(server, &mut r);
                 }
             }
             // The folder's log for sync follows the save (ADR 0079 item 4),
@@ -911,12 +1016,13 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             // next question finds.
             let authors = std::mem::take(&mut r.authors);
             crate::sync::reconcile_saved(server, &r.key, &path, &authors);
-            tell(
-                server,
-                &r,
-                None,
-                &event("collab-saved", &path, "revision", &json!(r.revision)),
-            );
+            if r.kind == Kind::Board {
+                crate::readers::board_saved(server, &r.key, &path);
+            }
+            let mut saved = event("collab-saved", &path, "revision", &json!(r.revision));
+            saved["payload"]["hash"] = json!(hash);
+            tell(server, &r, None, &saved);
+            players::saved(server, &mut r);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
@@ -1103,7 +1209,11 @@ pub fn canvas(
         if r.kind != Kind::Board {
             return Err(refused("not a board"));
         }
-        r.board.keep(&at, json)?;
+        if r.readers.shadowed(client) {
+            players::canvas(server, &mut r, client, &at, &json)?;
+        } else {
+            r.board.keep(&at, json)?;
+        }
         !r.scheduled && !r.conflict && r.waiting() && r.board.canvas_now(&r.doc).is_some()
     };
     if ready && let Err(e) = write(server, &room) {
@@ -1384,116 +1494,5 @@ pub(crate) fn fill(server: &Server, path: &str, bytes: usize) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_minimal_edit_keeps_the_ends_and_counts_utf16() {
-        assert_eq!(minimal_edit("abc", "abc"), None);
-        assert_eq!(minimal_edit("abc", "aXc"), Some((1, 1, "X".to_owned())));
-        assert_eq!(minimal_edit("a😀c", "a😀dc"), Some((3, 0, "d".to_owned())));
-        assert_eq!(minimal_edit("😀", "😁"), Some((0, 2, "😁".to_owned())));
-        let doc = new_doc();
-        apply_text(&doc, "olá 😀 mundo");
-        apply_text(&doc, "olá 😀 grande mundo");
-        assert_eq!(text_of(&doc), "olá 😀 grande mundo");
-    }
-
-    /// One window's updates taken in the order it made them are all placed
-    /// and leave nothing aside; taken in a shuffled order, `integrate` says
-    /// when one was held aside (the room then refuses it and is made again;
-    /// a connection's updates now reach it in order, `rpc.rs`).
-    #[test]
-    fn a_windows_updates_in_order_are_placed_and_one_ahead_is_told() {
-        let mut told = 0;
-        for seed in 0..300_u64 {
-            let mut s = seed.wrapping_mul(2_654_435_761) | 1;
-            let mut rnd = || {
-                s ^= s << 13;
-                s ^= s >> 7;
-                s ^= s << 17;
-                s
-            };
-            let window = new_doc();
-            let text = window.get_or_insert_text(TEXT);
-            let mut updates = Vec::new();
-            for i in 0..12_u32 {
-                let mut txn = window.transact_mut();
-                let len = text.len(&txn);
-                let at = u32::try_from(rnd() % u64::from(len + 1)).unwrap();
-                text.insert(&mut txn, at, &format!("<{i}>"));
-                if len > 4 && rnd() % 3 == 0 {
-                    text.remove_range(&mut txn, 0, 2);
-                }
-                updates.push(txn.encode_update_v1());
-            }
-            let room = new_doc();
-            for u in &updates {
-                assert!(integrate(&room, Update::decode_v1(u).unwrap()).unwrap());
-            }
-            assert_eq!(text_of(&room), text_of(&window), "seed {seed}");
-            for i in (1..updates.len()).rev() {
-                let j = usize::try_from(rnd() % (i as u64 + 1)).unwrap();
-                updates.swap(i, j);
-            }
-            let room = new_doc();
-            let whole = updates
-                .iter()
-                .all(|u| integrate(&room, Update::decode_v1(u).unwrap()).unwrap());
-            if !whole {
-                told += 1;
-                assert!(room.transact().has_missing_updates(), "seed {seed}");
-            }
-        }
-        assert!(told > 0);
-    }
-
-    #[test]
-    fn line_ends_are_kept_and_mixed_ones_refused() {
-        assert_eq!(normalized("a\r\nb\r\n"), Some(("a\nb\n".to_owned(), true)));
-        assert_eq!(normalized("a\nb"), Some(("a\nb".to_owned(), false)));
-        assert_eq!(normalized("a\r\nb\n"), None);
-        assert_eq!(normalized("a\rb"), None);
-        assert_eq!(on_disk("a\nb\n", true), "a\r\nb\r\n");
-    }
-
-    #[test]
-    fn a_window_and_the_server_converge() {
-        let server = new_doc();
-        apply_text(&server, "# Nota\n\num\n");
-        let window = new_doc();
-        let state = server
-            .transact()
-            .encode_state_as_update_v1(&StateVector::default());
-        window
-            .transact_mut()
-            .apply_update(Update::decode_v1(&state).unwrap())
-            .unwrap();
-        assert_eq!(text_of(&window), "# Nota\n\num\n");
-        // The window types; meanwhile the server merges a write from the
-        // properties panel; each applies the other's update.
-        let typed = {
-            let t = window.get_or_insert_text(TEXT);
-            let mut txn = window.transact_mut();
-            t.insert(&mut txn, 11, "dois\n");
-            txn.encode_update_v1()
-        };
-        let merged = diffy::merge(
-            "# Nota\n\num\n",
-            &text_of(&server),
-            "---\ntag: x\n---\n# Nota\n\num\n",
-        )
-        .unwrap();
-        let from_server = apply_text(&server, &merged).unwrap();
-        server
-            .transact_mut()
-            .apply_update(Update::decode_v1(&typed).unwrap())
-            .unwrap();
-        window
-            .transact_mut()
-            .apply_update(Update::decode_v1(&from_server).unwrap())
-            .unwrap();
-        assert_eq!(text_of(&server), text_of(&window));
-        assert_eq!(text_of(&server), "---\ntag: x\n---\n# Nota\n\num\ndois\n");
-    }
-}
+#[path = "collab_tests.rs"]
+mod tests;

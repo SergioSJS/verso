@@ -123,9 +123,10 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 /* ---------- Plain HTTP, said (ADR 0073 item 6, amended 2026-10-16) ---------- */
 .plain-http-line { margin: 0 0 1rem; font-size: .8rem; line-height: 1.45; color: var(--ink-3); }
 .plain-http-how { align-self: auto; display: inline; border: 0; background: none; padding: 0; font: inherit; color: var(--seal); text-decoration: underline; cursor: pointer; }
-.plain-http-bar { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 999; max-width: calc(100vw - 32px); box-sizing: border-box;
-  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; padding: .35rem .5rem .35rem .8rem; font-size: .8rem; line-height: 1.4;
-  background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 8px 24px -10px oklch(0% 0 0 / .3); }
+/* In the work area's notices row (above the panes, under the tabs): it takes its own space, so the panes shrink and nothing is covered. */
+.plain-http-bar { box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .5rem; padding: .2rem .4rem .2rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); line-height: 1.4;
+  background: var(--paper-2); color: var(--ink-2); border-bottom: 1px solid var(--hair); }
+.plain-http-bar > span { flex: 1 1 18rem; min-width: 0; }
 .plain-http-close { min-width: 28px; min-height: 28px; border: 0; background: transparent; color: var(--ink-3); font-size: 1.1rem; line-height: 1; border-radius: 6px; cursor: pointer; }
 .plain-http-close:hover { background: var(--paper-2); color: var(--ink); }
 .plain-http-dialog { max-width: min(30rem, calc(100vw - 32px)); padding: 1.2rem 1.4rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; }

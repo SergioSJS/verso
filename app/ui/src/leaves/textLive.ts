@@ -20,6 +20,7 @@ import { layout } from "../layout/spaces";
 import { opening } from "../opening";
 import type { LiveHolder } from "../roomWrites";
 import { ui } from "../dom";
+import { paintMark, paintWho } from "./liveWho";
 import { presenceHeard } from "../notify/sources";
 import { bar, say } from "./note/live";
 import type { TextLeaf } from "./textfile";
@@ -33,6 +34,10 @@ export function textHandlers(this: TextLeaf): CollabHandlers {
   return {
     saved: (revision) => {
       this.revision = revision;
+      this.seen = null;
+      void commands.readText(this.path).then((r) => {
+        if (r.status === "ok" && r.data.revision === revision && this.revision === revision) this.seen = { revision, text: r.data.text };
+      });
       this.setDirty(false);
     },
     conflict: () => void this.roomConflict(),
@@ -66,7 +71,7 @@ export function roomText(this: TextLeaf): string {
 
 /** The room closed — renamed, deleted, its line ends mixed, read anew:
  *  the file read again, on its own. */
-export async function roomClosed(this: TextLeaf, why?: "lost"): Promise<void> {
+export async function roomClosed(this: TextLeaf, why?: "lost" | "refused"): Promise<void> {
   const path = this.path;
   await this.saving;
   if (!path || path !== this.path) return;
@@ -95,8 +100,8 @@ export function paintLive(this: TextLeaf): void {
   const st = this.liveState();
   const line = st ? liveLine(st, lang()) : "";
   this.liveMark.hidden = !st;
-  this.liveMark.textContent = line;
-  this.liveMark.dataset["live"] = st?.kind ?? "";
+  paintMark(this.liveMark, line, st?.kind ?? "");
+  paintWho(this, this.liveMark, st?.kind === "live" ? st.others : []);
   if (this.pane.active !== this || layout().focused !== this.pane) return;
   const b = bar();
   b.hidden = !st;
@@ -108,13 +113,16 @@ export function paintLive(this: TextLeaf): void {
 export function presenceChanged(this: TextLeaf): void {
   const s: RoomSession | null = this.liveSession();
   const now = s?.others() ?? [];
+  let fresh: string[] = [];
   if (s) {
-    for (const line of presenceSaid(this.liveOthers, now, lang(), this.liveWhat())) say(line);
-    // Someone joining is a notification too (ADR 0084 item 7).
-    presenceHeard(this.path, this.liveOthers, now);
+    // Someone joining is a notification too (ADR 0084 item 7); said once, as
+    // the news decides, and ringed in the presence row.
+    fresh = presenceHeard(this.path, this.liveOthers, now, this.pane.active === this && layout().panes().includes(this.pane));
+    for (const line of [...presenceSaid([], fresh, lang(), this.liveWhat()), ...presenceSaid(this.liveOthers, now.filter((n) => this.liveOthers.includes(n)), lang(), this.liveWhat())]) say(line);
   }
   this.liveOthers = now;
   this.paintLive();
+  paintWho(this, this.liveMark, now, fresh);
 }
 
 /** Out of the room, the text kept (ADR 0082 item 8): the revision is the
@@ -127,8 +135,11 @@ export async function textWentLocal(this: TextLeaf, why: LocalWhy): Promise<void
   const r = await commands.readText(path);
   if (path !== this.path || !this.collab || this.collab.live) return;
   if (r.status !== "ok") return;
-  this.revision = r.data.revision;
   const differs = r.data.text !== this.roomText();
+  // See the note's: a file the tab does not hold keeps the old revision, so
+  // the save shows both instead of writing over it.
+  const unchanged = this.seen !== null && this.seen.revision === this.revision && this.seen.text === r.data.text;
+  if (!differs || unchanged || r.data.revision === this.revision || this.collab.revision === r.data.revision) this.revision = r.data.revision;
   this.setDirty(differs);
   if (differs) this.scheduleSave();
 }

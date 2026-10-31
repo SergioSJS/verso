@@ -1,0 +1,36 @@
+{
+  "verso-theme": 1,
+  "name": "Ayu Mirage",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Ayu Mirage",
+    "author": "Konstantin Pschera",
+    "repoUrl": "https://github.com/ayu-theme/ayu-colors",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#242936",
+      "--paper-2": "#1f2430",
+      "--hair": "#171b24",
+      "--ink": "#cccac2",
+      "--ink-2": "#707a8c",
+      "--seal": "#ffcc66",
+      "--brass-ink": "#ffa659",
+      "--code-paper": "#181c26",
+      "--code-ink": "#cccac2",
+      "--red": "#f28779",
+      "--orange": "#ffa659",
+      "--yellow": "#ffcd66",
+      "--green": "#d5ff80",
+      "--cyan": "#95e6cb",
+      "--blue": "#73d0ff",
+      "--purple": "#dfbfff"
+    },
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "hr-style": "line"
+  }
+}

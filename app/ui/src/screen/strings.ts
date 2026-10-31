@@ -17,6 +17,7 @@ export type ScreenStrings = {
   barNew: string;
   barBack: string;
   barCommands: string;
+  barPanel: string;
   /** The pane switcher of a split layout on a phone (item 2). */
   paneSwitch: (i: number, n: number) => string;
   paneItem: (i: number, name: string) => string;
@@ -27,6 +28,22 @@ export type ScreenStrings = {
   /** The graph's controls as a panel (item 3). */
   graphControls: string;
   graphHintTouch: string;
+  /** The one control that clears the centre, the filter and the tag. */
+  graphShowAll: string;
+  graphClearFilter: string;
+  /** The note the arrows reached, said once to a screen reader. */
+  graphCurrent: (name: string) => string;
+  /** The graph's filter "existing files only" (spec Q14, decision B). */
+  graphExisting: string;
+  /** A node for a note that does not exist yet: its accessible name. */
+  graphMissingNode: (name: string) => string;
+  graphMakeAsk: (name: string) => string;
+  graphMakeYes: string;
+  graphMissingLegend: string;
+  /** The graph's count when notes that do not exist yet are drawn. */
+  graphNodesMissing: (notes: number, links: number, missing: number) => string;
+  /** Said beside the count when a shared folder will not name missing notes. */
+  graphMissingShared: string;
   /** The card beside a link in Edit mode (item 4). */
   linkCard: (target: string) => string;
   linkOpen: string;
@@ -52,6 +69,13 @@ export type ScreenStrings = {
   rowMore: (name: string) => string;
   /** What the side cannot do (item 11). */
   readOnly: string;
+  /** Said near an attempt on a note or file the person sees and may not change. */
+  readOnlyNote: string;
+  /** Said near an attempt to create where the person edits but was not given the right (ADR 0113 K.6). */
+  noRightNote: string;
+  noRightBoard: string;
+  /** The closed lock beside the folder's name. */
+  lockName: string;
   copyLink: string;
   linkCopied: string;
   openInBrowserTab: string;
@@ -69,13 +93,24 @@ const pt: ScreenStrings = {
   barNew: "Nova nota",
   barBack: "Voltar",
   barCommands: "Comandos",
-  paneSwitch: (i, n) => `Área ${i} de ${n}`,
-  paneItem: (i, name) => `Área ${i}: ${name}`,
-  paneEmpty: "vazia",
-  paneTools: "Ações da área",
+  barPanel: "Painel",
+  paneSwitch: (i, n) => `Painel ${i} de ${n}`,
+  paneItem: (i, name) => `Painel ${i}: ${name}`,
+  paneEmpty: "vazio",
+  paneTools: "Ações do painel",
   tabActions: "Ações da aba…",
   graphControls: "Ajustes do grafo",
-  graphHintTouch: "Toque abre · arraste move uma nota ou o grafo · pinça amplia · dois dedos deslocam",
+  graphExisting: "Só arquivos existentes",
+  graphMissingNode: (name) => `${name} — nota que ainda não existe`,
+  graphMakeAsk: (name) => `Criar a nota "${name}"?`,
+  graphMakeYes: "Criar",
+  graphMissingLegend: "Nota que ainda não existe",
+  graphNodesMissing: (n, m, k) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} ainda não existe${k === 1 ? "" : "m"}`,
+  graphMissingShared: "numa pasta compartilhada, notas que não existem não aparecem",
+  graphShowAll: "Mostrar tudo",
+  graphClearFilter: "Limpar o filtro",
+  graphCurrent: (name) => `Nota atual: ${name}`,
+  graphHintTouch: "Toque centra · duplo toque abre · arraste move uma nota ou o grafo · pinça amplia · dois dedos deslocam",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Abrir",
   linkEdit: "Editar link",
@@ -95,6 +130,10 @@ const pt: ScreenStrings = {
   open: "Abrir",
   rowMore: (name) => `Mais ações: ${name}`,
   readOnly: "Você só lê esta pasta.",
+  readOnlyNote: "Você só lê esta nota. O mestre libera a edição.",
+  noRightNote: "O mestre não te deu o direito de criar notas.",
+  noRightBoard: "O mestre não te deu o direito de criar boards.",
+  lockName: "Você só lê esta pasta",
   copyLink: "Copiar link",
   linkCopied: "Link copiado.",
   openInBrowserTab: "Abrir numa nova aba do navegador",
@@ -111,13 +150,24 @@ const en: ScreenStrings = {
   barNew: "New note",
   barBack: "Back",
   barCommands: "Commands",
+  barPanel: "Panel",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,
   paneItem: (i, name) => `Pane ${i}: ${name}`,
   paneEmpty: "empty",
   paneTools: "Pane actions",
   tabActions: "Tab actions…",
   graphControls: "Graph settings",
-  graphHintTouch: "Tap opens · drag moves a note or the graph · pinch zooms · two fingers pan",
+  graphExisting: "Existing files only",
+  graphMissingNode: (name) => `${name} — note that does not exist yet`,
+  graphMakeAsk: (name) => `Create the note "${name}"?`,
+  graphMakeYes: "Create",
+  graphMissingLegend: "Note that does not exist yet",
+  graphNodesMissing: (n, m, k) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"} · ${k} not created yet`,
+  graphMissingShared: "in a shared folder, notes that do not exist are not shown",
+  graphShowAll: "Show all",
+  graphClearFilter: "Clear the filter",
+  graphCurrent: (name) => `Current note: ${name}`,
+  graphHintTouch: "Tap centers · double tap opens · drag moves a note or the graph · pinch zooms · two fingers pan",
   linkCard: (target) => `Link: ${target}`,
   linkOpen: "Open",
   linkEdit: "Edit link",
@@ -137,6 +187,10 @@ const en: ScreenStrings = {
   open: "Open",
   rowMore: (name) => `More actions: ${name}`,
   readOnly: "You can only read this folder.",
+  readOnlyNote: "You only read this note. The game master gives editing.",
+  noRightNote: "The game master has not given you the right to create notes.",
+  noRightBoard: "The game master has not given you the right to create boards.",
+  lockName: "You only read this folder",
   copyLink: "Copy link",
   linkCopied: "Link copied.",
   openInBrowserTab: "Open in a new browser tab",

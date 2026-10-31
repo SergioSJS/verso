@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "d20-creature",
+  "name": { "pt": "Criatura d20", "en": "d20 creature" },
+  "description": {
+    "pt": "Uma criatura de jogo d20 com as chaves do Fantasy Statblocks (name, ac, hp, stats, saves, traits, actions…). Não traz texto de nenhum livro.",
+    "en": "A d20 game's creature with Fantasy Statblocks' keys (name, ac, hp, stats, saves, traits, actions…). It holds no book's text."
+  },
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    { "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)", "template": "1d20$1" },
+    { "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)", "template": "$1" },
+    { "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b", "template": "$1" },
+    { "pattern": "(?<![\\w+-])([+-]\\d{1,2})(?![\\w%])", "template": "1d20$1" }
+  ],
+  "appearance": {},
+  "blocks": [
+    { "type": "inline", "id": "top", "properties": [], "rule": true, "nested": [
+      { "type": "group", "id": "titles", "properties": ["name", "size", "type", "subtype", "alignment"], "hideWhenEmpty": true, "nested": [
+        { "type": "heading", "id": "name", "properties": ["name"], "hideWhenEmpty": true, "size": 1 },
+        { "type": "subheading", "id": "kind", "properties": ["size", "type", "subtype", "alignment"], "hideWhenEmpty": true, "separator": ", " }
+      ] },
+      { "type": "image", "id": "image", "properties": ["image"], "hideWhenEmpty": true }
+    ] },
+    { "type": "group", "id": "defences", "properties": ["ac", "hp", "speed"], "hideWhenEmpty": true, "rule": true, "nested": [
+      { "type": "property", "id": "ac", "properties": ["ac"], "label": { "pt": "Classe de Armadura", "en": "Armor Class" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "hp", "properties": ["hp"], "label": { "pt": "Pontos de Vida", "en": "Hit Points" }, "hideWhenEmpty": true, "diceKey": "hit_dice", "dice": true },
+      { "type": "tracker", "id": "hp-now", "properties": ["hp_current"], "label": { "pt": "PV atuais", "en": "Current HP" }, "hideWhenEmpty": true, "current": "hp_current", "max": "hp", "style": "number" },
+      { "type": "property", "id": "speed", "properties": ["speed"], "label": { "pt": "Deslocamento", "en": "Speed" }, "hideWhenEmpty": true }
+    ] },
+    { "type": "table", "id": "stats", "properties": ["stats"], "hideWhenEmpty": true, "rule": true, "dice": true,
+      "headers": [
+        { "pt": "FOR", "en": "STR" }, { "pt": "DES", "en": "DEX" }, { "pt": "CON", "en": "CON" },
+        { "pt": "INT", "en": "INT" }, { "pt": "SAB", "en": "WIS" }, { "pt": "CAR", "en": "CHA" }
+      ],
+      "modifier": "d20" },
+    { "type": "group", "id": "details", "properties": ["saves", "skillsaves", "damage_vulnerabilities", "damage_resistances", "damage_immunities", "condition_immunities", "senses", "languages", "cr"], "hideWhenEmpty": true, "rule": true, "nested": [
+      { "type": "saves", "id": "saves", "properties": ["saves"], "label": { "pt": "Testes de Resistência", "en": "Saving Throws" }, "hideWhenEmpty": true, "dice": true },
+      { "type": "saves", "id": "skills", "properties": ["skillsaves"], "label": { "pt": "Perícias", "en": "Skills" }, "hideWhenEmpty": true, "dice": true },
+      { "type": "property", "id": "vulnerabilities", "properties": ["damage_vulnerabilities"], "label": { "pt": "Vulnerabilidades a Dano", "en": "Damage Vulnerabilities" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "resistances", "properties": ["damage_resistances"], "label": { "pt": "Resistências a Dano", "en": "Damage Resistances" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "immunities", "properties": ["damage_immunities"], "label": { "pt": "Imunidades a Dano", "en": "Damage Immunities" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "condition-immunities", "properties": ["condition_immunities"], "label": { "pt": "Imunidades a Condições", "en": "Condition Immunities" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "senses", "properties": ["senses"], "label": { "pt": "Sentidos", "en": "Senses" }, "hideWhenEmpty": true },
+      { "type": "property", "id": "languages", "properties": ["languages"], "label": { "pt": "Idiomas", "en": "Languages" }, "fallback": "-" },
+      { "type": "property", "id": "cr", "properties": ["cr"], "label": { "pt": "Nível de Desafio", "en": "Challenge" }, "hideWhenEmpty": true }
+    ] },
+    { "type": "traits", "id": "traits", "properties": ["traits"], "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "spells", "properties": ["spells"], "label": { "pt": "Conjuração", "en": "Spellcasting" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "actions", "properties": ["actions"], "label": { "pt": "Ações", "en": "Actions" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "bonus-actions", "properties": ["bonus_actions"], "label": { "pt": "Ações Bônus", "en": "Bonus Actions" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "group", "id": "legendary", "properties": ["legendary_description", "legendary_actions"], "label": { "pt": "Ações Lendárias", "en": "Legendary Actions" }, "hideWhenEmpty": true, "nested": [
+      { "type": "text", "id": "legendary-text", "properties": ["legendary_description"], "hideWhenEmpty": true },
+      { "type": "traits", "id": "legendary-actions", "properties": ["legendary_actions"], "hideWhenEmpty": true, "dice": true }
+    ] },
+    { "type": "group", "id": "mythic", "properties": ["mythic_description", "mythic_actions"], "label": { "pt": "Ações Míticas", "en": "Mythic Actions" }, "hideWhenEmpty": true, "nested": [
+      { "type": "text", "id": "mythic-text", "properties": ["mythic_description"], "hideWhenEmpty": true },
+      { "type": "traits", "id": "mythic-actions", "properties": ["mythic_actions"], "hideWhenEmpty": true, "dice": true }
+    ] },
+    { "type": "traits", "id": "reactions", "properties": ["reactions"], "label": { "pt": "Reações", "en": "Reactions" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "lair-actions", "properties": ["lair_actions"], "label": { "pt": "Ações de Covil", "en": "Lair Actions" }, "hideWhenEmpty": true, "dice": true },
+    { "type": "traits", "id": "regional-effects", "properties": ["regional_effects"], "label": { "pt": "Efeitos Regionais", "en": "Regional Effects" }, "hideWhenEmpty": true, "dice": true }
+  ]
+}

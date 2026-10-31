@@ -45,7 +45,7 @@ pub(super) struct Running {
     _stop: tokio::sync::oneshot::Sender<()>,
     /// The server, while anything holds it.
     pub(super) server: std::sync::Weak<verso_server::state::Server>,
-    _dirs: (tempfile::TempDir, tempfile::TempDir),
+    pub(super) _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
 pub(super) fn serve(files: &[(&str, &str)]) -> Running {
@@ -153,7 +153,7 @@ pub(super) struct Device {
     pub(super) told: Arc<Mutex<Told>>,
     /// What every window heard (ADR 0084 item 7): the event, its payload.
     pub(super) all: Arc<Mutex<Vec<(String, serde_json::Value)>>>,
-    _dirs: (tempfile::TempDir, tempfile::TempDir),
+    pub(super) _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
 pub(super) fn device(r: &Running, token: &str, files: &[(&str, &str)]) -> Device {
@@ -194,6 +194,7 @@ pub(super) fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &s
     let d = Device {
         ctx: Arc::new(Ctx {
             service,
+            secrets: Arc::new(crate::secrets::Memory::default()),
             config: Some(config.path().to_path_buf()),
             device: Box::new(|| "Mac".into()),
             pt: Box::new(|| true),

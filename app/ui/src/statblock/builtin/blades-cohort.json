@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "blades-cohort",
+  "name": {
+    "pt": "Blades in the Dark — Cohort",
+    "en": "Blades in the Dark — Cohort"
+  },
+  "description": {
+    "pt": "Ficha de cohort (CC BY 3.0): nomes e ordem dos campos.",
+    "en": "A cohort sheet (CC BY 3.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Blades in the Dark SRD (CC BY 3.0)",
+      "url": "https://bladesinthedark.com/"
+    }
+  ],
+  "profile": "fitd",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","type"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["type"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"kind","properties":["scale","quality","elite"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"scale","properties":["scale"],"label":{"pt":"Scale","en":"Scale"},"hideWhenEmpty":true},{"type":"property","id":"quality","properties":["quality"],"label":{"pt":"Quality","en":"Quality"},"hideWhenEmpty":true},{"type":"property","id":"elite","properties":["elite"],"label":{"pt":"Elite","en":"Elite"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"traits","properties":["edges","flaws","harm","armor"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"edges","properties":["edges"],"label":{"pt":"Edges","en":"Edges"},"hideWhenEmpty":true},{"type":"property","id":"flaws","properties":["flaws"],"label":{"pt":"Flaws","en":"Flaws"},"hideWhenEmpty":true},{"type":"property","id":"harm","properties":["harm"],"label":{"pt":"Harm","en":"Harm"},"hideWhenEmpty":true},{"type":"property","id":"armor","properties":["armor"],"label":{"pt":"Armor","en":"Armor"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true}
+  ]
+}

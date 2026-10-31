@@ -249,6 +249,25 @@ export async function approveOrigin(origin: string): Promise<boolean> {
   return ok;
 }
 
+/** The warning to show before an origin is approved (ADR 0056.aviso,
+ *  option B, decided 2026-10-21): the site forbids being framed, or did
+ *  not answer the host's one `HEAD`. Null when there is nothing to say: the
+ *  site may be framed, no check is wired, or remote content is off (ADR
+ *  0050: the check is a request, so it waits for the same consent). The
+ *  host's check is made here, on the person's click to approve, which is
+ *  the "address a note wrote and the reader approved" of the ADR. */
+export async function frameWarning(url: string, board = false): Promise<string | null> {
+  const text = board ? hooks?.strings.unframedBoard : hooks?.strings.unframed;
+  if (!hooks?.frameable || !text || !remote) return null;
+  let ok = false;
+  try {
+    ok = await hooks.frameable(url);
+  } catch {
+    ok = false;
+  }
+  return ok ? null : text;
+}
+
 /** Pages loaded by a click while remote content is off, this session:
  *  drawn again, they stay loaded. */
 const clicked = new Set<string>();
@@ -263,12 +282,25 @@ export type EmbedStrings = {
   publicSite: string;
   approve: string;
   cancel: string;
+  /** The site forbids being framed (ADR 0056.aviso, decided 2026-10-21),
+   *  said for what this platform will actually do with a note's embed. */
+  unframed?: string;
+  /** The same warning for a board's page card, which never uses the
+   *  native view. */
+  unframedBoard?: string;
+  /** The button that approves after the warning. */
+  approveAnyway?: string;
+  /** The host did not take the approval: nothing was allowed. */
+  approveFailed?: string;
 };
 type EmbedHooks = {
   strings: EmbedStrings;
   /** The origin approved for good: kept, and the whole list handed to the
    *  host. False when the host did not take it; the page is not loaded. */
   approve: (origin: string) => Promise<boolean>;
+  /** Whether the site allows being framed (the host's check; false when it
+   *  could not tell). Asked when the person clicks to approve, never before. */
+  frameable?: (url: string) => Promise<boolean>;
 };
 let hooks: EmbedHooks | null = null;
 /** The window's words and its way of keeping an approval. Once per
@@ -428,13 +460,31 @@ function onGate(e: MouseEvent): void {
       load();
       break;
     case "approve":
+    case "approve-anyway": {
       if (!origin) break;
-      void hooks?.approve(origin).then((ok) => {
-        if (!ok) return;
-        approved.add(origin);
-        load();
+      const finish = (): void => {
+        void hooks?.approve(origin).then((ok) => {
+          if (!ok) return refused(box);
+          approved.add(origin);
+          load();
+        });
+      };
+      if (button.getAttribute("data-embed-action") === "approve-anyway") {
+        finish();
+        break;
+      }
+      // The warning comes before the confirmation: the host looks at the
+      // site's headers first, and a site that forbids framing is said so.
+      const here = button as HTMLButtonElement;
+      here.disabled = true;
+      box.setAttribute("aria-busy", "true");
+      void frameWarning(url).then((warn) => {
+        box.removeAttribute("aria-busy");
+        if (!warn) return finish();
+        warnInGate(box, warn);
       });
       break;
+    }
     case "cancel": {
       const link = document.createElement("a");
       link.className = "remote-image";
@@ -444,6 +494,42 @@ function onGate(e: MouseEvent): void {
       break;
     }
   }
+}
+
+/** The host did not take the approval: say so where the reader is looking, and give the buttons back. */
+function refused(box: HTMLElement): void {
+  const doc = box.ownerDocument;
+  box.removeAttribute("aria-busy");
+  for (const b of box.querySelectorAll<HTMLButtonElement>("button")) b.disabled = false;
+  const text = hooks?.strings.approveFailed ?? "";
+  if (text === "") return;
+  let p = box.querySelector(".embed-gate-warn");
+  if (!p) {
+    p = doc.createElement("p");
+    p.className = "embed-gate-warn";
+    p.setAttribute("role", "alert");
+    box.insertBefore(p, box.querySelector(".embed-gate-actions"));
+  }
+  p.textContent = text;
+}
+
+/** The gate with its warning: the words, an alert, and a second step. */
+function warnInGate(box: HTMLElement, warn: string): void {
+  const doc = box.ownerDocument;
+  const p = doc.createElement("p");
+  p.className = "embed-gate-warn";
+  p.setAttribute("role", "alert");
+  p.textContent = warn;
+  const actions = box.querySelector(".embed-gate-actions");
+  const cancel = box.querySelector('[data-embed-action="cancel"]');
+  const go = doc.createElement("button");
+  go.type = "button";
+  go.className = "save";
+  go.setAttribute("data-embed-action", "approve-anyway");
+  go.textContent = hooks?.strings.approveAnyway ?? hooks?.strings.approve ?? "";
+  actions?.replaceChildren(...(cancel ? [cancel] : []), go);
+  box.insertBefore(p, actions ?? null);
+  (cancel as HTMLElement | null)?.focus?.();
 }
 
 /** The policy, as the hostile-HTML suite prints and checks it

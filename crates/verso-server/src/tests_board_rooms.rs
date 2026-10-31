@@ -550,3 +550,78 @@ fn a_board_rooms_limits_are_kept() {
         assert_eq!(refused["err"]["kind"], "refused", "{refused}");
     });
 }
+
+/// What `ws` hears in `ms`, as events.
+async fn hear(ws: &mut Socket, ms: u64) -> Vec<Value> {
+    use futures_util::StreamExt;
+    let mut out = Vec::new();
+    let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
+    while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, ws.next()).await {
+        if let tokio_tungstenite::tungstenite::Message::Text(t) = m {
+            out.push(serde_json::from_str(&t).unwrap_or(Value::Null));
+        }
+    }
+    out
+}
+
+#[test]
+fn a_reader_is_told_when_a_boards_room_writes_its_file() {
+    block_on(async {
+        // A reader is never in a board's room (ADR 0090 item 5): it follows
+        // the board by its file, so it hears of each save the room makes.
+        let (_r, mut owner, mut reader, _id) = crate::tests_secret::folder_with_a_reader().await;
+        make_board(&mut owner, 40, "Grupo.canvas").await;
+        let (_, a) = join(&mut owner, 41, "Grupo.canvas").await;
+        let seed = yrs::merge_updates_v1([
+            put(
+                &a,
+                "r1",
+                1,
+                0,
+                &json!({ "type": "rectangle", "x": 0, "index": "a1" }),
+            )
+            .as_slice(),
+            seeded(&a).as_slice(),
+        ])
+        .unwrap();
+        assert!(
+            send(&mut owner, 42, "Grupo.canvas", &seed)
+                .await
+                .get("ok")
+                .is_some()
+        );
+        // What the reader heard of the board being made is not the save's.
+        hear(&mut reader, 400).await;
+        let mark = edited(&a, 1);
+        send(&mut owner, 43, "Grupo.canvas", &mark).await;
+        let json = canvas_of(&a);
+        let given = call(
+            &mut owner,
+            44,
+            "collab_canvas",
+            json!({ "path": "Grupo.canvas", "at": sv(&a), "json": json }),
+        )
+        .await;
+        assert!(given.get("ok").is_some(), "{given}");
+        let heard = hear(&mut reader, 1500).await;
+        assert!(
+            heard.iter().any(|e| e["event"] == "folder-changed"
+                && e["payload"]["changed"] == json!(["Grupo.canvas"])),
+            "{heard:?}"
+        );
+        // And it is the file as a reader is served it.
+        let read = call(
+            &mut reader,
+            5,
+            "read_text",
+            json!({ "path": "Grupo.canvas" }),
+        )
+        .await;
+        assert!(
+            read["ok"]["text"]
+                .as_str()
+                .is_some_and(|t| t.contains("r1")),
+            "{read}"
+        );
+    });
+}

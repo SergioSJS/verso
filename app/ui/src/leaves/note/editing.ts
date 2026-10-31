@@ -3,8 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { indentWithTab } from "@codemirror/commands";
+import { looseReadOnlyReason } from "../../loose";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
-import { syntaxHighlighting } from "@codemirror/language";
+import { foldEffect, syntaxHighlighting, unfoldEffect } from "@codemirror/language";
+import { foldedCount } from "./folds";
 import { languages } from "@codemirror/language-data";
 import { EditorState, type Extension, Prec, Transaction } from "@codemirror/state";
 import { type KeyBinding, keymap, lineNumbers } from "@codemirror/view";
@@ -17,14 +19,19 @@ import { type Block, type Edit as BlockEdit, type TurnKind, blockLink, blocksOfS
 import { blocksOf } from "../../blocks/view";
 import { startCompletion } from "@codemirror/autocomplete";
 import { a, pickImages, touchScreen } from "../../attach";
+import { attachSub, usedFolder } from "../../board/imageRoute";
 import { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } from "../../attachName";
+import { atTable, may, seat } from "../../access";
 import { host } from "../../can";
 import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
 import { completeMarkdown } from "../../editor/complete";
+import { openLinkAt } from "../../editor/linkCard";
+import { colourSwatches } from "../../colour/swatches";
 import { baseEditorExtensions } from "../../editor/extensions";
 import { linkSuggestFor } from "../../editor/linkSuggestWire";
 import { fail } from "../../errors";
+import { ruleEnterKeymap } from "../../editor/rule";
 import { readable, fileBase64 } from "../../files";
 import { allFiles, allNotes } from "../../folder";
 import { icon } from "../../icons";
@@ -38,14 +45,19 @@ import { settings } from "../../settings";
 import { slashKeymap } from "../../slash";
 import { LOCALE, t } from "../../strings";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "../../table";
+import { sendable } from "../../table/send";
 import { focusedAlign, focusTableCell, tableAction, tableHasFocus } from "../../tableEditor";
 import { Mode, NoteLeaf } from "../note";
-import { fromDisk, readOnlyText } from "../text";
+import { fromDisk } from "../text";
+import { readOnlyText } from "../readOnlyText";
+import { readerWatch } from "../../readerNotice";
 
 export function modeButton(this: NoteLeaf, mode: Mode, ic: string, label: string): HTMLButtonElement {
   const b = h("button");
   b.type = "button";
   b.append(icon(ic), h("span", "", label));
+  b.setAttribute("aria-label", label);
+  b.title = label;
   b.addEventListener("click", () => {
     // A mode is a way to show the text: a drawing shown gives way to it.
     if (this.drawingShown) this.setDrawingShown(false);
@@ -79,6 +91,8 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       // asking, not only when its list is open.
       linkSuggestFor(() => this.path),
       baseEditorExtensions,
+      // A square of the colour beside a colour code (ADR 0108).
+      colourSwatches(),
       this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
       md.language.data.of({ autocomplete: completeMarkdown }),
       md,
@@ -88,13 +102,15 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       // The text box is named after the note, as it is now (a rename
       // with unsaved text keeps this state).
       EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
+      // `---` then Enter writes the blank lines around the rule (ADR 0061).
+      ruleEnterKeymap,
       slashKeymap(this.slash),
       tableKeymap,
       listKeymap,
       keymap.of([...markdownKeymap, indentWithTab]),
       EditorView.lineWrapping,
       this.liveCompartment.of(this.mode === "live" ? [this.live, this.blockExt] : []),
-      this.readOnly ? readOnlyText : [],
+      this.readOnly ? [readOnlyText, readerWatch(() => this.path)] : [],
       // Several people in the note (ADR 0073 item 7): the room's binding.
       shared,
       // Above basicSetup's defaults, which bind ⌘I (select the parent
@@ -107,13 +123,20 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       }),
       EditorView.updateListener.of((u) => {
         this.slash.onUpdate(u);
+        // Folded or opened, by the gutter, a key or the caret moving in.
+        if (!this.restoringFolds) {
+          if (u.transactions.some((tr) => tr.effects.some((e) => e.is(foldEffect) || e.is(unfoldEffect))) || (u.selectionSet && foldedCount(u.state) !== foldedCount(u.startState))) this.editorFoldsChanged();
+          else if (u.docChanged && foldedCount(u.state) > 0) this.syncFoldsLater();
+        }
         // Undone or redone: the panel's rows go back to what the file
         // says; an edit of a key that differs from it is refused.
         if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly, this.note.note_type);
         if (u.docChanged) {
           // Another person's edit, from the room: not this tab's to save.
           const remote = this.collab !== null && u.transactions.every((tr) => !tr.docChanged || tr.annotation(ySyncAnnotation) !== undefined);
-          if (!remote && !u.transactions.some((tr) => tr.annotation(fromDisk))) {
+          // A note nobody can type in is never "unsaved": a change it shows
+          // came from the room or the disk, whatever carried it.
+          if (!remote && !this.readOnly && !u.transactions.some((tr) => tr.annotation(fromDisk))) {
             this.setDirty(true);
             // In a shared note the server writes the file once the edits
             // settle; the tab hears it (`collab-saved`).
@@ -269,9 +292,9 @@ export function insertTable(this: NoteLeaf): void {
 
 /** The toolbar's "insert image": a small menu under the button. */
 export function insertImageMenu(this: NoteLeaf, anchor: HTMLElement): void {
-  if (!readable()) return;
+  if (!readable(this.path, "edit")) return;
   if (this.readOnly) {
-    ui.status.textContent = t.readOnly;
+    ui.status.textContent = looseReadOnlyReason(this.path) ?? t.readOnly;
     return;
   }
   const phone = touchScreen();
@@ -308,7 +331,7 @@ export async function attachFromPicker(this: NoteLeaf, camera: boolean): Promise
  *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
 export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boolean {
   if (!files || files.length === 0 || !this.note || this.readOnly) return false;
-  const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+  const images = Array.from(files).filter((f) => f.type.startsWith("image/") || (seat() === "player" && sendable(f)));
   if (images.length === 0) return false;
   e.preventDefault();
   void (async () => {
@@ -331,11 +354,27 @@ export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boo
 export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: boolean; name?: string } = {}): Promise<string | null> {
   const said = f.name || opts.name || "";
   // A phone may give no type for a HEIC picture: its extension says.
-  if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name)) {
-    ui.status.textContent = a.notImage(said);
+  if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name) && !(seat() === "player" && sendable(f))) {
+    // Only a player at a table may send a PDF or audio (the right Files, K.6).
+    ui.status.textContent = seat() === "player" ? a.notImage(said) : a.notImageOnly(said);
     return null;
   }
-  if (!readable()) return null;
+  // A player at a table puts a new file into a note it edits through the
+  // server, which writes it into the table's place (ADR 0113 item 5, D, K.6):
+  // an image needs only that it edits the note, another file also the right
+  // Files.
+  const player = seat() === "player" && atTable();
+  if (player) {
+    if (!may(this.path, "edit")) {
+      readable(this.path, "edit");
+      return null;
+    }
+    const image = f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name);
+    if (!may(this.path, image ? "attachImage" : "attach")) {
+      ui.status.textContent = a.noSend;
+      return null;
+    }
+  } else if (!readable(this.path, "edit")) return null;
   if (host() === "server" && f.size > MAX_IMAGE_BYTES) {
     const words = a.tooBig(said, Math.floor(MAX_IMAGE_BYTES / (1024 * 1024)));
     ui.status.textContent = words;
@@ -353,8 +392,9 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
     ui.status.textContent = a.unreadable(shown);
     return null;
   }
-  const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+  const sub = attachSub(settings.attachments);
   const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
+  if (player) return this.attachThroughServer(b64, shown, sub);
   // Another window or device may take the name between the choosing and the
   // writing: the core refuses to overwrite (`exists`), and the next free
   // name is tried.
@@ -381,6 +421,28 @@ export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: bool
   ui.status.textContent = a.done(name(r.data), sub);
   await afterFileChange();
   this.sheet.scrollTop = top;
+  return r.data;
+}
+
+/** The server writes the file of a player (`table_attach`) beside the note,
+ *  in the same attachments subfolder the game master's paste uses, and the
+ *  embed that names it is written at the caret. */
+export async function attachThroughServer(this: NoteLeaf, b64: string, shown: string, sub: string): Promise<string | null> {
+  const r = await commands.tableAttach(b64, this.path, sub);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return null;
+  }
+  allFiles.push(r.data);
+  const target = linkText(this.path, r.data);
+  const pos = this.editor.state.selection.main.to;
+  this.editor.dispatch({
+    changes: { from: pos, insert: `![[${target}]]` },
+    selection: { anchor: pos + target.length + 5 },
+    annotations: Transaction.userEvent.of("input"),
+  });
+  ui.status.textContent = a.done(shown, usedFolder(this.path, r.data));
+  await afterFileChange();
   return r.data;
 }
 
@@ -468,6 +530,16 @@ export function blockMenu(this: NoteLeaf, blocks: Block[], x: number, y: number)
     [t.blocks.delete, () => this.deleteBlock(blocks), "close"],
   ];
   showMenu(x, y, items);
+}
+
+/** "Open link under cursor" (A11Y.11): the `[[wikilink]]`, `![[embed]]`,
+ *  Markdown link or bare address at the caret, opened as a click opens it. */
+export function followLinkAtCaret(this: NoteLeaf): void {
+  const opened = openLinkAt(this.editor.state, this.editor.state.selection.main.head, {
+    navigate: (target) => this.follow(target),
+    openUrl: (url) => void commands.openUrl(url),
+  });
+  if (!opened) ui.status.textContent = t.noLinkAtCaret;
 }
 
 /** `+` clicked on an empty line: a `/` there, the `/` menu open, apart

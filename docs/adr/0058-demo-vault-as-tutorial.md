@@ -27,7 +27,10 @@
   precisar gastar token de llm pra isso" (option 1, extend the harness; a
   gain as the application grows; something that really automates these
   tests, so that no LLM tokens are spent on them). The walk runs in the
-  browser harness (points 8 to 13); the `[OPEN]` is closed.
+  browser harness (points 8 to 13); the `[OPEN]` is closed. 2026-10-21,
+  later — the English demo vault is built (`demo-vault-en/`); the maintainer
+  answered E.1a and E.1b of the decisions list of 2026-10-21, both option A
+  (Status).
 
 ## Context
 
@@ -187,4 +190,16 @@ and 13: "Aceito todas (Recomendado)".
 
 Accepted (2026-10-01): points 1 to 3 and 8 decided by the maintainer; points 4
 to 7 and 9 to 13 accepted by the maintainer the same day, with points 14 and
-15. `[OPEN]`: the demo vault in English.
+15. `[OPEN]`: the demo vault in English — `[DECIDED 2026-10-21]` (0058, **option B**, not the recommended A, in the decisions questionnaire of 2026-10-20): the English demo vault is made **before V1**, accepting one more mirror to keep with every lesson of the tutorial (roadmap, new row).
+Built 2026-10-21 (`demo-vault-en/`: the 29 notes, the two boards and the
+example folders; "Import the demo vault" brings the window's language, a
+second command brings the other). `[DECIDED 2026-10-21]`, answering E.1a and
+E.1b of the decisions list: **(E.1a, option A) the property keys are
+translated too** in the English vault (`role`, `level`, `priority`…, where the
+Portuguese one has `papel`, `nível`, `prioridade`…), so an English tutorial has
+no loose Portuguese words; the bases and the templates of the English vault
+follow. (A note copied from one vault to the other does not carry its keys
+over; option B, equal keys, was not chosen.) **(E.1b, option A) the English
+screenshots are made when the interface stabilises, before V1**: the three
+server captures, the SVGs and the example PDF show the interface in
+Portuguese in both vaults today. Roadmap V.31.

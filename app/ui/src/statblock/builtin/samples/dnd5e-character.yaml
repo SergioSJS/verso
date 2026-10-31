@@ -1,0 +1,31 @@
+name: Mira Vale
+species: Halfling
+class: Rogue
+background: Courier
+level: 3
+xp: 900
+alignment: Neutral
+stats: [8, 16, 12, 13, 10, 14]
+proficiency_bonus: 2
+ac: 14
+initiative: +3
+speed: 25 ft.
+hp: 21
+hp_current: 17
+hit_dice: 3d8
+death_successes: 0
+death_failures: 0
+passive_perception: 12
+skills:
+  stealth: 7
+  sleight of hand: 5
+  perception: 2
+languages: Common, Halfling
+coins: 12 gp, 4 sp
+equipment:
+  - Shortsword
+  - Satchel of letters
+features:
+  - name: Quick hands
+    desc: A note of your own, not a book's.
+notes: Owes a favor to the harbor master.

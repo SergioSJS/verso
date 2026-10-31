@@ -19,15 +19,53 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod read_links;
+pub use read_links::{ReadLinkInfo, ReadLinkMade, ReadLinks};
 mod local;
 pub use local::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
     LocalPhone, LocalServerStatus,
 };
+mod folder_data;
+pub use folder_data::{
+    FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten,
+    OracleSettings, OracleSparks,
+};
+mod oracle_draw;
+pub use oracle_draw::{CollabOracle, OracleAsk, OracleDraw};
 mod maps;
 pub use maps::{MapInfo, MapState};
+mod access;
+pub use access::{
+    AccessCap, AccessChange, AccessChanged, AccessException, AccessInfo, AccessLevel, AccessPlayer,
+    AccessRow, AccessSeat, AccessSetResult, AccessSetView, AccessWhy, FileAccess, FolderAccess,
+    SyncRight, SyncRights,
+};
+mod campaign;
+pub use campaign::{
+    CampaignAccess, CampaignAudience, CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote,
+    CampaignPerson, CampaignPlayer, CampaignStatus, CampaignTable,
+};
+mod table;
+pub use table::{
+    DiceStyle, DiceStyles, TableCleared, TableEntry, TableImages, TableJoin, TableMember,
+    TablePage, TablePinned, TableRemoved, TableRoster,
+};
+mod lists;
+pub use lists::{BlockKind, FolderBlock, FolderBlocks, Tag, WebNote};
+mod sync;
+pub use sync::{
+    CloudCheck, CloudSettings, CloudStatus, PlaceholderPlan, SyncLogEntry, SyncRefused, SyncStatus,
+    SyncVersions,
+};
+mod picked;
+pub use picked::{
+    FilesDropped, FilesOver, PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick,
+};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
+mod loose;
+pub use loose::{LooseFileInfo, Opened, ReadOnlyReason, RecentFile};
 mod history;
 pub use history::{
     AuthorKind, HistoryListing, VersionAuthor, VersionEntry, VersionKind, VersionRestored,
@@ -117,6 +155,10 @@ pub struct TextFile {
     pub revision: String,
     /// What the write could not preserve, one line each; empty after a read.
     pub warnings: Vec<String>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A named root of the file tree (ADR 0062).
@@ -170,6 +212,12 @@ pub struct FolderSettings {
     pub respect_gitignore: Option<bool>,
     /// The periodic notes' settings (ADR 0093 item 4).
     pub periodic: Option<PeriodicSettings>,
+    /// The oracle's odds and spark words (ADR 0102 item 2).
+    pub oracle: Option<OracleSettings>,
+    /// The theme the folder suggests (ADR 0100 item 4): the JSON text of
+    /// one object, at most 16 KiB; an empty text takes the suggestion away.
+    /// The window checks its tokens.
+    pub recommended_theme: Option<String>,
 }
 
 /// The folder's layer of settings as read now (ADR 0070 items 1–2).
@@ -234,6 +282,10 @@ pub struct FileEntry {
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: f64,
     pub label: Option<EntryLabel>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A heading of a note, for citing and for the outline.
@@ -292,6 +344,10 @@ pub struct NoteText {
     /// The `verso-schema` blocks this note holds: one that types nothing,
     /// or a nested one that is not read, is said in its note (ADR 0052).
     pub schema_blocks: Vec<SchemaNotice>,
+    /// What the person asking may do with it (ADR 0113 section C); a host
+    /// with no server leaves it out: the folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FileAccess>,
 }
 
 /// A `verso-schema` block of a note.
@@ -616,6 +672,49 @@ pub enum Can {
     Admin,
     /// Several people editing one note at once (ADR 0073 item 7).
     Collab,
+    /// The side shows a folder, with its index: the tree, the graph, the
+    /// bases, the tags, the files. Absent for one file opened without a
+    /// folder (ADR 0114 items 18 and 25), as are the rest below.
+    Index,
+    /// Full-text search over the folder.
+    Search,
+    /// Backlinks and unlinked mentions.
+    Backlinks,
+    /// New notes, files and folders.
+    Create,
+    /// Renaming and moving entries.
+    Rename,
+    /// Deleting entries (into the bin).
+    Delete,
+    /// The folder's bin (ADR 0080).
+    Trash,
+    /// Version history (ADR 0091).
+    History,
+    /// Sync with a server or a cloud (ADR 0079, ADR 0104).
+    Sync,
+    /// The table: rolls and chat (ADR 0107).
+    Table,
+    /// Boards and drawings (ADR 0057).
+    Board,
+}
+
+impl Can {
+    /// What a side that shows a whole folder can do, and a side that shows
+    /// one file cannot (ADR 0114 items 18 and 25): every host that opens
+    /// folders adds all of these.
+    pub const FOLDER: &[Can] = &[
+        Can::Index,
+        Can::Search,
+        Can::Backlinks,
+        Can::Create,
+        Can::Rename,
+        Can::Delete,
+        Can::Trash,
+        Can::History,
+        Can::Sync,
+        Can::Table,
+        Can::Board,
+    ];
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -626,6 +725,11 @@ pub struct Capabilities {
     /// network (the desktop app on a server's folder, ADR 0073 item 2): the
     /// window learns how far the core is (ADR 0026 rule 2).
     pub latency_ms: Option<u32>,
+    /// Who the person is at the open folder's table (ADR 0113): the one
+    /// source of "who am I here". A host with no server says nothing: the
+    /// folder is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<FolderAccess>,
 }
 
 /// What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —
@@ -685,6 +789,18 @@ pub struct DiceRoll {
     pub by: String,
     /// When, RFC 3339 in UTC.
     pub at: String,
+    /// The roller's dice appearance, as the window sent it and the server
+    /// checked it (ADR 0107 item 11); none when the window rolled alone or
+    /// sent none.
+    #[serde(default)]
+    pub styles: Option<DiceStyles>,
+    /// Which of the note's dice with this code was clicked, from the first
+    /// (ADR 0107): a note can hold the same `dice:` code twice, and a
+    /// window that hears the roll shows it on that one. For display only;
+    /// none when the roll was not made from a die in a note, or by an older
+    /// window or server, and then the first such die shows it.
+    #[serde(default)]
+    pub occurrence: Option<u32>,
 }
 
 /// One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a
@@ -757,6 +873,11 @@ pub struct FoundServer {
     pub version: String,
 }
 
+/// What a closed table answers a player who tries to open it (ADR 0110 item 3,
+/// MC.1 = A). The server says it and the windows know it by this text: a
+/// closed table is told to the player as a state to wait out, not a fault.
+pub const TABLE_CLOSED: &str = "a mesa está fechada";
+
 /// The window's server, or what it held there, is gone (event
 /// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
 /// on a server's folder.
@@ -767,8 +888,10 @@ pub struct ServerGone {
     /// What ended: `session` (the server ended this device's session, or
     /// refused it on reconnecting), `folder` (this account no longer
     /// reaches the folder or the share: `reason` says why), `connection`
-    /// (the connection dropped; the app tries again) or `unreachable` (a
-    /// try found the server out of reach: `address` names it).
+    /// (the connection dropped; the app tries again), `unreachable` (a
+    /// try found the server out of reach: `address` names it) or `closed`
+    /// (the table is closed by its game master: the app tries again and
+    /// gets in when it opens).
     pub what: String,
     /// With `folder`, when the server says it: `revoked` by its owner,
     /// `deleted` (the shared folder went), `left` by the person.
@@ -777,6 +900,17 @@ pub struct ServerGone {
     /// addresses tried, each on a line after it (as `Unreachable`'s
     /// message).
     pub address: Option<String>,
+}
+
+/// Where a window reaches the server whose folder it shows (`window_server`):
+/// its address as the app is signed in to it, and the folder's id there. What
+/// turns a link the server made without knowing its own public name (a path
+/// like `/invite/<token>`) into one that opens, and gives a note's address
+/// in the server's window. In a browser it is the page's own origin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerWindow {
+    pub url: String,
+    pub folder: String,
 }
 
 /// The window's server is back after it was gone (event `server-back`,
@@ -864,15 +998,6 @@ pub struct ServerFolders {
     pub may_create: bool,
 }
 
-/// A folder of this computer opened before, for the folder switcher's
-/// "On this computer" (ADR 0081 item 5): its name and the key
-/// `reopen_folder` takes — never its path (ADR 0026 rule 4).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct RecentFolder {
-    pub key: String,
-    pub name: String,
-}
-
 /// A person who has access to a shared folder, and in which role (ADR
 /// 0081 item 7).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -896,100 +1021,6 @@ pub struct FolderShare {
     pub attachments: Option<String>,
     /// The share points at a folder that is gone (item 13).
     pub missing: bool,
-}
-
-/// A folder's sync with a server, as its window shows it (ADR 0079 item
-/// 13): the status bar's state and the folder settings' section.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct SyncStatus {
-    /// The folder of this computer it is of (`FolderInfo::key`): every
-    /// window hears every folder's, and shows its own.
-    pub key: String,
-    /// Whether the folder syncs at all.
-    pub on: bool,
-    /// The server, as signed in to (Settings › Servers).
-    pub server: String,
-    /// The server's folder: its id and its name there.
-    pub folder: String,
-    pub folder_name: String,
-    /// The role there: `owner`, `editor` or `reader` (a reader only
-    /// receives, item 1).
-    pub role: String,
-    /// `off`, `starting`, `synced`, `syncing`, `offline`, `paused` or
-    /// `error`.
-    pub state: String,
-    /// Files on their way in this pass.
-    pub sending: u32,
-    pub receiving: u32,
-    /// When paused for deletions, how many it would delete (item 9).
-    pub deletions: Option<u32>,
-    /// The conflict copies in the folder (item 8), by path.
-    pub conflicts: Vec<String>,
-    /// Files not synced, each with its reason (item 13).
-    pub refused: Vec<SyncRefused>,
-    /// What crossed lately, newest first.
-    pub log: Vec<SyncLogEntry>,
-    /// When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`.
-    pub last: Option<String>,
-    /// The last error, said (in English, for the log).
-    pub message: Option<String>,
-    /// What the last error was, for the window to say in its language:
-    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
-    /// with the state `off`, `revoked`.
-    pub problem: Option<String>,
-    /// With the problem `version`: what each side runs — two builds of one
-    /// version can differ in their contracts, and the window names both.
-    pub versions: Option<SyncVersions>,
-    /// When the folder's owner revoked the share this folder synced,
-    /// `YYYY-MM-DDTHH:MM:SSZ`: sync was turned off then, the files here
-    /// kept (ADR 0081 item 8). Said until sync is turned on again.
-    pub revoked: Option<String>,
-}
-
-/// What the server and this app run, when their contracts differ: the
-/// version, the commit it was built from, and the contract's hash.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct SyncVersions {
-    pub server_version: String,
-    pub server_build: String,
-    pub server_contract: String,
-    pub app_version: String,
-    pub app_build: String,
-    pub app_contract: String,
-}
-
-/// A file sync left out, and why.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct SyncRefused {
-    pub path: String,
-    /// `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
-    /// `case_twin_there` (two names on the server that differ only in
-    /// case: this computer keeps one, spec Q8), `name_invalid`, `changed`
-    /// or `failed`.
-    pub reason: String,
-    pub message: String,
-}
-
-/// One thing that crossed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct SyncLogEntry {
-    /// `YYYY-MM-DDTHH:MM:SSZ`.
-    pub at: String,
-    /// `sent`, `received`, `deleted_there`, `deleted_here`,
-    /// `renamed_there`, `renamed_here`, `conflict` or `merged` (two
-    /// appends to a note joined, ADR 0079 item 8).
-    pub what: String,
-    pub path: String,
-    /// The other path of a rename, or a conflict's copy.
-    pub other: Option<String>,
-    /// For what came from the server — received, deleted or renamed here,
-    /// a conflict, a merge — who made the change there, as the server's
-    /// log says it (sync 2): the person's name, and the name of the
-    /// device whose sync made it. Either may be unknown: a change made in
-    /// a browser has no device, one found on the server's disk no one, a
-    /// share says neither.
-    pub by: Option<String>,
-    pub device: Option<String>,
 }
 
 /// Information about an application update.
@@ -1047,13 +1078,6 @@ pub struct InstallResult {
     pub requires_restart: bool,
 }
 
-/// A note that is a web page: its path and the address in its `url`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct WebNote {
-    pub path: String,
-    pub url: String,
-}
-
 /// One resolved link of the vault, for the graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Edge {
@@ -1061,11 +1085,14 @@ pub struct Edge {
     pub to: String,
 }
 
-/// A tag and the notes that carry it.
+/// A link of a note that no note answers to, for the graph's option of
+/// showing them (spec Q14, decision B): the note it is written in and the
+/// name it points at, as written (the smallest spelling in byte order when
+/// several notes spell it differently, so every source shows one node).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct Tag {
-    pub name: String,
-    pub notes: Vec<String>,
+pub struct MissingLink {
+    pub from: String,
+    pub target: String,
 }
 
 /// A frontmatter value, typed as the YAML gave it, for a properties

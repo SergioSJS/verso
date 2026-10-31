@@ -1,0 +1,35 @@
+name: Ilse Varga
+concept: A sample of our own
+clan: Sample clan
+generation: 12
+attributes_physical:
+  strength: 2
+  dexterity: 3
+  stamina: 2
+attributes_social:
+  charisma: 3
+  manipulation: 2
+  composure: 3
+attributes_mental:
+  intelligence: 2
+  wits: 3
+  resolve: 2
+skills_physical:
+  stealth: 2
+  brawl: 1
+skills_social:
+  persuasion: 2
+skills_mental:
+  investigation: 3
+hunger: 2
+hunger_max: 5
+health: 5
+health_superficial: 1
+health_aggravated: 0
+willpower: 5
+willpower_superficial: 2
+humanity: 7
+stains: 0
+blood_potency: 1
+touchstones_convictions:
+  - A sample touchstone

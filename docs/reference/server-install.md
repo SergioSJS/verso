@@ -34,18 +34,127 @@ curl -fsSLO https://versomd.com/universo.sh
 sh universo.sh install --url https://notes.example.com
 ```
 
+**Guided.** `sh universo.sh` with no command opens a menu (the language by
+`LANG`): install, HTTPS, the first admin, backup, update, status, support,
+swap, firewall, the timers and uninstall. With `whiptail` (Debian and
+Ubuntu carry it) it is arrow keys and Enter; without, a numbered list. Each
+step is said, and confirmed, before it runs, and is also a plain command in
+the table below (`--yes` answers yes to every question, for a script). The
+step by step for someone who has never set up a server, on Oracle's free
+tier, is note 34 of the demo vault ([UniVerso on a Free Oracle
+Server](#a-weak-free-vps-oracle-cloud)). What the guided parts do, and
+choose, is decided in
+[ADR 0075](../adr/0075-server-packaging-and-storage.md), amendment of
+2026-10-30.
+
 | Command | What it does |
 |---|---|
+| `menu` (no command) | the guided menu above |
+| `https [--domain NAME \| --free-name sslip.io\|nip.io \| --duckdns NAME [--token-file F]]` | HTTPS in one step (below) |
+| `admin [--email E] [--password-file F]` | the first admin (below) |
+| `swap [--dry-run]` | a swap file for a machine of 2 GB or less without swap (below) |
+| `schedule status \| backup [--keep N] \| update \| off [backup\|update]` | a daily backup and a weekly update as systemd timers, off by default (below) |
+| `support` | a report to paste when asking for help (below) |
 | `install [--version X] [--package FILE] [--url URL]` | downloads this machine's package (x64 or ARM64, `.deb` or `.rpm`) from the latest release or from `X`, checks it, installs it, writes `VERSO_PUBLIC_URL` into `/etc/universo/universo.env` (asked when not given; every other line left as it was), runs `systemctl enable --now universo`, waits for the server to answer and prints the next steps: the first admin (section 9, the setup link from the log), HTTPS (section 8), the ports |
 | `update [--version X] [--package FILE]` | the same download and check, installed over the running one; settings and data kept; restarts it and prints the old and the new version |
 | `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
 | `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>-<random>.tar.gz` in `DIR` (a new file, `0600`, under a name no one can guess beforehand; `DIR` must not lie inside what it copies, `..` and links resolved) (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
+| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout] [--keep N]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>-<random>.tar.gz` in `DIR` (a new file, `0600`, under a name no one can guess beforehand; `DIR` must not lie inside what it copies, `..` and links resolved) (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
 | `backup --keygen` | makes the key of encrypted backups, once: the public one in `/etc/universo/backup.pub`, the secret one printed, never kept on the machine (section 2) |
 | `restore FILE [--identity KEY-FILE] [--to DIR]` | puts a backup back over `/var/lib/universo` and `/etc/universo` after you type `/var/lib/universo`, the service stopped meanwhile; an encrypted one with its secret key or passphrase; `--to DIR` unpacks it into `DIR` instead, the server untouched (section 2) |
 | `reset-admin [E-MAIL]` | the command of section 10 |
 | `firewall` | opens 80 and 443 with ufw, firewalld or iptables (kept across reboots with `netfilter-persistent` when present), and reminds that a cloud's own firewall (Oracle's VCN security list) is opened in its console. Only when asked: `install` never touches the firewall |
+
+### HTTPS in one step: `https`
+
+`sh universo.sh https` does section 8's Caddy route. It installs Caddy
+from **Caddy's own signed repository** (apt: the key kept in
+`/usr/share/keyrings/caddy-stable-archive-keyring.gpg` and the source
+`signed-by` it, never `trusted=yes`; dnf: the COPR `@caddy/caddy`,
+signed by COPR), leaving a Caddy already on the machine as it is; writes
+`/etc/caddy/Caddyfile.d/universo.caddyfile` (`reverse_proxy` to the
+server's port; WebSocket needs nothing more) and the `import` line when the
+Caddyfile lacks it; validates the configuration; waits up to two minutes
+for the certificate; then writes `VERSO_PUBLIC_URL=https://<name>` into the
+settings, restarts the server and checks that `https://<name>` answers. It
+leaves `VERSO_TRUSTED_PROXY` empty on purpose: the default already believes
+a proxy on the same machine (section 8). A failure is explained in words —
+port 80 or 443 closed, the name not pointing at this machine, another
+program on the port, Let's Encrypt's rate limit — and running it again picks
+up where it was.
+
+The name is one of three. **Your own domain**, whose `A` record must already
+point at the machine (the script compares it with the machine's public
+address and asks before going on). **A free name made from the address**,
+`150-230-1-2.sslip.io`: nothing to buy or sign up for; the default offered.
+`sslip.io` and `nip.io` are not on the Public Suffix List (checked
+2026-10-30), so every user of one shares Let's Encrypt's 50 certificates a
+week per registered domain, and the service's own page says Let's Encrypt
+raised its limit to 250,000; the script tries sslip.io and, if the
+certificate is refused for the limit, offers nip.io. The name carries the
+address in it. **A DuckDNS name** (`--duckdns NAME`; the token is asked
+hidden, or `--token-file`): `duckdns.org` is on the list, so each name has
+a limit of its own, and the name follows the address if it changes; the
+token is kept in `/etc/universo/duckdns.token` (`0600`) and a systemd timer
+(`universo-duckdns.timer`, every 5 minutes) tells DuckDNS the address, the
+token given to `curl` on its standard input, never on a command line.
+
+### The first admin: `admin`
+
+Asks the e-mail and the password (typed twice, hidden on a terminal, never
+echoed, never a command line or a log line; or `--email` and
+`--password-file`), 12 characters at least. The server has no command that
+creates an account, so the script uses section 9's first way: it writes
+`VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD_FILE` (a file readable by
+root and the `universo` group only), restarts the server, reads its log for
+the line that says the admin was made, and **removes both settings and the
+file** whatever the outcome. On a server that already has accounts the
+server ignores them, and the script says so and points to `reset-admin`; a
+password the server refuses (a commonly used one) is reported with the
+server's reason, and the settings are cleaned all the same. It then prints
+the address to sign in at.
+
+### A weak free VPS (Oracle Cloud)
+
+`swap` is for a machine of 2 GB or less of memory with no swap: after
+asking, it makes `/swapfile` (1 GB up to about 1 GB of memory, 2 GB
+above), puts it in `/etc/fstab` and sets `vm.swappiness=10` in
+`/etc/sysctl.d/99-universo.conf`; it refuses on btrfs or ZFS and when the
+disk would be left short. `--dry-run` shows the plan and changes nothing.
+`install` offers it first on such a machine (never under `--yes`). The
+script recognises Oracle Cloud by the DMI data (`chassis_asset_tag`) and,
+there, `install`, `https` and `firewall` print the step-by-step to open 80
+and 443 in the VCN's security list; `firewall` also fixes the Ubuntu
+image's iptables INPUT rules and, asked, installs `iptables-persistent` so
+they survive a reboot. The walk-through for a first-timer on Oracle's free
+tier is the reference [UniVerso on Oracle Cloud's Always Free
+tier](universo-on-oracle-free.md) and, for a layperson, note 34 of the
+demo vault.
+
+### Timers: `schedule`
+
+Off by default. `schedule backup [--keep N]` writes
+`universo-backup.service` and `.timer` (daily around 03:30, the last N
+backups kept, 7 by default; `backup --keep N` does the pruning, only of files
+with this script's names, never through a link); `schedule update` writes
+`universo-update.service` and `.timer` (Sundays around 04:30: a backup, then
+`update`, which checks the download as always, and needs `GITHUB_TOKEN`
+while the repository is private). They run a copy of the script in
+`/usr/local/lib/universo/`. `schedule status` shows them; `schedule off`
+removes both. A backup on the same machine does not survive losing it: copy
+backups off.
+
+### The support report: `support`
+
+Prints, and saves in `/tmp/universo-support-<time>.txt`, the version, the
+system and architecture, memory, swap, disk, the service's state, the
+listening ports, the settings' **names** (any whose name has PASS, TOKEN,
+SECRET, KEY or SMTP shows `<hidden>` in place of its value), the firewall,
+Caddy's state and site, the timers and the last 200 lines of the log with
+tokens, long random strings and e-mail addresses taken out. It says at the
+top that it holds no password and no token; it does hold the machine's
+public name or address.
 
 How a download is checked: with `minisign` installed, the release's
 signed checksums list — `verso-<version>-SHA256SUMS` and its `.sig` —

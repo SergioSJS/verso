@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-join"
+description = "Enables the table_join command without any pre-configured scope."
+commands.allow = ["table_join"]
+
+[[permission]]
+identifier = "deny-table-join"
+description = "Denies the table_join command without any pre-configured scope."
+commands.deny = ["table_join"]

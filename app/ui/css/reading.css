@@ -1,15 +1,23 @@
 /* Reading */
-.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+/* The reading view's vertical rhythm (ADR 0061, revised 2026-10-22): every block
+   leaves --flow below it, and a blank line in the source adds nothing. */
+.preview { --flow: .9em; font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .preview:empty { display: none; }
 .preview > :first-child { margin-top: 0; }
-.preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.5em 0 .4em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
-.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
+/* A colour per heading level (ADR 0109): the theme's, else what each level always had. */
+.preview h1 { color: var(--h1-color, var(--heading-color, var(--ink))); }
+.preview h2 { color: var(--h2-color, var(--heading-color, var(--ink))); }
+.preview h3 { color: var(--h3-color, var(--heading-color, var(--ink))); }
+.preview h4 { color: var(--h4-color, var(--ink-2)); }
+.preview h5 { color: var(--h5-color, inherit); }
+.preview h6 { color: var(--h6-color, inherit); }
+.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 var(--flow); }
 .preview ul, .preview ol {
-  margin: 0.25em 0 0.75em;
+  margin: 0 0 var(--flow);
   padding-left: 1.5em;
 }
-.preview hr + ul, .preview hr + ol { margin-top: -0.4em; }
 
 /* All list items: compact vertical rhythm matching Edit mode */
 .preview li {
@@ -76,20 +84,39 @@
   content: none !important;
   display: none !important;
 }
+/* Drawn by us, not the platform's control: WebKit (the Mac and Linux
+   windows) and Chromium (Windows, the browser) place a native checkbox on
+   the line differently. Centred on the 0.36em line the bullets use. */
 .preview li input[type="checkbox"] {
-  appearance: auto;
-  -webkit-appearance: auto;
-  accent-color: var(--seal);
-  width: 1em !important;
-  height: 1em !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-sizing: border-box !important;
+  font-size: inherit !important; /* a control does not inherit it; em would be the platform's 13px */
+  position: relative;
   display: inline-block !important;
-  margin-left: -1.25em !important;
-  margin-right: 0.25em !important;
-  vertical-align: -0.02em !important;
+  width: 0.9em !important;
+  height: 0.9em !important;
+  margin: 0 0.3em 0 -1.2em !important;
+  padding: 0 !important;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 0.2em;
+  background: var(--paper);
+  vertical-align: calc(0.36em - 0.45em) !important;
   cursor: pointer;
 }
+.preview li input[type="checkbox"]:checked { background: var(--seal); border-color: var(--seal); }
+.preview li input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0.24em;
+  height: 0.46em;
+  border: solid var(--paper);
+  border-width: 0 0.12em 0.12em 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.preview li input[type="checkbox"]:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
 .preview li:has(> input[type="checkbox"]:checked),
 .preview li:has(> p:first-child > input[type="checkbox"]:checked) {
   color: var(--ink-3);
@@ -111,8 +138,8 @@
   border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent) !important;
 }
 .preview strong { font-weight: 600; }
-.preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--paper-2); border-radius: 4px; overflow: auto; }
-.preview code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); padding: .06em .3em; border-radius: 3px; }
+.preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--code-paper, var(--paper-2)); color: var(--code-ink, inherit); border-radius: 4px; overflow: auto; }
+.preview code { font-family: var(--mono); font-size: .88em; background: var(--code-paper, var(--paper-3)); color: var(--code-ink, inherit); padding: .06em .3em; border-radius: 3px; }
 .preview pre code { background: none; padding: 0; }
 .preview blockquote { padding: .1rem 0 .1rem 1.1rem; border-left: 2px solid var(--brass); color: var(--ink-2); font-style: italic; }
 .preview table { border-collapse: collapse; font-size: .92em; font-family: var(--ui); }
@@ -122,9 +149,9 @@
   position: relative;
   border: 0;
   text-align: center;
-  height: 1.8em;
-  line-height: 1.8em;
-  margin: 1.2em 0;
+  height: 1.4em;
+  line-height: 1.4em;
+  margin: 1em 0;
 }
 .preview hr::before {
   content: "";
@@ -133,7 +160,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--hair);
+  background: var(--hr-color, var(--hair));
 }
 .preview hr::after {
   content: "⁂";
@@ -162,7 +189,7 @@
    lines ran longer than the reading view's in a wide window. Its panels and
    tooltips set their own. Source and code keep theirs. */
 .editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
-.editor.live { font-family: var(--book); font-size: 1.02rem; }
+.editor.live { font-family: var(--book); font-size: calc(1.02rem * var(--note-scale, 1)); }
 .editor .cm-editor {
   height: auto;
   background: none;
@@ -171,7 +198,7 @@
 .editor .cm-scroller {
   overflow: visible !important;
   font-family: var(--book);
-  font-size: 1.02rem;
+  font-size: calc(1.02rem * var(--note-scale, 1));
   line-height: 1.7;
   min-height: 50vh;
 }
@@ -290,7 +317,7 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
   background: none !important;
 }
 .editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
-.editor.source .cm-scroller { font-family: var(--mono); font-size: .9rem; line-height: 1.6; }
+.editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
 

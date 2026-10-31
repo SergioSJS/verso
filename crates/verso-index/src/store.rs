@@ -246,7 +246,7 @@ impl Index {
             pinned_items,
         ) = match report.frontmatter.as_ref().map(|f| &f.values) {
             Some(Ok(Value::Mapping(map))) => (
-                strings_of(map, "tags"),
+                frontmatter_tags(map),
                 strings_of(map, "aliases"),
                 true,
                 strings_of(map, "url")
@@ -757,6 +757,18 @@ impl Index {
                     .into_iter()
                     .map(|t| t.name.to_lowercase()),
             );
+            // A nested tag counts for each tag above it, as Obsidian's tag
+            // pane counts it (spec Q22 b): `a/b` is also a note of `a`.
+            let ancestors: Vec<String> = found
+                .iter()
+                .flat_map(|t| {
+                    t.match_indices('/')
+                        .filter(|(at, _)| *at > 0)
+                        .map(|(at, _)| t[..at].to_owned())
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            found.extend(ancestors);
             found.sort();
             found.dedup();
             for t in found {
@@ -1223,6 +1235,21 @@ fn strings_of(map: &[(String, Value)], key: &str) -> Vec<String> {
     match map.iter().find(|(k, _)| k == key).map(|(_, v)| v) {
         Some(Value::Sequence(items)) => items.iter().filter_map(scalar_text).collect(),
         Some(v) => scalar_text(v).into_iter().collect(),
+        None => Vec::new(),
+    }
+}
+
+/// The frontmatter's `tags` as tag names (spec Q22 c, Q24 b): a list of
+/// strings and integers, or one of them (DL.2 = B, 2026-10-21: an integer
+/// or a string of digits is the tag of its text); a boolean or a float is
+/// no tag, and a leading `#` is not part of the name.
+fn frontmatter_tags(map: &[(String, Value)]) -> Vec<String> {
+    match map.iter().find(|(k, _)| k == "tags").map(|(_, v)| v) {
+        Some(Value::Sequence(items)) => items
+            .iter()
+            .filter_map(verso_dialect::frontmatter_tag)
+            .collect(),
+        Some(v) => verso_dialect::frontmatter_tag(v).into_iter().collect(),
         None => Vec::new(),
     }
 }

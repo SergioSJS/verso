@@ -48,3 +48,5 @@ writes Obsidian plugins.
 ## Status
 
 Proposed.
+
+*2026-10-21* — the decisions questionnaire of 2026-10-20 (answered 2026-10-21): `[DECIDED 2026-10-21]` (option A) the six items wait for after V1, the moment already decided (plugins are outside V1). Status stays Proposed.

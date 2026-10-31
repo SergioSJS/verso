@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "old-dragon-character",
+  "name": {
+    "pt": "Old Dragon 2e — Personagem",
+    "en": "Old Dragon 2e — Character"
+  },
+  "description": {
+    "pt": "Só os nomes dos campos (CC BY-SA 4.0): nenhum texto do livro.",
+    "en": "Field names only (CC BY-SA 4.0): no book text. The generic words are in English; the game's abbreviations (CA, BA, JP, PV…) are the book's own, in Portuguese."
+  },
+  "sources": [
+    {
+      "label": "Old Dragon 2e SRD (CC BY-SA 4.0)",
+      "url": "https://olddragon.com.br/livros/srd"
+    },
+    {
+      "label": "Licenciamento",
+      "url": "https://olddragon.com.br/licenciamento"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","raca","classe","alinhamento"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["raca","classe","alinhamento"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"table","id":"atributos","properties":["atributos"],"label":{"pt":"Atributos","en":"Attributes"},"hideWhenEmpty":true,"headers":[{"pt":"FOR","en":"FOR"},{"pt":"DES","en":"DES"},{"pt":"CON","en":"CON"},{"pt":"INT","en":"INT"},{"pt":"SAB","en":"SAB"},{"pt":"CAR","en":"CAR"}],"modifier":{"kind":"bands","bands":[{"min":2,"max":3,"value":-3},{"min":4,"max":5,"value":-2},{"min":6,"max":8,"value":-1},{"min":9,"max":12,"value":0},{"min":13,"max":14,"value":1},{"min":15,"max":16,"value":2},{"min":17,"max":18,"value":3},{"min":19,"max":20,"value":4}]},"rule":true},
+    {"type":"group","id":"combate","properties":["ca","ba","bac","bad","jpd","jpc","jps","mv","pv","pv_atual","pv","idiomas"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ca","properties":["ca"],"label":{"pt":"CA","en":"CA"},"hideWhenEmpty":true},{"type":"property","id":"ba","properties":["ba"],"label":{"pt":"BA","en":"BA"},"hideWhenEmpty":true},{"type":"property","id":"bac","properties":["bac"],"label":{"pt":"BAC","en":"BAC"},"hideWhenEmpty":true},{"type":"property","id":"bad","properties":["bad"],"label":{"pt":"BAD","en":"BAD"},"hideWhenEmpty":true},{"type":"property","id":"jpd","properties":["jpd"],"label":{"pt":"JPD","en":"JPD"},"hideWhenEmpty":true},{"type":"property","id":"jpc","properties":["jpc"],"label":{"pt":"JPC","en":"JPC"},"hideWhenEmpty":true},{"type":"property","id":"jps","properties":["jps"],"label":{"pt":"JPS","en":"JPS"},"hideWhenEmpty":true},{"type":"property","id":"mv","properties":["mv"],"label":{"pt":"MV","en":"MV"},"hideWhenEmpty":true},{"type":"property","id":"pv","properties":["pv"],"label":{"pt":"PV","en":"PV"},"hideWhenEmpty":true},{"type":"tracker","id":"pv-atual","properties":["pv_atual","pv"],"label":{"pt":"PV atuais","en":"Current PV"},"hideWhenEmpty":true,"current":"pv_atual","max":"pv","style":"number"},{"type":"property","id":"idiomas","properties":["idiomas"],"label":{"pt":"Idiomas","en":"Languages"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a test (d20 under)"},"inputs":{}}
+  ]
+}

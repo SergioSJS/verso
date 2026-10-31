@@ -1,0 +1,62 @@
+{
+  "verso-theme": 1,
+  "name": "Border",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Border",
+    "author": "Akifyss",
+    "repoUrl": "https://github.com/akifyss/obsidian-border",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#ffffff",
+      "--paper-2": "#f8f9fa",
+      "--hair": "#8089c6",
+      "--ink": "#1d1d20",
+      "--ink-2": "#545664",
+      "--seal": "#6279fd",
+      "--brass-ink": "#1d1d20",
+      "--code-ink": "#545664",
+      "--red": "#dd2c38",
+      "--orange": "#de7417",
+      "--yellow": "#c09c0c",
+      "--green": "#1da51d",
+      "--cyan": "#16a6ab",
+      "--blue": "#1775d9",
+      "--purple": "#8f47e1",
+      "--pink": "#dd1399"
+    },
+    "dark": {
+      "--paper": "#27282e",
+      "--paper-2": "#24252a",
+      "--hair": "#777c9c",
+      "--ink": "#d3d5de",
+      "--ink-2": "#b8bac7",
+      "--seal": "#909cd0",
+      "--brass-ink": "#d3d5de",
+      "--code-ink": "#b8bac7",
+      "--red": "#ff7881",
+      "--orange": "#fbbb83",
+      "--yellow": "#ffe88b",
+      "--green": "#7cd37c",
+      "--cyan": "#86dfe2",
+      "--blue": "#89bdf4",
+      "--purple": "#cb9eff",
+      "--pink": "#f2b6de"
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "outline",
+    "radius": "soft",
+    "heading-weight": "bold",
+    "line-height": "snug",
+    "line-width": "narrow",
+    "blockquote-style": "bar",
+    "checkbox-style": "rounded",
+    "hr-style": "line"
+  }
+}

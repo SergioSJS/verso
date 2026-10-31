@@ -21,6 +21,12 @@
   [0009](0009-external-constraints.md) (admissible sources),
   [0058](0058-demo-vault-as-tutorial.md), [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: §5.3, the time row, `PROPOSED`.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21): item 11 cites a third
+  read-only read, the attachments folder's name that
+  [0096](0096-this-app-is-a-server.md) reads (0096.2, option A); and the
+  contradiction recorded at the end of the Status is resolved the way the
+  maintainer chose (0093, option A): spec §7 now points here, not to §9.
 
 ## Context
 
@@ -172,7 +178,12 @@ recommended and is marked `[DECIDED 2026-10-14]`.
     `.obsidian/` is ever written. Reading those two files is an exception
     in `verso-fs` beside `.verso/`'s (`crates/verso-fs/src/settings.rs`):
     two named files, nothing else of a hidden directory the walk does not
-    enter ([0044](0044-verso-fs-semantics.md)); a renamed configuration
+    enter ([0044](0044-verso-fs-semantics.md)) — and, `[DECIDED 2026-10-21]`
+    (0096.2, option A), **one more read of the same kind, by name**: the
+    attachments folder's setting, `attachmentFolderPath` in
+    `.obsidian/app.json`, that a server reads at each start to serve a
+    subfolder with its attachments, never written
+    ([0096](0096-this-app-is-a-server.md) item 2); a renamed configuration
     folder is not looked for. The names and keys come from community
     code, not from Obsidian's documentation (Context), and are observed
     on the Sandbox vault before the PR ([0009](0009-external-constraints.md)).
@@ -226,9 +237,11 @@ in [0014](0014-primitives-catalog.md) (the time row accepted in full),
 [0070](0070-what-travels-with-the-folder.md) item 2 (item 4) and
 [0079](0079-sync-a-local-folder-with-a-server.md) item 8 (item 12).
 
-Recorded, not resolved: spec §7 says that what Verso does not define yet
-and Obsidian does — periodic notes among it — "is in section 9", and
-§9 holds no question on periodic notes.
+Resolved on 2026-10-21 (0093, option A): spec §7 said that what Verso does
+not define yet and Obsidian does — periodic notes among it — "is in
+section 9", and §9 holds no question on periodic notes. §7 is corrected to
+point to this ADR, which accepted the behaviour; §9 only lists open
+questions, so no question is opened there.
 
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1
 by the maintainer's answer of 2026-10-14 (`docs/roadmap.md`, Phase 4 —

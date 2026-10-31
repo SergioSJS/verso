@@ -9,15 +9,18 @@ import { ui } from "./dom";
 import { fail } from "./errors";
 import { followMoved, forgetFiles } from "./files";
 import { currentFolder } from "./folder";
+import { folderDataChangedAt } from "./folderData";
 import { folderValues, reloadFolderLayer } from "./folderLayer";
 import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
 import { onFileMade } from "./leaves/conflict";
+import { DataLeaf } from "./leaves/data";
 import { FolderLeaf } from "./leaves/folderView";
 import { Leaf } from "./leaves/leaf";
 import { NoteLeaf } from "./leaves/note";
 import { panel } from "./main";
 import { name } from "./paths";
+import { filesArrived } from "./table/arrival";
 import { searchNotes } from "./search";
 import { t } from "./strings";
 import { listAll } from "./tree/tree";
@@ -79,6 +82,8 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
     ui.status.textContent = t.movedElsewhere(moved.map((m) => `${name(m.from)} → ${name(m.to)}`).join(", "));
   }
   const changed = new Set([...change.changed, ...change.removed]);
+  // A picture of the table waiting for its file (it comes by sync after the entry) asks again.
+  filesArrived(change.changed);
   // The folder's settings changed outside this window — another window,
   // sync, another program (ADR 0070): read again.
   let named = false;
@@ -87,12 +92,14 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
     await reloadFolderLayer();
     named = folderValues().folderNoteName !== before;
   }
+  // The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2).
+  folderDataChangedAt(changed);
   if (change.listing || named) refreshLists();
   else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
-  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof BoardLeaf && changed.has(l.path)) void l.recheck();
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if ((l instanceof BoardLeaf || l instanceof DataLeaf) && changed.has(l.path)) void l.recheck();
   tellOutcomes(outcomes);
   showProblems(change.index);
   // A note this app wrote (another window's view, a card moved) is current
@@ -114,6 +121,8 @@ export function refreshLists(): void {
   whenNotRenaming(ui.notes, () => void (async () => {
     forgetFiles();
     await listAll();
+    // The lists are read: a board waiting for a picture that arrived by sync can draw it.
+    dispatchEvent(new Event("verso:files-listed"));
     if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
   })());
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") whenNotRenaming(l.el, () => void l.load(l.path));

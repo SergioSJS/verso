@@ -33,7 +33,9 @@ export function folderNoteCandidates(folder: string): string[] {
     // The root's note, at the root, named after the open folder — the
     // core's `root_note_candidates` (the maintainer, 2026-10-02).
     if (configured && configured.toLowerCase() !== folderName.toLowerCase()) out.push(`${configured}.md`);
-    if (folderName) out.push(`${folderName}.md`);
+    // A note link's window is named for its note (ADR 0105 item 6): that
+    // note is the one thing there, not a folder note to hide.
+    if (folderName && document.documentElement.dataset.visitorNote !== "1") out.push(`${folderName}.md`);
     return out;
   }
   const name = folder.split("/").pop() ?? folder;

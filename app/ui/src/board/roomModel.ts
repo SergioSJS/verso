@@ -112,6 +112,16 @@ export function unsent(e: El, known: ReadonlyMap<string, Rank>): boolean {
   return !k || k.version !== r.version || k.nonce !== r.nonce;
 }
 
+/** The keys Excalidraw moves by itself on load and render, no part of
+ *  what an element is (the server's `board_sight` ignores the same; not the `index`: bringing to the front is a change). */
+const NOISE = ["version", "versionNonce", "updated", "seed"];
+
+/** Whether `a` and `b` are the same element but for that noise. */
+export function sameSubstance(a: El, b: El): boolean {
+  const strip = (e: El): string => JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k]) => !NOISE.includes(k)).sort(([x], [y]) => (x < y ? -1 : 1))));
+  return strip(a) === strip(b);
+}
+
 /** The elements of `scene` this window changed and has not sent (`unsent`).
  *  Each goes, whatever the room holds: the rule picks among the versions,
  *  and one that loses is brought back to the room's on the board. */

@@ -77,3 +77,25 @@ describe("The name the editor's \"keep both\" gives its copy", () => {
     assert.equal(parts.date.getTime(), when.getTime());
   });
 });
+
+describe("The conflict notice names the note, not its copy", () => {
+  test("both languages say teste.md for teste's copy", async () => {
+    const esbuild = await import("esbuild");
+    await esbuild.build({
+      entryPoints: ["src/notify/strings.ts"],
+      bundle: true,
+      format: "esm",
+      outfile: "test/.bundles/notifyStrings.test-bundle.mjs",
+      logLevel: "error",
+    });
+    const { notifyStrings } = await import("./.bundles/notifyStrings.test-bundle.mjs");
+    const copy = "teste (conflito, MacBook Pro de Sérgio, 2026-10-23 11.42).md";
+    for (const lang of ["pt-BR", "en"]) {
+      globalThis.document = { documentElement: { lang } };
+      const said = notifyStrings().conflictCopyWhy(copy);
+      assert.ok(said.includes(" teste.md"), said);
+      assert.ok(!said.includes("conflito") && !said.includes("conflict,"), said);
+    }
+    delete globalThis.document;
+  });
+});

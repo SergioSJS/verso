@@ -83,6 +83,15 @@
   start —, by [0093](0093-periodic-notes.md) item 4, accepted by the
   maintainer that night (*"Sim, todas"*); the daily notes' folder moves
   there once.
+  2026-10-20 — item 2 gains the oracle's odds and spark words, a key
+  `oracle` of `.verso/settings.json` ([0102](0102-creative-oracles-and-improvisation.md)
+  item 2), and the folder gains two directories of its own data,
+  `.verso/layouts/` and `.verso/bundles/`, one JSON file per layout or
+  bundle, written only through their own contract commands
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 2,
+  [0098](0098-world-and-campaign-wizard-template-bundles.md) item 2); the
+  maintainer: *"se eu compartilhar com alguém, é pra essa pessoa ver como
+  eu"* (if I share with someone, they should see what I see).
 
 ## Context
 

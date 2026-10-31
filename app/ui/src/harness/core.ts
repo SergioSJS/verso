@@ -16,6 +16,9 @@
 // has an answer).
 
 import YAML from "yaml";
+import { menuSections } from "./menu";
+import { rewriteOrder } from "./order";
+import { FOLDER_CAN } from "../folderCan";
 import type {
   Capabilities,
   FolderSpace,
@@ -50,20 +53,31 @@ import type {
   TextFile,
   Trashed,
   UpdateInfo,
+  MissingLink,
   WebNote,
   Written,
   Focus,
   FocusesSummary,
+  FolderDataKind,
   FolderLayer,
-  FolderSettings,
+  FolderSettings, FolderBlocks, BlockKind,
   SyncStatus,
+  FileAccess,
+  LooseFileInfo,
+  Opened,
+  RecentFile,
 } from "../bindings";
 import { Bin } from "./trash";
+import { Clouds } from "./cloud";
+import { CloudFiles } from "./cloudFiles";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
+import { applyOracle, applyTheme, checkOracle, FolderData, oracleProblems, readOracle, readTheme, writeGuard } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
+import { folderBlocks } from "./blockList";
 import { projectSecrets } from "./secret";
+import { graphEdges, missingLinks } from "./graph";
 import { unlinkedMentions } from "./mentions";
 
 export type Seed = { path: string; b64: string };
@@ -83,18 +97,7 @@ function refuse(kind: ErrorKind, message: string): never {
   throw error;
 }
 
-export function fromBase64(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-export function toBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
+export { fromBase64, toBase64 };
 
 /** A name as a link compares it: NFC, any case. */
 const fold = (s: string): string => s.normalize("NFC").toLowerCase();
@@ -141,96 +144,6 @@ function foldersOfNote(note: string, configured: string, rootName = ""): string[
   out.push(parent ? `${parent}/${stem}` : stem);
   return out;
 }
-/** The core's `needs_yaml_quote` and `yaml_scalar`. */
-function yamlScalar(s: string): string {
-  const lower = s.toLowerCase();
-  const quote =
-    s === "" ||
-    "-?:,[]{}#&*!|>'\"%@`~".includes(s[0] ?? "") ||
-    /^\s|\s$/.test(s) ||
-    s.includes(": ") ||
-    s.endsWith(":") ||
-    s.includes(" #") ||
-    /[\t\n\r"\\]/.test(s) ||
-    ["true", "false", "yes", "no", "on", "off", "y", "n", "null"].includes(lower) ||
-    (s.trim() !== "" && !Number.isNaN(Number(s))) ||
-    /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s) ||
-    /^(inf|infinity|nan)$/i.test(s) ||
-    s.startsWith("0x") ||
-    s.startsWith("0o");
-  return quote ? JSON.stringify(s) : s;
-}
-/** The text of an item of a YAML block sequence, as the core reads it. */
-function yamlItemText(raw: string): string | null {
-  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
-    try {
-      return JSON.parse(raw) as string;
-    } catch {
-      return null;
-    }
-  }
-  if (raw.startsWith("'") && raw.endsWith("'") && raw.length >= 2) return raw.slice(1, -1).replace(/''/g, "'");
-  if (raw === "" || /^[[{\-&*!|>]/.test(raw)) return null;
-  return raw;
-}
-/** The core's `rewrite_order`: the `order:` of the folder note of `folder`
- *  after a move, only the moved items' lines changed; null when none is. */
-function rewriteOrder(text: string, folder: string, newFolder: string, moved: [string, string, boolean][]): string | null {
-  const m = /^---\r?\n([\s\S]*?)\r?\n(---|\.\.\.)\s*(\r?\n|$)/.exec(text);
-  if (!m) return null;
-  const lines = text.split(/(?<=\n)/);
-  type Item = { line: number; text: string | null; raw: string; lead: string; rest: string };
-  const items: Item[] = [];
-  let inFm = false;
-  let inOrder = false;
-  for (let i = 0; i < lines.length; i++) {
-    const body = (lines[i] ?? "").replace(/\r?\n$/, "");
-    if (i === 0) {
-      inFm = body === "---";
-      continue;
-    }
-    if (!inFm) break;
-    if (body.startsWith("---") || body.startsWith("...")) break;
-    const key = /^([^\s#\-][^:]*):(.*)$/.exec(body);
-    if (key) {
-      if (inOrder) break;
-      if ((key[1] ?? "").trim() === "order") {
-        const after = (key[2] ?? "").trim();
-        if (after && !after.startsWith("#")) return null;
-        inOrder = true;
-      }
-      continue;
-    }
-    if (!inOrder) continue;
-    const item = /^(\s*-[ \t]+)(.*)$/.exec(body);
-    if (!item) continue;
-    const rest = item[2] ?? "";
-    const raw = /^["']/.test(rest) ? rest.trimEnd() : rest.split(" #")[0]!.trimEnd();
-    items.push({ line: i, text: yamlItemText(raw), raw, lead: item[1] ?? "", rest: rest.slice(raw.length) });
-  }
-  const edits = new Map<number, string | null>();
-  for (const [oldPath, newPath, note] of moved) {
-    if (dirOf(oldPath) !== folder) continue;
-    const oldRel = baseOf(oldPath);
-    const newRel = dirOf(newPath) === newFolder ? baseOf(newPath) : null;
-    if (newRel === oldRel) continue;
-    let index = items.findIndex((it, k) => !edits.has(k) && it.text === oldRel);
-    let bare = false;
-    if (index < 0 && note) {
-      index = items.findIndex((it, k) => !edits.has(k) && it.text === stripMd(oldRel));
-      bare = true;
-    }
-    if (index < 0) continue;
-    edits.set(index, newRel === null ? null : bare ? stripMd(newRel) : newRel);
-  }
-  if (edits.size === 0) return null;
-  for (const [k, value] of edits) {
-    const it = items[k]!;
-    const eol = /\r?\n$/.exec(lines[it.line] ?? "")?.[0] ?? "";
-    lines[it.line] = value === null ? "" : `${it.lead}${yamlScalar(value)}${it.rest}${eol}`;
-  }
-  return lines.join("");
-}
 
 /** The links written in a text, outside code: wikilinks and embeds. */
 function linksIn(text: string): Found[] {
@@ -256,6 +169,7 @@ function linksIn(text: string): Found[] {
 }
 
 import { canvasLayout } from "./canvas";
+import { fromBase64, toBase64 } from "./base64";
 export { canvasLayout };
 
 export class Core {
@@ -287,12 +201,14 @@ export class Core {
   /** The folder's sync (ADR 0079), as a test sets it: the harness has no
    *  server, so what crosses is whatever a test says (`sync-status`). */
   sync: SyncStatus = Core.syncOff();
+  readonly clouds = new Clouds(this, () => Core.syncOff()); // ADR 0104
+  readonly cloudFiles = new CloudFiles(() => this.sync, (st) => (this.sync = st)); // ADR 0043
   /** This computer's name as the person set it in Settings › Servers;
    *  null, the system's ("Mac de Teste"). */
   deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
-    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null };
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null, cloud: null };
   }
 
   constructor(
@@ -361,7 +277,7 @@ export class Core {
    *  items 1–2), as the core reads it. */
   private folderLayer(): FolderLayer {
     const stored = this.files.get(SETTINGS_FILE);
-    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null, recommended_theme: null };
     if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
     const revision = String(stored.revision);
     let obj: unknown;
@@ -383,14 +299,17 @@ export class Core {
         ignore_build_dirs: bool(o["ignoreBuildDirs"]),
         respect_gitignore: bool(o["respectGitignore"]),
         periodic: readPeriodic(o),
+        oracle: readOracle(o),
+        recommended_theme: readTheme(o),
       },
-      warnings: [],
+      warnings: oracleProblems(o),
     };
   }
 
   /** A change of the folder's settings: created when there is no file
    *  (`exists` when there is), else written over the revision read. */
   private setFolderLayer(change: FolderSettings, revision: string | null): FolderLayer {
+    if (change.oracle) checkOracle(change.oracle); // before anything is read, as the core does
     const stored = this.files.get(SETTINGS_FILE);
     let obj: Record<string, unknown> = {};
     if (revision === null) {
@@ -411,6 +330,8 @@ export class Core {
     if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
     if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
     if (change.periodic) applyPeriodic(obj, change.periodic);
+    if (change.oracle) applyOracle(obj, change.oracle);
+    applyTheme(obj, change.recommended_theme);
     this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sortedDeep(obj), null, 2)}\n`));
     return this.folderLayer();
   }
@@ -600,7 +521,7 @@ export class Core {
     const text = this.text(path);
     const props = propertiesOf(text);
     const fm = props["tags"];
-    const tags = new Set<string>(Array.isArray(fm) ? fm.map(String) : typeof fm === "string" ? fm.split(/[\s,]+/).filter(Boolean) : []);
+    const tags = new Set<string>(Array.isArray(fm) ? fm.filter((x) => typeof x === "string" || (Number.isInteger(x) && x >= 0)).map(String) : typeof fm === "string" ? fm.split(/[\s,]+/).filter(Boolean) : []);
     for (const line of readableLines(text)) {
       if (/^#{1,6}\s/.test(line)) continue;
       for (const m of line.matchAll(/(?:^|\s)#([\p{L}\p{N}_/-]+)/gu)) if (m[1] && !/^\d+$/.test(m[1])) tags.add(m[1]);
@@ -974,11 +895,25 @@ export class Core {
   /** The answer to every command of the contract, by its name. */
   /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
   agentVisible = false;
+  /** The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2). */
+  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); return to; } });
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),
-    open_initial: () => this.folderInfo(),
+    open_initial: (): Opened => ({ kind: "folder", info: this.folderInfo() }),
     current_folder: () => this.folderInfo(),
+    // A file opened without its folder (ADR 0114): none in a folder's
+    // window; `?loose=1` (src/harness.ts) stands for that window.
+    loose_files: (): LooseFileInfo[] => [],
+    loose_close: () => null,
+    open_folder_of_file: () => null,
+    open_sibling: () => refuse("not_found", "no such note beside this file"),
+    loose_save_again: () => refuse("refused", "not a file opened without its folder"),
+    loose_save_copy: () => false,
+    pick_file: () => null,
+    recent_files: (): RecentFile[] => [],
+    open_recent_file: () => null,
+    open_default_apps: () => refuse("refused", "the default app for .md is set in the system, not from here"),
     list_notes: () => this.notes(),
     notes_of_type: (a) => {
       const key = this.typeKey(String(a["name"]));
@@ -1015,13 +950,13 @@ export class Core {
       return this.noteText(path);
     },
     create_file: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       this.put(path, fromBase64(String(a["base64"])));
       return path;
     },
     create_folder: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       for (let d = path; d !== ""; d = dirOf(d)) this.folders.add(d);
       return path;
@@ -1037,6 +972,7 @@ export class Core {
     },
     list_files: () => this.others(),
     list_folders: () => [...this.folders].filter((d) => !hidden(d)).sort(),
+    list_block_ids: (a): FolderBlocks => folderBlocks(this.notes(), (p) => this.text(p), (a["kinds"] ?? []) as BlockKind[]),
     list_tags: (): Tag[] => {
       const by = new Map<string, string[]>();
       for (const p of this.notes()) for (const t of this.tagsOf(p)) by.set(t, [...(by.get(t) ?? []), p]);
@@ -1084,19 +1020,9 @@ export class Core {
         const url = propertiesOf(this.text(p))["url"];
         return typeof url === "string" && /^https?:\/\//.test(url) ? [{ path: p, url }] : [];
       }),
-    graph: (): Edge[] => {
-      const seen = new Set<string>();
-      const out: Edge[] = [];
-      for (const from of this.linkSources()) {
-        for (const l of this.linksOf(from)) {
-          const to = this.resolve(l.target, from);
-          if (!to || to === from || seen.has(`${from}\n${to}`)) continue;
-          seen.add(`${from}\n${to}`);
-          out.push({ from, to });
-        }
-      }
-      return out;
-    },
+    graph: (): Edge[] => graphEdges(this.linkSources(), (p) => this.linksOf(p), (t, from) => this.resolve(t, from)),
+    // Links no note and no file answers to (spec Q14).
+    graph_unresolved: (): MissingLink[] => missingLinks(this.linkSources(), (p) => this.linksOf(p), (t, from) => this.resolve(t, from)),
     app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: this.deviceName ?? "Mac de Teste" }),
     // This computer's name (ADR 0079 item 8): no server to tell here.
     device_name: (): DeviceName => ({ name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }),
@@ -1109,7 +1035,6 @@ export class Core {
     popout_target: () => null,
     return_to_main: () => null,
     open_url: () => null,
-    fetch_file: () => false,
     open_devtools: () => null,
     web_open: (a) => {
       const label = `web-${this.webViews.size + 1}`;
@@ -1128,7 +1053,7 @@ export class Core {
     web_url: (a) => this.webViews.get(String(a["label"])) ?? "",
     read_text: (a) => this.textFile(this.confine(String(a["path"]))),
     write_text: (a): TextFile => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
       return this.textFile(path);
     },
@@ -1161,6 +1086,7 @@ export class Core {
     get_folder_settings: () => this.folderLayer(),
     get_obsidian_periodic: () => obsidianPeriodic(this.files),
     note_made_from_template: () => null,
+    ...this.data.handlers,
     set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();
@@ -1348,6 +1274,10 @@ export class Core {
     },
     log_read: () => this.log.map((l) => `${l.level} ${l.message}`).join("\n"),
     set_menu_language: () => null,
+    set_menu_commands: () => null,
+    set_menu_enabled: () => null,
+    menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
+    quit_app: () => null,
     reindex: () => this.summary(),
     query_base: (a) => this.queryBase(a["query"] as BaseQuery),
     new_window: () => null,
@@ -1384,6 +1314,7 @@ export class Core {
     collab_present: () => refuse("refused", "simultaneous editing is a server's"),
     collab_canvas: () => refuse("refused", "simultaneous editing is a server's"),
     collab_roll: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_oracle: () => refuse("refused", "simultaneous editing is a server's"),
     ...this.localServer.handlers, // ADR 0096
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
@@ -1394,6 +1325,8 @@ export class Core {
     server_create_folder: () => refuse("unavailable", "no server in the harness"),
     server_open: () => refuse("unavailable", "no server in the harness"),
     server_retry: () => null,
+    // The harness is a folder of "this computer": no server's address.
+    window_server: () => null,
     // The servers announced on the network (ADR 0097): none, until a test
     // sets `discover_servers_list` to some.
     discover_servers_start: () => null,
@@ -1403,10 +1336,19 @@ export class Core {
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // Read links are a server's (ADR 0105): a test answers them as one.
+    read_link_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_secrets: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_create: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    read_link_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
-    recent_folders: () => [{ key: "harness", name: this.name }],
+    recent_folders: () => [
+      { key: "harness", name: this.name, place: "~/Documents" },
+      { key: "mundo", name: "Mundo antigo", place: "~/…/Dropbox/antigo" },
+      { key: "mesa", name: "Mesa de testes", place: "~/Documents" },
+    ],
     // The folder's sync (ADR 0079): turned on against the server a test
     // signs in to (`server_accounts`), synced at once — nothing to cross.
     folder_sync: (): SyncStatus => this.sync,
@@ -1429,12 +1371,35 @@ export class Core {
       return null;
     },
     folder_sync_now: () => null,
+    // The synced desktop's last answer of what the server lets the person
+    // change (ADR 0113 S8). Like the host, it answers only the paths it holds
+    // an answer for; the harness's folder is its own, so it holds none.
+    sync_rights: (a) => {
+      const held = new Map<string, FileAccess>();
+      const files = (a["paths"] as string[]).flatMap((path) => {
+        const access = held.get(path);
+        return access ? [{ path, access }] : [];
+      });
+      return { fresh: true, files };
+    },
+    ...this.clouds.handlers(),
+    ...this.cloudFiles.handlers(), // ADR 0043
+    // The focuses file named without a path (a hidden entry never crosses
+    // the contract): the harness keeps the content in the `.icloud` stand-in.
+    fetch_focuses_file: () => {
+      const standIn = ".space/.waypoints.json.icloud";
+      const held = this.files.get(standIn);
+      if (!held) return false;
+      this.files.delete(standIn);
+      this.put(".space/waypoints.json", held.bytes);
+      return true;
+    },
     ...this.bin.handlers(),
     ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
       latency_ms: null,
     }),
     folder_space: (): FolderSpace => {

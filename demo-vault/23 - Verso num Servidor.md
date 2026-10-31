@@ -98,6 +98,8 @@ Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincroniz
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Servidor fora de alcance*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Com o servidor fora do ar, a seção diz qual servidor não respondeu, e *Sincronizar agora* tenta de novo; *Sincronizar esta pasta* e a lista de pastas em Ajustes › Servidores dizem o mesmo ali mesmo, com **Tentar de novo**. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
+Arquivos que o iCloud ou o OneDrive deixaram só na nuvem aparecem em **Configurações › Sincronizar** como *arquivos que ainda não estão neste computador*, com o botão **Baixar N arquivos (X MB)**: ele diz o tamanho antes, recusa começar se o disco não comporta (ou se não dá para saber o espaço livre), baixa um de cada vez com o progresso e um **Parar**, e os que descem sincronizam na passada seguinte. Um arquivo que já sincronizou e voltou para a nuvem não pede nada: a linha discreta *estão só na nuvem; o servidor tem a cópia* o conta, e ele nunca é apagado no servidor.
+
 ### Editar junto numa pasta sincronizada
 
 Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesma sala** de quem a abriu no navegador ou noutro aparelho: vocês editam juntos, ao vivo, com o cursor e o nome de cada um. O servidor grava a nota quando as edições assentam, e a sincronização traz o arquivo para este computador — nenhuma cópia de conflito do seu próprio texto.
@@ -107,7 +109,7 @@ Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesm
 - **Pausar** a sincronização deixa a nota *local — sincronização pausada* até você retomar.
 - Quem só **lê** a pasta aparece na nota, com o nome, e não digita.
 - Uma mudança feita **fora do Verso** (o Obsidian, um script) na nota aberta cruza como qualquer outra: entra na sala, ou fica numa cópia se a sala já tinha salvo outra coisa.
-- Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta.
+- Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta. Com ele desligado, a nota e o board dizem **Edição ao vivo desligada nesta pasta**, num botão que abre este ajuste.
 
 Boards, arquivos de texto e bases abertos aqui também ficam ao vivo, do mesmo jeito; os anexos cruzam como arquivos.
 
@@ -126,6 +128,12 @@ Quem recebe vê a pasta como uma pasta **sua**, com o nome dela e o da dona — 
 Este vault de demonstração não tem duas contas: para ver o outro lado, use dois navegadores num UniVerso.
 
 Quem só **lê** uma nota não recebe os blocos `[!secret]` dela: o segredo do mestre fica na nota para quem a edita (veja [[25 - Dados e Tabelas Sorteadas#O segredo do mestre|o segredo do mestre]]).
+
+## Um link de leitura, sem conta
+
+Para que jogadores, ou qualquer pessoa, **leiam** o mundo sem fazer uma conta, a dona da pasta faz um **link de leitura**: clique com o botão direito na pasta e escolha **Link de leitura…**, ou numa nota e escolha **Copiar link de leitura…**. Escolha a validade (sem validade, 1, 7 ou 30 dias, ou até uma data) e, se quiser, uma **senha**. O endereço (`/r/…`) aparece **uma vez**, já copiado: o servidor guarda só uma marca dele. Quem o abrir lê, num navegador, só o que o link aponta — a pasta, ou a nota e o que ela incorpora —, na visão do leitor: **sem** os blocos `[!secret]`, sem editar, sem histórico, e um link para uma nota que não foi compartilhada aparece como texto simples *(não compartilhado)*. Os dados rolam no navegador de quem lê e não escrevem nada.
+
+Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor*, e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas.
 
 ---
 

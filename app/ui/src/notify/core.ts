@@ -15,7 +15,7 @@
 // folder), never the account's.
 
 /** The kinds, each one row of the settings (item 7), in their order. */
-export const KINDS = ["sync", "conflicts", "sharing", "updates", "quota", "trash", "presence"] as const;
+export const KINDS = ["sync", "conflicts", "sharing", "updates", "quota", "trash", "presence", "table"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Level = "info" | "success" | "warning" | "error";
 /** "Aviso e lista", "Só na lista", "Desligado" (item 8). */
@@ -23,6 +23,11 @@ export type Mode = "toast" | "list" | "off";
 export const MODES: readonly Mode[] = ["toast", "list", "off"];
 /** Every kind's default (decided 2026-10-14): "Aviso e lista". */
 export const DEFAULT_MODE: Mode = "toast";
+/** The kinds that start otherwise: the table's news is "Desligado" until
+ *  the person turns it on (ADR 0107 item 13); someone joining is "Só na
+ *  lista", never a toast over the chat's box (ADR 0084 item 8, amended
+ *  2026-10-28). Only a stored choice overrides them. */
+export const KIND_DEFAULT: Partial<Record<Kind, Mode>> = { table: "off", presence: "list" };
 
 /** An action a notification offers: its words, and what it does by name
  *  (the list outlives the page, a function does not). */
@@ -226,7 +231,7 @@ export class Book {
 /** A kind's mode as the person chose it, the default otherwise. */
 export function modeOf(chosen: Partial<Record<string, string>> | undefined, kind: Kind): Mode {
   const m = chosen?.[kind];
-  return m === "toast" || m === "list" || m === "off" ? m : DEFAULT_MODE;
+  return m === "toast" || m === "list" || m === "off" ? m : (KIND_DEFAULT[kind] ?? DEFAULT_MODE);
 }
 
 /** The trash's warning (item 7): the entries that leave the bin within

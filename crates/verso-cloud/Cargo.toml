@@ -1,0 +1,45 @@
+[package]
+name = "verso-cloud"
+description = "The desktop host's adapters for syncing a folder with a cloud the person already has: WebDAV and S3 (ADR 0104)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Host-side (ADR 0104 item 3, decided 2026-10-21, C.17): the network
+# adapters of sync, kept out of `verso-core` (which never reaches the
+# network, ADR 0050) and out of `verso-fs`. This crate touches no file of
+# any folder and no disk at all: bytes come from a `Source` and go to a
+# `Sink` the host implements over `verso-fs`. Only `app/src-tauri` depends
+# on it.
+[dependencies]
+verso-core = { path = "../verso-core" }
+# The requests (MIT OR Apache-2.0): the blocking client, with the features
+# the desktop app already builds it with, so nothing new enters the tree.
+# Redirects are never followed (the credentials would go with them).
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
+# The hashes sync compares by, and SigV4's HMAC built on them (MIT OR
+# Apache-2.0); already in the tree through verso-core.
+sha2 = "0.10"
+# base64 for S3's checksum header (MIT OR Apache-2.0); already in the tree
+# through the desktop app.
+base64 = "0.22"
+# Names are uploaded in NFC (ADR 0079 item 2): the same crate verso-core
+# folds names with (MIT OR Apache-2.0).
+unicode-normalization = "0.1"
+
+[features]
+# The in-process fake services, for the host's own tests (the desktop
+# app's dev-dependency): never a real provider in a test.
+fake = []
+
+[dev-dependencies]
+# The race property test (ADR 0104, Consequences): seeded cases, shrunk to
+# the smallest failing interleaving. Already in the tree (MIT OR
+# Apache-2.0).
+proptest = { version = "1.11", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true

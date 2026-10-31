@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-link-list"
+description = "Enables the read_link_list command without any pre-configured scope."
+commands.allow = ["read_link_list"]
+
+[[permission]]
+identifier = "deny-read-link-list"
+description = "Denies the read_link_list command without any pre-configured scope."
+commands.deny = ["read_link_list"]

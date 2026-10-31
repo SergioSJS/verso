@@ -10,7 +10,7 @@ import * as esbuild from "esbuild";
 import { Window } from "happy-dom";
 
 const win = new Window({ url: "tauri://localhost/", settings: { navigation: { disableMainFrameNavigation: true } } });
-for (const name of ["window", "document", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "getComputedStyle"]) {
+for (const name of ["window", "document", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "getComputedStyle", "MutationObserver"]) {
   globalThis[name] = name === "window" ? win : typeof win[name] === "function" ? win[name].bind(win) : win[name];
 }
 Object.defineProperty(globalThis, "navigator", { value: win.navigator, configurable: true });
@@ -21,6 +21,7 @@ let frameable = {};
 let asked = [];
 let opened = [];
 let closed = [];
+let bounds = [];
 win.__TAURI_INTERNALS__ = {
   invoke: async (cmd, args) => {
     if (cmd === "embed_frameable") {
@@ -33,6 +34,7 @@ win.__TAURI_INTERNALS__ = {
       opened.push(args.url);
       return `web-${opened.length}`;
     }
+    if (cmd === "web_bounds") bounds.push(args.place);
     if (cmd === "web_close") closed.push(args.label);
     return null;
   },
@@ -89,6 +91,7 @@ describe("an embedded page in a note", () => {
     asked = [];
     opened = [];
     closed = [];
+    bounds = [];
     frameable = {};
   });
 
@@ -129,6 +132,16 @@ describe("an embedded page in a note", () => {
     assert.equal(web.embedViews.has(el), true, "the child view's bookkeeping started");
   });
 
+  test("review I7: the app's own origin is never framed, and the host is not asked", async () => {
+    frameable = { "http://tauri.localhost": true };
+    const el = box("http://tauri.localhost/index.html");
+    web.tickEmbedViews();
+    await later();
+    web.tickEmbedViews();
+    assert.equal(el.querySelector("iframe"), null);
+    assert.deepEqual(asked, []);
+  });
+
   test("an error in the check is a no: the child view takes it", async () => {
     frameable = { "https://down.example": "error" };
     const el = box("https://down.example/");
@@ -153,5 +166,29 @@ describe("an embedded page in a note", () => {
     await later();
     assert.equal(asked.length, 1, "the answer is kept");
     assert.equal(document.querySelectorAll("iframe").length, 3);
+  });
+
+  test("a look applied on the root moves the box, and the child view is sent its new place", async () => {
+    frameable = { "https://shut.example": false };
+    web.watchEmbedLayout();
+    const el = box("https://shut.example/a");
+    let left = 40;
+    // The box as a narrow text width would lay it out.
+    el.getBoundingClientRect = () => ({ left, top: 100, right: left + 600, bottom: 400, width: 600, height: 300, x: left, y: 100 });
+    for (const t of [0, 1, 2, 3]) {
+      web.tickEmbedViews();
+      await later();
+    }
+    assert.equal(opened.length, 1, "the view opened");
+    await later();
+    bounds = [];
+    left = 90;
+    document.documentElement.setAttribute("data-line-width", "narrow");
+    await later();
+    await later();
+    assert.ok(bounds.length >= 1, "web_bounds was sent without a resize or a scroll");
+    assert.equal(bounds.at(-1).slot.x, 90);
+    assert.equal(bounds.at(-1).slot.w, 600);
+    document.documentElement.removeAttribute("data-line-width");
   });
 });

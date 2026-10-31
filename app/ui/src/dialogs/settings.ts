@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { may } from "../access";
 import { can, host } from "../can";
+import { IMPORT_CEILING_MB, importSetting } from "../attachName";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
 import { localServerBody, phonesConnected, restartNote } from "./localServer";
@@ -16,6 +18,9 @@ import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
+import { fail } from "../errors";
+import { hasHostZoom, zoomWords } from "../zoom";
+import { zoomControl } from "../zoomControl";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
 import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
@@ -24,12 +29,15 @@ import type { Scope } from "../organize/layerRules";
 import { periodicBody } from "../periodic/settingsView";
 import { ps } from "../periodic/strings";
 import { icon } from "../icons";
-import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
+import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
-import { spaces } from "../layout/spaces";
+import { defaultAppDesc, ls as looseWords } from "../looseStrings";
+import { paneToOpenIn, spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, ribbon, updateController } from "../main";
 import { walkRulesChanged } from "../open";
+import { hiddenFolderKeys, showHiddenFolders } from "../panel/hiddenFolders";
+import { sh } from "../shareStrings";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
@@ -43,23 +51,32 @@ import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
 import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
 import { notifyStrings } from "../notify/strings";
+import { CHIMES, type Chime, previewChime, readChime, readVolume } from "../table/chime";
 import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
 import { ls } from "../editor/suggestStrings";
 import { pv } from "../preview/strings";
+import { agentVisibleControl, cliControl, mcpArgs, mcpControl, snippet } from "./settings/agentControls";
+import { wireFrame } from "./settings/frame";
+import { fs } from "../featureStrings";
+import { featureItems, offNotice } from "./settings/featureItems";
+import { oracleItems } from "./settings/oracleItems";
+import { statblockItems } from "./settings/statblockItems";
+import { creditsItems } from "./settings/creditsItems";
+import { cs } from "./settings/creditsStrings";
+import { ss } from "./settings/strings";
+import { LOOK_EVENT } from "../theme/actions";
+import { fontSample, fontSampleWords } from "../fontSample";
+import { themeGallery } from "../theme/gallery";
+import { openMoreThemes } from "../theme/more";
+import { W as lookWords } from "../theme/strings";
+import type { ItemCtx, SettingItem } from "./settings/types";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
 /** Ends a recording in progress, leaving the keys as they were. */
 export let disarmRecorder: (() => void) | null = null;
 export let updateCardUnsub: (() => void) | null = null;
-/** The arguments a client starts `verso` with, by the mode: the open
- *  folder's key, or `--all`; none in per-folder mode with no folder open. */
-function mcpArgs(): string[] | null {
-  if (settings.mcpMode === "all") return ["mcp", "--all"];
-  return currentFolder ? ["mcp", "--key", currentFolder] : null;
-}
-
 export class SettingsDialog {
   readonly el = h("div", "quick settings");
   readonly box = h("div", "settings-box");
@@ -67,6 +84,10 @@ export class SettingsDialog {
   readonly body = h("div", "settings-body");
   readonly search = h("input", "settings-search");
   private section = "general";
+  /** On a phone the sections are a list first and a page after a tap
+   *  (CSS shows one of the two by the box's `phone-list` / `phone-page`). */
+  private phoneList = true;
+  private readonly frame: { restoreSavedSize: () => void; resetSize: () => void };
   constructor() {
     this.el.hidden = true;
     this.notice.setAttribute("role", "status");
@@ -90,9 +111,12 @@ export class SettingsDialog {
     close.append(icon("close"));
     close.addEventListener("click", () => this.hide());
     const top = h("div", "settings-top");
-    top.append(this.search, close);
+    top.append(this.search);
     side.append(top, this.nav);
-    this.box.append(side, this.body);
+    // In the box's top right corner, where a dialog's close is looked for (first in the DOM: reached early by Tab).
+    this.box.append(close, side, this.body);
+    this.frame = wireFrame(this.box, this.el, side);
+
     this.el.append(this.box);
     document.body.append(this.el);
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
@@ -100,8 +124,12 @@ export class SettingsDialog {
     // it (the palette over the settings closes alone, a11y.ts).
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.defaultPrevented && !this.el.hidden && isTop(this.el) && !hotkeyRecorder) this.hide(); });
   }
+
+
   show(section?: string): void {
+    this.phoneList = !section;
     if (section) this.section = section;
+    this.frame.restoreSavedSize();
     opened(this.el);
     this.el.hidden = false;
     this.notice.hidden = this.notice.textContent === "";
@@ -133,37 +161,36 @@ export class SettingsDialog {
   private offlineHere(): boolean {
     return host() === "server";
   }
-  private sections(): { id: string; label: string; icon: string }[] {
+  private sections(): { id: string; label: string; icon: string; category: "app" | "editor" | "rpg" | "system" }[] {
     return [
-      { id: "general", label: t.sGeneral, icon: "gear" },
-      // The notifications, kind by kind (ADR 0084 item 8).
-      { id: "notify", label: notifyStrings().section, icon: "bell" },
-      { id: "appearance", label: t.sAppearance, icon: "palette" },
-      { id: "editor", label: t.sEditor, icon: "edit" },
-      { id: "organizing", label: t.sOrganizing, icon: "folder" },
-      { id: "files", label: t.sFiles, icon: "folder" },
-      // Periodic notes, the folder's settings (ADR 0093 item 4).
-      ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar" }] : []),
-      // The folder's trash (ADR 0080 item 4), for whoever may change it.
-      ...(currentFolder && can("write") ? [{ id: "trash", label: trashStrings().section, icon: "trash" }] : []),
-      { id: "board", label: boardText.sBoard, icon: "board" },
-      { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
-      // What the side the window talks to cannot do is absent (ADR 0076
-      // item 11): the command line and the agents are the desktop app's,
-      // and so is opening a server's folder from it (ADR 0073 item 2).
-      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
-      ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
-      // The desktop app serving its folders to the phone on the local
-      // network (ADR 0096): the desktop's own, like opening a server's.
-      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe" }] : []),
-      // A folder of this computer syncs with a server's (ADR 0079 item 1).
-      ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
-      // A folder kept in a browser (ADR 0092): the section takes the same
-      // place, with the same status behind it.
-      ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh" }] : []),
-      // On a server: the person's account (ADR 0074 items 7 and 9); the
-      // server's administration is a console of its own (ADR 0077).
-      ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
+      // 1. Aplicação / Application
+      { id: "general", label: t.sGeneral, icon: "gear", category: "app" },
+      { id: "appearance", label: t.sAppearance, icon: "palette", category: "app" },
+      { id: "features", label: fs.section, icon: "gear", category: "app" },
+      { id: "notify", label: notifyStrings().section, icon: "bell", category: "app" },
+      { id: "hotkeys", label: t.sHotkeys, icon: "keyboard", category: "app" },
+      { id: "credits", label: cs.section, icon: "heart", category: "app" },
+
+      // 2. Notas & Editor / Notes & Editing
+      { id: "editor", label: t.sEditor, icon: "edit", category: "editor" },
+      { id: "files", label: t.sFiles, icon: "folder", category: "editor" },
+      { id: "organizing", label: t.sOrganizing, icon: "folder", category: "editor" },
+      ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar", category: "editor" as const }] : []),
+      ...(currentFolder && may("", "delete") ? [{ id: "trash", label: trashStrings().section, icon: "trash", category: "editor" as const }] : []),
+      { id: "board", label: boardText.sBoard, icon: "board", category: "editor" },
+
+      // 3. RPG & Mesa Solo / RPG & Solo Play
+      { id: "rpgfeatures", label: fs.rpgSection, icon: "dice", category: "rpg" },
+      { id: "oracles", label: ss.sOracles, icon: "sparkles", category: "rpg" },
+      { id: "statblocks", label: ss.sStatblocks, icon: "dice", category: "rpg" },
+
+      // 4. Rede & Conexões / Network & System
+      ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh", category: "system" as const }] : []),
+      ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh", category: "system" as const }] : []),
+      ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe", category: "system" as const }] : []),
+      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe", category: "system" as const }] : []),
+      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
+      ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null, scope?: Scope): HTMLElement {
@@ -200,6 +227,34 @@ export class SettingsDialog {
     return row;
   }
   private ids = 0;
+  private ctx(): ItemCtx {
+    return {
+      item: (a, b, c, d) => this.item(a, b, c, d),
+      select: (o, v, c) => this.select(o, v, c),
+      toggle: (v, c) => this.toggle(v, c),
+      paint: () => this.paint(),
+      open: (section) => { this.section = section; this.search.value = ""; this.paint(); },
+    };
+  }
+  /** A select that shows `current()` whenever the settings change under it (a theme applied elsewhere may switch the mode). */
+  private liveSelect<T extends string>(options: [T, string][], current: () => T, onChange: (v: T) => void): HTMLSelectElement {
+    const sel = this.select(options, current(), onChange);
+    let seen = false;
+    const sync = (): void => {
+      if (!sel.isConnected) {
+        if (seen) {
+          removeEventListener("verso:settings-saved", sync);
+          removeEventListener(LOOK_EVENT, sync);
+        }
+        return;
+      }
+      seen = true;
+      sel.value = current();
+    };
+    addEventListener("verso:settings-saved", sync);
+    addEventListener(LOOK_EVENT, sync);
+    return sel;
+  }
   private select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
     const sel = h("select");
     for (const [v, l] of options) {
@@ -210,6 +265,32 @@ export class SettingsDialog {
     }
     sel.addEventListener("change", () => onChange(sel.value as T));
     return sel;
+  }
+  /** − the number + (the local server's control): 44 px buttons on touch. */
+  private stepper(value: number, min: number, max: number, fewer: string, more: string, onChange: (n: number) => void): HTMLElement {
+    const input = h("input");
+    input.type = "number";
+    input.min = String(min);
+    input.max = String(max);
+    input.step = "1";
+    input.inputMode = "numeric";
+    input.value = String(value);
+    const set = (raw: number) => {
+      const n = Math.min(max, Math.max(min, Math.trunc(raw) || min));
+      input.value = String(n);
+      onChange(n);
+    };
+    input.addEventListener("change", () => set(Number(input.value)));
+    const step = (by: number, label: string): HTMLButtonElement => {
+      const b = h("button", "btn ls-step", by < 0 ? "−" : "+");
+      b.type = "button";
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", () => { const n = Math.min(max, Math.max(min, Math.trunc(Number(input.value) || min) + by)); if (String(n) !== input.value) set(n); });
+      return b;
+    };
+    const box = h("span", "ls-steps settings-steps");
+    box.append(step(-1, fewer), input, step(1, more));
+    return box;
   }
   private toggle(value: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
     const l = h("label", "switch");
@@ -246,8 +327,8 @@ export class SettingsDialog {
     return box;
   }
   /** Every item of every section, for the search; the section otherwise. */
-  private items(): { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] {
-    const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
+  private items(): SettingItem[] {
+    const out: SettingItem[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
     // A setting of the folder's layer (ADR 0070 items 1–2): shown with
@@ -351,7 +432,7 @@ export class SettingsDialog {
           const txt = h("div", "update-progress-text");
           const mbDownloaded = (((prog.downloaded_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1);
           const mbTotal = prog.total_bytes ? (((prog.total_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1) : "?";
-          const statusMsg = prog.status === "extracting" ? "Descompactando…" : prog.status === "installing" ? "Instalando…" : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
+          const statusMsg = prog.status === "extracting" ? t.extractingUpdate : prog.status === "installing" ? t.installingUpdate : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
           txt.append(h("span", "", statusMsg), h("span", "", `${pct.toFixed(0)}%`));
 
           progWrap.append(track, txt);
@@ -423,6 +504,7 @@ export class SettingsDialog {
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
+    out.push(...featureItems(this.ctx()));
     // Each kind of notification: a toast and the list, the list only, or
     // nothing (ADR 0084 item 8) — the person's layer, with the account on
     // a server; then the system's notifications, this machine's (item 9).
@@ -435,6 +517,22 @@ export class SettingsDialog {
         }),
       );
     }
+    // The table's chime (ADR 0107, 2026-10-23): which sound (off included) and how loud; choosing plays it once.
+    add("notify", ns.chime, ns.chimeDesc, () =>
+      this.select(CHIMES.map((c) => [c, ns.chimes[c]] as [Chime, string]), readChime(settings.tableChime), (v) => {
+        settings.tableChime = v;
+        saveSettings();
+        previewChime(v, readVolume(settings.tableVolume));
+      }),
+    );
+    add("notify", ns.chimeVolume, ns.chimeVolumeDesc, () => {
+      const r = h("input");
+      r.type = "range"; r.min = "0"; r.max = "100"; r.step = "5"; r.value = String(readVolume(settings.tableVolume));
+      r.setAttribute("aria-valuetext", `${r.value}%`);
+      r.addEventListener("input", () => { settings.tableVolume = Number(r.value); r.setAttribute("aria-valuetext", `${r.value}%`); saveSettings(); });
+      r.addEventListener("change", () => previewChime(readChime(settings.tableChime), readVolume(settings.tableVolume)));
+      return r;
+    });
     add("notify", ns.system, ns.systemDesc, () => systemControl());
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.embedAllowed, t.embedAllowedDesc, () => {
@@ -511,7 +609,7 @@ export class SettingsDialog {
     }
     // The trash beside the folder's space, not counted in it (ADR 0080
     // items 4 and 8), and the way into it.
-    if (currentFolder && can("write")) {
+    if (currentFolder && may("", "delete")) {
       add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
     }
     // How long this computer keeps versions (ADR 0091 item 8): the
@@ -530,15 +628,35 @@ export class SettingsDialog {
     }
     addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
     addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));
+    add("files", t.importMax, t.importMaxDesc, () => {
+      const i = h("input");
+      i.type = "number"; i.min = "1"; i.max = String(IMPORT_CEILING_MB); i.step = "1"; i.value = String(importSetting(settings.importMaxMb));
+      i.addEventListener("change", () => { settings.importMaxMb = importSetting(Number(i.value)); i.value = String(settings.importMaxMb); saveSettings(); });
+      return i;
+    });
+    // The way back for a folder taken off the switcher's list (T.10).
+    if (can("local_folders")) {
+      add("files", sh.showHiddenTitle, sh.showHiddenDesc, () => {
+        const n = hiddenFolderKeys().length;
+        const b = button("ghost", sh.showHiddenButton(n));
+        b.disabled = n === 0;
+        b.addEventListener("click", () => {
+          showHiddenFolders();
+          this.paint();
+        });
+        return b;
+      });
+    }
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
       i.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(i.value) || 1.5); saveSettings(); });
       return i;
     });
-    add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
-    add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
-    add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }));
+    add("appearance", t.theme, t.themeDesc, () => this.liveSelect([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], () => settings.theme, (v) => { settings.theme = v; saveSettings(); }), lookWords.gallery.title);
+    add("appearance", t.darkTone, t.darkToneDesc, () => this.liveSelect([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], () => settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }), lookWords.gallery.title);
+    // The themes (ADR 0100): a gallery of cards; Edit opens the builder in a tab.
+    out.push({ section: "appearance", title: lookWords.gallery.title, desc: lookWords.gallery.lead, group: lookWords.gallery.title, node: () => themeGallery({ openBuilder: (spec) => { this.hide(); paneToOpenIn().openTheme(spec); }, openMore: (opener) => openMoreThemes(opener) }) });
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
       // Up to twice the default (15 px): the window has no page zoom, so
       // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
@@ -546,21 +664,20 @@ export class SettingsDialog {
       r.type = "range"; r.min = "12"; r.max = "30"; r.step = "1"; r.value = String(settings.fontSize);
       r.setAttribute("aria-valuetext", `${r.value} px`);
       r.addEventListener("input", () => { settings.fontSize = Number(r.value); r.setAttribute("aria-valuetext", `${r.value} px`); saveSettings(); });
+      // The appearance wizard may change the size (a profile, a theme).
+      addEventListener(LOOK_EVENT, () => { if (r.isConnected) { r.value = String(settings.fontSize); r.setAttribute("aria-valuetext", `${r.value} px`); } });
       return r;
-    });
-    add("appearance", t.headingFont, t.headingFontDesc, () => this.select([
-      ["serif", t.fontSerif],
-      ["sans", t.fontSans],
-      ["editorial", t.fontEditorial],
-      ["mono", t.fontMono],
-      ["system", t.fontSystem],
-    ], settings.headingFont || "serif", (v) => { settings.headingFont = v as any; saveSettings(); }));
+    }, lookWords.gallery.textGroup);
+    out.push({ section: "appearance", title: fontSampleWords.label, desc: "", group: lookWords.gallery.textGroup, node: () => fontSample() });
+    add("appearance", t.measure, t.measureDesc, () => this.liveSelect([["theme", t.measureTheme], ["narrow", t.measureNarrow], ["medium", t.measureMedium], ["standard", t.measureStandard], ["large", t.measureLarge], ["full", t.measureFull]], () => settings.measure, (v) => { settings.measure = v; saveSettings(); }), lookWords.gallery.textGroup);
+    // The window's zoom (ADR 0072): only where the host zooms; a browser has its own.
+    if (hasHostZoom()) add("appearance", zoomWords.title, zoomWords.desc, () => zoomControl(), lookWords.gallery.textGroup);
     add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
       ["sans", t.fontSans],
       ["serif", t.fontEditorial],
       ["mono", t.fontMono],
       ["system", t.fontSystem],
-    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }));
+    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }), lookWords.gallery.moreText);
     add("appearance", t.headingColor, t.headingColorDesc, () => this.select([
       ["brass", t.colorBrass],
       ["default", t.colorDefault],
@@ -569,8 +686,7 @@ export class SettingsDialog {
       ["slate", t.colorSlate],
       ["royal", t.colorRoyal],
       ["amethyst", t.colorAmethyst],
-    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
-    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }), lookWords.gallery.moreText);
     // The ribbon's buttons, each shown or hidden here as from its menu;
     // the gear stays, so the way back is never hidden with the others.
     for (const b of ribbon?.buttons() ?? []) {
@@ -673,11 +789,18 @@ export class SettingsDialog {
     add("board", b.prefStroke, b.prefStrokeDesc, () => this.select([["hand", b.prefStrokeHand], ["clean", b.prefStrokeClean]], settings.boardStroke, (v) => { settings.boardStroke = v; saveSettings(); }));
     add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
     add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
+    add("board", b.prefDouble, b.prefDoubleDesc, () => this.select([["card", b.prefDoubleCard], ["drawn", b.prefDoubleDrawn]], settings.boardDoubleClick, (v) => { settings.boardDoubleClick = v; saveSettings(); }));
     add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
+    out.push(...offNotice(this.ctx(), "statblocks", "statblocks"), ...statblockItems(this.ctx()), ...creditsItems(this.ctx()), ...offNotice(this.ctx(), "oracles", "oracles"), ...oracleItems(this.ctx()));
     add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
       settings.previewTabs = v;
       saveSettings();
       if (!v) for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) l.keep();
+    }));
+    // A hide always has a way back (a phone has no double click): the bar
+    // is shown or hidden in every pane of every workspace from here.
+    add("editor", t.showTabs, t.showTabsDesc, () => this.toggle(!spaces.some((sp) => sp.layout.panes().some((p) => p.tabsHidden)), (v) => {
+      for (const sp of spaces) for (const p of sp.layout.panes()) p.setTabsHidden(!v);
     }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
@@ -685,9 +808,16 @@ export class SettingsDialog {
     add("editor", pv.setting, pv.settingDesc, () => this.toggle(settings.hoverPreview, (v) => { settings.hoverPreview = v; saveSettings(); }));
     // The suggestion while typing (ADR 0089 item 5): off until the person
     // turns it on; the folders and names it never offers.
-    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); }));
-    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
-    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));
+    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); this.paint(); }));
+    // Dependent on the suggestion: shown only while it is on, and the
+    // toggle repaints the list so they appear and go at once.
+    if (settings.suggestLinks) {
+      add("editor", ls.minLetters, ls.minLettersDesc, () => this.stepper(settings.suggestMinLetters, 1, 10, ls.minLettersFewer, ls.minLettersMore, (n) => { settings.suggestMinLetters = n; saveSettings(); }));
+      add("editor", ls.capitalOnly, ls.capitalOnlyDesc, () => this.toggle(settings.suggestCapitalOnly, (v) => { settings.suggestCapitalOnly = v; saveSettings(); }));
+    }
+    add("editor", ls.mentionAt, ls.mentionAtDesc, () => this.toggle(settings.mentionAt, (v) => { settings.mentionAt = v; saveSettings(); }));
+    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, LOCALE.startsWith("pt") ? "Arquivo" : "Archive"));
+    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, LOCALE.startsWith("pt") ? "Mesa" : "Table"));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)
@@ -701,6 +831,14 @@ export class SettingsDialog {
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
+    // Verso as the app for .md files (ADR 0114 item 5, Q12): the gesture of
+    // this system; on Windows a button to its Default apps page.
+    if (can("local_folders")) add("files", looseWords.defaultTitle, defaultAppDesc({ mac: !WINDOWS && !LINUX, windows: WINDOWS }), () => {
+      if (!WINDOWS) return null;
+      const b = h("button", "update-btn-secondary", looseWords.defaultButton);
+      b.addEventListener("click", () => void commands.openDefaultApps().then((r) => r.status !== "ok" && fail(r.error)));
+      return b;
+    });
     // The daily notes' folder is the folder's now, with the other periods
     // (ADR 0093 item 4); without a folder open, this machine's, as before.
     if (!currentFolder) add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
@@ -717,14 +855,14 @@ export class SettingsDialog {
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders")) out.push({ section: "localserver", title: localStrings().title, desc: "", node: () => localServerBody((a, b, c) => this.item(a, b, c)) });
-    if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
+    if (currentFolder && may("", "delete")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     if (this.offlineHere()) out.push({ section: "sync", title: offlineWords().title, desc: offlineWords().desc, node: () => offlineBody((a, b, c) => this.item(a, b, c)) });
-    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
+    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => cliControl(this.ctx()));
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
-    add("cli", t.mcpTitle, settings.mcpMode === "all" ? t.mcpDescAll : t.mcpDesc, () => this.mcpControl());
-    if (settings.mcpMode === "all" && currentFolder) add("cli", t.agentVisibleTitle, t.agentVisibleDesc, () => this.agentVisibleControl());
+    add("cli", t.mcpTitle, settings.mcpMode === "all" ? t.mcpDescAll : t.mcpDesc, () => mcpControl());
+    if (settings.mcpMode === "all" && currentFolder) add("cli", t.agentVisibleTitle, t.agentVisibleDesc, () => agentVisibleControl(this.ctx()));
     const args = mcpArgs();
     if (args) {
       const guess = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
@@ -735,157 +873,11 @@ export class SettingsDialog {
       const quoted = (text: string) => (/\s/.test(text) ? `"${text}"` : text);
       const code = (command: string, server: string) => `claude mcp add ${quoted(server)} -- ${quoted(command)} ${args.join(" ")}`;
       const other = (command: string, server: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
-      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso", guess), (st) => code(st.command, st.server)));
-      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => snippet(code("verso", guess), (st) => code(st.command, st.server)));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
     // The command line and the agents only where the side has them.
     return can("agents") ? out : out.filter((o) => o.section !== "cli");
-  }
-  /** Where the command line stands, and the button that changes it. */
-  private cliControl(): HTMLElement {
-    const wrap = h("span", "setting-actions");
-    const said = h("span", "setting-value", "…");
-    said.setAttribute("aria-live", "polite");
-    const install = button("ghost", t.cliInstall);
-    const remove = button("ghost", t.cliRemove);
-    install.hidden = true;
-    remove.hidden = true;
-    const show = (state: CliState) => {
-      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? (LINUX ? t.cliElsewhereLinux : t.cliElsewhere) : state === "bundled" ? (LINUX ? t.cliBundledLinux : t.cliBundled) : t.cliUnbundled;
-      install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
-      install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
-      install.title = install.textContent;
-      remove.hidden = state !== "ours";
-    };
-    void commands.cliStatus().then(show);
-    install.addEventListener("click", () => void (async () => {
-      let replace = false;
-      if ((await commands.cliStatus()) === "elsewhere") {
-        if (!(await ask(LINUX ? t.cliReplaceAskLinux : t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
-        replace = true;
-      }
-      const r = await commands.installCli(replace);
-      if (r.status !== "ok") {
-        said.textContent = r.error.message === "cancelled" ? t.cliCancelled : r.error.message;
-        return;
-      }
-      if (r.data === "ours") ui.status.textContent = t.cliDone;
-      // The agents' item depends on it.
-      this.paint();
-    })());
-    remove.addEventListener("click", () => void (async () => {
-      const r = await commands.uninstallCli();
-      if (r.status !== "ok") {
-        said.textContent = r.error.message === "cancelled" ? t.cliCancelled : r.error.message;
-        return;
-      }
-      ui.status.textContent = t.cliRemoved;
-      this.paint();
-    })());
-    wrap.append(said, install, remove);
-    return wrap;
-  }
-  /** Whether Claude Desktop starts this folder's server, and the button
-   *  that adds it — after showing what goes in. */
-  private mcpControl(): HTMLElement {
-    const wrap = h("span", "setting-actions");
-    const said = h("span", "setting-value", "…");
-    said.setAttribute("aria-live", "polite");
-    wrap.append(said);
-    const args = mcpArgs();
-    if (!args) {
-      said.textContent = t.mcpNoFolder;
-      return wrap;
-    }
-    const all = settings.mcpMode === "all";
-    const add = button("ghost", t.mcpClaude);
-    add.hidden = true;
-    wrap.append(add);
-    let server = "";
-    let command = "/usr/local/bin/verso";
-    void Promise.all([commands.cliStatus(), commands.mcpStatus(all)]).then(([cli, st]) => {
-      if (st.status !== "ok") {
-        said.textContent = st.error.message;
-        return;
-      }
-      server = st.data.server;
-      command = st.data.command;
-      const claude = st.data.claude;
-      if (claude === "noClient") {
-        // A way to get it, rather than a dead "not found".
-        said.textContent = t.mcpNoClaude;
-        add.textContent = t.mcpGetClaude;
-        add.title = t.mcpGetClaude;
-        add.dataset["get"] = "1";
-        add.hidden = false;
-      }
-      else if (claude === "same") said.textContent = t.mcpClaudeSame;
-      else if (cli !== "ours" && cli !== "bundled") said.textContent = t.mcpNeedCli;
-      else {
-        said.textContent = claude === "different" ? t.mcpClaudeDifferent : "";
-        add.hidden = false;
-      }
-    });
-    add.addEventListener("click", () => void (async () => {
-      if (add.dataset["get"]) {
-        const r = await commands.openClaudeDownload();
-        if (r.status !== "ok") said.textContent = r.error.message;
-        return;
-      }
-      // What the host will write, as it will write it (ADR 0054 point 2).
-      const entry = JSON.stringify({ [server]: { command, args } }, null, 2);
-      if (!(await ask(t.mcpAddAsk.replace("{entry}", entry), { yes: t.mcpAddYes, no: t.cancel }))) return;
-      const r = await commands.mcpAddClaude(all);
-      if (r.status !== "ok") {
-        said.textContent = r.error.message;
-        return;
-      }
-      said.textContent = `${t.mcpAdded}${r.data.backup ? ` ${t.mcpBackup.replace("{name}", r.data.backup)}` : ""}`;
-      add.hidden = true;
-    })());
-    return wrap;
-  }
-  /** Whether the server for all of Verso serves the open folder: hidden
-   *  until the person says so (ADR 0054 point 4). The mark lives with the
-   *  host, in the configuration directory, since the server runs without
-   *  the app. */
-  private agentVisibleControl(): HTMLElement {
-    const l = this.toggle(false, (v) => void commands.setAgentVisible(v).then((r) => {
-      if (r.status !== "ok") {
-        // The switch says what the host stored, never what was asked.
-        box.checked = !v;
-        ui.status.textContent = r.error.message;
-      } else box.checked = r.data;
-    }));
-    const box = l.querySelector("input") as HTMLInputElement;
-    box.disabled = true;
-    void commands.agentVisible().then((r) => {
-      if (r.status !== "ok") return;
-      box.checked = r.data;
-      box.disabled = false;
-    });
-    return l;
-  }
-  /** A text to copy; `fromHost`, when given, writes it again from the
-   *  host's MCP status once it answers. */
-  private snippet(first: string, fromHost?: (st: McpStatus) => string): HTMLElement {
-    let text = first;
-    const wrap = h("div", "setting-snippet");
-    const code = h("pre", "setting-code", text);
-    if (fromHost) {
-      void commands.mcpStatus(settings.mcpMode === "all").then((st) => {
-        if (st.status !== "ok") return;
-        text = fromHost(st.data);
-        code.textContent = text;
-      });
-    }
-    const copy = button("ghost", t.copyText);
-    copy.addEventListener("click", () => void navigator.clipboard.writeText(text).then(() => {
-      copy.textContent = t.copiedText;
-      window.setTimeout(() => (copy.textContent = t.copyText), 1500);
-    }));
-    wrap.append(code, copy);
-    return wrap;
   }
   private hotkeyControl(id: string, label: string): HTMLElement {
     const wrap = h("span", "hotkey");
@@ -924,7 +916,7 @@ export class SettingsDialog {
         if (combo === "Escape") return stop();
         // Without Mod a combination never fires; a reserved one would take
         // copy, paste or undo away. Say so, and keep listening.
-        if (!combo.startsWith("Mod-")) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
+        if (!combo.startsWith("Mod-") && !PLAIN_HOTKEYS.has(combo)) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
         if (RESERVED.has(combo) && DEFAULT_KEYS[id] !== combo) return void (shown.textContent = `${prettyKeys(combo)}: ${t.hotkeyReserved}`);
         stop();
         // The same keys cannot mean two things: the other command loses them.
@@ -956,15 +948,24 @@ export class SettingsDialog {
   }
   paint(): void {
     const q = this.search.value.trim().toLowerCase();
-    this.nav.replaceChildren(...this.sections().map((sec) => {
+    const navItems: HTMLElement[] = [];
+    let lastCategory = "";
+    for (const sec of this.sections()) {
+      if (!q && sec.category !== lastCategory) {
+        lastCategory = sec.category;
+        navItems.push(h("div", "settings-nav-group-header", ss.groups[sec.category]));
+      }
       const b = h("button", "settings-nav-item");
       b.type = "button";
       b.append(icon(sec.icon), h("span", "", sec.label));
       b.setAttribute("aria-current", String(sec.id === this.section && !q));
-      b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
-      return b;
-    }));
+      b.addEventListener("click", () => { this.section = sec.id; this.phoneList = false; this.search.value = ""; this.paint(); });
+      navItems.push(b);
+    }
+    this.nav.replaceChildren(...navItems);
     this.revealCurrent();
+    this.box.classList.toggle("phone-list", this.phoneList && !q);
+    this.box.classList.toggle("phone-page", !this.phoneList || !!q);
     const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";
@@ -985,8 +986,12 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "notify" ? notifyStrings().sectionLead : "";
-      this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "rpgfeatures" ? fs.rpgLead : this.section === "notify" ? notifyStrings().sectionLead : this.section === "credits" ? cs.lead : "";
+      const back = h("button", "settings-back");
+      back.type = "button";
+      back.append(icon("chevronLeft"), h("span", "", t.settings));
+      back.addEventListener("click", () => { this.phoneList = true; this.paint(); this.nav.scrollTop = 0; });
+      this.body.replaceChildren(back, title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }
 }

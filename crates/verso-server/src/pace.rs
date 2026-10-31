@@ -63,7 +63,7 @@ impl Said {
     /// this minute; past them nothing, counted. The count is said with the
     /// first line of the next minute — a flood that stopped is not said
     /// again, its last minute being in the lines already there.
-    fn lines(&mut self, key: &str, now: Instant) -> Vec<String> {
+    fn lines(&mut self, key: &str, now: Instant, rate: f64) -> Vec<String> {
         let mut out = Vec::new();
         if self
             .since
@@ -84,7 +84,7 @@ impl Said {
         if self.lines < LINES_A_MINUTE {
             self.lines += 1;
             out.push(format!(
-                "requests from {key} past {RATE} a second: answered 429"
+                "requests from {key} past {rate} a second: answered 429"
             ));
         } else {
             self.more += 1;
@@ -105,8 +105,10 @@ struct Keys {
     pruned: Option<Instant>,
 }
 
-#[derive(Default)]
 pub struct Pace {
+    /// The requests a key may make a second, sustained, and at once.
+    rate: f64,
+    burst: f64,
     keys: Mutex<Keys>,
     said: Mutex<Said>,
     /// A test's clock: when set, the time stands there until moved.
@@ -114,7 +116,28 @@ pub struct Pace {
     clock: Mutex<Option<Instant>>,
 }
 
+impl Default for Pace {
+    fn default() -> Self {
+        Self::with(RATE, BURST)
+    }
+}
+
 impl Pace {
+    /// A pace of `rate` a second, sustained, and `burst` at once: the REST
+    /// routes' is [`RATE`] and [`BURST`]; the table's messages keep a
+    /// pace of their own (ADR 0107 item 12).
+    #[must_use]
+    pub fn with(rate: f64, burst: f64) -> Self {
+        Self {
+            rate,
+            burst,
+            keys: Mutex::default(),
+            said: Mutex::default(),
+            #[cfg(test)]
+            clock: Mutex::default(),
+        }
+    }
+
     fn now(&self) -> Instant {
         #[cfg(test)]
         if let Some(at) = *lock(&self.clock) {
@@ -146,7 +169,7 @@ impl Pace {
             .is_none_or(|p| now.saturating_duration_since(p) >= PRUNE_EVERY)
         {
             keys.map.retain(|_, e| {
-                !e.bucket.refilled(now, RATE, BURST)
+                !e.bucket.refilled(now, self.rate, self.burst)
                     || e.said
                         .is_some_and(|s| now.saturating_duration_since(s) < SAY_EVERY)
             });
@@ -156,13 +179,18 @@ impl Pace {
             crate::limit::make_room(&mut keys.map, KEYS, |e| e.bucket.at);
         }
         let entry = keys.map.entry(key.to_owned()).or_insert_with(|| Entry {
-            bucket: Bucket::full_at(BURST, now),
+            bucket: Bucket::full_at(self.burst, now),
             said: None,
         });
-        if entry.bucket.take_free_at(now, RATE, BURST) {
+        if entry.bucket.take_free_at(now, self.rate, self.burst) {
             return None;
         }
-        let wait = entry.bucket.until_one(RATE).as_secs_f64().ceil().max(1.0) as u64;
+        let wait = entry
+            .bucket
+            .until_one(self.rate)
+            .as_secs_f64()
+            .ceil()
+            .max(1.0) as u64;
         let say = entry
             .said
             .is_none_or(|s| now.saturating_duration_since(s) >= SAY_EVERY);
@@ -171,7 +199,7 @@ impl Pace {
         }
         drop(keys);
         if say {
-            let lines = lock(&self.said).lines(key, now);
+            let lines = lock(&self.said).lines(key, now, self.rate);
             for line in lines {
                 crate::log::warn(&line);
             }
@@ -186,8 +214,8 @@ impl Pace {
         let keys = lock(&self.keys);
         let mut bucket = keys.map.get(key)?.bucket;
         drop(keys);
-        (!bucket.take_free_at(now, RATE, BURST))
-            .then(|| bucket.until_one(RATE).as_secs_f64().ceil().max(1.0) as u64)
+        (!bucket.take_free_at(now, self.rate, self.burst))
+            .then(|| bucket.until_one(self.rate).as_secs_f64().ceil().max(1.0) as u64)
     }
 
     /// How many keys the pace holds.
@@ -227,11 +255,11 @@ mod tests {
         let at = Instant::now();
         let mut lines = Vec::new();
         for i in 0..25 {
-            lines.extend(said.lines(&format!("198.51.100.{i}"), at));
+            lines.extend(said.lines(&format!("198.51.100.{i}"), at, RATE));
         }
         assert_eq!(lines.len(), LINES_A_MINUTE as usize, "{lines:?}");
         // A minute on: the count of the addresses not said, then the line.
-        let later = said.lines("198.51.100.99", at + Duration::from_secs(61));
+        let later = said.lines("198.51.100.99", at + Duration::from_secs(61), RATE);
         assert_eq!(
             later,
             [

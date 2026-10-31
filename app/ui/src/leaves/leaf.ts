@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type ContractError, type NoteText } from "../bindings";
-import { host } from "../can";
+import { folderAccessNow, host } from "../can";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
@@ -159,6 +159,46 @@ export abstract class Leaf {
     this.setPreview(false);
     persistSoon();
   }
+  /** The file stopped being shared with this person (`unshare`). */
+  unshared = false;
+  /** Access to this tab's file was withdrawn, live (ADR 0113): nothing of
+   *  the file stays — the content is torn down, the tab loses its name and
+   *  its path, and the page says in neutral words that it is no longer
+   *  shared. No reload, no way to read what was there. */
+  unshare(): void {
+    if (this.unshared) return;
+    this.unshared = true;
+    this.setDirty(false);
+    this.clearFailure();
+    this.destroy();
+    this.path = "";
+    this.tabName.textContent = t.unsharedTab;
+    this.tab.title = t.unsharedTab;
+    this.tabIcon.replaceChildren(icon("lock"));
+    this.setGone(false);
+    this.el.classList.remove("failed");
+    this.el.classList.add("unshared");
+    const box = h("div", "load-failure unshared-box");
+    box.setAttribute("role", "status");
+    const close = button("ghost", t.close);
+    close.addEventListener("click", () => void this.close(true));
+    box.append(h("p", "load-failure-title", t.unsharedTitle), h("p", "", t.unsharedBody), close);
+    this.el.replaceChildren(box);
+  }
+  /** A player at a table whose read of a file failed because it is gone or
+   *  refused: the file may be one the game master just stopped sharing, so
+   *  its name must not be said (the unshared state is the neutral answer;
+   *  the live `unshare` and this read may arrive in either order). */
+  protected veiled(error: ContractError): boolean {
+    const access = folderAccessNow();
+    return Boolean(access?.table) && access?.seat !== "master" && (error.kind === "not_found" || error.kind === "refused");
+  }
+  /** This tab's file is veiled by a failed read: neutral at once, and the
+   *  window lets go of the name (recents, switcher, outline: unshared.ts). */
+  protected veil(path: string): void {
+    this.unshare();
+    dispatchEvent(new CustomEvent("verso:veiled", { detail: path }));
+  }
   /** Why the last read of this tab's file failed, or null. */
   failed: ContractError["kind"] | null = null;
   /** A tab brought back behind another, whose file waits to be shown
@@ -176,6 +216,7 @@ export abstract class Leaf {
    *  tab shows no editor, so nothing can be typed into it and lost (review
    *  `board.md`, reading 3, finding 4). */
   protected showFailure(path: string, error: ContractError, retry: () => void): void {
+    if (this.veiled(error)) return this.veil(path);
     this.failure?.remove();
     const box = h("div", "load-failure");
     box.setAttribute("role", "alert");

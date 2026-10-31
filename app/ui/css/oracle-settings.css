@@ -1,0 +1,175 @@
+/* The oracle's settings page (ADR 0102 item 6): an opening that says what
+   the oracle does, then its odds as bars on one scale from yes to no, its
+   spark words as chips, and its tables as cards. Each section sizes itself
+   by its own width (a container), so the page holds at 340 px on a phone,
+   where the settings take the whole screen, as at 1000 px. */
+
+/* The six answers, one scale from yes to no: the "and" ends strongest, the
+   "but" middle nearest the paper, in light and in dark; each with the ink
+   that reads on it. */
+.orc-section, .orc-intro {
+  --orc-yesAnd: light-dark(oklch(47% 0.12 152), oklch(78% 0.13 152));
+  --orc-yes: light-dark(oklch(66% 0.12 150), oklch(60% 0.11 150));
+  --orc-yesBut: light-dark(oklch(87% 0.07 135), oklch(39% 0.06 140));
+  --orc-noBut: light-dark(oklch(88% 0.05 55), oklch(39% 0.05 45));
+  --orc-no: light-dark(oklch(69% 0.12 35), oklch(62% 0.12 32));
+  --orc-noAnd: light-dark(oklch(47% 0.15 28), oklch(78% 0.12 32));
+  --orc-ok: light-dark(oklch(43% 0.12 150), oklch(80% 0.12 150));
+}
+.orc-a-yesAnd { --c: var(--orc-yesAnd); --on: light-dark(oklch(98% 0.01 80), oklch(20% 0.02 60)); }
+.orc-a-yes { --c: var(--orc-yes); --on: oklch(20% 0.02 60); }
+.orc-a-yesBut { --c: var(--orc-yesBut); --on: light-dark(oklch(22% 0.025 60), oklch(96% 0.01 80)); }
+.orc-a-noBut { --c: var(--orc-noBut); --on: light-dark(oklch(22% 0.025 60), oklch(96% 0.01 80)); }
+.orc-a-no { --c: var(--orc-no); --on: oklch(20% 0.02 60); }
+.orc-a-noAnd { --c: var(--orc-noAnd); --on: light-dark(oklch(98% 0.01 80), oklch(20% 0.02 60)); }
+
+/* ---- the opening */
+.orc-intro { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.2rem; margin: .2rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--hair); border-radius: 10px; background: var(--paper-2); }
+.orc-intro-text { flex: 1 1 18rem; min-width: 0; }
+.orc-intro-lead { margin: 0 0 .55rem; font-size: .92rem; line-height: 1.55; color: var(--ink); max-width: 62ch; }
+.orc-where { display: flex; align-items: flex-start; gap: .45rem; margin: 0; font-size: .8rem; line-height: 1.45; color: var(--brass-ink); }
+.orc-where .icon { width: 14px; height: 14px; flex: none; margin-top: .12rem; }
+.orc-where.is-locked { color: var(--ink-2); }
+.orc-try-oracle { display: inline-flex; align-items: center; gap: .45rem; flex: none; padding: .45rem .9rem; font-size: .82rem; }
+.orc-try-oracle .icon { width: 14px; height: 14px; }
+
+/* ---- a section */
+.orc-section { container-type: inline-size; margin: 1.8rem 0 0; padding-top: 1.4rem; border-top: 1px solid var(--hair); }
+.orc-heading { margin: 0 0 .3rem; font-family: var(--display); font-size: 1.08rem; font-weight: 600; color: var(--ink); }
+.orc-lead { margin: 0 0 1.1rem; max-width: 62ch; font-size: .86rem; line-height: 1.55; color: var(--ink-2); }
+.orc-hint { margin: 0; font-size: .8rem; line-height: 1.45; color: var(--ink-3); }
+.orc-subheading { margin: 0 0 .55rem; padding: 0; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.orc-note { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin: 0 0 1rem; padding: .6rem .8rem; border-radius: 8px; background: var(--brass-wash); color: var(--ink); font-size: .82rem; line-height: 1.45; }
+.orc-note p { flex: 1 1 16rem; margin: 0; }
+.orc-note.bad { background: var(--seal-wash); }
+.orc-tag { display: inline-block; padding: 0 .42rem; border: 1px solid currentColor; border-radius: 999px; font-size: .64rem; font-weight: 500; letter-spacing: .04em; line-height: 1.55; text-transform: uppercase; color: var(--brass-ink); }
+.orc-said { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .7rem; margin: .8rem 0 0; }
+.orc-undo { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--seal); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* ---- the odds: a legend once, then one bar per level */
+.orc-swatch { display: inline-block; flex: none; width: .72rem; height: .72rem; border-radius: 3px; background: var(--c); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ink) 12%, transparent); }
+.orc-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0 0 .85rem; padding: 0; list-style: none; font-size: .76rem; color: var(--ink-2); }
+.orc-legend-item { display: inline-flex; align-items: center; gap: .38rem; white-space: nowrap; }
+.orc-bars { display: grid; gap: .65rem; max-width: 50rem; }
+/* The level's name with its "N% sim" under it, then the bar, as wide as
+   the row lets it be. */
+.orc-bar-row { display: grid; grid-template-columns: 7rem minmax(0, 1fr); align-items: center; gap: .3rem .8rem; }
+.orc-bar-label { display: flex; flex-direction: column; gap: .05rem; min-width: 0; }
+.orc-bar-name { font-size: .84rem; line-height: 1.25; color: var(--ink); }
+.orc-bar-yes { font-size: .72rem; font-variant-numeric: tabular-nums; color: var(--ink-3); white-space: nowrap; }
+/* Every part shows its number inside it: each drawn part is at least two
+   digits wide with room around them, and the rest of the bar is shared in
+   proportion (flex-grow is the percentage), so the bar stays near its
+   proportions and fills its row. A 0% part is not drawn. Should six
+   minimums ever pass the row's width, the bar scrolls in its row; the
+   numbers never leave it. */
+.orc-bar { display: flex; gap: 2px; height: 1.95rem; overflow-x: auto; overflow-y: hidden; border-radius: 6px; background: var(--paper); scrollbar-width: none; }
+.orc-seg { display: flex; align-items: center; justify-content: center; flex: var(--n, 0) 1 0; min-width: 2.6em; background: var(--c); color: var(--on); font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transition: flex-grow .45s var(--ease-out); }
+.orc-seg.is-empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .orc-seg { transition: none; } }
+@container (max-width: 30rem) {
+  .orc-bar-row { grid-template-columns: minmax(0, 1fr); }
+  .orc-bar-label { flex-direction: row; align-items: baseline; justify-content: space-between; gap: .6rem; }
+}
+
+/* ---- the styles: a radio group, one card each */
+.orc-styles { margin: 1.5rem 0 0; padding: 0; border: 0; min-width: 0; }
+.orc-style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: .5rem; }
+.orc-style { display: flex; align-items: flex-start; gap: .6rem; padding: .6rem .75rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper); cursor: pointer; transition: border-color .15s, background .15s; }
+.orc-style:hover { border-color: color-mix(in oklch, var(--seal) 45%, var(--hair)); }
+.orc-style:has(input:checked) { border-color: var(--seal); background: var(--seal-wash); }
+.orc-style:has(input:focus-visible) { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.orc-style:has(input:disabled) { cursor: default; }
+.orc-style:has(input:disabled:not(:checked)) { opacity: .7; }
+.orc-style input { flex: none; margin: .18rem 0 0; accent-color: var(--seal); }
+.orc-style input:focus-visible { outline: none; }
+.orc-style-text { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.orc-style-name { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; font-size: .86rem; font-weight: 600; color: var(--ink); }
+.orc-style-desc { font-size: .78rem; line-height: 1.42; color: var(--ink-2); }
+
+/* ---- the odds by hand */
+.orc-manual { margin: 1rem 0 0; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); }
+.orc-manual-summary { padding: .65rem .85rem; font-size: .86rem; font-weight: 500; color: var(--ink); cursor: pointer; border-radius: 8px; }
+.orc-manual-summary:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.orc-manual-body { container-type: inline-size; padding: 0 .85rem .85rem; }
+.orc-manual-head, .orc-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .4rem; }
+.orc-manual-head { margin: .8rem 0 .1rem; font-size: .7rem; color: var(--ink-2); }
+.orc-manual-col, .orc-cell-label { display: flex; align-items: center; gap: .3rem; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.orc-row { min-width: 0; margin: 0; padding: .55rem 0 .5rem; border: 0; border-top: 1px solid var(--hair); }
+.orc-row:first-of-type { border-top: 0; }
+.orc-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; margin-bottom: .35rem; }
+.orc-row-name { font-size: .84rem; font-weight: 600; color: var(--ink); }
+.orc-row-total { font-size: .76rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--orc-ok); white-space: nowrap; }
+.orc-row.is-off .orc-row-total, .orc-row-kept { color: var(--seal); }
+.orc-row-kept { margin: .3rem 0 0; font-size: .74rem; }
+.orc-cell { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.orc-cell-label { display: none; font-size: .7rem; color: var(--ink-2); }
+.orc-cell-input { box-sizing: border-box; width: 100%; min-width: 0; padding: .38rem .2rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-family: var(--mono); font-size: .86rem; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.orc-cell-input::-webkit-inner-spin-button, .orc-cell-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.orc-cell-input:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 1px; }
+.orc-row.is-off .orc-cell-input { border-color: color-mix(in oklch, var(--seal) 60%, var(--hair)); }
+.orc-cell-input:disabled { color: var(--ink-2); background: var(--paper-2); }
+.orc-manual-actions { display: flex; justify-content: flex-end; margin-top: .6rem; }
+@container (max-width: 27rem) {
+  .orc-manual-head { display: none; }
+  .orc-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem .4rem; }
+  .orc-cell-label { display: flex; }
+}
+
+/* ---- the sparks */
+.orc-try { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin: 0 0 1.1rem; }
+.orc-try-out { font-family: var(--display); font-size: .98rem; font-style: italic; color: var(--brass-ink); }
+.orc-switch-row { display: flex; align-items: flex-start; gap: .75rem; margin: 0 0 1rem; }
+.orc-switch-row .switch { margin-top: .1rem; }
+.orc-switch-text { min-width: 0; }
+.orc-switch-label { display: block; margin-bottom: .1rem; font-size: .9rem; color: var(--ink); cursor: pointer; }
+.orc-words-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+@container (max-width: 34rem) { .orc-words-grid { grid-template-columns: minmax(0, 1fr); } }
+.orc-words { min-width: 0; padding: .65rem .75rem .7rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); }
+.orc-words-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; margin-bottom: .5rem; }
+.orc-words-name { font-size: .88rem; font-weight: 600; color: var(--ink); }
+.orc-words-hint { flex: 1 1 auto; font-size: .76rem; color: var(--ink-3); }
+.orc-words-count { font-size: .72rem; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.orc-preview-words { margin: 0; font-size: .82rem; line-height: 1.55; color: var(--ink-2); }
+.orc-preview-more { font-style: italic; color: var(--ink-3); }
+.orc-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.orc-chip { display: inline-flex; align-items: center; gap: .05rem; max-width: 100%; padding: .08rem .12rem .08rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); font-size: .8rem; color: var(--ink); }
+.orc-chip:has(.orc-chip-x:focus-visible) { border-color: var(--brass-ink); }
+.orc-chip-word { overflow-wrap: anywhere; }
+.orc-chip-x { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink-3); font-size: .95rem; line-height: 1; cursor: pointer; }
+.orc-chip-x:hover { background: var(--seal-wash); color: var(--seal); }
+.orc-chip-x:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 0; }
+.orc-chip-x[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.orc-chip-x[aria-disabled="true"]:hover { background: none; color: var(--ink-3); }
+.orc-chip-add { display: inline-flex; flex: 1 1 7rem; min-width: 7rem; }
+.orc-chip-input { box-sizing: border-box; width: 100%; padding: .22rem .6rem; border: 1px dashed color-mix(in oklch, var(--ink) 25%, var(--hair)); border-radius: 999px; background: transparent; color: var(--ink); font: inherit; font-size: .8rem; }
+.orc-chip-input::placeholder { color: var(--ink-3); }
+.orc-chip-input:focus { border-style: solid; border-color: var(--seal); outline: none; }
+.orc-words-msg { margin: .4rem 0 0; font-size: .74rem; color: var(--ink-3); }
+.orc-words-msg:empty { display: none; }
+.orc-words-msg.bad { color: var(--seal); }
+.orc-back { margin-top: .9rem; }
+@media (pointer: coarse) { .orc-chip-x { width: 1.9rem; height: 1.9rem; } .orc-chip-input { padding: .4rem .7rem; } }
+
+/* ---- the tables */
+.orc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 .9rem; }
+.orc-tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .6rem; margin: 0 0 .6rem; padding: 0; list-style: none; }
+.orc-table { display: flex; flex-direction: column; gap: .3rem; min-width: 0; padding: .7rem .8rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); }
+.orc-table-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.orc-table-name { min-width: 0; font-size: .88rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.orc-table-count { font-size: .72rem; color: var(--ink-3); white-space: nowrap; }
+.orc-table-die { font-family: var(--mono); font-size: .68rem; }
+.orc-table-from { font-size: .76rem; color: var(--ink-3); }
+.orc-table-link { padding: 0; border: 0; background: none; font: inherit; color: var(--seal); text-align: left; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; cursor: pointer; }
+.orc-table-peek { display: -webkit-box; margin: 0; overflow: hidden; font-size: .78rem; line-height: 1.45; color: var(--ink-2); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.orc-table-all { align-self: flex-start; margin-top: .15rem; font-size: .78rem; }
+
+@media (forced-colors: active) {
+  .orc-seg, .orc-swatch { forced-color-adjust: none; }
+  .orc-style:has(input:checked) { border-width: 2px; }
+}
+
+/* The page's quieter buttons still look like buttons: an outline, on the
+   paper (the app's ghost button alone reads as text here). */
+.orc-section button.ghost, .orc-note button.ghost { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--hair); background: var(--paper); color: var(--ink); }
+.orc-section button.ghost .icon { width: 14px; height: 14px; }

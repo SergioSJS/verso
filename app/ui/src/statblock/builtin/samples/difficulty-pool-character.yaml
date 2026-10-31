@@ -1,0 +1,10 @@
+name: Kestrel
+description: A sample runner of our own.
+pools:
+  melee: 6
+  stealth: 8
+  hacking: 5
+health: 7
+health_max: 9
+gear:
+  - Burner phone

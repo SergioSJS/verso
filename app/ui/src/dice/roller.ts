@@ -6,11 +6,16 @@
 // palette's "Roll dice…" opens a small roller — a notation typed and
 // rolled in this window, nothing written. Rolai's drawer is for later.
 
+import { hasCapability } from "../capabilities";
 import { asDialog, closed, opened } from "../dialogs/a11y";
 import { h } from "../dom";
 import { icon } from "../icons";
-import { howSaid } from "./card";
+import { play3d, will3d } from "../dice3d";
+import { howSaid, say } from "./card";
 import { readNotation, rollHere } from "./notation";
+import type { DiceRoll } from "../bindings";
+import { isServerTable } from "../table/model";
+import { recordRoll, tableSource } from "../table/record";
 import { ds } from "./strings";
 
 let shade: HTMLElement | null = null;
@@ -54,6 +59,9 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
   });
   box.addEventListener("submit", (e) => {
     e.preventDefault();
+    void submit();
+  });
+  const submit = async () => {
     const typed = input.value.trim();
     const notation = readNotation(typed);
     out.replaceChildren();
@@ -66,19 +74,70 @@ function build(): { shade: HTMLElement; input: HTMLInputElement } {
     }
     out.classList.remove("failed");
     input.removeAttribute("aria-invalid");
-    const roll = rollHere(notation);
+    // With a server's table the server rolls it, once, for everyone at the
+    // table; "Secreta" in the table's field makes it a roll to the owners.
+    let roll: DiceRoll;
+    const table = tableSource();
+    if (isServerTable(table)) {
+      const r = await table.roll(notation, { secret: table.secret });
+      if ("error" in r || !r.entry.roll) {
+        out.classList.add("failed");
+        out.textContent = "error" in r ? r.error : ds.unread(typed);
+        input.focus();
+        return;
+      }
+      roll = r.entry.roll;
+    } else roll = rollHere(notation);
     const how = howSaid(roll);
-    out.append(h("strong", "dice-total", String(roll.total)), h("span", "dice-roller-said", ds.said(null, notation, String(roll.total), how)));
-  });
+    const words = ds.said(null, notation, String(roll.total), how);
+    // With the 3D switch on (ADR 0101) the result is said at once and shown
+    // when the dice have rested; the live region below is silenced for that
+    // one fill, so it is not said twice.
+    const fall = will3d("", roll);
+    if (fall) {
+      say(words);
+      out.setAttribute("aria-live", "off");
+      await play3d("", roll);
+    }
+    recordRoll("", roll);
+    out.append(h("strong", "dice-total", String(roll.total)), h("span", "dice-roller-said", words));
+    if (fall) requestAnimationFrame(() => out.setAttribute("aria-live", "polite"));
+  };
   return { shade: el, input };
 }
 
-/** Open the roller, its notation field focused. */
-export function openRoller(): void {
+/** Show the roller, its notation field focused; with a notation, rolled at
+ *  once as if typed and submitted. */
+function showRoller(notation?: string): void {
   const made = shade ? { shade, input: shade.querySelector("input") as HTMLInputElement } : build();
   shade = made.shade;
   opened(shade);
   shade.hidden = false;
+  if (notation !== undefined) {
+    made.input.value = notation;
+    shade.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    made.input.focus();
+    return;
+  }
   made.input.focus();
   made.input.select();
+}
+
+/** Open the roller, its notation field focused. */
+export function openRoller(): void {
+  showRoller();
+}
+
+/** Open the roller with a pre-filled notation and roll immediately. */
+export function openRollerWith(notation: string): void {
+  showRoller(notation);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("verso:roll-dice", (e: Event) => {
+    const detail = (e as CustomEvent<{ notation?: string }>).detail;
+    if (detail?.notation && hasCapability("diceRolling")) {
+      openRollerWith(detail.notation);
+    }
+  });
 }

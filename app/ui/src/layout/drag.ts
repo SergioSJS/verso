@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { canWrite } from "../can";
+import { may } from "../access";
 import { narrow } from "../chrome";
 import { h, ui } from "../dom";
 import { moveFile, moveEntries } from "../files";
@@ -11,8 +11,10 @@ import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
 import { pinItemToFolder, reorderInFolder } from "../organize/order";
 import { dirOf } from "../paths";
+import { readerAttempt } from "../readerNotice";
 import { settings } from "../settings";
 import { HOLD_MS, STILL_PX } from "../touch";
+import { dropRoll, hideDropCaret, showDropCaret } from "../rollblock/insert";
 import { allFolders, markCurrent, showOutline } from "../tree/tree";
 import { landIn, Pane } from "./pane";
 import { current, layout, openIn, Space, spaces } from "./spaces";
@@ -27,13 +29,35 @@ export function overlayOpen(): boolean {
 /** A tab, or a row of the tree — with the other rows selected with it,
  *  when it is dragged as part of a selection (ADR 0048, revised
  *  2026-10-07). */
-export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[] };
+export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[]; linkOnly?: boolean } | { kind: "roll"; make: (target: string) => string };
 export let drag: Drag | null = null;
 export const ghost = h("div", "drag-ghost");
 export function clearDropHints(): void {
   for (const e of document.querySelectorAll(".drop-hint, .drop, .drop-before, .drop-after, .drop-pin")) {
     e.classList.remove("drop-hint", "drop", "drop-before", "drop-after", "drop-pin", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
   }
+  hideDropCaret();
+}
+/** While a pointer drag runs no text is selected anywhere (the log's lines,
+ *  the page, the editor): the press that began the drag also began a
+ *  selection, and the WKWebView grows it under the moving pointer.
+ *  Clears what is selected, refuses a new selection, and answers how to
+ *  clear again and how to let selecting back in. */
+function holdSelection(): { clear: () => void; end: () => void } {
+  const clear = (): void => {
+    const s = getSelection();
+    if (s && !s.isCollapsed) s.removeAllRanges();
+  };
+  const refuse = (e: Event): void => e.preventDefault();
+  document.addEventListener("selectstart", refuse, true);
+  clear();
+  return {
+    clear,
+    end: () => {
+      document.removeEventListener("selectstart", refuse, true);
+      clear();
+    },
+  };
 }
 export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   // The browser chooses at the touch's start whether it may scroll without
@@ -47,6 +71,7 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
+    let selection: ReturnType<typeof holdSelection> | null = null;
     // A finger drags only after a long press (touch.ts): moved at once, it
     // scrolls the list. Once held, the page stops scrolling under it, or
     // the browser would take the move for a scroll and cancel the drag.
@@ -67,7 +92,9 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
         ghost.textContent = label();
         ghost.hidden = false;
         document.body.classList.add("dragging");
+        selection = holdSelection();
       }
+      selection?.clear();
       ghost.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 12}px)`;
       clearDropHints();
       const target = dropTargetAt(e.clientX, e.clientY);
@@ -77,6 +104,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       if (e.pointerId !== down.pointerId) return;
       release();
       if (!started) return;
+      selection?.end();
+      selection = null;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
       drag = null;
@@ -100,6 +129,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     const cancel = (): void => {
       release();
       if (started) {
+        selection?.end();
+        selection = null;
         drag = null;
         ghost.hidden = true;
         document.body.classList.remove("dragging");
@@ -152,6 +183,14 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
     }
     if (closestPane) return { body: closestPane.body };
     if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
+    return null;
+  }
+  if (drag?.kind === "roll") {
+    // A roll of the table: on a note's text, or on a board's canvas (a card that holds it).
+    const leafEl = at.closest<HTMLElement>(".leaf");
+    const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+    if (leaf instanceof BoardLeaf && at.closest(".board-canvas") && !at.closest(".board-card-slot.is-active")) return { board: leaf };
+    if (leaf instanceof NoteLeaf && at.closest(".cm-content, .preview, .editor")) return { insert: leaf };
     return null;
   }
   if (drag?.kind === "file") {
@@ -221,8 +260,15 @@ export function hint(target: DropTarget, x: number, y: number, shiftKey = false)
     const zone = zoneOf(target.body, x, y);
     target.body.classList.add("drop-hint", zone, "drop-" + zone);
   }
-  else if ("insert" in target) target.insert.el.classList.add("drop");
-  else if ("board" in target) target.board.el.classList.add("drop");
+  else if ("insert" in target) {
+    // A roll, a message or a file is only offered a note the person edits.
+    const carries = drag?.kind === "roll" || drag?.kind === "file";
+    if (!carries || may(target.insert.path, "edit")) target.insert.el.classList.add("drop");
+    if (drag?.kind === "roll" && may(target.insert.path, "edit")) showDropCaret(target.insert, drag.make(target.insert.path), x, y);
+  }
+  else if ("board" in target) {
+    if (!(drag?.kind === "roll" || drag?.kind === "file") || may(target.board.path, "edit")) target.board.el.classList.add("drop");
+  }
   else if ("treeItem" in target) {
     if (shiftKey) {
       target.el.classList.add("drop-pin");
@@ -268,20 +314,42 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     }
     return;
   }
-  // A row of the tree moves a file: not for a reader on a server (ADR 0076
-  // item 11).
-  if (!canWrite()) return;
+  // What the person may do is asked of the target, never of the folder as a
+  // whole (ADR 0113 D): a roll, a message or a file dropped into a note or a
+  // board needs *Edit* on that file; a row of the tree dropped on a pane
+  // always opens; moving a row needs the move and the arrival.
+  const refuse = (path: string | null): void => void readerAttempt({ x, y }, false, path);
+  if (d.kind === "roll") {
+    if ("insert" in target) {
+      if (!may(target.insert.path, "edit")) return refuse(target.insert.path);
+      dropRoll(target.insert, d.make(target.insert.path), x, y);
+    } else if ("board" in target) {
+      if (!may(target.board.path, "edit")) return refuse(target.board.path);
+      target.board.addText(d.make(target.board.path), x, y);
+    }
+    return;
+  }
+  // A file of the table's chat can be linked, opened, never moved.
+  if (d.linkOnly && ("treeItem" in target || "folder" in target)) return;
   // A file from the tree — or several, a selection: into a folder they
   // move together, with one plan of link rewrites; anywhere else, each
   // goes where one would.
   const many = d.paths && d.paths.length > 1 ? d.paths : null;
   if (many && !shiftKey && ("treeItem" in target || "folder" in target)) {
+    if (!many.every((p) => may(p, "move")) || !may(target.folder, "create")) return refuse(many[0] ?? null);
     void moveEntries(many, target.folder);
     return;
   }
   if (many) {
     for (const path of many) drop({ kind: "file", path }, target, x, y, shiftKey);
     return;
+  }
+  if ("treeItem" in target || "folder" in target) {
+    const same = dirOf(d.path) === target.folder;
+    // Reordering inside a folder asks the folder; moving out of one and into
+    // another asks the move and the arrival.
+    const allowed = shiftKey ? may("", "create") : same ? may(target.folder, "create") : may(d.path, "move") && may(target.folder, "create");
+    if (!allowed) return refuse(d.path);
   }
   if ("treeItem" in target) {
     const draggedFolder = dirOf(d.path);
@@ -303,8 +371,11 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
       void moveFile(d.path, target.folder);
     }
   } else if ("insert" in target) {
+    // Linking a file the person sees: nothing is uploaded or copied.
+    if (!may(target.insert.path, "edit")) return refuse(target.insert.path);
     target.insert.insertReference(d.path, x, y);
   } else if ("board" in target) {
+    if (!may(target.board.path, "edit")) return refuse(target.board.path);
     target.board.addPath(d.path, x, y);
   } else if ("body" in target || "tabs" in target) {
     const pane = paneOf("body" in target ? target.body : target.tabs);

@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "./bindings";
-import { can, canWrite } from "./can";
+import { mayHere } from "./access";
+import { can } from "./can";
 import { narrow, rightShown, sideShown, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate } from "./daily";
 import { h, ui } from "./dom";
@@ -30,7 +31,7 @@ export const RIBBON: RibbonItem[] = [
   { id: "new", icon: "plus", label: () => t.newNote, keys: "new-note", needsFolder: true, run: (b) => {
     const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
     const r = b.getBoundingClientRect();
-    showMenu(r.right + 6, r.top, createMenuItems(folder));
+    showMenu(r.right + 6, r.top, createMenuItems(folder), t.menuNew);
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
   { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => paneToOpenIn().openGraph("") },
@@ -38,7 +39,7 @@ export const RIBBON: RibbonItem[] = [
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
   { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: false, run: () => void commands.newWindow(false).then((r) => r.status === "ok" || fail(r.error)) },
-  { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
+  { id: "right", icon: "panelRight", label: () => (rightShown() ? t.hideRight : t.showRight), keys: "toggle-right", bottom: true, run: () => toggleRight() },
   // On a server, the person's account and, for an admin, the server's
   // administration are sections of the settings (ADR 0074 items 7 and 9):
   // their button stands beside the gear.
@@ -48,17 +49,20 @@ export const RIBBON: RibbonItem[] = [
 /** The button that is never hidden: the settings, where the others come
  *  back from. */
 const KEPT = "settings";
+/** Hidden until the person shows them: the files button repeats the status
+ *  bar's left toggle. A saved state (it lists what its owner hides) wins. */
+const DEFAULT_HIDDEN = ["files"];
 /** What the side cannot do leaves the ribbon (ADR 0076 item 11): a reader
  *  on a server makes and changes nothing; a browser opens no window. */
 function possible(id: string): boolean {
-  if (id === "new" || id === "daily" || id === "template" || id === "replace") return canWrite();
+  if (id === "new" || id === "daily" || id === "template" || id === "replace") return mayHere();
   if (id === "new-window") return can("windows");
   if (id === "account") return can("account") && signedIn() !== null;
   return true;
 }
 export class Ribbon {
   private order: string[] = RIBBON.map((i) => i.id);
-  private hidden = new Set<string>();
+  private hidden = new Set<string>(DEFAULT_HIDDEN);
   constructor(readonly el: HTMLElement) {
     try {
       const raw = localStorage.getItem("verso.ribbon");
@@ -109,7 +113,7 @@ export class Ribbon {
     const hiddenCount = this.hidden.size;
     return [
       ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
-      [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
+      [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden = new Set(DEFAULT_HIDDEN); this.save(); this.paint(); }],
       [t.ribbonButtons, () => settingsDialog.show("appearance")],
     ];
   }

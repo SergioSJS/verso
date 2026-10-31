@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "fractal-character",
+  "name": {
+    "pt": "Fractal — Personagem",
+    "en": "Fractal — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem do Fractal: Reservas, Fatos que quebram e se recuperam, XP e Anotações. Só os nomes dos campos.",
+    "en": "A Fractal character sheet: Reserves, Facts that break and mend, XP and Notes. Field names only; the YAML keys are the game's own Portuguese words."
+  },
+  "sources": [
+    {
+      "label": "Fractal RPG SRD v1.0.3 (official)",
+      "url": "https://fractal-system.itch.io/pt-br"
+    },
+    {
+      "label": "Walter Licínio on Fractal",
+      "url": "https://walterlicinio.itch.io/fractal"
+    }
+  ],
+  "profile": "fractal",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["jogador","xp"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"jogador","properties":["jogador"],"label":{"pt":"Jogador","en":"Player"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"reservas","properties":["reserva_1_nome","reserva_2_nome","reserva_3_nome","reserva_4_nome","reserva_5_nome","reserva_6_nome"],"label":{"pt":"Reservas","en":"Reserves"},"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"reserva-1","properties":["reserva_1_nome"],"label":{"pt":"{reserva_1_nome}","en":"{reserva_1_nome}"},"hideWhenEmpty":true,"current":"reserva_1_atual","max":"reserva_1_total","style":"boxes"},{"type":"tracker","id":"reserva-2","properties":["reserva_2_nome"],"label":{"pt":"{reserva_2_nome}","en":"{reserva_2_nome}"},"hideWhenEmpty":true,"current":"reserva_2_atual","max":"reserva_2_total","style":"boxes"},{"type":"tracker","id":"reserva-3","properties":["reserva_3_nome"],"label":{"pt":"{reserva_3_nome}","en":"{reserva_3_nome}"},"hideWhenEmpty":true,"current":"reserva_3_atual","max":"reserva_3_total","style":"boxes"},{"type":"tracker","id":"reserva-4","properties":["reserva_4_nome"],"label":{"pt":"{reserva_4_nome}","en":"{reserva_4_nome}"},"hideWhenEmpty":true,"current":"reserva_4_atual","max":"reserva_4_total","style":"boxes"},{"type":"tracker","id":"reserva-5","properties":["reserva_5_nome"],"label":{"pt":"{reserva_5_nome}","en":"{reserva_5_nome}"},"hideWhenEmpty":true,"current":"reserva_5_atual","max":"reserva_5_total","style":"boxes"},{"type":"tracker","id":"reserva-6","properties":["reserva_6_nome"],"label":{"pt":"{reserva_6_nome}","en":"{reserva_6_nome}"},"hideWhenEmpty":true,"current":"reserva_6_atual","max":"reserva_6_total","style":"boxes"}]},
+    {"type":"traits","id":"fatos","properties":["fatos"],"label":{"pt":"Fatos","en":"Facts"},"hideWhenEmpty":true,"rule":true,"dice":true,"flag":{"key":"quebrado","label":{"pt":"Quebrado","en":"Broken"},"count":{"pt":"{n} de {m} quebrados","en":"{n} of {m} broken"}}},
+    {"type":"text","id":"anotacoes","properties":["anotacoes"],"label":{"pt":"Anotações","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"rolagem","properties":[],"label":{"pt":"Rolagem de Risco","en":"Risk roll"},"inputs":{"fatos_aplicaveis":{"key":"fatos_aplicaveis"},"vantagem":{"key":"vantagem"}}}
+  ]
+}

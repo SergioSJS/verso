@@ -18,7 +18,13 @@
   with the maintainer's acceptance of [0073](0073-self-hosted-server-first.md)
   and [0074](0074-accounts-and-access-on-the-server.md) that day; each
   answer is a paragraph after its group, and the text above it is kept.
-  The MCP over the network stays `[OPEN]` (0073 item 11).
+  The MCP over the network stays `[OPEN]` (0073 item 11) —
+  `[DECIDED 2026-10-21]`: after V1, with the local MCP over stdio unchanged
+  (0073.mcp). 2026-10-21 — the language of what a model reads is decided:
+  English only (0045.lang). 2026-10-21 — the first surface open to a visitor
+  with no account, the read links of [0105](0105-read-links-without-an-account.md),
+  is built; the threat model (`docs/reference/threat-model.md`) has its rows,
+  and this ADR's decisions are unchanged.
 
 ## Context
 
@@ -147,7 +153,8 @@ for what it calls `[OPEN]`: the maintainer decided the `verso mcp` group on
 2026-09-22 — the list above, with which this record agrees — and on 2026-09-24
 confirmed the relative path as the note identifier
 (`docs/reference/handles-decision.md`). The rest stays the record of what the
-code does; the language of what a model reads is still `[OPEN]`, below.)*
+code does; the language of what a model reads was still `[OPEN]` then,
+below, and is decided: English only, 2026-10-21.)*
 
 - **Transport: stdio, and nothing listens.** `verso mcp <folder>` is spawned by
   the client as a child process and speaks JSON-RPC over its own standard input
@@ -187,8 +194,11 @@ code does; the language of what a model reads is still `[OPEN]`, below.)*
 - **The tool descriptions and the server instructions are English-only string
   literals**, and so are the `ErrorData` messages the client receives. Whether
   what a model reads is bilingual like the user-facing messages
-  ([0035](0035-cross-cutting-requirements.md)) is `[OPEN]` (memo §7): it is not
-  decided, and the code took the narrower option instead of inventing one.
+  ([0035](0035-cross-cutting-requirements.md)) was `[OPEN]` (memo §7);
+  `[DECIDED 2026-10-21]` (0045.lang, option A): **English only** — a model
+  reads it, a person does not, and the messages to the user stay bilingual
+  ([0035](0035-cross-cutting-requirements.md) covers text for people, not for
+  models). It is what the code does.
 - **Dependency:** `rmcp` 3.4 with `default-features = false` and
   `features = ["server", "transport-io", "macros"]` — the server side, the
   stdio transport and the tool macros, with the whole HTTP, auth and client half

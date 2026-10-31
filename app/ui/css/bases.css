@@ -16,7 +16,7 @@
 .base-tool .icon { width: 15px; height: 15px; }
 .base-new { padding: .28rem .6rem .28rem .45rem; color: var(--seal); }
 .base-new:hover { background: var(--seal-wash) !important; color: var(--seal) !important; }
-.base-search { width: 11rem; padding: .28rem .55rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-size: .82rem; }
+.base-search { width: 11rem; padding: .28rem .55rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-size: .82rem; }
 .base-search:focus { outline: none; border-color: var(--brass); }
 .base-notices:empty { display: none; }
 .base-problem { margin: 0; padding: .35rem .6rem; border-left: 2px solid var(--brass); background: var(--brass-wash); color: var(--ink); font-size: .82rem; }
@@ -30,7 +30,7 @@
 .base-pop h3:first-child { margin-top: 0; }
 .base-field { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: .5rem; margin: .3rem 0; }
 .base-field > span { color: var(--ink-2); }
-.base-field input, .base-field select, .base-conditions input { min-width: 0; padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }
+.base-field input, .base-field select, .base-conditions input { min-width: 0; padding: .25rem .4rem; border: 1px solid var(--control-line); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }
 .base-field input:focus, .base-field select:focus, .base-conditions input:focus { outline: none; border-color: var(--brass); }
 .base-check-field { grid-template-columns: auto 1fr; }
 .base-row { display: flex; align-items: center; gap: .35rem; margin: .25rem 0; }

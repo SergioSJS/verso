@@ -52,7 +52,7 @@
  * a band of their own, under the open note's mark. */
 .tree li > button.selected, .tree summary.selected { background: var(--brass-wash); box-shadow: inset 2px 0 0 var(--brass); }
 .list .path { display: block; font-size: .74rem; color: var(--ink-3); font-weight: 400; letter-spacing: .01em; }
-.list .snippet { display: block; font-family: var(--book); font-size: .84rem; color: var(--ink-2); font-weight: 400; margin-top: .15rem; line-height: 1.4; }
+.list .snippet { display: block; font-family: var(--book); font-size: .84rem; color: var(--ink-2); font-weight: 400; margin-top: .15rem; line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 .list mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
 .empty { color: var(--ink-3); padding: .3rem .5rem; font-size: .9rem; }
 

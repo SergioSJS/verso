@@ -1,0 +1,53 @@
+{
+  "verso-theme": 1,
+  "name": "Catppuccin Latte",
+  "mode": "light",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Catppuccin Latte",
+    "author": "Catppuccin",
+    "repoUrl": "https://github.com/catppuccin/palette",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#eff1f5",
+      "--paper-2": "#e6e9ef",
+      "--hair": "#ccd0da",
+      "--ink": "#4c4f69",
+      "--ink-2": "#6c6f85",
+      "--seal": "#1e66f5",
+      "--brass-ink": "#4c4f69",
+      "--code-paper": "#e6e9ef",
+      "--code-ink": "#4c4f69",
+      "--h1-color": "#8839ef",
+      "--h2-color": "#8839ef",
+      "--h3-color": "#8839ef",
+      "--h4-color": "#8839ef",
+      "--h5-color": "#8839ef",
+      "--h6-color": "#8839ef",
+      "--red": "#d20f39",
+      "--orange": "#fe640b",
+      "--yellow": "#df8e1d",
+      "--green": "#40a02b",
+      "--cyan": "#179299",
+      "--blue": "#1e66f5",
+      "--purple": "#8839ef",
+      "--pink": "#ea76cb",
+      "--hr-color": "#1e66f5"
+    },
+    "--heading-font": "editorial",
+    "--book": "editorial",
+    "font-size": 16,
+    "table-style": "bordered",
+    "tag-style": "pill",
+    "radius": "soft",
+    "heading-scale": "large",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "hover",
+    "emphasis-color": "semantic",
+    "hr-style": "line"
+  }
+}

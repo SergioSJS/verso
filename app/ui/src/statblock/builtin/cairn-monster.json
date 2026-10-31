@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "cairn-monster",
+  "name": {
+    "pt": "Cairn — Monstro",
+    "en": "Cairn — Monster"
+  },
+  "description": {
+    "pt": "Só os nomes dos campos (CC BY-SA 4.0): nenhum texto do livro.",
+    "en": "Field names only (CC BY-SA 4.0): no book text."
+  },
+  "sources": [
+    {
+      "label": "Cairn 2e, creating monsters",
+      "url": "https://cairnrpg.com/second-edition/wardens-guide/creating-monsters/"
+    },
+    {
+      "label": "Cairn SRD (CC BY-SA 4.0)",
+      "url": "https://cairnrpg.com/first-edition/cairn-srd/"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"stats","properties":["hp","hp_current","hp","armor","str","dex","wil","attack"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"armor","properties":["armor"],"label":{"pt":"Armor","en":"Armor"},"hideWhenEmpty":true},{"type":"property","id":"str","properties":["str"],"label":{"pt":"STR","en":"STR"},"hideWhenEmpty":true},{"type":"property","id":"dex","properties":["dex"],"label":{"pt":"DEX","en":"DEX"},"hideWhenEmpty":true},{"type":"property","id":"wil","properties":["wil"],"label":{"pt":"WIL","en":"WIL"},"hideWhenEmpty":true},{"type":"property","id":"attack","properties":["attack"],"label":{"pt":"Attack","en":"Attack"},"hideWhenEmpty":true,"dice":true}]},
+    {"type":"group","id":"notes","properties":["descriptor","quirk_or_tactic","critical_damage"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"descriptor","properties":["descriptor"],"label":{"pt":"Descriptor","en":"Descriptor"},"hideWhenEmpty":true},{"type":"property","id":"quirk","properties":["quirk_or_tactic"],"label":{"pt":"Quirk or tactic","en":"Quirk or tactic"},"hideWhenEmpty":true},{"type":"property","id":"critical","properties":["critical_damage"],"label":{"pt":"Critical Damage","en":"Critical Damage"},"hideWhenEmpty":true}]},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a save (d20 under)"},"inputs":{}}
+  ]
+}

@@ -1,0 +1,25 @@
+name: Fenwick Imp
+level: 3
+size: Tiny
+traits: Fiend, Minion
+recall_knowledge: 18
+perception: 9
+senses: darkvision
+languages: Common
+skills:
+  stealth: 10
+modifiers: [-3, 3, 1, 0, 1, 2]
+ac: 19
+fort: 8
+ref: 11
+will: 7
+hp: 30
+hp_current: 30
+weaknesses: cold iron 3
+speed: 20 feet, fly 40 feet
+melee:
+  - name: claw
+    desc: "+11, damage 1d6+2 slashing"
+abilities:
+  - name: Flicker
+    desc: Our own note for the sample.

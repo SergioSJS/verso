@@ -5,9 +5,19 @@ import { test, expect } from "./fixtures.mjs";
 test("the settings have the sections the tutorial names", async ({ app }) => {
   await app.open();
   await app.key("Mod+,");
-  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Notificações", "Aparência", "Editor", "Organização", "Arquivos e links", "Notas periódicas", "Lixeira", "Board", "Atalhos", "Terminal e agentes", "Servidores", "Transformar em servidor", "Sincronizar"]);
+  // The sections are grouped (Aplicação, Notas & Editor, RPG & Mesa Solo,
+  // Rede & Conexões); the page names every one the tutorial points to, in
+  // any order, so a new section does not break it.
+  const names = [
+    "Geral", "Aparência", "Recursos", "Notificações", "Atalhos", "Créditos e agradecimentos",
+    "Editor", "Arquivos e links", "Organização", "Notas periódicas", "Lixeira", "Board",
+    "Dados e RPG", "Oráculos e Solo RPG", "Fichas e Templates",
+    "Terminal e agentes", "Servidores", "Transformar em servidor", "Sincronizar",
+  ];
+  const shown = await app.page.locator(".settings-nav-item").allTextContents();
+  expect(shown.map((s) => s.trim())).toEqual(expect.arrayContaining(names));
   await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
-  for (const label of ["Tema", "Paleta de cores", "Tamanho da fonte", "Fonte dos títulos", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
+  for (const label of ["Tema", "Temas", "Tamanho da fonte", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await app.page.locator(".settings-nav-item", { hasText: "Organização" }).click();

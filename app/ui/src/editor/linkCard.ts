@@ -12,6 +12,7 @@
 
 import { StateEffect, StateField, type EditorState } from "@codemirror/state";
 import { EditorView, showTooltip, type Tooltip } from "@codemirror/view";
+import { posAt } from "./posAt";
 
 /** A link under the cursor: where it is, what it names, and the part of
  *  it that "Edit link" selects (the target of a wikilink, the address of
@@ -131,7 +132,7 @@ export function linkCard(opts: LinkCardOptions) {
     },
     click: (e, view) => {
       if (!finger || e.metaKey || e.ctrlKey) return false;
-      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+      const pos = posAt(view, { x: e.clientX, y: e.clientY });
       const link = pos === null ? null : linkAt(view.state, pos);
       // After the cursor is placed: the tap stays the editor's.
       if (link) queueMicrotask(() => view.dispatch({ effects: setCard.of(link) }));
@@ -139,6 +140,17 @@ export function linkCard(opts: LinkCardOptions) {
     },
   });
   return [card, taps];
+}
+
+/** Follow the link at `pos` as a click on it would: a note of the folder
+ *  (with its `#heading` or `^id`) or a web address outside the window.
+ *  False when there is no link there. */
+export function openLinkAt(state: EditorState, pos: number, opts: Pick<LinkCardOptions, "navigate" | "openUrl">): boolean {
+  const link = linkAt(state, pos);
+  if (!link) return false;
+  if (link.url) opts.openUrl(link.target);
+  else opts.navigate(decoded(link.target));
+  return true;
 }
 
 /** A link's target as the note names it: a malformed `%xx` is kept as

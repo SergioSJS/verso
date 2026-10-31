@@ -20,6 +20,9 @@ async function open(app, page, text) {
   await app.quickOpen("Pagina");
   // The origin is asked about once; approving it is what loads the page.
   await page.locator('[data-embed-action="approve"]').click();
+  // A site that forbids framing is said so first (ADR 0056.aviso); a second
+  // click approves it all the same.
+  if (/frames-no/.test(text)) await page.locator('[data-embed-action="approve-anyway"]').click();
 }
 
 test("a site that allows framing is an iframe, the size of its box, scrolling with the note", async ({ app, page }) => {
@@ -66,4 +69,31 @@ test("a site that refuses framing keeps the child web view", async ({ app, page 
   expect((await app.calls("web_open"))[0].url).toBe("https://frames-no.example/p");
   await expect(page.locator(".preview .embed-web iframe")).toHaveCount(0);
   expect(await app.calls("embed_frameable")).toEqual([{ url: "https://frames-no.example/p" }]);
+});
+
+test("the approval warns before it is given when the site forbids framing", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside(NOTE, `<iframe src="https://frames-no.example/p" width="500" height="300"></iframe>\n`);
+  await app.folderChanged([NOTE], true);
+  await app.quickOpen("Pagina");
+  // Nothing is asked of the host before the click.
+  expect(await app.calls("embed_frameable")).toEqual([]);
+  await page.locator('[data-embed-action="approve"]').click();
+  const warn = page.locator(".embed-gate-warn");
+  await expect(warn).toBeVisible();
+  await expect(warn).toHaveAttribute("role", "alert");
+  // The desktop host shows such a site in the clipped native view: said so.
+  await expect(warn).toContainText("visão nativa");
+  expect(await app.calls("web_open")).toEqual([]);
+  expect(await app.calls("embed_frameable")).toEqual([{ url: "https://frames-no.example/p" }]);
+  // Cancelled, the origin stays unapproved.
+  await page.locator('[data-embed-action="cancel"]').click();
+  expect(await app.calls("web_open")).toEqual([]);
+});
+
+test("a site that allows framing is approved by one click, with no warning", async ({ app, page }) => {
+  await page.route("https://frames-ok.example/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>x</p>" }));
+  await open(app, page, `<iframe src="https://frames-ok.example/p" width="500" height="300"></iframe>\n`);
+  await expect(page.locator(".preview .embed-web iframe")).toHaveCount(1);
+  await expect(page.locator(".embed-gate-warn")).toHaveCount(0);
 });

@@ -85,3 +85,6 @@ demo-vault/assets/*test*
 
 # The command line copied beside the app for a Windows bundle (scripts/check-windows.sh).
 /app/src-tauri/binaries/
+
+# A crashed browser engine in the e2e container dumps its memory here (GBs).
+/app/ui/core

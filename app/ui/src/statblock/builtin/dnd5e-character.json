@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "dnd5e-character",
+  "name": {
+    "pt": "D&D 5e (SRD) — Personagem",
+    "en": "D&D 5e (SRD) — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem na ordem do SRD 5.1 e 5.2.1 (CC BY 4.0). Só os nomes dos campos; nenhum texto do livro.",
+    "en": "A character sheet in the order of SRD 5.1 and 5.2.1 (CC BY 4.0). Field names only; no book text."
+  },
+  "sources": [
+    {
+      "label": "D&D SRD 5.2.1 (CC BY 4.0)",
+      "url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf"
+    },
+    {
+      "label": "D&D SRD 5.1 (CC BY 4.0)",
+      "url": "https://media.dndbeyond.com/compendium-images/srd/5.1/SRD_CC_v5.1.pdf"
+    }
+  ],
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","species","class","subclass","background"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["species","class","subclass","background"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["level","xp","alignment"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"level","properties":["level"],"label":{"pt":"Level","en":"Level"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true},{"type":"property","id":"alignment","properties":["alignment"],"label":{"pt":"Alignment","en":"Alignment"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"abilities","properties":["stats"],"label":{"pt":"Ability scores","en":"Ability scores"},"hideWhenEmpty":true,"headers":[{"pt":"STR","en":"STR"},{"pt":"DEX","en":"DEX"},{"pt":"CON","en":"CON"},{"pt":"INT","en":"INT"},{"pt":"WIS","en":"WIS"},{"pt":"CHA","en":"CHA"}],"modifier":"d20","rule":true,"dice":true},
+    {"type":"group","id":"derived","properties":["proficiency_bonus","ac","initiative","speed","hp","hp_current","hp","hp_temp","hit_dice","death_successes","death_failures","passive_perception","spell_save_dc","spell_attack","inspiration","exhaustion"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"proficiency-bonus","properties":["proficiency_bonus"],"label":{"pt":"Proficiency Bonus","en":"Proficiency Bonus"},"hideWhenEmpty":true},{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"initiative","properties":["initiative"],"label":{"pt":"Initiative","en":"Initiative"},"hideWhenEmpty":true},{"type":"property","id":"speed","properties":["speed"],"label":{"pt":"Speed","en":"Speed"},"hideWhenEmpty":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"Hit Points","en":"Hit Points"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"hp-temp","properties":["hp_temp"],"label":{"pt":"Temp HP","en":"Temp HP"},"hideWhenEmpty":true},{"type":"property","id":"hit-dice","properties":["hit_dice"],"label":{"pt":"Hit Point Dice","en":"Hit Point Dice"},"hideWhenEmpty":true,"dice":true},{"type":"tracker","id":"death-successes","properties":["death_successes"],"label":{"pt":"Death Saving Throws: successes","en":"Death Saving Throws: successes"},"current":"death_successes","max":3,"style":"boxes"},{"type":"tracker","id":"death-failures","properties":["death_failures"],"label":{"pt":"Death Saving Throws: failures","en":"Death Saving Throws: failures"},"current":"death_failures","max":3,"style":"boxes"},{"type":"property","id":"passive-perception","properties":["passive_perception"],"label":{"pt":"Passive Perception","en":"Passive Perception"},"hideWhenEmpty":true},{"type":"property","id":"spell-save-dc","properties":["spell_save_dc"],"label":{"pt":"Spell save DC","en":"Spell save DC"},"hideWhenEmpty":true},{"type":"property","id":"spell-attack","properties":["spell_attack"],"label":{"pt":"Spell attack","en":"Spell attack"},"hideWhenEmpty":true},{"type":"property","id":"inspiration","properties":["inspiration"],"label":{"pt":"Heroic Inspiration","en":"Heroic Inspiration"},"hideWhenEmpty":true},{"type":"property","id":"exhaustion","properties":["exhaustion"],"label":{"pt":"Exhaustion","en":"Exhaustion"},"hideWhenEmpty":true}]},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true,"rule":true},
+    {"type":"group","id":"lists","properties":["languages","coins"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"languages","properties":["languages"],"label":{"pt":"Languages","en":"Languages"},"hideWhenEmpty":true},{"type":"property","id":"coins","properties":["coins"],"label":{"pt":"Coins","en":"Coins"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"equipment","properties":["equipment"],"label":{"pt":"Equipamento","en":"Equipment"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"features","properties":["features"],"label":{"pt":"Features & Traits","en":"Features & Traits"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"attacks","properties":["attacks"],"label":{"pt":"Attacks","en":"Attacks"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"spellcasting","properties":["spellcasting"],"label":{"pt":"Spellcasting","en":"Spellcasting"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}

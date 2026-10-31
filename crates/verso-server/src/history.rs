@@ -33,7 +33,7 @@ use verso_service::{OpError, lock};
 
 use crate::auth::{Via, Who};
 use crate::db::{Audit, Role};
-use crate::rpc::{arg, blocking, role_here, to_value};
+use crate::rpc::{arg, blocking, to_value};
 use crate::state::Server;
 use crate::sync::Author as By;
 
@@ -390,18 +390,17 @@ pub async fn command(
     cmd: &str,
     args: Value,
 ) -> Result<Value, ContractError> {
-    let (folder, role) = role_here(server, client)?;
-    let scope = crate::shares::scope_here(server, client);
-    let visible = scope
-        .as_ref()
-        .map_or_else(|| folder.clone(), |s| s.share.clone());
+    let door = crate::access::Door::of(server, who, client)?;
+    let scope = door.scope.clone();
     // A reader sees no history (item 6): a past version would need the
     // projection of ADR 0087 applied to each.
-    if !(role.writes() && who.reaches(&visible).1) {
+    if !door.writes_here() {
         return Err(refused(
             "the history is for those who may change this folder",
         ));
     }
+    let folder = door.folder.clone();
+    let owner = door.asker.role == Some(Role::Owner) && !door.asker.phone;
     let asked: String = arg(&args, "path")?;
     let writes = matches!(cmd, "history_restore" | "history_copy");
     let full = match &scope {
@@ -417,9 +416,37 @@ pub async fn command(
             None => confined?,
         }
     };
+    // A player of a table has the history of the files they edit, and no
+    // other: the past of a file they do not see is not theirs to read.
+    if door.veiled() && !door.may_path(crate::access::Action::Edit, &path).allowed() {
+        return Err(not_found("no such version of this file"));
+    }
+    // A past version of a board holds what the player is not shown of it: a
+    // card of a hidden file, a secret pin (ADR 0113 H). The history of a
+    // board is the game master's.
+    if door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board {
+        return Err(not_found("no such version of this file"));
+    }
+    // A copy of a version is a new file beside the file: the folder is one
+    // the person makes files in.
+    if cmd == "history_copy" {
+        let beside = path.rsplit_once('/').map_or("", |(d, _)| d);
+        if !door
+            .may(
+                crate::access::Action::Create(crate::access::Made::of_path(&path, false)),
+                beside,
+                crate::access::Kind::Folder,
+            )
+            .allowed()
+        {
+            return Err(refused(
+                "the history is for those who may change this folder",
+            ));
+        }
+    }
     let policy = Policy {
         days: days(server, &folder),
-        can_delete: (role == Role::Owner && scope.is_none()) || who.account.admin,
+        can_delete: (owner && scope.is_none()) || who.account.admin,
         quota: quota(server, &folder),
     };
     let key = server

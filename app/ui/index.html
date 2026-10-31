@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Verso</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="shortcut icon" href="favicon.ico">
   <link rel="stylesheet" href="pdf_viewer.css">
   <link rel="stylesheet" href="katex.min.css">
   <link rel="stylesheet" href="style.css">
@@ -28,7 +31,7 @@
     </label>
     <nav id="tree-root" class="side-body" aria-labelledby="notes-heading">
       <h2 id="notes-heading" class="side-title"></h2>
-      <ul id="notes" class="tree"></ul>
+      <ul id="notes" class="tree" role="tree" aria-multiselectable="true"></ul>
     </nav>
   </aside>
 
@@ -38,7 +41,7 @@
     <div id="panes" class="panes"></div>
     <footer class="status-bar">
       <button id="toggle-side" type="button" class="ghost iconic bar-toggle"></button>
-      <span id="status" class="status" role="status" aria-live="polite"></span>
+      <span id="status" class="status"></span>
       <div id="index-progress" class="index-progress" hidden>
         <div class="index-progress-track">
           <div id="index-progress-bar" class="index-progress-bar"></div>
@@ -46,13 +49,14 @@
         <span id="index-progress-label" class="index-progress-label"></span>
       </div>
       <span id="words" class="status-words"></span>
-      <span class="status-keys"><button type="button" data-cmd="new"><kbd>⌘N</kbd> <span id="keys-new"></span></button><button type="button" data-cmd="edit"><kbd>⌘E</kbd> <span id="keys-edit"></span></button><button type="button" data-cmd="split"><kbd>⌘\</kbd> <span id="keys-split"></span></button><button type="button" data-cmd="space"><kbd>⌘T</kbd> <span id="keys-space"></span></button><button type="button" data-cmd="palette" id="keys-commands" class="status-icon"></button></span>
+      <span class="status-keys"><button type="button" data-cmd="new"><kbd>⌘N</kbd> <span id="keys-new"></span></button><button type="button" data-cmd="split"><kbd>⌘\</kbd> <span id="keys-split"></span></button><button type="button" data-cmd="space"><kbd>⌘T</kbd> <span id="keys-space"></span></button><button type="button" data-cmd="palette" id="keys-commands" class="status-icon"></button></span>
       <button id="report-bug" type="button" class="ghost iconic bar-toggle"></button>
       <button id="toggle-right" type="button" class="ghost iconic bar-toggle"></button>
     </footer>
   </main>
   <div id="right-divider" class="side-divider right" role="separator" aria-orientation="vertical"></div>
   <aside id="right" class="right">
+    <div class="right-close"><span id="right-title"></span><button id="right-close" type="button" class="ghost iconic"></button></div>
     <div id="right-tabs" class="right-tabs" role="tablist"></div>
     <div id="right-body" class="right-body"></div>
   </aside>

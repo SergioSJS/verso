@@ -745,7 +745,8 @@ Phase 2); whether the **tool descriptions** the model reads are bilingual, or
 English only while the CLI's user-facing strings are both
 ([ADR 0035](../adr/0035-cross-cutting-requirements.md) says "no loose string
 literal" for messages to the user, and a tool description is read by a model,
-not by the user — `[OPEN]`, the maintainer decides); the disambiguation between
+not by the user — `[DECIDED 2026-10-21]`, English only, the maintainer's
+mark on 0045.lang); the disambiguation between
 `verso <folder>` and a subcommand, which now gains a fourth subcommand
 ([ADR 0042](../adr/0042-open-from-command-line.md)); the exit code of a server
 that is meant to run until its client closes stdin, against the provisional

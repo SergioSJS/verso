@@ -13,7 +13,6 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
-import { canWrite } from "../can";
 import { boardPathFor, readDrawing, toBoard } from "../board/convert";
 import { listedPath } from "../board/model";
 import { linkTo, withRelation } from "../board/relation";
@@ -23,9 +22,11 @@ import { promptText } from "../dialog";
 import { h, ui } from "../dom";
 import { minimalEdit } from "../edit";
 import { completeMarkdown } from "../editor/complete";
+import { posAt } from "../editor/posAt";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
-import { freeName, textBase64 } from "../files";
+import { freeName, readable, textBase64 } from "../files";
+import { guardCreate } from "../readerNotice";
 import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
 import { renderSticker } from "../labels";
@@ -33,6 +34,8 @@ import { served } from "../secret/blocks";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
+import { wireDice } from "../dice/card";
+import { wireRollBlocks } from "../rollblock/wire";
 import { openNote } from "../layout/spaces";
 import { listKeymap } from "../listKeymap";
 import { livePreview, redraw, sizeOf } from "../live";
@@ -43,22 +46,34 @@ import { dirOf, Kind, kindOf, name } from "../paths";
 import { parsePdfSpec, PdfView } from "../pdf";
 import { keyLinks, typeset, wireCallouts } from "../render";
 import { resolveNoteByName, withNoteLinks } from "../resolve";
-import { setHtml } from "../sanitize";
+import { approveOrigin, frameWarning, localHost, pictureGate, setHtml } from "../sanitize";
+import { frameable } from "../screen/framed";
+import { embedFrame } from "./web";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { tableKeymap } from "../table";
 import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
-import { fromDisk, lineSeparator, readOnlyText } from "./text";
+import { fromDisk, lineSeparator } from "./text";
+import { readOnlyText } from "./readOnlyText";
 import { TextLeaf } from "./textfile";
+import { dataHost, fileText, openData, renderCode } from "./boardData";
 import { asset } from "../version";
 import { methods } from "../methods";
 import type { BoardSession } from "../boardRoom";
+import { atTable, may, seat } from "../access";
+import { a as attachText } from "../attach";
+import { attachSub, imageRoute } from "../board/imageRoute";
+import { NoteAccess } from "../noteAccess";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
 import { preview } from "../preview/install";
+
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -74,17 +89,23 @@ export class BoardLeaf extends TextLeaf {
   override readonly kind: Kind = "board";
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
+  /** Who sees this board, and what the person may do with it (ADR 0113). */
+  readonly access = new NoteAccess(() => this.path);
   private board: BoardHandle | null = null;
   /** A file of the folder put on the board, where it was dropped. */
   addPath(path: string, x: number, y: number): void {
     this.board?.addPath(path, x, y);
+  }
+  /** A text card put on the board where something was dropped (a roll block of the table). */
+  addText(text: string, x: number, y: number): void {
+    this.board?.addText(text, x, y);
   }
   /** What each card's editor held when it was left, for as long as this
    *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
   readonly cardHistory = new Map<string, KeptCard>();
   private showing: "board" | "source" = settings.boardOpenAs;
   /** The board's canvas waiting for a write, or refused by one. */
-  private pendingBoard: string | null = null;
+  pendingBoard: string | null = null;
   /** The notes being edited in cards of this board: saved with it. */
   private readonly cards = new Set<CardEditing>();
   /** Whether the file is in Obsidian's layout, as read; a file in another
@@ -98,6 +119,18 @@ export class BoardLeaf extends TextLeaf {
    *  there since: in a room, what was typed goes in as elements. */
   textBase = "";
   textEdited = false;
+  /** The file the board's content stands on: what was read, or written, at
+   *  `revision`. What changed outside is taken in over it (board/outside.ts). */
+  heldText = "";
+  /** The revision `heldText` was read at: equal to `revision` whenever the
+   *  board knows the file it stands on; otherwise the base is not known. */
+  heldRevision = "";
+  declare hold: typeof boardLive.hold;
+  declare holdRevision: typeof boardLive.holdRevision;
+  /** Whether no room takes this board by what it is (see `roomsBack`). */
+  roomless = false;
+  /** A rejoin by `roomsBack` is on its way: no second load beside it. */
+  joining = false;
   /** A synced folder's board out of its room: its save on this computer. */
   localTimer: number | undefined;
   constructor(pane: Pane) {
@@ -108,25 +141,59 @@ export class BoardLeaf extends TextLeaf {
       b.type = "button";
       b.dataset["face"] = face;
       b.append(icon(ic), h("span", "", label));
+      b.setAttribute("aria-label", label);
+      b.title = label;
       b.addEventListener("click", () => void this.setFace(face));
       return b;
     };
     this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
-    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.el.querySelector(".leaf-head")?.append(this.boardModes, this.access.el);
     this.host.before(this.boardHost);
     this.paintFace();
   }
-  override async load(path: string, force = false): Promise<void> {
-    await super.load(path, force);
+  override async load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    try {
+      await this.loadBoard(path, force, retry);
+    } finally {
+      this.loadsRunning--;
+    }
+  }
+  /** What a retry must not drop: the board drawn, or the text typed, since it began. */
+  touchedSince = (): boolean => this.torn || this.textEdited || this.pendingBoard !== null || this.dirty;
+  private async loadBoard(path: string, force: boolean, retry: boolean): Promise<void> {
+    // What the tab shows before a retry: put back if the person draws or
+    // types while the join is on its way (the retry reads the disk's text in
+    // first, which must not stand over what they did).
+    const was = retry ? { state: this.editor.state, revision: this.revision, seen: this.seen, heldText: this.heldText, heldRevision: this.heldRevision, textBase: this.textBase } : null;
+    // The tab is left as the person had it: the board they drew stays on
+    // screen and is saved as before, against the revision it was drawn on;
+    // the text face is what it showed.
+    const putBack = (): void => {
+      this.retryBailed = true;
+      if (!was || this.textEdited || this.torn) return;
+      this.editor.setState(was.state);
+      this.revision = was.revision;
+      this.seen = was.seen;
+      this.heldText = was.heldText;
+      this.heldRevision = was.heldRevision;
+      this.textBase = was.textBase;
+    };
+    await super.load(path, force, retry);
     if (this.path !== path) return;
+    // Drawn while the disk's text was read in: the read stands over nothing.
+    if (retry && (this.retryBailed || this.touchedSince())) return putBack();
+    this.access.update();
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
     this.textBase = text;
+    this.hold(this.revision, text);
     this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
-    await this.joinBoardRoom(path, text);
+    await this.joinBoardRoom(path, text, retry ? this.touchedSince : undefined);
     if (this.path !== path) return;
+    if (retry && this.room === null && this.touchedSince()) return putBack();
     if (this.showing === "board") await this.showBoard();
   }
   protected override roomKind(): "text" | "board" {
@@ -176,11 +243,20 @@ export class BoardLeaf extends TextLeaf {
   declare roomChanged: typeof boardLive.roomChanged;
   declare saveLocalNow: typeof boardLive.saveLocalNow;
   declare followSaved: typeof boardLive.followSaved;
+  declare takeOutsideIn: typeof boardLive.takeOutsideIn;
+  declare roomsBack: typeof boardLive.roomsBack;
+  declare joinRetried: typeof boardLive.joinRetried;
+  /** A link of a rolled table's row, followed from a die on a card. */
+  followDice(target: string, from: string): void {
+    const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", from);
+    if (to) void openNote(to, false);
+  }
   declare boardConflict: typeof boardLive.boardConflict;
   declare boardWentLocal: typeof boardLive.boardWentLocal;
   declare boardReadAnew: typeof boardLive.boardReadAnew;
   declare saveInRoom: typeof boardLive.saveInRoom;
   declare overwriteInRoom: typeof boardLive.overwriteInRoom;
+  declare overwriteLocal: typeof boardLive.overwriteLocal;
   declare applyCanvas: typeof boardLive.applyCanvas;
   /** Draw the editor's text as the board: a first mount, or the new text
    *  over the board already there. Not JSON: said, and the text shown. */
@@ -222,19 +298,36 @@ export class BoardLeaf extends TextLeaf {
       save: (json) => this.saveBoard(json),
       // A reader of a synced folder is present on the board, not drawing
       // (ADR 0082 item 4).
-      readOnly: () => !canWrite() || (this.room !== null && !this.room.writable),
+      readOnly: () => !may(this.path, "edit") || (this.room !== null && !this.room.writable),
       room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {
         if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
       },
-      openFile: (path, aside) => void openNote(listed(path), aside),
+      openFile: (path, aside, view) => {
+        openData(listed(path), view);
+        void openNote(listed(path), aside);
+      },
+      fileText: (path) => fileText(listed(path)),
+      renderCode: (el, text, path) => renderCode(el, text, listed(path)),
+      data: dataHost(listed),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
-        if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
-        else el.replaceChildren();
+        if (r.status === "ok") {
+          await drawCard(el, r.data.html, listed(path));
+          // The note's `dice:` codes are dice here as in its own tab; the
+          // roll is the board's, the note is not written (ADR 0088).
+          wireDice(el, { path: () => listed(path), follow: (target, from) => this.followDice(target, from) });
+          wireRollBlocks(el, listed(path), ROLL_HOST);
+        } else el.replaceChildren();
       },
-      renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
+      renderText: async (el, text) => {
+        await drawCard(el, await commands.renderMarkdown(text), this.path);
+        // A `dice:` code of a text card is a die, as in a note; its roll is
+        // the board's, nothing is written (ADR 0088).
+        wireDice(el, { path: () => this.path, follow: (target, from) => this.followDice(target, from) });
+        wireRollBlocks(el, this.path, ROLL_HOST);
+      },
       noteText: async (path) => {
         const r = await opening.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";
@@ -290,9 +383,31 @@ export class BoardLeaf extends TextLeaf {
         },
       },
       secret: { served, project: (json) => commands.projectBoard(json) },
+      web: {
+        gate: (url) => pictureGate(url),
+        approve: (origin) => approveOrigin(origin),
+        warn: (url) => frameWarning(url, true),
+        frameable: (url) => frameable(url),
+        frame: (url, title) => {
+          const f = embedFrame(url);
+          f.title = title;
+          return f;
+        },
+        words: { local: t.embedLocal, approve: t.embedApprove, approveAnyway: t.embedApproveAnyway },
+        isLocal: (hostname) => localHost(hostname),
+      },
       sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
-      prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
+      prefs: {
+        stroke: settings.boardStroke,
+        font: settings.boardFont,
+        grid: settings.boardGrid,
+        open: settings.boardOpen,
+        // Read at each double click: changed in Settings, it applies to the board already open.
+        get doubleClick() {
+          return settings.boardDoubleClick;
+        },
+      },
       lastView: () => {
         try {
           const v = JSON.parse(localStorage.getItem(this.viewKey()) ?? "null") as SavedView | null;
@@ -310,7 +425,30 @@ export class BoardLeaf extends TextLeaf {
       },
       name: () => name(this.path).replace(/\.canvas$/i, ""),
       saveImage: async (file, base64) => {
-        const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+        // A player at a table only reads the folder: the server writes a new
+        // image (as for the chat), when the player edits this board; an image
+        // needs no other right (ADR 0113 item 5, D, K.6).
+        const route = imageRoute(seat(), atTable(), may(this.path, "edit"), may(this.path, "attachImage"));
+        if (route === "no-edit") {
+          readable(this.path, "edit");
+          return null;
+        }
+        if (route === "no-send") {
+          ui.status.textContent = attachText.noSend;
+          return null;
+        }
+        const sub = attachSub(settings.attachments);
+        if (route === "server") {
+          // Beside the board, in the same subfolder as anyone's paste (ADR 0113 item 5, where the file goes).
+          const made = await commands.tableAttach(base64, this.path, sub);
+          if (made.status !== "ok") {
+            fail(made.error);
+            return null;
+          }
+          allFiles.push(made.data);
+          await afterFileChange();
+          return made.data;
+        }
         const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
         const dot = file.lastIndexOf(".");
         const r = await commands.createFile(freeName(folder, file.slice(0, dot), file.slice(dot)), base64);
@@ -347,13 +485,14 @@ export class BoardLeaf extends TextLeaf {
       }
       const r = await commands.writeBoard(this.path, mine, this.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, mine);
-      this.revision = r.data.revision;
+      this.hold(r.data.revision, r.data.text);
       this.editor.setState(this.state(r.data.text));
       if (this.pendingBoard === mine) {
         this.pendingBoard = null;
         this.setDirty(false);
       }
-      ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+      if (r.data.warnings.length > 0) ui.status.textContent = r.data.warnings.join(" · ");
+      else flashSaved(ui.status, t.saved);
     });
     this.saving = run.catch(() => undefined);
     return run;
@@ -409,6 +548,12 @@ export class BoardLeaf extends TextLeaf {
       this.saving = run.catch(() => undefined);
       return run;
     }
+    // Out of its room: the room's board, not the text face's old text.
+    if (this.room && !this.room.live) {
+      const run = this.saving.then(() => this.overwriteLocal());
+      this.saving = run.catch(() => undefined);
+      return run;
+    }
     const board = this.pendingBoard;
     if (board === null) return super.overwrite();
     const run = this.saving.then(async () => {
@@ -417,13 +562,17 @@ export class BoardLeaf extends TextLeaf {
       const r = await commands.writeBoard(this.path, board, disk.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, board);
       this.conflict.hide();
-      this.revision = r.data.revision;
+      this.hold(r.data.revision, r.data.text);
       this.editor.setState(this.state(r.data.text));
       this.pendingBoard = null;
       this.setDirty(false);
     });
     this.saving = run.catch(() => undefined);
     return run;
+  }
+  protected override written(f: Parameters<TextLeaf["written"]>[0], mine: string): void {
+    super.written(f, mine);
+    this.hold(f.revision, f.text);
   }
   private async setFace(face: "board" | "source"): Promise<void> {
     if (face === this.showing) return;
@@ -459,9 +608,22 @@ export class BoardLeaf extends TextLeaf {
     // follows when sync brings the room's save down: the text face shows it
     // (ADR 0082 item 6).
     if (this.room) {
+      // Out of its room (the link dropped): what sync brought down comes
+      // into the board, and is saved with it.
+      // Only a synced desktop folder's room goes local (`goLocal` is for
+      // synced sessions); any other room not live keeps doing nothing here.
+      if (this.room.synced && !this.room.live) {
+        const run = this.saving.then(() => this.takeOutsideIn());
+        this.saving = run.then(() => undefined, () => undefined);
+        if ((await run) === "taken") await this.saveLocalNow();
+        return;
+      }
       if (!this.room.synced || !this.room.live || this.textEdited) return;
       const r = await commands.readText(path);
-      if (r.status === "ok" && path === this.path && !this.textEdited) this.showText(r.data.text);
+      if (r.status === "ok" && path === this.path && !this.textEdited) {
+        if (r.data.revision === this.revision) this.hold(r.data.revision, r.data.text);
+        this.showText(r.data.text);
+      }
       return;
     }
     await this.saving;
@@ -510,6 +672,7 @@ export class BoardLeaf extends TextLeaf {
     return true;
   }
   override destroy(): void {
+    this.access.destroy();
     window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
@@ -572,6 +735,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         else ui.status.textContent = t.unresolved(target);
       },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      notePath: () => path,
     });
     const keys: KeyBinding[] = [
       { key: "Mod-s", run: () => (void save(), true) },
@@ -611,7 +775,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const sep = lineSeparator(note.text);
     eol = room ? (room.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    readOnly = sep === null || !canWrite() || (room?.reader ?? false);
+    readOnly = sep === null || !may(note.path, "edit") || (room?.reader ?? false);
     const st = room ? EditorState.create({ doc: room.initial(), extensions: [extensions(), room.extension()] }) : EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });
@@ -697,7 +861,8 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
   const written = (w: Written, mine: string): void => {
     revision = w.note.revision;
     if (text() === mine) dirty = false;
-    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+    if (w.warnings.length === 0) flashSaved(ui.status, t.saved);
+    else ui.status.textContent = `${t.saved} ${w.warnings.join("; ")}`;
   };
   const refused = async (e: ContractError): Promise<void> => {
     if (e.kind !== "changed") return fail(e);
@@ -717,7 +882,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         if (r.status === "ok") {
           revision = r.data;
           dirty = false;
-          ui.status.textContent = t.saved;
+          flashSaved(ui.status, t.saved);
         } else if (r.error.kind === "changed") await roomConflict();
         else fail(r.error);
         return;
@@ -840,7 +1005,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
       void ready.then(() => {
         if (!view || gone) return;
         view.focus();
-        const at = view.posAtCoords({ x, y });
+        const at = posAt(view, { x, y });
         view.dispatch({ selection: { anchor: at ?? view.state.doc.length } });
       });
     },
@@ -926,7 +1091,13 @@ export function pictureCopy(src: string): Promise<string | null> {
       const worker = pictureWorker();
       if (!worker) return null;
       try {
-        const blob = await (await fetch(src)).blob();
+        const got = await fetch(src);
+        // A file not arrived yet (sync): not remembered, asked for again.
+        if (!got.ok) {
+          pictureCopies.delete(src);
+          return null;
+        }
+        const blob = await got.blob();
         if (!/^image\/(jpeg|png|webp|bmp|avif)$/.test(blob.type)) return null;
         const id = ++pictureIds;
         const out = await new Promise<Blob | null>((resolve) => {
@@ -937,6 +1108,7 @@ export function pictureCopy(src: string): Promise<string | null> {
         });
         return out ? URL.createObjectURL(out) : null;
       } catch {
+        pictureCopies.delete(src);
         return null;
       }
     })();
@@ -1136,6 +1308,7 @@ export function isExcalidrawDrawing(text: string): boolean {
 
 /** A new board in `folder`, empty, opened. */
 export async function newBoard(folder: string): Promise<void> {
+  if (guardCreate(folder, undefined, "board")) return;
   const path = freeName(folder, t.untitled, ".canvas");
   const text = await commands.boardText(JSON.stringify({ nodes: [], edges: [] }));
   if (text.status !== "ok") return fail(text.error);

@@ -348,3 +348,5 @@ written; merged by pull request #41, 51f89f6, and released in
 - **Not yet observed:** child web views under Wayland, NVIDIA, case-only
   names, SELinux's extended attributes, network file systems, one
   instance, and "Add to Claude".
+
+*2026-10-21* — the maintainer marked, in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all option A: **0071.snap** `[DECIDED 2026-10-21]` no Snap for now (the `.deb`, `.rpm` and AppImage are enough; Snap's confinement complicates folders and child web views); **0071.wayland** `[DECIDED 2026-10-21]` observe, and show "does not work" where it does not, as this ADR says; **0071.case** `[DECIDED 2026-10-21]` names differing only in case: after V1, observing Obsidian on Linux first ([0009](0009-external-constraints.md)); **0071.all** `[DECIDED 2026-10-21]` the ADR is **Accepted** as a whole, already shipped in 0.6.0-beta.1. Nothing is `[OPEN]` any more in this Status.

@@ -2,7 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { dropUnshared } from "../unshared";
 import { shareMark } from "../shares";
+import { readLinkMark } from "../readLinks";
+import { hiddenMark, tableMark } from "../campaign";
 import { commands } from "../bindings";
 import { narrow, paintToggles } from "../chrome";
 import { h, ui } from "../dom";
@@ -22,10 +25,14 @@ import { isItemPinned, orderIndex, pinBadge } from "../organize/order";
 import { kindOf, name } from "../paths";
 import { getHiddenFromTree, settings } from "../settings";
 import { LOCALE, t } from "../strings";
+import { rowKey, setFolderOpen, syncRoving, treeRows } from "./aria";
 import { renameInline } from "./prompts";
 import { isSelected, selectionClick, selectionOf, selectMode, shownRow } from "./selection";
 import type { Drag } from "../layout/drag";
 
+export { treeRows, rowKey };
+/** A finger, not a mouse: a folder's row toggles on a tap. */
+const touch = window.matchMedia("(pointer: coarse)");
 export let allFolders: string[] = [];
 /** Open the tree down to `path`, scroll its row into view and focus it. */
 export async function revealInTree(path: string): Promise<void> {
@@ -41,10 +48,7 @@ export async function revealInTree(path: string): Promise<void> {
     const folder = parts.slice(0, i).join("/");
     openFolders.add(folder);
     const d = ui.notes.querySelector<HTMLElement>(`summary[data-folder="${CSS.escape(folder)}"]`)?.parentElement;
-    if (d instanceof HTMLDetailsElement) {
-      d.open = true;
-      (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
-    }
+    if (d instanceof HTMLDetailsElement) setFolderOpen(d, true);
   }
   saveOpenFolders();
   const row = ui.notes.querySelector<HTMLButtonElement>(`li[data-path="${CSS.escape(path)}"] > button`);
@@ -81,9 +85,14 @@ function dragLabel(path: string, one: string): string {
 export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIElement {
   const li = h("li");
   li.dataset["path"] = path;
+  li.setAttribute("role", "none");
   const kind = kindOf(path);
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
+  // A tree item, and not a Tab stop of its own (`tree/aria.ts`).
+  b.setAttribute("role", "treeitem");
+  b.tabIndex = -1;
+  b.setAttribute("aria-level", "1");
   const entry = allEntries.get(path);
   const label = entry?.label;
   const stickerNode = settings.stickers && label?.sticker ? renderSticker(label.sticker, 14) : null;
@@ -98,10 +107,16 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     }
   }
   b.append(leadIcon, nameSpan);
+  const readMark = readLinkMark(path, "note");
+  if (readMark) b.append(readMark);
+  // A note the table keeps hidden (ADR 0110), for the game master.
+  const hidden = hiddenMark(path);
+  if (hidden) b.append(hidden);
   // Drawn after the open note was marked (a folder opened later): marked here.
   if (current?.layout.activeLeaf?.path === path) b.setAttribute("aria-current", "true");
   if (isSelected(path)) b.classList.add("selected");
-  if (selectMode()) b.setAttribute("aria-pressed", String(isSelected(path)));
+  if (isSelected(path)) b.setAttribute("aria-selected", "true");
+  else if (selectMode()) b.setAttribute("aria-selected", "false");
   // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
   // A row a mouse click focused: the arrows walk the tree from it, but F2
   // and Delete stay the window's (F2 renames the open note, main.ts), as
@@ -173,6 +188,7 @@ export function tree(paths: string[], folders: string[]): Folder {
   return root;
 }
 export const openFolders = new Set<string>();
+let groupSeq = 0;
 /** Whether `openFolders` says what the person left open in this folder —
  *  remembered from an earlier session, or toggled since. Until then the
  *  default applies (`firstLayerOpen`). */
@@ -224,6 +240,8 @@ function firstLayerRows(node: Folder): number {
 }
 export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement {
   const ul = h("ul", depth === 0 ? "tree" : "");
+  // A folder's rows are the group its item owns.
+  if (depth > 0) ul.setAttribute("role", "group");
   const fn = folderNoteOf(prefix);
   const fnEntry = fn ? allEntries.get(fn) : null;
   const pinnedList = fnEntry?.label?.pinned ?? [];
@@ -273,15 +291,27 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
     return aName.localeCompare(bName, LOCALE, { numeric: true });
   });
 
-  for (const item of items) {
+  for (const [at, item] of items.entries()) {
+    // Each item says its level and its place among its siblings.
+    const place = (el: HTMLElement) => {
+      el.setAttribute("aria-level", String(depth + 1));
+      el.setAttribute("aria-setsize", String(items.length));
+      el.setAttribute("aria-posinset", String(at + 1));
+    };
     if (item.kind === "folder") {
       const { name: folder, full, child } = item;
       const li = h("li");
+      li.setAttribute("role", "none");
       const d = h("details");
+      d.setAttribute("role", "none");
       const isOpen = openFoldersKnown || openFolders.size > 0 ? openFolders.has(full) : depth < 1 && firstLayerOpen;
       d.open = isOpen;
       const s = h("summary");
       s.dataset["folder"] = full;
+      s.setAttribute("role", "treeitem");
+      s.tabIndex = -1;
+      s.setAttribute("aria-expanded", String(isOpen));
+      place(s);
       const chev = h("span", "chev");
       const entry = allEntries.get(full);
       const labelData = entry?.label;
@@ -300,15 +330,35 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       if (folderNoteOf(full)) s.classList.add("has-note");
       const shareMarkNode = shareMark(full);
       if (shareMarkNode) s.append(shareMarkNode);
+      const readMark = readLinkMark(full, "folder");
+      if (readMark) s.append(readMark);
+      const tableNode = tableMark(full);
+      if (tableNode) s.append(tableNode);
       if (isItemPinned(full, prefix, pinnedList)) {
         s.append(pinBadge());
       }
+      // A fine pointer: the name opens the folder's page, the arrow toggles.
+      // A finger (ADR 0060, 2026-10-30): the whole row toggles, and the page
+      // opens from the button at the row's end.
       label.addEventListener("click", (e) => {
+        if (touch.matches) return;
         e.preventDefault();
         openFolder(full);
       });
+      const openPage = h("button", "folder-page");
+      openPage.type = "button";
+      openPage.setAttribute("aria-label", t.openFolderPage);
+      openPage.title = t.openFolderPage;
+      openPage.append(icon("folderOpen"));
+      openPage.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openFolder(full);
+      });
+      s.append(openPage);
       if (isSelected(full)) s.classList.add("selected");
-      if (selectMode()) s.setAttribute("aria-pressed", String(isSelected(full)));
+      if (isSelected(full)) s.setAttribute("aria-selected", "true");
+      else if (selectMode()) s.setAttribute("aria-selected", "false");
       // ⌘- and ⇧-click select the folder, before it opens or toggles.
       s.addEventListener(
         "click",
@@ -326,6 +376,8 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       const renderSubtree = () => {
         if (!renderedChild) {
           renderedChild = renderTree(child, depth + 1, full);
+          renderedChild.id = `tree-group-${++groupSeq}`;
+          s.setAttribute("aria-owns", renderedChild.id);
           // Its rows' height until it is first laid out (`content-visibility`
           // skips a folder off screen): about one row each.
           renderedChild.style.setProperty("--rows", String(renderedChild.children.length));
@@ -344,14 +396,18 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       d.addEventListener("toggle", () => {
         if (d.open) {
           openFolders.add(full);
+          s.setAttribute("aria-expanded", "true");
           renderSubtree();
         } else {
           openFolders.delete(full);
+          s.setAttribute("aria-expanded", "false");
+          s.removeAttribute("aria-owns");
           // A closed folder lets go of its rows; opening it draws them anew.
           if (renderedChild?.contains(document.activeElement)) s.focus();
           renderedChild?.remove();
           renderedChild = null;
         }
+        syncRoving();
         saveOpenFolders();
       });
       s.addEventListener("contextmenu", (e) => {
@@ -379,6 +435,7 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       ul.append(li);
     } else {
       const rowLi = fileRow(item.path);
+      place(rowLi.querySelector("button") as HTMLElement);
       if (isItemPinned(item.path, prefix, pinnedList)) {
         rowLi.querySelector("button")?.append(pinBadge());
       }
@@ -399,6 +456,8 @@ export async function listAll(): Promise<void> {
   allFolders = folders.status === "ok" ? folders.data : [];
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
+  // What the person no longer sees leaves their open tabs (access withdrawn live).
+  if (entries.status === "ok") dropUnshared();
   const was = treeFocus();
   // Another folder: the folders it was left with open.
   if (revealedFolder !== currentFolder) loadOpenFolders(currentFolder);
@@ -449,22 +508,10 @@ export async function listAll(): Promise<void> {
   // Each tab's sticker drawn again from the labels just read; its title
   // stays as its leaf set it.
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.path) l.setTitle(l.tabName.textContent ?? "");
+  syncRoving();
   restoreTreeFocus(was);
 }
-/* The tree from the keyboard: the arrows walk the rows on screen, Right
- * opens a folder or steps into it, Left closes it or steps out to its
- * folder, Home and End reach the ends. The rows stay what they are —
- * buttons, and each folder's summary — and each stays in the Tab order,
- * as the folder view's rows do. */
-export function treeRows(): HTMLElement[] {
-  // Shown means "not inside a closed folder", read from the structure: no
-  // layout is forced per row and per key, as `getClientRects` did.
-  return Array.from(ui.notes.querySelectorAll<HTMLElement>("summary, li[data-path] > button")).filter(shownRow);
-}
-/** A row of the tree, as a key that outlives the row being drawn anew. */
-export function rowKey(r: HTMLElement): string {
-  return r.tagName === "SUMMARY" ? `folder:${r.dataset["folder"] ?? ""}` : `file:${r.closest("li")?.dataset["path"] ?? ""}`;
-}
+/* The tree from the keyboard is `tree/aria.ts`. */
 /** Where a rename or a move asked from the tree lands, once drawn (renameTo). */
 export let treeLandOn: string | null = null;
 export function setTreeLandOn(value: string | null): void {
@@ -498,14 +545,13 @@ export function collapseAll(): void {
     while ((details = ui.notes.querySelectorAll("details:not([open])")).length > 0) {
       let expandedCount = 0;
       for (const d of details) {
-        d.open = true;
-        (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+        setFolderOpen(d, true);
         expandedCount++;
       }
       if (expandedCount === 0) break;
     }
   } else {
-    for (const d of ui.notes.querySelectorAll("details")) d.open = false;
+    for (const d of ui.notes.querySelectorAll("details")) setFolderOpen(d, false);
   }
   ui.collapse.replaceChildren(icon(collapsed ? "expand" : "collapse", collapsed ? t.expandAll : t.collapseAll));
   ui.collapse.title = collapsed ? t.expandAll : t.collapseAll;

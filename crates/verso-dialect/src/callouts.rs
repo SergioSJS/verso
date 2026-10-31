@@ -23,7 +23,7 @@ use crate::events::{self, Offset};
 /// a blockquote. Each level is a recursion and a copy of the level's
 /// events, so a note that nests without end cannot make drawing it
 /// quadratic or deep without end (the fuzzing guardrail, ADR 0029).
-pub(crate) const MAX_NESTING: usize = 32;
+pub(crate) const MAX_NESTING: usize = crate::MAX_CALLOUT_DEPTH as usize;
 
 /// `events` with every callout replaced by its `<div>`.
 pub(crate) fn callouts<'a>(source: &str, events: Vec<Offset<'a>>) -> Vec<Offset<'a>> {

@@ -86,14 +86,14 @@ export function openCentre(id?: string): void {
 }
 
 /** Raise a notification of the window's folder, or of `folder`. */
-export function notify(r: Omit<Raise, "folder" | "folderName"> & { folder?: string; folderName?: string }): Outcome {
+export function notify(r: Omit<Raise, "folder" | "folderName"> & { folder?: string; folderName?: string; toast?: boolean }): Outcome {
   const out = book.raise({ ...r, folder: r.folder ?? currentFolder, folderName: r.folderName ?? folderName });
   if (out.said === "same") return out;
   // Its state changed: the toast of the earlier state goes.
   dismissKey(r.key);
   if (out.entry) {
     if (out.said === "toast") {
-      showToast(out.entry, runAct);
+      if (r.toast !== false) showToast(out.entry, runAct);
       systemSend(out.entry, (id) => openCentre(id));
     }
     paintBells();

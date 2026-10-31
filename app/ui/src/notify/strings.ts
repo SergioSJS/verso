@@ -5,6 +5,7 @@
 // The notifications' words (ADR 0084), in pt-BR and English (ADR 0035):
 // every string in both, the English typed as the Portuguese's shape.
 
+import { originalOf } from "../dialogs/conflictNames";
 import type { Kind, Level, Mode } from "./core";
 
 const pt = {
@@ -12,6 +13,7 @@ const pt = {
   centre: "Notificações",
   command: "Notificações",
   region: "Notificações recentes",
+  regionTop: "Avisos de presença",
   bell: (n: number) => (n === 0 ? "Notificações" : n === 1 ? "1 notificação não lida" : `${n} notificações não lidas`),
   clear: "Limpar",
   cleared: "Notificações apagadas.",
@@ -30,6 +32,7 @@ const pt = {
     quota: "Cota",
     trash: "Lixeira",
     presence: "Presença",
+    table: "Mesa",
   } as Record<Kind, string>,
   kindsDesc: {
     sync: "A sincronização de uma pasta que falha e volta; a conexão com o servidor que cai e volta.",
@@ -39,10 +42,16 @@ const pt = {
     quota: "Uma pasta que passa de 90 % da cota do servidor.",
     trash: "Itens desta pasta que saem da lixeira em até 3 dias.",
     presence: "Alguém que entra na nota que você está editando.",
+    table: "Uma mensagem, imagem ou rolagem de outra pessoa na mesa da pasta, com o painel Mesa fechado. Desligado até você ligar.",
   } as Record<Kind, string>,
   modes: { toast: "Aviso e lista", list: "Só na lista", off: "Desligado" } as Record<Mode, string>,
   sectionLead: "O que muda sem você ter pedido — a sincronização que caiu, uma pasta compartilhada, uma versão nova — aparece num aviso no canto e fica na lista do sino. Desligar um tipo não esconde o estado: a barra de status e as notas continuam dizendo.",
   // The system's notifications (item 9).
+  chime: "Som da Mesa",
+  chimeDesc: "Um som curto quando outra pessoa manda uma mensagem ou uma rolagem na Mesa. Não toca para as suas, nem enquanto você escreve na caixa da Mesa, nem quando os dados 3D já caem. O som dos dados é separado.",
+  chimes: { off: "Desligado", soft: "Suave", bell: "Sino", pop: "Estalo" } as Record<"off" | "soft" | "bell" | "pop", string>,
+  chimeVolume: "Volume do som da Mesa",
+  chimeVolumeDesc: "Também vale para o som de teste ao escolher.",
   system: "Também nas notificações do sistema",
   systemDesc: "Com a janela atrás de outras, minimizada ou em outra aba, o que está em “Aviso e lista” aparece também nas notificações do sistema. A permissão é pedida quando você liga.",
   systemOn: "Ligado.",
@@ -71,7 +80,7 @@ const pt = {
   serveDropped: "Pastas escolhidas ficaram de fora",
   toLocalServer: "Ir para Transformar em servidor",
   conflictCopy: "Conflito na sincronização",
-  conflictCopyWhy: (path: string) => `Os dois lados mudaram ${path}; a versão deste computador ficou numa cópia ao lado.`,
+  conflictCopyWhy: (copy: string) => `Os dois lados mudaram ${originalOf(copy)}; a versão deste computador ficou numa cópia ao lado.`,
   seeConflicts: "Ver os conflitos",
   conflictRoom: "Conflito numa nota",
   conflictRoomWhy: (note: string) => `${note}: uma edição foi recusada como conflito; a nota mostra as duas versões.`,
@@ -99,6 +108,7 @@ const en: typeof pt = {
   centre: "Notifications",
   command: "Notifications",
   region: "Recent notifications",
+  regionTop: "Presence notices",
   bell: (n) => (n === 0 ? "Notifications" : n === 1 ? "1 unread notification" : `${n} unread notifications`),
   clear: "Clear",
   cleared: "Notifications cleared.",
@@ -117,6 +127,7 @@ const en: typeof pt = {
     quota: "Quota",
     trash: "Trash",
     presence: "Presence",
+    table: "Table",
   },
   kindsDesc: {
     sync: "A folder's sync failing and coming back; the connection to the server dropping and coming back.",
@@ -126,9 +137,15 @@ const en: typeof pt = {
     quota: "A folder passing 90 % of its quota on the server.",
     trash: "Items of this folder that leave the trash within 3 days.",
     presence: "Someone joining the note you are editing.",
+    table: "A message, image or roll by someone else at the folder's table, while the Table panel is closed. Off until you turn it on.",
   },
   modes: { toast: "Notice and list", list: "List only", off: "Off" },
   sectionLead: "What changes without your asking — a sync that dropped, a folder shared, a new version — shows in a notice in the corner and stays in the bell's list. Turning a kind off does not hide the state: the status bar and the notes still say it.",
+  chime: "Table sound",
+  chimeDesc: "A short sound when someone else sends a message or a roll at the Table. Not for your own, not while you are writing in the Table's box, and not when the 3D dice already fall. The dice have their own sound switch.",
+  chimes: { off: "Off", soft: "Soft", bell: "Bell", pop: "Pop" },
+  chimeVolume: "Table sound volume",
+  chimeVolumeDesc: "Also the volume of the test sound when you choose.",
   system: "Also in the system's notifications",
   systemDesc: "With the window behind others, minimised or in another tab, what is set to “Notice and list” also shows in the system's notifications. The permission is asked when you turn it on.",
   systemOn: "On.",
@@ -156,7 +173,7 @@ const en: typeof pt = {
   serveDropped: "Chosen folders were left out",
   toLocalServer: "Go to Turn into a server",
   conflictCopy: "Sync conflict",
-  conflictCopyWhy: (path) => `Both sides changed ${path}; this computer's version is kept in a copy beside it.`,
+  conflictCopyWhy: (copy) => `Both sides changed ${originalOf(copy)}; this computer's version is kept in a copy beside it.`,
   seeConflicts: "See the conflicts",
   conflictRoom: "Conflict in a note",
   conflictRoomWhy: (note) => `${note}: an edit was refused as a conflict; the note shows both versions.`,

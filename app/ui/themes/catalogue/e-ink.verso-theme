@@ -1,0 +1,48 @@
+{
+  "verso-theme": 1,
+  "name": "E-Ink",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Minimal (E-Ink colour scheme)",
+    "author": "Steph Ango (kepano)",
+    "repoUrl": "https://github.com/kepano/obsidian-minimal",
+    "license": "MIT"
+  },
+  "values": {
+    "light": {
+      "--paper": "#ffffff",
+      "--paper-2": "#ffffff",
+      "--hair": "#000000",
+      "--ink": "#000000",
+      "--ink-2": "#000000",
+      "--seal": "#000000",
+      "--brass-ink": "#000000",
+      "--code-ink": "#000000"
+    },
+    "dark": {
+      "--paper": "#000000",
+      "--paper-2": "#000000",
+      "--hair": "#ffffff",
+      "--ink": "#ffffff",
+      "--ink-2": "#ffffff",
+      "--seal": "#ffffff",
+      "--brass-ink": "#ffffff",
+      "--code-ink": "#ffffff"
+    },
+    "surface-mode": "flat",
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "outline",
+    "radius": "soft",
+    "heading-scale": "compact",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "bar",
+    "link-style": "plain",
+    "paragraph-spacing": "loose",
+    "callout-style": "outlined",
+    "hr-style": "line"
+  }
+}

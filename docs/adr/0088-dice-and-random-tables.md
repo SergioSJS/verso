@@ -22,6 +22,31 @@
   [0009](0009-external-constraints.md), [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present; [0036](0036-tabletop-rpg-support.md)'s
   random table is `PROPOSED` there; on acceptance.
+- Revisions: 2026-10-20 — item 2 holds for `` `dice:` `` in a note; an
+  oracle's answer, asked by the person with "Insert into note", is written
+  in the note ([0102](0102-creative-oracles-and-improvisation.md) item 4,
+  the maintainer: *"qual o motivo de não poder gravar na nota?"*).
+  2026-10-20 — item 5: besides the parser and the roller, Rolai's system
+  profiles and their restricted expression evaluator are copied, with the
+  MIT notice, so a statblock rolls the way its system reads a roll
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, the
+  maintainer: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
+  app meu aberto"*).
+  2026-10-21 — item 5 revised again: "no new runtime dependency" no longer
+  forbids the 3D roll. The maintainer put 3D dice in V1
+  ([0101](0101-3d-dice-physics-overlay.md), 0101.0 and 0101.1, marking
+  options of the questionnaire of 2026-10-20): a lazy chunk, loaded by
+  `import()` only when the "3D dice" switch is on and cached by the service
+  worker, the initial bundle staying free of any 3D library. The library is
+  not chosen yet (0101 item 3). "The 3D roll … stays Rolai's" in item 5 no
+  longer holds.
+  2026-10-21 — item 4 revised for the table of [0107](0107-the-table-a-shared-roll-and-chat-log.md):
+  a roll in a note of a UniVerso folder also reaches the folder's table,
+  whose log is kept with no expiry (0107 item 5, the maintainer:
+  *"deveria ficar salvo, sem prazo de validade"*), so "nothing is stored"
+  no longer holds there; the roll carries the roller's dice appearance
+  (0107 item 11); a secret roll reaches only the roller and the folder's
+  owners (0107 item 7). A note's room still keeps its last rolls in memory.
 
 ## Context
 
@@ -89,7 +114,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
    and roller copied into the window** (`app/ui/src/dice/`), the MIT
    notice kept in the files, rather than a dependency on a package not
    published to npm; no new runtime dependency. The 3D roll, rooms by
-   link and the OBS mode stay Rolai's.
+   link and the OBS mode stay Rolai's (revised 2026-10-21: the 3D roll does
+   not, see Revisions and [0101](0101-3d-dice-physics-overlay.md)).
 6. **A roller without a note.** `[DECIDED 2026-10-14]`: a "Roll dice…" command that
    opens a small roller, a notation typed and rolled, nothing written.
    Decided: **yes**, in the command palette; a drawer as Rolai's
@@ -128,7 +154,7 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 **Accepted (2026-10-14).** The maintainer, that night, answering
 *"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
-(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives.
+(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives. [0101](0101-3d-dice-physics-overlay.md) revises item 5: 3D dice are admitted as an optional, lazy-loaded module under the RPG preset ([0103](0103-feature-presets-and-capability-flags.md)).
 
 **Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): D1 — the ADR named explode (`1d6!`) and `d%` while Rolai read neither: both are read, in the window's parser and the server's, with the Dice Roller README's meaning, an explosion chain capped at 100 added dice in a roll, the same on both sides (built that night); D2 to D11, as built — both forms of a table's link, `[[Note^id]]` and `[[Note#^id]]`; the header `dice: 1d20`; `00` is 100, and lists like `13,14` are read; a one-row table is refused; in a room the server rolls even when you are alone; a reader may roll; the palette's roller rolls in your window only; your own roll does not show your name; the bounds of 100 dice and 1000 sides.
 
@@ -138,3 +164,5 @@ maintainer, each with a recommendation: the notation (item 1), unequal
 rows (item 3), who rolls in a room (item 4), how Rolai's engine is
 reused (item 5), the roller without a note (item 6), and whether
 primitives satisfy [0036](0036-tabletop-rpg-support.md)'s Consequences.
+
+*Added (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". The editor's `/` menu gets **Dice roll** (keywords dice, dado, roll, rolar, d20), shown only while the Dice feature is on: it inserts an inline `` `dice: 1d20` `` with the notation selected, so the person types over it.

@@ -1,0 +1,575 @@
+/* Verso — Creative Oracles & Improvisation Engine (ADR 0102) */
+
+.oracle-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  background: color-mix(in oklch, var(--paper) 60%, transparent);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.oracle-box {
+  width: min(64ch, 95vw);
+  max-width: 100%;
+  max-height: min(92vh, 48rem);
+  display: flex;
+  flex-direction: column;
+  padding: 1.35rem 1.6rem;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px -16px oklch(0% 0 0 / .4);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.oracle-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.oracle-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.oracle-title svg {
+  width: 1.3rem;
+  height: 1.3rem;
+  color: var(--brass-ink);
+}
+
+.oracle-settings-btn,
+.oracle-close {
+  flex: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-3);
+  padding: 0.3rem;
+  border-radius: 6px;
+  display: grid;
+  place-content: center;
+  transition: all 0.15s var(--ease-out);
+}
+.oracle-settings-btn:hover,
+.oracle-close:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* Tabs */
+.oracle-tabs {
+  flex: none;
+  display: flex;
+  gap: 0.3rem;
+  background: var(--paper-2);
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--hair);
+  margin-bottom: 1rem;
+}
+
+.oracle-tab-btn {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  font-family: var(--ui);
+  font-weight: 500;
+  font-size: 0.84rem;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transition: all 0.15s var(--ease-out);
+}
+.oracle-tab-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.oracle-tab-btn:hover {
+  color: var(--ink);
+  background: color-mix(in oklch, var(--paper) 40%, transparent);
+}
+.oracle-tab-btn.active {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px oklch(0% 0 0 / .08);
+}
+
+/* Body & Rows */
+.oracle-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 0.2rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.oracle-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.oracle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.oracle-row label,
+.oracle-row-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+.oracle-question-input {
+  padding: 0.65rem 0.85rem;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  font-family: var(--ui);
+  font-size: 0.95rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.oracle-question-input:focus {
+  border-color: var(--seal);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--seal) 18%, transparent);
+}
+
+/* Likelihood Selector (Clean 5-col row) */
+.oracle-likelihood-group {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+}
+
+.oracle-likelihood-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.35rem;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s var(--ease-out);
+}
+.oracle-likelihood-btn:hover {
+  background: var(--paper-3);
+  color: var(--ink);
+  border-color: var(--hair-2, var(--hair));
+}
+.oracle-lh-name {
+  font-family: var(--ui);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.oracle-lh-hint {
+  font-size: 0.66rem;
+  color: var(--ink-3);
+}
+
+.oracle-likelihood-btn.active {
+  background: var(--seal-wash);
+  border-color: var(--seal);
+  box-shadow: 0 0 0 1px var(--seal);
+}
+.oracle-likelihood-btn.active .oracle-lh-name {
+  color: var(--seal);
+  font-weight: 700;
+}
+.oracle-likelihood-btn.active .oracle-lh-hint {
+  color: var(--seal);
+  opacity: 0.85;
+}
+
+/* Outcome Card */
+.oracle-result-card {
+  padding: 1.25rem 1rem;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.oracle-outcome-badge {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 0.45rem 1.35rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.oracle-outcome-badge.oracle-yesAnd {
+  color: light-dark(oklch(35% 0.18 145), oklch(88% 0.16 145));
+  background: light-dark(oklch(92% 0.08 145), oklch(26% 0.08 145));
+  border: 1px solid light-dark(oklch(78% 0.15 145), oklch(45% 0.15 145));
+  box-shadow: 0 2px 10px -2px light-dark(oklch(50% 0.15 145 / .25), oklch(75% 0.15 145 / .2));
+}
+.oracle-outcome-badge.oracle-yes {
+  color: light-dark(oklch(40% 0.16 145), oklch(82% 0.14 145));
+  background: light-dark(oklch(94% 0.05 145), oklch(24% 0.06 145));
+  border: 1px solid light-dark(oklch(82% 0.1 145), oklch(40% 0.1 145));
+}
+.oracle-outcome-badge.oracle-yesBut,
+.oracle-outcome-badge.oracle-noBut {
+  color: var(--brass-ink);
+  background: var(--brass-wash);
+  border: 1px solid color-mix(in oklch, var(--brass-ink) 30%, transparent);
+}
+.oracle-outcome-badge.oracle-no {
+  color: var(--ink-2);
+  background: var(--paper-3);
+  border: 1px solid var(--hair);
+}
+.oracle-outcome-badge.oracle-noAnd {
+  color: var(--seal);
+  background: var(--seal-wash);
+  border: 1px solid color-mix(in oklch, var(--seal) 35%, transparent);
+  box-shadow: 0 2px 10px -2px color-mix(in oklch, var(--seal) 25%, transparent);
+}
+
+.oracle-roll-detail {
+  font-size: 0.84rem;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+.oracle-spark-area {
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--hair);
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+
+/* Sparks Pane Cards */
+.oracle-spark-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin: 0.4rem 0;
+}
+
+.oracle-spark-card {
+  padding: 1.25rem 1rem;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+}
+
+.oracle-spark-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brass-ink);
+}
+
+.oracle-spark-val {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.oracle-spark-full-hint {
+  text-align: center;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+/* Tables Pane */
+.oracle-select {
+  padding: 0.65rem 0.85rem;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  font-family: var(--ui);
+  font-size: 0.92rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+/* The keyboard's focus ring is the app's (base.css :focus-visible); the
+   border changing colour alone was all a keyboard user had. */
+.oracle-select:focus {
+  border-color: var(--seal);
+}
+
+.oracle-table-desc {
+  font-size: 0.82rem;
+  color: var(--ink-3);
+  margin-top: 0.2rem;
+}
+
+.oracle-table-result-card {
+  padding: 1.25rem 1.4rem;
+  background: color-mix(in oklch, var(--brass-wash) 40%, var(--paper-2));
+  border: 1px solid color-mix(in oklch, var(--brass-ink) 25%, var(--hair));
+  border-left: 4px solid var(--brass-ink);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.oracle-table-roll-header {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brass-ink);
+}
+
+.oracle-table-roll-text {
+  font-family: var(--display);
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.oracle-guide-box {
+  padding: 0.85rem 1rem;
+  background: var(--paper-2);
+  border: 1px dashed var(--hair);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.oracle-guide-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.oracle-guide-text {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Actions */
+.oracle-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hair);
+}
+
+.oracle-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.oracle-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.oracle-copy-btn,
+.oracle-insert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  font-family: var(--ui);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.oracle-copy-btn svg,
+.oracle-insert-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.oracle-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.1rem;
+  font-family: var(--ui);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--seal);
+  color: var(--paper);
+  border: 1px solid var(--seal);
+  box-shadow: 0 1px 3px oklch(0% 0 0 / .15);
+  transition: all 0.15s var(--ease-out);
+}
+.oracle-primary-btn:hover {
+  background: color-mix(in oklch, var(--seal) 88%, white);
+}
+.oracle-primary-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Callout in Reading View (ADR 0102) */
+.oracle-callout-head {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.oracle-callout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  font-family: var(--ui);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--kind, oklch(65% 0.15 300)) 15%, transparent);
+  color: var(--kind, oklch(65% 0.15 300));
+  border: 1px solid color-mix(in oklch, var(--kind, oklch(65% 0.15 300)) 35%, transparent);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+.oracle-callout-btn:hover {
+  background: color-mix(in oklch, var(--kind, oklch(65% 0.15 300)) 25%, transparent);
+}
+.oracle-callout-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.cm-lp-oracle-btn {
+  margin-left: 0.8rem;
+  vertical-align: middle;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+}
+
+@media (min-width: 601px) and (max-width: 740px) {
+  .oracle-likelihood-group {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .oracle-shade {
+    padding: 0.4rem;
+  }
+  .oracle-box {
+    width: 100%;
+    max-width: 100vw;
+    max-height: 96dvh;
+    padding: 1rem 0.85rem;
+    border-radius: 10px;
+  }
+  .oracle-tabs {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .oracle-tab-btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+    justify-content: center;
+  }
+  .oracle-likelihood-group {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .oracle-likelihood-btn:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .oracle-spark-cards {
+    grid-template-columns: 1fr;
+  }
+  .oracle-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .oracle-actions-left,
+  .oracle-actions-right {
+    display: flex;
+    gap: 0.4rem;
+    width: 100%;
+  }
+  .oracle-actions-left button,
+  .oracle-actions-right button {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+
+/* What the dialog says: a setting it could not read, a write it refused. */
+.oracle-note {
+  margin: 0 0 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--line, currentColor);
+  font-size: 0.85rem;
+  color: var(--ink);
+}

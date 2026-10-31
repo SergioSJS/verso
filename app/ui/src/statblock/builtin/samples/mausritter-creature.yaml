@@ -1,0 +1,9 @@
+name: Marsh Heron
+hp: 15
+hp_current: 15
+str: 15
+dex: 15
+wil: 10
+armour: 1
+attacks: d6 swipe, d8 bite
+wants: A quiet pond

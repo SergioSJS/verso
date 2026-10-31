@@ -56,8 +56,10 @@ pub const READ: &[&str] = &[
     "unlinked_mentions",
     "list_files",
     "list_tags",
+    "list_block_ids",
     "list_web_notes",
     "graph",
+    "graph_unresolved",
     "list_folders",
     "read_file_text",
     "resolve_attachment",
@@ -72,8 +74,22 @@ pub const READ: &[&str] = &[
     "folder_space",
     "get_folder_settings",
     "get_obsidian_periodic",
+    "list_folder_data",
+    "read_folder_data",
     "collab_join",
     "collab_leave",
+    // The table (ADR 0107): a phone is at the table and writes at it; the
+    // server checks the folder's role again (an image is a file, so an
+    // editor's; clearing is an owner's, which no phone is).
+    "table_join",
+    "table_leave",
+    "table_look",
+    "table_history",
+    "table_say",
+    "table_roll",
+    "table_pin",
+    "table_delete",
+    "campaign_status",
     "collab_awareness",
     "collab_present",
     "set_embed_origins",
@@ -81,6 +97,7 @@ pub const READ: &[&str] = &[
     "note_made_from_template",
     "set_history_days",
     "fetch_file",
+    "fetch_focuses_file",
     "set_walk_rules",
     "set_folder_note_name",
     "log_write",
@@ -102,12 +119,17 @@ pub const EDIT: &[&str] = &[
     "delete_entry",
     "write_text",
     "write_board",
+    "write_folder_data",
+    "remove_folder_data",
     "set_focuses",
     "collab_update",
     "collab_save",
     "collab_resolve",
     "collab_canvas",
     "collab_roll",
+    "collab_oracle",
+    "table_send_image",
+    "table_attach",
     "trash_list",
     "trash_restore",
     "trash_delete",
@@ -120,12 +142,23 @@ pub const EDIT: &[&str] = &[
 /// Commands no phone runs, however it was paired. Each acts on the laptop
 /// outside the folders served, or is the owner's: the system's (open,
 /// reveal, copy a path, windows), the updater and the command-line tool,
+/// the system's file picker ("Import files…" reads the laptop's disk),
 /// the app's settings and the agent's, the log and the bug report, the
 /// pairing's own commands, accounts, shares, servers and sync, the MCP,
 /// the web-embed proxy and its frameability probe (ADR 0056: a note must
 /// not make the laptop fetch an address on the network for a phone), the
 /// folder's own settings and rules, emptying the bin, deleting history.
 pub const REFUSED: &[&str] = &[
+    "loose_close",         // ADR 0114: host-side loose-files window of the laptop
+    "loose_files",         // ADR 0114: host-side loose-files window of the laptop
+    "loose_save_again",    // ADR 0114: writes beside a file of the laptop's disk
+    "loose_save_copy",     // ADR 0114: writes to a place of the laptop's disk
+    "open_default_apps",   // ADR 0114: opens the laptop's system settings
+    "open_folder_of_file", // ADR 0114: opens a folder of the laptop's disk
+    "open_recent_file",    // ADR 0114: opens a file of the laptop's disk
+    "open_sibling",        // ADR 0114: opens a file of the laptop's disk outside the served folders
+    "pick_file",           // ADR 0114: the laptop's file picker
+    "recent_files",        // ADR 0114: lists the laptop's recent files
     "agent_visible",
     "set_agent_visible",
     "check_for_updates",
@@ -137,12 +170,16 @@ pub const REFUSED: &[&str] = &[
     "mcp_status",
     "open_claude_download",
     "copy_full_path",
+    "pick_files",
+    "create_picked",
+    "take_dropped",
     "reveal",
     "open_url",
     "open_window",
     "new_window",
     "popout_target",
     "return_to_main",
+    "placeholder_plan",
     "web_open",
     "web_bounds",
     "web_visible",
@@ -152,17 +189,22 @@ pub const REFUSED: &[&str] = &[
     "device_name",
     "set_device_name",
     "folder_sync",
+    "folder_sync_cloud_cancel",
+    "folder_sync_cloud_check",
+    "folder_sync_cloud_start",
     "folder_sync_confirm",
     "folder_sync_now",
     "folder_sync_pause",
     "folder_sync_start",
     "folder_sync_stop",
+    "sync_rights",
     "server_accounts",
     "server_create_folder",
     "server_folders",
     "server_open",
     "server_prove",
     "server_retry",
+    "window_server",
     "discover_servers_start",
     "discover_servers_list",
     "discover_servers_stop",
@@ -173,7 +215,28 @@ pub const REFUSED: &[&str] = &[
     "share_grant",
     "share_list",
     "share_revoke",
+    // Read links are a server's (ADR 0105): the phone's server has none.
+    "read_link_create",
+    "read_link_list",
+    "read_link_revoke",
+    "read_link_secrets",
     "log_read",
+    "table_clear",
+    // A table is a server's and its game master's (ADR 0110): no phone runs
+    // the commands that change one; the status is read below.
+    "campaign_make",
+    "campaign_unmake",
+    "campaign_settings",
+    "campaign_release",
+    "campaign_release_all",
+    "campaign_audience",
+    "campaign_access",
+    "campaign_secret_name",
+    "campaign_grant",
+    "campaign_invite",
+    "access_get",
+    "access_set",
+    "table_rights_set",
     "set_folder_settings",
     "set_sync_focuses",
     "trash_empty",
@@ -188,6 +251,12 @@ pub const REFUSED: &[&str] = &[
     "recent_folders",
     "cli_status",
     "open_devtools",
+    // The desktop's own menu (the Mac bar, and the in-window menu of Windows
+    // and Linux): it acts on this window, and a phone has none.
+    "set_menu_commands",
+    "set_menu_enabled",
+    "menu_sections",
+    "quit_app",
 ];
 
 /// The prefix of the commands that run this mode itself.
@@ -372,6 +441,9 @@ mod tests {
             "share_grant",
             "server_sign_in",
             "folder_sync_start",
+            "folder_sync_cloud_check",
+            "folder_sync_cloud_start",
+            "folder_sync_cloud_cancel",
             "sync_put",
             "sync_state",
             "trash_empty",

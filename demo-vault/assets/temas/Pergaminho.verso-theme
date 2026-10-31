@@ -1,0 +1,28 @@
+{
+  "verso-theme": 1,
+  "name": "Pergaminho",
+  "mode": "both",
+  "tokensVersion": 1,
+  "values": {
+    "light": {
+      "--paper": "#f4ead5",
+      "--paper-2": "#ebdfc4",
+      "--hair": "#d4c4a0",
+      "--ink": "#2b2113",
+      "--ink-2": "#5a4a30",
+      "--seal": "#8a2b1c",
+      "--brass-ink": "#7a5a14"
+    },
+    "dark": {
+      "--paper": "#1f1a12",
+      "--paper-2": "#262016",
+      "--hair": "#3d3424",
+      "--ink": "#e6dcc4",
+      "--ink-2": "#b9ac8e",
+      "--seal": "#e0907a",
+      "--brass-ink": "#d8b560"
+    },
+    "--heading-font": "serif",
+    "--book": "editorial"
+  }
+}

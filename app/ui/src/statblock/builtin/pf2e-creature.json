@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "pf2e-creature",
+  "name": {
+    "pt": "Pathfinder 2e — Criatura",
+    "en": "Pathfinder 2e — Creature"
+  },
+  "description": {
+    "pt": "Ficha de criatura na ordem do Monster Core (ORC): nomes e ordem dos campos, sem texto de livro.",
+    "en": "A creature sheet in the order of Monster Core (ORC): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "Archives of Nethys, Monsters",
+      "url": "https://2e.aonprd.com/Monsters.aspx?ID=3153"
+    },
+    {
+      "label": "ORC License",
+      "url": "https://paizo.com/orclicense"
+    }
+  ],
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3})(?= \\[[+-]\\d{1,3}/[+-]\\d{1,3}\\])",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","size","traits"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["size","traits"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"level","properties":["level","recall_knowledge"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"level","properties":["level"],"label":{"pt":"Creature","en":"Creature"},"hideWhenEmpty":true},{"type":"property","id":"recall","properties":["recall_knowledge"],"label":{"pt":"Recall Knowledge","en":"Recall Knowledge"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"senses","properties":["perception","senses","languages","skills"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"perception","properties":["perception"],"label":{"pt":"Perception","en":"Perception"},"hideWhenEmpty":true},{"type":"property","id":"senses","properties":["senses"],"label":{"pt":"Senses","en":"Senses"},"hideWhenEmpty":true},{"type":"property","id":"languages","properties":["languages"],"label":{"pt":"Languages","en":"Languages"},"hideWhenEmpty":true},{"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true}]},
+    {"type":"table","id":"modifiers","properties":["modifiers"],"hideWhenEmpty":true,"headers":[{"pt":"Str","en":"Str"},{"pt":"Dex","en":"Dex"},{"pt":"Con","en":"Con"},{"pt":"Int","en":"Int"},{"pt":"Wis","en":"Wis"},{"pt":"Cha","en":"Cha"}],"modifier":"none","rule":true},
+    {"type":"group","id":"items","properties":["items"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"items","properties":["items"],"label":{"pt":"Items","en":"Items"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"defences","properties":["ac","fort","ref","will","hp","hp_current","hp","resistances","weaknesses","immunities","defensive_abilities"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"fort","properties":["fort"],"label":{"pt":"Fort","en":"Fort"},"hideWhenEmpty":true},{"type":"property","id":"ref","properties":["ref"],"label":{"pt":"Ref","en":"Ref"},"hideWhenEmpty":true},{"type":"property","id":"will","properties":["will"],"label":{"pt":"Will","en":"Will"},"hideWhenEmpty":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"resistances","properties":["resistances"],"label":{"pt":"Resistances","en":"Resistances"},"hideWhenEmpty":true},{"type":"property","id":"weaknesses","properties":["weaknesses"],"label":{"pt":"Weaknesses","en":"Weaknesses"},"hideWhenEmpty":true},{"type":"property","id":"immunities","properties":["immunities"],"label":{"pt":"Immunities","en":"Immunities"},"hideWhenEmpty":true},{"type":"text","id":"defensive","properties":["defensive_abilities"],"hideWhenEmpty":true,"dice":true}]},
+    {"type":"group","id":"speed","properties":["speed"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"speed","properties":["speed"],"label":{"pt":"Speed","en":"Speed"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"melee","properties":["melee"],"label":{"pt":"Melee","en":"Melee"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"ranged","properties":["ranged"],"label":{"pt":"Ranged","en":"Ranged"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"spells","properties":["spells"],"label":{"pt":"Spells","en":"Spells"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"abilities","properties":["abilities"],"label":{"pt":"Abilities","en":"Abilities"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}

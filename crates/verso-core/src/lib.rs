@@ -37,7 +37,8 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
 pub use sync_io::Hashed;
 pub use verso_fs::{
-    Changes, ConfinementError, Mark, Placeholder, ReadError, Staged, WalkRules, Watch, WriteError,
+    Changes, ConfinementError, Mark, PathKind, PickedError, Placeholder, ReadError, Staged,
+    WalkRules, Watch, WriteError, canonical_path, check_picked, kind_of, read_picked, strip_root,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
@@ -50,19 +51,26 @@ pub mod clients;
 pub mod focuses;
 pub mod history;
 pub mod servers;
+pub mod session;
 pub mod sync;
 pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
+pub use folder_data::{
+    DataEntry, DataFile, DataList, FOLDER_BUNDLE_MOST, FOLDER_LAYOUT_MOST, FolderDataKind,
+};
 pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
+pub use oracle::{Oracle, OracleSparks};
 pub use periodic::{ObsidianPeriodic, Period, Periodic};
 mod entries;
+mod folder_data;
 mod folder_settings;
 mod indexing;
 pub mod maptiles;
 mod mentions;
 mod narrow;
 mod notes;
+mod oracle;
 mod periodic;
 mod reader;
 mod rename;
@@ -71,6 +79,8 @@ mod sync_io;
 mod views;
 use entries::*;
 pub use mentions::{Mention, Mentions};
+mod loose;
+pub use loose::{LOOSE_MAX_BYTES, LOOSE_READ_CAP, Loose, LooseReadOnly};
 /// The one projection a UniVerso serves a reader of a note (ADR 0087),
 /// for every exit of the server that serves one.
 pub mod secret {
@@ -78,8 +88,11 @@ pub mod secret {
 }
 use rename::*;
 pub use sidecar::Sidecar;
-/// The index's answers, as the core hands them out (its reader's too).
 pub use verso_index::{Backlink as IndexBacklink, Hit as IndexHit, Link as IndexLink};
+/// The index's answers, as the core hands them out (its reader's too).
+pub use verso_index::{
+    BlockKind as IndexBlockKind, BlockList as IndexBlockList, BlockRef as IndexBlockRef,
+};
 
 /// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
 /// the UI can hand it back without knowing what is in it.
@@ -135,6 +148,33 @@ mod revision {
 /// (`docs/reference/watcher-decision.md`).
 pub const WATCH_QUIET: std::time::Duration = std::time::Duration::from_millis(300);
 
+/// Why a picked file was not created in the folder
+/// ([`Workspace::create_file_from_picked`]).
+#[derive(Debug)]
+pub enum PickedCreateError {
+    /// The picked file was refused or could not be read.
+    Picked(PickedError),
+    /// The folder's side: a name taken, a path refused, the disk.
+    Core(CoreError),
+}
+
+impl From<PickedError> for PickedCreateError {
+    fn from(e: PickedError) -> Self {
+        Self::Picked(e)
+    }
+}
+
+impl std::fmt::Display for PickedCreateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Picked(e) => write!(f, "{e}"),
+            Self::Core(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for PickedCreateError {}
+
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
 pub enum CoreError {
@@ -176,6 +216,13 @@ pub enum CoreError {
     /// The folder's settings file (ADR 0070) cannot be changed as it is:
     /// what, in the message.
     FolderSettings(String),
+    /// A folder data file (`.verso/layouts/`, `.verso/bundles/`) cannot be
+    /// read or written as asked: a bad id, too large, not a JSON object.
+    FolderData(String),
+    /// A file opened without its folder is refused what the folder would
+    /// allow (ADR 0114 items 12 and 13): too large, or read only; the
+    /// reason, in the message.
+    Loose(String),
 }
 
 impl std::fmt::Display for CoreError {
@@ -198,6 +245,8 @@ impl std::fmt::Display for CoreError {
             Self::Watch(e) => write!(f, "the folder cannot be watched for changes: {e}"),
             Self::Client(m) => write!(f, "MCP client: {m}"),
             Self::FolderSettings(m) => write!(f, "folder settings: {m}"),
+            Self::FolderData(m) => write!(f, "folder data: {m}"),
+            Self::Loose(m) => write!(f, "{m}"),
         }
     }
 }

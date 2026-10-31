@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-loose-save-copy"
+description = "Enables the loose_save_copy command without any pre-configured scope."
+commands.allow = ["loose_save_copy"]
+
+[[permission]]
+identifier = "deny-loose-save-copy"
+description = "Denies the loose_save_copy command without any pre-configured scope."
+commands.deny = ["loose_save_copy"]

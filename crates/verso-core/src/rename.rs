@@ -154,7 +154,7 @@ impl Workspace {
 
     /// What `[[target]]` written in `source` reaches now: a note by the
     /// index's rule, else a file by the same rule (spec Q12).
-    fn reach(&self, source: &str, target: &str) -> Result<Option<Reached>, CoreError> {
+    pub(crate) fn reach(&self, source: &str, target: &str) -> Result<Option<Reached>, CoreError> {
         if let Some(note) = self
             .index
             .resolve_from(source, target)
@@ -170,7 +170,7 @@ impl Workspace {
     /// it — never one found by name in another folder (ADR 0057, decided
     /// on 2026-10-01). A card left pointing at a path that is gone reaches
     /// nothing, so a move plans its rewrite.
-    fn reach_exact(&self, target: &str) -> Result<Option<Reached>, CoreError> {
+    pub(crate) fn reach_exact(&self, target: &str) -> Result<Option<Reached>, CoreError> {
         if let Some(note) = self.index.resolve_exact(target).map_err(CoreError::Index)? {
             return Ok(Some(Reached::Note(note)));
         }
@@ -563,13 +563,13 @@ pub(crate) struct Performed {
 /// What a link reached before a move — a note, by the index's rule, or
 /// a file, by the same rule applied to attachments (spec Q12).
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Reached {
+pub(crate) enum Reached {
     Note(String),
     File(String),
 }
 
 impl Reached {
-    fn path(&self) -> &str {
+    pub(crate) fn path(&self) -> &str {
         match self {
             Self::Note(p) | Self::File(p) => p,
         }

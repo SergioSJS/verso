@@ -193,14 +193,27 @@ impl Workspace {
         self.index
             .upsert(&key, note_stamp(&stamp), text, &verso_dialect::parse(text))
             .map_err(CoreError::Index)?;
+        self.remember_parents(&key);
         self.note_text(key, text.to_owned(), revision::encode(&stamp), false, false)
+    }
+
+    /// The folders above `key` that its creation may have made, listed at
+    /// once as the walk lists them, so `folders` agrees with `notes` and
+    /// `files` before the watcher's next walk.
+    fn remember_parents(&mut self, key: &str) {
+        let mut at = 0;
+        while let Some(i) = key[at..].find('/') {
+            at += i;
+            self.dirs.insert(key[..at].to_owned());
+            at += 1;
+        }
     }
 
     /// Create a file that is not a note — an image pasted into a note,
     /// an attachment — with `bytes`, at a path relative to the folder;
     /// refused when something stands there. Listed at once.
     pub fn create_file(&mut self, relative: &str, bytes: &[u8]) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
+        let key = self.write_key(relative)?;
         let (handle, report) = self
             .root
             .create(Path::new(&key), bytes)
@@ -209,6 +222,7 @@ impl Workspace {
             .entry(verso_index::file_key(name_of(&key)))
             .or_default()
             .push(key.clone());
+        self.remember_parents(&key);
         if is_canvas(&key) {
             let stamp = self.stamp_of_written(handle, report.stamp, bytes);
             self.index_canvas(&key, bytes, note_stamp(&stamp))?;
@@ -216,10 +230,44 @@ impl Workspace {
         Ok(key)
     }
 
+    /// [`Workspace::create_file`] for a file the person picked outside the
+    /// folder: copied from `source` in pieces and never held whole in
+    /// memory, atomic, refused when something stands there (nothing is
+    /// copied then), at most `max` bytes. A board is small and indexed from
+    /// its bytes, so it is read whole (bounded by `max`) and created by
+    /// `create_file`.
+    pub fn create_file_from_picked(
+        &mut self,
+        relative: &str,
+        source: &std::path::Path,
+        max: u64,
+    ) -> Result<String, PickedCreateError> {
+        let key = self.write_key(relative).map_err(PickedCreateError::Core)?;
+        if is_canvas(&key) {
+            let bytes = verso_fs::read_picked(source, max)?;
+            return self
+                .create_file(&key, &bytes)
+                .map_err(PickedCreateError::Core);
+        }
+        let (_handle, _report) = self
+            .root
+            .create_from_picked(Path::new(&key), source, max)
+            .map_err(|e| match e {
+                verso_fs::ImportError::Picked(p) => PickedCreateError::Picked(p),
+                verso_fs::ImportError::Write(w) => PickedCreateError::Core(CoreError::Write(w)),
+            })?;
+        self.files
+            .entry(verso_index::file_key(name_of(&key)))
+            .or_default()
+            .push(key.clone());
+        self.remember_parents(&key);
+        Ok(key)
+    }
+
     /// Create a folder inside the open folder. The walk does not list an
     /// empty folder, so the caller shows it until something lands in it.
     pub fn create_folder(&mut self, relative: &str) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
+        let key = self.write_key(relative)?;
         let (made, _) = self
             .root
             .create_dir(Path::new(&key))

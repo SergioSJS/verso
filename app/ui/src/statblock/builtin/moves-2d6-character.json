@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "moves-2d6-character",
+  "name": {
+    "pt": "Movimentos 2d6 — Personagem",
+    "en": "2d6 moves — Character"
+  },
+  "description": {
+    "pt": "Para jogos de movimentos com 2d6 mais atributo (a família Powered by the Apocalypse): atributos de −3 a +3, movimentos e marcadores. Um desenho do Verso.",
+    "en": "For 2d6-plus-stat move games (the Powered by the Apocalypse family): stats from −3 to +3, moves and tracks. Verso's own design."
+  },
+  "profile": "pbta",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","playbook"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["playbook"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"stats","properties":["stats"],"label":{"pt":"Stats","en":"Stats"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"tracker","id":"harm","properties":["harm","harm_max"],"label":{"pt":"Harm / HP","en":"Harm / HP"},"hideWhenEmpty":true,"current":"harm","max":"harm_max","style":"boxes"},
+    {"type":"tracker","id":"luck","properties":["luck","luck_max"],"label":{"pt":"Luck","en":"Luck"},"hideWhenEmpty":true,"current":"luck","max":"luck_max","style":"boxes"},
+    {"type":"tracker","id":"xp","properties":["xp","xp_max"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true,"current":"xp","max":"xp_max","style":"boxes"},
+    {"type":"traits","id":"moves","properties":["moves"],"label":{"pt":"Moves","en":"Moves"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 2d6","en":"Roll 2d6"},"inputs":{}}
+  ]
+}

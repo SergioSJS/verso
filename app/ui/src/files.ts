@@ -7,17 +7,22 @@ import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { changeBookmarks } from "./bookmarks";
-import { canWrite } from "./can";
+import { type Action, may } from "./access";
+import { host } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
-import { templateText, today } from "./daily";
+import { templateText } from "./daily";
 import { ask } from "./dialog";
 import { h, ui } from "./dom";
 import { fail, nameTaken } from "./errors";
 import { focusesList, saveFocuses } from "./focuses";
 import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
-import { images } from "./images";
+import { forgetDrawn, images } from "./images";
 import { Pane } from "./layout/pane";
+import { dropLimitMb } from "./attachName";
+import { settings } from "./settings";
+import { imp } from "./importStrings";
+import { placeFile } from "./placeFile";
 import { layout, leavesUnder, openNote, paneToOpenIn, spaces } from "./layout/spaces";
 import { propVal } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
@@ -28,11 +33,14 @@ import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
 import { st } from "./screen/strings";
+import { readerAttempt } from "./readerNotice";
 import { getHiddenFromTree, setHiddenFromTree } from "./settings";
 import { keyboardIn, returnFromSide, showSide } from "./side";
-import { t } from "./strings";
+import { fillTemplate } from "./templateFill";
+import { LOCALE, t } from "./strings";
 import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
+import { foldsMoved } from "./foldMemory";
 import { currentFolder } from "./folder";
 import { selectionMoved } from "./tree/selection";
 import { offerTemplates } from "./templatePicker";
@@ -41,9 +49,11 @@ import { offerTemplates } from "./templatePicker";
 /** A reader on a server changes nothing: the window's ways to make, move
  *  or bin a file stop here, whatever reached them — a menu, a key, a drop
  *  (ADR 0076 item 11). Says why, once. */
-export function readable(): boolean {
-  if (canWrite()) return true;
+export function readable(path: string | string[] = "", action: Action = "create"): boolean {
+  const paths = Array.isArray(path) ? path : [path];
+  if (paths.every((p) => may(p, action))) return true;
   ui.status.textContent = st.readOnly;
+  readerAttempt(undefined, false, paths[0]);
   return false;
 }
 export function fileBase64(f: File): Promise<string> {
@@ -54,27 +64,54 @@ export function fileBase64(f: File): Promise<string> {
     r.readAsDataURL(f);
   });
 }
-/** Files dropped on the tree: copied into the folder under the pointer. */
+/** Files dropped on the tree: copied into the folder under the pointer. A
+ *  name taken moves on to `name (2).ext`, as "Import files…" does, and the
+ *  status line says so (I.1a, decided 2026-10-21); a file past the limit is
+ *  named, the rest still come. */
 export async function copyFilesInto(folder: string, files: FileList): Promise<void> {
-  if (!readable()) return;
-  let copied = 0;
+  if (!readable(folder)) return;
+  const limitMb = dropLimitMb(settings.importMaxMb, host() === "server");
+  const taken = new Set([...allNotes, ...allFiles, ...allFolders].map((p) => p.toLowerCase()));
+  let first = "";
+  let made = 0;
+  const renamed: string[] = [];
+  const skipped: { name: string; reason: "too_large" | "unreadable" }[] = [];
+  const failed: string[] = [];
   for (const f of Array.from(files)) {
-    const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
-    if (r.status === "ok") copied++;
-    else if (r.error.kind === "exists") nameTaken(`${f.name}: ${t.exists}`);
-    else fail(r.error);
+    if (f.size > limitMb * 1024 * 1024) {
+      skipped.push({ name: f.name, reason: "too_large" });
+      continue;
+    }
+    let data: string;
+    try {
+      data = await fileBase64(f);
+    } catch {
+      skipped.push({ name: f.name, reason: "unreadable" });
+      continue;
+    }
+    const placed = await placeFile(folder, f.name, taken, (path) => commands.createFile(path, data));
+    if ("failed" in placed) {
+      fail(placed.failed);
+      failed.push(f.name);
+      continue;
+    }
+    made++;
+    first ||= placed.made;
+    if (placed.renamed) renamed.push(`${f.name} → ${placed.given}`);
   }
-  if (copied > 0) {
+  if (made > 0) {
     openFolders.add(folder);
     await afterFileChange();
-    ui.status.textContent = t.copiedFiles;
   }
+  const said = imp.summary({ made, renamed, skipped, failed, limitMb });
+  if (said) ui.status.textContent = said;
 }
 
 /** A rename or a move: what remembers paths — bookmarks, closed tabs,
  *  recents — follows the file, or a folder's contents. */
 export function pathsMoved(from: string, to: string): void {
   tableWidthsMoved(currentFolder, from, to);
+  foldsMoved(currentFolder, from, to);
   selectionMoved(from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
   changeBookmarks((list) => list.map(follow));
@@ -118,12 +155,13 @@ export function pathsRemoved(path: string): void {
  *  file existed appears once it does). */
 export function forgetFiles(): void {
   images.clear();
+  forgetDrawn();
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf) l.editor.dispatch({ effects: redraw.of(null) });
 }
 export let untitledN = 0;
 export async function newUntitled(pane: Pane): Promise<void> {
-  if (!readable()) return;
   const folder = pane.active?.path ? dirOf(pane.active.path) : "";
+  if (!readable(folder)) return;
   const taken = new Set(allNotes.map((p) => p.toLowerCase()));
   // On a server another member may take the same name a moment before
   // (the list here is not yet told): a name nobody chose moves on to the
@@ -186,7 +224,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
             if (rdTpl.status === "ok") tpl = rdTpl.data.text;
           }
           if (tpl) {
-            initialText = tpl.replace(/{{date}}/g, today()).replace(/{{title}}/g, clean.split("/").pop() ?? clean);
+            initialText = fillTemplate(tpl, clean.split("/").pop() ?? clean, new Date(), LOCALE);
             fromFolder = true;
           }
         }
@@ -271,7 +309,7 @@ export async function deleteNote(path: string): Promise<void> {
 }
 /** Anything to the bin: a note, another file, or a folder with what it holds. */
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
-  if (!readable()) return;
+  if (!readable(path, "delete")) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
   const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
@@ -389,7 +427,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
 }
 /** Several entries to the bin, asked once. */
 export async function deleteEntries(paths: string[]): Promise<void> {
-  if (!readable()) return;
+  if (!readable(paths, "delete")) return;
   if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
@@ -417,7 +455,7 @@ export async function deleteEntries(paths: string[]): Promise<void> {
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 export async function turnNoteIntoFolder(path: string): Promise<void> {
-  if (!readable()) return;
+  if (!readable(path, "rename")) return;
   const dir = dirOf(path);
   const stem = name(path);
   const targetFolder = dir ? `${dir}/${stem}` : stem;
@@ -433,7 +471,7 @@ export async function turnNoteIntoFolder(path: string): Promise<void> {
 /** A destination folder, typed with completion over the vault's folders,
  *  for one entry or for the tree's selection. */
 export function movePrompt(path: string | string[]): void {
-  if (!readable()) return;
+  if (!readable(path, "move")) return;
   const many = Array.isArray(path) ? path : [path];
   const label = many.length > 1 ? t.selection.count(many.length) : (many[0] ?? "").split("/").pop() ?? "";
   const back = document.activeElement;
@@ -476,7 +514,7 @@ export function movePrompt(path: string | string[]): void {
 }
 /** A copy beside the original: "Name copy.ext", then "Name copy 2.ext"… */
 export async function duplicateEntry(path: string, kind: Kind): Promise<void> {
-  if (!readable()) return;
+  if (!readable(dirOf(path))) return;
   if (kind === "folder") return;
   const base = path.split("/").pop() ?? path;
   const dot = base.lastIndexOf(".");

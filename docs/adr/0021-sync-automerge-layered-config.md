@@ -30,8 +30,10 @@ answering the recorded pain point of config sync failing between devices.
 ## Decision (proposed, not confirmed)
 
 1. Candidate for the merge engine: Automerge.
-2. Layered config: shared (plugin list, schemas) and per device (hotkeys,
-   layout).
+2. Layered config: shared (plugin list) and per device (hotkeys, layout).
+   Schemas live in the folder, not in the shared layer outside it
+   (corrected on 2026-10-21 to agree with [0052](0052-typed-note.md); 0021.2,
+   option A).
 
 ## Consequences
 
@@ -54,6 +56,8 @@ None recorded: the briefing cites Automerge as a candidate, with no comparison
 to other CRDT libraries.
 
 ## Status
+
+*2026-10-21* — 0021.2 `[DECIDED 2026-10-21]` (option A, the maintainer's mark in the decisions questionnaire of 2026-10-20): the layers hold, with the schemas in the folder; 0052 is newer and the folder is the source of truth ([0012](0012-files-are-source-of-truth.md)). Item 2 above is corrected to say so.
 
 Proposed. Item 1 revised on 2026-10-09 by
 [0073](0073-self-hosted-server-first.md) item 7, Accepted: Yjs, as the

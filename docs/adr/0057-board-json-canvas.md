@@ -131,7 +131,11 @@ decided by the maintainer on 2026-10-01 (point 18).
       saved beside the board in the attachments folder, saved to Downloads,
       or copied. Excalidraw's own copies as PNG or SVG are hidden.
     - **Web embed** is hidden: the board draws only its own cards, and the
-      tool ended in an error. Embedding a page on a board is not decided.
+      tool ended in an error. `[DECIDED 2026-10-21]` (the maintainer's mark,
+      **option B**, not the recommended A): an embedded web page **is
+      allowed as a board card**, reusing [0056](0056-embedded-web-pages.md)
+      (the page loads in its frame from an origin the person approved); one
+      more card type. Until it is built the tool stays hidden.
     - **Background.** A board's background colour is kept in the file, under
       `verso.background`; none means the app's paper.
     - **A card's colour.** The background chosen for a card from the
@@ -257,6 +261,24 @@ keeping arrows at the middle of a side.
     at its point, else at its side's middle, else at the middle of the side
     facing the other card. Point 14 stands, with one more case: an end moved
     on its card takes the side it now meets.
+
+**Decided on 2026-10-23 by the maintainer**, after a three-device test found
+that the toolbar's sticky note is a drawn element where `dice: 1d20` stays
+plain text, and that the board had no way to add a Markdown text card except
+dragging a roll from the Table: "B e A entao, sendo B configurável". Built on
+`feat/board-text-card`: (A) a **Text card** button in the board's toolbar,
+beside Insert, adds a JSON Canvas `text` node (340 × 110, centred on the view)
+and asks for its text at once; cancelled or empty, no card is left behind; the
+Insert menu's *Text card* entry does the same; (B) a double click — a double
+tap on a touch screen — on an **empty** spot of the board adds that card
+there, instead of Excalidraw's drawn text. A double click on a card or on a
+drawing keeps its behaviour; on a reader's board, or with another tool in
+hand, or while text is being typed, it does nothing new. B is a setting,
+**Settings › Board › "Double click on the board creates"** (`boardDoubleClick`):
+*Text card* or *Drawn text*. The default, *Text card*, is chosen in the code,
+for the maintainer to confirm. The button takes no key (Excalidraw's tool keys
+are untouched). The new card's `dice:` codes roll as in any text card
+(ADR 0088).
 
 ## Consequences
 

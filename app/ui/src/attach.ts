@@ -21,7 +21,9 @@ const pt = {
   copying: (name: string) => `Copiando “${name}”…`,
   done: (name: string, where: string) => `Imagem anexada: “${name}”${where ? ` (em ${where}/)` : ""}.`,
   tooBig: (name: string, mb: number) => `“${name}” passa de ${mb} MB, o máximo que o servidor recebe de uma vez; nada foi copiado.`,
-  notImage: (name: string) => `“${name}” não é uma imagem; nada foi copiado.`,
+  notImage: (name: string) => `“${name}” não é uma imagem, um PDF nem um áudio; nada foi copiado.`,
+  notImageOnly: (name: string) => `“${name}” não é uma imagem; nada foi copiado.`,
+  noSend: "O mestre não te deu o direito de enviar arquivos.",
   unreadable: (name: string) => `Não foi possível ler “${name}”; nada foi copiado.`,
 };
 const en: typeof pt = {
@@ -33,7 +35,9 @@ const en: typeof pt = {
   copying: (name) => `Copying “${name}”…`,
   done: (name, where) => `Image attached: “${name}”${where ? ` (in ${where}/)` : ""}.`,
   tooBig: (name, mb) => `“${name}” is over ${mb} MB, the most the server takes at once; nothing was copied.`,
-  notImage: (name) => `“${name}” is not an image; nothing was copied.`,
+  notImage: (name) => `“${name}” is not an image, a PDF or audio; nothing was copied.`,
+  notImageOnly: (name) => `“${name}” is not an image; nothing was copied.`,
+  noSend: "The game master has not given you the right to send files.",
   unreadable: (name) => `“${name}” could not be read; nothing was copied.`,
 };
 export const a = LANG.toLowerCase().startsWith("pt") ? pt : en;
@@ -48,12 +52,12 @@ export function touchScreen(): boolean {
  *  it. `camera` asks a phone for its camera instead of the gallery (the
  *  gallery stays a choice of its own). Resolves with the files chosen,
  *  none when the person cancels. */
-export function pickImages(camera: boolean): Promise<File[]> {
+export function pickImages(camera: boolean, accept = "image/*"): Promise<File[]> {
   document.querySelectorAll("input[data-attach-picker]").forEach((e) => e.remove());
   return new Promise<File[]>((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = accept;
     input.multiple = !camera;
     if (camera) input.setAttribute("capture", "environment");
     input.hidden = true;

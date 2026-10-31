@@ -3,6 +3,12 @@
 
 use super::*;
 
+/// The largest note the index reads and parses: a note past it is a file to
+/// sync and find by name, not text to index. Reading and parsing a note costs
+/// about a dozen times its size in memory (measured 2026-10-30: 30 MB took
+/// 390 MB), which a small server cannot spend on one file.
+pub const INDEX_MOST: u64 = 16 * 1024 * 1024;
+
 impl Workspace {
     /// One index run, in transactions of a few hundred notes each: a
     /// commit per note syncs the disk once per note where SQLite's sync is
@@ -83,7 +89,18 @@ impl Workspace {
                         total: total_notes,
                         file: Some(relative.clone()),
                     });
+                    // A note past the cap is a file to sync, not text to
+                    // index: never read here, and the row of a smaller
+                    // version it had goes (`INDEX_MOST`). The file is still
+                    // there: present, so that it is not reported gone (the
+                    // history would record a deletion of a file on disk).
                     present.insert(relative.clone());
+                    if entry.len > INDEX_MOST {
+                        if self.index.remove(&relative).map_err(CoreError::Index)? {
+                            report.removed += 1;
+                        }
+                        continue;
+                    }
                     // Modified time and length the index holds, from long
                     // enough before the last complete run began
                     // (`Index::complete`): unchanged, and not read again

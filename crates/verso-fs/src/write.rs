@@ -136,6 +136,52 @@ impl WriteReport {
 
 pub(crate) static COUNTER: AtomicU32 = AtomicU32::new(0);
 
+/// The targets this process is writing right now. Two writers of one
+/// process (two windows of the app on one folder, two `Root`s) check and
+/// rename in turn, never inside each other's check-to-rename window, which
+/// the `fsync` between the two makes milliseconds wide: measured on
+/// 2026-10-30 (`tests/stress.rs`), 4 racing writers lost 58% of their
+/// accepted writes to each other. Another program writing the same file is
+/// still only caught by the checks of [`check`] and [`put_over`].
+static WRITING: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+static WRITING_FREED: std::sync::Condvar = std::sync::Condvar::new();
+
+/// A target held for writing; let go when dropped.
+pub(crate) struct TargetLock(PathBuf);
+
+impl TargetLock {
+    fn take(target: &Path) -> Self {
+        // Keyed by the real folder: two spellings of one parent (a symlink,
+        // a case difference) are one writer. The target itself may not
+        // exist yet, so its parent is what is resolved.
+        let target = &match (target.parent(), target.file_name()) {
+            (Some(parent), Some(name)) => std::fs::canonicalize(parent)
+                .map_or_else(|_| target.to_path_buf(), |real| real.join(name)),
+            _ => target.to_path_buf(),
+        };
+        let mut held = WRITING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while held.iter().any(|p| p == target) {
+            held = WRITING_FREED
+                .wait(held)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        held.push(target.to_path_buf());
+        Self(target.to_path_buf())
+    }
+}
+
+impl Drop for TargetLock {
+    fn drop(&mut self) {
+        let mut held = WRITING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        held.retain(|p| *p != self.0);
+        WRITING_FREED.notify_all();
+    }
+}
+
 pub(crate) fn write_atomically(
     path: &Path,
     content: &[u8],
@@ -144,10 +190,8 @@ pub(crate) fn write_atomically(
     let checked = check(path, expected)?;
     // No stem from the target's name: a long note name must stay writable
     // (NAME_MAX is 255). Dot-prefixed, so a walk never lists it.
-    let temp = checked.dir.join(format!(
-        ".verso-tmp-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
+    let temp = checked.dir.join(crate::sweep::temp_name(
+        COUNTER.fetch_add(1, Ordering::Relaxed),
     ));
     // Created with the original's mode from the first instant: a 0600
     // note is never visible as 0644 under the temporary name.
@@ -171,6 +215,8 @@ pub(crate) struct Checked {
     pub(crate) dir: PathBuf,
     pub(crate) original: std::fs::Metadata,
     report: WriteReport,
+    /// Held until the rename is done.
+    _held: TargetLock,
 }
 
 /// The checks before a write touches anything: not a placeholder (ADR
@@ -188,11 +234,15 @@ pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError
 
     // A symlink is followed: the target is what gets replaced (ADR 0044),
     // and the guard runs on the target too.
-    let target: PathBuf = placeholder::follow(path).map_err(WriteError::Io)?;
-    if target != path {
-        if placeholder::stands_in(&target).map_err(WriteError::Io)? {
-            return Err(WriteError::Placeholder);
-        }
+    let followed: PathBuf = placeholder::follow(path).map_err(WriteError::Io)?;
+    if followed != path && placeholder::stands_in(&followed).map_err(WriteError::Io)? {
+        return Err(WriteError::Placeholder);
+    }
+    // The name as the disk holds it, which the rename over the file keeps.
+    let target = os::kept_spelling(followed.clone());
+    let held = TargetLock::take(&target);
+    if followed != path {
+        // What the report names is where the write lands, respelled.
         report.wrote_through_symlink_to = Some(target.clone());
     }
 
@@ -222,6 +272,7 @@ pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError
         dir,
         original,
         report,
+        _held: held,
     })
 }
 
@@ -241,6 +292,7 @@ pub(crate) fn put_over(
         dir,
         original,
         mut report,
+        _held,
     } = checked;
     // Everything up to and including the rename: a failure here leaves the
     // original untouched and removes the temporary file.

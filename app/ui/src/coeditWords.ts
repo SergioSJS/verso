@@ -42,6 +42,8 @@ const pt = {
   setting: "Editar notas junto enquanto online",
   settingDesc:
     "Uma nota aberta aqui entra na sala do servidor: quem estiver nela — no navegador ou em outro aparelho — edita junto, ao vivo. Desligado, as notas são editadas neste computador e cruzam ao salvar.",
+  // The tab's notice when the setting is off (liveOff.ts).
+  off: { text: "Edição ao vivo desligada nesta pasta", open: "Abrir a configuração de editar notas junto" },
   // A board, any other file (ADR 0082 item 12).
   other: {
     board: {
@@ -87,6 +89,7 @@ const en: typeof pt = {
   setting: "Edit notes together while online",
   settingDesc:
     "A note opened here joins the server's room: whoever is in it — in the browser or on another device — edits together, live. Off, notes are edited on this computer and cross on save.",
+  off: { text: "Live editing is off for this folder", open: "Open the setting for editing notes together" },
   other: {
     board: {
       joined: (name) => `${name} joined the board.`,
@@ -108,6 +111,11 @@ const en: typeof pt = {
 /** The words in the language `lang` names ("pt…" or anything else). */
 export function liveWords(lang: string): typeof pt {
   return lang.startsWith("pt") ? pt : en;
+}
+
+/** The notice of a folder whose live editing is off, and its control's label. */
+export function liveOffWords(lang: string): { text: string; open: string } {
+  return liveWords(lang).off;
 }
 
 /** Names as a sentence lists them: "Ana", "Ana e Bia", "Ana, Bia e Caio". */

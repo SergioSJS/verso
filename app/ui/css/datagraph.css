@@ -1,0 +1,107 @@
+/* The data diagram (ADR 0106): HTML boxes over SVG lines in one zoomed and
+   panned layer. Every colour is a token of base.css, so light and dark are
+   the window's own. */
+.data-leaf .data-sheet { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.dg { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dg-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; padding: .45rem clamp(.7rem, 1.5vw, 1.2rem); border-bottom: 1px solid var(--hair); font-size: .8rem; }
+.dg-find, .dg-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.dg-search { font: inherit; min-width: 11rem; padding: .3rem .65rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.dg-search:focus { outline: none; border-color: var(--brass-ink); }
+.dg-matches { color: var(--ink-3); white-space: nowrap; min-width: 4.5rem; }
+.dg-actions > button, .dg-find > button { padding: .25rem .5rem; border-radius: 5px; color: var(--ink-2); font-size: .8rem; }
+.dg-actions > button:hover, .dg-find > button:hover { color: var(--ink); background: var(--paper-3); }
+.dg-levels { font: inherit; font-size: .8rem; padding: .2rem .35rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.dg-error { flex: none; display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; padding: .4rem clamp(.7rem, 1.5vw, 1.2rem); background: var(--seal-wash); color: var(--ink); border-bottom: 1px solid var(--hair); font-size: .82rem; }
+.dg-error-go { color: var(--seal); text-decoration: underline; padding: 0; }
+.dg-empty { padding: 1.5rem clamp(.7rem, 1.5vw, 1.2rem); color: var(--ink-3); }
+.dg-loading { margin: 0; padding: 1rem clamp(.7rem, 1.5vw, 1.2rem); font-size: .85rem; color: var(--ink-2); }
+.dg-loading[role=alert] { color: var(--seal); }
+.dg-hint { flex: none; margin: 0; padding: .3rem clamp(.7rem, 1.5vw, 1.2rem); font-size: .74rem; color: var(--ink-3); border-top: 1px solid var(--hair); }
+
+.dg-stage { position: relative; flex: 1; min-height: 12rem; overflow: hidden; touch-action: none; cursor: grab; background: var(--paper); user-select: none; -webkit-user-select: none; outline: none; }
+.dg-stage.dg-dragging { cursor: grabbing; }
+.dg-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.dg-lines { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.dg-edge { fill: none; stroke: var(--hair); stroke-width: 1.6; vector-effect: none; }
+.dg-edge.dg-alias-edge { stroke: var(--brass); stroke-dasharray: 5 4; }
+.dg-edge.dg-lit { stroke: var(--seal); stroke-width: 2; }
+
+.dg-box { position: absolute; left: 0; top: 0; overflow: hidden; border: 1px solid var(--hair); border-radius: 7px; background: var(--paper-2); color: var(--ink); font: 12px/22px var(--mono); cursor: default; outline: none; }
+.dg-box:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }
+.dg-box.dg-sel { border-color: var(--seal); }
+.dg-box.dg-caret-box { box-shadow: 0 0 0 2px var(--brass); }
+.dg-head { display: flex; align-items: center; gap: .35rem; height: 28px; padding: 0 .4rem; background: var(--paper-3); border-bottom: 1px solid var(--hair); cursor: grab; white-space: nowrap; overflow: hidden; }
+.dg-box:not(:has(.dg-rows)) .dg-head { border-bottom: 0; }
+.dg-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.dg-count { margin-left: auto; color: var(--ink-3); font-size: 11px; flex: none; }
+.dg-badge { flex: none; color: var(--brass-ink); background: var(--brass-wash); border-radius: 4px; padding: 0 .3rem; font-size: 10.5px; line-height: 16px; }
+.dg-fold { flex: none; display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; padding: 0; border-radius: 4px; color: var(--ink-2); }
+.dg-fold:hover { background: var(--paper); color: var(--ink); }
+.dg-fold .icon { width: 12px; height: 12px; transition: transform .15s var(--ease-out); }
+.dg-fold.open .icon { transform: rotate(90deg); }
+.dg-rows { padding: 3px 0; user-select: text; -webkit-user-select: text; }
+.dg-row { display: flex; gap: .5rem; align-items: baseline; height: 22px; padding: 0 .5rem; white-space: nowrap; overflow: hidden; cursor: default; }
+.dg-row:hover { background: var(--paper-3); }
+.dg-key { flex: none; color: var(--brass-ink); }
+.dg-val { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dg-t-string .dg-val { color: var(--ink); }
+.dg-t-number .dg-val { color: var(--seal); }
+.dg-t-boolean .dg-val, .dg-t-null .dg-val, .dg-t-other .dg-val { color: var(--ink-2); font-style: italic; }
+.dg-t-container .dg-val, .dg-t-alias .dg-val { color: var(--ink-3); }
+.dg-t-error .dg-val { color: var(--seal); }
+.dg-alias { color: var(--brass-ink); }
+.dg-cut, .dg-more { flex: none; color: var(--ink-2); border-radius: 4px; padding: 0 .3rem; line-height: 18px; font: inherit; }
+.dg-more { display: block; width: 100%; text-align: left; padding: 0 .5rem; height: 22px; color: var(--ink-3); }
+.dg-cut:hover, .dg-more:hover { background: var(--paper); color: var(--ink); }
+.dg-row.dg-hit { background: var(--selection); }
+.dg-row.dg-current { background: var(--brass-wash); outline: 1.5px solid var(--brass-ink); outline-offset: -1.5px; }
+.dg-row.dg-caret { box-shadow: inset 3px 0 0 var(--brass); }
+.dg-row.dg-selrow { background: var(--seal-wash); }
+
+.dg-full { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(40rem, 90%); max-height: 60%; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; z-index: 5; padding: .6rem; gap: .5rem; }
+.dg-full-text { flex: 1; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; font: 12px/1.5 var(--mono); user-select: text; -webkit-user-select: text; }
+.dg-full-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+
+.dg-save-box { display: flex; flex-direction: column; gap: .7rem; padding: 1rem; max-width: 28rem; }
+.dg-save-title { margin: 0; font-size: 1.05rem; }
+.dg-save-field { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; color: var(--ink-2); }
+.dg-save-field input, .dg-save-field select { font: inherit; padding: .35rem .5rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.dg-save-preview { margin: 0; font-size: .82rem; color: var(--ink-2); }
+.dg-save-problem { margin: 0; min-height: 1.2em; font-size: .82rem; color: var(--seal); }
+
+.dg-view-btn { right: 2.2rem; }
+.preview pre .dg-view-btn { right: 4.4rem; }
+.cm-lp-diagram-btn { right: 2.4rem; }
+pre:hover .dg-view-btn, .editor:hover .cm-lp-diagram-btn, .dg-view-btn:focus-visible, .cm-lp-diagram-btn:focus-visible { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dg-fold .icon { transition: none; }
+}
+
+/* A narrow pane (a phone, a thin split): one slim row of icon buttons, the
+   rest in the "…" menu; the search opens over the row. Targets are 44px on a
+   finger. A card on a board keeps its own small bar. */
+.dg-c-only { display: none; }
+.dg-hint { display: flex; align-items: center; gap: .5rem; }
+.dg-hint[hidden] { display: none; }
+.dg-hint-text { flex: 1; min-width: 0; }
+.dg:not(.dg-compact) .dg-hint-close { display: none; }
+.dg-compact .dg-bar { flex-wrap: nowrap; gap: .2rem; padding: .25rem .4rem; min-height: 40px; }
+.dg-compact .dg-c-only { display: inline-flex; align-items: center; justify-content: center; }
+.dg-compact .dg-w-only { display: none; }
+.dg-compact .dg-actions > button { flex: none; }
+.dg-compact .dg-actions { flex: 1; flex-wrap: nowrap; justify-content: flex-end; gap: .1rem; }
+.dg-compact .dg-find { display: none; }
+.dg-compact .dg-bar > .dg-search-open { margin-right: auto; }
+.dg-compact .dg-actions > button, .dg-compact .dg-bar > button, .dg-compact .dg-find > button { min-width: 36px; min-height: 36px; padding: 0; justify-content: center; }
+.dg-compact .dg-hint { font-size: .72rem; padding: .1rem .4rem .1rem .7rem; }
+.dg-compact .dg-hint-close { min-width: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.dg-compact.dg-searching .dg-find { display: flex; flex: 1; flex-wrap: nowrap; min-width: 0; }
+.dg-compact.dg-searching .dg-search { flex: 1; min-width: 0; font-size: 1rem; min-height: 36px; }
+.dg-compact.dg-searching .dg-matches { min-width: 0; font-size: .72rem; }
+.dg-compact.dg-searching .dg-actions, .dg-compact.dg-searching .dg-bar > .dg-search-open { display: none; }
+@media (pointer: coarse) {
+  .dg-compact .dg-actions > button, .dg-compact .dg-bar > button, .dg-compact .dg-find > button, .dg-compact .dg-hint-close { min-width: 44px; min-height: 44px; }
+  .dg-compact .dg-bar { padding: .1rem .3rem; min-height: 48px; }
+  .dg-compact.dg-searching .dg-search { min-height: 44px; }
+}

@@ -14,7 +14,9 @@
 
 import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
+import { watchDeskOnPhone } from "./deskOnPhone";
 import { mayShare, openShareDialog } from "./shares";
+import { campaignRootItems, hearCampaign } from "./campaign";
 import { sh } from "./shareStrings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -23,8 +25,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView } from "codemirror";
 import { commands, type FolderChanged, type IndexProgress } from "./bindings";
 import { CARD_COMMAND } from "./board/command";
+import "./statblock/bestiaryHost";
 import { changedOutside, flushed, remoteContentChanged, whenNotRenaming } from "./changes";
-import { arrowResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
+import { arrowResize, dragResize, lesson, narrow, paintExpanded, paintToggles, rightDivider, sideDivider, toggleRight, toggleRightButton, toggleSide, toggleSideButton } from "./chrome";
 import { ask } from "./dialog";
 import { dialogUp } from "./dialogs/a11y";
 import { BugDialog } from "./dialogs/bug";
@@ -35,14 +38,19 @@ import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
-import { installFrame } from "./frame";
+import { frameMenuButton, installFrame } from "./frame";
+import { initZoom } from "./zoom";
+import { installStatusLive } from "./statusLive";
 import { installLongPress } from "./touch";
 import { installPreview } from "./preview/install";
 import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
+import { installServerTable } from "./table/join";
+import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
+import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
@@ -50,17 +58,29 @@ import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
+import { installMenuBar } from "./menuBar";
+import { installWinMenu } from "./winMenu";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
 import { Layout } from "./layout/layout";
 import { Pane } from "./layout/pane";
 import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, spaces, spaceTabs } from "./layout/spaces";
 import { folderSort, setFolderSort } from "./leaves/folderView";
+import { syncDataView } from "./leaves/data";
 import { NoteLeaf } from "./leaves/note";
+import { onLayoutsChanged } from "./statblock/store";
+import { wireFolderLayouts } from "./statblock/folderWire";
+import { openLayoutBuilder, setLayoutEditorSources } from "./statblock/builder";
+import { statblockFences } from "./statblock/edit";
+import { readSheet } from "./statblock/sheet";
+import { S } from "./statblock/strings";
+import { allLayouts } from "./statblock/store";
 import { TextLeaf } from "./leaves/textfile";
-import { embedViews, syncEmbedViews, syncWebViews, webLeaves } from "./leaves/web";
-import { createMenuItems, menu, MenuItem, menuOpener, showMenu } from "./menu";
+import { embedViews, syncEmbedViews, syncWebViews, watchEmbedLayout, webLeaves } from "./leaves/web";
+import { createMenuItems, menu, MenuItem, menuKeydown, showMenu, trackMenuPointer } from "./menu";
 import { joinAsPopout, openFolderBy, openFolderDialog, showFolder } from "./open";
+import { handedRefused, isLoose, looseChangedOutside, openOpened, rejoinLoose } from "./loose";
+import { handedRefusedText } from "./looseStrings";
 import { folderNoteOf, pushFolderNoteName } from "./organize/folderNotes";
 import { orderMenuItems, orderModeChanged, paintOrderToggle } from "./organize/order";
 import { FocusSwitcher } from "./panel/focusSwitcher";
@@ -71,13 +91,21 @@ import { handleIndexProgress } from "./progress";
 import { watchWindow } from "./report";
 import { Ribbon } from "./ribbon";
 import { configureEmbeds } from "./sanitize";
+import { frameable } from "./screen/framed";
 import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
-import { giveBack } from "./side";
+import { importDemoVault } from "./demo";
 import { pt, t } from "./strings";
-import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
+import { installTreeKeys } from "./tree/aria";
+import { collapseAll, collapsed, listAll } from "./tree/tree";
 import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
+import { importFile } from "./theme/actions";
+import { installDropHost } from "./dropHost";
+import { watchSuggestion } from "./theme/suggest";
+
+watchDeskOnPhone();
+watchSuggestion();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 watchWindow();
@@ -89,12 +117,15 @@ pushHistoryDays();
 const folderNoteNamePushed = pushFolderNoteName();
 pushMenuLanguage();
 configureEmbeds({
-  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel },
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel, approveAnyway: t.embedApproveAnyway, approveFailed: t.embedApproveFailed,
+    // A getter: which platform this is is known only after loadCan().
+    get unframed() { return can("web_views") ? t.embedUnframed : t.embedUnframedBrowser; }, unframedBoard: t.embedUnframedBoard },
   approve: async (origin) => {
     if (!settings.embedOrigins.includes(origin)) settings.embedOrigins = [...settings.embedOrigins, origin];
     saveSettings();
     return pushEmbedOrigins();
   },
+  frameable,
 });
 if (popout) document.body.classList.add("popout");
 try {
@@ -150,16 +181,13 @@ document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
   const pane = layout().focused ?? layout().panes()[0];
-  const leaf = layout().activeLeaf;
   switch (b.dataset["cmd"]) {
     case "new": void newUntitled(pane ?? paneToOpenIn()); break;
-    case "edit": if (leaf instanceof NoteLeaf) leaf.toggleMode(); break;
     case "split": if (pane) layout().split(pane, "row"); break;
     case "space": newSpace(); break;
     case "palette": paletteDialog.show(); break;
   }
 });
-el("keys-edit").textContent = t.keysEdit;
 el("keys-split").textContent = t.keysSplit;
 el("keys-space").textContent = t.keysSpace;
 /** The ribbon, once built (the toggles repaint it; they run before it exists). */
@@ -178,20 +206,19 @@ document.addEventListener("dragover", (e) => {
   folder?.classList.add("drop");
 });
 document.addEventListener("dragleave", () => clearDropHints());
-document.addEventListener("drop", (e) => {
-  e.preventDefault();
-  const files = e.dataTransfer?.files ?? null;
-  if (!files || files.length === 0) return;
-  const at = e.target as HTMLElement;
-  if (at.closest(".side")) {
-    void copyFilesInto(at.closest<HTMLElement>("[data-folder]")?.dataset["folder"] ?? "", files);
-    return;
-  }
-  const leafEl = at.closest<HTMLElement>(".leaf");
-  const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
-  if (leaf instanceof NoteLeaf) leaf.takeFiles(files, e);
-  else ui.status.textContent = t.pasteHint;
-});
+document.addEventListener("drop", (e) =>
+  windowDrop(e, {
+    // A theme file dropped anywhere on the window (ADR 0100 item 6).
+    theme: (file) => void importFile(file),
+    folder: (folder, files) => void copyFilesInto(folder, files),
+    leaf: (leafEl, files) => {
+      const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+      if (!(leaf instanceof NoteLeaf)) return "none";
+      return leaf.takeFiles(files, e);
+    },
+    hint: () => void (ui.status.textContent = t.pasteHint),
+  }),
+);
 
 /* A link never takes the app's own page anywhere — the page holds every
  * open tab. A web address opens in the app's browser window; anything
@@ -212,6 +239,7 @@ window.addEventListener("resize", syncEmbedViews);
 document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
 // New boxes appear after async renders; a cheap sweep catches them.
 window.setInterval(syncEmbedViews, 700);
+watchEmbedLayout();
 // A window moved to a screen of another scale keeps its CSS size, and the
 // host places the pages in device pixels (app/src-tauri/src/web_clip).
 const watchScale = (): void =>
@@ -237,6 +265,7 @@ updateLeavesLineNumbers = () => {
           l.applyLineNumbers();
           if (l.mode === "preview") {
             l.previewStale = true;
+            l.forcePaint = true;
             l.paintPreview();
           }
         } else if (l instanceof TextLeaf) {
@@ -246,6 +275,45 @@ updateLeavesLineNumbers = () => {
     }
   }
 };
+const repaintNotes = (): void => {
+  for (const sp of spaces) {
+    for (const p of sp.layout.panes()) {
+      for (const l of p.leaves) {
+        if (l instanceof NoteLeaf) {
+          l.repaint();
+        }
+      }
+    }
+  }
+};
+window.addEventListener("verso:features-changed", repaintNotes);
+// "Data diagram" switched (ADR 0106 item 12): the open tabs follow at once.
+window.addEventListener("verso:features-changed", () => {
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of [...p.leaves]) syncDataView(l);
+});
+// The folder's statblock layouts read or written (ADR 0099 item 2): every
+// card drawn again with them.
+onLayoutsChanged(repaintNotes);
+// Read from the folder each time one is shown (folderData.ts).
+wireFolderLayouts();
+// The layout editor draws its card from the open note's statblocks; a
+// card's "Edit this layout" opens it on that card's layout (ADR 0099 item 8).
+const statblockName = (text: string, n: number): string => {
+  const r = readSheet(text);
+  const name = r.ok ? r.sheet["name"] : undefined;
+  return typeof name === "string" && name.trim() ? name.trim().slice(0, 80) : `${S.card} ${n}`;
+};
+setLayoutEditorSources(() => {
+  const leaf = layout().activeLeaf;
+  if (!(leaf instanceof NoteLeaf)) return [];
+  return statblockFences(leaf.editor.state.doc.toString()).slice(0, 30).map((f, i) => ({ label: statblockName(f.text, i + 1), text: f.text }));
+});
+window.addEventListener("verso:edit-statblock-layout", (e) => {
+  const d = (e as CustomEvent<{ id?: string; text?: string; name?: string }>).detail;
+  const stored = allLayouts().find((s) => s.layout.id === d?.id);
+  if (!stored) return;
+  void openLayoutBuilder(stored, undefined, d.text ? { label: d.name || statblockName(d.text, 1), text: d.text } : undefined);
+});
 newSpaceButton.addEventListener("click", () => newSpace());
 /** The current workspace's layout. Before a folder is open there is no
  *  workspace, and an empty layout answers (no pane, nothing focused)
@@ -286,23 +354,8 @@ window.addEventListener("storage", (e) => {
 menu.hidden = true;
 menu.setAttribute("role", "menu");
 document.body.append(menu);
-menu.addEventListener("keydown", (e) => {
-  const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
-  const i = items.indexOf(document.activeElement as HTMLButtonElement);
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    e.preventDefault();
-    items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
-  } else if (e.key === "Home" || e.key === "End") {
-    e.preventDefault();
-    (e.key === "Home" ? items[0] : items[items.length - 1])?.focus();
-  } else if (e.key === "Escape" || e.key === "Tab") {
-    // Closed, the menu gives the focus back to what opened it: Tab from
-    // the last item used to leave it on the page.
-    e.preventDefault();
-    menu.hidden = true;
-    giveBack(menuOpener);
-  }
-});
+menu.addEventListener("keydown", menuKeydown);
+trackMenuPointer();
 document.addEventListener("mousedown", (e) => {
   if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
 });
@@ -316,30 +369,7 @@ document.addEventListener(
   },
   true,
 );
-ui.notes.addEventListener("keydown", (e) => {
-  if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
-  const row = e.target as HTMLElement;
-  const rows = treeRows();
-  const i = rows.indexOf(row);
-  if (i < 0) return;
-  const folder = row.tagName === "SUMMARY" && row.parentElement instanceof HTMLDetailsElement ? row.parentElement : null;
-  let to: HTMLElement | null | undefined = null;
-  if (e.key === "ArrowDown") to = rows[i + 1];
-  else if (e.key === "ArrowUp") to = rows[i - 1];
-  else if (e.key === "Home") to = rows[0];
-  else if (e.key === "End") to = rows[rows.length - 1];
-  else if (e.key === "ArrowRight" && folder) {
-    if (!folder.open) {
-      folder.open = true;
-      (folder as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
-    } else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
-  } else if (e.key === "ArrowLeft") {
-    if (folder?.open) folder.open = false;
-    else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
-  } else return;
-  e.preventDefault();
-  to?.focus();
-});
+installTreeKeys();
 export const quick = new QuickSwitcher();
 export const paletteDialog = new Palette();
 export const replaceDialog = new ReplaceDialog();
@@ -364,11 +394,21 @@ document.addEventListener("mousedown", (e) => {
   // A menu a row of the drawer opened, and the phone's own toggle (ADR
   // 0076 item 6), leave it open.
   if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side, .bar-files, .menu")) document.body.classList.remove("side-open");
-  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
+  // The table's sheet stays open under what it opens itself: an entry's menu,
+  // the question that clears the table, an image opened large, the note picker
+  // and the roller (ADR 0107).
+  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right, .bar-right, .menu, .confirm, .table-lightbox, .quick")) document.body.classList.remove("right-open");
   paintExpanded();
 });
 toggleSideButton.addEventListener("click", toggleSide);
 toggleRightButton.addEventListener("click", toggleRight);
+// The drawer's own way out on a phone: a named close, as the side's.
+const rightClose = el<HTMLButtonElement>("right-close");
+el("right-title").textContent = t.rightPanel;
+rightClose.replaceChildren(icon("close", t.hideRight));
+rightClose.title = t.hideRight;
+rightClose.setAttribute("aria-label", t.hideRight);
+rightClose.addEventListener("click", toggleRight);
 try {
   if (localStorage.getItem("verso.right") === "true") {
     document.body.classList.remove("no-right");
@@ -380,26 +420,39 @@ paintToggles();
 // No title bar on macOS and Windows: the window's corner and its drag
 // regions (ADR 0072).
 installFrame();
-rightDivider.addEventListener("pointerdown", (e) => {
-  rightDivider.setPointerCapture(e.pointerId);
-  const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);
-  const up = () => { rightDivider.removeEventListener("pointermove", move); rightDivider.removeEventListener("pointerup", up); };
-  rightDivider.addEventListener("pointermove", move);
-  rightDivider.addEventListener("pointerup", up);
-});
+initZoom();
+installStatusLive(ui.status);
+/** The right bar's width, kept for the next start (the left bar's is kept the same way). */
+function rememberRight(w: number): void {
+  try {
+    localStorage.setItem("verso.rightWidth", String(Math.round(w)));
+  } catch {
+    // No storage.
+  }
+}
+dragResize(rightDivider, "--right-w", (x) => Math.min(Math.max(window.innerWidth - x, 180), window.innerWidth * 0.5), rememberRight);
 ribbon = new Ribbon(ui.ribbon);
 keyHint(ui.open, t.open, "open-folder");
 keyHint(newSpaceButton, t.newSpace, "new-space");
 keyHint(toggleSideButton, t.toggleSide, "toggle-side");
 keyHint(toggleRightButton, t.toggleRight, "toggle-right");
 paintKeyHints();
+paintExpanded();
 // The phone's frame, the keyboard's bar and what the side cannot do
 // (ADR 0076).
 installScreen();
 // Notifications (ADR 0084): the bells, the centre, where each kind comes
 // from.
 installNotify(() => settingsDialog.show("notify"));
+installDropHost();
 installSources();
+installServerTable();
+window.addEventListener("verso:open-statblock-settings", () => {
+  settingsDialog.show("statblocks");
+});
+window.addEventListener("verso:open-oracle-settings", () => {
+  settingsDialog.show("oracles");
+});
 
 // The folder button opens the folder switcher (ADR 0081 item 5): wired,
 // it is no longer busy (a click made before is made again, `web.ts`).
@@ -414,13 +467,15 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
   const rootNote = folderNoteOf("");
   const items: MenuItem[] = [
     ...createMenuItems(""),
+    ...(mayHere() ? [sep, [t.importDemoVault, () => void importDemoVault(), "template"] as MenuItem] : []),
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
+    ...campaignRootItems(),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
-    ...(can("write") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
+    ...(may("", "delete") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });
@@ -493,30 +548,21 @@ arrowResize(sideDivider, "--side-w", () => document.querySelector(".side")?.getB
     // No storage.
   }
 });
-arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 260, -1);
+arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 320, -1, rememberRight);
 try {
   const w = localStorage.getItem("verso.sideWidth");
   if (w) document.body.style.setProperty("--side-w", `${Number(w)}px`);
+  const r = Number(localStorage.getItem("verso.rightWidth"));
+  if (r >= 180) document.body.style.setProperty("--right-w", `${Math.min(r, window.innerWidth * 0.5)}px`);
 } catch {
   // No storage.
 }
-sideDivider.addEventListener("pointerdown", (e) => {
-  sideDivider.setPointerCapture(e.pointerId);
-  const move = (ev: PointerEvent) => {
-    const w = Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5);
-    document.body.style.setProperty("--side-w", `${w}px`);
-  };
-  const up = (ev: PointerEvent) => {
-    sideDivider.removeEventListener("pointermove", move);
-    sideDivider.removeEventListener("pointerup", up);
-    try {
-      localStorage.setItem("verso.sideWidth", String(Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5)));
-    } catch {
-      // No storage.
-    }
-  };
-  sideDivider.addEventListener("pointermove", move);
-  sideDivider.addEventListener("pointerup", up);
+dragResize(sideDivider, "--side-w", (x) => Math.min(Math.max(x, 180), window.innerWidth * 0.5), (w) => {
+  try {
+    localStorage.setItem("verso.sideWidth", String(w));
+  } catch {
+    // No storage.
+  }
 });
 
 function flushAll(): void {
@@ -561,6 +607,7 @@ void listen("quit-requested", async () => {
     const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
     if (!(await ask(`${t.closeUnsaved}\n${names}`, { yes: t.closeAnyway, no: t.cancel }))) return;
   }
+  void commands.logWrite("INFO", `close ${getCurrentWindow().label}: quit-requested, the window saved and closes`).catch(() => undefined);
   await getCurrentWindow().destroy();
 });
 
@@ -634,7 +681,17 @@ if (!popout) void listen<[string, string]>("open-note", (e) => {
  * keeps it and names the window with no folder that takes it; that window
  * opens it. */
 if (!popout) void listen<string>("folder-handed", (e) => {
-  if (e.payload === getCurrentWindow().label) void openFolderBy(() => commands.openInitial());
+  if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
+});
+/* A Markdown file handed to the app (ADR 0114 item 7): the host names the
+ * loose-files window, which opens it as a tab. */
+if (!popout) void listen<string>("file-handed", (e) => {
+  if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
+});
+/* Something handed that is neither a folder nor a Markdown file (ADR 0114
+ * item 6): said in words, the window stays as it was. */
+if (!popout) void listen<[string, string, string]>("handed-refused", (e) => {
+  if (e.payload[0] === getCurrentWindow().label) handedRefused(e.payload[1], e.payload[2], handedRefusedText);
 });
 /* The app menu (File › Open Folder…, Settings… ⌘,): the host names the
  * window in focus, which answers as its own button and command do. */
@@ -651,6 +708,11 @@ export function openConsole(): void {
   if (settings.devtools) void commands.openDevtools();
   else ui.status.textContent = t.devtoolsOff;
 }
+if (!popout) installMenuBar();
+/* Windows and Linux: the menu in the window's corner (ADR 0072, decided
+ * 2026-10-22), the Mac bar's menus from the same spec. */
+const winMenuButton = frameMenuButton();
+if (!popout && winMenuButton) installWinMenu(winMenuButton);
 void listen<string>("menu-devtools", (e) => {
   if (e.payload === getCurrentWindow().label) openConsole();
 });
@@ -660,6 +722,7 @@ void listen<string>("menu-devtools", (e) => {
 export function closeWhereNoTab(pane: Pane | null): void {
   if (pane && layout().paneCount() > 1) return layout().remove(pane);
   if (spaces.some((sp) => sp.layout.panes().some((p) => p.leaves.length > 0))) return;
+  void commands.logWrite("INFO", `close ${getCurrentWindow().label}: closeWhereNoTab (⌘W with no tab left)`).catch(() => undefined);
   void getCurrentWindow().close();
 }
 void listen<string>("menu-close-tab", (e) => {
@@ -678,6 +741,12 @@ void listen<[string, string]>("menu-edit", (e) => {
   // A site shown in this window has the focus: the host runs the command
   // there, and nothing here acts behind it.
   if (!document.hasFocus()) return;
+  runEditCommand(command);
+});
+/** The Edit menu's Undo, Redo and Select All where the focus is (the Mac's
+ *  items through the host's `menu-edit`; the in-window menu of Windows and
+ *  Linux, `winMenu.ts`, directly). */
+export function runEditCommand(command: string): void {
   const active = document.activeElement;
   const field =
     active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
@@ -718,10 +787,12 @@ void listen<[string, string]>("menu-edit", (e) => {
     return;
   }
   if (typing || command === "select-all") document.execCommand(command === "select-all" ? "selectAll" : command);
-});
+}
 /** The input types text is typed in, which take the web view's Undo. */
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
-void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+void listen<FolderChanged>("folder-changed", (e) => void (isLoose() ? looseChangedOutside(e.payload) : changedOutside(e.payload)));
+hearAccess();
+hearCampaign();
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
@@ -747,8 +818,11 @@ export const started: Promise<void> = (async () => {
   // window joins it rather than open another.
   const open = await commands.currentFolder();
   if (open.status === "ok" && open.data) return void (await showFolder(open.data));
-  // `verso <folder>` on the command line wins over the last folder.
-  if (await openFolderBy(() => commands.openInitial())) return;
+  // A reload of the loose-files window finds its files still open.
+  if (await rejoinLoose()) return;
+  // `verso <folder>` (or a Markdown file, ADR 0114) on the command line
+  // wins over the last folder.
+  if (await openOpened(() => commands.openInitial())) return;
   // A window opened later starts on the start page, to open a folder of
   // its own (ADR 0065): the last folder is the main window's.
   if (secondary) return;
@@ -769,4 +843,4 @@ export const started: Promise<void> = (async () => {
 // What Leaf (leaves/leaf.ts) uses of the layout, through the entry (ADR 0067).
 export { armDrag } from "./layout/drag";
 export { landIn } from "./layout/pane";
-export { persistSoon } from "./layout/spaces";
+export { persistSoon, openNote } from "./layout/spaces";

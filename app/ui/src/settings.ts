@@ -5,10 +5,19 @@
 import { commands, type Focus } from "./bindings";
 import { fail } from "./errors";
 import { currentFolder } from "./folder";
+import { type DiceLook, readDiceLook } from "./dice3d/look";
+import { allOn, type Features, migratePreset, readFeatures } from "./featureList";
 import { updateLeavesLineNumbers } from "./main";
 import { allowEmbedOrigins, allowRemoteContent } from "./sanitize";
 import { t } from "./strings";
+import { applyLook } from "./theme/apply";
+import { readLook, readLookCredit } from "./theme/look";
+import { type Measure, measureAttr, noteScale, readMeasure } from "./textSettings";
+import { readProfiles, type Profile } from "./theme/profiles";
+import { enter, readFolderThemes, reset, toStorage, type Slice } from "./theme/scope";
+import { fontAllowed, type InspiredBy, type Look } from "./theme/tokens";
 
+export type { Measure };
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
 /** How dark the dark theme is (css/base.css, `--dk-lift`). */
@@ -21,6 +30,9 @@ export type Settings = {
   fontSize: number;
   attachments: string;
   autosave: number;
+  /** The most megabytes of one file "Import files…" takes (1 to 1024;
+   *  Settings › Files and links, I.1b decided 2026-10-21). */
+  importMaxMb: number;
   daily: string;
   templates: string;
   spellcheck: boolean;
@@ -39,7 +51,9 @@ export type Settings = {
   /** The note a link names shown where the pointer rests (ADR 0085 item 8). */
   hoverPreview: boolean;
   defaultMode: "preview" | "live";
-  measure: "normal" | "wide";
+  /** The text width: "theme" follows the theme's `line-width` (or the
+   *  window's standard), the others are the person's own and win over it. */
+  measure: Measure;
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
   /** What "Add to Claude Desktop" writes (ADR 0054, 2026-10-08): this
@@ -67,6 +81,18 @@ export type Settings = {
   mapTileOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
+  /** The appearance wizard (ADR 0100): the colours and fonts the person
+   *  changed, for light and dark; empty, the stylesheet's own. Saved looks
+   *  by name, and the last one applied. Never written into a folder. */
+  look?: Look;
+  looks?: Profile[];
+  lookName?: string;
+  /** The credit of the theme in force, when it was inspired by another (ADR 0109 item 5). */
+  lookCredit?: InspiredBy;
+  /** The themes chosen for single folders, by folder key (ADR 0100 item 4, amended 2026-10-27): the person's, never the folder's. A folder without one uses the fields above. */
+  folderThemes?: Record<string, Slice>;
+  /** The catalogue themes used lately, newest first (file names; ADR 0109): the gallery keeps them at hand to use and copy. */
+  lookRecent?: string[];
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
   /** Boards (ADR 0057, 2026-09-30). */
@@ -76,6 +102,7 @@ export type Settings = {
   boardStroke: "clean" | "hand";
   boardFont: "hand" | "sans" | "mono";
   boardGrid: boolean;
+  boardDoubleClick: "card" | "drawn";
   /** View › Open console, the window's inspector (ADR 0051, 2026-09-30). */
   devtools: boolean;
   /** A single click in a list opens a preview tab (2026-09-30). */
@@ -95,9 +122,19 @@ export type Settings = {
    *  off unless the person turns it on, with the folders and the names
    *  never suggested. The person's layer, never written into a folder. */
   suggestLinks: boolean;
+  /** Letters of the word being typed before the list of partial names
+   *  appears (ADR 0089 item 5, 2026-10-20): 1 to 10, 3 by default. */
+  suggestMinLetters: number;
+  /** The list only for a word that begins with a capital letter; on by default. */
+  suggestCapitalOnly: boolean;
+  /** `@` opens the note list and writes `[[Name]]` (ADR 0089 item 5, 2026-10-20); on by default. */
+  mentionAt: boolean;
   suggestIgnoreFolders: string[];
   suggestIgnoreNames: string[];
   hiddenFromTree: Record<string, string[]>;
+  /** Keys of the recent folders taken off the folder switcher's list (T.10,
+   *  2026-10-22); Settings › Files shows them again. This device only. */
+  hiddenFolders: string[];
   syncFocuses: Record<string, boolean>;
   syncFocusesAsked: Record<string, boolean>;
   localFocuses: Record<string, Focus[]>;
@@ -109,8 +146,22 @@ export type Settings = {
    *  "toast" ("Aviso e lista"), "list" ("Só na lista") or "off"; a kind
    *  not named here is "Aviso e lista". */
   notify: Partial<Record<string, "toast" | "list" | "off">>;
+  /** The optional features' switches (ADR 0103, revised 2026-10-20): all
+   *  on unless the person turned one off; the person's layer, never a
+   *  folder's. */
+  features: Features;
+  /** How the 3D dice look and how big they are (ADR 0101, appearance):
+   *  this device only. */
+  dice3dLook?: DiceLook;
+  /** Others' rolls fall in 3D on this screen too, in the roller's dice
+   *  when they come with them (ADR 0107 item 11); on unless turned off. */
+  others3d?: boolean;
+  /** The table's chime for another person's message or roll (ADR 0107, 2026-10-23): "off", "soft" (the default), "bell" or "pop"; its volume 0-100. */
+  tableChime?: "off" | "soft" | "bell" | "pop";
+  tableVolume?: number;
 };
 export const DEFAULTS: Settings = {
+  features: allOn(),
   lang: "auto",
   theme: "auto",
   palette: "paper",
@@ -118,6 +169,7 @@ export const DEFAULTS: Settings = {
   fontSize: 15,
   attachments: "assets",
   autosave: 1.5,
+  importMaxMb: 32,
   daily: t.dailyName,
   templates: t.templatesName,
   spellcheck: true,
@@ -129,7 +181,7 @@ export const DEFAULTS: Settings = {
   enterNewBlock: false,
   hoverPreview: true,
   defaultMode: "preview",
-  measure: "normal",
+  measure: "theme",
   linkFormat: "shortest",
   remoteContent: true,
   mcpMode: "folder",
@@ -149,6 +201,7 @@ export const DEFAULTS: Settings = {
   boardStroke: "hand",
   boardFont: "hand",
   boardGrid: false,
+  boardDoubleClick: "card",
   devtools: true,
   previewTabs: true,
   stickers: true,
@@ -162,15 +215,24 @@ export const DEFAULTS: Settings = {
   inlineEmbedEdit: true,
   emojiTrigger: true,
   suggestLinks: false,
+  suggestMinLetters: 3,
+  suggestCapitalOnly: true,
+  mentionAt: true,
   suggestIgnoreFolders: [],
   suggestIgnoreNames: [],
   hiddenFromTree: {},
+  hiddenFolders: [],
   syncFocuses: {},
   syncFocusesAsked: {},
   localFocuses: {},
   liveTogether: {},
   notify: {},
 };
+/** The letters before the partial list: a whole number from 1 to 10, else 3. */
+export function clampMinLetters(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : 3;
+  return Math.min(10, Math.max(1, n));
+}
 export let settings: Settings = { ...DEFAULTS };
 export function loadSettings(): void {
   try {
@@ -187,22 +249,73 @@ export function loadSettings(): void {
       for (const key of ["suggestIgnoreFolders", "suggestIgnoreNames"] as const) {
         settings[key] = Array.isArray(settings[key]) ? settings[key].filter((v) => typeof v === "string") : [];
       }
+      settings.measure = readMeasure(parsed.measure);
+      settings.look = readLook(parsed.look);
+      settings.looks = readProfiles(parsed.looks);
+      if (typeof settings.lookName !== "string") delete settings.lookName;
+      const credit = readLookCredit(parsed.lookCredit);
+      if (credit && settings.lookName !== undefined) settings.lookCredit = credit;
+      else delete settings.lookCredit;
+      const own = readFolderThemes(parsed.folderThemes, readSlice);
+      if (Object.keys(own).length > 0) settings.folderThemes = own;
+      else delete settings.folderThemes;
+      settings.lookRecent = Array.isArray(parsed.lookRecent)
+        ? parsed.lookRecent.filter((f: unknown): f is string => typeof f === "string" && /^[a-z0-9][a-z0-9-]*\.verso-theme$/.test(f)).slice(0, 4)
+        : [];
       settings.suggestLinks = settings.suggestLinks === true;
+      settings.mentionAt = settings.mentionAt !== false;
+      settings.suggestCapitalOnly = settings.suggestCapitalOnly !== false;
+      settings.suggestMinLetters = clampMinLetters(settings.suggestMinLetters);
       settings.mapTileOrigins = settings.mapTileOrigins.filter((o) => typeof o === "string");
       if (typeof settings.mapTiles !== "string") settings.mapTiles = "";
       if (typeof settings.mapTilesDark !== "string") settings.mapTilesDark = "";
       if (settings.mcpMode !== "all") settings.mcpMode = "folder";
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
+      settings.hiddenFolders = Array.isArray(settings.hiddenFolders) ? settings.hiddenFolders.filter((k) => typeof k === "string") : [];
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
       if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
       if (!settings.notify || typeof settings.notify !== "object" || Array.isArray(settings.notify)) settings.notify = {};
+      // The old usage mode, as the switches it stood for (2026-10-20).
+      const oldPreset = (parsed as { preset?: unknown }).preset;
+      settings.features = parsed.features === undefined && oldPreset !== undefined ? migratePreset(oldPreset) : readFeatures(parsed.features);
+      delete (settings as { preset?: unknown }).preset;
+      settings.dice3dLook = readDiceLook(parsed.dice3dLook);
+      if (typeof settings.others3d !== "boolean") delete settings.others3d;
+      if (!["off", "soft", "bell", "pop"].includes(settings.tableChime as string)) delete settings.tableChime;
+      if (typeof settings.tableVolume !== "number" || !Number.isFinite(settings.tableVolume)) delete settings.tableVolume;
     }
   } catch {
     settings = { ...DEFAULTS };
   }
   sourceNumbersWere = settings.lineNumbersSource;
+  // The open folder's own theme, when it has one, is laid over the default.
+  reset();
+  enter(settings, currentFolder);
+  applySettings();
+  // The window's theme panel shows whose theme is in force: it asks again.
+  dispatchEvent(new Event("verso:look"));
+}
+/** A folder's theme as the settings file held it: known values only. */
+function readSlice(raw: unknown): Slice | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const out: Slice = {};
+  if (r["theme"] === "auto" || r["theme"] === "light" || r["theme"] === "dark") out.theme = r["theme"];
+  if (typeof r["palette"] === "string" && (["paper", "sepia", "slate", "moss"] as readonly string[]).includes(r["palette"])) out.palette = r["palette"];
+  if (r["look"] !== undefined) out.look = readLook(r["look"]);
+  if (fontAllowed("--heading-font", r["headingFont"])) out.headingFont = r["headingFont"] as string;
+  if (typeof r["lookName"] === "string") {
+    out.lookName = r["lookName"];
+    const credit = readLookCredit(r["lookCredit"]);
+    if (credit) out.lookCredit = credit;
+  }
+  return out;
+}
+/** A folder opened (or closed) in this window: its own theme, if it has one, shows. */
+export function enterFolderTheme(): void {
+  enter(settings, currentFolder);
   applySettings();
 }
 /** Line numbers in Source mode: on a phone (under 760 px) only when the
@@ -219,7 +332,7 @@ export function saveSettings(): void {
   if (sourceNumbersWere !== null && settings.lineNumbersSource !== sourceNumbersWere) settings.lineNumbersSourceChosen = true;
   sourceNumbersWere = settings.lineNumbersSource;
   try {
-    localStorage.setItem("verso.settings", JSON.stringify(settings));
+    localStorage.setItem("verso.settings", toStorage(settings, currentFolder));
   } catch {
     // No storage.
   }
@@ -256,8 +369,14 @@ export function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.dataset["dark"] = settings.darkTone ?? "soft";
-  document.documentElement.dataset["measure"] = settings.measure;
-  document.documentElement.style.fontSize = `${settings.fontSize}px`;
+  const measure = measureAttr(settings.measure);
+  if (measure === null) delete document.documentElement.dataset["measure"];
+  else document.documentElement.dataset["measure"] = measure;
+  // The window's own size is fixed (the interface, the settings dialog, the
+  // bars); the font size setting sets only the notes' text, through
+  // --note-scale (css/reading.css and the note's other text).
+  document.documentElement.style.fontSize = `${DEFAULTS.fontSize}px`;
+  document.documentElement.style.setProperty("--note-scale", String(noteScale(settings.fontSize, DEFAULTS.fontSize)));
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
   document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
   document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));
@@ -289,6 +408,7 @@ export function applySettings(): void {
   document.documentElement.style.setProperty("--heading-font", headingFonts[settings.headingFont ?? "serif"] || headingFonts.serif!);
   document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
   document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
+  applyLook(settings.look);
   allowRemoteContent(settings.remoteContent);
   allowEmbedOrigins(settings.embedOrigins);
   updateLeavesLineNumbers?.();

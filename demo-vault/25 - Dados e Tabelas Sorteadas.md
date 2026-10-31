@@ -13,6 +13,8 @@ Um código `dice:` numa nota é um **dado**: na **Leitura** e no **Editar**, for
 
 **Nada é escrito na nota.** Rolar, rolar de novo e fechar o cartão deixam o arquivo como estava: abra a nota no modo **Fonte** e veja que o código continua só código.
 
+**Escrever um dado.** No **Editar**, digite `/` e escolha **Dado** (ou digite `/dado`): o Verso escreve `` `dice: 1d20` `` na linha com a notação **selecionada** — digite `2d6+3` por cima e pronto. O item só aparece com o recurso **Dados** ligado.
+
 ---
 
 ## Rolar
@@ -92,4 +94,22 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ---
 
-Para jogar com outras pessoas na mesma nota, monte o seu servidor com [[24 - Instalar o seu UniVerso, Passo a Passo]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+## Dados 3D
+
+Quer ver os dados caírem? Em **Ajustes › RPG & Mesa Solo › Dados e RPG**, ligue **Dados 3D**. Ele vem **desligado**, mesmo no atalho *Tudo*: é o recurso mais pesado, para a bateria também. Ligado, ao rolar um dado — num botão `dice:` ou no rolador — dados de verdade (d4, d6, d8, d10, d12, d20 e o percentil como dois d10) caem sobre a tela e param; só então o cartão com o resultado aparece.
+
+O número **já foi sorteado** antes de os dados caírem, pelo gerador criptográfico da janela ou, numa sala, pelo servidor; a queda só o encena, e o dado pousa mostrando exatamente esse número. Por isso o leitor de tela diz o resultado na hora, sem esperar, e o cartão com o texto existe sempre.
+
+- **Os dados ficam na mesa**, como no Rolai, até você mexer em algo: um clique em qualquer lugar que não seja um botão ou uma janela, `Esc` ou a próxima rolagem os tira. Eles não seguram o clique: a página continua usável por baixo. Enquanto caem, `Esc` ou um clique também os pula.
+- **Duração da rolagem:** em *Dados e RPG*, **Rápida**, **Normal** ou **Lenta** muda a velocidade da queda.
+- **Som dos dados:** o botão **Som dos dados** vem **ligado**, como no Rolai (desligue-o em *Dados e RPG*), e toca o barulho de cada batida dos dados na mesa e uns nos outros, com as gravações do Rolai (domínio público); o timbre segue o material do dado (plástico, madeira ou metal).
+- **No Board:** um código `dice:` no texto de um cartão de texto do Board também é um dado — clique nele, mesmo sem entrar no cartão, e o resultado (e os dados 3D e o som) aparece como numa nota. Nada é escrito no arquivo do Board.
+- **Rolagens salvas:** na bandeja de dados da Mesa, cada linha de uma nota com um código `dice:` (ex.: `` - Ataque da Bia: `dice: 1d20+7` ``) vira um botão que põe a rolagem no campo; veja [[31 - A Mesa]], em *Rolagens salvas*.
+- **Sem animação:** se o sistema pede menos movimento, ou se a rolagem tem mais de 20 dados ou um dado que explode (`!`), só o cartão aparece.
+- **Numa sala**, cada pessoa vê os dados cair só se o *seu* recurso Dados 3D estiver ligado; as outras veem o cartão.
+- O motor 3D é baixado só na primeira rolagem em 3D e guardado para uso sem conexão, com os sons, se você os ligar.
+- **Aparência:** logo abaixo do botão, na mesma página, como no Rolai: o **tamanho** (de 70% a 160%; 100% é um dado de uns 70 pixels num notebook), **três conjuntos de cor** (1, 2 e 3 — uma rolagem usa o 1; um perfil de dados pode dar a um grupo o 2 ou o 3), e, para o conjunto escolhido, o **estilo** (Do Verso, Esmeralda, Osso, Obsidiana, Sangue, Abissal, Gelo, Escamas, Taverna), as cores do **corpo**, do **número** e do **contorno**, a **textura** (Lisa, Mármore, Pintas, Glitter, Estrelas, Céu astral, Nuvens, Fogo, Água, Gelo, Papel, Madeira, Aço, Vitral, Caveiras, Dragão, Leopardo, Tigre, Lagarto, Pena — as imagens originais do 3DDiceRoller, que vêm com o aplicativo) e o **material** (Automático, Plástico, Metal, Madeira, Vidro, Fosco). Se o número ficar parecido demais com o corpo, o Verso avisa (contraste abaixo de 3:1). **Rolar para testar** rola um d20 e dois d6, um em cada conjunto. Vale só para este aparelho: numa sala, cada pessoa vê a rolagem com os *seus* dados.
+
+---
+
+Veja a seguir as fichas visuais em [[26 - Fichas]], e o oráculo para jogo solo e a criação de campanhas em [[27 - Oráculos e Criação de Mundos]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

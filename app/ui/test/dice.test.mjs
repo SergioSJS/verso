@@ -8,7 +8,7 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: `export { readCode, readNotation, readSource, rollHere } from "./src/dice/notation";
+    contents: `export { readCode, readNotation, readSource, rollHere, occurrenceOf } from "./src/dice/notation";
 export { readTable, rowOf, hitsOf } from "./src/dice/table";
 export { rollDie } from "./src/dice/rolai/rng";`,
     resolveDir: ".",
@@ -21,7 +21,7 @@ export { rollDie } from "./src/dice/rolai/rng";`,
   logLevel: "error",
   external: ["@tauri-apps/*"],
 });
-const { readCode, readNotation, readSource, rollHere, readTable, rowOf, hitsOf, rollDie } = await import("./.bundles/dice.test-bundle.mjs");
+const { occurrenceOf, readCode, readNotation, readSource, rollHere, readTable, rowOf, hitsOf, rollDie } = await import("./.bundles/dice.test-bundle.mjs");
 
 test("the forms both read are read, spaces removed", () => {
   assert.deepEqual(readCode("dice: 1d20+3"), { kind: "roll", notation: "1d20+3" });
@@ -145,4 +145,11 @@ test("a list is a random table of its top items", () => {
   assert.equal(readTable(["Um parágrafo."]), "notTable");
   assert.equal(readTable(["- só um"]), "tooFew");
   assert.equal(readTable([]), "empty");
+});
+
+test("a heard roll names the die that was clicked; an older peer's names none, and it is the first (ADR 0107)", () => {
+  assert.equal(occurrenceOf({ occurrence: 1 }), 1);
+  assert.equal(occurrenceOf({ occurrence: 0 }), 0);
+  for (const o of [undefined, null, -1, 1.5, Number.NaN]) assert.equal(occurrenceOf({ occurrence: o }), 0, String(o));
+  assert.equal(occurrenceOf(rollHere("1d20")), 0);
 });

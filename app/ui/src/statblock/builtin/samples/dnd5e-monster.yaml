@@ -1,0 +1,23 @@
+name: Reedwalker
+size: Medium
+type: Humanoid
+tags: Marsh
+alignment: Neutral
+ac: 13
+initiative: +2 (12)
+hp: 18
+hit_dice: 4d8
+hp_current: 18
+speed: 30 ft., swim 30 ft.
+stats: [10, 14, 12, 8, 12, 9]
+skills:
+  stealth: 4
+senses: Passive Perception 11
+languages: Common
+cr: 1/4
+traits:
+  - name: Mud-blind
+    desc: A trait of our own making.
+actions:
+  - name: Spear
+    desc: Melee Attack Roll +4, reach 5 ft. Hit 5 (1d6 + 2) piercing damage.

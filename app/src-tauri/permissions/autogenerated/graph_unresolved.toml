@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-graph-unresolved"
+description = "Enables the graph_unresolved command without any pre-configured scope."
+commands.allow = ["graph_unresolved"]
+
+[[permission]]
+identifier = "deny-graph-unresolved"
+description = "Denies the graph_unresolved command without any pre-configured scope."
+commands.deny = ["graph_unresolved"]

@@ -81,6 +81,37 @@ fn index_search_backlinks_and_incremental_runs() {
 }
 
 #[test]
+fn the_graph_lists_links_no_note_and_no_file_answers_to() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(
+        vault.path(),
+        "A.md",
+        "[[Real]] [[Goblin Rei]] [[goblin rei]] [[Goblin Rei]] ![[mapa.png]] [[#Seção]] [[pasta/]]\n",
+    );
+    let _b = note(
+        vault.path(),
+        "B.md",
+        "[[Real]] [[Goblin Rei|rei]] [[Goblin Rei#Notas]]\n",
+    );
+    let _real = note(vault.path(), "Real.md", "# Real\n");
+    let _map = bytes(vault.path(), "mapa.png", b"png");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    // Once per note and name, one spelling, no file, no self link, no
+    // resolved note.
+    let want = |from: &str| (from.to_owned(), "Goblin Rei".to_owned());
+    assert_eq!(
+        ws.graph_unresolved().unwrap(),
+        vec![want("A.md"), want("B.md")]
+    );
+    assert_eq!(
+        ws.reader_graph_unresolved().unwrap(),
+        ws.graph_unresolved().unwrap()
+    );
+}
+
+#[test]
 fn config_dir_precedence_and_no_relative_fallback() {
     let home = Some(Path::new("/Users/x"));
     assert_eq!(
@@ -355,6 +386,15 @@ fn read_note_gives_lines_positions_and_staleness_and_every_path_is_confined() {
         assert!(
             confined(ws.create_file(bad, b"x").map(drop)),
             "create_file {bad:?}"
+        );
+        assert!(
+            matches!(
+                ws.create_file_from_picked(bad, std::path::Path::new("/nonexistent"), 10),
+                Err(verso_core::PickedCreateError::Core(
+                    CoreError::Confined(_) | CoreError::Write(verso_core::WriteError::Confined(_))
+                ))
+            ),
+            "create_file_from_picked {bad:?}"
         );
         assert!(
             confined(ws.create_folder(bad).map(drop)),
@@ -1031,4 +1071,116 @@ fn a_batch_of_new_and_removed_files_reads_only_its_paths() {
     assert!(!r.narrowed);
     assert!(r.gone.is_empty(), "{r:?}");
     assert!(ws.notes().unwrap().contains(&"Tres.md".to_owned()));
+}
+
+#[test]
+fn a_picked_file_is_copied_in_pieces_listed_and_never_overwrites() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let data: Vec<u8> = (0..(2 << 20) + 7).map(|i| (i % 251) as u8).collect();
+    let source = outside.path().join("grande.pdf");
+    std::fs::write(&source, &data).unwrap();
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    let key = ws
+        .create_file_from_picked("anexos/grande.pdf", &source, u64::MAX)
+        .unwrap();
+    assert_eq!(key, "anexos/grande.pdf");
+    assert!(ws.read_file(&key).unwrap() == data);
+    // Listed at once, as `create_file` lists.
+    assert_eq!(
+        ws.resolve_file("x.md", "grande.pdf").as_deref(),
+        Some("anexos/grande.pdf")
+    );
+    // A name taken: refused, the first stays.
+    let again = ws.create_file_from_picked("anexos/grande.pdf", &source, u64::MAX);
+    assert!(matches!(
+        again,
+        Err(verso_core::PickedCreateError::Core(CoreError::Write(
+            verso_core::WriteError::Exists
+        )))
+    ));
+    // Over the bound: refused as the picked file's, nothing created.
+    let big = ws.create_file_from_picked("outro.pdf", &source, 10);
+    assert!(matches!(
+        big,
+        Err(verso_core::PickedCreateError::Picked(
+            verso_core::PickedError::TooLarge
+        ))
+    ));
+    assert!(ws.read_file("outro.pdf").is_err());
+}
+
+/// A note past the index's cap (16 MB) is never read and parsed by the walk,
+/// the narrow run or a sync write: a server of 1 GB was killed by 60 MB
+/// "notes" (night round 2026-10-30). It stays a file in the listing, is not
+/// searchable, and the row of a smaller version it replaced goes.
+#[test]
+fn a_note_past_the_index_cap_is_not_indexed() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let mut big = b"palavraenorme ".to_vec();
+    big.resize(17 * 1024 * 1024, b'x');
+    let _small = note(vault.path(), "pequena.md", "# Pequena\n\npalavrapequena\n");
+    let _big = bytes(vault.path(), "grande.md", &big);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavrapequena", 10).unwrap().len(), 1);
+    assert!(ws.search("palavraenorme", 10).unwrap().is_empty());
+    assert!(
+        ws.entries().iter().any(|e| e.path == "grande.md"),
+        "still listed"
+    );
+
+    // A small version indexed, then replaced by a huge one on the disk: the
+    // walk drops its row.
+    std::fs::write(vault.path().join("troca.md"), "# Troca\n\npalavratroca\n").unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavratroca", 10).unwrap().len(), 1);
+    let mut huge = b"palavratroca ".to_vec();
+    huge.resize(17 * 1024 * 1024, b'y');
+    std::fs::write(vault.path().join("troca.md"), &huge).unwrap();
+    ws.index().unwrap();
+    assert!(ws.search("palavratroca", 10).unwrap().is_empty());
+}
+
+/// A note that grows past the cap between two full walks is still on the
+/// disk: its row goes, but it is not reported gone (the history would record
+/// a deletion of a file that exists, and clients would be told `removed`).
+#[test]
+fn a_note_growing_past_the_cap_is_dropped_from_the_index_not_reported_gone() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    std::fs::write(
+        vault.path().join("cresce.md"),
+        "# Cresce\n\npalavracresce\n",
+    )
+    .unwrap();
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
+
+    let mut huge = b"palavracresce ".to_vec();
+    huge.resize(17 * 1024 * 1024, b'y');
+    std::fs::write(vault.path().join("cresce.md"), &huge).unwrap();
+    let r = ws.index().unwrap();
+    assert!(r.gone.is_empty(), "the file exists: {r:?}");
+    assert!(
+        ws.search("palavracresce", 10).unwrap().is_empty(),
+        "row removed"
+    );
+    assert!(
+        ws.entries().iter().any(|e| e.path == "cresce.md"),
+        "still listed"
+    );
+
+    // Small again: indexed again, still never gone.
+    std::fs::write(
+        vault.path().join("cresce.md"),
+        "# Cresce\n\npalavracresce\n",
+    )
+    .unwrap();
+    let r = ws.index().unwrap();
+    assert!(r.gone.is_empty(), "{r:?}");
+    assert_eq!(ws.search("palavracresce", 10).unwrap().len(), 1);
 }

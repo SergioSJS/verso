@@ -11,7 +11,7 @@ import { test, expect } from "./fixtures.mjs";
 const PHONE = 760;
 const phone = (page) => page.viewportSize().width < PHONE;
 
-const SYNC = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: "2026-10-14T12:00:00Z", message: null, problem: null, versions: null, revoked: null };
+const SYNC = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: "2026-10-14T12:00:00Z", message: null, problem: null, versions: null, revoked: null, cloud: null };
 const FAILED = { ...SYNC, state: "error", problem: "failed", message: "boom" };
 
 /** Say a sync status as the host would: the event, and the same status as
@@ -23,7 +23,7 @@ async function say(app, status) {
   await app.emit("sync-status", status);
 }
 
-const toasts = (page) => page.locator("#notify-toasts .notify-toast");
+const toasts = (page) => page.locator("#notify-toasts .notify-toast, #notify-toasts-top .notify-toast");
 const bell = (page) => page.locator(phone(page) ? ".notify-bell-phone" : ".notify-bell-bar");
 
 async function openCentre(app) {
@@ -131,10 +131,13 @@ test("toasts sit above Settings and are never made inert: an action is reached w
   await expect(page.locator(".settings-title")).toHaveText("Servidores");
   await expect(toast).toHaveCount(0);
   if (phone(page)) {
-    // On a phone the toasts are at the top, the whole width but the margins.
+    // On a phone the toasts are at the bottom, above the bottom bar, the
+    // whole width but the margins (T.6): never over the first line.
     await app.emit("share-given", { id: "s10", name: "Mapa", role: "editor", by: "Bia", share: true, server: "https://notas.casa" });
     const box = await toasts(page).first().boundingBox();
-    expect(box.y).toBeLessThan(80);
+    const bar = await page.locator(".bottom-bar").boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+    expect(box.y).toBeGreaterThan(page.viewportSize().height / 2);
     expect(Math.round(box.x)).toBe(16);
     expect(Math.round(box.width)).toBe(page.viewportSize().width - 32);
   }
@@ -192,9 +195,12 @@ test("each kind as chosen: Só na lista lists without a toast; Desligado neither
   await app.open();
   await notifySettings(app);
   const rows = page.locator(".settings-body .setting");
-  await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Também nas notificações do sistema"]);
-  // Every kind starts as "Aviso e lista".
-  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue("toast");
+  await expect(rows.locator(".setting-title")).toHaveText(["Sincronização", "Conflitos", "Compartilhamento", "Atualizações", "Cota", "Lixeira", "Presença", "Mesa", "Som da Mesa", "Volume do som da Mesa", "Também nas notificações do sistema"]);
+  // Every kind starts as "Aviso e lista", but the Mesa, which starts off (ADR 0107 item 13), and
+  // Presença, "Só na lista" (ADR 0084 item 8, 2026-10-28); the Mesa's chime is a sound, not a kind,
+  // and starts as the soft one.
+  const first = { Mesa: "off", Presença: "list", "Som da Mesa": "soft" };
+  for (const s of await rows.locator("select").all()) await expect(s).toHaveValue(first[await s.evaluate((el) => el.closest(".setting")?.querySelector(".setting-title")?.textContent ?? "")] ?? "toast");
   const sync = page.getByRole("combobox", { name: "Sincronização" });
   await sync.selectOption("list");
   // The person's layer: the window's settings, synced to the account on a
@@ -257,7 +263,8 @@ test("a synced folder's share revoked, its conflict copies and a live room's con
   await say(app, { ...SYNC, conflicts: [copy] });
   await say(app, { ...SYNC, conflicts: [copy] });
   await expect(toasts(page)).toHaveCount(1);
-  await expect(toasts(page)).toContainText(`Os dois lados mudaram ${copy}; a versão deste computador ficou numa cópia ao lado.`);
+  // The notice names the note both sides changed, not its copy (2026-10-23).
+  await expect(toasts(page)).toContainText("Os dois lados mudaram Sessao.md; a versão deste computador ficou numa cópia ao lado.");
   await toasts(page).getByRole("button", { name: "Ver os conflitos" }).click();
   await expect(page.locator(".settings-title")).toHaveText("Sincronizar");
   await page.keyboard.press("Escape");
@@ -351,7 +358,7 @@ test("the trash: entries leaving within 3 days said at the folder's opening, onc
   await expect(page.locator(".settings-title")).toHaveText("Lixeira");
 });
 
-test("presence: someone joining the note is said; leaving is not, and makes the next join news", async ({ app, page }) => {
+test("presence: by default someone joining is in the list and rings in the presence row, with no toast; leaving is not told", async ({ app, page }) => {
   const NOTE = "Sessao ao vivo.md";
   await app.open();
   await page.evaluate(() => (window.__harness.rooms.up = true));
@@ -361,16 +368,50 @@ test("presence: someone joining the note is said; leaving is not, and makes the 
   await app.quickOpen("Sessao ao vivo");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  // Joins in the first seconds after the tab bound its room are the people who were already there (PRESENCE_SETTLE_MS).
+  await page.waitForTimeout(5_500);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
-  await expect(toasts(page)).toContainText("Bia entrou na nota");
-  await expect(toasts(page)).toContainText("Bia está em Sessao ao vivo com você.");
+  // No toast anywhere (it covered the chat's box and its last messages); the bell counts it.
+  await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  await expect(toasts(page)).toHaveCount(0);
+  // The newcomer's mark in the presence row is ringed for a moment, and the line is said once.
+  await expect(page.locator(".live-who-chip.is-new:visible")).toHaveCount(1);
+  await expect(page.locator("#status")).toHaveText("Bia entrou na nota.");
+  await expect(page.locator(".live-who-chip.is-new")).toHaveCount(0, { timeout: 6000 });
   await page.evaluate((n) => window.__harness.rooms.absent(n, "Bia"), NOTE);
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
   const centre = await openCentre(app);
+  await expect(centre.locator(".notify-item")).toContainText("Bia entrou na nota");
   await expect(centre.locator(".notify-item")).toHaveCount(1);
   await page.keyboard.press("Escape");
+  // The same person coming back within ten minutes is not news again (PRESENCE_AGAIN_MS).
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
-  await expect(bell(page)).toHaveAccessibleName("1 notificação não lida");
+  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, com Bia");
+  // The centre was opened (it marks everything read) and nothing new came: the bell stays at none unread.
+  await expect(bell(page)).toHaveAccessibleName("Notificações");
+  await expect(page.locator(".live-who-chip.is-new")).toHaveCount(0);
+});
+
+test("presence set back to \"Aviso e lista\": the toast comes back, at the top, with the ring", async ({ app, page }) => {
+  const NOTE = "Sessao ao vivo.md";
+  await app.open();
+  await notifySettings(app);
+  await page.getByRole("combobox", { name: "Presença" }).selectOption("toast");
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => (window.__harness.rooms.up = true));
+  await say(app, SYNC);
+  await app.writeOutside(NOTE, "# Sessao\n\num\n");
+  await app.folderChanged([NOTE], true);
+  await app.quickOpen("Sessao ao vivo");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  await page.waitForTimeout(5_500);
+  await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);
+  await expect(toasts(page)).toContainText("Bia entrou na nota");
+  await expect(toasts(page)).toContainText("Bia está em Sessao ao vivo com você.");
+  // Presence sits at the top, never over the table's chat and its box at the bottom right.
+  const box = await page.locator("#notify-toasts-top").boundingBox();
+  expect(box === null || box.y < 200).toBe(true);
 });
 
 test("the system's notifications: off at first; refused goes back to off and says why; granted, sent only while the window is behind; a click opens the centre on it", async ({ app, page }) => {

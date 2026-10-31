@@ -17,6 +17,25 @@ await esbuild.build({
 });
 const { Book, DEFAULT_MODE, KINDS, LIST_KEY, MAX_AGE_MS, MAX_ENTRIES, STATES_KEY, dayOf, leavingSoon, modeOf, quotaNear } = await import("./.bundles/notify.test-bundle.mjs");
 
+describe("someone joining (ADR 0084 item 8, amended 2026-10-28)", () => {
+  const join = (name) => failed({ kind: "presence", key: `presence:f:A.md:${name}`, state: "in:1", level: "info", title: `${name} entrou` });
+  test("never chosen: the list, no toast, and so nothing to the system (index.ts sends only a \"toast\")", () => {
+    const b = new Book(memory(), clock().now, (k) => modeOf({}, k));
+    const out = b.raise(join("Ana"));
+    assert.equal(out.said, "list");
+    assert.equal(out.entry.read, false, "the bell counts it");
+    assert.equal(b.entries.length, 1);
+  });
+  test("set back to \"Aviso e lista\": a toast, and the system's behind, as before", () => {
+    const b = new Book(memory(), clock().now, (k) => modeOf({ presence: "toast" }, k));
+    assert.equal(b.raise(join("Ana")).said, "toast");
+  });
+  test("\"Desligado\": neither the list nor a ring", () => {
+    const b = new Book(memory(), clock().now, (k) => modeOf({ presence: "off" }, k));
+    assert.equal(b.raise(join("Ana")).said, "off");
+  });
+});
+
 /** A machine's storage in memory; `refuse` makes every call throw. */
 function memory() {
   const kept = new Map();
@@ -113,7 +132,14 @@ describe("the list's bounds", () => {
 describe("each kind as the person chose it", () => {
   test("every kind starts as \"Aviso e lista\"", () => {
     assert.equal(DEFAULT_MODE, "toast");
-    for (const k of KINDS) assert.equal(modeOf({}, k), "toast");
+    // Every kind is "Aviso e lista" until chosen, but the table's news, which is off (ADR 0107 item 13),
+    // and someone joining, "Só na lista" (ADR 0084 item 8, amended 2026-10-28).
+    const other = { table: "off", presence: "list" };
+    for (const k of KINDS) assert.equal(modeOf({}, k), other[k] ?? "toast");
+    assert.equal(modeOf(undefined, "presence"), "list", "never stored: the new default");
+    assert.equal(modeOf({ table: "toast" }, "table"), "toast");
+    assert.equal(modeOf({ presence: "toast" }, "presence"), "toast", "a stored choice is kept");
+    assert.equal(modeOf({ presence: "off" }, "presence"), "off");
     assert.equal(modeOf(undefined, "sync"), "toast");
     assert.equal(modeOf({ sync: "nonsense" }, "sync"), "toast");
   });

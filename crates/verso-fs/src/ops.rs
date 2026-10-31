@@ -334,10 +334,8 @@ pub(crate) fn parent_of(path: &Path) -> Result<&Path, WriteError> {
 }
 
 pub(crate) fn temporary_name(dir: &Path) -> PathBuf {
-    dir.join(format!(
-        ".verso-tmp-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
+    dir.join(crate::sweep::temp_name(
+        COUNTER.fetch_add(1, Ordering::Relaxed),
     ))
 }
 

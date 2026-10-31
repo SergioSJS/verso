@@ -19,8 +19,11 @@
 
 /* Dragging */
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; padding: .25rem .6rem; font-size: .82rem; background: var(--paper); color: var(--ink); border: 1px solid var(--brass); border-radius: 6px; box-shadow: 0 8px 24px -8px oklch(0% 0 0 / .4); }
-body.dragging { cursor: grabbing; user-select: none; }
+body.dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+body.dragging * { user-select: none !important; -webkit-user-select: none !important; }
 body.dragging * { cursor: grabbing !important; }
+/* A bar's divider being dragged: nothing is selected under the pointer. */
+body.resizing, body.resizing * { user-select: none !important; -webkit-user-select: none !important; cursor: col-resize !important; }
 .tree summary.drop, #tree-root.drop { background: var(--brass-wash); border-radius: 5px; }
 #tree-root.drop { box-shadow: inset 0 0 0 2px var(--brass); }
 .tree li.drop-before > button.row, .tree summary.drop-before { border-top: 2px solid var(--brass); }
@@ -36,6 +39,9 @@ body.dragging * { cursor: grabbing !important; }
 .tree li > button.row, .list li > button.row { display: flex; align-items: center; gap: .45rem; }
 .list li > button.row { flex-wrap: wrap; }
 .list li > button.row .path, .list li > button.row .snippet { flex-basis: 100%; }
+/* The name takes the line's rest with no width of its own, so a long one is
+   ellipsized beside its icon instead of wrapping the icon off alone. */
+.list li > button.row .row-name { flex: 1 1 0; }
 .row .icon { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
 .row.kind-note .icon { color: var(--brass); }
 .row.kind-image .icon { color: light-dark(oklch(52% 0.1 240), oklch(75% 0.1 240)); }
@@ -158,7 +164,7 @@ body.dragging * { cursor: grabbing !important; }
 .tok-link, .tok-url { color: var(--seal); }
 .preview pre code span { font: inherit; }
 /* Math */
-.preview .math-display { margin: 1rem 0; text-align: center; overflow-x: auto; }
+.preview .math-display { margin: 0 0 var(--flow); text-align: center; overflow-x: auto; }
 .preview .katex { font-size: 1.05em; }
 /* A note popped out: only the note, and a way back. */
 body.popout { grid-template-columns: 0 0 0 1fr 0 0 !important; }
@@ -199,9 +205,9 @@ body.popout .ribbon, body.popout .side, body.popout #side-divider, body.popout .
 .pdf-scroll .pdfViewer { padding: .6rem 0 3rem; }
 .pdf-scroll .pdfViewer .page { margin: 10px auto; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
 ::highlight(verso-quote-1), ::highlight(verso-quote-2), ::highlight(verso-quote-3), ::highlight(verso-quote-4), ::highlight(verso-quote-5), ::highlight(verso-quote-6), ::highlight(verso-quote-7), ::highlight(verso-quote-8), ::highlight(verso-quote-9), ::highlight(verso-quote-10) { background-color: oklch(85% 0.17 90 / .5); }
-input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
+input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--control-line); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
 input.pdf-page::-webkit-inner-spin-button { display: none; }
-input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
+input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--control-line); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
 input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .pdf-find .icon { color: var(--ink-3); margin-right: .2rem; }
 .pdf-search-info { color: var(--ink-3); margin-left: .4rem; white-space: nowrap; }
@@ -251,17 +257,21 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .editor { margin-top: .4rem; }
 
 /* Sidebar divider */
-.side-divider { width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3; position: relative; }
+.side-divider { width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3; position: relative; touch-action: none; }
 .side-divider::after { content: ""; position: absolute; inset: 0 3px; }
 .side-divider:hover::after, .side-divider:active::after { background: var(--brass); inset: 0 2px; }
 
-/* Vertical tabs, as Safari has them */
+/* Vertical tabs: a column at the pane's left, the pane's tools on top of it
+   (so the mode can always be left), one tab per row under them. */
 .pane.vertical { flex-direction: row; }
-.pane.vertical .tabs { flex-direction: column; align-items: stretch; width: 200px; border-bottom: 0; border-right: 1px solid var(--hair); padding: .5rem .3rem; overflow-y: auto; }
-.pane.vertical .tab-list { flex-direction: column; align-items: stretch; overflow: visible; }
-.pane.vertical .tab { max-width: none; border-bottom: 0; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; margin: 0; padding: .35rem .4rem .35rem .6rem; }
-.pane.vertical .tab[aria-selected="true"] { border-left-color: var(--seal); background: var(--seal-wash); }
-.pane.vertical .pane-tools { flex-direction: row; flex-wrap: wrap; padding: .4rem 0 0; justify-content: flex-start; }
+.pane.vertical .tabs { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .35rem; width: var(--tabs-w, 200px); flex: none; height: auto; min-height: 0; max-height: none; border-bottom: 0; box-shadow: none; border-right: 1px solid var(--hair); padding: .4rem .3rem; overflow-x: hidden; overflow-y: auto; }
+.pane.vertical .tabs.frame-push-t { height: auto; min-height: 0; max-height: none; }
+.pane.vertical .tab-list { flex: 1 1 auto; flex-direction: column; align-items: stretch; align-self: stretch; gap: .1rem; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.pane.vertical .tab { flex: none; height: auto; min-height: 2rem; max-width: none; width: 100%; border-bottom: 1px solid transparent; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; margin: 0; padding: .3rem .4rem .3rem .6rem; box-shadow: none; }
+.pane.vertical .tab .tab-name { flex: 1 1 auto; min-width: 0; }
+.pane.vertical .tab[aria-selected="true"] { border-color: var(--hair); border-left-color: var(--seal); background: var(--seal-wash); box-shadow: none; }
+.pane.vertical .pane-tools { flex: none; flex-direction: row; flex-wrap: wrap; align-self: stretch; margin: 0; justify-content: flex-start; opacity: 1; }
+.pane.vertical .tabs.drop { box-shadow: inset -2px 0 0 var(--brass); }
 .pane.vertical .pane-body { flex: 1; min-width: 0; }
 
 /* Frames, graph */
@@ -284,22 +294,35 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph .node text.quiet { opacity: 0; }
 .graph .node:hover text.quiet { opacity: 1; }
 .graph .node.center text { fill: var(--ink); font-weight: 600; }
+.graph .node.missing circle { fill: transparent; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.graph .node.missing text { font-style: italic; fill: var(--ink-2); }
 .graph .node:hover circle, .graph .node:focus-visible circle { stroke: var(--seal); }
-.graph .node:focus-visible { outline: none; }
-.graph .node:focus-visible circle { stroke-width: 3; }
-.graph .node:focus-visible text.quiet { opacity: 1; }
+/* The graph is the one focus stop; the note the arrows are on is ringed. */
+.graph:focus { outline: none; }
+.graph:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.graph:focus .node.current circle { stroke: var(--seal); stroke-width: 3; }
+.graph:focus .node.current text.quiet { opacity: 1; }
+.graph:focus .node.current text { font-weight: 600; fill: var(--ink); }
 .graph-controls { flex: none; width: 15rem; padding: .8rem .9rem 1rem; border-left: 1px solid var(--hair); overflow: auto; display: flex; flex-direction: column; gap: .55rem; font-size: .82rem; color: var(--ink-2); }
 .graph-controls .graph-filter { font: inherit; padding: .35rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.graph-filter-wrap { position: relative; display: flex; }
+.graph-filter-wrap .graph-filter { flex: 1; min-width: 0; padding-right: 1.9rem; }
+.graph-filter::-webkit-search-cancel-button { display: none; }
+.graph-filter-clear { position: absolute; right: .25rem; top: 50%; transform: translateY(-50%); padding: 0 .45rem; line-height: 1.4; font-size: 1.05rem; }
+.graph-filter-clear[hidden], .graph-show-all[hidden] { display: none !important; }
+/* The copy inside the controls panel shows only where the panel covers the graph's head (css/screen.css). */
+.graph-show-all.in-panel { display: none; }
 .graph-controls .graph-filter:focus { outline: none; border-color: var(--brass-ink); }
 .graph-field { display: grid; grid-template-columns: 1fr; gap: .2rem; }
 .graph-field select, .graph-field input[type="range"] { font: inherit; width: 100%; accent-color: var(--seal); }
-.graph-field select { padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.graph-field select { padding: .25rem .4rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper); color: var(--ink); }
 .graph-check { display: flex; align-items: center; gap: .45rem; }
 .graph-check input { accent-color: var(--seal); }
 .graph-zoom { display: flex; gap: .2rem; }
 .graph-legend { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; font-size: .76rem; }
 .graph-legend-item { display: inline-flex; align-items: center; gap: .4rem; }
 .graph-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.graph-legend-dot.missing { background: transparent; border: 1.5px dashed var(--ink-2); box-sizing: border-box; }
 .favicon { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; flex: none; }
 .favicon img { width: 14px; height: 14px; border-radius: 3px; }
 
@@ -328,7 +351,12 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 .55rem;
+  /* A tab keeps its size: those that do not fit leave the bar for a "⋯"
+     (panel/tabStrip.ts), never squeezed one against the other. */
+  flex: none;
+  width: 2.25rem;
+  min-width: 0;
+  padding: 0;
   color: var(--ink-3);
   background: transparent;
   border: 1px solid transparent;
@@ -355,6 +383,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
   z-index: 1;
 }
 .right-tab .icon { width: 15px; height: 15px; }
+.right-tab[data-overflow] { display: none; }
+.right-tab.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
 
 /* Code copy button */
 pre { position: relative; }
@@ -477,7 +507,16 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 /* Tab bar hidden, vertical tab column resize */
 .pane.tabs-hidden .tabs, .pane.tabs-hidden .tabs-divider { display: none; }
-.pane.vertical .tabs { width: var(--tabs-w, 200px); }
+/* The way back from a hidden tab bar where there is no double click to find:
+   a phone gets a strip with the bar's name on it (the notification bell
+   takes the right edge, as it does over the bar). */
+.tabs-restore { display: none; }
+@media (max-width: 760px) {
+  .pane.tabs-hidden .tabs-restore { display: flex; align-items: center; min-height: 40px; padding: 0 48px 0 .4rem; background: var(--paper-2); box-shadow: inset 0 -1px 0 var(--hair); }
+  .tabs-restore-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 40px; padding: 0 .6rem; font-size: max(12px, .8rem); color: var(--ink-2); }
+  .tabs-restore-button .icon { width: 16px; height: 16px; }
+  .tabs-restore-button:active { color: var(--seal); background: var(--paper-3); }
+}
 .tabs-divider { display: none; }
 .pane.vertical .tabs-divider { display: block; width: 7px; margin: 0 -3px; cursor: col-resize; position: relative; z-index: 1; }
 .pane.vertical .tabs-divider:hover::after { content: ""; position: absolute; inset: 0 2px; background: var(--brass); }
@@ -496,20 +535,46 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 /* Palette, settings */
 .palette kbd { margin-left: auto; }
 /* Settings: a page with sections at the left, items as title + line + control. */
-.settings-box { display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
-.settings-side { flex: none; width: 15rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem .8rem; background: var(--paper-2); border-right: 1px solid var(--hair); }
-.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
-.settings-search:focus { outline: none; border-color: var(--brass-ink); }
-.settings-nav { display: flex; flex-direction: column; gap: .1rem; }
-.settings-top { display: flex; align-items: center; gap: .4rem; }
+.quick.settings { padding-top: 0; justify-content: center; align-items: center; }
+.settings-box { position: relative; display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); min-width: min(32rem, calc(100vw - 2rem)); min-height: min(22rem, calc(100vh - 2rem)); max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
+.settings-resize-handle { position: absolute; z-index: 20; touch-action: none; user-select: none; }
+.settings-resize-handle.r { right: -3px; top: 10px; bottom: 10px; width: 7px; cursor: ew-resize; }
+.settings-resize-handle.b { bottom: -3px; left: 10px; right: 10px; height: 7px; cursor: ns-resize; }
+.settings-resize-handle.l { left: -3px; top: 10px; bottom: 10px; width: 7px; cursor: ew-resize; }
+.settings-resize-handle.t { top: -3px; left: 10px; right: 10px; height: 7px; cursor: ns-resize; }
+.settings-resize-handle.br { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 21; }
+.settings-resize-handle.bl { left: 0; bottom: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 21; }
+.settings-resize-handle.tr { right: 0; top: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 21; }
+.settings-resize-handle.tl { left: 0; top: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 21; }
+.settings-resize-grip { position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; cursor: nwse-resize; color: var(--ink-3); opacity: 0.6; transition: opacity .15s, color .15s; z-index: 22; pointer-events: auto; }
+.settings-resize-grip:hover { opacity: 1; color: var(--seal); }
+.settings-side { flex: none; width: 15.5rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem 0; background: var(--paper-2); border-right: 1px solid var(--hair); min-height: 0; overflow: hidden; }
+.settings-top { flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .8rem; }
 .settings-top .settings-search { flex: 1; min-width: 0; }
-.settings-close { flex: none; }
+.settings-close { position: absolute; top: .6rem; right: .6rem; z-index: 2; }
+.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--control-line); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.settings-search:focus { outline: none; border-color: var(--brass-ink); }
+.settings-nav { display: flex; flex-direction: column; gap: .1rem; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem 0 .8rem; scrollbar-width: thin; }
+.settings-nav-group-header {
+  font-family: var(--ui);
+  font-size: .65rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding: .75rem .7rem .2rem;
+  user-select: none;
+}
+.settings-nav-group-header:first-child {
+  padding-top: .15rem;
+}
 .settings-nav-item { display: flex; align-items: center; gap: .55rem; text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
 .settings-nav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
 .settings-nav-item[aria-current="true"] .icon { color: var(--seal); }
 .settings-nav-item:hover { background: var(--paper-3); color: var(--ink); }
 .settings-nav-item[aria-current="true"] { background: var(--seal-wash); color: var(--seal); }
-.settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 2rem 2rem; }
+.settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 3.2rem 2rem 2rem; }
+.settings-back { display: none; }
 .settings-title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0 0 .6rem; }
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
@@ -542,14 +607,14 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .setting-note { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 /* A value to read, not to change: the version and its commit. */
 .setting-value { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); user-select: text; white-space: nowrap; }
-.setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }
+.setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--control-line); border-radius: 6px; width: 14rem; max-width: 40vw; }
 .setting input[type="range"] { width: 11rem; accent-color: var(--seal); }
 .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
 /* The checkbox covers the switch (clickable, focusable, at its size); its
    focus shows on the track, as the global ring would on a control. */
 .switch input { position: absolute; inset: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .switch input:focus-visible + .switch-track { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
-.switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); transition: background .15s; }
+.switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--control-line); transition: background .15s; }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px oklch(0% 0 0 / .3); transition: transform .15s var(--ease-out); }
 .switch input:checked + .switch-track { background: var(--seal); border-color: var(--seal); }
 .switch input:checked + .switch-track::after { transform: translateX(16px); }
@@ -557,7 +622,15 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .hotkey kbd { min-width: 3.2rem; text-align: center; }
 .hotkey kbd.custom { color: var(--seal); border-color: var(--seal); }
 .hotkey kbd.recording { color: var(--brass-ink); border-color: var(--brass); }
-:root[data-measure="wide"] .editor, :root[data-measure="wide"] .preview, :root[data-measure="wide"] .props, :root[data-measure="wide"] .toolbar { max-width: none; }
+:root[data-measure="full"] .editor, :root[data-measure="full"] .preview, :root[data-measure="full"] .props, :root[data-measure="full"] .title-row, :root[data-measure="full"] .flags, :root[data-measure="full"] .links, :root[data-measure="full"] .template-picker, :root[data-measure="full"] .toolbar { max-width: none; margin-left: 0; margin-right: 0; }
+/* The person's own text width (Settings › Appearance › Text width), over the
+   theme's `line-width`. "Theme" writes no data-measure. The rem ones grow
+   with the note text size (--note-scale), so a bigger text keeps its
+   characters per line. */
+:root[data-measure="narrow"] :is(.preview, .editor, .props, .links) { max-width: calc(40rem * var(--note-scale, 1)); }
+:root[data-measure="medium"] :is(.preview, .editor, .props, .links) { max-width: calc(48rem * var(--note-scale, 1)); }
+:root[data-measure="standard"] :is(.preview, .editor, .props, .links) { max-width: 100ch; }
+:root[data-measure="large"] :is(.preview, .editor, .props, .links) { max-width: calc(72rem * var(--note-scale, 1)); }
 
 /* Sidebar toggles in the status bar */
 .bar-toggle { color: var(--ink-3); padding: .15rem; }
@@ -595,9 +668,12 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-actions .srv-help { margin: 0; max-width: 34rem; }
 .srv-empty-form { width: 100%; }
 .srv-field { display: flex; gap: .5rem; max-width: 34rem; }
-.srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--control-line); border-radius: 7px; }
 .srv-field input:focus { outline: none; border-color: var(--brass-ink); }
 .srv-help { margin: .55rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--ink-3); max-width: 60ch; }
+/* The search's sentence changes from one line ("Looking…") to four ("No UniVerso has answered…") 300 ms after the section opens;
+   room for the four is kept so the controls below do not move under a pointer that is already on its way down. */
+.srv-found-state { min-height: 4.92rem; }
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
 .srv-said:empty { display: none; }
 .srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
@@ -655,6 +731,15 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-first { margin: .3rem 0 1rem; font-size: .83rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 .sync-first strong { font-weight: 600; color: var(--ink-2); }
 .sync-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
+/* A cloud the person already has (ADR 0104): the check's answer, and the
+   lines a folder tied to one adds. */
+.sync-cloud-list { margin: .5rem 0 .8rem; padding: 0 0 0 1.1rem; font-size: .85rem; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+.sync-cloud-list li { padding: .12rem 0; }
+.sync-cloud-ok { margin-top: 1rem; }
+.sync-cloud-ok:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
+.sync-cloud { margin-top: 1.4rem; }
+.sync-device .sync-saved { margin-left: .6rem; font-size: .8rem; color: var(--ink-3); }
+.sync-body { display: block; }
 .sync-together { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1.1rem; cursor: pointer; }
 .sync-together input { margin-top: .2rem; }
 .sync-together-words { display: flex; flex-direction: column; gap: .2rem; }
@@ -676,6 +761,11 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-files li { padding: .18rem 0; overflow-wrap: anywhere; }
 .sync-file-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .sync-needs > .sync-calm { margin-bottom: 1.05rem; }
+.sync-download { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: .7rem; }
+.sync-download .sync-item-why { margin: 0; }
+.sync-progress { width: min(100%, 22rem); }
+.sync-file-why { display: block; font-size: .78rem; color: var(--ink-3); }
+.sync-quiet { margin: .9rem 0 0; font-size: .83rem; color: var(--ink-3); }
 .sync-history { border-top: 1px solid var(--hair); padding-top: .9rem; }
 .sync-history > summary { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; list-style: none; font: 600 .72rem var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .sync-history > summary::-webkit-details-marker { display: none; }
@@ -702,13 +792,110 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .sync-fixed { text-align: left; }
 }
 
+@media (min-width: 761px) and (max-width: 920px) {
+  .settings-side { width: 13rem; }
+  .settings-body { padding: 1rem 3rem 2rem 1.25rem; }
+}
+
 /* A phone: the sections become a row above the page, scrolled sideways. */
 @media (max-width: 760px) {
-  .settings-box { flex-direction: column; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
-  .settings-side { width: auto; padding: .6rem .6rem .4rem; border-right: 0; border-bottom: 1px solid var(--hair); }
-  .settings-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
-  .settings-nav-item { flex: none; white-space: nowrap; }
-  .settings-body { padding: 1rem 1rem 2rem; }
+  .settings-box {
+    flex-direction: column;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    position: fixed !important;
+    margin: 0 !important;
+  }
+  .settings-side {
+    width: auto;
+    padding: .6rem .8rem .4rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--hair);
+    gap: .4rem;
+  }
+  /* Room at the right of the search for the close, in the corner above it. */
+  .settings-top {
+    padding: 0 52px 0 0;
+  }
+  /* A list first, a page after a tap, with a way back (iOS, Android). */
+  .settings-nav {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    gap: .1rem;
+  }
+  .settings-box.phone-page .settings-side { flex: none; padding-bottom: .6rem; }
+  .settings-box.phone-page .settings-nav { display: none; }
+  .settings-box.phone-list .settings-body { display: none; }
+  .settings-box.phone-list .settings-side { flex: 1; min-height: 0; border-bottom: 0; }
+  .settings-back { display: inline-flex; align-items: center; gap: .25rem; min-height: 44px; margin: -.4rem 0 .2rem -.5rem; padding: 0 .6rem; border-radius: 8px; color: var(--seal); font-size: 1rem; }
+  .settings-back .icon { width: 18px; height: 18px; }
+  .settings-back:active { background: var(--seal-wash); }
+  .settings-nav-group-header { padding: 1rem .2rem .3rem; }
+  .settings-nav-group-header:first-child { padding-top: .5rem; }
+  .settings-resize-handle, .settings-resize-grip {
+    display: none !important;
+  }
+  .settings-nav-item {
+    min-height: 48px;
+    padding: .35rem .7rem;
+    font-size: 1rem;
+  }
+  .settings-nav-item .icon { width: 18px; height: 18px; }
+  .settings-close { min-width: 44px; min-height: 44px; top: .45rem; right: .5rem; }
+  .settings-body {
+    padding: 1rem 1rem 2.5rem;
+  }
+  .setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .55rem;
+    padding: .75rem 0;
+  }
+  .setting-text {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+  .setting > :not(.setting-text) {
+    margin-inline-start: 0;
+    max-width: 100%;
+  }
+  .setting input[type="text"],
+  .setting input[type="number"],
+  .setting select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .setting input[type="range"] {
+    width: 100%;
+    max-width: 100%;
+  }
+  .setting-actions {
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+  }
+  .switch {
+    align-self: flex-start;
+    width: 38px;
+    max-width: 38px;
+  }
+  .hotkey {
+    align-self: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 /* The folder's trash, a section of the settings (ADR 0080). */
@@ -737,3 +924,48 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .btn.is-busy::after, button.is-busy::after { content: ""; display: inline-block; width: .8em; height: .8em; margin-left: .45em; vertical-align: -.1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: reach-turn .8s linear infinite; }
 @keyframes reach-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { button.is-busy::after { animation: none; border-right-color: currentColor; opacity: .5; } }
+
+/* Settings: the resize grip is a button; the RPG pages' small layout */
+.settings-resize-grip { background: none; border: 0; padding: 0; }
+.settings-resize-grip:focus-visible { opacity: 1; outline: 2px solid var(--seal); outline-offset: 1px; }
+.settings-feedback.bad { color: var(--seal); }
+.statblock-manage-wrap { display: flex; flex-wrap: wrap; gap: .6rem; }
+/* Settings > Credits: the quoted notices and the links beside them. */
+.credit-box { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; max-width: 38rem; }
+.credit-logo { width: 6rem; height: 6rem; object-fit: contain; border-radius: 50%; }
+.credit-quote { margin: 0; padding-left: .7rem; border-left: 2px solid var(--hair); color: var(--ink-2); font-size: .82rem; line-height: 1.45; overflow-wrap: anywhere; }
+.credit-licence { margin-top: .4rem; font-size: .82rem; color: var(--ink-2); }
+.credit-licence summary { cursor: pointer; }
+.credit-licence-text { margin: .35rem 0; line-height: 1.45; overflow-wrap: anywhere; }
+.credit-gloss { margin: 0; font-size: .8rem; color: var(--ink-2); font-style: italic; }
+
+/* Settings › Features: the application's switches and the RPG ones in two titled groups (2026-10-21). */
+.features-group, .features-subgroup { border: 0; margin: 0; padding: 0; min-width: 0; }
+.features-subgroup { margin-top: 1.1rem; }
+.features-sub-legend { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); padding: 0 0 .15rem; }
+.features-bulk { display: flex; gap: .4rem; padding: .25rem 0 0; }
+.features-bulk-link, .features-own-link { font-size: .82rem; padding: .15rem .5rem; }
+.features-ctl { display: inline-flex; align-items: center; gap: .6rem; }
+
+/* The right panel's drawer close (a phone), and the phone's top row has
+   both side areas' buttons (src/screen/frame.ts). */
+.right-close { display: none; }
+/* A phone: the drawer has its own close. */
+@media (max-width: 760px) {
+  /* No title row: the close is the tab row's last button (the title is the tabs' own names). */
+  aside.right { position: fixed; }
+  .right-close { position: absolute; top: env(safe-area-inset-top); right: 0; z-index: 2; display: flex; padding: 0; min-height: 0; background: var(--paper-2); }
+  #right-title { display: none; }
+  .right-close .ghost { min-width: 44px; min-height: 44px; }
+  .right-tabs { padding-right: 44px; }
+}
+
+/* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */
+.font-sample { display: grid; gap: .3rem; min-width: 0; margin: .2rem 0 .6rem; }
+.font-sample-label { font: 600 .78rem var(--ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.font-sample-frame { position: relative; overflow: hidden; box-sizing: border-box; padding: 0; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 8px; pointer-events: none; user-select: none; }
+.font-sample-frame .font-sample-body { margin: 0; padding: .6rem .9rem; box-sizing: border-box; transform-origin: top left; }
+.font-sample-body > :first-child { margin-top: 0; }
+.font-sample-body > :last-child { margin-bottom: 0; }
+
+.focus-empty-hint { font-size: 0.85em; opacity: 0.7; padding: 2px 8px 6px 28px; }

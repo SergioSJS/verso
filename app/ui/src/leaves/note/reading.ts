@@ -3,24 +3,33 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { sh } from "../../shareStrings";
+import { isLoose } from "../../loose";
 import { ensureSyntaxTree, foldAll, syntaxTree, unfoldAll } from "@codemirror/language";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, embeddedBase, liveBases } from "../../bases";
 import { BaseView, type BaseSource } from "../../bases/view";
 import { commands } from "../../bindings";
+import { posAt } from "../../editor/posAt";
 import { type CardEditing } from "../../board/types";
 import { button, h, ui } from "../../dom";
 import { allEntries, webNotes } from "../../folder";
 import { icon } from "../../icons";
-import { decodedAddress, noteImages } from "../../images";
+import { decodedAddress, drawnBefore, drawnNow, noteImages } from "../../images";
 import { renderSticker } from "../../labels";
 import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
+import { hasCapability } from "../../capabilities";
+import { wireRollBlocks } from "../../rollblock/wire";
+import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
+import type { DieLook } from "../../statblock/inline";
+import { sameText, writeInReading, type Value, type ValuePath } from "../../statblock/edit";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
+import { headingVisibility, setHeadingFolded } from "./folds";
+import { apply, crossesBlocks, describes, keepAnchor, modeOfSig, plan, scrollAnchor, snapshot } from "./reconcile";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
 import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
@@ -34,8 +43,14 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
-import { wireDice } from "../../dice/card";
+import { diceBox, wireDice } from "../../dice/card";
+import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
+import { diagramLang, openBlockDiagram } from "../../datagraph/block";
+import { dgw } from "../../datagraph/words";
+
+/** What a roll block's card needs of the window: to find its link's note and to open it. */
+const ROLL_HOST = { resolve: resolveNoteByName, open: (path: string) => void openNote(path, false) };
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -47,6 +62,7 @@ export function repaint(this: NoteLeaf): void {
   this.embedCache.clear();
   this.editor.dispatch({ effects: redraw.of(null) });
   this.previewStale = true;
+  this.forcePaint = true;
   if (this.mode === "preview") this.paintPreview();
 }
 
@@ -97,9 +113,43 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
   }
 }
 
+/** The statblocks of the reading view drawn as cards (ADR 0099): their
+ *  dice the note's own (in a room, the server rolls), their trackers
+ *  written through the oracle's safe path — found again by their text
+ *  among the note's (statblock/edit.ts). A card of an embedded note is
+ *  drawn, never written to, and its picture is read as its own note names
+ *  it (`source`: the note the cards under `root` belong to). */
+export function wireStatblocks(this: NoteLeaf, root: HTMLElement, source: string = this.path): void {
+  if (!hasCapability("statblocks")) return;
+  const dice = hasCapability("diceRolling");
+  const host = { path: () => this.path, follow: (target: string) => this.follow(target) };
+  const found: { code: HTMLElement; pre: HTMLElement; text: string; own: boolean }[] = [];
+  for (const code of root.querySelectorAll<HTMLElement>("pre > code")) {
+    if (!isStatblockCode(code)) continue;
+    const pre = code.parentElement;
+    if (!pre || pre.dataset["statblockRendered"]) continue;
+    found.push({ code, pre, text: code.textContent ?? "", own: !pre.closest(".embed-note, .embed, .embed-base, .embed-pdf") });
+  }
+  const mine = found.filter((f) => f.own);
+  found.forEach((f, index) => {
+    f.pre.dataset["statblockRendered"] = "true";
+    const same = mine.filter((m) => sameText(m.text, f.text));
+    const ordinal = same.indexOf(f);
+    const card = renderStatblockHost(f.text, {
+      source,
+      key: source,
+      ...(dice ? { dice: (notation: string, look?: DieLook) => diceBox({ kind: "roll", notation }, host, { ...look, popover: true }) } : {}),
+      rolls: dice,
+      ...(f.own ? { write: (key: ValuePath, value: Value) => writeInReading(this, f.text, ordinal, same.length, key, value) } : {}),
+    });
+    f.pre.replaceWith(card);
+  });
+}
+
 export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
   for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
-    if (pre.querySelector(".copy-code-btn")) continue;
+    // A statblock's source and its error text have the card's own buttons.
+    if (pre.querySelector(".copy-code-btn") || pre.closest(".statblock-host, .statblock-card")) continue;
     pre.style.position = "relative";
     const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     foldBtn.type = "button";
@@ -124,11 +174,26 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
       });
     });
     pre.append(foldBtn, btn);
+    // JSON, YAML, TOML, XML and CSV: the block as a diagram, beside the note (ADR 0106).
+    const code = pre.querySelector("code");
+    const lang = Array.from(code?.classList ?? []).find((c) => c.startsWith("language-"))?.slice(9) ?? "";
+    if (lang !== "" && diagramLang(lang) !== null) {
+      const view = h("button", "copy-code-btn dg-view-btn");
+      view.type = "button";
+      view.title = dgw.viewAsDiagram;
+      view.setAttribute("aria-label", dgw.viewAsDiagram);
+      view.dataset["action"] = "view-diagram";
+      view.append(icon("diagram"));
+      view.addEventListener("click", () => openBlockDiagram(this, lang, code?.textContent ?? pre.textContent ?? ""));
+      pre.append(view);
+    }
   }
 }
 
 export function wirePreviewImages(this: NoteLeaf, root: HTMLElement): void {
   for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+    // A statblock's portrait is the card's: no grip, no size from its alt.
+    if (img.closest(".statblock-card")) continue;
     const alt = img.getAttribute("alt") ?? "";
     const size = sizeOf(alt);
     if (size?.w) img.style.width = `${size.w}px`;
@@ -248,23 +313,17 @@ export function persistImageSize(this: NoteLeaf, img: HTMLImageElement, rawSrc: 
 export function wireHeadingFolds(this: NoteLeaf, root: HTMLElement): void {
   const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
   for (const h of headings) {
-    if (h.querySelector(".heading-fold-btn")) continue;
+    // A statblock's headings are the card's, not the note's sections.
+    if (h.querySelector(".heading-fold-btn") || h.closest(".statblock-card")) continue;
     const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
     btn.type = "button";
+    btn.setAttribute("aria-expanded", "true");
     h.prepend(btn);
     const toggle = () => {
-      const level = parseInt(h.tagName.slice(1), 10);
       const folded = !h.classList.contains("heading-folded");
-      h.classList.toggle("heading-folded", folded);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = folded ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+      setHeadingFolded(h, folded);
+      if (h.parentElement) headingVisibility(h.parentElement);
+      this.setFold(h.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -293,6 +352,7 @@ export function wireListFolds(this: NoteLeaf, root: HTMLElement): void {
       const folded = !li.classList.contains("list-folded");
       li.classList.toggle("list-folded", folded);
       btn.setAttribute("aria-expanded", String(!folded));
+      this.setFold(li.dataset["foldKey"], folded);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -319,14 +379,15 @@ export function wireBlockquoteFolds(this: NoteLeaf, root: HTMLElement): void {
       e.stopPropagation();
       bq.classList.toggle("quote-folded");
       btn.setAttribute("aria-expanded", String(!bq.classList.contains("quote-folded")));
+      this.setFold(bq.dataset["foldKey"], bq.classList.contains("quote-folded"));
     });
   }
 }
 
 export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: string): void {
-  for (const old of root.querySelectorAll(".preview-line-num")) {
-    old.remove();
-  }
+  // The numbers already there stay when they still say the same line: a
+  // block that did not change is not touched.
+  const keep = new Set<Element>();
   const lines = text.split("\n");
   const elements = Array.from(root.querySelectorAll<HTMLElement>(
     "h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, table, .callout, .embed-base, .embed-pdf"
@@ -392,37 +453,40 @@ export function wireReadingLineNumbers(this: NoteLeaf, root: HTMLElement, text: 
     }
     if (matchedLine > 0) {
       // Also what a change of mode keeps in view (`topLine`).
-      el.dataset["line"] = String(matchedLine);
-      const num = h("span", "preview-line-num", String(matchedLine));
-      num.setAttribute("aria-hidden", "true");
-      el.prepend(num);
+      if (el.dataset["line"] !== String(matchedLine)) el.dataset["line"] = String(matchedLine);
+      const there = Array.from(el.children).find((c) => c.classList.contains("preview-line-num"));
+      if (there && there.textContent === String(matchedLine) && el.firstChild === there) keep.add(there);
+      else {
+        const num = h("span", "preview-line-num", String(matchedLine));
+        num.setAttribute("aria-hidden", "true");
+        el.prepend(num);
+        keep.add(num);
+      }
     }
   }
+  for (const old of Array.from(root.querySelectorAll(".preview-line-num"))) if (!keep.has(old)) old.remove();
 }
 
 export function foldAllHeadings(this: NoteLeaf, fold: boolean): void {
   if (this.mode === "preview") {
-    const headings = Array.from(this.preview.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
-    for (const h of headings) {
-      const level = parseInt(h.tagName.slice(1), 10);
-      h.classList.toggle("heading-folded", fold);
-      let next = h.nextElementSibling as HTMLElement | null;
-      while (next) {
-        if (/^H[1-6]$/i.test(next.tagName)) {
-          const nextLevel = parseInt(next.tagName.slice(1), 10);
-          if (nextLevel <= level) break;
-        }
-        next.style.display = fold ? "none" : "";
-        next = next.nextElementSibling as HTMLElement | null;
-      }
+    for (const h of this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
+      if (h.dataset["foldKey"] === undefined) continue;
+      setHeadingFolded(h, fold);
+      if (fold) this.folds.add(h.dataset["foldKey"]);
+      else this.folds.delete(h.dataset["foldKey"]);
     }
+    headingVisibility(this.preview);
+    this.keepFolds();
   } else {
     if (fold) foldAll(this.editor);
     else unfoldAll(this.editor);
   }
 }
 
-/** Draw the reading view from the note, if it changed since it was drawn. */
+/** Draw the reading view from the note, if it changed since it was drawn.
+ *  The same HTML drawn again touches nothing; changed HTML replaces only the
+ *  blocks that differ (`reconcile.ts`); what is read across blocks, a new
+ *  note, or a setting that changes how everything is drawn, rebuilds the whole. */
 export async function paintPreview(this: NoteLeaf): Promise<void> {
   const note = this.note;
   if (!this.previewStale || !note) return;
@@ -430,14 +494,91 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     return;
   }
   this.previewStale = false;
+  const force = this.forcePaint;
+  this.forcePaint = false;
   // The keyboard keeps its place through a redraw — a task checked, the
   // note read again: the focus goes back to the same task, the same link,
   // or what stands at the same place among what the note draws.
   const active = document.activeElement;
   const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
   // The same note drawn again keeps its callouts as the user left them.
-  const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
-  this.shownPath = note.path;
+  const sameNote = this.shownPath === note.path;
+  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
+  // the core, read-only.
+  this.readerView.offer(note.path, note.text);
+  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  const html = withNoteLinks(reader?.html ?? note.html, note.path);
+  const sig = `${note.path}\n${reader ? "r" : "n"}${this.readOnly ? "o" : "w"}\n${html}`;
+  const text = reader?.text ?? note.text;
+  const whole = !force && sameNote && modeOfSig(sig) === modeOfSig(this.paintedSig) && describes(this.blocks, this.preview);
+  if (whole && sig === this.paintedSig) {
+    // Nothing the view shows changed: nothing is touched.
+    if (this.shownText !== note.text) {
+      this.shownText = note.text;
+      this.wireReadingLineNumbers(this.preview, text);
+    }
+    return;
+  }
+  if (whole && this.paintBlocks(note.path, html, sig, text, reader !== null, key)) return;
+  this.paintWhole(note.path, html, sig, text, reader !== null, key, sameNote);
+}
+
+/** Only the blocks that differ, in place. False when the change reaches
+ *  across blocks and the whole view must be drawn instead. */
+export function paintBlocks(this: NoteLeaf, path: string, html: string, sig: string, text: string, reader: boolean, key: ReturnType<typeof focusKey> | null): boolean {
+  const old = this.blocks;
+  if (!old) return false;
+  const scratch = document.createElement("div");
+  setHtml(scratch, html);
+  const p = plan(old, Array.from(scratch.childNodes));
+  if (crossesBlocks(p.fresh, p.removed, (code) => isStatblockCode(code as HTMLElement))) return false;
+  const wrap = document.createElement("div");
+  wrap.append(...p.fresh);
+  wireCallouts(wrap, [], this);
+  keyLinks(wrap);
+  typeset(wrap);
+  void this.embedImages(path, wrap);
+  void noteImages(wrap, path);
+  if (!reader) this.wireTasks(wrap);
+  this.dressLinks(path, wrap);
+  this.wireMermaidBlocks(wrap);
+  wireRollBlocks(wrap, this.path, ROLL_HOST);
+  this.wireCodeBlocks(wrap);
+  wireSwatches(wrap);
+  wireDice(wrap, { path: () => this.path, follow: (target) => this.follow(target) });
+  this.wirePreviewImages(wrap);
+  this.wireHeadingFolds(wrap);
+  this.wireListFolds(wrap);
+  this.wireBlockquoteFolds(wrap);
+  // What wiring left of the new blocks, one for one (a block a wire replaced
+  // by a card is that block's place); anything else and the view is drawn whole.
+  const made = Array.from(wrap.childNodes);
+  if (made.length !== p.fresh.length) {
+    // The embeds still on their way belong to blocks that are not used.
+    wrap.dataset["abandoned"] = "1";
+    return false;
+  }
+  let at = 0;
+  const next = p.next.map((b) => ({ key: b.key, node: b.fresh ? made[at++]! : b.node }));
+  const anchor = scrollAnchor(this.sheet, this.preview, new Set(p.next.filter((b) => !b.fresh).map((b) => b.node)));
+  apply(this.preview, next, p.removed);
+  this.blocks = next;
+  this.applyReadingFolds(this.preview, made);
+  this.wireReadingLineNumbers(this.preview, text);
+  keepAnchor(this.sheet, anchor);
+  this.paintedSig = sig;
+  this.shownText = this.note?.text ?? this.shownText;
+  if (this.readingSearch?.isOpen) this.readingSearch.find();
+  if (key && !(document.activeElement instanceof HTMLElement && this.preview.contains(document.activeElement) && document.activeElement !== this.preview)) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
+  return true;
+}
+
+/** The whole reading view, built again. */
+export function paintWhole(this: NoteLeaf, path: string, html: string, sig: string, text: string, reader: boolean, key: ReturnType<typeof focusKey> | null, sameNote: boolean): void {
+  const note = this.note;
+  if (!note) return;
+  const open = sameNote ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
+  this.shownPath = path;
   for (const card of this.cards) {
     card.destroy();
   }
@@ -447,30 +588,40 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     if (e instanceof BaseView) liveBases.delete(e);
   }
   this.embeds = [];
-  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
-  // the core, read-only.
-  this.readerView.offer(note.path, note.text);
-  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
-  setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
-  wireCallouts(this.preview, open);
+  // The same note drawn again stays where the person was reading: taking
+  // the old blocks out lets WebKit drop the sheet's scroll to the top.
+  const kept = sameNote && this.preview.childElementCount > 0 ? this.sheet.scrollTop : null;
+  setHtml(this.preview, html);
+  const snap = snapshot(this.preview);
+  if (kept !== null && this.sheet.scrollTop !== kept) this.sheet.scrollTop = kept;
+  wireCallouts(this.preview, open, this);
   keyLinks(this.preview);
   this.shownText = note.text;
   this.gatherFootnotes();
   typeset(this.preview);
-  this.mountBases(note.path);
-  void this.embedImages(note.path);
-  void noteImages(this.preview, note.path);
+  this.mountBases(path);
+  void this.embedImages(path);
+  void noteImages(this.preview, path);
   if (!reader) this.wireTasks();
-  this.dressLinks(note.path);
+  this.dressLinks(path);
   if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
+  this.wireStatblocks(this.preview);
+  wireRollBlocks(this.preview, this.path, ROLL_HOST);
   this.wireCodeBlocks(this.preview);
+  wireSwatches(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
-  this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
+  this.applyReadingFolds(this.preview);
+  this.wireReadingLineNumbers(this.preview, text);
+  // Wiring puts a card where a code block stood, one for one: the blocks keep
+  // their places. Footnotes gathered, or anything else, and the next drawing is whole too.
+  const nodes = this.preview.childNodes;
+  this.blocks = nodes.length === snap.length ? snap.map((b, i) => ({ key: b.key, node: nodes[i]! })) : null;
+  this.paintedSig = sig;
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
 }
@@ -495,14 +646,23 @@ export async function relink(this: NoteLeaf, path: string): Promise<void> {
 
 /** The reading view's links marked when nothing answers them, embedded
  *  notes filled in. */
-export function dressLinks(this: NoteLeaf, path: string): void {
-  for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
+export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this.preview): void {
+  for (const a of root.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
     const target = a.dataset["target"] ?? "";
     const to = this.resolve(target);
     a.classList.toggle("unresolved", to === null);
     // A note outside what was shared: like an unresolved link, and it says
     // so (ADR 0081 item 11); it never makes a note.
     const out = to === null && this.isOutside(target);
+    // A read link's window (ADR 0105 item 2): a link to what was not
+    // shared is plain text that says so, not a link to nothing.
+    if (out && document.documentElement.dataset["visitor"]) {
+      const plain = h("span", "link-outside", a.textContent ?? target);
+      plain.append(h("small", "link-outside-note", ` (${sh.notSharedShort})`));
+      plain.title = sh.notShared;
+      a.replaceWith(plain);
+      continue;
+    }
     a.classList.toggle("outside", out);
     if (out) {
       a.title = sh.notShared;
@@ -521,7 +681,7 @@ export function dressLinks(this: NoteLeaf, path: string): void {
       }
     }
   }
-  this.dress(path);
+  this.dress(path, root);
 }
 
 /** Where a link target goes: the index's answer, else the same rule
@@ -540,19 +700,33 @@ export function isOutside(this: NoteLeaf, target: string): boolean {
   return this.outside.has(key) || this.outside.has(target.toLowerCase());
 }
 
-export function dress(this: NoteLeaf, forPath: string): void {
+export function dress(this: NoteLeaf, forPath: string, root: ParentNode = this.preview): void {
   // An embed of what was not shared shows the same words in its place.
-  for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed")) {
+  for (const span of root.querySelectorAll<HTMLElement>("span.embed")) {
     const raw = span.dataset["target"] ?? "";
     if (this.resolve(raw) !== null || !this.isOutside(raw)) continue;
     const said = h("span", "embed-outside", sh.notShared);
     said.dataset["target"] = raw;
     span.replaceWith(said);
   }
-  for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
+  for (const span of root.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
     const raw = span.dataset["target"] ?? "";
     const to = this.resolve(raw);
     if (!to || !to.endsWith(".md") || to === this.path) continue;
+    // A file opened without its folder: a note embed is drawn as a link,
+    // never inlined — reading siblings unasked is reading the directory
+    // (ADR 0114 item 14).
+    if (isLoose()) {
+      const a = h("a", "wikilink embed-as-link", raw);
+      a.dataset["target"] = raw;
+      a.href = "#";
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.follow(raw);
+      });
+      span.replaceWith(a);
+      continue;
+    }
     // A web note embedded is its page, not its (empty) text: the same
     // direct, sandboxed frame an <iframe> gets, gate included.
     const webUrl = webNotes.get(to);
@@ -595,6 +769,8 @@ export function dress(this: NoteLeaf, forPath: string): void {
       span.replaceWith(box);
       void this.embedImages(forPath, body, to);
       void noteImages(body, to);
+      this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
 
       let activeCard: CardEditing | null = null;
       let destroyed = false;
@@ -620,6 +796,8 @@ export function dress(this: NoteLeaf, forPath: string): void {
           this.wireMermaidBlocks(body);
           void this.embedImages(forPath, body, to);
           void noteImages(body, to);
+          this.wireStatblocks(body, to);
+      wireRollBlocks(body, to, ROLL_HOST);
         }
         destroyed = false;
       };
@@ -724,7 +902,7 @@ export function livePdf(this: NoteLeaf, target: string, mount: HTMLElement): () 
   void commands.resolveAttachment(this.path, spec.file).then((r) => {
     if (destroyed) return;
     if (r.status !== "ok" || !r.data) {
-      mount.textContent = `PDF não encontrado: ${spec.file}`;
+      mount.textContent = t.pdfNotFound(spec.file);
       mount.style.display = "flex";
       mount.style.alignItems = "center";
       mount.style.justifyContent = "center";
@@ -781,10 +959,10 @@ export function gatherFootnotes(this: NoteLeaf): void {
 
 /** The task checkboxes the core numbered (`data-task-line`, the line of
  *  the `[ ]` in the file); any other checkbox stays inert. */
-export function wireTasks(this: NoteLeaf): void {
+export function wireTasks(this: NoteLeaf, root: ParentNode = this.preview): void {
   // Named by its item's own words (not its sub-items'): reached with
   // Tab, a box said only "checkbox".
-  for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+  for (const box of root.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
     const li = box.closest("li");
     if (li) {
       li.classList.add("task-item");
@@ -794,7 +972,7 @@ export function wireTasks(this: NoteLeaf): void {
     if (label) box.setAttribute("aria-label", label);
   }
   if (this.readOnly) return;
-  for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+  for (const box of root.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
     const line = Number(box.dataset["taskLine"]);
     if (!Number.isInteger(line) || line < 1) continue;
     box.disabled = false;
@@ -819,7 +997,7 @@ export function insertReference(this: NoteLeaf, path: string, x: number, y: numb
     }
     this.setMode("live");
   }
-  const pos = this.editor.posAtCoords({ x, y }) ?? fallbackPos ?? this.editor.state.doc.length;
+  const pos = posAt(this.editor, { x, y }) ?? fallbackPos ?? this.editor.state.doc.length;
   this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length }, scrollIntoView: true });
   this.editor.focus();
 }
@@ -862,13 +1040,38 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
   const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
   const targets = new Set(spans.map((e) => parsePdfSpec(e.dataset["target"] ?? "").file));
   const found = new Map<string, string | null>();
+  // What the last drawing found stands in at once — nothing is awaited when
+  // all of it is known, so the embeds are back in the very frame the text is
+  // (no blank picture, no collapsed height at every redraw). The core is
+  // asked anyway; an answer that differs draws the note again.
+  const known = new Set<string>();
+  for (const target of targets) {
+    const before = drawnBefore("embed", source, target);
+    if (before !== undefined) {
+      found.set(target, before);
+      known.add(target);
+    }
+  }
+  const ask = async (target: string): Promise<string | null> => {
+    const r = await commands.resolveAttachment(source, target);
+    const rel = r.status === "ok" ? r.data : null;
+    if (r.status === "ok") drawnNow("embed", source, target, rel);
+    return rel;
+  };
   await Promise.all(
-    Array.from(targets).map(async (target) => {
-      const r = await commands.resolveAttachment(source, target);
-      found.set(target, r.status === "ok" ? r.data : null);
-    }),
+    Array.from(targets)
+      .filter((target) => !known.has(target))
+      .map(async (target) => void found.set(target, await ask(target))),
   );
-  if (this.path !== forPath) return;
+  if (known.size > 0) {
+    void Promise.all(Array.from(known, async (target) => [target, await ask(target)] as const)).then((answers) => {
+      if (this.path !== forPath || this.destroyed || !answers.some(([target, rel]) => rel !== found.get(target))) return;
+      this.previewStale = true;
+      this.forcePaint = true;
+      void this.paintPreview();
+    });
+  }
+  if (this.path !== forPath || root.dataset["abandoned"]) return;
   for (const span of spans) {
     const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
     const rel = found.get(spec.file);

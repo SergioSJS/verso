@@ -28,12 +28,15 @@ import {
 } from "@excalidraw/excalidraw";
 import type { ExcalidrawElement, ExcalidrawEmbeddableElement, NonDeleted } from "@excalidraw/excalidraw/element/types";
 import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
-import { hasSecret, keptIds, mapAt, mapsOf, pinsOf } from "./maps";
+import { hasSecret, keptIds, mapsOf, pinsOf } from "./maps";
 import { mapActions, readerActions } from "./mapsActions";
+import { pageActions } from "./pageActions";
+import { dropActions } from "./dropActions";
+import { textCardActions } from "./textCard";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
 import { mapStrings } from "./mapStrings";
@@ -41,7 +44,7 @@ import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
-import { useCardPreview, useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
+import { useCardButtons, useCardPreview, useHintSlot, useMenuName, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
 import { useOverlays } from "./overlays";
 import { useSceneFixes } from "./arrows";
 import {
@@ -60,6 +63,8 @@ import {
   relationEnds,
   toElements,
   withCrop,
+  type CardView,
+  isPage,
   type CanvasDoc,
   type CanvasNode,
   type Crop,
@@ -70,7 +75,7 @@ import { type BoardState, remeasureTargets, remoteScene, stateOver } from "./roo
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost, type BoardPane } from "./types";
-import { ext, IMAGE } from "../paths";
+import { ext } from "../paths";
 import { MAC } from "../platform";
 import { fold } from "../text";
 import { fit, margined, randomId } from "./util";
@@ -116,7 +121,7 @@ function Board({
   initial: CanvasDoc;
   /** In a room: the room's elements, drawn as they are (ADR 0082 item 12). */
   roomElements?: readonly El[];
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void, addText: (text: string, clientX?: number, clientY?: number) => void) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
@@ -146,7 +151,8 @@ function Board({
    *  writes) is shown and never written (review `board.md`, reading 2,
    *  finding 8). */
   // Nor by a reader on a server (ADR 0076 item 11).
-  const readOnly = (typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION) || Boolean(host.readOnly?.());
+  const newer = typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION;
+  const readOnly = newer || Boolean(host.readOnly?.());
   /** The board opened where it was left (the setting): the pane's size no
    *  longer brings the whole board back into view. */
   const restoredView = useRef(false);
@@ -378,6 +384,7 @@ function Board({
         return flushRef.current();
       },
       (path, x, y) => addPathRef.current(path, x, y),
+      (text, x, y) => addTextRef.current(text, x, y),
     );
     // In a room: the others' changes come in as the room's, merged over
     // what this window is changing right now (roomModel.ts), and never
@@ -508,8 +515,27 @@ function Board({
   const flushRef = useRef(flush);
   flushRef.current = flush;
   const addPathRef = useRef<(path: string, x?: number, y?: number) => void>(() => undefined);
+  const addTextRef = useRef<(text: string, x?: number, y?: number) => void>(() => undefined);
+  // The person's part in the folder may be known after the board is up (the
+  // sync's state on the desktop, the capabilities on a server): the board
+  // draws again, as a viewer where it only reads.
   useEffect(() => {
-    if (readOnly) host.status(s.newerBoard);
+    const again = (): void => setTick((n) => n + 1);
+    addEventListener("verso:sync-state", again);
+    addEventListener("verso:role", again);
+    addEventListener("verso:can-changed", again);
+    addEventListener("verso:files-listed", again);
+    return () => {
+      removeEventListener("verso:files-listed", again);
+      removeEventListener("verso:sync-state", again);
+      removeEventListener("verso:role", again);
+      removeEventListener("verso:can-changed", again);
+    };
+  }, []);
+  useEffect(() => {
+    // Only a board of a later Verso says so: a reader's window already
+    // says that the folder is read-only.
+    if (newer) host.status(s.newerBoard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -551,58 +577,7 @@ function Board({
   const { overlays, scheduleOverlays } = useOverlays(api, dark);
   useCardPreview(container, host.preview);
 
-  // A card's buttons (open, swap), under Excalidraw's selection canvas, are pressed
-  // here: the topmost card under the pointer decides, as the eye does.
-  useEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    let pressed: HTMLElement | null = null;
-    let hover: HTMLElement | null = null;
-    const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-    const buttonAt = (x: number, y: number): HTMLElement | null => {
-      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
-      for (let i = slots.length - 1; i >= 0; i--) {
-        const slot = slots[i]!;
-        if (!inside(slot.getBoundingClientRect(), x, y)) continue;
-        if (slot.classList.contains("is-active")) return null;
-        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open")) if (inside(b.getBoundingClientRect(), x, y)) return b;
-        return null;
-      }
-      return null;
-    };
-    const down = (e: PointerEvent): void => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-      const b = buttonAt(e.clientX, e.clientY);
-      if (!b) return;
-      pressed = b;
-      e.stopPropagation();
-      e.preventDefault();
-    };
-    const up = (e: PointerEvent): void => {
-      if (!pressed) return;
-      const b = pressed;
-      pressed = null;
-      e.stopPropagation();
-      if (buttonAt(e.clientX, e.clientY) === b) b.click();
-    };
-    const move = (e: PointerEvent): void => {
-      const b = e.buttons ? null : buttonAt(e.clientX, e.clientY);
-      if (b === hover) return;
-      hover?.classList.remove("is-hover");
-      b?.classList.add("is-hover");
-      root.classList.toggle("is-over-open", !!b);
-      hover = b;
-    };
-    root.addEventListener("pointerdown", down, true);
-    root.addEventListener("pointerup", up, true);
-    root.addEventListener("pointermove", move, true);
-    return () => {
-      root.removeEventListener("pointerdown", down, true);
-      root.removeEventListener("pointerup", up, true);
-      root.removeEventListener("pointermove", move, true);
-    };
-  }, []);
-
+  useCardButtons(container);
 
   // "Loose arrows": an arrow drawn while it is on attaches to no card, as
   // one drawn with ⌘ held does (Excalidraw's own way, which nothing
@@ -756,10 +731,12 @@ function Board({
     const path = await host.pickFile();
     if (path) add(newNode("file", path, center(), randomId()));
   };
-  const addText = async (): Promise<void> => {
-    const text = await host.prompt(s.editText, "", true);
-    if (text !== null && text.trim() !== "") add(newNode("text", text, center(), randomId()));
-  };
+  const stair = useRef({ busy: 0, next: 0 });
+  const drop = dropActions({ api, host, center, add, byId: (id) => byId(id), pin: (...a) => mapAct.pin(...a), stair, touched });
+  const { sceneAt, addPath, takeFiles, onFiles } = drop;
+  const lastTap = useRef<{ at: number; x: number; y: number } | null>(null);
+  const textCard = textCardActions({ api, host, locked: () => readOnly || asReader !== null, add, sceneAt, lastTap, touched });
+  const { addText, emptySpot, onTouchStart, editText } = textCard;
   const addLink = async (): Promise<void> => {
     const url = (await host.prompt(s.linkAddress, "https://", false))?.trim();
     if (url && /^https?:\/\/\S+$/.test(url)) add(newNode("link", url, center(), randomId()));
@@ -797,24 +774,19 @@ function Board({
 
   const relinkRef = useRef(relink);
   relinkRef.current = relink;
+  // Page cards (ADR 0057 point 10): the commands in `pageActions`; the card
+  // gets one function that does not change between renders.
+  const pageAct = pageActions({ api, host, touched, center, add, focusBoard });
+  const pageRef = useRef(pageAct);
+  pageRef.current = pageAct;
+  const interact = useCallback((id: string, on: boolean): void => pageRef.current.interact(id, on), []);
+  const setView = useCallback((id: string, view: CardView): void => pageRef.current.setView(id, view), []);
   const swapCard = useCallback((id: string): void => {
     const e = (api.current?.getSceneElements() as unknown as El[] | undefined)?.find((x) => x.id === id);
     const n = e ? nodeData(e) : null;
     if (e && n && n.type === "file") void relinkRef.current(e, n);
   }, []);
 
-  const editText = async (e: El, n: CanvasNode): Promise<void> => {
-    const a = api.current;
-    if (!a) return;
-    const next = await host.prompt(s.editText, typeof n.text === "string" ? n.text : "", true);
-    if (next === null) return;
-    touched.current = true;
-    const now = a.getSceneElementsIncludingDeleted();
-    a.updateScene({
-      elements: now.map((x) => (x.id === e.id ? newElementWith(x, { customData: { ...(x.customData ?? {}), canvas: { ...n, text: next } } }) : x)),
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-  };
 
   const selectedArrow = selected.length === 1 ? byId(selected[0] ?? "") : undefined;
   const ends = selectedArrow ? relationEnds(selectedArrow, (api.current?.getSceneElements() ?? []) as unknown as El[]) : null;
@@ -822,6 +794,8 @@ function Board({
   const selectedData = selectedNode && isNode(selectedNode) ? nodeData(selectedNode) : null;
   const lost = selectedData?.type === "file" && typeof selectedData.file === "string" && !host.exists(selectedData.file);
   const openable = !lost && selectedNode && isNode(selectedNode) && ["file", "link"].includes(nodeData(selectedNode)?.type ?? "");
+
+  const pageToggle = !readOnly && host.web && selectedNode && selectedData?.type === "link" ? { on: isPage(selectedData), run: () => pageAct.setPage(selectedNode, selectedData, !isPage(selectedData)) } : null;
 
   const promote = async (): Promise<void> => {
     const a = api.current;
@@ -913,7 +887,15 @@ function Board({
     const hit = [...(a.getSceneElements() as unknown as El[])]
       .reverse()
       .find((e) => e.type === "embeddable" && isNode(e) && p.x >= e.x && p.x <= e.x + e.width && p.y >= e.y && p.y <= e.y + e.height);
-    if (!hit) return;
+    if (!hit) {
+      // An empty spot: a Markdown text card, unless the setting says Excalidraw's drawn text.
+      if (emptySpot(ev.target)) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        void addText(ev.clientX, ev.clientY);
+      }
+      return;
+    }
     // A note's card is entered, as Excalidraw enters any embeddable on a
     // double click: its text scrolls, selects, and its links open. ⌘ opens
     // the note itself; a text card is edited, a link card opened.
@@ -928,94 +910,17 @@ function Board({
       return;
     }
     if (kind === "file" && !(ev.metaKey || ev.ctrlKey)) return;
+    // A page card is entered, as a note's card is; its button opens it.
+    if (kind === "link" && data && isPage(data) && host.web && !(ev.metaKey || ev.ctrlKey)) return;
     if (openNode(hit, ev.metaKey || ev.ctrlKey)) {
       ev.stopPropagation();
       ev.preventDefault();
     }
   };
 
-  // A picture or PDF dropped or pasted from outside is copied into the
-  // folder (beside the board, in the attachments folder) and shown by a
-  // file card, never kept inside the drawing (ADR 0057 point 2, ADR 0063).
-  const sceneAt = (clientX?: number, clientY?: number): [number, number] => {
-    const a = api.current;
-    if (!a || clientX === undefined || clientY === undefined) return center();
-    const p = viewportCoordsToSceneCoords({ clientX, clientY }, a.getAppState());
-    return [p.x, p.y];
-  };
-  // A picture comes in at its own proportions, its longer side as long as
-  // a new card's: a box of another shape would show the paper round it.
-  const pictureSize = async (path: string): Promise<[number, number] | null> => {
-    if (!IMAGE.test(ext(path))) return null;
-    const boxed = (w: number, h: number): [number, number] => {
-      const k = 400 / Math.max(w, h);
-      return [Math.max(40, Math.round(w * k)), Math.max(40, Math.round(h * k))];
-    };
-    // A large picture is never loaded whole to be measured: the core reads
-    // its size from the file (ADR 0090 item 4).
-    const told = host.maps ? await host.maps.open(path).catch(() => null) : null;
-    if (told && told.width > 0 && told.height > 0) return boxed(told.width, told.height);
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => (img.naturalWidth && img.naturalHeight ? resolve(boxed(img.naturalWidth, img.naturalHeight)) : resolve(null));
-      img.onerror = () => resolve(null);
-      img.src = host.fileSrc(path);
-    });
-  };
-  const addPath = async (path: string, clientX?: number, clientY?: number, nth = 0): Promise<void> => {
-    const [x, y] = sceneAt(clientX, clientY);
-    // A note dropped on a map is pinned there (ADR 0090 item 3).
-    const onMap = ext(path) === "md" ? mapAt((api.current?.getSceneElements() ?? []) as unknown as El[], x, y) : undefined;
-    const target = onMap ? byId(onMap.id) : undefined;
-    if (target) {
-      mapAct.pin(path, [x + nth * 32, y + nth * 32], target as never);
-      return;
-    }
-    const size = await pictureSize(path);
-    const node = newNode("file", path, [x + nth * 32, y + nth * 32], randomId());
-    if (size) {
-      node.x = Math.round(x + nth * 32 - size[0] / 2);
-      node.y = Math.round(y + nth * 32 - size[1] / 2);
-      [node.width, node.height] = size;
-    }
-    add(node);
-  };
   addPathRef.current = (path, clientX, clientY) => void addPath(path, clientX, clientY);
-  // Several files go in a staircase, also when two drops overlap: the step
-  // counts on until the last of them is in.
-  const stair = useRef({ busy: 0, next: 0 });
-  const takeFiles = async (files: File[], clientX?: number, clientY?: number): Promise<void> => {
-    const st = stair.current;
-    st.busy++;
-    try {
-      for (const f of files) {
-        if (!IMAGE.test(ext(f.name)) && ext(f.name) !== "pdf") {
-          host.status(s.imagesAsFiles);
-          continue;
-        }
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-          r.onerror = () => reject(r.error);
-          r.readAsDataURL(f);
-        });
-        const path = await host.saveImage(f.name.includes(".") ? f.name : `${f.name}.png`, base64);
-        if (path) await addPath(path, clientX, clientY, st.next++);
-      }
-    } finally {
-      if (--st.busy === 0) st.next = 0;
-    }
-  };
-  const onFiles = (ev: DragEvent | ClipboardEvent): void => {
-    touched.current = true;
-    const list = "dataTransfer" in ev ? ev.dataTransfer?.files : ev.clipboardData?.files;
-    // A card being edited takes a file as its note's text does.
-    if (!list || list.length === 0 || (ev.target as Element | null)?.closest?.(".board-card-slot.is-active")) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    const at = "dataTransfer" in ev ? ev : null;
-    void takeFiles(Array.from(list), at?.clientX, at?.clientY);
-  };
+  // A text card put where something was dropped (a roll block from the table).
+  addTextRef.current = drop.addTextAt;
 
   // Maps (ADR 0090): the commands, the pointer on the pins, and the
   // writer's "view as a reader".
@@ -1074,6 +979,7 @@ function Board({
   );
 
   const slot = useToolbarSlot(container);
+  useMenuName(container, s.boardMenu);
   const toolsBelow = useToolsBelow(container);
   useTidyContextMenu(container);
   const insertMenu = readOnly ? null : (
@@ -1082,6 +988,7 @@ function Board({
       addFile={() => void addFile()}
       addText={() => void addText()}
       addLink={() => void addLink()}
+      addPage={host.web ? () => void pageAct.addPage() : undefined}
       takeFiles={takeFiles}
       looseOn={looseOn}
       toggleLoose={() => {
@@ -1233,6 +1140,7 @@ function Board({
           // The board says itself what lies under the pointer (useCardPreview).
           data-preview-surface=""
           onDoubleClickCapture={onDoubleClick}
+          onTouchStartCapture={onTouchStart}
           onPointerDownCapture={(e) => {
             touched.current = true;
             if (!writable(e.target)) focusBoard();
@@ -1317,6 +1225,7 @@ function Board({
                 s={s}
                 insert={slot ? null : insertMenu}
                 cropPicture={cropPicture}
+                pageToggle={pageToggle}
                 maps={mapTools}
                 selectedNode={selectedNode}
                 selectedData={selectedData}
@@ -1347,6 +1256,7 @@ function Board({
                   s={s}
                   insert={slot ? null : insertMenu}
                   cropPicture={cropPicture}
+                pageToggle={pageToggle}
                   maps={mapTools}
                   selectedNode={selectedNode}
                   selectedData={selectedData}
@@ -1391,6 +1301,8 @@ function Board({
                 editing={editing}
                 setEditing={setEditing}
                 swap={swapCard}
+                interact={interact}
+                setView={setView}
                 draw={draw}
                 cards={cards}
                 overlays={overlays}
@@ -1459,14 +1371,16 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
   let find: () => void = () => undefined;
   let flush: () => Promise<void> = () => Promise.resolve();
   let addPath: (path: string, x?: number, y?: number) => void = () => undefined;
+  let addText: (text: string, x?: number, y?: number) => void = () => undefined;
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
       roomElements={roomElements}
-      bind={(l, f, r, fd, fl, ap) => {
+      bind={(l, f, r, fd, fl, ap, at) => {
         addPath = ap;
+        addText = at;
         load = l;
         focus = f;
         refresh = r;
@@ -1486,6 +1400,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
     find: () => find(),
     focus: () => focus(),
     addPath: (path, x, y) => addPath(path, x, y),
+    addText: (text, x, y) => addText(text, x, y),
     flush: () => flush(),
     destroy: () => root.unmount(),
   };

@@ -155,6 +155,17 @@ pub fn written(name: &str, args: &Value) -> Option<(String, u64)> {
     match name {
         "write_note" | "write_text" => Some((text("path")?.to_owned(), len(text("text")?))),
         "write_board" => Some((text("path")?.to_owned(), len(text("json")?))),
+        // A data file of the folder (ADR 0099 item 2, ADR 0098 item 2)
+        // takes the folder's disk like any file.
+        "write_folder_data" => Some((
+            format!(
+                "{}/{}/{}.json",
+                verso_fs::SETTINGS_DIR,
+                text("kind")?,
+                text("id")?
+            ),
+            len(text("text")?),
+        )),
         "create_note" => Some((text("name")?.to_owned(), len(text("text")?))),
         // Base64 takes four characters for three bytes.
         "create_file" => Some((text("path")?.to_owned(), len(text("base64")?) / 4 * 3)),

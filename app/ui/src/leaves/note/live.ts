@@ -17,6 +17,7 @@ import { commands } from "../../bindings";
 import type { LocalWhy } from "../../collab";
 import { type LiveState, liveLine, liveWords, localSaid, presenceSaid } from "../../coeditWords";
 import { h, ui } from "../../dom";
+import { paintMark, paintWho } from "../liveWho";
 import { presenceHeard } from "../../notify/sources";
 import { layout, spaces } from "../../layout/spaces";
 import type { LiveHolder } from "../../roomWrites";
@@ -71,8 +72,8 @@ export function paintLive(this: NoteLeaf): void {
   const st = this.liveState();
   const line = st ? liveLine(st, lang()) : "";
   this.liveMark.hidden = !st;
-  this.liveMark.textContent = line;
-  this.liveMark.dataset["live"] = st?.kind ?? "";
+  paintMark(this.liveMark, line, st?.kind ?? "");
+  paintWho(this, this.liveMark, st?.kind === "live" ? st.others : []);
   if (this.pane.active !== this || layout().focused !== this.pane) return;
   const b = bar();
   b.hidden = !st;
@@ -83,13 +84,16 @@ export function paintLive(this: NoteLeaf): void {
 /** The people in the note changed: said, and shown. */
 export function presenceChanged(this: NoteLeaf): void {
   const now = this.collab?.others() ?? [];
+  let fresh: string[] = [];
   if (this.collab?.synced) {
-    for (const line of presenceSaid(this.liveOthers, now, lang())) say(line);
-    // Someone joining is a notification too (ADR 0084 item 7).
-    presenceHeard(this.path, this.liveOthers, now);
+    // Someone joining is a notification too (ADR 0084 item 7); said once, as
+    // the news decides, and ringed in the presence row.
+    fresh = presenceHeard(this.path, this.liveOthers, now, this.pane.active === this && layout().panes().includes(this.pane));
+    for (const line of [...presenceSaid([], fresh, lang()), ...presenceSaid(this.liveOthers, now.filter((n) => this.liveOthers.includes(n)), lang())]) say(line);
   }
   this.liveOthers = now;
   this.paintLive();
+  paintWho(this, this.liveMark, now, fresh);
 }
 
 /** Out of the room, the text kept (item 8): the revision is the local
@@ -107,8 +111,12 @@ export async function wentLocal(this: NoteLeaf, why: LocalWhy): Promise<void> {
     if (r.error.kind === "not_found" && !this.gone) this.markGone();
     return;
   }
-  this.revision = r.data.revision;
   const differs = r.data.text !== this.editorText();
+  // A file that is not the one the tab holds (sync wrote it meanwhile) and
+  // differs from the text keeps the tab's old revision: the save meets the
+  // difference and shows both, never writes over it (invariant 11).
+  const unchanged = this.seen !== null && this.seen.revision === this.revision && this.seen.text === r.data.text;
+  if (!differs || unchanged || r.data.revision === this.revision || this.collab.revision === r.data.revision) this.revision = r.data.revision;
   this.setDirty(differs);
   if (differs) this.scheduleSave();
 }

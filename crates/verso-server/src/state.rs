@@ -92,7 +92,9 @@ impl Frame {
         Self {
             text: message.to_string().into(),
             // A session ended: the connection is told, then closed.
-            close: message.get("gone").is_some_and(|g| g == "session"),
+            close: message
+                .get("gone")
+                .is_some_and(|g| g == "session" || g == "link"),
         }
     }
 }
@@ -271,6 +273,13 @@ pub struct Client {
     /// Whether its credential may write at all: a token that only reads
     /// may not, whatever the role.
     pub token_write: bool,
+    /// Whether the account is the folder's owner, on the folder itself and
+    /// not through a share: the game master of its table (ADR 0113 item
+    /// 6), whatever the credential. The role above is the window's
+    /// ceiling; this is who it is.
+    pub owner: bool,
+    /// Whether the window is a paired phone's.
+    pub phone: bool,
     pub tx: Outbox,
 }
 
@@ -321,6 +330,11 @@ pub struct Server {
     pub untrusted_forward: crate::log::OnceAMinute,
     /// The REST routes' pace per address (ADR 0083 item 7).
     pub pace: crate::pace::Pace,
+    /// The pace of each read link's requests (ADR 0105 item 6), per link,
+    /// beside the address's.
+    pub link_pace: crate::pace::Pace,
+    /// The read links open now, and the browsers that proved a passphrase.
+    pub links: crate::readlinks::Open,
     /// The requests in flight per client address (`crate::http`).
     pub requests: crate::listen::Requests,
     /// The bytes of the WebSocket's large messages and answers under way
@@ -351,6 +365,16 @@ pub struct Server {
     /// (`crate::quota`).
     pub reserved: crate::quota::Reserved,
     pub rooms: crate::collab::Rooms,
+    /// The tables of the folders, as players are served them (ADR 0110).
+    pub campaigns: crate::campaign::Cache,
+    /// The windows at each folder's table (ADR 0107).
+    pub tables: crate::table::Tables,
+    /// The pace of a connection's table messages, images and rolls (ADR
+    /// 0107 item 12).
+    pub table_pace: crate::pace::Pace,
+    /// The pace of a connection's rolls and draws, those of a note's room
+    /// too, which the table keeps: the REST routes' (ADR 0107 item 12).
+    pub roll_pace: crate::pace::Pace,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
     /// Sign-in links sent by e-mail and not used: their hash → the account
@@ -435,6 +459,10 @@ impl Server {
             unforwarded: crate::log::OnceAMinute::default(),
             untrusted_forward: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
+            link_pace: crate::pace::Pace::default(),
+            table_pace: crate::pace::Pace::with(crate::table::RATE, crate::table::BURST),
+            roll_pace: crate::pace::Pace::default(),
+            links: crate::readlinks::Open::default(),
             requests: crate::listen::Requests::default(),
             inflight: crate::inflight::Inflight::default(),
             contract,
@@ -447,6 +475,8 @@ impl Server {
             transfers: crate::sync::Transfers::default(),
             reserved: crate::quota::Reserved::default(),
             rooms: crate::collab::Rooms::default(),
+            campaigns: crate::campaign::Cache::default(),
+            tables: crate::table::Tables::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
@@ -515,10 +545,18 @@ impl Server {
     /// its own.
     /// Only the windows of `to` hear it: who may write, and who may only
     /// read, hear their own heads (`crate::readers::push_sync_changed`).
+    ///
+    /// A `head` below zero is none: each window then asks for itself (a
+    /// player of a table with notes released to some players has a log
+    /// numbered in its own count).
     pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str], to: &[String]) {
-        let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
-        let frame = Frame::of(&whole);
         let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
+        let whole = if head < 0 {
+            bare.clone()
+        } else {
+            serde_json::json!({ "event": "sync-changed", "payload": { "head": head } })
+        };
+        let frame = Frame::of(&whole);
         let table = lock(&self.clients);
         for (id, c) in table.iter() {
             if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) || !to.contains(id) {
@@ -593,6 +631,9 @@ impl Server {
                 if let Some((folder, _)) = c.folder.take() {
                     c.folder = Some((folder, role));
                 }
+                // The credential's ceiling follows the pairing's: one source
+                // (ADR 0113), not a flag kept from the connection's start.
+                c.token_write = role.writes();
                 c.tx.send(&serde_json::json!({ "role": role }));
                 if !role.writes() {
                     demoted.push(id.clone());
@@ -620,6 +661,7 @@ impl Server {
                     match role {
                         Some(r) => {
                             c.folder = Some((folder.to_owned(), r));
+                            c.owner = r == Role::Owner;
                             c.tx.send(&serde_json::json!({ "role": r }));
                             if !r.writes() {
                                 demoted.push(id.clone());
@@ -652,6 +694,7 @@ impl Server {
         for client in clients {
             self.transfers.forget(client);
             crate::collab::gone_now(self, client);
+            crate::table::gone(self, client);
             self.service.release(client);
         }
     }

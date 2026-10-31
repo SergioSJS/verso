@@ -1,0 +1,34 @@
+{
+  "campaign": "The Dark Lighthouse",
+  "session": 3,
+  "npcs": [
+    {
+      "name": "Yara of the Lighthouse",
+      "role": "keeper",
+      "attitude": "wary",
+      "hp": 18,
+      "items": ["lantern", "bronze key", "tide journal"],
+      "secret": { "clue": "the strange light comes from the cellar", "revealed": false }
+    },
+    {
+      "name": "Captain Ruy",
+      "role": "sailor",
+      "attitude": "ally",
+      "hp": 31,
+      "items": ["short sword", "torn map"],
+      "secret": { "clue": "knows the route of the endless tide", "revealed": true }
+    },
+    {
+      "name": "Lia Torres",
+      "role": "scholar",
+      "attitude": "curious",
+      "hp": 12,
+      "items": ["magnifying glass", "notebooks"],
+      "secret": null
+    }
+  ],
+  "places": {
+    "lighthouse": { "floors": 4, "access": "spiral staircase" },
+    "harbor": { "boats": 7, "tavern": "The Crooked Hook" }
+  }
+}

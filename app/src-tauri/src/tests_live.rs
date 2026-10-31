@@ -95,8 +95,19 @@ struct Tab {
 impl Tab {
     /// The note opened: into its room (item 5).
     fn open(d: &Device) -> Tab {
+        Tab::joined(d, false)
+    }
+
+    /// The note opened by someone who only reads it: in its room all the
+    /// same, told it is read-only (night round 2026-10-30: the server said
+    /// `false` to a reader, whose editor then took no room text).
+    fn open_reading(d: &Device) -> Tab {
+        Tab::joined(d, true)
+    }
+
+    fn joined(d: &Device, read_only: bool) -> Tab {
         let joined = cmd(d, "collab_join", json!({ "path": NOTE })).unwrap();
-        assert_eq!(joined["read_only"], false, "{joined}");
+        assert_eq!(joined["read_only"], read_only, "{joined}");
         let doc = doc();
         apply(&doc, &joined["update"]);
         Tab {
@@ -284,7 +295,7 @@ fn saved(c: &mut Browser, must: &[&str]) {
 
 /// The device's link dropped, as a network drops it (item 8).
 fn drop_link(d: &Device, l: Link) {
-    l.remote.hang_up();
+    l.socket.as_ref().unwrap().hang_up();
     drop(l);
     d.s.live.lost();
 }
@@ -441,6 +452,53 @@ fn a_return_to_another_room_keeps_the_text_in_the_file_or_in_a_copy() {
 }
 
 #[test]
+fn a_return_to_another_room_after_the_rooms_own_saves_makes_no_copy() {
+    // The maintainer's 2026-10-23 report: a note only this device edited,
+    // the server restarted while the room's last saves had not come down
+    // yet. The server's file moved since the base, but by this tab's own
+    // room: the tab's text holds it, so it is sent, not set aside.
+    let (r, a, _b) = two();
+    let la = kept(&a);
+    let mut ta = Tab::open(&a);
+
+    // Typed in the room; the room writes it and tells the tab it did, but
+    // no pass has carried it down (the link goes before one does).
+    ta.type_live(&a, 99, "digitado ao vivo\n");
+    // Until this app has heard the save, not for a fixed time: the room
+    // writes after its quiet moment (900 ms) and the write and the event
+    // take as long as the machine is busy. A link dropped first never
+    // hears the save, and the pass then finds two changes and makes a
+    // copy, as it should (seen on Windows under load, 2026-10-24: the
+    // save landed 4 ms after the hang-up).
+    let waited = std::time::Instant::now();
+    while a.s.live.saves_heard(NOTE) == 0 {
+        assert!(
+            waited.elapsed() < Duration::from_secs(30),
+            "the room's save was never heard"
+        );
+        sleep(Duration::from_millis(20));
+    }
+    drop_link(&a, la);
+    assert_eq!(text(&a, NOTE).as_deref(), Some("# Sessao\n"));
+
+    // The link is gone: the tab goes local and types on.
+    insert(&ta.doc, 99, "digitado depois, sem rede\n");
+    ta.local(&a);
+    sleep(Duration::from_millis(300));
+    // The server's room is made again (a restart's effect on it).
+    let c = browser(&r);
+    c.call("collab_leave", json!({ "path": NOTE })).unwrap();
+
+    let mut la = kept(&a);
+    assert!(!ta.rejoin(&a, &mut la), "another room");
+    assert_eq!(copies(&a), Vec::<String>::new(), "no conflict copy");
+    assert!(ta.text().contains("digitado ao vivo"), "{}", ta.text());
+    assert!(ta.text().contains("sem rede"), "{}", ta.text());
+    assert_eq!(c.file(), ta.text());
+    assert_eq!(text(&a, NOTE).as_deref(), Some(ta.text().as_str()));
+}
+
+#[test]
 fn an_outside_program_on_a_device_with_a_live_note_is_merged_or_kept_as_a_copy() {
     let (r, a, b) = two();
     let (mut la, mut lb) = (kept(&a), kept(&b));
@@ -484,7 +542,7 @@ fn a_reader_is_present_in_the_room_and_writes_nothing() {
     let mut l = kept(&reader);
     on(&reader, &mut l);
     let mut c = browser(&r);
-    let t = Tab::open(&reader);
+    let t = Tab::open_reading(&reader);
     assert!(reader.s.live.holds(NOTE));
     // Present: the cursor and the name reach the others…
     cmd(
@@ -523,7 +581,7 @@ fn a_roll_in_a_synced_note_is_the_servers_and_every_window_hears_it() {
     let mut l = kept(&reader);
     on(&reader, &mut l);
     let c = browser(&r);
-    let _t = Tab::open(&reader);
+    let _t = Tab::open_reading(&reader);
     tauri::async_runtime::block_on(live::command(
         &reader.ctx,
         &reader.s,
@@ -1064,4 +1122,119 @@ proptest! {
     fn live_notes_end_the_same_everywhere_and_lose_no_edit(ops in prop::collection::vec(op(), 6..14)) {
         run(&ops);
     }
+}
+
+/// Opening a note of a folder of 500 notes, with sync settled, joins its
+/// room in a moment: the join waits for nothing but the server's answer
+/// (night round 2026-10-30: 1–2 s on an idle server).
+#[test]
+fn a_join_in_a_folder_of_500_notes_is_prompt() {
+    let bodies: Vec<(String, String)> = (0..500)
+        .map(|i| {
+            (
+                format!("Nota {i:03}.md"),
+                format!("# Nota {i}\n\nTexto {i}\n"),
+            )
+        })
+        .collect();
+    let refs: Vec<(&str, &str)> = bodies
+        .iter()
+        .map(|(n, t)| (n.as_str(), t.as_str()))
+        .collect();
+    let r = serve(&refs);
+    let d = device(&r, &r.owner, &[]);
+    let mut l = kept(&d);
+    for _ in 0..20 {
+        on(&d, &mut l);
+        if files(&d).len() == 500 {
+            break;
+        }
+    }
+    assert_eq!(files(&d).len(), 500);
+    // A reconnection, as an app start makes it: the link new, the first
+    // pass not yet run.
+    drop_link(&d, l);
+    let _l = kept(&d);
+    let mut worst = Duration::ZERO;
+    for i in [7, 123, 499] {
+        let path = format!("Nota {i:03}.md");
+        let t = std::time::Instant::now();
+        let joined = cmd(&d, "collab_join", json!({ "path": path })).unwrap();
+        let took = t.elapsed();
+        eprintln!("join {path}: {took:?}");
+        assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
+        worst = worst.max(took);
+        cmd(&d, "collab_leave", json!({ "path": path })).unwrap();
+    }
+    // A generous bound (a loaded Windows VM runs the whole suite at once):
+    // before the fix a join sat out the sync's pauses for seconds. That a
+    // join ends the settling pause exactly is the `settle_*` tests' job.
+    assert!(worst < Duration::from_millis(2000), "joined in {worst:?}");
+}
+
+/// A note changed on this device a moment before its tab joins: the join
+/// waits for the pass that sends the text, and that pass does not wait out
+/// the pause that lets a burst of changes settle (500 ms).
+#[test]
+fn a_join_after_a_local_change_does_not_wait_out_the_settling_pause() {
+    let r = serve(&[(NOTE, "# Sessao\n")]);
+    let d = device(&r, &r.owner, &[]);
+    tauri::async_runtime::spawn(sync::run(Arc::clone(&d.ctx), Arc::clone(&d.s)));
+    // In step, and the loop in its pause after the pass.
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    while text(&d, NOTE).is_none() {
+        assert!(std::time::Instant::now() < deadline, "the note never came");
+        sleep(Duration::from_millis(50));
+    }
+    sleep(Duration::from_millis(700));
+    write(&d, NOTE, b"# Sessao\n\nescrito aqui\n");
+    // The watcher's wake has been taken and the pause is on.
+    sleep(Duration::from_millis(100));
+    write(&d, NOTE, b"# Sessao\n\nescrito aqui, de novo\n");
+    let t = std::time::Instant::now();
+    let joined = cmd(&d, "collab_join", json!({ "path": NOTE })).unwrap();
+    let took = t.elapsed();
+    d.s.stop();
+    assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
+    // Generous (see `a_join_in_a_folder_of_500_notes_is_prompt`): the exact
+    // property is in `settle_is_skipped_only_while_a_join_waits`.
+    assert!(took < Duration::from_millis(1500), "joined in {took:?}");
+    let doc = doc();
+    apply(&doc, &joined["update"]);
+    assert!(text_of(&doc).contains("de novo"), "{}", text_of(&doc));
+}
+
+/// A hurry nobody was waiting for leaves nothing behind: the next, unrelated
+/// settling pause is whole (a rename done by another program as a delete
+/// and a create settles into one pass).
+#[test]
+fn a_stray_hurry_does_not_shorten_the_next_settling_pause() {
+    let live = live::Live::default();
+    live.hurry();
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_millis(300)));
+    assert!(
+        t.elapsed() >= Duration::from_millis(290),
+        "paused {:?}",
+        t.elapsed()
+    );
+}
+
+/// While a join waits the pause is skipped, and it is whole again once the
+/// join has ended.
+#[test]
+fn settle_is_skipped_only_while_a_join_waits() {
+    let live = live::Live::default();
+    let waiting = live.wait_for_pass();
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_secs(5)));
+    assert!(
+        t.elapsed() < Duration::from_secs(2),
+        "paused {:?}",
+        t.elapsed()
+    );
+    drop(waiting);
+    let t = std::time::Instant::now();
+    tauri::async_runtime::block_on(live.settle(Duration::from_millis(300)));
+    assert!(t.elapsed() >= Duration::from_millis(290));
 }

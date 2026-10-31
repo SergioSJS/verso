@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-loose-close"
+description = "Enables the loose_close command without any pre-configured scope."
+commands.allow = ["loose_close"]
+
+[[permission]]
+identifier = "deny-loose-close"
+description = "Denies the loose_close command without any pre-configured scope."
+commands.deny = ["loose_close"]

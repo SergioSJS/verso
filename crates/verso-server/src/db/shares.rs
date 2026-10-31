@@ -104,12 +104,26 @@ impl Db {
     /// A share removed, with its pending invitations ended: an invitation
     /// made for it gives nothing once it is gone (item 8).
     pub fn delete_share(&self, id: &str) -> R<()> {
+        // Who was in it, and whose folder: those who read the folder by no
+        // other way are no longer players of its tables.
+        let folder = self.share(id)?.map(|s| s.folder);
+        let people: Vec<String> = self
+            .share_people(id)?
+            .into_iter()
+            .map(|(a, _)| a.id)
+            .collect();
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         tx.execute(END_INVITATIONS, params![id, now()]).map_err(e)?;
         tx.execute("DELETE FROM shares WHERE id = ?1", [id])
             .map_err(e)?;
         tx.commit().map_err(e)?;
+        drop(conn);
+        if let Some(f) = folder {
+            for a in people {
+                self.campaign_account_left(&f, &a)?;
+            }
+        }
         Ok(())
     }
 
@@ -167,12 +181,25 @@ impl Db {
                 params![share, account, role.as_str()],
             )
             .map_err(e)?;
+        // A role that writes makes it a game master, not a player.
+        if let Some(s) = self.share(share)? {
+            self.campaign_account_left(&s.folder, account)?;
+        }
         Ok(())
     }
 
     /// Take `account` out of a share; false when it was not in it. A share
     /// with nobody left goes with its last person.
     pub fn revoke_share(&self, share: &str, account: &str) -> R<bool> {
+        let folder = self.share(share)?.map(|s| s.folder);
+        let gone = self.revoke_share_row(share, account)?;
+        if let Some(f) = folder {
+            self.campaign_account_left(&f, account)?;
+        }
+        Ok(gone)
+    }
+
+    fn revoke_share_row(&self, share: &str, account: &str) -> R<bool> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         let gone = tx

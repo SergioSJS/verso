@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-send-image"
+description = "Enables the table_send_image command without any pre-configured scope."
+commands.allow = ["table_send_image"]
+
+[[permission]]
+identifier = "deny-table-send-image"
+description = "Denies the table_send_image command without any pre-configured scope."
+commands.deny = ["table_send_image"]

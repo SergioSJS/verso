@@ -52,6 +52,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         folders_dir: PathBuf::from("/nonexistent/folders"),
         ui_dir: PathBuf::from("/nonexistent/ui"),
         web: true,
+        announce: false,
         admin: None,
         trusted_proxy: match proxy {
             1 => Proxies::parse("127.0.0.1").expect("a proxy"),

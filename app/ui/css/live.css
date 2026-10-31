@@ -4,18 +4,26 @@
 .editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
 .editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
 .editor .cm-line.cm-lp-h4, .editor .cm-line.cm-lp-h5, .editor .cm-line.cm-lp-h6 { font-family: var(--ui); font-size: 1em; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+/* A colour per heading level (ADR 0109): the theme's, else what each level always had. */
+.editor .cm-line.cm-lp-h1 { color: var(--h1-color, var(--heading-color, var(--ink))); }
+.editor .cm-line.cm-lp-h2 { color: var(--h2-color, var(--heading-color, var(--ink))); }
+.editor .cm-line.cm-lp-h3 { color: var(--h3-color, var(--heading-color, var(--ink))); }
+.editor .cm-line.cm-lp-h4 { color: var(--h4-color, var(--ink-2)); }
+.editor .cm-line.cm-lp-h5 { color: var(--h5-color, var(--ink-2)); }
+.editor .cm-line.cm-lp-h6 { color: var(--h6-color, var(--ink-2)); }
 .editor .cm-lp-strong { font-weight: 600; }
 .editor .cm-lp-em { font-style: italic; }
 .editor .cm-lp-strike { text-decoration: line-through; color: var(--ink-3); }
 .editor .cm-lp-mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .15em; }
 .editor .cm-blockid { color: var(--ink-3); font-size: .9em; }
-.editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); border-radius: 3px; padding: 0 .25em; }
+.editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--code-paper, var(--paper-3)); color: var(--code-ink, inherit); border-radius: 3px; padding: 0 .25em; }
 
 /* Fenced code blocks in Live Preview */
 .editor .cm-line.cm-lp-fence {
   font-family: var(--mono);
   font-size: .88em;
-  background: var(--paper-2);
+  background: var(--code-paper, var(--paper-2));
+  color: var(--code-ink, inherit);
   padding-left: 1.1em;
   padding-right: 1.1em;
 }
@@ -103,26 +111,30 @@
   padding-bottom: 1.3rem;
 }
 .editor .cm-line.cm-lp-callout-note,
-.editor .cm-line.cm-lp-callout-info,
+.editor .cm-line.cm-lp-callout-info {
+  --callout-color: var(--blue, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)));
+}
 .editor .cm-line.cm-lp-callout-abstract,
 .editor .cm-line.cm-lp-callout-summary,
 .editor .cm-line.cm-lp-callout-tldr {
-  --callout-color: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240));
+  --callout-color: var(--cyan, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)));
 }
 .editor .cm-line.cm-lp-callout-tip,
 .editor .cm-line.cm-lp-callout-hint,
 .editor .cm-line.cm-lp-callout-success,
 .editor .cm-line.cm-lp-callout-check,
 .editor .cm-line.cm-lp-callout-done {
-  --callout-color: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150));
+  --callout-color: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)));
 }
 .editor .cm-line.cm-lp-callout-warning,
 .editor .cm-line.cm-lp-callout-caution,
-.editor .cm-line.cm-lp-callout-attention,
+.editor .cm-line.cm-lp-callout-attention {
+  --callout-color: var(--orange, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)));
+}
 .editor .cm-line.cm-lp-callout-question,
 .editor .cm-line.cm-lp-callout-help,
 .editor .cm-line.cm-lp-callout-faq {
-  --callout-color: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75));
+  --callout-color: var(--yellow, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)));
 }
 .editor .cm-line.cm-lp-callout-danger,
 .editor .cm-line.cm-lp-callout-error,
@@ -130,14 +142,17 @@
 .editor .cm-line.cm-lp-callout-failure,
 .editor .cm-line.cm-lp-callout-fail,
 .editor .cm-line.cm-lp-callout-missing {
-  --callout-color: var(--seal);
+  --callout-color: var(--red, var(--seal));
 }
 .editor .cm-line.cm-lp-callout-example {
-  --callout-color: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300));
+  --callout-color: var(--purple, light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)));
 }
 .editor .cm-line.cm-lp-callout-quote,
 .editor .cm-line.cm-lp-callout-cite {
   --callout-color: var(--ink-3);
+}
+.editor .cm-line.cm-lp-callout-oracle {
+  --callout-color: var(--purple, light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305)));
 }
 
 /* Lists and Bullets in Live Preview */
@@ -166,9 +181,17 @@
   vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
 }
 .editor .cm-line.cm-lp-ordered .cm-lp-order-mark {
+  /* As wide as its digits (tabular: one `ch` each) plus the dot and the
+     gap, never under 1.5em; it reaches left into the indent, so `12.`
+     never breaks across two lines and every item's text starts at the
+     same place. */
+  --lp-order-w: max(1.5em, calc(var(--lp-order-digits, 1) * 1ch + 0.75em));
   display: inline-block;
-  width: 1.5em;
-  margin-left: -1.5em;
+  width: var(--lp-order-w);
+  margin-left: calc(-1 * var(--lp-order-w));
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
   padding-right: 0.35em;
   text-align: right;
   box-sizing: border-box;
@@ -176,20 +199,38 @@
   font-variant-numeric: tabular-nums;
   vertical-align: baseline;
 }
+/* Drawn by us, as in reading.css: the platform's checkbox sits on the
+   line differently in WebKit and in Chromium. */
 .editor input.cm-lp-task-check {
-  appearance: auto;
-  -webkit-appearance: auto;
-  accent-color: var(--seal);
-  width: 1em;
-  height: 1em;
-  margin: 0;
-  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  font-size: inherit; /* a control does not inherit it; em would be the platform's 13px */
+  position: relative;
   display: inline-block;
-  margin-left: -1.25em;
-  margin-right: 0.25em;
-  vertical-align: -0.02em;
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 0.3em 0 -1.2em;
+  padding: 0;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 0.2em;
+  background: var(--paper);
+  vertical-align: calc(0.36em - 0.45em);
   cursor: pointer;
 }
+.editor input.cm-lp-task-check:checked { background: var(--seal); border-color: var(--seal); }
+.editor input.cm-lp-task-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0.24em;
+  height: 0.46em;
+  border: solid var(--paper);
+  border-width: 0 0.12em 0.12em 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.editor input.cm-lp-task-check:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
 .editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
 
 /* Single unified vertical hierarchy guide line for ALL list types (bullets, tasks, ordered) */
@@ -212,11 +253,18 @@
 .editor .cm-lp-link { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 40%, transparent); cursor: pointer; text-decoration: none; }
 .editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
 
+/* A blank line between two blocks (ADR 0061, revised 2026-10-22): a thin gap
+   while the caret is elsewhere (it is full height under the caret, which is
+   not decorated), and a further blank line of the same run at 0.6 of a line.
+   The editor's line is 1.7: the gap is 0.4 of it, the extra one 0.6. */
+.editor .cm-line.cm-lp-gap { line-height: .68; overflow: hidden; }
+.editor .cm-line.cm-lp-gap-extra { line-height: 1.02; overflow: hidden; }
+
 /* Horizontal rule line in Live Preview */
 .editor .cm-line.cm-lp-hr-line {
   position: relative;
   text-align: center;
-  padding: .8em 0;
+  padding: .2em 0;
 }
 .editor .cm-line.cm-lp-hr-line::before {
   content: "";
@@ -225,7 +273,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--hair);
+  background: var(--hr-color, var(--hair));
 }
 .editor .cm-line.cm-lp-hr-line::after {
   content: "⁂";
@@ -302,3 +350,4 @@
 .outline li > button.level-3 { padding-left: 1.2rem; }
 .outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 
+.embed-gate-warn { margin: 0; line-height: 1.5; color: var(--ink); }

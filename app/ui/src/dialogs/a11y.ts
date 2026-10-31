@@ -13,6 +13,21 @@ export function asDialog(el: HTMLElement, label: string, close: () => void, labe
   el.setAttribute("aria-modal", "true");
   if (labelledBy) el.setAttribute("aria-labelledby", labelledBy);
   else el.setAttribute("aria-label", label);
+  // Safari does not focus a checkbox or a button when it is clicked, so the
+  // focus can rest on the page's body with the dialog open: Escape then
+  // never reaches the dialog. The top dialog takes it from the document.
+  const fromBody = (e: KeyboardEvent) => {
+    if (!el.isConnected) {
+      document.removeEventListener("keydown", fromBody);
+      return;
+    }
+    const at = document.activeElement;
+    if (e.key === "Escape" && !e.defaultPrevented && !hotkeyRecorder && (!at || at === document.body) && el.getClientRects().length > 0 && isTop(el)) {
+      e.preventDefault();
+      close();
+    }
+  };
+  document.addEventListener("keydown", fromBody);
   el.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.defaultPrevented && !hotkeyRecorder) {
       e.preventDefault();
@@ -64,6 +79,12 @@ export function isTop(el: HTMLElement): boolean {
   const open = openNow().filter(shownNow);
   return open.length === 0 || open[open.length - 1] === el;
 }
+/** The overlay on top now (none: null) — what a slow opening compares
+ *  before and after it waits, to know the person has moved on. */
+export function topOverlay(): HTMLElement | null {
+  const open = openNow().filter(shownNow);
+  return open[open.length - 1] ?? null;
+}
 /** A dialog opens: where the focus was, to give it back; above every
  *  overlay open, which goes inert under it. */
 export function opened(el: HTMLElement): void {
@@ -90,7 +111,7 @@ export function closed(el: HTMLElement, restore = true): void {
   if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
-  if (restore && back instanceof HTMLElement && back.isConnected) back.focus();
+  if (restore && back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true });
   // The focus stays in the dialog now on top: a click on a button gives it
   // no focus in WebKit, so where it was may be the page behind.
   if (restore && below && shownNow(below) && !below.contains(document.activeElement)) {

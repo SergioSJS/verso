@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "fate-accelerated-character",
+  "name": {
+    "pt": "Fate Accelerated — Personagem",
+    "en": "Fate Accelerated — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem (CC BY 3.0): aspectos e seis abordagens. Os nomes das abordagens ficam em inglês.",
+    "en": "A character sheet (CC BY 3.0): aspects and six approaches."
+  },
+  "sources": [
+    {
+      "label": "Fate Accelerated, who do you want to be",
+      "url": "https://fate-srd.com/fate-accelerated/who-do-you-want-be"
+    },
+    {
+      "label": "Fate Accelerated, being the GM",
+      "url": "https://fate-srd.com/fate-accelerated/being-gamemaster"
+    },
+    {
+      "label": "Fate SRD licensing (CC BY 3.0)",
+      "url": "https://fate-srd.com/official-licensing-fate"
+    }
+  ],
+  "profile": "fate",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"aspects","properties":["high_concept","trouble"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"high-concept","properties":["high_concept"],"label":{"pt":"High Concept","en":"High Concept"},"hideWhenEmpty":true},{"type":"property","id":"trouble","properties":["trouble"],"label":{"pt":"Trouble","en":"Trouble"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"other-aspects","properties":["aspects"],"label":{"pt":"Aspects","en":"Aspects"},"hideWhenEmpty":true,"dice":true},
+    {"type":"table","id":"approaches","properties":["careful","clever","flashy","forceful","quick","sneaky"],"label":{"pt":"Approaches","en":"Approaches"},"hideWhenEmpty":true,"headers":[{"pt":"Careful","en":"Careful"},{"pt":"Clever","en":"Clever"},{"pt":"Flashy","en":"Flashy"},{"pt":"Forceful","en":"Forceful"},{"pt":"Quick","en":"Quick"},{"pt":"Sneaky","en":"Sneaky"}],"modifier":"none","rule":true},
+    {"type":"group","id":"tokens","properties":["refresh","fate_points"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"refresh","properties":["refresh"],"label":{"pt":"Refresh","en":"Refresh"},"hideWhenEmpty":true},{"type":"property","id":"fate-points","properties":["fate_points"],"label":{"pt":"Fate points","en":"Fate points"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"stunts","properties":["stunts"],"label":{"pt":"Stunts","en":"Stunts"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"stress","properties":["stress","consequence_mild","consequence_moderate","consequence_severe"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"stress","properties":["stress"],"label":{"pt":"Stress","en":"Stress"},"current":"stress","max":3,"style":"boxes"},{"type":"property","id":"mild","properties":["consequence_mild"],"label":{"pt":"Mild consequence (2)","en":"Mild consequence (2)"},"hideWhenEmpty":true},{"type":"property","id":"moderate","properties":["consequence_moderate"],"label":{"pt":"Moderate consequence (4)","en":"Moderate consequence (4)"},"hideWhenEmpty":true},{"type":"property","id":"severe","properties":["consequence_severe"],"label":{"pt":"Severe consequence (6)","en":"Severe consequence (6)"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 4dF","en":"Roll 4dF"},"inputs":{}}
+  ]
+}

@@ -88,3 +88,24 @@ pub(crate) fn scan(source: &str, events: &[Offset<'_>]) -> Vec<BodyTag> {
     }
     out
 }
+
+/// The tag a frontmatter `tags` item names, or `None` when it names none
+/// (spec Q22 c and Q24 b; DL.2 = B, decided by the maintainer on
+/// 2026-10-21). A **string** is a tag, and so is a non-negative **integer**,
+/// as its text: `tags: 2024` and `tags: [2025, yes]` make the tags `2024`,
+/// `2025` and `yes`. This is a knowing difference from Obsidian 1.13.7,
+/// which lists no tag for a number. A boolean, a float (`1.5`), a null and
+/// a negative integer are none. A leading `#` is not part of the name:
+/// `"#ideia"` and `ideia` are one tag. The case is kept; folding is the
+/// caller's choice. (A `#2024` in the body stays no tag: that rule is the
+/// body's, Q13.)
+#[must_use]
+pub fn frontmatter_tag(item: &crate::Value) -> Option<String> {
+    let text = match item {
+        crate::Value::String(text) => text.as_str().to_owned(),
+        crate::Value::Integer(n) if *n >= 0 => n.to_string(),
+        _ => return None,
+    };
+    let name = text.trim().trim_start_matches('#');
+    (!name.is_empty()).then(|| name.to_owned())
+}

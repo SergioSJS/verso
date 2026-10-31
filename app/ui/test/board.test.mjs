@@ -454,3 +454,78 @@ describe("the file a board writes has the same bytes for the same board", () => 
     }
   });
 });
+
+describe("a web page as a link card (ADR 0057 point 10, decided 2026-10-21)", () => {
+  test("a new page card is a JSON Canvas link node with the page flag under verso", () => {
+    const n = b.newNode("link", "https://ok.example/p", [0, 0], "p1", true);
+    assert.equal(n.type, "link");
+    assert.equal(n.url, "https://ok.example/p");
+    assert.deepEqual(n.verso, { page: true });
+    assert.equal(b.isPage(n), true);
+    assert.equal(b.isPage(b.newNode("link", "https://ok.example/p", [0, 0], "p2")), false, "a plain link card is no page");
+  });
+  test("it round-trips as a link node, the flag kept, and nothing is added to a plain link", () => {
+    const doc = { nodes: [b.newNode("link", "https://ok.example/p", [0, 0], "p1", true), { id: "l", type: "link", x: 0, y: 500, width: 400, height: 120, url: "https://plain.example/" }], edges: [] };
+    const back = b.fromElements(restored(doc), doc);
+    assert.deepEqual(back.nodes, doc.nodes);
+    assert.equal(back.nodes[1].verso, undefined);
+  });
+  test("the switch writes and takes off the flag, other verso keys kept", () => {
+    const plain = { id: "l", type: "link", x: 0, y: 0, width: 400, height: 120, url: "https://a.example/", verso: { background: "#a5d8ff" } };
+    const on = b.withPage(plain, true);
+    assert.deepEqual(on.verso, { background: "#a5d8ff", page: true });
+    const off = b.withPage(on, false);
+    assert.deepEqual(off.verso, { background: "#a5d8ff" });
+    assert.equal(b.withPage({ ...plain, verso: undefined }, false).verso, undefined);
+  });
+  test("a page's origin is read from its address; only the web has one", () => {
+    assert.equal(b.pageOrigin("https://ok.example:8080/a?b#c"), "https://ok.example:8080");
+    assert.equal(b.pageOrigin("javascript:alert(1)"), null);
+    assert.equal(b.pageOrigin("not a url"), null);
+  });
+});
+
+describe("a data file's card (ADR 0057 point 10, ADR 0106)", () => {
+  const file = { id: "d", type: "file", file: "Dados/npcs.json", x: 0, y: 0, width: 400, height: 400 };
+  test("it shows its text unless the node's own verso says diagram, and any other value reads as text", () => {
+    assert.equal(b.cardView(file), "text");
+    assert.equal(b.cardView({ ...file, verso: { view: "diagram" } }), "diagram");
+    assert.equal(b.cardView({ ...file, verso: { view: "nonsense" } }), "text");
+    assert.equal(b.cardView({ ...file, verso: "x" }), "text");
+  });
+  test("the switch writes the mode and takes it off for the text, other verso keys kept", () => {
+    const colored = { ...file, verso: { background: "#a5d8ff" } };
+    const on = b.withView(colored, "diagram");
+    assert.deepEqual(on.verso, { background: "#a5d8ff", view: "diagram" });
+    assert.deepEqual(b.withView(on, "text").verso, { background: "#a5d8ff" });
+    assert.equal(b.withView(file, "text").verso, undefined, "the default is not written");
+  });
+  test("the mode round-trips through the board, and a file card left alone gains nothing", () => {
+    const doc = { nodes: [{ ...file, verso: { view: "diagram" } }, { ...file, id: "e", y: 500 }], edges: [] };
+    const back = b.fromElements(restored(doc), doc);
+    assert.deepEqual(back.nodes, doc.nodes);
+    assert.equal(back.nodes[1].verso, undefined);
+  });
+  test("a card shows at most the first 64 KB of the file, cut with a flag, never in a surrogate pair", () => {
+    assert.deepEqual(b.cardText("abc"), { shown: "abc", cut: false });
+    const big = b.cardText("x".repeat(b.CARD_TEXT_MAX + 5));
+    assert.equal(big.shown.length, b.CARD_TEXT_MAX);
+    assert.equal(big.cut, true);
+    const pair = b.cardText("x".repeat(b.CARD_TEXT_MAX - 1) + "😀tail");
+    assert.equal(pair.cut, true);
+    assert.equal(pair.shown.length, b.CARD_TEXT_MAX - 1);
+  });
+});
+
+describe("a text card added by hand (ADR 0057, 2026-10-23)", () => {
+  test("is a JSON Canvas text node, 340x110, centred on the point", () => {
+    const n = b.textCardAt("Olá `dice: 1d20`", [1000, 500], "x1");
+    assert.deepEqual(n, { id: "x1", type: "text", x: 830, y: 445, width: 340, height: 110, text: "Olá `dice: 1d20`" });
+  });
+  test("two taps close in time and place are a double tap", () => {
+    assert.equal(b.isDoubleTap(null, 100, 5, 5), false);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 250, 20, 18), true);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 450, 10, 10), false);
+    assert.equal(b.isDoubleTap({ at: 0, x: 10, y: 10 }, 200, 80, 10), false);
+  });
+});

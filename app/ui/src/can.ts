@@ -9,35 +9,62 @@
 // And the reader's role on a server: without `write` the window only
 // reads — the editor, the tree, the boards and the bases change nothing.
 //
-// Asked once at the start and kept, so that a menu built on a click asks
-// nothing; asked again when the server says the person's role changed
-// (`verso:role`, web.ts). Until the answer, the desktop's set stands: the
+// Asked at the start and kept, so that a menu built on a click asks
+// nothing; asked again when the window shows another folder
+// (`verso:folder-shown`: a person's role is per folder, and on the desktop
+// the folder may be a server's) and when the server says the person's role
+// changed (`verso:role`, web.ts). Until the answer, the desktop's set stands: the
 // side refuses what it cannot do anyway, and the desktop app answers at
 // once.
 
-import { commands, type Can, type Capabilities, type Host } from "./bindings";
+import { listen } from "@tauri-apps/api/event";
+import { commands, type Can, type Capabilities, type FolderAccess, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
+import { FOLDER_CAN } from "./folderCan";
+import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
+
+export { FOLDER_CAN };
 
 const DESKTOP: Capabilities = {
   host: "desktop",
-  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
   latency_ms: null,
 };
 
 let known: Capabilities = DESKTOP;
 let asked: Promise<Capabilities> | null = null;
+let answered = false;
+let turn = 0;
 
-/** Ask the side, once; the answer is kept and drawn on the page. */
+/** Ask the side; the answer is kept until the window asks again, and drawn on the page. */
 export function loadCan(): Promise<Capabilities> {
-  asked ??= commands.capabilities().then(
+  if (asked) return asked;
+  const mine = ++turn;
+  void askServer();
+  asked = commands.capabilities().then(
     (r) => {
-      known = r.status === "ok" ? r.data : DESKTOP;
-      paintCan();
+      // An answer to a question asked before the last one is stale.
+      if (mine !== turn) return known;
+      const next = r.status === "ok" ? r.data : DESKTOP;
+      const same = answered && JSON.stringify(next) === JSON.stringify(known);
+      known = next;
+      answered = true;
+      if (!same) paintCan();
       return known;
     },
     () => known,
   );
   return asked;
+}
+
+/** Ask again: the folder or the person's role in it changed. */
+export function refreshCan(): void {
+  askAgain();
+}
+function askAgain(): void {
+  asked = null;
+  forgetCapabilities();
+  void loadCan();
 }
 
 /** Whether the side can do `what`, as last answered. */
@@ -50,6 +77,12 @@ export function canWrite(): boolean {
   return can("write");
 }
 
+/** Who the person is at the open folder, as the side last said it; none
+ *  for a host with no server's model (`access.ts` is what asks). */
+export function folderAccessNow(): FolderAccess | null {
+  return known.access ?? null;
+}
+
 /** Which side the window talks to: the desktop app or a server. */
 export function host(): Host {
   return known.host;
@@ -60,7 +93,24 @@ export function host(): Host {
  *  window reads them back (web/bridge.ts, `popout_target`). */
 export function noteAddress(path: string): string {
   const folder = new URLSearchParams(location.search).get("folder") ?? "";
-  return `${location.origin}/?folder=${encodeURIComponent(folder)}&note=${encodeURIComponent(path)}`;
+  return noteLink(path, folder, windowServer, location.origin);
+}
+
+/** Where this window reaches its server (`window_server`), as last asked; null
+ *  for a folder of this computer. Asked with the capabilities. */
+let windowServer: ServerWindow | null = null;
+function askServer(): Promise<ServerWindow | null> {
+  return commands.windowServer().then(
+    (r) => (windowServer = r.status === "ok" ? r.data : null),
+    () => windowServer,
+  );
+}
+
+/** A link the server made, opened where this window reaches the server:
+ *  a path is put after the server's address, not after the app's own origin. */
+export async function serverLink(link: string): Promise<string> {
+  if (!link.startsWith("/")) return link;
+  return resolveServerLink(link, await askServer(), location.origin);
 }
 
 /** What may draw itself again when the answer changes. */
@@ -77,11 +127,14 @@ function paintCan(): void {
   for (const c of DESKTOP.can) if (!known.can.includes(c)) root.classList.add(`cannot-${c.replace(/_/g, "-")}`);
   root.classList.toggle("on-server", known.host === "server");
   for (const run of listeners) run();
+  // What draws itself elsewhere (a board, in React) hears the answer changed.
+  dispatchEvent(new Event("verso:can-changed"));
 }
 
-// The person's role in the folder changed (web.ts): asked again.
-addEventListener("verso:role", () => {
-  asked = null;
-  forgetCapabilities();
-  void loadCan();
-});
+// The person's role in the folder changed (web.ts), or another folder is
+// shown: asked again.
+addEventListener("verso:role", askAgain);
+addEventListener("verso:folder-shown", askAgain);
+// A synced folder's server said who this device is there (ADR 0113 S8): the
+// seat is the host's answer, so the window asks the capabilities again.
+void listen("seat-changed", askAgain).catch(() => {});

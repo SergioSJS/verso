@@ -29,3 +29,35 @@
   .side-divider::after { inset: 0 -10px; }
   .divider::before { content: ""; position: absolute; inset: -10px; }
 }
+
+/* The phone's search field is a target of 44px, as high as the rest (the
+   box itself, not only the line of text inside it). */
+@media (max-width: 760px) {
+  .search { padding-top: 0; padding-bottom: 0; }
+  .search input { min-height: 44px; }
+}
+
+/* The status bar's icons share one line (2026-10-30): each button a box of
+   44px with its icon in the middle — the bell's was 18px high and the
+   others' icons sat at the top of theirs. */
+@media (pointer: coarse) {
+  .status-bar { align-items: center; }
+  .status-bar .bar-toggle, .status-bar #keys-commands { display: inline-flex; align-items: center; justify-content: center; }
+  .status-bar .notify-bell-bar { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .status-keys { align-self: stretch; }
+  .status-keys button { align-self: center; }
+}
+
+/* A phone shown the desktop site (src/deskOnPhone.ts): the layout stays the
+   desktop's and the whole window is scaled up to be read and tapped — the
+   zoom brings it to about 450 CSS px of the page. The side bar is narrower
+   so the pane keeps room, and nothing is smaller than a finger. */
+html.desk-on-phone { zoom: var(--phone-zoom, 1); }
+html.desk-on-phone { --u-vw: calc(1vw / var(--phone-zoom, 1)); --u-vh: calc(1vh / var(--phone-zoom, 1)); }
+html.desk-on-phone body { --side-w: clamp(150px, calc(34 * var(--u-vw)), 190px); }
+/* The right panel is a sheet over the page there, not a third column the
+   pane would be squeezed by (the note it shows is what the person came for). */
+html.desk-on-phone body { grid-template-columns: var(--ribbon-w) var(--side-w) 0 1fr 0 0; }
+html.desk-on-phone body.no-side { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
+html.desk-on-phone #right-divider { display: none; }
+html.desk-on-phone body aside.right { position: fixed; top: 0; right: 0; bottom: 0; z-index: 8; width: min(calc(56 * var(--u-vw)), 280px); box-sizing: border-box; box-shadow: 0 0 40px oklch(0% 0 0 / .25); }

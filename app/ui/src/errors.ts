@@ -4,7 +4,7 @@
 
 import { type ContractError } from "./bindings";
 import { ui } from "./dom";
-import { ANSWERS, PHONE, isTransport, REACH, caseTwin, dueToSay, errorParts, levelOf, toConsole } from "./errorKinds";
+import { ANSWERS, PHONE, REFUSALS, isTransport, REACH, caseTwin, dueToSay, errorParts, levelOf, toConsole } from "./errorKinds";
 import { keepFailuresWith, reachSentence } from "./reach";
 import { note } from "./report";
 import { boardText, t } from "./strings";
@@ -62,6 +62,10 @@ export function errorSentence(e: ContractError | unknown): string {
   if (kind === "unavailable" && isTransport(e)) return `${t.error}: ${message}`;
   // The address is the whole message: said once, in the sentence.
   if (kind === REACH) return `${t.error}: ${reachSentence(message)}`;
+  // A refusal that names the right the person lacks: that, whole, in the
+  // interface's language (the core's English adds nothing).
+  const lacks = kind === "refused" ? REFUSALS[message] : undefined;
+  if (lacks) return `${t.error}: ${t[lacks]}`;
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, not_on_phone: t.errNotOnPhone, phone_reads: t.errPhoneReads, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, quota: t.errQuota, prove_first: t.errProveFirst, failed: t.errFailed };
   const said = sentence[kind];
   // A phone's refusal is whole in its sentence: the core's English adds nothing.

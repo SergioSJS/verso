@@ -1,0 +1,153 @@
+/* Themes, second step (ADR 0109 item 2). The colours a version 2 theme sets
+   (--code-paper, --h1-color…, --red…) are read where the stylesheet uses them,
+   each with its old value as the fallback (reading.css, live.css, chrome.css),
+   so a theme that sets none looks as it always did. This file answers the
+   theme's structural choices, written by theme/apply.ts as data-* on the
+   window's root (or on a gallery card): a choice that is the window's own
+   (tonal, plain, hairline, pill, soft) writes nothing, so nothing here applies
+   to a theme that makes none. */
+
+/* ---------- Radius: sharp | round (soft is the window's own) ---------- */
+[data-radius="sharp"] { --radius-s: 0px; --radius-m: 2px; --radius-l: 3px; }
+[data-radius="round"] { --radius-s: 8px; --radius-m: 12px; --radius-l: 16px; }
+[data-radius] :is(.preview code, .editor .cm-lp-code, .preview mark) { border-radius: var(--radius-s); }
+[data-radius] :is(.callout, .preview pre, .preview iframe, .embed-pdf, .embed-gate, .editor .cm-line.cm-lp-fence-single, .look-sample, .theme-card, .statblock-card, dialog, .menu, button.save, button.ghost:not(.iconic)) { border-radius: var(--radius-m); }
+[data-radius] :is(.look-set, .callout-card) { border-radius: var(--radius-l); }
+
+/* ---------- Headings ---------- */
+[data-heading-style="rule"] .preview :is(h1, h2),
+[data-heading-style="rule"] .editor :is(.cm-lp-h1, .cm-lp-h2) { padding-bottom: .22em; border-bottom: 1px solid var(--hair); }
+[data-heading-style="accent-bar"] .preview :is(h1, h2, h3, h4),
+[data-heading-style="accent-bar"] .editor :is(.cm-lp-h1, .cm-lp-h2, .cm-lp-h3, .cm-lp-h4) { padding-left: .55em; border-left: 3px solid currentColor; }
+[data-heading-style="small-caps"] .preview :is(h3, h4, h5, h6),
+[data-heading-style="small-caps"] .editor :is(.cm-lp-h3, .cm-lp-h4, .cm-lp-h5, .cm-lp-h6) { font-variant-caps: small-caps; letter-spacing: .04em; text-transform: none; }
+/* The gallery card's heading. */
+[data-heading-style="rule"] .theme-mini-h { padding-bottom: .12em; border-bottom: 1px solid var(--hair); }
+[data-heading-style="accent-bar"] .theme-mini-h { padding-left: .45em; border-left: 3px solid currentColor; }
+[data-heading-style="small-caps"] .theme-mini-h { font-variant-caps: small-caps; letter-spacing: .04em; }
+
+/* ---------- Tables ---------- */
+[data-table-style="striped"] .preview tbody tr:nth-child(even),
+[data-table-style="striped"] .editor .cm-lp-table tbody tr:nth-child(even) { background: color-mix(in oklch, var(--paper-2) 65%, var(--paper)); }
+[data-table-style="striped"] :is(.preview, .editor .cm-lp-table) :is(th, td) { padding-left: .7rem; }
+[data-table-style="bordered"] :is(.preview, .editor .cm-lp-table) :is(th, td) { border: 1px solid var(--hair); padding-left: .7rem; }
+
+/* ---------- Tags ---------- */
+[data-tag-style="outline"] :is(.preview a.tag, .tag-pill, .theme-mini-tag) { background: transparent; border: 1px solid var(--hair); color: var(--ink-2); }
+[data-tag-style="minimal"] :is(.preview a.tag, .tag-pill, .theme-mini-tag) { background: transparent; border: 0; padding-inline: .1em; color: var(--seal); }
+[data-tag-style="outline"] .preview a.tag:hover, [data-tag-style="minimal"] .preview a.tag:hover { background: var(--seal-wash); color: var(--seal); }
+
+/* ---------- Surfaces ---------- */
+/* flat: the panels are the page's own colour. */
+[data-surface="flat"] :is(aside.side, aside.right, .spaces, .ribbon) { background: var(--paper); }
+/* contrast: the sidebar and the ribbon are dark even in a light theme. The
+   theme's variables are light-dark() pairs, so an element in the dark scheme
+   reads their dark side (the theme's own, or the window's when it sets none). */
+[data-surface="contrast"] :is(aside.side, .ribbon) { color-scheme: dark; color: var(--ink); }
+[data-surface="contrast"] aside.side { background: var(--paper-2); }
+[data-surface="contrast"] .ribbon { background: var(--paper-3); }
+/* cards: the sidebar, the work area and the right panel float as outlined
+   cards on the third paper. The frame is a border of the panel itself, never
+   a margin, so the work area still fills the window. Only where there is room. */
+@media (min-width: 761px) {
+  [data-surface="cards"] body { background: var(--paper-3); }
+  [data-surface="cards"] :is(aside.side, main.work, aside.right) { border: 6px solid var(--paper-3); border-radius: calc(var(--radius-l, 10px) + 6px); overflow: hidden; outline: 1px solid var(--hair); outline-offset: -7px; }
+  [data-surface="cards"] body.no-side aside.side, [data-surface="cards"] body.no-right aside.right { border: 0; outline: 0; }
+}
+
+/* ---------- Semantic colours in the oracle ---------- */
+/* A theme that sets any semantic colour (data-semantic) colours the six
+   answers with them: the strong answers fill with the colour and take the
+   paper for text, the middling ones are a wash of it on the paper, with ink. */
+[data-semantic] :is(.orc-section, .orc-intro) {
+  --orc-yesAnd: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)));
+  --orc-yes: color-mix(in oklch, var(--cyan, light-dark(oklch(50% 0.1 200), oklch(76% 0.1 200))) 55%, var(--paper));
+  --orc-yesBut: color-mix(in oklch, var(--brass-ink) 25%, var(--paper));
+  --orc-noBut: color-mix(in oklch, var(--yellow, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))) 25%, var(--paper));
+  --orc-no: color-mix(in oklch, var(--orange, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))) 55%, var(--paper));
+  --orc-noAnd: var(--red, var(--seal));
+}
+[data-semantic] :is(.orc-a-yesAnd, .orc-a-noAnd) { --on: var(--paper); }
+[data-semantic] :is(.orc-a-yes, .orc-a-yesBut, .orc-a-noBut, .orc-a-no) { --on: var(--ink); }
+/* [!important] and [!todo] callouts take the pink only when a theme sets semantic colours. */
+[data-semantic] .callout:is([data-callout="important"], [data-callout="todo"]) { --kind: var(--pink, light-dark(oklch(50% 0.15 350), oklch(76% 0.13 350))); }
+
+/* ---------- Ten more structural choices (ADR 0109, TM.4 = B) ---------- */
+/* Each is a closed list in theme/tokens.ts whose first value is the window's
+   own look and writes nothing; what is written is answered here, for reading
+   (.preview) and for Live Preview (.editor), and nowhere else. */
+
+/* Heading scale: standard is 1.65 / 1.35 / 1.12 em. */
+[data-heading-scale="compact"] .preview h1, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h1 { font-size: 1.2em; }
+[data-heading-scale="compact"] .preview h2, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h2 { font-size: 1.1em; }
+[data-heading-scale="compact"] .preview h3, [data-heading-scale="compact"] .editor .cm-line.cm-lp-h3 { font-size: 1.04em; }
+[data-heading-scale="large"] .preview h1, [data-heading-scale="large"] .editor .cm-line.cm-lp-h1 { font-size: 2.1em; }
+[data-heading-scale="large"] .preview h2, [data-heading-scale="large"] .editor .cm-line.cm-lp-h2 { font-size: 1.7em; }
+[data-heading-scale="large"] .preview h3, [data-heading-scale="large"] .editor .cm-line.cm-lp-h3 { font-size: 1.35em; }
+
+/* Heading weight: semibold (600) is the window's own. */
+[data-heading-weight="regular"] .preview :is(h1, h2, h3, h4, h5, h6), [data-heading-weight="regular"] .editor .cm-line.cm-lp-h { font-weight: 400; }
+[data-heading-weight="bold"] .preview :is(h1, h2, h3, h4, h5, h6), [data-heading-weight="bold"] .editor .cm-line.cm-lp-h { font-weight: 700; }
+
+/* Reading column: standard is 100ch. The person's own "wide" measure
+   (data-measure, css/panels.css) still wins. */
+[data-line-width="narrow"] :is(.preview, .editor, .props, .links) { max-width: calc(40rem * var(--note-scale, 1)); }
+[data-line-width="wide"] :is(.preview, .editor, .props, .links) { max-width: calc(72rem * var(--note-scale, 1)); }
+
+/* Line height: normal is 1.7 (lists 1.6). */
+[data-line-height="snug"] .preview, [data-line-height="snug"] .editor .cm-scroller { line-height: 1.5; }
+[data-line-height="snug"] .preview li, [data-line-height="snug"] .editor .cm-line.cm-lp-li { line-height: 1.4; }
+[data-line-height="relaxed"] .preview, [data-line-height="relaxed"] .editor .cm-scroller { line-height: 1.9; }
+[data-line-height="relaxed"] .preview li, [data-line-height="relaxed"] .editor .cm-line.cm-lp-li { line-height: 1.8; }
+
+/* Quotes: bar-italic is the window's own. */
+[data-blockquote-style="bar"] .preview blockquote, [data-blockquote-style="bar"] .editor .cm-line.cm-lp-quote { font-style: normal; }
+[data-blockquote-style="panel"] .preview blockquote { background: var(--paper-2); border-left: 4px solid var(--brass); border-radius: 0 var(--radius-m, 8px) var(--radius-m, 8px) 0; padding: .6rem 1rem; }
+[data-blockquote-style="panel"] .editor .cm-line.cm-lp-quote { background: var(--paper-2); border-left: 4px solid var(--brass); padding-left: 1rem; }
+[data-blockquote-style="plain"] .preview blockquote, [data-blockquote-style="plain"] .editor .cm-line.cm-lp-quote { border-left: 0; font-style: normal; }
+
+/* Links: underline (a hairline under the text) is the window's own. */
+[data-link-style="hover"] .preview a:not(.tag) { border-bottom-color: transparent; }
+[data-link-style="hover"] .preview a:not(.tag):hover { border-bottom-color: var(--seal); }
+[data-link-style="hover"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title) { border-bottom-color: transparent; }
+[data-link-style="hover"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title):hover { border-bottom-color: var(--seal); }
+[data-link-style="plain"] .preview a:not(.tag), [data-link-style="plain"] .editor :is(.cm-lp-link, .cm-lp-wikilink, .embed-note-title) { border-bottom: 0; }
+
+/* Bold and italic: ink is the window's own. accent is the accent colour for
+   both; semantic is the cyan for bold and the green for italic. */
+[data-emphasis-color="accent"] .preview :is(strong, b, em, i), [data-emphasis-color="accent"] .editor :is(.cm-lp-strong, .cm-lp-em) { color: var(--seal); }
+[data-emphasis-color="semantic"] .preview :is(strong, b), [data-emphasis-color="semantic"] .editor .cm-lp-strong { color: var(--cyan, light-dark(oklch(50% 0.1 200), oklch(76% 0.1 200))); }
+[data-emphasis-color="semantic"] .preview :is(em, i), [data-emphasis-color="semantic"] .editor .cm-lp-em { color: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150))); }
+
+/* Task boxes: square (a small radius) is the window's own. */
+[data-checkbox-style="rounded"] .preview li input[type="checkbox"], [data-checkbox-style="rounded"] .editor input.cm-lp-task-check { border-radius: 0.35em; }
+[data-checkbox-style="round"] .preview li input[type="checkbox"], [data-checkbox-style="round"] .editor input.cm-lp-task-check { border-radius: 50%; }
+
+/* Space between paragraphs (reading): standard is the reading view's --flow, .9em. */
+[data-paragraph-spacing="tight"] .preview p { margin-bottom: .5em; }
+[data-paragraph-spacing="loose"] .preview p { margin-bottom: 1.6em; }
+
+/* Callouts: tinted (a wash and a bar) is the window's own. */
+[data-callout-style="outlined"] .callout { background: transparent; border: 1px solid color-mix(in oklch, var(--kind, var(--brass)) 55%, var(--paper)); border-left-width: 3px; border-left-color: var(--kind, var(--brass)); }
+[data-callout-style="outlined"] .editor .cm-line.cm-lp-callout { background: transparent; }
+[data-callout-style="title-bar"] .callout { padding: 0 0 .55rem; background: transparent; border: 1px solid color-mix(in oklch, var(--kind, var(--brass)) 40%, var(--paper)); overflow: hidden; }
+[data-callout-style="title-bar"] .callout > .callout-title { margin: 0; padding: .4rem .9rem; background: color-mix(in oklch, var(--kind, var(--brass)) 18%, var(--paper)); }
+[data-callout-style="title-bar"] .callout > :not(.callout-title) { margin-left: .9rem; margin-right: .9rem; }
+[data-callout-style="title-bar"] .callout > .callout-title + * { margin-top: .6rem; }
+[data-callout-style="title-bar"] .callout.folded { padding-bottom: 0; }
+[data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout { background: transparent; }
+[data-callout-style="title-bar"] .editor .cm-line.cm-lp-callout-head { background: color-mix(in oklch, var(--callout-color, var(--brass)) 18%, var(--paper)); }
+
+/* ---------- The horizontal rule (---), decided 2026-10-22 ---------- */
+/* asterism (the line with the ⁂) is the window's own and writes nothing.
+   line is Obsidian's plain 2px rule, thin its 1px one, fade a rule that
+   fades at both ends; all in --hr-color, which without a theme's own is the
+   hair colour. Reading (.preview) and Live Preview (.editor) both. */
+[data-hr-style] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::after { content: none; }
+[data-hr-style="line"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before { height: 2px; margin-top: -1px; }
+[data-hr-style="thin"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before { height: 1px; }
+[data-hr-style="fade"] :is(.preview hr, .editor .cm-line.cm-lp-hr-line)::before {
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, transparent, var(--hr-color, var(--hair)) 20%, var(--hr-color, var(--hair)) 80%, transparent);
+}

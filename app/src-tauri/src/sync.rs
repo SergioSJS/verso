@@ -11,22 +11,25 @@
 //! here through `verso-fs`, there through the server's sync commands, in
 //! pieces. The window hears `sync-status`.
 
-use std::collections::HashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use verso_contract::{FolderQuota, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
-use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
+use verso_core::sync::{self as engine, Action, FileState, Files, Seen, remote as rem};
 
 use super::*;
-use crate::dns::SendRetrying;
+use crate::{cloud, dns::SendRetrying};
 
+mod cloud_only;
 pub(crate) mod live;
+mod seat;
 mod transfer;
-use transfer::{Refusal, Side};
+pub(crate) mod universo;
+pub(crate) use transfer::contract_of;
+use transfer::{Gate, Refusal, Side};
 
 /// A piece of a file on the wire, read from the disk as it is sent (ADR
 /// 0079 item 12, revised 2026-10-12): the server's.
@@ -44,6 +47,8 @@ const LOG_LINES: usize = 200;
 /// against a real server with no window.
 pub(crate) struct Ctx {
     pub(crate) service: Arc<Service>,
+    /// Where the secrets of a cloud are kept (ADR 0104 item 14).
+    pub(crate) secrets: Arc<dyn crate::secrets::Secrets>,
     pub(crate) config: Option<PathBuf>,
     /// This computer's name, for a conflict's copy: asked at each pass,
     /// so that a name the person sets meanwhile is the next copy's.
@@ -72,6 +77,9 @@ pub(crate) struct Syncer {
     pub(crate) key: String,
     url: String,
     folder: String,
+    /// The cloud this folder syncs with, when it is not a UniVerso (ADR
+    /// 0104).
+    pub(crate) cloud: Option<engine::Cloud>,
     wake: tokio::sync::Notify,
     /// The person asked for a pass (Sync now): a server out of reach is
     /// tried at once, and its wait starts over.
@@ -106,7 +114,24 @@ pub(crate) struct Syncer {
     /// the hash of the text they were made with (ADR 0093 item 12): moved
     /// into the state by the pass, kept here until the base has the path.
     made: Mutex<BTreeMap<String, String>>,
+    /// What the server says this device may change is asked again: a
+    /// connection was made, access changed, the role changed (ADR 0113 S8).
+    rights_stale: AtomicBool,
+    /// How the server answers: `RIGHTS_UNKNOWN` until asked on this
+    /// connection, `RIGHTS_PER_FILE`, or `RIGHTS_BY_ROLE` for a server (or
+    /// cloud) with no per-file answer.
+    rights_mode: AtomicU8,
+    /// The paths the server answered for since the last full question,
+    /// those it said nothing may be changed in included: not asked twice.
+    rights_asked: Mutex<HashSet<String>>,
+    /// Who the server says this device is here, and whether to ask again.
+    seat: Mutex<Option<Value>>,
+    seat_stale: AtomicBool,
 }
+
+const RIGHTS_UNKNOWN: u8 = 0;
+const RIGHTS_PER_FILE: u8 = 1;
+const RIGHTS_BY_ROLE: u8 = 2;
 
 /// Who made a change on the server: the person, the device.
 type Author = (Option<String>, Option<String>);
@@ -117,6 +142,7 @@ impl Syncer {
             key: key.to_owned(),
             url: state.server.clone(),
             folder: state.folder.clone(),
+            cloud: state.cloud.clone(),
             wake: tokio::sync::Notify::new(),
             asked: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
@@ -128,6 +154,7 @@ impl Syncer {
                 on: true,
                 server: state.server.clone(),
                 folder: state.folder.clone(),
+                cloud: state.cloud.as_ref().map(crate::cloud::status_of),
                 state: "starting".to_owned(),
                 ..SyncStatus::default()
             }),
@@ -138,7 +165,81 @@ impl Syncer {
             settings_said: AtomicBool::new(false),
             authors: Mutex::new(HashMap::new()),
             made: Mutex::new(BTreeMap::new()),
+            rights_stale: AtomicBool::new(true),
+            rights_mode: AtomicU8::new(RIGHTS_UNKNOWN),
+            rights_asked: Mutex::new(HashSet::new()),
+            seat: Mutex::new(state.seat.clone()),
+            seat_stale: AtomicBool::new(true),
         })
+    }
+
+    /// What the server says is asked again at the next pass (access or
+    /// the role changed, or the connection was remade). The last answer
+    /// holds until then, and while the server is out of reach.
+    pub(crate) fn rights_stale(&self) {
+        self.rights_stale.store(true, Ordering::Relaxed);
+        self.seat_stale.store(true, Ordering::Relaxed);
+    }
+
+    /// What the person may do with each of `paths`, as the server last
+    /// said (ADR 0113 S8): the files it said may be changed are *edit*, the
+    /// others it was asked about *see*; a path it was not asked about is
+    /// left out. `fresh` is false while the question is being asked again.
+    pub(crate) fn rights_told(
+        &self,
+        config: Option<&Path>,
+        paths: &[String],
+    ) -> verso_contract::SyncRights {
+        use verso_contract::{AccessLevel, AccessWhy, FileAccess, SyncRight};
+        let role = lock(&self.status).role.clone();
+        let writes = synced(config, &self.key)
+            .map(|st| st.access)
+            .unwrap_or_default();
+        let asked = lock(&self.rights_asked);
+        let files = paths
+            .iter()
+            .filter(|p| {
+                writes.contains_key(&engine::folded(p)) || asked.contains(&engine::folded(p))
+            })
+            .map(|p| SyncRight {
+                path: p.clone(),
+                access: FileAccess {
+                    level: if writes.get(&engine::folded(p)).is_some_and(|r| r.put) {
+                        AccessLevel::Edit
+                    } else {
+                        AccessLevel::See
+                    },
+                    attach: false,
+                    attach_image: false,
+                    create_note: false,
+                    create_board: false,
+                    why: if role == "owner" {
+                        AccessWhy::Master
+                    } else {
+                        AccessWhy::Own
+                    },
+                },
+            })
+            .collect();
+        verso_contract::SyncRights {
+            fresh: !self.rights_stale.load(Ordering::Relaxed),
+            files,
+        }
+    }
+
+    /// Whether this device's change to `path` goes to the server, by the
+    /// last answer kept: the owner's always; otherwise what the server
+    /// said, or, where it gives no answer per file, the role.
+    pub(crate) fn may_send(&self, config: Option<&Path>, path: &str) -> bool {
+        let role = lock(&self.status).role.clone();
+        if role == "owner" {
+            return true;
+        }
+        if self.rights_mode.load(Ordering::Relaxed) == RIGHTS_BY_ROLE {
+            return role != "reader";
+        }
+        synced(config, &self.key)
+            .is_some_and(|st| st.access.get(&engine::folded(path)).is_some_and(|r| r.put))
     }
 
     /// A note made here from its template, with the text it was made with
@@ -291,19 +392,20 @@ fn from_there(what: &str) -> bool {
     )
 }
 
-/// Who the server's log says made change `c` (sync 2): its `by` and its
-/// `device`, each absent when unknown.
-fn author_of(c: &Value) -> Author {
-    let said = |f: &str| c[f].as_str().map(str::to_owned);
-    (said("by"), said("device"))
-}
-
 /// The state, as last saved, of a folder that syncs.
 pub(crate) fn synced(config: Option<&Path>, key: &str) -> Option<engine::State> {
     engine::load(config, key)
         .ok()
         .flatten()
         .filter(|s| !s.server.is_empty() && !s.off)
+}
+
+/// Whether the folder's saved sync is with a cloud (on or off).
+pub(crate) fn cloud_of(config: Option<&Path>, key: &str) -> bool {
+    engine::load(config, key)
+        .ok()
+        .flatten()
+        .is_some_and(|s| s.cloud.is_some())
 }
 
 /// The folder's sync marked off, its base kept for turning it on again.
@@ -351,12 +453,19 @@ pub(crate) fn off_status(config: Option<&Path>, key: &str) -> SyncStatus {
 
 /// What a sync error is, for the window to say in its language
 /// (`SyncStatus::problem`); the message stays for the log.
-fn problem_of(e: &ContractError) -> &'static str {
+pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
     match e.kind {
         ErrorKind::NotFound => "folder_gone",
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
+        // The game master closed the table: sync waits for it to open.
+        ErrorKind::Refused if e.message.contains(verso_contract::TABLE_CLOSED) => "table_closed",
+        // A cloud (ADR 0104): the sign-in, the keyring, the service that
+        // cannot keep a write safe.
+        ErrorKind::Refused if e.message.starts_with("cloud sign-in refused") => "cloud_auth",
+        ErrorKind::Refused if e.message.starts_with("no keyring") => "no_keyring",
+        ErrorKind::Refused if cloud => "cloud_refused",
         ErrorKind::Refused if e.message.contains("update the one that is behind") => "version",
         ErrorKind::Refused => "signed_out",
         _ => "failed",
@@ -453,23 +562,7 @@ fn listed_here(
                 message: String,
                 files: &mut Files,
                 apart: &mut BTreeMap<String, SyncRefused>| {
-        if let Some(b) = base.get(path) {
-            files.insert(
-                path.to_owned(),
-                FileState {
-                    hash: b.clone(),
-                    size: 0,
-                },
-            );
-        }
-        apart.insert(
-            path.to_owned(),
-            SyncRefused {
-                path: path.to_owned(),
-                reason: reason.to_owned(),
-                message,
-            },
-        );
+        cloud_only::hold(&base, (path, reason, message), files, apart);
     };
     for (path, size, modified, placeholder) in listed {
         // A name the server would refuse is said here, not sent (F19).
@@ -484,8 +577,9 @@ fn listed_here(
             continue;
         }
         if placeholder {
+            // The older form's stub of a file synced before is that file.
             held(
-                &path,
+                &cloud_only::standing(&path, |p| base.contains_key(p)),
                 "placeholder",
                 "not on this computer: on-demand storage".to_owned(),
                 &mut files,
@@ -640,82 +734,21 @@ fn sha256(bytes: &[u8]) -> String {
         .collect()
 }
 
-/// The server's files: all of them on the connection's first pass, then
-/// the changes after the last head. The log answers a page at a time: with
-/// more to come, the next question asks from the last change received, and
-/// only the last page's answer moves the cursor to the server's head — a
-/// head taken from an earlier page would skip the pages between.
-async fn there(
-    remote: &remote::Remote,
-    known: &mut Option<(Files, i64)>,
-    authors: &Mutex<HashMap<String, Author>>,
-) -> Result<(), Value> {
-    let Some((files, head)) = known else {
-        let answer = remote.call("sync_state", json!({})).await?;
-        let mut files = Files::new();
-        for f in answer["files"].as_array().into_iter().flatten() {
-            if let (Some(path), Some(hash)) = (f["path"].as_str(), f["hash"].as_str()) {
-                files.insert(
-                    path.to_owned(),
-                    FileState {
-                        hash: hash.to_owned(),
-                        size: f["size"].as_u64().unwrap_or(0),
-                    },
-                );
-            }
-        }
-        *known = Some((files, answer["head"].as_i64().unwrap_or(0)));
-        return Ok(());
-    };
-    loop {
-        let asked = *head;
-        let answer = remote
-            .call("sync_changes", json!({ "since": asked }))
-            .await?;
-        for c in answer["changes"].as_array().into_iter().flatten() {
-            let Some(path) = c["path"].as_str() else {
-                continue;
-            };
-            if let Some(from) = c["renamedFrom"].as_str() {
-                files.remove(from);
-            }
-            lock(authors).insert(path.to_owned(), author_of(c));
-            match c["hash"].as_str() {
-                Some(hash) if c["deleted"] != true => {
-                    files.insert(
-                        path.to_owned(),
-                        FileState {
-                            hash: hash.to_owned(),
-                            size: c["size"].as_u64().unwrap_or(0),
-                        },
-                    );
-                }
-                _ => {
-                    files.remove(path);
-                }
-            }
-            *head = (*head).max(c["seq"].as_i64().unwrap_or(0));
-        }
-        if answer["more"] != true {
-            *head = (*head).max(answer["head"].as_i64().unwrap_or(0));
-            return Ok(());
-        }
-        // A page that says there is more but moved nothing on would ask
-        // the same question for ever: the rest waits for the next pass.
-        if *head == asked {
-            return Ok(());
-        }
-    }
-}
-
 /// A connection to the server on the folder, and the role in it.
 pub(crate) struct Link {
-    pub(crate) remote: Arc<remote::Remote>,
+    /// The other side of the sync, whatever it is (ADR 0104 item 3).
+    pub(crate) remote: Arc<dyn rem::Remote>,
+    /// A UniVerso's connection, which the tests close and read; a cloud
+    /// has none.
+    #[cfg(test)]
+    pub(crate) socket: Option<Arc<remote::Remote>>,
     pub(crate) heard: tokio::sync::mpsc::UnboundedReceiver<remote::Heard>,
+    /// What a cloud's link holds so that its `heard` stays open and quiet.
+    pub(crate) _quiet: Option<tokio::sync::mpsc::UnboundedSender<remote::Heard>>,
     pub(crate) role: String,
     pub(crate) name: String,
-    /// The server's files and the head they are at.
-    known: Option<(Files, i64)>,
+    /// The remote's files, each with its version, and the feed's cursor.
+    pub(crate) known: Option<rem::Known>,
     /// The next pass walks the folder first: the connection's first (a
     /// reconnection), and the scan's. The listing a pass compares is as of
     /// the watcher's last batch, and a file whose size and time are as the
@@ -733,7 +766,10 @@ impl Link {
     /// The head of the server's log the device's files are known at.
     #[cfg(test)]
     pub(crate) fn cursor(&self) -> Option<i64> {
-        self.known.as_ref().map(|(_, head)| *head)
+        self.known
+            .as_ref()
+            .and_then(|k| k.cursor.as_ref())
+            .and_then(|c| c.parse().ok())
     }
 }
 
@@ -793,14 +829,87 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     // item 2).
     s.live.connected(Arc::clone(&remote));
     Ok(Link {
-        remote,
+        remote: Arc::new(universo::Universo::new(Arc::clone(&remote))),
+        #[cfg(test)]
+        socket: Some(remote),
         heard,
+        _quiet: None,
         role,
         name,
         known: None,
         walk: true,
         share,
     })
+}
+
+/// Asks the server what this device may change, for the paths a pass is
+/// about to change (all the files, when the answer is stale), and keeps the
+/// answers in the state. True when the server's judgement of each change is
+/// the only one: the folder's owner, or a server that gives no per-file
+/// answer to an editor (ADR 0113 S8).
+fn judged(
+    s: &Syncer,
+    remote: &dyn rem::Remote,
+    role: &str,
+    (plan, theirs, ours): (&engine::Plan, &Files, &Files),
+    state: &mut engine::State,
+) -> Result<bool, rem::RemoteError> {
+    if role == "owner" {
+        return Ok(true);
+    }
+    if s.rights_mode.load(Ordering::Relaxed) == RIGHTS_BY_ROLE {
+        return Ok(role != "reader");
+    }
+    let stale = s.rights_stale.load(Ordering::Relaxed);
+    let mut want: BTreeSet<String> = BTreeSet::new();
+    for a in &plan.actions {
+        match a {
+            Action::Upload { path, .. } | Action::DeleteRemote { path, .. } => {
+                want.insert(path.clone());
+            }
+            Action::RenameRemote { from, to, .. } => {
+                want.insert(from.clone());
+                want.insert(to.clone());
+            }
+            Action::Conflict { path, copy, .. } => {
+                want.insert(path.clone());
+                want.insert(copy.clone());
+            }
+            _ => {}
+        }
+    }
+    if stale {
+        want.extend(theirs.keys().cloned());
+        want.extend(ours.keys().cloned());
+    } else {
+        let asked = lock(&s.rights_asked);
+        want.retain(|p| !asked.contains(&engine::folded(p)));
+    }
+    if want.is_empty() {
+        return Ok(false);
+    }
+    let list: Vec<String> = want.into_iter().collect();
+    let Some(answers) = remote.rights(&list)? else {
+        s.rights_mode.store(RIGHTS_BY_ROLE, Ordering::Relaxed);
+        return Ok(role != "reader");
+    };
+    s.rights_mode.store(RIGHTS_PER_FILE, Ordering::Relaxed);
+    let mut asked = lock(&s.rights_asked);
+    if stale {
+        state.access.clear();
+        asked.clear();
+        s.rights_stale.store(false, Ordering::Relaxed);
+    }
+    for p in &list {
+        state.access.remove(&engine::folded(p));
+        asked.insert(engine::folded(p));
+    }
+    for (p, r) in answers {
+        if r.writes() {
+            state.access.insert(engine::folded(&p), r);
+        }
+    }
+    Ok(false)
 }
 
 /// What a pass carried out, said for the tests.
@@ -832,20 +941,26 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // rooms come back into them before anything is compared (ADR 0082
     // item 9).
     live::rejoined(s).await;
+    seat::refresh(ctx, s).await;
     let remote = Arc::clone(&l.remote);
-    there(&remote, &mut l.known, &s.authors)
-        .await
-        .map_err(|e| said(&e))?;
-    let Some((remote_files, head)) = l.known.as_mut() else {
+    let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
+    state.server.clone_from(&s.url);
+    state.folder.clone_from(&s.folder);
+    // The remote's files: all of them on the connection's first pass, then
+    // the changes after the last cursor; a cloud's versions already seen
+    // are not read again.
+    let named = tokio::task::block_in_place(|| rem::refresh(&*remote, &mut l.known, &state.tokens))
+        .map_err(transfer::contract_of)?;
+    for who in named {
+        lock(&s.authors).insert(who.path, (who.by, who.device));
+    }
+    let Some(known) = l.known.as_mut() else {
         return Ok(Passed::default());
     };
     if l.walk {
         tokio::task::block_in_place(|| ctx.service.walk_quietly(&s.key));
         l.walk = false;
     }
-    let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
-    state.server.clone_from(&s.url);
-    state.folder.clone_from(&s.folder);
     // The notes made from a template since: the base of a join should the
     // server hold one of the same name (ADR 0093 item 12).
     for (path, hash) in lock(&s.made).iter() {
@@ -859,7 +974,8 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // A share carries no settings of the folder's: none of the server's
     // is fetched over this computer's own (ADR 0070).
     if l.share {
-        remote_files.retain(|p, _| !engine::settings_path(p));
+        known.files.retain(|p, _| !engine::settings_path(p));
+        known.versions.retain(|p, _| !engine::settings_path(p));
     }
     let share = l.share;
     let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state, share))?;
@@ -870,12 +986,20 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &device, &when, pt, taken);
     // A live note's own text, already in its room, is not a change to
     // send nor a conflict (ADR 0082 items 6 and 9).
-    let planned_on = live::masked(s, &local, remote_files, &state.base);
+    let planned_on = live::masked(s, &local, &known.files, &state.base);
+    // A live note whose server file is its own room's save, not fetched
+    // before the link went: planned from that save, so that the tab's text
+    // is sent over it, not set aside beside it (ADR 0082 item 9).
+    let planned_from = live::over_saves(s, &local, &known.files, &state.base).map(|base| {
+        let mut st = state.clone();
+        st.base = base;
+        st
+    });
     // A yes counts for the deletions the person saw, no more, and once.
     let mut plan = engine::plan(
         planned_on.as_ref().unwrap_or(&local),
-        remote_files,
-        &state,
+        &known.files,
+        planned_from.as_ref().unwrap_or(&state),
         false,
         engine::FOLDS_NAMES,
         &copy_name,
@@ -912,12 +1036,26 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             paused: Some(n),
         });
     }
-    let reader = l.role == "reader";
+    let open = tokio::task::block_in_place(|| {
+        judged(
+            s,
+            &*remote,
+            &l.role,
+            (&plan, &known.files, &local),
+            &mut state,
+        )
+    })
+    .map_err(transfer::contract_of)?;
+    // The answers as they stand for this pass; the state keeps them.
+    let rights = state.access.clone();
     let on = Side {
         ctx,
         s,
-        remote: &remote,
-        reader,
+        remote: &*remote,
+        gate: Gate {
+            open,
+            rights: &rights,
+        },
     };
     let (mut sending, mut receiving) = (0_u32, 0_u32);
     for a in &plan.actions {
@@ -967,9 +1105,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         {
             continue;
         }
-        let result = on
-            .carry_out(remote_files, &mut local, &mut state, &action)
-            .await;
+        let result = on.carry_out(known, &mut local, &mut state, &action);
         if result.is_err() {
             stuck.extend(touches.iter().map(|p| (*p).to_owned()));
         }
@@ -982,7 +1118,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 }
             }
             Err(Refusal::Connection(e)) => {
-                save(ctx, s, &mut state, *head);
+                save(ctx, s, &mut state, known);
                 return Err(e);
             }
             Err(Refusal::File(path, reason, message)) => {
@@ -1045,7 +1181,8 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             st.receiving = receiving;
         });
     }
-    save(ctx, s, &mut state, *head);
+    save(ctx, s, &mut state, known);
+    let (apart, cloud_only) = cloud_only::split(apart, &known.files);
     let conflicts: Vec<String> = ctx
         .service
         .with_key(&s.key, |ws| {
@@ -1068,7 +1205,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             .iter()
             .map(|f| (f.path.clone(), f.reason.clone()))
             .collect();
-        for f in apart.values() {
+        for f in &apart {
             if !before.contains(&(f.path.clone(), f.reason.clone())) {
                 log::write(
                     "WARN",
@@ -1077,7 +1214,19 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 );
             }
         }
-        st.refused = apart.into_values().collect();
+        st.refused = apart;
+        // One line for the count, when it changes: not a line per path.
+        if !cloud_only.is_empty() && cloud_only.len() != st.cloud_only.len() {
+            log::write(
+                "INFO",
+                "sync",
+                &format!(
+                    "{} files are only in the cloud on this computer; the server has them",
+                    cloud_only.len()
+                ),
+            );
+        }
+        st.cloud_only = cloud_only;
         st.last = Some(log::now());
     });
     Ok(Passed {
@@ -1112,15 +1261,26 @@ pub(crate) fn is_conflict_copy(path: &str) -> bool {
 }
 
 /// The state written, unless the sync was turned off meanwhile.
-fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, head: i64) {
+fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, known: &rem::Known) {
     let _one = lock(&s.disk);
     if s.stopped() && synced(ctx.config.as_deref(), &s.key).is_none() {
         return;
     }
-    state.cursor = head;
+    // A UniVerso's cursor is its log's head; a cloud has no feed, and keeps
+    // the versions it learned instead (ADR 0104 item 8).
+    state.cursor = known
+        .cursor
+        .as_deref()
+        .and_then(|c| c.parse().ok())
+        .unwrap_or(0);
+    state.tokens = if state.cloud.is_some() {
+        known.tokens()
+    } else {
+        std::collections::BTreeMap::new()
+    };
     state.paused = s.paused.load(Ordering::Relaxed);
-    // A note made from a template that both sides agree on, or that the
-    // server holds since, needs no template base any more.
+    state.seat = s.seat();
+    // A note made from a template both sides agree on needs no base.
     let base = &state.base;
     state.made.retain(|p, _| !base.contains_key(p));
     lock(&s.made).retain(|p, _| !base.contains_key(p));
@@ -1179,7 +1339,12 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
         if s.asked.swap(false, Ordering::Relaxed) {
             wait.reset();
         }
-        let mut l = match link(&ctx, &s).await {
+        let linked = if s.cloud.is_some() {
+            cloud::link(&ctx, &s).await
+        } else {
+            link(&ctx, &s).await
+        };
+        let mut l = match linked {
             Ok(l) => {
                 wait.reset();
                 l
@@ -1200,7 +1365,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                 s.set(&ctx, |st| {
                     st.state = if offline { "offline" } else { "error" }.to_owned();
                     st.message = Some(e.message.clone());
-                    let problem = problem_of(&e);
+                    let problem = problem_of(&e, s.cloud.is_some());
                     st.versions = if problem == "version" {
                         lock(&s.versions).clone()
                     } else {
@@ -1208,7 +1373,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     };
                     st.problem = Some(problem.to_owned());
                 });
-                let pause = if offline { wait.next() } else { SCAN };
+                // A closed table is tried again gently (15 s), not every five minutes.
+                let closed = e.message.contains(verso_contract::TABLE_CLOSED);
+                let pause = if offline {
+                    wait.next()
+                } else if closed {
+                    Duration::from_secs(15)
+                } else {
+                    SCAN
+                };
                 tokio::select! {
                     () = s.wake.notified() => {}
                     () = tokio::time::sleep(pause) => {}
@@ -1242,7 +1415,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     s.set(&ctx, |st| {
                         st.state = "error".to_owned();
                         st.message = Some(e.message.clone());
-                        st.problem = Some(problem_of(&e).to_owned());
+                        st.problem = Some(problem_of(&e, s.cloud.is_some()).to_owned());
                     });
                 }
             }
@@ -1261,6 +1434,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             log::write("INFO", "sync", &format!("role in the server's folder: {role}"));
                             s.set(&ctx, |st| st.role.clone_from(&role));
                             l.role = role;
+                            s.rights_stale();
+                            break false;
+                        }
+                        // Access changed (ADR 0113 S8): what this device may
+                        // change is asked again before the next pass sends
+                        // anything; the windows hear it as they did.
+                        Some(remote::Heard::Event(e, payload)) if e == "access-changed" => {
+                            s.rights_stale();
+                            tell(&ctx, &s, &e, payload);
                             break false;
                         }
                         Some(remote::Heard::Event(e, payload)) => tell(&ctx, &s, &e, payload),
@@ -1293,8 +1475,11 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             if lost {
                 break;
             }
-            // A burst of changes settles before the next pass.
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            // A burst of changes settles before the next pass; a cloud's
+            // calls are dearer than a server's, so it settles longer (ADR
+            // 0104 item 8: each local change, debounced).
+            let settle = Duration::from_millis(if s.cloud.is_some() { 2000 } else { 500 });
+            s.live.settle(settle).await;
         }
         // The live notes go local (ADR 0082 item 8).
         s.live.lost();

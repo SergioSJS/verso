@@ -13,7 +13,8 @@
   missing from Obsidian.
 - Revisions: 2026-10-06 — decided by the maintainer (Status): D1 with S1
   and S2 in one pull request, D8 (b) with the daily note on ⌘⇧D, D9 (b),
-  the rest as written.
+  the rest as written. 2026-10-22 — the maintainer approved item 9, blank
+  lines and the rule (below), in session.
 - Status in the briefing: not present
 
 ## Context
@@ -266,6 +267,60 @@ note (macOS), ⌘D is the daily note, ⌘/ toggles a comment.
 | Several blocks dragged together | The blocks a text selection touches | S2 |
 | Dragged right to nest | List items, by the pointer's position | S2 |
 | Dragged aside into columns | — | 0060 D9's compositor |
+
+### 9. Blank lines and the rule (revision, 2026-10-22)
+
+The maintainer, 2026-10-22, in session: "Como temos os componentes iguais aos
+do Notion para arrastar, e definimos que o Enter numa linha vazia delimita um
+componente do outro, quando usamos a linha horizontal precisamos de: linha
+vazia, os três traços, Enter, Enter, e então continuar escrevendo. Está uma
+distância gigantesca de um conteúdo para o outro, e acho que isso acontece
+com outros elementos também. Estamos espaçando muito as informações, sendo
+que esse Enter está ali para delimitar componentes. Inclusive no modo
+Leitura nem precisaria ter esse Enter vazio de separação." (As the blocks
+are Notion's, and an Enter on an empty line is what ends one, the rule took
+a blank line, the three dashes, Enter, Enter, and only then more writing;
+the distance between two pieces of content is huge, and other elements do
+the same. The Enter is there to delimit components, so it should not add
+that much space — and Reading would not need the empty separating line at
+all.) He approved three changes. The file is never touched by the first two:
+they are drawing, and Source mode is unchanged.
+
+1. **Live Preview: a blank line that only separates two blocks is a thin
+   gap.** The first blank line of a run, when the caret is not on it and the
+   selection does not span it, is drawn at 0.4 of a line (a line decoration,
+   `cm-lp-gap`, `line-height: .68` against the editor's 1.7). Under the
+   caret, or inside a selection, it is a full line, so typing works. Each
+   further blank line of the same run is space someone typed on purpose: it
+   is kept, at 0.6 of a line (`cm-lp-gap-extra`) — chosen by the author, the
+   maintainer's "visible but reduced". A blank line is not drawn thin inside
+   code, an HTML block, a table or a comment (it is content there), in the
+   frontmatter (folded), or as the last line of the note (the place one
+   clicks to go on writing). The block model and the handles do not change: a
+   block is still bounded by its blank line, and the handles read the
+   editor's own geometry.
+2. **Reading: space comes from the blocks' margins only.** A blank line in
+   the source never adds space — no empty paragraph, no `<br>`, no wrapper
+   (checked by machine: five blank lines and one give the same distance). The
+   rhythm is one unit, `--flow` (.9em, where it was 1em), under paragraphs,
+   quotes, code, tables, callouts, lists and display math; a heading has
+   1.5em above and .4em below (was 1.8 and .5); the rule has 1em above and
+   below with a 1.4em box (was 1.2em and 1.8em), for every `hr-style` value.
+   The theme's `paragraph-spacing` (tight, loose) still sets a paragraph's
+   own bottom margin on top.
+3. **`---` then Enter writes the blank lines around the rule.** In Live
+   Preview and in Source mode, with the caret at the end of a line that is
+   exactly `---`, `***` or `___`: if the line above is a paragraph line (so
+   that `---` would be a setext heading's underline, spec Q19), a blank line
+   is inserted before; one blank line is written after, and the caret goes to
+   the line below it, so that a single Enter continues the writing. It is
+   the text a person would have typed by hand, as one change and its own step
+   of the undo history (one ⌘Z gives back the line as typed). It does
+   nothing — Enter is the ordinary Enter — inside code, a table, a list or a
+   quote, in the frontmatter (its opening and closing `---`), on the first
+   line of the note (it may open a frontmatter), or with a selection or the
+   caret not at the end of the line. Invariant 7 holds: nothing is written
+   on opening, only by a key the person pressed; no fixture changes.
 
 ## Consequences
 

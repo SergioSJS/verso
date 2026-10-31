@@ -6,9 +6,9 @@ import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import { type ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { isBarePicture } from "./cards";
 import { plainOf, wrapLines } from "./export";
-import { cardCrop, type Crop, type El, isNode, nodeData, nodeName } from "./model";
+import { cardCrop, cardText, type Crop, type El, isNode, isPage, nodeData, nodeName, pageOrigin } from "./model";
 import { BoardHost } from "./types";
-import { ext, IMAGE } from "../paths";
+import { ext, IMAGE, kindOf } from "../paths";
 import { Api } from "./view";
 
 /** The colours a card is drawn in on a picture: the app's light paper, as
@@ -143,7 +143,8 @@ export async function pictureScene(api: Api, host: BoardHost, only: readonly str
       },
     ];
     let top = y + 10;
-    const title = node.type === "file" ? nodeName(node, s) : node.type === "link" ? s.linkCard : "";
+    const page = isPage(node);
+    const title = node.type === "file" ? nodeName(node, s) : node.type === "link" ? (page ? s.pageCard : s.linkCard) : "";
     if (title) {
       const line = wrapLines(title, w - 2 * pad, 1, measure(16));
       skels.push({ type: "text", x: x + pad, y: top, text: line.join("\n"), fontSize: 16, fontFamily: CARD_FONT, strokeColor: PICTURE.title });
@@ -160,8 +161,12 @@ export async function pictureScene(api: Api, host: BoardHost, only: readonly str
       if ((lines[0] ?? "").trim().toLowerCase() === title.trim().toLowerCase()) lines.shift();
       body = lines.join("\n").trim();
     }
+    // A file of text or data is drawn as its box with the file's first lines:
+    // the diagram is never captured, whichever the card shows.
+    else if (node.type === "file" && kindOf(file) === "text") body = cardText((await host.fileText(file)) ?? "").shown.slice(0, 2000);
     else if (node.type === "text" && typeof node.text === "string") body = plainOf(node.text);
-    else if (node.type === "link" && typeof node.url === "string") body = node.url;
+    // A page card is drawn as its box with the origin: the frame is never captured.
+    else if (node.type === "link" && typeof node.url === "string") body = page ? (pageOrigin(node.url) ?? node.url) : node.url;
     else if (node.type === "file" && IMAGE.test(ext(file)) && room > 8) {
       const picture = await pictureOf(host, file, e.id, files, x + pad, top, w - 2 * pad, room);
       if (picture) skels.push(picture);

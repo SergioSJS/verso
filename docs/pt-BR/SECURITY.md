@@ -3,7 +3,7 @@
 [English](../../SECURITY.md)
 
 Como avisar o projeto de uma vulnerabilidade no Verso ou no UniVerso, e o
-que acontece depois ([ADR 0083](adr/0083-security-hardening-of-universo.md)
+que acontece depois ([ADR 0083](../adr/0083-security-hardening-of-universo.md)
 item 15).
 
 ## Como relatar uma vulnerabilidade
@@ -40,11 +40,11 @@ Fora do escopo:
 
 - **A máquina de quem hospeda**: o sistema operacional, o proxy reverso, o
   host do Docker, a configuração própria. Quem hospeda um servidor vê as
-  notas nele por construção ([o modelo de ameaças](reference/threat-model.md)).
+  notas nele por construção ([o modelo de ameaças](../reference/threat-model.md)).
 - **Os dados do próprio membro**: o que uma pessoa já consegue ler ou mudar
   com o acesso que ela tem a uma pasta.
 - **Negação de serviço contra um servidor que não é seu.** Teste num
-  servidor seu: [o guia de instalação](reference/server-install.md) monta
+  servidor seu: [o guia de instalação](../reference/server-install.md) monta
   um.
 
 ## E-mail criptografado

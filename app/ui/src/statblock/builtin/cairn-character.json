@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "cairn-character",
+  "name": {
+    "pt": "Cairn — Personagem",
+    "en": "Cairn — Character"
+  },
+  "description": {
+    "pt": "Só os nomes dos campos (CC BY-SA 4.0): nenhum texto do livro.",
+    "en": "Field names only (CC BY-SA 4.0): no book text."
+  },
+  "sources": [
+    {
+      "label": "Cairn SRD (CC BY-SA 4.0)",
+      "url": "https://cairnrpg.com/first-edition/cairn-srd/"
+    },
+    {
+      "label": "Cairn 2e, character creation",
+      "url": "https://cairnrpg.com/second-edition/players-guide/character-creation/"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["background","age"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"background","properties":["background"],"label":{"pt":"Background","en":"Background"},"hideWhenEmpty":true},{"type":"property","id":"age","properties":["age"],"label":{"pt":"Age","en":"Age"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"attributes","properties":["str","dex","wil"],"hideWhenEmpty":true,"headers":[{"pt":"STR","en":"STR"},{"pt":"DEX","en":"DEX"},{"pt":"WIL","en":"WIL"}],"modifier":"none","rule":true},
+    {"type":"group","id":"vitals","properties":["hp","hp_current","hp","armor","gold"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"armor","properties":["armor"],"label":{"pt":"Armor","en":"Armor"},"hideWhenEmpty":true},{"type":"property","id":"gold","properties":["gold"],"label":{"pt":"Gold","en":"Gold"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"inventory","properties":["inventory"],"label":{"pt":"Inventory","en":"Inventory"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"traits","properties":["physique","skin","hair","face","speech","clothing","virtue","vice","reputation","misfortunes","bonds","omens"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"physique","properties":["physique"],"label":{"pt":"Physique","en":"Physique"},"hideWhenEmpty":true},{"type":"property","id":"skin","properties":["skin"],"label":{"pt":"Skin","en":"Skin"},"hideWhenEmpty":true},{"type":"property","id":"hair","properties":["hair"],"label":{"pt":"Hair","en":"Hair"},"hideWhenEmpty":true},{"type":"property","id":"face","properties":["face"],"label":{"pt":"Face","en":"Face"},"hideWhenEmpty":true},{"type":"property","id":"speech","properties":["speech"],"label":{"pt":"Speech","en":"Speech"},"hideWhenEmpty":true},{"type":"property","id":"clothing","properties":["clothing"],"label":{"pt":"Clothing","en":"Clothing"},"hideWhenEmpty":true},{"type":"property","id":"virtue","properties":["virtue"],"label":{"pt":"Virtue","en":"Virtue"},"hideWhenEmpty":true},{"type":"property","id":"vice","properties":["vice"],"label":{"pt":"Vice","en":"Vice"},"hideWhenEmpty":true},{"type":"property","id":"reputation","properties":["reputation"],"label":{"pt":"Reputation","en":"Reputation"},"hideWhenEmpty":true},{"type":"property","id":"misfortunes","properties":["misfortunes"],"label":{"pt":"Misfortunes","en":"Misfortunes"},"hideWhenEmpty":true},{"type":"property","id":"bonds","properties":["bonds"],"label":{"pt":"Bonds","en":"Bonds"},"hideWhenEmpty":true},{"type":"property","id":"omens","properties":["omens"],"label":{"pt":"Omens","en":"Omens"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a save (d20 under)"},"inputs":{}}
+  ]
+}

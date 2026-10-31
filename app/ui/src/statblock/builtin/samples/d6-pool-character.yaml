@@ -1,0 +1,18 @@
+name: Tove Lind
+archetype: Salvager
+attributes:
+  strength: 3
+  agility: 4
+  wits: 4
+  empathy: 2
+skills:
+  stealth: 2
+  crafting: 3
+health: 4
+health_max: 4
+resolve: 3
+resolve_max: 4
+specialties:
+  - Wire splicing
+gear:
+  - Pry bar

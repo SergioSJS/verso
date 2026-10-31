@@ -19,6 +19,7 @@ const FILES = {
   "Capitão Ruy.md": "---\naliases: [O Capitão]\n---\n# Capitão Ruy\n",
   "Porto.md": "# Porto\n",
   "Porto Alegre.md": "# Porto Alegre\n",
+  "Porto Cinzento.md": "# Porto Cinzento\n",
   "Mesa.md": "# Mesa\n",
   "Arquivo/Velho.md": "# Velho\n",
   "Rascunho.md": "# Rascunho\n\n",
@@ -193,7 +194,8 @@ test("the setting is in Settings › Editor, off, with its two lists, and turnin
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await atEnd(page);
   await page.keyboard.type("Um Porto");
-  await expect(chip(page)).toHaveCount(0);
+  // The name is ignored: no chip (the longer names it begins are listed).
+  await expect(page.locator(".link-suggest-chip")).toHaveCount(0);
   await page.keyboard.type(" e o Capitão Ruy");
   await expect(chip(page)).toHaveCount(1);
 });
@@ -250,4 +252,137 @@ test.describe("a phone", () => {
     await page.keyboard.type(" ver");
     expect(await saved(app)).toBe("# Rascunho\n\nFomos ao [[Capitão Ruy]] ver");
   });
+});
+
+// ADR 0089 item 5, revised 2026-10-20.
+const list = (page) => page.locator(".cm-link-suggest .link-suggest-item");
+const mentions = (page) => page.locator(".cm-tooltip-autocomplete li");
+
+test("a partial name lists the notes that begin with it; Tab writes the link over the typed words", async ({ app, page }) => {
+  await seeded(app);
+  await page.keyboard.type("Fomos a Porto C");
+  await expect(list(page)).toHaveCount(1);
+  await expect(list(page).first()).toContainText("Porto Cinzento");
+  await expect(page.locator("#link-suggest-live")).toContainText("1 sugestão de link");
+  await page.keyboard.press("Tab");
+  await expect(list(page)).toHaveCount(0);
+  await page.keyboard.type(" ver");
+  expect(await saved(app)).toBe("# Rascunho\n\nFomos a [[Porto Cinzento]] ver");
+});
+
+test("the list narrows, the arrows choose, Esc dismisses it for the word", async ({ app, page }) => {
+  await seeded(app);
+  await page.keyboard.type("Fomos a Por");
+  await expect(list(page).first()).toBeVisible();
+  expect(await list(page).count()).toBeGreaterThan(2);
+  await page.keyboard.press("ArrowDown");
+  await expect(list(page).nth(1)).toHaveClass(/selected/);
+  await page.keyboard.type("to A");
+  await expect(list(page)).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(list(page)).toHaveCount(0);
+  await page.keyboard.type("leg");
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.locator(".pane.focused .cm-content").first()).toContainText("Fomos a Porto Aleg");
+  await expect(page.locator(".pane.focused .cm-content").first()).not.toContainText("[[");
+});
+
+test("a lowercase word, or two letters, lists nothing", async ({ app, page }) => {
+  await seeded(app);
+  await page.keyboard.type("Fomos a por");
+  await expect(list(page)).toHaveCount(0);
+  await page.keyboard.type(" Po");
+  await expect(list(page)).toHaveCount(0);
+});
+
+test("the chip stays after a space and Tab still links the name, not the space", async ({ app, page }) => {
+  await seeded(app);
+  await page.keyboard.type("Fomos ao Capitão Ruy ");
+  await expect(chip(page)).toHaveText("Ligar a [[Capitão Ruy]]Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("ver");
+  expect(await saved(app)).toBe("# Rascunho\n\nFomos ao [[Capitão Ruy]] ver");
+});
+
+test("@ opens the note list and choosing writes [[Name]] over the @ and what was typed", async ({ app, page }) => {
+  await seeded(app, { suggestLinks: false });
+  await page.keyboard.type("Fomos a @Porto C");
+  await expect(mentions(page)).toHaveCount(1);
+  await expect(mentions(page).first()).toContainText("Porto Cinzento");
+  // The completion list ignores a key within its interaction delay.
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type(" ver");
+  expect(await saved(app)).toBe("# Rascunho\n\nFomos a [[Porto Cinzento]] ver");
+});
+
+test("@ then Esc leaves the text as typed; an e-mail never opens it; the setting turns it off", async ({ app, page }) => {
+  await seeded(app, { suggestLinks: false });
+  await page.keyboard.type("@Por");
+  await expect(mentions(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(mentions(page)).toHaveCount(0);
+  await page.keyboard.type(" e fulano@mail");
+  await expect(mentions(page)).toHaveCount(0);
+  await expect(page.locator(".pane.focused .cm-content").first()).toContainText("@Por e fulano@mail");
+  await expect(page.locator(".pane.focused .cm-content").first()).not.toContainText("[[");
+});
+
+test("after Esc the @ list stays closed for the rest of that word; a new @ opens it again (0089.a)", async ({ app, page }) => {
+  await seeded(app, { suggestLinks: false });
+  await page.keyboard.type("Ir a @Por");
+  await expect(mentions(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(mentions(page)).toHaveCount(0);
+  // more characters of the same word do not bring it back
+  await page.keyboard.type("to C");
+  await page.waitForTimeout(400);
+  await expect(mentions(page)).toHaveCount(0);
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(300);
+  await expect(mentions(page)).toHaveCount(0);
+  // moving the caret away and back does not either
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("i");
+  await page.waitForTimeout(300);
+  await expect(mentions(page)).toHaveCount(0);
+  // a new @ is a new word
+  await page.keyboard.type(" e @Mes");
+  await expect(mentions(page).first()).toBeVisible();
+  await expect(mentions(page).first()).toContainText("Mesa");
+});
+
+test("@ is never beside the partial list; the [[ list comes first", async ({ app, page }) => {
+  await seeded(app);
+  await page.keyboard.type("Ir a @Porto C");
+  await expect(mentions(page).first()).toBeVisible();
+  await expect(list(page)).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.type(" e [[Porto");
+  await expect(mentions(page).first()).toBeVisible();
+  await expect(list(page)).toHaveCount(0);
+});
+
+test("the @ setting is in Settings › Editor, on by default", async ({ app, page }) => {
+  await page.addInitScript(() => localStorage.removeItem("verso.settings"));
+  await app.open("?vault=empty");
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Editor" }).click();
+  const row = page.locator(".settings-body .setting", { hasText: "Citar uma nota com @" });
+  await expect(row.locator("input[type=checkbox]")).toBeChecked();
+});
+
+test("the letters before the list are a setting: 2 lists 'Po', and the field is in Settings › Editor", async ({ app, page }) => {
+  await seeded(app, { suggestMinLetters: 2 });
+  await page.keyboard.type("Fomos a Po");
+  await expect(list(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await app.key("Mod+,");
+  await page.locator(".settings-nav-item", { hasText: "Editor" }).click();
+  const row = page.locator(".settings-body .setting", { hasText: "Letras para sugerir" });
+  await expect(row.locator("input[type=number]")).toHaveValue("2");
+  await row.getByRole("button", { name: "Mais uma letra" }).click();
+  await expect(row.locator("input[type=number]")).toHaveValue("3");
+  await expect(page.locator(".settings-body .setting", { hasText: "Só em palavras com maiúscula" }).locator("input[type=checkbox]")).toBeChecked();
 });

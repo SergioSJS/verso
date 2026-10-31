@@ -127,3 +127,114 @@ fn an_icloud_placeholder_of_the_file_is_listed_as_one_and_never_created_over() {
     ));
     assert!(!dir.path().join(".verso/settings.json").exists());
 }
+
+#[test]
+fn the_settings_walk_lists_the_two_data_directories_one_level_deep_and_no_more() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".verso/settings.json"), "{}\n");
+    touch(&dir.path().join(".verso/layouts/mesa.json"), "{}");
+    touch(&dir.path().join(".verso/bundles/mundo.json"), "{}");
+    touch(&dir.path().join(".verso/layouts/.verso-tmp-1-2"), "meio");
+    touch(&dir.path().join(".verso/layouts/fundo/x.json"), "{}");
+    touch(&dir.path().join(".verso/outro/x.json"), "{}");
+    touch(&dir.path().join(".verso/layouts/.velho.json.icloud"), "");
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    let settings = root.settings_walk().unwrap();
+    let listed: Vec<(String, usize)> = settings
+        .iter()
+        .map(|e| (e.relative.to_string_lossy().into_owned(), e.depth))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            (".verso/bundles/mundo.json".to_owned(), 2),
+            (".verso/layouts/mesa.json".to_owned(), 2),
+            (".verso/layouts/velho.json".to_owned(), 2),
+            (".verso/settings.json".to_owned(), 1),
+        ]
+    );
+    assert!(matches!(settings[2].kind, EntryKind::Placeholder { .. }));
+    // The handles read, and the walk still never lists any of it.
+    let (bytes, _) = root.read(settings[1].handle).unwrap();
+    assert_eq!(bytes, b"{}");
+    assert!(
+        root.walk()
+            .entries
+            .iter()
+            .all(|e| !e.relative.starts_with(".verso"))
+    );
+}
+
+#[test]
+fn a_data_file_is_created_with_its_directory_and_confined_like_the_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    assert!(!dir.path().join(".verso").exists());
+    let _made = root
+        .create(Path::new(".verso/layouts/mesa.json"), b"{}")
+        .unwrap();
+    assert_eq!(
+        fs::read(dir.path().join(".verso/layouts/mesa.json")).unwrap(),
+        b"{}"
+    );
+    assert!(matches!(
+        root.create(Path::new(".verso/layouts/mesa.json"), b"{}"),
+        Err(WriteError::Exists)
+    ));
+    // Nothing deeper, no other directory, nothing hidden inside.
+    for refused in [
+        ".verso/layouts/a/b.json",
+        ".verso/outro/b.json",
+        ".verso/layouts/.oculto.json",
+        ".verso/layouts/../../fora.json",
+    ] {
+        assert!(root.handle(Path::new(refused)).is_err(), "{refused}");
+    }
+    assert!(matches!(
+        root.handle(Path::new(".verso/layouts/.oculto.json")),
+        Err(ConfinementError::Hidden)
+    ));
+}
+
+/// A link in place of `.verso/`, or of one of its data directories, is
+/// followed by nothing: the walk lists none of what is behind it (the
+/// symlink decision, ADR 0044: a link never takes the walk out of the
+/// folder).
+#[cfg(unix)]
+#[test]
+fn a_symlinked_settings_directory_or_data_directory_lists_nothing_behind_it() {
+    use std::os::unix::fs::symlink;
+    let outside = tempfile::tempdir().unwrap();
+    touch(&outside.path().join("layouts/fora.json"), "{}");
+    touch(&outside.path().join("settings.json"), "{}");
+
+    // `.verso` itself is a link to a directory outside the folder.
+    let dir = tempfile::tempdir().unwrap();
+    symlink(outside.path(), dir.path().join(".verso")).unwrap();
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    assert!(root.settings_walk().unwrap().is_empty());
+    // On a server, where links stay inside the folder, a handle to a file
+    // behind it is refused as well, so what the walk skips is not read.
+    root.set_links_inside(true);
+    assert_eq!(
+        root.handle(Path::new(".verso/layouts/fora.json")),
+        Err(ConfinementError::LeavesFolder)
+    );
+
+    // `.verso` is real, `.verso/layouts` is a link out.
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".verso/settings.json"), "{}");
+    symlink(
+        outside.path().join("layouts"),
+        dir.path().join(".verso/layouts"),
+    )
+    .unwrap();
+    let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+    let listed: Vec<String> = root
+        .settings_walk()
+        .unwrap()
+        .iter()
+        .map(|e| e.relative.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(listed, [".verso/settings.json"]);
+}

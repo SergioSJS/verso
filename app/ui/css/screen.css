@@ -33,26 +33,38 @@
   .graph-controls-toggle { display: inline-flex; }
   .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
   .graph-body.controls-open .graph-controls { display: flex; }
+  .graph-body.controls-open .graph-show-all:not(.in-panel) { display: none; }
+  .graph-body.controls-open .graph-show-all.in-panel { display: inline-flex; }
 }
 @media (max-width: 760px) {
   .graph-controls-toggle { display: inline-flex; }
   .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
   .graph-body.controls-open .graph-controls { display: flex; }
+  .graph-body.controls-open .graph-show-all:not(.in-panel) { display: none; }
+  .graph-body.controls-open .graph-show-all.in-panel { display: inline-flex; }
 }
 
 /* ---------- The frame's rows: what the pane says on top, the phone's bar ---------- */
 .work { grid-template-rows: auto auto minmax(0, 1fr) auto auto; grid-template-areas: "spaces" "notices" "panes" "status" "bar"; }
 .work-notices { grid-area: notices; min-width: 0; }
 .bottom-bar { grid-area: bar; display: none; }
-.read-only-line { margin: 0; padding: .35rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); color: var(--ink-2); background: var(--brass-wash); border-bottom: 1px solid var(--hair); }
+/* The closed lock beside the folder's name, for a folder one only reads. */
+.folder-lock { flex: none; display: inline-flex; align-items: center; color: var(--ink-3); }
+.folder-lock[hidden] { display: none; }
+.folder-lock svg { width: 14px; height: 14px; }
+/* The word said where the person tried to change something. */
+.reader-notice { position: fixed; z-index: 1000; box-sizing: border-box; font-size: .88rem; line-height: 1.35; background: var(--ink); color: var(--paper); padding: .5rem .85rem; border-radius: 8px; box-shadow: 0 8px 24px -8px oklch(0% 0 0 / .35); pointer-events: none; }
+.reader-notice[hidden] { display: none; }
 .failed-line { display: none; align-items: center; gap: .5rem; padding: .25rem .4rem .25rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); color: var(--seal); background: var(--seal-wash); border-bottom: 1px solid var(--hair); }
 .failed-line .failed-text { flex: 1; min-width: 0; }
 
 /* ---------- A phone (item 6) ---------- */
 @media (max-width: 760px) {
-  /* The ribbon and the status bar leave; a bar of five verbs comes. */
+    /* The ribbon and the status bar leave; a bar of five verbs comes. */
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
   .ribbon, .status-bar { display: none; }
+  /* A lone pane with no tab has nothing for its bar to show but "··": the bar waits for the first tab (the bell floats over the empty pane). */
+  .panes:not(.many) .pane:not(:has(.tab)) > .tabs { display: none; }
   /* Over the drawers, which end above it: the bar stays within reach. */
   .bottom-bar { position: relative; z-index: 9; display: flex; align-items: stretch; justify-content: space-around; padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--paper-2); border-top: 1px solid var(--hair); }
   .bottom-bar-item { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; padding: .3rem .1rem; color: var(--ink-2); }
@@ -65,6 +77,15 @@
      connection there too, not under the bar. */
   .failed-line:not([hidden]) { display: flex; }
   .web-notice { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; }
+  /* The bell floats at the row's end: the pane's own tools stop short of it,
+     and the fold ("More") is a target a finger finds. */
+  body .pane .tabs, body.no-right:not(.framed-windows) .pane .tabs { padding-right: 48px; height: 44px; min-height: 44px; max-height: 44px; }
+  /* Targets of 44 px: the tab, the drawer's head, the place, the cover. */
+  .pane .tab { height: calc(44px - .35rem); }
+  .folder-button, #collapse, .side-order { min-height: 44px; }
+  #collapse, .side-order { min-width: 44px; }
+  .crumbs .crumb, .note-add-cover-btn { min-height: 36px; }
+  .pane-fold { min-width: 44px; min-height: 36px; justify-content: center; align-items: center; }
   /* One pane at a time: the others kept, behind the switcher (item 2). */
   .panes.many .pane:not(.focused), .panes.many .divider, .panes.many .split:not(:has(.pane.focused)) { display: none; }
   .panes.many .pane-switch { display: inline-flex; align-self: center; flex: none; min-width: 44px; min-height: 36px; justify-content: center; font-variant-numeric: tabular-nums; }
@@ -153,4 +174,37 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-a
   .bottom-bar, .key-bar, .select-bar, .cm-tooltip.cm-link-card { border: 1px solid CanvasText; }
   .select-mode li > button.row::after, .select-mode summary::after { forced-color-adjust: none; border-color: CanvasText; background: Canvas; }
   .select-mode li > button.row.selected::after, .select-mode summary.selected::after { background-color: Highlight; }
+}
+
+/* ---------- A file opened without its folder (ADR 0114 items 9 and 21) ---------- */
+/* The loose-files window draws no tree, no ribbon and no folder tools: the
+   capabilities say the side cannot (`cannot-*`), and the window's own class
+   hides what is the folder's by shape. One way back stays visible: the bar
+   above the panes, with "Open the whole folder in Verso". */
+.loose .side, .loose #side-divider, .loose .ribbon, .loose #toggle-side, .loose .status-keys [data-cmd="new"], .loose .status-keys [data-cmd="space"] { display: none; }
+html.loose body, html.loose body.no-side { grid-template-columns: 0 0 0 1fr 0 var(--right-w, min(320px, 34vw)); }
+html.loose body.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
+html.loose .work { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "loose" "spaces" "notices" "panes" "status" "bar"; }
+.loose .right-tabs [data-tab="backlinks"], .loose .right-tabs [data-tab="tags"], .loose .right-tabs [data-tab="bookmarks"], .loose .right-tabs [data-tab="focuses"], .loose .right-tabs [data-tab="calendar"], .loose .right-tabs [data-tab="table"] { display: none; }
+.loose .pane-new, .loose .folder-button .folder-switch { display: none; }
+.loose-bar { grid-area: loose; display: flex; align-items: center; gap: .6rem; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); background: var(--paper-2); font-size: .82rem; min-width: 0; flex-wrap: wrap; }
+.loose-bar[hidden] { display: none; }
+.loose-name { font-weight: 600; }
+.loose-place { color: var(--ink-3); }
+.loose-known { display: inline-flex; align-items: center; gap: .4rem; }
+.loose-open-folder { margin-left: auto; }
+.cannot-index .ribbon-item[data-id="graph"], .cannot-index .ribbon-item[data-id="search"], .cannot-search .search-box, .cannot-backlinks .right-tabs [data-tab="backlinks"], .cannot-trash .ribbon-item[data-id="trash"], .cannot-table .right-tabs [data-tab="table"], .cannot-history .history-btn { display: none; }
+.embed-as-link { font-style: italic; }
+
+/* ---------- A folder's row on a finger (ADR 0060, 2026-10-30) ----------
+ * A tap anywhere on the row opens or closes the folder; its page opens from
+ * the small button at the row's end. With a mouse the button is not there:
+ * the name opens the page and the arrow toggles. The right padding leaves
+ * room for the "…" (.row-more), which sits over the row's end. */
+.tree summary .folder-page { display: none; }
+@media (pointer: coarse) {
+  #notes summary[data-folder], .tree summary { min-height: 44px; padding-right: calc(.7rem + 44px); }
+  .tree summary .folder-page { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin: -.4rem 0; color: var(--ink-3); border-radius: 6px; }
+  .tree summary .folder-page:hover, .tree summary .folder-page:focus-visible { color: var(--seal); background: var(--paper-3); }
+  .tree summary .folder-page svg { width: 18px; height: 18px; }
 }

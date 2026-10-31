@@ -92,6 +92,40 @@ pub(crate) fn sync_dir(dir: &Path) -> std::io::Result<()> {
     windows::open_dir_for_flush(dir)?.sync_all()
 }
 
+/// `path`, an existing file's, spelled as its directory holds the name. On
+/// NTFS a rename over a file gives it the case of the name it is renamed
+/// to, so a write that names `Receita.md` for the file the disk holds as
+/// `receita.md` would respell it: the temporary file goes over the name as
+/// the disk keeps it, and a write over a file keeps its name (found by the
+/// server's sync test on a loaded Windows machine, 2026-10-21). Only the
+/// case of the last component can differ: any other answer (a short name,
+/// a file that is not there, a path that cannot be resolved) leaves `path`
+/// as it was. Other systems keep the name of the file replaced.
+#[cfg(windows)]
+pub(crate) fn kept_spelling(path: std::path::PathBuf) -> std::path::PathBuf {
+    let (Some(name), Some(dir)) = (path.file_name(), path.parent()) else {
+        return path;
+    };
+    let Ok(real) = std::fs::canonicalize(&path) else {
+        return path;
+    };
+    match real.file_name() {
+        Some(held)
+            if held != name
+                && held.to_string_lossy().to_lowercase()
+                    == name.to_string_lossy().to_lowercase() =>
+        {
+            dir.join(held)
+        }
+        _ => path,
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn kept_spelling(path: std::path::PathBuf) -> std::path::PathBuf {
+    path
+}
+
 /// `std::fs::rename`: `from` gets the name `to`, replacing a file there.
 /// On Windows a handle another program holds — on either file, or on any
 /// file inside a directory being moved: an antivirus or the search indexer
@@ -106,13 +140,22 @@ pub(crate) fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
 /// [`rename`], asking `unchanged` before each new try whether `to` is still
 /// the file the caller checked (invariant 11): a program that held it may
 /// have written it before letting go. `Ok(false)` when it was not: nothing
-/// was renamed. On Unix the rename is tried once, so never asked.
+/// was renamed. On Unix the rename is tried once, asked just before it:
+/// the check at the start of a write is followed by the temporary file's
+/// write and `fsync` (milliseconds), in which another writer's rename
+/// would otherwise be replaced unseen (night round of 2026-10-29: 58% of
+/// the writes of four racing writers, measured in `tests/stress.rs`). What
+/// remains is the instant between this question and the rename; closing
+/// it takes a lock, which a file of the user's cannot be made to carry.
 #[cfg(unix)]
 pub(crate) fn rename_unless_changed(
     from: &Path,
     to: &Path,
-    _unchanged: impl Fn() -> bool,
+    unchanged: impl Fn() -> bool,
 ) -> std::io::Result<bool> {
+    if !unchanged() {
+        return Ok(false);
+    }
     std::fs::rename(from, to).map(|()| true)
 }
 
@@ -122,6 +165,11 @@ pub(crate) fn rename_unless_changed(
     to: &Path,
     unchanged: impl Fn() -> bool,
 ) -> std::io::Result<bool> {
+    // Asked before the first try too, as on Unix: the write and `fsync` of
+    // the temporary file since the check are the window of an outside writer.
+    if !unchanged() {
+        return Ok(false);
+    }
     // A read-only target is refused for good, not held: no waiting.
     if std::fs::symlink_metadata(to).is_ok_and(|m| m.is_file() && m.permissions().readonly()) {
         return std::fs::rename(from, to).map(|()| true);
@@ -229,6 +277,25 @@ mod tests {
 
     fn temp_dir() -> tempfile::TempDir {
         tempfile::tempdir().unwrap()
+    }
+
+    /// The question is asked before the first try, on every system: a target
+    /// that changed since the check is not renamed over (invariant 11). On
+    /// Windows it was asked only after a held try.
+    #[test]
+    fn a_changed_target_is_not_renamed_over_at_the_first_try() {
+        let dir = temp_dir();
+        let (from, to) = (dir.path().join("tmp"), dir.path().join("n.md"));
+        std::fs::write(&from, "ours").unwrap();
+        std::fs::write(&to, "theirs").unwrap();
+        assert!(!rename_unless_changed(&from, &to, || false).unwrap());
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "theirs");
+        assert!(
+            from.exists(),
+            "the temporary file is the caller's to remove"
+        );
+        assert!(rename_unless_changed(&from, &to, || true).unwrap());
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "ours");
     }
 
     #[test]
@@ -371,6 +438,11 @@ mod tests {
             let mut held = held;
             std::thread::sleep(std::time::Duration::from_millis(100));
             held.write_all(b"theirs, longer").unwrap();
+            // Still held a moment after the write, as a program saving
+            // and then closing is: the question asked while it holds the
+            // file sees the change (dropping at once raced the question
+            // on a busy machine, 2026-10-30).
+            std::thread::sleep(std::time::Duration::from_millis(100));
             drop(held);
         });
         let still = || std::fs::metadata(&to).is_ok_and(|m| m.len() == len);

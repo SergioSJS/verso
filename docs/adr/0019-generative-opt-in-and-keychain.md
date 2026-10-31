@@ -36,4 +36,4 @@ None recorded in the briefing.
 
 ## Status
 
-Proposed.
+Accepted (2026-10-21). The maintainer marked option A in the decisions questionnaire of 2026-10-20 (answered 2026-10-21): generative AI always opt-in, keys in the system's keychain, outside the folder. [0098](0098-world-and-campaign-wizard-template-bundles.md) item 8 relies on it.

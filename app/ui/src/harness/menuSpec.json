@@ -1,0 +1,1420 @@
+{
+  "en": [
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "new-note",
+          "key": null,
+          "kind": "command",
+          "label": "New Note"
+        },
+        {
+          "feature": null,
+          "id": "new-note-named",
+          "key": null,
+          "kind": "command",
+          "label": "New Note with Name…"
+        },
+        {
+          "feature": null,
+          "id": "new-folder",
+          "key": null,
+          "kind": "command",
+          "label": "New Folder"
+        },
+        {
+          "feature": null,
+          "id": "new-board",
+          "key": null,
+          "kind": "command",
+          "label": "New Board"
+        },
+        {
+          "feature": null,
+          "id": "new-base",
+          "key": null,
+          "kind": "command",
+          "label": "New Base"
+        },
+        {
+          "feature": null,
+          "id": "new-web-page",
+          "key": null,
+          "kind": "command",
+          "label": "New Web Page…"
+        },
+        {
+          "feature": null,
+          "id": "new-window",
+          "key": null,
+          "kind": "own",
+          "label": "New Window"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "open-folder",
+          "key": null,
+          "kind": "own",
+          "label": "Open Folder…"
+        },
+        {
+          "feature": null,
+          "id": "open-file",
+          "key": null,
+          "kind": "own",
+          "label": "Open File…"
+        },
+        {
+          "feature": null,
+          "id": "open-recent",
+          "key": null,
+          "kind": "own",
+          "label": "Open Recent"
+        },
+        {
+          "feature": null,
+          "id": "import-files",
+          "key": null,
+          "kind": "command",
+          "label": "Import Files…"
+        },
+        {
+          "feature": null,
+          "id": "open-sync",
+          "key": null,
+          "kind": "command",
+          "label": "Sync with…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "save",
+          "key": null,
+          "kind": "command",
+          "label": "Save"
+        },
+        {
+          "feature": null,
+          "id": "rename",
+          "key": null,
+          "kind": "command",
+          "label": "Rename…"
+        },
+        {
+          "feature": null,
+          "id": "move-file",
+          "key": null,
+          "kind": "command",
+          "label": "Move To…"
+        },
+        {
+          "feature": null,
+          "id": "save-template",
+          "key": null,
+          "kind": "command",
+          "label": "Save as Template…"
+        },
+        {
+          "feature": null,
+          "id": "version-history",
+          "key": null,
+          "kind": "command",
+          "label": "Version History…"
+        },
+        {
+          "feature": null,
+          "id": "open-trash",
+          "key": null,
+          "kind": "command",
+          "label": "Trash…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "close-tab",
+          "key": null,
+          "kind": "own",
+          "label": "Close Tab"
+        },
+        {
+          "feature": null,
+          "id": "close-window",
+          "key": null,
+          "kind": "own",
+          "label": "Close Window"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings",
+          "key": null,
+          "kind": "own",
+          "label": "Settings…"
+        },
+        {
+          "feature": null,
+          "id": "quit",
+          "key": null,
+          "kind": "own",
+          "label": "Quit Verso"
+        }
+      ],
+      "key": "file",
+      "mnemonic": "f",
+      "title": "File"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "undo",
+          "key": "Mod-z",
+          "kind": "own",
+          "label": "Undo"
+        },
+        {
+          "feature": null,
+          "id": "redo",
+          "key": "Mod-Shift-z",
+          "kind": "own",
+          "label": "Redo"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "cut",
+          "key": "Mod-x",
+          "kind": "system",
+          "label": "Cut"
+        },
+        {
+          "feature": null,
+          "id": "copy",
+          "key": "Mod-c",
+          "kind": "system",
+          "label": "Copy"
+        },
+        {
+          "feature": null,
+          "id": "paste",
+          "key": "Mod-v",
+          "kind": "system",
+          "label": "Paste"
+        },
+        {
+          "feature": null,
+          "id": "select-all",
+          "key": "Mod-a",
+          "kind": "own",
+          "label": "Select All"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "find-in-note",
+          "key": null,
+          "kind": "command",
+          "label": "Find in Note…"
+        },
+        {
+          "feature": null,
+          "id": "replace",
+          "key": null,
+          "kind": "command",
+          "label": "Replace…"
+        },
+        {
+          "feature": null,
+          "id": "search",
+          "key": null,
+          "kind": "command",
+          "label": "Search Notes"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "add-property",
+          "key": null,
+          "kind": "command",
+          "label": "Add Property"
+        },
+        {
+          "feature": null,
+          "id": "insert-template",
+          "key": null,
+          "kind": "command",
+          "label": "Insert Template…"
+        },
+        {
+          "feature": null,
+          "id": "insert-base",
+          "key": null,
+          "kind": "command",
+          "label": "Insert Base…"
+        }
+      ],
+      "key": "edit",
+      "mnemonic": "e",
+      "title": "Edit"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "toggle-mode",
+          "key": null,
+          "kind": "command",
+          "label": "Toggle Reading / Editing"
+        },
+        {
+          "feature": null,
+          "id": "source",
+          "key": null,
+          "kind": "command",
+          "label": "Source Mode"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "toggle-side",
+          "key": null,
+          "kind": "command",
+          "label": "Left Panel"
+        },
+        {
+          "feature": null,
+          "id": "toggle-right",
+          "key": null,
+          "kind": "command",
+          "label": "Right Panel"
+        },
+        {
+          "feature": null,
+          "id": "hide-tabs",
+          "key": null,
+          "kind": "command",
+          "label": "Tab Bar"
+        },
+        {
+          "feature": null,
+          "id": "vertical-tabs",
+          "key": null,
+          "kind": "command",
+          "label": "Vertical Tabs"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "split-right",
+          "key": null,
+          "kind": "command",
+          "label": "Split Right"
+        },
+        {
+          "feature": null,
+          "id": "split-down",
+          "key": null,
+          "kind": "command",
+          "label": "Split Down"
+        },
+        {
+          "feature": null,
+          "id": "maximize",
+          "key": null,
+          "kind": "command",
+          "label": "Maximize Pane"
+        },
+        {
+          "feature": null,
+          "id": "new-space",
+          "key": null,
+          "kind": "command",
+          "label": "New Workspace"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "zoom-in",
+          "key": null,
+          "kind": "command",
+          "label": "Zoom In"
+        },
+        {
+          "feature": null,
+          "id": "zoom-out",
+          "key": null,
+          "kind": "command",
+          "label": "Zoom Out"
+        },
+        {
+          "feature": null,
+          "id": "zoom-reset",
+          "key": null,
+          "kind": "command",
+          "label": "Actual Size"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "graph-note",
+          "key": null,
+          "kind": "command",
+          "label": "Note Graph"
+        },
+        {
+          "feature": null,
+          "id": "graph-vault",
+          "key": null,
+          "kind": "command",
+          "label": "Folder Graph"
+        },
+        {
+          "feature": null,
+          "id": "diagram-save-board",
+          "key": null,
+          "kind": "command",
+          "label": "Save Diagram as Board"
+        },
+        {
+          "feature": null,
+          "id": "fold-all-headings",
+          "key": null,
+          "kind": "command",
+          "label": "Fold All Headings"
+        },
+        {
+          "feature": null,
+          "id": "unfold-all-headings",
+          "key": null,
+          "kind": "command",
+          "label": "Unfold All Headings"
+        },
+        {
+          "feature": null,
+          "id": "collapse-all",
+          "key": null,
+          "kind": "command",
+          "label": "Collapse All Folders"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings-appearance",
+          "key": null,
+          "kind": "command",
+          "label": "Appearance and Themes…"
+        },
+        {
+          "feature": null,
+          "id": "more-themes",
+          "key": null,
+          "kind": "command",
+          "label": "More Themes…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "fullscreen",
+          "key": null,
+          "kind": "system",
+          "label": "Full Screen"
+        },
+        {
+          "feature": null,
+          "id": "reload-window",
+          "key": null,
+          "kind": "command",
+          "label": "Reload Window"
+        },
+        {
+          "feature": null,
+          "id": "devtools",
+          "key": null,
+          "kind": "own",
+          "label": "Open Console"
+        }
+      ],
+      "key": "view",
+      "mnemonic": "v",
+      "title": "View"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "nav-back",
+          "key": null,
+          "kind": "command",
+          "label": "Back"
+        },
+        {
+          "feature": null,
+          "id": "nav-forward",
+          "key": null,
+          "kind": "command",
+          "label": "Forward"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "quick",
+          "key": null,
+          "kind": "command",
+          "label": "Quick Open…"
+        },
+        {
+          "feature": null,
+          "id": "palette",
+          "key": null,
+          "kind": "command",
+          "label": "Command Palette…"
+        },
+        {
+          "feature": null,
+          "id": "daily",
+          "key": null,
+          "kind": "command",
+          "label": "Daily Note"
+        },
+        {
+          "feature": null,
+          "id": "switch-focus",
+          "key": null,
+          "kind": "command",
+          "label": "Switch Focus…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "reopen",
+          "key": null,
+          "kind": "command",
+          "label": "Reopen Closed Tab"
+        },
+        {
+          "feature": null,
+          "id": "prev-tab",
+          "key": null,
+          "kind": "command",
+          "label": "Previous Tab"
+        },
+        {
+          "feature": null,
+          "id": "next-tab",
+          "key": null,
+          "kind": "command",
+          "label": "Next Tab"
+        }
+      ],
+      "key": "go",
+      "mnemonic": "g",
+      "title": "Go"
+    },
+    {
+      "items": [
+        {
+          "feature": "diceRolling",
+          "id": "roll-dice",
+          "key": null,
+          "kind": "command",
+          "label": "Roll Dice…"
+        },
+        {
+          "feature": "oracles",
+          "id": "ask-oracle",
+          "key": null,
+          "kind": "command",
+          "label": "Ask the Oracle"
+        },
+        {
+          "feature": "campaignBundles",
+          "id": "world-wizard",
+          "key": null,
+          "kind": "command",
+          "label": "New Project from Template…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings-rpg",
+          "key": null,
+          "kind": "command",
+          "label": "Dice and RPG Settings…"
+        }
+      ],
+      "key": "rpg",
+      "mnemonic": "r",
+      "title": "RPG"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "minimize",
+          "key": null,
+          "kind": "system",
+          "label": "Minimize"
+        },
+        {
+          "feature": null,
+          "id": "maximize",
+          "key": null,
+          "kind": "system",
+          "label": "Maximize"
+        }
+      ],
+      "key": "window",
+      "mnemonic": "w",
+      "title": "Window"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "notifications",
+          "key": null,
+          "kind": "command",
+          "label": "Notifications"
+        },
+        {
+          "feature": null,
+          "id": "import-demo-vault",
+          "key": null,
+          "kind": "command",
+          "label": "Import the Tutorial…"
+        },
+        {
+          "feature": null,
+          "id": "check-updates",
+          "key": null,
+          "kind": "command",
+          "label": "Check for Updates…"
+        },
+        {
+          "feature": null,
+          "id": "report-bug",
+          "key": null,
+          "kind": "command",
+          "label": "Report a Problem…"
+        },
+        {
+          "feature": null,
+          "id": "open-credits",
+          "key": null,
+          "kind": "command",
+          "label": "Credits…"
+        }
+      ],
+      "key": "help",
+      "mnemonic": "h",
+      "title": "Help"
+    }
+  ],
+  "pt": [
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "new-note",
+          "key": null,
+          "kind": "command",
+          "label": "Nova nota"
+        },
+        {
+          "feature": null,
+          "id": "new-note-named",
+          "key": null,
+          "kind": "command",
+          "label": "Nova nota com nome…"
+        },
+        {
+          "feature": null,
+          "id": "new-folder",
+          "key": null,
+          "kind": "command",
+          "label": "Nova pasta"
+        },
+        {
+          "feature": null,
+          "id": "new-board",
+          "key": null,
+          "kind": "command",
+          "label": "Novo board"
+        },
+        {
+          "feature": null,
+          "id": "new-base",
+          "key": null,
+          "kind": "command",
+          "label": "Nova base"
+        },
+        {
+          "feature": null,
+          "id": "new-web-page",
+          "key": null,
+          "kind": "command",
+          "label": "Nova página web…"
+        },
+        {
+          "feature": null,
+          "id": "new-window",
+          "key": null,
+          "kind": "own",
+          "label": "Nova janela"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "open-folder",
+          "key": null,
+          "kind": "own",
+          "label": "Abrir pasta…"
+        },
+        {
+          "feature": null,
+          "id": "open-file",
+          "key": null,
+          "kind": "own",
+          "label": "Abrir arquivo…"
+        },
+        {
+          "feature": null,
+          "id": "open-recent",
+          "key": null,
+          "kind": "own",
+          "label": "Abrir recente"
+        },
+        {
+          "feature": null,
+          "id": "import-files",
+          "key": null,
+          "kind": "command",
+          "label": "Importar arquivos…"
+        },
+        {
+          "feature": null,
+          "id": "open-sync",
+          "key": null,
+          "kind": "command",
+          "label": "Sincronizar com…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "save",
+          "key": null,
+          "kind": "command",
+          "label": "Salvar"
+        },
+        {
+          "feature": null,
+          "id": "rename",
+          "key": null,
+          "kind": "command",
+          "label": "Renomear…"
+        },
+        {
+          "feature": null,
+          "id": "move-file",
+          "key": null,
+          "kind": "command",
+          "label": "Mover para…"
+        },
+        {
+          "feature": null,
+          "id": "save-template",
+          "key": null,
+          "kind": "command",
+          "label": "Salvar como template…"
+        },
+        {
+          "feature": null,
+          "id": "version-history",
+          "key": null,
+          "kind": "command",
+          "label": "Histórico de versões…"
+        },
+        {
+          "feature": null,
+          "id": "open-trash",
+          "key": null,
+          "kind": "command",
+          "label": "Lixeira…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "close-tab",
+          "key": null,
+          "kind": "own",
+          "label": "Fechar aba"
+        },
+        {
+          "feature": null,
+          "id": "close-window",
+          "key": null,
+          "kind": "own",
+          "label": "Fechar janela"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings",
+          "key": null,
+          "kind": "own",
+          "label": "Ajustes…"
+        },
+        {
+          "feature": null,
+          "id": "quit",
+          "key": null,
+          "kind": "own",
+          "label": "Encerrar o Verso"
+        }
+      ],
+      "key": "file",
+      "mnemonic": "a",
+      "title": "Arquivo"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "undo",
+          "key": "Mod-z",
+          "kind": "own",
+          "label": "Desfazer"
+        },
+        {
+          "feature": null,
+          "id": "redo",
+          "key": "Mod-Shift-z",
+          "kind": "own",
+          "label": "Refazer"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "cut",
+          "key": "Mod-x",
+          "kind": "system",
+          "label": "Recortar"
+        },
+        {
+          "feature": null,
+          "id": "copy",
+          "key": "Mod-c",
+          "kind": "system",
+          "label": "Copiar"
+        },
+        {
+          "feature": null,
+          "id": "paste",
+          "key": "Mod-v",
+          "kind": "system",
+          "label": "Colar"
+        },
+        {
+          "feature": null,
+          "id": "select-all",
+          "key": "Mod-a",
+          "kind": "own",
+          "label": "Selecionar tudo"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "find-in-note",
+          "key": null,
+          "kind": "command",
+          "label": "Buscar na nota…"
+        },
+        {
+          "feature": null,
+          "id": "replace",
+          "key": null,
+          "kind": "command",
+          "label": "Substituir…"
+        },
+        {
+          "feature": null,
+          "id": "search",
+          "key": null,
+          "kind": "command",
+          "label": "Buscar nas notas"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "add-property",
+          "key": null,
+          "kind": "command",
+          "label": "Adicionar propriedade"
+        },
+        {
+          "feature": null,
+          "id": "insert-template",
+          "key": null,
+          "kind": "command",
+          "label": "Inserir template…"
+        },
+        {
+          "feature": null,
+          "id": "insert-base",
+          "key": null,
+          "kind": "command",
+          "label": "Inserir base…"
+        }
+      ],
+      "key": "edit",
+      "mnemonic": "e",
+      "title": "Edição"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "toggle-mode",
+          "key": null,
+          "kind": "command",
+          "label": "Alternar leitura / edição"
+        },
+        {
+          "feature": null,
+          "id": "source",
+          "key": null,
+          "kind": "command",
+          "label": "Modo fonte"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "toggle-side",
+          "key": null,
+          "kind": "command",
+          "label": "Painel esquerdo"
+        },
+        {
+          "feature": null,
+          "id": "toggle-right",
+          "key": null,
+          "kind": "command",
+          "label": "Painel direito"
+        },
+        {
+          "feature": null,
+          "id": "hide-tabs",
+          "key": null,
+          "kind": "command",
+          "label": "Barra de abas"
+        },
+        {
+          "feature": null,
+          "id": "vertical-tabs",
+          "key": null,
+          "kind": "command",
+          "label": "Abas verticais"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "split-right",
+          "key": null,
+          "kind": "command",
+          "label": "Dividir à direita"
+        },
+        {
+          "feature": null,
+          "id": "split-down",
+          "key": null,
+          "kind": "command",
+          "label": "Dividir abaixo"
+        },
+        {
+          "feature": null,
+          "id": "maximize",
+          "key": null,
+          "kind": "command",
+          "label": "Maximizar painel"
+        },
+        {
+          "feature": null,
+          "id": "new-space",
+          "key": null,
+          "kind": "command",
+          "label": "Novo espaço de trabalho"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "zoom-in",
+          "key": null,
+          "kind": "command",
+          "label": "Aumentar zoom"
+        },
+        {
+          "feature": null,
+          "id": "zoom-out",
+          "key": null,
+          "kind": "command",
+          "label": "Diminuir zoom"
+        },
+        {
+          "feature": null,
+          "id": "zoom-reset",
+          "key": null,
+          "kind": "command",
+          "label": "Zoom real (100%)"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "graph-note",
+          "key": null,
+          "kind": "command",
+          "label": "Grafo da nota"
+        },
+        {
+          "feature": null,
+          "id": "graph-vault",
+          "key": null,
+          "kind": "command",
+          "label": "Grafo da pasta"
+        },
+        {
+          "feature": null,
+          "id": "diagram-save-board",
+          "key": null,
+          "kind": "command",
+          "label": "Salvar diagrama como board"
+        },
+        {
+          "feature": null,
+          "id": "fold-all-headings",
+          "key": null,
+          "kind": "command",
+          "label": "Dobrar todos os títulos"
+        },
+        {
+          "feature": null,
+          "id": "unfold-all-headings",
+          "key": null,
+          "kind": "command",
+          "label": "Desdobrar todos os títulos"
+        },
+        {
+          "feature": null,
+          "id": "collapse-all",
+          "key": null,
+          "kind": "command",
+          "label": "Recolher todas as pastas"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings-appearance",
+          "key": null,
+          "kind": "command",
+          "label": "Aparência e temas…"
+        },
+        {
+          "feature": null,
+          "id": "more-themes",
+          "key": null,
+          "kind": "command",
+          "label": "Mais temas…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "fullscreen",
+          "key": null,
+          "kind": "system",
+          "label": "Tela cheia"
+        },
+        {
+          "feature": null,
+          "id": "reload-window",
+          "key": null,
+          "kind": "command",
+          "label": "Recarregar a janela"
+        },
+        {
+          "feature": null,
+          "id": "devtools",
+          "key": null,
+          "kind": "own",
+          "label": "Abrir console"
+        }
+      ],
+      "key": "view",
+      "mnemonic": "v",
+      "title": "Visualização"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "nav-back",
+          "key": null,
+          "kind": "command",
+          "label": "Voltar"
+        },
+        {
+          "feature": null,
+          "id": "nav-forward",
+          "key": null,
+          "kind": "command",
+          "label": "Avançar"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "quick",
+          "key": null,
+          "kind": "command",
+          "label": "Abrir nota…"
+        },
+        {
+          "feature": null,
+          "id": "palette",
+          "key": null,
+          "kind": "command",
+          "label": "Paleta de comandos…"
+        },
+        {
+          "feature": null,
+          "id": "daily",
+          "key": null,
+          "kind": "command",
+          "label": "Nota diária"
+        },
+        {
+          "feature": null,
+          "id": "switch-focus",
+          "key": null,
+          "kind": "command",
+          "label": "Trocar foco…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "reopen",
+          "key": null,
+          "kind": "command",
+          "label": "Reabrir aba fechada"
+        },
+        {
+          "feature": null,
+          "id": "prev-tab",
+          "key": null,
+          "kind": "command",
+          "label": "Aba anterior"
+        },
+        {
+          "feature": null,
+          "id": "next-tab",
+          "key": null,
+          "kind": "command",
+          "label": "Próxima aba"
+        }
+      ],
+      "key": "go",
+      "mnemonic": "i",
+      "title": "Ir"
+    },
+    {
+      "items": [
+        {
+          "feature": "diceRolling",
+          "id": "roll-dice",
+          "key": null,
+          "kind": "command",
+          "label": "Rolar dados…"
+        },
+        {
+          "feature": "oracles",
+          "id": "ask-oracle",
+          "key": null,
+          "kind": "command",
+          "label": "Perguntar ao oráculo"
+        },
+        {
+          "feature": "campaignBundles",
+          "id": "world-wizard",
+          "key": null,
+          "kind": "command",
+          "label": "Novo projeto a partir de modelo…"
+        },
+        {
+          "feature": null,
+          "id": "",
+          "key": null,
+          "kind": "sep",
+          "label": ""
+        },
+        {
+          "feature": null,
+          "id": "settings-rpg",
+          "key": null,
+          "kind": "command",
+          "label": "Ajustes de Dados e RPG…"
+        }
+      ],
+      "key": "rpg",
+      "mnemonic": "r",
+      "title": "RPG"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "minimize",
+          "key": null,
+          "kind": "system",
+          "label": "Minimizar"
+        },
+        {
+          "feature": null,
+          "id": "maximize",
+          "key": null,
+          "kind": "system",
+          "label": "Maximizar"
+        }
+      ],
+      "key": "window",
+      "mnemonic": "j",
+      "title": "Janela"
+    },
+    {
+      "items": [
+        {
+          "feature": null,
+          "id": "notifications",
+          "key": null,
+          "kind": "command",
+          "label": "Notificações"
+        },
+        {
+          "feature": null,
+          "id": "import-demo-vault",
+          "key": null,
+          "kind": "command",
+          "label": "Importar o tutorial…"
+        },
+        {
+          "feature": null,
+          "id": "check-updates",
+          "key": null,
+          "kind": "command",
+          "label": "Verificar atualizações…"
+        },
+        {
+          "feature": null,
+          "id": "report-bug",
+          "key": null,
+          "kind": "command",
+          "label": "Relatar um problema…"
+        },
+        {
+          "feature": null,
+          "id": "open-credits",
+          "key": null,
+          "kind": "command",
+          "label": "Créditos…"
+        }
+      ],
+      "key": "help",
+      "mnemonic": "u",
+      "title": "Ajuda"
+    }
+  ]
+}

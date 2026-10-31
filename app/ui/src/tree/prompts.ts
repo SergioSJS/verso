@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
-import { canWrite } from "../can";
 import { afterFileChange } from "../changes";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
@@ -13,10 +12,11 @@ import { layout, openNote } from "../layout/spaces";
 import { dirOf, name } from "../paths";
 import { returnFromSide, showSide } from "../side";
 import { t } from "../strings";
+import { guard, guardCreate } from "../readerNotice";
 import { openFolders } from "./tree";
 
 export function renameInline(li: HTMLElement, path: string, folder = false): void {
-  if (!canWrite()) return;
+  if (guard(path)) return;
   const row = li.querySelector<HTMLElement>(folder ? ".folder-label, button" : "button");
   if (!row) return;
   const input = h("input", "rename");
@@ -49,7 +49,7 @@ export function renameInline(li: HTMLElement, path: string, folder = false): voi
   input.addEventListener("blur", () => finish(input.value.trim() !== current));
 }
 export function newFolderPrompt(folder: string): void {
-  if (!canWrite()) return;
+  if (guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -89,7 +89,7 @@ export function newFolderPrompt(folder: string): void {
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
 export function newWebPagePrompt(folder?: string): void {
-  if (!canWrite()) return;
+  if (folder === undefined ? guard() : guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -135,7 +135,7 @@ export function newWebPagePrompt(folder?: string): void {
   input.addEventListener("blur", () => finish(false));
 }
 export function newNotePrompt(folder: string): void {
-  if (!canWrite()) return;
+  if (guardCreate(folder, undefined, "note")) return;
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");

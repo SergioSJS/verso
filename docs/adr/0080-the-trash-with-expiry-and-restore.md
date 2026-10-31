@@ -100,13 +100,13 @@ carried a recommendation; the maintainer decided. Open items answered
    there is removed, never followed ([0044](0044-verso-fs-semantics.md)'s
    server rule); empty directories left under `.trash/` are pruned; each
    removal is one line of the log and, on the server, of the audit log.
-   `[OPEN]`: the default. Recommended: **30 days**, as Notion, Google
+   `[DECIDED 2026-10-10]`: the default. Recommended: **30 days**, as Notion, Google
    Drive and the Finder keep — decided 2026-10-10: 30 days. Configurable:
    - on the server, `VERSO_TRASH_DAYS` is the default for every folder
      (30 when unset; `0` means never expire), and the console's folder
      page sets a folder's own value, as it sets the quota
      ([0077](0077-the-server-administration-console-and-folder-quotas.md)
-     item 5); `[OPEN]` whether a folder's owner may change it from the
+     item 5); `[DECIDED 2026-10-10]` whether a folder's owner may change it from the
      window too — recommended: the owner may **shorten** it, only the
      admin lengthens it or turns expiry off, since space is the host's —
      decided 2026-10-10: the owner may shorten it from the window; only
@@ -124,7 +124,7 @@ carried a recommendation; the maintainer decided. Open items answered
    first. Opened from the file tree's root menu and the command palette,
    and from the folder's settings, which show the trash's size and count
    beside the folder's space ([0075](0075-server-packaging-and-storage.md)
-   item 4). `[OPEN]`: whether the tree also shows a *Trash* row at its
+   item 4). `[DECIDED 2026-10-10]`: whether the tree also shows a *Trash* row at its
    foot, as Notion's sidebar does. Recommended: **no row in the tree** in
    the first version — the tree is the folder's files, and the trash is
    not one of them — the menu, the palette and the settings reaching it
@@ -166,7 +166,7 @@ carried a recommendation; the maintainer decided. Open items answered
    sees the entries whose original path is inside what was shared, and
    nothing else of the folder's trash. On the computer the person is the
    owner and does everything.
-8. **The trash and the quota.** `[OPEN]`; the trade-off is this. Counting
+8. **The trash and the quota.** `[DECIDED 2026-10-10]`; the trade-off is this. Counting
    the trash against the quota breaks [0077](0077-the-server-administration-console-and-folder-quotas.md)
    item 5's promise that a deletion is always allowed so a full folder can
    be made smaller — with the trash counted, deleting frees nothing until
@@ -186,7 +186,7 @@ carried a recommendation; the maintainer decided. Open items answered
    does, so that it is seen and restored in the same view and the two
    trashes of item 6 mirror each other. This contradicts the wording of
    [0079](0079-sync-a-local-folder-with-a-server.md) item 9 ("the
-   system's bin"); `[OPEN]`, the maintainer's to settle. Recommended: the
+   system's bin"); `[DECIDED 2026-10-10]`, the maintainer's to settle. Recommended: the
    folder's bin, with a Revisions line in 0079 and no change of code —
    decided 2026-10-10: a deletion carried out by sync goes to the
    folder's `.trash/`; 0079 item 9 revised the same day.

@@ -11,6 +11,16 @@
   count in the status bar and a notification centre; settings per
   category; the events listed in item 7. On 2026-10-14 they chose this as
   the first mission of the next round. Written by Opus 5.5.
+- Revisions: 2026-10-22 — T.6 of the afternoon list of 2026-10-21, answered
+  2026-10-22. Option A: on a phone the "someone joined the note" notice is
+  shown **at the bottom, above the keyboard bar**, not at the top over the
+  first line of the editor and the board (**being built**). His question,
+  *"Não faz mais sentido falar que entrou no cofre em vez de nota?"* (wouldn't
+  it make more sense to say they entered the vault instead of the note?), is
+  `[OPEN]`: presence is per note today (the Presence row of item 7), and a
+  folder-level presence comes with the table of
+  [0107](0107-the-table-a-shared-roll-and-chat-log.md); nothing is decided
+  here.
 - Related: [0026](0026-core-ui-contract-inviolable-rules.md) (rule 2, the
   window does not assume which side of the wire the core is on; rule 3,
   types generated from Rust), [0035](0035-cross-cutting-requirements.md)
@@ -174,13 +184,31 @@ the same day; each is marked in place (Status).
    - A new Settings section, "Notificações", has one row per kind with
      three values: "Aviso e lista", "Só na lista", "Desligado".
    - **The defaults** `[DECIDED 2026-10-14]`: "Aviso e lista" for every
-     kind.
+     kind. **Amended 2026-10-28** `[DECIDED 2026-10-28]`, the maintainer
+     on someone joining: *"deve notificar, mas sutil, tava um inferno o pop
+     up atrapalhando a barra de digitação do chat e ler as últimas
+     mensagens"*. Presence defaults to "Só na lista": no toast on any
+     screen; the bell's count and the list carry it, and in the place where
+     the person works (the note's or board's presence row) the newcomer's
+     avatar gets a brief ring, still with `prefers-reduced-motion`
+     (no animation, a ring that fades), announced politely ("Ana entrou").
+     The person may set it back to "Aviso e lista"; the system's
+     notification (item 9) follows the kind's value, so a join reaches it
+     only then.
    - Turning a kind off does not silence its state. The status bar still
      says the sync state, and the note still shows its conflict banner.
      Off only means no toast and no line in the list.
    - The values live in the person's layer
      ([0070](0070-what-travels-with-the-folder.md)): the window's
      `Settings`, synced to the account on a server.
+   - **The Table's sound (2026-10-23, the maintainer: "Mensagens no
+     chat deveriam notificar de alguma forma, com som configurável").**
+     Two more rows in the section: "Som da Mesa" (Desligado, Suave, Sino,
+     Estalo; Suave by default) and its volume. It is a sound, not a kind of
+     notification: it plays for another person's message or roll whether
+     the Table panel is open or not, and the "Mesa" kind above (a toast,
+     the list, the system notification) is unchanged. Details in
+     [0107](0107-the-table-a-shared-roll-and-chat-log.md).
 
 9. **The system's notifications** `[DECIDED 2026-10-14]`: in this
    round, on the desktop and in the browser.
@@ -307,3 +335,5 @@ To be built as 0.8.3-beta.1.
   a share given are remembered across starts.
 - "The sync is back" is said only after a failure, never after a pause the
   person made.
+
+**As built (2026-10-28).** Presence's default is `KIND_DEFAULT.presence = "list"` in `notify/core.ts`; an explicit stored value is kept and nothing is migrated. Beside the live mark, `leaves/liveWho.ts` draws one small mark per person in the room (the person's colour, their letter); a newcomer that `presenceHeard` counts as news gets the `is-new` ring for 2.8 s (`leaves/whoRing.ts`), still and fading under `prefers-reduced-motion`. The polite line ("Ana joined the note.") is said once per person, by the same once-per-10-minutes rule, instead of at every reconnect. Only Presence set back to "Aviso e lista" toasts, and only then does the system's notification follow.

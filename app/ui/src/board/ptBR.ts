@@ -78,6 +78,8 @@ export const PT_BR: Record<string, string> = {
   "labels.more_options": "Mais opções",
   "labels.arrowtypes": "Tipo de seta",
   "labels.arrowtype_sharp": "Seta reta",
+  "labels.arrowBinding": "Ligar setas às formas",
+  "labels.midpointSnapping": "Encaixar no meio das bordas",
   "labels.arrowtype_round": "Seta curva",
   "labels.arrowtype_elbowed": "Seta em cotovelo",
   "labels.clearCanvas": "Limpar o board",

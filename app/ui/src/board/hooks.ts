@@ -41,6 +41,26 @@ export function useToolbarSlot(canvas: RefObject<HTMLDivElement | null>): HTMLEl
   return slot;
 }
 
+/** Gives Excalidraw's main-menu button (the hamburger) a name: it has an
+ *  icon and no text, so a reader of the screen finds a button with no
+ *  name. Set again whenever the button is drawn anew. */
+export function useMenuName(canvas: RefObject<HTMLDivElement | null>, name: string): void {
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const label = (): void => {
+      for (const b of c.querySelectorAll<HTMLElement>(".main-menu-trigger, [data-testid=\"main-menu-trigger\"]")) {
+        if (b.getAttribute("aria-label") !== name) b.setAttribute("aria-label", name);
+        if (b.title !== name) b.title = name;
+      }
+    };
+    label();
+    const mo = new MutationObserver(label);
+    mo.observe(c, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [canvas, name]);
+}
+
 /** Excalidraw's line of hints under its toolbar, while `on`: Verso's own
  *  hint goes in it as one more line, in its clothes. Excalidraw draws the
  *  line anew as the hint changes, so it is looked for again each time. */
@@ -217,4 +237,60 @@ export function useCardPreview(canvas: RefObject<HTMLDivElement | null>, preview
       root.removeEventListener("pointercancel", lift, true);
     };
   }, [canvas, preview]);
+}
+
+/** A card's buttons (open, swap, a page card's approval, a die's roll), under Excalidraw's
+ *  selection canvas, are pressed here: the topmost card under the pointer
+ *  decides, as the eye does. Only a card that is not entered: an entered
+ *  card takes the pointer itself. */
+export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
+  useEffect(() => {
+    const root = canvas.current;
+    if (!root) return;
+    let pressed: HTMLElement | null = null;
+    let hover: HTMLElement | null = null;
+    const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const buttonAt = (x: number, y: number): HTMLElement | null => {
+      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
+      for (let i = slots.length - 1; i >= 0; i--) {
+        const slot = slots[i]!;
+        if (!inside(slot.getBoundingClientRect(), x, y)) continue;
+        if (slot.classList.contains("is-active")) return null;
+        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open, button.board-card-press, button.dice-button, button.dice-again, button.dice-close")) if (inside(b.getBoundingClientRect(), x, y)) return b;
+        return null;
+      }
+      return null;
+    };
+    const down = (e: PointerEvent): void => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const b = buttonAt(e.clientX, e.clientY);
+      if (!b) return;
+      pressed = b;
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const up = (e: PointerEvent): void => {
+      if (!pressed) return;
+      const b = pressed;
+      pressed = null;
+      e.stopPropagation();
+      if (buttonAt(e.clientX, e.clientY) === b) b.click();
+    };
+    const move = (e: PointerEvent): void => {
+      const b = e.buttons ? null : buttonAt(e.clientX, e.clientY);
+      if (b === hover) return;
+      hover?.classList.remove("is-hover");
+      b?.classList.add("is-hover");
+      root.classList.toggle("is-over-open", !!b);
+      hover = b;
+    };
+    root.addEventListener("pointerdown", down, true);
+    root.addEventListener("pointerup", up, true);
+    root.addEventListener("pointermove", move, true);
+    return () => {
+      root.removeEventListener("pointerdown", down, true);
+      root.removeEventListener("pointerup", up, true);
+      root.removeEventListener("pointermove", move, true);
+    };
+  }, []);
 }

@@ -8,11 +8,13 @@ import { fail } from "./errors";
 import { allNotes } from "./folder";
 import { dirOf, name } from "./paths";
 import { t } from "./strings";
+import { cleanSnippet } from "./snippet";
+import { syncRoving } from "./tree/aria";
 import { fileRow, listAll, restoreTreeFocus, treeFocus } from "./tree/tree";
 
 export function snippetNode(snippet: string): HTMLSpanElement {
   const s = h("span", "snippet");
-  for (const part of snippet.split(/(\[[^\]]*\])/)) {
+  for (const part of cleanSnippet(snippet).split(/(\[[^\]]*\])/)) {
     if (part.startsWith("[") && part.endsWith("]")) s.append(h("mark", "", part.slice(1, -1)));
     else s.append(part);
   }
@@ -66,13 +68,18 @@ export async function searchNotes(words: string): Promise<void> {
   const was = treeFocus();
   ui.notes.className = "list";
   ui.notes.replaceChildren(
-    ...hits.map((hit) =>
+    ...hits.map((hit, at) =>
       fileRow(hit.path, (b) => {
+        b.setAttribute("aria-setsize", String(hits.length));
+        b.setAttribute("aria-posinset", String(at + 1));
+        const label = b.querySelector(".row-name");
+        if (label && /\.md$/i.test(hit.path) && label.textContent === (hit.path.split("/").pop() ?? hit.path)) label.textContent = name(hit.path);
         if (dirOf(hit.path)) b.append(h("span", "path", dirOf(hit.path)));
-        if (hit.snippet) b.append(snippetNode(hit.snippet));
+        if (cleanSnippet(hit.snippet) !== "") b.append(snippetNode(hit.snippet));
       }),
     ),
   );
+  syncRoving();
   restoreTreeFocus(was);
   ui.status.textContent = t.hits(hits.length);
 }

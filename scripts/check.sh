@@ -39,8 +39,12 @@ node scripts/check-sizes.mjs
 
 step "demo vault built from its sources (ADR 0058)"
 node scripts/demo-vault.mjs check
+step "theme catalogue: shape, contrast floor, credits (ADR 0109)"
+node scripts/check-theme-catalogue.mjs
 step "the release page names the files the release workflow builds (ADR 0051)"
 node --test scripts/release-page.test.mjs
+step "file associations: a handler for .md on three systems, never the default (ADR 0114)"
+node scripts/check-file-associations.mjs
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \

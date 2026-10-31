@@ -64,6 +64,9 @@ export const cryptoRandomSource: RandomSource = () => {
 // — `Math.floor(rand() * sides)` favours the low faces of a die whose
 // sides do not divide 2^32 (ADR 0088 item 7).
 export function rollDie(sides: number, rand: RandomSource): number {
+  // A die with no face, or half of one, has no draw to wait for: the loop
+  // below would never end (`x < NaN` is never true).
+  if (!Number.isInteger(sides) || sides < 1) throw new RangeError(`A die needs a whole number of faces, 1 or more (got ${sides}).`);
   const span = 2 ** 32;
   const limit = Math.floor(span / sides) * sides;
   for (;;) {

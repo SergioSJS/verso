@@ -1,0 +1,47 @@
+{
+  "verso-theme": 1,
+  "name": "Rosé Pine Moon",
+  "mode": "dark",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Rosé Pine Moon",
+    "author": "Rosé Pine",
+    "repoUrl": "https://github.com/rose-pine/palette",
+    "license": "MIT"
+  },
+  "values": {
+    "dark": {
+      "--paper": "#232136",
+      "--paper-2": "#2a273f",
+      "--hair": "#393552",
+      "--ink": "#e0def4",
+      "--ink-2": "#908caa",
+      "--seal": "#c4a7e7",
+      "--brass-ink": "#ea9a97",
+      "--code-paper": "#2a273f",
+      "--code-ink": "#e0def4",
+      "--h1-color": "#eb6f92",
+      "--h2-color": "#c4a7e7",
+      "--h3-color": "#ea9a97",
+      "--h4-color": "#f6c177",
+      "--h5-color": "#9ccfd8",
+      "--h6-color": "#3e8fb0",
+      "--red": "#eb6f92",
+      "--yellow": "#f6c177",
+      "--cyan": "#9ccfd8",
+      "--blue": "#3e8fb0",
+      "--purple": "#c4a7e7",
+      "--pink": "#ea9a97",
+      "--hr-color": "#f6c177"
+    },
+    "--heading-font": "sans",
+    "--book": "sans",
+    "font-size": 18,
+    "heading-weight": "regular",
+    "line-width": "narrow",
+    "line-height": "snug",
+    "blockquote-style": "panel",
+    "emphasis-color": "accent",
+    "hr-style": "fade"
+  }
+}

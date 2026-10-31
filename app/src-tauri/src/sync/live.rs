@@ -14,7 +14,8 @@
 //! return knows that text for the tab's own, already in the room: neither
 //! sent nor a conflict (items 6 and 9).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use super::*;
 
@@ -25,7 +26,13 @@ const CATCH_UP: Duration = Duration::from_secs(5);
 /// (item 9); one that does not is taken to have left.
 const REJOIN: Duration = Duration::from_secs(4);
 /// How often a wait looks again.
-const LOOK: Duration = Duration::from_millis(50);
+const LOOK: Duration = Duration::from_millis(20);
+/// After this long a wait looks less often (`LOOK_SLOW`): each look reads
+/// and hashes the note.
+const LOOK_FAST_FOR: Duration = Duration::from_secs(1);
+const LOOK_SLOW: Duration = Duration::from_millis(100);
+/// A join slower than this is said in the log, with its stages.
+const SLOW_JOIN: Duration = Duration::from_millis(300);
 
 /// The live notes of one synced folder.
 #[derive(Default)]
@@ -38,6 +45,51 @@ pub(crate) struct Live {
     /// tab's next join is answered as another room, so that it reads the
     /// note again instead of sending its text a second time.
     left: Mutex<HashSet<String>>,
+    /// The windows at the server's tables over this link (ADR 0107 item 9),
+    /// each with the table it is at (the table's root in the folder, `""`
+    /// for the folder: one table per window, 2026-10-23): the server knows
+    /// the connection, not them.
+    table: Mutex<BTreeMap<String, String>>,
+    /// The windows that asked the campaign's status over this link (ADR
+    /// 0110): told when it changes.
+    campaign: Mutex<BTreeSet<String>>,
+    /// What outlives a note's room (a tab leaving it does not end this):
+    /// see [`Kept`].
+    kept: Mutex<HashMap<String, Kept>>,
+    /// A clock for [`Kept`]: which came first.
+    tick: AtomicU64,
+    /// Joins waiting for the pass on their note right now.
+    joins_waiting: AtomicUsize,
+    /// Tells the loop in its settling pause that a join is waiting. No
+    /// permit is kept: a hurry nobody was waiting for must not shorten a
+    /// later, unrelated pause.
+    hurry: tokio::sync::Notify,
+}
+
+/// A join waiting for the pass on its note; counted while it lives.
+pub(crate) struct WaitingJoin<'a>(&'a AtomicUsize);
+
+impl Drop for WaitingJoin<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// What a note's tab and its room left, kept past the room made again from
+/// the disk and the tab leaving it, for the pass that follows (ADR 0082
+/// item 9).
+#[derive(Default)]
+struct Kept {
+    /// The hash of the last text a tab wrote here itself, out of the room
+    /// (`Held::own` is lost with the room), with when it was written.
+    last: Option<(String, u64)>,
+    /// The hashes of the last saves the room told this app of, with when:
+    /// the server's file as this tab's own room made it. The tab's text
+    /// holds every one (the room's updates reach it before the save is
+    /// told), so a server file with one of these hashes is an earlier
+    /// state of what the tab wrote since, never a change of someone else's
+    /// the tab has not seen.
+    saved: Vec<(String, u64)>,
 }
 
 /// A note held in a room by windows of this app.
@@ -52,6 +104,9 @@ struct Held {
     own: Option<String>,
 }
 
+/// How many of the room's saves are remembered per note.
+const SAVES: usize = 32;
+
 /// What the windows hear: the labels, the event and its payload.
 pub(crate) type Told = Arc<dyn Fn(&[String], &str, &Value) + Send + Sync>;
 
@@ -60,9 +115,33 @@ fn unavailable(message: &str) -> Value {
 }
 
 impl Live {
+    /// A join starts waiting for the pass on its note.
+    pub(crate) fn wait_for_pass(&self) -> WaitingJoin<'_> {
+        self.joins_waiting.fetch_add(1, Ordering::SeqCst);
+        WaitingJoin(&self.joins_waiting)
+    }
+
+    /// A join asks the loop to end its pause now.
+    pub(crate) fn hurry(&self) {
+        self.hurry.notify_waiters();
+    }
+
+    /// The pause that lets a burst of local changes settle before the next
+    /// pass: skipped, or ended at once, only while a join is waiting for
+    /// that pass (a count, not a stored permit).
+    pub(crate) async fn settle(&self, pause: Duration) {
+        if self.joins_waiting.load(Ordering::SeqCst) > 0 {
+            return;
+        }
+        tokio::select! { () = tokio::time::sleep(pause) => {}, () = self.hurry.notified() => {} }
+    }
+
     /// The sync's link is up: every held note comes back into its room.
     pub(crate) fn connected(&self, remote: Arc<remote::Remote>) {
         *lock(&self.link) = Some(remote);
+        // The table is a connection's: a new one is at no table until its
+        // windows join again.
+        lock(&self.table).clear();
         for h in lock(&self.rooms).values_mut() {
             h.joined = false;
         }
@@ -72,6 +151,7 @@ impl Live {
     /// local (item 8).
     pub(crate) fn lost(&self) {
         *lock(&self.link) = None;
+        lock(&self.table).clear();
         for h in lock(&self.rooms).values_mut() {
             h.joined = false;
         }
@@ -85,6 +165,12 @@ impl Live {
     #[cfg(test)]
     pub(crate) fn holds(&self, path: &str) -> bool {
         lock(&self.rooms).get(path).is_some_and(|h| h.joined)
+    }
+
+    /// How many saves of `path`'s room this app has heard and kept.
+    #[cfg(test)]
+    pub(crate) fn saves_heard(&self, path: &str) -> usize {
+        lock(&self.kept).get(path).map_or(0, |k| k.saved.len())
     }
 }
 
@@ -111,10 +197,23 @@ pub(crate) async fn command(
         leave(s, window, &path).await;
         return Ok(Value::Null);
     }
+    if cmd == "table_leave" {
+        table_leave(ctx, s, window, args["table"].as_str()).await;
+        return Ok(Value::Null);
+    }
     let Some(remote) = up(s).and_then(|_| s.live.remote()) else {
-        return Err(unavailable(
-            "the folder's sync is not connected: the note is edited on this computer",
-        ));
+        // A folder with no connection has no table, and says so (ADR
+        // 0107 item 9): the status is "none", as a folder alone's.
+        if cmd == "campaign_status" {
+            return Ok(json!({
+                "viewer": "none", "tables": [], "notes": [], "players": [], "can_invite": false
+            }));
+        }
+        return Err(unavailable(if cmd.starts_with("collab_") {
+            "the folder's sync is not connected: the note is edited on this computer"
+        } else {
+            "the folder's sync is not connected: the table is the server's"
+        }));
     };
     // The server tells the other connections; another window of this app
     // in the same room hears it here.
@@ -126,6 +225,24 @@ pub(crate) async fn command(
     };
     match cmd {
         "collab_join" => join(ctx, s, &remote, window, &path).await,
+        // The table and the campaign's controls (ADR 0107 item 9, ADR 0110):
+        // the server's, answered for the sync's connection like a room's.
+        "table_join" => {
+            let answer = remote.call(cmd, args).await?;
+            let table = answer["table"].as_str().unwrap_or_default();
+            if let Some(old) = table_joined(ctx, s, window, table) {
+                // The window moved to another table without leaving the
+                // first: the connection leaves it when none of this app's
+                // windows is left there.
+                let _ = remote.call("table_leave", json!({ "table": old })).await;
+            }
+            Ok(answer)
+        }
+        "campaign_status" => {
+            let answer = remote.call(cmd, args).await?;
+            lock(&s.live.campaign).insert(window.to_owned());
+            Ok(answer)
+        }
         "collab_update" => {
             let answer = remote.call(cmd, args.clone()).await?;
             let others = others();
@@ -146,6 +263,16 @@ pub(crate) async fn command(
             }
             Ok(answer)
         }
+        // The oracle's draws (ADR 0102 item 5): the same.
+        "collab_oracle" => {
+            let answer = remote.call(cmd, args).await?;
+            let others = others();
+            if !others.is_empty() {
+                let payload = json!({ "path": path, "draw": answer });
+                (ctx.told)(&others, "collab-oracle", &payload);
+            }
+            Ok(answer)
+        }
         _ => remote.call(cmd, args).await,
     }
 }
@@ -158,10 +285,29 @@ async fn join(
     window: &str,
     path: &str,
 ) -> Result<Value, Value> {
+    let began = tokio::time::Instant::now();
     catch_up(ctx, s, path).await;
+    let caught = began.elapsed();
     let mut answer = remote.call("collab_join", json!({ "path": path })).await?;
-    // A file whose line ends are mixed: shown read-only, in no room.
-    if answer["read_only"] == true {
+    // Said when slow, with where the time went on this side of the window:
+    // the wait for the pass, and the server's answer.
+    let total = began.elapsed();
+    if total >= SLOW_JOIN {
+        log::write(
+            "INFO",
+            "sync",
+            &format!(
+                "live: join of {path} took {} ms (wait for the pass {} ms, server {} ms)",
+                total.as_millis(),
+                caught.as_millis(),
+                (total - caught).as_millis()
+            ),
+        );
+    }
+    // A file whose line ends are mixed: shown read-only, in no room (no
+    // epoch). A reader is read-only too but in the room, with its epoch
+    // (night round 2026-10-30): its window follows the room's text.
+    if answer["read_only"] == true && answer["epoch"].as_str().is_none_or(str::is_empty) {
         return Ok(answer);
     }
     let epoch = answer["epoch"].as_str().unwrap_or_default().to_owned();
@@ -187,17 +333,27 @@ async fn join(
 /// on that path carries it — sent, or set aside as a conflict's copy —
 /// bounded by [`CATCH_UP`]; the status bar says "sending 1" meanwhile.
 async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
-    // A reader's own changes stay here (ADR 0079 item 1): nothing waits.
-    if lock(&s.status).role == "reader" {
+    // A change this device may not send stays here (ADR 0079 item 1; ADR
+    // 0113 S8): nothing waits.
+    if !s.may_send(ctx.config.as_deref(), path) {
         return;
     }
-    let deadline = tokio::time::Instant::now() + CATCH_UP;
+    let started = tokio::time::Instant::now();
+    let deadline = started + CATCH_UP;
+    let _waiting = s.live.wait_for_pass();
     let mut asked = false;
+    let mut looks = 0u32;
     while !tokio::task::block_in_place(|| settled(ctx, s, path)) {
         if !asked {
             s.touched([path.to_owned()]);
             asked = true;
         }
+        // The pass runs now, not after the pause that lets a burst settle;
+        // asked again every 200 ms while the text has not crossed.
+        if looks.is_multiple_of(10) {
+            s.live.hurry();
+        }
+        looks += 1;
         if tokio::time::Instant::now() >= deadline {
             log::write(
                 "WARN",
@@ -208,7 +364,14 @@ async fn catch_up(ctx: &Ctx, s: &Syncer, path: &str) {
             );
             return;
         }
-        tokio::time::sleep(LOOK).await;
+        // Each look reads and hashes the note: after the first second a
+        // slower look, so a big note is not read fifty times a second.
+        tokio::time::sleep(if started.elapsed() > LOOK_FAST_FOR {
+            LOOK_SLOW
+        } else {
+            LOOK
+        })
+        .await;
     }
 }
 
@@ -244,10 +407,48 @@ async fn leave(s: &Syncer, window: &str, path: &str) {
         }
         let joined = h.joined;
         rooms.remove(path);
+        // The saves heard mean something only beside a text the tab wrote
+        // while out of the room; with none, there is nothing to keep.
+        let mut kept = lock(&s.live.kept);
+        if kept.get(path).is_some_and(|k| k.last.is_none()) {
+            kept.remove(path);
+        }
         joined
     };
     if out && let Some(remote) = s.live.remote() {
         let _ = remote.call("collab_leave", json!({ "path": path })).await;
+    }
+}
+
+/// A window is at the table rooted at `table` over the link (ADR 0107
+/// item 9): the windows that closed are forgotten with it. The table the
+/// window was at before, when it moved and no other window is left there.
+fn table_joined(ctx: &Ctx, s: &Syncer, window: &str, table: &str) -> Option<String> {
+    let shown = ctx.service.clients_of(&s.key);
+    let mut at = lock(&s.live.table);
+    at.retain(|w, _| shown.contains(w));
+    let before = at.insert(window.to_owned(), table.to_owned())?;
+    (before != table && !at.values().any(|t| *t == before)).then_some(before)
+}
+
+/// A window leaves the table it is at (the one named, when it names
+/// one); the connection leaves that table when no window of this app is
+/// left at it.
+async fn table_leave(ctx: &Ctx, s: &Syncer, window: &str, named: Option<&str>) {
+    let left = {
+        let shown = ctx.service.clients_of(&s.key);
+        let mut at = lock(&s.live.table);
+        let was = match (at.get(window), named) {
+            (Some(t), Some(n)) if t != n => None,
+            _ => at.remove(window),
+        };
+        at.retain(|w, _| shown.contains(w));
+        was.filter(|t| !at.values().any(|x| x == t))
+    };
+    if let Some(table) = left
+        && let Some(remote) = s.live.remote()
+    {
+        let _ = remote.call("table_leave", json!({ "table": table })).await;
     }
 }
 
@@ -262,13 +463,19 @@ pub(crate) fn out(s: &Syncer) {
             p.clone()
         })
         .collect();
+    let tables: BTreeSet<String> = std::mem::take(&mut *lock(&s.live.table))
+        .into_values()
+        .collect();
     let Some(remote) = s.live.remote() else {
         return;
     };
-    if paths.is_empty() {
+    if paths.is_empty() && tables.is_empty() {
         return;
     }
     tauri::async_runtime::spawn(async move {
+        for table in tables {
+            let _ = remote.call("table_leave", json!({ "table": table })).await;
+        }
         for path in paths {
             let _ = remote.call("collab_leave", json!({ "path": path })).await;
         }
@@ -283,8 +490,71 @@ pub(crate) fn wrote(s: &Syncer, window: &str, path: &str, bytes: &[u8]) {
         && !h.joined
         && h.windows.contains(window)
     {
-        h.own = Some(sha256(bytes));
+        let hash = sha256(bytes);
+        let at = s.live.tick.fetch_add(1, Ordering::Relaxed);
+        lock(&s.live.kept).entry(path.to_owned()).or_default().last = Some((hash.clone(), at));
+        h.own = Some(hash);
     }
+}
+
+/// The room of `path` saved the file, and this app heard it: the hash of
+/// what it wrote is the server's file as that room made it.
+fn saved_in(live: &Live, path: &str, hash: &str) {
+    let at = live.tick.fetch_add(1, Ordering::Relaxed);
+    if !lock(&live.rooms).contains_key(path) {
+        return;
+    }
+    let mut kept = lock(&live.kept);
+    let saved = &mut kept.entry(path.to_owned()).or_default().saved;
+    saved.push((hash.to_owned(), at));
+    if saved.len() > SAVES {
+        saved.remove(0);
+    }
+}
+
+/// Notes the pass plans from the server's file: a note whose local text a
+/// tab wrote after the room saved the server's file, which the pass has
+/// not fetched yet (the link went with the saves still on the server,
+/// typically a restart, and the room made again from the disk): the
+/// server's file is an earlier state of the tab's own text, so the local
+/// file is a change of this device only. The base is set to that server
+/// file for the plan, which then sends the local text over it; it makes no
+/// conflict copy (ADR 0082 item 9). A server file the room did not tell
+/// this app of — someone else's, or a save missed — leaves the comparison
+/// as it was: two changes, a copy, never a loss. `None`: nothing to plan
+/// differently.
+pub(crate) fn over_saves(
+    s: &Syncer,
+    local: &Files,
+    there: &Files,
+    base: &BTreeMap<String, String>,
+) -> Option<BTreeMap<String, String>> {
+    let mut out: Option<BTreeMap<String, String>> = None;
+    lock(&s.live.kept).retain(|path, k| {
+        let Some((last, wrote)) = k.last.clone() else {
+            return true;
+        };
+        let here = local.get(path);
+        // The file moved on since the tab wrote it (from outside, item
+        // 11), or both sides hold it as the base says: nothing to keep.
+        if here.is_none_or(|f| f.hash != last) || base.get(path) == Some(&last) {
+            return false;
+        }
+        let (Some(here), Some(server)) = (here, there.get(path)) else {
+            return true;
+        };
+        if base.get(path) != Some(&server.hash)
+            && here.hash != server.hash
+            && k.saved
+                .iter()
+                .any(|(x, at)| *x == server.hash && *at < wrote)
+        {
+            out.get_or_insert_with(|| base.clone())
+                .insert(path.clone(), server.hash.clone());
+        }
+        true
+    });
+    out
 }
 
 /// What the sync's link hears, a room's events taken out as they come —
@@ -299,8 +569,33 @@ pub(crate) fn relay(
     tauri::async_runtime::spawn(async move {
         while let Some(h) = heard.recv().await {
             match h {
+                // The table's events and the campaign's go to the windows
+                // that asked for them (ADR 0107 item 9, ADR 0110).
+                remote::Heard::Event(event, payload)
+                    if event.starts_with("table-") || event == "campaign-changed" =>
+                {
+                    let to: Vec<String> = if event == "campaign-changed" {
+                        lock(&live.campaign).iter().cloned().collect()
+                    } else {
+                        // The windows at the table the event is for.
+                        let table = payload["table"].as_str().unwrap_or_default();
+                        lock(&live.table)
+                            .iter()
+                            .filter(|(_, t)| t.as_str() == table)
+                            .map(|(w, _)| w.clone())
+                            .collect()
+                    };
+                    if !to.is_empty() {
+                        told(&to, &event, &payload);
+                    }
+                }
                 remote::Heard::Event(event, payload) if event.starts_with("collab-") => {
                     let path = payload["path"].as_str().unwrap_or_default();
+                    if event == "collab-saved"
+                        && let Some(hash) = payload["hash"].as_str()
+                    {
+                        saved_in(&live, path, hash);
+                    }
                     let to: Vec<String> = lock(&live.rooms)
                         .get(path)
                         .map(|h| h.windows.iter().cloned().collect())

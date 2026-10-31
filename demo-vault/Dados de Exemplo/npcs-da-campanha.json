@@ -1,0 +1,34 @@
+{
+  "campanha": "O Farol Apagado",
+  "sessao": 3,
+  "npcs": [
+    {
+      "nome": "Yara do Farol",
+      "papel": "guardiã",
+      "atitude": "desconfiada",
+      "vida": 18,
+      "itens": ["lanterna", "chave de bronze", "diário da maré"],
+      "segredo": { "pista": "a luz estranha vem do porão", "revelada": false }
+    },
+    {
+      "nome": "Capitão Ruy",
+      "papel": "marinheiro",
+      "atitude": "aliado",
+      "vida": 31,
+      "itens": ["espada curta", "mapa rasgado"],
+      "segredo": { "pista": "conhece a rota da maré sem fim", "revelada": true }
+    },
+    {
+      "nome": "Lia Torres",
+      "papel": "estudiosa",
+      "atitude": "curiosa",
+      "vida": 12,
+      "itens": ["lupa", "cadernos"],
+      "segredo": null
+    }
+  ],
+  "locais": {
+    "farol": { "andares": 4, "acesso": "escada em espiral" },
+    "porto": { "barcos": 7, "taverna": "O Anzol Torto" }
+  }
+}

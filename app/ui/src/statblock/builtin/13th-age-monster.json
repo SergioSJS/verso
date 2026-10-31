@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "13th-age-monster",
+  "name": {
+    "pt": "13th Age — Monstro",
+    "en": "13th Age — Monster"
+  },
+  "description": {
+    "pt": "Ficha de monstro do Archmage Engine (OGL 1.0a): nomes e ordem dos campos, sem texto de livro.",
+    "en": "An Archmage Engine monster sheet (OGL 1.0a): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "13th Age SRD, monster rules",
+      "url": "https://www.13thagesrd.com/monsters/monster-rules/"
+    },
+    {
+      "label": "13th Age SRD (OGL 1.0a)",
+      "url": "https://www.13thagesrd.com/"
+    }
+  ],
+  "profile": "d20",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"kind","properties":["size_strength","level","role","type","initiative"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"size-strength","properties":["size_strength"],"label":{"pt":"Size/Strength","en":"Size/Strength"},"hideWhenEmpty":true},{"type":"property","id":"level","properties":["level"],"label":{"pt":"Level","en":"Level"},"hideWhenEmpty":true},{"type":"property","id":"role","properties":["role"],"label":{"pt":"Role","en":"Role"},"hideWhenEmpty":true},{"type":"property","id":"type","properties":["type"],"label":{"pt":"Type","en":"Type"},"hideWhenEmpty":true},{"type":"property","id":"initiative","properties":["initiative"],"label":{"pt":"Initiative","en":"Initiative"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"attack","properties":["attack","extra_effects"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"attack","properties":["attack"],"label":{"pt":"Attack","en":"Attack"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"extra","properties":["extra_effects"],"label":{"pt":"Extra effects","en":"Extra effects"},"hideWhenEmpty":true,"dice":true}]},
+    {"type":"traits","id":"specials","properties":["specials"],"label":{"pt":"Specials","en":"Specials"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"defences","properties":["ac","pd","md","hp","hp_current","hp"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"pd","properties":["pd"],"label":{"pt":"PD","en":"PD"},"hideWhenEmpty":true},{"type":"property","id":"md","properties":["md"],"label":{"pt":"MD","en":"MD"},"hideWhenEmpty":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"}]},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}

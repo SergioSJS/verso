@@ -128,7 +128,7 @@
   grace passed, the server restarted), ends in a conflict copy beside the
   server's version; a reader is present in the room, with cursor and
   name, and its edits are refused. The item's words are unchanged; the
-  board's co-editing stays `[OPEN]` (0082 item 12).
+  board's co-editing was `[OPEN]` then (decided 2026-10-12 evening, below).
   2026-10-12 (evening) — item 7: **the board's co-editing is decided and
   built** ([0082](0082-live-co-editing-of-a-synced-folder.md) item 12; the
   maintainer, *"Deveria estar"*), and with it every text file's: a board is
@@ -216,6 +216,9 @@
   and lock: name the real proxies, or `none`, to close it. Fine at home, not
   on a public Wi-Fi. HTTPS stays what the guide recommends, as a later and
   optional step. The old wording of item 6 is kept above, marked.
+  2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
+  in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
+  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
 
 ## Context
 
@@ -444,7 +447,7 @@ the date; what stays `[OPEN]` is listed in the Status.
    over a relay, not Yjs; the reconciliation is exported by the package, the
    relay lives in its app — and a
    `.canvas` holds typed relations ([0057](0057-board-json-canvas.md)): the
-   board's co-editing is `[OPEN]`. [0021](0021-sync-automerge-layered-config.md)
+   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](0021-sync-automerge-layered-config.md)
    is proposed to be revised in two ways: Yjs in place of Automerge, and a
    CRDT as the mechanism of a live session, never the stored form of a
    note; the file is. *(Revised so on 2026-10-09, a Revisions line there.)*
@@ -515,8 +518,8 @@ the date; what stays `[OPEN]` is listed in the Status.
     every screen ([0076](0076-the-window-on-every-screen.md), built before
     the server's window ships); and simultaneous editing of notes (item 7)
     → sync for the desktop's local folders → the PWA offline → the user's
-    bucket → native mobile if needed. The board's co-editing stays
-    `[OPEN]`.
+    bucket → native mobile if needed. The board's co-editing was
+    `[OPEN]` (decided and built 2026-10-12, item 7 Revisions).
     *(The order as first recorded, a recommendation: the Linux app → the
     server with accounts, roles and the contract over the wire, the desktop
     app connecting to it online (no sync yet), the watcher's per-batch
@@ -664,3 +667,18 @@ the criteria that would send the iPad from the browser to a native app; how
 a cost would be passed on if storage of ours ever exists; and, from the
 Consequences, "this app is a server" updating through
 [0055](0055-in-app-updater.md) while phones are connected.
+
+Answered on 2026-10-21 (`[DECIDED 2026-10-21]`, the maintainer's marks, all
+option A): **permission finer than the folder** (0073.perm) — only **read** per
+note, through the read link of one note ([0105](0105-read-links-without-an-account.md)
+item 2); writing per note only if someone asks (it stays with
+[0081](0081-sharing-between-people-on-one-universo.md) item 17); **optional
+end-to-end encryption** (0073.e2e) — after V1, the moment decided on
+2026-10-14; **the MCP transport and authorization over the network**
+(0073.mcp) — after V1, the local MCP over stdio keeps working; **the
+pre-signed URL of item 4 against rule 4** (0073.bucket) — decided when the
+bucket mode is built, after V1, with the design in hand; **the criteria for
+the iPad to go from the browser to a native app** (0073.ipad) — postponed,
+it stays in the browser until there is a concrete complaint; **passing on a
+cost if storage of ours ever exists** (0073.custo) — out of scope, as the ADR
+already conditions it on a company, a means of payment and an invoice.

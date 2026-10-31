@@ -2,6 +2,14 @@
 .status-bar { display: flex; align-items: center; gap: 1rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-top: 1px solid var(--hair); font-size: .76rem; color: var(--ink-3); min-height: 1.9rem; min-width: 0; overflow: hidden; }
 .status-bar .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-keys { margin-left: auto; flex: none; }
+/* The bar's toggles and its bug button are the way back to the side bars: never
+   squeezed, never clipped (2026-10-30: at a narrow width the right bar's toggle
+   went past the bar's end). What else the bar holds shrinks first, cut with an
+   ellipsis, and the least useful goes, by the window's width. */
+.status-bar > .bar-toggle { flex: none; }
+.status-bar > :not(.bar-toggle):not(.status-keys):not(.status) { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+@container (max-width: 760px) { .status-bar .status-words, .status-bar .status-live { display: none; } }
+@container (max-width: 560px) { .status-bar .index-progress-label, .status-bar .status-keys { display: none; } }
 @container (max-width: 820px) { .status-keys button:not([data-cmd="palette"]) { display: none; } }
 @container (max-width: 520px) { .status-words { display: none; } }
 .status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -98,14 +106,20 @@
 .lesson-import.lesson-secondary:hover { opacity: 1; color: var(--ink); border-color: var(--ink-3); }
 
 /* Menu at the pointer */
-.menu { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; max-width: calc(100vw - 16px); overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
+.menu, .menu-sub { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; max-width: calc(100vw - 16px); overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
 .menu li > button { display: flex; align-items: center; gap: .55rem; width: 100%; text-align: left; padding: .35rem .6rem; border-radius: 5px; }
 .menu li > button .icon { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
+.menu li > button .menu-check { width: 1em; flex: none; margin-right: -.25rem; text-align: center; color: var(--seal); }
 .menu li > button:hover, .menu li > button:focus-visible { background: var(--seal-wash); color: var(--seal); outline: none; }
 .menu li > button:hover .icon, .menu li > button:focus-visible .icon { color: var(--seal); }
 .menu li > button:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
-.menu li:last-child > button { color: var(--seal); }
-.menu li:last-child > button .icon { color: var(--seal); }
+.menu > li:last-child > button:not(.has-sub) { color: var(--seal); }
+.menu > li:last-child > button:not(.has-sub) .icon { color: var(--seal); }
+.menu-sub { z-index: 21; min-width: 12rem; }
+.menu li > button.has-sub { padding-right: .35rem; }
+.menu li > button.has-sub > span:not(.icon) { flex: 1; }
+.menu li > button .menu-chev { margin-left: auto; width: 12px; height: 12px; }
+.menu li > button.has-sub[aria-expanded="true"] { background: var(--seal-wash); }
 
 /* Rename in place, new note */
 input.rename, .new-note-row input { width: 100%; font: inherit; font-size: .93rem; padding: .25rem .5rem; background: var(--paper); color: var(--ink); border: 1px solid var(--brass); border-radius: 5px; }
@@ -133,7 +147,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .replace-box .input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
 .replace-box .input-with-icon .icon { position: absolute; left: .65rem; width: 14px; height: 14px; color: var(--ink-3); pointer-events: none; }
 .replace-box input { width: auto; box-shadow: none; font-size: .9rem; }
-.replace-box .input-with-icon input[type="text"] { width: 100%; font: inherit; padding: .45rem .6rem .45rem 2.2rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper-2); color: var(--ink); min-width: 0; transition: border-color .15s, background .15s; }
+.replace-box .input-with-icon input[type="text"] { width: 100%; font: inherit; padding: .45rem .6rem .45rem 2.2rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--paper-2); color: var(--ink); min-width: 0; transition: border-color .15s, background .15s; }
 .replace-box .input-with-icon input[type="text"]:focus { outline: none; background: var(--paper); border-color: var(--seal); box-shadow: 0 0 0 2px color-mix(in oklch, var(--seal) 25%, transparent); }
 .replace-opts input[type="checkbox"] { width: 1.05rem; height: 1.05rem; padding: 0; border: 0; accent-color: var(--seal); cursor: pointer; }
 .replace-note { min-height: 1.2em; margin: .5rem 0 0; font-size: .85rem; color: var(--ink-3); }
@@ -149,8 +163,8 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .editor .cm-panels.cm-panels-top { border-bottom: 1px solid var(--hair); }
 .editor .cm-panel.cm-search { padding: .4rem .6rem; }
 .editor .cm-panel.cm-search input, .editor .cm-panel.cm-search button { font: inherit; font-size: .85rem; }
-.editor .cm-panel.cm-search input { background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .45rem; }
-.editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
+.editor .cm-panel.cm-search input { background: var(--paper); color: var(--ink); border: 1px solid var(--control-line); border-radius: 5px; padding: .2rem .45rem; }
+.editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--control-line); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
 .editor .cm-panel.cm-search button:hover { color: var(--ink); background: var(--paper-3); }
 .editor .cm-panel.cm-search label { color: var(--ink-3); margin-left: .5rem; }
 .editor .cm-searchMatch { background: var(--brass-wash); outline: 1px solid var(--brass); border-radius: 2px; }
@@ -165,6 +179,11 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .link-suggest-chip { display: flex; align-items: center; gap: .6rem; min-height: 2rem; padding: .3rem .6rem; border: 0; background: transparent; color: var(--ink); font: inherit; line-height: 1.5; cursor: pointer; }
 .link-suggest-chip:hover { background: var(--seal-wash); color: var(--seal); }
 .link-suggest-chip kbd { font: inherit; font-size: .72rem; color: var(--ink-3); border: 1px solid var(--hair); border-radius: 4px; padding: 0 .35rem; }
+.link-suggest-list { list-style: none; margin: 0; padding: .25rem; min-width: 14rem; max-width: 24rem; }
+.link-suggest-item { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .3rem .55rem; border-radius: 5px; color: var(--ink); cursor: pointer; line-height: 1.5; }
+.link-suggest-item small { color: var(--ink-3); font-size: .74rem; }
+.link-suggest-item:hover, .link-suggest-item.selected { background: var(--seal-wash); color: var(--seal); }
+@media (pointer: coarse) { .link-suggest-item { min-height: 44px; align-items: center; } }
 @media (pointer: coarse) { .link-suggest-chip { min-height: 44px; padding: .5rem 1rem; font-size: .95rem; } }
 .editor .cm-completionLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor .cm-completionMatchedText { text-decoration: none; color: var(--seal); font-weight: 600; }
@@ -191,7 +210,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 /* Callouts — Obsidian's, by kind. The kind's colour is the title's text:
    4.5:1 or more on the callout's paper in every palette (light lightness
    lowered for note, tip and warning; dark mode unchanged). */
-.callout { margin: 0 0 1em; padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
+.callout { margin: 0 0 var(--flow, .9em); padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
 .callout .callout-title { margin: 0 0 .3rem; font-family: var(--ui); font-weight: 600; font-size: .82em; letter-spacing: .04em; text-transform: uppercase; color: var(--kind, var(--brass-ink)); }
 .callout > :last-child { margin-bottom: 0; }
 /* A foldable callout (`[!kind]+`, `[!kind]-`), as Obsidian shows it: the
@@ -210,12 +229,16 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 /* The reading view takes the focus when a link is followed from the
    keyboard (Tab goes on from there); it draws no ring of its own. */
 .preview:focus { outline: none; }
-.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)); }
-.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)); }
-.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)); }
-.callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--seal); }
-.callout[data-callout="example"] { --kind: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)); }
+/* The callouts follow the semantic colours of a version 2 theme (ADR 0109), and have always had these when it sets none. */
+.callout[data-callout="note"], .callout[data-callout="info"] { --kind: var(--blue, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240))); }
+.callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: var(--cyan, light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240))); }
+.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: var(--green, light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150))); }
+.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"] { --kind: var(--orange, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))); }
+.callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: var(--yellow, light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75))); }
+.callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--red, var(--seal)); }
+.callout[data-callout="example"] { --kind: var(--purple, light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300))); }
 .callout[data-callout="quote"], .callout[data-callout="cite"] { --kind: var(--ink-3); }
+.callout[data-callout="oracle"] { --kind: var(--purple, light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305))); }
 .preview mark, .editor mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
 
 /* An embedded note */
@@ -224,3 +247,15 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .embed-note-title:hover { color: var(--seal); }
 .embed-note-body > :last-child { margin-bottom: .4em; }
 
+
+/* The window zoom's level, shown for a moment (zoom.ts). Over the status bar's corner, never in the way of a click. */
+.zoom-badge { position: fixed; right: 1rem; bottom: 2.6rem; z-index: 60; padding: .3rem .7rem; border-radius: 999px; background: var(--ink); color: var(--paper); font: 600 .8rem/1.2 var(--ui); pointer-events: none; opacity: 0; transition: opacity .15s var(--ease-out, ease-out); }
+.zoom-badge.on { opacity: .92; }
+@media (prefers-reduced-motion: reduce) { .zoom-badge { transition: none; } }
+.zoom-control { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.zoom-control .zoom-level { display: inline-flex; align-items: center; justify-content: center; min-width: 3.6rem; min-height: 34px; box-sizing: border-box; padding: 0 .4rem; border-inline: 1px solid var(--control-line); font: 500 .9rem/1 var(--ui); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.zoom-control .ls-step .icon { width: 14px; height: 14px; }
+.zoom-control .zoom-reset { display: inline-flex; align-items: center; min-height: 34px; box-sizing: border-box; padding: 0 .75rem; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-2); font: 500 .85rem/1 var(--ui); }
+.zoom-control .zoom-reset:hover:not(:disabled) { background: var(--paper-3); color: var(--ink); }
+.zoom-control .zoom-reset:disabled { opacity: .5; }
+@media (pointer: coarse) { .zoom-control .zoom-level, .zoom-control .zoom-reset { min-height: 44px; } }

@@ -1,0 +1,10 @@
+name: Marsh Lurker
+tags: Solitary, Large
+attack: "Snap, d8+1 damage"
+hp: 10
+armor: 1
+special_qualities:
+  - Looks like driftwood
+instinct: To wait
+moves:
+  - Surface without a sound

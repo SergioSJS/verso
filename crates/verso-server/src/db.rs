@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 12;
+const SCHEMA: i64 = 21;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -468,6 +468,10 @@ pub struct Db {
     /// folder's write. Empty for a database in memory.
     readers: Vec<Mutex<Connection>>,
     next_reader: std::sync::atomic::AtomicUsize,
+    /// The (folder, account) pairs let send images at some table (ADR 0107
+    /// item 3 as amended 2026-10-24), kept made again by every writer of
+    /// `campaign_images` (`refresh_images`).
+    images: Mutex<std::collections::HashSet<(String, String)>>,
 }
 
 /// How many reading connections a server keeps.
@@ -543,6 +547,15 @@ impl Db {
             (10, INVITATION_SCOPE),
             (11, SECRETS),
             (12, local::PHONES),
+            (13, readlinks::READ_LINKS),
+            (14, table::TABLE),
+            (15, campaign::CAMPAIGN),
+            (16, table::TABLE_PER_TABLE),
+            (17, campaign::AUDIENCE),
+            (18, campaign::EPOCHS),
+            (19, campaign::IMAGES),
+            (20, access::ACCESS),
+            (21, access::RIGHTS),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -565,11 +578,14 @@ impl Db {
                 ));
             }
         }
-        Ok(Self {
+        let db = Self {
             conn: Mutex::new(conn),
             readers: Vec::new(),
             next_reader: std::sync::atomic::AtomicUsize::new(0),
-        })
+            images: Mutex::new(std::collections::HashSet::new()),
+        };
+        db.refresh_images(&db.conn());
+        Ok(db)
     }
 
     fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
@@ -729,9 +745,10 @@ impl Db {
     }
 
     pub fn delete_account(&self, account: &str) -> R<()> {
-        self.conn()
-            .execute("DELETE FROM accounts WHERE id = ?1", [account])
+        let conn = self.conn();
+        conn.execute("DELETE FROM accounts WHERE id = ?1", [account])
             .map_err(e)?;
+        self.refresh_images(&conn);
         Ok(())
     }
 
@@ -950,9 +967,10 @@ impl Db {
     }
 
     pub fn forget_folder(&self, id: &str) -> R<()> {
-        self.conn()
-            .execute("DELETE FROM folders WHERE id = ?1", [id])
+        let conn = self.conn();
+        conn.execute("DELETE FROM folders WHERE id = ?1", [id])
             .map_err(e)?;
+        self.refresh_images(&conn);
         Ok(())
     }
 
@@ -977,7 +995,8 @@ impl Db {
                 params![folder, account, role.as_str()],
             )
             .map_err(e)?;
-        Ok(())
+        // A role that writes makes it a game master, not a player.
+        self.campaign_account_left(folder, account)
     }
 
     pub fn revoke(&self, folder: &str, account: &str) -> R<()> {
@@ -987,7 +1006,7 @@ impl Db {
                 params![folder, account],
             )
             .map_err(e)?;
-        Ok(())
+        self.campaign_account_left(folder, account)
     }
 
     /// The folders `account` may enter, with its role in each.
@@ -1396,19 +1415,32 @@ impl Db {
     }
 }
 
+mod access;
+pub use access::words_of;
 mod audit;
+mod campaign;
+pub use campaign::{
+    Audience, Campaign, Grant, IMAGE_DEFAULT, IMAGE_LEAST, IMAGE_MOST, LOG_DEFAULT, LOG_LEAST,
+    LOG_MOST, NoteState,
+};
 mod console;
 mod local;
 mod proof;
+mod readlinks;
 mod shares;
 mod sync;
+mod table;
+pub use table::{ROWS_MOST, Row as TableRow};
 mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
+pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};
-pub use sync::{Change, Known, Made, ReaderOf, Recorded};
+pub use sync::{Change, Known, Made, Notice, Notices, ReaderOf, Recorded};
 pub use trash::FolderBook;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_access;

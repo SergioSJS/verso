@@ -7,7 +7,6 @@
  *  template's text in the note as one step of the undo; Blank, Esc, or
  *  typing in the note put the list away for good. */
 
-import { today } from "./daily";
 import { h } from "./dom";
 import { icon } from "./icons";
 import { fail } from "./errors";
@@ -16,18 +15,67 @@ import type { NoteLeaf } from "./leaves/note";
 import { opening } from "./opening";
 import { name } from "./paths";
 import { settings } from "./settings";
-import { t } from "./strings";
+import { fillTemplate } from "./templateFill";
+import { LOCALE, t } from "./strings";
 
-/** The notes of the templates folder, in name order. */
-function templates(): string[] {
+/** The notes of the templates folder, prioritizing project-local templates when inside a project/campaign. */
+export function templates(currentPath?: string): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. If currentPath is provided, search for local Modelos or Templates in ancestor directories
+  if (currentPath) {
+    const segments = currentPath.split("/").slice(0, -1);
+    while (segments.length > 0) {
+      const parent = segments.join("/");
+      for (const candidate of [`${parent}/Modelos`, `${parent}/modelos`, `${parent}/Templates`, `${parent}/templates`]) {
+        const localMatches = allNotes
+          .filter((p) => p.startsWith(`${candidate}/`) && !p.slice(candidate.length + 1).includes("/"))
+          .sort((a, b) => name(a).localeCompare(name(b)));
+        for (const p of localMatches) {
+          if (!seen.has(name(p))) {
+            seen.add(name(p));
+            result.push(p);
+          }
+        }
+      }
+      segments.pop();
+    }
+  }
+
+  // 2. Global templates folder from settings
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-  if (!folder) return [];
-  return allNotes.filter((p) => p.toLowerCase().startsWith(`${folder}/`) && !p.slice(folder.length + 1).includes("/")).sort((a, b) => name(a).localeCompare(name(b)));
+  if (folder) {
+    const globalMatches = allNotes
+      .filter((p) => p.toLowerCase().startsWith(`${folder}/`) && !p.slice(folder.length + 1).includes("/"))
+      .sort((a, b) => name(a).localeCompare(name(b)));
+    for (const p of globalMatches) {
+      if (!seen.has(name(p))) {
+        seen.add(name(p));
+        result.push(p);
+      }
+    }
+  }
+
+  // 3. Fallback root "Modelos" folder if present
+  for (const candidate of ["Modelos", "modelos"]) {
+    const rootMatches = allNotes
+      .filter((p) => p.startsWith(`${candidate}/`) && !p.slice(candidate.length + 1).includes("/"))
+      .sort((a, b) => name(a).localeCompare(name(b)));
+    for (const p of rootMatches) {
+      if (!seen.has(name(p))) {
+        seen.add(name(p));
+        result.push(p);
+      }
+    }
+  }
+
+  return result;
 }
 
 /** Offer the templates under `leaf`'s title; nothing when there are none. */
 export function offerTemplates(leaf: NoteLeaf): void {
-  const choices = templates();
+  const choices = templates(leaf.path);
   if (choices.length === 0) return;
   const box = h("div", "template-picker");
   box.setAttribute("role", "group");
@@ -78,7 +126,7 @@ export function offerTemplates(leaf: NoteLeaf): void {
     away();
     // Typed into meanwhile: the template does not take the typing's place.
     if (leaf.editor.state.doc.toString() !== typed) return;
-    const text = r.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
+    const text = fillTemplate(r.data.text, name(leaf.path), new Date(), LOCALE);
     leaf.setMode("live");
     leaf.editor.dispatch({ changes: { from: 0, to: leaf.editor.state.doc.length, insert: text }, selection: { anchor: text.length }, scrollIntoView: true });
     leaf.editor.focus();

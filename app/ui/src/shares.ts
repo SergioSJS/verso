@@ -17,11 +17,14 @@ import { h, ui } from "./dom";
 import { told } from "./errors";
 import { failureText, unreachableAt } from "./reach";
 import { allNotes, folderName } from "./folder";
+import { folderAccess } from "./access";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
 import { withServerProof } from "./serverProof";
 import { askServerProof } from "./serverProver";
 import { roleWord, sh } from "./shareStrings";
+import { loadReadLinks, openReadLinkDialog } from "./readLinks";
+import { rl } from "./readLinkStrings";
 
 /** The folders of the open folder shared with someone, by path. */
 const shared = new Map<string, FolderShare>();
@@ -29,7 +32,11 @@ let owner = false;
 
 /** Whether the person may share here: the owner of a server's folder. */
 export function mayShare(): boolean {
-  return owner;
+  // The server says who the person is (ADR 0113): the game master of a
+  // folder's table is its owner. A host with no such answer (a folder of
+  // this computer synced to a server, until S8) keeps the share list's own.
+  const a = folderAccess();
+  return a ? a.seat === "master" : owner;
 }
 
 /** The shares of the window's folder, asked again: the tree's marks follow. */
@@ -39,6 +46,9 @@ export async function loadShares(): Promise<void> {
   shared.clear();
   if (r.status === "ok") for (const s of r.data.slice(1)) if (s.path && s.people.length > 0) shared.set(s.path, s);
   markShared();
+  dispatchEvent(new Event("verso:campaign-status"));
+  // The read links are the owner's too (ADR 0105), and mark the tree beside.
+  if (owner) await loadReadLinks();
 }
 
 /** Whether the folder at `path`, or one inside it, is shared. */
@@ -139,6 +149,9 @@ export function openShareDialog(path: string): void {
   title.id = titleId;
   const status = h("p", "share-status");
   status.setAttribute("role", "status");
+  // Whatever the server refuses is said here and seen: scrolled into view
+  // (a phone's dialog may be taller than the screen).
+  new MutationObserver(() => status.scrollIntoView?.({ block: "nearest" })).observe(status, { childList: true, characterData: true });
   const list = h("ul", "share-people");
   list.setAttribute("aria-label", sh.people);
   const attachments = h("div", "share-attachments");
@@ -238,6 +251,10 @@ export function openShareDialog(path: string): void {
       );
       footer.append(stop);
     }
+    const link = h("button", "btn quiet", rl.buttonFolder);
+    link.type = "button";
+    link.addEventListener("click", () => openReadLinkDialog("folder", path));
+    footer.append(link);
     const done = h("button", "btn", sh.close);
     done.type = "button";
     done.addEventListener("click", close);

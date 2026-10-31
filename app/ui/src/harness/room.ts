@@ -12,9 +12,10 @@
 import { emit } from "@tauri-apps/api/event";
 import { Awareness, encodeAwarenessUpdate } from "y-protocols/awareness";
 import * as Y from "yjs";
-import type { Capabilities, ContractError, DiceRoll, NoteText } from "../bindings";
+import type { Capabilities, ContractError, DiceRoll, NoteText, OracleAsk, OracleDraw } from "../bindings";
 import { readNotation, rollHere } from "../dice/notation";
 import { type Core, fromBase64, toBase64 } from "./core";
+import { oracleDrawHere } from "./oracleDraw";
 
 type Room = { doc: Y.Doc; epoch: string; revision: string; board: boolean; canvas: string | null; rolls: DiceRoll[] };
 
@@ -26,6 +27,10 @@ function unavailable(): never {
 export class Rooms {
   /** The sync's link is up: the folder's notes may be live. */
   up = false;
+  /** A test: the side answers as a server's (a window on a server's folder), not as this computer's synced folder. */
+  asServer = false;
+  /** A test: the room's join answers after this many ms (a server across a network). */
+  joinDelay = 0;
   private readonly rooms = new Map<string, Room>();
   private epochs = 0;
   /** The others' documents and presences, by name. */
@@ -38,13 +43,16 @@ export class Rooms {
     const own = h["capabilities"]!;
     h["capabilities"] = (a) => {
       const c = own(a) as Capabilities;
-      return this.up ? { ...c, can: [...c.can, "collab"], latency_ms: 12 } : c;
+      return this.up ? { ...c, host: this.asServer ? "server" : c.host, can: [...c.can, "collab"], latency_ms: 12 } : c;
     };
     h["collab_join"] = (a) => {
       if (!this.up) unavailable();
       const path = String(a["path"]);
-      const room = this.room(path);
-      return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch, rolls: [...room.rolls] };
+      const answer = (): unknown => {
+        const room = this.room(path);
+        return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch, rolls: [...room.rolls] };
+      };
+      return this.joinDelay > 0 ? new Promise((resolve) => setTimeout(() => resolve(answer()), this.joinDelay)) : answer();
     };
     h["collab_update"] = (a) => {
       if (!this.up) unavailable();
@@ -77,7 +85,18 @@ export class Rooms {
         throw e;
       }
       const source = a["source"] === null || a["source"] === undefined ? null : String(a["source"]);
-      return this.keep(room, { ...rollHere(notation, source), by: "Ana" });
+      const occurrence = typeof a["occurrence"] === "number" && a["occurrence"] >= 0 && a["occurrence"] < 1000 ? a["occurrence"] : null;
+      return this.keep(room, { ...rollHere(notation, source), by: "Ana", ...(occurrence === null ? {} : { occurrence }) });
+    };
+    // The oracle in the room (ADR 0102 item 5): drawn by the server, named
+    // after the window's account, heard by the others; nothing kept.
+    h["collab_oracle"] = (a) => {
+      if (!this.up) unavailable();
+      if (!this.rooms.get(String(a["path"]))) {
+        const e: ContractError = { kind: "refused", message: "join the note first" };
+        throw e;
+      }
+      return oracleDrawHere(a["ask"] as OracleAsk, "Ana", new Date().toISOString());
     };
     h["collab_leave"] = () => null;
     h["collab_save"] = (a) => {
@@ -122,7 +141,11 @@ export class Rooms {
         this.core.writeOutside(path, laid);
       }
     } else this.core.writeOutside(path, room.doc.getText("verso").toString());
-    room.revision = `r${Date.now()}`;
+    // The revision the room wrote is the file's own, as the server's is once
+    // sync has brought the file down: a board holding it can read the text
+    // at that revision and judge later outside news against it.
+    const written = this.core.handlers[room.board ? "read_text" : "read_note"]!({ path }) as NoteText;
+    room.revision = written.revision;
     void emit("collab-saved", { path, revision: room.revision });
     return room.revision;
   }
@@ -199,15 +222,23 @@ export class Rooms {
 
   /** `name` rolls `notation` in the note (a table's `source` with it):
    *  the server's roll, told to the window as the server relays it. */
-  roll(path: string, name: string, notation: string, source: string | null = null, faces: number[] | null = null): DiceRoll {
+  roll(path: string, name: string, notation: string, source: string | null = null, faces: number[] | null = null, occurrence: number | null = null): DiceRoll {
     const read = readNotation(notation);
     if (!read) throw new Error(`not a roll: ${notation}`);
     let i = 0;
     // A test may say what the dice show: face f is the 32-bit draw f - 1.
     const draws = faces ? () => ((faces[i++] ?? 1) - 1) / 2 ** 32 : undefined;
-    const roll = this.keep(this.room(path), { ...rollHere(read, source, draws), by: name });
+    const roll = this.keep(this.room(path), { ...rollHere(read, source, draws), by: name, ...(occurrence === null ? {} : { occurrence }) });
     void emit("collab-roll", { path, roll });
     return roll;
+  }
+
+  /** `name` asks the oracle in the note: the server's draw, told to the
+   *  window as the server relays it. */
+  oracle(path: string, name: string, ask: OracleAsk): OracleDraw {
+    const draw = oracleDrawHere(ask, name, new Date().toISOString());
+    void emit("collab-oracle", { path, draw });
+    return draw;
   }
 
   /** `name` types `text` at the end of the note: into the room, and told

@@ -71,6 +71,34 @@ async fn run(
 ) -> Result<Reply, ContractError> {
     Ok(match cmd {
         "sync_state" => {
+            let reader = crate::readers::reads_only(server, who, client)?;
+            let key = server
+                .service
+                .folder_of(client)
+                .ok_or_else(verso_service::no_folder)?;
+            // A table with notes released to some players: the player's own
+            // log, which the share's cut of it is the head of — counted
+            // first, so that a change landing while the files are made is in
+            // them and not in the head: the device reads it again, never
+            // skips it.
+            let own_head = if reader && own_log(server, &key).await? {
+                let (s, k, f, a, rs) = (
+                    Arc::clone(server),
+                    key,
+                    crate::rpc::role_here(server, client)?.0,
+                    who.account.id.clone(),
+                    roots(scope),
+                );
+                Some(
+                    crate::rpc::blocking(move || {
+                        let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
+                        crate::campaign_sync::viewer_share_head(&s, (&f, &k), &a, &rs)
+                    })
+                    .await?,
+                )
+            } else {
+                None
+            };
             let (mut v, _) =
                 command_in(server, who, client, cmd, (args, None), Arc::clone(&reads)).await?;
             if let Some(files) = v["files"].as_array_mut() {
@@ -79,8 +107,10 @@ async fn run(
             // The share's own head: how many of the folder's changes up to
             // the folder's head are the share's (3.18).
             let upto = v["head"].as_i64().unwrap_or(0);
-            let reader = crate::readers::reads_only(server, who, client)?;
-            v["head"] = json!(share_count(server, client, scope, (upto, reader)).await?);
+            v["head"] = match own_head {
+                Some(h) => json!(h),
+                None => json!(share_count(server, client, scope, (upto, reader)).await?),
+            };
             (v, None)
         }
         "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
@@ -139,6 +169,14 @@ fn roots(scope: &Scope) -> Vec<String> {
     let mut out = vec![scope.root.clone()];
     out.extend(scope.mount.as_ref().map(|(_, path)| path.clone()));
     out
+}
+
+/// Whether the folder has notes released to some players, so that the
+/// player's log is its own and the share's is a cut of it
+/// (`campaign_sync`).
+async fn own_log(server: &Arc<Server>, key: &str) -> Result<bool, ContractError> {
+    let (s, k) = (Arc::clone(server), key.to_owned());
+    crate::rpc::blocking(move || Ok(crate::campaign_sync::restricted(&s, &k))).await
 }
 
 /// How many of the folder's changes up to its number `upto` the share sees
@@ -206,6 +244,36 @@ async fn changes(
     scope: &Scope,
 ) -> Result<Value, ContractError> {
     let asked: i64 = arg(args, "since")?;
+    let key = server
+        .service
+        .folder_of(client)
+        .ok_or_else(verso_service::no_folder)?;
+    if crate::readers::reads_only(server, who, client)? && own_log(server, &key).await? {
+        let writes = crate::access::Door::of(server, who, client)?.sends_whole_cap();
+        let (s, f, a, rs, sc, c) = (
+            Arc::clone(server),
+            crate::rpc::role_here(server, client)?.0,
+            who.account.id.clone(),
+            roots(scope),
+            scope.clone(),
+            client.to_owned(),
+        );
+        return crate::rpc::blocking(move || {
+            crate::sync::head_for_question(&s, &f, &key, &c)?;
+            let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
+            let shape = |v: Value| change(&sc, v);
+            let size = i64::try_from(PAGE).unwrap_or(1000);
+            crate::campaign_sync::viewer_share_page(
+                &s,
+                (&f, &key),
+                (&a, writes),
+                &rs,
+                (asked, size),
+                &shape,
+            )
+        })
+        .await;
+    }
     // A reader's count of the share's changes leaves out those only inside
     // secret blocks, as its pages of the log do (ADR 0087).
     let reader = crate::readers::reads_only(server, who, client)?;

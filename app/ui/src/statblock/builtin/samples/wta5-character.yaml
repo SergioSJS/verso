@@ -1,0 +1,33 @@
+name: Rook Hale
+concept: A sample of our own
+tribe: Sample tribe
+auspice: Sample auspice
+form: Homid
+attributes_physical:
+  strength: 3
+  dexterity: 2
+  stamina: 3
+attributes_social:
+  charisma: 2
+  manipulation: 1
+  composure: 2
+attributes_mental:
+  intelligence: 2
+  wits: 3
+  resolve: 3
+skills_physical:
+  athletics: 2
+  survival: 3
+renown:
+  first: 1
+  second: 0
+rage: 1
+rage_max: 5
+health: 6
+health_superficial: 0
+health_aggravated: 0
+willpower: 6
+willpower_superficial: 1
+willpower_aggravated: 0
+touchstones:
+  - A sample touchstone

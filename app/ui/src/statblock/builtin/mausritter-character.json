@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "mausritter-character",
+  "name": {
+    "pt": "Mausritter — Personagem",
+    "en": "Mausritter — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem (CC BY 4.0): nomes e ordem dos campos, sem texto de livro.",
+    "en": "A character sheet (CC BY 4.0): field names and order, no book text."
+  },
+  "sources": [
+    {
+      "label": "Mausritter SRD 2.3.1 (CC BY 4.0)",
+      "url": "https://mausritter.com/srd/mausritter-srd-2.3.1.md"
+    },
+    {
+      "label": "Mausritter Third Party Licence",
+      "url": "https://mausritter.com/third-party-licence"
+    }
+  ],
+  "profile": "roll_under",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["birthsign","coat","physical_detail","background","level","xp"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"birthsign","properties":["birthsign"],"label":{"pt":"Birthsign","en":"Birthsign"},"hideWhenEmpty":true},{"type":"property","id":"coat","properties":["coat"],"label":{"pt":"Coat","en":"Coat"},"hideWhenEmpty":true},{"type":"property","id":"physical","properties":["physical_detail"],"label":{"pt":"Physical detail","en":"Physical detail"},"hideWhenEmpty":true},{"type":"property","id":"background","properties":["background"],"label":{"pt":"Background","en":"Background"},"hideWhenEmpty":true},{"type":"property","id":"level","properties":["level"],"label":{"pt":"Level","en":"Level"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"attributes","properties":["str","dex","wil"],"hideWhenEmpty":true,"headers":[{"pt":"STR","en":"STR"},{"pt":"DEX","en":"DEX"},{"pt":"WIL","en":"WIL"}],"modifier":"none","rule":true},
+    {"type":"group","id":"vitals","properties":["hp","hp_current","hp","pips","hit_dice","grit","conditions"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"pips","properties":["pips"],"label":{"pt":"Pips","en":"Pips"},"hideWhenEmpty":true},{"type":"property","id":"hit-dice","properties":["hit_dice"],"label":{"pt":"Hit Dice","en":"Hit Dice"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"grit","properties":["grit"],"label":{"pt":"Grit","en":"Grit"},"hideWhenEmpty":true},{"type":"property","id":"conditions","properties":["conditions"],"label":{"pt":"Conditions","en":"Conditions"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"paws","properties":["paws"],"label":{"pt":"Paws","en":"Paws"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"body","properties":["body"],"label":{"pt":"Body","en":"Body"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"pack","properties":["pack"],"label":{"pt":"Pack","en":"Pack"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar um teste (d20 abaixo)","en":"Roll a save (d20 under)"},"inputs":{}}
+  ]
+}

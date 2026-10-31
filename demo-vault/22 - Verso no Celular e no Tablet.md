@@ -20,11 +20,11 @@ O Verso abre no navegador do celular e do tablet, servido pelo `verso serve` —
 
 Numa tela com menos de 760 px de largura:
 
-- **A barra de baixo** tem cinco verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar** e **Comandos** (a paleta). A fita lateral e a barra de status do computador saem.
+- **A barra de baixo** tem seis verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar**, **Comandos** (a paleta) e **Painel** (a gaveta da direita, com estrutura, backlinks e tags). A fita lateral e a barra de status do computador saem.
 - **A árvore é uma gaveta**: abre por **Arquivos** e fecha com um toque fora dela.
-- **Uma área por vez**: um layout dividido em [[13 - Abas, Painéis, Áreas e Janelas|áreas lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de área. O layout fica guardado e volta inteiro numa tela mais larga.
-- **As ferramentas de uma área estreita** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
-- **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto da área, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
+- **Um painel por vez**: um layout dividido em [[13 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
+- **As ferramentas de um painel estreito** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
+- **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto do painel, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
 
 No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore são mais altas para o dedo.
 
@@ -33,10 +33,11 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 ## Tocar, Segurar e Arrastar
 
 - **Um toque** abre, como um clique.
+- **Toque numa pasta**, em qualquer ponto da linha, para abrir ou fechar — não precisa acertar a setinha. A página da própria pasta abre pelo **botãozinho de pasta** no fim da linha (ou por **Abrir a página da pasta** no menu dela).
 - **Segurar e soltar** é o clique direito: abre o menu de uma linha da árvore, de uma aba ou de um cartão.
 - **Segurar e arrastar** move: uma nota para outra pasta, uma aba, um cartão do kanban. Arrastar sem segurar antes só rola a lista.
 - **Nada só por gesto**: a linha da árvore em foco tem um botão **…** ao lado com o mesmo menu, e cada cartão do kanban tem o seu.
-- **Selecionar** no menu de uma linha transforma a árvore numa seleção: uma caixa em cada linha e uma barra com **Mover para…**, **Copiar caminhos**, **Apagar** e **Concluir**.
+- **Organizar › Selecionar** no menu de uma linha transforma a árvore numa seleção: uma caixa em cada linha e uma barra com **Mover para…**, **Copiar caminhos**, **Apagar** e **Concluir**.
 - **Manter aberta**, no menu de uma aba, guarda uma aba de pré-visualização, e **Abrir**, no menu de uma nota, abre sem pré-visualização — o que o duplo clique faz no computador.
 
 ---
@@ -64,7 +65,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 
 O que é o servidor e como instalá-lo: [[23 - Verso num Servidor]].
 
-- **Quem só lê** a pasta vê a linha *Você só lê esta pasta*, e nada que muda a pasta aparece.
+- **Quem só lê** a pasta vê um cadeado fechado ao lado do nome dela (*Você só lê esta pasta*), e nada que muda a pasta aparece; se tentar escrever, mover ou renomear algo, um aviso curto diz que só lê, perto de onde tentou.
 - **Copiar link** dá o endereço da nota no servidor, e **Abrir numa nova aba do navegador** faz o papel da nova janela.
 - **Uma página web** de uma nota aparece dentro da nota, com um link para abri-la numa aba quando o site não deixa ser mostrado dentro de outro.
 

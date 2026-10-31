@@ -26,6 +26,12 @@
   [0011](0011-config-outside-tree-index-as-cache.md),
   [0027](0027-runtime-capabilities.md), `docs/reference/threat-model.md`.
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-21 — the maintainer marked the options of the decisions
+  questionnaire of 2026-10-20 (answered 2026-10-21), all as recommended:
+  0096.2 (the attachments folder's widening of [0093](0093-periodic-notes.md)
+  item 11 is approved, and 0093 now cites the case), 0096.5c (the
+  certificate under the project's domain is left for after V1, with no
+  commitment) and 0096.as-built (the "As built" details accepted as built).
 
 ## Context
 
@@ -193,9 +199,9 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        `.obsidian/app.json`), read at each start through `verso-fs` — which
        widens the narrow exception of [0093](0093-periodic-notes.md)
        item 11 by that one path, read by name and never written (**this
-       widening awaits the maintainer's sign-off; 0093's text, "two named
-       files", is left as it is and the contradiction stands recorded
-       here until he decides**) — and kept
+       widening is approved, `[DECIDED 2026-10-21]`, 0096.2, option A: a
+       read by name, never written, through `verso-fs`; 0093 item 11 now
+       cites the case, so the two texts agree**) — and kept
        as the share's attachments folder, replaced at every start and
        cleared when the setting is. None when the setting is absent, the
        vault's root, "the same folder as the note" or a folder of the note
@@ -320,8 +326,9 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      network the person trusts**, with the TOFU limit written in the
      words the person reads. The phone offline (V.8) on a laptop served
      with (a) is declared unavailable until (c) exists. Whether to build
-     (c) after V1 is a separate question for the maintainer; the roadmap
-     does not need it for V.20.
+     (c) after V1: `[DECIDED 2026-10-21]` (0096.5c, option A) **left for
+     after V1, with no commitment**; it is decided when someone asks for
+     it, and the roadmap does not need it for V.20.
    - The address is a second question inside this one. The phone's
      origin is the laptop's current private address, which changes with
      DHCP, and the session cookie and the `Host` check are bound to that
@@ -620,7 +627,11 @@ not alternatives already considered and discarded.)
 Built on 2026-10-15 on `feat/local-server-build`, for **macOS and Linux**;
 Windows was added the same day (item 17, revised, below).
 What the code settled where the items left room (none of it changes a
-decision; each is a question for the maintainer if it should be otherwise):
+decision; each is a question for the maintainer if it should be otherwise).
+`[DECIDED 2026-10-21]` (0096.as-built, option A): accepted as built — the
+order of the addresses, the "Can edit" switch, the copyable pairing link,
+the log's content and the folders' names; each becomes a question only if
+the maintainer wants it changed:
 
 - **Windows** (item 17, revised 2026-10-15): the first build took option
   (a) — `verso-server` was not built for Windows, and compiling the local
@@ -780,3 +791,11 @@ The roadmap's V.20 row ([`docs/roadmap.md`](../roadmap.md)) is "decided
 2026-10-09; not built" and stays in V1, wave C
 (`[DECIDED 2026-10-14]`). To be read by the other model before it is
 accepted. Nothing was built or run to write it.
+
+**Correction, 2026-10-21** (the review of the batch, M11): the paragraph above
+was written on 2026-10-15, before the build. The feature is built: see *As
+built* above, `feat/local-server-build` merged by `404ba0d4` (2026-10-15),
+the server on Windows by `273fc25c`, the folders served as a tree by
+`7550a68a`; the roadmap's V.20 row says built 2026-10-15 (macOS and Linux,
+Windows after, item 17 (a)). The "Not built" in the paragraph and in the
+index row was true when written and is no longer.

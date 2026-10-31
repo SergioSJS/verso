@@ -2,6 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { liveOffNotice } from "../liveOff";
+import { presenceOpened } from "../notify/presence";
+import { openSettingsSection } from "../dialogs/sync";
 import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
@@ -11,14 +14,20 @@ import { lineNumbers } from "@codemirror/view";
 import { EditorView } from "codemirror";
 import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
+import { isLoose, looseInfo, looseReadOnlyReason, looseSaveAgain, looseSaveCopy, openSiblingFrom } from "../loose";
+import { ls } from "../looseStrings";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { canWrite, host } from "../can";
+import { may } from "../access";
+import { NoteAccess } from "../noteAccess";
+import { guard } from "../readerNotice";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { afterFileChange, tellOutcomes } from "../changes";
+import { refreshBestiary } from "../statblock/bestiary";
 import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
@@ -29,6 +38,7 @@ import { createNote, renameNote } from "../files";
 import { calm } from "../format";
 import { icon } from "../icons";
 import { imageUrl, pictureAddress } from "../images";
+import type { Block } from "./note/reconcile";
 import { comboOf, prettyKeys } from "../keys";
 import { Pane } from "../layout/pane";
 import { crumbsFor, crumbsNav, layout, openIn, openNote, persistSoon } from "../layout/spaces";
@@ -39,8 +49,9 @@ import { methods } from "../methods";
 import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
+import { hasCapability } from "../capabilities";
 import { PropertiesView } from "../props";
-import { propertySuggestions } from "../resolve";
+import { propertySuggestions, resolveNoteByName } from "../resolve";
 import { st } from "../screen/strings";
 import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
@@ -49,6 +60,7 @@ import { settings, sourceLineNumbers } from "../settings";
 import { giveBack } from "../side";
 import { SlashMenu } from "../slash";
 import { boardText, LOCALE, t, typedText } from "../strings";
+import { flashSaved } from "../quietStatus";
 import { markCurrent } from "../tree/tree";
 import { KeptCard } from "./board";
 import { ConflictBanner, GoneBanner, keepCopy } from "./conflict";
@@ -56,16 +68,23 @@ import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
 import * as reading from "./note/reading";
+import * as folds from "./note/folds";
+import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from "../collab";
+import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
+import { applyToRoom, edited } from "../roomHandover";
+import { Stopwatch } from "../slowOps";
 import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
 import { fillLinkCard, wireNotePreview } from "../preview/install";
 import { diceWidget } from "../dice/live";
+import { diceBox } from "../dice/card";
+import { diagramLang, openBlockDiagram } from "../datagraph/block";
+import { dgw } from "../datagraph/words";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -121,11 +140,12 @@ export class NoteLeaf extends Leaf {
     title: () => name(this.path),
     suggest: (kind) => propertySuggestions(this.path, kind),
     status: (message) => (ui.status.textContent = message),
+    swatches: () => hasCapability("colorSwatches"),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the
    *  person saves it again or closes the tab without it. */
-  readonly goneBanner = new GoneBanner(() => void this.saveAgain(), () => void this.closeWithoutSaving());
+  readonly goneBanner = new GoneBanner(() => void this.saveAgain(), () => void this.closeWithoutSaving(), () => void looseSaveCopy(this.path, this.editorText()));
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -159,6 +179,8 @@ export class NoteLeaf extends Leaf {
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
   readonly star = h("button", "star");
+  /** Who sees this note, when it is a table's (ADR 0110). */
+  readonly access = new NoteAccess(() => this.path);
   readonly coverBox = h("div", "note-cover-box");
   readonly addCoverBtn = h("button", "note-add-cover-btn");
   readonly stickerBtn = h("button", "note-sticker-btn");
@@ -219,6 +241,13 @@ export class NoteLeaf extends Leaf {
    *  its HTML changed, and only once it is seen. */
   private drawn = "";
   previewStale = false;
+  /** Set where the reading view must be rebuilt although the HTML is the same
+   *  (settings, a picture that now resolves elsewhere); see `paintPreview`. */
+  forcePaint = false;
+  /** The top-level blocks of the reading view as last drawn, and what that
+   *  drawing was made from (`reconcile.ts`). */
+  blocks: Block[] | null = null;
+  paintedSig = "";
   mode: Mode = settings.defaultMode;
   revision = "";
   /** Deleted or moved outside the app (`markGone`), until the note is
@@ -234,6 +263,13 @@ export class NoteLeaf extends Leaf {
   private checkWaits = false;
   /** The note the reading view last drew. */
   shownPath = "";
+  /** What the note has folded, in either mode, and whose it is
+   *  (`leaves/note/folds.ts`). */
+  folds = new Set<string>();
+  foldsFor = "";
+  /** The editor's folds being put as the note's: not a person's doing. */
+  restoringFolds = false;
+  private foldTimer = 0;
   eol = "\n";
   /** Shown, never edited: the file mixes line endings (`mixedEol`), or
    *  the side lets this person only read the folder (ADR 0076 item 11). */
@@ -265,6 +301,7 @@ export class NoteLeaf extends Leaf {
 
   constructor(pane: Pane) {
     super(pane);
+    this.unhearJoin = onJoinRetry((p) => this.joinRetried(p));
     this.modeButtons = {
       preview: this.modeButton("preview", "reading", t.reading),
       live: this.modeButton("live", "edit", t.edit),
@@ -287,6 +324,8 @@ export class NoteLeaf extends Leaf {
     this.addCoverBtn.hidden = true;
     this.addCoverBtn.type = "button";
     this.addCoverBtn.append(icon("image"), h("span", "", t.addCover));
+    this.addCoverBtn.title = t.addCover;
+    this.addCoverBtn.setAttribute("aria-label", t.addCover);
     this.addCoverBtn.addEventListener("click", () => this.promptCover());
 
     this.stickerBtn.type = "button";
@@ -295,10 +334,14 @@ export class NoteLeaf extends Leaf {
 
     const titleRow = h("div", "title-row");
     this.liveMark.hidden = true;
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
+    // The tools are one group: wrapped under a narrow title, they stay together, at the right.
+    const tools = h("span", "title-tools");
+    tools.append(this.addCoverBtn, this.star, this.access.el, this.liveMark, liveOffNotice(() => openSettingsSection("sync")));
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, tools);
+    this.access.watchRow(titleRow);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
+    sheet.append(this.coverBox, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
@@ -316,8 +359,15 @@ export class NoteLeaf extends Leaf {
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      diagram: { label: dgw.viewAsDiagram, wants: (lang) => diagramLang(lang) !== null, open: (lang, text) => openBlockDiagram(this, lang, text) },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      notePath: () => this.path,
+      roll: { resolve: resolveNoteByName, open: (path) => void openNote(path, false) },
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
+      statblock: {
+        die: (notation, look) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }, { ...look, popover: true }),
+        refusal: () => (this.readOnly ? "readOnly" : this.conflict.up ? "conflict" : null),
+      },
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
@@ -428,10 +478,14 @@ export class NoteLeaf extends Leaf {
   declare embedFromFolder: typeof editing.embedFromFolder;
   declare attachFromPicker: typeof editing.attachFromPicker;
   declare attachImage: typeof editing.attachImage;
+  declare attachThroughServer: typeof editing.attachThroughServer;
   override setDirty(d: boolean): void {
     super.setDirty(d);
-    this.dirtyMark.hidden = !d;
-    this.saveButton.hidden = !d;
+    // Out of sight, not out of the row: a Save button that came and went
+    // with every pause in typing made a long title wrap and unwrap, and the
+    // sheet's scroll moved with it.
+    this.dirtyMark.classList.toggle("idle", !d);
+    this.saveButton.classList.toggle("idle", !d);
   }
   setMode(mode: Mode): void {
     if (mode !== this.mode && this.cards.size > 0) {
@@ -545,6 +599,7 @@ export class NoteLeaf extends Leaf {
       this.wireTableResizers(this.preview);
     }
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? [this.live, this.blockExt] : []) });
+    if (m !== "preview") this.applyEditorFolds();
     this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
@@ -555,6 +610,9 @@ export class NoteLeaf extends Leaf {
     this.editorHost.classList.toggle("source", m === "source");
   }
   toggleMode(): void {
+    // The person asked for Edit on a note they may not change: the mode
+    // still switches (the source is there to read), and the word is said.
+    if (this.mode === "preview") guard(this.path, this.editor.dom);
     this.setMode(this.mode === "preview" ? "live" : "preview");
   }
   declare selectedBlocks: typeof editing.selectedBlocks;
@@ -565,6 +623,7 @@ export class NoteLeaf extends Leaf {
   declare caretPoint: typeof editing.caretPoint;
   declare turnBlockMenu: typeof editing.turnBlockMenu;
   declare copyBlockLink: typeof editing.copyBlockLink;
+  declare followLinkAtCaret: typeof editing.followLinkAtCaret;
   declare blockMenu: typeof editing.blockMenu;
   declare blockPlusAt: typeof editing.blockPlusAt;
   declare blockPlus: typeof editing.blockPlus;
@@ -641,6 +700,22 @@ export class NoteLeaf extends Leaf {
     }
 
     const to = this.resolve(notePart);
+    // A file opened without its folder (ADR 0114 item 14): a sibling note
+    // of that name opens as a tab of its own; none, and the link says so.
+    if (isLoose()) {
+      void (async () => {
+        const name = to ? await openSiblingFrom(this.path, to) : null;
+        if (name) {
+          const leaf = openIn(this.pane, name);
+          if (headingPart && leaf) jumpToHeading(leaf, headingPart);
+          return;
+        }
+        const r = await commands.resolveAttachment(this.path, notePart);
+        if (r.status === "ok" && r.data) openIn(this.pane, r.data);
+        else ui.status.textContent = ls.noSibling;
+      })();
+      return;
+    }
     if (to) {
       const leaf = openIn(this.pane, to);
       if (headingPart && leaf) jumpToHeading(leaf, headingPart);
@@ -703,12 +778,16 @@ export class NoteLeaf extends Leaf {
     const words = text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
     ui.words.textContent = t.words(words, text.replace(/\s/g, "").length);
   }
+  /** The text the file held at the revision the tab holds, when known: a
+   *  file of another revision with this very text changed nothing. */
+  seen: { revision: string; text: string } | null = null;
   /** What the file is now (read, or just written): the revision the next
    *  write goes over, the reading view, the flags. The editor's text and
    *  whether it is saved are the caller's. */
   refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
+    this.seen = { revision: note.revision, text: note.text };
     this.embedCache.clear();
     const drawn = `${note.path}\n${note.html}`;
     if (drawn !== this.drawn) {
@@ -730,10 +809,21 @@ export class NoteLeaf extends Leaf {
   declare promptCover: typeof cover.promptCover;
   declare paintCoverAndSticker: typeof cover.paintCoverAndSticker;
   declare paintFlags: typeof cover.paintFlags;
-  load(path: string, force = false): Promise<void> {
-    this.loading = this.doLoad(path, force);
-    return this.loading;
+  addProperty(): void {
+    this.props.addProperty();
   }
+  load(path: string, force = false, retry = false): Promise<void> {
+    this.loadsRunning++;
+    const run = this.doLoad(path, force, retry);
+    this.loading = run;
+    const done = (): void => void this.loadsRunning--;
+    run.then(done, done);
+    return run;
+  }
+  loadsRunning = 0;
+  /** Set when a `retry` load stopped because text was typed meanwhile or
+   *  the tab went: the text stays as it is, the join is asked again. */
+  retryBailed = false;
   get isGone(): boolean {
     return this.gone;
   }
@@ -818,7 +908,8 @@ export class NoteLeaf extends Leaf {
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
-  private async doLoad(path: string, force: boolean): Promise<void> {
+  private async doLoad(path: string, force: boolean, retry = false): Promise<void> {
+    this.retryBailed = false;
     this.cancelReposition?.();
     if (this.dirty && !force && !(await askDiscard())) return;
     // The tab names its note from the start: a read that waits on a
@@ -831,9 +922,50 @@ export class NoteLeaf extends Leaf {
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
+    // A retry joins the room of a note already shown: it replaces the editor
+    // only if nothing was typed since it began, checked after its last wait.
+    const typed0 = retry ? this.editor.state.doc.toString() : "";
+    const touched = (): boolean => retry && (this.destroyed || this.dirty || this.editor.state.doc.toString() !== typed0);
+    const watch = new Stopwatch();
+    // Where the side keeps rooms and they are not a synced folder's local
+    // ones, the room is joined while the file is read, and the text shows
+    // when it is read: the join no longer comes after the read, nor holds
+    // the text back (the maintainer measured 0.7–1.8 s per open on a
+    // server's folder, 2026-10-26).
+    const early = (await this.joinsEarly()) && !this.collab?.live;
+    // A live room of this tab for the same note is kept, not left and
+    // joined again: joinCollab hands the same session back.
+    const keep = this.collab?.open && this.collab.live && this.collab.path === path;
+    if (!keep) {
+      this.collab?.release(this.roomHandlers);
+      this.collab = null;
+    }
+    const catching = () => {
+      this.catching = true;
+      this.paintLive();
+    };
+    let joined = false;
+    let joining: Promise<CollabSession | null> | undefined;
+    if (early) {
+      joining = joinCollab(path, this.roomHandlers, catching).catch(() => null);
+      void joining.then(() => {
+        joined = true;
+        watch.step("room join");
+      });
+    }
     const note = await opening.readNote(path, this.quiet(path));
-    if (this.destroyed || load !== this.loads) return;
+    watch.step("read");
+    const letGo = () => void joining?.then((r) => r?.release(this.roomHandlers));
+    if (this.destroyed || load !== this.loads) return letGo();
+    if (retry && note.status !== "ok" && note.error.kind === "not_found") return joinGiveUp(path);
+    if (retry && (note.status !== "ok" || touched())) {
+      letGo();
+      this.retryBailed = true;
+      return;
+    }
     if (note.status !== "ok") {
+      letGo();
+      if (this.veiled(note.error)) return this.veil(path);
       this.path = path;
       this.setTitle(name(path));
       // A tab brought back with its file in the cloud waits to be shown.
@@ -842,21 +974,80 @@ export class NoteLeaf extends Leaf {
       return this.showFailure(path, note.error, () => void this.load(path, true));
     }
     this.clearFailure();
-    // Several people in the note, where the side allows it: the room's
-    // text, which may hold edits not written yet, is what the editor shows.
-    this.collab?.release(this.roomHandlers);
-    this.collab = null;
-    const catching = () => {
-      this.catching = true;
+    const mixed = lineSeparator(note.data.text) === null;
+    if (mixed) {
+      letGo();
+      joining = undefined;
+      if (keep) {
+        this.collab?.release(this.roomHandlers);
+        this.collab = null;
+      }
+    }
+    if (joining && !joined) {
+      // The room is not in yet: the text shows now, the room takes over
+      // when it joins, with what was typed meanwhile (`takeRoom`).
+      this.joiningRoom = true;
+      this.show(note.data);
+      watch.step("render");
+      const base = this.editor.state.doc.toString();
+      const room = await joining;
+      this.joiningRoom = false;
+      this.catching = false;
+      if (this.destroyed || load !== this.loads) return void room?.release(this.roomHandlers);
+      if (room) this.takeRoom(room, note.data, base);
       this.paintLive();
-    };
-    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
+      watch.step("hand over");
+      return watch.report(`open ${path}`);
+    }
+    const shared = joining ? await joining : mixed ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
     this.catching = false;
     if (this.destroyed || load !== this.loads) return shared?.release(this.roomHandlers);
+    // After the last wait and before `show` replaces the text, with nothing
+    // between them that waits.
+    if (touched()) {
+      shared?.release(this.roomHandlers);
+      this.retryBailed = true;
+      this.paintLive();
+      return;
+    }
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
+    if (shared) presenceOpened(path, this.liveOthers);
     this.show(note.data);
+    watch.step("render");
     this.paintLive();
+    watch.report(`open ${path}`);
+  }
+  /** Whether a note is joined while it is read: the side keeps rooms and
+   *  is not this computer's synced folder, whose join waits for the local
+   *  file's text to cross (ADR 0082 item 7) and is sequenced as before. */
+  private async joinsEarly(): Promise<boolean> {
+    const side = await sideCan();
+    return side !== null && side.can.includes("collab") && side.host !== "desktop";
+  }
+  /** Set while the note shows before its room is joined: what is typed
+   *  then is not written to the file (the room will take it). */
+  joiningRoom = false;
+  /** The room joined after the text was shown: the editor binds to it, the
+   *  cursor kept, and what was typed meanwhile goes into the room as one
+   *  edit (nothing lost, nothing twice). */
+  private takeRoom(room: CollabSession, note: NoteText, base: string): void {
+    const typed = this.editor.state.doc.toString();
+    const sel = this.editor.state.selection.main;
+    this.collab = room;
+    this.liveOthers = room.others();
+    presenceOpened(note.path, this.liveOthers);
+    this.eol = room.crlf ? "\r\n" : "\n";
+    this.readOnly = !may(note.path, "edit") || room.reader;
+    this.editor.setState(this.editorState(room.initial(), room.extension()));
+    const edit = typed === base || this.readOnly ? null : edited(base, typed);
+    if (edit) applyToRoom(room.text, base, edit);
+    const len = this.editor.state.doc.length;
+    this.editor.dispatch({ selection: { anchor: Math.min(sel.anchor, len), head: Math.min(sel.head, len) } });
+    this.setDirty(edit !== null);
+    this.props.render(note.properties, note.text, this.readOnly, note.note_type);
+    this.applyMode();
+    this.updateWords();
   }
   /** What the tab does when its room speaks, one object for the tab's
    *  life: a board's card on the same note shares the window's place in
@@ -867,6 +1058,10 @@ export class NoteLeaf extends Leaf {
     return {
       saved: (revision) => {
         this.revision = revision;
+        this.seen = null;
+        void commands.readNote(this.path).then((r) => {
+          if (r.status === "ok" && r.data.revision === revision && this.revision === revision) this.seen = { revision, text: r.data.text };
+        });
         this.setDirty(false);
         // The reading view, the properties and the flags from the file. A
         // synced folder's file follows when sync brings the save down
@@ -906,7 +1101,7 @@ export class NoteLeaf extends Leaf {
    *  another device — keeps its text, out of the room, and says it is gone
    *  in words, as after a change seen outside: never the system's text of
    *  a failed read. */
-  private async roomClosed(why?: "lost"): Promise<void> {
+  private async roomClosed(why?: "lost" | "refused"): Promise<void> {
     const path = this.path;
     await this.loading;
     if (this.destroyed || path !== this.path) return;
@@ -951,7 +1146,11 @@ export class NoteLeaf extends Leaf {
     this.mixedEol = sep === null;
     // A reader of a synced folder is present in the room, not typing
     // (ADR 0082 item 4).
-    this.readOnly = this.mixedEol || !canWrite() || (this.collab?.reader ?? false);
+    // A note granted to the player is its to write (ADR 0110 item 5).
+    this.readOnly = this.mixedEol || !may(note.path, "edit") || (this.collab?.reader ?? false) || looseReadOnlyReason(note.path) !== null;
+    // A loose file above the bound is shown in Source (ADR 0114 item 13).
+    if (looseInfo(note.path)?.read_only === "too_large" && this.mode !== "source") this.mode = "source";
+    this.loadFoldsFor(note.path);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.goneBanner.hide();
@@ -960,6 +1159,7 @@ export class NoteLeaf extends Leaf {
     this.refresh(note);
     this.setDirty(false);
     this.paintStar();
+    this.access.update();
     this.applyMode();
     markCurrent();
     if (this.pane.active === this) panel.show(this);
@@ -1000,6 +1200,7 @@ export class NoteLeaf extends Leaf {
     this.setTitle(name(path));
     this.title.textContent = name(path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    this.access.update();
     markCurrent();
     persistSoon();
   }
@@ -1012,6 +1213,7 @@ export class NoteLeaf extends Leaf {
   declare repaint: typeof reading.repaint;
   declare wireTableResizers: typeof reading.wireTableResizers;
   declare wireMermaidBlocks: typeof reading.wireMermaidBlocks;
+  declare wireStatblocks: typeof reading.wireStatblocks;
   declare wireCodeBlocks: typeof reading.wireCodeBlocks;
   declare wirePreviewImages: typeof reading.wirePreviewImages;
   declare imageSources: typeof reading.imageSources;
@@ -1022,7 +1224,25 @@ export class NoteLeaf extends Leaf {
   declare wireBlockquoteFolds: typeof reading.wireBlockquoteFolds;
   declare wireReadingLineNumbers: typeof reading.wireReadingLineNumbers;
   declare foldAllHeadings: typeof reading.foldAllHeadings;
+  declare loadFoldsFor: typeof folds.loadFoldsFor;
+  declare keepFolds: typeof folds.keepFolds;
+  declare setFold: typeof folds.setFold;
+  declare applyReadingFolds: typeof folds.applyReadingFolds;
+  declare rememberCallouts: typeof folds.rememberCallouts;
+  declare revealInReading: typeof folds.revealInReading;
+  declare applyEditorFolds: typeof folds.applyEditorFolds;
+  declare editorFoldsChanged: typeof folds.editorFoldsChanged;
+  /** The editor's folds into the note's, after the typing settles (a
+   *  heading retyped is another name). */
+  syncFoldsLater(): void {
+    window.clearTimeout(this.foldTimer);
+    this.foldTimer = window.setTimeout(() => {
+      if (!this.destroyed && this.mode !== "preview") this.editorFoldsChanged();
+    }, 400);
+  }
   declare paintPreview: typeof reading.paintPreview;
+  declare paintBlocks: typeof reading.paintBlocks;
+  declare paintWhole: typeof reading.paintWhole;
   declare relink: typeof reading.relink;
   declare dressLinks: typeof reading.dressLinks;
   declare resolve: typeof reading.resolve;
@@ -1042,7 +1262,7 @@ export class NoteLeaf extends Leaf {
    *  banner waits for a decision, nothing is written. */
   save(): Promise<void> {
     const run = this.saving.then(async () => {
-      if (!this.note || !this.dirty) return;
+      if (!this.note || !this.dirty || this.joiningRoom) return;
       if (this.conflict.up) {
         ui.status.textContent = t.conflictPendingBoth;
         return;
@@ -1057,7 +1277,7 @@ export class NoteLeaf extends Leaf {
         if (r.status === "ok") {
           this.revision = r.data;
           this.setDirty(false);
-          ui.status.textContent = t.saved;
+          flashSaved(ui.status, t.saved);
         } else if (r.error.kind === "changed") await this.collabConflict();
         else if (r.error.kind === "not_found") this.goneOnSave(r.error);
         else fail(r.error);
@@ -1101,7 +1321,10 @@ export class NoteLeaf extends Leaf {
     if (this.gone) this.setGone(false);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
-    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+    // A statblock that inherits from this note draws again (ADR 0099 item 1).
+    refreshBestiary();
+    if (w.warnings.length === 0) flashSaved(ui.status, t.saved);
+    else ui.status.textContent = `${t.saved} ${w.warnings.join("; ")}`;
   }
   /** A write refused. `changed`: the file moved on since it was read
    *  (invariant 11) — nothing was written, and both versions go on screen
@@ -1125,7 +1348,7 @@ export class NoteLeaf extends Leaf {
     const said = host() === "server" ? t.goneUnsavedElsewhere : t.goneUnsaved;
     this.conflict.hide();
     if (!this.gone) this.markGone();
-    this.goneBanner.show(said);
+    this.goneBanner.show(said, isLoose());
     this.paintFlags();
     failSaid(said, e);
   }
@@ -1136,7 +1359,10 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async () => {
       if (!this.note || !this.goneBanner.up) return;
       const mine = this.editorText();
-      const r = await commands.createNote(this.path, mine);
+      // A loose file is made again at its name by the host (ADR 0114 item 11).
+      const r = isLoose()
+        ? await looseSaveAgain(this.path, mine).then((w) => (w.status === "ok" ? { status: "ok" as const, data: w.data.note } : w))
+        : await commands.createNote(this.path, mine);
       if (r.status !== "ok") {
         if (r.error.kind !== "exists") return fail(r.error);
         const fresh = await opening.readNote(this.path);
@@ -1197,21 +1423,46 @@ export class NoteLeaf extends Leaf {
   }
   override jumpTo(line: number): void {
     if (this.mode === "preview") {
-      const heads = Array.from(this.preview.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      const heads = Array.from(this.preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"));
       const n = this.headings().findIndex((hd) => hd.line === line);
-      heads[n]?.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
+      const head = heads[n];
+      if (!head) return;
+      // A heading inside a folded section is reached by opening the sections.
+      this.revealInReading(head);
+      head.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
       return;
     }
     const l = this.editor.state.doc.line(Math.min(line, this.editor.state.doc.lines));
-    this.editor.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    this.editor.dispatch({ effects: unfoldFor(this.editor.state, l.from), selection: { anchor: l.from }, scrollIntoView: true });
     this.editor.focus();
+  }
+  private unhearJoin: (() => void) | null = null;
+  private rejoining = false;
+  /** The sync link is back, or a join found it not ready and the wait is
+   *  over (collab.ts): a note whose join is pending joins its room, never
+   *  replacing text typed meanwhile. */
+  joinRetried(path: string): JoinAnswer {
+    if (this.destroyed || !path || path !== this.path || this.collab || !this.note || !joinPending(path)) return "gone";
+    if (this.joiningRoom || this.dirty || this.rejoining || this.loadsRunning > 0) return "busy";
+    this.rejoining = true;
+    this.load(path, true, true)
+      .finally(() => {
+        this.rejoining = false;
+        if (this.retryBailed && !this.destroyed) joinBusy(path);
+      })
+      .catch(() => undefined);
+    return "started";
   }
   override destroy(): void {
     this.destroyed = true;
+    this.unhearJoin?.();
+    this.unhearJoin = null;
+    this.access.destroy();
     this.unpreview();
     this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);
+    window.clearTimeout(this.foldTimer);
     this.readingSearch?.close();
     // The tab's close saved them already (`flush`); this one catches a
     // keystroke typed since, and writes nothing over a conflict.
@@ -1233,4 +1484,5 @@ methods(NoteLeaf, cover);
 methods(NoteLeaf, web);
 methods(NoteLeaf, editing);
 methods(NoteLeaf, reading);
+methods(NoteLeaf, folds);
 methods(NoteLeaf, live);

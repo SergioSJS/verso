@@ -159,24 +159,38 @@
 
 .pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+/* The head never paints outside its pane (2026-10-30, a board's head ran under
+   the side bars): it wraps instead of overflowing — the place keeps a width of
+   its own, so what does not fit goes to the next row, right-aligned — and each
+   child may shrink below its content. Where the pane is narrow, the modes
+   keep their icons alone (below). */
+.leaf-head { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; min-width: 0; max-width: 100%; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+.leaf-head > * { min-width: 0; max-width: 100%; }
 /* Tight: the leading crumbs slide out to the left under a fade; the
  * current folder stays readable at the right. */
-.crumbs { flex: 1 1 0; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
+.crumbs { flex: 1 1 3rem; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
 /* A spacer that takes the free room, so the crumbs sit left when they fit
  * and spill left, under the fade, when they do not. */
 .crumbs::after { content: ""; flex: 1 1 0; min-width: 0; }
-.modes { flex: none; }
+.modes { flex: none; margin-left: auto; }
 .crumbs span { color: var(--ink-2); }
 .crumbs span:last-child { color: var(--ink); }
-.modes { display: inline-flex; gap: .1rem; font-size: .8rem; }
-.modes button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .55rem; border-radius: 5px; color: var(--ink-2); }
-.modes button:hover { color: var(--ink); background: var(--paper-3); }
-.modes button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+/* The modes are one segmented control on the place's own row (2026-10-30, the
+   maintainer: "muito espaço vazio"): small, tight, right-aligned; the place
+   gives way to it, with an ellipsis, never the other way round. Under 560 px
+   of pane the segments keep their icons alone (the names are the buttons'
+   accessible names and tips). */
+.modes { display: inline-flex; gap: 1px; padding: 2px; border-radius: 7px; background: var(--paper-3); font-size: .78rem; }
+.modes button { display: inline-flex; align-items: center; gap: .3rem; height: 24px; padding: 0 .5rem; border-radius: 5px; color: var(--ink-2); white-space: nowrap; }
+.modes button:hover { color: var(--ink); background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.modes button[aria-pressed="true"] { color: var(--seal); background: var(--paper); box-shadow: 0 0 0 1px var(--hair); }
+.modes button .icon { width: 14px; height: 14px; }
+@container pane (max-width: 560px) { .leaf-head .modes button > span:not(.icon) { display: none; } .modes button { padding: 0 .4rem; } }
+@media (pointer: coarse) { .modes button { height: 32px; min-width: 36px; justify-content: center; } }
 .iconic { display: inline-flex; padding: .3rem; }
 .icon { flex: none; }
 
-.sheet { flex: 1; min-height: 0; overflow: auto; padding: .6rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
+.sheet { flex: 1; min-height: 0; overflow: auto; padding: .2rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
 /* Blocks in Edit mode (ADR 0061): a note's sheet keeps a margin for the
    + and the ⋮⋮ beside each block, in every mode, so its text stands at
    the same place in Reading and in Edit. */
@@ -216,14 +230,29 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
-.title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
-.note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .6rem; margin-top: 0; min-width: 0; }
+/* The title keeps room to read (a word of its own width); the tools wrap under it, right-aligned, rather than squeeze it to a letter wide. */
+.title-row > * { min-width: 0; max-width: 100%; }
+.title-row > .note-title { flex: 1 1 12ch; }
+.title-tools { flex: 0 1 auto; margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 .3rem; min-width: 0; }
+/* Compact for a pointer: the tools add no height to the title's line. */
+@media (pointer: fine) { .title-tools .star { padding: .15rem; } }
+.title-tools > .live-who, .title-tools > .live-mark, .title-tools > .live-off-notice { margin-left: 0; }
+.note-title { flex: 1; min-width: 0; overflow-wrap: anywhere; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
 /* A synced folder's note, live in the server's room or local (ADR 0082
    item 14): said in words; the dot only repeats them. */
-.live-mark { flex: none; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.live-mark { flex: 0 1 auto; min-width: 0; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Live, the mark is the dot alone: the words are for a screen reader and its tip. */
+.live-mark[data-live="live"] { flex: none; }
 .live-mark[data-live="live"]::before, .status-live[data-live="live"]::before { content: "● "; color: var(--brass-ink); }
+.live-off-notice { flex: 0 1 auto; margin-left: auto; padding: .1rem .4rem; font: inherit; font-size: .78rem; color: var(--ink-3); background: none; border: 1px dashed var(--ink-3); border-radius: 5px; cursor: pointer; text-align: left; }
+.live-off-notice:hover { color: var(--ink); }
+.live-off-notice:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.live-off-notice[hidden] { display: none; }
+.live-mark:not([hidden]) + .live-off-notice { margin-left: .6rem; }
+@media (max-width: 600px) { .title-row { flex-wrap: wrap; } .live-off-notice { margin-left: 0; } }
 .save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
 .save:hover { filter: brightness(1.08); }
 .flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
@@ -251,7 +280,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .props-toggle:hover { color: var(--ink); background: var(--paper-2); }
 .props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
 .props.collapsed .props-toggle .icon { transform: rotate(-90deg); }
-.props.collapsed .prop, .props.collapsed .prop-new { display: none; }
+.props.collapsed:not(.empty) .prop, .props.collapsed:not(.empty) .prop-new { display: none; }
 .prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
 .prop:hover { background: var(--paper-2); }
 .prop-key { display: inline-flex; align-items: center; gap: .45rem; color: var(--ink-3); min-width: 0; }
@@ -280,18 +309,17 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
 .prop-remove .icon { width: 12px; height: 12px; }
-/* No properties: a hairline under the title, the add button a ghost at its right end. */
-/* No properties: the rule under the title stays, and the button keeps
-   its own band at the right — in the flow, so it is never painted over
-   the title above it or the note below. Shown on hovering the sheet. */
-.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
-.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
-.sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
+/* No properties: the hairline under the title stays, with the add button
+   clearly discoverable, aligned on the left. */
+.props.empty { display: flex; align-items: center; justify-content: flex-start; height: auto; min-height: 1.8rem; margin: .4rem 0 .3rem; padding: 0; border-bottom: 0; }
+.props.empty .prop-new { display: inline-flex; margin: 0; padding: .2rem .55rem; opacity: .8; color: var(--ink-3); border-radius: 5px; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.props.empty .prop-new:hover, .props.empty .prop-new:focus-visible, .sheet:hover .props.empty .prop-new { opacity: 1; }
+.props.empty .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
 .props.adding .prop-new { display: none; }
 .prop.kind-new { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; }
 .prop.kind-new .prop-key input { width: 100%; min-width: 0; }
-.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; }
+.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; cursor: pointer; }
 .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .prop-new .icon { width: 13px; height: 13px; }
 .editor .cm-lp-frontmatter { display: none; }
@@ -347,3 +375,53 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .links-section:first-child .links-head { margin-top: .4rem; }
 .links-section + .links-section { margin-top: .9rem; border-top: 1px solid var(--hair); }
 
+
+/* Target size (WCAG 2.5.8, A11Y.13): the tab's close mark, a pill's remove
+   mark and the status bar's buttons are drawn small; their click area is a
+   24 x 24 px box around the mark's centre, made of an invisible pseudo-element
+   (absolute, so no bar or pill changes its size). The pill no longer clips its
+   children, so the box can reach past its rounded edge. */
+.tab-close, .bar-toggle, .pill-x, .status-keys button { position: relative; }
+.tab-close::after, .bar-toggle::after, .pill-x::after {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.pill { overflow: visible; }
+/* The remove mark's icon is 14px at the box's left edge (no left padding): its centre is 7px in. */
+.pill-x::after { left: -5px; transform: translateY(-50%); }
+/* The status bar's text buttons are wide enough; only the height grows. */
+.status-keys button::after { content: ""; position: absolute; inset: -5px -2px; }
+/* Kept in the row while hidden: the title's width, and with it where it wraps, must not change on every save. */
+.title-row .dirty-mark.idle, .title-row .save.idle { visibility: hidden; }
+/* The people in the live file, small marks beside "ao vivo" (ADR 0084
+   item 8). A newcomer's mark gets a ring for a moment; with reduced motion
+   the ring is still, and fades. The letter and the colour of the border
+   both come from the person, the ring from the theme's tokens. */
+.live-who { flex: none; margin-left: auto; display: inline-flex; align-items: center; }
+.live-who + .live-mark { margin-left: .4rem; }
+.live-who[hidden] { display: none; }
+.live-who-chip { position: relative; box-sizing: border-box; min-width: 1.25rem; padding: 0 .15rem; height: 1.25rem; border-radius: 999px; display: inline-grid; place-items: center; font-size: .66rem; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper-2); border: 2px solid var(--who, var(--brass-ink)); }
+/* Marks overlap, a little each, so that six people are not six widths. */
+.live-who-chip + .live-who-chip { margin-left: -.35rem; }
+.live-who-chip { cursor: default; }
+.live-who-chip.show-tip::after { content: attr(data-tip); position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; padding: .2rem .5rem; border-radius: 6px; font-size: .74rem; font-weight: 500; white-space: nowrap; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); box-shadow: 0 4px 14px oklch(0% 0 0 / .18); pointer-events: none; }
+.live-who-chip.is-new { animation: live-who-ring 2.8s ease-out both; }
+@keyframes live-who-ring { 0% { box-shadow: 0 0 0 0 var(--brass-ink); } 12% { box-shadow: 0 0 0 4px var(--brass-ink); } 100% { box-shadow: 0 0 0 4px transparent; } }
+@media (prefers-reduced-motion: reduce) { .live-who-chip.is-new { animation: live-who-fade 2.8s linear both; } @keyframes live-who-fade { 0%, 60% { box-shadow: 0 0 0 3px var(--brass-ink); } 100% { box-shadow: 0 0 0 3px transparent; } } }
+
+/* No folder open: the pane shows the lesson alone, centred in the room the
+   window has, and the workspace bar above it has nothing to hold — an empty
+   band is not drawn. */
+.work.empty .spaces { display: none; }
+.work.empty .panes { min-height: 0; }
+.work.empty .lesson { max-width: min(40ch, 100%); box-sizing: border-box; }
+/* A lone pane with no tab holds no leaf: its bar would be a band of tools
+   for nothing. The phone's waits for the first tab (screen.css); so does the
+   desktop site on a phone, where the strip is squeezed to a row of "··". Not
+   on the desktop: in a framed window that row is the window's own buttons. */
+html.desk-on-phone .panes:not(.many) .pane:not(:has(.tab)) > .tabs { display: none; }

@@ -9,8 +9,9 @@ import { bookmarks } from "../bookmarks";
 import { dailyNote, dailyPath } from "../daily";
 import { onFolderLayer } from "../folderLayer";
 import { calendarPeriods } from "../periodic/notes";
+import { openSettingsSection } from "../dialogs/sync";
 import { button, el, h, ui } from "../dom";
-import { activeFocusItem, addFocusPrompt, deleteFocus, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { activeFocusItem, addFocusPrompt, deleteFocus, downloadFocusesNow, isSyncFocusesAsked, focusesDownloadFailed, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, showStickerPicker } from "../labels";
@@ -24,17 +25,31 @@ import { searchNotes } from "../search";
 import { baseStrings, LOCALE, t } from "../strings";
 import { allFolders, listAll } from "../tree/tree";
 import { mentionsSection } from "./mentions";
+import { TabStrip } from "./tabStrip";
 import { historyButton } from "../dialogs/history";
+import { narrow, rightShown } from "../chrome";
+import { gate } from "./gate";
+import { tableOn } from "../table/record";
+import { tt } from "../table/strings";
+import { watchUnread } from "../table/unread";
+import { paintTable } from "../table/view";
+
+const leafIds = new WeakMap<Leaf, number>();
+let leafSeq = 0;
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
-export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
+export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses" | "table";
 export class Panel {
   readonly el = el<HTMLElement>("right");
   readonly tabs = el<HTMLDivElement>("right-tabs");
   readonly body = el<HTMLDivElement>("right-body");
   current: PanelTab = "outline";
+  private strip: TabStrip;
   leaf: Leaf | null = null;
   tagsCache: { name: string; notes: string[] }[] = [];
+  /** The panel is drawn only while it is on screen: collapsed (or closed, on a phone), a change only marks it stale and the next opening draws once. */
+  private readonly gate = gate(rightShown, () => this.draw());
+  private outlineKey = "";
   constructor() {
     const defs: [PanelTab, string, string][] = [
       ["outline", "outline", t.outline],
@@ -43,6 +58,8 @@ export class Panel {
       ["bookmarks", "star", t.bookmarks],
       ["focuses", "compass", t.focusesTab],
       ["calendar", "calendar", t.calendarTab],
+      // The table (ADR 0107): only while its switch is on.
+      ["table", "dice", tt.tab],
     ];
     // The periodic settings changed (the folder's layer read again): the
     // calendar's weeks, month and year follow (ADR 0093 item 9).
@@ -60,6 +77,7 @@ export class Panel {
       b.id = `verso-right-${id}`;
       b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
+      b.dataset["icon"] = ic;
       b.addEventListener("click", () => {
         this.current = id;
         if (id === "focuses") void loadFocuses().then(() => this.paint());
@@ -67,8 +85,15 @@ export class Panel {
       });
       this.tabs.append(b);
     }
+    // The saved order, the drag, Alt+←/→ and the room (tabStrip.ts).
+    this.strip = new TabStrip(this.tabs, () => this.current, (id) => {
+      this.current = id as PanelTab;
+      if (id === "focuses") void loadFocuses().then(() => this.paint());
+      this.refresh();
+    });
+    this.tabs.title = t.tabsHint;
     this.tabs.addEventListener("keydown", (e) => {
-      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]"));
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow"));
       const i = all.indexOf(e.target as HTMLButtonElement);
       if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
       const n = all.length;
@@ -89,9 +114,28 @@ export class Panel {
       // No storage.
     }
     this.markTabs();
+    addEventListener("verso:table-visibility", () => this.gate.reveal());
+    narrow.addEventListener("change", () => this.gate.reveal());
+    // The Mesa tab exists only while the table does (ADR 0107 item 14).
+    addEventListener("verso:features-changed", () => this.followTable());
+    watchUnread(() => tableOn() && this.current === "table" && rightShown());
+    this.followTable();
+  }
+  /** The Mesa tab shown or hidden with its switch; a panel left on it goes back to the outline. */
+  private followTable(): void {
+    const on = tableOn();
+    const tab = this.tabs.querySelector<HTMLElement>('[data-tab="table"]');
+    if (tab) tab.hidden = !on;
+    if (!on && this.current === "table") {
+      this.current = "outline";
+      this.refresh();
+    }
+    dispatchEvent(new Event("verso:table-visibility"));
   }
   /** The chosen tab: selected, in the Tab order, naming the panel. */
   private markTabs(): void {
+    // The phone shows the Mesa tab as a sheet from the bottom (css/table.css).
+    document.body.dataset["rightTab"] = this.current;
     for (const b of this.tabs.querySelectorAll<HTMLButtonElement>("button")) {
       const on = b.dataset["tab"] === this.current;
       b.setAttribute("aria-selected", String(on));
@@ -100,6 +144,8 @@ export class Panel {
     }
   }
   show(leaf: Leaf | null): void {
+    // A tab that stopped being shared has nothing to show (its path is gone).
+    if (leaf?.unshared) leaf = null;
     this.leaf = leaf;
     this.refresh();
     if (leaf instanceof NoteLeaf) leaf.updateWords();
@@ -118,7 +164,9 @@ export class Panel {
       // No storage.
     }
     this.markTabs();
+    this.strip.chosen();
     this.paint();
+    dispatchEvent(new Event("verso:table-visibility"));
   }
   /** The places where other notes write this note's name without
    *  linking to it, each with "Link", and "Link all" (ADR 0089). */
@@ -165,9 +213,39 @@ export class Panel {
     if (focusesConflictBanner) {
       wrap.append(h("div", "focuses-banner error", focusesConflictBanner));
     } else if (focusesSummary?.has_file && !focusesSummary.format_known) {
-      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason)));
-    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
-      wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
+      const banner = h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason));
+      if (focusesSummary.read_only_code === "cloud_placeholder") {
+        // Only the person's click brings the file down (ADR 0043).
+        const down = button("ghost", t.focusesDownloadNow);
+        down.id = "focuses-download";
+        down.addEventListener("click", () => {
+          if (down.disabled) return;
+          down.disabled = true;
+          banner.setAttribute("aria-busy", "true");
+          down.textContent = t.focusesDownloading;
+          void downloadFocusesNow().finally(() => {
+            down.disabled = false;
+            banner.removeAttribute("aria-busy");
+            down.textContent = t.focusesDownloadNow;
+          });
+        });
+        banner.append(" ", down);
+        if (focusesDownloadFailed()) {
+          const bad = h("div", "focuses-download-error", t.focusesDownloadFailed);
+          bad.setAttribute("role", "alert");
+          banner.append(bad);
+        }
+      }
+      wrap.append(banner);
+    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses() && isSyncFocusesAsked()) {
+      // A folder never asked shows nothing: the question comes by itself
+      // when the file is read (and right after it is downloaded).
+      const note = h("div", "focuses-banner", t.syncFocusesOffBanner);
+      const change = button("ghost", t.syncFocusesChange);
+      change.id = "focuses-sync-change";
+      change.addEventListener("click", () => openSettingsSection("organizing"));
+      note.append(" ", change);
+      wrap.append(note);
     }
     const header = h("div", "focuses-header");
     header.append(h("span", "focuses-title", t.focusesTab));
@@ -260,6 +338,10 @@ export class Panel {
       row.append(stkBtn, nameBtn, actions);
       li.append(row);
 
+      if (focus.paths.length === 0 && !isHome && !isReadOnly) {
+        const hint = h("div", "focus-empty-hint", t.focusEmptyHint);
+        li.append(hint);
+      }
       if (focus.paths.length > 0 && !isHome) {
         const pathsUl = h("ul", "focus-paths-list");
         for (const p of focus.paths) {
@@ -289,8 +371,21 @@ export class Panel {
     this.body.replaceChildren(wrap);
   }
   paint(): void {
+    this.gate.draw();
+  }
+  private draw(): void {
     const leaf = this.leaf;
+    const outlineKey = this.current === "outline" && leaf ? `${leafIds.get(leaf) ?? leafIds.set(leaf, ++leafSeq).get(leaf)}|${JSON.stringify(leaf.headings())}` : "";
+    // An outline that is the same list of headings stays as it is (a save that touched no heading redraws nothing).
+    if (outlineKey && outlineKey === this.outlineKey && this.body.firstElementChild?.classList.contains("panel-list")) return;
+    this.outlineKey = outlineKey;
     this.painted++;
+    // No note open: the tabs say what the panel holds, and the body why it
+    // is empty, not a blank column.
+    if (!leaf && (this.current === "outline" || this.current === "backlinks")) {
+      this.list([], t.panelNoNote);
+      return;
+    }
     switch (this.current) {
       case "calendar": {
         this.daily.render();
@@ -371,6 +466,10 @@ export class Panel {
       }
       case "focuses": {
         this.paintFocuses();
+        break;
+      }
+      case "table": {
+        paintTable(this.body);
         break;
       }
     }

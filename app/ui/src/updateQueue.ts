@@ -28,6 +28,8 @@ export class UpdateQueue {
     private readonly refused: () => void,
     /** Whether the session still sends. */
     private readonly alive: () => boolean = () => true,
+    /** Everything sent has been answered: nothing waits, nothing is in flight. */
+    private readonly idle: () => void = () => {},
   ) {}
 
   /** An update to send after those before it. */
@@ -52,5 +54,6 @@ export class UpdateQueue {
     } finally {
       this.busy = false;
     }
+    if (this.waiting.length === 0 && this.alive()) this.idle();
   }
 }

@@ -60,3 +60,10 @@ export function parsePdfSpec(rawTarget: string, alias?: string | null): PdfSpec 
 
   return { file, page: Math.max(1, page), height, width };
 }
+
+/** A page number pdf.js accepts: from 1 to the pages the document has
+ *  (`#page=9` in a 3-page file opens the last, never "not a valid page"). */
+export function clampPage(page: number, pages: number): number {
+  const last = Math.max(1, Math.floor(pages) || 1);
+  return Math.max(1, Math.min(last, Math.round(page) || 1));
+}

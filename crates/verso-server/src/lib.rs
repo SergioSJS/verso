@@ -9,10 +9,17 @@
 //! desktop host calls (ADR 0026 rules 1 and 5).
 
 pub mod access;
+pub mod access_cmds;
 pub mod admin;
 pub mod api;
 pub mod audit;
 pub mod auth;
+pub mod board_sight;
+pub mod campaign;
+pub mod campaign_cmds;
+pub mod campaign_serve;
+pub mod campaign_sync;
+pub mod campaign_text;
 pub mod collab;
 pub mod collab_board;
 pub mod config;
@@ -35,6 +42,7 @@ pub mod hashes;
 pub mod history;
 pub mod http;
 pub mod inflight;
+pub mod invite_join;
 pub mod large;
 pub mod limit;
 pub mod listen;
@@ -49,22 +57,31 @@ pub mod proof;
 pub mod proxy;
 pub mod quota;
 pub mod readers;
+pub mod readlinks;
 pub mod rpc;
+mod rpc_collab;
+mod rpc_open;
 pub mod scope;
 pub mod security_txt;
+pub mod share_board;
 pub mod share_links;
 pub mod share_sync;
 pub mod shares;
 pub mod signin;
 pub mod state;
+mod static_cache;
 pub mod storage;
 pub mod sync;
+pub mod table;
+pub mod table_image;
+pub mod table_look;
 pub mod texts;
 pub mod tls;
 pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
+pub mod visit;
 pub mod writers;
 mod yjs_bounds;
 
@@ -131,6 +148,30 @@ fn base_url(config: &Config) -> String {
         };
         format!("{scheme}://{host}")
     })
+}
+
+/// A link the server hands to a window, which opens it where it reaches
+/// the server. With the configured public address, the whole link; without
+/// one, only the path — the server cannot know the name a window reaches it
+/// by (the listening address may be the wildcard, and `Host` is not trusted,
+/// ADR 0045), so the window puts its own server's address before it. A link
+/// that leaves by mail has no window and uses [`base_url`].
+pub(crate) fn window_link(config: &Config, path: &str) -> String {
+    match config.public_url.as_deref() {
+        Some(base) => format!("{}{path}", base.trim_end_matches('/')),
+        None => path.to_owned(),
+    }
+}
+
+/// Said once at start: with no `VERSO_PUBLIC_URL` and the wildcard bind, the
+/// links that leave by mail (password reset) name `localhost`, which opens
+/// nothing for their reader.
+fn warn_public_url(config: &Config) {
+    if config.public_url.is_none() && config.listen.ip().is_unspecified() {
+        log::warn(
+            "VERSO_PUBLIC_URL is not set and the server listens on every address: links sent by mail (password reset) name localhost and open nothing; set VERSO_PUBLIC_URL to the address people reach the server by (ADR 0073 item 6)",
+        );
+    }
 }
 
 /// The first admin (ADR 0074 item 1): from the environment when the server
@@ -314,6 +355,7 @@ pub async fn run_on<L: listen::Incoming>(
         server.contract,
         server.config.folders_dir.display()
     ));
+    warn_public_url(&server.config);
     if server.config.tls.is_none() {
         log::info(
             "plain HTTP works; offline, notifications and the like need HTTPS (VERSO_TLS_CERT_FILE, or a proxy in front with VERSO_PUBLIC_URL)",
@@ -387,17 +429,45 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_access_cmds;
+#[cfg(test)]
+mod tests_access_doors;
+#[cfg(test)]
+mod tests_access_review;
+#[cfg(test)]
+mod tests_access_sync;
+#[cfg(test)]
 mod tests_attach;
 #[cfg(test)]
+mod tests_attach_beside;
+#[cfg(test)]
+mod tests_audience;
+#[cfg(test)]
+mod tests_audience_review;
+#[cfg(test)]
+mod tests_audience_second;
+#[cfg(test)]
+mod tests_board_players;
+#[cfg(test)]
 mod tests_board_rooms;
+#[cfg(test)]
+mod tests_board_shares;
+#[cfg(test)]
+mod tests_board_solo;
 #[cfg(test)]
 mod tests_board_stress;
 #[cfg(test)]
 mod tests_bounds;
 #[cfg(test)]
+mod tests_campaign;
+#[cfg(test)]
+mod tests_campaign_grants;
+#[cfg(test)]
 mod tests_console;
 #[cfg(test)]
 mod tests_dice;
+#[cfg(test)]
+mod tests_folder_data;
 #[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]
@@ -405,15 +475,29 @@ mod tests_history;
 #[cfg(test)]
 mod tests_http;
 #[cfg(test)]
+mod tests_invite_join;
+#[cfg(test)]
+mod tests_join_big;
+#[cfg(test)]
+mod tests_join_speed;
+#[cfg(test)]
 mod tests_map_tiles;
 #[cfg(test)]
 mod tests_mentions;
+#[cfg(test)]
+mod tests_night_access;
+#[cfg(test)]
+mod tests_night_ops;
+#[cfg(test)]
+mod tests_night_sync;
 #[cfg(test)]
 mod tests_offline;
 #[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
+#[cfg(test)]
+mod tests_readlinks;
 #[cfg(test)]
 mod tests_resources;
 #[cfg(test)]
@@ -434,6 +518,10 @@ mod tests_shares;
 mod tests_signin;
 #[cfg(test)]
 mod tests_sync;
+#[cfg(test)]
+mod tests_table;
+#[cfg(test)]
+mod tests_table_images;
 #[cfg(test)]
 mod tests_threats;
 #[cfg(test)]

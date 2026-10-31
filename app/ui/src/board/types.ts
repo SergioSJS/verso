@@ -70,12 +70,24 @@ export type BoardHost = {
   /** The change was undone before it was saved: the board holds what was
    *  last sent, and the tab has nothing unsaved of the board's. */
   settled?: () => void;
-  openFile: (path: string, aside: boolean) => void;
+  /** Open a file in a tab; `view` is the way a data file's card shows it
+   *  (text or diagram), which the tab then opens in. */
+  openFile: (path: string, aside: boolean, view?: "text" | "diagram") => void;
   /** Draw a note into `el` as the reading view draws it (sanitized, its
    *  images and embeds resolved, its links live). */
   renderNote: (el: HTMLElement, path: string) => Promise<void>;
   /** Draw a text card's Markdown the same way, from the board's folder. */
   renderText: (el: HTMLElement, text: string) => Promise<void>;
+  /** A text file's whole text, as the window holds it (an open tab's first,
+   *  typing not yet saved included); null when it cannot be read. */
+  fileText: (path: string) => Promise<string | null>;
+  /** Draw `text` into `el` as source code, coloured by what `path`'s name
+   *  says it is (the source editor's own language data, loaded when needed). */
+  renderCode: (el: HTMLElement, text: string, path: string) => Promise<void>;
+  /** The data diagram of a data file (ADR 0106), when the window has it:
+   *  `available` is false for a file it cannot read and when its switch
+   *  (ADR 0103) is off. Absent where the window has no diagram. */
+  data?: DataHost;
   /** A note's text, for the board's search. */
   noteText: (path: string) => Promise<string>;
   fileSrc: (path: string) => string;
@@ -132,8 +144,52 @@ export type BoardHost = {
     served: () => boolean;
     project: (json: string) => Promise<string>;
   };
+  /** A web page shown live in a link card (ADR 0057 point 10, decided
+   *  2026-10-21; ADR 0056): the window's approvals and its frameability
+   *  check. Absent where the window cannot show a page; a page card is
+   *  then a link card. */
+  web?: BoardWeb;
   /** A note's sticker drawn at `size`, for its pin; null for none. */
   sticker?: (path: string, size: number) => HTMLElement | null;
+};
+
+/** A diagram drawn in a card. */
+export type DataDiagramHandle = {
+  /** The text again (the file changed); why no diagram can be drawn of it,
+   *  if it cannot (the card then shows the text). */
+  set: (text: string) => "tooBig" | "tooMany" | null;
+  /** The keyboard goes into the diagram. */
+  focus: () => void;
+  destroy: () => void;
+};
+
+/** What a data card needs of the window (ADR 0106, ADR 0103). */
+export type DataHost = {
+  available: (path: string) => boolean;
+  /** The size past which no diagram is drawn, in MB (for the reason said). */
+  limitMb: number;
+  diagram: (el: HTMLElement, path: string) => Promise<DataDiagramHandle | null>;
+};
+
+/** What a page card needs of the window (ADR 0056). */
+export type BoardWeb = {
+  /** Why the page may not load yet: its origin is not approved (`origin`),
+   *  remote content is off (`remote`) or it is no web address (`invalid`);
+   *  null when it may load. */
+  gate: (url: string) => { why: "origin" | "remote"; origin: string } | { why: "invalid" } | null;
+  /** The origin approved for good, the same list as the notes'. */
+  approve: (origin: string) => Promise<boolean>;
+  /** The warning to show before approving, if the site forbids framing
+   *  (the host's one check, made on the click); null for none. */
+  warn: (url: string) => Promise<string | null>;
+  /** Whether the site allows being framed, once per origin. */
+  frameable: (url: string) => Promise<boolean>;
+  /** The sandboxed frame for `url`, titled `title`. */
+  frame: (url: string, title: string) => HTMLIFrameElement;
+  /** The words of the approval, those of the notes' gate. */
+  words: { local: string; approve: string; approveAnyway: string };
+  /** Whether a name is on the local network, for the stronger wording. */
+  isLocal: (hostname: string) => boolean;
 };
 
 /** What the settings say of boards. */
@@ -146,6 +202,8 @@ export type BoardPrefs = {
   grid: boolean;
   /** A board opens with all of it in view, or where it was left. */
   open: "fit" | "last";
+  /** What a double click on an empty spot creates: a Markdown text card, or Excalidraw's drawn text. */
+  doubleClick: "card" | "drawn";
 };
 
 export type SavedView = { scrollX: number; scrollY: number; zoom: number };
@@ -180,6 +238,8 @@ export type BoardHandle = {
   /** Put a file of the folder on the board, at a point of the screen (the
    *  middle of the view without one). */
   addPath: (path: string, clientX?: number, clientY?: number) => void;
+  /** Put a text card (Markdown) on the board, at a point of the screen. */
+  addText: (text: string, clientX?: number, clientY?: number) => void;
   /** Save now what the board holds and has not saved: before its tab
    *  closes, the window quits or the folder changes. */
   flush: () => Promise<void>;

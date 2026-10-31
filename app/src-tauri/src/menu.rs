@@ -1,6 +1,19 @@
 //! The native menu, in the interface's language, and what its items do.
 
+use super::menu_spec;
+#[cfg(target_os = "macos")]
+use super::menu_spec::{Own, Row, System};
 use super::*;
+
+/// What the window last pushed about itself: the features that are on,
+/// the keys bound to commands (already as accelerators) and the commands
+/// that can run just now. `enabled` is `None` until the window says.
+#[derive(Default, Clone)]
+pub(crate) struct MenuState {
+    pub(crate) features: std::collections::HashSet<String>,
+    pub(crate) keys: std::collections::HashMap<String, String>,
+    pub(crate) enabled: Option<std::collections::HashSet<String>>,
+}
 
 /// The window's language, for the native menu ("pt" or "en"); pushed at
 /// start-up and when the setting changes.
@@ -22,6 +35,31 @@ pub(crate) fn set_menu_language<R: tauri::Runtime>(
     Ok(())
 }
 
+/// The menus of the in-window menu of Windows and Linux, in the window's
+/// language (`menu_spec::window_menu`): the same menus as the Mac bar,
+/// from the same data, the rows whose feature is off already left out. The
+/// window greys those the palette cannot run and writes the keys as bound.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn menu_sections(
+    language: String,
+    features: Vec<String>,
+) -> Vec<menu_spec::MenuSection> {
+    let state = MenuState {
+        features: features.into_iter().collect(),
+        ..MenuState::default()
+    };
+    menu_spec::window_menu(&language, &state)
+}
+
+/// Quit from the in-window menu (File › Quit): the windows are asked to
+/// save their tabs first, as the Mac's Quit and the last window's close do.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn quit_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    ask_windows_to_quit(&app);
+}
+
 /// The id of the app menu's own Quit item.
 #[cfg(target_os = "macos")]
 pub(crate) const QUIT: &str = "verso-quit";
@@ -37,6 +75,11 @@ pub(crate) const NEW_WINDOW: &str = "verso-new-window";
 /// from the menu.
 #[cfg(target_os = "macos")]
 pub(crate) const OPEN_FOLDER: &str = "verso-open-folder";
+
+/// The id of "Open File…" (ADR 0114 item 20): the system's picker for one
+/// Markdown file, run by the host.
+#[cfg(target_os = "macos")]
+pub(crate) const OPEN_FILE: &str = "verso-open-file";
 
 /// The id of "Settings…" (⌘,), which the main window answers.
 #[cfg(target_os = "macos")]
@@ -66,8 +109,8 @@ pub(crate) fn page_edit(command: &str) -> String {
 /// The window that has the focus, if one of the app's has it. Every
 /// window, not only the `WebviewWindow`s: one that shows a site inside it
 /// holds child web views and is no longer counted as one, and the menu
-/// went deaf in it — no ⌘W, ⌘Z or console.
-#[cfg(target_os = "macos")]
+/// went deaf in it — no ⌘W, ⌘Z or console. The loose-files routing asks it
+/// on every system (ADR 0114).
 pub(crate) fn focused_window<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<tauri::Window<R>> {
@@ -97,119 +140,15 @@ pub(crate) const CLOSE_WINDOW: &str = "verso-close-window";
 #[cfg(target_os = "macos")]
 pub(crate) const RECENT_PREFIX: &str = "verso-recent-";
 
-/// The menu's words in the window's language ("pt" is the default, as
-/// the product's; ADR 0035). Predefined items keep the system's own.
+/// The id prefix of the "Open Recent" items that are files (ADR 0114 Q4):
+/// `verso-recent-file-<i>`, an index into `App::menu_recent_files`.
+#[cfg(target_os = "macos")]
+pub(crate) const RECENT_FILE_PREFIX: &str = "verso-recent-file-";
+
+/// The menu's words in the window's language (`menu_spec::word`).
 #[cfg(target_os = "macos")]
 fn menu_label(lang: &str, key: &str) -> &'static str {
-    let pt = lang != "en";
-    match key {
-        "quit" => {
-            if pt {
-                "Encerrar o Verso"
-            } else {
-                "Quit Verso"
-            }
-        }
-        "settings" => {
-            if pt {
-                "Ajustes…"
-            } else {
-                "Settings…"
-            }
-        }
-        "file" => {
-            if pt {
-                "Arquivo"
-            } else {
-                "File"
-            }
-        }
-        "new-window" => {
-            if pt {
-                "Nova janela"
-            } else {
-                "New Window"
-            }
-        }
-        "open-folder" => {
-            if pt {
-                "Abrir pasta…"
-            } else {
-                "Open Folder…"
-            }
-        }
-        "open-recent" => {
-            if pt {
-                "Abrir recente"
-            } else {
-                "Open Recent"
-            }
-        }
-        "close-tab" => {
-            if pt {
-                "Fechar aba"
-            } else {
-                "Close Tab"
-            }
-        }
-        "close-window" => {
-            if pt {
-                "Fechar janela"
-            } else {
-                "Close Window"
-            }
-        }
-        "edit" => {
-            if pt {
-                "Edição"
-            } else {
-                "Edit"
-            }
-        }
-        "undo" => {
-            if pt {
-                "Desfazer"
-            } else {
-                "Undo"
-            }
-        }
-        "redo" => {
-            if pt {
-                "Refazer"
-            } else {
-                "Redo"
-            }
-        }
-        "select-all" => {
-            if pt {
-                "Selecionar tudo"
-            } else {
-                "Select All"
-            }
-        }
-        "devtools" => {
-            if pt {
-                "Abrir console"
-            } else {
-                "Open Console"
-            }
-        }
-        "view" => {
-            if pt {
-                "Visualização"
-            } else {
-                "View"
-            }
-        }
-        "window" => {
-            if pt {
-                "Janela"
-            } else {
-                "Window"
-            }
-        }
-        _ => "",
-    }
+    menu_spec::word(lang, key)
 }
 
 /// The macOS menu bar: the system's own items, except Quit and the Edit
@@ -223,7 +162,7 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> tauri::Result<tauri::menu::Menu<R>> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-    let (lang, recents) = {
+    let (lang, recents, menu_state) = {
         let state = app.state::<App>();
         let lang = lock(&state.menu_language).clone();
         // The menu's recents come from the index sidecars: the folders
@@ -234,8 +173,19 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
         let mut keep = lock(&state.menu_recents);
         keep.clear();
         keep.extend(recents.iter().take(9).cloned());
-        (lang, keep.clone())
+        // And the files opened without a folder (ADR 0114 Q4), a group
+        // under the folders.
+        let files = verso_core::session::recent_files(state.service.config());
+        let mut keep_files = lock(&state.menu_recent_files);
+        keep_files.clear();
+        keep_files.extend(files.iter().cloned());
+        (
+            lang,
+            (keep.clone(), keep_files.clone()),
+            lock(&state.menu_state).clone(),
+        )
     };
+    let (recents, recent_files) = recents;
     let l = |key: &str| menu_label(&lang, key);
     let quit = MenuItem::with_id(app, QUIT, l("quit"), true, Some("CmdOrCtrl+Q"))?;
     let verso = Submenu::with_items(
@@ -297,85 +247,238 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
             None::<&str>,
         )?);
     }
-    let recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
+    let mut recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
         .iter()
         .map(|i| i as &dyn tauri::menu::IsMenuItem<R>)
         .collect();
-    let open_recent =
-        Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
-    let file = Submenu::with_items(
+    let mut file_items: Vec<MenuItem<R>> = Vec::new();
+    for (i, file) in recent_files.iter().enumerate() {
+        let name = file
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let place = file
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let text = if place.is_empty() {
+            name
+        } else {
+            format!("{name} ({place})")
+        };
+        file_items.push(MenuItem::with_id(
+            app,
+            format!("{RECENT_FILE_PREFIX}{i}"),
+            text,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let between = PredefinedMenuItem::separator(app)?;
+    if !recents.is_empty() && !file_items.is_empty() {
+        recent_refs.push(&between);
+    }
+    recent_refs.extend(
+        file_items
+            .iter()
+            .map(|i| i as &dyn tauri::menu::IsMenuItem<R>),
+    );
+    let open_recent = Submenu::with_items(
         app,
-        l("file"),
-        true,
-        &[
-            &MenuItem::with_id(app, NEW_WINDOW, l("new-window"), true, None::<&str>)?,
-            &MenuItem::with_id(
-                app,
-                OPEN_FOLDER,
-                l("open-folder"),
-                true,
-                Some("CmdOrCtrl+Shift+O"),
-            )?,
-            &open_recent,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, CLOSE_TAB, l("close-tab"), true, Some("CmdOrCtrl+W"))?,
-            &MenuItem::with_id(app, CLOSE_WINDOW, l("close-window"), true, None::<&str>)?,
-        ],
+        l("open-recent"),
+        !recents.is_empty() || !recent_files.is_empty(),
+        &recent_refs,
     )?;
-    let edit = Submenu::with_items(
-        app,
-        l("edit"),
-        true,
-        &[
-            &MenuItem::with_id(
-                app,
-                format!("{EDIT_PREFIX}undo"),
-                l("undo"),
-                true,
-                Some("CmdOrCtrl+Z"),
-            )?,
-            &MenuItem::with_id(
-                app,
-                format!("{EDIT_PREFIX}redo"),
-                l("redo"),
-                true,
-                Some("CmdOrCtrl+Shift+Z"),
-            )?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::cut(app, None)?,
-            &PredefinedMenuItem::copy(app, None)?,
-            &PredefinedMenuItem::paste(app, None)?,
-            &MenuItem::with_id(
-                app,
-                format!("{EDIT_PREFIX}select-all"),
-                l("select-all"),
-                true,
-                Some("CmdOrCtrl+A"),
-            )?,
-        ],
-    )?;
-    let view = Submenu::with_items(
-        app,
-        l("view"),
-        true,
-        &[
-            &PredefinedMenuItem::fullscreen(app, None)?,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, DEVTOOLS, l("devtools"), true, Some("CmdOrCtrl+Alt+I"))?,
-        ],
-    )?;
-    let window = Submenu::with_items(
-        app,
-        l("window"),
-        true,
-        &[
-            &PredefinedMenuItem::minimize(app, None)?,
-            &PredefinedMenuItem::maximize(app, None)?,
-        ],
-    )?;
+    let mut menus: Vec<Submenu<R>> = vec![verso];
+    for (key, rows) in menu_spec::sections() {
+        let title = menu_spec::title(&lang, key);
+        let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<R>>> = Vec::new();
+        for row in menu_spec::visible(&rows, &menu_state) {
+            let item: Box<dyn tauri::menu::IsMenuItem<R>> = match row {
+                Row::Sep => Box::new(PredefinedMenuItem::separator(app)?),
+                Row::System(System::Cut) => Box::new(PredefinedMenuItem::cut(app, None)?),
+                Row::System(System::Copy) => Box::new(PredefinedMenuItem::copy(app, None)?),
+                Row::System(System::Paste) => Box::new(PredefinedMenuItem::paste(app, None)?),
+                Row::System(System::Fullscreen) => {
+                    Box::new(PredefinedMenuItem::fullscreen(app, None)?)
+                }
+                Row::System(System::Minimize) => Box::new(PredefinedMenuItem::minimize(app, None)?),
+                Row::System(System::Maximize) => Box::new(PredefinedMenuItem::maximize(app, None)?),
+                Row::Own(Own::NewWindow) => Box::new(MenuItem::with_id(
+                    app,
+                    NEW_WINDOW,
+                    l("new-window"),
+                    true,
+                    None::<&str>,
+                )?),
+                Row::Own(Own::OpenFolder) => Box::new(MenuItem::with_id(
+                    app,
+                    OPEN_FOLDER,
+                    l("open-folder"),
+                    true,
+                    Some("CmdOrCtrl+Shift+O"),
+                )?),
+                Row::Own(Own::OpenFile) => Box::new(MenuItem::with_id(
+                    app,
+                    OPEN_FILE,
+                    l("open-file"),
+                    true,
+                    None::<&str>,
+                )?),
+                Row::Own(Own::OpenRecent) => Box::new(open_recent.clone()),
+                Row::Own(Own::CloseTab) => Box::new(MenuItem::with_id(
+                    app,
+                    CLOSE_TAB,
+                    l("close-tab"),
+                    true,
+                    Some("CmdOrCtrl+W"),
+                )?),
+                Row::Own(Own::CloseWindow) => Box::new(MenuItem::with_id(
+                    app,
+                    CLOSE_WINDOW,
+                    l("close-window"),
+                    true,
+                    None::<&str>,
+                )?),
+                Row::Own(Own::Undo) => Box::new(MenuItem::with_id(
+                    app,
+                    format!("{EDIT_PREFIX}undo"),
+                    l("undo"),
+                    true,
+                    Some("CmdOrCtrl+Z"),
+                )?),
+                Row::Own(Own::Redo) => Box::new(MenuItem::with_id(
+                    app,
+                    format!("{EDIT_PREFIX}redo"),
+                    l("redo"),
+                    true,
+                    Some("CmdOrCtrl+Shift+Z"),
+                )?),
+                Row::Own(Own::SelectAll) => Box::new(MenuItem::with_id(
+                    app,
+                    format!("{EDIT_PREFIX}select-all"),
+                    l("select-all"),
+                    true,
+                    Some("CmdOrCtrl+A"),
+                )?),
+                Row::Own(Own::Devtools) => Box::new(MenuItem::with_id(
+                    app,
+                    DEVTOOLS,
+                    l("devtools"),
+                    true,
+                    Some("CmdOrCtrl+Alt+I"),
+                )?),
+                Row::Command(id, _) => {
+                    let text = menu_spec::label(&lang, id);
+                    let enabled = menu_spec::is_enabled(&menu_state, id);
+                    let item_id = menu_spec::item_id(id);
+                    // A key the platform cannot parse leaves the item with
+                    // no key instead of leaving the bar without the menu.
+                    let accelerator = menu_state.keys.get(id).map(String::as_str);
+                    Box::new(
+                        MenuItem::with_id(app, &item_id, text, enabled, accelerator).or_else(
+                            |_| MenuItem::with_id(app, &item_id, text, enabled, None::<&str>),
+                        )?,
+                    )
+                }
+            };
+            items.push(item);
+        }
+        let refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = items.iter().map(AsRef::as_ref).collect();
+        let submenu = Submenu::with_items(app, title, true, &refs)?;
+        if key == "window" {
+            submenu.set_as_windows_menu_for_nsapp()?;
+        }
+        menus.push(submenu);
+    }
+    let refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = menus
+        .iter()
+        .map(|m| m as &dyn tauri::menu::IsMenuItem<R>)
+        .collect();
+    Menu::with_items(app, &refs)
+}
+
+/// Set one command's item enabled or not, in the bar as it stands: no
+/// rebuild, so the window can say it at every change of tab.
+#[cfg(target_os = "macos")]
+fn set_enabled_in<R: tauri::Runtime>(items: Vec<tauri::menu::MenuItemKind<R>>, state: &MenuState) {
+    for kind in items {
+        match &kind {
+            tauri::menu::MenuItemKind::Submenu(sub) => {
+                if let Ok(inner) = sub.items() {
+                    set_enabled_in(inner, state);
+                }
+            }
+            tauri::menu::MenuItemKind::MenuItem(item) => {
+                if let Some(command) = item.id().as_ref().strip_prefix(menu_spec::COMMAND_PREFIX) {
+                    let _ = item.set_enabled(menu_spec::is_enabled(state, command));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// What the window says about itself for the menu: the features that are
+/// on and the keys bound to commands (a change rebuilds the bar, as a
+/// change of language does).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn set_menu_commands<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+    features: Vec<String>,
+    keys: std::collections::HashMap<String, String>,
+) -> Result<(), ContractError> {
+    {
+        let mut menu = lock(&state.menu_state);
+        let features: std::collections::HashSet<String> = features.into_iter().collect();
+        if menu.features == features && menu.keys == keys {
+            return Ok(());
+        }
+        menu.features = features;
+        menu.keys = keys;
+    }
     #[cfg(target_os = "macos")]
-    window.set_as_windows_menu_for_nsapp()?;
-    Menu::with_items(app, &[&verso, &file, &edit, &view, &window])
+    refresh_menu(&app);
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    Ok(())
+}
+
+/// The commands that can run just now (the palette's own list, from the
+/// window in focus): the other items are greyed, in place.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn set_menu_enabled<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+    enabled: Vec<String>,
+) -> Result<(), ContractError> {
+    let snapshot = {
+        let mut menu = lock(&state.menu_state);
+        let enabled: std::collections::HashSet<String> = enabled.into_iter().collect();
+        if menu.enabled.as_ref() == Some(&enabled) {
+            return Ok(());
+        }
+        menu.enabled = Some(enabled);
+        menu.clone()
+    };
+    #[cfg(target_os = "macos")]
+    {
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            if let Some(menu) = handle.menu()
+                && let Ok(items) = menu.items()
+            {
+                set_enabled_in(items, &snapshot);
+            }
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, snapshot);
+    Ok(())
 }
 
 /// Build the menu again — the recents moved, or the language did. Menu

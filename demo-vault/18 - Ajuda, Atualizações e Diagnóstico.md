@@ -24,13 +24,13 @@ Como manter o Verso em dia, contar um problema e ver o que acontece por dentro.
 
 ## Notificações
 
-O que muda sem você ter pedido aparece num aviso no canto de baixo, à direita (no celular, no alto): a sincronização que caiu e a que voltou, a conexão com o servidor, uma cópia de conflito, uma pasta compartilhada com você ou um compartilhamento revogado, uma versão nova, uma pasta perto da cota, itens que saem da lixeira em até 3 dias, alguém que entra na nota que você está editando. Cada mudança é dita **uma vez**; um aviso de informação some em 6 segundos, um de atenção ou de erro fica até você fechar (`Esc` fecha o que tem o foco) ou até o estado voltar. O que você fez — salvar, mover, renomear — continua dito na barra de status, não aqui.
+O que muda sem você ter pedido aparece num aviso no canto de baixo, à direita (no celular, no alto): a sincronização que caiu e a que voltou, a conexão com o servidor, uma cópia de conflito, uma pasta compartilhada com você ou um compartilhamento revogado, uma versão nova, uma pasta perto da cota, itens que saem da lixeira em até 3 dias, alguém que entra na nota que você está editando (esta começa **só na lista**, sem aviso: o sino a conta e a marca de quem entrou, ao lado de "ao vivo", ganha um anel breve). Cada mudança é dita **uma vez**; um aviso de informação some em 6 segundos, um de atenção ou de erro fica até você fechar (`Esc` fecha o que tem o foco) ou até o estado voltar. O que você fez — salvar, mover, renomear — continua dito na barra de status, não aqui.
 
-- **O sino**, na barra de status antes de **Relatar problema** (no celular, no alto da área), conta o que você não viu. Clique nele — ou use **Notificações** na paleta (`⌘⇧P`) — para abrir a lista: o mais novo primeiro, com a hora, a pasta quando não é a desta janela e o que dá para fazer. Abrir marca tudo como visto; **Limpar** esvazia. A lista fica neste computador (até 100, por 30 dias), não vai para a conta.
+- **O sino**, na barra de status antes de **Relatar problema** (no celular, no alto do painel), conta o que você não viu. Clique nele — ou use **Notificações** na paleta (`⌘⇧P`) — para abrir a lista: o mais novo primeiro, com a hora, a pasta quando não é a desta janela e o que dá para fazer. Abrir marca tudo como visto; **Limpar** esvazia. A lista fica neste computador (até 100, por 30 dias), não vai para a conta.
 - **Ajustes › Notificações**: para cada tipo, **Aviso e lista**, **Só na lista** ou **Desligado**. Desligar não esconde o estado: a barra de status continua dizendo a sincronização, e a nota, o conflito.
 - **Também nas notificações do sistema** começa desligado. No navegador, ao ligar, ele pede a permissão; recusada, a opção volta a desligado e diz por quê. No computador nada é perguntado: os ajustes de notificações do sistema decidem, e a opção diz onde ficam. Ligada, o que está em **Aviso e lista** aparece também nas notificações do sistema enquanto a janela está atrás de outras, minimizada ou em outra aba.
 
-Experimente: abra **Ajustes › Notificações**, ponha **Presença** em **Só na lista** e veja a escolha ficar guardada; depois abra o sino.
+Experimente: abra **Ajustes › Notificações**, ponha **Presença** em **Aviso e lista** para ver o aviso de quem entra, ou deixe em **Só na lista** (o começo) e veja só o sino; depois abra o sino.
 
 ---
 
@@ -50,7 +50,7 @@ O registro do app fica em `~/Library/Application Support/verso/logs/verso.log`, 
 
 ## A Barra de Status
 
-Embaixo da janela: o botão de mostrar e ocultar os arquivos, as mensagens do app, o andamento do índice, a contagem de palavras e caracteres da nota (num PDF, a página), os atalhos mais usados — **nova nota**, **editar**, **dividir**, **nova área** —, o sino das **Notificações**, **Relatar problema** e o botão do painel da direita.
+Embaixo da janela: o botão de mostrar e ocultar os arquivos, as mensagens do app, o andamento do índice, a contagem de palavras e caracteres da nota (num PDF, a página), os atalhos mais usados — **nova nota**, **editar**, **dividir**, **novo espaço de trabalho** —, o sino das **Notificações**, **Relatar problema** e o botão do painel da direita.
 
 ---
 

@@ -19,6 +19,10 @@ import { noteImages } from "../images";
 import { renderSticker, resolveColor, showStickerPicker } from "../labels";
 import { armDrag } from "../layout/drag";
 import { Pane } from "../layout/pane";
+import { tableViewer } from "../access";
+import { tableCard } from "../tableCard";
+import { campaign } from "../campaign";
+import { mayShare } from "../shares";
 import { crumbsFor, crumbsNav, layout, liveHolder, openFolder, openNote, persistSoon } from "../layout/spaces";
 import { roomSide } from "../collab";
 import { writeLive } from "../roomWrites";
@@ -95,6 +99,8 @@ export class FolderLeaf extends Leaf {
   readonly crumbs = crumbsNav();
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
+  /** The table card (tableCard.ts): the folder as a table, or the way to make it one. */
+  readonly tableBox = h("div", "folder-table");
   readonly cols = h("div", "folder-cols");
   readonly items = h("ul", "folder-items list");
   readonly note = h("article", "folder-note");
@@ -132,7 +138,7 @@ export class FolderLeaf extends Leaf {
     const top = h("header", "leaf-head");
     top.append(this.crumbs);
     const sheet = h("div", "sheet");
-    sheet.append(this.coverBox, this.addCoverBtn, this.head, this.meta, this.note, this.baseContainer, this.cols, this.items);
+    sheet.append(this.coverBox, this.addCoverBtn, this.head, this.meta, this.tableBox, this.note, this.baseContainer, this.cols, this.items);
     this.el.append(top, sheet);
     this.cols.hidden = false;
     const col = (key: SortKey, label: string, cls: string) => {
@@ -149,6 +155,13 @@ export class FolderLeaf extends Leaf {
       return b;
     };
     this.cols.append(col("name", t.colName, "col-name"), col("kind", t.colKind, "col-kind"), col("size", t.colSize, "col-size"), col("modified", t.colModified, "col-modified"));
+    addEventListener("verso:campaign-status", () => {
+      if (this.el.isConnected) this.paintTable();
+    });
+    // The seat the server tells comes after the table is made: the card is drawn for it.
+    addEventListener("verso:can-changed", () => {
+      if (this.el.isConnected) this.paintTable();
+    });
     this.el.addEventListener("contextmenu", (e) => {
       if ((e.target as HTMLElement).closest(".item")) return;
       e.preventDefault();
@@ -168,6 +181,16 @@ export class FolderLeaf extends Leaf {
           : []),
       ]);
     });
+  }
+  private tableFor = "\u0000";
+  /** The card of the table under the title; drawn again when the tables change. */
+  private paintTable(): void {
+    const key = `${this.path}|${campaign().viewer}|${tableViewer()}|${mayShare()}|${campaign().tables.map((t) => t.root).join(",")}`;
+    if (key === this.tableFor) return;
+    this.tableFor = key;
+    const card = tableCard(this.path);
+    this.tableBox.replaceChildren(...(card ? [card] : []));
+    this.tableBox.hidden = !card;
   }
   setViewMode(mode: "table" | "grid" | "list"): void {
     this.viewMode = mode;
@@ -527,6 +550,7 @@ export class FolderLeaf extends Leaf {
     ];
     const notes = direct.filter((p) => kindOf(p) === "note").length;
     this.meta.textContent = t.counts(notes, direct.length - notes, folders.length);
+    this.paintTable();
     this.viewMode = settings.folderPageTable ? "table" : (this.grid ? "grid" : "list");
     if (this.viewMode === "table") {
       this.baseContainer.hidden = false;

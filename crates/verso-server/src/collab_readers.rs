@@ -23,7 +23,7 @@
 use std::collections::HashSet;
 
 use serde_json::json;
-use verso_contract::{CollabJoin, CollabKind, CollabRoll, ContractError};
+use verso_contract::{CollabJoin, CollabKind, CollabOracle, CollabRoll, ContractError};
 use verso_service::lock;
 use yrs::Doc;
 
@@ -43,6 +43,9 @@ pub struct Readers {
     shadow: Option<Doc>,
     /// Which shadow this is: a window that joins again compares it.
     epoch: String,
+    /// The shadows of a board's room, one per account that edits it from a
+    /// table (ADR 0113 section H).
+    pub(super) players: super::players::Shadows,
 }
 
 impl Readers {
@@ -51,9 +54,16 @@ impl Readers {
         self.split && self.clients.contains(client)
     }
 
+    /// Whether `client` is in a board's shadow: it hears the room's document
+    /// only through it.
+    pub fn shadowed(&self, client: &str) -> bool {
+        self.players.holds(client)
+    }
+
     /// `client` left the room.
     pub fn forget(&mut self, client: &str) {
         self.clients.remove(client);
+        self.players.forget(client);
     }
 
     /// The readers served the shadow.
@@ -66,15 +76,35 @@ impl Readers {
     }
 }
 
-/// Whether `text` holds a secret block.
-fn secret_in(text: &str) -> bool {
-    !verso_core::secret::Secrets::of(text).is_empty()
+/// The text the readers of `r` are served for `text`: its projection
+/// (ADR 0087), and, in a table, with the links to notes not released
+/// drawn as text (ADR 0110 item 7). Fails closed: a table's text that
+/// cannot be veiled is served empty.
+fn shown_to_readers(server: &Server, r: &Room, text: &str) -> String {
+    let projected = verso_core::secret::project(text).into_owned();
+    let Some(veil) = crate::campaign::veil_for_key(server, &r.key) else {
+        return projected;
+    };
+    let path = r.path.clone();
+    let basis = projected.clone();
+    server
+        .service
+        .with_key(&r.key, move |ws| {
+            Ok(crate::campaign_serve::device_text(ws, &veil, &path, &basis))
+        })
+        .map_or_else(|_| String::new(), |v| v.unwrap_or(projected))
+}
+
+/// Whether the readers of `r` are served something other than `text`: it
+/// holds a secret block, or a link a table's veil draws as text.
+fn secret_in(server: &Server, r: &Room, text: &str) -> bool {
+    !verso_core::secret::Secrets::of(text).is_empty() || shown_to_readers(server, r, text) != text
 }
 
 /// Split `r` over `text`, its text now: the shadow made of the projection.
-fn split(r: &mut Room, text: &str) -> Result<(), ContractError> {
+fn split(server: &Server, r: &mut Room, text: &str) -> Result<(), ContractError> {
     r.readers.split = true;
-    let shown = verso_core::secret::project(text);
+    let shown = shown_to_readers(server, r, text);
     r.readers.shadow = Some(holding(new_doc(), &shown));
     r.readers.epoch = crate::crypto::id().map_err(verso_service::failed)?;
     Ok(())
@@ -90,10 +120,10 @@ pub fn guard(server: &Server, r: &mut Room) {
         return;
     }
     let text = text_of(&r.doc);
-    if !secret_in(&text) {
+    if !secret_in(server, r, &text) {
         return;
     }
-    if let Err(e) = split(r, &text) {
+    if let Err(e) = split(server, r, &text) {
         // No shadow: the readers still leave the document (fails closed).
         crate::log::warn(&format!("a room's readers' document: {}", e.message));
     }
@@ -123,10 +153,10 @@ pub fn join(
     }
     if !r.readers.split {
         let text = text_of(&r.doc);
-        if !secret_in(&text) {
+        if !secret_in(server, r, &text) {
             return Ok(None);
         }
-        split(r, &text)?;
+        split(server, r, &text)?;
     }
     let Some(shadow) = r.readers.shadow.as_ref() else {
         return Err(verso_service::failed(
@@ -167,7 +197,7 @@ pub fn written(server: &Server, r: &mut Room) {
     if to.is_empty() {
         return;
     }
-    let shown = verso_core::secret::project(&r.saved).into_owned();
+    let shown = shown_to_readers(server, r, &r.saved);
     let Some(shadow) = r.readers.shadow.as_ref() else {
         return;
     };
@@ -219,6 +249,21 @@ fn visible(shown: &str, roll: &verso_contract::DiceRoll) -> bool {
     }
 }
 
+/// Whether the folder's readers may be told of `roll` made in `r`: always,
+/// unless the note holds secret blocks and the roll is not one the
+/// projection shows (`visible`). The table asks it (ADR 0107).
+pub fn roll_is_open(r: &Room, roll: &verso_contract::DiceRoll) -> bool {
+    r.readers
+        .shadow
+        .as_ref()
+        .is_none_or(|shadow| visible(&text_of(shadow), roll))
+}
+
+/// Whether `r` has no secret blocks to keep from its readers.
+pub fn no_shadow(r: &Room) -> bool {
+    r.readers.shadow.is_none()
+}
+
 /// A roll told to the room: also to the readers in the shadow, when it
 /// is not a secret block's (the others heard it already).
 pub fn roll(server: &Server, r: &Room, sender: &str, heard: &CollabRoll) {
@@ -236,6 +281,21 @@ pub fn roll(server: &Server, r: &Room, sender: &str, heard: &CollabRoll) {
     };
     if visible(&text_of(shadow), &heard.roll) {
         server.push(&to, &json!({ "event": "collab-roll", "payload": heard }));
+    }
+}
+
+/// A question drawn in the room, told also to the readers in the shadow:
+/// it carries no text of the note (a spark's or a table's words may come
+/// from a secret block, and are not told to them).
+pub fn oracle(server: &Server, r: &Room, sender: &str, heard: &CollabOracle) {
+    let to: Vec<String> = r
+        .readers
+        .shown()
+        .into_iter()
+        .filter(|c| c != sender)
+        .collect();
+    if !to.is_empty() {
+        server.push(&to, &json!({ "event": "collab-oracle", "payload": heard }));
     }
 }
 
@@ -261,4 +321,112 @@ pub fn demoted(server: &Server, client: &str) {
             &event("collab-closed", &path, "revision", &json!(null)),
         );
     }
+}
+
+/// A table's state changed (a release, a hide, a grant, a table made or
+/// undone): the readers of every room of `key` leave the document they
+/// hold, told each closed, so that they read the note again and join anew
+/// over the text the veil now leaves (ADR 0110 item 4). A room that was
+/// split stays split (a document that once held a secret may hold it in
+/// its history), its shadow made again from the text now.
+///
+/// A player who edits the note by a grant is in the room's document, not
+/// among its readers: it is asked again too, and leaves when the note is
+/// no longer one it sees, or one it may edit — told the room closed, it
+/// reads the note again and joins as what it now is.
+pub fn veil_changed(server: &Server, key: &str) {
+    let rooms: Vec<_> = lock(&server.rooms.map)
+        .iter()
+        .filter(|((k, _), _)| k == key)
+        .map(|(_, room)| std::sync::Arc::clone(room))
+        .collect();
+    for room in rooms {
+        let mut r = lock(&room);
+        // What an account sees of a board may have changed: its shadows go.
+        super::players::veil_changed(server, &mut r);
+        if r.kind == Kind::Note && r.readers.split {
+            let text = text_of(&r.doc);
+            if let Err(e) = split(server, &mut r, &text) {
+                crate::log::warn(&format!("a room's readers' document: {}", e.message));
+            }
+        }
+        let mut out: Vec<String> = if r.kind == Kind::Note {
+            r.readers.clients.drain().collect()
+        } else {
+            Vec::new()
+        };
+        let rest: Vec<String> = r
+            .clients
+            .iter()
+            .filter(|c| !out.contains(c) && !still_admitted(server, c, &r.key, &r.path, true))
+            .cloned()
+            .collect();
+        out.extend(rest);
+        if out.is_empty() {
+            continue;
+        }
+        for c in &out {
+            r.clients.remove(c);
+            r.readers.forget(c);
+        }
+        let path = r.path.clone();
+        server.push(
+            &out,
+            &event("collab-closed", &path, "revision", &json!(null)),
+        );
+    }
+}
+
+/// Whether the window `client` may be in the document of the room of
+/// `path`: a game master always; a player when the note is one it sees and
+/// it may edit (`edits`) — a player who may only read has no place in the
+/// document of a note with a grant, it reads the note as every reader does.
+fn still_admitted(server: &Server, client: &str, key: &str, path: &str, edits: bool) -> bool {
+    let (account, asker, folder) = {
+        let table = lock(&server.clients);
+        match table.get(client) {
+            // A window that is not known any more is not in a room.
+            None => return false,
+            Some(c) => (
+                c.account.clone(),
+                crate::access::asker_of(c),
+                c.folder.as_ref().map(|(f, _)| f.clone()),
+            ),
+        }
+    };
+    // The game master, and whoever no veil cuts, is in any room.
+    let table = folder
+        .as_deref()
+        .is_some_and(|f| crate::access::has_table(server, f));
+    if !crate::access::veiled(&asker, table) {
+        return true;
+    }
+    let Some(veil) = crate::campaign::veil_for_key(server, key) else {
+        return true;
+    };
+    let veil = veil.view(&account);
+    let editor = asker.role == Some(crate::db::Role::Editor);
+    !veil.hides_note(path) && (!edits || veil.may_edit(path, &account) || editor)
+}
+
+/// `client` joins the room of `path` of folder `key`: a player must still
+/// see the note, asked under the room's lock — the check of the command
+/// ran before it, and the table may have changed between the two. Returns
+/// whether the window joins as a reader: one that asked to edit by a grant
+/// the table has since taken back joins as a reader, as it would have been
+/// told to.
+pub fn admitted(
+    server: &Server,
+    (client, reader): (&str, bool),
+    key: &str,
+    path: &str,
+) -> Result<bool, ContractError> {
+    // Not there for it, as a hidden note is for every door.
+    if !still_admitted(server, client, key, path, false) {
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::NotFound,
+            message: "not found".to_owned(),
+        });
+    }
+    Ok(reader || !still_admitted(server, client, key, path, true))
 }

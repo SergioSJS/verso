@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "id": "ironsworn-character",
+  "name": {
+    "pt": "Ironsworn / Starforged — Personagem",
+    "en": "Ironsworn / Starforged — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem, só as partes abertas (CC BY 4.0): nomes e ordem dos campos.",
+    "en": "A character sheet, open parts only (CC BY 4.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Ironsworn licensing (CC BY 4.0 parts)",
+      "url": "https://tomkinpress.com/blogs/news/lets-talk-about-ironsworn-licensing"
+    },
+    {
+      "label": "Datasworn",
+      "url": "https://github.com/rsek/datasworn"
+    }
+  ],
+  "profile": "ironsworn",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"table","id":"attributes","properties":["edge","heart","iron","shadow","wits"],"hideWhenEmpty":true,"headers":[{"pt":"Edge","en":"Edge"},{"pt":"Heart","en":"Heart"},{"pt":"Iron","en":"Iron"},{"pt":"Shadow","en":"Shadow"},{"pt":"Wits","en":"Wits"}],"modifier":"none","rule":true},
+    {"type":"group","id":"trackers","properties":["health","spirit","supply","momentum","impacts"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"health","properties":["health"],"label":{"pt":"Health","en":"Health"},"current":"health","max":5,"style":"boxes"},{"type":"tracker","id":"spirit","properties":["spirit"],"label":{"pt":"Spirit","en":"Spirit"},"current":"spirit","max":5,"style":"boxes"},{"type":"tracker","id":"supply","properties":["supply"],"label":{"pt":"Supply","en":"Supply"},"current":"supply","max":5,"style":"boxes"},{"type":"property","id":"momentum","properties":["momentum"],"label":{"pt":"Momentum","en":"Momentum"},"hideWhenEmpty":true},{"type":"property","id":"impacts","properties":["impacts"],"label":{"pt":"Impacts","en":"Impacts"},"hideWhenEmpty":true}]},
+    {"type":"group","id":"legacy","properties":["legacy_quests","legacy_bonds","legacy_discoveries"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"quests","properties":["legacy_quests"],"label":{"pt":"Legacy: Quests","en":"Legacy: Quests"},"hideWhenEmpty":true,"current":"legacy_quests","max":10,"style":"boxes"},{"type":"tracker","id":"bonds-track","properties":["legacy_bonds"],"label":{"pt":"Legacy: Bonds","en":"Legacy: Bonds"},"hideWhenEmpty":true,"current":"legacy_bonds","max":10,"style":"boxes"},{"type":"tracker","id":"discoveries","properties":["legacy_discoveries"],"label":{"pt":"Legacy: Discoveries","en":"Legacy: Discoveries"},"hideWhenEmpty":true,"current":"legacy_discoveries","max":10,"style":"boxes"}]},
+    {"type":"traits","id":"background","properties":["background_vows"],"label":{"pt":"Background and Vows","en":"Background and Vows"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"bonds","properties":["bonds"],"label":{"pt":"Bonds / Connections","en":"Bonds / Connections"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"assets","properties":["assets"],"label":{"pt":"Assets","en":"Assets"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"companions","properties":["companions"],"label":{"pt":"Companions","en":"Companions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"vehicles","properties":["vehicles"],"label":{"pt":"Vehicles","en":"Vehicles"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"gear","properties":["gear"],"label":{"pt":"Gear","en":"Gear"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar uma ação","en":"Roll an action"},"inputs":{}}
+  ]
+}

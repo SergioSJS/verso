@@ -218,6 +218,9 @@ impl Workspace {
         revision: Option<&str>,
     ) -> Result<String, CoreError> {
         let key = self.entry_key(relative)?;
+        // The size written, known without the stamp: a write that could not
+        // confirm its stamp must not read a note past the cap either.
+        let staged_len = staged.len();
         let (handle, stamp) = match revision {
             None => {
                 let (handle, report) = self
@@ -247,7 +250,13 @@ impl Workspace {
         };
         // The index follows what it knows, a note's text and a board's
         // links, read back once in place: notes and boards are text.
-        if is_note(&key) || is_canvas(&key) {
+        if is_note(&key)
+            && stamp.as_ref().map_or(staged_len, |s| s.len) > crate::indexing::INDEX_MOST
+        {
+            // Past the cap (`INDEX_MOST`): synced as a file, never read
+            // back and parsed here; a row of a smaller version goes.
+            self.index.remove(&key).map_err(CoreError::Index)?;
+        } else if is_note(&key) || is_canvas(&key) {
             let (bytes, read) = self.root.read(handle).map_err(CoreError::Read)?;
             if is_note(&key) {
                 let text = String::from_utf8_lossy(&bytes);

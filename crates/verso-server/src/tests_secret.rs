@@ -395,7 +395,8 @@ fn a_reader_in_a_live_note_follows_its_projection_and_who_is_there() {
             json!({ "path": "Taverna.md" }),
         )
         .await;
-        assert_eq!(theirs["ok"]["read_only"], false, "{theirs}");
+        // A reader is told so: it follows the room, it does not type.
+        assert_eq!(theirs["ok"]["read_only"], true, "{theirs}");
         assert_ne!(
             theirs["ok"]["epoch"], mine["ok"]["epoch"],
             "a reader joined the note's own document"

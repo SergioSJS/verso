@@ -14,7 +14,7 @@ await esbuild.build({
   outfile: "test/.bundles/errorKinds.test-bundle.mjs",
   logLevel: "error",
 });
-const { PHONE, caseTwin, isTransport, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
+const { REFUSALS: R, PHONE, isTableClosed, caseTwin, isTransport, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
 
 describe("The case refusal is told by its kind", () => {
   test("the contract's case_twin is a case twin, whatever its text", () => {
@@ -70,5 +70,22 @@ describe("A lost connection is not a file in the cloud", () => {
     assert.equal(isTransport({ kind: "unavailable", message: "placeholder" }), false);
     assert.equal(isTransport("x"), false);
     assert.equal(isTransport(null), false);
+  });
+});
+
+describe("A closed table is a state to wait out", () => {
+  test("the server's refusal is told by its text, and only a refusal", () => {
+    assert.equal(isTableClosed({ kind: "refused", message: "a mesa está fechada" }), true);
+    assert.equal(isTableClosed({ kind: "unavailable", message: "a mesa está fechada" }), false);
+    assert.equal(isTableClosed({ kind: "refused", message: "not a table" }), false);
+    assert.equal(isTableClosed(null), false);
+  });
+});
+
+// A refusal tells what is refused, in the window's language, not the
+// generic "that path cannot name a file" nor "only read" for a create.
+describe("The refusals worded by the right a person lacks", () => {
+  test("each of the server's sentences has a string", () => {
+    assert.deepEqual(Object.keys(R).sort(), ["you may not create files here", "you may not delete this", "you may not move this", "you may not rename this", "you may only read this folder"]);
   });
 });

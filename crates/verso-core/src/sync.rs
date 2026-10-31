@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 
 mod append;
 pub use append::{append_merge, merges_by_append, template_merge};
+pub mod remote;
 
 /// A file as one side holds it: its bytes' SHA-256 and size.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,6 +88,71 @@ pub struct State {
     /// same name another device made apart.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub made: BTreeMap<String, String>,
+    /// The cloud this folder syncs with, when it is not a UniVerso (ADR
+    /// 0104): which service and where, never a secret — those are in the
+    /// system's keychain. `server` then holds a name for it, not an
+    /// address to sign in to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cloud: Option<Cloud>,
+    /// A cloud's files as last listed: the version each had and the hash
+    /// found for it, so that a listing that shows the same version needs
+    /// no read (ADR 0104 item 8).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tokens: BTreeMap<String, remote::Token>,
+    /// Path → what the server last said this device may change there (ADR
+    /// 0113 S8), only the files it may change. The last answer holds while
+    /// offline: a file with no entry is a file the device only reads.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub access: BTreeMap<String, remote::Rights>,
+    /// Who the server says this device is at the folder (its `FolderAccess`
+    /// as JSON, ADR 0113 S8): the last answer holds while offline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat: Option<serde_json::Value>,
+}
+
+/// A cloud a folder syncs with (ADR 0104 item 6): WebDAV or S3, and where.
+/// The secret — a password, an S3 secret key — is kept apart, in the
+/// system's keychain (item 14).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Cloud {
+    /// `webdav` or `s3`.
+    pub provider: String,
+    /// WebDAV: the folder's address. S3: the endpoint's address (empty for
+    /// AWS, whose address follows from the region).
+    pub endpoint: String,
+    /// S3: the bucket.
+    #[serde(default)]
+    pub bucket: String,
+    /// S3: the prefix inside the bucket (a folder of keys); WebDAV: unused.
+    #[serde(default)]
+    pub prefix: String,
+    /// S3: the region the requests are signed for.
+    #[serde(default)]
+    pub region: String,
+    /// WebDAV: the user. S3: the access key's id.
+    #[serde(default)]
+    pub user: String,
+    /// S3: the bucket is named in the path, not the host (MinIO and most
+    /// self-hosted services).
+    #[serde(default)]
+    pub path_style: bool,
+    /// The person confirmed that a plain-HTTP address on the local network
+    /// is theirs (ADR 0104 item 6).
+    #[serde(default)]
+    pub plain_http: bool,
+    /// What the capability probe found the service can do (ADR 0104 item
+    /// 7), as the adapter's own names for them; kept so that the probe
+    /// runs when the person connects, not at every start.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caps: Vec<String>,
+    /// What deleting a file there means, found when the person connected
+    /// (item 9): `final`, `kept` or `unknown`.
+    #[serde(default)]
+    pub deletions: String,
+    /// What the checks found that the person should know, said again in
+    /// the folder's settings.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
 }
 
 /// A share revoked by its owner, as the device heard it.

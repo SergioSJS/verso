@@ -40,4 +40,4 @@ None. The briefing does not propose numbers.
 
 ## Status
 
-`[OPEN]`. Decide after the first baseline.
+`[OPEN]`. Decide after the first baseline. `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the first absolute target is fixed only for the freeze on a large vault on the iPhone, when there is a measurement; there are no other targets until then.

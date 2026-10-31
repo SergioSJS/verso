@@ -91,6 +91,24 @@ test = false
 doc = false
 bench = false
 
+# What an address under /r/ and a visitor's command may be (readlinks.rs,
+# visit.rs, http.rs; ADR 0105).
+[[bin]]
+name = "link"
+path = "fuzz_targets/link.rs"
+test = false
+doc = false
+bench = false
+
+# What a member may send the table: a message, a dice look, an image's
+# bytes, and their request's size (table.rs, table_look.rs; ADR 0107).
+[[bin]]
+name = "table"
+path = "fuzz_targets/table.rs"
+test = false
+doc = false
+bench = false
+
 # The seeds' writer (examples/seeds.rs), never a target.
 [[example]]
 name = "seeds"

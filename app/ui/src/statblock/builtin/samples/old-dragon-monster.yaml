@@ -1,0 +1,12 @@
+name: Lobo das Brumas
+tamanho: Médio
+alinhamento: Neutralidade
+habitat: Florestas frias
+qt: 2d4
+mv: 12
+mo: 7
+ca: 13
+dv: 2
+jp: 14
+atq: 1 x MORDIDA +1 (1d6)
+descricao: Uma anotação nossa, não do livro.

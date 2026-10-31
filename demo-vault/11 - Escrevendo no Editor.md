@@ -54,6 +54,8 @@ No começo de uma linha, digite `/` e escolha um bloco. Digitar filtra a lista; 
 - **Destaques**: Destaque: nota, Destaque: dica, Destaque: aviso.
 - **Inserir**: Tabela, Link interno, Embutir nota, Imagem, Link, **Data de hoje**, **Hora agora** e **Inserir template…**.
 
+**Divisória pelo teclado**: digite `---` e aperte Enter. O Verso escreve a linha vazia que a Markdown pede em volta da divisória — antes, quando o texto de cima faria dela o sublinhado de um título, e depois — e deixa o cursor embaixo, pronto para escrever; um só `⌘Z` desfaz. Fora do cursor, a linha vazia entre dois blocos aparece só como um vão fino, e na Leitura ela não soma espaço nenhum.
+
 Experimente nesta linha vazia, no modo Editar:
 
 

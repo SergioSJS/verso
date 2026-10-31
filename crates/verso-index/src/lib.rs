@@ -22,6 +22,7 @@
 //! - the index file at mode `0600` in a `0700` directory, excluded from
 //!   Time Machine.
 
+mod block_list;
 pub mod history;
 mod keys;
 mod moves;
@@ -36,6 +37,7 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OptionalExtension};
 
+pub use block_list::{BLOCKS_MOST, BlockKind, BlockList, BlockRef};
 pub use keys::{file_key, note_keys, target_key, type_key};
 pub use search::Hit;
 pub use store::{

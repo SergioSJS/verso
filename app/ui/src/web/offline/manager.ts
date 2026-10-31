@@ -60,12 +60,14 @@ const offStatus = (): SyncStatus => ({
   deletions: null,
   conflicts: [],
   refused: [],
+  cloud_only: [],
   log: [],
   last: null,
   message: null,
   problem: null,
   versions: null,
   revoked: null,
+  cloud: null,
 });
 
 /** How often a kept folder is compared with the server with nothing else

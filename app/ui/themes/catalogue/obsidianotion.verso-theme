@@ -1,0 +1,44 @@
+{
+  "verso-theme": 1,
+  "name": "Obsidianotion",
+  "mode": "both",
+  "tokensVersion": 2,
+  "inspiredBy": {
+    "theme": "Obsidianotion",
+    "author": "Diego Eis",
+    "repoUrl": "https://github.com/diegoeis/obsidianotion",
+    "license": "Unlicense"
+  },
+  "values": {
+    "light": {
+      "--paper": "#ffffff",
+      "--paper-2": "#f9f8f7",
+      "--hair": "#e6e6e6",
+      "--ink": "#31302e",
+      "--ink-2": "#615d59",
+      "--seal": "#0075de",
+      "--brass-ink": "#31302e"
+    },
+    "dark": {
+      "--paper": "#1f1f1f",
+      "--paper-2": "#191919",
+      "--hair": "#2c2c2c",
+      "--ink": "#e6e6e4",
+      "--ink-2": "#9b9a97",
+      "--seal": "#4dabf7",
+      "--brass-ink": "#e6e6e4"
+    },
+    "--heading-font": "system",
+    "--book": "system",
+    "font-size": 16,
+    "tag-style": "pill",
+    "radius": "soft",
+    "heading-scale": "large",
+    "heading-weight": "bold",
+    "line-height": "snug",
+    "line-width": "narrow",
+    "blockquote-style": "bar",
+    "callout-style": "outlined",
+    "hr-style": "line"
+  }
+}

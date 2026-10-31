@@ -3,97 +3,17 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §14.3, §10.3
 - Status in the briefing: `DECIDED`
-- Revisions: 2026-10-13 — the benchmark measures a time past its baseline
-  again, up to twice, and keeps the lowest median before it counts it as a
-  regression: on 2026-10-13 the CI runner's noise reached 1.7× on one
-  operation (watch_batch_walk, 10 000 notes; green on the rerun, flat on a
-  Mac), and the maintainer: *"Se é normal, não é falha"*. The tolerance
-  stays 1.5×; the index size and memory are not re-measured;
-  2026-09-21 — guardrails split into "workspace" and "feature" ones;
-  lines for checking WASM, generated types and `std::fs` added; atomic write
-  requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10);
-  2026-09-22 — where each operating system runs, after the cost incident;
-  2026-09-22 — the path confinement row reworded after the symlink decision
-  ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — how the feature 2 code
-  answers the atomic write requirements, recorded as provisional, from two
-  readings of that code; 2026-09-22 — how the feature 3 code meets the FTS5
-  guardrail, recorded as provisional, and extended after the reading of that
-  code with the control characters and the breadth of the test;
-  2026-09-23 — an npm license gate added at the maintainer's request, and the
-  generated-types check moved into the Linux Rust job so that a pull request
-  builds the Tauri tree's dependencies once; the advisory and license exceptions of the Tauri
-  tree ratified (`docs/review/phase-2.md` §6, items 7 and 13);
-  2026-09-23 — where each guardrail runs, by the maintainer's decision: one
-  Linux job per pull request, clippy and the tests on macOS and the fuzzing on
-  `main` only, the apps packaged only for a version tag. 2026-09-24 — the
-  guardrails run locally before a push, by two scripts, at the maintainer's
-  request. 2026-09-24 — the release workflow exists, with the development
-  flow of [0051](0051-development-flow-and-releases.md). 2026-09-29 — why a
-  guardrail worked around is the failure that matters, from two cases on
-  branch `fix/backlog-2-issues`; a subprocess doing the work a list denies
-  counts as the denied call; two exceptions to the `std::fs` list declared
-  for the maintainer's ratification, at the maintainer's request in session
-  to make the risk of bypassing a guardrail clear in the documents
-  (Decision, "Working around a guardrail"). 2026-09-29 — the app keeps a
-  diagnostic log, and `src/log.rs` is the fourth declared `std::fs` exception
-  (Decision, "A fourth exception"). 2026-09-29 — the two exceptions
-  ratified by the maintainer, in session ("Ratifique o que precisar"), and a
-  third one declared and ratified the same day, `std::fs::read_dir` in
-  `verso-core`; the contradiction about the command line's link resolved, the
-  shell's link now made with `std::fs` inside `src/update.rs` and only the
-  administrator prompt left as a subprocess (the same section). 2026-10-01 —
-  on the critical review [`docs/review/board.md`](../review/board.md), §6
-  items 9 to 12, the maintainer accepting the author's recommendations: the
-  canvas reader of `verso-core` fuzzed beside the dialect's parser; the
-  fourth exception, `src/log.rs`, ratified, and the log a decision; `0BSD`
-  on the npm allowlist and `fuzzy` taken by hand as MIT; the window's unit
-  tests in `scripts/check.sh` and in the pull request's job; the demo vault's
-  check named among the guardrails. The canvas target seen failing the same
-  day, as a feature guardrail must be: with a planted fault — a backslash in
-  a key written unescaped — it stopped on the versioned seeds alone, "what is
-  written parses again: expected ':'"; the code was put back.
-  2026-10-07 — a source file size limit, 1500 lines, added as a workspace
-  guardrail at the maintainer's request ([0067](0067-source-files-stay-small.md)).
-  2026-10-08 — the Windows port ([0069](0069-windows-port.md)): a third
-  local script, `scripts/check-windows.sh`, runs clippy and the tests on a
-  Windows machine over SSH, required when the diff touches platform code;
-  the window's end-to-end tests run in Chromium beside WebKit; the
-  `std::fs` list names Windows' symlink calls, and the entries of each OS
-  carry `allow-invalid` where the other OS cannot resolve them. The same
-  day, with the port's atomic write, `main` gains a Windows job — clippy
-  and the tests on a pinned `windows-2025` image, the runner's line-ending
-  conversion turned off before the checkout.
-  2026-10-12 — the provisional records of 2026-09-22 ratified by the
-  maintainer as built and tested, answering the ADR audit in session:
-  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
-  needs it; the ADRs are approved); a dated note beside each.
-  The sync-client test stays open as a manual check of the maintainer
-  and no longer gates anything.
-  2026-10-13 — the feature guardrails of
-  [0083](0083-security-hardening-of-universo.md), the security hardening
-  of UniVerso, each entering with its item and seen failing first: the
-  server's tests of its items 1 to 10, 15 and 17;
-  `scripts/check-npm-audit.mjs`, which holds the npm tree's advisories to
-  `deny.toml`'s policy (an exception with a reason, a link and an expiry,
-  in `app/ui/audit-exceptions.json`), in the pull request's Linux job and
-  in `scripts/check.sh`; the backup script's test in
-  `scripts/check-linux.sh`; `scripts/check-server-image.sh`, which starts
-  the unit and the read-only image; the server's inputs fuzzed on `main`
-  beside the dialect's and the canvas's — seven `cargo-fuzz` targets in
-  `crates/verso-server/fuzz`, 60 s each with `-O`, their seeds versioned
-  per target, each input they found kept as a test (item 14, d5ea899 and
-  c1bc4cc; seen failing first with a target over a panicking stub,
-  34474a0); and the sanitizer's hostile-HTML suite, its cases shared in
-  `app/ui/test/sanitize-cases.mjs`, run in node by `npm test` and in
-  WebKit and Chromium by `npm run e2e` (item 16, 1e25bcf; seen failing
-  first with a wrong assertion in both browsers).
-  2026-10-15 — one exception to `unsafe_code = "forbid"`, the maintainer's
-  decision in session (*"A e B juntos"*): the native clipping of an
-  embedded page ([0056](0056-embedded-web-pages.md), revised the same
-  day), `unsafe` confined to `app/src-tauri/src/web_clip/macos.rs` and
-  `windows.rs`, and a new workspace guardrail that holds it there,
-  `scripts/check-unsafe.mjs` (Decision, "One exception to
-  `unsafe_code = "forbid"`").
+- Revisions:
+  - 2026-09-21: Guardrails split into workspace (Phase 0) and feature groups; checks for WASM, generated bindings and `std::fs` added.
+  - 2026-09-22: Path confinement and atomic write requirements finalized; Linux PR job layout decided for CI cost efficiency.
+  - 2026-09-23: npm license check and generated types check added.
+  - 2026-09-29: `std::fs` exceptions declared (`src/log.rs`, `sidecar.rs`, `src/update.rs`).
+  - 2026-10-01: Canvas fuzz target and demo vault check added as guardrails.
+  - 2026-10-07: Source file size limit of 1500 lines added as workspace guardrail ([0067](0067-source-files-stay-small.md)).
+  - 2026-10-08: Windows port CI and SSH test script added ([0069](0069-windows-port.md)).
+  - 2026-10-13: Security feature guardrails added ([0083](0083-security-hardening-of-universo.md): npm audit, server fuzz targets, sanitization suite); benchmark noise tolerance set to 1.5×.
+  - 2026-10-15: Single exception to `unsafe_code = "forbid"` added for native webview clipping in `web_clip/` ([0056](0056-embedded-web-pages.md), `scripts/check-unsafe.mjs`).
+  - 2026-10-24: Docs mirror check scoped to public documents (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`) ([0008](0008-documentation-language.md)).
 
 ## Context
 
@@ -118,7 +38,7 @@ it. The two groups are separated below.
 | clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down |
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (declared exceptions: index file in `verso-index`, config in `verso-core`) | access to the open folder outside `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), rule 5) |
 | `cargo-deny`: license allowlist compatible with the chosen license; advisories denied | incompatible or vulnerable dependency |
-| Documentation mirror: each canonical `.md` has a twin in `docs/pt-BR/` with the same heading structure, and vice versa | a document changed in one language only ([0008](0008-documentation-language.md)) |
+| Documentation mirror & link check (`scripts/check-docs-mirror.sh`): public community docs (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`) have a twin in `docs/pt-BR/` with identical heading structure, no orphaned internal docs remain in `docs/pt-BR/`, and all markdown links resolve | a public document changed in one language only or broken links ([0008](0008-documentation-language.md)) |
 | Source files under 1500 lines, but by a recorded exception that only shrinks (`scripts/check-sizes.mjs`) | a file too big to read whole, review or explain ([0067](0067-source-files-stay-small.md)) |
 
 ### Feature guardrails — they go in the same PR as the feature they protect, never later

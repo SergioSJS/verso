@@ -5,6 +5,7 @@
 import mermaid from "mermaid";
 
 import { note } from "./report";
+import { t } from "./strings";
 
 let initializedTheme: string | null = null;
 let idCounter = 0;
@@ -82,7 +83,7 @@ export async function renderMermaid(
     const parser = new DOMParser();
     const doc = parser.parseFromString(svg, "image/svg+xml");
     const svgEl = doc.querySelector("svg");
-    if (!svgEl) throw new Error("Falha ao gerar SVG do diagrama");
+    if (!svgEl) throw new Error(t.svgFailed);
 
     // Remove any unexpected script tags or inline event handlers (defense-in-depth)
     for (const s of svgEl.querySelectorAll("script")) s.remove();
@@ -111,7 +112,7 @@ export async function renderMermaid(
 
     const title = document.createElement("div");
     title.className = "mermaid-error-title";
-    title.textContent = "Diagrama Mermaid com erro de sintaxe:";
+    title.textContent = t.mermaidSyntaxError;
 
     const pre = document.createElement("pre");
     pre.className = "mermaid-error-msg";

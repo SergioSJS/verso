@@ -346,3 +346,40 @@ fn a_file_that_is_not_json_is_kept_as_it_is() {
         "não é json"
     );
 }
+
+#[test]
+fn a_suggested_theme_is_kept_as_an_object_and_refused_when_it_is_not_one() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    let theme = |text: &str| FolderSettings {
+        recommended_theme: Some(text.to_owned()),
+        ..FolderSettings::default()
+    };
+    for bad in [
+        "[1]",
+        "\"x\"",
+        "not json",
+        &format!("{{\"a\":\"{}\"}}", "x".repeat(17 * 1024)),
+    ] {
+        assert!(matches!(
+            ws.set_folder_settings(&theme(bad), None),
+            Err(CoreError::FolderSettings(_))
+        ));
+    }
+    assert!(!has(dir.path(), ".verso"));
+    let first = ws
+        .set_folder_settings(&theme("{\"verso-theme\":1,\"name\":\"Pergaminho\"}"), None)
+        .unwrap();
+    let text = fs::read_to_string(dir.path().join(FILE)).unwrap();
+    assert!(text.contains("\"recommendedTheme\": {"), "{text}");
+    let read = ws.folder_settings();
+    let kept: serde_json::Value =
+        serde_json::from_str(read.settings.recommended_theme.as_deref().unwrap()).unwrap();
+    assert_eq!(kept["name"], "Pergaminho");
+    // An empty text takes the suggestion away, every other key kept.
+    let gone = ws
+        .set_folder_settings(&theme(""), first.revision.as_deref())
+        .unwrap();
+    assert_eq!(gone.settings.recommended_theme, None);
+}

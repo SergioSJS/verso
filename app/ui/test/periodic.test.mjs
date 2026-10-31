@@ -123,7 +123,7 @@ describe("Templates: the tags of item 6", () => {
   });
 });
 
-const none = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
+const none = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null, oracle: null, recommended_theme: null };
 const layer = (periodic) => ({ exists: true, problem: null, revision: "1", settings: { ...none, periodic }, warnings: [] });
 
 describe("Which settings apply (item 4)", () => {

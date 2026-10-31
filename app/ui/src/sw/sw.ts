@@ -22,7 +22,9 @@
 //  - a new build of the window is a new `VERSION` here, so a new worker, whose
 //    activation deletes the old build's caches: the code kept is always one
 //    build's, the server's.
-// The build (build-sw.mjs) fills `__VERSION__`, `__CORE__` and `__REST__`.
+// The build (build-sw.mjs) fills `__VERSION__` (the version and the build's
+// own hash: a new build is a new cache even under the same version),
+// `__CORE__` and `__REST__`.
 
 import { DB_NAME } from "../web/offline/store";
 

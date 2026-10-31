@@ -9,6 +9,7 @@
 //! `verso://`, the server under `/f/`; what each answers is decided here,
 //! apart from the transport, so the rules are tested directly.
 
+use verso_contract::ContractError;
 use verso_contract::ErrorKind;
 use verso_core::Workspace;
 
@@ -19,18 +20,26 @@ pub struct Served {
     pub body: Vec<u8>,
 }
 
-/// `%XX` sequences of a URL path back to bytes, then to text.
+/// `%XX` sequences of a URL path back to bytes, then to text. Works on
+/// bytes only: a stray `%` before a multi-byte character is kept as it is.
 #[must_use]
 pub fn percent_decode(s: &str) -> String {
+    fn hex(b: u8) -> Option<u8> {
+        char::from(b)
+            .to_digit(16)
+            .and_then(|d| u8::try_from(d).ok())
+    }
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%'
-            && i + 2 < bytes.len()
-            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
+            && let (Some(h), Some(l)) = (
+                bytes.get(i + 1).copied().and_then(hex),
+                bytes.get(i + 2).copied().and_then(hex),
+            )
         {
-            out.push(v);
+            out.push(h * 16 + l);
             i += 3;
             continue;
         }
@@ -179,6 +188,41 @@ pub fn serve(
     }
 }
 
+/// Serve bytes read elsewhere — an attachment beside a file opened without
+/// a folder (ADR 0114 item 14) — under the same policy as [`serve`]: a
+/// note's name is refused, a failed read answered as a refusal.
+pub fn serve_bytes(
+    bytes: Result<Vec<u8>, ContractError>,
+    allowed: bool,
+    relative: &str,
+    policy: &Policy<'_>,
+) -> Served {
+    let mut headers = base_headers(policy);
+    if !allowed {
+        return refuse(403, "not a view of this app", headers);
+    }
+    if relative.to_lowercase().ends_with(".md") {
+        return refuse(403, "a note is read through read_note", headers);
+    }
+    match bytes {
+        Ok(body) => {
+            headers.push(("Content-Type", mime_of(relative).to_owned()));
+            Served {
+                status: 200,
+                headers,
+                body,
+            }
+        }
+        Err(e) => {
+            let status = match e.kind {
+                ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
+                _ => 500,
+            };
+            refuse(status, &e.message, headers)
+        }
+    }
+}
+
 /// A file a host sends in pieces, admitted as [`serve`] admits it: the
 /// answer's headers, its type among them, and the file's length and time
 /// before a byte of it is read, which each piece is read against
@@ -229,4 +273,32 @@ pub fn placeholder_of(ws: &mut Workspace, relative: &str) -> Option<verso_core::
         return None;
     }
     ws.placeholder(relative).ok().flatten()
+}
+
+#[cfg(test)]
+mod percent_tests {
+    use super::percent_decode;
+
+    #[test]
+    fn a_stray_percent_before_a_multibyte_character_does_not_panic() {
+        assert_eq!(percent_decode("100%aç.md"), "100%aç.md");
+        assert_eq!(percent_decode("%ç"), "%ç");
+        assert_eq!(percent_decode("a%2"), "a%2");
+        assert_eq!(percent_decode("a%41%c3%a7"), "aAç");
+        assert_eq!(percent_decode("%é%"), "%é%");
+    }
+
+    #[test]
+    fn every_short_string_of_a_hostile_alphabet_decodes() {
+        let alphabet = ["%", "a", "4", "ç", "é", "\u{1F600}", "F", "g"];
+        let mut stack = vec![String::new()];
+        while let Some(s) = stack.pop() {
+            let _ = percent_decode(&s);
+            if s.chars().count() < 5 {
+                for a in alphabet {
+                    stack.push(format!("{s}{a}"));
+                }
+            }
+        }
+    }
 }

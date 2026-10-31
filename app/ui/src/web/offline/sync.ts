@@ -216,12 +216,14 @@ export class Syncer {
       deletions: null,
       conflicts: [],
       refused: [],
+      cloud_only: [],
       log: [],
       last: null,
       message: null,
       problem: null,
       versions: null,
       revoked: null,
+      cloud: null,
     };
   }
 

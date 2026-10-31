@@ -1,0 +1,72 @@
+[
+  {
+    "name": "CodeMirror",
+    "pkg": "@codemirror/view",
+    "version": "6.43.13",
+    "license": "MIT",
+    "link": "https://codemirror.net"
+  },
+  {
+    "name": "Excalidraw",
+    "pkg": "@excalidraw/excalidraw",
+    "version": "0.18.0-4f68076",
+    "license": "MIT",
+    "link": "https://excalidraw.com"
+  },
+  {
+    "name": "Yjs",
+    "pkg": "yjs",
+    "version": "13.6.33",
+    "license": "MIT",
+    "link": "https://yjs.dev"
+  },
+  {
+    "name": "PDF.js",
+    "pkg": "pdfjs-dist",
+    "version": "6.3.289",
+    "license": "Apache-2.0",
+    "link": "https://mozilla.github.io/pdf.js/"
+  },
+  {
+    "name": "KaTeX",
+    "pkg": "katex",
+    "version": "0.18.7",
+    "license": "MIT",
+    "link": "https://katex.org"
+  },
+  {
+    "name": "MapLibre GL JS",
+    "pkg": "maplibre-gl",
+    "version": "6.11.2",
+    "license": "BSD-3-Clause",
+    "link": "https://maplibre.org"
+  },
+  {
+    "name": "Mermaid",
+    "pkg": "mermaid",
+    "version": "12.2.0",
+    "license": "MIT",
+    "link": "https://mermaid.js.org"
+  },
+  {
+    "name": "React",
+    "pkg": "react",
+    "version": "19.3.0",
+    "license": "MIT",
+    "link": "https://react.dev"
+  },
+  {
+    "name": "three.js",
+    "pkg": "three",
+    "version": "0.186.1",
+    "license": "MIT",
+    "link": "https://threejs.org"
+  },
+  {
+    "name": "cannon-es",
+    "pkg": "cannon-es",
+    "version": "0.20.0",
+    "license": "MIT",
+    "link": "https://pmndrs.github.io/cannon-es/"
+  }
+]

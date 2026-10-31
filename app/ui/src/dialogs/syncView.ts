@@ -15,13 +15,16 @@ import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, reachStrings } from "../reach";
+import { type DownWords, placeholderBlock, ranNote, rowNote } from "./syncPlaceholders";
 import { liveHolder, openNote } from "../layout/spaces";
 import { roomSide, syncedSessions } from "../collab";
 import { writeLive } from "../roomWrites";
 import { liveLine, liveWords } from "../coeditWords";
+import { currentFolder } from "../folder";
 import { liveTogether, setLiveTogether } from "../settings";
 import { madeBy } from "../syncWho";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
+import { aboutCloud, cloudStrings, cloudWords, providerName } from "./syncCloud";
 
 const pt = {
   allGood: "Tudo em dia.",
@@ -85,6 +88,7 @@ const pt = {
     name_invalid: (n: number) => (n === 1 ? "Um arquivo com um nome que nem todo sistema aceita" : `${n} arquivos com nomes que nem todo sistema aceita`),
     name_taken: (n: number) => (n === 1 ? "Um arquivo com o nome de outro, só mudando maiúscula ou acento" : `${n} arquivos com o nome de outros, só mudando maiúscula ou acento`),
     case_twin_there: (n: number) => (n === 1 ? "Dois nomes que só diferem em maiúsculas e minúsculas no servidor; este computador guarda um" : `${n} arquivos do servidor com nomes que só diferem de outros em maiúsculas e minúsculas; este computador guarda um de cada`),
+    unshared: (n: number) => (n === 1 ? "Um arquivo que não é mais compartilhado com você; a sua cópia fica aqui" : `${n} arquivos que não são mais compartilhados com você; as suas cópias ficam aqui`),
     reader: (n: number) => (n === 1 ? "Um arquivo mudado aqui, numa pasta que você só lê" : `${n} arquivos mudados aqui, numa pasta que você só lê`),
     quota: (n: number) => (n === 1 ? "Um arquivo que não cabe na cota da pasta" : `${n} arquivos que não cabem na cota da pasta`),
     placeholder: (n: number) => (n === 1 ? "Um arquivo que ainda não está neste computador" : `${n} arquivos que ainda não estão neste computador`),
@@ -96,13 +100,30 @@ const pt = {
     name_invalid: "Renomeie: tire o ponto ou o espaço do fim, os sinais < > : \" | ? * \\ e nomes como CON. Depois eles sincronizam sozinhos.",
     name_taken: "Renomeie um dos dois: o Windows e o macOS não guardam dois nomes assim na mesma pasta.",
     case_twin_there: "Num Mac ou no Windows os dois seriam um arquivo só. Renomeie um deles no servidor (no navegador ou em outro aparelho) e os dois chegam aqui.",
+    unshared: "A sua cópia fica só neste computador e não vai ao servidor. Peça a quem tem a pasta para compartilhar de novo, se for o caso.",
     reader: "Eles ficam só neste computador. Peça para editar a quem tem a pasta, se for o caso.",
     quota: "Libere espaço na pasta, ou peça ao admin do servidor para aumentar a cota.",
-    placeholder: "Baixe-os do iCloud ou do OneDrive para que sincronizem.",
+    placeholder: "Baixe-os para que sincronizem: o botão abaixo traz os que o Verso consegue baixar.",
     too_large: "Arquivos assim não sincronizam.",
     changed: "Vão de novo na próxima passada.",
     failed: "O log do app (Ajuda › Relatar problema) diz o motivo de cada um.",
   } as Record<string, string>,
+  cloudOnly: (n: number) => (n === 1 ? "1 arquivo está só na nuvem; o servidor tem a cópia." : `${n} arquivos estão só na nuvem; o servidor tem a cópia.`),
+  down: {
+    button: (n, size) => `Baixar ${n} ${n === 1 ? "arquivo" : "arquivos"}${size ? ` (${size})` : ""}`,
+    progress: (done, n) => `Baixando ${done} de ${n}…`,
+    stop: "Parar",
+    stopping: "Parando depois deste arquivo…",
+    done: (n) => (n === 1 ? "Um arquivo baixado. Ele sincroniza agora." : `${n} arquivos baixados. Eles sincronizam agora.`),
+    partial: (ok, bad) => `${ok} ${ok === 1 ? "arquivo baixado" : "arquivos baixados"}; ${bad} não ${bad === 1 ? "pôde" : "puderam"} ser baixado${bad === 1 ? "" : "s"}. O motivo de cada um está na lista.`,
+    failedAll: (bad) => `Nenhum arquivo foi baixado: ${bad === 1 ? "o arquivo falhou" : `os ${bad} arquivos falharam`}. O motivo está na lista.`,
+    stopped: (done, n) => `Parado: ${done} de ${n} baixados. Os outros continuam na lista.`,
+    noRoom: (need, free) => `Não há espaço no disco: baixar isso pede ${need} (com uma folga) e há ${free} livres. Libere espaço e tente de novo.`,
+    unknownSpace: "Não deu para saber o espaço livre no disco; nada foi baixado.",
+    skipped: "Não havia o que baixar: o arquivo já não está só na nuvem. A próxima sincronização o confere.",
+    oldForm: "Na forma antiga do iCloud (.nome.icloud): o Verso não consegue baixar este. Baixe-o pelo Finder.",
+    unavailable: "O iCloud ou o OneDrive não entregou o conteúdo (sem conexão?). Tente de novo.",
+  } as DownWords,
   history: "Atividade recente",
   historyEmpty: "Nada cruzou ainda.",
   what: {
@@ -177,6 +198,7 @@ const en: typeof pt = {
     name_invalid: (n) => (n === 1 ? "A file whose name not every system keeps" : `${n} files whose names not every system keeps`),
     name_taken: (n) => (n === 1 ? "A file named as another but for its case or accents" : `${n} files named as others but for their case or accents`),
     case_twin_there: (n) => (n === 1 ? "Two names that differ only in case on the server; this computer keeps one" : `${n} files on the server whose names differ from others only in case; this computer keeps one of each`),
+    unshared: (n) => (n === 1 ? "A file that is no longer shared with you; your copy stays here" : `${n} files that are no longer shared with you; your copies stay here`),
     reader: (n) => (n === 1 ? "A file changed here, in a folder you only read" : `${n} files changed here, in a folder you only read`),
     quota: (n) => (n === 1 ? "A file that does not fit the folder's quota" : `${n} files that do not fit the folder's quota`),
     placeholder: (n) => (n === 1 ? "A file not on this computer yet" : `${n} files not on this computer yet`),
@@ -188,12 +210,29 @@ const en: typeof pt = {
     name_invalid: "Rename them: no trailing dot or space, none of < > : \" | ? * \\, and no names such as CON. Then they sync on their own.",
     name_taken: "Rename one of the two: Windows and macOS do not keep two such names in one folder.",
     case_twin_there: "On a Mac or Windows the two would be one file. Rename one of them on the server (in the browser or on another device) and both come here.",
+    unshared: "Your copy stays on this computer and does not go to the server. Ask whoever owns the folder to share it again, if you should.",
     reader: "They stay on this computer. Ask the folder's owner to let you edit, if you should.",
     quota: "Free some space in the folder, or ask the server's admin for a larger quota.",
-    placeholder: "Download them from iCloud or OneDrive so that they sync.",
+    placeholder: "Download them so that they sync: the button below brings down the ones Verso can.",
     too_large: "Files like these do not sync.",
     changed: "They go again on the next pass.",
     failed: "The app's log (Help › Report a problem) says why for each one.",
+  },
+  cloudOnly: (n) => (n === 1 ? "1 file is only in the cloud; the server has it." : `${n} files are only in the cloud; the server has them.`),
+  down: {
+    button: (n, size) => `Download ${n} ${n === 1 ? "file" : "files"}${size ? ` (${size})` : ""}`,
+    progress: (done, n) => `Downloading ${done} of ${n}…`,
+    stop: "Stop",
+    stopping: "Stopping after this file…",
+    done: (n) => (n === 1 ? "One file downloaded. It syncs now." : `${n} files downloaded. They sync now.`),
+    partial: (ok, bad) => `${ok} ${ok === 1 ? "file" : "files"} downloaded; ${bad} could not be. The reason for each is in the list.`,
+    failedAll: (bad) => `No file was downloaded: ${bad === 1 ? "the file failed" : `all ${bad} files failed`}. The reason is in the list.`,
+    stopped: (done, n) => `Stopped: ${done} of ${n} downloaded. The rest stay in the list.`,
+    noRoom: (need, free) => `Not enough room on the disk: downloading this takes ${need} (with some margin) and ${free} are free. Free some space and try again.`,
+    unknownSpace: "Could not tell how much space the disk has free; nothing was downloaded.",
+    skipped: "There was nothing to download: the file is no longer only in the cloud. The next sync checks it.",
+    oldForm: "In iCloud's older form (.name.icloud): Verso cannot download this one. Download it from Finder.",
+    unavailable: "iCloud or OneDrive did not give the content (no connection?). Try again.",
   },
   history: "Recent activity",
   historyEmpty: "Nothing has crossed yet.",
@@ -209,8 +248,15 @@ const en: typeof pt = {
   },
 };
 
-function words(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+export type Words = typeof pt;
+
+/** The folder drawn now syncs with a cloud, not a UniVerso (ADR 0104):
+ *  the words that name the server say the cloud instead. */
+let cloudMode = false;
+
+function words(): Words {
+  const base = document.documentElement.lang.startsWith("pt") ? pt : en;
+  return cloudMode ? cloudWords(base) : base;
 }
 
 function locale(): string {
@@ -248,6 +294,7 @@ function headline(st: SyncStatus, waiting: number): { text: string; tone: "ok" |
   if (st.state === "paused" && st.deletions) return { text: s.stoppedBefore(st.deletions), tone: "attention" };
   if (st.state === "paused") return { text: s.paused, tone: "quiet" };
   // The server, not the network, did not answer: named, and why it may be.
+  if (st.state === "offline" && st.problem === "unreachable" && st.cloud) return { text: `${cloudStrings().unreachable(st.cloud.label)} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline" && st.problem === "unreachable") return { text: `${reachStrings().unreachable(addressOf(st.server))} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline") return { text: s.offline, tone: "quiet" };
   if (st.state === "starting") return { text: s.connecting, tone: "busy" };
@@ -271,6 +318,7 @@ function capitalized(text: string): string {
 /** Draw the section for a folder that syncs. `openServers` opens the
  *  Servers section, where a computer signs in again. */
 export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void, own?: { turnOff: boolean }): void {
+  cloudMode = Boolean(st.cloud);
   const s = words();
   // Conflicts by the note they are of; files left out by why.
   const byNote = new Map<string, string[]>();
@@ -288,7 +336,11 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   const sentence = h("p", "sync-sentence", said.text);
   sentence.dataset["tone"] = said.tone;
   sentence.setAttribute("role", "status");
-  const meta = [s.where(st.folder_name || st.folder, st.server.replace(/^https?:\/\//, "")), st.role ? s.role(st.role) : "", st.last ? s.last(ago(st.last)) : ""]
+  const meta = (
+    st.cloud
+      ? [`${providerName(st.cloud.provider)} · ${st.cloud.label}`, st.last ? s.last(ago(st.last)) : ""]
+      : [s.where(st.folder_name || st.folder, st.server.replace(/^https?:\/\//, "")), st.role ? s.role(st.role) : "", st.last ? s.last(ago(st.last)) : ""]
+  )
     .filter(Boolean)
     .join(" · ");
   const metaLine = h("p", "sync-meta", meta);
@@ -323,7 +375,9 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   }
   top.append(sentence, metaLine);
   if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
-  top.append(actions, togetherRow(refresh));
+  // A cloud has no rooms: the notes never join simultaneous editing.
+  top.append(actions);
+  if (!st.cloud) top.append(togetherRow(refresh));
 
   // 2. What needs the person, or the calm that nothing does.
   const needs = h("section", "sync-needs");
@@ -376,11 +430,26 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
         });
         li.append(btn);
       }
+      if (reason === "placeholder") {
+        const note = rowNote(st.key, f.path, s.down);
+        if (note) nameSpan.append(h("span", "sync-file-why", note));
+      }
       if (reason === "failed" && f.message) li.title = f.message;
       list.append(li);
     }
     item.append(h("h4", "sync-item-title", title), h("p", "sync-item-why", s.reasonDo[reason] ?? s.reasonDo["failed"]!), list);
+    // Placeholders sync never sent come down on a click (ADR 0043).
+    if (reason === "placeholder") item.append(placeholderBlock(st.key, files, s.down, refresh));
     needs.append(item);
+  }
+  // Every file came down: the run's outcome is still said once.
+  const ran = byReason.has("placeholder") ? null : ranNote(st.key, s.down);
+  if (ran) needs.append(ran);
+  // Evicted files the server has: nothing is asked, said quietly (ADR 0043).
+  if (st.cloud_only.length > 0) {
+    const quiet = h("p", "sync-quiet", s.cloudOnly(st.cloud_only.length));
+    quiet.setAttribute("role", "note");
+    needs.append(quiet);
   }
 
   // 3. What happened, folded and last: history, not a task.
@@ -395,7 +464,8 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
     history.append(ol);
   }
 
-  box.replaceChildren(top, needs, history);
+  const about = aboutCloud(st);
+  box.replaceChildren(...[top, needs, about, history].filter((n): n is HTMLElement => n !== null));
 }
 
 /** The person's setting for this folder (ADR 0082 item 15): its notes
@@ -408,6 +478,8 @@ function togetherRow(refresh: Refresh): HTMLElement {
   box.checked = liveTogether();
   box.addEventListener("change", () => {
     setLiveTogether(box.checked);
+    // Only the folder's key and the new value reach the log.
+    void commands.logWrite("INFO", `live editing turned ${box.checked ? "on" : "off"} for folder ${currentFolder}`).catch(() => undefined);
     void refresh().then(() => dispatchEvent(new Event("verso:live-together")));
   });
   const words = h("span", "sync-together-words");
