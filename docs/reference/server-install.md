@@ -343,6 +343,7 @@ docker run -d --name universo --restart unless-stopped \
   -p 7340:7340 \
   --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
   --security-opt no-new-privileges:true \
+  --memory 768m \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_ADMIN_EMAIL=you@example.com \
@@ -430,6 +431,14 @@ built), by the maintainer's decision of 2026-10-16
 Plain HTTP on the home network is fine; anyone on that network can read
 what crosses it. For a proxy that alone should reach the port, change the
 line to `"127.0.0.1:7340:7340"`; HTTPS (section 8) is optional and later.
+
+The compose file limits the container's memory to 768 MB (`mem_limit: 768m`;
+`--memory 768m` in `docker run`), which suits a machine of 1 GB (ADR 0075,
+Amendment 2026-10-31). A note of 60 MB took a 1 GB server down by running it
+out of memory on 2026-10-29; with the limit, running out kills the container,
+which restarts (`restart: unless-stopped`), and not the host. On a larger
+machine raise it to about three quarters of the memory. The systemd package
+is not a container and has no such limit of its own.
 
 The compose file keeps the container's log to three files of 10 MB at most
 (`logging:` with Docker's `json-file` driver, `max-size: "10m"`,
@@ -608,6 +617,7 @@ value counts as not set.
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
+| `VERSO_TRASH_MAX` | `1GB` | the most a folder's trash may hold (a size such as `500MB` or `2GB`; `0` or `none` for no cap). Past it the oldest items go first, the versions a device's write replaced included, whatever their age; nothing outside `.trash/` is ever touched ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md), decided 2026-10-31) |
 | `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
 | `VERSO_HISTORY_DAYS` | 365 | how many days a folder's version history keeps versions of its text files (notes, boards, bases, `.txt`, `.json`, `.csv`); `0` keeps them with no limit, 36500 at most. Every version is kept for a day, one an hour for 30 days, one a day after that; a file's newest version is never thinned away. The history lives in `history.sqlite` of the data directory, never in the folder; the console's folder page sets each folder's days and shows its size, which is not counted against a quota — when a folder's history alone passes its quota its oldest versions go early ([ADR 0091](../adr/0091-version-history.md)) |
 | `VERSO_AUDIT_DAYS` | 365 | how many days the audit log keeps a row (sign-ins, sessions, tokens, invitations, grants, shares, the trash's actions, with the address); `0` keeps them forever, 36500 at most. A sweep at start and once a day deletes older rows, by time alone: no page or command deletes a row. The console's overview says the retention ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |

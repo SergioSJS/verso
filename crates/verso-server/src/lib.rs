@@ -83,6 +83,7 @@ pub mod twins;
 pub mod update;
 pub mod visit;
 pub mod writers;
+pub mod wrong_host;
 mod yjs_bounds;
 
 use std::sync::Arc;

@@ -63,6 +63,10 @@ pub struct Config {
     /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
     /// 0 for ever.
     pub trash_days: u32,
+    /// The most a folder's bin may hold, in bytes (`VERSO_TRASH_MAX`, ADR
+    /// 0080, decided 2026-10-31): 1 GiB when unset, `0` or `none` for no
+    /// cap. Past it the oldest entries go first.
+    pub trash_max: Option<u64>,
     /// How many days a folder's version history keeps versions unless the
     /// console says otherwise (`VERSO_HISTORY_DAYS`, ADR 0091 item 3): 365
     /// when unset, 0 for no limit.
@@ -92,6 +96,28 @@ fn days(env: &dyn Env, name: &str, default: u32) -> Result<u32, ConfigError> {
         })
         .transpose()
         .map(|d| d.unwrap_or(default))
+}
+
+/// The size cap of a folder's bin when `VERSO_TRASH_MAX` is not set: 1 GiB.
+pub const DEFAULT_TRASH_MAX: u64 = 1 << 30;
+
+/// `VERSO_TRASH_MAX`: a size such as 500MB or 2GB; `0` or `none` for no cap.
+fn trash_max(env: &dyn Env) -> Result<Option<u64>, ConfigError> {
+    let Some(v) = value(env, "VERSO_TRASH_MAX")? else {
+        return Ok(Some(DEFAULT_TRASH_MAX));
+    };
+    let t = v.trim();
+    if t == "0" || t.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+    size(t)
+        .and_then(|b| u64::try_from(b).ok())
+        .map(Some)
+        .ok_or_else(|| {
+            ConfigError(format!(
+                "VERSO_TRASH_MAX: a size such as 500MB or 2GB, 0 or none for no cap, not {v}"
+            ))
+        })
 }
 
 /// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
@@ -270,6 +296,7 @@ impl Config {
                 })
                 .transpose()?,
             trash_days: days(env, "VERSO_TRASH_DAYS", verso_core::trash::DEFAULT_DAYS)?,
+            trash_max: trash_max(env)?,
             history_days: days(env, "VERSO_HISTORY_DAYS", verso_core::history::DEFAULT_DAYS)?,
             audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
         })
@@ -299,6 +326,7 @@ impl Config {
             mail_from: None,
             folder_quota: None,
             trash_days: verso_core::trash::DEFAULT_DAYS,
+            trash_max: Some(DEFAULT_TRASH_MAX),
             history_days: verso_core::history::DEFAULT_DAYS,
             audit_days: DEFAULT_AUDIT_DAYS,
         }
@@ -430,6 +458,19 @@ mod tests {
             assert!(read(&[("VERSO_TRASH_DAYS", bad)]).is_err());
         }
         assert_eq!(read(&[]).unwrap().trash_days, 30);
+        // The bin's size cap (ADR 0080, 2026-10-31): 1 GiB unless told.
+        assert_eq!(read(&[]).unwrap().trash_max, Some(1 << 30));
+        assert_eq!(
+            read(&[("VERSO_TRASH_MAX", "500MB")]).unwrap().trash_max,
+            Some(500 << 20)
+        );
+        for off in ["0", "none", "None"] {
+            assert_eq!(read(&[("VERSO_TRASH_MAX", off)]).unwrap().trash_max, None);
+        }
+        for bad in ["", "lots", "-5", "0.1", "12XB"] {
+            let e = read(&[("VERSO_TRASH_MAX", bad)]).unwrap_err().0;
+            assert!(e.starts_with("VERSO_TRASH_MAX:"), "{e}");
+        }
         assert_eq!(read(&[]).unwrap().history_days, 365);
         assert_eq!(
             read(&[("VERSO_HISTORY_DAYS", "0")]).unwrap().history_days,

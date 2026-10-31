@@ -1760,3 +1760,9 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
 5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
 
+
+## Server hardening of 2026-10-31 (B9, B11, B13)
+
+1. The memory limit (B9): in note 24 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
+2. The trash's size cap (B11): on a test server started with `VERSO_TRASH_MAX=1MB`, delete notes or files in a folder until its trash passes 1 MB: within seconds the oldest entries are gone from the trash (the folder page in the console shows the new size, and the audit log has `trash_over_cap` lines), the newest stay, and nothing outside `.trash/` is touched. Level: H (server); E: `tests_trash.rs`, `tests/trash.rs` of verso-core.
+3. The old address (B13): on a server with `VERSO_PUBLIC_URL=https://<its name>` set, open `http://<its IP>:7340` in a browser: a page, not a bare line, in the browser's language first and the other below, saying the address has changed, with a link that opens the public one; the page names no address you typed. `curl -si http://<its IP>:7340/api/me` still answers `421` with JSON (`"error":"host"`). Level: A for the browser; E: `tests_http.rs`, `wrong_host.rs`.

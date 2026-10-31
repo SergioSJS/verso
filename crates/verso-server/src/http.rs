@@ -799,6 +799,17 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
     let peer = auth::peer(&server, request.headers(), remote);
     if !auth::host_ok(&server, request.headers(), &peer) {
+        // A browser at the server's old address is shown a page naming the
+        // right one (ADR 0073, 2026-10-31); every other client gets the
+        // JSON refusal, the same 421.
+        if let Some(page) = crate::wrong_host::answer(
+            server.config.public_url.as_deref(),
+            request.method(),
+            request.uri().path(),
+            request.headers(),
+        ) {
+            return page;
+        }
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
             "host",

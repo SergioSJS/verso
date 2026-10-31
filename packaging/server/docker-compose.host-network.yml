@@ -56,6 +56,11 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    # A memory limit (ADR 0075, Amendment 2026-10-31): 768 MB suits a machine
+    # of 1 GB. If something takes more (a huge note), the container is killed
+    # and restarts by itself, instead of taking the whole host down. Raise it
+    # to about three quarters of the machine's memory on a larger one.
+    mem_limit: 768m
     # The log rotated by Docker: three files of 10 MB at most (ADR 0083, As built).
     logging:
       driver: json-file

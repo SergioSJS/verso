@@ -692,3 +692,19 @@ and approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"*
 DNS-rebinding rule of [0045](0045-server-and-mcp-security.md) — but a browser
 is shown a page, in the person's language, saying the server's address is
 now the public one and linking to it.
+
+**As built (2026-10-31, B13).** `crates/verso-server/src/wrong_host.rs`,
+called from `http::guard` where the `Host` is refused. The status stays 421
+and the rule (`auth::host_ok`) is untouched. With `VERSO_PUBLIC_URL` set
+(`http` or `https`) and a request that is a browser's page load — GET or HEAD,
+`Accept` naming `text/html`, no `Upgrade`, not under `/api` — the body is one
+HTML page, both languages (pt-BR and English, the first of `Accept-Language`
+first), titled "This address has changed" / "Este endereço mudou", with a link
+to the public URL's scheme and authority. The address is the configured one,
+HTML-escaped; nothing of the request is written into the page. The page has
+its own strict headers (`default-src 'none'`, inline style only,
+`frame-ancestors 'none'`, `no-store`, `nosniff`, `no-referrer`). Any other
+request, and a server with no public URL (nothing to name), gets the JSON
+refusal as before, with the protocol header. The server-rendered page's two
+languages are in the module, not in `app/ui/src/strings.ts`: no UI loads at
+that address.
