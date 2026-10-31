@@ -83,6 +83,7 @@ Explore the modules below to see each feature in detail:
 32. [[32 - Running a Table]] — A campaign folder on a UniVerso: inviting the players, notes hidden until you release them, links to what has not appeared yet drawn with a padlock, who edits what, and the table's limits.
 33. [[33 - Open a Single File]] — A double-click on an `.md` opens the file alone, with no folder, in a window with no tree or index and nothing written beside it; and how to make Verso the default app for `.md` on each system.
 34. [[34 - UniVerso on a Free Oracle Server]] — The route for someone who has never set up a server: a free Oracle machine, the installer's menu, HTTPS with a free name, the first admin and the phone.
+35. [[35 - Terminal and AI Agents]] — A terminal of this computer in a tab, opened at the folder's root: turning it on, opening it, the buttons that find Claude Code, Gemini CLI and the other AI tools, the keys, and what a program run there does to the files.
 
 ---
 

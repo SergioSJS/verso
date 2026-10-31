@@ -47,6 +47,7 @@
 		{"id":"n-desenhando","type":"file","file":"10 - Desenhando no Board.md","x":2410,"y":4210,"width":600,"height":64},
 		{"id":"n-ajustes","type":"file","file":"15 - Ajustes, Aparência e Atalhos.md","x":3340,"y":4030,"width":640,"height":560},
 		{"id":"n-terminal","type":"file","file":"17 - Terminal, CLI e Agentes.md","x":40,"y":5330,"width":640,"height":560},
+		{"id":"n-terminal-ia","type":"file","file":"35 - Terminal e Agentes de IA.md","x":760,"y":5330,"width":640,"height":560},
 		{"id":"n-ajuda","type":"file","file":"18 - Ajuda, Atualizações e Diagnóstico.md","x":2370,"y":5330,"width":640,"height":400},
 		{"id":"n-inicio","type":"file","file":"00 - Bem-vindo ao Verso.md","x":2370,"y":5760,"width":640,"height":400},
 		{"id":"n-organizando","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":3340,"y":5330,"width":640,"height":560},
@@ -1052,7 +1053,7 @@
 				]
 			},
 			{"id":"d-paleta-4-t","type":"text","x":4355,"y":4431.25,"width":240,"height":37.5,"strokeColor":"#dfe8d8","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-ajustes","text":"Musgo","originalText":"Musgo","fontSize":30,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-paleta-4","lineHeight":1.25},
-			{"id":"d-terminal-dica","type":"text","x":40,"y":5930,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-terminal","text":"Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas.","originalText":"Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{"id":"d-terminal-dica","type":"text","x":40,"y":5930,"width":1320,"height":175.5,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-terminal","text":"Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas. Ligado em Ajustes › Recursos, um terminal deste computador abre numa aba, na raiz da pasta (paleta › Novo terminal); Ferramentas de IA acha o Claude Code, o Gemini CLI, o Codex e outros no seu shell e os abre ali.","originalText":"Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas. Ligado em Ajustes › Recursos, um terminal deste computador abre numa aba, na raiz da pasta (paleta › Novo terminal); Ferramentas de IA acha o Claude Code, o Gemini CLI, o Codex e outros no seu shell e os abre ali.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{
 				"id":"d-terminal",
 				"type":"rectangle",

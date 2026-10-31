@@ -421,6 +421,75 @@ The questions are kept as they were put, with what was decided.
 - **Q6 (a)**, **Q7 (a)**, **Q8 (a)**: *"ok"*.
 - **Q9 (b)** into V1, now: *"resolver tudo agora"*.
 
+**Amendment (2026-10-31)** — two more answers of the maintainer, in pt-BR,
+in session, on the questions the build raised:
+
+- **T1, the loose-files window**: asked whether the window of a file opened
+  without its folder ([0114](0114-opening-one-markdown-file-without-a-folder.md)
+  item 9) should have a terminal, he answered *"Concordo, não deve ter"* (I
+  agree, it must not have one). That is item 6 as written and as built: the
+  host lists `terminal` for every folder window and never for a loose one
+  (`app/src-tauri/src/lib.rs`, `capabilities`), and refuses the commands
+  there with the switch on (`app/src-tauri/src/terminal.rs`, `allowed`);
+  `tests_loose.rs` and `e2e/terminal.spec.mjs` (`?loose=1`) prove it.
+- **T2, two more AI tools**: asked whether OpenCode and Cursor's CLI should
+  join the buttons of item 14, he answered yes. The list is now Claude Code
+  (`claude`), Gemini CLI (`gemini`), Codex (`codex`), Antigravity's CLI
+  (`agy`), OpenCode (`opencode`) and Cursor's CLI (`cursor-agent`), in that
+  order: two variants of the contract's `AiCli` (`opencode`,
+  `cursor_agent`), their words in `pty::cli_word`, their install pages
+  (`https://opencode.ai`, `https://cursor.com/cli`) in
+  `terminal::install_page`, their names in the window's strings.
+
+### As built (2026-10-31)
+
+On the branch of this record's build, in three steps: the contract and the
+host, the window, then T2 and the documents.
+
+- **Contract** (`crates/verso-contract/src/terminal.rs`, `capabilities.rs`):
+  `Can::Terminal`, `TerminalId`, `TerminalSize`, `TerminalStart`,
+  `TerminalOpened`, `TerminalOutput` (data or ended), `TerminalAt` (folder
+  or home), `TerminalShell`, `AiCli`, `AiCliFound`. No type carries a path:
+  the folder below the open one is relative, confined by the core
+  (rule 4). The bindings are generated; the contract's version changes, so
+  the server is deployed before the apps.
+- **Host** (`app/src-tauri/src/pty.rs`, `terminal.rs`): ten commands —
+  `terminal_open`, `terminal_attach`, `terminal_write`, `terminal_resize`,
+  `terminal_flow`, `terminal_busy`, `terminal_close`,
+  `set_terminal_enabled`, `terminal_detect`, `terminal_install_page` —
+  registered in `build.rs` and `capabilities/default.json`. Items 2–8 and
+  13–14 as written: the login shell (Q7 on Windows), the folder's root or
+  the home directory (Q2, Q4), the last 256 KiB kept for a reloaded window
+  (Q6), the window's "behind" signal pausing the reader (item 8), a hang-up
+  of the process groups then a kill on Unix, a Job Object with
+  kill-on-close on Windows, the AppImage's variables stripped on Linux.
+  Three dependencies, each replacing `unsafe` of our own:
+  `portable-pty` 0.9, `nix` (already in the tree) with `signal`, and
+  `win32job` 2; `cargo deny check` passes.
+- **Window** (`app/ui/src/terminal/`, `leaves/terminal.ts`,
+  `css/terminal.css`): a `terminal` leaf (Q1); the switch in Settings ›
+  Features, off by default and left off by "Everything" (Q5), its rows in
+  Settings › Terminal and agents; **New terminal** in the palette and
+  **Open terminal here** on a folder (Q2); the AI tools' menu (item 14);
+  the key table of item 10 (`terminal/keys.ts`); the palette of item 12
+  from the theme's tokens at the 3:1 floor (`terminal/palette.ts`); the
+  notice once per folder (Q8); the close and quit questions (item 13). The
+  screen — `@xterm/xterm` 6.0.0 with the fit, unicode11, web-links and
+  WebGL addons, all MIT — is a lazy chunk the server's offline worker
+  never lists (`build-sw.mjs`): a browser's window downloads none of it.
+- **Tests**: 13 real-shell tests in `tests_terminal.rs` (typed into,
+  resized, accents, nothing of the tree left, busy, a reload, the switch
+  off, no cut character, the detection, where it starts and never outside,
+  the capability and its gate, a server's folder); `tests_loose.rs` (T1);
+  `test/terminal.test.mjs` (keys, flow, colours, settings) and
+  `test/capabilities.test.mjs` (Q5); `e2e/terminal.spec.mjs` over the
+  harness's scripted shell (`src/harness/terminal.ts`).
+- **What a machine cannot check** is in
+  [`manual-checks.md`](../reference/manual-checks.md) (the person's PATH,
+  accents in a TUI, screen readers, the renderer, the Windows shells, the
+  AppImage), the tutorial is note 35 in both demo vaults, and the
+  pitfalls are §7 of [the cross-platform checklist](../reference/cross-platform-checklist.md).
+
 ### Open questions
 
 | # | Question | Options | Recommendation |

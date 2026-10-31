@@ -94,3 +94,17 @@
 | `.MD` on a case-folding disk | classified by the folded extension | `verso_fs::is_note_name` folds; a sibling link stats the name as written |
 | a loose file on exFAT | no exclusive rename (ADR 0048 revised 2026-10-12): the create by link falls back | the same `verso-fs` create/write as a folder's |
 | the generated `.desktop` on Linux | without `%U`/`%F` in `Exec` no file reaches `argv` | verify on the built package (Linux VM) before trusting the registration |
+
+## 7. A shell on a pseudo-terminal (ADR 0115)
+
+| Habit | What happened or would | Instead |
+|---|---|---|
+| a GUI app's own `PATH` for the person's tools | a Finder- or Start-menu-launched app has the system's bare `PATH`: `claude`, `gemini`, Homebrew's and npm's global bin are not found | start the person's shell as a login, interactive shell (`argv0` `-zsh`; `$SHELL`, or the password database's shell when unset) and let it build the `PATH`; detect the AI tools by asking that same shell (`command -v`), never by guessing paths |
+| one shell for every system | `$SHELL` does not exist on Windows; `cmd.exe` is not what a person expects there | `pwsh.exe` when the `PATH` has it, else `powershell.exe`, the Command Prompt as a choice; the detection asks with `Get-Command` (PowerShell) or `where` (cmd) |
+| a pseudo-terminal opened by hand (`openpty`, `ioctl`, `CreatePseudoConsole`) | needs `unsafe` in our tree, which the workspace forbids | `portable-pty` (openpty on macOS and Linux, ConPTY on Windows 10 1809+ and 11) |
+| killing only the shell's pid | an agent's `node` children, or `sleep &`, outlive the tab; a crash of the app leaves them running | Unix: hang up the shell's process group and the terminal's foreground group (`killpg` through `nix`, `SIGHUP` then `SIGKILL` after a grace); Windows: the shell in a Job Object with kill-on-close (`win32job`), which also covers a crash of the app |
+| "is a program running?" asked the same way everywhere | Unix knows the terminal's foreground group; ConPTY does not tell it | Unix: busy when the foreground group is not the shell's; Windows: ask whenever a terminal is open |
+| an AppImage's environment handed to children | its `LD_LIBRARY_PATH` and `APPDIR` load the AppImage's libraries into every program of the shell | strip every variable naming the AppImage's directory, and `APPDIR`, `APPIMAGE`, `ARGV0`, `OWD`, before spawning (Linux only) |
+| a read of the output cut at a fixed size and sent as text | a multi-byte character (`ç`, an emoji) split across two reads became two replacement characters | keep the bytes of a character not yet whole for the next read (`pty::whole_text`) |
+| the detection's answer read as it comes | ConPTY and prompt themes put cursor moves, titles and colours among the lines; startup files print greetings | the question between two marks, each line of the answer stripped of control sequences before it is read |
+| `⌘` and `Ctrl` treated alike in the terminal's keys | on Windows and Linux `Ctrl` is the shell's (Ctrl+C, Ctrl+R, Ctrl+D) | one table (`app/ui/src/terminal/keys.ts`): on macOS every `⌘` key stays the app's; elsewhere only the listed `Ctrl` keys do, and Ctrl+C copies only with a selection |

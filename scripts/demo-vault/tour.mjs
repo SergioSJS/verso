@@ -258,10 +258,14 @@ const STOPS = [
     heading: "🤖 Terminal e agentes",
     color: VIOLET,
     canvasColor: "6",
-    cards: [["n-terminal", "17 - Terminal, CLI e Agentes.md", 640]],
+    cards: [
+      ["n-terminal", "17 - Terminal, CLI e Agentes.md", 640],
+      ["n-terminal-ia", "35 - Terminal e Agentes de IA.md", 640],
+    ],
     tip:
       "Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. " +
-      "Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas.",
+      "Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas. " +
+      "Ligado em Ajustes › Recursos, um terminal deste computador abre numa aba, na raiz da pasta (paleta › Novo terminal); Ferramentas de IA acha o Claude Code, o Gemini CLI, o Codex e outros no seu shell e os abre ali.",
     extra(b, x, y, f) {
       b.shape("rectangle", "d-terminal", x + 740, y + 160, 620, 380, { stroke: "#212529", bg: "#212529", rough: 0, frame: f });
       b.write("d-terminal-t", x + 770, y + 190, "$ verso search ~/Notas reunião\nTemplates/Nota de Reunião.md: …\n\n$ verso backlinks ~/Notas \"projetos/Projeto Alpha\"\nDiário/2026-09-24.md: 22:3  [[Projeto Alpha]]", {
