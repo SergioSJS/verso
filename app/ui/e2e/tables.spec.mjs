@@ -149,3 +149,40 @@ test("a column dragged in Reading keeps its width when the note opens again", as
   await expect.poll(() => page.locator(".preview table th").nth(1).evaluate((e) => e.offsetWidth)).toBe(wide);
   expect(await app.file("Larg.md")).toBe(body);
 });
+
+test("a cell's field stays visible while its cell holds the focus, though the field itself does not (the window in the background)", async ({ app, page }) => {
+  // The maintainer, 2026-10-31: select text in a cell, click in another app,
+  // and the cell looked empty. WebKit drops :focus from the field with the
+  // window in the background but keeps :focus-within on its cell; the field
+  // was shown by :focus alone while the cell's own look hid under
+  // :focus-within, so both were hidden. The browser cannot be sent to the
+  // background here, so the same state is made: focus an element of the cell
+  // other than the field.
+  await openNote(app, "| nome | cidade |\n| --- | --- |\n| Ana | Recife |\n");
+  const cell = page.locator(".cm-table-editor td").nth(1);
+  await cell.click();
+  await app.key("Mod+a");
+  const field = cell.locator(".cm-table-cell-input");
+  await expect(field).toBeFocused();
+  await expect(field).toHaveCSS("opacity", "1");
+  const state = await cell.evaluate((td) => {
+    const other = document.createElement("button");
+    other.type = "button";
+    other.className = "test-other-focus";
+    td.append(other);
+    other.focus();
+    const input = td.querySelector(".cm-table-cell-input");
+    const view = td.querySelector(".cm-table-cell-view");
+    return {
+      within: td.matches(":focus-within"),
+      fieldFocused: input.matches(":focus"),
+      fieldOpacity: getComputedStyle(input).opacity,
+      viewVisibility: getComputedStyle(view).visibility,
+    };
+  });
+  expect(state.within).toBe(true);
+  expect(state.fieldFocused).toBe(false);
+  // The cell's look is hidden, so the field has to show.
+  expect(state.viewVisibility).toBe("hidden");
+  expect(state.fieldOpacity).toBe("1");
+});
