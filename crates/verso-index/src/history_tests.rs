@@ -216,3 +216,27 @@ fn authors_keep_no_separator_of_their_own() {
     let back = authors_of(&authors_text(&odd));
     assert_eq!(back, vec![Author::new("device", "Mac de Ana")]);
 }
+
+#[test]
+fn verso_s_own_write_seen_first_by_the_watcher_keeps_its_author() {
+    let mut s = Store::memory().unwrap();
+    let outside = vec![Author::new("outside", "")];
+    s.record(F, "a.md", b"one", NOW, &outside, Kind::Outside)
+        .unwrap();
+    // The write the watcher saw arrives a moment later with the same bytes.
+    s.record(F, "a.md", b"one", NOW + 300, &me(), Kind::Write)
+        .unwrap();
+    let v = s.versions(F, "a.md").unwrap().versions;
+    assert_eq!(v.len(), 1);
+    assert_eq!(v[0].kind, Kind::Write);
+    assert_eq!(v[0].authors, me());
+    // Long after, the same bytes are an echo: the outside version stays.
+    s.record(F, "b.md", b"two", NOW, &outside, Kind::Outside)
+        .unwrap();
+    s.record(F, "b.md", b"two", NOW + 60_000, &me(), Kind::Write)
+        .unwrap();
+    assert_eq!(
+        s.versions(F, "b.md").unwrap().versions[0].kind,
+        Kind::Outside
+    );
+}
