@@ -313,7 +313,8 @@ above; the answer's words were only "age/size (e.g. 30 days)".
 **As built (2026-10-31, B11).** The cap is the server's, one number for every
 folder's bin: `VERSO_TRASH_MAX` (a size as `VERSO_FOLDER_QUOTA` is written;
 `0` or `none` for no cap), **1 GiB by default**, a choice of the build because
-the answer gave no figure. `verso_core::trash::due` takes it beside the
+the answer gave no figure — confirmed by the maintainer the same day
+(*"Sim"*). `verso_core::trash::due` takes it beside the
 quota: after the age (item 3) the oldest entries of what is left go while the
 bin alone is larger than the **smaller** of the quota and the cap; a tie
 names the quota. The replaced versions of item 12 are entries of the bin like

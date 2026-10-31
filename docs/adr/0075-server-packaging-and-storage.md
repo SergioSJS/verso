@@ -429,3 +429,9 @@ to raise it to about three quarters of the memory on a larger one. The
 limit (805306368 bytes). The guided installer and the .deb install a systemd
 service, not a container, so there is no container to limit there and the unit
 is unchanged; a `MemoryMax=` for it would be a decision of its own, not taken.
+
+**Amended 2026-10-31 (the maintainer, on that As built: *"Sim"*).** The
+systemd unit (`packaging/server/universo.service`, installed by the .deb, the
+.rpm and the guided installer) carries `MemoryMax=75%`: three quarters of the
+machine's memory, the container's rule sized by systemd itself (768 MB on a
+1 GB server). A drop-in changes it.

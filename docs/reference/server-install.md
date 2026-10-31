@@ -509,7 +509,9 @@ network set `VERSO_LISTEN=0.0.0.0:7340`; for HTTPS, TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
 `/var/lib/universo`, `ProtectHome=read-only`, other processes hidden by
 `ProtectProc=invisible`, the system calls of an ordinary service only,
-`UMask=0027`; a new folder is made `0750`). A folders directory elsewhere
+`UMask=0027`; a new folder is made `0750`) and limited to three quarters of
+the machine's memory (`MemoryMax=75%`; running out restarts the server, not
+the machine). A folders directory elsewhere
 needs a drop-in, which an upgrade keeps:
 
 ```sh
