@@ -38,6 +38,11 @@ pub use thin::{COALESCE, DAY, HOUR, HOURLY_UNTIL, thinning};
 /// How many days versions are kept when nothing else is set (item 3).
 pub const DEFAULT_DAYS: u32 = 365;
 
+/// How soon after the watcher's "made outside" guess a known author of the
+/// same bytes takes the version over: Verso's own write, recorded a moment
+/// after the watcher saw it.
+const OUTSIDE_GUESS_MS: i64 = 10_000;
+
 const TABLES: &str = "
 CREATE TABLE IF NOT EXISTS lines (
     id     INTEGER PRIMARY KEY,
@@ -469,6 +474,19 @@ impl Store {
         if let Some((v, _)) = newest
             && v.hash == hash
         {
+            // The watcher can see Verso's own write before the write is
+            // recorded (seen on Windows, 2026-10-31): it records the bytes as
+            // made outside, and the write, arriving a moment later with the
+            // same bytes, would be dropped as the same. A known author of the
+            // same bytes, that soon after, is what the version was.
+            if v.kind == Kind::Outside && kind != Kind::Outside && at - v.at <= OUTSIDE_GUESS_MS {
+                tx.execute(
+                    "UPDATE versions SET kind = ?1, authors = ?2 WHERE id = ?3",
+                    params![kind.as_str(), authors_text(authors), v.id],
+                )?;
+                tx.commit()?;
+                return Ok(Recorded::Same);
+            }
             if coalesce.is_some() {
                 let all = merged(v.authors.clone(), authors);
                 tx.execute(
