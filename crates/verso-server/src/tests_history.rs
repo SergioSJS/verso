@@ -622,3 +622,52 @@ fn a_change_hashed_from_other_bytes_than_the_file_now_holds_is_no_version() {
         );
     });
 }
+
+/// Seen on Windows (2026-10-31): the walk can take a change written
+/// through the server before the write's own reconciliation does, and
+/// recorded it made outside, with no author; the write, finding the log
+/// already holding its bytes, recorded nothing. Its author takes the
+/// version over.
+#[test]
+fn a_write_the_walk_recorded_first_keeps_its_author() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = window(&r, &b, &id).await;
+        let key =
+            crate::access::key(&r.server, &r.server.db.folder(&id).unwrap().unwrap()).unwrap();
+        let admin = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        // The write's bytes on the disk, the walk first, then the write's
+        // own reconciliation.
+        {
+            use std::io::Write;
+            let mut f = tempfile::NamedTempFile::new_in(r.campanha()).unwrap();
+            f.write_all(b"dois\n").unwrap();
+            f.persist(r.campanha().join("Sessao.md")).unwrap();
+        }
+        // The watcher names the path it saw change, with no author.
+        crate::sync::reconcile(&r.server, &id, &key, None, &["Sessao.md".to_owned()]).unwrap();
+        crate::sync::reconcile_written(
+            &r.server,
+            &id,
+            &key,
+            Some(&admin.id),
+            &["Sessao.md".to_owned()],
+        )
+        .unwrap();
+        let list = call(&mut ws, 6, "history_list", json!({ "path": "Sessao.md" })).await;
+        let v = versions(&list);
+        assert_eq!(v[0]["kind"], "write", "{list}");
+        assert_eq!(
+            v[0]["authors"][0],
+            json!({ "kind": "account", "name": "Admin" }),
+            "{list}"
+        );
+    });
+}

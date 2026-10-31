@@ -70,6 +70,9 @@ pub(super) fn reconcile_paths(
     let mut present: HashSet<String> = HashSet::new();
     let mut created = Vec::new();
     let mut quick_only = Vec::new();
+    // Paths whose bytes the log holds already: the walk can take a change
+    // made through the server before the change's own reconciliation does.
+    let mut same: Vec<crate::db::Recorded> = Vec::new();
     for (path, now) in paths {
         let (hash, size, quick) = match now {
             Now::Gone => continue,
@@ -105,6 +108,7 @@ pub(super) fn reconcile_paths(
         };
         present.insert(path.clone());
         if known.get(path).is_some_and(|k| k.hash == hash) {
+            same.push((path.clone(), Some((hash, size, quick.clone())), None));
             quick_only.push((path.clone(), quick));
         } else {
             created.push((path.clone(), hash, size, quick));
@@ -115,14 +119,22 @@ pub(super) fn reconcile_paths(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    record_changes(
+    let head = record_changes(
         server,
         (folder, key),
         by,
         (&known, &gone),
         created,
         &quick_only,
-    )
+    )?;
+    // Whoever made a change the walk recorded first, with no author (seen
+    // on Windows, 2026-10-31): offered to the history with its author, which
+    // takes the version over when it is the walk's guess of moments ago
+    // (`Store::record`), and makes none otherwise.
+    if by.account.is_some() || by.device.is_some() || by.token.is_some() || by.room.is_some() {
+        crate::history::recorded(server, (folder, key), by, &same, false);
+    }
+    Ok(head)
 }
 
 /// Where the server's file system folds names: a path written or read
