@@ -20,12 +20,10 @@
 import { listen } from "@tauri-apps/api/event";
 import { commands, type Can, type Capabilities, type FolderAccess, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
+import { FOLDER_CAN } from "./folderCan";
 import { noteLink, resolveServerLink, type ServerWindow } from "./serverLink";
 
-/** What a side that shows a whole folder can do, and one that shows a file
- *  opened without its folder cannot (ADR 0114 items 18 and 25): absent
- *  there, so the window draws no tree, search, graph, bin, sync or table. */
-export const FOLDER_CAN: Can[] = ["index", "search", "backlinks", "create", "rename", "delete", "trash", "history", "sync", "table", "board"];
+export { FOLDER_CAN };
 
 const DESKTOP: Capabilities = {
   host: "desktop",
