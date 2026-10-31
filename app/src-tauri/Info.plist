@@ -49,6 +49,35 @@
         </array>
       </dict>
     </dict>
+    <!-- TOML (ADR 0114 item 31, amended 2026-10-31): macOS declares no
+         type for it (the system's own declarations, CoreTypes.bundle, and
+         Apple's list of system-declared types name JSON, YAML, XML and
+         CSV, never TOML), so the document type the bundle declares for
+         .toml names this import, after the format's own domain, toml.io.
+         JSON (public.json), YAML (public.yaml), XML (public.xml) and CSV
+         (public.comma-separated-values-text) are the system's and are not
+         imported here. -->
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.toml</string>
+      <key>UTTypeDescription</key>
+      <string>TOML file</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.utf8-plain-text</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>toml</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/toml</string>
+        </array>
+      </dict>
+    </dict>
   </array>
 </dict>
 </plist>

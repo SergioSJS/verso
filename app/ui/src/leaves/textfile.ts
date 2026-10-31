@@ -29,7 +29,9 @@ import { name } from "../paths";
 import { t } from "../strings";
 import { flashSaved } from "../quietStatus";
 import { markCurrent } from "../tree/tree";
-import { ConflictBanner, fileMade, keepCopy } from "./conflict";
+import { ConflictBanner, fileMade, GoneBanner, keepCopy } from "./conflict";
+import { isLoose, looseReadOnlyReason, looseSaveAgain, looseSaveCopy } from "../loose";
+import { ls } from "../looseStrings";
 import { htmlModes } from "./frame";
 import { dataModes, diagramFormat } from "./data";
 import { linkText, textCaret, textTyped } from "../datagraph/link";
@@ -61,6 +63,19 @@ export class TextLeaf extends Leaf {
     () => void this.overwrite(),
     () => void this.keepBoth(),
   );
+  /** A file opened without its folder, deleted or moved outside while
+   *  this tab held text not saved (ADR 0114 items 11 and 32): the text
+   *  stays, saved again at its name, as a copy, or let go. */
+  readonly goneBanner = new GoneBanner(
+    () => void this.saveAgain(),
+    () => void this.closeWithoutSaving(),
+    () => void looseSaveCopy(this.path, this.text()),
+  );
+  /** Gone from disk, as the last look said (a loose file's). */
+  private goneNow = false;
+  /** A line to show above the text once it is read: why the diagram
+   *  could not read it, when a loose data file opens as text instead. */
+  pendingNotice: string | null = null;
   readonly editor: EditorView;
   revision = "";
   /** The text the file held at `revision`, when known (see NoteLeaf). */
@@ -99,7 +114,7 @@ export class TextLeaf extends Leaf {
     this.dataModes.hidden = true;
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
-    sheet.append(this.flags, this.conflict.el, this.host);
+    sheet.append(this.flags, this.conflict.el, this.goneBanner.el, this.host);
     this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
     // The tests reach the editor as a note's tab lets them (note.ts).
@@ -163,7 +178,7 @@ export class TextLeaf extends Leaf {
   scheduleSave(): void {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      if (!this.conflict.up) void this.save();
+      if (!this.conflict.up && !this.goneBanner.up) void this.save();
     }, Math.max(0.3, settings.autosave) * 1000);
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
@@ -243,14 +258,25 @@ export class TextLeaf extends Leaf {
     if (shared) presenceOpened(this.path, this.liveOthers);
     this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11), or a
-    // reader of a synced folder, present and not typing (ADR 0082 item 4).
-    this.readOnly = sep === null || !may(path, "edit") || (shared?.reader ?? false);
+    // reader of a synced folder, present and not typing (ADR 0082 item 4),
+    // or a file opened without its folder that cannot be written (ADR 0114
+    // items 12, 13 and 32).
+    const looseWhy = looseReadOnlyReason(path);
+    this.readOnly = sep === null || !may(path, "edit") || (shared?.reader ?? false) || looseWhy !== null;
     this.editor.setState(this.state(shared ? shared.initial() : r.data.text, support ? [support] : [], shared ? shared.extension() : []));
     this.paintLive();
     this.conflict.hide();
+    this.goneBanner.hide();
+    if (this.goneNow) {
+      this.goneNow = false;
+      this.setGone(false);
+    }
     this.setDirty(false);
-    this.flags.textContent = sep === null ? t.mixedEol : this.readOnly ? st.readOnly : "";
-    this.flags.hidden = !this.readOnly;
+    const notice = this.pendingNotice;
+    this.pendingNotice = null;
+    const said = [notice ?? "", sep === null ? t.mixedEol : this.readOnly ? (looseWhy ?? st.readOnly) : ""].filter((x) => x !== "").join(" ");
+    this.flags.textContent = said;
+    this.flags.hidden = said === "";
     this.unlink?.();
     this.unlink = linkText(path, { text: () => this.editor.state.doc.toString(), reveal: (r, focus) => this.reveal(r, focus) });
     const wanted = this.pendingReveal;
@@ -292,6 +318,10 @@ export class TextLeaf extends Leaf {
       if (!this.dirty) return;
       if (this.conflict.up) {
         ui.status.textContent = t.conflictPendingBoth;
+        return;
+      }
+      if (this.goneBanner.up) {
+        ui.status.textContent = ls.gonePendingFile;
         return;
       }
       if (this.collab?.live) {
@@ -394,6 +424,7 @@ export class TextLeaf extends Leaf {
   /** `changed`: nothing was written; the disk's version and the editor's
    *  go on screen until the user decides (invariant 11). */
   protected async refused(e: ContractError): Promise<void> {
+    if (e.kind === "not_found" && isLoose()) return this.goneOnSave();
     if (e.kind !== "changed") return fail(e);
     const fresh = await opening.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
@@ -401,9 +432,81 @@ export class TextLeaf extends Leaf {
   }
   override async flush(): Promise<boolean> {
     window.clearTimeout(this.saveTimer);
-    if (this.conflict.up) return false;
+    if (this.conflict.up || this.goneBanner.up) return false;
     if (this.dirty) await this.save();
-    return !this.dirty && !this.conflict.up;
+    return !this.dirty && !this.conflict.up && !this.goneBanner.up;
+  }
+  /** A loose file gone from disk when the tab saved (ADR 0114 item 11):
+   *  said above the text and on the status line; nothing writes until the
+   *  person chooses. */
+  private goneOnSave(): void {
+    this.conflict.hide();
+    this.goneNow = true;
+    this.setGone(true);
+    this.goneBanner.show(ls.goneFile, true);
+    ui.status.textContent = ls.goneFile;
+  }
+  /** "Save here again" (item 11): the file made again at its name with
+   *  this tab's text; something there again meanwhile is shown against it
+   *  (invariant 11), never written over. */
+  private saveAgain(): Promise<void> {
+    const run = this.saving.then(async () => {
+      if (!this.goneBanner.up) return;
+      const mine = this.text();
+      const r = await looseSaveAgain(this.path, mine);
+      if (r.status !== "ok") {
+        if (r.error.kind !== "exists") return fail(r.error);
+        const fresh = await opening.readText(this.path);
+        if (fresh.status !== "ok") return fail(fresh.error);
+        this.goneBanner.hide();
+        this.goneNow = false;
+        this.setGone(false);
+        this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, mine);
+        return;
+      }
+      this.goneBanner.hide();
+      this.goneNow = false;
+      this.setGone(false);
+      this.written({ path: this.path, text: r.data.note.text, revision: r.data.note.revision, warnings: r.data.warnings }, mine);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** "Close without saving": the person let the text go. */
+  private async closeWithoutSaving(): Promise<void> {
+    this.goneBanner.hide();
+    this.setDirty(false);
+    await this.close(true);
+  }
+  /** A loose file changed outside (ADR 0114 item 11, for a data file's
+   *  text tab, item 32): nothing typed, the disk's text is read in;
+   *  typed, the save meets the difference and both versions are shown;
+   *  gone, the tab says so and keeps its text. */
+  async looseRecheck(): Promise<"same" | "read" | "conflict" | "gone" | "back"> {
+    const path = this.path;
+    if (!path || this.conflict.up || this.collab) return "same";
+    await this.saving;
+    const r = await commands.readText(path);
+    if (this.torn || path !== this.path) return "same";
+    if (r.status !== "ok") {
+      if (r.error.kind !== "not_found" || this.goneNow) return "same";
+      this.goneNow = true;
+      this.setGone(true);
+      return "gone";
+    }
+    const back = this.goneNow;
+    if (back) {
+      this.goneNow = false;
+      this.setGone(false);
+      this.goneBanner.hide();
+    }
+    if (r.data.revision === this.revision) return back ? "back" : "same";
+    if (this.dirty) {
+      await this.flush();
+      return "conflict";
+    }
+    await this.load(path, true);
+    return "read";
   }
   override focusContent(): void {
     this.editor.focus();

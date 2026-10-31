@@ -70,6 +70,8 @@ export class DataDiagram {
   model: DiagramModel | null = null;
   /** Why nothing is drawn: the text past the size limit, or more boxes than are drawn. */
   limit: "tooBig" | "tooMany" | null = null;
+  /** Why the text last set could not be read as a diagram, in the words shown; null when it was. */
+  private failure: string | null = null;
   text = "";
   format: Format = "json";
   private lay: Layout | null = null;
@@ -314,14 +316,24 @@ export class DataDiagram {
     this.limit = null;
     if (text.length >= MAX_BYTES) {
       this.limit = "tooBig";
-      this.showNote(dgw.tooBig(Math.round(text.length / 1048576)));
+      this.failure = dgw.tooBig(Math.round(text.length / 1048576));
+      this.showNote(this.failure);
       return;
     }
     this.setTree(parse(text, format));
   }
 
+  /** Why the text last set could not be read as a diagram — too large, too
+   *  many boxes, or not valid — in the diagram's own words; null when it
+   *  was read. A file opened without its folder opens as its text with
+   *  this line (ADR 0114 item 32). */
+  unreadable(): string | null {
+    return this.failure;
+  }
+
   setTree(tree: Tree): void {
     this.limit = null;
+    this.failure = tree.tooMany ? dgw.tooMany : tree.error ? dgw.errorLine(tree.error.message) : null;
     if (tree.tooMany) {
       // Too many boxes to draw: no diagram, whatever was there before; the text stays one key away.
       this.limit = "tooMany";

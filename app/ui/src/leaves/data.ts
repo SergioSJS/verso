@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { hasCapability } from "../capabilities";
+import { can } from "../can";
+import { isLoose, looseInfo } from "../loose";
 import { h, ui } from "../dom";
 import { icon } from "../icons";
 import { currentFolder } from "../folder";
@@ -15,6 +17,7 @@ import { formatOfPath, type Format, typeKey } from "../datagraph/model";
 import { readFile, setLastView, writeFile } from "../datagraph/store";
 import type { DataDiagram, DiagramHost, Range } from "../datagraph/datagraph";
 import { dgw } from "../datagraph/words";
+import { ls } from "../looseStrings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
 import { TextLeaf } from "./textfile";
@@ -90,6 +93,10 @@ export class DataLeaf extends Leaf {
   private keepTimer = 0;
   private typedTimer = 0;
   private restored = false;
+  /** Set for the tab a file opened without its folder opens in (ADR 0114
+   *  item 32): a text the diagram cannot read turns the tab into the text,
+   *  with the diagram's own line. */
+  textIfUnreadable = false;
 
   constructor(
     pane: Pane,
@@ -135,8 +142,10 @@ export class DataLeaf extends Leaf {
       changed: () => leaf.keepSoon(),
       say: (m) => void (ui.status.textContent = m),
       copy: (text) => void navigator.clipboard?.writeText(text).catch(() => undefined),
-      saveBoard: () => leaf.saveBoard(),
     };
+    // "Save as board" makes a new file beside the data: a folder's, never
+    // a file opened without its folder (ADR 0114 items 18 and 32, ADR 0027).
+    if (!isLoose() && can("create")) host.saveBoard = () => leaf.saveBoard();
     this.lib = lib;
     const diagram = new lib.DataDiagram(host);
     this.diagram = diagram;
@@ -177,8 +186,16 @@ export class DataLeaf extends Leaf {
     const diagram = await this.ensure();
     if (!diagram || this.path !== path) return;
     diagram.setText(text, format);
+    const why = this.textIfUnreadable ? diagram.unreadable() : null;
+    this.textIfUnreadable = false;
+    if (why !== null) {
+      const next = new TextLeaf(this.pane);
+      next.pendingNotice = ls.asText(why);
+      void this.pane.swap(this, next);
+      return;
+    }
     if (!this.restored) {
-      diagram.restore(readFile(currentFolder, path));
+      diagram.restore(readFile(this.place(), path));
       this.restored = true;
     }
     this.off?.();
@@ -186,10 +203,19 @@ export class DataLeaf extends Leaf {
       typed: () => this.followText(),
       caret: (pos) => this.diagram?.showCaret(pos),
     });
+    // The view a file opened without its folder opens in is the window's,
+    // not the person's choice: the folders' "last used" stays theirs.
     const type = typeKey(path);
-    if (type) setLastView(type, "diagram");
+    if (type && !looseInfo(path)) setLastView(type, "diagram");
     markCurrent();
     persistSoon();
+  }
+
+  /** Where this file's moves and folds are kept on this device: its
+   *  folder's, or a loose file's own key (two `dados.json` of two places
+   *  are two files). */
+  private place(): string {
+    return looseInfo(this.path)?.key ?? currentFolder;
   }
 
   /** The text tab typed: the diagram follows after a pause. */
@@ -245,7 +271,7 @@ export class DataLeaf extends Leaf {
 
   private keepNow(): void {
     const saved = this.diagram?.snapshot();
-    if (saved && this.path !== "") writeFile(currentFolder, this.path, saved);
+    if (saved && this.path !== "") writeFile(this.place(), this.path, saved);
   }
 
   override focusContent(): void {

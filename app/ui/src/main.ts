@@ -683,12 +683,12 @@ if (!popout) void listen<[string, string]>("open-note", (e) => {
 if (!popout) void listen<string>("folder-handed", (e) => {
   if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
 });
-/* A Markdown file handed to the app (ADR 0114 item 7): the host names the
+/* A Markdown or data file handed to the app (ADR 0114 items 7 and 32): the host names the
  * loose-files window, which opens it as a tab. */
 if (!popout) void listen<string>("file-handed", (e) => {
   if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
 });
-/* Something handed that is neither a folder nor a Markdown file (ADR 0114
+/* Something handed that is neither a folder nor a file Verso opens (ADR 0114
  * item 6): said in words, the window stays as it was. */
 if (!popout) void listen<[string, string, string]>("handed-refused", (e) => {
   if (e.payload[0] === getCurrentWindow().label) handedRefused(e.payload[1], e.payload[2], handedRefusedText);

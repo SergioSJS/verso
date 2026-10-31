@@ -94,3 +94,5 @@
 | `.MD` on a case-folding disk | classified by the folded extension | `verso_fs::is_note_name` folds; a sibling link stats the name as written |
 | a loose file on exFAT | no exclusive rename (ADR 0048 revised 2026-10-12): the create by link falls back | the same `verso-fs` create/write as a folder's |
 | the generated `.desktop` on Linux | without `%U`/`%F` in `Exec` no file reaches `argv` | verify on the built package (Linux VM) before trusting the registration |
+| a data file's types (ADR 0114 item 31) | macOS knows `public.json`, `public.yaml`, `public.xml`, `public.comma-separated-values-text` but declares no TOML type; Linux names YAML and XML by two MIME types each (`application/yaml` and `application/x-yaml`, `application/xml` and `text/xml`); Windows names each extension's own ProgID | the system's types where they exist, `io.toml` imported in `Info.plist`, both MIME names, one ProgID per kind (`Verso.Json.1`…); `scripts/check-file-associations.mjs` checks all three |
+| a data file's "Save a copy…" | a save dialog filtered to Markdown offers `dados.json.md` | the filter follows the file's own extension (`loose::copy_filter`) |

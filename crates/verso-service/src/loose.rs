@@ -8,8 +8,9 @@
 //! by a numbered one). A loose client is not a folder client: every
 //! folder command asked of it is refused with [`not_available`], so a
 //! stale window cannot reach the index, the tree or the bin; the few
-//! commands a file answers — `read_note`, `write_note`, `links`,
-//! `backlinks`, `resolve_attachment` — are answered here.
+//! commands a file answers — `read_note`, `write_note`, `read_text`,
+//! `write_text`, `links`, `backlinks`, `resolve_attachment` — are answered
+//! here.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -20,7 +21,7 @@ use verso_contract::{
 };
 use verso_core::{Loose, LooseReadOnly};
 
-use crate::convert::note_out;
+use crate::convert::{note_out, text_out};
 use crate::ops::OpError;
 use crate::ops::links_out;
 use crate::{Service, lock};
@@ -387,6 +388,20 @@ impl Service {
                     })
                 })
                 .and_then(|w| json(serde_json::to_value(w)))
+            }
+            // A structured-data file's text tab and its diagram (ADR 0114
+            // item 32), and any text tab of a loose file.
+            "read_text" => {
+                let path = text("path")?;
+                self.with_loose(client, &path, |l| Ok(text_out(l.read_text(&path)?)))
+                    .and_then(|t| json(serde_json::to_value(t)))
+            }
+            "write_text" => {
+                let (path, body, revision) = (text("path")?, text("text")?, text("revision")?);
+                self.with_loose(client, &path, |l| {
+                    Ok(text_out(l.write_text(&path, &body, &revision)?))
+                })
+                .and_then(|t| json(serde_json::to_value(t)))
             }
             "resolve_attachment" => {
                 let (source, target) = (text("source")?, text("target")?);

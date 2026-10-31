@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The loose-files window (ADR 0114 items 9–15, 21): the window shows one
-// or more Markdown files opened without a folder, each a tab named by its
+// or more Markdown files opened without a folder — or structured-data files
+// (.json, .yaml, .toml, .xml, .csv), each in the diagram of ADR 0106 with
+// its switch to the text (item 32, amended 2026-10-31) — each a tab named by its
 // file name, with no tree, no search, no graph, no bin — the capabilities
 // say the side cannot (ADR 0027), and `cannot-*` classes hide the parts —
 // and one visible way back, "Open the whole folder", on the bar that is the
@@ -18,7 +20,9 @@ import { isTableClosed } from "./errorKinds";
 import { fail } from "./errors";
 import { currentFolder, setCurrentFolder, setFolderName } from "./folder";
 import { icon } from "./icons";
-import { layout, newSpace, openNote, setCurrent, spaces } from "./layout/spaces";
+import { layout, newSpace, openNote, paneToOpenIn, setCurrent, spaces } from "./layout/spaces";
+import { hasCapability } from "./capabilities";
+import { formatOfPath } from "./datagraph/model";
 import { ls } from "./looseStrings";
 import { refreshFrame } from "./frame";
 import { flash } from "./notify";
@@ -82,12 +86,18 @@ export async function openOpened(
   return true;
 }
 
-/** The window's first loose file: the mode entered; any other, a tab. */
+/** The window's first loose file: the mode entered; any other, a tab. A
+ *  data file opens in its diagram (item 32) — the text when the diagram is
+ *  switched off (ADR 0106 item 12) — a note as a note. */
 export async function showLooseFile(info: LooseFileInfo): Promise<void> {
   const first = !isLoose();
   files.set(info.name, info);
   if (first) enterLoose();
-  openNote(info.name, false);
+  // (The leaves are not imported here: they import this module.)
+  if (hasCapability("dataDiagram") && formatOfPath(info.name) !== null) {
+    const leaf = paneToOpenIn().openDiagram(info.name) as { textIfUnreadable?: boolean };
+    if ("textIfUnreadable" in leaf) leaf.textIfUnreadable = true;
+  } else openNote(info.name, false);
   paintBar();
   document.title = `${info.name} — Verso`;
 }
@@ -123,7 +133,9 @@ function makeBar(): HTMLElement {
   const id = h("span", "loose-id");
   barName = h("span", "loose-name");
   barPlace = h("span", "loose-place");
-  id.append(icon("note"), barName, barPlace);
+  const first = icon("note");
+  first.setAttribute("data-icon", "note");
+  id.append(first, barName, barPlace);
   barKnown = button("ghost loose-known", "");
   barKnown.hidden = true;
   barKnown.addEventListener("click", () => void openWholeFolder(true));
@@ -162,6 +174,14 @@ function paintBar(): void {
   const info = files.get(active) ?? [...files.values()][0];
   if (!info) return;
   barName.textContent = barName.title = info.name;
+  // A data file is drawn as a diagram (item 32): its icon says so.
+  const kind = formatOfPath(info.name) !== null ? "diagram" : "note";
+  const shown = barName.previousElementSibling;
+  if (shown instanceof Element && shown.getAttribute("data-icon") !== kind) {
+    const next = icon(kind);
+    next.setAttribute("data-icon", kind);
+    shown.replaceWith(next);
+  }
   barPlace.textContent = barPlace.title = ls.in(info.place);
   const known = info.known_folder ?? null;
   barKnown.hidden = known === null;
@@ -221,12 +241,23 @@ export function looseTabClosed(path: string): void {
 addEventListener("verso:tab-closed", (e) => looseTabClosed((e as CustomEvent<string>).detail));
 
 /** The file changed outside (item 11): the tab reads again when nothing
- *  was typed, shows the conflict otherwise, says so when it is gone. */
+ *  was typed, shows the conflict otherwise, says so when it is gone — a
+ *  note's tab, a data file's text tab and its diagram alike (item 32). */
 export async function looseChangedOutside(change: FolderChanged): Promise<void> {
   if (!isLooseKey(change.key)) return;
   const changed = new Set([...change.changed, ...change.removed]);
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
-  tellOutcomes(outcomes);
+  // A diagram reads again (`recheck`); a text tab checks itself
+  // (`looseRecheck`). Asked by what they answer: the leaves import this module.
+  type Outcome = "same" | "read" | "conflict" | "gone" | "back";
+  const others = spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)).filter((l) => l.kind !== "note" && changed.has(l.path));
+  const texts: { leaf: { path: string }; outcome: Outcome }[] = [];
+  for (const l of others) {
+    const tab = l as unknown as { looseRecheck?: () => Promise<Outcome>; recheck?: () => Promise<unknown> };
+    if (tab.looseRecheck) texts.push({ leaf: l, outcome: await tab.looseRecheck() });
+    else if (l.kind === "data" && tab.recheck) void tab.recheck();
+  }
+  tellOutcomes([...outcomes, ...texts]);
 }
 
 /** "Save here again" for a loose file (item 11): the file made again at

@@ -34,8 +34,14 @@ const big = (): Seed[] =>
     b64: btoa(`# Nota ${i}\n`),
   }));
 // A `.md` opened without its folder (`?loose=1`, ADR 0114): the file, a
-// sibling note and a picture, as a Downloads folder holds them.
+// sibling note and a picture, as a Downloads folder holds them; and the
+// data files `&file=` opens instead (item 32): a JSON, a YAML and a JSON
+// that does not parse.
+const utf8b64 = (text: string): string => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
 const looseSeed = (): Seed[] => [
+  { path: "Inventário.json", b64: utf8b64('{\n  "personagem": "Ana",\n  "itens": [\n    { "nome": "corda", "peso": 2 },\n    { "nome": "lanterna", "peso": 1 }\n  ]\n}\n') },
+  { path: "config.yaml", b64: utf8b64("servidor:\n  porta: 7340\n  nome: Mesa\njogadores:\n  - Ana\n  - Bia\n") },
+  { path: "quebrado.json", b64: utf8b64('{ "aberto": [1, 2\n') },
   { path: "Lista de compras.md", b64: btoa("# Lista de compras\n\n- arroz\n- feijao\n\n![[foto.png]]\n\nVer [[Vizinha]] e [[Longe]].\n") },
   { path: "Vizinha.md", b64: btoa("# Vizinha\n\nA nota ao lado.\n") },
   { path: "foto.png", b64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" },
@@ -89,12 +95,14 @@ if (onServer) {
 // window is told `Opened::File`, reads and writes the file by its name,
 // resolves a link by one sibling's name, and every folder command is
 // refused as the service refuses it. `&ro=permissions|too_large` opens it
-// read only for that reason; `&known=1` says a folder opened before holds it.
+// read only for that reason; `&known=1` says a folder opened before holds it;
+// `&file=Inventário.json` (or `config.yaml`, `quebrado.json`) hands a data
+// file instead, which opens in the diagram (item 32).
 if (params.get("loose") === "1") {
-  const name = "Lista de compras.md";
+  const name = params.get("file") ?? "Lista de compras.md";
   const info = (): LooseFileInfo => ({
     name,
-    key: "lista-de-compras-0123456789abcdef",
+    key: `${name.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase()}-0123456789abcdef`,
     place: "Downloads",
     read_only: params.get("ro") === "permissions" ? "permissions" : params.get("ro") === "too_large" ? "too_large" : null,
     size: 160,
