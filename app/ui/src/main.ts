@@ -14,6 +14,7 @@
 
 import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
+import { watchDeskOnPhone } from "./deskOnPhone";
 import { mayShare, openShareDialog } from "./shares";
 import { campaignRootItems, hearCampaign } from "./campaign";
 import { sh } from "./shareStrings";
@@ -103,6 +104,7 @@ import { importFile } from "./theme/actions";
 import { installDropHost } from "./dropHost";
 import { watchSuggestion } from "./theme/suggest";
 
+watchDeskOnPhone();
 watchSuggestion();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
