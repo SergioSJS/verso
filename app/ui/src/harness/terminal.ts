@@ -65,7 +65,7 @@ export class FakeTerminals {
       this.allowed();
       void a["shell"];
       void a["locale"];
-      return (["claude", "gemini", "codex", "antigravity"] as AiCli[]).map((cli): AiCliFound => ({ cli, found: this.installed.includes(cli) }));
+      return (["claude", "gemini", "codex", "antigravity", "opencode", "cursor_agent"] as AiCli[]).map((cli): AiCliFound => ({ cli, found: this.installed.includes(cli) }));
     };
     handlers["terminal_install_page"] = (a) => {
       this.pages.push(a["cli"] as AiCli);
@@ -103,7 +103,7 @@ export class FakeTerminals {
     void start.shell;
     void start.locale;
     this.say(t, `Verso harness shell\r\n${this.prompt(t)}`);
-    const words: Record<AiCli, string> = { claude: "claude", gemini: "gemini", codex: "codex", antigravity: "agy" };
+    const words: Record<AiCli, string> = { claude: "claude", gemini: "gemini", codex: "codex", antigravity: "agy", opencode: "opencode", cursor_agent: "cursor-agent" };
     if (start.cli) this.write(id, `${words[start.cli]}\r`);
     return { id, at, shell: "zsh" };
   }
@@ -147,7 +147,7 @@ export class FakeTerminals {
     }
     if (line.startsWith("echo ")) this.say(t, `${line.slice(5)}\r\n`);
     else if (line === "stty size") this.say(t, `${t.size.rows} ${t.size.cols}\r\n`);
-    else if (["claude", "gemini", "codex", "agy"].includes(line)) this.say(t, `${line}: started in the harness\r\n`);
+    else if (["claude", "gemini", "codex", "agy", "opencode", "cursor-agent"].includes(line)) this.say(t, `${line}: started in the harness\r\n`);
     else if (line) this.say(t, `${line.split(" ")[0]}: command not found\r\n`);
     this.say(t, this.prompt(t));
   }

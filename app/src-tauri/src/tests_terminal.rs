@@ -331,10 +331,16 @@ fn output_never_cuts_a_character() {
 #[test]
 fn the_detection_reads_the_shells_answer() {
     use verso_contract::AiCli;
-    let answer = "Welcome, claude!\r\n\u{1b}]0;title\u{7}verso-detect-begin\r\n/Users/a/.local/bin/claude\r\nalias codex='npx codex'\r\n\u{1b}[?25lC:\\Users\\a\\AppData\\Roaming\\npm\\gemini.cmd\u{1b}[?25h\r\nverso-detect-end\r\nagy\r\n";
+    let answer = "Welcome, claude!\r\n\u{1b}]0;title\u{7}verso-detect-begin\r\n/Users/a/.local/bin/claude\r\nalias codex='npx codex'\r\n\u{1b}[?25lC:\\Users\\a\\AppData\\Roaming\\npm\\gemini.cmd\u{1b}[?25h\r\n/Users/a/.opencode/bin/opencode\r\n/Users/a/.local/bin/cursor-agent\r\nverso-detect-end\r\nagy\r\n";
     assert_eq!(
         pty::found_in(answer),
-        vec![AiCli::Claude, AiCli::Codex, AiCli::Gemini]
+        vec![
+            AiCli::Claude,
+            AiCli::Codex,
+            AiCli::Gemini,
+            AiCli::OpenCode,
+            AiCli::CursorAgent
+        ]
     );
     assert!(pty::found_in("claude\ngemini\n").is_empty());
 }
@@ -347,8 +353,8 @@ fn the_detection_asks_the_login_shell() {
     let found = pty::detect(&start(None), Duration::from_secs(30)).unwrap();
     eprintln!("found: {found:?}");
     // Whatever this machine has installed, the answer is a list of the
-    // four tools; the parse is the test above.
-    assert!(found.len() <= 4);
+    // tools asked about; the parse is the test above.
+    assert!(found.len() <= pty::CLIS.len());
 }
 
 /// The window's language as `LANG`; anything else is no language.

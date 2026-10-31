@@ -49,8 +49,11 @@ pub enum TerminalShell {
 }
 
 /// The AI command-line tools the terminal offers to start (ADR 0115 item
-/// 14, Q3 decided 2026-10-31), each by the command its maker installs. A
-/// fixed list: the window names one, the host knows the word.
+/// 14, Q3 decided 2026-10-31; OpenCode and Cursor's CLI added by the
+/// maintainer the same day), each by the command its maker installs. A
+/// fixed list: the window names one, the host knows the word. A tool more
+/// is a variant here, its word and page in the host (`pty::cli_word`,
+/// `terminal::install_page`) and its name in the window's strings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AiCli {
@@ -62,6 +65,11 @@ pub enum AiCli {
     Codex,
     /// Antigravity's CLI, `agy`.
     Antigravity,
+    /// OpenCode, `opencode`.
+    #[serde(rename = "opencode")]
+    OpenCode,
+    /// Cursor's CLI, `cursor-agent`.
+    CursorAgent,
 }
 
 /// Whether the person's login shell finds an AI command-line tool (ADR 0115
@@ -106,4 +114,39 @@ pub struct TerminalOpened {
 pub enum TerminalOutput {
     Data { text: String },
     Ended { code: Option<u32> },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The AI tools cross as the window's words (ADR 0115 item 14 and its
+    /// amendment of 2026-10-31: OpenCode and Cursor's CLI added).
+    #[test]
+    fn the_ai_tools_cross_by_their_words() {
+        let words: Vec<String> = [
+            AiCli::Claude,
+            AiCli::Gemini,
+            AiCli::Codex,
+            AiCli::Antigravity,
+            AiCli::OpenCode,
+            AiCli::CursorAgent,
+        ]
+        .iter()
+        .filter_map(|c| serde_json::to_string(c).ok())
+        .collect();
+        assert_eq!(
+            words,
+            [
+                "\"claude\"",
+                "\"gemini\"",
+                "\"codex\"",
+                "\"antigravity\"",
+                "\"opencode\"",
+                "\"cursor_agent\""
+            ]
+        );
+        let back: Result<AiCli, _> = serde_json::from_str("\"cursor_agent\"");
+        assert_eq!(back.ok(), Some(AiCli::CursorAgent));
+    }
 }

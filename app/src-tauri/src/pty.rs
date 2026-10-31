@@ -503,14 +503,19 @@ pub(crate) fn cli_word(cli: AiCli) -> &'static str {
         AiCli::Gemini => "gemini",
         AiCli::Codex => "codex",
         AiCli::Antigravity => "agy",
+        AiCli::OpenCode => "opencode",
+        AiCli::CursorAgent => "cursor-agent",
     }
 }
 
-pub(crate) const CLIS: [AiCli; 4] = [
+/// Every tool the detection asks about, in the order the window lists them.
+pub(crate) const CLIS: [AiCli; 6] = [
     AiCli::Claude,
     AiCli::Gemini,
     AiCli::Codex,
     AiCli::Antigravity,
+    AiCli::OpenCode,
+    AiCli::CursorAgent,
 ];
 
 const BEGIN: &str = "verso-detect-begin";

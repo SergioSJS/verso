@@ -480,6 +480,8 @@ pub(crate) fn install_page(cli: AiCli) -> &'static str {
         AiCli::Gemini => "https://github.com/google-gemini/gemini-cli",
         AiCli::Codex => "https://github.com/openai/codex",
         AiCli::Antigravity => "https://antigravity.google",
+        AiCli::OpenCode => "https://opencode.ai",
+        AiCli::CursorAgent => "https://cursor.com/cli",
     }
 }
 

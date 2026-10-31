@@ -1219,8 +1219,11 @@ export type AccessWhy =
 
 /**
  *  The AI command-line tools the terminal offers to start (ADR 0115 item
- *  14, Q3 decided 2026-10-31), each by the command its maker installs. A
- *  fixed list: the window names one, the host knows the word.
+ *  14, Q3 decided 2026-10-31; OpenCode and Cursor's CLI added by the
+ *  maintainer the same day), each by the command its maker installs. A
+ *  fixed list: the window names one, the host knows the word. A tool more
+ *  is a variant here, its word and page in the host (`pty::cli_word`,
+ *  `terminal::install_page`) and its name in the window's strings.
  */
 export type AiCli = 
 /**  Claude Code, `claude`. */
@@ -1230,7 +1233,11 @@ export type AiCli =
 /**  Codex, `codex`. */
 "codex" | 
 /**  Antigravity's CLI, `agy`. */
-"antigravity";
+"antigravity" | 
+/**  OpenCode, `opencode`. */
+"opencode" | 
+/**  Cursor's CLI, `cursor-agent`. */
+"cursor_agent";
 
 /**
  *  Whether the person's login shell finds an AI command-line tool (ADR 0115

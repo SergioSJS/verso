@@ -131,6 +131,8 @@ test("the AI tools: asked on a click, a found one starts in a new terminal, an a
   const menu = page.locator(".menu:not([hidden])");
   await expect(menu).toContainText("Abrir Claude Code");
   await expect(menu).toContainText("Codex não está instalado");
+  await expect(menu).toContainText("OpenCode não está instalado");
+  await expect(menu).toContainText("Cursor CLI não está instalado");
   await menu.getByText("Abrir Gemini CLI").click();
   await expect(page.locator(".tab", { hasText: /^Terminal 2 — / })).toHaveCount(1);
   await expect.poll(() => screen(page)).toContain("gemini: started in the harness");
