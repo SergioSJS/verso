@@ -45,6 +45,7 @@ const ALLOWED = [
   /English/g,
   /No diagram type detected[^]*/g, // Mermaid's own parser message, shown under the app's title; the library has one language
   /file\.name/g, // a formula of the bases, code
+  /xdg-mime default [\w.-]+ text\/markdown/g, // a terminal command (single-file mode, ADR 0114), code
   /Português/g, // "Import the demo content in Portuguese (Português)": a language is named in itself
   /pasta-vazia/g, // the harness's empty folder, named in Portuguese
   /“Porto”, “Mesa”, “Ordem”/g, // example names in a setting's explanation

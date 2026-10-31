@@ -57,4 +57,13 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_menu_enabled: ["enabled"],
   install_cli: ["replace"],
   new_window: ["sameFolder"],
+  // A file opened without its folder (ADR 0114): a folder's window has no
+  // loose file to close, save, open beside or reopen; `?loose=1`
+  // (src/harness.ts) answers them with what they carry.
+  loose_close: ["name"],
+  open_folder_of_file: ["name", "known"],
+  open_sibling: ["from", "target"],
+  loose_save_again: ["name", "text"],
+  loose_save_copy: ["name", "text"],
+  open_recent_file: ["index"],
 };

@@ -18,6 +18,7 @@
 import YAML from "yaml";
 import { menuSections } from "./menu";
 import { rewriteOrder } from "./order";
+import { FOLDER_CAN } from "../folderCan";
 import type {
   Capabilities,
   FolderSpace,
@@ -1398,7 +1399,7 @@ export class Core {
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
       latency_ms: null,
     }),
     folder_space: (): FolderSpace => {
