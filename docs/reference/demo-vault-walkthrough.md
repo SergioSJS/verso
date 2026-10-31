@@ -1443,6 +1443,11 @@ Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
    and *Expandir até o nível…* do the same for all. Search *revelada*: the
    match inside a folded branch opens the way to it; Enter and Shift+Enter
    go on and back, Esc clears. Level: H; E: `datagraph.spec.mjs`.
+   On a phone (390 wide) the toolbar is one row of icons (search, zoom out,
+   zoom in, fit, "…"); the "…" menu holds *Recolher tudo*, *Expandir tudo*,
+   *Expandir até o nível…*, direction, *Arrumar de novo*, *Salvar como
+   board…*; the search opens over the row; the one-line hint is dismissed
+   for good. Level: H; E: `datagraph-phone.spec.mjs`.
 4. Open the same file in a second pane (⌘\) as text and click a box: its range
    is selected in the text; put the caret in the text and the box holding it
    is marked; type a letter and the diagram follows after a pause; break the

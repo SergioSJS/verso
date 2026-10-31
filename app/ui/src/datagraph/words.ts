@@ -61,6 +61,12 @@ type Words = {
   boardTooMany: (n: number, max: number) => string;
   hint: string;
   hintTouch: string;
+  hintShort: string;
+  hintDismiss: string;
+  hintShow: string;
+  searchOpen: string;
+  searchClose: string;
+  moreActions: string;
   boxLabel: (label: string, level: number) => string;
   rootLabel: string;
   aliasTo: (name: string) => string;
@@ -191,6 +197,12 @@ const pt: Words = {
   boardTooMany: (n, max) => `O diagrama tem ${n} caixas; um board aceita até ${max}. Dobre ramos do diagrama para ter menos caixas visíveis e tente de novo.`,
   hint: "Arraste uma caixa pelo título para movê-la com o que está abaixo; Alt arrasta só a caixa. Setas percorrem a árvore, Enter dobra, Alt com setas move (com Shift, só a caixa), T vai ao texto.",
   hintTouch: "Arraste uma caixa pelo título para movê-la. Dois dedos aproximam e movem o diagrama. Toque na seta da caixa para dobrar.",
+  hintShort: "Arraste pelo título para mover; dois dedos aproximam.",
+  hintDismiss: "Dispensar a dica",
+  hintShow: "Dicas de toque",
+  searchOpen: "Buscar",
+  searchClose: "Fechar a busca",
+  moreActions: "Mais ações do diagrama",
   boxLabel: (label, level) => `${label === "" ? "raiz" : label}, nível ${level}`,
   rootLabel: "raiz",
   aliasTo: (name) => `aponta para ${name}`,
@@ -266,6 +278,12 @@ const en: Words = {
   boardTooMany: (n, max) => `The diagram has ${n} boxes; a board takes up to ${max}. Fold branches of the diagram to show fewer boxes and try again.`,
   hint: "Drag a box by its title to move it with what hangs under it; Alt drags the box alone. Arrows walk the tree, Enter folds, Alt with arrows moves (with Shift, the box alone), T goes to the text.",
   hintTouch: "Drag a box by its title to move it. Two fingers zoom and move the diagram. Tap a box's arrow to fold it.",
+  hintShort: "Drag by the title to move; two fingers zoom.",
+  hintDismiss: "Dismiss the tip",
+  hintShow: "Touch tips",
+  searchOpen: "Search",
+  searchClose: "Close search",
+  moreActions: "More diagram actions",
   boxLabel: (label, level) => `${label === "" ? "root" : label}, level ${level}`,
   rootLabel: "root",
   aliasTo: (name) => `points to ${name}`,
