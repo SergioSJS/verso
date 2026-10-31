@@ -33,7 +33,7 @@ const DROPPED = new Set([
 ]);
 
 /** On any element kept. */
-const GLOBAL = new Set(["class", "id", "title", "lang", "dir", "style", "align", "data-target", "data-tag", "data-callout", "data-fold", "data-task-line"]);
+const GLOBAL = new Set(["class", "id", "title", "lang", "dir", "style", "align", "data-target", "data-tag", "data-callout", "data-fold", "data-task-line", "data-oracle-line"]);
 const OWN: Record<string, Set<string>> = {
   a: new Set(["href"]),
   iframe: new Set(["src", "width", "height", "style", "title", "allow", "allowfullscreen", "loading", "sandbox"]),

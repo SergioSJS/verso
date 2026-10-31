@@ -325,10 +325,13 @@ export function renderMarkdown(raw: string): string {
     }
     const callout = /^>\s*\[!(\w+)\]([+-]?)\s*(.*)$/.exec(line);
     if (callout) {
+      const start = i;
       const inner: string[] = [];
       while (i + 1 < lines.length && (lines[i + 1] ?? "").startsWith(">")) inner.push((lines[++i] ?? "").replace(/^>\s?/, ""));
       const kind = (callout[1] ?? "note").toLowerCase();
-      out.push(`<blockquote class="callout" data-callout="${kind}"><div class="callout-title">${formatInline(callout[3] || kind)}</div><p>${formatInline(inner.join(" "))}</p></blockquote>`);
+      // An oracle callout carries its head's line, as the core's does (callouts.rs).
+      const at = kind === "oracle" ? ` data-oracle-line="${bodyLine + start + 1}"` : "";
+      out.push(`<blockquote class="callout" data-callout="${kind}"${at}><div class="callout-title">${formatInline(callout[3] || kind)}</div><p>${formatInline(inner.join(" "))}</p></blockquote>`);
       continue;
     }
     const task = /^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)$/.exec(line);

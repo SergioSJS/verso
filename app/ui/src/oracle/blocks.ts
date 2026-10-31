@@ -10,7 +10,7 @@ import { icon } from "../icons";
 import { refusalText, showOracleDialog } from "./dialog";
 import type { OracleHost } from "./host";
 import { os } from "./strings";
-import { readingTarget } from "./write";
+import { readingTarget, readingTargetOnLine } from "./write";
 
 /** What is inside another note or a drawn file: not this note's callout. */
 const FOREIGN = ".embed-note, .embed, .embed-base, .embed-pdf";
@@ -21,8 +21,12 @@ const FOREIGN = ".embed-note, .embed, .embed-base, .embed-pdf";
  *  the note cannot be written. */
 export function markOracles(root: ParentNode, host?: OracleHost | null): void {
   if (!host || host.readOnly || !hasCapability("oracles")) return;
-  // The ones on screen that this note's text holds, in order: the same
-  // count `oracleBlocks` makes of the source, or nothing is written.
+  // The core numbers each callout's head (`data-oracle-line`, ADR 0102
+  // amendment of 2026-10-31): the callout on that line is the one written
+  // into, however much of the view was drawn again. A view drawn by an older
+  // core (a server not yet updated) carries no line: then the ones on screen
+  // that this note's text holds, in order — the same count `oracleBlocks`
+  // makes of the source, or nothing is written.
   const boxes = Array.from(root.querySelectorAll<HTMLElement>('.callout[data-callout="oracle"]')).filter((b) => !b.closest(FOREIGN));
   boxes.forEach((box, index) => {
     if (box.classList.contains("oracle-callout-wired")) return;
@@ -35,7 +39,9 @@ export function markOracles(root: ParentNode, host?: OracleHost | null): void {
 
     actionBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const found = readingTarget(host, index, boxes.length);
+      const said = box.dataset["oracleLine"];
+      const line = Number(said);
+      const found = said !== undefined && Number.isInteger(line) && line > 0 ? readingTargetOnLine(host, line) : readingTarget(host, index, boxes.length);
       if ("why" in found) {
         ui.status.textContent = refusalText(found.why);
         return;

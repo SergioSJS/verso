@@ -21,6 +21,7 @@
 //     head svg math — and any element outside the HTML namespace.
 //   Attributes on any kept element: class id title lang dir style align
 //     data-target data-tag data-callout data-fold data-task-line
+//     data-oracle-line
 //   Attributes of their own: a[href] img[src alt width height data-src]
 //     iframe[src width height style title allow allowfullscreen loading
 //     sandbox] ol[start reversed type] li[value] input[type checked disabled]

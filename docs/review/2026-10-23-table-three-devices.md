@@ -80,7 +80,10 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    by the chip's place among the identical ones. A roll heard from another
    person still lands on the first chip with that notation, because the
    contract's roll carries no place; carrying it is a contract change, left
-   open.
+   open. *Later the same day* `5bc67a211` carried it (`DiceRoll.occurrence`,
+   ADR 0107); what still landed wrong — Live Preview counting otherwise than
+   Reading, and a reader of a note with secret blocks — was fixed on
+   2026-10-31 (ADR 0088, amendment of that day, *As built*).
 5. **MINOR — A reader's board says "saved by a newer Verso".** The notice for a
    file from a newer version is shown for any board that cannot be written,
    a reader's included. **Fixed after the run** in `2a51c0c1`.

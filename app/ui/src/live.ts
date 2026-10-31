@@ -80,6 +80,9 @@ export type LiveOptions = {
   roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string, occ?: number) => WidgetType | null;
+  /** The die a code's text names (its notation, or its table), or null when
+   *  it is no die drawn here: identical dice are counted by it. */
+  diceKey?: (code: string) => string | null;
   /** A statblock card's dice — the note's own dice, which roll in a room
    *  through the server — and why its trackers cannot write now (ADR 0099
    *  items 4 and 5). */
@@ -149,6 +152,38 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // (The fold itself is a state field below: a replacement that spans
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
+
+  // Which of the note's identical dice a code is, counted as the reading
+  // view counts them (dice/card.ts `wireDice`): the codes before it that
+  // name the same die, so that a roll heard from another window lands on the
+  // same chip whichever view each person is in — not every earlier copy of
+  // its text, which a fenced example or the frontmatter would add.
+  let ranks: Map<number, number> | null = null;
+  const rankOf = (at: number, keyOf: (code: string) => string | null): number => {
+    if (!ranks) {
+      const found = new Map<number, number>();
+      const seen = new Map<string, number>();
+      tree.iterate({
+        from: 0,
+        to: view.viewport.to,
+        enter: (node) => {
+          if (fmEnd >= 0 && node.from < fmEnd) return node.to > fmEnd ? undefined : false;
+          // A code block holds no inline code: not walked into.
+          if (node.name === "FencedCode" || node.name === "CodeBlock") return false;
+          if (node.name !== "InlineCode") return undefined;
+          const key = keyOf(doc.sliceString(node.from, node.to));
+          if (key !== null) {
+            const n = seen.get(key) ?? 0;
+            seen.set(key, n + 1);
+            found.set(node.from, n);
+          }
+          return false;
+        },
+      });
+      ranks = found;
+    }
+    return ranks.get(at) ?? 0;
+  };
 
   // A blank line that only separates two blocks is a thin gap, full height
   // under the caret (ADR 0061, revised 2026-10-22); a further blank line in
@@ -230,7 +265,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           // Which of the note's identical codes this is: two dice of the
           // same notation are two dice (dice/card.ts).
           let occ = 0;
-          if (!shown && opts.dice) {
+          // Counted only for a code that is a die: the walk is not made for a note without one.
+          if (!shown && opts.dice && opts.diceKey) occ = opts.diceKey(text) === null ? 0 : rankOf(node.from, opts.diceKey);
+          else if (!shown && opts.dice) {
             const before = doc.sliceString(0, node.from);
             for (let at = before.indexOf(text); at >= 0; at = before.indexOf(text, at + text.length)) occ++;
           }

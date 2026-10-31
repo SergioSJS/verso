@@ -172,6 +172,16 @@ export function oracleBlocks(text: string): OracleBlock[] {
   return out;
 }
 
+/** The oracle callout whose head is on `line` (1-based, as the core numbers
+ *  `data-oracle-line`, frontmatter included), or null when no callout's head
+ *  is there — a body line, a fenced example, a line past the end. */
+export function oracleBlockOnLine(text: string, line: number): OracleBlock | null {
+  if (!Number.isInteger(line) || line < 1) return null;
+  const head = splitLines(text)[line - 1];
+  if (!head) return null;
+  return oracleBlocks(text).find((b) => b.from === head.from) ?? null;
+}
+
 /** The innermost oracle callout `pos` stands in, on any of its lines. */
 export function oracleBlockContaining(text: string, pos: number): OracleBlock | null {
   let best: OracleBlock | null = null;

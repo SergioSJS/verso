@@ -179,3 +179,42 @@ apps), and approved as recommended: *"Todo resto pode ir de recomendado e aprova
 chip's place, in the **same contract change** as the oracle's callout found
 by its line ([0102](0102-creative-oracles-and-improvisation.md), amendment of
 the same day); the server is deployed before the apps.
+
+*As built (2026-10-31).* **A contradiction, recorded and not resolved
+here:** the room's roll already carried the chip's place. `DiceRoll`
+gained `occurrence` on 2026-10-23 (`5bc67a211`, decided "Sim" that day and
+recorded in [0107](0107-the-table-a-shared-roll-and-chat-log.md), *A roll
+heard names the die that was clicked*): which of the note's dice with that
+code was clicked, from 0, sent by the window in `collab_roll` and
+`table_roll`, kept by the server only below 1000, relayed in the room's
+event, in the rolls kept for whoever joins and in the table's entry; none
+(an older window or server) is the first chip, as before. Finding 4 of the
+review and this amendment were written from the text before that commit.
+So this build changes **no contract type**: `bindings.ts` regenerates
+unchanged, an old window's roll (no `occurrence`) is still read by the
+server, and an old server's roll is still read by a new window. What still
+landed on the wrong chip, and is fixed:
+
+- *Live Preview and Reading counted differently.* Reading counts the
+  rendered dice of the note with the same code (`wireDice`); Live Preview
+  counted every earlier copy of the code's text, a fenced example and
+  another spelling (`dice:1d20`, `dice: 1d20`) included, so a roll made in
+  one view showed on another die in the other. Live Preview now counts the
+  inline codes before it that name the same die, outside the frontmatter
+  (`live.ts`, `diceKey` in `dice/live.ts`); `dice.spec.mjs` was seen failing
+  first (occurrence 1 where Reading says 0).
+- *A reader of a note with secret blocks.* A reader counts the dice of the
+  projection, and the server told readers a roll whenever its code was
+  written in the projection: with the same code inside a secret block and
+  in the open, the hidden die's roll reached the readers and showed on the
+  open one ([0087](0087-secret-blocks-hidden-from-readers.md) item 4).
+  Now a roll is told to the room's readers, given to one who joins and
+  marked open in the table only when no die with its code is hidden — the
+  code written no more often in the room's text than in the projection
+  (`collab_readers.rs`, `visible`); it fails closed, so a public die that
+  shares its code with a hidden one is not heard by readers either.
+  `tests_secret.rs` was seen failing first (the reader heard `1d20`).
+
+Left as is, `[OPEN]` for the maintainer: translating a place to the
+projection's count, so that a reader would hear the public die of a code a
+secret block also holds — a design choice, not made here.
