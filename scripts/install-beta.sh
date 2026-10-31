@@ -20,7 +20,8 @@
 #     Tools' MacOSX27.0.sdk beside 26.5, links fail ("tapi … arm64e.x1"):
 #     SDKROOT is set to 26.5 when both are there and SDKROOT is unset.
 #  3. Puts the two binaries, ui-web/, the version and the Info.plist keys of
-#     app/src-tauri/Info.plist (Local Network words, Bonjour services) into a
+#     app/src-tauri/Info.plist (Local Network words, Bonjour services, the
+#     Markdown type) and the .md document types into a
 #     copy of the installed bundle, and signs it ad hoc, as release.yml does.
 #     With no installed beta to start from, it stops and says how to make one.
 #  4. Quits the running beta (the process is verso-app, not "Verso Beta") and
@@ -105,6 +106,25 @@ words="$(plutil -extract NSLocalNetworkUsageDescription raw -o - app/src-tauri/I
 plutil -replace NSLocalNetworkUsageDescription -string "$words" "$plist"
 services="$(plutil -extract NSBonjourServices json -o - app/src-tauri/Info.plist)" || fail "no NSBonjourServices in app/src-tauri/Info.plist"
 plutil -replace NSBonjourServices -json "$services" "$plist"
+# Verso under "Open with" for .md (ADR 0114 item 2): the Markdown type the
+# Info.plist imports, and the document types Tauri makes of the macOS
+# config's fileAssociations. A copied bundle never had them: until
+# 2026-10-31 the beta was not offered for a .md at all.
+imported="$(plutil -extract UTImportedTypeDeclarations json -o - app/src-tauri/Info.plist)" || fail "no UTImportedTypeDeclarations in app/src-tauri/Info.plist"
+plutil -replace UTImportedTypeDeclarations -json "$imported" "$plist"
+documents="$(node -e '
+  const c = require("./app/src-tauri/tauri.macos.conf.json");
+  const types = (c.bundle.fileAssociations || []).map((a) => ({
+    CFBundleTypeExtensions: a.ext,
+    CFBundleTypeName: a.name,
+    CFBundleTypeRole: a.role,
+    LSHandlerRank: a.rank,
+    ...(a.contentTypes ? { LSItemContentTypes: a.contentTypes } : {}),
+  }));
+  if (!types.length) process.exit(1);
+  process.stdout.write(JSON.stringify(types));
+')" || fail "no fileAssociations in app/src-tauri/tauri.macos.conf.json"
+plutil -replace CFBundleDocumentTypes -json "$documents" "$plist"
 codesign --force --deep --sign - "$new"
 codesign --verify --deep --strict "$new"
 
@@ -123,6 +143,8 @@ if [ -d "$APP" ]; then
   mv "$APP" "$old"
 fi
 ditto "$new" "$APP"
+# Launch Services reads the new document types now, not at its next scan.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
 mark=0
 [ -f "$LOG" ] && mark="$(wc -l < "$LOG")"
 open "$APP"
