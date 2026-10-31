@@ -72,6 +72,40 @@ fn the_file_itself_is_read_and_written_and_the_write_is_atomic() {
 }
 
 #[test]
+fn a_data_file_is_a_scope_of_its_own_as_a_note_is() {
+    // ADR 0114 item 32: a `.json` opened loose has the scope a `.md` has —
+    // itself read and written, atomically and over the stamp read; its
+    // sibling notes and data files out of reach; nothing beside it.
+    let (dir, _) = loose();
+    let mut root = Root::open_file(dir.path().join("dados.json")).unwrap();
+    assert_eq!(root.scope(), Some(Path::new("dados.json")));
+    let h = root.scoped_file().unwrap();
+    let (bytes, stamp) = root.read(h).unwrap();
+    assert_eq!(bytes, b"{}");
+    let _ = root.write(h, b"{\"a\": 1}\n", &stamp).unwrap();
+    assert_eq!(
+        fs::read_to_string(dir.path().join("dados.json")).unwrap(),
+        "{\"a\": 1}\n"
+    );
+    let err = root.write(h, b"{}", &stamp).unwrap_err();
+    assert!(matches!(err, WriteError::Changed { .. }), "{err:?}");
+    for sibling in ["nota.md", "outra.md", ".segredo.md"] {
+        assert!(root.handle(Path::new(sibling)).is_err(), "{sibling}");
+    }
+    assert_eq!(
+        names(dir.path()),
+        [
+            ".segredo.md",
+            "dados.json",
+            "foto.png",
+            "nota.md",
+            "outra.md",
+            "sub"
+        ]
+    );
+}
+
+#[test]
 fn a_write_is_refused_when_the_file_changed_since_it_was_read() {
     let (dir, mut root) = loose();
     let h = root.scoped_file().unwrap();
@@ -236,7 +270,36 @@ fn what_the_system_hands_over_is_classified_by_one_look_at_the_disk() {
         kind_of(&dir.path().join("longa.markdown")),
         PathKind::MarkdownFile
     );
-    assert_eq!(kind_of(&dir.path().join("dados.json")), PathKind::OtherFile);
+    // A structured-data file opens loose too, in the diagram (item 31);
+    // any other file does not.
+    for name in [
+        "dados.json",
+        "Config.YAML",
+        "a.yml",
+        "b.toml",
+        "c.xml",
+        "d.csv",
+    ] {
+        fs::write(dir.path().join(name), "x").unwrap();
+        assert_eq!(
+            kind_of(&dir.path().join(name)),
+            PathKind::DataFile,
+            "{name}"
+        );
+        assert!(kind_of(&dir.path().join(name)).opens_loose());
+    }
+    for name in ["e.txt", "f.jsonl", "g.png"] {
+        fs::write(dir.path().join(name), "x").unwrap();
+        assert_eq!(
+            kind_of(&dir.path().join(name)),
+            PathKind::OtherFile,
+            "{name}"
+        );
+        assert!(!kind_of(&dir.path().join(name)).opens_loose());
+    }
+    fs::create_dir(dir.path().join("pasta.json")).unwrap();
+    assert_eq!(kind_of(&dir.path().join("pasta.json")), PathKind::Directory);
+    assert!(kind_of(&dir.path().join("nota.md")).opens_loose());
     assert_eq!(
         kind_of(&dir.path().join("nao-existe.md")),
         PathKind::Missing

@@ -24,8 +24,14 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::{ConfinementError, Handle, ReadError, Root, WriteError, on_disk, placeholder};
 
-/// The extensions a loose file opens under, folded (ADR 0114 item 1).
+/// The extensions a loose file opens under as a note, folded (ADR 0114
+/// item 1).
 pub const NOTE_EXTENSIONS: [&str; 2] = ["md", "markdown"];
+
+/// The structured-data extensions a loose file also opens under, folded
+/// (ADR 0114 item 31, amended 2026-10-31): the formats of the diagram of
+/// ADR 0106 that Verso is offered for under "Open with".
+pub const DATA_EXTENSIONS: [&str; 6] = ["json", "yaml", "yml", "toml", "xml", "csv"];
 
 /// The extensions of the attachment kinds a loose note may read beside
 /// itself (item 14): image, PDF, audio, video. Nothing else — a sibling
@@ -44,6 +50,9 @@ pub enum PathKind {
     /// its name and its parent. A dataless cloud file counts: its read
     /// brings it down, as a folder's note is (ADR 0043).
     MarkdownFile,
+    /// A regular file whose extension, folded, is one of
+    /// [`DATA_EXTENSIONS`] (item 31): opened loose too, in the diagram.
+    DataFile,
     /// A regular file of another kind.
     OtherFile,
     /// Nothing is there; or only the older iCloud `.Name.ext.icloud`
@@ -53,6 +62,14 @@ pub enum PathKind {
     Placeholder,
     /// The disk could not be asked: the error's text, no path.
     Unreadable(String),
+}
+
+impl PathKind {
+    /// Whether the kind opens as a loose file (a note or a data file).
+    #[must_use]
+    pub fn opens_loose(&self) -> bool {
+        matches!(self, Self::MarkdownFile | Self::DataFile)
+    }
 }
 
 /// Whether `name`'s extension, folded, is one of `exts`.
@@ -72,6 +89,15 @@ pub fn is_note_name(relative: &Path) -> bool {
     relative
         .file_name()
         .is_some_and(|n| has_extension(n, &NOTE_EXTENSIONS))
+}
+
+/// Whether `relative`'s last name is a structured-data file's (`.json`,
+/// `.yaml`, `.yml`, `.toml`, `.xml`, `.csv`).
+#[must_use]
+pub fn is_data_name(relative: &Path) -> bool {
+    relative
+        .file_name()
+        .is_some_and(|n| has_extension(n, &DATA_EXTENSIONS))
 }
 
 /// Whether `relative`'s last name is of an attachment kind.
@@ -96,6 +122,8 @@ pub fn kind_of(path: &Path) -> PathKind {
                 PathKind::Placeholder
             } else if is_note_name(path) {
                 PathKind::MarkdownFile
+            } else if is_data_name(path) {
+                PathKind::DataFile
             } else {
                 PathKind::OtherFile
             }
@@ -445,6 +473,15 @@ mod tests {
         assert!(is_attachment_name(Path::new("docs/manual.pdf")));
         assert!(!is_attachment_name(Path::new("outra.md")));
         assert!(!is_attachment_name(Path::new("dados.json")));
+        assert!(is_data_name(Path::new("dados.json")));
+        assert!(is_data_name(Path::new("Config.YAML")));
+        assert!(is_data_name(Path::new("sub/a.yml")));
+        for ext in ["toml", "xml", "csv"] {
+            assert!(is_data_name(Path::new(&format!("x.{ext}"))));
+        }
+        assert!(!is_data_name(Path::new("x.jsonl")));
+        assert!(!is_data_name(Path::new("x.md")));
+        assert!(!is_note_name(Path::new("x.json")));
     }
 
     #[cfg(unix)]
