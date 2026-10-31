@@ -13,8 +13,9 @@ import { commands, type ContractError, type FolderChanged, type LooseFileInfo, t
 import { recheckAll, tellOutcomes } from "./changes";
 import { ask } from "./dialog";
 import { button, h, ui } from "./dom";
+import { isTableClosed } from "./errorKinds";
 import { fail } from "./errors";
-import { setCurrentFolder, setFolderName } from "./folder";
+import { currentFolder, setCurrentFolder, setFolderName } from "./folder";
 import { icon } from "./icons";
 import { layout, newSpace, openNote, setCurrent, spaces } from "./layout/spaces";
 import { ls } from "./looseStrings";
@@ -22,6 +23,7 @@ import { flash } from "./notify";
 import { openFolderBy, showFolder } from "./open";
 import { page } from "./settings";
 import { t } from "./strings";
+import { showTableClosed } from "./tableClosed";
 
 /** The files this window shows without a folder, by the name the window
  *  asks for them (`LooseFileInfo.name`); empty in a folder's window. */
@@ -58,6 +60,12 @@ export async function openOpened(
 ): Promise<boolean> {
   const r = await run();
   if (r.status !== "ok") {
+    // A closed table is waited out where the folder would be, as a folder
+    // opened any other way (open.ts), asking again by this same way.
+    if (isTableClosed(r.error)) {
+      showTableClosed(() => openOpened(run), currentFolder !== "");
+      return false;
+    }
     fail(r.error);
     return false;
   }
