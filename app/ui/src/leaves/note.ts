@@ -81,7 +81,7 @@ import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
 import { fillLinkCard, wireNotePreview } from "../preview/install";
-import { diceWidget } from "../dice/live";
+import { diceKey, diceWidget } from "../dice/live";
 import { diceBox } from "../dice/card";
 import { diagramLang, openBlockDiagram } from "../datagraph/block";
 import { dgw } from "../datagraph/words";
@@ -364,6 +364,7 @@ export class NoteLeaf extends Leaf {
       notePath: () => this.path,
       roll: { resolve: resolveNoteByName, open: (path) => void openNote(path, false) },
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
+      diceKey,
       statblock: {
         die: (notation, look) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }, { ...look, popover: true }),
         refusal: () => (this.readOnly ? "readOnly" : this.conflict.up ? "conflict" : null),
