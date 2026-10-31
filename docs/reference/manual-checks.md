@@ -780,7 +780,7 @@ in a note long enough to scroll.
 ### Security hardening (ADR 0083, 2026-10-13)
 
 - [ ] **A shared note and a shared board edited from the desktop app while
-  another window edits them** (8d419e9, ca4c8a6, 857f4aa): in the
+  another window edits them** (947814c, 6c4327e, d140c24): in the
   installed app on a UniVerso folder, the same note open in the browser;
   type quickly in both at once, then paste a long paragraph in the app
   while the browser types: every letter arrives in both, in the order
@@ -790,9 +790,9 @@ in a note long enough to scroll.
   board, dragging and drawing in both at once: both see both, nothing
   jumps back. The app's log (`verso.log`) and the server's journal hold
   no refused update. Not verified by a test: that the app hands a
-  window's calls on in order (ca4c8a6).
+  window's calls on in order (6c4327e).
 - [ ] **"Confirme que é você" before a token and before approving a
-  device** (ADR 0083 item 6; 40de8b5, 1d7c4e4): signed in more than ten
+  device** (ADR 0083 item 6; 068e63b, 8a9c842): signed in more than ten
   minutes ago, in the server's *Ajustes*, *Tokens de acesso*, *Criar
   token*: the dialog *Confirme que é você* opens, the password field has
   the focus; a wrong password says *Senha errada.*; the right one makes
@@ -812,7 +812,7 @@ in a note long enough to scroll.
   system refuses the copy, the line says *Digite este código na página
   que abriu:* instead and the code is typed. A link `/device?code=…`
   opened by hand shows the same empty field and sends nothing.
-- [ ] **The device page with a typed code** (ADR 0083 item 17, 73807d2):
+- [ ] **The device page with a typed code** (ADR 0083 item 17, 9248705):
   `/device` opened by hand asks *Cole o código que o aplicativo copiou,
   ou digite o que ele mostra na tela dele.*; the code the
   app shows typed in lower case and without the dash is taken, and the
@@ -832,14 +832,14 @@ in a note long enough to scroll.
   them out and the share dialog says *Dar ou mudar um papel pede que você
   confirme que é você; nada mudou.* VoiceOver reads the dialog's title
   and line; the focus goes back to the share dialog when it closes.
-- [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, cda7500): the
+- [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, 5225d6c): the
   demo vault's "08 - Diagramas Mermaid" in the installed app and in the
   browser: every diagram draws, in light and dark; a diagram with a
   syntax error shows the parser's own message under "Syntax error in
   text"; circle nodes fit their label, a mindmap's labels are centred and
   readable, a class diagram's cardinalities sit by their relation ends.
 - [ ] **universo.sh's printed Caddy steps on a host that already serves
-  another site** (7755802): on a Linux host whose Caddy already serves a
+  another site** (5da3013): on a Linux host whose Caddy already serves a
   site, install with `universo.sh` and follow the printed steps: the
   other site still answers, UniVerso's site is in
   `/etc/caddy/Caddyfile.d/universo.caddyfile`, the Caddyfile has one
@@ -849,7 +849,7 @@ in a note long enough to scroll.
 
 ### Everything edited together (ADR 0082 item 12, feat/coedit-everything, 2026-10-12)
 
-- [ ] **A board in two places at once** (21d096a, 5a027db): on a UniVerso,
+- [ ] **A board in two places at once** (b70e33a, c535f0f): on a UniVerso,
   one board open in the browser and in the installed app on the server's
   folder; drag a card in one while drawing a shape and writing a text in
   the other: both see both within a moment, the other's pointer moves
@@ -907,11 +907,11 @@ in a note long enough to scroll.
   dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
   and cannot change them. Sérgio removes Ana: her window closes the
   folder at once, her synced copy stays and its sync turns off, saying
-  the share was revoked and when (`6c7800e`). Both at a phone's width too. The console's folder page lists the
+  the share was revoked and when (`873921a`). Both at a phone's width too. The console's folder page lists the
   share with its people; the audit log has each step with its path.
 
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
-  `6c7800e`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
+  `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
   "Quem compartilhou … revogou o seu acesso em …", the status bar reads
   "Desligada: quem compartilhou revogou o acesso em …" (amber), and
@@ -921,7 +921,7 @@ in a note long enough to scroll.
   reopen the folder: the notice is still there and sync does not start.
   Turn sync on again with another folder: the notice is gone.
 - [ ] **The device approval page says who asked** (threat model gap 12,
-  `5838c10`): *Ajustes › Servidores*, connect to the UniVerso; the page in
+  `8871f4e`): *Ajustes › Servidores*, connect to the UniVerso; the page in
   the browser shows *Quem pediu* — this computer's name, the address the
   server sees for it, the time — then *Foi você quem pediu, neste
   aparelho?*, *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*.
@@ -929,27 +929,27 @@ in a note long enough to scroll.
   approve: signed in. With VoiceOver, the facts and the question
   are read before the buttons. At a phone's width too.
 - [ ] **A cursor wears its writer's name** (threat model gap 11,
-  `3bc56ae`): two accounts in one note, in two browsers: each sees the
+  `8259d01`): two accounts in one note, in two browsers: each sees the
   other's cursor under the other's account name and colour, as before.
 
-- [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
+- [ ] **"Guardar os dois" in the editor's conflict** (`9262892`): with a
   synced folder, keep a note open in Editar with unsaved text while another
   device changes it; the view "O arquivo mudou em disco…" offers a third
   button, "Guardar os dois" — the disk's version keeps the name, your text
   goes to `<nota> (conflito, <este computador>, <data>).md`, the tab shows
   the copy.
-- [ ] **A note deleted outside while its tab is dirty** (`e5b3ee0`): delete
+- [ ] **A note deleted outside while its tab is dirty** (`06291a6`): delete
   the file in the Finder while typing in it; the tab says "Esta nota foi
   apagada ou movida fora do Verso. O seu texto continua aqui." with "Salvar
   de novo" and "Fechar sem salvar"; no ERROR in the app's log.
-- [ ] **Links a rename could not update** (`da6ac8e`): rename a note while
+- [ ] **Links a rename could not update** (`a453a36`): rename a note while
   another program edits a note that links to it; the notice names the note
   skipped, and "Tentar de novo" applies the change over the new text.
-- [ ] **One name in two accent forms** (spec Q7, `0cb6dd5`): on a Linux or
+- [ ] **One name in two accent forms** (spec Q7, `bc9b3ae`): on a Linux or
   Windows device create `Café.md` beside a `Café.md` the server already has
   in the other Unicode form; the second is listed under "nome de outro, só
   mudando…" and never sent; the first keeps syncing.
-- [ ] **Window on a small screen** (`068215e`): on a 1280×800 display the
+- [ ] **Window on a small screen** (`d38be85`): on a 1280×800 display the
   first window opens inside the screen, status bar visible.
 - [ ] **This device's name** (ADR 0079 item 8, 2026-10-11): in the
   installed app, Ajustes › Servidores › "Nome deste aparelho" — empty, the
@@ -968,32 +968,32 @@ in a note long enough to scroll.
 
 ### The trash (ADR 0080, feat/universo, 2026-10-11)
 
-- [ ] **The trash of a folder of this computer** (`9c10495`, `173cf7e`):
+- [ ] **The trash of a folder of this computer** (`03c21bf`, `08f4032`):
   in the installed app, delete a note, then *Ajustes › Lixeira* (or the
   palette's "Abrir a lixeira", or the tree's right-click on empty space):
   the note is listed with today's date; "Restaurar" puts the file back on
   disk (the Finder shows it) and the log has a `trash` "restored" line.
-- [ ] **What an older trash held** (`8ad89d2`): open a folder whose `.trash`
+- [ ] **What an older trash held** (`db609b1`): open a folder whose `.trash`
   Obsidian or an older Verso filled; its items are listed "antes de …
   (data desconhecida)", nothing is deleted at once; *Manter arquivos
   apagados por* "1 dia" a day later removes them, each an "expired" line of
   the log; the sweep also runs a day after the folder was opened, while it
   stays open.
-- [ ] **A deletion sync carried out here** (`9c10495`): with two computers
+- [ ] **A deletion sync carried out here** (`03c21bf`): with two computers
   syncing one folder, delete a note on one; on the other, the trash lists it
   "pela sincronização com <servidor>".
-- [ ] **The test server's trash** (`02903f1`): after the upgrade the 306 MB
+- [ ] **The test server's trash** (`a9a9bb5`): after the upgrade the 306 MB
   already in a folder's `.trash` are listed with an unknown date and
   nothing goes before 30 days from the first walk; the console's folder page
   shows *Lixeira* (count, size, "fora da cota") and *Dias na lixeira*; the
   Overview's totals add the trashes; an editor restores but sees no
   "Apagar agora"; the owner shortens the days from the window and cannot
   pass the admin's.
-- [ ] **A version a device's write replaced** (`02903f1`, F18): on a synced
+- [ ] **A version a device's write replaced** (`a9a9bb5`, F18): on a synced
   computer, let another program save an old buffer over a note sync just
   updated; on the server, *Lixeira* lists "substituído por <aparelho>", and
   "Restaurar" puts it beside the note as `<nota> (restaurado <data>).md`.
-- [ ] **The desktop window on a server's folder** (`9c10495`): *Ajustes ›
+- [ ] **The desktop window on a server's folder** (`03c21bf`): *Ajustes ›
   Lixeira* shows the server's trash, with the role's limits.
 
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
@@ -1049,19 +1049,19 @@ in a note long enough to scroll.
 
 ### 0.4.0-beta.1
 
-- [ ] **Several entries in the tree** (`f3e1af3`): ⌘-click two notes and
+- [ ] **Several entries in the tree** (`0ed3f51`): ⌘-click two notes and
   ⇧-click a third — the rows between are selected; Esc clears. Drag them
   onto a folder: they move; a note that linked to them by path shows one
   plan. Right click the selection: Mover para…, Copiar caminhos
   relativos, Mover para a lixeira (asked once).
-- [ ] **A column's width** (`a6d9fa9`): in note 01's table, drag a header
+- [ ] **A column's width** (`bdc7014`): in note 01's table, drag a header
   cell's right edge in Editar; switch to Leitura and back, reopen the
   note — the width stays; the `.md` does not change.
-- [ ] **A folder page's right click** (`6595623`): on a folder page's
+- [ ] **A folder page's right click** (`0e89a4c`): on a folder page's
   empty space, the tree's menu with icons.
-- [ ] **The code copy button in English** (`6595623`): Settings ›
+- [ ] **The code copy button in English** (`0e89a4c`): Settings ›
   Language › English, then hover a code block's copy button: "Copy code".
-- [ ] **`type:` in the search** (`f3e1af3`, the permission): search
+- [ ] **`type:` in the search** (`0ed3f51`, the permission): search
   `type:personagem` — the two characters are listed (it answered "not
   allowed" in the app before).
 
@@ -1343,7 +1343,7 @@ them; if they still happen, a step that makes them happen is enough.
 
 - [x] The notes search finds a note by its exact file name when its first
   heading names it otherwise, first in the list; the × clears the search
-  (feat/web-groundwork, the installed beta at 0a38c65, checked by the
+  (feat/web-groundwork, the installed beta at 1331959, checked by the
   maintainer on 2026-10-09).
 
 - [x] The picture menu's Download image, Open in new window; Open Folder in

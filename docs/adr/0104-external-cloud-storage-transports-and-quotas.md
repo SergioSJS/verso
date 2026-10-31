@@ -400,13 +400,13 @@ afternoon, all as recommended. Not built. The OAuth providers wait for the
 developer accounts the maintainer creates (C.1); WebDAV and S3 come first
 (C.16).
 
-As built (2026-10-21): part 1 is built and merged (merge `a816d15b`, not
-pushed): the remote trait in `verso-core` (`79d6830c`), the new crate
-`crates/verso-cloud` with WebDAV and S3 (`3b421105`), the probe under
+As built (2026-10-21): part 1 is built and merged (merge `d5a4ff73`, not
+pushed): the remote trait in `verso-core` (`948f1593`), the new crate
+`crates/verso-cloud` with WebDAV and S3 (`2ebed12b`), the probe under
 `.verso-probe` objects and `.verso-tmp` keys, the race property test on both
 adapters, the contract, the host and the keychain through `keyring` 4.2
-(`73f4bb2c`), the window (`55c48885`), the tutorial note 29 (`ecfcedd2`), and
-`8a156e56`, `84e1e124` (an `exists` guard before a local deletion that a
+(`97338ec3`), the window (`d2668445`), the tutorial note 29 (`0e6ae9f8`), and
+`5dba1fa7`, `16bbf13d` (an `exists` guard before a local deletion that a
 listing alone asks for). Remaining: the OAuth providers (they wait for the
 developer accounts, C.1); C.5 (the UniVerso device token moved to the
 keychain), not done; item 16's notice about a folder inside a cloud client's
@@ -435,7 +435,7 @@ left out, as built and not as the maintainer's decisions:
   answers it is the build's choice, with no guardrail test on this path.
 - **WebDAV `exists`** was a full read of the file (the trait's default); it is
   now a `PROPFIND` at depth zero (fixed after the review, `fix/review-cloud`).
-  The text above and commit `84e1e124` said so before it was true.
+  The text above and commit `16bbf13d` said so before it was true.
 - **C.13 (the device's name set in the folder's sync settings, not in
   Settings › Servers)** is not built as asked: the copy's name still comes
   from the servers' settings; being fixed on `fix/review-cloud`, pending

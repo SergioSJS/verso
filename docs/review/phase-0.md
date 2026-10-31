@@ -2,7 +2,7 @@
 
 - Date: 2026-09-21
 - Reviewer: Fable 5.1, in the role of document reviewer ([ADR 0032](../adr/0032-author-and-reviewer-roles.md))
-- Input: `docs/BRIEFING.md`, `docs/adr/*`, `docs/spec/dialect.md`, `docs/roadmap.md`, `CLAUDE.md`, `.github/pull_request_template.md`, on the `fase0/docs` branch (commit `20b8fb5`). No access to the author's session.
+- Input: `docs/BRIEFING.md`, `docs/adr/*`, `docs/spec/dialect.md`, `docs/roadmap.md`, `CLAUDE.md`, `.github/pull_request_template.md`, on the `fase0/docs` branch (commit `528bf7c`). No access to the author's session.
 - Roadmap item: 0.6 — Critical review of the documents by an independent session.
 - State: **findings accepted in full by the maintainer and applied** in the same
   session, by their order. Section 6 (Resolution) records what changed per finding
@@ -443,7 +443,7 @@ question with a deadline.
 ## 7. Independent reading of the application (Opus 5)
 
 - Reader: Opus 5, author of neither this review nor the commit it reads
-  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Input: `eda5420`, read
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Input: `016b328`, read
   file by file against the documents at that commit. **No BLOCKING.**
 - Section 6 is a faithful map of the diff: every row lands where it says, and no
   finding is marked resolved without a change that resolves it. Nothing went from

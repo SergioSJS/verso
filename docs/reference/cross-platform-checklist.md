@@ -82,7 +82,7 @@
 | `check-windows.sh` while `check.sh` runs | the UI bundle was rebuilt under the copy: "Cannot stat", nothing ran on Windows | run them one after the other |
 | a `?` in a git pathspec | read as a wildcard | `':(literal)path'` |
 | `cmd /C echo {line}>file` | a line ending in a digit makes `1>` a redirection | `(echo {line})>file` |
-| a test that bounds a time by an absolute limit (`verso-dialect`'s `pathological_inputs_stay_linear`, 5 s) | the Windows VM under load crossed 5 s | bound linearity by a ratio, time(2N)/time(N) ≤ 2.5, not an absolute time (decided 2026-10-10; the code change is a commit of its own; its retry on a loaded machine — a unit over the bound measured again, up to three attempts, failing only if every one is over, 7729940 — accepted by the maintainer on 2026-10-12) |
+| a test that bounds a time by an absolute limit (`verso-dialect`'s `pathological_inputs_stay_linear`, 5 s) | the Windows VM under load crossed 5 s | bound linearity by a ratio, time(2N)/time(N) ≤ 2.5, not an absolute time (decided 2026-10-10; the code change is a commit of its own; its retry on a loaded machine — a unit over the bound measured again, up to three attempts, failing only if every one is over, 14ac192 — accepted by the maintainer on 2026-10-12) |
 
 ## 6. A file handed to the app (ADR 0114 item 30)
 

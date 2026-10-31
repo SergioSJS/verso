@@ -346,7 +346,7 @@ jobs:
     # ci-linux fails and prints, on stderr, the entries to record, so the
     # job cannot be green by construction (§6.3 puts the CI baseline
     # first). The ci-linux entries were recorded from the first run on main,
-    # at 95f78dd, with the maintainer's approval (2026-09-24); from then on
+    # at 05b9604, with the maintainer's approval (2026-09-24); from then on
     # the job is red only for a regression past the tolerances. A pull
     # request never runs it, and could not record a baseline if it did.
     if: github.ref == 'refs/heads/main'

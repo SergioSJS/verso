@@ -621,7 +621,7 @@ test("duplicate focus names in waypoints.json are treated as known format (D6)",
   await app.key("Mod+Alt+ArrowRight");
   await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
 
-  // A known format shows no banner at all (3c0c5ca7 removed the unasked-folder notice too).
+  // A known format shows no banner at all (339f7377 removed the unasked-folder notice too).
   await expect(app.page.locator(".focuses-banner")).toHaveCount(0);
 
   // Dup item is visible

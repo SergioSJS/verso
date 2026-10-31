@@ -53,7 +53,7 @@
   ainda não fechou o universo."* (So the application is not 100%
   cooperative, with co-editing? It should be. We have not closed the
   universe yet.) The old wording of item 12 is kept, the decision below
-  it; built on `feat/coedit-everything` (21d096a, 5a027db).
+  it; built on `feat/coedit-everything` (b70e33a, c535f0f).
 
 ## Context
 
@@ -76,7 +76,7 @@ change that reaches the file from outside the room — a device's sync, a
 restore, Obsidian over the mount — enters the room as one edit when
 nothing waits to be written, or stops the room with `collab-conflict` for
 the people in it to choose (`changed_outside`, called by the server's
-sync `told` since c19e968). ⌘S is `collab_save`; a reader joins, is seen,
+sync `told` since 6a69c27). ⌘S is `collab_save`; a reader joins, is seen,
 and the server refuses its `collab_update`. The browser's window and the
 desktop app on a server's folder **online** both join: the desktop
 forwards `collab_*` over the window's connection (`app/src-tauri/src/remote.rs`),
@@ -157,7 +157,7 @@ carried a recommendation; the maintainer decided. Open items answered
    *(Revised on 2026-10-12, recording what the maintainer ordered that
    day — "Ajuste todas essas pendências agora", "falei pra implementar
    tudo isso" — with the join-to-write of a note live only elsewhere,
-   d86bce7:)* one command is added, read-only: `collab_present`, "is
+   1b0486e:)* one command is added, read-only: `collab_present`, "is
    anyone in this note's room?". A write that is not a keystroke — a
    PDF's quote, a base's cell, the tree's sticker, label or order, a
    property from the panel — on a note this window does not hold live
@@ -480,7 +480,7 @@ accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
 the recommendations). The board's co-editing stayed `[OPEN]` on purpose (decided and built 2026-10-12, below)
 (item 12); merge by block of offline edits stays later, for its own ADR.
 
-**Built on the night of 2026-10-11 to 12** (f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12); [0073](0073-self-hosted-server-first.md) item 7 and
+**Built on the night of 2026-10-11 to 12** (7c08a9a, ccabedd, acc02df, 76b4c11 and b73b6f2, merged into `feat/universo` by 8e93bbd on 2026-10-12); [0073](0073-self-hosted-server-first.md) item 7 and
 [0079](0079-sync-a-local-folder-with-a-server.md) items 7 and 8 got
 their Revisions lines on 2026-10-12, as Consequences asks. The open
 questions the building raised were sent to the maintainer the same night,
@@ -489,7 +489,7 @@ and answered (below): where item 15's setting lives; the waits of
 before a pass (item 9); the writes the properties panel and a
 PDF's quote make to a note, through the room; and the board (item 12).
 
-**Item 12 decided and built on 2026-10-12** (evening; 21d096a and 5a027db
+**Item 12 decided and built on 2026-10-12** (evening; b70e33a and c535f0f
 on `feat/coedit-everything`): every file a person edits in the window
 co-edits live, the board by Excalidraw's own rule, as item 12 now says.
 The maintainer: *"Então a gente não tá com a aplicação 100% cooperativa,
@@ -504,9 +504,9 @@ browser windows, two engines, a minute of random work, four seeds (the
 server's end-to-end suite); and the file read back by Obsidian 1.14.4
 (`docs/reference/obsidian-observations.md` §18). Three faults found and
 fixed at their cause: the server's `yrs` left some updates heard out of
-order unplaced (692b2ed); a deletion not yet sent was undone on the board
+order unplaced (580fa1f); a deletion not yet sent was undone on the board
 by a drag heard meanwhile, and the board took a version equal to one heard
-for the room's (24d65d2).
+for the room's (571594d).
 
 **Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: item 15's setting stays in the window's settings; the 5 s and 4 s
 waits stand, to be tuned with use; the writes the properties panel and a

@@ -77,7 +77,7 @@ point 13).
    Level: S (the embed is the folder), H (the import); E:
    `import.spec.mjs`. Caught: the import
    created the folders the demo no longer has, and on a case-insensitive disk
-   put `Templates/` into `templates/` (`a51aab2`).
+   put `Templates/` into `templates/` (`bf12a4d`).
 2. The welcome note shows the "Comece pelo tour" callout with its two links.
    Level: S (the links), H.
 3. Import again into a folder that holds an earlier version's demo. Expect:
@@ -115,21 +115,21 @@ point 13).
    (no board written, the text measured with its font) and
    `board-file.spec.mjs` (no board written after a press, a pan and a zoom
    right after opening). Caught: drawn text cut while its font loaded
-   (`a147e8e`); a press right after opening wrote the board (2026-10-01).
+   (`b1c5d58`); a press right after opening wrote the board (2026-10-01).
 2. Sumário: the stops are listed in their numbers' order; a click on each
    shows it whole and legible, its notes live on their cards; closing the
    Sumário keeps the stop in view. Level: H; E: `board-tour.spec.mjs`.
-   Caught: a group was only brought to the middle at 10% (`a147e8e`); the
+   Caught: a group was only brought to the middle at 10% (`b1c5d58`); the
    stops were laid out in a snake while the outline lists them row by row
-   (`26c3b06`); closing the Sumário brought the whole board back over the
+   (`ae5f6b2`); closing the Sumário brought the whole board back over the
    stop, and the window shrank while the notes' Mermaid diagrams were drawn,
    so a stop chosen then was shown off centre (2026-10-01).
 3. ⌘W closes the tab and the app stays open; ⌘⇧T reopens it. Level: A (the
    native menu); E: `tabs.spec.mjs`, the keys and the menu's event as the
    host sends it. Caught: ⌘W closed the window, and with one window open
-   quit the app (`a51aab2`).
+   quit the app (`bf12a4d`).
 4. On a board, ⌘P opens "Abrir…". Level: H; E: `board-tour.spec.mjs`.
-   Caught: Excalidraw kept the key (`a147e8e`).
+   Caught: Excalidraw kept the key (`b1c5d58`).
 5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
    note that cannot be saved (a conflict waiting), the window stays and says
    why. Level: H; E: `notes.spec.mjs`.
@@ -309,13 +309,13 @@ point 13).
    only the notes of `projetos/`; the formula's column and the budget's sum;
    the kanban in a column per status; the calendar back in September 2026
    shows the three projects. Level: H. Caught: with no filter the base
-   listed the whole vault (`26c3b06`).
+   listed the whole vault (`ae5f6b2`).
 2. Note 04: the embedded view and the `base` block listing the daily notes.
    Level: H.
 3. ⌘⇧D (⌘D until 2026-10-06, ADR 0061): `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
    and `{{date}}` filled. Level: S (the folders), H; E: `notes.spec.mjs`.
    Caught: the notes said `daily/` and `templates/`, which the app does not
-   use by default (`26c3b06`).
+   use by default (`ae5f6b2`).
 4. Right panel (⌘⌥→) › Calendário: dots on 24 and 25 September and on today.
    Level: H; E: `notes.spec.mjs`.
 5. The typed note (note 21, ADR 0052): `Personagens/Capitão Ruy` shows
@@ -418,7 +418,7 @@ point 13).
    shows them at once. Level: A (the core's rewrite); E: `notes.spec.mjs`,
    the window's side — the notes and the board rewritten, the panel at once;
    the relation in a frontmatter is followed by hand. Caught: the renamed
-   note showed no backlinks until reopened (`a51aab2`).
+   note showed no backlinks until reopened (`bf12a4d`).
 2. The PDF: its bar as note 06 names it; select a line, "Citar seleção nas
    anotações": `assets/manual-verso — Anotações.md` holds the quote, linked
    to its page. Level: A.
@@ -532,7 +532,7 @@ point 13).
    "Ver página" and "Ver nota" switch. Level: A.
 2. `Web/Cartão de visita.html`: the page with its own style, in Página;
    its source in Fonte. Level: A. Caught: the page was blank — served as
-   bytes, which `nosniff` kept the frame from showing (`a51aab2`).
+   bytes, which `nosniff` kept the frame from showing (`bf12a4d`).
 3. "Desenho do Excalidraw" opens on its drawing, to look at — no tools —
    with "Converter em board" and "Ver o texto" over it; "Ver o texto" shows
    the note's text, "Ver o desenho" brings the drawing back, and the file is
@@ -557,7 +557,7 @@ point 13).
    `y`. Level: U (the model), A.
 2. A card's sharp corners and an elbow arrow come back as they were after the
    board is opened again, the arrow bound to its cards. Level: U. Caught:
-   the panel's style was not saved (`c1a754b`).
+   the panel's style was not saved (`7335eb0`).
 3. A drawing sent behind a card (⌘⌥[) stays behind it when the board is
    opened again: the file keeps its place among the cards (`under`).
    Level: U (the model), H; E: `board-practice.spec.mjs`. Caught: it came
@@ -597,11 +597,11 @@ point 13).
    double click its name, rename it: the outline says the new name; the file
    holds the group with it. Level: U (the outline), H; E:
    `board-practice.spec.mjs`, the frame and its name. Caught: the outline
-   kept the old name (`a51aab2`), and again for a name typed over the frame,
+   kept the old name (`bf12a4d`), and again for a name typed over the frame,
    which Excalidraw changes in place (2026-10-01).
 4. Lesson 7: ⌘⌥] brings the circle to the front, ⌘⌥[ sends the square to the
    back; ⌘] and ⌘[ one step. Level: H; E: `board-practice.spec.mjs`, ⌘⌥]
-   and ⌘⌥[. Caught: ⌘⌥] and ⌘⌥[ did nothing on a Mac (`a51aab2`).
+   and ⌘⌥[. Caught: ⌘⌥] and ⌘⌥[ did nothing on a Mac (`bf12a4d`).
 5. Lesson 8: "Nota ou arquivo" › the welcome note: its card, painted with
    Fundo; double click the text card: "Texto do cartão (Markdown)"; the
    edit is saved in the file. Level: H; E: `board-practice.spec.mjs`, the
@@ -613,11 +613,11 @@ point 13).
    Projeto Alpha holds `inspira: "[[Projeto Beta]]"`; the edge keeps its
    label and relation. Level: H (the board), A (the note written); E:
    `board-practice.spec.mjs`. Caught: the label stayed invisible until the
-   board was opened again (`a51aab2`).
+   board was opened again (`bf12a4d`).
 8. Lesson 11: ⌘F `tesouro` finds it, as typed; the view stays put while the
    board saves. Level: H; E: `board-practice.spec.mjs`. Caught: the field
    corrected the word, and every save moved the view back to the first match
-   (`a51aab2`).
+   (`bf12a4d`).
 9. Lesson 12: "Fundo da tela" in the ☰ menu; the board's JSON in Texto.
    Level: H.
 10. Lesson 8, pictures: drop a picture on the board (or paste one): a card

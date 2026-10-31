@@ -53,7 +53,7 @@ Each line is a request the maintainer made, with the day (local time,
 UTC−3) and their words (abridged). The code built on the branch
 `phase1-2/integration` answers them. One exception was found after the fact —
 an HTML file opened as text, not as a page (`docs/review/phase-2.md` §6, item
-16) — and fixed in `4afec51`: it opens as its page, with its source as the
+16) — and fixed in `c64b6b8`: it opens as its page, with its source as the
 other mode.
 
 | Area | What was asked | When | In the maintainer's words |
@@ -148,7 +148,7 @@ Dock menu.
   window. `cargo-deny` checks only the Rust side; no npm package of the UI had
   a license gate in CI. On 2026-09-23 the maintainer ratified the `unstable`
   feature and asked for a gate: `scripts/check-npm-licenses.mjs`, in CI since
-  `65e44f9` ([0029](0029-guardrails-in-ci.md)).
+  `e51e977` ([0029](0029-guardrails-in-ci.md)).
 - The window reaches the network, which nothing in Phase 1 did, in four ways:
   a web note loads its page when it is opened; an http(s) link clicked
   anywhere in the window opens that page in a window of its own; a web note's icon is asked of

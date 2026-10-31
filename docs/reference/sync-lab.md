@@ -79,18 +79,18 @@ summarized below.
 
 | Date | Commit | Machine | Devices × s | ops/s | put_new p50 / p90 / p99 ms | changes p50 / p99 ms | Integrity | Note |
 |---|---|---|---|---|---|---|---|---|
-| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 50 × 60 | 102 | 527 / 816 / 1 233 | 504 / 1 102 | 0 problems | before: whole-folder reconcile per write and per question |
-| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 100 × 60 | 74 | 1 437 / 2 261 / 2 688 | 1 423 / 2 648 | 0 problems | before |
-| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 200 × 60 | — | — | — | 0 problems | before: most devices could not open the folder |
-| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 1 × 30 | 84 | 15 / 18 / 149 | 0.2 / 0.7 | 0 problems | after: per-path reconcile, reading connections, NORMAL |
-| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 10 × 30 | 124 | 95 / 241 / 368 | 0.3 / 2.2 | 0 problems | after |
-| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 50 × 60 | 123 | 637 / 894 / 1 328 | 0.4 / 3.9 | 0 problems | after; one folder writes one file at a time |
-| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 100 × 60 | 117 | 1 317 / 1 802 / 2 641 | 0.6 / 26 | 0 problems | after |
-| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 200 × 60 | 99 | 3 051 / 4 251 / 5 565 | 1.1 / 133 | 0 problems | after; 460 MB resident |
-| 2026-10-10 | 5ee552c | Linux VM, Proxmox, 4 vCPU, 5.4 GB, virtual disk | 1 × 30 | 10 | 99 / 1 212 / 1 561 | 2.3 / 43 | 0 problems | the disk's fsync bounds every write |
-| 2026-10-10 | 5ee552c | same VM | 50 × 60 | 19 | 3 878 / 5 524 / 6 783 | 5.1 / 185 | 0 problems | |
-| 2026-10-10 | 5ee552c | same VM | 200 × 60 | 16 | 16 419 / 21 329 / 23 547 | 20 / 1 378 | 0 problems | 1 GB resident |
-| 2026-10-11 | 40b0016 | Apple M3 Max, 48 GB | 50 × 60 | 133 | 533 / 827 / 1 467 | 0.4 / 22 | 0 problems | round 2 of the campaign, the final build: NFC name resolution and `one_name` without allocation in the put |
+| 2026-10-10 | 6c39720 | Apple M3 Max, 48 GB | 50 × 60 | 102 | 527 / 816 / 1 233 | 504 / 1 102 | 0 problems | before: whole-folder reconcile per write and per question |
+| 2026-10-10 | 6c39720 | Apple M3 Max, 48 GB | 100 × 60 | 74 | 1 437 / 2 261 / 2 688 | 1 423 / 2 648 | 0 problems | before |
+| 2026-10-10 | 6c39720 | Apple M3 Max, 48 GB | 200 × 60 | — | — | — | 0 problems | before: most devices could not open the folder |
+| 2026-10-10 | d541924 | Apple M3 Max, 48 GB | 1 × 30 | 84 | 15 / 18 / 149 | 0.2 / 0.7 | 0 problems | after: per-path reconcile, reading connections, NORMAL |
+| 2026-10-10 | d541924 | Apple M3 Max, 48 GB | 10 × 30 | 124 | 95 / 241 / 368 | 0.3 / 2.2 | 0 problems | after |
+| 2026-10-10 | d541924 | Apple M3 Max, 48 GB | 50 × 60 | 123 | 637 / 894 / 1 328 | 0.4 / 3.9 | 0 problems | after; one folder writes one file at a time |
+| 2026-10-10 | d541924 | Apple M3 Max, 48 GB | 100 × 60 | 117 | 1 317 / 1 802 / 2 641 | 0.6 / 26 | 0 problems | after |
+| 2026-10-10 | d541924 | Apple M3 Max, 48 GB | 200 × 60 | 99 | 3 051 / 4 251 / 5 565 | 1.1 / 133 | 0 problems | after; 460 MB resident |
+| 2026-10-10 | d541924 | Linux VM, Proxmox, 4 vCPU, 5.4 GB, virtual disk | 1 × 30 | 10 | 99 / 1 212 / 1 561 | 2.3 / 43 | 0 problems | the disk's fsync bounds every write |
+| 2026-10-10 | d541924 | same VM | 50 × 60 | 19 | 3 878 / 5 524 / 6 783 | 5.1 / 185 | 0 problems | |
+| 2026-10-10 | d541924 | same VM | 200 × 60 | 16 | 16 419 / 21 329 / 23 547 | 20 / 1 378 | 0 problems | 1 GB resident |
+| 2026-10-11 | e8cfa8c | Apple M3 Max, 48 GB | 50 × 60 | 133 | 533 / 827 / 1 467 | 0.4 / 22 | 0 problems | round 2 of the campaign, the final build: NFC name resolution and `one_name` without allocation in the put |
 
 ## 4. The campaign's scenarios
 

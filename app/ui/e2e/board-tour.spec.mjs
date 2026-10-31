@@ -15,7 +15,7 @@ test("the tour opens with its stops in order, each shown whole from the outline"
   await app.page.getByRole("button", { name: "Sumário", exact: true }).click();
   const stops = app.page.locator(".board-outline-group");
   await expect(stops).toHaveText(STOPS);
-  // A stop chosen in the outline is shown whole, in the middle (a147e8e).
+  // A stop chosen in the outline is shown whole, in the middle (b1c5d58).
   const fourth = tour.nodes.filter((n) => n.type === "group")[3];
   await stops.nth(3).click();
   const chosen = await app.settledView();
@@ -24,7 +24,7 @@ test("the tour opens with its stops in order, each shown whole from the outline"
   expect(Math.abs(c.y - (chosen.top + chosen.height / 2))).toBeLessThan(40);
   expect(fourth.width * chosen.zoom).toBeLessThanOrEqual(chosen.width);
   // Shown whole and as close as it fits: not centred at a distance, as
-  // before a147e8e (review `board.md`, reading 4, finding 3).
+  // before b1c5d58 (review `board.md`, reading 4, finding 3).
   expect(Math.max((fourth.width * chosen.zoom) / chosen.width, (fourth.height * chosen.zoom) / chosen.height)).toBeGreaterThan(0.6);
   // Closing the outline (the pane grows) keeps the stop chosen: the whole
   // board came back over it once.
@@ -41,7 +41,7 @@ test("drawn text is measured with its own font once it is in", async ({ app }) =
   await app.quickOpen("Tour do Verso");
   await app.boardReady();
   // "Tour do Verso" at 120 px in Excalifont: about 690 px; cut short when it
-  // kept a fallback font's measure (a147e8e).
+  // kept a fallback font's measure (b1c5d58).
   await app.page.evaluate(() => document.fonts.ready);
   await expect
     .poll(async () => {

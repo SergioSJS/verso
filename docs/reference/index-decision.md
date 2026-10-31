@@ -7,7 +7,7 @@
   there is no decision, the feature 3 code is written **under the
   recommendations, marked provisional**, and changes if the maintainer decides
   otherwise — the same arrangement used for feature 2. That code is now in the
-  tree: commits `70415ac`, `3ab3e48` and `4e99082` implement the
+  tree: commits `85699a6`, `289a675` and `ca7bdd8` implement the
   recommendations of sections 2 to 6 provisionally, pending the five answers of
   section 9. What departs from those sections, or adds to them, one sentence
   each:
@@ -456,7 +456,7 @@ the code does. They are what section 4.6 decides.
 
 **Third observation, 2026-09-23, by Opus 5.5.** Same method
 ([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, public API,
-throwaway folders deleted afterwards). Commit `d1a5272` (2026-09-22) changed
+throwaway folders deleted afterwards). Commit `4712f85` (2026-09-22) changed
 point 3 of the index's rule after probes that were cited in a test comment
 (`crates/verso-index/tests/graph.rs`) and in the commit message, and never
 written here; these are the same probes, run again so that they are on record.
@@ -483,7 +483,7 @@ What it changes: point 3 of section 4.6 says a candidate **in** the source
 note's own folder wins. Obsidian prefers a candidate anywhere **under** that
 folder, at any depth, before it counts segments — the second observation could
 not tell the two apart, because none of its candidates sat below the source's
-folder. The index has done "under" since `d1a5272`. Asked "sob a pasta, sim
+folder. The index has done "under" since `4712f85`. Asked "sob a pasta, sim
 ou não?", the maintainer answered yes on 2026-09-23 ("boa, gosto da sua ideia,
 pode seguir"), and point 3 of section 4.6 and of spec Q12 now says "under".
 

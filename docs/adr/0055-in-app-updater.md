@@ -19,7 +19,7 @@
 [0050](0050-outbound-network-access.md) said that an update check, a request
 to a server of Verso's, is not allowed, and that an updater would need a
 decision of its own. The updater arrived before that decision: commit
-`2db4c73` shipped it in 0.3.0-beta.1. At startup, unless a setting turns it
+`ac18e1d` shipped it in 0.3.0-beta.1. At startup, unless a setting turns it
 off, the app asks the GitHub API for the releases of the project's repository
 and, when a newer version exists, offers to download and install it.
 

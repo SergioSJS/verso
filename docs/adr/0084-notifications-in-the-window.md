@@ -42,7 +42,7 @@
 ## Context
 
 The window has many ways to say something and no notion of a
-notification. Read at `f16353bf`:
+notification. Read at `0b3cdd4c`:
 
 - **The status line** (`#status`, `role="status"`) is written by about
   150 places. The last write wins: there is no history, no priority and

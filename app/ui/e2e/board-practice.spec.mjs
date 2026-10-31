@@ -32,7 +32,7 @@ test("lesson 7: ⌘⌥] brings a drawing to the front and ⌘⌥[ sends one to t
   await app.select("d-cam-losango");
   await page.keyboard.press(BACK);
   await expect.poll(async () => (await order(app)).indexOf("d-cam-losango")).toBeLessThan((await order(app)).indexOf("d-cam-quadrado"));
-  // Four actions matched ⌘⌥] on a Mac, and Excalidraw ran none (a51aab2).
+  // Four actions matched ⌘⌥] on a Mac, and Excalidraw ran none (bf12a4d).
   expect(warnings.filter((w) => /multiple actions match/i.test(w))).toEqual([]);
 });
 
@@ -67,7 +67,7 @@ test("lesson 10: an arrow between two notes, promoted to a relation, shows its n
   await page.locator(".plan:visible button.save").click();
   await expect.poll(() => app.file("projetos/Projeto Alpha.md")).toContain('inspira: "[[Projeto Beta]]"');
   // The label: on the arrow, measured, in no group — not invisible until the
-  // board opens again (a51aab2).
+  // board opens again (bf12a4d).
   await expect
     .poll(async () => {
       const label = (await app.scene()).find((e) => e.type === "text" && e.containerId === arrow.id);
@@ -136,7 +136,7 @@ test("lesson 11: the board's search finds the word as typed, and stays put while
   await page.keyboard.press("ArrowRight");
   await expect.poll(async () => (await app.calls("write_board")).length).toBeGreaterThan(writes);
   // The folder changed — the board's own save, as the watcher reports it:
-  // the view stays where the user is (a51aab2).
+  // the view stays where the user is (bf12a4d).
   await app.folderChanged([BOARD]);
   await page.waitForTimeout(800);
   const after = await app.settledView();

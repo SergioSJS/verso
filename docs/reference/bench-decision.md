@@ -23,7 +23,7 @@
 - **Revision, 2026-09-23**, after the Opus reading of the Phase 2 branch
   (`docs/review/phase-2.md`, reading 3, findings 11, 12 and 17). The CI job
   could not go red: only the Mac baseline is recorded (`macbook-pro-de-sergio`,
-  commit `d1a5272`), and a machine with no baseline passed by construction —
+  commit `4712f85`), and a machine with no baseline passed by construction —
   the order of section 6.3, CI baseline first, was not followed.
   `verso-bench --require-baseline` now fails (exit 1) when the machine it names
   has no baseline, and prints the measured entries in the baseline file's own
@@ -35,7 +35,7 @@
   about one run in twenty, asserts only the index size.
 - **Revision, 2026-09-24.** The `ci-linux` baseline is recorded: the 21
   entries the job printed on its first run on `main`, at the merge of PR #18
-  (`95f78dd`), pasted into `crates/verso-bench/baselines.json` with the
+  (`05b9604`), pasted into `crates/verso-bench/baselines.json` with the
   maintainer's approval. From 50 000 notes: a fresh index in 50.2 s, an
   incremental pass with 1 % changed in 2.6 s, a common search in 65 ms,
   backlinks of the most-linked note in 0.9 s, peak memory under 37 MB, an
@@ -45,10 +45,10 @@
   maintainer's approval: the search by file name (verso-index schema 14)
   made a 1 000-note index 10 % larger (7.6 → 8.4 MB), past the 1.05×
   tolerance, and the watcher's two batch operations (roadmap 3.9) had no
-  baseline. The index sizes come from the run on `main` at `1dad5ec`
-  (0.7.0-beta.1); the times of the 21 earlier entries stay those of `95f78dd`;
-  the six new entries take the slower of two runs (`1dad5ec`, `f63c392`). A
-  first try took every time from `1dad5ec`, a runner about 1.7× faster than
+  baseline. The index sizes come from the run on `main` at `e14b824`
+  (0.7.0-beta.1); the times of the 21 earlier entries stay those of `05b9604`;
+  the six new entries take the slower of two runs (`e14b824`, `49ac130`). A
+  first try took every time from `e14b824`, a runner about 1.7× faster than
   the next one, and the next run was red on time for unchanged code: one run
   is no baseline for time on shared runners (section 6).
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
@@ -322,7 +322,7 @@ deliberate slowdown is introduced, the comparison marks it red, and the red run
 is recorded in the PR. The slowdown has to be of the kind the guardrail exists
 to catch — an accidental O(N²), not a `sleep`. The most faithful one available
 is already known: reverting the `notes_fts` delete to the full scan it had
-before commit `4e99082` made 4 000 notes take 4.94 s instead of 0.71 s. That is
+before commit `ca7bdd8` made 4 000 notes take 4.94 s instead of 0.71 s. That is
 a real regression of the exact shape a user would hit, it is one revert away,
 and it belongs in the feature 5 PR as the recorded red run.
 

@@ -34,7 +34,7 @@
 
 ## Context
 
-UniVerso at HEAD af4d73a already has most of what a self-hosted server
+UniVerso at HEAD d0d280e already has most of what a self-hosted server
 needs against a stranger on the network: TLS or nothing, `Host` and
 `Origin` checked, a CSRF token, Argon2id, growing delays by address and by
 account, bounded connections and queues, confined paths, sandboxed files,
@@ -355,7 +355,7 @@ as written. Sizes: S is hours, M a day or two, L more.
 
 16. **The outside reading, and the sanitizer's cross-review** (F9). Before
     the announcement: `app/ui/src/sanitize.ts` read by the model that did
-    not write it (Opus 5.5 wrote c7f8c8d: the reading is Fable's), with
+    not write it (Opus 5.5 wrote dcdd5fb: the reading is Fable's), with
     the suite run in WebKit and Chromium through the harness; and a
     penetration test of the lab server (`docs/reference/sync-lab.md`) by
     a person outside the project, against the API, the WebSocket and the
@@ -533,17 +533,17 @@ implementada e feita".)*
 ## As built (2026-10-13)
 
 Built on 2026-10-13 on the branch `docs/security-hardening`, in the
-merges of sec/edge (cf0aa7f: items 5, 7, 8, 9), sec/sign-in (fcddbf8:
-items 1 to 4), sec/ops (29d11f7 and b5b9dae: items 10 to 13 and 15) and
-sec/prove (c6fbf1a: items 6 and 17), sec/fuzz (d5ea899 and c1bc4cc:
-item 14) and sec/sanitizer-harness (0b5fea1: item 16's reading and
+merges of sec/edge (d193ba1: items 5, 7, 8, 9), sec/sign-in (5c00394:
+items 1 to 4), sec/ops (f166278 and 6768fc9: items 10 to 13 and 15) and
+sec/prove (faeec7a: items 6 and 17), sec/fuzz (462b09b and 5e085ab:
+item 14) and sec/sanitizer-harness (f6ae4eb: item 16's reading and
 suite). Below, item by item, where the code departs from the Decision's
 text or reads it one way among several, as the builders recorded it in
 their commits. Items 18 and 19 are not in these merges, nor item 16's
 pentest, which is outside this round. A fact taken from a builder's
 report and not found in the code or in a commit says *(reported)*.
 
-**Item 1** (e9dda35). The Decision's `failregex` catches nothing:
+**Item 1** (6d17997). The Decision's `failregex` catches nothing:
 fail2ban cuts the time out of a line it reads from a file, and puts
 `<host> <program>[<pid>]: ` before a line it reads from the journal, so
 `^\S+ WARN` matches neither; and `<HOST>` cannot take the /64 the line
@@ -560,16 +560,16 @@ count is keyed `device:<address>`. `sign-in limited` is said by every
 caller of `api::limited`, by the passkey's start and by the device's
 start.
 
-**Item 2** (805febb, 97cfd3e). "Accounts under attack today" is read as
+**Item 2** (6cc3d50, 206b0f6). "Accounts under attack today" is read as
 the last 24 hours. The notice is a row of the audit log,
 `sign_in_noticed`, so the once-a-day rule holds across a restart; the row
 is written whether or not the server has a mail server, and the console's
-words say no more than that (97cfd3e). A passkey refused and a wrong
+words say no more than that (206b0f6). A passkey refused and a wrong
 current password at a change count among the 20. Every sign-in — by
 password, a passkey's finish, a device's poll — waits the server's debt
 before it is heard, the debt never deeper than 2 s.
 
-**Item 3** (c77902e). SecLists' top 10 000 holds only 24 passwords of 12
+**Item 3** (f115cfd). SecLists' top 10 000 holds only 24 passwords of 12
 characters or more, and neither `password1234` nor `qwertyuiop12`; the
 list is therefore the 10 000 commonest of 12 characters or more from the
 same project's xato-net list of a million (MIT), with the source's
@@ -579,53 +579,53 @@ to the account's e-mail or its local part answers the same
 `common_password`. A reset checks the password before the link is used,
 so a refused one leaves the link usable.
 
-**Item 4** (ac59422, 66debdc). `revokeTokens` defaults to false on the
+**Item 4** (cdee448, 1fca57b). `revokeTokens` defaults to false on the
 server, for pages older than the change; the window's form offers it
 checked by default. `universo admin reset` revokes the tokens too, its
 audit rows with the address `machine`. The tokens' queries moved first,
-unchanged, to `db/tokens.rs` (66debdc, [0067](0067-source-files-stay-small.md):
+unchanged, to `db/tokens.rs` (1fca57b, [0067](0067-source-files-stay-small.md):
 `db.rs` was at 1 486 lines), where `revoke_tokens_of` is.
 
-**Item 5** (748838d). `X-Forwarded-Proto` is still believed from any
+**Item 5** (fb18410). `X-Forwarded-Proto` is still believed from any
 trusted peer, not walked as `X-Forwarded-For` is. The Cloudflare recipes
 of `docs/reference/server-install.md` follow Caddy's documented options
 and have not been tried against a live Cloudflare *(reported)*.
 
-**Item 7** (9b4cdf0, 023dcc0, 4bbd292). Only a direct connection from
-loopback is left unpaced (023dcc0): through a proxy everyone is paced
+**Item 7** (64f2021, b3a4499, 6f08815). Only a direct connection from
+loopback is left unpaced (b3a4499): through a proxy everyone is paced
 under the walked address, or, when the proxy forwarded none, under the
 proxy's own address as one key — a forwarded `127.0.0.1` would otherwise
 have been exempt, and a proxy that forwarded nothing would have switched
 the pace off. A refused WebSocket upgrade takes a request from the pace and
 is answered 429 past it, since `fair.rs` counts accepted sockets only. At
 most 10 "past the pace" lines a minute for the whole server, then one line
-that counts the rest (4bbd292). The map of buckets is bounded at 100 000
+that counts the rest (6f08815). The map of buckets is bounded at 100 000
 keys, the least recently used tenth evicted.
 
-**Item 8** (cb05804, 4b892cc). hyper's `max_buf_size(64 KiB)` alone lets
+**Item 8** (ecd5fab, 724aeb0). hyper's `max_buf_size(64 KiB)` alone lets
 a head through when it arrives in one read (seen: 100 KiB answered 200),
 so the router's `guard` answers 431 past 64 KiB as well. `isEvalSupported`
 no longer exists in pdfjs-dist 6.3.289 (tsc refuses the key), and its
 build has no `eval(` call and no `Function(` constructor: F22 is void as
 written, and its guardrail is a test in `app/ui/test/pdf.test.mjs` that
-asserts that of `pdf.mjs` and `pdf.worker.mjs` (4b892cc). A poll's right
+asserts that of `pdf.mjs` and `pdf.worker.mjs` (724aeb0). A poll's right
 secret is answered whatever its address's delay; the delay slows wrong
 polls only, so a stranger behind the same address cannot keep the app
 from signing in ([0074](0074-accounts-and-access-on-the-server.md)
 item 9). The mail key is taken only for a string with an `@`.
 
-**Item 9** (7cd1383). As written; no `preload`. The whole set is asserted
+**Item 9** (258be36). As written; no `preload`. The whole set is asserted
 in `tests_threats.rs`, over plain HTTP on this machine and with an HTTPS
 public address.
 
-**Item 10** (99683ed). At most 36 500 days, one parser shared with
+**Item 10** (69ba0ca). At most 36 500 days, one parser shared with
 `VERSO_TRASH_DAYS`. The sweep runs at start and once a day; no route,
 command or setting triggers it or names a row, so it is no way to erase
 evidence.
 
-**Item 11** (d2af446, 024b9f8). `scripts/check-linux.sh` has no package
+**Item 11** (c43e578, ef74ca9). `scripts/check-linux.sh` has no package
 step. The unit and the read-only image are started by
-`scripts/check-server-image.sh`, since 024b9f8 the last step of
+`scripts/check-server-image.sh`, since ef74ca9 the last step of
 `scripts/check-linux.sh` and not in CI (it would add several minutes to
 every pull request's Linux job):
 the compose file parsed and its hardening checked, the image run with the
@@ -634,12 +634,12 @@ Debian 12 container running systemd, started by `universo.service`, and
 checked to run under seccomp with the folder 0750 and the database 0600;
 seen failing with a write outside the volumes and with a fabricated
 `SystemCallFilter=~bind`. Run in Docker on arm64, `systemd-analyze
-security` exposure 1.3 (`docs/reference/server-install.md`, section 15). `docker-compose.yml` at 2409498 was invalid
+security` exposure 1.3 (`docs/reference/server-install.md`, section 15). `docker-compose.yml` at 4fdf3a8 was invalid
 YAML (an unquoted colon in a CasaOS tagline): quoted. The Docker secret
 for the first admin's password is shown commented out, since
 `docker compose up` refuses to start while the secret's file is missing.
 
-**Item 12** (80f35b3). Beside `backup --encrypt`, `--keygen`,
+**Item 12** (4167794). Beside `backup --encrypt`, `--keygen`,
 `--passphrase` and `--to-stdout`, the script gains
 `restore FILE [--identity KEY-FILE] [--to DIR]`, beyond the restore line
 the Decision names, noted for the maintainer. The secret key is never a
@@ -648,7 +648,7 @@ command's argument and is written under none of `/etc`, `/var`, `/root`,
 checks. The site's copy, `public/universo.sh` in versomd-site, is to be
 refreshed from the package's *(reported)*.
 
-**Item 13** (cda7500, b616d12, d160f38). On 2026-10-13 the gate found five
+**Item 13** (5225d6c, a34d9be, f9244b1). On 2026-10-13 the gate found five
 high advisories with no fix the PR could take, and the maintainer decided
 (*"aceito recomendação"*): nanoid overridden to 3.3.20 and 5.1.16
 (Excalidraw's pins); lodash-es overridden to 4.18.1 (the pins of langium's
@@ -660,19 +660,19 @@ absent from the window's bundle. source-map-js 1.2.1 → 1.2.2 in the
 lockfile. One low advisory, KaTeX's, remains *(reported)*: the gate
 lists lows and moderates and fails on high and critical only.
 
-**Item 15** (cfd382f, e779585). `Expires` is a year after the date
+**Item 15** (f97676a, 1acf805). `Expires` is a year after the date
 `CHANGELOG.md` gives the version built (the binary embeds the changelog;
 it has no build date of its own), and the test checks that date, not the
-clock (e779585). `Canonical` only behind an HTTPS public address (RFC
+clock (1acf805). `Canonical` only behind an HTTPS public address (RFC
 9116). `Policy` points at the repository's `SECURITY.md` on GitHub, which
 answers 404 to the public while the repository is private *(reported)*.
 The supported line is the newest release. The site must serve the same
 file *(reported)*; that the mailbox exists is still for the maintainer to
 confirm.
 
-**Item 6** (40de8b5, 1d7c4e4). The session keeps `proved_at` (schema 9),
+**Item 6** (068e63b, 8a9c842). The session keeps `proved_at` (schema 9),
 stamped by every session's creation — a sign-in by password, passkey or
-e-mail link, a reset, an invitation, and until 463ed1ad a device's
+e-mail link, a reset, an invitation, and until ce0bcc42 a device's
 approval: a device's session is born unproved since (the second review's
 S7, below).
 `POST /api/me/prove` by password goes through the sign-in's own keys,
@@ -681,29 +681,29 @@ by passkey, `POST /api/me/prove/passkey` starts the ceremony. Gated
 beyond the Decision's list: the password change, the admin's reset link
 for another account, an owner giving or changing a member's role
 (`folders::set_member`), a share's role (`shares::grant`) and, since
-ce7f7655 (the /security-review of 2026-10-14, below), adopting a folder.
+4d09e3d5 (the /security-review of 2026-10-14, below), adopting a folder.
 Left ungated: an invitation with no folder or share — one that carries
-either is gated since 3d79d9ad (the second review's S6) — creating
+either is gated since 714e974f (the second review's S6) — creating
 accounts, quotas, the trash, removing a member. The window asks on the spot through
 `web/proof.ts` and `web/proveDialog.ts` and retries once. A request with a
 personal access token answers 403 "not with an access token".
 
-**Item 17** (73807d2). A typed code is cleaned (`read_code`), compared in
+**Item 17** (9248705). A typed code is cleaned (`read_code`), compared in
 constant time against every pending code, and the address's
 `device:<address>` delay is checked before every lookup — describe,
 approve, refuse, by link or typed — and counted on a wrong code; a right
 code does not clear it. The page sends the code in the body; the path
 routes stay. Item 6's proof is checked before the code is read.
 
-**Item 14** (d5ea899, c1bc4cc). Seven `cargo-fuzz` targets in
+**Item 14** (462b09b, 5e085ab). Seven `cargo-fuzz` targets in
 `crates/verso-server/fuzz`, a harness of its own outside the workspace as
 the dialect's is: `request`, `unframe`, `note`, `board`, `presence`,
-`host` and `size` (34474a0). The crate's own readers are reached through
+`host` and `size` (bbebd16). The crate's own readers are reached through
 `fuzz_api`, a module compiled only with the `fuzzing` feature, which
-nothing that ships turns on (f6d52f5). On `main` each runs 60 s with
+nothing that ships turns on (2cef6a1). On `main` each runs 60 s with
 `-O`, the release profile without debug assertions: with cargo-fuzz's
 default flags a run stopped on yrs's debug-only asserts and overflows,
-which a release build takes (060f126); the dialect's and the canvas's
+which a release build takes (34c6526); the dialect's and the canvas's
 keep their flags. The seeds are versioned per target, in
 `fuzz/seeds-<target>`, each input a target found among them. What the
 targets found, and what closed each:
@@ -711,27 +711,27 @@ targets found, and what closed each:
 - (a) A `Host` of the form `[::1]` followed by anything was taken as the
   loopback: on a server with no `VERSO_PUBLIC_URL` it passed the `Host`
   check and became the origin of the links the server mails. The name is
-  now compared whole: `localhost`, `127.0.0.1` or `[::1]` (fec23f4).
+  now compared whole: `localhost`, `127.0.0.1` or `[::1]` (c0b9924).
 - (b) yrs 0.28, the newest published, panics in a release build on some
-  updates a member who may write can send (7170df6). Decided on
+  updates a member who may write can send (877b583). Decided on
   2026-10-13 (*"aceito recomendação"*): every call into yrs over what a
   window sent is made under `catch_unwind` at the room's boundary; the
   update is refused, a `WARN` line names the account's id, and the room
   is made again from its file, as a change from outside makes it. What a
   member loses: the edits in that room since it last wrote, which it does
-  900 ms after the last edit (606ffeb).
+  900 ms after the last edit (a83739f).
 - (c) A declared count larger than the bytes left, and a value nested
   deeper than 64 levels, are refused before yrs reads an update:
   `yjs_bounds.rs` walks the update's v1 layout as yrs reads it, each
-  number as yrs reads it, and reads no content (40893a6, 658f924,
-  4e1338f). Runs of deleted or skipped clocks of length 0, deletions of
-  length 0 and clocks past `u32::MAX` are refused too (75872f9). Two of
+  number as yrs reads it, and reads no content (5d20971, d7230cb,
+  acaae0d). Runs of deleted or skipped clocks of length 0, deletions of
+  length 0 and clocks past `u32::MAX` are refused too (755f830). Two of
   these ended the whole process, not one request: a value nested deep
   enough overflowed the thread's stack (seen while writing the tests),
   and a run of length 0 made yrs panic a second time during the
   unwinding, an abort past the catch of (b).
 - (d) An update that makes or deletes items as the room's own Yjs client
-  beyond those the room has made is refused (670a07f, b7ef994). Other
+  beyond those the room has made is refused (12ba832, acf932f). Other
   clients' items stay unjudged.
 - (e) A connection's requests ran side by side, so the server itself
   reordered one window's updates: the only way a legitimate update
@@ -740,35 +740,35 @@ targets found, and what closed each:
   read different texts and boards. A connection's `collab_update` now
   waits for its previous one (`rpc.rs`, a chain per connection), and an
   update that leaves anything pending, or that yrs stops applying
-  halfway, is refused and the room made again (8d419e9). Decided on
+  halfway, is refused and the room made again (947814c). Decided on
   2026-10-13, option (a) (*"bora a"* *(reported)*). The desktop host
   writes a window's questions on the server's connection in the order of
-  the calls (`remote.rs`, ca4c8a6); that Tauri hands a window's
+  the calls (`remote.rs`, 6c4327e); that Tauri hands a window's
   invocations on in that order was not verified, and the window makes
   the order its own: one update in flight per room, what is typed
-  meanwhile merged into the next (`updateQueue.ts`, 857f4aa).
+  meanwhile merged into the next (`updateQueue.ts`, d140c24).
 - (f) What `join` sends and what a board's write tells the windows are
   decoded and applied in a scratch document before they are sent, the
-  room made again on a failure (ef1c389); a room's state must also read
-  in a window as it reads in the room (8d419e9). Cost: one decode and
+  room made again on a failure (1e0d357); a room's state must also read
+  in a window as it reads in the room (947814c). Cost: one decode and
   apply of the room's state per join and per board write (the server's
   tests from 22 s to 33 s).
 - (g) `config::size` below one byte is an error, no longer a quota of 0
-  bytes (bc2b9fc).
+  bytes (af0ab30).
 - (h) 2026-10-14, the fuzz job on `main` and a 120 s run after it. An
   update that names one Yjs client in two of its sections is refused by
-  `yjs_bounds.rs` (44561c8): yrs 0.28 read both into one list out of
+  `yjs_bounds.rs` (48bd2c4): yrs 0.28 read both into one list out of
   clock order and freed an item a board's room still pointed to
   (AddressSanitizer's heap-use-after-free); Yjs writes each client once.
   Two updates that make the same item with different contents are not a
   fault of the merge: Yjs keeps whichever came first, and the target
   `board` compares the other order only when each item is made once
-  (dad8202).
+  (afa37ca).
 - (i) 2026-10-14, decided by the maintainer (*"sim para os 2"*): a room
   ties each Yjs client to the account, and the connection, that first
   wrote as it (`writers.rs`, as a presence ties its clients), and refuses
   an update that makes items, or deletes clocks, past what the room holds
-  of a client another account writes as (4c387d9). This revises (d)'s
+  of a client another account writes as (8d25f34). This revises (d)'s
   "other clients' items stay unjudged". What the room holds already is
   judged by no one — another window's items in a whole state sent back,
   the deletion of another person's item when an element moves — and the
@@ -778,13 +778,13 @@ targets found, and what closed each:
 
 Final state: 60 s under `-O` on the `note` and `board` targets with no
 crash *(reported)*; the seeds, the six inputs once kept aside as open
-(f95226d) among them, replay clean (8d419e9). The yrs findings were to be
+(3491f1d) among them, replay clean (947814c). The yrs findings were to be
 reported upstream, waiting for the maintainer's OK *(reported)*;
 `[DECIDED 2026-10-21]` (0083.14, option C): **they are not reported** to the
 `yrs` project, and our own guards (the bounds, the `yjs_bounds.rs` tests, the
 fuzz seeds) stay.
 
-**Item 16** (0b5fea1; e86eee8, 1e25bcf). The reading:
+**Item 16** (f6ae4eb; 4b8a04c, 95b7a22). The reading:
 `app/ui/src/sanitize.ts`, written by Opus 5.5, read by Fable 5.1 on
 2026-10-13, no BLOCKING finding and three MINOR *(reported)*. The values
 of `data-task-line` are not restricted, and `toggleTask` checks again
@@ -793,7 +793,7 @@ reaches `resolveAttachment` and `verso-fs`'s confinement, which refuses
 the UNC and absolute forms (`confine.rs`, tested on Windows). And the
 embedded page's gate box held its frame's host in a `<template>`, which
 a second cleaning dropped; resolved by making the box self-contained
-(e86eee8): it carries the address and the frame's tamed style
+(4b8a04c): it carries the address and the frame's tamed style
 (`data-embed-style`), the host is built at the click, the origin is the
 address's own and never the box's `data-embed-origin`, "load" works only
 for an origin the person approved, and "approve" and "cancel" only for an
@@ -806,7 +806,7 @@ The suite: the hostile-HTML cases, 102, live in
 `app/ui/e2e/sanitize.spec.mjs` (`npm run e2e`, local, in
 `scripts/check.sh`), through the harness's hook `__harness.sanitize` —
 the instance `main.ts` configures — built only into the harness's site,
-never into `dist/` (1e25bcf). Seen failing first with a deliberately
+never into `dist/` (95b7a22). Seen failing first with a deliberately
 wrong assertion in both browsers; then three cases failed in both, their
 outputs safe and their expectations written for happy-dom's tree; the
 expectations were corrected for the browsers' parser, and no fault of the
@@ -840,9 +840,9 @@ Docker's `json-file` driver with `max-size: "10m"` and `max-file: "3"`
 **The threat model's rate limit beyond sign-ins** (2026-10-13). Its
 `[OPEN]` closed by the maintainer's answer of 2026-10-13 (*"sobre as
 decisões em aberto, siga as recomendações"*): the paces of items 7
-(9b4cdf0) and 2 (805febb), beside the connection limits built before,
-answer it; `docs/reference/threat-model.md` says **Closed: 9b4cdf0 and
-805febb**. Measuring the numbers stays item 18.
+(64f2021) and 2 (6cc3d50), beside the connection limits built before,
+answer it; `docs/reference/threat-model.md` says **Closed: 64f2021 and
+6cc3d50**. Measuring the numbers stays item 18.
 
 **Two readings of the Decision's text** (2026-10-13), noted here and not
 rewritten above. Item 16's guardrail is "kept in `npm run e2e`": that
@@ -851,29 +851,29 @@ suite runs locally, in `scripts/check.sh`, not in CI
 sanitizer's cases holds before a push, not on a pull request. Item 14
 names "`collab.rs`'s awareness reader": the `presence` target goes
 through `presence.rs` (`presence::stamped`, which `collab::awareness`
-calls; 34474a0).
+calls; bbebd16).
 
 **The maintainer's checks in the app** (2026-10-13). What the tests do
 not reach is listed in `docs/reference/manual-checks.md`, none of it
 blocking: a shared note and board edited from the desktop app beside
 another window (the order of (e)), item 6's dialog with a password and a
 passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
-`universo.sh`'s Caddy steps beside another site (7755802).
+`universo.sh`'s Caddy steps beside another site (5da3013).
 
 **The second review (2026-10-13).** On the night of 2026-10-13, after
 items 1 to 17 were built, an Opus 5.5 session that wrote none of the code
-read the server again at e699b57, read-only, assuming an attacker who has
+read the server again at 52dc95c, read-only, assuming an attacker who has
 read the public source: 25 findings, none a repetition of F1 to F23 —
 three BLOCKING, all leaks between people sharing a folder, twelve
 IMPORTANT and ten MINOR. [`security-review-2026-10-13.md`](../reference/security-review-2026-10-13.md),
 section 10, lists them as S1 to S25, with what closed each. All 25 were
-closed in this round, in the merges of sec/shares (c816ca5b), sec/pkg
-(af554af2), sec/bounds (39181303) and sec/auth2 (83066f61), and in the
-maintainer's decisions below, merged from sec/decided (c2454064). Two
-of the fixes change the contract. 0e9175de adds `ErrorKind::ProveFirst`, which the
+closed in this round, in the merges of sec/shares (f8cfa1de), sec/pkg
+(4e77830e), sec/bounds (6c8db684) and sec/auth2 (a0b31e81), and in the
+maintainer's decisions below, merged from sec/decided (bf31c238). Two
+of the fixes change the contract. 0d168223 adds `ErrorKind::ProveFirst`, which the
 host gives for a server's 403 `prove_first`, and the host command
 `server_prove`, which sends the password to the window's server's
-`/api/me/prove` with the device's bearer. 3e39e23c removes the device
+`/api/me/prove` with the device's bearer. 96cf6a82 removes the device
 routes that took the code from the path (`GET`, `POST` and
 `DELETE /api/device/{code}`), so that an address under `/api/` that no
 route names answers 404 instead of the page, and adds the host command
@@ -910,8 +910,8 @@ with admin access).
   and makes the plain tarball with the present warning in capitals".
 - (3) 2026-10-14 — the recommendation changed by the maintainer: a
   desktop app's device session keeps the admin's routes, each sensitive
-  one behind item 6's fresh proof, as it is since 463ed1a (a device's
-  session born unproved) and 0e9175d (the app proves with the password).
+  one behind item 6's fresh proof, as it is since ce0bcc4 (a device's
+  session born unproved) and 0d16822 (the app proves with the password).
   No code changes; `server-install.md` section 9 and
   `server-hands-on.md` say that an admin action from the app asks for the
   password again.
@@ -922,20 +922,20 @@ with admin access).
   `without_owners_settings`); the owner's change sets it.
 
 **The /security-review of 2026-10-14.** A code review of the server for
-security, run on 2026-10-14 at b72940c7, reported no finding at
+security, run on 2026-10-14 at 17adfe49, reported no finding at
 confidence 8 or above. Four items it raised below that threshold were
 closed on sec/security-review-followups, each with a test seen failing
-first. 9906f2b9: schema 10's upgrade gave `scope = 'folder'` to every
+first. 800266da: schema 10's upgrade gave `scope = 'folder'` to every
 invitation whose `share` was already null, a share's invitation orphaned
 before it among them, which would then have granted the whole folder;
 in the same transaction as step 10, every pending invitation that names
 a folder and no share is now ended, the log says how many once, and the
 changelog tells the admin to send them again — used, expired and
-folderless links untouched. ce7f7655: `admin::adopt`, which gives a
+folderless links untouched. 4d09e3d5: `admin::adopt`, which gives a
 folder already on the disk to any owner, wants item 6's fresh proof, as
-`enter` and `set_member` do. e86ddbdd: `device::describe_typed` refuses
+`enter` and `set_member` do. c985f508: `device::describe_typed` refuses
 a personal access token ("not with an access token") before the code is
-looked at, as approving and refusing want a session. 22e7eb84:
+looked at, as approving and refusing want a session. f792c1e0:
 `universo.sh restore` unpacks the checked entries into a fresh root-only
 directory inside the target, refuses when a path it would write is a
 link under the target (GNU tar followed a link planted in the middle of

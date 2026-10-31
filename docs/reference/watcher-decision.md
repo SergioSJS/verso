@@ -113,7 +113,7 @@ change, so the autosave writes it 1.5 s later, the default — over the other
 app's version, and the write check lets it through, since the tab holds the
 revision it read last. That is the user's act, and it is recorded as such:
 nothing refuses it, and the status line, which said the note was read again
-and pointed at ⌘Z, no longer invites it (`2b4c78d`). Where the line
+and pointed at ⌘Z, no longer invites it (`08053cb`). Where the line
 separator changed, or the tab shows the file read-only, the disk's text does
 not come in as an edit: the editor starts again, with a new history
 (`fromDisk` in `app/ui/src/main.ts`), and ⌘Z has nothing of the tab's to bring
@@ -231,27 +231,27 @@ the Phase 2 review. Every finding was resolved in the commits above the
 branch unless marked otherwise:
 
 - Rust, BLOCKING: an OS watcher error reached the window with absolute paths
-  (rule 4) — `645e8f5`.
+  (rule 4) — `8c13d92`.
 - Rust, IMPORTANT: each batch delivered once per window to every window —
-  `1cea893`; a change another index run found first was never told —
-  `1cea893` and `7190830`; the configuration directory inside the folder woke
-  the watch for ever — `645e8f5`, `6de2245`; on Linux one unreadable
+  `7f4ea53`; a change another index run found first was never told —
+  `7f4ea53` and `be3be5b`; the configuration directory inside the folder woke
+  the watch for ever — `8c13d92`, `cdae041`; on Linux one unreadable
   directory switches watching off and the warning was then lost — the
-  warning kept (`1cea893`), the rest recorded in section 3.8.
+  warning kept (`7f4ea53`), the rest recorded in section 3.8.
 - Rust, MINOR: the symlink doc on Linux, a placeholder-named directory not
-  watched — `645e8f5`; the watch started after the index — `1cea893`; the
-  test helper's clean-up claim, the contract's comment — `1cea893`; a test for
-  `9974e11` — `6de2245`; `gh auth status` too wide — `12ab794`; the
+  watched — `8c13d92`; the watch started after the index — `7f4ea53`; the
+  test helper's clean-up claim, the contract's comment — `7f4ea53`; a test for
+  `1695ec6` — `cdae041`; `gh auth status` too wide — `739cccc`; the
   dependency list and the UI freeze on large folders — this memo.
 - Window, BLOCKING: the caret restored inside the folded frontmatter, where
-  one Backspace deleted the hidden properties — `7190830`.
+  one Backspace deleted the hidden properties — `be3be5b`.
 - Window, IMPORTANT: stolen changes (as above), silent problems, the property
   edit lost, the tree rebuilt under an inline rename, the crossed-out tab's
-  contrast — `7190830`; the gone state by styling alone — `0d27fcc`; the
+  contrast — `be3be5b`; the gone state by styling alone — `432c4da`; the
   "none" risk of section 3.4 — this memo.
 - Window, MINOR: read races, the cursor by offset, the gone state cleared only
   by a read, less refreshed than claimed, racy status, note windows —
-  `7190830` and this memo; the contract's comment — `1cea893`; the nested
+  `be3be5b` and this memo; the contract's comment — `7f4ea53`; the nested
   callouts' stale sentences — the spec and the app memo; this memo's
   precision — here.
 
@@ -263,21 +263,21 @@ memo are resolved here:
 - Window, BLOCKING: ⌘Z then ⌘⇧Z — or ⌘U alone — after a read from disk put
   the caret back inside the folded frontmatter, where one Backspace deleted
   the fence and a property; now every transaction in Live Preview keeps every
-  cursor out of it — `ba8fb82`.
+  cursor out of it — `41b6eb0`.
 - Window, IMPORTANT: the focus restored by its rank after a redraw landed on
   another control once embeds came in above it (now found by identity); every
   reading view was drawn again on every batch (now only a note that embeds a
   changed one); the guard against redrawing under a rename covered the tree
-  only (now the search results and the folder views too) — `2b4c78d`.
+  only (now the search results and the folder views too) — `08053cb`.
 - Window, IMPORTANT: ⌘Z after a read from disk is an ordinary edit, saved over
   the other app's version — recorded in section 3.4; the status line no longer
-  invites it — `2b4c78d`.
+  invites it — `08053cb`.
 - MINOR: the disk's edit isolated in the history, so ⌘Z after typing undoes
   the typing only; the status line's names; the deferred list refresh; the
-  properties panel's deferred check; Enter in the reading view — `2b4c78d`.
+  properties panel's deferred check; Enter in the reading view — `08053cb`.
   The host's reindex under one hold of the lock, and the watcher's messages
   said in pt-BR or English by the window instead of the host's English
-  sentence — `b60f950`. `gh auth status --active` — `4e5162f`.
+  sentence — `c0eb630`. `gh auth status --active` — `b3b8b70`.
 - This memo, MINOR: section 3.2 cited ADR 0029 for keeping the content hash,
   where the `cp -p` reasoning is ADR 0012's provisional paragraph on the write
   check; section 3.1's dependency list left out `kqueue` and `kqueue-sys`;
@@ -292,10 +292,10 @@ maintainer allowed on 2026-09-24. What the run found:
   the closing fence: the first line joined it, the block was no longer a
   frontmatter and every property went with it, unseen — older than the
   watcher. No key changes the folded frontmatter now; the properties panel
-  does — `435b489`.
+  does — `d130d0f`.
 - A callout the user had opened folded again whenever the note was read
   again; and a note deleted outside and put back left the status line
-  saying it was gone — `5ad0b0d`.
+  saying it was gone — `37dfda4`.
 
 Everything else the run tried went as section 2 says: a change read into a
 clean tab, the conflict banner for a tab with unsaved text with nothing

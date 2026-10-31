@@ -87,7 +87,7 @@
   [`../review/phase-2.md`](../review/phase-2.md) §6 and §7; the memos
   [`app-decision.md`](app-decision.md), [`fs-decision.md`](fs-decision.md),
   [`index-decision.md`](index-decision.md) and
-  [`mcp-decision.md`](mcp-decision.md); and the code at `1222492`:
+  [`mcp-decision.md`](mcp-decision.md); and the code at `6cc0714`:
   `crates/verso-dialect/src/{lib,parse,frontmatter}.rs`,
   `crates/verso-core/src/lib.rs`, `crates/verso-contract/src/lib.rs`,
   `crates/verso-index/src/{schema,store}.rs`, `crates/verso-cli/src/mcp.rs`,
@@ -167,7 +167,7 @@ The decided material that constrains the answers, none of it reopened here:
 
 ## 2. What exists today
 
-Read in the code at `1222492`. A property's type today comes from its YAML
+Read in the code at `6cc0714`. A property's type today comes from its YAML
 value, never from a declaration: nothing in Verso says "this note is an NPC,
 and an NPC has a faction".
 
@@ -752,7 +752,7 @@ Recorded, not resolved (`CLAUDE.md` §1, rule 3).
 ## 11. What this memo did not verify
 
 - **No code was written or compiled.** The build list of section 8 comes from
-  reading the code at `1222492`, not from trying it.
+  reading the code at `6cc0714`, not from trying it.
 - **Nothing was observed in the running Obsidian for this memo.** Section 3
   comes from public pages and the public API, fetched on 2026-09-24. Not
   observed: how Obsidian shows a `verso-schema` block (taken to be a plain code
@@ -785,18 +785,18 @@ Recorded, not resolved (`CLAUDE.md` §1, rule 3).
 not pushed.
 
 The memo and the draft ADR came in three commits of the local stack, among
-others that are not this subject: the memo's (`4a9ae09`) and the reading's
-(`d2c88d4`), which touch the same six files, and `f06cb2d`, which corrected
+others that are not this subject: the memo's (`403c0d8`) and the reading's
+(`a920383`), which touch the same six files, and `d676c54`, which corrected
 this section and section 13 in the memo and its twin. The maintainer's
 decision was recorded after them, and a second reading's corrections after
 that. All under `docs/`:
 
 ```
-git show --stat 4a9ae09 d2c88d4 f06cb2d                      # six, six and two files, all under docs/
+git show --stat 403c0d8 a920383 d676c54                      # six, six and two files, all under docs/
 git log --oneline -- docs/reference/typed-note-decision.md   # every commit that touched the memo
 bash scripts/check-docs-mirror.sh                            # "docs mirror: ok"
 bash scripts/check-fixtures.sh                               # fixtures untouched; the lint still passes
-git log -1 --format='%an <%ae>%n%b' d2c88d4                  # author and Signed-off-by are yours
+git log -1 --format='%an <%ae>%n%b' a920383                  # author and Signed-off-by are yours
 ```
 
 **Decide, in seven lines:**
@@ -860,7 +860,7 @@ done with each:
 The labels are the reading's own, and it read three other memos in the same
 pass: the numbers this table skips, and the reading's one BLOCKING finding,
 are those memos' — `beta-config-decision.md`, `handles-decision.md` and
-`embedded-media-decision.md`, corrected in `4e8646b`. These changes have not
+`embedded-media-decision.md`, corrected in `eafd9e8`. These changes have not
 been read yet.
 
 A second reading, by a fresh Opus 5.5 session on 2026-09-24, found three
@@ -868,7 +868,7 @@ MINOR, resolved after the maintainer's decision: ADR 0052 said it entered
 `[OPEN]` "like ADRs 0044 to 0048", which entered with questions only, on
 subjects the briefing does not have — its Context now says so, and row I6
 above overstates the precedent the same way; section 12 said the memo came in
-two commits, where `f06cb2d` is a third — now three, with the decision after
+two commits, where `d676c54` is a third — now three, with the decision after
 them; and ADR 0052's Consequence that a schema is read "inside the fuzzed
 parser" holds only for a schema inside a note, formats (b) and (c), which the
 decided format (c) is — now said there.

@@ -1016,7 +1016,7 @@ Raised while writing this spec. All of them need an answer before
   (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The reading view shows as a callout a blockquote
   whose first line opens with `[!kind]`, `[!kind]+` or `[!kind]-`, for any
   kind, lower-cased; `+` and `-` make it foldable from its title, and `-`
-  starts it closed, as Obsidian's documentation shows — since `5b7fc69`:
+  starts it closed, as Obsidian's documentation shows — since `7679916`:
   before it the fold was only marked and nothing acted on it, which the Opus
   reading of the answers found; with no title the
   kind's name, capitalized, is the title; a blockquote nested inside a
@@ -1215,14 +1215,14 @@ Raised while writing this spec. All of them need an answer before
 
   **Point 3 amended by the maintainer on 2026-09-23.** It said a candidate
   **in** the source note's own folder; the index had preferred one **under**
-  it, at any depth, since commit `d1a5272`, following probes of Obsidian
+  it, at any depth, since commit `4712f85`, following probes of Obsidian
   1.13.7 that were recorded, run again, as the third observation of
   `docs/reference/index-decision.md` §4.1. Asked "sob a pasta, sim ou não?",
   with an example and the recommendation to follow Obsidian, the maintainer
   answered: *"boa, gosto da sua ideia, pode seguir"*. Point 3 now says
   "under", and nothing in the code departs from points 1 to 5.
 
-  **Embeds of files that are not notes, since `3340a3f`, recorded on
+  **Embeds of files that are not notes, since `8a284f8`, recorded on
   2026-09-23.** They resolve by points 1 to 5 from the note that holds the
   embed, "under" included since the amendment.
 
@@ -1256,7 +1256,7 @@ Raised while writing this spec. All of them need an answer before
   and is followed by letters, digits, `_`, `-` or `/` that are not all digits,
   and the tag is lower-cased. So the `#` of a
   heading (`# Title`, with its space) and the `#` inside a URL are not tags.
-  Since `95b39ee` the index and the reading view take the rule from one
+  Since `fd6bcfa` the index and the reading view take the rule from one
   function of the dialect, `verso_dialect::body_tags`, which reads the parser's
   events and skips the frontmatter, code spans and code blocks (fenced or
   indented), raw HTML, link destinations and labels, image alt text, math and
@@ -1284,7 +1284,7 @@ Raised while writing this spec. All of them need an answer before
   backlink of the note to itself, so a note that links to its own headings does
   not show up in its own backlinks. *(The last clause is superseded by Q12,
   point 1, closed later the same day: the note is a source of its own
-  backlinks, and the code does that since commit `d1a5272`.)* Nothing was observed in Obsidian for this
+  backlinks, and the code does that since commit `4712f85`.)* Nothing was observed in Obsidian for this
   case; the code chose it because the alternative counts every same-note
   heading link as a missing file and puts an empty target at the head of the
   unresolved list of any folder that uses them. The maintainer decides; this
@@ -1334,7 +1334,7 @@ Raised while writing this spec. All of them need an answer before
   enables only wikilinks and the YAML block, so a link inside a table or a
   footnote is found as in plain text, and no fixture covers the rendering. The
   maintainer asked for footnotes, math and tables by name on 2026-09-23; that
-  settles what the window shows, not this question. Since `7475c03` the reading
+  settles what the window shows, not this question. Since `f0f94ac` the reading
   view finds all of these on the parser's events, not in its own HTML: code,
   link labels and alt text are never rewritten, and a raw `</blockquote>` can no
   longer open or close a callout. Because the reader enables options the parser
@@ -1368,7 +1368,7 @@ Raised while writing this spec. All of them need an answer before
   backlink sources. An embed of another file (`![[mapa.png]]`, `![[livro.pdf]]`)
   stays in the index as an unresolved target (Q14), never a backlink; the core
   resolves it for display only, by the rule of Q12 from the note that holds the
-  embed (since `3340a3f`; before, by file name alone, whatever note held it).
+  embed (since `8a284f8`; before, by file name alone, whatever note held it).
   On its face this departs from point 5 of the closed Q12 ("an embed resolves
   by the same rule"): the index resolves embeds among notes only, so an embed
   of an image stays unresolved in it while the window resolves it for display.
@@ -1667,7 +1667,7 @@ the parser was chosen.
   Obsidian. The code is changed to follow this and the fixture
   `frontmatter/tags-number`, which today asserts the Obsidian reading, is
   updated by the code that builds it; that fixture's draft mark was removed
-  once it was approved with DL.2 B (v0.48, `0d576e17`; see the dated lines
+  once it was approved with DL.2 B (v0.48, `1a184eab`; see the dated lines
   below), and the other five fixtures of Q22 and Q24 (`block/id-chars`,
   `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`,
   `frontmatter/wikilink-values`) are **approved as drafted** (DL.3, option A),
@@ -1748,7 +1748,7 @@ the parser was chosen.
 | v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: where the code departs from point 3 of Q12 ("under" the source's folder where point 3 says "in", which the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |
 | v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |
-| v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `5b7fc69` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
+| v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `7679916` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
 | v0.17 | 2026-09-24 | Q5: a provisional fact, not an answer — the reading view draws a callout inside a callout, up to 32 deep (branch `feat/nested-callouts`); nesting stays `[OPEN]` |
 | v0.18 | 2026-09-24 | **Q11 closed by the maintainer** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): a schema is a fenced `verso-schema` block, YAML inside, in a note anywhere in the open folder but hidden and ignored paths, named by the `type` inside it; two schemas with one name type nothing, and the conflict is shown; whether a nested block counts is not decided. Section 6: the typed note, schemas and schema i18n `DECIDED`, constraint 1 (ADR 0013) accepted. Q24: its link part is the next decision. No fixture yet: the implementation brings them. Q6: a pointer to `docs/reference/embedded-media-decision.md`, which corrects the claim that Obsidian's documentation shows `<video>` and `<audio>`; Q6 stays open |
 | v0.19 | 2026-09-24 | Q11: **a nested `verso-schema` block does not count**, decided by the maintainer (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) point 3): only a block at the top level of a note is a schema, and a nested one is shown as not read. Bases (`.base` files and `base` blocks) are [ADR 0053](../adr/0053-views-bases.md)'s, not this spec's, which is the notes' dialect |
@@ -1780,6 +1780,6 @@ the parser was chosen.
 | v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |
 | v0.46 | 2026-10-20 | §6: two rows, the fenced block ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) and the `> [!oracle]` callout ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), constructs Verso draws and Obsidian reads as a code block and a callout; the parser does not change. No fixture (nothing here answers a §9 question or changes what the parser returns). No question closed |
 | v0.47 | 2026-10-21 | The maintainer's answers of the decisions questionnaire of 2026-10-20 (answered 2026-10-21): **Q2, Q5 (nesting), Q6, Q8, Q14, Q15, Q16, Q17, Q19, Q20, Q22, Q23 and Q24 `DECIDED`**, each as the option marked — Q14 with both options, A (ratify) and B (unresolved links as graph nodes). Every decision is recorded; none closes in full, since each that needs a fixture or an observation of Obsidian waits for the PR that adds it (invariant 17); Q5's `callout/nested` is a separate code PR. §5 and §7 brought up to date: §7 now points to [ADR 0093](../adr/0093-periodic-notes.md) for periodic notes, not to §9. No fixture changed |
-| v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved, its expectation changed with the code of DL.2 B and its draft mark removed (`0d576e17`). Q14: clicking an unresolved graph node asks before creating the note. |
+| v0.48 | 2026-10-21 | The maintainer's answers of the decisions list of 2026-10-21: **Q5, Q22 and Q24 closed in full**, six of the seven fixtures drafted on 2026-10-21 **approved** (`callout/nested`, `block/id-chars`, `frontmatter/bom`, `frontmatter/yaml-12`, `frontmatter/tags-hash`, `frontmatter/wikilink-values`; draft marks removed). Q24: `...` does not close the frontmatter (as Obsidian); `tags: 2024` **is** the tag "2024", the maintainer's explicit choice, knowingly different from Obsidian, which is on record; `frontmatter/tags-number` is approved, its expectation changed with the code of DL.2 B and its draft mark removed (`1a184eab`). Q14: clicking an unresolved graph node asks before creating the note. |
 | v0.49 | 2026-10-22 | The maintainer's answers of the afternoon list of 2026-10-21: **Q5-bis A** (a plain blockquote inside a callout is no level; a callout inside it is nested), **T.3 A** (`tags`: only non-negative integers), **I-8 A** (`frontmatter/tags-number` reconfirmed as it stands). No fixture changed |
 | v0.50 | 2026-10-22 | §6: one row and an example, the fenced block ```` ```roll ```` — a roll of the Table kept in a note ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block; the maintainer's option A of 2026-10-22). Verso draws a fixed card; Obsidian reads a code block; the parser does not change. No fixture. No question closed. (The header above still reads v0.48 while the history reaches v0.49: a contradiction already in the document, left for the maintainer.) |

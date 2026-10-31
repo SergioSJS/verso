@@ -48,7 +48,7 @@ test("the embedded demo carries the earlier versions of a note that changed", as
   const src = readFileSync(new URL("../src/demoVault.ts", import.meta.url), "utf8");
   const welcome = src.slice(src.indexOf('"path": "00 - Bem-vindo ao Verso.md"'));
   const block = welcome.slice(0, welcome.indexOf('"b64"'));
-  const old = readFileSync(new URL("../e2e/data/welcome-8c8df942.md.txt", import.meta.url));
+  const old = readFileSync(new URL("../e2e/data/welcome-a126538b.md.txt", import.meta.url));
   assert.ok(block.includes(await sha256Hex(old)), "the first welcome note is among the past versions");
 });
 

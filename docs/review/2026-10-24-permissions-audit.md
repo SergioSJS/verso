@@ -1,4 +1,4 @@
-# Permissions audit — a table's access, 2026-10-24 (`feat/rpg-tools` at `6919e533`)
+# Permissions audit — a table's access, 2026-10-24 (`feat/rpg-tools` at `210dab16`)
 
 - Date: 2026-10-24
 - Why: the maintainer's live test of a table that day (quoted in
@@ -6,7 +6,7 @@
   in two corners, no way to release a board for editing, and "Você só lê esta
   pasta" when dropping onto a note he was allowed to edit.
 - What: a read-only audit of every permission concept of the server, the
-  window and the desktop host, at `6919e533`. Nothing was edited. This page is
+  window and the desktop host, at `210dab16`. Nothing was edited. This page is
   the audit's map (part 1); its proposal became
   [ADR 0113](../adr/0113-one-access-model-for-a-table.md), accepted the same
   day with the maintainer's answers, and is not repeated here.

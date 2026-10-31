@@ -4,7 +4,7 @@
 - Source: the maintainer's live test of a table on 2026-10-24 (his report is
   quoted in Context), the read-only audit made the same day at his request
   ([review 2026-10-24](../review/2026-10-24-permissions-audit.md), on
-  `feat/rpg-tools` at `6919e533`), and his answers to that audit's proposal
+  `feat/rpg-tools` at `210dab16`), and his answers to that audit's proposal
   the same day, quoted under each item of the Decision. Written by Opus 5.5;
   to be read by the other model before it is built
   ([0032](0032-author-and-reviewer-roles.md)).
@@ -796,7 +796,7 @@ maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
 The contract, the window, the dialog and the tutorial. The server side is
 S1–S3 and the synced desktop is S8.
 
-- **The contract (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`,
+- **The contract (S4, `2beb63be`, `703f0159`).** `FileAccess` (`level`,
   `attach`, `why`) on every read answer and every listing entry; `FolderAccess`
   in the capabilities (the seat, the role, the credential's ceiling); the
   `access-changed` event with its paths (empty when a table or a right
@@ -806,50 +806,50 @@ S1–S3 and the synced desktop is S8.
   in `verso-server/src/access_cmds.rs` and `campaign_cmds.rs`, with the Tauri
   stubs, permissions, remote forwards and the phone's deny list. Bindings
   regenerated. `AccessInfo.master` is the owner's account name, never an
-  e-mail (`master_name`; `3d06960c`). `3d0ae216` has the harness answer the new
+  e-mail (`master_name`; `62281f9c`). `703f0159` has the harness answer the new
   commands from the shared vectors.
-- **One question in the window (S5, `aecec0dc`).** `access.ts` keeps what the
+- **One question in the window (S5, `1745f329`).** `access.ts` keeps what the
   server said and asks `accessCore.decide` through `may(path, action)`, which
   replaces `canChange`, `readsSynced`, `syncedReader`, `mayEditGranted`, the
   folder-wide `readable()` and the owner inferred from an error. The chip and
   the badge ask `tableViewer()` (`tableChip.ts`) instead of the campaign's
   `viewer`.
-- **Chat drag (S5, `aecec0dc`, `26c4da1f`).** Every chat entry is a drag
+- **Chat drag (S5, `1745f329`, `f3a152af`).** Every chat entry is a drag
   source (`table/view.ts`): a roll, a draw, an oracle or a message is dragged as
   its block or line; an image or a file as a link to the file already in the
   folder, nothing uploaded. The drop needs `may(path, "edit")` on the target
   and nothing of the entry's author. A masked secret entry (kind `secret`) holds
   nothing to drag and is not draggable.
-- **The Acesso… dialog (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, its
+- **The Acesso… dialog (S6, `6672ee0a`, `d1a68806`).** `accessDialog.ts`, its
   strings in `accessStrings.ts`, its controls in `accessControl.ts`. It opens
   from a file's title icon, one row of the tree's menu and a multiple selection
   (`noteAccess.ts`, `menu.ts`); a folder shows how many files an *Apply* changes
   before it applies. The indicator is the table chip (`tableChip.ts`); the Table
   window keeps a per-file control and a per-player control (`campaign.ts`,
   `campaignPlayers.ts`).
-- **Send files (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
-  `f0c5f266`).** A player with *Send files* sends images, PDF and audio (MP3,
+- **Send files (K.4, merge `f96e403e`: `cde87295`, `4e636369`, `4f2a6ff0`,
+  `084a699c`).** A player with *Send files* sends images, PDF and audio (MP3,
   Ogg, WAV, M4A) to the chat, and into the notes and boards they edit. The kind
   is judged by the first bytes, never by the name (`file_ext` in `table.rs`);
-  an MP3 needs a real MPEG Layer II or III frame header (`f0c5f266`). The bytes
+  an MP3 needs a real MPEG Layer II or III frame header (`084a699c`). The bytes
   are written under the table's attachments place (`table_image.rs`, `PLACE`).
   The window: `table/send.ts` (`sendable`), `table/compose.ts`, the file card
   in `table/view.ts`. A rename at a table keeps a file's kind (`door.rs`): a
   sent PNG is never renamed into a page, an SVG or a PDF, and a text write
   makes no non-note file.
 - **Removed.** `campaign_permission`, its Tauri command, permission and the
-  old access-menu strings in `campaignStrings.ts` (`c75320a6`); `table_rights_set`
+  old access-menu strings in `campaignStrings.ts` (`c796555f`); `table_rights_set`
   replaces it.
-- **Dialog tests (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
-  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+- **Dialog tests (T6, merge `125845e4`: `d04ca6e3`, `ff320747`, `4beabaf8`,
+  `fc5db141`, `edc74df5`, `449b6277`).** `app/ui/e2e/access-dialog.spec.mjs`
   drives the dialog by keyboard alone; at 1500, 820 and 390 px every control is
   reachable inside the dialog's width, and the spec checks fair targets on the
   phone's sheet (Apply, Follow the folder and More options are 44 px there); the
   dark theme keeps the words legible and a chosen level distinct. Focus returns
   to the opener's row after a save draws the tree again; the folder page redraws
   its table card when the seat arrives.
-- **Tutorial and changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
-  `af9976ea`, `60f8dc7f`, `56b2fb43`).** Notes 31 (`31 - A Mesa.md`) and 32
+- **Tutorial and changelog (S10, merge `b83d201e`: `29b1b1e8`, `908b18f4`,
+  `15f767aa`, `ba876279`, `e93a037d`).** Notes 31 (`31 - A Mesa.md`) and 32
   (`32 - Rodando uma Mesa.md`) describe the one model, `app/ui/src/demoVault.ts`
   is regenerated, walkthrough §18 ("Running a table (note 32)") holds the steps,
   and both CHANGELOGs carry the entries.
@@ -1050,43 +1050,43 @@ name never reaches the player's page.
 
 - **The spec.** `app/ui/e2e-server/zz-access-scenarios.spec.mjs` (468 lines)
   with its helpers in `app/ui/e2e-server/access-helpers.mjs` (283 lines). The
-  scenarios run last in the server suite (`5afbfd89`): their accounts crowd
+  scenarios run last in the server suite (`b43f6e57`): their accounts crowd
   the admin console's first page, which `server.spec` reads. Their folders
-  sort after the demo one and their e-mails are their own (`0204caae`).
+  sort after the demo one and their e-mails are their own (`abb93fcb`).
 - **Scenario a.** The chat's map onto a sheet one edits, refused to one who
-  only sees it (`4dd22e15`).
+  only sees it (`1ddac59e`).
 - **Scenario b.** The group's board: Ana edits live, Bruno does not, then both
-  with one change; each drawing gets a free spot (`47483615`, `dd811c93`).
+  with one change; each drawing gets a free spot (`e01fe658`, `923dc427`).
 - **Scenario c.** Folder set, one exception, and the arrow back; what Ana sees
-  at each step (`e54a4d8f`).
+  at each step (`de95a666`).
 - **Scenario d.** Ana creates and renames in a folder she edits and cannot
-  delete; the silent suffix over a hidden name (`5a967259`).
+  delete; the silent suffix over a hidden name (`eb1d114b`).
 - **Scenario e.** A file moved by the game master keeps its own access
-  (`4da9f284`).
+  (`7ecf1967`).
 - **Scenario f.** A PDF sent with *Send files*; without the right, none
-  (`698364ad`).
+  (`0c3f7e6d`).
 - **Scenario g.** An open tab, the board and a picture drop: a file that is no
-  longer shared is gone from each (`8bcaf7c9`).
+  longer shared is gone from each (`dc1f2060`).
 - **Helpers.** Failure messages show where a hidden name stands; the board's
-  text is read from its scene (`4908aaff`). Bruno's list of what he sees is
-  read from the core where the tree draws itself closed (`0e7d005d`). A folder
-  of the tree looks again until it is open (`fe7f1c95`). Notes are read through
+  text is read from its scene (`c5086131`). Bruno's list of what he sees is
+  read from the core where the tree draws itself closed (`2a69e7af`). A folder
+  of the tree looks again until it is open (`2568c6ea`). Notes are read through
   `list_entries`, because `list_files` lists only what is not a note
-  (`3ee6f1e7`).
+  (`94a1eb50`).
 - **Product bugs found and fixed.** (1) The tree's prompts asked the folder's
   root instead of the chosen folder; `guardCreate` in
-  `app/ui/src/readerNotice.ts` and `app/ui/src/tree/prompts.ts` (`a59215cc`).
+  `app/ui/src/readerNotice.ts` and `app/ui/src/tree/prompts.ts` (`a82cf4fe`).
   (2) A note's rename sent without `.md` was judged as a non-note, so it was
   refused and blind to the silent suffix; `Door::rename_target` in
-  `crates/verso-server/src/access/door.rs` (`e790daf3`, tests in
+  `crates/verso-server/src/access/door.rs` (`0ef9f3ce`, tests in
   `crates/verso-server/src/tests_access_review.rs`). (3) An open tab kept the
   text and name of a file no longer shared; `dropUnshared` in
   `app/ui/src/unshared.ts` and `Leaf.unshare` in `app/ui/src/leaves/leaf.ts`
-  (`fa1d11c9`). The same follows in recent files, closed tabs, back and
-  forward, the switcher, the hover card and embeds (`fa1d11c9`), in the
-  outline, the history button and the switcher's list (`8bcaf7c9`), and in the
-  failed-open line and the row's floating button (`fabe999e`). The changelog
-  records it (`45e5234a`).
+  (`f33a3e12`). The same follows in recent files, closed tabs, back and
+  forward, the switcher, the hover card and embeds (`f33a3e12`), in the
+  outline, the history button and the switcher's list (`dc1f2060`), and in the
+  failed-open line and the row's floating button (`f5f0c6a1`). The changelog
+  records it (`03e086f0`).
 
 Not done, said: (1) the scenarios skip the phone project; (2) the PDF leaf and
 split panes are not exercised; (3) the desktop synced window is not checked

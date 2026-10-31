@@ -117,7 +117,7 @@
   the receiver opens and syncs as a folder; per note and per block (spec
   Q9) stay open. The old wording of the Status is kept.
   2026-10-12 — item 7, with [0082](0082-live-co-editing-of-a-synced-folder.md) built (accepted
-  2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12): the
+  2026-10-11; 7c08a9a, ccabedd, acc02df, 76b4c11 and b73b6f2, merged into `feat/universo` by 8e93bbd on 2026-10-12): the
   desktop app on a **synced** local folder joins the rooms too. A note of
   such a folder joins the server's room while the device is connected,
   over the sync's own link, as the browser and the online desktop do;

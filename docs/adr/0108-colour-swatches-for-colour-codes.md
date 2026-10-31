@@ -122,8 +122,8 @@ Proposed (2026-10-22), until then. Items 2, 3 and 5 decided by the maintainer th
 same day; the items marked `[PROPOSED]` stay the author's until accepted.
 Being built; waits for a reading by the other model.
 
-As built 2026-10-22 on `feat/colour-swatches` (`6ac74b9d`, merged by
-`55aa528d`), not pushed. Two choices of the build, **not decisions of the
+As built 2026-10-22 on `feat/colour-swatches` (`a584fd13`, merged by
+`825143d3`), not pushed. Two choices of the build, **not decisions of the
 maintainer's**, recorded to be confirmed or dropped: (1) in plain text, a
 hash code of digits only shorter than six (`#123`, `#1234`) gets no swatch
 although the dialect does not read it as a tag — it reads as an issue

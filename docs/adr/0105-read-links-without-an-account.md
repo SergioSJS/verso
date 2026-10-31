@@ -193,12 +193,12 @@ Accepted (2026-10-21). Item 1 decided by the maintainer on 2026-10-20,
 items 2–8 on 2026-10-21.
 
 As built 2026-10-21, on `feat/rpg-tools` (not pushed, not released):
-`ddfcdd73` (the link, the visitor's path and the owner's commands in the
-server), `95827830` (fuzzing what anyone with no account may send),
-`26c44c68` (the contract's `list`, `secrets`, `create` and `revoke`
-commands), `c4534607` (making and reading links in the window), `8ec0dc3f`
-(end-to-end tests), `4dbe4bbb` (threat model, manual checks, changelog,
-tutorial); merged by `5690057e`. Item 5's contradiction was `[OPEN]` and
+`0c048eea` (the link, the visitor's path and the owner's commands in the
+server), `36ea2254` (fuzzing what anyone with no account may send),
+`2107fc2c` (the contract's `list`, `secrets`, `create` and `revoke`
+commands), `501c25fd` (making and reading links in the window), `cb972904`
+(end-to-end tests), `c8f767bf` (threat model, manual checks, changelog,
+tutorial); merged by `8d983ead`. Item 5's contradiction was `[OPEN]` and
 was closed on 2026-10-21 (RL.1a, option A). Roadmap row V.33 stays in V1
 (RL.1d, option A): it was built now and enters with V1; it is not moved to
 Phase 3.

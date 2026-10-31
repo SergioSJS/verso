@@ -33,7 +33,7 @@
   F20). Item 8: which side keeps the name, decided earlier the same day
   (Status), marked so. Consequences: a known limit, the campaign's
   finding F18. Item 4: the change log gains the device's name
-  (`changes.device`, server schema 6, commit 08e746e) — "who made it" now
+  (`changes.device`, server schema 6, commit a93d931) — "who made it" now
   names the device beside the account. The floor of item 9 and the
   device's name confirmed by the maintainer on 2026-10-11, in session:
   *"Mas eu tinha confirmado"* (but I had confirmed) — the
@@ -51,11 +51,11 @@
   WebSocket request and the server's in its hello.
   Item 12: the **1 GiB limit** the code keeps (`LARGEST`) is not one of
   those answers: the maintainer confirmed it later that evening, separately
-  (*"Pode ter esse limite de 1gb"*, recorded by 1cdf0a1), and on that
+  (*"Pode ter esse limite de 1gb"*, recorded by ffb0f8e), and on that
   confirmation it is decided, with the Status's "so that no file is left
   out for its size" amended to "no file under 1 GiB" — the old words kept
   there. 2026-10-12 — items 7 and 8, with [0082](0082-live-co-editing-of-a-synced-folder.md)
-  built (accepted 2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12):
+  built (accepted 2026-10-11; 7c08a9a, ccabedd, acc02df, 76b4c11 and b73b6f2, merged into `feat/universo` by 8e93bbd on 2026-10-12):
   a note of a synced folder joins the server's room while the device is
   connected. While the note is live, the local file has one writer in
   Verso, sync, which downloads the room's saves over it; a local change
@@ -85,7 +85,7 @@
   no version, is still sent and taken base64, as item 5 follows the
   version before. Item 12's "the pieces stay as they are" (2026-10-11,
   said of the 1 GiB limit) no longer holds for their size and their
-  wire. Built in 2b1f2c4. The items' words are unchanged. 2026-10-12 —
+  wire. Built in 82fb2c3. The items' words are unchanged. 2026-10-12 —
   item 12, the pieces' size: **1 MiB stays**, decided by the maintainer
   that day, about 16:00 BRT, among the round's seven decisions, all as
   recommended: *"Todos aprovados"* (all approved).

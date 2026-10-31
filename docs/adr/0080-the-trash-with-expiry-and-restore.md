@@ -263,8 +263,8 @@ the recommendations). No `[OPEN]` item stays open *(as written on
 2026-10-11; the answers of 2026-10-12 below leave one `[OPEN]`: the layer
 of settings that syncs, where a desktop folder's retention would live)*.
 
-**Built on the night of 2026-10-11 to 12** (8ad89d2, 9c10495, 02903f1,
-173cf7e and f3edc42, with item 12; 5b5fb9c, of the same night, is not
+**Built on the night of 2026-10-11 to 12** (db609b1, 03c21bf, a9a9bb5,
+08f4032 and 069cb3a, with item 12; 2f15f9d, of the same night, is not
 the trash's: it fixes the timing of a test of an unreadable directory on
 Windows). The open questions
 the building raised were sent to the maintainer the same night, and

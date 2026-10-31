@@ -38,7 +38,7 @@
   echoed `path`, refusals as tool results rather than JSON-RPC errors, typed
   `problems`, and the window bounds of `read_note`.
 
-  **Revision, 2026-09-23.** Those four are in the code since `3c24d96`. The
+  **Revision, 2026-09-23.** Those four are in the code since `764fc77`. The
   Opus reading of the Phase 2 branch (`docs/review/phase-2.md`, reading 3,
   findings 8 and 19, and finding 1's poisoned lock) found three more, fixed:
   `read_note` of an empty note answers an empty window instead of

@@ -3,7 +3,7 @@
 A campaign table ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md),
 [ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md)) played end to end on
 three real devices against the test UniVerso, with the build of
-`feat/rpg-tools` at `1cac0382`. The screenshots are in
+`feat/rpg-tools` at `bfa8c5c5`. The screenshots are in
 [`docs/media/test-runs/2026-10-23-mesa/`](/docs/media/test-runs/2026-10-23-mesa/).
 
 ## Setup
@@ -14,7 +14,7 @@ three real devices against the test UniVerso, with the build of
 | Ana (player) | Chromium on Linux (VM 104), the server's web window | The shared folder, online |
 | Bruno (player) | Windows 11 (VM 103), the Verso Beta app, in English | The shared folder, opened online from Settings › Servers |
 
-The server: UniVerso `0.8.3-beta.2` (`1cac038`) in Docker on a 1 GB, one-core
+The server: UniVerso `0.8.3-beta.2` (`bfa8c5c`) in Docker on a 1 GB, one-core
 VM (107). The players' accounts were made by an admin invitation; the game
 master shared the folder with them as readers. The players' windows were
 driven by Playwright (the browser over the network; the Windows app over its
@@ -55,19 +55,19 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 1. **IMPORTANT — The game master's Table said "unavailable" while the link was
    up.** After the session was revoked and signed in again, the reach of the
    synced folder stayed "up" from start to end, so the join answered
-   "unavailable" was never tried again. Fixed in `fb83a524`.
+   "unavailable" was never tried again. Fixed in `12c61bd5`.
 2. **IMPORTANT — A player who turned on 3D dice was left off the table.** A
    setting change makes the window leave the table and join again; two close
    together sent two joins, and the first leave arrived after the second join.
    Every roll after it was refused with "join the table first". Fixed in
-   `1cac0382`, with a test.
+   `bfa8c5c5`, with a test.
 
 ### Open, or fixed after the run
 
 3. **IMPORTANT — A reader's open board does not update live.** The players saw
    the game master's new cards only after reopening the board, and the game
    master's board said "live, only you" while both had it open. **Fixed after
-   the run** in `1ee433a1`: the server tells the folder's readers when a board's
+   the run** in `2a51c0c1`: the server tells the folder's readers when a board's
    room writes its file, and their window reloads it. Readers still do not show
    on the board's presence: the server keeps them out of a board's room on
    purpose ([ADR 0090](../adr/0090-maps-on-the-board.md) item 5, the secret
@@ -75,7 +75,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 4. **IMPORTANT — An inline roll's result shows on every chip with the same
    notation.** The bow and the dagger both read `1d20+6`; the result of one
    showed beside both, in the note, in the game master's view and on the
-   board card ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). **Fixed after the run** in `1ee433a1`
+   board card ([14](/docs/media/test-runs/2026-10-23-mesa/14-mestre-mac-ficha-da-ana-ao-vivo.png)). **Fixed after the run** in `2a51c0c1`
    for one's own rolls and for views of the same window: the result is kept
    by the chip's place among the identical ones. A roll heard from another
    person still lands on the first chip with that notation, because the
@@ -83,16 +83,16 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    open.
 5. **MINOR — A reader's board says "saved by a newer Verso".** The notice for a
    file from a newer version is shown for any board that cannot be written,
-   a reader's included. **Fixed after the run** in `1ee433a1`.
+   a reader's included. **Fixed after the run** in `2a51c0c1`.
 6. **MINOR — The Windows app shows the drawing toolbar on a reader's board**,
-   where the browser shows none; nothing is written. `1ee433a1` fixed it for a
+   where the browser shows none; nothing is written. `2a51c0c1` fixed it for a
    synced folder only; on Bruno's window — a server's folder opened online —
    the toolbar was still there after the fix. The cause is wider: a desktop
    window asks what it may do once, at start, before it shows the server's
    folder, so a reader's window keeps the desktop's answer (it may write) and
    never says "you only read this folder". Asking again made the toolbar go,
    but also took the desktop's own abilities (new window, updates, console).
-   **Fixed after the run** in `2fcd2e96`: the window asks again on every
+   **Fixed after the run** in `286fd377`: the window asks again on every
    folder it shows, and on a server's folder it gets the server's answer plus
    the app's own abilities (windows, web views, updates, console, local
    folders; not reveal, copy path or agents). Re-tested on the Windows app:
@@ -106,7 +106,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    ([27](/docs/media/test-runs/2026-10-23-mesa/27-bug-adesivo-do-board-sem-dado.png)); the board has no way to add a Markdown text card,
    where rolls work, except dragging a roll from the Table. A decision is
    needed on how a text card is made.
-   Fixed on branch `feat/board-text-card` (15778e7f): a toolbar *Text card* button
+   Fixed on branch `feat/board-text-card` (6f92cf0a): a toolbar *Text card* button
    and a double click on an empty spot add a Markdown text card, the latter
    configurable. The maintainer's decision, 2026-10-23: "B e A entao, sendo B
    configurável".
@@ -117,7 +117,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
    state is kept right; only the words are wrong.
 9. **MINOR — "join the table first"** appeared in English, under a window in
    Portuguese (the server's refusal passed through).
-10. **MINOR — FIXED (`ee9242e2`, branch `fix/ui-feedback`, 2026-10-23) — Dragging an entry of the Table selects all the window's text** in
+10. **MINOR — FIXED (`aab2f0f2`, branch `fix/ui-feedback`, 2026-10-23) — Dragging an entry of the Table selects all the window's text** in
     the Mac app ([28](/docs/media/test-runs/2026-10-23-mesa/28-bug-arrastar-seleciona-texto.png)).
 11. **MINOR — A reader is offered the editor.** On a note the player may only
     read, "Edit" opens the formatting bar and a caret; typing does nothing.
@@ -137,7 +137,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 16. **MINOR — After an update the Mac app reopened one of its two windows.**
     The other folder, a synced one, stopped syncing until it was opened
     again; Bruno's edit waited on the server and arrived 5 s after.
-    *Fixed on `fix/reopen-windows`, a64c71b9.* Cause: the window kept one
+    *Fixed on `fix/reopen-windows`, 02fa1f21.* Cause: the window kept one
     "last folder" key, written by the main window alone, and a window opened
     later was made to start empty, so only the main window's folder came
     back. The host now keeps the set of folders the windows show
@@ -145,7 +145,7 @@ Classified as in [ADR 0033](../adr/0033-pr-workflow.md).
 
 ## Re-test after the fixes
 
-With `a31d5eb0` on the server and the Mac, the game master dropped a note on
+With `f5a979f5` on the server and the Mac, the game master dropped a note on
 the board while Ana had it open: the card appeared on her screen at once,
 without reopening, and her board no longer said "saved by a newer Verso"
 ([29](/docs/media/test-runs/2026-10-23-mesa/29-depois-mestre-mac-poe-sessao-no-board.png), [30](/docs/media/test-runs/2026-10-23-mesa/30-depois-ana-linux-board-ao-vivo.png)). The game master's Table joined at once

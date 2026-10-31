@@ -413,7 +413,7 @@ refuses to rename a folder while any file in it is open. (On macOS, since
 ## Status
 
 **Decided in parts (2026-10-07/09); the port shipped in 0.5.0-beta.1**
-(2026-10-08, `CHANGELOG.md`; release commit 98a2bf6). **Accepted on
+(2026-10-08, `CHANGELOG.md`; release commit 20095da). **Accepted on
 2026-10-12** in what was still Proposed: the embedded WebView2
 bootstrapper (item 2), items 4, 6 to 9 and the order of the work,
 accepted by the maintainer as built and shipped, answering the ADR audit

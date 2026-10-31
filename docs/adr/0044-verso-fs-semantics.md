@@ -22,7 +22,7 @@
   app's own views gets access to files. Both recorded in the Decision; the
   lines that called the group open are kept, each with a note.
   2026-09-29 — an `[OPEN]` contradiction recorded in the ignored-paths group:
-  commit `e5754b0` implemented a built-in list of ignored directories and the
+  commit `b145309` implemented a built-in list of ignored directories and the
   reading of `.gitignore`, both of which this ADR discarded. Nothing decided;
   the status is unchanged. 2026-09-29 — **that contradiction decided by the
   maintainer** the same day, in session: both behaviours accepted, done
@@ -38,7 +38,7 @@
   Recorded as a section of its own, "On a server", after the handles
   group; the desktop's local folder is unchanged, and the lines this
   revises are kept, each with a note.
-  2026-10-12 — one behaviour of "On a server" changed by commit 4ffe8a9,
+  2026-10-12 — one behaviour of "On a server" changed by commit f3b3e7d,
   the fix of a race, and recorded in that section — **confirmed by the
   maintainer** the same night, "Ok": a dangling symlink whose target is
   inside the folder is treated as a new file inside, no longer refused as
@@ -201,7 +201,7 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   as above.
 
 **The code contradicted this group (recorded on 2026-09-29, then `[OPEN]`; decided the same day, below).**
-Commit `e5754b0` ("ignore build dirs") implemented, in
+Commit `b145309` ("ignore build dirs") implemented, in
 `crates/verso-fs/src/walk.rs`, both things this ADR's Discarded alternatives
 set aside:
 
@@ -253,7 +253,7 @@ and empty by default, and an ignored note is still an unresolved target and
 never a backlink source, whichever rule left it out.
 
 How the author built it under that decision (`crates/verso-fs`), replacing
-the partial matcher of commit `e5754b0`:
+the partial matcher of commit `b145309`:
 
 - **Git's own semantics, through ripgrep's engine.** The walk reads each
   directory's `.gitignore` with the `ignore` crate's gitignore module — the
@@ -404,7 +404,7 @@ for the server, option (a) of that plan:
   costs named there. The desktop's local folder is unchanged: every
   symlink is followed, as decided on 2026-09-22.
 
-*Changed on 2026-10-12 by commit 4ffe8a9; **confirmed by the
+*Changed on 2026-10-12 by commit f3b3e7d; **confirmed by the
 maintainer** the same night, answering "Ok" at 01:15 BRT.* It came from a race.
 The server's check canonicalized a path and, when that failed while an
 entry stood at the name, refused the entry as a link that leaves; a file
@@ -524,7 +524,7 @@ ignored-paths group, and set aside:
 
 - **Reverting the code to the design of 2026-09-22** — one of the two ways
   the `[OPEN]` put; the maintainer took the other.
-- **Keeping the matcher of commit `e5754b0` and fixing its `!`** — set aside
+- **Keeping the matcher of commit `b145309` and fixing its `!`** — set aside
   by *"refaça a logica"*: a grammar of our own was the project this ADR had
   warned about, and an existing engine of git's semantics replaced it.
 
@@ -542,6 +542,6 @@ the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
 wait for the maintainer. *(Ratified by the maintainer on 2026-10-12, as
 built and tested; Accepted.)* A dangling symlink whose target is inside the
-folder, on a server, treated as a new file inside since 4ffe8a9
+folder, on a server, treated as a new file inside since f3b3e7d
 (2026-10-12, "On a server"): confirmed by the maintainer on 2026-10-12,
 Accepted.

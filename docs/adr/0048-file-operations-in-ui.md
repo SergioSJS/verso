@@ -140,11 +140,11 @@ points.
   hold `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such
   a name writes no link that would be read as another target, and says so.
   The window refuses such a name when the user types it — creating a note or
-  a folder, renaming — and says why (`7d516f5`, the maintainer's choice of
+  a folder, renaming — and says why (`9d13bf2`, the maintainer's choice of
   2026-09-23). A name the window makes itself is not checked — a duplicate, a
   dropped file, the folders the settings name — except a pasted or dropped
   image's, which loses those characters so that its embed reaches it
-  (`ce983c7`). A file already so named opens as any other, and the core still
+  (`f232b78`). A file already so named opens as any other, and the core still
   accepts the names for its other clients.
 - **Volumes without hard links** (exFAT and FAT on removable drives, some
   network and cloud file systems): a create or a move gives the file its name
