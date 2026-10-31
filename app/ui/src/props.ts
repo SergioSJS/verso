@@ -312,11 +312,15 @@ export class PropertiesView {
       const header = h("div", "props-header");
       const toggle = h("button", "props-toggle");
       toggle.type = "button";
-      toggle.append(icon("chevron"), h("span", "", this.opts.strings.propertiesTitle ?? "Propriedades"));
+      // Folded, the header says how many it holds: a bare title read as an
+      // empty section (the maintainer, 2026-10-31).
+      toggle.append(icon("chevron"), h("span", "", this.opts.strings.propertiesTitle ?? "Propriedades"), h("span", "props-count", this.items.length ? String(this.items.length) : ""));
+      toggle.setAttribute("aria-expanded", String(!this.el.classList.contains("collapsed")));
       toggle.addEventListener("click", () => {
         const collapsed = !this.el.classList.contains("collapsed");
         this.collapsed = collapsed;
         this.el.classList.toggle("collapsed", collapsed);
+        toggle.setAttribute("aria-expanded", String(!collapsed));
         try { localStorage.setItem("verso.props.collapsed", String(collapsed)); } catch {}
       });
       header.append(toggle);

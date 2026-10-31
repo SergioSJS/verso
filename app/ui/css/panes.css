@@ -280,6 +280,8 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .props-toggle:hover { color: var(--ink); background: var(--paper-2); }
 .props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
 .props.collapsed .props-toggle .icon { transform: rotate(-90deg); }
+.props-count { margin-left: .15rem; padding: 0 .4rem; border-radius: 999px; background: var(--paper-3); color: var(--ink-2); font-weight: 600; letter-spacing: 0; }
+.props:not(.collapsed) .props-count, .props-count:empty { display: none; }
 .props.collapsed:not(.empty) .prop, .props.collapsed:not(.empty) .prop-new { display: none; }
 .prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
 .prop:hover { background: var(--paper-2); }
