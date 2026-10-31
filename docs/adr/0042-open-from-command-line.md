@@ -29,7 +29,10 @@
   Q8): a first argument that names an existing Markdown file (`.md`,
   `.markdown`) opens that file without its folder, by the same rule as a
   folder, and `verso open <file>` is the escape hatch; the usage error now
-  reads "no folder or Markdown file by that name".
+  reads "no folder or Markdown file by that name". 2026-10-31 — **decided by
+  the maintainer** ([ADR 0114](0114-opening-one-markdown-file-without-a-folder.md)
+  item 34, N1 of the list of 2026-10-31): the same goes for an existing
+  `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv` file; to be built.
 
 ## Context
 

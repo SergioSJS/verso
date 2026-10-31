@@ -396,7 +396,8 @@ for the server, option (a) of that plan:
   [0026](0026-core-ui-contract-inviolable-rules.md) is unchanged, with a
   dated clarification there.
 - **The pre-signed URL** of a bucket ([0073](0073-self-hosted-server-first.md)
-  item 4) stays `[OPEN]`, with the bucket mode.
+  item 4) stays `[OPEN]`, with the bucket mode. *(2026-10-31: whether it
+  waits for after V1 is to be discussed with the maintainer on 2026-11-02.)*
 - **Symlinks on a server**: a symlink is followed only when its target
   stays inside the folder; one that leaves the folder is refused. This is
   option (b) of the symlinks memo, discarded for one person's folder

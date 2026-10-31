@@ -258,13 +258,29 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | Create (inside a folder) | role ≥ editor ∧ cap Write | cap Write | Edit(folder) ∧ right *Creates notes* or *Creates boards* by kind ∧ cap Write (K.6); a new file takes the folder's access | no |
 | Rename (same folder) | role ≥ editor ∧ cap Write | cap Write | Edit(file) ∧ cap Write (K.6) | no |
 | Move (into or out of a folder) | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
-| Delete | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
+| Delete | **owner** ∧ cap Write (amended 2026-10-31, below; was role ≥ editor) | cap Write | no (K.5) | no |
 | Say, Roll, RollSecret | — | yes | yes (table open) | no |
 | See others' secret rolls | — | yes | no (an editor neither, item 3) | no |
 | Delete an entry, clear the table | — | yes | only their own message or file | no |
 | SendFile (chat) | — | cap Write | image: right *Images*; other: right *Files*; ∧ cap Write (K.6) | no |
 | ManageAccess, ManageTable | — | cap Write ∧ not a phone (as built) | no | no |
 | Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4) | owner | no | no |
+
+**Amended 2026-10-31: outside a table, only the folder's owner deletes.**
+`[DECIDED 2026-10-31, to be built]` Put to the maintainer as B8 of the list of
+2026-10-31 — in a common shared folder, outside a table, whoever edits may
+delete (the file goes to the trash), while at a table a player may not; a)
+keep it, b) make them equal; the recommendation was a — he answered
+otherwise: *"apenas o dono da pasta pode apagar"* (only the folder's owner
+may delete). In a folder or share outside a table, **Delete** needs the
+folder's **owner** role; an editor edits, creates, renames and moves, and
+does not delete. Inside a table the rows above are unchanged. What his answer
+does not reach is `[OPEN]` for him, to be put with the build: a deletion an
+editor's synced device sends ([0079](0079-sync-a-local-folder-with-a-server.md)),
+and a move that takes a file out of a share, which is a deletion for that
+share. The trash's own rules ([0080](0080-the-trash-with-expiry-and-restore.md)
+item 7: any writer restores; "delete now" and emptying are the owner's) are
+unchanged.
 
 The credential cap is one line: **every writing action needs `cap = Write`**. A
 phone paired as reader, a read token and a read link are `cap = Read`; that is
@@ -1192,3 +1208,12 @@ given a set and none is rolled back. The window says the folder really used
 ("copiado para ...") from the returned path. The first As-built bullets above,
 which say the file lands in the person's subfolder, hold for the game master
 only.
+
+### Amended 2026-10-31: delete outside a table
+
+B8 of the list of 2026-10-31, answered against the recommendation: *"apenas o
+dono da pasta pode apagar"* (only the folder's owner may delete). Section B's
+*Delete* row now reads **owner** outside a table (the amendment under the
+table); to be built. Recorded as an amendment; [the ADR index](README.md)
+asks that a change to an Accepted decision be a new ADR superseding it, which
+stays the maintainer's call.

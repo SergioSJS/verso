@@ -48,7 +48,11 @@
   end ("Abrir a página da pasta") and from the row's menu (a long press, or
   the "…"). With a fine pointer (mouse) nothing changes: the arrow toggles
   and the folder's name opens its page. Whether he wants the desktop changed
-  too is not recorded: kept as it was, `[OPEN]` for him.
+  too is not recorded: kept as it was, `[OPEN]` for him. **Decided
+  2026-10-31 for the desktop too** (B15 of the list of 2026-10-31, option a,
+  approved as recommended): with a mouse, a click anywhere on a folder's row
+  opens or closes the folder, as a tap does, and the button at the row's end
+  opens the folder's page; to be built.
 
 ## Context
 
@@ -162,4 +166,6 @@ From the memo, each weighed by the maintainer:
 
 ## Status
 
-Accepted (2026-10-02).
+Accepted (2026-10-02). 2026-10-31: the folder row on the desktop decided
+(Context, the 2026-10-30 paragraph): B15 = a, approved as recommended,
+*"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved); to be built.

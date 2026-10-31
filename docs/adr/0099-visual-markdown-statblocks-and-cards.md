@@ -295,3 +295,12 @@ written in the item, with no words of his own); nothing is left
 Accepted (2026-10-20), the design proposed to the maintainer that day, with
 every detail decided on 2026-10-21. Still outside this ADR: the Fractal
 licence, which the maintainer is asking the authors (item 6).
+
+**Decided (2026-10-31): the pt-BR field names stay provisional, with a
+notice.** `[DECIDED 2026-10-31]` The pt-BR field names of the World of
+Darkness and Cyberpunk RED layouts, chosen by the build from community terms
+(Revisions, 2026-10-21 (b)), were put to the maintainer as B4 of the list of
+2026-10-31: a) he gives the terms of the books, b) they stay provisional with
+a notice on the Credits page. Approved as recommended, b: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). They
+stay provisional and the Credits page says so; the books' own terms replace
+them when someone brings them.

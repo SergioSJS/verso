@@ -682,3 +682,13 @@ the iPad to go from the browser to a native app** (0073.ipad) — postponed,
 it stays in the browser until there is a concrete complaint; **passing on a
 cost if storage of ours ever exists** (0073.custo) — out of scope, as the ADR
 already conditions it on a company, a means of payment and an invoice.
+
+**Decided (2026-10-31): a friendly page in place of the 421.**
+`[DECIDED 2026-10-31, to be built]` With `VERSO_PUBLIC_URL` set, a request by
+another name (the server's old address) gets a technical 421 page in English
+(Decision, the `Host` rule). Put to the maintainer as B13 of the list of
+2026-10-31 — a) a friendly page that names the right address, b) leave it —
+and approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The refusal stays — it is the
+DNS-rebinding rule of [0045](0045-server-and-mcp-security.md) — but a browser
+is shown a page, in the person's language, saying the server's address is
+now the public one and linking to it.

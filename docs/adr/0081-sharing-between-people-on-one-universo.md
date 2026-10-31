@@ -189,7 +189,8 @@ carried a recommendation; the maintainer decided. Open items answered
    item 1 of 0079 already does for a reader. A share opens in a window of
    its own ([0065](0065-a-folder-per-window.md)).
    `[OPEN]`: whether a share may appear **inside** the receiver's own
-   vault, as a sub-folder of it. Recommended: **no**. It would be one
+   vault, as a sub-folder of it. *(2026-10-31: to be discussed with the
+   maintainer on 2026-11-02; unchanged meanwhile.)* Recommended: **no**. It would be one
    local folder syncing with two server folders, against 0079 item 1; the
    receiver's index would hold the owner's notes and their links would
    resolve across the two, the questions [0041](0041-multi-root-workspace.md)
@@ -296,8 +297,10 @@ carried a recommendation; the maintainer decided. Open items answered
     `read_text`, `write_text`, `write_board`, `board_preview`,
     `read_file_text` and `links` of a board do the same; the revision is
     always that of the bytes on disk, and only the `file` strings of the
-    text are rewritten (invariant 7). `[OPEN]`: the **sync** of a share to
-    a device still carries a board's bytes as they are on the server
+    text are rewritten (invariant 7). `[OPEN]` *(2026-10-31: whether it waits
+    for after V1 is to be discussed with the maintainer on 2026-11-02)*: the
+    **sync** of a share to a device still carries a board's bytes as they are
+    on the server
     (owner paths), and a share window without a table still joins the
     board's whole room, whose cards it writes by the share's paths: both
     need the same re-rooting and, for sync, a hash of the bytes the device
@@ -447,3 +450,10 @@ Open items answered 2026-10-10. The maintainer, in session, to the recommendatio
 each `[OPEN]` of items 3, 4, 6, 11 and 17 decided as recommended, in
 place, and item 5 gaining the folder switcher, built with this ADR. The
 history of a file's changes went to its own ADR, [0091](0091-version-history.md).
+
+**2026-10-31.** Who deletes inside a share changed: outside a table only the
+folder's **owner** deletes, an editor no longer does (the maintainer, B8:
+*"apenas o dono da pasta pode apagar"*); the rule lives in
+[0113](0113-one-access-model-for-a-table.md) section B. Items 5 and 11 are
+not settled by the list of 2026-10-31: the maintainer kept them apart, to be
+discussed with him on 2026-11-02.

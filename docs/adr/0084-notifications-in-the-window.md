@@ -337,3 +337,9 @@ To be built as 0.8.3-beta.1.
   person made.
 
 **As built (2026-10-28).** Presence's default is `KIND_DEFAULT.presence = "list"` in `notify/core.ts`; an explicit stored value is kept and nothing is migrated. Beside the live mark, `leaves/liveWho.ts` draws one small mark per person in the room (the person's colour, their letter); a newcomer that `presenceHeard` counts as news gets the `is-new` ring for 2.8 s (`leaves/whoRing.ts`), still and fading under `prefers-reduced-motion`. The polite line ("Ana joined the note.") is said once per person, by the same once-per-10-minutes rule, instead of at every reconnect. Only Presence set back to "Aviso e lista" toasts, and only then does the system's notification follow.
+
+**Decided (2026-10-31): presence says "joined the note".** `[DECIDED
+2026-10-31]` Put to the maintainer as B3 of the list of 2026-10-31 — the
+presence notice says *"entrou na nota"* (joined the note); option a, keep it
+per note, or b, say "in the vault" when there is a table — and approved as
+recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The notice stays per note, as built above.
