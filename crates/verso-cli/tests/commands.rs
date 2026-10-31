@@ -194,7 +194,7 @@ fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
     assert_eq!(code, 2);
     assert!(
         err.starts_with(
-            "comando desconhecido, e nenhuma pasta nem arquivo Markdown com esse nome: frob"
+            "comando desconhecido, e nenhuma pasta, arquivo Markdown ou arquivo de dados com esse nome: frob"
         ),
         "{err}"
     );
@@ -278,7 +278,7 @@ fn a_first_argument_that_names_a_directory_opens_it_and_open_needs_its_folder() 
         assert!(out.is_empty(), "{out}");
         assert!(
             err.starts_with(&format!(
-                "unknown command, and no folder or Markdown file by that name: {missing}"
+                "unknown command, and no folder, Markdown file or data file by that name: {missing}"
             )),
             "{err}"
         );

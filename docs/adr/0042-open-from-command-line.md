@@ -32,7 +32,8 @@
   reads "no folder or Markdown file by that name". 2026-10-31 — **decided by
   the maintainer** ([ADR 0114](0114-opening-one-markdown-file-without-a-folder.md)
   item 34, N1 of the list of 2026-10-31): the same goes for an existing
-  `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv` file; to be built.
+  `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv` file; built 2026-10-31 (`names_a_directory`; the
+  usage error now reads "no folder, Markdown file or data file by that name").
 
 ## Context
 
