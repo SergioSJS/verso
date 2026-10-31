@@ -1468,8 +1468,10 @@ pub(crate) async fn folder_run(
         {
             paths.push(format!("{}/{kind}/{id}.json", verso_fs::SETTINGS_DIR));
         }
+        // A window's move names each file's old path (B12).
+        let moved = crate::sync::moves_of(name, &args_for_log, &answer);
         let _ = blocking(move || {
-            crate::sync::reconcile_key(&s, &key_for_log, Some(&actor), &paths);
+            crate::sync::reconcile_moved(&s, &key_for_log, Some(&actor), &paths, &moved);
             Ok(())
         })
         .await;
