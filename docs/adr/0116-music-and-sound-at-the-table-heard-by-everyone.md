@@ -20,36 +20,52 @@
   or even web pages the game master opens; he would leave the music playing in
   some corner, and whatever plays in Verso, whoever is in there can hear,
   obviously with volume controls and so on. Have Fable build the ADR of this
-  implementation. The ADR only.) Written by Fable 5.1 from the maintainer's
-  words and a reading of the code named below. Nothing is built.
+  implementation. The ADR only.) Later the same day, on the first text of this
+  record (which proposed a shared playback state only and embeds for web
+  sources): *"As músicas deveriam vir de arquivos ou de qualquer página na
+  internet que o mestre abrir. Então ele poderia abrir o Spotify ali e esse
+  áudio ser compartilhado com quem tá ali dentro."* (The music should come from
+  files or from any page on the internet the game master opens. So he could
+  open Spotify there and that audio be shared with whoever is inside.) And,
+  on the revised proposal: *"A proposta é boa, se não tiver arquivo, tem que
+  ter by pass para compartilhar"*; *"Uso solo sim"*; *"Tudo na v1"*; *"O
+  padrão deveria ser o mestre, qual música, passar, voltar, loop, etc. Volume
+  cada pessoa tem seu controle. Numa v2 o mestre vai poder colocar outro
+  jogador pra controlar"* (all quoted and read in Status). Written by Fable
+  5.1 from the maintainer's words, a reading of the code named below and the
+  public documentation cited in Context; revised the same day for the second
+  decision. Nothing is built.
 - Related: [0107](0107-the-table-a-shared-roll-and-chat-log.md) (one channel
   per table; the server stamps time and author; bounds, item 12),
   [0110](0110-a-table-is-a-campaign-folder.md) (a table is a campaign folder;
-  game master and players; files hidden until released; item 9, "Show to the
-  table"), [0113](0113-one-access-model-for-a-table.md) (one `may()`, per-path
-  access, per-player rights, `FileAccess` in every answer),
+  game master and players; files hidden until released),
+  [0113](0113-one-access-model-for-a-table.md) (one `may()`, per-path access,
+  per-player rights, `FileAccess` in every answer),
   [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) (the
-  desktop as the shared server through a tunnel),
+  desktop as the shared server through a Cloudflare Quick Tunnel),
   [0096](0096-this-app-is-a-server.md), [0073](0073-self-hosted-server-first.md),
   [0076](0076-the-window-on-every-screen.md) (the phone and the web window),
   [0027](0027-runtime-capabilities.md), [0103](0103-feature-presets-and-capability-flags.md)
   (one switch per feature), [0101](0101-3d-dice-physics-overlay.md) (the
-  audio context unlocked in a gesture; a lazy chunk; the 2026-10-23 amendment
-  on the audio clock), [0079](0079-sync-a-local-folder-with-a-server.md) and
+  audio context unlocked in a gesture; a lazy chunk; the audio clock),
+  [0079](0079-sync-a-local-folder-with-a-server.md) and
   [0082](0082-live-co-editing-of-a-synced-folder.md) (a synced folder joins
   the server's room while online), [0083](0083-security-hardening-of-universo.md)
   (the 1-core 1 GB host, item 18's measurements; pacing),
-  [0091](0091-version-history.md) (a soundboard note is a note like any other),
-  [0105](0105-read-links-without-an-account.md) (a visitor at the table),
-  [0056](0056-embedded-web-pages.md) (embedded pages: child web views and
-  sandboxed frames), [0012](0012-files-are-source-of-truth.md),
+  [0091](0091-version-history.md), [0105](0105-read-links-without-an-account.md)
+  (a visitor at the table), [0056](0056-embedded-web-pages.md) (embedded
+  pages: child web views, sandboxed frames), [0115](0115-an-embedded-terminal-in-the-desktop-app.md)
+  (the pattern of host-only commands, a Tauri channel for bytes, a TCC
+  prompt named), [0012](0012-files-are-source-of-truth.md),
   [0026](0026-core-ui-contract-inviolable-rules.md) (rules 1, 3, 4, 5),
-  [0035](0035-cross-cutting-requirements.md), [0058](0058-demo-vault-as-tutorial.md)
-  (the tutorial; its 2026-10-31 amendment: the site's wiki is made from the
-  demo vaults), [0084](0084-notifications-in-the-window.md), [0092](0092-the-phone-offline.md)
-  (the service worker), [0029](0029-guardrails-in-ci.md), [0067](0067-source-files-stay-small.md),
-  and the rule of the reviews of 2026-10-24 and after: a file or content seen
-  outside its table or audience is a **BLOCKING** visibility leak.
+  [0029](0029-guardrails-in-ci.md) (`unsafe_code = "forbid"`; the one
+  exception, `web_clip`), [0067](0067-source-files-stay-small.md),
+  [0005](0005-license.md), [0035](0035-cross-cutting-requirements.md),
+  [0058](0058-demo-vault-as-tutorial.md) (the tutorial; the site's wiki is
+  made from the demo vaults), [0084](0084-notifications-in-the-window.md),
+  [0092](0092-the-phone-offline.md) (the service worker), and the rule of the
+  reviews of 2026-10-24 and after: a file or content seen outside its table or
+  audience is a **BLOCKING** visibility leak.
 - Status in the briefing: not present. Roadmap: nothing on sound, music or
   ambience (checked 2026-10-31).
 
@@ -62,57 +78,79 @@
   joins it; the server stamps each entry with the author and **its own
   clock** (`TableEntry.at`, RFC 3339 UTC) and relays it as a `table-*`
   event; commands are paced per connection (`Server::table_pace`) and refused
-  unparsed past a byte bound. The log is in the server's database; the roster
-  and presence are in memory. "Hide up to here" is cut at the server's time,
-  never the local clock (0107 item 6) — the window already treats the server
-  as the clock.
+  unparsed past a byte bound; a table holds at most `MEMBERS_MOST` windows.
+  "Hide up to here" is cut at the server's time, never the local clock (0107
+  item 6) — the window already treats the server as the clock.
 - *Files reach a window* through `/f/<folder>/<path>` on a server
   (`crates/verso-server/src/files.rs`, `verso_service::files`): read through
   the core, sent **a piece at a time** (`PIECE` = 256 KiB, at most two held
   per file) with a single `Range` honoured "as browsers ask it to play a
-  video or a sound from where the person seeks", under a `media-src 'self'`
-  policy; a file the table's veil hides answers *not found* (0110 item 4,
-  0113). On the desktop the same bytes come from the `verso://` protocol
-  (`app/src-tauri/src/protocol.rs`, `media-src verso:` allowed). Nothing new
-  is needed to stream a music file to a listener who may see it.
+  video or a sound from where the person seeks", under `media-src 'self'`; a
+  file the table's veil hides answers *not found* (0110 item 4, 0113). On the
+  desktop the same bytes come from `verso://` (`app/src-tauri/src/protocol.rs`,
+  `media-src verso:` allowed). Nothing new is needed to stream a music file
+  to a listener who may see it.
 - *Audio in the window* is Web Audio: one `AudioContext` made only inside a
   gesture (`app/ui/src/dice3d/audio.ts`: `unlockAudio`, `armAudio`,
   `whenContext`, `keepWarm`, the audio clock watched for a standing
-  `currentTime`), used by the dice sounds and by the table's chime
+  `currentTime`), used by the dice sounds and the table's chime
   (`app/ui/src/table/chime.ts`). Audio files are already accepted as
-  attachments (`attach.ts`, the chat's *Files* right, `send.ts`), the service
-  worker knows `mp3`, `m4a`, `wav`, `ogg` (`sw/sw.ts`), but **no part of the
-  window plays an audio file today**: `sanitize.ts` strips `<audio>`, and no
-  `<audio>` element or `HTMLAudioElement` exists in `app/ui/src`.
+  attachments (`attach.ts`, the chat's *Files* right), the service worker
+  knows `mp3`, `m4a`, `wav`, `ogg` (`sw/sw.ts`), but **nothing in the window
+  plays an audio file today**: `sanitize.ts` strips `<audio>`, and no
+  `<audio>` element exists in `app/ui/src`. Nothing in the host captures
+  sound; the only `unsafe` in the tree is `web_clip/{macos,windows}.rs`.
 - *Access* is one function, `may(facts, who, action, target)`, with per-path
   levels *none | see | edit*, a *Whole table* row, per-player rights set in
   the Table window (`table_rights_set`), and `FileAccess` carried in every
-  read answer so the window never re-derives (0113 A–C). A new file in a
-  table is **hidden** unless its folder has an access set (0113 item 2).
+  read answer (0113 A–C). A new file in a table is **hidden** unless its
+  folder has an access set (0113 item 2).
 - *The host* the server is sized for: 1 core, 1 GB (0083 item 18: writes
   saturate near 15 a second on the lab's disk; memory was not the
-  constraint; 48 idle connections cost 53 MB; the `/f/` route was rewritten
-  precisely because "a host of 1 GB held a whole video per request").
+  constraint; 48 idle connections cost 53 MB).
+- *Online mode* (0111) reaches the laptop through a Cloudflare Quick Tunnel,
+  which carries HTTP and WebSocket upgrades and **proxies no UDP** of the
+  application's (Cloudflare's tunnel documentation; secondary sources
+  concur). So anything that must cross the tunnel goes over the WebSocket.
 - *Embedded web pages* (0056) load directly: on the desktop a **child web
-  view** with no IPC to the app; in a browser a sandboxed frame. A page gets
-  nothing of the app's. The maintainer's own words on sound (0101): *"som de
-  dados tem que ser habilitado por padrão"*, and the rule that a sound is
-  heard with its moment or not at all (0101, 2026-10-23).
+  view** with no IPC to the app; in a browser a sandboxed frame.
 
-**What the maintainer asked for.** A game master presses play; everyone at
-the table hears the same music, in step, with volume controls, from a corner
-of the window; from music files, and possibly from web pages the game master
-opens; on the UniVerso and in online mode (0111: *"a mesma aplicação local,
-se ele compartilha o servidor"*).
+**What the maintainer asked for, in two steps.** A game master presses play
+and everyone at the table hears the same thing, in step, with volume
+controls, from a corner of the window; on the UniVerso and in online mode.
+The sound comes **from files, or from any page or application the game
+master opens — Spotify named — and that audio is shared live** with the
+table; and the second must work **with no file at all** (*"se não tiver
+arquivo, tem que ter by pass para compartilhar"*).
 
-**What "everyone hears" can mean.** Two models exist in the applications the
-maintainer alludes to. *Streaming:* one machine captures or decodes the
-audio and sends the sound itself to every listener (Discord's voice/stream,
-Kenku FM's Discord bot, a web radio). *State sync:* every listener's device
-plays its **own copy** of the same file, and what is shared is a small
-description — which track, playing or paused, where in the track at which
-moment of a common clock, the master volume (Spotify Jam, YouTube's watch
-parties, Owlbear Rodeo's and Foundry's playlists). Section A chooses.
+**Two models, and why both are needed.** For a *file*, every listener can
+play their own copy and share only a small state (track, position, a common
+clock): no sound crosses the wire, everyone is in step, the quality is the
+file's. For *Spotify or any page*, there is no file to give the listeners
+and nothing a player API could be told to do for an arbitrary page: the only
+way the others hear it is to **capture the sound where it plays, encode it,
+and stream it** — what Discord's "share with sound" does. The first text of
+this record proposed the state model alone and a synced embed for the pages
+that have a player API; the maintainer's second decision requires the stream.
+This record now has both, in one player, neither depending on the other.
+
+**What was verified while writing (2026-10-31, public documentation; nothing
+run — every row is a thing to try on the real machines in the build):**
+
+| Claim | What the sources say |
+|---|---|
+| Spotify's web player needs DRM | Yes: its help page says the "protected content" error is fixed by enabling **Widevine** ([Spotify](https://support.spotify.com/us/article/webplayer/)); in Safari it plays through **FairPlay** (Safari support returned in 2020 after a three-year gap caused by the Widevine dependency — [Neowin](https://www.neowin.net/news/spotify-web-player-restores-support-for-safari-after-three-years-of-hiatus), a community thread). |
+| Does it play *inside* Verso's web views? | **macOS WKWebView:** unknown; a WebKit bug of 2024-12 reports no FairPlay EME in a Catalyst WKWebView while it works in Safari and on iOS ([WebKit bug 284841](https://bugs.webkit.org/show_bug.cgi?id=284841)); no Widevine exists in WebKit. **Windows WebView2:** Widevine is reported as supported "out of the box" because the runtime is Edge's ([Live Share SDK issue 14](https://github.com/microsoft/live-share-sdk/issues/14)) — this **contradicts** what was said in session (that WebView2 ships PlayReady and not Widevine); Edge carries both. **Linux WebKitGTK:** EME only through Thunder/OpenCDM in embedded builds, Widevine needing credentials; desktop distribution packages have none ([Igalia](https://blogs.igalia.com/xrcalvar/?p=725)). So: likely yes on Windows, likely no on macOS and Linux — and irrelevant to the design below, which captures the sound wherever Spotify plays, in its own app or in a browser. |
+| macOS: capturing one application's audio | **Core Audio process taps** (`CATapDescription`, `AudioHardwareCreateProcessTap`): one process, several, or the system; audio only; needs `NSAudioCaptureUsageDescription` and a *System Audio Recording* consent prompt; no public API to ask for the permission beforehand ([Apple](https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps), [AudioCap](https://github.com/insidegui/AudioCap)). The version: the reference projects say **macOS 14.4**; the API's availability as listed by Apple may read 14.2 — to confirm. **ScreenCaptureKit** (`capturesAudio`, macOS 13+) is the fallback and needs the *Screen Recording* permission; a claim that a zero-size audio-only stream avoids that prompt is one developer's, unverified ([Apple sample](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-in-macos)). |
+| Windows: one process's audio | **Process loopback** (`ActivateAudioInterfaceAsync` with `AUDIOCLIENT_PROCESS_LOOPBACK_PARAMS`): minimum **Windows 10 build 20348** per Microsoft's reference and its sample ([Microsoft](https://learn.microsoft.com/en-us/windows/win32/api/audioclientactivationparams/ns-audioclientactivationparams-audioclient_process_loopback_params), [sample](https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/ApplicationLoopback)) — that build is Windows Server 2022 / Windows 11; **Windows 10 (19045) does not have it**, which contradicts "Windows 10 2004+" said in session. Fallback on Windows 10: the device loopback (`AUDCLNT_STREAMFLAGS_LOOPBACK`, the whole output). No permission prompt on Windows. |
+| Linux | PipeWire: a capture stream with `target.object` set to the application's output node, or a monitor of the sink ([pipewire-rs example](https://sources.debian.org/src/rust-pipewire/0.9.2-2/examples/audio-capture.rs), [pw-record](https://manpages.ubuntu.com/manpages/jammy/man1/pw-cat.1.html)); PulseAudio-only systems through the sink's monitor. No prompt in a desktop session (a portal only under Flatpak, which we do not ship). |
+| DRM-protected sound and capture | WASAPI "does not permit loopback recording of digital streams that contain DRM-protected content" ([Microsoft](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording)); Apple Music is reported silent in macOS screen recordings (Apple Community threads). Whether the **Spotify app's** output is flagged protected is not documented; common screen-sharing tools are widely reported to carry it, which this record does not take as fact. The build must try Apple Music, the Spotify app and Spotify in a browser on each system and write the result in the lesson. |
+| The web window as the sharer | `getDisplayMedia({audio:true})`: Chromium gives a **tab's** audio on every system and the **system's** audio on Windows and ChromeOS only; Firefox and Safari give no audio ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)). WKWebView's `getDisplayMedia` depends on private delegates and the macOS version ([WebKit bug 274896](https://bugs.webkit.org/show_bug.cgi?id=274896)) — not a path for the desktop. |
+| WebRTC where we run | WebKitGTK builds it only with `ENABLE_WEB_RTC` (experimental, off by default) and GStreamer ≥ 1.20 ([Gentoo bug 873499](https://bugs.gentoo.org/873499)): not something a Linux window can be relied on to have. And the tunnel carries no UDP (above). |
+| Opus bitrates | 64–128 kbit/s for full-band stereo music ([RFC 7587](https://www.rfc-editor.org/rfc/rfc7587)); Xiph: 64–96 for streaming, 96–128 for storage, 128 VBR "pretty much transparent" ([Xiph](https://wiki.xiph.org/Opus_Recommended_Settings)). |
+| Encode and decode in the window | WebCodecs `AudioEncoder`/`AudioDecoder` with Opus: Chromium yes; **Safari unconfirmed** (a third-party guide says 18+; MDN's Safari row not read). Safari's `MediaRecorder` records `audio/webm;codecs=opus` only since 18.4, MP4/AAC before. So the window cannot be relied on to encode; it can decode with a WASM libopus (`opus-decoder`, MIT, [eshaz/wasm-audio-decoders](https://github.com/eshaz/wasm-audio-decoders)). |
+| Rust Opus | `opus` crate (safe bindings, MIT or Apache-2.0) over `audiopus_sys` (its licence to read; libopus itself is BSD-3-Clause) ([docs.rs](https://docs.rs/crate/opus/latest)). |
+| Spotify's terms | "personal, non-commercial use of the Spotify Service and the Content"; "you will not redistribute, sell or transfer the Spotify Service or the Content" ([End User Agreement §3](https://www.spotify.com/us/legal/end-user-agreement/)); playing it publicly from a business is not allowed ([Spotify](https://support.spotify.com/us/article/use-spotify-in-my-bar-restaurant-store-school-etc/)). Nothing read addresses a private group of friends in their homes. |
 
 ## Decision
 
@@ -120,419 +158,574 @@ parties, Owlbear Rodeo's and Foundry's playlists). Section A chooses.
 
 1. **There will be built-in music playback at a table that everyone in the
    room hears** — on a UniVerso server and in this app when it is the shared
-   server (online mode, 0111) — from music files, and possibly from web pages
-   the game master opens, played from a corner of the window, with volume
-   controls. This record is the proposal of how; nothing below item 1 is
-   decided.
+   server (online mode, 0111) — played from a corner of the window, with
+   volume controls.
+2. **Two sources: files, and anything the game master opens.** The sound
+   comes from music files **or** from any page or application the game
+   master opens — Spotify was the example — and in the second case **that
+   audio itself is shared live** with everyone at the table (*"esse áudio ser
+   compartilhado com quem tá ali dentro"*). This sets aside the first text's
+   Q1 and Q5 (a shared state only; web sources only as synced embeds).
+3. **The live share stands on its own.** *"A proposta é boa, se não tiver
+   arquivo, tem que ter by pass para compartilhar"*: a game master with no
+   audio file in the folder — no playlist, no soundboard note, nothing set
+   up — starts sharing a source from the player in one step; nothing of the
+   live share depends on the file mode (items 16, 24).
+4. **Solo use.** *"Uso solo sim"*: the player also works in a folder of this
+   computer with no table, for the person alone, with a local state.
+5. **Everything in V1.** *"Tudo na v1"*: the file mode, the live share of any
+   source (an application, a tab, a page, the system), the web sources, in
+   V1 — no V1.x split of the sources. (What this record still reads as later
+   polish is said so and asked, Q4.)
+6. **Only the game master controls, in V1; each person their own volume.**
+   *"O padrão deveria ser o mestre, qual música, passar, voltar, loop, etc.
+   Volume cada pessoa tem seu controle. Numa v2 o mestre vai poder colocar
+   outro jogador pra controlar"*: which track, next, previous, loop, pause
+   and seek, and the shared source are the game master's alone; every person
+   controls only their own volume and mute. Letting another player control
+   is a **later version** (recorded as a future item in item 22; no
+   per-player right in V1).
 
-### Proposed (the author's; every fork is `[OPEN]` below)
+Items 7 and after are the author's proposal of how, accepted with the record;
+every fork it left was put to the maintainer as Q1–Q9 (Status), all decided
+on 2026-10-31 as recommended.
 
-**A. The model: a shared playback state, each window plays its own copy**
+### Proposed — one player, two sources
 
-2. **State sync, not a stream.** The table's channel carries a `Playback`
-   state; every window that hears it plays the file itself from the bytes it
-   may already fetch (the `/f/` route on a server, `verso://` on the desktop,
-   the local file of a synced copy). Why, in the order that matters:
-   - *The app cannot capture sound anyway.* Neither WKWebView, WebView2 nor
-     WebKitGTK gives a page the system's or another view's audio output;
-     a child web view (0056) is a separate process with no channel to the
-     app. Streaming would mean the game master's machine **decodes and
-     re-encodes** every track (a 1-core server could not) and sends
-     `bitrate × listeners` continuously: six listeners of a 128 kbit/s MP3
-     are 0.8 Mbit/s for the whole session, every second — through the game
-     master's home uplink in online mode — against a few kilobytes of state
-     a session for the sync model, where each listener fetches the file
-     **once** (and a synced desktop fetches nothing).
-   - *Latency and phones.* A stream arrives one to three seconds late and
-     unevenly; a state keeps everyone within the drift bound of item 5. A
-     phone decodes an `<audio>` element with its hardware decoder; a stream
-     over WebSocket needs `MediaSource`, which Safari on iOS limits.
-   - *Fairness to the file.* The bytes are served under the same access as
-     any file; nobody receives a track they may not see (section B).
-   `[OPEN]` Q1 confirms this.
-3. **What the state is** (types in `crates/verso-contract/src/table.rs`,
-   TypeScript generated by `specta`, 0026 rule 3), per table and per channel:
+**A. Files from the campaign folder: a shared playback state, each window
+plays its own copy**
+
+7. **Why a state and not a stream for a file.** Every listener can fetch the
+   file (under the access of item 9), so the table shares only a small
+   description — which track, playing or paused, where at which instant of
+   the server's clock, the master volume — and each window plays the bytes
+   itself: nobody is behind anybody, the quality is the file's, a synced
+   desktop downloads nothing, and the server carries kilobytes a session.
+   The stream of section B exists for what has no file.
+8. **The state** (types in `crates/verso-contract/src/table.rs`, TypeScript
+   generated by `specta`, 0026 rule 3), per table and per channel:
 
    ```
    Playback { revision: u64, channel: "music" | "ambience",
-              source: PlaybackSource | null,         // null = stopped
+              source: { kind: "file", path } | null,     // path relative to the table's root, never absolute, never `..`
               state: "playing" | "paused",
-              position_ms: u64, anchor: RFC 3339 UTC, // position at the server's instant `anchor`
-              master: u8 (0..100), looping: bool,
-              by: account (opaque), name: string }   // who last changed it, stamped by the server
-   PlaybackSource = { kind: "file", path: string }   // relative to the table's root, never absolute, never `..`
-                  | { kind: "embed", provider: "youtube", id: string }   // section C; absent in v1
+              position_ms: u64, anchor: RFC 3339 UTC,     // position at the server's instant `anchor`
+              master: u8 (0..100), looping: bool, duration_ms: u64 | null,
+              by: account (opaque), name: string }       // who last changed it, stamped by the server
    ```
 
    The window sends a wish — `table_play(root, channel, source, position_ms,
-   looping)`, `table_pause`, `table_resume`, `table_seek(position_ms)`,
-   `table_stop`, `table_master(0..100)` — and the **server** writes the
-   state: it stamps `anchor` with its clock, increments `revision`, checks
-   the path (relative, inside the table's root, no hidden segment, as every
-   path) and `may(who, Play, table)` (section D), and relays
-   `table-playback { Playback }` to every window of the table. `TableJoin`
-   gains `playback: Playback[]`, so a joiner and a reconnecting window start
-   from the truth. The state lives in the server's **memory** beside the
-   roster, never in the database and never in a file (0012; 0107 item 5's
-   reasoning: no file written on everyone's behalf): a server restart stops
-   the music; when the last window leaves the table, the state is dropped.
-   The game master's window closing does **not** stop it — the state is the
-   server's, and the others go on hearing.
-4. **The common clock is the server's.** Each window estimates its offset to
-   the server's clock as NTP does, with a `table_time` command answered with
-   the server's instant: eight samples at the join and one a minute, each
-   `offset = server − (sent + received) / 2`, the sample with the smallest
-   round trip kept (a median of the best half once there are enough), the
-   first answer used at once so a late joiner does not wait. A window never
-   trusts its own clock for the position: `expected = position_ms +
-   (serverNow − anchor)` while playing. The server already stamps every
-   entry with this clock (0107); nothing new is asked of it but the answer.
-5. **Drift correction.** Every two seconds the window compares the element's
-   `currentTime` with `expected`: within 60 ms, nothing; from 60 to 400 ms,
-   `playbackRate` nudged by at most 3 % (pitch preserved by the engines'
-   default) until it is back; past 400 ms, a seek. A pause or a seek by the
-   controller is a new `revision`; the window applies it at once (the state
-   says where, so a pause does not drift). A reconnect (0082's link made
-   again) is a join: the state received, the position computed, the element
-   moved. A track that **ends** without `looping` sets the state to stopped
-   on every window by arithmetic — no message is needed, and the controller's
-   window tells the server so the stored state agrees. With `looping` the
-   position is taken modulo the duration the controller's window reports in
-   `table_play` (`duration_ms`, checked against the file's metadata by every
-   listener; a listener whose duration differs by more than a second logs it
-   and trusts the state). The thresholds live in one pure TypeScript module
-   (`app/ui/src/table/sound/sync.ts`) with unit tests; nothing of them is in
-   the server.
-6. **How a window plays.** An `<audio>` element per channel, `src` the file's
-   address (`/f/<folder>/<path>` with the session, or `verso://`, or the
-   synced copy's local file), `preload="auto"` for the playing track,
-   `crossOrigin="anonymous"`, routed through `createMediaElementSource` into
-   a `GainNode` on the **existing** audio context of `dice3d/audio.ts` — so
-   the unlock-in-a-gesture, the keep-awake and the clock watch of 0101 are
-   reused, and the listener's volume works on **iOS**, where
-   `HTMLMediaElement.volume` is read-only (a documented WebKit limitation;
-   the gain node is the only way). The effective gain is `master/100 ×
-   local/100`, `0` when muted. Two facts for the build: a media source taken
-   into Web Audio must be same-origin or served with CORS headers, else it
-   plays **silence** — the server's `/f/` is same-origin; the desktop's
-   `verso://` is another origin than the app's page, so the protocol handler
-   must add `Access-Control-Allow-Origin` for the app's origin (or the
-   desktop falls back to `element.volume`, which works there); and the
-   service worker (0092) must let `Range` requests for audio **pass through**,
-   never answer them from a cache that holds a whole file. Web Audio
-   decoding (`decodeAudioData`) is **not** used for tracks: it needs the
-   whole file in memory, which a phone and a one-hour FLAC do not agree on.
-7. **Autoplay and the late joiner.** Every engine refuses sound until a
-   gesture. A window that receives a playing state while its context is not
-   running shows one visible control in the player — *"Ouvir a mesa"* /
-   *"Hear the table"* — and an announcement; the first gesture anywhere
-   (the listeners of `armAudio`) also unlocks it, as 0101 does. Nothing
-   plays late: the position is computed at the gesture, so the joiner lands
-   where the others are.
-8. **Formats.** No transcoding anywhere (the server has one core; the
-   desktop has no codec we ship). The window plays what its engine decodes
-   and says so: `canPlayType` per track, and a listener whose engine refuses
-   a track tells the server (`table_cannot_play`), which relays a mark to
-   the controller (*"Caio's device cannot play this file"*). From public
-   documentation, **to be verified on the real engines in the build**
-   (nothing was run):
+   looping, duration_ms)`, `table_pause`, `table_resume`,
+   `table_seek(position_ms)`, `table_stop`, `table_master(0..100)`,
+   `table_next`/`table_previous` over the current scene's list (item 15) —
+   and the **server** writes the state: it stamps `anchor` with its clock,
+   increments `revision`, checks the path and `may(who, Play, table)`
+   (item 22), and relays `table-playback { Playback }` to every window of
+   the table. `TableJoin` gains `playback: Playback[]`, so a joiner and a
+   reconnecting window start from the truth. The state lives in the server's
+   **memory** beside the roster — never in the database, never in a file
+   (0012) — and is dropped when the last window leaves. The controller's
+   window closing does not stop it (`[DECIDED 2026-10-31]` Q8 (a)). Alone in a folder of this
+   computer (decided, item 4), the same state lives in the window and nothing
+   is sent.
+9. **Who may fetch the bytes is `may(See, path)` — nothing else.** The `/f/`
+   route already answers *not found* for a file the player's level hides;
+   this record adds **no second door**. A track is heard by the players who
+   **see** it; the game master releases the file or, once, the folder that
+   holds the music (`Música/` released *Sees* to the *Whole table*, after
+   which every new file in it is seen, 0113 item 2). Pressing play on a
+   hidden track asks, in the Access dialog's words, *"3 players do not see
+   this file. Release it to the table and play?"* — one click, naming who,
+   never silent. A listener at level `none` receives the state without the
+   `source` and with `name` *"a track you do not see"*, and hears nothing;
+   the master's player shows them as not hearing. Nothing of a hidden
+   file — not its bytes, not its name — reaches a player outside its
+   audience. `[DECIDED 2026-10-31]` Q3 (a). A **visitor** (0105; 0113's seat with no name)
+   hears what the *Whole table* row lets them see.
+10. **The common clock is the server's.** Each window estimates its offset as
+    NTP does, with a `table_time` command answered with the server's instant:
+    eight samples at the join and one a minute, `offset = server − (sent +
+    received) / 2`, the sample with the smallest round trip kept (a median of
+    the best half once there are enough), the first answer used at once.
+    `expected = position_ms + (serverNow − anchor)` while playing.
+11. **Drift correction.** Every two seconds the window compares the element's
+    `currentTime` with `expected`: within 60 ms nothing; 60–400 ms,
+    `playbackRate` nudged by at most 3 % (pitch preserved by the engines'
+    default); past 400 ms a seek. A pause or seek by the master is a new
+    `revision`, applied at once. A reconnect is a join. A track that ends
+    without `looping` becomes *stopped* on every window by arithmetic, and
+    the master's window tells the server (or plays the next of the list,
+    item 15); with `looping` the position is taken modulo `duration_ms`.
+    Thresholds in one pure module (`app/ui/src/table/sound/sync.ts`) with
+    unit tests; nothing of them in the server.
+12. **How a window plays a file.** An `<audio>` element per channel, `src` the
+    file's address (`/f/<folder>/<path>` with the session, `verso://`, or the
+    synced copy's local file), `preload="auto"`, `crossOrigin="anonymous"`,
+    routed through `createMediaElementSource` into a **`GainNode` on the
+    existing audio context** of `dice3d/audio.ts` — the unlock-in-a-gesture,
+    keep-awake and clock watch of 0101 reused, and volume working on **iOS**,
+    where `HTMLMediaElement.volume` is read-only. Effective gain `master/100 ×
+    own/100`, `0` when muted. For the build: a media source taken into Web
+    Audio must be same-origin or carry CORS headers, else it plays silence —
+    `/f/` is same-origin; `verso://` is another origin than the app's page,
+    so the protocol handler adds `Access-Control-Allow-Origin` for the app's
+    origin (or the desktop falls back to `element.volume`, fine there); the
+    service worker (0092) must let `Range` requests for audio **pass
+    through**. `decodeAudioData` is not used for tracks (whole file in
+    memory).
+13. **Formats: no transcoding anywhere.** The window plays what its engine
+    decodes and says so: `canPlayType` per track; a listener whose engine
+    refuses a track tells the server (`table_cannot_play`), relayed as a mark
+    to the master. From public documentation, to verify on the engines:
 
-   | Format | WKWebView (macOS) / Safari iOS | WebView2 (Windows) / Chrome | WebKitGTK (Linux) |
-   |---|---|---|---|
-   | MP3 | yes | yes | yes (GStreamer `good`, `mpg123`) |
-   | AAC in `.m4a` | yes | yes (Evergreen WebView2 carries the codecs) | needs `gst-plugins-bad` or `libav` — a package dependency to check in `.deb`/AppImage |
-   | WAV (PCM) | yes | yes | yes — but 1.4 Mbit/s |
-   | FLAC | yes (Safari 11+) | yes | GStreamer |
-   | Ogg Vorbis / Opus in `.ogg` | **unlikely** (Safari has no Ogg container; Opus only in WebM/CAF) | yes | GStreamer |
+    | Format | WKWebView / Safari iOS | WebView2 / Chrome | WebKitGTK |
+    |---|---|---|---|
+    | MP3 | yes | yes | yes (GStreamer `good`) |
+    | AAC in `.m4a` | yes | yes | needs `gst-plugins-bad` or `libav` — a package dependency to check |
+    | WAV | yes | yes | yes — 1.4 Mbit/s |
+    | FLAC | yes (Safari 11+) | yes | GStreamer |
+    | Ogg Vorbis/Opus in `.ogg` | unlikely (no Ogg container in WebKit) | yes | GStreamer |
 
-   Recommendation to the person, in the player and the lesson: **MP3 or
-   AAC** for a table with phones; the player warns once on a WAV or FLAC
-   over 30 MB (*"large file; every listener downloads it"*). `[OPEN]` Q2.
+    Advice in the player and the lesson: **MP3 or AAC** for a table with
+    phones; a warning once on a WAV or FLAC over 30 MB (*"large file; every
+    listener downloads it"* — in online mode through the master's uplink).
+    `[DECIDED 2026-10-31]` Q2 (a).
+14. **Where the bytes come from, by side.** *UniVerso:* `/f/`, once per
+    listener per track. *Online mode:* the same, through the master's home
+    uplink: six listeners of a 5 MB MP3 are 30 MB once. *A synced folder on
+    a desktop (0079/0082):* the state from the server, the bytes **local**
+    through `verso://` — no download, and the music survives a short outage.
+    *A desktop window on a server's folder:* as the UniVerso. *A folder of
+    this computer, alone:* the local file, the state local (item 4).
+15. **The soundboard is a note; next and previous walk it.** No new syntax
+    (invariant 12): any link or embed of an audio file in a note —
+    `[[Música/taverna.mp3]]` — gets a **play button** beside it for the game
+    master (the `dice:` button's pattern, 0088); the heading above a list of
+    such links names a *scene*, and that list is what *next* and *previous*
+    (decided, item 6) walk, with *loop* on the track or on the list. The
+    note is plain files, synced, in the history (0091), a list of links in
+    Obsidian. A `soundboard` fenced block with a grammar of its own is not
+    proposed. `[DECIDED 2026-10-31]` Q5 (a).
 
-**B. The source: files of the campaign folder, under the one access model**
+**B. "Share audio": live capture of an application, a page or the system,
+streamed to the table — independent of the files**
 
-9. **A track is a file of the table's folder**, put there as any file is
-   (import, the tree, sync, the chat's *Files* right), under the folder's
-   import size limit (a setting since V.35) and quota (0077). No upload
-   path of its own; no catalogue; no download from anywhere by Verso.
-10. **Who may fetch the bytes is `may(See, path)` — nothing else.** The
-    `/f/` route already answers *not found* for a file the player's level
-    hides; this record adds **no second door**. So a track is heard by the
-    players who **see** it, and the rule for the game master is the same as
-    for a note: *"Liberar para a mesa"* on the file or, once, on the folder
-    that holds the music (`Música/` released *Sees* to the *Whole table*,
-    after which every new file in it is seen, 0113 item 2). Pressing play on
-    a hidden track asks, in the Access dialog's words, *"3 players do not
-    see this file. Release it to the table and play?"* — one click, naming
-    who; never silent. A listener whose level is `none` receives the state
-    (the name of the track is **not** in it for them — the server sends
-    `source` only to who may see it, and `name` as *"a track you do not
-    see"*) and hears nothing; the controller's player shows them as not
-    hearing. This keeps the rule of the reviews: nothing of a hidden file —
-    not its bytes, not its name — reaches a player outside its audience.
-    `[OPEN]` Q3 (the alternative: a *hear-only* lease).
-11. **A visitor** through a read link (0105; a seat with no name, 0113)
-    hears what the *Whole table* row lets them see, and controls nothing.
-12. **Where the bytes come from, by side:**
-    - *UniVerso:* `/f/`, pieces of 256 KiB, `Range` honoured, once per
-      listener per track; the engine's cache keeps it for a seek back.
-    - *Online mode (0111):* the same route, but the server is the game
-      master's laptop and every listener's download crosses **their home
-      uplink** through the tunnel: six listeners of a 5 MB MP3 are 30 MB
-      once, then nothing — bearable; six of a 60 MB FLAC are not. The
-      player says the size and the count the first time (item 8).
-    - *A synced folder on a desktop (0079/0082):* the state comes from the
-      server's table; the bytes are the **local copy's**, through
-      `verso://` — no download at all, and the music keeps playing through
-      a short outage.
-    - *A desktop window on a server's folder:* as the UniVerso.
-    - *A folder of this computer, alone:* `[OPEN]` Q4 — the recommendation is
-      that the same player works, with the state local (as the Table panel
-      shows your own rolls alone, 0107 item 9), so a solo game master
-      prepares the session with the same controls; the local path is also
-      the harness of the shared one.
+16. **What it is.** The game master picks a **source** on their computer —
+    an application (the Spotify app, a browser), a page open in Verso itself
+    (a child web view, 0056), or *everything this computer plays* — and
+    Verso captures that sound, encodes it with **Opus**, sends it to the
+    server, which relays it to every window at the table, where it plays
+    through the same gain path as a file. The master keeps hearing the
+    source directly (Verso never plays its own stream back to the sharer);
+    the listeners hear the stream with their own volume. A late joiner
+    simply starts receiving. One live share per table at a time in V1;
+    starting another asks to replace it. The share ends on *Stop*, when the
+    master's window disconnects, or when the table empties. **It needs no
+    file, no note and no setting**: the player's empty state (item 24) is a
+    *Share audio…* button, and from a folder with nothing in it the master
+    is sharing Spotify in two gestures — the button and the source (decided,
+    item 3). The file state of section A is not consulted, not created and
+    not required by any step of a share; the two meet only in the player's
+    strip and in the one gain path.
+17. **Capture lives in the desktop host only** (`app/src-tauri`, a module
+    `audio_share/` with one file per system under 0067's limit), like the
+    terminal's PTY (0115 item 2): no capture code in `verso-core`,
+    `verso-service` or `verso-server`. Per system, from the table in
+    Context:
+    - **macOS:** Core Audio **process taps** for one application (or the
+      system minus Verso's own process, so the dice and the chime are not
+      sent); requires `NSAudioCaptureUsageDescription` in `Info.plist` and
+      shows the *System Audio Recording* prompt on the first capture — the
+      lesson names it, as 0115 names the TCC prompt. Minimum macOS 14.2 or
+      14.4 (to confirm); below that, **ScreenCaptureKit** audio with the
+      *Screen Recording* permission (macOS 13), or the feature says it needs
+      a newer macOS. A page open in Verso is a WebKit content process of
+      Verso's: the tap targets *this app and its helpers* for that source.
+    - **Windows:** **process loopback** on Windows 11 (build 20348+): the
+      chosen application's process tree; on **Windows 10** the device
+      loopback of the default output (everything, Verso included: the
+      player says so and mutes Verso's own sounds while sharing). No
+      prompt; no child process.
+    - **Linux:** PipeWire (`libpipewire-0.3`, a package dependency of the
+      `.deb` and bundled in the AppImage, verified on VM 104): a capture
+      stream with `target.object` the application's output node, or the
+      sink's monitor for *everything*; PulseAudio-only systems through the
+      sink's monitor. No prompt.
+    - The **source list** (`audio_sources_list() -> AudioSource { id, name,
+      kind: app | page | system }`) names applications by their display
+      name, never a window title (a title can be a note's name — nothing of
+      the master's screen is sent). The three host commands
+      (`audio_share_start(id, bitrate)`, `audio_share_stop()`,
+      `audio_sources_list()`) are registered in `build.rs` and
+      `capabilities/default.json` for the app's windows only, and refused
+      where the capability of item 27 is absent.
+18. **Encode in the host, decode in the window.** The host encodes 48 kHz
+    stereo Opus at **96 kbit/s** by default (64–128 selectable; RFC 7587's
+    range for full-band stereo music; 128 "near transparent" per Xiph),
+    20 ms frames — fifty frames a second of about 240 bytes. The `opus`
+    crate (MIT or Apache-2.0, safe bindings) over `audiopus_sys`/libopus
+    (BSD-3-Clause; `cargo deny` decides in the PR). The window **decodes with
+    a WASM libopus** (`opus-decoder`, MIT, about 100 KB in the lazy chunk) on
+    every engine alike — WebCodecs is not relied on, since Safari's support
+    is unconfirmed — into an `AudioWorklet` with a **jitter buffer**
+    (300 ms by default, grown to 600 on loss), through the GainNode of item
+    12. The sharer's own CPU: Opus encoding of a stereo stream is a few
+    percent of one core. Why not WebCodecs or `MediaRecorder` in the web
+    view for encoding: unsupported or unconfirmed in WKWebView and
+    WebKitGTK; the host has the samples anyway.
+19. **Transport: the server relays over the existing WebSocket; no
+    WebRTC.** The host hands each frame to its window over a Tauri channel
+    (bytes, as 0115 item 5 does for terminal output), and the window sends it
+    on the table's WebSocket as a **binary frame** with a 12-byte header
+    (share id, sequence, capture timestamp); the server accepts frames
+    **only from the sharer's connection**, keeps none beyond a two-second
+    ring per table, and forwards each to every window of the table that is
+    listening. Why this and not WebRTC (peer-to-peer or an SFU):
+    - the online-mode tunnel carries **no UDP** — WebRTC media could not
+      cross it, and there is no public TURN of ours to fall back to over
+      TCP; a WebSocket relay works on the UniVerso and through the tunnel
+      with one code path;
+    - WebKitGTK windows cannot be relied on to have WebRTC at all;
+    - an SFU in `verso-server` is a large dependency (`webrtc` crate tree),
+      ICE, DTLS and UDP ports on a host hardened to answer on one;
+    - the latency UDP buys matters for voices talking back and forth, not
+      for music under a game; a sound effect the master triggers lands half
+      a second late (item 20), which the lesson says.
+    A WebRTC SFU for the UniVerso alone could come later if the relay's
+    latency is ever the complaint; not proposed now. In online mode the
+    desktop is the server and the master's window sends to it over loopback
+    as any window does (0111).
+20. **What it costs, in numbers.** Per listener about **100 kbit/s** (96 of
+    Opus plus framing): five listeners 0.5 Mbit/s, ten 1 Mbit/s, continuous
+    while sharing — from the UniVerso's uplink, or from the **master's home
+    uplink** in online mode, where the player shows the count and the rate.
+    The server forwards fifty small frames a second per listener and decodes
+    nothing: on the 1-core host that is far below the command rates of 0083
+    item 18. Memory: a two-second ring (24 KB) per table and a bounded
+    per-connection queue. **Latency, end to end**: capture 10–20 ms, a 20 ms
+    frame, the network hops (host → server → listener, through a tunnel in
+    online mode) 50–200 ms, the jitter buffer 300 ms, decode and output
+    20–50 ms: **about 400–600 ms**, more under loss — not the 100–300 ms a
+    LAN or WebRTC would give, and said so; unheard under background music,
+    heard on an effect timed to a roll. Quality: Opus at 96 kbit/s against
+    the file mode's original bytes.
+21. **Who hears a live share; what the sharer is told; terms.** Everyone at
+    the table (master, players, visitors): a live share is the master's
+    performance to the table, not a file with an audience, so the file rules
+    of item 9 do not apply and nothing hidden is involved. Each listener
+    keeps volume, mute and *Follow the table* (item 22). The sharer sees a
+    **level meter** (with a text state, *"sound arriving"* / *"silence"*) so
+    that a source that captures nothing — DRM-silenced, or the wrong
+    application — is seen at once (the rule that every action gives visible
+    feedback); the listener count; the rate; a *Stop* always visible in the
+    status item and the player while sharing. The first share shows, once:
+    *"The sound of what you share goes to everyone at this table. What you
+    may play to others is your responsibility; Verso records nothing."* And
+    honestly on terms: Verso provides no catalogue, no search, no download;
+    it stores no sound (the server's ring is seconds, in memory; nothing is
+    written to disk or logs; no recording exists anywhere); the stream
+    reaches only the members of a table the master invited. Spotify's
+    agreement allows "personal, non-commercial use" and forbids
+    redistributing the content, and Spotify says public playing from a
+    business is not allowed; a private group of friends hearing a session's
+    music in their homes is addressed by none of the texts read — a grey
+    area that the person sharing is responsible for, as they are when they
+    share a screen with sound in any conferencing tool. Verso shows the line
+    once and says no more.
 
-**C. Web pages the game master opens — what is honest**
+**C. Controls, the player, the switch — common to both sources**
 
-13. **A web page's audio cannot be heard by the others.** Verso cannot
-    capture the sound of a page in a child web view or a frame, nor relay
-    it (item 2); and a page without a player API cannot be told to play or
-    seek. So *"páginas web que o mestre abrir"* splits in two:
-    - **(i) A page with a public player API can be synced as an embed**: each
-      listener's window loads **the same embed** and the table's state
-      (item 3, `PlaybackSource::Embed`) drives play, pause and seek through
-      the provider's `postMessage` API. Verified from public terms, to be
-      re-read in the build:
-      - *YouTube (IFrame Player API):* free to listen, no account; ads for
-        listeners without Premium (an ad puts that listener behind; the
-        correction of item 5 catches up when it ends); some videos cannot be
-        embedded; regional blocks; and the terms require the player to stay
-        **visible** (at least 200 × 200 px) and forbid an audio-only use of
-        its content — so a YouTube source is a visible card, never a hidden
-        corner player.
-      - *SoundCloud (Widget API):* play, pause, seek by `postMessage`; free;
-        fewer restrictions; smaller catalogue of ambience.
-      - *Spotify:* the embed plays 30-second previews unless each listener
-        is signed in to Spotify in that browser; the Web Playback SDK needs
-        Premium per listener and an app registration of ours. Not proposed.
-      Where it would run: in a browser, a sandboxed `<iframe>` (both CSPs
-      already allow `frame-src https:`); on the desktop, a child web view
-      (0056) is a separate process the app cannot `postMessage` — the host
-      would load a small page of its own (`verso://` origin) that frames
-      the provider and is told what to do through the host, a channel that
-      goes **host → page** only and gives the page nothing of the app's
-      (0056 item 2 stands). That bridge is the cost of (i) on the desktop.
-    - **(ii) Any other page** — a radio, tabletopaudio.com, a page with a
-      play button — can only be **opened by everyone**: *"Abrir para a
-      mesa"* / *"Open for the table"* sends the link to the table's log as
-      a message (0107 item 3's plain-text link), each listener opens it and
-      presses play themselves, out of step. Verso adds nothing to it and
-      claims nothing.
-    Recommendation: **files only in v1** (section F); (i) with YouTube as a
-    v1.x step under its own PR, SoundCloud after if asked; (ii) is already
-    possible today through the chat and needs no work. `[OPEN]` Q5.
+22. **The game master controls everything; each person their own volume**
+    (decided, item 6). `may(Play, table)` for the file state and
+    `may(Broadcast, table)` for a live share (named so because `Share` is
+    0113's action for shares) answer *Allow* for the seat *game master* and
+    *Deny* for a player and a visitor; the server refuses every control for
+    anyone else, whatever the window showed (0113 C's rule). The master's
+    read-only credential (0113 item 6) stays game master and may control.
+    Each listener keeps **their own volume and mute**, never synced, never
+    sent, and a **"Seguir a mesa" / "Follow the table"** switch, on by
+    default, off for silence without silencing anyone; the master's player
+    shows who is not listening. The **master volume** of a file channel is
+    the game master's and synced; a live share has the master's gain applied
+    before encoding. **Future item (a later version, the maintainer's
+    "v2")**: a per-player right *Sound* under 0113's `table_rights_set`,
+    letting the master hand the controls (and the live share) to a chosen
+    player; `may(Play)`/`may(Broadcast)` are where it will plug in, and
+    nothing of it is built in V1.
+23. **Channels.** The file state is a list of channels from the first day
+    (item 8) so the contract never changes for this; the V1 player shows
+    **one file channel, *Música* / *Music***, and **the live share**. A second
+    file channel *Ambiente* / *Ambience* (a loop under the music), crossfade
+    and one-shot effects are **the author's reading of "later polish"**, not
+    a source and not a mode. `[DECIDED 2026-10-31]` Q4 (a): they come after V1;
+    the contract already carries the list of channels.
+24. **"A corner of the window": in the Table panel, and a status item when it
+    is closed.** A compact strip at the top of the *Mesa* / *Table* panel
+    (0107 item 10). **Empty state**, for the master: two buttons side by
+    side, ***Share audio…*** and *Play a file…*, the first in the leading
+    place — nothing to set up before either (decided, item 3); for a
+    listener, *"Nothing is playing"*. Playing a file: the track's name,
+    play/pause, previous/next, the position as a thin bar, loop, the master
+    volume (master) and the own volume and *Follow* (everyone). Sharing: the
+    source's name, the level meter, the listener count and *Stop* (master);
+    *"Ana is sharing Spotify"*, own volume and *Follow* (listeners).
+    *Share audio…* opens the source picker, a list dialog of names and
+    kinds. With the panel closed, a small status-bar item — a note glyph
+    with the name, a red dot while sharing — opens the panel on click. On
+    the **phone** (0076) the panel is the sheet it already is, the player
+    its first row; a phone **listens** (WASM decoder and worklet) and never
+    shares (no capture API there). Every control reachable on 390 × 844,
+    nothing hidden without a way back. `[DECIDED 2026-10-31]` Q6 (a).
+25. **Autoplay and the late joiner.** Every engine refuses sound until a
+    gesture. A window that receives a playing state or a live share while
+    its context is not running shows one visible control — *"Ouvir a mesa"*
+    / *"Hear the table"* — and an announcement; the first gesture anywhere
+    (the listeners of `armAudio`) also unlocks it. A file lands at the
+    computed position; a stream starts with the next frames.
+26. **Accessibility** (0035). Buttons with names (*Play "Taverna"*, *Stop
+    sharing*, *Volume 60 %*); the volume a `<input type="range">` with
+    `aria-valuetext`; the source picker a list with names and kinds,
+    keyboard-navigable; a polite live region says *"Playing: Taverna"*,
+    *"Paused"*, *"Ana is sharing Spotify"*, *"Sharing ended"* — not on seeks
+    or drift corrections; the level meter has its text twin; Space toggles
+    when the player has focus; the *Hear the table* control of item 25 takes
+    focus when it appears; the status item's red dot has a label. Every
+    string in the table's `strings.ts`, pt-BR and EN.
+27. **A capability and a switch.** `Can::AudioShare` (serialised
+    `audio_share`), listed by the **desktop host only** (`rpc_open.rs` never
+    lists it; the web window and the phone cannot capture; a loose-files
+    window of 0114 has no table) — where absent, *Share audio…* is not drawn
+    (0027 item 3) and the host refuses the command. Listening needs no
+    capability. One feature switch (0103): *"Som da mesa"* / *"Table sound"*
+    in the RPG and tabletop group, **on by default** where the Table is on
+    (nothing is loaded until a track plays or a share starts, item 30). Off:
+    no player, no play buttons, no status item, nothing heard. `[DECIDED 2026-10-31]` Q7 (a).
 
-**D. Who controls; what each listener keeps**
+**D. Security and bounds** ([0083](0083-security-hardening-of-universo.md))
 
-14. **The game master controls; a player with the right *Som* / *Sound*
-    too.** `may(Play, table)`: the seat *game master* always; a *player*
-    when the per-player right `sound` is on (`table_rights_set` gains the
-    value; `TableJoin` says it, as `files` does); a *visitor* never. Off by
-    default for a player, as *Images* and *Files* are (0113 E); taken back,
-    the controls go away at once (`access-changed`). Every control command
-    is refused by the server for anyone else, whatever the window showed
-    (0113 C's rule). `[OPEN]` Q6.
-15. **Each listener keeps their own volume and mute**, never synced, never
-    sent; and a **"Seguir a mesa" / "Follow the table"** switch, on by
-    default, off when a person wants silence without silencing anyone —
-    the controller's player shows them as *not listening*, so the game
-    master knows. The **master volume** (item 3) is the controller's and is
-    synced; the listener hears `master × own`.
-16. **Channels.** The state is a list of channels from the first day (item
-    3) so that the contract never changes for this; the **v1 player shows
-    one channel, *Música* / *Music*** (one track, play/pause/seek, loop,
-    master volume). A second channel, *Ambiente* / *Ambience* (a loop under
-    the music), **crossfade** between tracks (two elements per channel,
-    gains crossed over three seconds) and one-shot **effects** (a sound
-    that plays once for everyone, not positioned) are v1.x: each needs
-    only its part of the player, the state already carries them.
-    `[OPEN]` Q7.
-17. **The soundboard is a note.** No new syntax (invariant 12): any link or
-    embed of an audio file in a note — `[[Música/taverna.mp3]]`,
-    `![[Ambiente/chuva.mp3]]` — gets a **play button** beside it for whoever
-    may control playback (the `dice:` button's pattern, 0088), and the
-    heading above a list of such links names a *scene*; a game master's
-    "soundboard" is a note of headings and links, plain files, synced, in
-    the history (0091), readable in Obsidian as a list of links. *Play the
-    list* (a playlist: next track when one ends, with `looping` on the
-    list) and a `soundboard` fenced block with a grammar of its own are v1.x
-    at most, only if the plain list proves short. `[OPEN]` Q8.
-
-**E. The player: "a corner of the window"**
-
-18. **In the Table panel, and a status item when it is closed.** A compact
-    strip at the top of the *Mesa* / *Table* panel (0107 item 10): the
-    track's name, a play/pause, the position as a thin bar, the loop mark,
-    the master volume (controller) and the own volume and *Follow* switch
-    (everyone); *More…* opens the scene list (item 17's notes with audio
-    links) for a controller. With the panel closed, a small status-bar item
-    — a note glyph with the track's name, pulsing softly unless reduced
-    motion — opens the panel on click. On the **phone** (0076), the panel is
-    the sheet from the bottom it already is, the player its first row; the
-    status item is the panel button's badge. Every control reachable on
-    390 × 844, nothing hidden without a way back. `[OPEN]` Q9.
-19. **Accessibility** (0035). Buttons with names (*Play "Taverna"*, *Pause*,
-    *Volume 60 %*); the volume a `<input type="range">` with
-    `aria-valuetext`; a polite live region says *"Playing: Taverna"* and
-    *"Paused"* when the **controller** changes the track or pauses — not on
-    seeks and not every drift correction; Space toggles when the player has
-    focus; the *Hear the table* control of item 7 is the first thing focus
-    lands on when it appears; the keep-awake and the audio clock of 0101
-    are not announced. Every string in `strings.ts` (the table's
-    `strings.ts`), pt-BR and EN.
-20. **A feature switch** (0103): *"Som da mesa"* / *"Table sound"* in the
-    RPG and tabletop group, **on by default** where the Table is on (it is
-    not an expensive feature as 3D dice are: nothing is loaded until a
-    track plays, item 23). Off: no player, no play buttons, no status item,
-    and the window hears nothing. `[OPEN]` Q10.
-21. **Copyright.** Verso plays the files the game master has and nothing
-    else: no catalogue, no search, no download, no copy kept outside the
-    folder the person already owns, no re-encoding. What may be played to a
-    group is the person's responsibility, said in one line of the lesson
-    and nowhere in the window; the embeds of section C run under each
-    provider's terms, shown once at the first use.
-
-**F. Security and bounds** ([0083](0083-security-hardening-of-universo.md))
-
-22. - *Control messages* are paced per connection by `table_pace` as
+28. - *Control messages* are paced per connection by `table_pace` as
       `table_say` is; the state is a closed form checked by the server (a
-      path as every path; an embed only a provider from a fixed list and an
-      id matching a fixed pattern — **never a free URL**); a wish with an
-      older `revision` than the current is refused, so two controllers do
-      not fight the clock.
-    - *Bytes* go through the route that exists, with its veil, pieces and
-      `Range`; **no new cap in v1** — a listener downloads a track once,
-      which is what a page load of a few images already costs the server;
-      the number to measure (0083 item 18's method, on VM 107): six
-      listeners joining a 10 MB track in the same second, the RSS and the
-      time to first sound. Recorded in `server-install.md` §15 with the
-      date; a bound is added only if the measurement says so.
-    - *Visibility* is section B: no bytes and no name of a hidden file to a
-      player outside its audience; a test per door, as 0113's `tests_access_doors.rs`.
-    - *No new script surface* in v1: an `<audio>` element plays no script;
-      `media-src 'self'` and `media-src verso:` already allow it on both
-      sides; the embeds of section C, if built, live in a sandboxed frame or
-      a child web view under 0056 and never in the app's own document.
-    - *The server* learns no decoding, no media library, no new dependency;
-      the online-mode laptop serves bytes it already serves.
-    - *Rule 5*: no `std::fs` anywhere; every byte of a track crosses
-      `verso-fs` as today. *Rule 4*: paths relative to the table's root, no
-      `..`, in the state as in every command.
+      path as every path; never a URL; a source name at most 80 characters
+      of plain text, never a window title); a wish with an older `revision`
+      is refused.
+    - *Audio frames* are accepted only from the connection that started the
+      share, at most 60 a second and 1 500 bytes each (refused unparsed
+      past that, `inflight.rs`'s pattern), one share per table, listeners
+      bounded by `MEMBERS_MOST`; a slow listener's queue is bounded — frames
+      are **dropped**, oldest first, never buffered without limit — and a
+      connection more than ten seconds behind is told and stops receiving
+      until it asks again. The server **never decodes, writes or logs** a
+      frame; the ring is memory and two seconds.
+    - *File bytes* go through the route that exists, with its veil, pieces
+      and `Range`; no new cap in V1; the number to measure (0083 item 18's
+      method, VM 107): six listeners joining a 10 MB track in one second,
+      and six listeners of a live share for an hour — RSS, CPU, frames
+      dropped. Recorded in `server-install.md` §15 with the date.
+    - *Visibility* is item 9: no bytes and no name of a hidden file to a
+      player outside its audience; a test per door, as 0113's
+      `tests_access_doors.rs`. A live share carries no file.
+    - *Nothing of the master's screen* is captured: audio only, by process
+      or system, never video, never a window's title.
+    - *No new script surface*: an `<audio>` element and a worklet run no
+      page script; `media-src 'self'` and `media-src verso:` already allow
+      the files; `worker-src 'self' blob:` already allows the worklet; the
+      WASM decoder is the app's own file.
+    - *Rule 5*: no `std::fs` anywhere; the capture module touches audio
+      devices, never a file. *Rule 4*: paths relative to the table's root.
+    - *`unsafe_code = "forbid"`* (0029): the `opus` and `pipewire` crates
+      and a safe ScreenCaptureKit/Core Audio wrapper keep the FFI inside
+      dependencies, as `libc` and `portable-pty` do (0115). Whether a
+      **safe** wrapper exists for Windows **process loopback** is not known;
+      if none does, the only honest paths are a second declared exception
+      beside `web_clip` — `app/src-tauri/src/audio_share/{macos,windows,linux}.rs`
+      with `SAFETY:` comments, listed in `CLAUDE.md` §3 and
+      `scripts/check-unsafe.mjs` — or no process capture on Windows. That is
+      a guardrail change and the maintainer's: `[DECIDED 2026-10-31]` Q9 (a) — the
+      exception enters `CLAUDE.md` §3 and `check-unsafe.mjs` in the PR that
+      builds it, after that PR shows no safe wrapper serves.
 
-**G. Tests and guardrails** (feature group, each seen failing first, 0029)
+**E. Tests and guardrails** (feature group, each seen failing first, 0029)
 
-- `verso-server`: `may(Play)` for each seat and the right; the state
-  stamped with the server's clock and a growing revision; an older revision
-  refused; a hidden path refused for a controller who may not see it; a
-  listener with level `none` receives no `source` and no name; the pace; a
-  `table_time` answer; the state dropped when the last window leaves.
-- `verso-contract`: the types serialise as written here; `specta` output
-  committed (`bindings.ts` regenerated, never edited).
-- UI unit (`node --test`): `sync.ts` — the offset from samples (best round
-  trip, median), `expected` from a state, the three drift bands, the modulo
-  of a loop, a late joiner's landing position, a reconnect; the gain
-  arithmetic; the format advice.
-- Harness (`app/ui/src/harness/table.ts`): answers for the six commands and
-  `table_time`, a scripted `table-playback`, a fake `<audio>` with a
-  controllable `currentTime` so e2e runs without sound.
-- e2e, **two windows** (0107 item 15's pattern): the master plays, the
-  player's element carries the right `src` and is not paused after a
-  gesture; pause and seek propagate; a hidden track is refused and the
-  release question appears; a player without the right has no controls and
-  gets them when the right is granted; *Follow* off silences one window
-  only; the switch off draws nothing; the a11y pass includes the player;
-  the phone layout at 390 × 844.
-- Manual checks (`docs/reference/manual-checks.md`), on macOS, Windows
-  (VM 103), Linux (VM 104) **and a phone** (Android Chrome, iPhone Safari):
-  the format table of item 8; the iOS volume through the gain; a Bluetooth
-  headset's latency against a laptop speaker in the same room (the drift
-  bound is heard, not computed); a 60-minute loop's drift; a reconnect
-  mid-track; a real tunnel (0111) with two homes; WebKitGTK's codecs in
-  the `.deb` and the AppImage; the late joiner's *Hear the table*.
+- `verso-server`: `may(Play)` and `may(Broadcast)` allow the master and deny
+  a player and a visitor; the state stamped and the revision growing; an
+  older revision refused; a hidden path refused for a master who may not
+  see it (none in practice; the test holds the door); a `none` listener
+  gets no `source`; frames from a non-sharer refused; frame size and rate
+  bounds; a slow listener dropped-oldest and never grows the queue; the
+  share ends when the sharer's connection closes; nothing of a frame in the
+  log; the state and share dropped when the table empties.
+- `verso-contract`: the types serialise as written; `bindings.ts` regenerated.
+- `app/src-tauri`: an Opus round trip (a sine encoded and decoded within a
+  tolerance); the source list names applications and never window titles;
+  `audio_share_start` refused without the capability or with the switch off;
+  the Tauri permission names every new command (the host test of `build.rs`
+  and `capabilities/default.json`); a stopped share leaves no capture
+  running (the tap/loopback/stream handle released).
+- UI unit (`node --test`): `sync.ts` (offset, `expected`, the drift bands,
+  the loop modulo, the late joiner, the reconnect); the frame header; the
+  jitter buffer (reorder, loss, growth, catch-up); the gain arithmetic; the
+  format advice; next/previous over a scene's list.
+- Harness (`app/ui/src/harness/table.ts`): answers for the commands and
+  `table_time`, scripted `table-playback` and `table-share` events, a
+  scripted stream of frames, a fake `<audio>` with a controllable
+  `currentTime`, a fake source list.
+- e2e, **two windows** (0107 item 15's pattern): from an **empty folder**,
+  the master's player shows *Share audio…* first and a share starts from the
+  fake list with no file anywhere; the listener's worklet receives frames
+  and the live region says who shares; *Stop* propagates; the master plays a
+  file, the player's element carries the right `src` and is not paused after
+  a gesture; pause, seek, next and previous propagate; a hidden track is
+  refused and the release question appears; a player's window has no
+  controls at all, only volume, mute and *Follow*; *Follow* off silences one
+  window only; the switch off draws nothing; `?side=server` draws no *Share
+  audio…*; a folder with no table shows the player with a local state; the
+  a11y pass includes the player and the picker; 390 × 844.
+- Manual checks (`docs/reference/manual-checks.md`), on macOS, Windows 11
+  and **Windows 10** (VM 103 or a second VM), Linux (VM 104) **and two
+  phones** (Android Chrome, iPhone Safari): the format table of item 13; the
+  iOS volume through the gain; sharing the Spotify app, Spotify in a
+  browser, Apple Music, a YouTube tab and *everything* on each system —
+  which are silent (DRM) and which carry; the macOS prompt's wording; the
+  Windows 10 fallback and the muting of Verso's own sounds; a clap test
+  (one phone recording the master's speaker and a listener's) for the real
+  latency; a 60-minute share and a 60-minute loop for drift and memory; a
+  reconnect of the sharer and of a listener; a real tunnel (0111) with two
+  homes; WebKitGTK's codecs and `libpipewire` in the `.deb` and the
+  AppImage.
 
-**H. Effort and what `CLAUDE.md` §5 obliges**
+**F. Effort and what `CLAUDE.md` §5 obliges** (all in V1, decided, item 5)
 
-23. *v1* (files; one channel; the master's controls and the right; the
-    player in the Table panel and the status item; the clock sync; the
-    play button on audio links; the solo player if Q4 says yes): the
-    server's part is small (a state per table, seven commands, one event,
-    one right, one answer of the clock); the window's part is the player,
-    the sync module and the gain routing — a lazy chunk loaded at the first
-    track (0101 item 1's rule), so a window that never hears music loads
-    none of it. Estimate, as in 0115: a few days of agent work, then real
-    checks on three systems and two phones, which are the cost that cannot
-    be skipped (the engines' formats and autoplay rules are only known by
-    running them). *v1.x*: the ambience channel, crossfade, effects, the
-    playlist — about as much again; the YouTube embed sync — its own PR,
-    with the desktop bridge of item 13 as the hard part.
-24. Strings in both languages; a `CHANGELOG.md` entry under *Unreleased*; a
+29. **Two parts of unequal size, both in V1.** *Files* (section A, one
+    channel, the master's controls, the player and status item, the clock
+    sync, the play button on audio links, the solo state): small on the
+    server (a state, nine commands, one event, one clock answer), a player
+    and a sync module in the window — a few days of agent work plus the
+    checks on three systems and two phones, as 0115 estimated for itself.
+    *Share audio* (section B) is **the larger part by two to three times**:
+    three capture back-ends on three operating systems with their own APIs,
+    permissions and fallbacks (Windows 10; macOS below 14.4), the Opus
+    encoder in the host, the relay and its bounds on the server, the WASM
+    decoder, worklet and jitter buffer in the window, the picker and meter,
+    and checks that can only be done by running real applications on real
+    machines — and the unknowns the Context table lists (what each capture
+    API gives for DRM-protected sources; the safe-wrapper question Q9). A
+    fair estimate is two to three weeks of agent work for a first version on
+    the three systems, with Linux and Windows 10 the uncertain ends, before
+    the polish. Order: the author proposes the share **first**, since it is
+    the point and the unknowns are there, as its own PR; the files second —
+    each PR complete with its tests and lesson; neither waits for the other.
+30. **Nothing loaded until needed**: the player, the sync module, the WASM
+    decoder and the worklet are one lazy chunk loaded at the first track or
+    share (0101 item 1's rule).
+31. Strings in both languages; a `CHANGELOG.md` entry under *Unreleased*; a
     lesson note in `demo-vault/` (*"Som e música na mesa"*) and
     `demo-vault-en/` (*"Sound and music at the table"*), paired in
     `names.mjs`, with a short **CC0 or own-made** sample track in each
-    vault's attachments (its source and licence in
-    `docs/reference/`, as `dice-sounds.md` does) so the lesson plays, the
-    one-line note on copyright, the format advice, and *Follow the table*;
-    `tour.mjs` updated; the vaults rebuilt and checked — the site's wiki is
-    made from them (0058, 2026-10-31); a walkthrough section; the harness
-    answers; the e2e tests; the manual checks; the beta installed through
-    `scripts/install-beta.sh`; `docs/reference/server-install.md` §15 gains
-    the measurement of item 22. No new Rust or npm dependency in v1; an
-    embed provider's script, if ever, runs inside its frame only, so the
-    npm licence check sees nothing.
+    vault's attachments (source and licence in `docs/reference/`, as
+    `dice-sounds.md` does), the two ways (*Share audio* first, with no file;
+    a file), the permission prompts by system, which sources came out silent
+    in the build's tests, the one line on responsibility, the format advice
+    and *Follow the table*; `tour.mjs` updated; the vaults rebuilt and
+    checked (the site's wiki is made from them, 0058); a walkthrough
+    section; the harness answers; the e2e tests; the manual checks; the beta
+    installed through `scripts/install-beta.sh`; `server-install.md` §15
+    gains the measurements of item 28. The PR justifies each new dependency —
+    Rust: `opus` (+ `audiopus_sys`, libopus), `pipewire`, a macOS audio
+    wrapper crate, Windows audio through the `windows` crate already in the
+    tree or a safe wrapper (Q9); npm: `opus-decoder` — with what it replaces
+    (an Opus codec and three capture back-ends of our own) and `cargo deny`
+    and the npm licence check green. The macOS `Info.plist` gains
+    `NSAudioCaptureUsageDescription`; the `.deb` gains `libpipewire-0.3`.
 
 ## Consequences
 
-- A game master plays music from the files of the campaign and every
-  listener hears it in step, through the channel, the clock and the access
-  model the table already has; the server carries a state, never the sound.
-- The access model gains one action and one right; the contract gains the
-  types of item 3; the window gains a player, a sync module and a gain path
-  on the existing audio context; nothing changes for `verso-fs`, the index,
-  sync or the history.
-- What is hidden stays hidden: a player hears a track only when they see
-  its file, and the game master is asked before a release — the cost of one
-  more question is the price of one access model (0113).
-- Web pages are the honest limit: a page's sound is never relayed; a
-  provider with an API can be synced later, visibly, under its terms; any
-  other page is a link everyone opens.
-- A phone hears the table as a laptop does, after one tap; a WAV or a FLAC
-  costs every listener a download the player warns about; formats are the
-  engines' and the lesson says MP3 or AAC.
+- A game master shares the sound of Spotify, a browser or anything on their
+  computer from an empty folder in two gestures, and everyone hears it half a
+  second later through a relay the server does not decode; or plays a file
+  and everyone hears it in step through the table's channel and the server's
+  clock. One player, one set of listener controls (volume, mute, *Follow*),
+  one controller: the game master.
+- The desktop host grows its first audio-capture code, per system, with a
+  permission prompt on macOS and a Windows 10 fallback that captures
+  everything; the server grows a relay with strict bounds and no codec; the
+  window grows a WASM decoder, a worklet and a player. The server's cost per
+  listener is 100 kbit/s of forwarding; the master's uplink pays the same in
+  online mode.
+- What is hidden stays hidden: a file is heard only by who sees it; a live
+  share carries no file and nothing of the screen.
+- The guardrail on `unsafe` is touched only if no safe wrapper exists for
+  Windows process capture (Q9); every other invariant is kept as it is.
+- The latency and quality of the stream are what a relay over TCP through a
+  tunnel gives, said in numbers; the file mode is the one with no latency,
+  and the lesson recommends it for the music the master owns.
+- Handing the controls to a player is a later version; `may(Play)` and
+  `may(Broadcast)` are where it plugs in.
 
 ## Discarded alternatives
 
-None recorded. The options under each question below are not discarded
-until the maintainer chooses. (A streamed model was weighed in session as
-the alternative to item 2 and is kept as Q1's option (b), not discarded.)
+- **The shared-state model alone, with web sources only as synced embeds
+  (YouTube IFrame API, SoundCloud widget) and "open this link" for any other
+  page** — the first text of this record (commit `f2273de20`), considered
+  and set aside by the maintainer's decision of 2026-10-31 that *any* page
+  or application the master opens, Spotify included, must be heard by the
+  table: an embed needs a player API the page may not have, and Spotify's
+  embed plays previews unless each listener is signed in. The shared-state
+  model survives as the **file** mode (section A); the embed sync is not
+  pursued.
+- **A per-player right *Sound* in V1** — proposed in the revision, set aside
+  by the maintainer the same day (*"O padrão deveria ser o mestre … Numa v2 o
+  mestre vai poder colocar outro jogador pra controlar"*); kept as the future
+  item of item 22.
+- **WebRTC for the stream** (peer-to-peer or an SFU in the server) —
+  considered in this revision and set aside for the reasons of item 19 (no
+  UDP through the online-mode tunnel; WebKitGTK; a large dependency on a
+  one-core host); kept as a later possibility for the UniVerso alone.
 
 ## Status
 
-**Proposed** (2026-10-31). Item 1 is the maintainer's decision; items 2–24
-are the author's proposal. Nothing is built; no code was touched.
+**Accepted** (2026-10-31; revised the same day). Items 1–6 are the
+maintainer's decisions; items 7–31 are the author's proposal, accepted with
+the nine questions below, decided as recommended. Nothing is built.
 
-### Open questions
+**Decided by the maintainer, 2026-10-31, in session**, on the first text and
+on the revision (in pt-BR):
 
-| # | Question | Options | Recommendation |
+- **Two sources, the live share of any page or application** — the first
+  text's Q1 and Q5, **against the recommendation**: *"As músicas deveriam
+  vir de arquivos ou de qualquer página na internet que o mestre abrir.
+  Então ele poderia abrir o Spotify ali e esse áudio ser compartilhado com
+  quem tá ali dentro."* → item 2, section B.
+- **The two-source proposal accepted; the share must work with no file**:
+  *"A proposta é boa, se não tiver arquivo, tem que ter by pass para
+  compartilhar"* → item 3; items 16 and 24 (the empty state leads to *Share
+  audio…*; nothing of the share depends on the files).
+- **Solo use** (the first text's Q4): *"Uso solo sim"* → item 4.
+- **Everything in V1** (the first text's Q12 and the revision's phase
+  questions): *"Tudo na v1"* → item 5; only the ambience layer is still
+  asked (Q4 below), as the author's reading of what "tudo" covers.
+- **Only the game master controls; each person their own volume; delegation
+  later** (the first text's Q6 and the revision's "who controls"): *"O
+  padrão deveria ser o mestre, qual música, passar, voltar, loop, etc.
+  Volume cada pessoa tem seu controle. Numa v2 o mestre vai poder colocar
+  outro jogador pra controlar"* → item 6, item 22.
+
+### The nine questions — decided 2026-10-31, all as recommended
+
+The maintainer, on the list of the day's pending decisions (N3, this record):
+*"Todo resto pode ir de recomendado e aprovado"* (everything else may go as
+recommended and approved). Read as: each question below takes its
+recommendation — Q1 (a), Q2 (a), Q3 (a), Q4 (a), Q5 (a), Q6 (a), Q7 (a),
+Q8 (a), Q9 (a).
+
+
+| # | Question | Options | Recommendation (decided) |
 |---|---|---|---|
-| Q1 | Sync model | (a) a shared playback state, each window plays its own copy (items 2–7); (b) one machine streams the audio to every listener | **(a)**: the app cannot capture sound; (b) costs `bitrate × listeners` continuously on a 1-core host or the master's home uplink, adds seconds of latency and fails on phones; (a) sends kilobytes and the file once |
-| Q2 | Formats | (a) play what each engine decodes, tell the controller who cannot, advise MP3/AAC, no transcoding; (b) transcode on the server to one format; (c) accept MP3 and AAC only | **(a)**: (b) needs codecs and a core the server does not have; (c) refuses files that play fine on desktops |
-| Q3 | Bytes to a player who does not see the track | (a) `may(See)` only: the master releases the file or its folder, asked at play time (item 10); (b) a *hear-only* lease: the current track's bytes are served to every listener while it plays, the file stays hidden in tree and search | **(a)**: one model, one dialog (0113 item 1); (b) is a second door, exactly what 0113 abolished, and a hidden file whose bytes reach everyone is a leak by the reviews' rule; releasing `Música/` once makes (a) a one-time step |
-| Q4 | A folder of this computer, alone (no table) | (a) the same player, state local, for a solo person or a master preparing; (b) only at a table | **(a)**: the local path is the harness of the shared one and costs a day; the maintainer spoke of the room only, so this is his to say |
-| Q5 | Web sources | (a) files only in v1; YouTube embed sync (visible player, provider terms) in v1.x; "open for the table" via the chat as today; (b) YouTube in v1; (c) files only, ever | **(a)**: the desktop bridge of item 13 is real work and the terms bind the player's shape; nothing is lost by sequencing |
-| Q6 | Who controls | (a) the game master, plus players with a per-player right *Sound* under 0113 (off by default); (b) the game master only; (c) every player | **(a)**: a co-DJ player is common and the right costs one row in the Table window; (c) breaks the master's scene |
-| Q7 | Channels in v1 | (a) the state carries a list of channels; the v1 player shows *Music* only; *Ambience*, crossfade and effects in v1.x; (b) *Music* and *Ambience* in v1; (c) one channel, the contract changed later | **(a)**: the contract is right from day one and the second channel is only UI; (b) if the maintainer wants rain under the theme on the first night — about two more days |
-| Q8 | The soundboard | (a) a play button on any audio link in a note; headings are scenes; no new syntax; (b) a `soundboard` fenced block with a grammar (spec §6, Obsidian shows code); (c) a `.base` or frontmatter list | **(a)**: invariant 12 untouched, Obsidian shows a list of links, and the history keeps it; (b) only if (a) proves short |
-| Q9 | Where the player lives | (a) a strip at the top of the Table panel plus a status-bar item when the panel is closed (phone: first row of the sheet); (b) a floating mini-player anywhere; (c) the status bar only | **(a)**: one place that already moves, docks and works on the phone; (b) is a second layout to make accessible |
-| Q10 | The switch | (a) its own switch *Table sound*, on by default where the Table is on; (b) part of the Table's switch, no switch of its own | **(a)**: 0103 item 1, one switch per optional feature, and a reader who wants a silent table has a visible way |
-| Q11 | What happens when the master's window closes | (a) the music goes on; the state is the server's until stopped or the table empties; (b) the music stops with the master | **(a)**: a dropped connection of the master mid-scene must not silence the room; "Stop" is one click |
-| Q12 | Phase | (a) into V1, files only (v1 of section H), with the rest as V1.x items; (b) after the V1 blockers (V.44's slot); (c) after V1 | **(a)**, the maintainer's "resolver tudo agora" of 0115 read as a direction; his call |
+| Q1 | The web window as a **sharer** (a master running the table from a browser, not the desktop app) | (a) the desktop app shares; the web window listens — a browser master is told to use the app; (b) also the browser, Chromium only: `getDisplayMedia` tab audio on every system, system audio on Windows only, nothing in Firefox and Safari, encoding through WebCodecs where it exists | **(a)** for V1's first build: the desktop path works on every system and is the large job already; (b) is Chromium-only and needs its own encoder path. If *"tudo na v1"* is read to include it, (b) is a fourth capture back-end to add after the three of item 17 |
+| Q2 | Formats (files) | (a) play what each engine decodes, tell the master who cannot, advise MP3/AAC, no transcoding; (b) transcode on the server; (c) MP3 and AAC only | **(a)** |
+| Q3 | Bytes of a file to a player who does not see it | (a) `may(See)` only: the master releases the file or folder, asked at play time; (b) a *hear-only* lease while it plays | **(a)**: one model (0113 item 1); (b) is a second door and a leak by the reviews' rule |
+| Q4 | The ambience layer in V1 | (a) one file channel *Music* plus the live share in V1; *Ambience* (a loop under the music), crossfade and one-shot effects after — the author's reading of "later polish", the contract already carrying the list of channels; (b) *Music* and *Ambience* in V1 (about two more days; the share can play under either) | **(a)**, unless *"tudo"* includes the layer — then (b) |
+| Q5 | The soundboard | (a) a play button on any audio link in a note, headings as scenes, next/previous over the scene; (b) a `soundboard` fenced block with a grammar; (c) a `.base` | **(a)** |
+| Q6 | Where the player lives | (a) a strip at the top of the Table panel plus a status-bar item when closed (phone: first row of the sheet); (b) a floating mini-player; (c) status bar only | **(a)** |
+| Q7 | The switch | (a) its own switch *Table sound*, on by default where the Table is on; (b) part of the Table's switch | **(a)**: 0103 item 1 |
+| Q8 | The master's window closes (file mode) | (a) the music goes on; the state is the server's until stopped or the table empties; (b) it stops | **(a)**; a live share necessarily ends with its sharer's connection |
+| Q9 | `unsafe` for Windows process capture, if no safe wrapper crate exists | (a) a second declared exception beside `web_clip`: `app/src-tauri/src/audio_share/{macos,windows,linux}.rs` with `SAFETY:` comments, listed in `CLAUDE.md` §3 and `check-unsafe.mjs`; (b) no process capture on Windows — device loopback (everything) only; (c) a wrapper crate of our own in a separate repository | **(a)**, with the PR showing first that no safe wrapper serves; (c) is the zero-bypass rule broken by another name; (b) loses the one-application share on Windows |

@@ -137,7 +137,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24) |
 | [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status); amended 2026-10-31: JSON, YAML, TOML, XML and CSV open in the diagram |
 | [0115](0115-an-embedded-terminal-in-the-desktop-app.md) | An embedded terminal in the desktop app: the person's shell in a pane, for AI command-line tools | Accepted (2026-10-31); into V1 (Q9); Q4 decided as "the app on this computer" |
-| [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md) | Music and sound at the table, heard by everyone in the room: a shared playback state over the table's channel, files under the one access model | Proposed (2026-10-31); 12 `[OPEN]` questions |
+| [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md) | Music and sound at the table, heard by everyone: files as a shared playback state, and "share audio" — live capture of any application or page, relayed by the server; only the game master controls, each person their own volume | Accepted (2026-10-31); Q1–Q9 decided as recommended; not built |
 
 ### Dialect, engineering and roadmap
 
