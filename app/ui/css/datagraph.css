@@ -77,3 +77,31 @@ pre:hover .dg-view-btn, .editor:hover .cm-lp-diagram-btn, .dg-view-btn:focus-vis
 @media (prefers-reduced-motion: reduce) {
   .dg-fold .icon { transition: none; }
 }
+
+/* A narrow pane (a phone, a thin split): one slim row of icon buttons, the
+   rest in the "…" menu; the search opens over the row. Targets are 44px on a
+   finger. A card on a board keeps its own small bar. */
+.dg-c-only { display: none; }
+.dg-hint { display: flex; align-items: center; gap: .5rem; }
+.dg-hint[hidden] { display: none; }
+.dg-hint-text { flex: 1; min-width: 0; }
+.dg:not(.dg-compact) .dg-hint-close { display: none; }
+.dg-compact .dg-bar { flex-wrap: nowrap; gap: .2rem; padding: .25rem .4rem; min-height: 40px; }
+.dg-compact .dg-c-only { display: inline-flex; align-items: center; justify-content: center; }
+.dg-compact .dg-w-only { display: none; }
+.dg-compact .dg-actions > button { flex: none; }
+.dg-compact .dg-actions { flex: 1; flex-wrap: nowrap; justify-content: flex-end; gap: .1rem; }
+.dg-compact .dg-find { display: none; }
+.dg-compact .dg-bar > .dg-search-open { margin-right: auto; }
+.dg-compact .dg-actions > button, .dg-compact .dg-bar > button, .dg-compact .dg-find > button { min-width: 36px; min-height: 36px; padding: 0; justify-content: center; }
+.dg-compact .dg-hint { font-size: .72rem; padding: .1rem .4rem .1rem .7rem; }
+.dg-compact .dg-hint-close { min-width: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.dg-compact.dg-searching .dg-find { display: flex; flex: 1; flex-wrap: nowrap; min-width: 0; }
+.dg-compact.dg-searching .dg-search { flex: 1; min-width: 0; font-size: 1rem; min-height: 36px; }
+.dg-compact.dg-searching .dg-matches { min-width: 0; font-size: .72rem; }
+.dg-compact.dg-searching .dg-actions, .dg-compact.dg-searching .dg-bar > .dg-search-open { display: none; }
+@media (pointer: coarse) {
+  .dg-compact .dg-actions > button, .dg-compact .dg-bar > button, .dg-compact .dg-find > button, .dg-compact .dg-hint-close { min-width: 44px; min-height: 44px; }
+  .dg-compact .dg-bar { padding: .1rem .3rem; min-height: 48px; }
+  .dg-compact.dg-searching .dg-search { min-height: 44px; }
+}
