@@ -231,17 +231,17 @@ changes nothing there.
 
 A player whose role is *editor* edits wherever their level is at least `see`
 (K.1): for them *Sees* in the dialog already means editing, and their row
-says so (*edits all they see*). `[PROPOSED]` (the author's reading of K.1 with K.5): a folder they see
+says so (*edits all they see*). `[DECIDED 2026-10-31]` (the author's reading of K.1 with K.5, accepted; Status): a folder they see
 counts as a folder they edit, so they create and rename inside it.
 
-`[PROPOSED]` (the author's reading of item 2): a node's access is **one whole
+`[DECIDED 2026-10-31]` (the author's reading of item 2, accepted; Status): a node's access is **one whole
 set** — a *Whole table* row and the per-player rows that differ from it. Changing
 a file alone writes its whole set, so the file stops consulting its folder
 entirely; *↺ Follow the folder* deletes the file's set. A node never mixes its
 own rows with its folder's per player.
 
 An **attachment** (any file that is not a note, board or base) follows K.3,
-*chosen in the code*: an explicit access wins; with none, it keeps today's
+*chosen in the code* and decided 2026-10-31: an explicit access wins; with none, it keeps today's
 derived rule — seen by a player when a file that player sees links or embeds
 it, or when the table shows it (0110 "Chosen in the code" (5)).
 
@@ -574,15 +574,15 @@ choice.
    maintainer: *"Leva o próprio acesso"* (it takes its own access along). A
    moved or renamed file keeps its own set and becomes an **exception** in the
    new folder, listed in that folder's dialog with *↺ Follow the folder*.
-   `[PROPOSED]` (the author's reading): a file that had no set of its own takes
+   `[DECIDED 2026-10-31]` (the author's reading, accepted): a file that had no set of its own takes
    along the access it had — its old folder's, written as its own set — so a
    move never changes who sees it; a moved folder carries its set the same way,
    and the files that followed it keep following it. A rename inside the same
    folder changes nothing.
 3. **An attachment with an explicit access and a file that embeds it.** Not
-   asked; *chosen in the code*, to confirm: an **explicit access on the
+   asked; *chosen in the code*, `[DECIDED 2026-10-31]`: an **explicit access on the
    attachment wins**; with none, it follows the notes and boards that embed or
-   link it, today's rule. `[PROPOSED]` (the author's reading of "explicit"): a
+   link it, today's rule. `[DECIDED 2026-10-31]` (the author's reading of "explicit", accepted): a
    folder's set covering the attachment counts as explicit, since applying a
    folder replaces what is inside (item 2); a note a player sees that embeds an
    attachment hidden from them shows "🔒 (not revealed yet)" there, and the
@@ -594,9 +594,16 @@ choice.
    bytes where it is known, the table's size limit, the folder's quota, never
    SVG, HTML or a script — and it covers the chat **and** a new file put into a
    note or board the player edits. This widens item 5 and 0107 item 3 (the chat
-   carries files, not only images). `[PROPOSED]`: the chat shows a file that is
+   carries files, not only images). `[DECIDED 2026-10-31]`: the chat shows a file that is
    not an image as a card with its name, kind and size; the table's limit keeps
-   its value and is named *file size limit*. **Amended 2026-10-28 (K.6):**
+   its value and is named *file size limit*. *As built (checked 2026-10-31,
+   `app/ui/src/table/view.ts` `fileCard`):* the card shows the name and the
+   kind — PDF or audio, the only kinds besides images that the server's
+   `table_image.rs` takes — and a click opens the file; it does **not** show
+   the size yet, a gap to build. The limit keeps its value; it is not yet
+   named *file size limit* where it is shown (the refusal says "the table's
+   most", the code calls it `image_limit` / `IMAGE_MAX`), a gap to build with
+   the size. **Amended 2026-10-28 (K.6):**
    *Send files* is split into *Images* and *Files*.
 5. **Edits on a folder for a player.** `[DECIDED 2026-10-24]` The maintainer:
    *"Cria e renomeia, não apaga"* (creates and renames, does not delete). A
@@ -717,6 +724,19 @@ code's choice to confirm. Sections A–J are the approved proposal adjusted to
 those answers; the details marked `[PROPOSED]` are the author's. Nothing is
 `[OPEN]`. To be read by the other model before S1 starts
 ([0032](0032-author-and-reviewer-roles.md)).
+
+**The author's readings and K.3 decided (2026-10-31).** Put to the maintainer
+in the list of 2026-10-31 (the four `[PROPOSED]` readings — a folder a table
+editor sees is one they create and rename in, a node's access is one whole set,
+a moved file with no set of its own takes the access it had, a file that is not
+an image is a card in the chat — and K.3's "explicit"), he answered *"O
+restante ta aprovado"* (the rest is approved), keeping apart only five items of
+other ADRs. Each is marked `[DECIDED 2026-10-31]` in place (A, K.2, K.3, K.4):
+a folder's set covering an attachment counts as explicit, the note shows 🔒 and
+its dialog warns. K.4's card was checked against the code before it was marked:
+the size and the limit's name are not built yet (the as-built note in K.4).
+Whether the 🔒 and the dialog's warning of K.3 are built was not checked in
+this record. No `[PROPOSED]` stays in this record.
 
 ### As built, S1–S3 (2026-10-24, `feat/one-access-model`)
 
