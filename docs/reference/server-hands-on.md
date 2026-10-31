@@ -942,6 +942,9 @@ http://127.0.0.1:7341`).
   (`casa.example.com`), which UniVerso answers only when `VERSO_PUBLIC_URL`
   names it (the error says so); or nginx is not passing `Host`. Use the IP,
   or set `VERSO_PUBLIC_URL` to the address people use.
+  Since 2026-10-31 a browser in the first case is shown a page, in
+  Portuguese and English, saying the address has changed and linking to the
+  public one; the 421 and the JSON line stay for apps and scripts.
 - The proxy answers 502: UniVerso is not running, or listens on another
   port than the proxy's line (`sh universo.sh status`, "Listens on").
 

@@ -1379,3 +1379,4 @@ them; if they still happen, a step that makes them happen is enough.
 
 - [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
+- [ ] The old-address page (B13) on a real server behind HTTPS: open its IP address from a phone and a computer, with the browser in Portuguese and in English; the right language is first, the link opens the HTTPS address, and the page reads well in dark mode and at 390 px. Say whether a screen reader reads the link.
