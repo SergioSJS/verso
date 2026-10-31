@@ -15,7 +15,7 @@
 #     a server", ADR 0096). An app built before the window is the old window.
 #  2. Builds the bundle the way release.yml builds it: `tauri build --bundles
 #     app` with the beta's identifier and name (Info.plist merged, the .md
-#     document types, the icons, ui-web/ — whatever the configuration says),
+#     and data-file document types, the icons, ui-web/ — whatever the configuration says),
 #     then `verso` (the command line) beside `verso-app`, signed ad hoc.
 #     Natively (arch -arm64): an x86_64 Node under Rosetta breaks the native
 #     packages. `cargo clean -p verso-app` first, so the embedded window is
@@ -26,12 +26,15 @@
 #     .md document types, for one) never reached the beta.
 #  3. Checks the bundle against its sources before installing it: every key
 #     of app/src-tauri/Info.plist, the document types of the macOS
-#     configuration, the version, ui-web/ equal to app/ui/dist-web/, both
+#     configuration (Markdown and the data files of ADR 0114 item 31, each
+#     with its system type), the version, ui-web/ equal to app/ui/dist-web/, both
 #     binaries arm64, the signature.
 #  4. Quits the running beta (the process is verso-app, not "Verso Beta") and
 #     stops, replacing nothing, if it does not quit — unsaved work.
 #  5. Moves the old bundle aside (its path is printed, for a rollback),
-#     installs the new one, opens it, and waits for the log's
+#     installs the new one, asks macOS whether it offers the beta under
+#     "Open with" for a .md and each data file (.json, .yaml, .yml, .toml,
+#     .xml, .csv; ADR 0114 item 33), opens it, and waits for the log's
 #     "started <version> (<commit>)" line; an ERROR logged in the first
 #     seconds fails the script.
 set -euo pipefail
@@ -108,16 +111,19 @@ want = plistlib.load(open(sys.argv[1], "rb")); got = plistlib.load(open(sys.argv
 bad = [k for k, v in want.items() if got.get(k) != v]
 if bad: print("missing or different:", ", ".join(bad), file=sys.stderr); sys.exit(1)
 PY
-# The .md document types (ADR 0114 item 2), as the macOS configuration says.
+# The document types (ADR 0114 items 2 and 31), as the macOS configuration
+# says: Markdown and each data file, with its extensions, role, rank and
+# system type.
 node -e '
   const want = require("./app/src-tauri/tauri.macos.conf.json").bundle.fileAssociations;
   const got = JSON.parse(process.argv[1]);
   for (const a of want) {
     const t = got.find((d) => d.CFBundleTypeName === a.name);
-    if (!t || a.ext.some((e) => !t.CFBundleTypeExtensions.includes(e)) || t.CFBundleTypeRole !== a.role || t.LSHandlerRank !== a.rank)
+    if (!t || a.ext.some((e) => !(t.CFBundleTypeExtensions ?? []).includes(e)) || t.CFBundleTypeRole !== a.role || t.LSHandlerRank !== a.rank
+        || (a.contentTypes ?? []).some((c) => !(t.LSItemContentTypes ?? []).includes(c)))
       { console.error("document type " + a.name + " missing or different"); process.exit(1); }
   }
-' "$(plutil -extract CFBundleDocumentTypes json -o - "$plist" 2>/dev/null || echo '[]')" || fail "the bundle does not declare the .md document types"
+' "$(plutil -extract CFBundleDocumentTypes json -o - "$plist" 2>/dev/null || echo '[]')" || fail "the bundle does not declare the .md and data-file document types"
 diff -rq app/ui/dist-web "$new/Contents/Resources/ui-web" >/dev/null || fail "ui-web/ in the bundle is not app/ui/dist-web/"
 codesign --verify --deep --strict "$new"
 echo "bundle checked: identifier, version, Info.plist keys, document types, ui-web/, arm64, signature"
@@ -140,11 +146,21 @@ ditto "$new" "$APP"
 # Launch Services reads the new document types now, not at its next scan.
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
 diff -rq "$new" "$APP" >/dev/null || fail "the installed bundle is not the one checked${old:+ (previous bundle: $old)}"
-probe="$stage/probe.md"
-printf '# probe\n' > "$probe"
-osascript -l JavaScript -e 'ObjC.import("AppKit"); function run(a) { const l = $.NSWorkspace.sharedWorkspace.URLsForApplicationsToOpenURL($.NSURL.fileURLWithPath(a[0])); const o = []; for (let i = 0; i < l.count; i++) o.push(ObjC.unwrap(l.objectAtIndex(i).path)); return o.join("\n"); }' "$probe" | grep -qx "$APP" \
-  || fail "macOS does not offer Verso Beta under Open with for a .md"
-echo "installed: the checked bundle; offered under Open with for .md"
+# Offered under "Open with" for a .md and each data file (ADR 0114 items 2
+# and 33): asked of Launch Services for a file of each kind.
+for kind in md json yaml yml toml xml csv; do
+  probe="$stage/probe.$kind"
+  case "$kind" in
+    md) printf '# probe\n' ;;
+    json) printf '{"probe": 1}\n' ;;
+    yaml|yml|toml) printf 'probe = 1\n' ;;
+    xml) printf '<probe/>\n' ;;
+    csv) printf 'probe\n1\n' ;;
+  esac > "$probe"
+  osascript -l JavaScript -e 'ObjC.import("AppKit"); function run(a) { const l = $.NSWorkspace.sharedWorkspace.URLsForApplicationsToOpenURL($.NSURL.fileURLWithPath(a[0])); const o = []; for (let i = 0; i < l.count; i++) o.push(ObjC.unwrap(l.objectAtIndex(i).path)); return o.join("\n"); }' "$probe" | grep -qx "$APP" \
+    || fail "macOS does not offer Verso Beta under Open with for a .$kind"
+done
+echo "installed: the checked bundle; offered under Open with for .md .json .yaml .yml .toml .xml .csv"
 mark=0
 [ -f "$LOG" ] && mark="$(wc -l < "$LOG")"
 open "$APP"
