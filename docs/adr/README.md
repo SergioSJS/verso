@@ -151,7 +151,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
-| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01); the demo vault in English before V1 (decided 2026-10-21) |
+| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01); the demo vault in English before V1 (decided 2026-10-21); amended 2026-10-31: the site's wiki is made from the demo vaults |
 
 ### Open technical decisions
 

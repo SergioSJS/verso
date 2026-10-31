@@ -203,3 +203,33 @@ over; option B, equal keys, was not chosen.) **(E.1b, option A) the English
 screenshots are made when the interface stabilises, before V1**: the three
 server captures, the SVGs and the example PDF show the interface in
 Portuguese in both vaults today. Roadmap V.31.
+
+### Amendment (2026-10-31): the site's wiki is made from the demo vaults
+
+Source: the maintainer, in session, on 2026-10-31. A documentation wiki on the
+site (versomd.com) for anyone with a question, built so that a person can also
+paste its link into an AI assistant (ChatGPT, Gemini, Claude, Antigravity…) and
+the assistant can read it to answer; no chat inside the site; links that open
+an assistant with a prompt already filled in ("answer from this wiki, cite the
+page"). And: "caso a gente altere alguma regra, talvez tenha que visitar os
+arquivos de wiki também" (when a rule changes, the wiki's files may have to be
+visited too). The author's plan, accepted the same day ("Boa, pode fazer"):
+
+16. **The wiki has one source: the two demo vaults.** The site does not keep a
+    second copy written by hand: a script of the site's repository imports the
+    lessons of `demo-vault/` and `demo-vault-en/` as a snapshot it commits (the
+    repository of the app is private, so the site's build cannot read it), and
+    records the commit it came from. A page the wiki needs that the tutorial
+    lacks (questions, problems, installing the server) is written as a note of
+    the vaults, in both languages, like every lesson.
+17. **Written for an assistant as much as for a person**: every page is static
+    HTML readable without JavaScript and also served as Markdown (`.md`), with
+    `/llms.txt` (an index of the pages, one line each on what it answers) and
+    one `llms-full.txt` per language (the whole wiki in one file), so one link
+    is enough for an assistant that reads only the page it is given. Each step
+    a screenshot shows is also said in text.
+18. **When a lesson, or a rule or behaviour a lesson describes, changes, the
+    wiki is imported again** and the pages that describe it are read — in the
+    pull request of the change, as the lesson is (point 3). The wiki's own
+    pages of the site's repository (the index, the "ask an assistant" box) are
+    visited when what they say changes.
