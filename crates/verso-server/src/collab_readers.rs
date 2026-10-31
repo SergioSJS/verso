@@ -171,10 +171,11 @@ pub fn join(
         .service
         .with_key(&r.key, move |ws| Ok(ws.reader_read_text(&path)?.revision))?;
     let shown = text_of(shadow);
+    let whole = text_of(&r.doc);
     let rolls = r
         .rolls
         .iter()
-        .filter(|roll| visible(&shown, roll))
+        .filter(|roll| visible(&whole, &shown, roll))
         .cloned()
         .collect();
     r.clients.insert(client.to_owned());
@@ -237,16 +238,26 @@ pub fn presence(server: &Server, r: &Room, sender: &str, stamped: Vec<u8>) -> Ve
 }
 
 /// Whether a roll may be told to the readers in the shadow, whose text is
-/// `shown`: a roll from a random table only when the link to the table is
-/// in the projection, and any roll only when its dice are written there —
-/// a roll made from inside a secret block is the block's.
-fn visible(shown: &str, roll: &verso_contract::DiceRoll) -> bool {
-    let compact: String = shown.chars().filter(|c| !c.is_whitespace()).collect();
-    let dice = compact.contains(&roll.notation);
-    match &roll.source {
+/// `shown` (the room's own, `whole`): a roll from a random table only when
+/// the link to the table is in the projection, and any roll only when its
+/// dice are written there — a roll made from inside a secret block is the
+/// block's. And only when no die with its code is hidden: a code written
+/// both in a secret block and in the open names its die only by its place
+/// among them (`occurrence`, counted by the window), and the roll may be
+/// the hidden one's, so it is not told (ADR 0087 item 4 fails closed).
+fn visible(whole: &str, shown: &str, roll: &verso_contract::DiceRoll) -> bool {
+    let compact = |t: &str| -> String { t.chars().filter(|c| !c.is_whitespace()).collect() };
+    let (whole_c, shown_c) = (compact(whole), compact(shown));
+    let dice = shown_c.contains(&roll.notation);
+    let open = match &roll.source {
         Some(source) => dice && shown.contains(source.as_str()),
         None => dice,
+    };
+    let key = compact(roll.source.as_deref().unwrap_or(&roll.notation));
+    if key.is_empty() {
+        return open;
     }
+    open && whole_c.matches(key.as_str()).count() <= shown_c.matches(key.as_str()).count()
 }
 
 /// Whether the folder's readers may be told of `roll` made in `r`: always,
@@ -256,7 +267,7 @@ pub fn roll_is_open(r: &Room, roll: &verso_contract::DiceRoll) -> bool {
     r.readers
         .shadow
         .as_ref()
-        .is_none_or(|shadow| visible(&text_of(shadow), roll))
+        .is_none_or(|shadow| visible(&text_of(&r.doc), &text_of(shadow), roll))
 }
 
 /// Whether `r` has no secret blocks to keep from its readers.
@@ -279,7 +290,7 @@ pub fn roll(server: &Server, r: &Room, sender: &str, heard: &CollabRoll) {
     let Some(shadow) = r.readers.shadow.as_ref() else {
         return;
     };
-    if visible(&text_of(shadow), &heard.roll) {
+    if visible(&text_of(&r.doc), &text_of(shadow), &heard.roll) {
         server.push(&to, &json!({ "event": "collab-roll", "payload": heard }));
     }
 }

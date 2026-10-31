@@ -671,3 +671,74 @@ fn a_writer_made_a_reader_leaves_the_rooms_it_wrote_in() {
         assert_ne!(again["ok"]["epoch"], mine["ok"]["epoch"]);
     });
 }
+
+/// A die in a secret block and one in the open with the same code: the
+/// roll may be the secret one's, so a reader is told neither (ADR 0087
+/// item 4 fails closed), nor given it on joining; a code written only in
+/// the open is still told.
+#[test]
+fn a_roll_whose_code_is_also_in_a_secret_block_is_not_told_to_a_reader() {
+    block_on(async {
+        let (_r, mut owner, mut reader, _id) = folder_with_a_reader().await;
+        let text = "# Cripta\n\n> [!secret]\n> Armadilha: `dice: 1d20`\n\nPorta: `dice: 1d20`. Dano: `dice: 2d6`.\n";
+        let made = call(
+            &mut owner,
+            50,
+            "create_note",
+            json!({ "name": "Cripta", "text": text }),
+        )
+        .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        call(
+            &mut owner,
+            51,
+            "collab_join",
+            json!({ "path": "Cripta.md" }),
+        )
+        .await;
+        let theirs = ask(
+            &mut reader,
+            2,
+            "collab_join",
+            json!({ "path": "Cripta.md" }),
+        )
+        .await;
+        assert_eq!(theirs["ok"]["read_only"], true, "{theirs}");
+        for (id, notation) in [(52, "1d20"), (53, "2d6")] {
+            let rolled = call(
+                &mut owner,
+                id,
+                "collab_roll",
+                json!({ "path": "Cripta.md", "notation": notation, "source": null, "occurrence": 0 }),
+            )
+            .await;
+            assert!(rolled.get("ok").is_some(), "{rolled}");
+        }
+        let heard: Vec<String> = listen(&mut reader, 600)
+            .await
+            .into_iter()
+            .filter(|e| e["event"] == "collab-roll")
+            .map(|e| {
+                e["payload"]["roll"]["notation"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(heard, ["2d6"]);
+        let again = ask(
+            &mut reader,
+            3,
+            "collab_join",
+            json!({ "path": "Cripta.md" }),
+        )
+        .await;
+        let kept: Vec<&str> = again["ok"]["rolls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["notation"].as_str().unwrap_or_default())
+            .collect();
+        assert_eq!(kept, ["2d6"], "{again}");
+    });
+}
