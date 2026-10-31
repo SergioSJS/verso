@@ -142,6 +142,7 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m           # limite de memória: se acabar, o contêiner reinicia, a máquina não cai
     ports:
       - "7340:7340"                                 # todos os endereços: HTTP simples pela rede
     volumes:
@@ -193,6 +194,7 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m           # limite de memória: se acabar, o contêiner reinicia, a máquina não cai
     ports:
       - "7340:7340"
     volumes:

@@ -1760,3 +1760,7 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
 5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
 
+
+## Server hardening of 2026-10-31 (B9, B11, B13)
+
+1. The memory limit (B9): in note 24 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.

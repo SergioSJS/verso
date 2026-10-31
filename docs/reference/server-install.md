@@ -343,6 +343,7 @@ docker run -d --name universo --restart unless-stopped \
   -p 7340:7340 \
   --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
   --security-opt no-new-privileges:true \
+  --memory 768m \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_ADMIN_EMAIL=you@example.com \
@@ -430,6 +431,14 @@ built), by the maintainer's decision of 2026-10-16
 Plain HTTP on the home network is fine; anyone on that network can read
 what crosses it. For a proxy that alone should reach the port, change the
 line to `"127.0.0.1:7340:7340"`; HTTPS (section 8) is optional and later.
+
+The compose file limits the container's memory to 768 MB (`mem_limit: 768m`;
+`--memory 768m` in `docker run`), which suits a machine of 1 GB (ADR 0075,
+Amendment 2026-10-31). A note of 60 MB took a 1 GB server down by running it
+out of memory on 2026-10-29; with the limit, running out kills the container,
+which restarts (`restart: unless-stopped`), and not the host. On a larger
+machine raise it to about three quarters of the memory. The systemd package
+is not a container and has no such limit of its own.
 
 The compose file keeps the container's log to three files of 10 MB at most
 (`logging:` with Docker's `json-file` driver, `max-size: "10m"`,

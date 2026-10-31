@@ -461,6 +461,7 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m                                 # 1 GB machine: out of memory kills the container, not the host
     network_mode: host                              # instead of ports: (below)
     volumes:
       - type: bind

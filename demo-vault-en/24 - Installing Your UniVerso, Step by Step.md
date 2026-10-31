@@ -142,6 +142,7 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m           # memory limit: if it runs out, the container restarts, the machine does not go down
     ports:
       - "7340:7340"                                 # all addresses: plain HTTP over the network
     volumes:
@@ -193,6 +194,7 @@ services:
       - SETGID
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m           # memory limit: if it runs out, the container restarts, the machine does not go down
     ports:
       - "7340:7340"
     volumes:
