@@ -372,6 +372,22 @@ fn a_member_works_on_a_folder_over_the_websocket() {
         );
         let host_only = call(&mut ws, 8, "reveal", json!({ "path": "Sessao.md" })).await;
         assert_eq!(host_only["err"]["kind"], "refused");
+        // A server never runs a program (ADR 0115 items 6 and 23): no
+        // terminal in its answer, and its commands are not its own.
+        assert!(
+            !caps["ok"]["can"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("terminal"))
+        );
+        let shell = call(
+            &mut ws,
+            80,
+            "terminal_write",
+            json!({ "id": "x-1", "data": "ls\r" }),
+        )
+        .await;
+        assert_eq!(shell["err"]["kind"], "refused", "{shell}");
         // The key the window keeps opens the folder again.
         let key = info["ok"]["key"].as_str().unwrap();
         let again = call(&mut ws, 9, "reopen_folder", json!({ "key": key })).await;

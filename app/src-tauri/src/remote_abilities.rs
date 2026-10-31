@@ -12,13 +12,16 @@ use serde_json::{Value, json};
 /// opening of folders of this computer (ADR 0027, ADR 0076 item 11).
 /// "Show in Finder", "Copy full path" and the agents work on a path of this
 /// computer, which a server's folder has not: they stay absent there
-/// (ADR 0076 item 11; the agents are an open question, kept absent).
-const APP_ABILITIES: [&str; 5] = [
+/// (ADR 0076 item 11; the agents are an open question, kept absent). The
+/// terminal is this computer's shell, started in the person's home
+/// directory there (ADR 0115, Q4 decided 2026-10-31).
+const APP_ABILITIES: [&str; 6] = [
     "windows",
     "web_views",
     "updates",
     "devtools",
     "local_folders",
+    "terminal",
 ];
 
 /// The server's answer for a folder it holds, plus the abilities of this

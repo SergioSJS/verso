@@ -439,7 +439,12 @@ pub(crate) fn set_agent_visible<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn open_claude_download() -> Result<(), ContractError> {
-    const PAGE: &str = "https://claude.com/download";
+    open_page("https://claude.com/download")
+}
+
+/// A fixed address of this app's own, opened in the system's browser:
+/// Claude Desktop's download, an AI tool's install page (ADR 0115 item 14).
+pub(crate) fn open_page(page: &str) -> Result<(), ContractError> {
     #[cfg(target_os = "macos")]
     let mut command = std::process::Command::new("open");
     // Explorer hands an address to the default browser.
@@ -448,7 +453,7 @@ pub(crate) fn open_claude_download() -> Result<(), ContractError> {
     #[cfg(not(any(target_os = "macos", windows)))]
     let mut command = std::process::Command::new("xdg-open");
     command
-        .arg(PAGE)
+        .arg(page)
         .spawn()
         .map(|_| ())
         .map_err(|e| failed(e.to_string()))

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-terminal-detect"
+description = "Enables the terminal_detect command without any pre-configured scope."
+commands.allow = ["terminal_detect"]
+
+[[permission]]
+identifier = "deny-terminal-detect"
+description = "Denies the terminal_detect command without any pre-configured scope."
+commands.deny = ["terminal_detect"]
