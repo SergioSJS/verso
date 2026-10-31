@@ -179,21 +179,49 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-a
 /* ---------- A file opened without its folder (ADR 0114 items 9 and 21) ---------- */
 /* The loose-files window draws no tree, no ribbon and no folder tools: the
    capabilities say the side cannot (`cannot-*`), and the window's own class
-   hides what is the folder's by shape. One way back stays visible: the bar
-   above the panes, with "Open the whole folder in Verso". */
-.loose .side, .loose #side-divider, .loose .ribbon, .loose #toggle-side, .loose .status-keys [data-cmd="new"], .loose .status-keys [data-cmd="space"] { display: none; }
+   hides what is the folder's by shape — one pane, so no split either. One
+   way back stays visible: the bar above the panes, with "Open the whole
+   folder". */
+.loose .side, .loose #side-divider, .loose .ribbon, .loose #toggle-side, .loose .status-keys [data-cmd="new"], .loose .status-keys [data-cmd="split"], .loose .status-keys [data-cmd="space"], .loose .frame-strip, .loose .bottom-bar .bar-files, .loose .bottom-bar .bar-search, .loose .bottom-bar .bar-new { display: none; }
+/* The crumbs would show "/" alone, and their button a folder view this
+   window cannot list: the bar above names the file's folder. The row
+   stays, for the mode buttons at its end. */
+.loose .crumbs { visibility: hidden; }
 html.loose body, html.loose body.no-side { grid-template-columns: 0 0 0 1fr 0 var(--right-w, min(320px, 34vw)); }
 html.loose body.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
 html.loose .work { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "loose" "spaces" "notices" "panes" "status" "bar"; }
 .loose .right-tabs [data-tab="backlinks"], .loose .right-tabs [data-tab="tags"], .loose .right-tabs [data-tab="bookmarks"], .loose .right-tabs [data-tab="focuses"], .loose .right-tabs [data-tab="calendar"], .loose .right-tabs [data-tab="table"] { display: none; }
 .loose .pane-new, .loose .folder-button .folder-switch { display: none; }
-.loose-bar { grid-area: loose; display: flex; align-items: center; gap: .6rem; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); background: var(--paper-2); font-size: .82rem; min-width: 0; flex-wrap: wrap; }
+/* The bar is the window's top row, the height of a folder window's tab bar:
+   in a framed window (src/frame.ts) it is pushed clear of the window's
+   buttons and drags the window. One line that never wraps: the folder's
+   name gives way first, then the file's, then the buttons' words, each
+   with an ellipsis (the whole words are in the tooltips and the names). */
+.loose-bar { grid-area: loose; display: flex; align-items: center; gap: .4rem; box-sizing: border-box; height: 2.45rem; min-height: 2.45rem; padding: 0 clamp(.6rem, 2vw, 1.4rem); border-bottom: 1px solid var(--hair); background: var(--paper-2); font-size: .82rem; min-width: 0; overflow: hidden; white-space: nowrap; }
+/* macOS: the row of the system's buttons, centred on them as the side
+   bar's head is (css/frame.css). */
+.framed-mac:not(.frame-fullscreen) .loose-bar { height: max(37px, 2.45rem); min-height: max(37px, 2.45rem); padding-bottom: max(6px, calc(2.45rem - 31px)); }
 .loose-bar[hidden] { display: none; }
-.loose-name { font-weight: 600; }
-.loose-place { color: var(--ink-3); }
-.loose-known { display: inline-flex; align-items: center; gap: .4rem; }
-.loose-open-folder { margin-left: auto; }
-.cannot-index .ribbon-item[data-id="graph"], .cannot-index .ribbon-item[data-id="search"], .cannot-search .search-box, .cannot-backlinks .right-tabs [data-tab="backlinks"], .cannot-trash .ribbon-item[data-id="trash"], .cannot-table .right-tabs [data-tab="table"], .cannot-history .history-btn { display: none; }
+.loose-id { display: flex; align-items: baseline; gap: .45rem; flex: 1 1000 auto; min-width: 4.5rem; overflow: hidden; }
+.loose-id .icon { flex: none; align-self: center; width: 14px; height: 14px; color: var(--ink-3); }
+.loose-name { flex: 0 1 auto; min-width: 2.5rem; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--ink); }
+.loose-place { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); }
+.loose-bar > button { flex: 0 1 auto; min-width: 3.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: .25rem .6rem; border-radius: 6px; color: var(--ink-2); }
+.loose-bar > button:hover { background: var(--paper-3); color: var(--ink); }
+.loose-bar > button:focus-visible { outline-offset: -2px; }
+.loose-bar > .loose-known { color: var(--seal); font-weight: 600; }
+.loose-bar > .loose-open-folder { display: inline-flex; align-items: center; gap: .35rem; }
+.loose-open-folder .icon { display: none; flex: none; width: 15px; height: 15px; }
+.loose-open-folder .loose-label { overflow: hidden; text-overflow: ellipsis; }
+.loose-bar > button[hidden] { display: none; }
+/* A narrow window with both buttons: the whole folder's is its folder mark
+   (its name and tooltip keep the words), so the other keeps its words. */
+@media (max-width: 600px) {
+  .loose-bar > .loose-known:not([hidden]) + .loose-open-folder { flex: none; min-width: 0; padding: .3rem .45rem; }
+  .loose-known:not([hidden]) + .loose-open-folder .icon { display: block; }
+  .loose-known:not([hidden]) + .loose-open-folder .loose-label { display: none; }
+}
+.cannot-index .ribbon-item[data-id="graph"], .cannot-index .ribbon-item[data-id="search"], .cannot-search .search-box, .cannot-backlinks .right-tabs [data-tab="backlinks"], .cannot-trash .ribbon-item[data-id="trash"], .cannot-table .right-tabs [data-tab="table"], .cannot-history .status-history { display: none; }
 .embed-as-link { font-style: italic; }
 
 /* ---------- A folder's row on a finger (ADR 0060, 2026-10-30) ----------
