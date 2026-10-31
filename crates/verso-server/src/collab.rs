@@ -764,15 +764,32 @@ pub(crate) fn take(
 /// holds only those the room made. Another window's items are not judged:
 /// a connection's updates can reach the room in the other order, a
 /// deletion before the insert it deletes.
+///
+/// Nor an item of any client that starts past what the room holds of that
+/// client (the fuzz target `note` under `-O`, 2026-10-31,
+/// `seeds-note/a-run-past-the-clients-clock.bin`): a connection's updates
+/// reach the room in order, so a window's run always starts where the
+/// room's knowledge of its client ends, or before. `yrs` 0.28 took such a
+/// run in instead of keeping it aside, and an update that then covered
+/// the gap made it splice a run it had freed (AddressSanitizer's
+/// heap-use-after-free) — refused before `yrs` reads it.
 fn ahead_of_room(doc: &Doc, update: &Update) -> bool {
     let own = doc.client_id();
-    let made = doc.transact().state_vector().get(&own);
+    let held = doc.transact().state_vector();
+    let made = held.get(&own);
     let past = |set: &yrs::IdSet| {
         set.iter()
             .find(|(c, _)| **c == own)
             .is_some_and(|(_, ranges)| ranges.iter().any(|r| r.end > made))
     };
-    past(update.delete_set()) || past(&update.insertions(true))
+    let gap = update.insertions(true).iter().any(|(c, ranges)| {
+        ranges
+            .iter()
+            .map(|r| r.start)
+            .min()
+            .is_some_and(|start| start > held.get(c))
+    });
+    past(update.delete_set()) || past(&update.insertions(true)) || gap
 }
 
 /// What a room answers when `yrs` panicked on what a window sent (ADR

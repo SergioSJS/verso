@@ -586,6 +586,49 @@ fn an_item_of_the_rooms_own_client_ahead_of_it_is_refused() {
     assert_eq!(taken(&room, &whole), Ok(()));
 }
 
+/// Found by the fuzz target `note` under `-O` on 2026-10-31
+/// (`seeds-note/a-run-past-the-clients-clock.bin`): a window's run of a
+/// client the room held nothing of, starting at clock 4; `yrs` 0.28 took it
+/// in instead of keeping it aside, and a second update from clock 0 over
+/// it made `yrs` splice a run it had freed (AddressSanitizer's
+/// heap-use-after-free). A connection's updates reach the room in order,
+/// so no window's run starts past what the room holds of its client:
+/// refused before `yrs` reads it. The same run from where the room's
+/// knowledge ends is taken.
+#[test]
+fn a_run_past_what_the_room_holds_of_its_client_is_refused() {
+    let input = include_bytes!("../fuzz/seeds-note/a-run-past-the-clients-clock.bin");
+    let records = records(input);
+    let room = note_room(&String::from_utf8_lossy(records[0]));
+    assert_eq!(
+        taken(&room, records[3]),
+        Err("an update the room cannot read".to_owned())
+    );
+    note_through(input);
+    // A window's two edits, the second alone: past the room's clock of
+    // that window until the first is in.
+    let room = note_room("# Nota\n");
+    let window = window_of(&room, 7);
+    let text = window.get_or_insert_text(collab::TEXT);
+    let first = {
+        let mut txn = window.transact_mut();
+        yrs::Text::insert(&text, &mut txn, 0, "a");
+        txn.encode_update_v1()
+    };
+    let second = {
+        let mut txn = window.transact_mut();
+        yrs::Text::insert(&text, &mut txn, 1, "b");
+        txn.encode_update_v1()
+    };
+    assert_eq!(
+        taken(&room, &second),
+        Err("an update the room cannot read".to_owned())
+    );
+    assert_eq!(taken(&room, &first), Ok(()));
+    assert_eq!(taken(&room, &second), Ok(()));
+    assert_eq!(room_text(&room), "ab# Nota\n");
+}
+
 fn room_text(room: &Doc) -> String {
     use yrs::GetString;
     room.get_or_insert_text(collab::TEXT)
