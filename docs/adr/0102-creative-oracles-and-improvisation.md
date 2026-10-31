@@ -248,3 +248,23 @@ change, the server before the apps), and approved as recommended:
 change** as a room's roll landing on its own chip
 ([0088](0088-dice-and-random-tables.md), amendment of the same day); the
 server is deployed before the apps.
+
+*As built (2026-10-31).* The core's renderer (`verso-dialect`,
+`callouts.rs`) writes `data-oracle-line` on every `[!oracle]` callout: the
+1-based line of its `[!oracle]` head in the text given, frontmatter
+included, counted as `data-task-line` is (by `\n`), nested callouts too, a
+fenced example never. The reading view (`oracle/blocks.ts`) writes into the
+callout whose head is on that line of the text it was drawn from
+(`readingTargetOnLine`, `oracleBlockOnLine`), and refuses ("moved") when no
+oracle head is there; a view drawn without the attribute — `render_markdown`
+answered by a server not yet updated — finds the callout by its rank, as
+before. The window's sanitizer keeps the attribute; the harness's renderer
+writes it too. The contract's types did not change (the rendered HTML did),
+so `bindings.ts` regenerates unchanged; an old window drops the attribute
+and counts as before. The rank had a second fault, now gone with it: a
+reading view that drew only the blocks that changed (`paintBlocks`) wired
+the new callouts counting only those, so a button on an edited callout
+refused with "moved" or could name another callout (`oracle.spec.mjs`,
+seen failing first: the dialog never opened). A note's raw HTML may claim a
+`data-oracle-line`; the line is still checked to hold an oracle head of the
+note's own text, and nothing is written without the person's click.

@@ -323,3 +323,51 @@ test("M3: text typed exactly at the callout's start does not make it 'moved'", (
   const text = state.doc.toString();
   assert.ok(L.locateOracleCallout(text, t));
 });
+
+// The reading view finds the callout by its line (ADR 0102, amendment of
+// 2026-10-31): the core numbers each oracle callout's head
+// (`data-oracle-line`), and the window writes into the one on that line —
+// never the n-th, which a view drawn in part (only the changed blocks
+// wired) or a second callout counted wrong.
+await esbuild.build({
+  stdin: { contents: `export * from "./src/oracle/write";`, resolveDir: ".", loader: "ts" },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  external: ["@codemirror/state"],
+  outfile: "test/.bundles/oracle-write.test-bundle.mjs",
+  logLevel: "error",
+});
+const W = await import("./.bundles/oracle-write.test-bundle.mjs");
+const readingHost = (text, over = {}) => ({
+  editor: { state: { doc: { toString: () => text } } },
+  readOnly: false,
+  mode: "preview",
+  conflict: { up: false },
+  readerView: { on: false },
+  shownText: text,
+  save: async () => {},
+  ...over,
+});
+
+test("the reading view's callout is the one on its line, nested or after a fence", () => {
+  const note = "---\na: 1\n---\n> [!oracle] Um?\n> **Sim**\n\n```\n> [!oracle] não\n```\n\n> [!note]\n> > [!oracle] Dois?\n\n> [!oracle] Três?\n";
+  assert.equal(L.oracleBlockOnLine(note, 4).title, "Um?");
+  assert.equal(L.oracleBlockOnLine(note, 12).title, "Dois?");
+  assert.equal(L.oracleBlockOnLine(note, 14).title, "Três?");
+  // The fenced example, a body line, a line past the end: none.
+  for (const line of [8, 5, 11, 99, 0, -1, 1.5]) assert.equal(L.oracleBlockOnLine(note, line), null, `line ${line}`);
+  // CRLF counts lines as the core does.
+  assert.equal(L.oracleBlockOnLine("a\r\n\r\n> [!oracle] b\r\n", 3).title, "b");
+
+  const found = W.readingTargetOnLine(readingHost(note), 14);
+  assert.equal(found.question, "Três?");
+  assert.equal(found.target.from, note.indexOf("> [!oracle] Três?"));
+  assert.ok(found.target.text.startsWith("> [!oracle] Três?"));
+  // Not an oracle head on that line any more: nothing is guessed.
+  assert.deepEqual(W.readingTargetOnLine(readingHost(note), 5), { why: "moved" });
+  // The view drawn from other text, a read-only note, a reader's view.
+  assert.deepEqual(W.readingTargetOnLine(readingHost(note, { shownText: note + "x" }), 14), { why: "stale" });
+  assert.deepEqual(W.readingTargetOnLine(readingHost(note, { readOnly: true }), 14), { why: "readOnly" });
+  assert.deepEqual(W.readingTargetOnLine(readingHost(note, { readerView: { on: true } }), 14), { why: "readerView" });
+});
