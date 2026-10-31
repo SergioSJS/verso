@@ -310,3 +310,94 @@ fn the_sweep_expires_old_entries_and_keeps_the_bin_under_the_quota() {
         assert!(acts.contains(&"trash_over_quota".to_owned()), "{acts:?}");
     });
 }
+
+/// B11 (ADR 0080, decided 2026-10-31): a bin is kept under the server's size
+/// cap, the oldest entries out first, and the sweep removes exactly those
+/// entries of `.trash/`: a live note of the same name and the other notes
+/// stay.
+#[test]
+fn the_sweep_keeps_the_bin_under_the_size_cap_oldest_first_and_only_the_bin() {
+    block_on(async {
+        let r = crate::tests::start_with(|c| c.trash_max = Some(100)).await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = opened(&r, &b, &id).await;
+        let mut n = 2;
+        for (name, len) in [("antiga", 60), ("media", 60), ("nova", 60)] {
+            call(
+                &mut ws,
+                n,
+                "create_note",
+                json!({ "name": name, "text": "x".repeat(len) }),
+            )
+            .await;
+            call(
+                &mut ws,
+                n + 1,
+                "delete_note",
+                json!({ "path": format!("{name}.md") }),
+            )
+            .await;
+            n += 2;
+        }
+        // A live note with the oldest entry's name, made after its deletion.
+        call(
+            &mut ws,
+            n,
+            "create_note",
+            json!({ "name": "antiga", "text": "viva" }),
+        )
+        .await;
+        let day = verso_core::trash::DAY;
+        let now = verso_core::trash::now();
+        for (name, age) in [("antiga.md", 3), ("media.md", 2), ("nova.md", 1)] {
+            r.server
+                .db
+                .put_trash_record(
+                    &id,
+                    &verso_core::trash::record(
+                        &format!(".trash/{name}"),
+                        name,
+                        now - age * day,
+                        Some("Admin"),
+                        false,
+                    ),
+                )
+                .unwrap();
+        }
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        // 180 bytes against 100: the two oldest go, none by age (all within
+        // 30 days) and none by quota (there is none).
+        assert!(!in_bin(&r, ".trash/antiga.md"));
+        assert!(!in_bin(&r, ".trash/media.md"));
+        assert!(in_bin(&r, ".trash/nova.md"));
+        let acts = actions(&r, &id);
+        assert_eq!(
+            acts.iter().filter(|a| *a == "trash_over_cap").count(),
+            2,
+            "{acts:?}"
+        );
+        assert!(!acts.contains(&"trash_expired".to_owned()), "{acts:?}");
+        assert!(!acts.contains(&"trash_over_quota".to_owned()), "{acts:?}");
+        // Outside the bin nothing moved: the live note and the folder's own.
+        for (call_id, path, text) in [(900, "antiga.md", "viva"), (901, "Sessao.md", "# Sessao\n")]
+        {
+            let note = call(&mut ws, call_id, "read_note", json!({ "path": path })).await;
+            assert_eq!(note["ok"]["text"], text, "{note}");
+        }
+        // Under the cap a second sweep removes nothing more.
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        let again = tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(again.removed.is_empty());
+        assert!(in_bin(&r, ".trash/nova.md"));
+    });
+}

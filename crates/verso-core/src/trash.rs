@@ -196,13 +196,22 @@ pub enum Why {
     Expired,
     /// Early: the bin alone was larger than the folder's quota (item 8).
     OverQuota,
+    /// Early: the bin alone was larger than the server's size cap for a bin
+    /// (ADR 0080, decided 2026-10-31).
+    OverCap,
 }
 
 /// The entries that go now: each past `days` (0 keeps them forever), then,
-/// with a quota, the oldest of the rest while the bin alone is larger than
-/// it.
+/// with a quota or a size `cap`, the oldest of the rest while the bin alone
+/// is larger than the smaller of the two (the quota wins a tie).
 #[must_use]
-pub fn due(items: &[TrashItem], now: i64, days: u32, quota: Option<u64>) -> Vec<(String, Why)> {
+pub fn due(
+    items: &[TrashItem],
+    now: i64,
+    days: u32,
+    quota: Option<u64>,
+    cap: Option<u64>,
+) -> Vec<(String, Why)> {
     let mut out = Vec::new();
     let mut kept: Vec<&TrashItem> = Vec::new();
     for item in items {
@@ -211,7 +220,13 @@ pub fn due(items: &[TrashItem], now: i64, days: u32, quota: Option<u64>) -> Vec<
             _ => kept.push(item),
         }
     }
-    if let Some(quota) = quota {
+    let bound = match (quota, cap) {
+        (Some(q), Some(c)) if c < q => Some((c, Why::OverCap)),
+        (Some(q), _) => Some((q, Why::OverQuota)),
+        (None, Some(c)) => Some((c, Why::OverCap)),
+        (None, None) => None,
+    };
+    if let Some((limit, why)) = bound {
         kept.sort_by(|a, b| {
             a.since()
                 .cmp(&b.since())
@@ -219,11 +234,11 @@ pub fn due(items: &[TrashItem], now: i64, days: u32, quota: Option<u64>) -> Vec<
         });
         let mut total: u64 = kept.iter().map(|i| i.size).sum();
         for item in kept {
-            if total <= quota {
+            if total <= limit {
                 break;
             }
             total = total.saturating_sub(item.size);
-            out.push((item.record.path.clone(), Why::OverQuota));
+            out.push((item.record.path.clone(), why));
         }
     }
     out
@@ -256,12 +271,13 @@ pub fn sweep(
     now: i64,
     days: u32,
     quota: Option<u64>,
+    cap: Option<u64>,
 ) -> Result<Swept, String> {
     let found = trashbin::walk(folder).map_err(|e| e.to_string())?;
     let items = reconcile(&found, book, now)?;
     let mut swept = Swept::default();
     let mut gone: HashSet<String> = HashSet::new();
-    for (path, why) in due(&items, now, days, quota) {
+    for (path, why) in due(&items, now, days, quota, cap) {
         match trashbin::purge(folder, Path::new(&path)) {
             Ok(()) => {
                 book.forget(&path)?;
@@ -489,7 +505,7 @@ impl Workspace {
     pub fn sweep_trash(&mut self, now: i64) -> Result<Swept, CoreError> {
         let days = self.trash_days();
         let folder = self.folder.clone();
-        let swept = sweep(&folder, &mut self.index, now, days, None)
+        let swept = sweep(&folder, &mut self.index, now, days, None, None)
             .map_err(|e| CoreError::Folder(std::io::Error::other(e)))?;
         let _ = self.index.set_trash_swept(now);
         Ok(swept)

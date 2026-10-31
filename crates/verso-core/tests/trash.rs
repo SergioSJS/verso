@@ -103,13 +103,13 @@ fn item(path: &str, since: i64, size: u64) -> TrashItem {
 fn an_entry_goes_after_its_time_and_never_before() {
     let items = vec![item(".trash/a", 0, 1), item(".trash/b", 10 * DAY, 1)];
     let at = |days: i64| days * DAY;
-    assert!(due(&items, at(29), 30, None).is_empty());
+    assert!(due(&items, at(29), 30, None, None).is_empty());
     assert_eq!(
-        due(&items, at(30), 30, None),
+        due(&items, at(30), 30, None, None),
         vec![(".trash/a".to_owned(), Why::Expired)]
     );
     // Forever keeps everything.
-    assert!(due(&items, at(10_000), 0, None).is_empty());
+    assert!(due(&items, at(10_000), 0, None, None).is_empty());
 }
 
 #[test]
@@ -121,11 +121,55 @@ fn the_oldest_go_early_while_the_bin_alone_passes_the_quota() {
     ];
     assert!(over_quota(&items, Some(100)));
     assert_eq!(
-        due(&items, 4 * DAY, 30, Some(100)),
+        due(&items, 4 * DAY, 30, Some(100), None),
         vec![(".trash/velha".to_owned(), Why::OverQuota)]
     );
-    assert!(due(&items, 4 * DAY, 30, Some(120)).is_empty());
+    assert!(due(&items, 4 * DAY, 30, Some(120), None).is_empty());
     assert!(!over_quota(&items, None));
+}
+
+/// B11 (ADR 0080, 2026-10-31): a size cap of the server, the oldest out first,
+/// under the age cap and beside the quota's guard.
+#[test]
+fn the_oldest_go_first_while_the_bin_passes_the_size_cap() {
+    let items = vec![
+        item(".trash/nova", 3 * DAY, 40),
+        item(".trash/media", 2 * DAY, 40),
+        item(".trash/velha", DAY, 40),
+    ];
+    // 120 bytes against a cap of 100: only the oldest goes, and it is the
+    // cap's doing.
+    assert_eq!(
+        due(&items, 4 * DAY, 30, None, Some(100)),
+        vec![(".trash/velha".to_owned(), Why::OverCap)]
+    );
+    // Two to go: the oldest two, oldest first.
+    assert_eq!(
+        due(&items, 4 * DAY, 30, None, Some(40)),
+        vec![
+            (".trash/velha".to_owned(), Why::OverCap),
+            (".trash/media".to_owned(), Why::OverCap),
+        ]
+    );
+    // Exactly at the cap stays.
+    assert!(due(&items, 4 * DAY, 30, None, Some(120)).is_empty());
+    // The age still goes first, and its entries do not count against the cap.
+    assert_eq!(
+        due(&items, 31 * DAY + DAY, 30, None, Some(100)),
+        vec![
+            (".trash/media".to_owned(), Why::Expired),
+            (".trash/velha".to_owned(), Why::Expired),
+        ]
+    );
+    // With a quota too, the smaller bound rules and names itself.
+    assert_eq!(
+        due(&items, 4 * DAY, 30, Some(100), Some(500)),
+        vec![(".trash/velha".to_owned(), Why::OverQuota)]
+    );
+    assert_eq!(
+        due(&items, 4 * DAY, 30, Some(500), Some(100)),
+        vec![(".trash/velha".to_owned(), Why::OverCap)]
+    );
 }
 
 #[test]
@@ -190,7 +234,7 @@ fn the_sweep_removes_only_what_is_due_and_only_in_the_bin() {
         .unwrap();
     book.put(&record(".trash/nova.md", "nova.md", 20 * DAY, None, false))
         .unwrap();
-    let swept = sweep(root, &mut book, 31 * DAY, 30, None).unwrap();
+    let swept = sweep(root, &mut book, 31 * DAY, 30, None, None).unwrap();
     let gone: Vec<&str> = swept
         .removed
         .iter()
@@ -202,7 +246,7 @@ fn the_sweep_removes_only_what_is_due_and_only_in_the_bin() {
     assert_eq!(std::fs::read_to_string(root.join("viva.md")).unwrap(), "v");
     assert_eq!((swept.count, swept.size), (1, 1));
     // Later, its time come.
-    let swept = sweep(root, &mut book, 50 * DAY, 30, None).unwrap();
+    let swept = sweep(root, &mut book, 50 * DAY, 30, None, None).unwrap();
     assert!(swept.failed.is_empty(), "{:?}", swept.failed);
     assert!(in_bin(root).is_empty());
     assert_eq!(std::fs::read_to_string(root.join("viva.md")).unwrap(), "v");

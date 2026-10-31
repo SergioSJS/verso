@@ -309,3 +309,20 @@ going first, with the replaced versions of item 12 under both caps. The size
 and how it relates to item 8 (the oldest expiring early when the trash alone
 passes the quota) are the build's, said in its As built. Read by the author as
 above; the answer's words were only "age/size (e.g. 30 days)".
+
+**As built (2026-10-31, B11).** The cap is the server's, one number for every
+folder's bin: `VERSO_TRASH_MAX` (a size as `VERSO_FOLDER_QUOTA` is written;
+`0` or `none` for no cap), **1 GiB by default**, a choice of the build because
+the answer gave no figure. `verso_core::trash::due` takes it beside the
+quota: after the age (item 3) the oldest entries of what is left go while the
+bin alone is larger than the **smaller** of the quota and the cap; a tie
+names the quota. The replaced versions of item 12 are entries of the bin like
+the others, so both caps and the age apply to them. A removal by the cap is
+logged and audited as `trash_over_cap` (`trash_over_quota` and
+`trash_expired` as before). Item 8's early expiry is therefore one rule with
+two bounds; the console's `early` flag is true when either is passed. What
+is removed is only an entry the walk of `.trash/` found, by its exact path
+through `verso_fs::trashbin::purge`, which refuses a path outside the bin;
+no pattern or prefix match is involved, and a test keeps a live note of the
+name of a purged entry. The desktop's own bin (`Workspace::sweep_trash`) has
+no size cap: the decision was about the server's trash.
