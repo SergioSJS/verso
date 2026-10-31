@@ -90,6 +90,7 @@ Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincroniz
 - uma mudança de um lado vai para o outro — ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; sem rede, ela espera;
 - arquivos grandes vão **em pedaços**, e só são gravados quando chegam inteiros;
 - **na primeira vez nada é apagado**: o que só um lado tem vai para o outro;
+- um arquivo **renomeado ou movido** de um lado — aqui, no navegador, em outro aparelho — é renomeado do outro também, nunca apagado e criado de novo, mesmo quando foi editado logo antes; uma nota aberta numa aba vai junto para o novo nome. Se este computador o editou nesse meio-tempo, a edição vai junto para o novo nome (editado dos dois lados: um conflito com o novo nome); se o novo nome já é de outro arquivo aqui, os dois ficam;
 - se os dois lados mudaram o mesmo arquivo, é um **conflito**: a versão do servidor fica com o nome, e a deste computador fica ao lado, como `Nota (conflito, Mac, 2026-10-10 15.34).md`. Em Ajustes › Sincronizar, a lista de conflitos mostra **a diferença**; junte à mão e apague a cópia;
 - se os dois lados só **acrescentaram linhas ao fim** de uma nota, não é conflito: as linhas se juntam numa nota só, as do servidor primeiro, e a atividade recente diz *juntado*;
 - um nome com acento é **um arquivo só** em todo lugar, mesmo que um sistema guarde o `é` inteiro e outro como `e` mais o acento (como os Macs antigos gravavam): cada computador fica com a grafia que o seu sistema deu ao nome, e o mesmo arquivo mudado dos dois lados é um conflito;

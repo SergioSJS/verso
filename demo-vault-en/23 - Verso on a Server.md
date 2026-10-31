@@ -90,6 +90,7 @@ With the folder open, the shortest way is **Settings › Servers › Sync ‘you
 - a change on one side goes to the other — on save, when the server signals, on reconnect and every five minutes; with no network, it waits;
 - large files go **in pieces**, and are only written once they arrive whole;
 - **the first time nothing is deleted**: what only one side has goes to the other;
+- a file **renamed or moved** on one side — here, in the browser, on another device — is renamed on the other too, never deleted and made again, even when it was also edited just before; a note open in a tab follows it to its new name. If this computer edited it meanwhile, the edit goes with it to the new name (edited on both sides: a conflict under the new name); if the new name is already another file's here, both are kept;
 - if both sides changed the same file, it is a **conflict**: the server's version keeps the name, and this computer's sits beside it, like `Note (conflict, Mac, 2026-10-10 15.34).md`. In Settings › Sync, the list of conflicts shows **the difference**; merge by hand and delete the copy;
 - if both sides only **added lines to the end** of a note, it is not a conflict: the lines are joined into a single note, the server's first, and recent activity says *merged*;
 - a name with an accent is **a single file** everywhere, even if one system stores the `é` whole and another as `e` plus the accent (as old Macs wrote it): each computer keeps the spelling its system gave the name, and the same file changed on both sides is a conflict;
