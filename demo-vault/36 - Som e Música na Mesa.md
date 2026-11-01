@@ -115,6 +115,6 @@ Numa pasta só deste computador não há mesa, mas a aba Música funciona do mes
 
 ---
 
-As duas faixas de amostra (`assets/sons/`) foram feitas para o Verso e estão em domínio público (CC0 1.0).
+As duas faixas de amostra (`assets/sons/`) são de **RandomMind**, em domínio público (CC0 1.0): `taverna.mp3` é “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) e `estrada.mp3` é “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), as versões em loop, regravadas em mono para pesar pouco.
 
 Volte à [[34 - UniVerso num Servidor Grátis da Oracle]] ou a [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].

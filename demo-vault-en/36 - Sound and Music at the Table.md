@@ -115,6 +115,6 @@ In a folder of this computer alone there is no table, but the Music tab works th
 
 ---
 
-The two sample tracks (`assets/sons/`) were made for Verso and are in the public domain (CC0 1.0).
+The two sample tracks (`assets/sons/`) are by **RandomMind**, in the public domain (CC0 1.0): `taverna.mp3` is “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) and `estrada.mp3` is “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), their loop versions, re-encoded in mono to weigh little.
 
 Go back to [[34 - UniVerso on a Free Oracle Server]] or to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
