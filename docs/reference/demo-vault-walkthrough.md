@@ -1795,3 +1795,15 @@ On a UniVerso, with the owner's account and an editor's (two browsers, or the br
 5. As the share's receiver (editor of `Mesa`): no delete offered either. Level: A; E: `tests_owner_deletes.rs`.
 6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
 7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
+
+## Compatibility with Obsidian and the NAS or VPS install (notes 37 and 38, 2026-10-31)
+
+Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), are paired in `scripts/demo-vault/names.mjs`, sit in the Tour (cards in *Arquivos* and *Num servidor*) and in note 00's list.
+
+1. Open the Tour board: the *Arquivos* group has a card for note 37 and the *Num servidor* group one for note 38, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
+2. Note 34 ends with a link to note 37, and note 37 ends with one to note 38 (the check refuses a chain that skips). Level: H.
+3. Note 37, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
+4. Note 37 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
+5. Note 38, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
+6. Note 38, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
+7. Note 38 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
