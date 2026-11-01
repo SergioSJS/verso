@@ -48,7 +48,7 @@ import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
 import { installServerTable } from "./table/join";
 import { installTableSound } from "./table/sound/run";
-import { installStatusItem } from "./table/sound/strip";
+import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";

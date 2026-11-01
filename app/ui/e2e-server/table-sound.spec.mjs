@@ -54,6 +54,17 @@ function watch(page) {
   return { heard, asked };
 }
 
+/** The Music tab of the window, open (ADR 0116 as amended 2026-10-31). */
+async function music(page) {
+  await page.evaluate(() => document.body.classList.remove("no-right"));
+  await page.locator("#right-tabs").getByRole("tab", { name: /^Música/ }).click();
+  const view = page.locator(".music-view");
+  await expect(view).toBeVisible({ timeout: 30_000 });
+  return view;
+}
+
+const title = (view) => view.locator(".music-title");
+
 test.use({ actionTimeout: 15_000 });
 
 test("the game master's music reaches the players who see the file, and nothing of a hidden one reaches anyone else", async ({ browser, page: gm }, info) => {
@@ -70,26 +81,36 @@ test("the game master's music reaches the players who see the file, and nothing 
     const seen = players.map(watch);
     for (const p of players) await openFolder(p, s.folder.id);
     await openFolder(gm, s.folder.id);
-    const gmStrip = (await mesa(gm)).locator(".table-sound");
-    const strips = [];
-    for (const p of players) strips.push((await mesa(p)).locator(".table-sound"));
-    for (const strip of strips) {
-      await expect(strip).toContainText("Nada tocando");
-      await expect(strip.getByRole("button", { name: "Tocar um arquivo…" })).toHaveCount(0);
+    await mesa(gm);
+    const gmView = await music(gm);
+    const views = [];
+    for (const p of players) {
+      await mesa(p);
+      views.push(await music(p));
+    }
+    for (const view of views) {
+      await expect(view).toContainText("Nada tocando");
+      await expect(view.getByRole("button", { name: /^Tocar “/ })).toHaveCount(0);
     }
 
     // A file the table sees: everyone's window plays it from /f/.
-    await gmStrip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-    await gm.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: "taverna" }).click();
-    await expect(gmStrip.locator(".table-sound-name")).toHaveText("taverna");
-    for (const [i, strip] of strips.entries()) {
-      await expect(strip.locator(".table-sound-name")).toHaveText("taverna", { timeout: 20_000 });
-      for (const name of ["Pausar", "Parar", "Próxima faixa da cena"]) await expect(strip.getByRole("button", { name })).toHaveCount(0);
-      await expect(strip.getByRole("slider", { name: "Seu volume" })).toBeVisible();
+    await gmView.locator(".music-folders").getByRole("button", { name: "Tocar “taverna”" }).click();
+    await expect(title(gmView)).toHaveText("taverna");
+    for (const [i, view] of views.entries()) {
+      await expect(title(view)).toHaveText("taverna", { timeout: 20_000 });
+      for (const name of ["Pausar", "Parar", "Próxima faixa"]) await expect(view.getByRole("button", { name })).toBeHidden();
+      await expect(view.getByRole("slider", { name: "Seu volume" })).toBeVisible();
       await expect.poll(() => players[i].evaluate(() => document.querySelector("audio.table-sound-audio")?.getAttribute("src") ?? null)).toBe(`/f/${s.folder.id}/M%C3%BAsica/taverna.wav`);
     }
-    await gmStrip.getByRole("button", { name: "Pausar" }).click();
-    for (const strip of strips) await expect(strip.locator(".table-sound-said")).toHaveText("Pausado: taverna", { timeout: 20_000 });
+    // The Table tab's one row: the name and the player's own volume.
+    await players[0].locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+    const mini = players[0].locator(".table-view .table-mini");
+    await expect(mini.locator(".table-mini-name")).toHaveText("taverna");
+    await expect(mini.getByRole("button", { name: "Pausar" })).toBeHidden();
+    await expect(mini.getByRole("button", { name: "Volume", exact: true })).toBeVisible();
+    views[0] = await music(players[0]);
+    await gmView.getByRole("button", { name: "Pausar" }).click();
+    for (const view of views) await expect(view.locator(".table-sound-said")).toHaveText("Pausado: taverna", { timeout: 20_000 });
     // A player's control is refused by the server, whatever the window shows.
     const refused = await players[0].evaluate(async () => {
       try {
@@ -102,24 +123,25 @@ test("the game master's music reaches the players who see the file, and nothing 
     expect(refused).toContain("only the game master");
 
     // A file no player sees: the game master is asked, and plays it without them.
-    await gmStrip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-    await gm.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: SECRET }).click();
+    await gmView.locator(".music-folders").getByRole("button", { name: `Tocar “${SECRET}”` }).click();
     const ask = gm.getByRole("alertdialog");
     await expect(ask).toContainText("2 jogadores não veem este arquivo");
     await expect(ask).toContainText("Ana");
     await expect(ask).toContainText("Bruno");
     await ask.getByRole("button", { name: "Tocar sem eles" }).click();
-    await expect(gmStrip.locator(".table-sound-name")).toHaveText(SECRET);
-    await expect(gmStrip).toContainText("Não ouvem (não veem o arquivo): ");
-    for (const [i, strip] of strips.entries()) {
-      await expect(strip.locator(".table-sound-name")).toHaveText("uma faixa que você não vê", { timeout: 20_000 });
+    await expect(title(gmView)).toHaveText(SECRET);
+    await expect(gmView).toContainText("Não ouvem (não veem o arquivo): ");
+    for (const [i, view] of views.entries()) {
+      await expect(title(view)).toHaveText("uma faixa que você não vê", { timeout: 20_000 });
+      await expect(view.locator(".music-why")).toBeVisible();
       await expect.poll(() => players[i].evaluate(() => document.querySelector("audio.table-sound-audio")?.getAttribute("src") ?? null)).toBe(null);
     }
     // A player who joins late is told the same, and nothing more.
     await players[1].reload();
     await expect(players[1].locator("#notes li").first()).toBeVisible({ timeout: 30_000 });
-    const late = (await mesa(players[1])).locator(".table-sound");
-    await expect(late.locator(".table-sound-name")).toHaveText("uma faixa que você não vê", { timeout: 20_000 });
+    await mesa(players[1]);
+    const late = await music(players[1]);
+    await expect(title(late)).toHaveText("uma faixa que você não vê", { timeout: 20_000 });
     await players[1].waitForTimeout(1500);
     for (const { heard, asked } of seen) {
       for (const frame of heard) expect(frame, "a frame a player received").not.toContain(SECRET);

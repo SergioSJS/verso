@@ -17,6 +17,7 @@ import { ui } from "../../dom";
 import { askUnheard } from "./ask";
 import { onSound, playTrack, sound, soundOn } from "./run";
 import { headingBefore, isAudio, sceneUnder, scenesOf, trackName } from "./scene";
+import { asScene } from "./library";
 import { st } from "./strings";
 
 /** What a play button needs of its note. */
@@ -42,7 +43,9 @@ export function soundButton(path: string, host: SoundHost, heading: () => string
     e.preventDefault();
     e.stopPropagation();
     const resolve = (target: string) => resolveFileByName(target, host.path());
-    const scene = sceneUnder(scenesOf(host.text(), resolve), path, heading());
+    const found = sceneUnder(scenesOf(host.text(), resolve), path, heading());
+    // The list is known by its note and heading ("Trilha › Taverna").
+    const scene = found ? asScene({ kind: "note", source: host.path(), scene: found.name, tracks: found.tracks }, "") : null;
     void playTrack(path, scene, askUnheard).then((err) => {
       if (err) ui.status.textContent = err;
     });

@@ -36,6 +36,8 @@ export function setAllNotes(value: string[]): void {
 export let allFiles: string[] = [];
 export function setAllFiles(value: string[]): void {
   allFiles = value;
+  // Who lists the folder's files by kind (the Music tab's library) hears it.
+  if (typeof dispatchEvent === "function") dispatchEvent(new Event("verso:files-listed"));
 }
 export const allEntries = new Map<string, FileEntry>();
 /** Notes that are web pages: path → address (the tree and tabs show the site's icon). */

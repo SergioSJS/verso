@@ -1,24 +1,63 @@
-/* The table's music (ADR 0116 item 24): a strip at the top of the Table panel, the first row of the phone's sheet. */
-.table-sound { flex: none; display: flex; flex-direction: column; gap: .25rem; padding: .3rem .4rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); font-size: .8rem; color: var(--ink-2); min-width: 0; }
-.table-sound[hidden] { display: none; }
-.table-sound:focus { outline: none; }
-.table-sound-row, .table-sound-own { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .35rem; min-width: 0; }
-.table-sound-own[hidden] { display: none; }
-.table-sound .iconic { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
-.table-sound .iconic[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
-.table-sound .iconic:disabled { opacity: .4; }
-.table-sound-name { flex: 1 1 6rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 600; }
-.table-sound-time { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-3); }
-.table-sound-bar { flex: 1 0 100%; min-width: 0; margin: 0; accent-color: var(--seal); }
-.table-sound-master, .table-sound-volume { flex: 1 1 5rem; min-width: 4rem; max-width: 9rem; accent-color: var(--seal); }
-.table-sound-label { color: var(--ink-3); font-size: .74rem; }
-.table-sound-follow-box { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
-.table-sound-notes:empty { display: none; }
-.table-sound-note { margin: 0; color: var(--ink-3); font-size: .74rem; }
-.table-sound-note.quiet { font-style: italic; }
-.table-sound-nothing { color: var(--ink-3); }
-.table-sound-hear { align-self: flex-start; }
-.table-sound-pick-button { display: inline-flex; align-items: center; gap: .35rem; }
+/* The table's music (ADR 0116, amended 2026-10-31): the Music tab of the right panel, a one-row mini-player in the Table tab, the status item. */
+
+/* The Table tab's mini-player: ONE slim row while something plays (≤ 36 px; ≤ 40 px on a phone). */
+.table-mini { flex: none; position: relative; display: flex; align-items: center; gap: .1rem; min-width: 0; height: 32px; padding: 0 .15rem 0 .1rem; border: 1px solid var(--hair); border-radius: 7px; background: var(--paper-2, var(--paper)); font-size: .8rem; color: var(--ink-2); }
+.table-mini[hidden] { display: none; }
+.table-mini .iconic { width: 28px; height: 28px; min-width: 28px; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.table-mini .iconic[hidden] { display: none; }
+.table-mini .iconic:disabled { opacity: .4; }
+.table-mini-name { flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font: inherit; font-weight: 600; color: var(--ink); border-radius: 6px; }
+.table-mini-name.unseen, .music-title.unseen { font-weight: 400; font-style: italic; color: var(--ink-3); }
+.table-mini-pop { position: absolute; z-index: 5; right: 0; top: calc(100% + 4px); display: flex; align-items: center; gap: .3rem; padding: .35rem .5rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 8px 24px -10px oklch(0% 0 0 / .35); }
+.table-mini-pop[hidden] { display: none; }
+.table-mini-own { width: 9rem; accent-color: var(--seal); }
+
+/* The Music tab: looks like the panel's other tabs (panel-sub headings, panel-list rows). */
+.music-view { display: flex; flex-direction: column; gap: .35rem; min-width: 0; font-family: var(--ui); }
+.music-now { display: flex; flex-direction: column; gap: .3rem; padding: 0 .5rem .5rem; border-bottom: 1px solid var(--hair); }
+.music-now:focus { outline: none; }
+.music-head { margin: .4rem 0 .1rem; }
+.music-title { font-size: 1rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.music-from { font-size: .78rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.music-why, .music-empty, .music-hint { margin: 0; font-size: .82rem; color: var(--ink-3); font-family: var(--book); font-style: italic; }
+.music-empty, .music-hint { padding: .2rem .5rem; }
+.music-now .music-empty { padding: 0; }
+.music-time-row { display: flex; align-items: center; gap: .45rem; }
+.music-bar { flex: 1 1 auto; min-width: 0; accent-color: var(--seal); }
+.music-time { flex: none; font-size: .76rem; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.music-buttons { display: flex; align-items: center; gap: .2rem; }
+.music-buttons .iconic { width: 2rem; height: 2rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.music-buttons .music-toggle { width: 2.4rem; height: 2.4rem; color: var(--seal); border: 1px solid var(--hair); border-radius: 50%; }
+.music-buttons .music-loop { margin-left: auto; }
+.music-view .iconic[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.music-view .iconic:disabled { opacity: .4; }
+.music-volumes { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; }
+.music-volume-row { display: flex; align-items: center; gap: .35rem; }
+.music-volume-row[hidden] { display: none; }
+.music-volume-row input[type=range] { flex: 1 1 auto; min-width: 0; accent-color: var(--seal); }
+.music-volume-row .iconic { width: 1.8rem; height: 1.8rem; display: inline-grid; place-items: center; padding: 0; }
+.music-label { flex: 0 0 6.5rem; color: var(--ink-3); }
+.music-follow-box { display: inline-flex; align-items: center; gap: .3rem; color: var(--ink-2); }
+.music-notes[hidden] { display: none; }
+.music-note { margin: .1rem 0 0; font-size: .78rem; color: var(--ink-3); }
+.music-note.quiet { font-style: italic; }
+.music-hear { align-self: flex-start; }
+.music-pick { align-self: flex-start; margin: 0 .5rem; display: inline-flex; align-items: center; gap: .35rem; }
+.music-pick[hidden], .music-hint[hidden], .music-why[hidden], .music-empty[hidden], .music-filter[hidden] { display: none; }
+.music-filter { margin: .2rem .5rem 0; padding: .3rem .5rem; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; }
+.music-section[hidden] { display: none; }
+.music-list-box > summary { display: flex; align-items: center; gap: .45rem; padding: .3rem .5rem; border-radius: 5px; cursor: pointer; font-size: .88rem; color: var(--ink); list-style: none; }
+.music-list-box > summary::-webkit-details-marker { display: none; }
+.music-list-box > summary:hover { background: var(--paper-3); }
+.music-list-box > summary .icon { width: 13px; height: 13px; color: var(--ink-3); flex: none; }
+.music-list-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-list-box > summary .path { font-size: .74rem; color: var(--ink-3); white-space: nowrap; }
+.music-list { padding-left: .9rem; }
+.music-track .music-track-name { display: flex; align-items: center; gap: .45rem; padding: .3rem .5rem; font-size: .88rem; color: var(--ink-2); }
+.music-track .music-track-name .icon { width: 13px; height: 13px; color: var(--ink-3); }
+.music-track.playing > .row { color: var(--seal); font-weight: 600; }
+.music-track.playing > .row .icon { color: var(--seal); }
+
 /* The play button beside a sound link in a note (item 15). */
 .table-sound-play { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; min-width: 1.5em; padding: 0; margin: 0 .15em; vertical-align: -.25em; border-radius: 50%; color: var(--seal); }
 .table-sound-play:hover { background: var(--seal-wash); }
@@ -27,14 +66,25 @@
 .table-sound-pick h2 { margin: 0 0 .5rem; font-size: 1rem; }
 .table-sound-pick-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
 .table-sound-pick-item { display: block; width: 100%; text-align: left; padding: .45rem .6rem; }
-/* The status bar's item while the panel is closed. */
+/* The status bar's item while the Table and Music tabs are closed. */
 .status-sound { flex: 0 1 auto; display: inline-flex; align-items: center; gap: .3rem; min-width: 0; max-width: 14rem; padding: .1rem .4rem; font: inherit; color: var(--ink-2); }
 .status-sound[hidden] { display: none; }
 .status-sound-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 @media (max-width: 760px) {
-  /* A phone: every control 40 px, nothing hidden (390 x 844). */
-  .table-sound .iconic { width: 40px; height: 40px; min-width: 40px; }
-  .table-sound button { min-height: 40px; }
-  .table-sound-master, .table-sound-volume { flex: 1 1 6rem; max-width: none; }
+  /* The Music tab is a sheet from the bottom, as the Table's is (css/table.css). */
+  body[data-right-tab="music"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body.right-open[data-right-tab="music"] aside.right { transform: none; }
+  /* The mini-player stays one row of 40 px. */
+  .table-mini { height: 40px; }
+  .table-mini .iconic { width: 36px; height: 36px; min-width: 36px; }
+  .table-mini-name { height: 36px; }
+  /* The Music tab: 44 px targets. */
+  .music-view button, .music-list-box > summary, .music-track .music-track-name { min-height: 44px; }
+  .music-buttons .iconic, .music-volume-row .iconic { width: 44px; height: 44px; }
+  .music-buttons .music-toggle { width: 48px; height: 48px; }
+  .music-filter { min-height: 44px; font-size: 1rem; }
+  .music-follow-box input { width: 22px; height: 22px; }
+  .music-follow-box { min-height: 44px; }
   .table-sound-play { width: 2.2em; height: 2.2em; min-width: 2.2em; }
 }

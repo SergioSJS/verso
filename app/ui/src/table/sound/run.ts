@@ -16,6 +16,7 @@ import { hasCapability } from "../../capabilities";
 import { unlockAudio } from "../../dice3d/audio";
 import { ui } from "../../dom";
 import { tableOn } from "../record";
+import { soundError } from "./words";
 import { canPlay } from "./formats";
 import type { Player } from "./player";
 import { type Scene, nextIn, previousIn, trackName } from "./scene";
@@ -124,6 +125,13 @@ function urlOf(path: string): string {
 let lastRevision = -1;
 let lastPath: string | null = null;
 let told: string | null = null;
+/** What was to be said before the Music tab was first drawn: said when it is. */
+let pendingSay: string | null = null;
+export function takePendingSay(): string | null {
+  const s = pendingSay;
+  pendingSay = null;
+  return s;
+}
 function changed(): void {
   const m = active.music();
   if (m?.path !== lastPath) {
@@ -145,6 +153,7 @@ function say(m: Music | null): void {
   told = line;
   const live = document.querySelector(".table-sound-said");
   if (live && line) live.textContent = line;
+  else if (line) pendingSay = line;
 }
 
 export function nameOf(m: Music): string {
@@ -173,7 +182,7 @@ function apply(): void {
           blocked = true;
           tell();
           // The control takes focus when it appears (item 26).
-          requestAnimationFrame(() => document.querySelector<HTMLElement>(".table-sound-hear")?.focus());
+          requestAnimationFrame(() => [...document.querySelectorAll<HTMLElement>(".music-hear, .table-mini-hear")].find((b) => b.getClientRects().length > 0)?.focus());
         }
       },
       started: () => {
@@ -221,7 +230,7 @@ export async function playTrack(path: string, from: Scene | null, unheard: Unhea
     if (answer === "cancel") return null;
     if (answer === "release") {
       const r = await commands.accessSet([path], { kind: "set", set: { whole: "see", rows: [] }, secret_name: null });
-      if (r.status !== "ok") return r.error.message;
+      if (r.status !== "ok") return st.releaseFailed(soundError(r.error));
       ui.status.textContent = st.released(trackName(path));
     }
     const again = await active.play(path, { ...opts, ask: false });
@@ -294,6 +303,15 @@ export function installTableSound(): void {
     );
   }
   offActive = active.onChange(changed);
+}
+
+/** Whether the Music tab is on screen now (set by the panel). */
+let musicShown: () => boolean = () => false;
+export function watchMusicOnScreen(fn: () => boolean): void {
+  musicShown = fn;
+}
+export function musicOnScreen(): boolean {
+  return soundOn() && musicShown();
 }
 
 /** For the tests and the harness: the player's element, if loaded. */

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 await esbuild.build({
-  stdin: { contents: `export * from "./src/table/sound/sync"; export * from "./src/table/sound/scene"; export * from "./src/table/sound/formats"; export * from "./src/table/sound/source";`, resolveDir: ".", loader: "ts" },
+  stdin: { contents: `export * from "./src/table/sound/sync"; export * from "./src/table/sound/scene"; export * from "./src/table/sound/formats"; export * from "./src/table/sound/source"; export * from "./src/table/sound/library";`, resolveDir: ".", loader: "ts" },
   bundle: true,
   format: "esm",
   platform: "node",
@@ -157,6 +157,31 @@ describe("the soundboard is a note", () => {
     assert.equal(m.isAudio("a/b.flac|x"), true);
     assert.equal(m.isAudio("a/b.md"), false);
     assert.equal(m.trackName("Música/A taverna.mp3"), "A taverna");
+  });
+});
+
+describe("the Music tab's library", () => {
+  const files = ["Música/b.mp3", "Música/a.m4a", "notas.md", "c.wav", "Sons/Porta/rangido.ogg", "img.png"];
+  test("every folder that holds sound files is a list, in name order, nothing else", () => {
+    assert.deepEqual(m.folderLists(files), [
+      { kind: "folder", source: "", scene: "", tracks: ["c.wav"] },
+      { kind: "folder", source: "Música", scene: "", tracks: ["Música/a.m4a", "Música/b.mp3"] },
+      { kind: "folder", source: "Sons/Porta", scene: "", tracks: ["Sons/Porta/rangido.ogg"] },
+    ]);
+  });
+  test("a note that links sound files is a playlist, a list per scene", () => {
+    const lists = m.noteLists("Mesa/Trilha.md", "# Taverna\n- [[a.m4a]]\n# Nada\ntexto\n# Estrada\n- [[b.mp3]]\n", (t) => `Música/${t}`);
+    assert.deepEqual(lists.map((l) => [m.listLabel(l, "Raiz"), l.tracks]), [["Trilha › Taverna", ["Música/a.m4a"]], ["Trilha › Estrada", ["Música/b.mp3"]]]);
+    assert.equal(m.listLabel({ kind: "folder", source: "", scene: "", tracks: [] }, "Raiz"), "Raiz");
+    assert.deepEqual(m.asScene(lists[0], "Raiz"), { name: "Trilha › Taverna", tracks: ["Música/a.m4a"] });
+  });
+  test("the filter keeps the tracks whose path matches every word, accents and case aside, or a list whose name does", () => {
+    const lists = m.folderLists(files);
+    assert.deepEqual(m.filterLists(lists, "MUSICA b", "Raiz").map((l) => l.tracks), [["Música/b.mp3"]]);
+    assert.deepEqual(m.filterLists(lists, "porta", "Raiz").map((l) => l.tracks), [["Sons/Porta/rangido.ogg"]]);
+    assert.deepEqual(m.filterLists(lists, "raiz", "Raiz").map((l) => l.tracks), [["c.wav"]]);
+    assert.equal(m.filterLists(lists, "nada assim", "Raiz").length, 0);
+    assert.equal(m.filterLists(lists, "  ", "Raiz").length, 3);
   });
 });
 

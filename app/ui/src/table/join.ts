@@ -42,6 +42,7 @@ import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
 import { serverSound, type SoundApi } from "./sound/source";
 import { setSoundSource } from "./sound/run";
+import { soundError } from "./sound/words";
 
 /** The last join was answered "unavailable": a synced folder out of its server's reach. */
 let unavailable = false;
@@ -83,7 +84,7 @@ async function joinSound(table: ServerTable | null, folder: string | null): Prom
   }
   const { play, playback } = table.joinedSound();
   setSoundSource(
-    await serverSound({ api: soundApi, table: table.table, controls: play, playback, explain: (e) => (e.kind === "refused" ? e.message : errorSentence(e)) }),
+    await serverSound({ api: soundApi, table: table.table, controls: play, playback, explain: soundError }),
     folder,
   );
 }

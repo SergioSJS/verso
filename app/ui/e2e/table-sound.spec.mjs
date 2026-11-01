@@ -1,18 +1,30 @@
-// Music at the table (ADR 0116 section A, phase 1: files), in the harness
-// (src/harness/tableSound.ts plays the server's rules): the game master's
-// strip — "Play a file…", play, pause, next and previous over a note's
-// scene, loop, the table's volume — the release question for a file some
-// players do not see, a player's strip with no controls but their own
-// volume, mute and "Follow the table", a track a player does not see, the
-// switch off, the window alone in a folder of this computer, the status
+// Music at the table (ADR 0116 section A, phase 1: files; the player's
+// place as amended 2026-10-31: a Music tab of its own, and one slim row in
+// the Table tab), in the harness (src/harness/tableSound.ts plays the
+// server's rules): the game master's Music tab — the folders as lists, the
+// now-playing card, previous, play/pause, next, stop, loop, the table's
+// volume, the queue, the filter — the release question for a file some
+// players do not see, a note as the soundboard, a player's tab with no
+// controls but their own, a track a player does not see, the mini-player's
+// one row, Hear the table, the switch off, the window alone, the status
 // bar's item, and every control on a phone. The element's play() is the
-// page's own stub: what is checked is what the window asks of it, never a
-// sound device the test machine may not have. The server's rules are
-// tests_table_sound.rs; two people on a real server, server-sound.spec.mjs.
+// page's own stub: what is checked is what the window asks of it. The
+// server's rules are tests_table_sound.rs; two people on a real server,
+// e2e-server/table-sound.spec.mjs. Screenshots for the maintainer go to
+// /logs/shots/music when the tests run in the Docker e2e.
+
+import { existsSync, mkdirSync } from "node:fs";
 
 import { test, expect } from "./fixtures.mjs";
 
 const phone = (page) => (page.viewportSize()?.width ?? 1500) <= 760;
+const SHOTS = "/logs/shots/music";
+
+async function shot(page, name, info) {
+  if (!existsSync("/logs")) return;
+  mkdirSync(SHOTS, { recursive: true });
+  await page.screenshot({ path: `${SHOTS}/${name}-${info.project.name}.png` });
+}
 
 /** A WAV of `seconds` of silence: what every engine of the tests decodes. */
 function wav(seconds = 2) {
@@ -38,26 +50,22 @@ function wav(seconds = 2) {
 
 const SCENE = "# Trilha\n\n## Taverna\n\n- [[Música/taverna.wav]]\n- [[Música/estrada.wav]]\n\n## Batalha\n\n- [[Música/batalha.wav]]\n";
 
-/** The element's play and pause, stubbed: a test reads what the window asked. */
-async function stubPlay(page, { refuseFirst = false } = {}) {
+/** The element's play and pause, stubbed; with `gesture`, refused until the person touches the page. */
+async function stubPlay(page, { gesture = false } = {}) {
   await page.addInitScript((refuse) => {
-    // As an engine does: no sound before the person's first gesture on the page.
     let touched = !refuse;
     for (const t of ["pointerdown", "keydown"]) addEventListener(t, () => (touched = true), true);
-    // A late joiner: the window opened (the tab clicked), the page then seen as untouched.
+    // A late joiner: the window opened (a tab clicked), the page then seen as untouched.
     window.__untouched = () => (touched = !refuse);
     window.__plays = [];
     HTMLMediaElement.prototype.play = function () {
       if (!touched) return Promise.reject(new DOMException("no gesture", "NotAllowedError"));
       window.__plays.push(this.getAttribute("src"));
-      this.__on = true;
       this.dispatchEvent(new Event("playing"));
       return Promise.resolve();
     };
-    HTMLMediaElement.prototype.pause = function () {
-      this.__on = false;
-    };
-  }, refuseFirst);
+    HTMLMediaElement.prototype.pause = function () {};
+  }, gesture);
 }
 
 async function withSwitch(page, on) {
@@ -84,73 +92,98 @@ async function atTable(app, page, role, up = true) {
   await app.folderChanged(["Trilha.md", "Música/taverna.wav", "Música/estrada.wav", "Música/batalha.wav"], true);
 }
 
-async function openTable(page) {
-  if (phone(page)) await page.locator(".bar-right").click();
-  else await page.evaluate(() => document.body.classList.remove("no-right"));
-  await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
-  const view = page.locator(".table-view");
+async function openTab(page, name) {
+  if (phone(page)) {
+    if (!(await page.locator("body.right-open").count())) await page.locator(".bar-right").click();
+  } else await page.evaluate(() => document.body.classList.remove("no-right"));
+  await page.locator("#right-tabs").getByRole("tab", { name }).click();
+}
+
+async function openMusic(page) {
+  await openTab(page, /^Música/);
+  const view = page.locator(".music-view");
   await expect(view).toBeVisible();
-  return view.locator(".table-sound");
+  return view;
+}
+
+async function openTable(page) {
+  await openTab(page, /^Mesa/);
+  await expect(page.locator(".table-view")).toBeVisible();
+  return page.locator(".table-view .table-mini");
 }
 
 const audioSrc = (page) => page.evaluate(() => document.querySelector("audio.table-sound-audio")?.getAttribute("src") ?? null);
+const now = (view) => view.getByRole("group", { name: "Tocando agora" });
 
-test("the game master plays a file of the folder from an empty strip, pauses and resumes it; the element plays the file's own bytes", async ({ app, page }) => {
+test("the game master's Music tab: the folder's tracks as a list, play, pause, the table's volume, loop and stop; the element plays the file's own bytes", async ({ app, page }, info) => {
   await stubPlay(page);
   await atTable(app, page, "owner");
-  const strip = await openTable(page);
+  const view = await openMusic(page);
   // Nothing loaded until a track plays (item 30).
   expect(await page.evaluate(() => document.querySelectorAll("audio").length)).toBe(0);
-  await strip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-  const pick = page.getByRole("dialog", { name: "Arquivos de som da pasta" });
-  await expect(pick.getByRole("button")).toHaveCount(4);
-  await pick.getByRole("button", { name: "estrada" }).click();
+  await expect(now(view)).toContainText("Nada tocando");
+  const folders = view.locator(".music-folders");
+  await expect(folders.getByRole("button", { name: /^Tocar “/ })).toHaveCount(3);
+  await folders.getByRole("button", { name: "Tocar “estrada”" }).click();
   await expect.poll(() => app.calls("table_play")).toEqual([expect.objectContaining({ path: "Música/estrada.wav", channel: "music", ask: true })]);
-  await expect(strip.locator(".table-sound-name")).toHaveText("estrada");
+  await expect(view.locator(".music-title")).toHaveText("estrada");
+  await expect(view.locator(".music-from")).toHaveText("De: Música");
+  await expect(folders.locator("li.music-track.playing")).toHaveAttribute("aria-current", "true");
   await expect.poll(() => audioSrc(page)).toBe("/__vault/M%C3%BAsica/estrada.wav");
   await expect.poll(() => page.evaluate(() => window.__plays.length)).toBeGreaterThan(0);
   // The length the element read is told to the table once.
   await expect.poll(async () => (await app.calls("table_sound")).some((c) => c.wish === "duration" && c.value > 1500)).toBe(true);
-  await strip.getByRole("button", { name: "Pausar" }).click();
+  // The queue is the list it came from: next walks it.
+  await expect(view.locator(".music-queue")).toContainText("Na fila · Música");
+  await now(view).getByRole("button", { name: "Próxima faixa" }).click();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  await shot(page, "music-tab-master", info);
+  await now(view).getByRole("button", { name: "Pausar" }).click();
   await expect.poll(async () => (await app.calls("table_sound")).at(-1)).toEqual(expect.objectContaining({ wish: "pause" }));
-  await expect(strip.getByRole("button", { name: "Continuar" })).toBeVisible();
-  await strip.getByRole("button", { name: "Continuar" }).click();
-  await expect(strip.getByRole("button", { name: "Pausar" })).toBeVisible();
-  // The table's volume, the game master's.
-  const master = strip.getByRole("slider", { name: "Volume da mesa" });
+  await expect(now(view).getByRole("button", { name: "Continuar" })).toBeVisible();
+  await now(view).getByRole("button", { name: "Continuar" }).click();
+  const master = view.getByRole("slider", { name: "Volume da mesa" });
   await master.fill("40");
   await master.dispatchEvent("change");
   await expect.poll(async () => (await app.calls("table_sound")).at(-1)).toEqual(expect.objectContaining({ wish: "master", value: 40 }));
-  // Loop: the track.
-  await strip.getByRole("button", { name: "Repetir: desligado" }).click();
-  await expect(strip.getByRole("button", { name: "Repetir: esta faixa" })).toBeVisible();
-  await strip.getByRole("button", { name: "Parar" }).click();
-  await expect(strip.getByRole("button", { name: "Tocar um arquivo…" })).toBeVisible();
+  await now(view).getByRole("button", { name: "Repetir: desligado" }).click();
+  await expect(now(view).getByRole("button", { name: "Repetir: esta faixa" })).toBeVisible();
+  await now(view).getByRole("button", { name: "Repetir: esta faixa" }).click();
+  await expect(now(view).getByRole("button", { name: "Repetir: a lista" })).toBeVisible();
+  // The filter.
+  const filter = view.getByRole("searchbox", { name: "Filtrar músicas" });
+  await filter.fill("bat");
+  await expect(folders.getByRole("button", { name: /^Tocar “/ })).toHaveCount(1);
+  await filter.fill("nada assim");
+  await expect(view).toContainText("Nenhuma faixa com “nada assim”.");
+  await filter.fill("");
+  await now(view).getByRole("button", { name: "Parar" }).click();
+  await expect(now(view)).toContainText("Nada tocando");
 });
 
-test("a note is the soundboard: a play button on each sound link, the heading the scene next and previous walk", async ({ app, page }) => {
+test("a note is a playlist and the soundboard: a play button on each sound link, the heading the list next and previous walk", async ({ app, page }) => {
   await stubPlay(page);
   await atTable(app, page, "owner");
-  const strip = await openTable(page);
+  const view = await openMusic(page);
+  await expect(view.locator(".music-playlists")).toContainText("Trilha › Taverna");
   await app.quickOpen("Trilha");
   const preview = page.locator(".preview:visible");
   await expect(preview.getByRole("button", { name: /^Tocar “.*” na mesa$/ })).toHaveCount(3);
   await preview.getByRole("button", { name: "Tocar “taverna” na mesa" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
-  await expect(strip.getByRole("button", { name: "Faixa anterior da cena" })).toBeDisabled();
-  await strip.getByRole("button", { name: "Próxima faixa da cena" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("estrada");
-  // The scene ends there: the next is Batalha's, another scene.
-  await expect(strip.getByRole("button", { name: "Próxima faixa da cena" })).toBeDisabled();
-  await strip.getByRole("button", { name: "Faixa anterior da cena" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
-  // Loop the scene: off, the track, the scene; then the last's next is the first.
-  await strip.getByRole("button", { name: "Repetir: desligado" }).click();
-  await strip.getByRole("button", { name: "Repetir: esta faixa" }).click();
-  await expect(strip.getByRole("button", { name: "Repetir: a cena" })).toBeVisible();
-  await strip.getByRole("button", { name: "Próxima faixa da cena" }).click();
-  await strip.getByRole("button", { name: "Próxima faixa da cena" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  await expect(view.locator(".music-from")).toHaveText("De: Trilha › Taverna");
+  await expect(now(view).getByRole("button", { name: "Faixa anterior" })).toBeDisabled();
+  await now(view).getByRole("button", { name: "Próxima faixa" }).click();
+  await expect(view.locator(".music-title")).toHaveText("estrada");
+  await expect(now(view).getByRole("button", { name: "Próxima faixa" })).toBeDisabled();
+  await now(view).getByRole("button", { name: "Faixa anterior" }).click();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  // Loop the list: off, the track, the list; then the last's next is the first.
+  await now(view).getByRole("button", { name: "Repetir: desligado" }).click();
+  await now(view).getByRole("button", { name: "Repetir: esta faixa" }).click();
+  await now(view).getByRole("button", { name: "Próxima faixa" }).click();
+  await now(view).getByRole("button", { name: "Próxima faixa" }).click();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
 });
 
 test("a file some players do not see: the game master is asked, names named, and the release plays it for them", async ({ app, page }) => {
@@ -164,65 +197,114 @@ test("a file some players do not see: the game master is asked, names named, and
       return { changed: 1 };
     };
   });
-  const strip = await openTable(page);
-  await strip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-  await page.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: "batalha" }).click();
+  const view = await openMusic(page);
+  const track = view.locator(".music-folders").getByRole("button", { name: "Tocar “batalha”" });
+  await track.click();
   const ask = page.getByRole("alertdialog");
   await expect(ask).toContainText("2 jogadores não veem este arquivo (Ana, Bia)");
-  // Cancel: nothing plays.
   await ask.getByRole("button", { name: "Cancelar" }).click();
-  await expect(strip.getByRole("button", { name: "Tocar um arquivo…" })).toBeVisible();
+  await expect(now(view)).toContainText("Nada tocando");
   expect((await app.calls("table_play")).filter((c) => c.ask === false)).toEqual([]);
-  // Release and play: the file seen by the whole table, then played.
-  await strip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-  await page.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: "batalha" }).click();
+  await track.click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Liberar e tocar" }).click();
   await expect.poll(() => app.calls("access_set")).toEqual([{ paths: ["Música/batalha.wav"], change: { kind: "set", set: { whole: "see", rows: [] }, secret_name: null } }]);
   await expect.poll(async () => (await app.calls("table_play")).at(-1)).toEqual(expect.objectContaining({ path: "Música/batalha.wav", ask: false }));
-  await expect(strip.locator(".table-sound-name")).toHaveText("batalha");
+  await expect(view.locator(".music-title")).toHaveText("batalha");
+  await expect(page.locator("#status")).toHaveText("“batalha” liberado para a mesa.");
 });
 
-test("a player's strip: no controls, their own volume, mute and Follow; a track they do not see is named as one, and nothing is fetched", async ({ app, page }) => {
+test("a refusal is said in the window's language, never the server's English", async ({ app, page }) => {
+  await stubPlay(page);
+  await atTable(app, page, "owner");
+  const view = await openMusic(page);
+  await page.evaluate(() => {
+    window.__harness.core.handlers.table_play = () => {
+      throw { kind: "refused", message: "the table is a server's; a folder of this computer alone has none" };
+    };
+  });
+  await view.locator(".music-folders").getByRole("button", { name: "Tocar “taverna”" }).click();
+  await expect(page.locator("#status")).toHaveText("Esta pasta não tem mesa: a música toca só nesta janela.");
+});
+
+test("a player's Music tab: no controls, their own volume, mute and Follow; a track they do not see is named as one, with why, and nothing is fetched", async ({ app, page }, info) => {
   await stubPlay(page);
   await atTable(app, page, "reader");
-  const strip = await openTable(page);
-  await expect(strip).toContainText("Nada tocando");
-  await expect(strip.getByRole("button", { name: "Tocar um arquivo…" })).toHaveCount(0);
+  const view = await openMusic(page);
+  await expect(now(view)).toContainText("Nada tocando");
+  await expect(view).toContainText("Só o mestre toca e troca as faixas");
+  await expect(view.getByRole("button", { name: /^Tocar “/ })).toHaveCount(0);
   await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav", { durationMs: 2000, looping: true }));
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
-  for (const name of ["Pausar", "Parar", "Próxima faixa da cena", "Faixa anterior da cena", "Tocar um arquivo…"]) await expect(strip.getByRole("button", { name })).toHaveCount(0);
-  await expect(strip.getByRole("slider", { name: "Volume da mesa" })).toHaveCount(0);
-  await expect(strip.getByRole("slider", { name: "Seu volume" })).toBeVisible();
-  await expect(strip.getByRole("slider", { name: "Posição" })).toBeDisabled();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  for (const name of ["Pausar", "Parar", "Próxima faixa", "Faixa anterior"]) await expect(now(view).getByRole("button", { name })).toBeHidden();
+  await expect(view.getByRole("slider", { name: "Volume da mesa" })).toBeHidden();
+  await expect(view.getByRole("slider", { name: "Seu volume" })).toBeVisible();
+  await expect(view.getByRole("slider", { name: "Posição" })).toBeDisabled();
   await expect.poll(() => audioSrc(page)).toBe("/__vault/M%C3%BAsica/taverna.wav");
-  // The person's own: follow off silences this window only.
-  await strip.getByRole("checkbox", { name: "Seguir a mesa" }).uncheck();
+  await shot(page, "music-tab-player", info);
+  await view.getByRole("checkbox", { name: "Seguir a mesa" }).uncheck();
   await expect.poll(() => page.evaluate(() => document.querySelector("audio.table-sound-audio").muted)).toBe(true);
   expect(await app.calls("table_sound")).toEqual([]);
-  await strip.getByRole("checkbox", { name: "Seguir a mesa" }).check();
+  await view.getByRole("checkbox", { name: "Seguir a mesa" }).check();
   await expect.poll(() => page.evaluate(() => document.querySelector("audio.table-sound-audio").muted)).toBe(false);
-  await strip.getByRole("button", { name: "Silenciar" }).click();
-  await expect(strip.getByRole("button", { name: "Voltar o som" })).toBeVisible();
-  // The game master pauses: the window follows.
+  await now(view).getByRole("button", { name: "Silenciar" }).click();
+  await expect(now(view).getByRole("button", { name: "Voltar o som" })).toBeVisible();
   await page.evaluate(() => window.__harness.tableSound.masterChanges("pause"));
-  await expect(strip.locator(".table-sound-said")).toHaveText("Pausado: taverna");
-  // A track the player does not see: told as one, no file asked for.
+  await expect(view.locator(".table-sound-said")).toHaveText("Pausado: taverna");
   await page.evaluate(() => {
     const s = window.__harness.tableSound;
     s.hidden.add("Música/batalha.wav");
     s.masterPlays("Música/batalha.wav");
   });
-  await expect(strip.locator(".table-sound-name")).toHaveText("uma faixa que você não vê");
+  await expect(view.locator(".music-title")).toHaveText("uma faixa que você não vê");
+  await expect(view.locator(".music-why")).toContainText("O mestre não liberou este arquivo para você");
   await expect.poll(() => audioSrc(page)).toBe(null);
 });
 
-test("a late joiner whose engine waits for a gesture is offered Hear the table, and the gesture plays it", async ({ app, page }) => {
-  await stubPlay(page, { refuseFirst: true });
+test("the Table tab's mini-player is one slim row, only while something plays; the name opens the Music tab, the volume a popover @layout", async ({ app, page }, info) => {
+  await stubPlay(page);
+  await atTable(app, page, "owner");
+  const mini = await openTable(page);
+  await expect(mini).toBeHidden();
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
+  await expect(mini).toBeVisible();
+  await expect(mini.locator(".table-mini-name")).toHaveText("estrada");
+  for (const name of ["Faixa anterior", "Pausar", "Próxima faixa", "Volume"]) await expect(mini.getByRole("button", { name, exact: true })).toBeVisible();
+  const box = await mini.boundingBox();
+  expect(box.height).toBeLessThanOrEqual(phone(page) ? 40 : 36);
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
+  await shot(page, "mini-player-master", info);
+  await mini.getByRole("button", { name: "Pausar" }).click();
+  await expect.poll(async () => (await app.calls("table_sound")).at(-1)).toEqual(expect.objectContaining({ wish: "pause" }));
+  await mini.getByRole("button", { name: "Volume", exact: true }).click();
+  const own = mini.getByRole("slider", { name: "Seu volume" });
+  await expect(own).toBeFocused();
+  await own.fill("30");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("verso:table-sound")).volume)).toBe(30);
+  await page.keyboard.press("Escape");
+  await expect(own).toBeHidden();
+  await expect(mini.getByRole("button", { name: "Volume", exact: true })).toBeFocused();
+  await mini.locator(".table-mini-name").click();
+  await expect(page.locator(".music-view")).toBeVisible();
+});
+
+test("a player's mini-player: the name and their own volume only", async ({ app, page }, info) => {
+  await stubPlay(page);
   await atTable(app, page, "reader");
-  const strip = await openTable(page);
+  const mini = await openTable(page);
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
+  await expect(mini.locator(".table-mini-name")).toHaveText("estrada");
+  for (const name of ["Faixa anterior", "Pausar", "Próxima faixa"]) await expect(mini.getByRole("button", { name, exact: true })).toBeHidden();
+  await expect(mini.getByRole("button", { name: "Volume", exact: true })).toBeVisible();
+  await shot(page, "mini-player-player", info);
+});
+
+test("a late joiner whose engine waits for a gesture is offered Hear the table, and the gesture plays it", async ({ app, page }) => {
+  await stubPlay(page, { gesture: true });
+  await atTable(app, page, "reader");
+  const view = await openMusic(page);
   await page.evaluate(() => window.__untouched());
   await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
-  const hear = strip.getByRole("button", { name: "Ouvir a mesa" });
+  const hear = view.getByRole("button", { name: "Ouvir a mesa" });
   await expect(hear).toBeVisible();
   await expect(hear).toBeFocused();
   await hear.click();
@@ -230,22 +312,21 @@ test("a late joiner whose engine waits for a gesture is offered Hear the table, 
   await expect.poll(() => page.evaluate(() => window.__plays.length)).toBeGreaterThan(0);
 });
 
-test("alone in a folder of this computer: the strip plays for this window, with nothing sent", async ({ app, page }) => {
+test("alone in a folder of this computer: the Music tab plays for this window, with nothing sent", async ({ app, page }) => {
   await stubPlay(page);
   await atTable(app, page, "owner", false);
-  const strip = await openTable(page);
-  await strip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-  await page.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: "taverna" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
-  await expect(strip).toContainText("Só nesta janela: a pasta não tem mesa.");
+  const view = await openMusic(page);
+  await view.locator(".music-folders").getByRole("button", { name: "Tocar “taverna”" }).click();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  await expect(view).toContainText("Só nesta janela: a pasta não tem mesa.");
   await expect.poll(() => audioSrc(page)).toBe("/__vault/M%C3%BAsica/taverna.wav");
-  await strip.getByRole("button", { name: "Pausar" }).click();
-  await expect(strip.getByRole("button", { name: "Continuar" })).toBeVisible();
+  await now(view).getByRole("button", { name: "Pausar" }).click();
+  await expect(now(view).getByRole("button", { name: "Continuar" })).toBeVisible();
   expect(await app.calls("table_play")).toEqual([]);
   expect(await app.calls("table_sound")).toEqual([]);
 });
 
-test("with the panel closed the status bar names the track and opens the panel", async ({ app, page }) => {
+test("with the Table and Music tabs closed the status bar names the track and opens the Music tab", async ({ app, page }, info) => {
   test.skip(phone(page), "the status bar is the desktop's");
   await stubPlay(page);
   await atTable(app, page, "reader");
@@ -253,44 +334,63 @@ test("with the panel closed the status bar names the track and opens the panel",
   const item = page.locator(".status-bar .status-sound");
   await expect(item).toBeVisible();
   await expect(item).toContainText("taverna");
+  await shot(page, "status-item", info);
   await item.click();
-  await expect(page.locator(".table-view .table-sound .table-sound-name")).toHaveText("taverna");
+  await expect(page.locator(".music-view .music-title")).toHaveText("taverna");
   await expect(item).toBeHidden();
 });
 
-test("the switch off: no strip, no play button, no status item", async ({ app, page }) => {
+test("the switch off: no Music tab, no mini-player, no play button, no status item", async ({ app, page }) => {
   await withSwitch(page, false);
   await stubPlay(page);
   await atTable(app, page, "owner");
   await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav"));
-  const strip = await openTable(page);
-  await expect(strip).toBeHidden();
+  const mini = await openTable(page);
+  await expect(mini).toBeHidden();
+  await expect(page.locator("#right-tabs").getByRole("tab", { name: /^Música/ })).toBeHidden();
   await app.quickOpen("Trilha");
   await expect(page.locator(".preview:visible .table-sound-play")).toHaveCount(0);
   await expect(page.locator(".status-sound")).toBeHidden();
   expect(await page.evaluate(() => document.querySelectorAll("audio").length)).toBe(0);
 });
 
-test("every control of the game master's strip is reachable, named and inside the screen @layout", async ({ app, page }) => {
+test("every control of the Music tab is reachable, named and inside the screen; 44 px on a phone @layout", async ({ app, page }, info) => {
   await stubPlay(page);
   await atTable(app, page, "owner");
-  const strip = await openTable(page);
-  await strip.getByRole("button", { name: "Tocar um arquivo…" }).click();
-  await page.getByRole("dialog", { name: "Arquivos de som da pasta" }).getByRole("button", { name: "taverna" }).click();
-  await expect(strip.locator(".table-sound-name")).toHaveText("taverna");
+  const view = await openMusic(page);
+  await view.locator(".music-folders").getByRole("button", { name: "Tocar “taverna”" }).click();
+  await expect(view.locator(".music-title")).toHaveText("taverna");
+  if (phone(page)) await shot(page, "music-sheet-phone", info);
   const width = page.viewportSize().width;
-  const controls = strip.locator("button:visible, input:visible");
+  const controls = view.locator("button:visible, input:visible, summary:visible");
   const n = await controls.count();
-  expect(n).toBeGreaterThan(8);
+  expect(n).toBeGreaterThan(10);
   for (let i = 0; i < n; i++) {
     const c = controls.nth(i);
-    const box = await c.boundingBox();
-    expect(box, await c.evaluate((e) => e.outerHTML)).not.toBeNull();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    await c.scrollIntoViewIfNeeded();
+    const b = await c.boundingBox();
+    const html = await c.evaluate((e) => e.outerHTML.slice(0, 200));
+    expect(b, html).not.toBeNull();
+    expect(b.x, html).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width, html).toBeLessThanOrEqual(width + 1);
     const named = await c.evaluate((e) => e.getAttribute("aria-label") || e.textContent?.trim() || (e.id && document.querySelector(`label[for="${e.id}"]`)?.textContent) || "");
-    expect(named, await c.evaluate((e) => e.outerHTML)).not.toBe("");
-    if (phone(page) && (await c.evaluate((e) => e.tagName === "BUTTON"))) expect(box.height, await c.evaluate((e) => e.outerHTML)).toBeGreaterThanOrEqual(36);
+    expect(named, html).not.toBe("");
+    if (phone(page) && (await c.evaluate((e) => e.tagName === "BUTTON" || e.tagName === "SUMMARY"))) expect(b.height, html).toBeGreaterThanOrEqual(44);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+test("screenshots: the soundboard's play button in a note, and the Music tab in the dark @layout", async ({ app, page }, info) => {
+  test.skip(!existsSync("/logs"), "only in the Docker e2e");
+  await stubPlay(page);
+  await atTable(app, page, "owner");
+  await app.quickOpen("Trilha");
+  await expect(page.locator(".preview:visible .table-sound-play")).toHaveCount(3);
+  await shot(page, "soundboard-note", info);
+  const view = await openMusic(page);
+  await view.locator(".music-folders").getByRole("button", { name: "Tocar “estrada”" }).click();
+  await expect(view.locator(".music-title")).toHaveText("estrada");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.waitForTimeout(300);
+  await shot(page, "music-tab-dark", info);
 });

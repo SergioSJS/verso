@@ -37,7 +37,7 @@ import { openCampaignDialog } from "../campaignDialog";
 import { cp } from "../campaignStrings";
 import { mayShare } from "../shares";
 import { gate } from "../panel/gate";
-import { SoundStrip } from "./sound/strip";
+import { MiniPlayer } from "./sound/mini";
 
 /** A colour as the server checked it (`#rrggbb`), or none: nothing else reaches a style. */
 const safeColour = (c: string): string => (/^#[0-9a-f]{6}$/i.test(c) ? c : "");
@@ -122,8 +122,8 @@ class TableView {
   private readonly pinList = h("ul", "table-pin-list");
   private readonly older = button("ghost table-older", tt.older);
   private readonly compose = new Compose();
-  /** The table's music, the panel's first row (ADR 0116 item 24). */
-  private readonly sound = new SoundStrip();
+  /** The table's music: one slim row while it plays (ADR 0116 as amended 2026-10-31); the rest is the Music tab's. */
+  private readonly sound = new MiniPlayer();
   private readonly note = h("p", "table-note");
   private readonly make = h("div", "table-make");
   private readonly hiddenLine = h("p", "table-hidden");
