@@ -183,7 +183,7 @@ export class App {
 
 export const test = base.extend({
   ...leakFixtures,
-  app: async ({ page }, use) => {
+  app: async ({ page }, use, testInfo) => {
     const problems = [];
     // The window's work area fills the window, always: a draft a library
     // puts in the body (a grid) once took a row of it, and the whole window
@@ -254,6 +254,9 @@ export const test = base.extend({
     });
     const app = new App(page);
     await use(app);
+    // A test skipped before it opened the window (the screenshot specs, outside
+    // Docker) never loaded the harness: nothing was left unread.
+    if (testInfo.status === "skipped") return;
     // The harness still there: a test that left it reports nothing.
     const there = await page.evaluate(() => window.__harness !== undefined).catch(() => false);
     if (!there) problems.push("the harness is gone at the end of the test: its log and console were not read");
