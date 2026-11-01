@@ -461,7 +461,7 @@ host, the window, then T2 and the documents.
   13–14 as written: the login shell (Q7 on Windows), the folder's root or
   the home directory (Q2, Q4), the last 256 KiB kept for a reloaded window
   (Q6), the window's "behind" signal pausing the reader (item 8), a hang-up
-  of the process groups then a kill on Unix, a Job Object with
+  of the process groups then a kill on Unix — of the groups and of every process still in the shell's session, found by `getsid` with no `/proc` read, since `sh`/dash does not hang up its background jobs (seen on Linux, 2026-10-31) — a Job Object with
   kill-on-close on Windows, the AppImage's variables stripped on Linux.
   Three dependencies, each replacing `unsafe` of our own:
   `portable-pty` 0.9, `nix` (already in the tree) with `signal`, and

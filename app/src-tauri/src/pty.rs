@@ -36,7 +36,15 @@ pub(crate) const KEPT: usize = 256 * 1024;
 /// The most one read hands the window at once.
 const CHUNK: usize = 64 * 1024;
 /// How long a hung-up shell has to go before it is killed.
+#[cfg(unix)]
 const GRACE: Duration = Duration::from_millis(800);
+/// The highest process id the sweep of a closed terminal's session asks
+/// about: the system's own bound (`PID_MAX_LIMIT` on 64-bit Linux, macOS's
+/// `PID_MAX`).
+#[cfg(target_os = "linux")]
+const PID_MAX: i32 = 4_194_304;
+#[cfg(all(unix, not(target_os = "linux")))]
+const PID_MAX: i32 = 99_999;
 
 /// Where a terminal's output goes: false when the window is gone (a
 /// reload), and the output is only kept until a window finds it again.
@@ -74,6 +82,8 @@ pub(crate) struct Pty {
     input: Mutex<Option<mpsc::Sender<Vec<u8>>>>,
     master: Mutex<Option<Box<dyn MasterPty + Send>>>,
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
+    /// The shell's process id: on Unix its process group and its session.
+    #[cfg(any(unix, test))]
     pid: Option<u32>,
     alive: AtomicBool,
     /// Windows: the shell's process tree, killed when the job closes — the
@@ -223,6 +233,7 @@ impl Pty {
         let writer = master
             .take_writer()
             .map_err(|e| format!("could not write to the terminal: {e}"))?;
+        #[cfg(any(unix, test))]
         let pid = child.process_id();
         #[cfg(windows)]
         let job = windows_job(child.as_raw_handle());
@@ -239,6 +250,7 @@ impl Pty {
             input: Mutex::new(Some(input)),
             master: Mutex::new(Some(master)),
             killer: Mutex::new(child.clone_killer()),
+            #[cfg(any(unix, test))]
             pid,
             alive: AtomicBool::new(true),
             #[cfg(windows)]
@@ -450,12 +462,16 @@ impl Pty {
 
     /// End the shell and every program it started (item 13): on Unix a
     /// hang-up to its process group and the terminal's foreground group,
-    /// then a kill after a grace; on Windows the job's whole tree.
+    /// then, after a grace, a kill to them and to every process still in
+    /// the shell's session — a background job of a shell that does not
+    /// hang up its jobs (`sh`/dash, or a job that ignores the hang-up) is
+    /// in a group of its own; on Windows the job's whole tree.
     pub(crate) fn end(&self) {
         lock(&self.input).take();
         #[cfg(unix)]
+        let shell = self.pid.and_then(|p| i32::try_from(p).ok());
+        #[cfg(unix)]
         let groups = {
-            let shell = self.pid.and_then(|p| i32::try_from(p).ok());
             let groups: Vec<i32> = shell.into_iter().chain(self.foreground()).collect();
             signal_groups(&groups, nix::sys::signal::Signal::SIGHUP);
             groups
@@ -469,6 +485,9 @@ impl Pty {
         std::thread::spawn(move || {
             std::thread::sleep(GRACE);
             signal_groups(&groups, nix::sys::signal::Signal::SIGKILL);
+            if let Some(session) = shell {
+                end_session(session);
+            }
         });
     }
 }
@@ -479,6 +498,31 @@ fn signal_groups(groups: &[i32], signal: nix::sys::signal::Signal) {
     for group in groups {
         if *group > 1 {
             let _ = nix::sys::signal::killpg(nix::unistd::Pid::from_raw(*group), signal);
+        }
+    }
+}
+
+/// Kill every process left in the session the shell led (`setsid` in the
+/// child made its id the session's). The id of a session is not given to
+/// another process while one of its members lives, so what answers it is
+/// the terminal's; a program that started a session of its own (`setsid`)
+/// has left on purpose and is not touched. No list of processes is read
+/// (no `/proc`): each id up to the system's bound is asked its session,
+/// once, on the terminal's own thread after it closed.
+#[cfg(unix)]
+pub(crate) fn end_session(session: i32) {
+    use nix::unistd::{Pid, getsid};
+    if session <= 1 {
+        return;
+    }
+    let mine = getsid(None).ok().map(Pid::as_raw);
+    if mine == Some(session) {
+        return;
+    }
+    for pid in 2..=PID_MAX {
+        let pid = Pid::from_raw(pid);
+        if getsid(Some(pid)).is_ok_and(|s| s.as_raw() == session) {
+            let _ = nix::sys::signal::kill(pid, nix::sys::signal::Signal::SIGKILL);
         }
     }
 }
